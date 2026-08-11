@@ -19,6 +19,10 @@ from .inventory.analyzer_router import AnalyzerRouter
 from .inventory.language_classifier import LanguageClassifier
 from .parsers.structural_augmentor import StructuralAugmentor
 from .graph.evidence_graph_assembler import EvidenceGraphAssembler
+from .evidence.terminal_state_handler import (
+    CleanupBlockedError,
+    verify_workspace_cleanup_sync,
+)
 from .snapshot_service_client import SnapshotArchiveRequest, SnapshotServiceClient
 from .ts_js_bridge.bridge import TsJsBridge
 from .ts_js_bridge.bridge_types import TsJsCoverageLimitation
@@ -293,6 +297,7 @@ class ScanConsumer(ConsumerBase):
                 evidence_graph=evidence_graph,
                 scan_coverage=classifications,
             )
+            self._finalize_workspace_cleanup(envelope.scan_job_id)
             self._api_client.post_scan_callback(
                 envelope.scan_job_id,
                 callback_payload,
@@ -309,13 +314,26 @@ class ScanConsumer(ConsumerBase):
                 scan_job_id=envelope.scan_job_id,
                 error_code=error.error_code,
             )
+            self._finalize_workspace_cleanup(envelope.scan_job_id)
             raise
-        except Exception:
-            if result is None:
-                self._workspace.cleanup(envelope.scan_job_id)
+        except Exception as error:
+            try:
+                self._finalize_workspace_cleanup(envelope.scan_job_id)
+            except CleanupBlockedError as cleanup_error:
+                raise cleanup_error from error
             raise
-        finally:
-            self._workspace.cleanup(envelope.scan_job_id)
+
+    def _finalize_workspace_cleanup(self, job_id: str) -> None:
+        workspace_path = self._workspace.workspace_path(job_id)
+        try:
+            self._workspace.cleanup(job_id)
+        except ArchiveMaterializationError:
+            raise
+
+        try:
+            verify_workspace_cleanup_sync(workspace_path)
+        except CleanupBlockedError as error:
+            raise ArchiveMaterializationError(str(error)) from error
 
     def _read_envelope(self, message: dict, correlation_id: str) -> ScanJobEnvelope:
         scan_job_id = self._read_field(message, "scan_job_id", "scanJobId")
