@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { HttpStatus, Injectable } from "@nestjs/common";
 import {
@@ -60,11 +60,25 @@ export class LegalCorpusService {
       );
     }
 
+    // Capture ingestion provenance metadata
+    const ingestionRunId = input.ingestionRunId || randomUUID();
+    const retrievedAt = input.retrievedAt
+      ? new Date(input.retrievedAt)
+      : new Date();
+    const enrichedManifest = {
+      ...input.sourceManifest,
+      ingestionMetadata: {
+        ingestionRunId,
+        retrievedAt: retrievedAt.toISOString(),
+        importedAt: new Date().toISOString(),
+      },
+    };
+
     return this.prisma.$transaction(async (tx) => {
       const corpus = await tx.legalCorpusVersion.create({
         data: {
           version: input.version,
-          sourceManifest: input.sourceManifest as Prisma.InputJsonValue,
+          sourceManifest: enrichedManifest,
           status: toPrismaLegalRuleLifecycleStatus(
             LEGAL_RULE_LIFECYCLE_STATUSES.draft,
           ),
@@ -266,6 +280,7 @@ export class LegalCorpusService {
           Boolean(document.title?.trim()) &&
           Boolean(document.sourceUrl?.trim()) &&
           isSha256(document.sourceSha256) &&
+          Array.isArray(document.chunks) &&
           document.chunks.length > 0 &&
           document.chunks.every(
             (chunk) =>

@@ -63,7 +63,12 @@ export class LegalRuleCatalogController {
   @UseGuards(PbacGuard)
   @RequireAction(PBAC_ACTIONS.legalCorpusIngest)
   async ingestCorpus(@Body() body: IngestLegalCorpusRequest) {
-    return resultEnvelope(await this.legalCorpus.ingestDraft(body));
+    return resultEnvelope(
+      await this.legalCorpus.ingestDraft({
+        ...body,
+        ingestionRunId: body.ingestionRunId || randomUUID(),
+      }),
+    );
   }
 
   @Post("corpus/:versionId/approve")
