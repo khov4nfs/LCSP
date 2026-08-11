@@ -25,6 +25,7 @@ interface OutboxRow {
   status: string;
   attempts: number;
   lastAttemptAt: Date | null;
+  nextAttemptAt: Date | null;
   publishedAt: Date | null;
   errorMessage: string | null;
   createdAt: Date;
@@ -72,6 +73,10 @@ export class OutboxRepository {
       const rows = await tx.$queryRaw<OutboxRow[]>`
         SELECT * FROM "OutboxMessage"
         WHERE status = ${OUTBOX_STATUSES.pending}
+          OR (
+            status = ${OUTBOX_STATUSES.failed}
+            AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= NOW())
+          )
         ORDER BY "createdAt" ASC
         LIMIT ${batchSize}
         FOR UPDATE SKIP LOCKED
@@ -115,6 +120,7 @@ export class OutboxRepository {
     maxAttempts: number,
     errorMessage: string,
     now: Date,
+    nextAttemptAt: Date | null,
   ): Promise<void> {
     const status: OutboxStatus =
       attempts >= maxAttempts ? OUTBOX_STATUSES.dlq : OUTBOX_STATUSES.failed;
@@ -125,6 +131,7 @@ export class OutboxRepository {
         status: toPrismaOutboxStatus(status),
         attempts,
         lastAttemptAt: now,
+        nextAttemptAt,
         errorMessage: errorMessage.slice(0, 500),
       },
     });
@@ -164,6 +171,7 @@ export class OutboxRepository {
       data: {
         status: toPrismaOutboxStatus(OUTBOX_STATUSES.pending),
         attempts: 0,
+        nextAttemptAt: null,
         errorMessage: null,
       },
     });

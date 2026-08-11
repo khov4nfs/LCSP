@@ -6,7 +6,7 @@ CORRELATION_ID_HEADER = "X-Correlation-Id"
 
 
 class CallbackPath(StrEnum):
-    SCAN = "/internal/callbacks/scan/{scan_job_id}"
+    SCAN = "/internal/scan-jobs/{scan_job_id}/callback"
     TECHNICAL_PROFILE = "/internal/evidence/technical-profile-callback"
     AI_USAGE_FLOW = "/internal/ai-usage-flow/callback"
     RECONCILIATION_CONFLICT = "/internal/reconciliation/conflict-callback"

@@ -32,7 +32,7 @@ Before ingestion, the internal operator validates:
 - retrieval policy and availability;
 - absence of user-supplied arbitrary fetch targets.
 
-Only a `LegalSource` with `validationStatus = VALIDATED` may be submitted for ingestion. Requests must prevent SSRF through host allowlisting, DNS/IP validation, redirect revalidation, response size limits, timeout, and content-type restrictions.
+Only a `LegalSource` resolved from the Admin-managed official-source catalog may be submitted for ingestion. Per-run manual source approval is not required. Requests must still prevent SSRF through catalog membership, host allowlisting, DNS/IP validation, redirect revalidation, response size limits, timeout, and content-type restrictions.
 
 ## Canonical Ingestion Command
 
@@ -132,7 +132,7 @@ POST /internal/v1/legal-corpus/versions/:versionId/reject
 
 Approval validates:
 
-- every source is validated;
+- every source resolves from the Admin-managed official-source catalog;
 - document number/type/title/issuer are correct;
 - issue/effective dates are present or explicitly reviewed;
 - `source_effect_status` is captured and consistent with the derived effective/repeal state (no unresolved `LEGAL_EFFECT_STATUS_CONFLICT`);
@@ -166,7 +166,7 @@ Retrieval remains blocked until the approved version has a successful ChromaDB l
 
 ## Audit Requirements
 
-Audit source validation, ingestion request/start/completion/failure, snapshot/hash creation, normalization warnings, review decision, corpus approval/rejection/supersession, and index-build request. Audit metadata is redacted and reference-only.
+Audit source-catalog resolution, ingestion request/start/completion/failure, snapshot/hash creation, normalization warnings, automated validation outcome, corpus activation/rejection/supersession, and index-build request. Audit metadata is redacted and reference-only.
 
 ## Acceptance
 
@@ -179,7 +179,7 @@ Audit source validation, ingestion request/start/completion/failure, snapshot/ha
 
 ## Non-Claims
 
-- Source validation does not guarantee permanent source availability.
+- Admin-managed source membership does not guarantee permanent source availability.
 - Corpus approval is not legal certification.
 - This specification does not authorize broad web crawling.
 - This document is not implementation-readiness certification.

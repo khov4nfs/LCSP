@@ -18,7 +18,6 @@ import type { SubmitWizardRequest } from "../../application/contracts/wizard/wiz
 import { SaveWizardDraftCommand } from "../../application/commands/save-wizard-draft/save-wizard-draft.command.js";
 import { SubmitWizardCommand } from "../../application/commands/submit-wizard/submit-wizard.command.js";
 import { GenerateReadinessExportCommand } from "../../application/commands/generate-readiness-export/generate-readiness-export.command.js";
-import { MockEvidenceCommand } from "../../application/commands/mock-evidence/mock-evidence.command.js";
 import { GetReadinessQuery } from "../../application/queries/get-readiness/get-readiness.query.js";
 import { DownloadReadinessExportQuery } from "../../application/queries/download-readiness-export/download-readiness-export.query.js";
 import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
@@ -183,35 +182,5 @@ export class WizardController {
     );
     response.setHeader("Cache-Control", "private, no-store");
     response.end(download.pdf);
-  }
-
-  @Post(":assessmentId/mock-evidence")
-  @HttpCode(200)
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.wizardWrite)
-  async mockEvidence(
-    @Param("assessmentId") assessmentId: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
-    const { userId, organizationId } = req.pbacContext;
-    const pbacContext = req.pbacContext;
-    const correlationId = req.correlationId || randomUUID();
-
-    return resultEnvelope(
-      await this.commandBus.execute(
-        new MockEvidenceCommand(
-          assessmentId,
-          organizationId,
-          userId,
-          correlationId,
-          {
-            subjectRole: pbacContext.subjectRole,
-            selectedAction: pbacContext.selectedAction,
-            policyId: pbacContext.policyId,
-            policyVersion: pbacContext.policyVersion,
-          },
-        ),
-      ),
-    );
   }
 }

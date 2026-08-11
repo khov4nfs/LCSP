@@ -14,8 +14,8 @@ import type { RepositorySnapshotRepository } from "../../ports/persistence/repos
 import { PinSnapshotCommand } from "./pin-snapshot.command.js";
 import { PinSnapshotHandler } from "./pin-snapshot.handler.js";
 
-describe("PinSnapshotHandler repository linking", () => {
-  it("links an unassigned repository to the assessment before persisting the snapshot", async () => {
+describe("PinSnapshotHandler repository reuse", () => {
+  it("keeps the repository reusable and links the assessment through its snapshot", async () => {
     const repositoryConnection = RepositoryConnection.rehydrate({
       id: "connection-1",
       assessmentId: null,
@@ -103,10 +103,10 @@ describe("PinSnapshotHandler repository linking", () => {
       ),
     );
 
-    expect(linkToAssessment).toHaveBeenCalledWith(
-      "connection-1",
-      "assessment-1",
-    );
+    expect(linkToAssessment).not.toHaveBeenCalled();
     expect(saveWithCreatedEvent).toHaveBeenCalledTimes(1);
+    const snapshot = saveWithCreatedEvent.mock.calls[0]?.[0];
+    expect(snapshot?.assessmentId).toBe("assessment-1");
+    expect(snapshot?.connectionId).toBe("connection-1");
   });
 });

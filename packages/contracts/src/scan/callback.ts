@@ -73,6 +73,13 @@ export const CLASSIFICATION_RESULT_STATUSES = {
 export type ClassificationResultStatus =
   (typeof CLASSIFICATION_RESULT_STATUSES)[keyof typeof CLASSIFICATION_RESULT_STATUSES];
 
+export const CLASSIFICATION_RERUN_STATUSES = {
+  queued: "QUEUED",
+} as const;
+
+export type ClassificationRerunStatus =
+  (typeof CLASSIFICATION_RERUN_STATUSES)[keyof typeof CLASSIFICATION_RERUN_STATUSES];
+
 export const CLASSIFICATION_GUARDRAIL_STATUSES = {
   passed: "PASSED",
   degraded: "DEGRADED",
@@ -99,18 +106,6 @@ export const LEGAL_MATCH_TYPES = {
 
 export type LegalMatchType =
   (typeof LEGAL_MATCH_TYPES)[keyof typeof LEGAL_MATCH_TYPES];
-
-export const APPROVED_CORPUS_VERSIONS = [
-  "LCSP-LEGAL-CORPUS-v0.1.0",
-  "v1.0.0",
-  "approved-v1",
-] as const;
-
-export const APPROVED_LEGAL_RULE_CATALOG_VERSIONS = [
-  "LCSP-RULE-CATALOG-v0.1.0",
-  "v1.0.0",
-  "approved-v1",
-] as const;
 
 export const SCAN_EVIDENCE_SCHEMA_VERSIONS = ["1.0.0"] as const;
 export const TECHNICAL_PROFILE_SCHEMA_VERSIONS = ["1.0.0"] as const;
@@ -140,9 +135,11 @@ export const SCAN_EVENT_TYPES = {
   conflictDismissedAudit: "CONFLICT_DISMISSED",
   noConflictsDetectedAudit: "NO_CONFLICTS_DETECTED",
   verifiedProfileAcceptedAudit: "VERIFIED_PROFILE_ACCEPTED",
+  verifiedProfileApprovedAudit: "VERIFIED_PROFILE_APPROVED",
   legalRuleMatchAcceptedAudit: "LEGAL_RULE_MATCH_ACCEPTED",
   legalRuleMatchBlockedAudit: "LEGAL_RULE_MATCH_BLOCKED",
   classificationAcceptedAudit: "CLASSIFICATION_ACCEPTED",
   classificationBlockedAudit: "CLASSIFICATION_BLOCKED",
+  classificationRerunTriggeredAudit: "CLASSIFICATION_RERUN_TRIGGERED",
   scanRerunTriggeredAudit: "SCAN_RERUN_TRIGGERED",
 } as const;

@@ -67,11 +67,13 @@ export type PagesMessages = {
     settings: string;
     wizard: string;
     readiness: string;
+    technicalEvidence: string;
     classification: string;
     documents: string;
     conflicts: string;
     developer: string;
     developers: string;
+    legalLibrary: string;
     secureWorkspace: string;
     signOut: string;
     switchWorkspace: string;
@@ -537,6 +539,50 @@ export type PagesMessages = {
       createAssessmentDetail: string;
     };
   };
+  legalLibrary: {
+    metadataTitle: string;
+    metadataDescription: string;
+    pageTitle: string;
+    pageDescription: string;
+    officialSourceLabel: string;
+    readDocument: string;
+    openOfficialSource: string;
+    downloadDocument: string;
+    documentReferenceLabel: string;
+    issuedOnLabel: string;
+    effectiveOnLabel: string;
+    authorityLabel: string;
+    documentUnavailableTitle: string;
+    documentUnavailableDescription: string;
+    riskTableTitle: string;
+    riskTableDescription: string;
+    riskTableDisclaimer: string;
+    chunkIdLabel: string;
+    documentLabel: string;
+    locatorLabel: string;
+    riskLevelLabel: string;
+    riskLevels: {
+      LOW: string;
+      MEDIUM: string;
+      HIGH: string;
+    };
+    documents: {
+      aiLaw: {
+        title: string;
+        reference: string;
+        issuedOn: string;
+        effectiveOn: string;
+        authority: string;
+      };
+      digitalTechnologyIndustryLaw: {
+        title: string;
+        reference: string;
+        issuedOn: string;
+        effectiveOn: string;
+        authority: string;
+      };
+    };
+  };
   workspaceSelector: {
     metadataTitle: string;
     metadataDescription: string;
@@ -872,6 +918,38 @@ export type PagesMessages = {
       exportingPdf: string;
     };
   };
+  technicalEvidence: {
+    pageTitle: string;
+    pageDescription: string;
+    connectionConnecting: string;
+    connectionConnected: string;
+    connectionDisconnected: string;
+    scanJobsTitle: string;
+    evidenceReportsTitle: string;
+    awaitingEvent: string;
+    lastUpdated: string;
+    noScanJobs: string;
+    noEvidenceReports: string;
+    scanJobLabel: string;
+    evidenceReportLabel: string;
+    updatedAt: string;
+    createdAt: string;
+    rerunScan: string;
+    rerunningScan: string;
+    rerunError: string;
+    scanStatuses: {
+      queued: string;
+      running: string;
+      completed: string;
+      failed: string;
+      blocked: string;
+      pending: string;
+    };
+    evidenceStatuses: {
+      accepted: string;
+      rejected: string;
+    };
+  };
   classification: {
     metadataTitle: string;
     metadataDescription: string;
@@ -882,6 +960,8 @@ export type PagesMessages = {
     referencesLabel: string;
     generateFinalReport: string;
     generateGapAnalysis: string;
+    rerunClassification: string;
+    rerunSubmitting: string;
     errorTitle: string;
     errorDetail: string;
     finalReportRequestedTitle: string;

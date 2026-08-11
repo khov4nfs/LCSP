@@ -1,4 +1,4 @@
-import { HttpStatus, Inject } from "@nestjs/common";
+import { HttpStatus, Inject, Logger } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import {
@@ -23,7 +23,10 @@ import { PrismaService } from "../../../../../infrastructure/prisma/prisma.servi
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { RepositorySnapshot } from "../../../domain/entities/repository-snapshot.entity.js";
-import { GitHubAppClient } from "../../../infrastructure/github/github-app.client.js";
+import {
+  GitHubAppClient,
+  GitHubAppClientError,
+} from "../../../infrastructure/github/github-app.client.js";
 import type { PinSnapshotDto } from "../../contracts/github-integration/pin-snapshot.contract.js";
 import {
   REPOSITORY_CONNECTION_REPOSITORY,
@@ -37,6 +40,8 @@ import { PinSnapshotCommand } from "./pin-snapshot.command.js";
 
 @CommandHandler(PinSnapshotCommand)
 export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
+  private readonly logger = new Logger(PinSnapshotHandler.name);
+
   constructor(
     @Inject(REPOSITORY_CONNECTION_REPOSITORY)
     private readonly connectionRepository: RepositoryConnectionRepository,
@@ -62,9 +67,7 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
       assessment.organizationId !== command.organizationId ||
       !connection ||
       connection.organizationId !== command.organizationId ||
-      connection.status !== REPOSITORY_CONNECTION_STATUSES.active ||
-      (connection.assessmentId !== null &&
-        connection.assessmentId !== command.assessmentId)
+      connection.status !== REPOSITORY_CONNECTION_STATUSES.active
     ) {
       await this.auditDenied(
         command,
@@ -117,16 +120,20 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
         repositoryFullName: connection.repositoryFullName,
         revision,
       });
-    } catch {
-      await this.auditDenied(
-        command,
-        GITHUB_INTEGRATION_ERROR_CODES.refNotResolvable,
+    } catch (error) {
+      const reasonCode = isInstallationAccessFailure(
+        error,
+        !commitSha && !ref && revision === connection.defaultBranch,
+      )
+        ? GITHUB_INTEGRATION_ERROR_CODES.permissionsInsufficient
+        : GITHUB_INTEGRATION_ERROR_CODES.refNotResolvable;
+      this.logger.warn(
+        `GitHub snapshot resolution failed: ${safeGitHubSnapshotFailureReason(error)}`,
       );
-      throw problemException(
-        GITHUB_INTEGRATION_ERROR_CODES.refNotResolvable,
-        command.correlationId,
-        { status: HttpStatus.BAD_REQUEST },
-      );
+      await this.auditDenied(command, reasonCode);
+      throw problemException(reasonCode, command.correlationId, {
+        status: HttpStatus.BAD_REQUEST,
+      });
     }
 
     if (resolved.repositoryFullName !== connection.repositoryFullName) {
@@ -139,24 +146,6 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
         command.correlationId,
         { status: HttpStatus.BAD_REQUEST },
       );
-    }
-
-    if (connection.assessmentId === null) {
-      const linked = await this.connectionRepository.linkToAssessment(
-        connection.id,
-        command.assessmentId,
-      );
-      if (!linked) {
-        await this.auditDenied(
-          command,
-          GITHUB_INTEGRATION_ERROR_CODES.connectionNotFound,
-        );
-        throw problemException(
-          GITHUB_INTEGRATION_ERROR_CODES.connectionNotFound,
-          command.correlationId,
-          { status: HttpStatus.NOT_FOUND },
-        );
-      }
     }
 
     const snapshot = RepositorySnapshot.create({
@@ -259,4 +248,29 @@ function clean(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+function isInstallationAccessFailure(
+  error: unknown,
+  isDefaultBranchRequest: boolean,
+): boolean {
+  if (!(error instanceof GitHubAppClientError)) {
+    return false;
+  }
+
+  return (
+    error.status === HttpStatus.UNAUTHORIZED ||
+    error.status === HttpStatus.FORBIDDEN ||
+    (error.status === HttpStatus.NOT_FOUND && isDefaultBranchRequest)
+  );
+}
+
+function safeGitHubSnapshotFailureReason(error: unknown): string {
+  if (!(error instanceof GitHubAppClientError)) {
+    return "github_snapshot_resolution_failed";
+  }
+
+  return error.status === null
+    ? error.message
+    : `${error.message}:${error.status}`;
 }

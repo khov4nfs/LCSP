@@ -62,17 +62,12 @@ class AnalyzerRouter:
             python_files,
             self._max_python_files,
         )
-        python_overflow = len(overflow_python_files)
         skipped_files.extend(overflow_python_files)
-        if python_overflow:
+        for file_path in overflow_python_files:
             coverage_limitations.append(
                 {
-                    "file_path": "<python-quota>",
-                    "reason": (
-                        "python_file_limit_exceeded: "
-                        f"analyzed={len(python_files)} skipped={python_overflow} "
-                        f"limit={self._max_python_files}"
-                    ),
+                    "file_path": file_path,
+                    "reason": f"python_file_limit_exceeded: limit={self._max_python_files}",
                 }
             )
 
@@ -80,17 +75,12 @@ class AnalyzerRouter:
             ts_js_files,
             self._max_ts_js_files,
         )
-        ts_js_overflow = len(overflow_ts_js_files)
         skipped_files.extend(overflow_ts_js_files)
-        if ts_js_overflow:
+        for file_path in overflow_ts_js_files:
             coverage_limitations.append(
                 {
-                    "file_path": "<ts-js-quota>",
-                    "reason": (
-                        "ts_js_file_limit_exceeded: "
-                        f"analyzed={len(ts_js_files)} skipped={ts_js_overflow} "
-                        f"limit={self._max_ts_js_files}"
-                    ),
+                    "file_path": file_path,
+                    "reason": f"ts_js_file_limit_exceeded: limit={self._max_ts_js_files}",
                 }
             )
 

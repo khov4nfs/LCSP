@@ -9,12 +9,17 @@ import {
   InternalScanController,
   ScanController,
 } from "./presentation/http/scan.controller.js";
+import { WorkspaceRuntimeEventsController } from "./presentation/http/workspace-runtime-events.controller.js";
 import { WorkerApiKeyGuard } from "./presentation/http/worker-api-key.guard.js";
 import { RerunScanHandler } from "./application/commands/rerun-scan/rerun-scan.handler.js";
 
 @Module({
   imports: [CqrsModule, PbacModule],
-  controllers: [ScanController, InternalScanController],
+  controllers: [
+    ScanController,
+    InternalScanController,
+    WorkspaceRuntimeEventsController,
+  ],
   providers: [
     GetScanJobHandler,
     ProcessScanCallbackHandler,

@@ -27,12 +27,24 @@ type VerifiedProfileRecord = {
   organizationId: string;
 };
 
+type FindApprovedVersionArgs = {
+  where?: {
+    id?: string;
+  };
+};
+
 describe("AcceptLegalRuleMatchHandler", () => {
   let handler: AcceptLegalRuleMatchHandler;
   let prisma: jest.Mocked<PrismaService>;
   let citationGuardrail: CitationGuardrailService;
   let mockFindFirstVerifiedProfile: jest.Mock<
     (args: unknown) => Promise<VerifiedProfileRecord | null>
+  >;
+  let mockFindApprovedCorpus: jest.Mock<
+    (args: FindApprovedVersionArgs) => Promise<{ id: string } | null>
+  >;
+  let mockFindApprovedCatalog: jest.Mock<
+    (args: FindApprovedVersionArgs) => Promise<{ id: string } | null>
   >;
   let mockCreateLegalRuleMatch: jest.Mock<
     (args: { data: unknown }) => Promise<unknown>
@@ -89,6 +101,26 @@ describe("AcceptLegalRuleMatchHandler", () => {
         organizationId: "org-123",
       });
 
+    mockFindApprovedCorpus = jest
+      .fn<(args: FindApprovedVersionArgs) => Promise<{ id: string } | null>>()
+      .mockImplementation((args) =>
+        Promise.resolve(
+          args.where?.id === "unapproved-corpus-v0"
+            ? null
+            : { id: String(args.where?.id ?? "") },
+        ),
+      );
+
+    mockFindApprovedCatalog = jest
+      .fn<(args: FindApprovedVersionArgs) => Promise<{ id: string } | null>>()
+      .mockImplementation((args) =>
+        Promise.resolve(
+          args.where?.id === "unapproved-catalog-v0"
+            ? null
+            : { id: String(args.where?.id ?? "") },
+        ),
+      );
+
     mockCreateLegalRuleMatch = jest
       .fn<(args: { data: unknown }) => Promise<unknown>>()
       .mockImplementation(({ data }: { data: unknown }) =>
@@ -102,6 +134,12 @@ describe("AcceptLegalRuleMatchHandler", () => {
       .mockResolvedValue(undefined);
 
     prisma = {
+      legalCorpusVersion: {
+        findFirst: mockFindApprovedCorpus,
+      },
+      legalRuleCatalogVersion: {
+        findFirst: mockFindApprovedCatalog,
+      },
       verifiedProfile: {
         findFirst: mockFindFirstVerifiedProfile,
       },
@@ -214,7 +252,7 @@ describe("AcceptLegalRuleMatchHandler", () => {
   it("T03: rejects citation chunk not in allowlist with CITATION_OUT_OF_ALLOWLIST", async () => {
     const invalidPayload: AcceptLegalRuleMatchDto = {
       ...validPayload,
-      citation_allowlist: ["chunk-1"], // missing chunk-2
+      citation_allowlist: ["chunk-1"],
     };
     const command = new AcceptLegalRuleMatchCommand(
       invalidPayload,

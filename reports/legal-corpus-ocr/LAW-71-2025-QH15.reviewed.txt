@@ -1,0 +1,116 @@
+LAW-71-2025-QH15 — REVIEWED TEXT ARTIFACT
+Review scope: LCSP repeal-target provisions
+Source document: Luật số 71/2025/QH15 — Luật Công nghiệp công nghệ số
+Source snapshot SHA-256: sha256:eeec330edbd54fff6e64f6917d16acb00c1d70b902ead332f6b0a92fa6515346
+
+NOTE
+This reviewed-text artifact is scoped to the exact provisions affected by Điều 33 of Luật 134/2025/QH15,
+plus Chapter IV boundaries needed to validate the range repeal.
+It is not a claim that every provision of the full statute was independently human-reviewed.
+Raw OCR remains immutable.
+
+Điều 3. Giải thích từ ngữ
+
+9. Hệ thống trí tuệ nhân tạo là hệ thống dựa trên máy móc được thiết kế để hoạt động với các mức độ tự chủ khác nhau và có khả năng thích ứng sau khi triển khai nhằm đạt được những mục tiêu rõ ràng hoặc ngầm định, suy luận từ dữ liệu đầu vào mà hệ thống này nhận được để tạo ra dự đoán, nội dung, khuyến nghị, quyết định có thể ảnh hưởng đến môi trường thực hoặc môi trường điện tử. Hệ thống trí tuệ nhân tạo là sản phẩm công nghệ số tích hợp giữa phần cứng, phần mềm và dữ liệu.
+
+Điều 4. Chính sách phát triển công nghiệp công nghệ số
+
+7. Đẩy mạnh phát triển, ứng dụng trí tuệ nhân tạo trong các ngành, lĩnh vực và các mặt của đời sống kinh tế - xã hội; đưa trí tuệ nhân tạo trở thành phương thức sản xuất mới; thúc đẩy mạnh mẽ năng lực nội sinh quốc gia, tạo ra những mô hình kinh tế mới với năng suất và giá trị vượt trội. Nhà nước có chính sách ưu đãi cao nhất để thúc đẩy nghiên cứu, phát triển, triển khai, sử dụng trí tuệ nhân tạo.
+
+Điều 12. Các hành vi bị nghiêm cấm
+
+6. Sử dụng, cung cấp, triển khai hệ thống trí tuệ nhân tạo để xâm phạm lợi ích quốc gia, dân tộc, quốc phòng, an ninh quốc gia, trật tự, an toàn xã hội, lợi ích công cộng; quyền con người, quyền công dân, quyền và lợi ích hợp pháp của tổ chức, cá nhân và phá hoại thuần phong mỹ tục.
+
+Điều 34. Hệ thống thông tin quốc gia, cơ sở dữ liệu công nghiệp công nghệ số
+
+2. Cơ sở dữ liệu công nghiệp công nghệ số thuộc Hệ thống thông tin quốc gia về công nghiệp công nghệ số, bao gồm các thông tin sau:
+đ) Hệ thống trí tuệ nhân tạo rủi ro cao; hệ thống trí tuệ nhân tạo tác động lớn; sản phẩm công nghệ số tạo ra bởi trí tuệ nhân tạo phải có dấu hiệu nhận dạng.
+
+Điều 40. Hỗ trợ, ưu đãi doanh nghiệp tham gia chuỗi cung ứng bán dẫn
+[Boundary sentinel: last article before Chapter IV. Full text outside current repeal-target scope.]
+
+Chương IV
+TRÍ TUỆ NHÂN TẠO
+
+Điều 41. Nguyên tắc phát triển, cung cấp, triển khai sử dụng trí tuệ nhân tạo
+
+1. Nguyên tắc phát triển, cung cấp, triển khai sử dụng trí tuệ nhân tạo:
+a) Phục vụ sự thịnh vượng và hạnh phúc của con người, lấy con người làm trung tâm, nâng cao năng suất, hiệu quả công việc, thúc đẩy thông minh hóa; tiếp cận bao trùm, linh hoạt, công bằng và không phân biệt đối xử; tôn trọng các giá trị đạo đức, dân tộc; quyền con người, quyền công dân, quyền và lợi ích hợp pháp của tổ chức, cá nhân;
+b) Bảo đảm minh bạch, trách nhiệm giải trình, khả năng giải thích được; bảo đảm không vượt qua tầm kiểm soát của con người;
+c) Bảo đảm an toàn, an ninh mạng;
+d) Bảo đảm tuân thủ quy định pháp luật về dữ liệu, bảo vệ dữ liệu cá nhân;
+đ) Bảo đảm khả năng kiểm soát thuật toán, mô hình trí tuệ nhân tạo;
+e) Kiểm soát rủi ro trong suốt vòng đời của hệ thống trí tuệ nhân tạo;
+g) Bảo đảm tuân thủ pháp luật về bảo vệ quyền lợi người tiêu dùng và pháp luật khác có liên quan.
+
+2. Bộ trưởng, Thủ trưởng cơ quan ngang Bộ căn cứ tình hình thực tiễn để hướng dẫn nguyên tắc phát triển, cung cấp, triển khai sử dụng trí tuệ nhân tạo trong các ngành, lĩnh vực được phân công quy định tại Điều này.
+
+Điều 42. Chiến lược nghiên cứu, phát triển và ứng dụng trí tuệ nhân tạo
+
+1. Chiến lược nghiên cứu, phát triển và ứng dụng trí tuệ nhân tạo được xây dựng trên cơ sở định hướng phát triển kinh tế - xã hội, quốc phòng, an ninh; xu thế công nghệ toàn cầu; điều kiện, tiềm năng và thế mạnh của quốc gia nhằm nghiên cứu, phát triển và ứng dụng trí tuệ nhân tạo trong ngành, lĩnh vực bảo đảm hiệu quả, bền vững và có trách nhiệm.
+
+2. Nội dung cơ bản của Chiến lược nghiên cứu, phát triển và ứng dụng trí tuệ nhân tạo:
+a) Quan điểm, tầm nhìn và mục tiêu;
+b) Nhiệm vụ;
+c) Giải pháp thực hiện;
+d) Chương trình, đề án, dự án trọng điểm;
+đ) Kế hoạch, nguồn lực thực hiện.
+
+3. Chiến lược nghiên cứu, phát triển và ứng dụng trí tuệ nhân tạo được xây dựng theo từng thời kỳ và có kế hoạch triển khai hằng năm.
+
+4. Bộ Khoa học và Công nghệ chủ trì, phối hợp với Bộ, cơ quan ngang Bộ, chính quyền địa phương xây dựng, trình Thủ tướng Chính phủ ban hành Chiến lược nghiên cứu, phát triển và ứng dụng trí tuệ nhân tạo.
+
+Điều 43. Quản lý hệ thống trí tuệ nhân tạo
+
+1. Hệ thống trí tuệ nhân tạo rủi ro cao là hệ thống trí tuệ nhân tạo trong một số trường hợp sử dụng có khả năng gây ra rủi ro, tổn hại nghiêm trọng tới sức khỏe con người, quyền con người, quyền công dân, quyền và lợi ích hợp pháp của tổ chức, cá nhân, lợi ích công cộng và trật tự, an toàn xã hội, trừ một trong các trường hợp sau:
+a) Nhằm thực hiện một hoặc một số công việc cụ thể, tác động trong phạm vi hẹp;
+b) Nhằm hỗ trợ con người trong việc tối ưu hóa kết quả công việc;
+c) Nhằm thực hiện kiểm tra lỗi của các công việc do con người hoàn thành trước đó và không nhằm mục đích thay thế quyết định của con người.
+
+2. Hệ thống trí tuệ nhân tạo tác động lớn là hệ thống trí tuệ nhân tạo được sử dụng đa mục đích, có số lượng người sử dụng lớn, số lượng tham số lớn, khối lượng dữ liệu lớn.
+
+3. Yêu cầu quản lý đối với hệ thống trí tuệ nhân tạo quy định tại khoản 1 và khoản 2 Điều này bao gồm:
+a) Yêu cầu kỹ thuật;
+b) Minh bạch trong lưu trữ và cung cấp thông tin;
+c) Quản trị dữ liệu;
+d) Giám sát, kiểm tra;
+đ) An toàn, an ninh mạng;
+e) Yêu cầu cần thiết khác.
+
+4. Chính phủ quy định chi tiết khoản 3 Điều này theo yêu cầu quản lý hệ thống trí tuệ nhân tạo của từng ngành, lĩnh vực.
+
+Điều 44. Quy định dấu hiệu nhận dạng đối với hệ thống trí tuệ nhân tạo
+
+1. Hệ thống trí tuệ nhân tạo tương tác trực tiếp với con người phải có thông báo cho người sử dụng biết việc đang tương tác với hệ thống trí tuệ nhân tạo, trừ trường hợp người sử dụng hiển nhiên biết về việc đang tương tác với hệ thống trí tuệ nhân tạo.
+
+2. Sản phẩm công nghệ số thuộc Danh mục sản phẩm công nghệ số tạo ra bởi trí tuệ nhân tạo phải có dấu hiệu nhận dạng để người sử dụng hoặc máy nhận biết.
+
+3. Bộ trưởng Bộ Khoa học và Công nghệ có trách nhiệm:
+a) Ban hành Danh mục sản phẩm công nghệ số tạo ra bởi trí tuệ nhân tạo quy định tại khoản 2 Điều này;
+b) Tổ chức kiểm tra việc thực hiện quy định tại khoản 1 và khoản 2 Điều này.
+
+Điều 45. Trách nhiệm của các chủ thể trong hoạt động phát triển, cung cấp, triển khai sử dụng hệ thống trí tuệ nhân tạo
+
+1. Chủ thể trong hoạt động phát triển, cung cấp, triển khai sử dụng hệ thống trí tuệ nhân tạo bao gồm:
+a) Chủ thể phát triển hệ thống trí tuệ nhân tạo là tổ chức, cá nhân thực hiện hoạt động nghiên cứu và phát triển hệ thống trí tuệ nhân tạo;
+b) Chủ thể cung cấp hệ thống trí tuệ nhân tạo là tổ chức, cá nhân đưa hệ thống trí tuệ nhân tạo ra thị trường dưới tên nhãn hiệu thuộc sở hữu của chính chủ thể đó;
+c) Chủ thể triển khai sử dụng hệ thống trí tuệ nhân tạo là tổ chức, cá nhân có thẩm quyền quản lý đối với hệ thống trí tuệ nhân tạo.
+
+2. Chủ thể phát triển hệ thống trí tuệ nhân tạo có trách nhiệm tuân thủ nguyên tắc quy định tại Điều 41 của Luật này.
+
+3. Chủ thể cung cấp hệ thống trí tuệ nhân tạo có trách nhiệm:
+a) Tuân thủ nguyên tắc quy định tại Điều 41 của Luật này;
+b) Tuân thủ quy định tại Điều 44 của Luật này;
+c) Tuân thủ yêu cầu quản lý quy định tại Điều 43 của Luật này khi cung cấp hệ thống trí tuệ nhân tạo rủi ro cao, hệ thống trí tuệ nhân tạo tác động lớn.
+
+4. Chủ thể triển khai sử dụng hệ thống trí tuệ nhân tạo có trách nhiệm:
+a) Tuân thủ nguyên tắc quy định tại các điểm a, b, c, d, e và g khoản 1 và khoản 2 Điều 41 của Luật này;
+b) Tuân thủ yêu cầu quản lý quy định tại Điều 43 của Luật này khi triển khai sử dụng hệ thống trí tuệ nhân tạo rủi ro cao, hệ thống trí tuệ nhân tạo tác động lớn.
+
+Chương V
+TÀI SẢN SỐ
+
+Điều 46. Tài sản số
+[Boundary sentinel: first article after Chapter IV. Full text outside current repeal-target scope.]
+
+END OF REVIEWED LCSP SCOPE

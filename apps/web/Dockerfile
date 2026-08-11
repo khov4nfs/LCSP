@@ -14,6 +14,7 @@ RUN pnpm --filter @lcsp/web build
 ENV NODE_ENV=production
 ENV PORT=8080
 ENV HOSTNAME=0.0.0.0
+ENV LCSP_LEGAL_DOCUMENTS_DIR=/app/reports
 
 EXPOSE 8080
 

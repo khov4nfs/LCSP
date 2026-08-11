@@ -18,6 +18,7 @@ from .evidence_assembler import EvidenceAssembler, PrivacyAssertionError
 from .inventory.analyzer_router import AnalyzerRouter
 from .inventory.language_classifier import LanguageClassifier
 from .parsers.structural_augmentor import StructuralAugmentor
+from .graph.evidence_graph_assembler import EvidenceGraphAssembler
 from .snapshot_service_client import SnapshotArchiveRequest, SnapshotServiceClient
 from .ts_js_bridge.bridge import TsJsBridge
 from .ts_js_bridge.bridge_types import TsJsCoverageLimitation
@@ -41,7 +42,7 @@ class ScanJobEnvelope:
 
 class ScanConsumer(ConsumerBase):
     queue_name = "scan.triggered"
-    routing_key = "scan.triggered"
+    routing_key = "command.scan.requested.v1"
     scan_timeout_seconds = 600
 
     def __init__(
@@ -62,6 +63,7 @@ class ScanConsumer(ConsumerBase):
         api_client: WorkerApiClient | None = None,
         evidence_assembler: EvidenceAssembler | None = None,
         structural_augmentor: StructuralAugmentor | None = None,
+        evidence_graph_assembler: EvidenceGraphAssembler | None = None,
     ):
         super().__init__(config, pbac_client)
         self._snapshot_client = snapshot_client or SnapshotServiceClient(
@@ -86,6 +88,7 @@ class ScanConsumer(ConsumerBase):
         )
         self._evidence_assembler = evidence_assembler or EvidenceAssembler()
         self._structural_augmentor = structural_augmentor or StructuralAugmentor()
+        self._evidence_graph_assembler = evidence_graph_assembler or EvidenceGraphAssembler()
 
     def handle(self, message: dict, correlation_id: str) -> None:
         started_at = time.monotonic()
@@ -120,6 +123,7 @@ class ScanConsumer(ConsumerBase):
             )
 
             classification_limitations: list[dict[str, str]] = []
+            classifications = []
             routed_python_files: list[str] | None = None
             routed_ts_js_files: list[str] | None = None
             try:
@@ -244,20 +248,34 @@ class ScanConsumer(ConsumerBase):
             )
             structural_facts: list | None = None
             try:
+                self._structural_augmentor.set_workspace_path(result.workspace_path)
                 candidate_files = [
-                    *routed_python_files,
-                    *routed_ts_js_files,
+                    *(routed_python_files or []),
+                    *(routed_ts_js_files or []),
                 ]
                 structural_facts = self._structural_augmentor.augment(
                     files=candidate_files or [],
                     finding_ids=[finding.finding_id for finding in technical_findings],
                 )
+                coverage_notes.extend(self._structural_augmentor.last_coverage_notes)
             except Exception as error:
+                coverage_notes.append(
+                    "SCAN_COVERAGE_LIMITATION: "
+                    f"file=<workspace> reason=structural_augmentation_failed:{type(error).__name__}"
+                )
                 logger.warning(
                     "SCAN_STRUCTURAL_AUGMENTATION_FAILED",
                     scan_job_id=envelope.scan_job_id,
                     error=str(error),
                 )
+            evidence_graph = self._evidence_graph_assembler.assemble(
+                scan_job_id=envelope.scan_job_id,
+                workspace_path=result.workspace_path,
+                technical_findings=technical_findings,
+                structural_facts=structural_facts or [],
+                package_dependencies=package_dependencies,
+                coverage_notes=coverage_notes,
+            )
             callback_payload = self._evidence_assembler.assemble(
                 scan_job_id=envelope.scan_job_id,
                 syft_result=syft_result,
@@ -272,6 +290,8 @@ class ScanConsumer(ConsumerBase):
                 ts_js_analysis=ts_js_analysis,
                 technical_findings=technical_findings,
                 structural_facts=structural_facts,
+                evidence_graph=evidence_graph,
+                scan_coverage=classifications,
             )
             self._api_client.post_scan_callback(
                 envelope.scan_job_id,

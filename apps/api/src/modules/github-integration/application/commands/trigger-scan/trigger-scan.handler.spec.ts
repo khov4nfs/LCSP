@@ -254,6 +254,32 @@ describe("TriggerScanHandler", () => {
     expect(saveWithTriggeredEvent).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      "wait-safe missing commit context",
+      "",
+      REPOSITORY_SCAN_JOB_STATUSES.waitingForContext,
+    ],
+    [
+      "unsafe commit mapping",
+      "not-a-commit",
+      REPOSITORY_SCAN_JOB_STATUSES.blockedMapping,
+    ],
+  ])(
+    "persists %s without enqueueing a scan",
+    async (_caseName, commitSha, expectedStatus) => {
+      const { handler, save, saveWithTriggeredEvent } = buildHandler({
+        snapshot: { ...SNAPSHOT, commitSha },
+      });
+
+      const result = await handler.execute(command());
+
+      expect(result.status).toBe(expectedStatus);
+      expect(save.mock.calls[0]?.[0].status).toBe(expectedStatus);
+      expect(saveWithTriggeredEvent).not.toHaveBeenCalled();
+    },
+  );
+
   it("allows a trusted worker and rejects a manual actor outside ownership", async () => {
     const trusted = buildHandler();
     await expect(

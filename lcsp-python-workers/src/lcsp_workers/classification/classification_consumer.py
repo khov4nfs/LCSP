@@ -20,7 +20,7 @@ logger = get_logger(__name__)
 
 class ClassificationConsumer(ConsumerBase):
     queue_name = "classification.legal-rule-match-ready"
-    routing_key = "legal-rule-match-ready"
+    routing_key = "event.legal-rule-match.ready.v1"
     requires_pbac = False  # System event
 
     def __init__(

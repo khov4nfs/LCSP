@@ -132,30 +132,44 @@ export class GitHubAppCallbackHandler implements ICommandHandler<GitHubAppCallba
       );
     }
 
-    const connection = RepositoryConnection.create({
-      assessmentId: installState.assessmentId,
-      organizationId: installState.organizationId,
-      userId: installState.userId,
-      installationId: command.installationId,
-      repositoryId: metadata.repository.id,
-      repositoryName: metadata.repository.name,
-      repositoryFullName: metadata.repository.fullName,
-      defaultBranch: metadata.repository.defaultBranch,
-      permissions: metadata.permissions,
-    });
-    await this.repositoryConnectionRepository.save(connection);
+    const repositoriesToConnect = command.repositoryId
+      ? [metadata.repository]
+      : metadata.repositories;
+    const connections = repositoriesToConnect.map((repository) =>
+      RepositoryConnection.create({
+        assessmentId: installState.assessmentId,
+        organizationId: installState.organizationId,
+        userId: installState.userId,
+        installationId: command.installationId,
+        repositoryId: repository.id,
+        repositoryName: repository.name,
+        repositoryFullName: repository.fullName,
+        defaultBranch: repository.defaultBranch,
+        permissions: metadata.permissions,
+      }),
+    );
+
+    for (const connection of connections) {
+      await this.repositoryConnectionRepository.save(connection);
+    }
+
+    const primaryConnection = connections[0];
 
     await this.auditWriter.write({
       eventType: GITHUB_INTEGRATION_EVENT_TYPES.appConnected,
       actorId: installState.userId,
       organizationId: installState.organizationId,
       resourceType: AUDIT_RESOURCE_TYPES.repositoryConnection,
-      resourceId: connection.id,
+      resourceId: primaryConnection.id,
       correlationId: command.correlationId,
       decision: AUDIT_DECISIONS.allow,
       payload: {
-        connectionId: connection.id,
-        repositoryFullName: connection.repositoryFullName,
+        connectionId: primaryConnection.id,
+        connectionIds: connections.map((connection) => connection.id),
+        repositoryFullName: primaryConnection.repositoryFullName,
+        repositoryFullNames: connections.map(
+          (connection) => connection.repositoryFullName,
+        ),
         organizationId: installState.organizationId,
         userId: installState.userId,
         correlationId: command.correlationId,
@@ -163,11 +177,11 @@ export class GitHubAppCallbackHandler implements ICommandHandler<GitHubAppCallba
     });
 
     return {
-      connection_id: connection.id,
-      repository_name: connection.repositoryName,
-      repository_full_name: connection.repositoryFullName,
-      default_branch: connection.defaultBranch,
-      status: connection.status,
+      connection_id: primaryConnection.id,
+      repository_name: primaryConnection.repositoryName,
+      repository_full_name: primaryConnection.repositoryFullName,
+      default_branch: primaryConnection.defaultBranch,
+      status: primaryConnection.status,
       correlation_id: command.correlationId,
     };
   }

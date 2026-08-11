@@ -2,9 +2,15 @@ import {
   ASSESSMENT_ACTIONS,
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_LOCK_REASONS,
+  ASSESSMENT_MISSING_EVIDENCE_CODES,
   ASSESSMENT_STATUS_CODES,
   WIZARD_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
+import {
+  CLASSIFICATION_GUARDRAIL_STATUSES,
+  CLASSIFICATION_RESULT_STATUSES,
+  TECHNICAL_EVIDENCE_REPORT_STATUSES,
+} from "@lcsp/contracts/scan";
 import {
   PBAC_ACTIONS,
   PBAC_REASON_CODE,
@@ -14,8 +20,7 @@ import {
 import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
 /**
  * MW-asmt-002: Get Assessment Endpoint.
- * Test cases T01-T08 (T03 deferred to MW-evid-001 — no TechnicalEvidenceReport
- * table exists yet, so classification_locked is always true).
+ * Test cases T01-T08.
  */
 
 import * as assert from "node:assert/strict";
@@ -60,6 +65,8 @@ describe("Get Assessment Endpoint (e2e) [MW-asmt-002]", () => {
   });
 
   beforeEach(async () => {
+    await prisma.classificationResult.deleteMany();
+    await prisma.technicalEvidenceReport.deleteMany();
     await prisma.wizardProfile.deleteMany();
     await prisma.assessment.deleteMany();
     await resetAuthWorkspaceDatabase(prisma);
@@ -121,7 +128,108 @@ describe("Get Assessment Endpoint (e2e) [MW-asmt-002]", () => {
       body.readiness_state.lock_reason,
       ASSESSMENT_LOCK_REASONS.evidenceRequired,
     );
-    assert.ok(body.readiness_state.missing_evidence.length > 0);
+    assert.deepEqual(body.readiness_state.missing_evidence, [
+      ASSESSMENT_MISSING_EVIDENCE_CODES.technicalEvidenceReport,
+    ]);
+  });
+
+  it("T03b: Rejected technical evidence keeps the assessment projection locked", async () => {
+    const assessmentId = await createAssessment();
+    await prisma.technicalEvidenceReport.create({
+      data: {
+        id: "rejected-evidence-report",
+        scanJobId: "scan-job-rejected-evidence",
+        assessmentId,
+        snapshotId: "snapshot-rejected-evidence",
+        organizationId: orgId,
+        toolsVersion: { semgrep: "1.172.0" },
+        configHash: { semgrep: "sha256:test" },
+        evidencePayload: { findings: [] },
+        privacyFlags: { containsSourceCode: false, secretsRedacted: true },
+        schemaVersion: "1.0.0",
+        status: TECHNICAL_EVIDENCE_REPORT_STATUSES.rejected,
+      },
+    });
+
+    const result = await httpRequest(app)
+      .get(`/assessments/${assessmentId}`)
+      .set("Authorization", `Bearer ${managerToken}`);
+    const body = successBody<AssessmentDetailDto>(result);
+
+    assert.equal(body.readiness_state.classification_locked, true);
+    assert.equal(
+      body.readiness_state.lock_reason,
+      ASSESSMENT_LOCK_REASONS.evidenceRequired,
+    );
+    assert.deepEqual(body.readiness_state.missing_evidence, [
+      ASSESSMENT_MISSING_EVIDENCE_CODES.technicalEvidenceReport,
+    ]);
+  });
+
+  it("T03: Accepted technical evidence unlocks the assessment projection", async () => {
+    const assessmentId = await createAssessment();
+    await prisma.technicalEvidenceReport.create({
+      data: {
+        id: "accepted-evidence-report",
+        scanJobId: "scan-job-accepted-evidence",
+        assessmentId,
+        snapshotId: "snapshot-accepted-evidence",
+        organizationId: orgId,
+        toolsVersion: { semgrep: "1.172.0" },
+        configHash: { semgrep: "sha256:test" },
+        evidencePayload: { findings: [] },
+        privacyFlags: { containsSourceCode: false, secretsRedacted: true },
+        schemaVersion: "1.0.0",
+        status: TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+      },
+    });
+
+    const result = await httpRequest(app)
+      .get(`/assessments/${assessmentId}`)
+      .set("Authorization", `Bearer ${managerToken}`);
+    const body = successBody<AssessmentDetailDto>(result);
+
+    assert.equal(body.readiness_state.classification_locked, false);
+    assert.equal(body.readiness_state.lock_reason, null);
+    assert.deepEqual(body.readiness_state.missing_evidence, []);
+  });
+
+  it("T03c: Accepted classification result projects its guardrail status", async () => {
+    const assessmentId = await createAssessment();
+    await prisma.technicalEvidenceReport.create({
+      data: {
+        id: "accepted-evidence-for-classification",
+        scanJobId: "scan-job-classification",
+        assessmentId,
+        snapshotId: "snapshot-classification",
+        organizationId: orgId,
+        toolsVersion: { semgrep: "1.172.0" },
+        configHash: { semgrep: "sha256:test" },
+        evidencePayload: { findings: [] },
+        privacyFlags: { containsSourceCode: false, secretsRedacted: true },
+        schemaVersion: "1.0.0",
+        status: TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+      },
+    });
+    await prisma.classificationResult.create({
+      data: {
+        id: "classification-result-passed",
+        assessmentId,
+        organizationId: orgId,
+        guardrailStatus: CLASSIFICATION_GUARDRAIL_STATUSES.passed,
+        status: CLASSIFICATION_RESULT_STATUSES.accepted,
+      },
+    });
+
+    const result = await httpRequest(app)
+      .get(`/assessments/${assessmentId}`)
+      .set("Authorization", `Bearer ${managerToken}`);
+    const body = successBody<AssessmentDetailDto>(result);
+
+    assert.equal(
+      body.guardrail_status,
+      CLASSIFICATION_GUARDRAIL_STATUSES.passed,
+    );
   });
 
   // T04

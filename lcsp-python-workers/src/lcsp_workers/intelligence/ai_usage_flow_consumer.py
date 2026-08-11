@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 
 class AIUsageFlowConsumer(ConsumerBase):
     queue_name = "intelligence.technical-profile-ready"
-    routing_key = "technical-profile-ready"
+    routing_key = "event.technical-profile.ready.v1"
     requires_pbac = False
 
     def __init__(

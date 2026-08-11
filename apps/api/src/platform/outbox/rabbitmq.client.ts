@@ -1,6 +1,8 @@
 import * as amqp from "amqplib";
 import { Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
 
+export type RabbitMqMessageHeaders = Record<string, string>;
+
 @Injectable()
 export class RabbitMqClient implements OnModuleDestroy {
   private readonly logger = new Logger(RabbitMqClient.name);
@@ -18,12 +20,14 @@ export class RabbitMqClient implements OnModuleDestroy {
     exchange: string,
     routingKey: string,
     payload: Record<string, unknown>,
+    headers?: RabbitMqMessageHeaders,
   ): Promise<void> {
     const channel = await this.getChannel();
     const content = Buffer.from(JSON.stringify(payload));
     const accepted = channel.publish(exchange, routingKey, content, {
       contentType: "application/json",
       persistent: true,
+      ...(headers ? { headers } : {}),
     });
 
     if (!accepted) {

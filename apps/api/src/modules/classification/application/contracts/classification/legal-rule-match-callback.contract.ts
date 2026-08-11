@@ -12,6 +12,7 @@ export interface LegalRuleMatchItemDto {
   clause_ref: string;
   match_type: LegalMatchType;
   citation_chunk_ids: string[];
+  context_roles?: LegalMatchType[];
   confidence: number;
   coverage_status: OverallCoverageStatus;
   usage_claim_ref: string;

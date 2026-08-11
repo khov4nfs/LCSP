@@ -14,10 +14,13 @@ node_modules
 .env.*
 !.env.example
 output
-reports
+reports/*
+!reports/Luat_134_2025_QH15.pdf
+!reports/Luat-71-2025-qh15_0710195033.pdf
 docs
 docs-vn
 likec4
 .agents
 .ruler
 .rtk
+.venv

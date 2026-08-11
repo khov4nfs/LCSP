@@ -77,6 +77,9 @@ importers:
       amqplib:
         specifier: ^2.0.1
         version: 2.0.1
+      express:
+        specifier: ^5.2.1
+        version: 5.2.1(supports-color@8.1.1)
       joi:
         specifier: ^18.2.3
         version: 18.2.3

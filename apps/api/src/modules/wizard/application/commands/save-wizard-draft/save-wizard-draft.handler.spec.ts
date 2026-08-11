@@ -19,6 +19,7 @@ import {
 } from "../../../domain/exceptions/wizard.exceptions.js";
 import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
+import type { RepositorySnapshot } from "@prisma/client";
 
 import { jest } from "@jest/globals";
 
@@ -41,7 +42,7 @@ describe("SaveWizardDraftHandler", () => {
     } as unknown as jest.Mocked<AuditWriterService>;
 
     prismaService = {
-      repositoryConnection: {
+      repositorySnapshot: {
         findFirst: jest.fn(),
       },
     } as unknown as jest.Mocked<PrismaService>;
@@ -203,9 +204,9 @@ describe("SaveWizardDraftHandler", () => {
           status: WIZARD_STATUS_CODES.submitted,
         }),
       );
-      prismaService.repositoryConnection.findFirst.mockResolvedValue({
-        id: "repo-1",
-      } as any);
+      prismaService.repositorySnapshot.findFirst.mockResolvedValue({
+        id: "snapshot-1",
+      } as unknown as RepositorySnapshot);
 
       await expect(handler.execute(command)).rejects.toThrow(
         WizardAlreadySubmittedException,

@@ -25,6 +25,7 @@ import {
   LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
   SCAN_ERROR_CODES,
   SCAN_EVENT_TYPES,
+  VERIFIED_PROFILE_STATUSES,
   type ClassificationGuardrailStatus,
 } from "@lcsp/contracts/scan";
 import type { Prisma } from "@prisma/client";
@@ -33,6 +34,7 @@ import {
   fromPrismaLegalRuleMatchGuardrailStatus,
   toPrismaClassificationGuardrailStatus,
   toPrismaEvidenceAcceptanceStatus,
+  toPrismaVerifiedProfileStatus,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -71,6 +73,9 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
       where: {
         id: payload.verified_profile_id,
         assessmentId: payload.assessment_id,
+        status: toPrismaVerifiedProfileStatus(
+          VERIFIED_PROFILE_STATUSES.approved,
+        ),
       },
       select: {
         id: true,

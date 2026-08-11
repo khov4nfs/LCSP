@@ -11,7 +11,6 @@ import { SubmitWizardHandler } from "./application/commands/submit-wizard/submit
 import { GenerateReadinessExportHandler } from "./application/commands/generate-readiness-export/generate-readiness-export.handler.js";
 import { GetReadinessHandler } from "./application/queries/get-readiness/get-readiness.handler.js";
 import { DownloadReadinessExportHandler } from "./application/queries/download-readiness-export/download-readiness-export.handler.js";
-import { MockEvidenceHandler } from "./application/commands/mock-evidence/mock-evidence.handler.js";
 import { WizardValidatorService } from "./application/services/wizard/wizard-validator.service.js";
 import { ReadinessEvaluatorService } from "./application/services/wizard/readiness-evaluator.service.js";
 import { ReadinessExportGuardrailService } from "./application/services/wizard/readiness-export-guardrail.service.js";
@@ -34,7 +33,6 @@ import { ReadinessExportDocumentController } from "./presentation/http/readiness
     GenerateReadinessExportHandler,
     GetReadinessHandler,
     DownloadReadinessExportHandler,
-    MockEvidenceHandler,
     WizardValidatorService,
     ReadinessEvaluatorService,
     ReadinessExportGuardrailService,

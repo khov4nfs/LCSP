@@ -134,3 +134,50 @@ def test_t10_ai_invocation_nodes_tracking():
     assert len(graph.ai_invocation_nodes) == 2
     assert inv1 in graph.ai_invocation_nodes
     assert inv2 in graph.ai_invocation_nodes
+
+
+def test_t11_graph_identity_and_metadata_are_deterministic_and_traceable():
+    def build_graph():
+        builder = EvidenceGraphBuilder(
+            workspace_path="/workspace",
+            scan_job_id="scan-42",
+            repository_ref="repository:demo",
+            commit_sha="abc123",
+            tool_version="scanner-1.0.0",
+            config_hash="sha256:scanner-config",
+        )
+        file_id = builder.add_node(
+            "FILE",
+            "src/app.py",
+            "/workspace/src/app.py",
+            evidence_refs=["evidence:finding-1"],
+        )
+        invocation_id = builder.add_node(
+            "AI_MODEL_INVOCATION",
+            "client.responses.create",
+            "/workspace/src/app.py",
+            line_number=12,
+            finding_ids=["finding-1"],
+            evidence_refs=["evidence:finding-1"],
+        )
+        builder.add_edge(
+            "CALLS",
+            file_id,
+            invocation_id,
+            evidence_refs=["evidence:finding-1"],
+        )
+        return builder.build_scan_graph()
+
+    first = build_graph()
+    second = build_graph()
+
+    assert first.graph_id == second.graph_id
+    assert first.graph_hash == second.graph_hash
+    assert first.nodes == second.nodes
+    assert first.edges == second.edges
+    assert first.provenance["scan_job_id"] == "scan-42"
+    assert first.provenance["commit_sha"] == "abc123"
+    assert first.coverage_state == "SUFFICIENT"
+    assert first.nodes[0]["evidence_refs"] == ["evidence:finding-1"]
+    assert first.nodes[0]["provenance"]["tool_version"] == "scanner-1.0.0"
+    assert first.edges[0]["coverage_state"] == "SUFFICIENT"

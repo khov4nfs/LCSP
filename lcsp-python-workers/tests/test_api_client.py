@@ -39,6 +39,9 @@ def test_t01_successful_callback(client, dummy_payload):
         assert response.success is True
         assert response.message == "OK"
         mock_post.assert_called_once()
+        assert mock_post.call_args.args[0] == (
+            "http://testserver/internal/scan-jobs/job123/callback"
+        )
 
 def test_t02_5xx_response(client, dummy_payload):
     """T02: 5xx response is retried 3 times then raises WorkerCallbackError."""
@@ -139,6 +142,32 @@ def test_callback_payload_is_redacted_before_serialization(client):
         ]
 
 
+def test_scan_callback_preserves_boolean_privacy_flags(client):
+    payload = ScanCallbackPayload(
+        status="PARTIAL",
+        scan_job_id="job123",
+        tools_version={"scanner": "1.0.0"},
+        config_hash={"scanner": "sha256:test"},
+        evidence_payload={"coverage_notes": []},
+        privacy_flags={
+            "containsSourceCode": False,
+            "secretsRedacted": True,
+            "sourceStrippedFromFindings": True,
+        },
+    )
+
+    with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"success": True}
+        mock_post.return_value = mock_resp
+
+        client.post_scan_callback("job123", payload)
+
+        _, kwargs = mock_post.call_args
+        assert kwargs["json"]["privacy_flags"] == payload.privacy_flags
+
+
 def test_technical_profile_callback_uses_evidence_endpoint(client):
     payload = TechnicalProfileCallbackPayload(
         evidence_report_id="ter-1",
@@ -152,13 +181,40 @@ def test_technical_profile_callback_uses_evidence_endpoint(client):
     with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {"accepted": True}
+        mock_resp.json.return_value = {
+            "accepted": True,
+            "technical_profile_id": "technical-profile-1",
+        }
         mock_post.return_value = mock_resp
 
-        client.post_technical_profile_callback(payload)
+        response = client.post_technical_profile_callback(payload)
 
         url = mock_post.call_args.args[0]
         assert url == "http://testserver/internal/evidence/technical-profile-callback"
+        assert response.technical_profile_id == "technical-profile-1"
+
+
+def test_profile_already_exists_is_an_idempotent_callback_result(client):
+    payload = TechnicalProfileCallbackPayload(
+        evidence_report_id="ter-1",
+        assessment_id="assessment-1",
+        schema_version="1.0.0",
+        provider_version="lcsp.technical-profile-worker.v1",
+        profile_data={},
+        privacy_flags={"containsSourceCode": False, "secretsRedacted": True},
+    )
+
+    with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 409
+        mock_resp.json.return_value = {"problem": {"code": "PROFILE_ALREADY_EXISTS"}}
+        mock_post.return_value = mock_resp
+
+        response = client.post_technical_profile_callback(payload)
+
+    assert response.accepted is True
+    assert response.status == "duplicate"
+    assert mock_post.call_count == 1
 
 
 def test_get_accepted_technical_evidence_report_rejects_non_accepted(client):
@@ -228,13 +284,18 @@ def test_reconciliation_conflict_callback_uses_internal_endpoint(client):
     with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
-        mock_resp.json.return_value = {"accepted": True}
+        mock_resp.json.return_value = {
+            "accepted": True,
+            "conflict_count": 0,
+            "correlation_id": "correlation-1",
+        }
         mock_post.return_value = mock_resp
 
-        client.post_reconciliation_conflict_callback(payload)
+        response = client.post_reconciliation_conflict_callback(payload)
 
         url = mock_post.call_args.args[0]
         assert url == "http://testserver/internal/reconciliation/conflict-callback"
+        assert response.conflict_count == 0
 
 
 def test_verified_profile_callback_uses_reconciliation_endpoint(client):
@@ -309,13 +370,15 @@ def test_get_verified_profile_reconciliation_context_uses_internal_endpoint(clie
         mock_resp.json.return_value = {"ai_usage_flow": {"id": "auf-1"}}
         mock_get.return_value = mock_resp
 
-        data = client.get_verified_profile_reconciliation_context("assessment-1")
+        data = client.get_verified_profile_reconciliation_context(
+            "assessment-1", "auf-1"
+        )
 
         assert data == {"ai_usage_flow": {"id": "auf-1"}}
         url = mock_get.call_args.args[0]
         assert url == (
             "http://testserver/internal/reconciliation/"
-            "verified-profile-context/assessment-1"
+            "verified-profile-context/assessment-1?ai_usage_flow_id=auf-1"
         )
 
 

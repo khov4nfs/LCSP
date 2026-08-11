@@ -25,7 +25,7 @@ class PendingConflictsExist(RuntimeError):
 
 class VerifiedProfileConsumer(ConsumerBase):
     queue_name = "intelligence.all-conflicts-resolved"
-    routing_key = "reconciliation.all-conflicts-resolved"
+    routing_key = "event.reconciliation.all-conflicts-resolved.v1"
     requires_pbac = False
 
     def __init__(
@@ -44,9 +44,11 @@ class VerifiedProfileConsumer(ConsumerBase):
 
     def handle(self, message: dict, correlation_id: str) -> None:
         assessment_id = self._required_message_id(message, "assessmentId")
+        ai_usage_flow_id = self._optional_message_id(message, "aiUsageFlowId")
         conflicts_resolved_at = self._event_timestamp(message)
         context = self._api_client.get_verified_profile_reconciliation_context(
-            assessment_id
+            assessment_id,
+            ai_usage_flow_id,
         )
         ai_usage_flow = self._required_context_dict(context, "ai_usage_flow")
         conflict_records = self._conflict_records(context)
@@ -89,6 +91,13 @@ class VerifiedProfileConsumer(ConsumerBase):
         if not value:
             raise ValueError(f"missing {key}")
         return str(value)
+
+    def _optional_message_id(self, message: dict[str, Any], key: str) -> str | None:
+        snake_key = key[0].lower() + "".join(
+            f"_{char.lower()}" if char.isupper() else char for char in key[1:]
+        )
+        value = message.get(key) or message.get(snake_key)
+        return str(value) if value else None
 
     def _event_timestamp(self, message: dict[str, Any]) -> str:
         value = (

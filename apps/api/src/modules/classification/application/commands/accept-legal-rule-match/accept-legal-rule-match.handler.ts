@@ -17,22 +17,24 @@ import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
+import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
 import {
-  APPROVED_CORPUS_VERSIONS,
-  APPROVED_LEGAL_RULE_CATALOG_VERSIONS,
   LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
   LEGAL_RULE_MATCH_SCHEMA_VERSIONS,
   LEGAL_RULE_MATCH_STATUSES,
   OVERALL_COVERAGE_STATUSES,
   SCAN_ERROR_CODES,
   SCAN_EVENT_TYPES,
+  VERIFIED_PROFILE_STATUSES,
 } from "@lcsp/contracts/scan";
 import { Prisma } from "@prisma/client";
 
 import {
   toPrismaEvidenceAcceptanceStatus,
+  toPrismaLegalRuleLifecycleStatus,
   toPrismaLegalRuleMatchGuardrailStatus,
   toPrismaOverallCoverageStatus,
+  toPrismaVerifiedProfileStatus,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -60,13 +62,32 @@ export class AcceptLegalRuleMatchHandler implements ICommandHandler<AcceptLegalR
 
     const payload = command.payload;
 
-    if (!isApprovedCorpusVersion(payload.corpus_version_id)) {
+    const [corpus, catalog] = await Promise.all([
+      this.prisma.legalCorpusVersion.findFirst({
+        where: {
+          id: payload.corpus_version_id,
+          status: toPrismaLegalRuleLifecycleStatus(
+            LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+          ),
+        },
+        select: { id: true },
+      }),
+      this.prisma.legalRuleCatalogVersion.findFirst({
+        where: {
+          id: payload.legal_rule_catalog_version_id,
+          status: toPrismaLegalRuleLifecycleStatus(
+            LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+          ),
+        },
+        select: { id: true },
+      }),
+    ]);
+    if (!corpus) {
       throw new UnprocessableEntityException(
         this.errorBody(command, SCAN_ERROR_CODES.corpusVersionNotApproved),
       );
     }
-
-    if (!isApprovedRuleCatalogVersion(payload.legal_rule_catalog_version_id)) {
+    if (!catalog) {
       throw new UnprocessableEntityException(
         this.errorBody(command, SCAN_ERROR_CODES.ruleCatalogVersionNotApproved),
       );
@@ -76,6 +97,9 @@ export class AcceptLegalRuleMatchHandler implements ICommandHandler<AcceptLegalR
       where: {
         id: payload.verified_profile_id,
         assessmentId: payload.assessment_id,
+        status: toPrismaVerifiedProfileStatus(
+          VERIFIED_PROFILE_STATUSES.approved,
+        ),
       },
       select: {
         id: true,
@@ -288,32 +312,6 @@ export class AcceptLegalRuleMatchHandler implements ICommandHandler<AcceptLegalR
       status: HttpStatus.BAD_REQUEST,
     });
   }
-}
-
-function isApprovedCorpusVersion(version: string): boolean {
-  if (
-    (APPROVED_CORPUS_VERSIONS as readonly string[]).includes(version) ||
-    version.startsWith("approved") ||
-    version.startsWith("LCSP-LEGAL-CORPUS-") ||
-    version.startsWith("v")
-  ) {
-    return !version.includes("unapproved") && !version.includes("rejected");
-  }
-  return false;
-}
-
-function isApprovedRuleCatalogVersion(version: string): boolean {
-  if (
-    (APPROVED_LEGAL_RULE_CATALOG_VERSIONS as readonly string[]).includes(
-      version,
-    ) ||
-    version.startsWith("approved") ||
-    version.startsWith("LCSP-RULE-CATALOG-") ||
-    version.startsWith("v")
-  ) {
-    return !version.includes("unapproved") && !version.includes("rejected");
-  }
-  return false;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

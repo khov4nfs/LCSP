@@ -8,7 +8,7 @@ import { successJson } from "@/lib/server/problem-json";
 const MOCK_ASSET_PATH_SEGMENTS = ["src", "public", "assets", "mocks"] as const;
 
 export function isMockModeEnabled(): boolean {
-  return process.env.LCSP_USE_MOCKS === "true";
+  return false;
 }
 
 export async function mockJsonResponse(

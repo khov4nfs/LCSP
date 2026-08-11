@@ -20,6 +20,7 @@ export const SCAN_ERROR_CODES = {
   pendingConflictsExist: "PENDING_CONFLICTS_EXIST",
   verifiedProfileSchemaInvalid: "SCHEMA_INVALID",
   verifiedProfileNotFound: "VERIFIED_PROFILE_NOT_FOUND",
+  verifiedProfileWrongState: "VERIFIED_PROFILE_WRONG_STATE",
   corpusVersionNotApproved: "CORPUS_VERSION_NOT_APPROVED",
   ruleCatalogVersionNotApproved: "RULE_CATALOG_VERSION_NOT_APPROVED",
   citationOutOfAllowlist: "CITATION_OUT_OF_ALLOWLIST",

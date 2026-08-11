@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import {
   BadGatewayException,
   ConflictException,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { Readable } from "node:stream";
@@ -13,7 +14,10 @@ import {
 } from "@lcsp/contracts/github-integration";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import type { GitHubAppClient } from "../../../infrastructure/github/github-app.client.js";
+import {
+  GitHubAppClientError,
+  type GitHubAppClient,
+} from "../../../infrastructure/github/github-app.client.js";
 import { StreamSnapshotArchiveHandler } from "./stream-snapshot-archive.handler.js";
 import { StreamSnapshotArchiveQuery } from "./stream-snapshot-archive.query.js";
 
@@ -31,7 +35,7 @@ describe("StreamSnapshotArchiveHandler", () => {
     id: "scan-job-1",
     snapshotId: "snapshot-1",
     organizationId: "org-1",
-    status: REPOSITORY_SCAN_JOB_STATUSES.running,
+    status: REPOSITORY_SCAN_JOB_STATUSES.queued,
   };
 
   const connection = {
@@ -50,7 +54,8 @@ describe("StreamSnapshotArchiveHandler", () => {
       resolvedUrl: string;
       stream: NodeJS.ReadableStream;
     };
-    archiveError?: string;
+    archiveError?: Error;
+    claimCount?: number;
   }) {
     const hasOption = <K extends keyof NonNullable<typeof options>>(
       key: K,
@@ -62,6 +67,9 @@ describe("StreamSnapshotArchiveHandler", () => {
         findUnique: jest
           .fn<() => Promise<typeof scanJob | null | undefined>>()
           .mockResolvedValue(hasOption("scanJob") ? options?.scanJob : scanJob),
+        updateMany: jest
+          .fn<() => Promise<{ count: number }>>()
+          .mockResolvedValue({ count: options?.claimCount ?? 1 }),
       },
       repositorySnapshot: {
         findUnique: jest
@@ -80,7 +88,7 @@ describe("StreamSnapshotArchiveHandler", () => {
     } as unknown as PrismaService;
     const githubAppClient = {
       downloadRepositoryArchive: jest.fn().mockImplementation(() => {
-        if (options?.archiveError) throw new Error(options.archiveError);
+        if (options?.archiveError) throw options.archiveError;
         return (
           options?.archive ?? {
             contentType: "application/gzip",
@@ -118,6 +126,26 @@ describe("StreamSnapshotArchiveHandler", () => {
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
+  it("claims a queued scan job before streaming its archive", async () => {
+    const handler = buildHandler();
+
+    await expect(
+      handler.execute(
+        new StreamSnapshotArchiveQuery("snapshot-1", "scan-job-1", "corr-1"),
+      ),
+    ).resolves.toMatchObject({ snapshotId: "snapshot-1" });
+  });
+
+  it("rejects a queued scan job claimed by another worker", async () => {
+    const handler = buildHandler({ claimCount: 0 });
+
+    await expect(
+      handler.execute(
+        new StreamSnapshotArchiveQuery("snapshot-1", "scan-job-1", "corr-1"),
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
   it("rejects missing snapshot scope", async () => {
     const handler = buildHandler({ snapshot: null });
 
@@ -129,8 +157,14 @@ describe("StreamSnapshotArchiveHandler", () => {
   });
 
   it("maps archive retrieval failure to bad gateway", async () => {
+    const loggerError = jest
+      .spyOn(Logger.prototype, "error")
+      .mockImplementation(() => undefined);
     const handler = buildHandler({
-      archiveError: "github_repository_archive_unreachable",
+      archiveError: new GitHubAppClientError(
+        "github_repository_archive_failed",
+        404,
+      ),
     });
 
     await expect(
@@ -138,5 +172,18 @@ describe("StreamSnapshotArchiveHandler", () => {
         new StreamSnapshotArchiveQuery("snapshot-1", "scan-job-1", "corr-1"),
       ),
     ).rejects.toBeInstanceOf(BadGatewayException);
+
+    expect(loggerError).toHaveBeenCalledWith(
+      "GitHub snapshot archive retrieval failed: github_repository_archive_failed",
+      undefined,
+      expect.objectContaining({
+        correlationId: "corr-1",
+        githubStatus: 404,
+        repositoryFullName: "acme/example-repo",
+        scanJobId: "scan-job-1",
+        snapshotId: "snapshot-1",
+      }),
+    );
+    loggerError.mockRestore();
   });
 });

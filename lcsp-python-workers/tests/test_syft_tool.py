@@ -81,6 +81,30 @@ def test_syft_tool_returns_empty_list_when_no_packages(
 
 
 @pytest.mark.p0
+def test_syft_tool_accepts_the_supported_v1_release_line(
+    workspace_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config_path = workspace_dir / "syft-config.yaml"
+    config_path.write_text("output:\n  format: json\n", encoding="utf-8")
+
+    workspace = workspace_dir / "repo"
+    workspace.mkdir()
+
+    def fake_run(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        if "--version" in command:
+            return _completed(command, 0, stdout="syft 1.50.0\n")
+        return _completed(command, 0, stdout=json.dumps({"artifacts": []}))
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = SyftTool(config_path=config_path).run(workspace)
+
+    assert result.execution.outcome == OUTCOME_SUCCESS
+    assert result.execution.tool_version == "syft 1.50.0"
+
+
+@pytest.mark.p0
 def test_syft_tool_non_zero_exit_is_non_blocking_failure(
     workspace_dir: Path,
     monkeypatch: pytest.MonkeyPatch,

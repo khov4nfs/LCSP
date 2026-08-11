@@ -48,17 +48,35 @@ describe("OutboxRepository (e2e, real Postgres)", () => {
     });
   }
 
-  it("T07: excludes dlq/published/failed rows from the pending batch", async () => {
+  it("T07: excludes dlq, published, and not-yet-due failed rows from the pending batch", async () => {
     const pending = await seed();
     await seed({ status: OUTBOX_STATUSES.dlq });
     await seed({ status: OUTBOX_STATUSES.published, publishedAt: new Date() });
-    await seed({ status: OUTBOX_STATUSES.failed });
+    await seed({
+      status: OUTBOX_STATUSES.failed,
+      nextAttemptAt: new Date(Date.now() + 60_000),
+    });
 
     const ids = await repository.withPendingBatch(10, (messages) =>
       Promise.resolve(messages.map((m) => m.id)),
     );
 
     expect(ids).toEqual([pending.id]);
+  });
+
+  it("retries a failed row once its scheduled retry time is due", async () => {
+    const dueRetry = await seed({
+      status: OUTBOX_STATUSES.failed,
+      attempts: 1,
+      lastAttemptAt: new Date(Date.now() - 2_000),
+      nextAttemptAt: new Date(Date.now() - 1_000),
+    });
+
+    const ids = await repository.withPendingBatch(10, (messages) =>
+      Promise.resolve(messages.map((message) => message.id)),
+    );
+
+    expect(ids).toEqual([dueRetry.id]);
   });
 
   it("orders pending rows by createdAt ascending", async () => {

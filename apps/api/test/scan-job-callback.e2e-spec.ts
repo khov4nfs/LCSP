@@ -187,16 +187,15 @@ describe("Scan Job Callback Endpoint (e2e) [MW-scan-002]", () => {
     await assertNoMutation(prisma);
   });
 
-  it("T06 rejects a job that is not running", async () => {
+  it("T06 accepts a queued job and atomically completes it", async () => {
     await createJob(prisma, REPOSITORY_SCAN_JOB_STATUSES.queued);
     const response = await callback(app, validPayload());
+    const job = await prisma.repositoryScanJob.findUnique({
+      where: { id: "scan-job-1" },
+    });
 
-    assertError(
-      response.status,
-      response.body,
-      409,
-      SCAN_ERROR_CODES.jobWrongState,
-    );
+    assert.equal(response.status, 200);
+    assert.equal(job?.status, REPOSITORY_SCAN_JOB_STATUSES.completed);
   });
 
   it("T07 persists rejected evidence and fails the job", async () => {

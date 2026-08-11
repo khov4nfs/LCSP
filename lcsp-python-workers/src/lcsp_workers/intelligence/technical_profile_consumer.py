@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 
 class TechnicalProfileConsumer(ConsumerBase):
     queue_name = "intelligence.evidence-accepted"
-    routing_key = "scan.evidence-accepted"
+    routing_key = "event.technical-evidence.accepted.v1"
     requires_pbac = False
 
     def __init__(

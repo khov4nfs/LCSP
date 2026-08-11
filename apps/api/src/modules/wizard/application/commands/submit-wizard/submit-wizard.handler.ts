@@ -71,10 +71,12 @@ export class SubmitWizardHandler implements ICommandHandler<
     const profile =
       await this.wizardRepository.findByAssessmentId(assessmentId);
     if (profile && profile.status === WIZARD_STATUS_CODES.submitted) {
-      const repoConn = await this.prisma.repositoryConnection.findFirst({
-        where: { assessmentId },
-      });
-      if (repoConn) {
+      const repositorySnapshot = await this.prisma.repositorySnapshot.findFirst(
+        {
+          where: { assessmentId },
+        },
+      );
+      if (repositorySnapshot) {
         throw problemException(
           WIZARD_ERROR_CODES.alreadySubmitted,
           correlationId,

@@ -16,11 +16,11 @@ export const MANAGER_ONLY_ACTION_VALUES = [
   PBAC_ACTIONS.inviteDeveloper,
   PBAC_ACTIONS.membershipRevoke,
   PBAC_ACTIONS.assessmentSettingsManage,
+  PBAC_ACTIONS.legalCorpusIngest,
+  PBAC_ACTIONS.legalCorpusApprove,
 ] as const;
 
-export const MANAGER_ONLY_ACTIONS: string[] = [
-  ...MANAGER_ONLY_ACTION_VALUES,
-];
+export const MANAGER_ONLY_ACTIONS: string[] = [...MANAGER_ONLY_ACTION_VALUES];
 
 export type ManagerOnlyAction = (typeof MANAGER_ONLY_ACTION_VALUES)[number];
 

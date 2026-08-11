@@ -13,6 +13,9 @@ class StructuralAugmentor:
         self._parser = StructuralParser()
         self.last_coverage_notes: list[str] = []
 
+    def set_workspace_path(self, workspace_path: str | Path) -> None:
+        self._workspace_path = Path(workspace_path)
+
     def augment(
         self,
         *,
@@ -23,28 +26,16 @@ class StructuralAugmentor:
         facts: list[StructuralFact] = []
         self.last_coverage_notes = []
 
-        processed_count = 0
-        limit = 100
-        file_list = list(files)
-        for file_path in file_list:
-            if processed_count >= limit:
-                self.last_coverage_notes.append(
-                    "structural augmentation coverage limitation: processed 100 files, remaining files skipped"
-                )
-                break
-
-            if not finding_id_list:
-                break
-
+        for file_path in files:
             try:
                 parsed = self._parser.parse_file(self._resolve_path(file_path))
             except Exception:
                 self.last_coverage_notes.append(
-                    "structural augmentation coverage limitation: parser failed for file"
+                    "SCAN_COVERAGE_LIMITATION: "
+                    f"file={file_path} reason=structural_parser_failed"
                 )
                 continue
 
-            processed_count += 1
             for fact in parsed:
                 facts.append(
                     StructuralFact(
@@ -61,12 +52,6 @@ class StructuralAugmentor:
                         parse_source=fact.parse_source,
                     )
                 )
-
-        if len(file_list) > limit:
-            self.last_coverage_notes.append(
-                "structural augmentation coverage limitation: 100 file cap reached"
-            )
-
         return facts
 
     def _resolve_path(self, file_path: str | Path) -> Path:

@@ -9,6 +9,7 @@ import {
 import { ApproveRuleCatalogVersionHandler } from "./approve-rule-catalog-version.handler.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
+import { CitationLocatorValidatorService } from "../../services/citation-locator-validator.service.js";
 import { ApproveRuleCatalogVersionCommand } from "./approve-rule-catalog-version.command.js";
 import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
@@ -18,6 +19,7 @@ describe("ApproveRuleCatalogVersionHandler", () => {
   let handler: ApproveRuleCatalogVersionHandler;
   let prisma: jest.Mocked<PrismaService>;
   let auditWriter: jest.Mocked<AuditWriterService>;
+  let citationLocatorValidator: jest.Mocked<CitationLocatorValidatorService>;
 
   beforeEach(async () => {
     prisma = {
@@ -29,6 +31,17 @@ describe("ApproveRuleCatalogVersionHandler", () => {
         create: jest.fn<any>(),
       },
       legalRule: {
+        findMany: jest.fn<any>().mockResolvedValue([
+          {
+            citationLocatorRefs: [
+              {
+                legalCorpusVersionId: "corpus-1",
+                documentId: "doc-1",
+                locator: "art-1",
+              },
+            ],
+          },
+        ]),
         updateMany: jest.fn<any>(),
       },
       $transaction: jest.fn<any>((cb: any) => cb(prisma)),
@@ -39,11 +52,19 @@ describe("ApproveRuleCatalogVersionHandler", () => {
       writeInTx: jest.fn(),
     } as unknown as jest.Mocked<AuditWriterService>;
 
+    citationLocatorValidator = {
+      validateAll: jest.fn().mockResolvedValue(undefined),
+    } as unknown as jest.Mocked<CitationLocatorValidatorService>;
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ApproveRuleCatalogVersionHandler,
         { provide: PrismaService, useValue: prisma },
         { provide: AuditWriterService, useValue: auditWriter },
+        {
+          provide: CitationLocatorValidatorService,
+          useValue: citationLocatorValidator,
+        },
       ],
     }).compile();
 
@@ -88,6 +109,7 @@ describe("ApproveRuleCatalogVersionHandler", () => {
       approvedAt: expect.any(String),
     });
 
+    expect(citationLocatorValidator.validateAll).toHaveBeenCalled();
     expect(prisma.legalRuleCatalogVersion.update).toHaveBeenCalled();
     expect(prisma.ruleApprovalRecord.create).toHaveBeenCalled();
     expect(prisma.legalRule.updateMany).toHaveBeenCalled();

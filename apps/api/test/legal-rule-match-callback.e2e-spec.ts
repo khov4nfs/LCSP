@@ -13,8 +13,6 @@ import {
 } from "@lcsp/contracts/audit";
 import { OUTBOX_MESSAGE_SCHEMA_VERSION } from "@lcsp/contracts/outbox";
 import {
-  APPROVED_CORPUS_VERSIONS,
-  APPROVED_LEGAL_RULE_CATALOG_VERSIONS,
   LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
   LEGAL_RULE_MATCH_SCHEMA_VERSIONS,
   OVERALL_COVERAGE_STATUSES,
@@ -67,6 +65,7 @@ describe("LegalRuleMatch Callback Endpoint (e2e) [MW-cls-001]", () => {
       "org-1",
       "vp-1",
     );
+    await seedApprovedLegalAssets(prisma);
   });
 
   afterAll(async () => {
@@ -218,6 +217,23 @@ describe("LegalRuleMatch Callback Endpoint (e2e) [MW-cls-001]", () => {
     );
   });
 
+  it("T04d rejects legal matching for a pending VerifiedProfile", async () => {
+    await prisma.verifiedProfile.update({
+      where: { id: "vp-1" },
+      data: { status: VERIFIED_PROFILE_STATUSES.pendingApproval },
+    });
+
+    const response = await callback(app, validPayload());
+
+    assertError(
+      response.status,
+      response.body,
+      404,
+      SCAN_ERROR_CODES.verifiedProfileNotFound,
+    );
+    assert.equal(await prisma.legalRuleMatch.count(), 0);
+  });
+
   it("T05 preserves distinct PRIMARY_MATCH and REFERENCED_CONTEXT match types", async () => {
     const response = await callback(app, validPayload());
     const body = successBody<LegalRuleMatchCallbackResponseDto>(response);
@@ -272,8 +288,8 @@ function validPayload(
   return {
     verified_profile_id: "vp-1",
     assessment_id: "assessment-1",
-    corpus_version_id: APPROVED_CORPUS_VERSIONS[0],
-    legal_rule_catalog_version_id: APPROVED_LEGAL_RULE_CATALOG_VERSIONS[0],
+    corpus_version_id: "corpus-v1",
+    legal_rule_catalog_version_id: "catalog-v1",
     schema_version: LEGAL_RULE_MATCH_SCHEMA_VERSIONS[0],
     citation_allowlist: ["chunk-1", "chunk-2"],
     overall_coverage_status: OVERALL_COVERAGE_STATUSES.completeCitation,
@@ -281,7 +297,7 @@ function validPayload(
       {
         match_id: "match-1",
         rule_id: "AI-HIGH-IMPACT-01",
-        legal_rule_catalog_version_id: APPROVED_LEGAL_RULE_CATALOG_VERSIONS[0],
+        legal_rule_catalog_version_id: "catalog-v1",
         article_ref: "Art. 1",
         clause_ref: "Cl. 2",
         match_type: "PRIMARY_MATCH",
@@ -293,7 +309,7 @@ function validPayload(
       {
         match_id: "match-2",
         rule_id: "AI-HIGH-IMPACT-02",
-        legal_rule_catalog_version_id: APPROVED_LEGAL_RULE_CATALOG_VERSIONS[0],
+        legal_rule_catalog_version_id: "catalog-v1",
         article_ref: "Art. 5",
         clause_ref: "Cl. 1",
         match_type: "REFERENCED_CONTEXT",
@@ -312,6 +328,32 @@ async function resetDomainData(prisma: PrismaClient): Promise<void> {
   await prisma.verifiedProfile.deleteMany();
   await prisma.outboxMessage.deleteMany();
   await prisma.assessment.deleteMany();
+  await prisma.legalRuleCatalogVersion.deleteMany();
+  await prisma.corpusApprovalRecord.deleteMany();
+  await prisma.legalDocumentChunk.deleteMany();
+  await prisma.legalSourceDocument.deleteMany();
+  await prisma.legalCorpusVersion.deleteMany();
+}
+
+async function seedApprovedLegalAssets(prisma: PrismaClient): Promise<void> {
+  await prisma.legalCorpusVersion.create({
+    data: {
+      id: "corpus-v1",
+      version: "corpus-v1",
+      status: "APPROVED",
+      sourceManifest: {},
+      approvedAt: new Date(),
+    },
+  });
+  await prisma.legalRuleCatalogVersion.create({
+    data: {
+      id: "catalog-v1",
+      version: "catalog-v1",
+      status: "APPROVED",
+      ruleRefs: [],
+      approvedAt: new Date(),
+    },
+  });
 }
 
 async function seedAssessmentAndVerifiedProfile(
@@ -340,7 +382,9 @@ async function seedAssessmentAndVerifiedProfile(
       providerVersion: "verified-profile-worker@1.0.0",
       profileData: { verified: true },
       gatesPassedAt: { test: new Date().toISOString() },
-      status: VERIFIED_PROFILE_STATUSES.pendingApproval,
+      status: VERIFIED_PROFILE_STATUSES.approved,
+      approvedAt: new Date(),
+      approvedById: "user-1",
     },
   });
 }

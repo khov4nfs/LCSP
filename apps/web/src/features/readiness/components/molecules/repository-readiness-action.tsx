@@ -32,11 +32,9 @@ export function RepositoryReadinessAction({
       (repositoriesQuery.data ?? []).filter(
         (repository) =>
           repository.status === REPOSITORY_CONNECTION_STATUSES.active &&
-          repository.revoked_at === null &&
-          (repository.assessment_id === null ||
-            repository.assessment_id === assessmentId),
+          repository.revoked_at === null,
       ),
-    [assessmentId, repositoriesQuery.data],
+    [repositoriesQuery.data],
   );
 
   const selectedRepository = availableRepositories.find(
@@ -59,8 +57,7 @@ export function RepositoryReadinessAction({
       <section className="rounded-lg border border-dashed p-4">
         <h2 className="text-sm font-medium">Repository cho assessment</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Chưa có repository khả dụng. Hãy kết nối repository trong Settings hoặc
-          kiểm tra repository chưa được gắn với assessment khác.
+          Chưa có repository khả dụng. Hãy kết nối repository trong Settings.
         </p>
         <Button
           className="mt-3"
@@ -78,8 +75,8 @@ export function RepositoryReadinessAction({
     <section className="rounded-lg border border-dashed p-4">
       <h2 className="text-sm font-medium">Repository cho assessment</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        Chọn repository đã kết nối trong Settings. LCSP sẽ gắn repository vào
-        assessment này, pin commit mới nhất của branch mặc định và bắt đầu scan.
+        Chọn repository đã kết nối trong Settings. LCSP sẽ pin commit mới nhất
+        của branch mặc định cho assessment này và bắt đầu scan.
       </p>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -118,7 +115,7 @@ export function RepositoryReadinessAction({
           }}
         >
           {analysisMutation.isPending
-            ? "Đang liên kết và bắt đầu scan..."
+            ? "Đang tạo snapshot và bắt đầu scan..."
             : "Chọn repository"}
         </Button>
       </div>
@@ -127,8 +124,8 @@ export function RepositoryReadinessAction({
         <Alert variant="destructive" className="mt-4">
           <AlertTitle>Không thể bắt đầu phân tích repository</AlertTitle>
           <AlertDescription>
-            Repository chưa được liên kết hoặc scan chưa thể khởi chạy. Hãy kiểm
-            tra quyền truy cập và thử lại.
+            Không thể tạo snapshot hoặc khởi chạy scan. Hãy kiểm tra quyền truy
+            cập repository và thử lại.
           </AlertDescription>
         </Alert>
       ) : null}

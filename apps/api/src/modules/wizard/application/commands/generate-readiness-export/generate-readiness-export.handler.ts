@@ -77,7 +77,7 @@ export class GenerateReadinessExportHandler implements ICommandHandler<
 
     const [
       wizardProfile,
-      repositoryConnection,
+      repositorySnapshot,
       technicalEvidence,
       latest,
       organization,
@@ -92,7 +92,7 @@ export class GenerateReadinessExportHandler implements ICommandHandler<
           answers: true,
         },
       }),
-      this.prisma.repositoryConnection.findFirst({
+      this.prisma.repositorySnapshot.findFirst({
         where: { assessmentId: command.assessmentId },
         select: { id: true },
       }),
@@ -148,7 +148,7 @@ export class GenerateReadinessExportHandler implements ICommandHandler<
     const version = (latest?.version ?? 0) + 1;
     const generatedAt = new Date();
     const readiness = this.readinessEvaluator.evaluate({
-      hasRepositoryConnection: !!repositoryConnection,
+      hasRepositoryConnection: !!repositorySnapshot,
       hasAcceptedTechnicalEvidence: false,
       wizardStatus,
       wizardAnswers: Array.isArray(wizardProfile.answers)

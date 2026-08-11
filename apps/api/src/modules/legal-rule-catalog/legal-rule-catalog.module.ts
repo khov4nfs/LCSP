@@ -7,6 +7,8 @@ import { ApproveRuleCatalogVersionHandler } from "./application/commands/approve
 import { GetActiveRuleCatalogHandler } from "./application/queries/get-active-rule-catalog/get-active-rule-catalog.handler.js";
 import { GetActiveLegalCorpusHandler } from "./application/queries/get-active-legal-corpus/get-active-legal-corpus.handler.js";
 import { CitationLocatorValidatorService } from "./application/services/citation-locator-validator.service.js";
+import { LegalCorpusService } from "./application/services/legal-corpus.service.js";
+import { RuleCatalogVersionService } from "./application/services/rule-catalog-version.service.js";
 
 const Handlers = [
   DraftLegalRuleHandler,
@@ -18,6 +20,11 @@ const Handlers = [
 @Module({
   imports: [CqrsModule],
   controllers: [LegalRuleCatalogController],
-  providers: [...Handlers, CitationLocatorValidatorService],
+  providers: [
+    ...Handlers,
+    CitationLocatorValidatorService,
+    LegalCorpusService,
+    RuleCatalogVersionService,
+  ],
 })
 export class LegalRuleCatalogModule {}

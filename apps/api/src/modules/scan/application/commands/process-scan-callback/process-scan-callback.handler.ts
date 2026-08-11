@@ -4,6 +4,7 @@ import {
   ConflictException,
   HttpException,
   HttpStatus,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
@@ -47,6 +48,8 @@ const SCANNER_WORKER_ACTOR_ID = AUDIT_ACTOR_IDS.scannerWorker;
 
 @CommandHandler(ProcessScanCallbackCommand)
 export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCallbackCommand> {
+  private readonly logger = new Logger(ProcessScanCallbackHandler.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly validator: EvidenceSchemaValidatorService,
@@ -66,15 +69,27 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
     });
     if (!job) {
       throw new NotFoundException(
-        this.errorBody(command, SCAN_ERROR_CODES.jobNotFound),
+        this.errorBody(
+          command,
+          SCAN_ERROR_CODES.jobNotFound,
+          HttpStatus.NOT_FOUND,
+        ),
       );
     }
+    const currentJobStatus = fromPrismaRepositoryScanJobStatus(job.status);
     if (
-      fromPrismaRepositoryScanJobStatus(job.status) !==
-      REPOSITORY_SCAN_JOB_STATUSES.running
+      currentJobStatus !== REPOSITORY_SCAN_JOB_STATUSES.queued &&
+      currentJobStatus !== REPOSITORY_SCAN_JOB_STATUSES.running
     ) {
+      this.logger.warn(
+        `Scan callback rejected because job is not active: ${currentJobStatus}`,
+      );
       throw new ConflictException(
-        this.errorBody(command, SCAN_ERROR_CODES.jobWrongState),
+        this.errorBody(
+          command,
+          SCAN_ERROR_CODES.jobWrongState,
+          HttpStatus.CONFLICT,
+        ),
       );
     }
 
@@ -108,15 +123,26 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
       const transition = await tx.repositoryScanJob.updateMany({
         where: {
           id: job.id,
-          status: toPrismaRepositoryScanJobStatus(
-            REPOSITORY_SCAN_JOB_STATUSES.running,
-          ),
+          status: {
+            in: [
+              toPrismaRepositoryScanJobStatus(
+                REPOSITORY_SCAN_JOB_STATUSES.queued,
+              ),
+              toPrismaRepositoryScanJobStatus(
+                REPOSITORY_SCAN_JOB_STATUSES.running,
+              ),
+            ],
+          },
         },
         data: { status: toPrismaRepositoryScanJobStatus(nextJobStatus) },
       });
       if (transition.count !== 1) {
         throw new ConflictException(
-          this.errorBody(command, SCAN_ERROR_CODES.jobWrongState),
+          this.errorBody(
+            command,
+            SCAN_ERROR_CODES.jobWrongState,
+            HttpStatus.CONFLICT,
+          ),
         );
       }
 
@@ -256,9 +282,13 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
     );
   }
 
-  private errorBody(command: ProcessScanCallbackCommand, errorCode: string) {
+  private errorBody(
+    command: ProcessScanCallbackCommand,
+    errorCode: string,
+    status = HttpStatus.BAD_REQUEST,
+  ) {
     return problemResult(errorCode, command.correlationId, {
-      status: HttpStatus.BAD_REQUEST,
+      status,
     });
   }
 }

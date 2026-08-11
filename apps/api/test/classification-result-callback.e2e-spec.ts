@@ -226,6 +226,23 @@ describe("Classification Result Callback Endpoint (e2e) [MW-cls-002]", () => {
     );
   });
 
+  it("T05b rejects classification result for a pending VerifiedProfile", async () => {
+    await prisma.verifiedProfile.update({
+      where: { id: "vp-1" },
+      data: { status: VERIFIED_PROFILE_STATUSES.pendingApproval },
+    });
+
+    const response = await callback(app, validPayload());
+
+    assertError(
+      response.status,
+      response.body,
+      404,
+      SCAN_ERROR_CODES.verifiedProfileNotFound,
+    );
+    assert.equal(await prisma.classificationResult.count(), 0);
+  });
+
   it("T06 rejects duplicate result for same match with 409 RESULT_ALREADY_EXISTS", async () => {
     const firstRes = await callback(app, validPayload());
     assert.equal(firstRes.status, 200);
@@ -340,7 +357,9 @@ async function seedAssessmentVerifiedProfileAndMatch(
       providerVersion: "verified-profile-worker@1.0.0",
       profileData: { verified: true },
       gatesPassedAt: { test: new Date().toISOString() },
-      status: VERIFIED_PROFILE_STATUSES.pendingApproval,
+      status: VERIFIED_PROFILE_STATUSES.approved,
+      approvedAt: new Date(),
+      approvedById: "user-1",
     },
   });
 

@@ -352,6 +352,40 @@ describe("GitHubAppCallbackHandler", () => {
     expect(result.repository_full_name).toBe("acme/chosen-repo");
   });
 
+  it("creates connections for every repository returned by a multi-repository installation", async () => {
+    const { handler, save } = buildHandler({
+      repositories: [
+        {
+          id: "repo-1",
+          name: "first-repo",
+          fullName: "acme/first-repo",
+          defaultBranch: "main",
+        },
+        {
+          id: "repo-2",
+          name: "second-repo",
+          fullName: "acme/second-repo",
+          defaultBranch: "trunk",
+        },
+      ],
+    });
+
+    const result = await handler.execute(
+      new GitHubAppCallbackCommand(
+        "installation-1",
+        "code-1",
+        "state-token-1",
+        "corr-1",
+      ),
+    );
+
+    expect(result.repository_full_name).toBe("acme/first-repo");
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(
+      save.mock.calls.map(([connection]) => connection.repositoryFullName),
+    ).toEqual(["acme/first-repo", "acme/second-repo"]);
+  });
+
   // T08
   it("deletes the GitHubAppInstallState after a successful callback (one-time use)", async () => {
     const { handler, deleteById } = buildHandler();

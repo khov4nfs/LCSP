@@ -119,11 +119,24 @@ jobs:
             pnpm --dir apps/web exec eslint $files --fix
           fi
 
+      - name: Resolve autofix Jira key
+        id: autofix_ticket
+        if: github.event_name == 'pull_request' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true')
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          ticket="$(printf '%s\n' "$PR_TITLE" | grep -oE 'LCSP-[0-9]+' | head -n 1)"
+          if [ -z "$ticket" ]; then
+            echo "Unable to resolve LCSP Jira key from PR title: $PR_TITLE" >&2
+            exit 1
+          fi
+          echo "ticket=$ticket" >> "$GITHUB_OUTPUT"
+
       - name: Commit auto-fixes
         if: github.event_name == 'pull_request' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true')
         uses: autofix-ci/action@v1
         with:
-          commit-message: "ci: auto-fix imports and lint"
+          commit-message: "ci: ${{ steps.autofix_ticket.outputs.ticket }} auto-fix imports and lint"
 
       - name: Verify auto-fixes are committed
         if: github.event_name != 'pull_request' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true')

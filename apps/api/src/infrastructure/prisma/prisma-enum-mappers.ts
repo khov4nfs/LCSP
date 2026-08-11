@@ -797,6 +797,8 @@ const LEGAL_RULE_LIFECYCLE_STATUS_TO_PRISMA = {
     PrismaLegalRuleLifecycleStatus.APPROVED,
   [LEGAL_RULE_LIFECYCLE_STATUSES.rejected]:
     PrismaLegalRuleLifecycleStatus.REJECTED,
+  [LEGAL_RULE_LIFECYCLE_STATUSES.superseded]:
+    PrismaLegalRuleLifecycleStatus.SUPERSEDED,
 } as const satisfies Record<
   LegalRuleLifecycleStatus,
   PrismaLegalRuleLifecycleStatus
@@ -808,6 +810,8 @@ const PRISMA_LEGAL_RULE_LIFECYCLE_STATUS_TO_CONTRACT = {
     LEGAL_RULE_LIFECYCLE_STATUSES.approved,
   [PrismaLegalRuleLifecycleStatus.REJECTED]:
     LEGAL_RULE_LIFECYCLE_STATUSES.rejected,
+  [PrismaLegalRuleLifecycleStatus.SUPERSEDED]:
+    LEGAL_RULE_LIFECYCLE_STATUSES.superseded,
 } as const satisfies Record<
   PrismaLegalRuleLifecycleStatus,
   LegalRuleLifecycleStatus

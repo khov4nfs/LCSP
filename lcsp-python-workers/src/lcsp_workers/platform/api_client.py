@@ -1,4 +1,5 @@
 import time
+from urllib.parse import urlencode
 import httpx
 from structlog import get_logger
 
@@ -29,7 +30,16 @@ from lcsp_workers.platform.callback_schemas import (
 
 logger = get_logger(__name__)
 
-_IDEMPOTENT_CONFLICT_CODES = {"FLOW_ALREADY_EXISTS", "RESULT_ALREADY_EXISTS"}
+_IDEMPOTENT_CONFLICT_CODES = {
+    "FLOW_ALREADY_EXISTS",
+    "PROFILE_ALREADY_EXISTS",
+    "RESULT_ALREADY_EXISTS",
+}
+_PRIVACY_FLAG_KEYS = {
+    "containsSourceCode",
+    "secretsRedacted",
+    "sourceStrippedFromFindings",
+}
 
 
 class WorkerCallbackError(Exception):
@@ -258,7 +268,15 @@ class WorkerApiClient:
                     [signal for signal in signals if isinstance(signal, dict)]
                 )
             safe_payload["evidence_payload"] = safe_evidence_payload
-        return redact_dict(safe_payload)
+        redacted_payload = redact_dict(safe_payload)
+        privacy_flags = safe_payload.get("privacy_flags")
+        if isinstance(privacy_flags, dict):
+            redacted_payload["privacy_flags"] = {
+                key: value
+                for key, value in privacy_flags.items()
+                if key in _PRIVACY_FLAG_KEYS and isinstance(value, bool)
+            }
+        return redacted_payload
 
     def post_scan_callback(
         self, scan_job_id: str, payload: ScanCallbackPayload
@@ -339,10 +357,16 @@ class WorkerApiClient:
             raise WorkerCallbackError("Wizard profile response was invalid.")
         return data
 
-    def get_verified_profile_reconciliation_context(self, assessment_id: str) -> dict:
+    def get_verified_profile_reconciliation_context(
+        self,
+        assessment_id: str,
+        ai_usage_flow_id: str | None = None,
+    ) -> dict:
         path = InternalPath.VERIFIED_PROFILE_CONTEXT.format(
             assessment_id=assessment_id
         )
+        if ai_usage_flow_id:
+            path = f"{path}?{urlencode({'ai_usage_flow_id': ai_usage_flow_id})}"
         data = self._get_with_retry(path)
         if not isinstance(data, dict):
             raise WorkerCallbackError(
@@ -388,6 +412,13 @@ class WorkerApiClient:
         data = self._get_with_retry(path)
         if not isinstance(data, dict):
             raise WorkerCallbackError("Legal corpus response was invalid.")
+        return data
+
+    def get_legal_corpus_chunks(self, corpus_version_id: str) -> dict:
+        path = f"/internal/legal-rule-catalog/corpus/{corpus_version_id}/chunks"
+        data = self._get_with_retry(path)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Legal corpus chunks response was invalid.")
         return data
 
     def post_legal_rule_match_callback(

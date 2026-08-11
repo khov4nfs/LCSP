@@ -125,7 +125,7 @@ export class AcceptConflictHandler implements ICommandHandler<AcceptConflictComm
       const eventType =
         payload.conflicts.length > 0
           ? SCAN_EVENT_TYPES.reconciliationConflictsDetected
-          : SCAN_EVENT_TYPES.reconciliationNoConflicts;
+          : SCAN_EVENT_TYPES.reconciliationAllConflictsResolved;
       const auditType =
         payload.conflicts.length > 0
           ? SCAN_EVENT_TYPES.conflictDetectedAudit

@@ -30,3 +30,6 @@ class GraphNode:
     line_number: Optional[int]
     attributes: Dict
     finding_ids: List[str] = field(default_factory=list)
+    provenance: Dict = field(default_factory=dict)
+    coverage_state: str = "SUFFICIENT"
+    evidence_refs: List[str] = field(default_factory=list)

@@ -16,6 +16,13 @@ export interface AIUsageFlowCallbackRequest {
   claims: AIUsageFlowClaimRequest[];
   unknown_usages: Record<string, unknown>[];
   privacy_flags: Record<string, unknown>;
+  /**
+   * Sanitized deterministic worker artifact used to preserve rich claim
+   * field/value/lifecycle/confidence metadata. The API joins its claims to the
+   * compact callback claims by claim_id before persistence; it is not a second
+   * source of truth and must pass the same privacy validation.
+   */
+  flow_data?: Record<string, unknown>;
 }
 
 export interface AIUsageFlowCallbackDto {

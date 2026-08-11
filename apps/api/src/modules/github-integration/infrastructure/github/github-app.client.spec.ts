@@ -104,6 +104,56 @@ describe("GitHubAppClient.resolveCommit", () => {
       }),
     ).rejects.toThrow("github_commit_resolution_failed");
   });
+
+  it("retains an unsuccessful GitHub response status for the caller", async () => {
+    jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ token: "installation-token" }))
+      .mockResolvedValueOnce(new Response(null, { status: 403 }));
+
+    await expect(
+      client().resolveCommit({
+        installationId: "installation-1",
+        repositoryFullName: "acme/example-repo",
+        revision: "main",
+      }),
+    ).rejects.toMatchObject({
+      message: "github_app_metadata_fetch_failed",
+      status: 403,
+    });
+  });
+});
+
+describe("GitHubAppClient.downloadRepositoryArchive", () => {
+  it("uses the GitHub REST media type rather than requesting gzip from the API", async () => {
+    const sha = "a".repeat(40);
+    const archiveResponse = new Response("archive", {
+      headers: { "content-type": "application/gzip" },
+    });
+    Object.defineProperty(archiveResponse, "url", {
+      value: `https://codeload.github.com/acme/example-repo/tar.gz/${sha}`,
+    });
+    const fetchMock = jest
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(Response.json({ token: "installation-token" }))
+      .mockResolvedValueOnce(archiveResponse);
+
+    await client().downloadRepositoryArchive({
+      installationId: "installation-1",
+      repositoryFullName: "acme/example-repo",
+      commitSha: sha,
+    });
+
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      `https://api.github.com/repos/acme/example-repo/tarball/${sha}`,
+    );
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({
+      headers: expect.objectContaining({
+        accept: "application/vnd.github+json",
+        "x-github-api-version": "2022-11-28",
+      }),
+    });
+  });
 });
 
 describe("GitHubAppClient.fetchInstallationMetadata", () => {
@@ -162,7 +212,7 @@ describe("GitHubAppClient.fetchInstallationMetadata", () => {
     });
   });
 
-  it("rejects ambiguous multi-repository installations without a selected repository", async () => {
+  it("selects the first repository and returns all repository options when GitHub omits repository_id", async () => {
     jest
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(
@@ -189,11 +239,15 @@ describe("GitHubAppClient.fetchInstallationMetadata", () => {
         }),
       );
 
-    await expect(
-      client().fetchInstallationMetadata({
-        installationId: "1",
-        accessToken: "user-token",
-      }),
-    ).rejects.toThrow("github_app_repository_selection_failed");
+    const result = await client().fetchInstallationMetadata({
+      installationId: "1",
+      accessToken: "user-token",
+    });
+
+    expect(result.repository).toMatchObject({
+      id: "111",
+      fullName: "acme/first-repo",
+    });
+    expect(result.repositories).toHaveLength(2);
   });
 });

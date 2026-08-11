@@ -12,6 +12,7 @@ import {
   AUDIT_REDACTION_STATUSES,
 } from "@lcsp/contracts/audit";
 import { OUTBOX_MESSAGE_SCHEMA_VERSION } from "@lcsp/contracts/outbox";
+import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import {
   AI_USAGE_FLOW_STATUSES,
   CONFLICT_RECORD_STATUSES,
@@ -61,6 +62,7 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
     await resetDomainData(prisma);
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
+    await grantVerifiedProfileApproval(prisma);
     await seedAssessmentChain(prisma, "assessment-1", "org-1");
   });
 
@@ -69,7 +71,7 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
     if (prisma) await prisma.$disconnect();
   });
 
-  it("T01/T04 accepts resolved profile, stores it, emits ready event, and audits safe refs", async () => {
+  it("T01/T04 stores pending profile without emitting downstream ready event and audits safe refs", async () => {
     await seedConflicts(prisma, [
       { id: "conflict-1", status: CONFLICT_RECORD_STATUSES.resolved },
     ]);
@@ -100,11 +102,9 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
     assert.deepEqual(profile?.profileData, validPayload().profile_data);
     assert.deepEqual(profile?.gatesPassedAt, validPayload().gates_passed_at);
     assert.equal(profile?.status, VERIFIED_PROFILE_STATUSES.pendingApproval);
-    assert.equal(outbox?.aggregateId, body.verified_profile_id);
-    assert.equal(
-      (outbox?.payload as { schemaVersion?: string }).schemaVersion,
-      OUTBOX_MESSAGE_SCHEMA_VERSION,
-    );
+    assert.equal(profile?.approvedAt, null);
+    assert.equal(profile?.approvedById, null);
+    assert.equal(outbox, null);
     assert.equal(audit?.resourceId, body.verified_profile_id);
     assert.equal(
       (audit?.payload as { schemaVersion?: string }).schemaVersion,
@@ -117,6 +117,109 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
     assert.equal(
       (audit?.payload as { profileData?: unknown }).profileData,
       undefined,
+    );
+  });
+
+  it("T01b emits verified-profile-ready only after Manager approval", async () => {
+    await seedConflicts(prisma, [
+      { id: "conflict-1", status: CONFLICT_RECORD_STATUSES.resolved },
+    ]);
+
+    const generated = await callback(app, validPayload());
+    const generatedBody = successBody<VerifiedProfileCallbackDto>(generated);
+    const token = await signInManager(app);
+
+    const approved = await httpRequest(app)
+      .post(
+        `/assessments/assessment-1/verified-profiles/${generatedBody.verified_profile_id}/approve`,
+      )
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+    const approvedBody = successBody<{
+      verified_profile_id: string;
+      status: string;
+      approved_at: string;
+      approved_by_id: string;
+    }>(approved);
+
+    assert.equal(approved.status, 200);
+    assert.equal(
+      approvedBody.verified_profile_id,
+      generatedBody.verified_profile_id,
+    );
+    assert.equal(approvedBody.status, VERIFIED_PROFILE_STATUSES.approved);
+    assert.equal(approvedBody.approved_by_id, "user-1");
+    assert.ok(approvedBody.approved_at);
+
+    const [profile, outbox, audit] = await Promise.all([
+      prisma.verifiedProfile.findUnique({
+        where: { id: generatedBody.verified_profile_id },
+      }),
+      prisma.outboxMessage.findFirst({
+        where: {
+          eventType: SCAN_EVENT_TYPES.verifiedProfileReady,
+          aggregateId: generatedBody.verified_profile_id,
+        },
+      }),
+      prisma.authAuditEvent.findFirst({
+        where: {
+          eventType: SCAN_EVENT_TYPES.verifiedProfileApprovedAudit,
+          resourceId: generatedBody.verified_profile_id,
+        },
+      }),
+    ]);
+
+    assert.equal(profile?.status, VERIFIED_PROFILE_STATUSES.approved);
+    assert.equal(profile?.approvedById, "user-1");
+    assert.ok(profile?.approvedAt);
+    assert.equal(outbox?.aggregateId, generatedBody.verified_profile_id);
+    assert.equal(
+      (outbox?.payload as { schemaVersion?: string }).schemaVersion,
+      OUTBOX_MESSAGE_SCHEMA_VERSION,
+    );
+    assert.equal(
+      (outbox?.payload as { status?: string }).status,
+      VERIFIED_PROFILE_STATUSES.approved,
+    );
+    assert.equal(audit?.actorId, "user-1");
+    assert.equal(audit?.policyId, "policy-manager-workspace");
+    assert.equal(audit?.policyVersion, "2026-06-26");
+  });
+
+  it("T01c rejects duplicate Manager approval", async () => {
+    await seedConflicts(prisma, [
+      { id: "conflict-1", status: CONFLICT_RECORD_STATUSES.resolved },
+    ]);
+
+    const generated = await callback(app, validPayload());
+    const generatedBody = successBody<VerifiedProfileCallbackDto>(generated);
+    const token = await signInManager(app);
+    const path = `/assessments/assessment-1/verified-profiles/${generatedBody.verified_profile_id}/approve`;
+
+    const first = await httpRequest(app)
+      .post(path)
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+    assert.equal(first.status, 200);
+
+    const duplicate = await httpRequest(app)
+      .post(path)
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+    assertError(
+      duplicate.status,
+      duplicate.body,
+      409,
+      SCAN_ERROR_CODES.verifiedProfileWrongState,
+    );
+    assert.equal(
+      await prisma.outboxMessage.count({
+        where: {
+          eventType: SCAN_EVENT_TYPES.verifiedProfileReady,
+          aggregateId: generatedBody.verified_profile_id,
+        },
+      }),
+      1,
     );
   });
 
@@ -160,6 +263,48 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
 
     assert.equal(response.status, 401);
     await assertNoVerifiedProfileMutation(prisma);
+  });
+
+  it("returns the reconciliation context for the event AI usage flow", async () => {
+    await seedConflicts(prisma, [
+      { id: "conflict-1", status: CONFLICT_RECORD_STATUSES.resolved },
+    ]);
+    await prisma.wizardProfile.deleteMany({
+      where: { assessmentId: "assessment-1" },
+    });
+    await prisma.wizardProfile.create({
+      data: {
+        id: "reconciliation-context-wizard-1",
+        assessmentId: "assessment-1",
+        organizationId: "org-1",
+        ownerId: "user-1",
+        answers: { aiPurpose: "decision_support" },
+      },
+    });
+
+    const response = await httpRequest(app)
+      .get(
+        "/internal/reconciliation/verified-profile-context/assessment-1?ai_usage_flow_id=ai-flow-1",
+      )
+      .set("X-Worker-Api-Key", WORKER_KEY);
+    const body = successBody<{
+      ai_usage_flow: { id: string; claims: unknown };
+      conflicts: Array<{ conflict_id: string; status: string }>;
+      wizard_profile: { id: string; answers: unknown } | null;
+    }>(response);
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ai_usage_flow.id, "ai-flow-1");
+    assert.deepEqual(body.ai_usage_flow.claims, [{ claim_id: "claim-1" }]);
+    assert.equal(body.conflicts.length, 1);
+    assert.equal(body.conflicts[0]?.conflict_id, "conflict-1");
+    assert.equal(body.conflicts[0]?.status, CONFLICT_RECORD_STATUSES.resolved);
+    assert.deepEqual(body.wizard_profile, {
+      id: "reconciliation-context-wizard-1",
+      assessment_id: "assessment-1",
+      version: 1,
+      answers: { aiPurpose: "decision_support" },
+    });
   });
 
   it("T06 rejects mutation attempts after acceptance because no update path exists", async () => {
@@ -331,6 +476,37 @@ async function seedConflicts(
         : { resolvedAt: new Date(), resolvedById: "user-1" }),
     })),
   });
+}
+
+async function grantVerifiedProfileApproval(
+  prisma: PrismaClient,
+): Promise<void> {
+  const policy = await prisma.authPolicy.findUniqueOrThrow({
+    where: {
+      id_version: {
+        id: "policy-manager-workspace",
+        version: "2026-06-26",
+      },
+    },
+  });
+  await prisma.authPolicy.update({
+    where: { id_version: { id: policy.id, version: policy.version } },
+    data: {
+      actions: [
+        ...new Set([...policy.actions, PBAC_ACTIONS.verifiedProfileApprove]),
+      ],
+    },
+  });
+}
+
+async function signInManager(app: INestApplication): Promise<string> {
+  const response = await httpRequest(app).post("/auth/sign-in").send({
+    email: "manager@acme.test",
+    password: "CorrectHorseBatteryStaple!",
+    organization_id: "org-1",
+  });
+  assert.equal(response.status, 200, JSON.stringify(response.body));
+  return successBody<{ session_token: string }>(response).session_token;
 }
 
 async function assertNoVerifiedProfileMutation(

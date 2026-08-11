@@ -39,3 +39,6 @@ _bmad/
 .ua/
 **/.codebase-memory/
 **/.codex/
+.venv
+*.env.*
+fogewise-dev-launchers/

@@ -35,6 +35,7 @@ def _claim(**overrides: object) -> dict:
         "lifecycle_state": "VALIDATED",
         "evidence_refs": ["finding-invocation"],
         "confidence": 0.91,
+        "is_material": True,
     }
     claim.update(overrides)
     return claim
@@ -98,13 +99,15 @@ def test_t01_all_conflicts_resolved_submits_verified_profile() -> None:
     consumer.handle(
         {
             "assessmentId": "assessment-1",
+            "aiUsageFlowId": "auf-1",
             "conflictsResolvedAt": "2026-07-25T09:30:00Z",
         },
         correlation_id="corr-1",
     )
 
     api_client.get_verified_profile_reconciliation_context.assert_called_once_with(
-        "assessment-1"
+        "assessment-1",
+        "auf-1",
     )
     api_client.post_verified_profile_callback.assert_called_once()
     payload = api_client.post_verified_profile_callback.call_args.args[0]
@@ -115,6 +118,11 @@ def test_t01_all_conflicts_resolved_submits_verified_profile() -> None:
         "conflicts_resolved": "2026-07-25T09:30:00Z"
     }
     assert payload.profile_data["evidence_chain_integrity"] is True
+    assert payload.profile_data["merged_profile"]["invocationDetected"] is True
+    assert payload.profile_data["fact_evidence_refs"]["invocationDetected"] == [
+        "finding-invocation"
+    ]
+    assert payload.profile_data["evidence_refs"] == ["finding-invocation"]
 
 
 @pytest.mark.p0
@@ -153,6 +161,7 @@ def test_t03_material_claims_missing_evidence_refs_fail_integrity_flag() -> None
 
     assert profile.evidence_chain_integrity is False
     assert profile.verified_claims[0]["evidence_refs"] == []
+    assert profile.fact_evidence_refs == {}
 
 
 @pytest.mark.p0
@@ -178,6 +187,88 @@ def test_t04_builder_adds_no_new_claims() -> None:
         "claim-provider",
     ]
     assert profile.verified_claims == claims
+
+
+@pytest.mark.p0
+def test_legal_fact_evidence_requires_validated_claim_at_material_threshold() -> None:
+    profile = VerifiedProfileBuilder().build(
+        ai_usage_flow=_ai_usage_flow(
+            claims=[
+                _claim(
+                    claim_id="claim-automation",
+                    claim_field="automation_level",
+                    claim_value={"automationLevel": "FULLY_AUTOMATED"},
+                    confidence=0.91,
+                    evidence_refs=["ev-automation"],
+                ),
+                _claim(
+                    claim_id="claim-label",
+                    claim_category="CONTENT_LABELING",
+                    claim_field="content_labeling",
+                    claim_value={"contentLabelingStatus": "ABSENT"},
+                    confidence=0.70,
+                    evidence_refs=["ev-label"],
+                ),
+            ]
+        ),
+        conflict_records=[],
+        wizard_profile=None,
+        conflicts_resolved_at="2026-07-25T09:30:00Z",
+    )
+
+    # Reconciled facts remain visible, but only >= 0.75 evidence-backed material
+    # claims may become required-fact backing for legal matching.
+    assert profile.merged_profile["automationLevel"] == "FULLY_AUTOMATED"
+    assert profile.merged_profile["contentLabelingStatus"] == "ABSENT"
+    assert profile.fact_evidence_refs == {
+        "automationLevel": ["ev-automation"],
+    }
+    assert profile.evidence_refs == ["ev-automation"]
+
+
+@pytest.mark.p0
+def test_legal_fact_evidence_excludes_conflicted_claim() -> None:
+    profile = VerifiedProfileBuilder().build(
+        ai_usage_flow=_ai_usage_flow(
+            claims=[
+                _claim(
+                    claim_value={"automationLevel": "FULLY_AUTOMATED"},
+                    confidence=0.91,
+                    evidence_refs=["ev-automation"],
+                    conflict_refs=["conflict-1"],
+                )
+            ]
+        ),
+        conflict_records=[],
+        wizard_profile=None,
+        conflicts_resolved_at="2026-07-25T09:30:00Z",
+    )
+
+    assert profile.merged_profile["automationLevel"] == "FULLY_AUTOMATED"
+    assert profile.fact_evidence_refs == {}
+
+
+@pytest.mark.p0
+def test_legal_fact_evidence_excludes_non_material_claim() -> None:
+    profile = VerifiedProfileBuilder().build(
+        ai_usage_flow=_ai_usage_flow(
+            claims=[
+                _claim(
+                    claim_value={"automationLevel": "FULLY_AUTOMATED"},
+                    confidence=0.95,
+                    evidence_refs=["ev-automation"],
+                    is_material=False,
+                )
+            ]
+        ),
+        conflict_records=[],
+        wizard_profile=None,
+        conflicts_resolved_at="2026-07-25T09:30:00Z",
+    )
+
+    assert profile.merged_profile["automationLevel"] == "FULLY_AUTOMATED"
+    assert profile.fact_evidence_refs == {}
+    assert profile.evidence_refs == []
 
 
 @pytest.mark.p0
