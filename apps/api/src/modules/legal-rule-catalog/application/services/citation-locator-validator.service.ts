@@ -1,5 +1,11 @@
-import { Injectable } from "@nestjs/common";
+import { HttpStatus, Injectable } from "@nestjs/common";
+import {
+  LEGAL_RULE_ERROR_CODES,
+  LEGAL_RULE_LIFECYCLE_STATUSES,
+} from "@lcsp/contracts/legal-rule-catalog";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
+import { toPrismaLegalRuleLifecycleStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { problemException } from "../../../../platform/problems/problem-factory.js";
 export interface CitationLocatorRef {
   legalCorpusVersionId: string;
   documentId: string;
@@ -11,18 +17,38 @@ export class CitationLocatorValidatorService {
   constructor(private readonly prisma: PrismaService) {}
 
   async validateAll(refs: CitationLocatorRef[]): Promise<void> {
-    if (!refs || refs.length === 0) {
-      return;
+    if (!Array.isArray(refs) || refs.length === 0) {
+      throw problemException(
+        LEGAL_RULE_ERROR_CODES.citationUnresolved,
+        "citation-locator-validation",
+        { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      );
     }
-    // Stub implementation: LegalDocumentChunk does not exist in schema.prisma yet.
-    await Promise.resolve();
-    // In the future, this should query LegalDocumentChunk and check the status of each locator.
-    // For now, we will just return success so tests like T01 can pass,
-    // and tests like T02/T03 will mock this service to throw the expected exceptions.
 
-    // Example future implementation:
-    /*
     for (const ref of refs) {
+      if (!ref.legalCorpusVersionId || !ref.documentId || !ref.locator) {
+        throw problemException(
+          LEGAL_RULE_ERROR_CODES.citationUnresolved,
+          "citation-locator-validation",
+          { status: HttpStatus.UNPROCESSABLE_ENTITY },
+        );
+      }
+      const corpus = await this.prisma.legalCorpusVersion.findFirst({
+        where: {
+          id: ref.legalCorpusVersionId,
+          status: toPrismaLegalRuleLifecycleStatus(
+            LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+          ),
+        },
+        select: { id: true },
+      });
+      if (!corpus) {
+        throw problemException(
+          LEGAL_RULE_ERROR_CODES.citationUnresolved,
+          "citation-locator-validation",
+          { status: HttpStatus.UNPROCESSABLE_ENTITY },
+        );
+      }
       const chunk = await this.prisma.legalDocumentChunk.findFirst({
         where: {
           legalCorpusVersionId: ref.legalCorpusVersionId,
@@ -32,19 +58,20 @@ export class CitationLocatorValidatorService {
       });
 
       if (!chunk) {
-        throw new UnprocessableEntityException(
+        throw problemException(
           LEGAL_RULE_ERROR_CODES.citationUnresolved,
+          "citation-locator-validation",
+          { status: HttpStatus.UNPROCESSABLE_ENTITY },
         );
       }
 
       if (chunk.legalStatus === "REPEALED") {
-        throw new UnprocessableEntityException(
+        throw problemException(
           LEGAL_RULE_ERROR_CODES.citationRepealed,
+          "citation-locator-validation",
+          { status: HttpStatus.UNPROCESSABLE_ENTITY },
         );
       }
     }
-    */
-
-    return;
   }
 }

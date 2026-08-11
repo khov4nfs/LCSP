@@ -47,22 +47,23 @@ export class GetReadinessHandler implements IQueryHandler<
     }
 
     // Run parallel checks for related states
-    const [wizardProfile, repoConnection, evidenceReport] = await Promise.all([
-      this.prisma.wizardProfile.findUnique({
-        where: { assessmentId },
-      }),
-      this.prisma.repositoryConnection.findFirst({
-        where: { assessmentId },
-      }),
-      this.prisma.technicalEvidenceReport.findFirst({
-        where: {
-          assessmentId,
-          status: toPrismaEvidenceAcceptanceStatus(
-            TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
-          ),
-        },
-      }),
-    ]);
+    const [wizardProfile, repositorySnapshot, evidenceReport] =
+      await Promise.all([
+        this.prisma.wizardProfile.findUnique({
+          where: { assessmentId },
+        }),
+        this.prisma.repositorySnapshot.findFirst({
+          where: { assessmentId },
+        }),
+        this.prisma.technicalEvidenceReport.findFirst({
+          where: {
+            assessmentId,
+            status: toPrismaEvidenceAcceptanceStatus(
+              TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+            ),
+          },
+        }),
+      ]);
 
     const wizardStatus = wizardProfile
       ? fromPrismaWizardStatus(wizardProfile.status)
@@ -70,7 +71,7 @@ export class GetReadinessHandler implements IQueryHandler<
 
     // Evaluate readiness logic
     const evaluation = this.readinessEvaluator.evaluate({
-      hasRepositoryConnection: !!repoConnection,
+      hasRepositoryConnection: !!repositorySnapshot,
       hasAcceptedTechnicalEvidence: !!evidenceReport,
       wizardStatus,
       wizardAnswers: Array.isArray(wizardProfile?.answers)

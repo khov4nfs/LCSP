@@ -159,18 +159,6 @@ export function isReadinessPayload(payload: unknown): payload is {
   );
 }
 
-export async function mockProvideEvidence(
-  assessmentId: string,
-): Promise<boolean> {
-  const { ok } = await apiRequest(
-    `/api/assessments/${encodeURIComponent(assessmentId)}/mock-evidence`,
-    {
-      method: "POST",
-    },
-  );
-  return ok;
-}
-
 export async function generateReadinessExport(
   assessmentId: string,
 ): Promise<ReadinessExportOutcome> {

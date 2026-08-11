@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Iterable
 
-from lcsp_workers.platform.callback_schemas import ScanCallbackPayload
+from lcsp_workers.platform.callback_schemas import (
+    SCAN_CALLBACK_STATUSES,
+    ScanCallbackPayload,
+)
 from lcsp_workers.platform.redaction import redact_dict, redact_source_code
 from lcsp_workers.scanner.analyzers.ai_invocation_detector import TechnicalFinding
 from lcsp_workers.scanner.analyzers.python_analyzer import PythonAnalysisResult
@@ -13,6 +16,7 @@ from lcsp_workers.scanner.ts_js_bridge.bridge_types import TsJsBridgeResult
 from .parsers.structural_types import StructuralFact
 from .tools.semgrep_tool import SemgrepRunResult
 from .tools.syft_tool import SyftRunResult
+from .graph.graph_serializer import ScanGraph, serialize_graph
 from .tools.tool_base import OUTCOME_SUCCESS, ToolExecutionResult
 
 
@@ -63,6 +67,7 @@ class EvidenceAssembler:
         ts_js_analysis: TsJsBridgeResult | None = None,
         technical_findings: list[TechnicalFinding] | None = None,
         structural_facts: list[StructuralFact] | None = None,
+        evidence_graph: ScanGraph | None = None,
     ) -> ScanCallbackPayload:
         executions = [
             *( [syft_result.execution] if syft_result is not None else [] ),
@@ -93,6 +98,7 @@ class EvidenceAssembler:
                 asdict(record) for record in self._tool_failures(executions)
             ],
             "coverage_notes": list(coverage_notes),
+            "evidence_graph": serialize_graph(evidence_graph) if evidence_graph else None,
         }
         safe_evidence_payload = redact_dict(evidence_payload)
 
@@ -143,10 +149,10 @@ class EvidenceAssembler:
         outcomes = [execution.outcome for execution in executions]
         failed_count = sum(1 for outcome in outcomes if outcome != OUTCOME_SUCCESS)
         if failed_count == 0:
-            return "success", None
+            return SCAN_CALLBACK_STATUSES["success"], None
         if failed_count == len(outcomes):
-            return "failed", ALL_TOOLS_FAILED
-        return "partial", None
+            return SCAN_CALLBACK_STATUSES["failed"], ALL_TOOLS_FAILED
+        return SCAN_CALLBACK_STATUSES["partial"], None
 
     def _assert_privacy(
         self,

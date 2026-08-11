@@ -13,7 +13,14 @@ const ALLOWED_ARCHIVE_HOSTS = new Set([
   "github.com",
 ]);
 
-export class GitHubAppClientError extends Error {}
+export class GitHubAppClientError extends Error {
+  constructor(
+    message: string,
+    readonly status: number | null = null,
+  ) {
+    super(message);
+  }
+}
 
 export interface GitHubAppInstallationMetadata {
   permissions: Record<string, string>;
@@ -148,9 +155,7 @@ export class GitHubAppClient {
       ? repositoryOptions.find(
           (candidate) => candidate.id === input.repositoryId,
         )
-      : repositoryOptions.length === 1
-        ? repositoryOptions[0]
-        : null;
+      : repositoryOptions[0];
 
     if (repositoryOptions.length === 0 || !repository) {
       throw new GitHubAppClientError("github_app_repository_selection_failed");
@@ -223,7 +228,8 @@ export class GitHubAppClient {
         {
           headers: {
             authorization: `Bearer ${accessToken}`,
-            accept: "application/gzip",
+            accept: "application/vnd.github+json",
+            "x-github-api-version": "2022-11-28",
             "user-agent": "lcsp-api",
           },
         },
@@ -233,7 +239,10 @@ export class GitHubAppClient {
     }
 
     if (!response.ok || !response.body) {
-      throw new GitHubAppClientError("github_repository_archive_failed");
+      throw new GitHubAppClientError(
+        "github_repository_archive_failed",
+        response.status,
+      );
     }
 
     const resolvedUrl = new URL(response.url);
@@ -314,7 +323,10 @@ export class GitHubAppClient {
     }
 
     if (!response.ok) {
-      throw new GitHubAppClientError("github_app_metadata_fetch_failed");
+      throw new GitHubAppClientError(
+        "github_app_metadata_fetch_failed",
+        response.status,
+      );
     }
 
     return (await response.json().catch(() => null)) as T | null;
@@ -339,7 +351,10 @@ export class GitHubAppClient {
     }
 
     if (!response.ok) {
-      throw new GitHubAppClientError("github_app_api_request_failed");
+      throw new GitHubAppClientError(
+        "github_app_api_request_failed",
+        response.status,
+      );
     }
     return (await response.json().catch(() => null)) as T | null;
   }

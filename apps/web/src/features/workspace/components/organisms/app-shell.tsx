@@ -19,6 +19,7 @@ import type {
 } from "../../types/app-shell.types";
 import { AppHeader } from "../molecules/app-header";
 import { AppSidebar } from "./app-sidebar";
+import { WorkspaceRuntimeProvider } from "./workspace-runtime-provider";
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
@@ -57,15 +58,17 @@ export function AppShell({ children }: AppShellProps) {
         } as CSSProperties
       }
     >
-      <Suspense fallback={null}>
-        <AppSidebar sections={sections} />
-      </Suspense>
-      <SidebarInset>
-        <AppHeader />
-        <div className="@container/main flex min-h-0 flex-1 flex-col">
-          {children}
-        </div>
-      </SidebarInset>
+      <WorkspaceRuntimeProvider>
+        <Suspense fallback={null}>
+          <AppSidebar sections={sections} />
+        </Suspense>
+        <SidebarInset>
+          <AppHeader />
+          <div className="@container/main flex min-h-0 flex-1 flex-col">
+            {children}
+          </div>
+        </SidebarInset>
+      </WorkspaceRuntimeProvider>
     </SidebarProvider>
   );
 }

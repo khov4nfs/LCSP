@@ -8,15 +8,16 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { QueryBus } from "@nestjs/cqrs";
+import { pipeline } from "node:stream/promises";
 import type { Response } from "express";
 
-import { InternalTokenGuard } from "../../../../platform/internal-auth/internal-token.guard.js";
+import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import type { InternalSnapshotRequest } from "./dto/internal-snapshot.request.js";
 import { type SnapshotArchiveStreamResult } from "../../application/queries/stream-snapshot-archive/stream-snapshot-archive.handler.js";
 import { StreamSnapshotArchiveQuery } from "../../application/queries/stream-snapshot-archive/stream-snapshot-archive.query.js";
 
 @Controller("internal/repository-snapshots")
-@UseGuards(InternalTokenGuard)
+@UseGuards(WorkerApiKeyGuard)
 export class InternalSnapshotController {
   constructor(private readonly queryBus: QueryBus) {}
 
@@ -25,8 +26,8 @@ export class InternalSnapshotController {
     @Param("snapshotId") snapshotId: string,
     @Query("scanJobId") scanJobId: string,
     @Req() request: InternalSnapshotRequest,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+    @Res() response: Response,
+  ): Promise<void> {
     const correlationId = readHeader(request.headers["x-correlation-id"]);
     const result = await this.queryBus.execute<
       StreamSnapshotArchiveQuery,
@@ -43,7 +44,7 @@ export class InternalSnapshotController {
     response.setHeader("x-commit-sha", result.commitSha);
     response.setHeader("x-repository-full-name", result.repositoryFullName);
     response.setHeader("x-resolved-url", result.resolvedUrl);
-    result.stream.pipe(response);
+    await pipeline(result.stream, response);
   }
 }
 

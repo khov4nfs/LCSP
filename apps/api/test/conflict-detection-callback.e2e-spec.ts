@@ -135,7 +135,7 @@ describe("Conflict Detection Callback Endpoint (e2e) [MW-rec-001]", () => {
     );
   });
 
-  it("T02 accepts empty conflicts and emits no-conflicts event", async () => {
+  it("T02 accepts empty conflicts and emits all-conflicts-resolved event", async () => {
     const response = await callback(app, validPayload({ conflicts: [] }));
     const body = successBody<ConflictDetectionCallbackDto>(response);
 
@@ -146,7 +146,9 @@ describe("Conflict Detection Callback Endpoint (e2e) [MW-rec-001]", () => {
     const [records, outbox, audit] = await Promise.all([
       prisma.conflictRecord.count(),
       prisma.outboxMessage.findFirst({
-        where: { eventType: SCAN_EVENT_TYPES.reconciliationNoConflicts },
+        where: {
+          eventType: SCAN_EVENT_TYPES.reconciliationAllConflictsResolved,
+        },
       }),
       prisma.authAuditEvent.findFirst({
         where: { eventType: SCAN_EVENT_TYPES.noConflictsDetectedAudit },
@@ -323,7 +325,7 @@ async function assertNoConflictMutation(prisma: PrismaClient): Promise<void> {
         eventType: {
           in: [
             SCAN_EVENT_TYPES.reconciliationConflictsDetected,
-            SCAN_EVENT_TYPES.reconciliationNoConflicts,
+            SCAN_EVENT_TYPES.reconciliationAllConflictsResolved,
           ],
         },
       },

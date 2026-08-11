@@ -1,11 +1,13 @@
 import {
   ClipboardCheckIcon,
+  ActivityIcon,
   FileCheck2Icon,
   FileTextIcon,
   GaugeIcon,
   UsersIcon,
   LayoutDashboardIcon,
   ListChecksIcon,
+  LibraryBigIcon,
   ScaleIcon,
   ShieldCheckIcon,
 } from "lucide-react";
@@ -29,6 +31,11 @@ export const primaryNavigation = [
     href: "/assessments",
     labelKey: "pages.appShell.assessments",
     icon: ListChecksIcon,
+  },
+  {
+    href: "/laws",
+    labelKey: "pages.appShell.legalLibrary",
+    icon: LibraryBigIcon,
   },
 ] as const satisfies readonly NavigationDefinition[];
 
@@ -72,6 +79,12 @@ export function getAssessmentNavigation(
       href: `${basePath}/readiness`,
       labelKey: "pages.appShell.readiness",
       icon: GaugeIcon,
+      disabled,
+    },
+    {
+      href: `${basePath}/technical-evidence`,
+      labelKey: "pages.appShell.technicalEvidence",
+      icon: ActivityIcon,
       disabled,
     },
     {

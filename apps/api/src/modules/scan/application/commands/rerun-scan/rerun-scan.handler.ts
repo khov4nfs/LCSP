@@ -20,7 +20,7 @@ import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
-import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import { SCAN_EVENT_TYPES } from "@lcsp/contracts/scan";
 
 import {
@@ -161,6 +161,7 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
       actor: { id: pbac.userId, type: AUDIT_ACTOR_TYPES.user },
       result: SCAN_EVENT_TYPES.scanRerunTriggeredAudit,
       redactionStatus: AUDIT_REDACTION_STATUSES.none,
+      authorizationAction: PBAC_ACTIONS.scanTrigger,
       idempotencyKey: command.idempotencyKey,
       payload: {
         scanJobId: newScanJobId,

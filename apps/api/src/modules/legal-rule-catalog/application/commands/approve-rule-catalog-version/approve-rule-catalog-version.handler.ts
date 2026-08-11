@@ -18,6 +18,7 @@ import {
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { CitationLocatorValidatorService } from "../../services/citation-locator-validator.service.js";
 
 @CommandHandler(ApproveRuleCatalogVersionCommand)
 export class ApproveRuleCatalogVersionHandler implements ICommandHandler<
@@ -27,6 +28,7 @@ export class ApproveRuleCatalogVersionHandler implements ICommandHandler<
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditWriter: AuditWriterService,
+    private readonly citationLocatorValidator: CitationLocatorValidatorService,
   ) {}
 
   async execute(
@@ -54,6 +56,27 @@ export class ApproveRuleCatalogVersionHandler implements ICommandHandler<
         LEGAL_RULE_ERROR_CODES.catalogVersionAlreadyApproved,
         command.correlationId,
         { status: HttpStatus.CONFLICT },
+      );
+    }
+
+    const rules = await this.prisma.legalRule.findMany({
+      where: { legalRuleCatalogVersionId: command.legalRuleCatalogVersionId },
+      select: { citationLocatorRefs: true },
+    });
+    if (rules.length === 0) {
+      throw problemException(
+        LEGAL_RULE_ERROR_CODES.citationUnresolved,
+        command.correlationId,
+        { status: HttpStatus.UNPROCESSABLE_ENTITY },
+      );
+    }
+    for (const rule of rules) {
+      await this.citationLocatorValidator.validateAll(
+        rule.citationLocatorRefs as Array<{
+          legalCorpusVersionId: string;
+          documentId: string;
+          locator: string;
+        }>,
       );
     }
 

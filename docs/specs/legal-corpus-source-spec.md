@@ -8,7 +8,7 @@ Originally introduced by SPRINT-CHANGE-PROPOSAL-5.2J (2026-06-23) and ADR-025; u
 
 ## Purpose
 
-Defines legal corpus source requirements, ingestion schema, approval process, and corpus management policy. Design/spec contract, not source code.
+Defines legal corpus source requirements, ingestion schema, automated activation process, and corpus management policy. Design/spec contract, not source code.
 
 ## Source Hierarchy
 
@@ -17,12 +17,18 @@ Defines legal corpus source requirements, ingestion schema, approval process, an
 | PRIMARY       | Official government legal databases; ministry-issued decrees, circulars, decisions | Legally authoritative |
 | SUPPLEMENTARY | Regulatory guidance documents; official FAQs and implementation guidance           | Contextual only       |
 
-**Source candidates (pending validation):**
+**Admin-managed official source catalog:**
 
 | Source                      | URL                | Status                       |
 | --------------------------- | ------------------ | ---------------------------- |
-| Hệ thống pháp luật Việt Nam | vbpl.vn            | `SOURCE_VALIDATION_REQUIRED` |
-| Cổng thông tin Chính phủ    | vanban.chinhphu.vn | `SOURCE_VALIDATION_REQUIRED` |
+| Hệ thống pháp luật Việt Nam | vbpl.vn            | `ADMIN_MANAGED_OFFICIAL` |
+| Cổng thông tin Chính phủ    | vanban.chinhphu.vn | `ADMIN_MANAGED_OFFICIAL` |
+
+Sources in this catalog are already approved by the Admin boundary. Ingestion
+must resolve source/document identity through this catalog and must not require
+per-run human or manual source approval. It still validates the resolved final
+URL, snapshot hash, content type, document identity, hierarchy, effect status,
+chunk integrity, and retrieval index before activating a corpus version.
 
 ## Legal Document Identity Schema
 
@@ -50,7 +56,7 @@ Vietnamese official registries publish an authoritative document-level effect st
 | `NGUNG_HIEU_LUC`        | Ngưng hiệu lực                   | Excluded from default retrieval scope                                                                           |
 | `HET_HIEU_LUC_TOAN_BO`  | Hết hiệu lực toàn bộ             | Excluded from default retrieval scope                                                                           |
 | `KHONG_CON_PHU_HOP`     | Không còn phù hợp                | Excluded from default retrieval scope                                                                           |
-| `UNKNOWN`               | Missing or unmapped source value | Blocked; manual review required                                                                                 |
+| `UNKNOWN`               | Missing or unmapped source value | Blocked; review required                                                                                        |
 
 Rules:
 
@@ -62,7 +68,7 @@ Cross-check (fail-closed):
 
 - If `source_effect_status = HET_HIEU_LUC_TOAN_BO` but relationship mapping produced no `superseded_by`/repeal linkage, flag `LEGAL_EFFECT_STATUS_CONFLICT`; the corpus version cannot be approved until resolved.
 - If the derived state (effective dates + repeal locators) and `source_effect_status` disagree about whether a document is in force, same `LEGAL_EFFECT_STATUS_CONFLICT` handling applies.
-- A missing or unmapped source status normalizes to `UNKNOWN` and requires manual review; never silently default to included.
+- A missing or unmapped source status normalizes to `UNKNOWN` and requires review; never silently default to included.
 
 ## Document Relationship Schema
 
@@ -98,7 +104,7 @@ Example — real fixture pair (`LAW-134-2025-QH15` Điều 33 repealing parts of
 }
 ```
 
-At ingestion, each locator in `repealed_locators` must resolve to a stable `LegalDocumentChunk` ID in `target_document_id` and set that chunk's `legal_status = REPEALED` with `repealed_by_ref` pointing to `{target_document_id: this document_id, locator: amending_locator}` (see chunk metadata in `adr-026-chromadb-vectorless-legal-retriever.md`). This is distinct from `supersedes_chunk_id`, which links a chunk to a prior version of the _same_ provision inside the _same_ document's amendment lineage — do not conflate a cross-document repeal with a same-document version supersession, since the replacement text may use a different rule structure entirely (e.g. a repealed risk-classification chapter is not textually equivalent to the new law's replacement chapter, only topically related).
+At ingestion, each locator in `repealed_locators` must resolve to a stable `LegalDocumentChunk` ID in `target_document_id` and set that chunk's `legal_status = REPEALED` with `repealed_by_ref` pointing to `{target_document_id: this document_id, locator: amending_locator}` (see chunk metadata in `adr-026-chromadb-vectorless-legal-retriever.md`). This is distinct from `supersedes_chunk_id`, which links a chunk to a prior version of the _same_ provision inside the _same_ document's amendment lineage — do not conflate a cross-document repeal with a same-document version supersession, since the replacement text may use a different rule structure entirely.
 
 ## Document Structure Schema
 
@@ -138,30 +144,39 @@ Rules:
 | --------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1. Fetch                    | Source URL           | Raw document + HTTP metadata                                                                                                                  | `LEGAL_SOURCE_UNAVAILABLE`; audit; fail                                                                                                                    |
 | 2. Snapshot                 | Raw document         | Immutable snapshot + SHA-256 hash                                                                                                             | Fail; do not proceed without snapshot                                                                                                                      |
-| 3. Identity extraction      | Raw document         | Structured identity fields incl. `source_effect_status`                                                                                       | `LEGAL_IDENTITY_EXTRACTION_FAILED`; manual review                                                                                                          |
+| 3. Identity extraction      | Raw document         | Structured identity fields incl. `source_effect_status`                                                                                       | `LEGAL_IDENTITY_EXTRACTION_FAILED`; review required                                                                                                        |
 | 4. Date extraction          | Raw document         | Effective dates                                                                                                                               | Best-effort; flag missing dates                                                                                                                            |
-| 5. Relationship mapping     | Identity + registry  | Document-level amendment relationships plus locator-level `repealed_locators` resolved to target chunk IDs (see Document Relationship Schema) | Best-effort; flag unmapped document relationships; fail closed on unresolved locator-level repeal targets (do not silently keep a repealed chunk `ACTIVE`) and on `LEGAL_EFFECT_STATUS_CONFLICT` (see Source Effect Status) |
-| 6. Normalization            | Raw document         | Chapter/article/clause/point structure                                                                                                        | `LEGAL_NORMALIZATION_FAILED`; manual review                                                                                                                |
+| 5. Relationship mapping     | Identity + registry  | Document-level amendment relationships plus locator-level `repealed_locators` resolved to target chunk IDs (see Document Relationship Schema) | Best-effort; flag unmapped document relationships; fail closed on unresolved locator-level repeal targets and on `LEGAL_EFFECT_STATUS_CONFLICT`             |
+| 6. Normalization            | Reviewed source text | Chapter/article/clause/point structure                                                                                                        | `LEGAL_NORMALIZATION_FAILED`; review required                                                                                                              |
 | 7. Structure-first chunking | Normalized structure | `LegalDocumentChunk` rows with stable hierarchical IDs and xref metadata                                                                      | Required for ChromaDB vectorless retrieval                                                                                                                 |
-| 8. Review submission        | Normalized document  | `CorpusApprovalRecord` attached to `LegalCorpusVersion.status = DRAFT`                                                                        | Blocked until approved                                                                                                                                     |
-| 9. Approval                 | Review               | `CorpusApprovalRecord` (APPROVED) + `LegalCorpusVersion`                                                                                      | Blocked if not approved                                                                                                                                    |
+| 8. Automated validation gate | Extracted/review artefacts | Hash-bound validation manifest attached to `LegalCorpusVersion.status = DRAFT`                                                               | Blocked until automated OCR/extraction, hierarchy, effect-status, hash, chunk, and index validations pass                                                  |
+| 9. Automatic activation      | Validated corpus       | `CorpusApprovalRecord` with system actor + `LegalCorpusVersion.status = APPROVED`                                                            | Blocked if any validation fails; no manual source approval is required                                                                                     |
 
-## Corpus Approval Process
+## Automated Corpus Activation Process
+
+LCSP activation is an automated internal lifecycle gate for sources already in
+the Admin-managed official catalog. It does not require a handwritten/digital
+signature, a real legal-department employee, or a manual source approval.
 
 | Step                | Requirement                                                                                                                          |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Review authority    | Internal Legal Operator                                                                                                              |
-| Review scope        | Document identity, effective dates, source effect status, normalization accuracy, amendment relationships                            |
-| Approval record     | `authority`, `date`, `scope_description`, `status`, `corpus_version_id`                                                              |
-| Approval gate       | `LegalCorpusVersion.status = APPROVED` before production retrieval                                                                   |
-| Rejection           | Approval is not recorded as approved; the corpus version remains `DRAFT` and is blocked from retrieval until corrected or abandoned. |
-| Re-approval trigger | Content hash change, effective date change, source effect-status change, or supersession event                                       |
+| Validation gate     | Hash-bound extraction/OCR, hierarchy/repeal, chunk, index, and effect-status validations pass                                       |
+| Validation scope    | Document identity, effective dates, source effect status, normalization accuracy, amendment relationships, chunk/index integrity    |
+| Activation record   | `date`, `scope_description`, `status`, `corpus_version_id`; system actor and validation-result refs are audited                      |
+| Identity policy     | A system/process principal is audit metadata only and is not a legal signature                                                        |
+| Activation gate     | `LegalCorpusVersion.status = APPROVED` before production retrieval                                                                   |
+| Rejection           | Activation is not recorded; the corpus version remains `DRAFT` and is blocked until a corrected immutable version validates.        |
+| Reactivation trigger | Content hash change, effective date change, source effect-status change, supersession event, or failed index integrity              |
+
+The automatic activation service must satisfy its configured PBAC policy. That
+requirement provides system accountability only; it is not legal counsel
+sign-off or a legal certification.
 
 ## LegalCorpusVersion Management
 
 | Concern        | Policy                                                                         |
 | -------------- | ------------------------------------------------------------------------------ |
-| Creation       | Only after all included documents are approved                                 |
+| Creation       | Only after all included documents satisfy the reviewed-artefact gate           |
 | Immutability   | Once approved, cannot be modified                                              |
 | Supersession   | Replaced versions are `SUPERSEDED`; existing assessments retain pinned version |
 | Corpus pinning | Each assessment pins to approved corpus version at start                       |
@@ -181,7 +196,7 @@ Do not use `PENDING_REVIEW`, `RETIRED` or `OBSOLETE` as active corpus lifecycle 
 | Item                | Decision Required                                     |
 | ------------------- | ----------------------------------------------------- |
 | Ingestion cadence   | How often to check for source updates                 |
-| Change detection    | Content hash comparison or source metadata versioning; a source effect-status flip (e.g. to `NGUNG_HIEU_LUC`) can occur without any content change and must be detectable |
+| Change detection    | Content hash comparison or source metadata versioning; a source effect-status flip can occur without content change and must be detectable |
 | Re-approval trigger | What changes require a new `LegalCorpusVersion`       |
 | Rollback behavior   | How to handle corpus regression                       |
 
@@ -203,20 +218,26 @@ Required for A-to-Z acceptance testing:
 
 | Requirement               | Detail                                                                                                                               |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Minimum documents         | Key decrees/circulars relevant to Vietnamese AI regulation acceptance scenario                                                       |
-| Approval status           | Must be approved before acceptance run                                                                                               |
+| Minimum documents         | Key laws relevant to the Vietnamese AI regulation acceptance scenario                                                               |
+| Approval status           | Must pass the reviewed-artefact/validation gate before acceptance run                                                                |
 | ChromaDB vectorless index | Pre-built approved legal records, metadata filters, full-text records and direct lookup IDs included in acceptance environment setup |
 | Citation fidelity         | Citations must reconstruct to `article`, `clause`, `point` level                                                                     |
 
-**Verified fixture pair (source PDFs on hand, verified 2026-07-14):** `LAW-134-2025-QH15` (Luật Trí tuệ nhân tạo, 35 điều, passed 2025-12-10 Kỳ họp thứ 10 QH khóa XV, hiệu lực 2026-03-01 per Điều 34, with a sector-differentiated Điều 35 transitional schedule — 18 months for y tế/giáo dục/tài chính, 12 months otherwise) and `LAW-71-2025-QH15` (Luật Công nghiệp công nghệ số, 51 điều, passed 2025-06-14 Kỳ họp thứ 9, hiệu lực 2026-01-01 per Điều 50 except Điều 11/28/29 from 2025-07-01). This pair exercises, with real content rather than a synthetic case: (1) locator-level cross-document repeal — Điều 33 of `LAW-134-2025-QH15` repeals khoản 9 Điều 3, khoản 7 Điều 4, khoản 6 Điều 12, điểm đ khoản 2 Điều 34, and all of Chương IV (Điều 41-45) of `LAW-71-2025-QH15`, while the rest of `LAW-71-2025-QH15` remains active; (2) relative cross-reference resolution ("Điều này", "khoản này") within both documents; (3) sector/time-differentiated transitional effective dates within a single document (Điều 35 of `LAW-134-2025-QH15`). Use this pair to validate the ingestion pipeline handles locator-level repeal correctly before treating it as a passing fixture.
+**Verified fixture pair:** `LAW-134-2025-QH15` and `LAW-71-2025-QH15` exercise locator-level cross-document repeal. Điều 33 of `LAW-134-2025-QH15` targets khoản 9 Điều 3, khoản 7 Điều 4, khoản 6 Điều 12, điểm đ khoản 2 Điều 34, and Chương IV (Điều 41–45) of `LAW-71-2025-QH15`, while the rest of Law 71 remains outside that repeal range. The fixture also exercises relative cross-reference resolution and transitional effective-date handling.
 
-All fixture claims above (article counts, effective dates, Điều 33 repeal locators verbatim, Chương IV = Điều 41–45 boundary) were verified against source PDFs held at `reports/Luat_134_2025_QH15.pdf` and `reports/Luat-71-2025-qh15_0710195033.pdf`. Provenance caveats:
+For the reviewed fixture, preserve these boundary checks:
 
-- The `LAW-134-2025-QH15` PDF appears to be a scanned official copy (seal + signature, no third-party marks). The `LAW-71-2025-QH15` PDF carries a LuatVietnam watermark — a commercial aggregator, not on the PRIMARY source candidate list. For the approved golden-path snapshot, re-fetch `LAW-71-2025-QH15` from an official source (vbpl.vn / vanban.chinhphu.vn); the current copy is acceptable only for parser development.
-- Additional relationship coverage found in source: Điều 49 of `LAW-71-2025-QH15` itself performs locator-level repeals/amendments of *other* laws outside the AI-regulation corpus scope (e.g. bãi bỏ khoản 9–12 Điều 4 and Mục 3/Mục 4 Chương III of Luật CNTT 67/2006; inserts into Luật Thuế TNCN and Bộ luật Lao động; phrase-substitution edits across 7+ laws/nghị quyết). These exercise the best-effort "flag unmapped document relationships" path (targets out of corpus) and two shapes the locator grammar must resolve during mapping: `Mục` (section) targets — resolvable to an article range like chapter targets — and phrase-level substitution amendments, which are recorded as document-level `amends` relationships only (no locator-level repeal), since no whole provision is repealed or replaced.
+- `art-40` remains outside the Chapter IV repeal range;
+- `art-41..art-45` expands to Articles 41–45 and all descendants;
+- `art-46` remains outside the Chapter IV repeal range.
+
+Production source provenance remains independent of review-principal identity. A
+technical approval principal cannot upgrade a non-primary snapshot into a
+PRIMARY source; source authority must be established from official provenance.
 
 ## Non-Claims
 
-- This spec does not confirm that vbpl.vn or vanban.chinhphu.vn are accessible.
-- Corpus approval does not constitute legal certification.
+- This spec does not confirm that vbpl.vn or vanban.chinhphu.vn are always accessible.
+- Corpus approval does not constitute legal certification or a lawyer's signature.
+- `reviewedBy`/`approvedBy` are not evidence that a named legal professional reviewed the corpus.
 - The retrieval system does not make legal conclusions.

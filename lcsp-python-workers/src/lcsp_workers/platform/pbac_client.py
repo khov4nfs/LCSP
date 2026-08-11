@@ -1,5 +1,6 @@
-import httpx
 from typing import Literal
+
+import httpx
 
 class PbacClient:
     def __init__(self, base_url: str, api_key: str) -> None:
@@ -31,6 +32,9 @@ class PbacClient:
                 timeout=5.0,
             )
             resp.raise_for_status()
-            return resp.json().get("decision", "deny")
+            body = resp.json()
+            result = body.get("data") if isinstance(body, dict) else None
+            decision = result.get("decision") if isinstance(result, dict) else None
+            return "allow" if decision == "ALLOW" else "deny"
         except httpx.ConnectError as e:
             raise ConnectionError("PBAC preflight unreachable") from e

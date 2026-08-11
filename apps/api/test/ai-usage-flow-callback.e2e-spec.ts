@@ -80,7 +80,7 @@ describe("AIUsageFlow Callback Endpoint (e2e) [MW-aiuf-001]", () => {
     await prisma.$disconnect();
   });
 
-  it("T01/T03/T06 accepts valid claims, preserves unknowns, emits outbox, and audits safe refs", async () => {
+  it("T01/T03/T06 accepts valid claims, preserves rich claim metadata, emits outbox, and audits safe refs", async () => {
     const response = await callback(app, validPayload());
     const body = successBody<AIUsageFlowCallbackDto>(response);
 
@@ -100,7 +100,16 @@ describe("AIUsageFlow Callback Endpoint (e2e) [MW-aiuf-001]", () => {
 
     assert.equal(flow?.technicalProfileId, "technical-profile-1");
     assert.equal(flow?.status, AI_USAGE_FLOW_STATUSES.accepted);
-    assert.deepEqual(flow?.claims, validPayload().claims);
+    const storedClaims = flow?.claims as Array<Record<string, unknown>>;
+    assert.equal(storedClaims.length, 1);
+    assert.deepEqual(storedClaims[0], {
+      ...validClaim(),
+      claim_field: "automation_level",
+      claim_value: { automationLevel: "FULLY_AUTOMATED" },
+      lifecycle_state: "VALIDATED",
+      claim_confidence: 0.91,
+      conflict_refs: null,
+    });
     assert.deepEqual(flow?.unknownUsages, validPayload().unknown_usages);
     assert.equal(outbox?.aggregateId, body.ai_usage_flow_id);
     assert.equal(
@@ -152,7 +161,7 @@ describe("AIUsageFlow Callback Endpoint (e2e) [MW-aiuf-001]", () => {
     );
   });
 
-  it("T05 rejects invalid privacy flags and unsafe payload content", async () => {
+  it("T05 rejects invalid privacy flags and unsafe compact/rich payload content", async () => {
     const badFlags = await callback(
       app,
       validPayload({
@@ -185,10 +194,44 @@ describe("AIUsageFlow Callback Endpoint (e2e) [MW-aiuf-001]", () => {
       SCAN_ERROR_CODES.privacyFlagsInvalid,
     );
     await assertNoFlowMutation(prisma);
+
+    const unsafeRichPayload = await callback(
+      app,
+      validPayload({
+        flow_data: {
+          ...validFlowData(),
+          claims: [
+            {
+              claim_id: "claim-1",
+              claim_field: "automation_level",
+              claim_value: { automationLevel: "FULLY_AUTOMATED" },
+              lifecycle_state: "VALIDATED",
+              confidence: 0.91,
+              conflict_refs: null,
+              evidence_refs: ["evidence-report-1::finding-1"],
+              source_code: "const key = 'ghp_secret12345678901234567890'",
+            },
+          ],
+        },
+      }),
+    );
+    assertError(
+      unsafeRichPayload.status,
+      unsafeRichPayload.body,
+      422,
+      SCAN_ERROR_CODES.privacyFlagsInvalid,
+    );
+    await assertNoFlowMutation(prisma);
   });
 
   it("T07 accepts empty claims when no AI usage was found", async () => {
-    const response = await callback(app, validPayload({ claims: [] }));
+    const response = await callback(
+      app,
+      validPayload({
+        claims: [],
+        flow_data: { ...validFlowData(), claims: [] },
+      }),
+    );
     const body = successBody<AIUsageFlowCallbackDto>(response);
 
     assert.equal(response.status, 200);
@@ -197,6 +240,50 @@ describe("AIUsageFlow Callback Endpoint (e2e) [MW-aiuf-001]", () => {
       where: { id: body.ai_usage_flow_id },
     });
     assert.deepEqual(flow?.claims, []);
+  });
+
+  it("accepts legacy compact claims when optional flow_data is absent", async () => {
+    const response = await callback(
+      app,
+      validPayload({ flow_data: undefined }),
+    );
+    const body = successBody<AIUsageFlowCallbackDto>(response);
+
+    assert.equal(response.status, 200);
+    const flow = await prisma.aIUsageFlow.findUnique({
+      where: { id: body.ai_usage_flow_id },
+    });
+    assert.deepEqual(flow?.claims, validPayload().claims);
+  });
+
+  it("rejects rich claims whose evidence does not match the compact callback", async () => {
+    const response = await callback(
+      app,
+      validPayload({
+        flow_data: {
+          ...validFlowData(),
+          claims: [
+            {
+              claim_id: "claim-1",
+              claim_field: "automation_level",
+              claim_value: { automationLevel: "FULLY_AUTOMATED" },
+              lifecycle_state: "VALIDATED",
+              confidence: 0.91,
+              conflict_refs: null,
+              evidence_refs: ["different-evidence"],
+            },
+          ],
+        },
+      }),
+    );
+
+    assertError(
+      response.status,
+      response.body,
+      422,
+      SCAN_ERROR_CODES.aiUsageFlowSchemaInvalid,
+    );
+    await assertNoFlowMutation(prisma);
   });
 
   it("rejects a missing technical profile and does not expose an update path", async () => {
@@ -244,6 +331,7 @@ function validPayload(
       containsSourceCode: false,
       secretsRedacted: true,
     },
+    flow_data: validFlowData(),
     ...overrides,
   };
 }
@@ -257,6 +345,27 @@ function validClaim() {
     uncertainty_reason: null,
     description: "Model invocation detected from accepted evidence",
     is_material: true,
+  };
+}
+
+function validFlowData(): Record<string, unknown> {
+  return {
+    verification_source: "TECHNICAL_ONLY",
+    claims: [
+      {
+        claim_id: "claim-1",
+        claim_field: "automation_level",
+        claim_value: { automationLevel: "FULLY_AUTOMATED" },
+        lifecycle_state: "VALIDATED",
+        confidence: 0.91,
+        conflict_refs: null,
+        evidence_refs: ["evidence-report-1::finding-1"],
+      },
+    ],
+    privacy_flags: {
+      containsSourceCode: false,
+      secretsRedacted: true,
+    },
   };
 }
 

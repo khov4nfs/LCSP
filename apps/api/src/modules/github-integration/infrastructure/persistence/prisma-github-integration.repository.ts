@@ -13,8 +13,14 @@ export class PrismaRepositoryConnectionRepository implements RepositoryConnectio
   constructor(private readonly prisma: PrismaService) {}
 
   async save(connection: RepositoryConnection): Promise<void> {
-    await this.prisma.repositoryConnection.create({
-      data: {
+    await this.prisma.repositoryConnection.upsert({
+      where: {
+        installationId_repositoryId: {
+          installationId: connection.installationId,
+          repositoryId: connection.repositoryId,
+        },
+      },
+      create: {
         id: connection.id,
         assessmentId: connection.assessmentId,
         organizationId: connection.organizationId,
@@ -27,6 +33,17 @@ export class PrismaRepositoryConnectionRepository implements RepositoryConnectio
         permissions: connection.permissions,
         status: toPrismaRepositoryConnectionStatus(connection.status),
         connectedAt: connection.connectedAt,
+        revokedAt: connection.revokedAt,
+      },
+      update: {
+        assessmentId: connection.assessmentId,
+        organizationId: connection.organizationId,
+        userId: connection.userId,
+        repositoryName: connection.repositoryName,
+        repositoryFullName: connection.repositoryFullName,
+        defaultBranch: connection.defaultBranch,
+        permissions: connection.permissions,
+        status: toPrismaRepositoryConnectionStatus(connection.status),
         revokedAt: connection.revokedAt,
       },
     });

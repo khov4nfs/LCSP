@@ -9,25 +9,64 @@ type VerifiedProfileResponse = {
   organizationId: string | null;
   schemaVersion: string | null;
   providerVersion: string | null;
-  mergedProfile: unknown;
-  evidenceRefs: unknown[];
+  mergedProfile: Record<string, unknown>;
+  factEvidenceRefs: Record<string, string[]>;
+  evidenceRefs: string[];
   status: string | null;
   gatesPassedAt: Date | null;
 };
 
-function toEvidenceRefs(profileData: unknown): unknown[] {
-  if (
-    typeof profileData === "object" &&
-    profileData !== null &&
-    !Array.isArray(profileData)
-  ) {
-    const candidate = profileData as Record<string, unknown>;
-    if (Array.isArray(candidate.evidenceRefs)) {
-      return candidate.evidenceRefs;
-    }
-  }
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
 
-  return [];
+function toMergedProfile(profileData: unknown): Record<string, unknown> {
+  const data = asRecord(profileData);
+  if (!data) return {};
+  return asRecord(data.merged_profile) ?? asRecord(data.mergedProfile) ?? {};
+}
+
+function toFactEvidenceRefs(profileData: unknown): Record<string, string[]> {
+  const data = asRecord(profileData);
+  if (!data) return {};
+  const raw =
+    asRecord(data.fact_evidence_refs) ?? asRecord(data.factEvidenceRefs);
+  if (!raw) return {};
+
+  const mapped: Record<string, string[]> = {};
+  for (const [field, refs] of Object.entries(raw)) {
+    if (!Array.isArray(refs)) continue;
+    mapped[field] = [
+      ...new Set(
+        refs
+          .filter(
+            (ref): ref is string =>
+              typeof ref === "string" && Boolean(ref.trim()),
+          )
+          .map((ref) => ref.trim()),
+      ),
+    ].sort();
+  }
+  return mapped;
+}
+
+function toEvidenceRefs(profileData: unknown): string[] {
+  const data = asRecord(profileData);
+  if (!data) return [];
+  const raw = data.evidence_refs ?? data.evidenceRefs;
+  if (!Array.isArray(raw)) return [];
+  return [
+    ...new Set(
+      raw
+        .filter(
+          (ref): ref is string =>
+            typeof ref === "string" && Boolean(ref.trim()),
+        )
+        .map((ref) => ref.trim()),
+    ),
+  ].sort();
 }
 
 function toGatesPassedAt(value: unknown): Date | null {
@@ -65,7 +104,8 @@ export class GetVerifiedProfileByIdHandler implements IQueryHandler<GetVerifiedP
       organizationId: profile.organizationId,
       schemaVersion: profile.schemaVersion,
       providerVersion: profile.providerVersion,
-      mergedProfile: profile.profileData,
+      mergedProfile: toMergedProfile(profile.profileData),
+      factEvidenceRefs: toFactEvidenceRefs(profile.profileData),
       evidenceRefs: toEvidenceRefs(profile.profileData),
       status: profile.status,
       gatesPassedAt: toGatesPassedAt(profile.gatesPassedAt),

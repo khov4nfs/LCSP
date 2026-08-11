@@ -15,8 +15,8 @@ import { AuditWriterService } from "../../../../../platform/audit/audit-writer.s
 import { ReadinessEvaluatorService } from "../../services/wizard/readiness-evaluator.service.js";
 import type {
   Assessment,
+  RepositorySnapshot,
   WizardProfile,
-  RepositoryConnection,
 } from "@prisma/client";
 import { WizardProfileStatus as PrismaWizardProfileStatus } from "@prisma/client";
 import { jest } from "@jest/globals";
@@ -31,7 +31,7 @@ describe("GetReadinessHandler", () => {
     prismaService = {
       assessment: { findFirst: jest.fn() },
       wizardProfile: { findUnique: jest.fn() },
-      repositoryConnection: { findFirst: jest.fn() },
+      repositorySnapshot: { findFirst: jest.fn() },
       technicalEvidenceReport: { findFirst: jest.fn() },
     } as unknown as jest.Mocked<PrismaService>;
 
@@ -115,9 +115,9 @@ describe("GetReadinessHandler", () => {
     prismaService.wizardProfile.findUnique.mockResolvedValue({
       status: PrismaWizardProfileStatus.SUBMITTED,
     } as WizardProfile);
-    prismaService.repositoryConnection.findFirst.mockResolvedValue({
-      id: "repo-1",
-    } as RepositoryConnection);
+    prismaService.repositorySnapshot.findFirst.mockResolvedValue({
+      id: "snapshot-1",
+    } as RepositorySnapshot);
     prismaService.technicalEvidenceReport.findFirst.mockResolvedValue(null);
 
     const result = await handler.execute(query);
@@ -128,6 +128,10 @@ describe("GetReadinessHandler", () => {
       hasAcceptedTechnicalEvidence: false,
       wizardStatus: WIZARD_STATUS_CODES.submitted,
       wizardAnswers: [],
+    });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(prismaService.repositorySnapshot.findFirst).toHaveBeenCalledWith({
+      where: { assessmentId: "assessment-123" },
     });
 
     expect(result.assessment_id).toBe("assessment-123");

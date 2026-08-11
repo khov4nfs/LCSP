@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 EDGE_TYPES = [
     "CONTAINS",         
@@ -20,3 +20,6 @@ class GraphEdge:
     target_node_id: str
     confidence: float
     attributes: dict
+    provenance: dict = field(default_factory=dict)
+    coverage_state: str = "SUFFICIENT"
+    evidence_refs: list[str] = field(default_factory=list)

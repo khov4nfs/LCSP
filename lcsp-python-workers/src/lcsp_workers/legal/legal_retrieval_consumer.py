@@ -8,7 +8,7 @@ from lcsp_workers.platform.api_client import WorkerApiClient, WorkerCallbackErro
 from lcsp_workers.platform.callback_schemas import LegalRuleMatchCallbackPayload
 from lcsp_workers.platform.queue_consumer import ConsumerBase
 
-from .chromadb_citation_retriever import ChromaDbCitationRetriever, RetrievedChunk
+from .chromadb_citation_retriever import ChromaDbCitationRetriever
 from .legal_match_builder import LegalMatchBuilder
 from .rule_applicability_evaluator import RuleApplicabilityEvaluator
 
@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 
 class LegalRetrievalConsumer(ConsumerBase):
     queue_name = "legal.verified-profile-ready"
-    routing_key = "verified-profile-ready"
+    routing_key = "event.verified-profile.ready.v1"
     requires_pbac = False
 
     def __init__(
@@ -43,8 +43,15 @@ class LegalRetrievalConsumer(ConsumerBase):
         assessment_id = self._required_message_id(message, "assessmentId")
 
         verified_profile = self._api_client.get_verified_profile_by_id(verified_profile_id)
+        verified_profile_status = str(verified_profile.get("status") or "").upper()
+        if verified_profile_status != "APPROVED":
+            raise WorkerCallbackError("Verified profile is not approved.")
+
         legal_catalog = self._api_client.get_active_legal_rule_catalog()
         legal_corpus = self._api_client.get_active_legal_corpus()
+        corpus_version_id = str(legal_corpus.get("versionId") or "")
+        corpus_index = self._api_client.get_legal_corpus_chunks(corpus_version_id)
+        self._retriever.index_corpus(corpus_version_id, corpus_index.get("chunks") or [])
 
         matches: list[dict[str, Any]] = []
         for rule in legal_catalog.get("rules", []):
@@ -55,26 +62,23 @@ class LegalRetrievalConsumer(ConsumerBase):
             if result.status != "MATCHED":
                 continue
 
-            chunks = []
+            citation_ids = []
             for ref in (rule.get("citationLocatorRefs") or []):
-                document_id = str(ref.get("documentId") or ref.get("document_id") or "")
-                locator = str(ref.get("locator") or "")
                 chunk_id = str(ref.get("id") or "")
-                if not chunk_id:
-                    chunk_id = f"{document_id}::{locator}" if document_id and locator else document_id
-                chunks.append(
-                    RetrievedChunk(
-                        id=chunk_id,
-                        document_id=document_id,
-                        locator=locator,
-                        legal_status=str(ref.get("legalStatus") or "ACTIVE"),
-                        role="PRIMARY_MATCH",
-                    )
-                )
+                if chunk_id:
+                    citation_ids.append(chunk_id)
+            chunks = self._retriever.retrieve_exact(corpus_version_id, citation_ids)
             citation_result = self._retriever.build_citation_allowlist(chunks)
             allowlist = citation_result["allowlist"]
             if not allowlist:
                 continue
+            allowed_chunks = [chunk for chunk in chunks if chunk.id in allowlist]
+            legal_statuses = {chunk.legal_status.upper() for chunk in allowed_chunks}
+            if "REPEALED" in legal_statuses:
+                raise WorkerCallbackError("Repealed citation escaped the legal allowlist.")
+            legal_status = (
+                next(iter(legal_statuses)) if len(legal_statuses) == 1 else "ACTIVE"
+            )
             matches.append(
                 {
                     "match_id": f"{result.rule_id}:{verified_profile_id}",
@@ -84,10 +88,11 @@ class LegalRetrievalConsumer(ConsumerBase):
                     "clause_ref": "",
                     "match_type": "PRIMARY_MATCH",
                     "citation_chunk_ids": allowlist,
+                    "context_roles": [chunk.role for chunk in allowed_chunks],
                     "confidence": result.confidence,
                     "coverage_status": "COMPLETE_CITATION" if allowlist else "NO_CITATION",
                     "usage_claim_ref": verified_profile_id,
-                    "legal_status": legal_corpus.get("status") or "APPROVED",
+                    "legal_status": legal_status,
                 }
             )
 

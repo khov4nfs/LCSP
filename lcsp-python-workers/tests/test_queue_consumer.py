@@ -1,4 +1,5 @@
 import json
+import signal
 from unittest.mock import MagicMock
 
 import pytest
@@ -149,6 +150,74 @@ def test_t05_sigterm_handling(config):
     assert consumer._shutdown is False
     consumer._handle_sigterm(15, None)
     assert consumer._shutdown is True
+
+
+def test_sigint_handling_sets_shutdown(config):
+    consumer = DummyConsumer(config, MagicMock())
+
+    consumer._handle_sigterm(signal.SIGINT, None)
+
+    assert consumer._shutdown is True
+
+
+def test_run_treats_keyboard_interrupt_as_shutdown(monkeypatch, config):
+    consumer = DummyConsumer(config, MagicMock())
+    connection = MagicMock()
+    connection.is_open = True
+    connection.process_data_events.side_effect = KeyboardInterrupt()
+    channel = MagicMock()
+    connection.channel.return_value = channel
+
+    monkeypatch.setattr(
+        "lcsp_workers.platform.queue_consumer.pika.BlockingConnection",
+        lambda _params: connection,
+    )
+    monkeypatch.setattr(
+        "lcsp_workers.platform.queue_consumer.pika.URLParameters",
+        lambda url: url,
+    )
+    monkeypatch.setattr(
+        "lcsp_workers.platform.queue_consumer.HealthServer",
+        lambda **_kwargs: MagicMock(),
+    )
+
+    consumer.run()
+
+    assert consumer._shutdown is True
+    channel.queue_bind.assert_called_once_with(
+        exchange="test.events",
+        queue="test_queue",
+        routing_key="test.routing",
+    )
+    connection.close.assert_called_once()
+
+
+def test_run_swallows_keyboard_interrupt_while_closing(monkeypatch, config):
+    consumer = DummyConsumer(config, MagicMock())
+    connection = MagicMock()
+    connection.is_open = True
+    connection.process_data_events.side_effect = KeyboardInterrupt()
+    connection.close.side_effect = KeyboardInterrupt()
+    channel = MagicMock()
+    connection.channel.return_value = channel
+
+    monkeypatch.setattr(
+        "lcsp_workers.platform.queue_consumer.pika.BlockingConnection",
+        lambda _params: connection,
+    )
+    monkeypatch.setattr(
+        "lcsp_workers.platform.queue_consumer.pika.URLParameters",
+        lambda url: url,
+    )
+    monkeypatch.setattr(
+        "lcsp_workers.platform.queue_consumer.HealthServer",
+        lambda **_kwargs: MagicMock(),
+    )
+
+    consumer.run()
+
+    assert consumer._shutdown is True
+    connection.close.assert_called_once()
 
 
 def test_t06_correlation_id_in_logs(

@@ -72,6 +72,76 @@ def test_t01_knip_detects_js_openai_used_dependency(
 
 
 @pytest.mark.p0
+def test_knip_tool_accepts_the_supported_v6_release_line(
+    sample_ts_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        if "--version" in command:
+            return _completed(command, 0, stdout="6.32.0\n")
+        return _completed(command, 0, stdout=json.dumps({}))
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = KnipTool().run(sample_ts_repo)
+
+    assert result.execution.outcome == OUTCOME_SUCCESS
+    assert result.execution.tool_version == "6.32.0"
+
+
+@pytest.mark.p0
+def test_knip_runs_from_the_archive_package_manifest_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = tmp_path / "repository-archive"
+    source_file = project_root / "src" / "ai.ts"
+    source_file.parent.mkdir(parents=True)
+    source_file.write_text("export const model = 'gpt';\n", encoding="utf-8")
+    (project_root / "package.json").write_text("{}\n", encoding="utf-8")
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if "--version" in command:
+            return _completed(command, 0, stdout="6.32.0\n")
+        assert kwargs["cwd"] == project_root
+        return _completed(command, 0, stdout=json.dumps({}))
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = KnipTool().run(tmp_path)
+
+    assert result.execution.outcome == OUTCOME_SUCCESS
+
+
+@pytest.mark.p0
+def test_knip_runs_each_independent_service_package(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service_roots = [tmp_path / "services" / "api", tmp_path / "services" / "worker"]
+    for project_root in service_roots:
+        source_file = project_root / "src" / "index.ts"
+        source_file.parent.mkdir(parents=True)
+        source_file.write_text("export {};\n", encoding="utf-8")
+        (project_root / "package.json").write_text("{}\n", encoding="utf-8")
+
+    invoked_roots: list[Path] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if "--version" in command:
+            return _completed(command, 0, stdout="6.32.0\n")
+        invoked_roots.append(kwargs["cwd"])
+        return _completed(command, 0, stdout=json.dumps({}))
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = KnipTool().run(tmp_path)
+
+    assert result.execution.outcome == OUTCOME_SUCCESS
+    assert invoked_roots == service_roots
+
+
+@pytest.mark.p0
 def test_t02_deptry_marks_torch_unused(
     sample_python_repo: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -107,6 +107,34 @@ describe("RabbitMqClient", () => {
     );
   });
 
+  it("forwards authorization headers to RabbitMQ", async () => {
+    const channel = makeChannel();
+    connect.mockResolvedValue(makeConnection(channel));
+    const client = new RabbitMqClient("amqp://fake");
+
+    await client.publish(
+      "lcsp.events",
+      ASSESSMENT_EVENT_TYPES.createdOutbox,
+      { foo: "bar" },
+      { user_id: "user-1", organization_id: "org-1", action: "scan:trigger" },
+    );
+
+    expect(channel.publish).toHaveBeenCalledWith(
+      "lcsp.events",
+      ASSESSMENT_EVENT_TYPES.createdOutbox,
+      Buffer.from(JSON.stringify({ foo: "bar" })),
+      {
+        contentType: "application/json",
+        persistent: true,
+        headers: {
+          user_id: "user-1",
+          organization_id: "org-1",
+          action: "scan:trigger",
+        },
+      },
+    );
+  });
+
   it("throws when the channel reports publish backpressure", async () => {
     const channel = makeChannel();
     channel.publish.mockReturnValue(false);

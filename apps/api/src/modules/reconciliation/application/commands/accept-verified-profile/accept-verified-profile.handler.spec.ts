@@ -15,7 +15,6 @@ import {
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import type { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
 import { AcceptVerifiedProfileCommand } from "./accept-verified-profile.command.js";
 import { AcceptVerifiedProfileHandler } from "./accept-verified-profile.handler.js";
 
@@ -66,17 +65,12 @@ function buildHandler(options?: {
     $transaction: transaction,
   } as unknown as PrismaService;
 
-  const enqueue = jest
-    .fn<OutboxRepository["enqueue"]>()
-    .mockResolvedValue(undefined);
-  const outbox = { enqueue } as unknown as OutboxRepository;
-
   const writeInTx = jest
     .fn<AuditWriterService["writeInTx"]>()
     .mockResolvedValue(undefined);
   const audit = { writeInTx } as unknown as AuditWriterService;
 
-  const handler = new AcceptVerifiedProfileHandler(prisma, audit, outbox);
+  const handler = new AcceptVerifiedProfileHandler(prisma, audit);
   const command = new AcceptVerifiedProfileCommand(
     {
       ai_usage_flow_id: "ai-flow-1",
@@ -95,7 +89,6 @@ function buildHandler(options?: {
     command,
     countPendingConflicts,
     createVerifiedProfile,
-    enqueue,
     findAcceptedFlow,
     findExistingProfile,
     handler,
@@ -106,8 +99,8 @@ function buildHandler(options?: {
 }
 
 describe("AcceptVerifiedProfileHandler", () => {
-  it("persists a pending-approval VerifiedProfile and emits ready outbox", async () => {
-    const { command, createVerifiedProfile, enqueue, handler, writeInTx } =
+  it("persists a pending-approval VerifiedProfile without emitting downstream work", async () => {
+    const { command, createVerifiedProfile, handler, writeInTx } =
       buildHandler();
 
     const result = await handler.execute(command);
@@ -125,10 +118,6 @@ describe("AcceptVerifiedProfileHandler", () => {
       },
     });
 
-    expect(enqueue).toHaveBeenCalledTimes(1);
-    expect(enqueue.mock.calls[0][0].eventType).toBe(
-      SCAN_EVENT_TYPES.verifiedProfileReady,
-    );
     expect(writeInTx).toHaveBeenCalledTimes(1);
     expect(writeInTx.mock.calls[0][0]).toMatchObject({
       eventType: SCAN_EVENT_TYPES.verifiedProfileAcceptedAudit,

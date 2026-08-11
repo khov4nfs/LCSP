@@ -29,7 +29,10 @@ import {
 } from "@lcsp/contracts/assessment";
 import { WIZARD_ERROR_CODES, WIZARD_EVENT_TYPES } from "@lcsp/contracts/wizard";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
-import { REPOSITORY_CONNECTION_STATUSES } from "@lcsp/contracts/github-integration";
+import {
+  REPOSITORY_CONNECTION_STATUSES,
+  REPOSITORY_SNAPSHOT_STATUSES,
+} from "@lcsp/contracts/github-integration";
 
 import {
   OUTBOX_AGGREGATE_TYPES,
@@ -66,6 +69,7 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
     // Clear wizard profile and outbox messages explicitly, though resetAuthWorkspaceDatabase might clear some
     await prisma.wizardProfile.deleteMany();
     await prisma.technicalEvidenceReport.deleteMany();
+    await prisma.repositorySnapshot.deleteMany();
     await prisma.repositoryConnection.deleteMany();
     await prisma.assessment.deleteMany();
     await resetAuthWorkspaceDatabase(prisma);
@@ -139,6 +143,24 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
       .set("Authorization", `Bearer ${managerToken}`)
       .send({ name: "Wizard Test Assessment" });
     assessmentId = successBody<{ assessment_id: string }>(res).assessment_id;
+  };
+
+  const createRepositorySnapshot = async (connectionId: string) => {
+    await prisma.repositorySnapshot.create({
+      data: {
+        id: `snapshot-${connectionId}`,
+        assessmentId,
+        organizationId: orgId,
+        connectionId,
+        repositoryId: `repository-${connectionId}`,
+        repositoryFullName: `acme/${connectionId}`,
+        branch: "main",
+        commitSha: "a".repeat(40),
+        providerMetadata: { requestedRevision: "main" },
+        actorId: "user-1",
+        status: REPOSITORY_SNAPSHOT_STATUSES.ready,
+      },
+    });
   };
 
   describe("Save Wizard Draft [MW-wiz-001]", () => {
@@ -288,6 +310,7 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
           status: REPOSITORY_CONNECTION_STATUSES.active,
         },
       });
+      await createRepositorySnapshot("repo-conn-1");
 
       const res = await httpRequest(app)
         .put(`/assessments/${assessmentId}/wizard/draft`)
@@ -557,6 +580,7 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
           status: REPOSITORY_CONNECTION_STATUSES.active,
         },
       });
+      await createRepositorySnapshot("repo-conn-2");
 
       const res = await httpRequest(app)
         .post(`/assessments/${assessmentId}/wizard/submit`)
@@ -664,6 +688,7 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
           status: REPOSITORY_CONNECTION_STATUSES.active,
         },
       });
+      await createRepositorySnapshot("repo-conn-3");
 
       const res = await httpRequest(app)
         .put(`/assessments/${assessmentId}/wizard/draft`)

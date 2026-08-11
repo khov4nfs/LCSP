@@ -24,6 +24,15 @@ type ScanPayload = {
   status?: unknown;
 };
 
+export type RerunRepositoryScanInput = {
+  snapshotId: string;
+};
+
+export type RerunRepositoryScanResult = {
+  scanJobId: string;
+  scanStatus: string;
+};
+
 export async function startRepositoryAnalysis(
   assessmentId: string,
   input: StartRepositoryAnalysisInput,
@@ -66,7 +75,9 @@ export async function startRepositoryAnalysis(
   );
 
   if (!scanResponse.ok || !isScanPayload(scanResponse.payload)) {
-    throw new Error(scanResponse.problemCode ?? "repository-scan-trigger-failed");
+    throw new Error(
+      scanResponse.problemCode ?? "repository-scan-trigger-failed",
+    );
   }
 
   return {
@@ -74,6 +85,32 @@ export async function startRepositoryAnalysis(
     commitSha: snapshotResponse.payload.commit_sha,
     scanJobId: scanResponse.payload.scan_job_id,
     scanStatus: scanResponse.payload.status,
+  };
+}
+
+export async function rerunRepositoryScan(
+  assessmentId: string,
+  input: RerunRepositoryScanInput,
+): Promise<RerunRepositoryScanResult> {
+  const response = await apiRequest(
+    `/api/assessments/${encodeURIComponent(assessmentId)}/scan-jobs/rerun`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        snapshot_id: input.snapshotId,
+        idempotency_key: crypto.randomUUID(),
+      }),
+    },
+  );
+
+  if (!response.ok || !isScanPayload(response.payload)) {
+    throw new Error(response.problemCode ?? "repository-scan-rerun-failed");
+  }
+
+  return {
+    scanJobId: response.payload.scan_job_id,
+    scanStatus: response.payload.status,
   };
 }
 
@@ -101,5 +138,7 @@ function isScanPayload(payload: unknown): payload is {
   }
 
   const value = payload as ScanPayload;
-  return typeof value.scan_job_id === "string" && typeof value.status === "string";
+  return (
+    typeof value.scan_job_id === "string" && typeof value.status === "string"
+  );
 }

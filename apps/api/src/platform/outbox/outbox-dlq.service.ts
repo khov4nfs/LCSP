@@ -7,6 +7,7 @@ import {
   OUTBOX_ERROR_CODES,
   OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
+import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import { OutboxRepository } from "./outbox.repository.js";
 import { AuditWriterService } from "../audit/audit-writer.service.js";
@@ -51,7 +52,26 @@ export class OutboxDlqService {
       );
     }
 
-    await this.assertReplayTargetIsSafe(message, correlationId);
+    try {
+      await this.assertReplayTargetIsSafe(message, correlationId);
+    } catch (error) {
+      await this.auditWriter.write({
+        eventType: OUTBOX_AUDIT_EVENT_TYPES.dlqReplayDenied,
+        actorId,
+        organizationId,
+        resourceType: AUDIT_RESOURCE_TYPES.outbox,
+        resourceId: id,
+        decision: AUDIT_DECISIONS.deny,
+        correlationId,
+        reasonCode: OUTBOX_ERROR_CODES.dlqReplayUnsafeTarget,
+        payload: {
+          originalEventType: message.eventType,
+          aggregateId: message.aggregateId,
+          replayAuthority: PBAC_ACTIONS.outboxReplay,
+        },
+      });
+      throw error;
+    }
     await this.outboxRepository.resetMessageForReplay(id);
 
     await this.auditWriter.write({
@@ -65,6 +85,7 @@ export class OutboxDlqService {
       payload: {
         originalEventType: message.eventType,
         aggregateId: message.aggregateId,
+        replayAuthority: PBAC_ACTIONS.outboxReplay,
       },
     });
   }

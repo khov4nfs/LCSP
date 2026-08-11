@@ -1,5 +1,5 @@
 # generated: 2026-06-26T10:24:37+07:00
-# last_updated: 2026-07-26T02:05:08Z
+# last_updated: 2026-08-11T00:00:00Z
 # project: LCSP — Legal Compliance Support Platform
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,13 +35,19 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-06-26T10:24:37+07:00"
-last_updated: "2026-07-26T02:05:08Z"
+last_updated: "2026-08-11T00:00:00Z"
 project: "LCSP — Legal Compliance Support Platform"
 project_key: "NOKEY"
 tracking_system: "file-system"
 story_location: "/home/khovan/Workplaces/LCSP/docs/implementation-artifacts"
 
 development_status:
+  ao-1-complete-structural-evidence-baseline: ready-for-dev
+  ao-2-register-read-only-evidence-query-tools: ready-for-dev
+  ao-3-orchestrate-typed-missing-input-resolution: ready-for-dev
+  ao-4-verify-wizard-targets-and-discover-similar-patterns: ready-for-dev
+  ao-5-gate-classification-and-gap-through-evidence: ready-for-dev
+  ao-6-automate-admin-managed-legal-corpus-recovery: ready-for-dev
   epic-1: in-progress
   1-1-approved-account-entry-and-workspace-access: done
   1-2-mfa-session-recovery-and-profile-safety: done

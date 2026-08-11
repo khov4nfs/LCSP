@@ -15,7 +15,7 @@ rules:
       - pattern: $CLIENT.responses.create(...)
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.90
+      base_confidence: "0.90"
       library_group: openai
 
   - id: lcsp-openai-embeddings-py
@@ -27,7 +27,7 @@ rules:
       - pattern: $CLIENT.embeddings.create(...)
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.90
+      base_confidence: "0.90"
       library_group: openai
 
   - id: lcsp-openai-chat-completions-js
@@ -39,7 +39,7 @@ rules:
       - pattern: openai.chat.completions.create(...)
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.90
+      base_confidence: "0.90"
       library_group: openai
 
   - id: lcsp-openai-embeddings-js
@@ -51,7 +51,7 @@ rules:
       - pattern: openai.embeddings.create(...)
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.90
+      base_confidence: "0.90"
       library_group: openai
 
   - id: lcsp-anthropic-messages-py
@@ -63,7 +63,7 @@ rules:
       - pattern: anthropic.Anthropic().messages.create(...)
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.90
+      base_confidence: "0.90"
       library_group: anthropic
 
   - id: lcsp-anthropic-messages-js
@@ -73,7 +73,7 @@ rules:
     pattern: $CLIENT.messages.create(...)
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.90
+      base_confidence: "0.90"
       library_group: anthropic
 
   - id: lcsp-google-genai-py
@@ -86,7 +86,7 @@ rules:
       - pattern: GenerativeModel(...)
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.90
+      base_confidence: "0.90"
       library_group: google-genai
 
   - id: lcsp-vertexai-predict-py
@@ -98,7 +98,7 @@ rules:
       - pattern: $ENDPOINT.predict(...)
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.80
+      base_confidence: "0.80"
       library_group: google-vertex
 
   - id: lcsp-google-genai-js
@@ -110,7 +110,7 @@ rules:
       - pattern: genAI.getGenerativeModel(...)
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.90
+      base_confidence: "0.90"
       library_group: google-genai
 
   - id: lcsp-hf-pipeline-py
@@ -124,7 +124,7 @@ rules:
       - pattern: AutoTokenizer.from_pretrained(...)
     metadata:
       finding_type: AI_FRAMEWORK_USAGE
-      base_confidence: 0.80
+      base_confidence: "0.80"
       library_group: huggingface
 
   - id: lcsp-hf-inference-api-py
@@ -137,7 +137,7 @@ rules:
       - pattern: $CLIENT.question_answering(...)
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.80
+      base_confidence: "0.80"
       library_group: huggingface
 
   - id: lcsp-hf-inference-api-js
@@ -150,7 +150,7 @@ rules:
       - pattern: $HF.questionAnswering(...)
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.80
+      base_confidence: "0.80"
       library_group: huggingface
 
   - id: lcsp-langchain-chain-invoke-py
@@ -164,7 +164,7 @@ rules:
       - pattern: $CHAIN.batch(...)
     metadata:
       finding_type: AI_FRAMEWORK_USAGE
-      base_confidence: 0.85
+      base_confidence: "0.85"
       library_group: langchain
 
   - id: lcsp-langchain-chain-invoke-js
@@ -178,7 +178,7 @@ rules:
       - pattern: new ChatAnthropic(...)
     metadata:
       finding_type: AI_FRAMEWORK_USAGE
-      base_confidence: 0.85
+      base_confidence: "0.85"
       library_group: langchain
 
   - id: lcsp-langchain-prompt-py
@@ -191,7 +191,7 @@ rules:
       - pattern: SystemMessagePromptTemplate.from_template(...)
     metadata:
       finding_type: SYSTEM_PROMPT_DETECTED
-      base_confidence: 0.80
+      base_confidence: "0.80"
       library_group: langchain
 
   - id: lcsp-langchain-prompt-js
@@ -203,7 +203,7 @@ rules:
       - pattern: PromptTemplate.fromTemplate(...)
     metadata:
       finding_type: SYSTEM_PROMPT_DETECTED
-      base_confidence: 0.80
+      base_confidence: "0.80"
       library_group: langchain
 
   - id: lcsp-langchain-agent-py
@@ -217,7 +217,7 @@ rules:
       - pattern: $AGENT.invoke(...)
     metadata:
       finding_type: AI_DECISION_FLOW_SIGNAL
-      base_confidence: 0.75
+      base_confidence: "0.75"
       library_group: langchain
 
   - id: lcsp-langchain-rag-py
@@ -230,7 +230,7 @@ rules:
       - pattern: VectorStoreRetriever(...)
     metadata:
       finding_type: RAG_USAGE_SIGNAL
-      base_confidence: 0.85
+      base_confidence: "0.85"
       library_group: langchain
 
   - id: lcsp-langchain-rag-js
@@ -242,7 +242,7 @@ rules:
       - pattern: new VectorStoreRetriever(...)
     metadata:
       finding_type: RAG_USAGE_SIGNAL
-      base_confidence: 0.85
+      base_confidence: "0.85"
       library_group: langchain
 
   - id: lcsp-langchain-output-parser-py
@@ -256,7 +256,7 @@ rules:
       - pattern: CommaSeparatedListOutputParser(...)
     metadata:
       finding_type: MODEL_OUTPUT_PARSER_SIGNAL
-      base_confidence: 0.80
+      base_confidence: "0.80"
       library_group: langchain
 
   - id: lcsp-langchain-output-parser-js
@@ -269,7 +269,7 @@ rules:
       - pattern: StructuredOutputParser.fromNamesAndDescriptions(...)
     metadata:
       finding_type: MODEL_OUTPUT_PARSER_SIGNAL
-      base_confidence: 0.80
+      base_confidence: "0.80"
       library_group: langchain
 
   - id: lcsp-llamaindex-query-py
@@ -282,7 +282,7 @@ rules:
       - pattern: VectorStoreIndex.from_documents(...)
     metadata:
       finding_type: RAG_USAGE_SIGNAL
-      base_confidence: 0.85
+      base_confidence: "0.85"
       library_group: llamaindex
 
   - id: lcsp-llamaindex-query-js
@@ -295,7 +295,7 @@ rules:
       - pattern: $QUERY_ENGINE.query(...)
     metadata:
       finding_type: RAG_USAGE_SIGNAL
-      base_confidence: 0.85
+      base_confidence: "0.85"
       library_group: llamaindex
 
   - id: lcsp-sklearn-predict-py
@@ -316,7 +316,7 @@ rules:
               ...
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.65
+      base_confidence: "0.65"
       library_group: sklearn
 
   - id: lcsp-tf-predict-py
@@ -342,7 +342,7 @@ rules:
               ...
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.70
+      base_confidence: "0.70"
       library_group: tensorflow
 
   - id: lcsp-torch-inference-py
@@ -364,7 +364,7 @@ rules:
               ...
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.65
+      base_confidence: "0.65"
       library_group: pytorch
 
   - id: lcsp-local-inference-endpoint-py
@@ -379,7 +379,7 @@ rules:
       - pattern-regex: "localhost:11434|/v1/chat/completions|/api/generate"
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.75
+      base_confidence: "0.75"
       library_group: local-inference
 
   - id: lcsp-local-inference-endpoint-js
@@ -394,7 +394,7 @@ rules:
       - pattern-regex: "localhost:11434|/v1/chat/completions|/api/generate"
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.75
+      base_confidence: "0.75"
       library_group: local-inference
 
   - id: lcsp-generic-generate-py
@@ -408,7 +408,7 @@ rules:
       - pattern: $OBJ.score(...)
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.40
+      base_confidence: "0.40"
       library_group: generic
 
   - id: lcsp-generic-generate-js
@@ -422,7 +422,7 @@ rules:
       - pattern: $OBJ.predict(...)
     metadata:
       finding_type: AI_PROVIDER_USAGE
-      base_confidence: 0.40
+      base_confidence: "0.40"
       library_group: generic
 
   - id: lcsp-system-prompt-var-py
@@ -435,7 +435,7 @@ rules:
       - pattern: SystemMessage(content=...)
     metadata:
       finding_type: SYSTEM_PROMPT_DETECTED
-      base_confidence: 0.70
+      base_confidence: "0.70"
       library_group: generic
 
   - id: lcsp-system-prompt-var-js
@@ -445,7 +445,7 @@ rules:
     pattern-regex: "\\b(systemPrompt|SYSTEM_PROMPT|SystemMessage)\\b"
     metadata:
       finding_type: SYSTEM_PROMPT_DETECTED
-      base_confidence: 0.70
+      base_confidence: "0.70"
       library_group: generic
 
   - id: lcsp-dynamic-prompt-py
@@ -458,7 +458,7 @@ rules:
       - pattern: $TEMPLATE.render(...)
     metadata:
       finding_type: DYNAMIC_SYSTEM_PROMPT_REFERENCE
-      base_confidence: 0.65
+      base_confidence: "0.65"
       library_group: generic
 
   - id: lcsp-dynamic-prompt-js
@@ -471,5 +471,5 @@ rules:
       - pattern-regex: "\\$\\{systemPrompt\\}"
     metadata:
       finding_type: DYNAMIC_SYSTEM_PROMPT_REFERENCE
-      base_confidence: 0.65
+      base_confidence: "0.65"
       library_group: generic

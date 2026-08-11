@@ -195,6 +195,22 @@ describe("Manager Golden Path (e2e) [MW-qa-003]", () => {
     );
 
     await seedClassificationInputs(prisma, assessmentId);
+    const approvedProfile = await httpRequest(app)
+      .post(
+        `/assessments/${assessmentId}/verified-profiles/golden-verified-profile/approve`,
+      )
+      .set("Authorization", `Bearer ${token}`)
+      .send({});
+    assert.equal(
+      approvedProfile.status,
+      200,
+      JSON.stringify(approvedProfile.body),
+    );
+    assert.equal(
+      successBody<{ status: string }>(approvedProfile).status,
+      VERIFIED_PROFILE_STATUSES.approved,
+    );
+
     const classified = await httpRequest(app)
       .post("/internal/classification/result-callback")
       .set("X-Worker-Api-Key", WORKER_KEY)
@@ -318,6 +334,7 @@ async function grantGoldenPathActions(prisma: PrismaClient): Promise<void> {
           PBAC_ACTIONS.conflictRead,
           PBAC_ACTIONS.conflictResolve,
           PBAC_ACTIONS.documentRead,
+          PBAC_ACTIONS.verifiedProfileApprove,
         ]),
       ],
     },

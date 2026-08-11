@@ -5,6 +5,7 @@ import { PbacModule } from "../../platform/pbac/pbac.module.js";
 import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guard.js";
 import { AcceptConflictHandler } from "./application/commands/accept-conflict/accept-conflict.handler.js";
 import { AcceptVerifiedProfileHandler } from "./application/commands/accept-verified-profile/accept-verified-profile.handler.js";
+import { ApproveVerifiedProfileHandler } from "./application/commands/approve-verified-profile/approve-verified-profile.handler.js";
 import { ResolveConflictHandler } from "./application/commands/resolve-conflict/resolve-conflict.handler.js";
 import { ListConflictsHandler } from "./application/queries/list-conflicts/list-conflicts.handler.js";
 import { GetVerifiedProfileByIdHandler } from "./application/queries/get-verified-profile-by-id/get-verified-profile-by-id.handler.js";
@@ -19,6 +20,7 @@ import {
   providers: [
     AcceptConflictHandler,
     AcceptVerifiedProfileHandler,
+    ApproveVerifiedProfileHandler,
     GetVerifiedProfileByIdHandler,
     ListConflictsHandler,
     ResolveConflictHandler,

@@ -21,12 +21,13 @@ import {
   GITHUB_INTEGRATION_EVENT_TYPES,
   REPOSITORY_SCAN_JOB_STATUSES,
   REPOSITORY_SCAN_TRIGGER_SOURCES,
+  type RepositoryScanJobStatus,
 } from "@lcsp/contracts/github-integration";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
-import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 
 import { fromPrismaAssessmentStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -157,7 +158,8 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
       );
     }
 
-    if (!hasCompleteMapping(snapshot)) {
+    const mappingStatus = resolveMappingStatus(snapshot);
+    if (mappingStatus !== REPOSITORY_SCAN_JOB_STATUSES.readyToSnapshot) {
       const job = RepositoryScanJob.createWithStatus({
         assessmentId: command.assessmentId,
         snapshotId: snapshot.id,
@@ -165,7 +167,7 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
         idempotencyKey,
         triggerSource: command.triggerSource,
         correlationId: command.correlationId,
-        status: REPOSITORY_SCAN_JOB_STATUSES.pendingMapping,
+        status: mappingStatus,
         blockedReason: GITHUB_INTEGRATION_ERROR_CODES.scanBlockedMapping,
       });
       await this.scanJobRepository.save(job);
@@ -214,6 +216,7 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
       },
       result: GITHUB_INTEGRATION_EVENT_TYPES.scanJobTriggeredAudit,
       redactionStatus: AUDIT_REDACTION_STATUSES.none,
+      authorizationAction: PBAC_ACTIONS.scanTrigger,
       idempotencyKey: job.idempotencyKey,
       payload: {
         scanJobId: job.id,
@@ -348,14 +351,19 @@ function clean(value: unknown): string | null {
   return trimmed ? trimmed : null;
 }
 
-function hasCompleteMapping(snapshot: {
+function resolveMappingStatus(snapshot: {
   repositoryId: string;
   repositoryFullName: string;
   commitSha: string;
-}): boolean {
-  return Boolean(
-    clean(snapshot.repositoryId) &&
-    clean(snapshot.repositoryFullName) &&
-    /^[0-9a-f]{40}$/i.test(snapshot.commitSha),
-  );
+}): RepositoryScanJobStatus {
+  if (!clean(snapshot.repositoryId) || !clean(snapshot.repositoryFullName)) {
+    return REPOSITORY_SCAN_JOB_STATUSES.pendingMapping;
+  }
+  if (!clean(snapshot.commitSha)) {
+    return REPOSITORY_SCAN_JOB_STATUSES.waitingForContext;
+  }
+  if (!/^[0-9a-f]{40}$/i.test(snapshot.commitSha)) {
+    return REPOSITORY_SCAN_JOB_STATUSES.blockedMapping;
+  }
+  return REPOSITORY_SCAN_JOB_STATUSES.readyToSnapshot;
 }

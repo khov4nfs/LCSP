@@ -53,10 +53,11 @@ export class SaveWizardDraftHandler implements ICommandHandler<
 
     if (profile) {
       if (profile.status === WIZARD_STATUS_CODES.submitted) {
-        const repoConn = await this.prisma.repositoryConnection.findFirst({
-          where: { assessmentId },
-        });
-        if (repoConn) {
+        const repositorySnapshot =
+          await this.prisma.repositorySnapshot.findFirst({
+            where: { assessmentId },
+          });
+        if (repositorySnapshot) {
           throw new WizardAlreadySubmittedException(correlationId);
         }
       }

@@ -16,7 +16,7 @@ logger = get_logger(__name__)
 
 class ConflictDetectionConsumer(ConsumerBase):
     queue_name = "intelligence.ai-usage-flow-ready"
-    routing_key = "ai-usage-flow-ready"
+    routing_key = "event.ai-usage-flow.ready.v1"
     requires_pbac = False
 
     def __init__(

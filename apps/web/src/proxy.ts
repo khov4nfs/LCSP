@@ -70,6 +70,7 @@ export const config = {
   matcher: [
     "/workspace/:path*",
     "/assessments/:path*",
+    "/laws/:path*",
     "/developer/assessments/:path*",
   ],
 };

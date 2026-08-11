@@ -184,6 +184,73 @@ describe("GitHub App Callback Endpoint (e2e) [MW-gh-002]", () => {
     assert.ok(connection, "RepositoryConnection row must exist");
   });
 
+  it("connects every repository when GitHub callback omits repository_id for a multi-repository installation", async () => {
+    const state = await startInstallFlow();
+    mockGithubAppFetch({ contents: GITHUB_REPOSITORY_PERMISSION_LEVELS.read }, [
+      {
+        id: 555,
+        name: "example-repo",
+        full_name: "acme/example-repo",
+        default_branch: "main",
+      },
+      {
+        id: 777,
+        name: "second-repo",
+        full_name: "acme/second-repo",
+        default_branch: "trunk",
+      },
+    ]);
+
+    const result = await httpRequest(app)
+      .get("/github/app/callback")
+      .query({ installation_id: INSTALLATION_ID, code: "good-code", state });
+    const body = successBody<GitHubAppCallbackDto>(result);
+
+    assert.equal(result.status, 200);
+    assert.equal(body.repository_full_name, "acme/example-repo");
+
+    const connections = await prisma.repositoryConnection.findMany({
+      orderBy: { repositoryFullName: "asc" },
+    });
+    assert.deepEqual(
+      connections.map((connection) => connection.repositoryFullName),
+      ["acme/example-repo", "acme/second-repo"],
+    );
+  });
+
+  it("updates an existing repository connection when GitHub App is re-authorized", async () => {
+    await prisma.repositoryConnection.create({
+      data: {
+        id: "existing-connection-1",
+        assessmentId: null,
+        organizationId: orgId,
+        userId: "user-1",
+        installationId: INSTALLATION_ID,
+        repositoryId: "555",
+        repositoryName: "old-name",
+        repositoryFullName: "acme/old-name",
+        defaultBranch: "master",
+        permissions: { contents: "read" },
+        status: "ACTIVE",
+      },
+    });
+    const state = await startInstallFlow();
+    mockGithubAppFetch();
+
+    const result = await httpRequest(app)
+      .get("/github/app/callback")
+      .query({ installation_id: INSTALLATION_ID, code: "good-code", state });
+
+    assert.equal(result.status, 200);
+    const connections = await prisma.repositoryConnection.findMany({
+      where: { installationId: INSTALLATION_ID, repositoryId: "555" },
+    });
+    assert.equal(connections.length, 1);
+    assert.equal(connections[0]?.id, "existing-connection-1");
+    assert.equal(connections[0]?.repositoryFullName, "acme/example-repo");
+    assert.equal(connections[0]?.defaultBranch, "main");
+  });
+
   // T02
   it("T02: state not found -> 400 GITHUB_STATE_INVALID", async () => {
     mockGithubAppFetch();
@@ -268,34 +335,6 @@ describe("GitHub App Callback Endpoint (e2e) [MW-gh-002]", () => {
     assert.equal(
       problemCode(result),
       GITHUB_INTEGRATION_ERROR_CODES.permissionsInsufficient,
-    );
-  });
-
-  it("rejects multiple authorized repositories unless repository_id is selected", async () => {
-    const state = await startInstallFlow();
-    mockGithubAppFetch({ contents: GITHUB_REPOSITORY_PERMISSION_LEVELS.read }, [
-      {
-        id: 555,
-        name: "example-repo",
-        full_name: "acme/example-repo",
-        default_branch: "main",
-      },
-      {
-        id: 777,
-        name: "selected-repo",
-        full_name: "acme/selected-repo",
-        default_branch: "trunk",
-      },
-    ]);
-
-    const result = await httpRequest(app)
-      .get("/github/app/callback")
-      .query({ installation_id: INSTALLATION_ID, code: "good-code", state });
-
-    assert.equal(result.status, 400);
-    assert.equal(
-      problemCode(result),
-      GITHUB_INTEGRATION_ERROR_CODES.githubCallbackInvalid,
     );
   });
 

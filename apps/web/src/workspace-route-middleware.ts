@@ -3,6 +3,7 @@ import { PUBLIC_ENTRY_ROUTES } from "./auth-entry.ts";
 export const protectedWorkspacePathPrefixes = Object.freeze([
   "/workspace",
   "/assessments",
+  "/laws",
   "/developer/assessments",
 ]);
 

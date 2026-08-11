@@ -263,11 +263,12 @@ model OutboxMessage {
   status        OutboxStatus        @default(PENDING)
   attempts      Int                 @default(0)
   lastAttemptAt DateTime?
+  nextAttemptAt DateTime?
   publishedAt   DateTime?
   errorMessage  String?
   createdAt     DateTime            @default(now())
 
-  @@index([status, createdAt])
+  @@index([status, nextAttemptAt, createdAt])
   @@index([aggregateType, aggregateId])
 }
 
@@ -683,6 +684,72 @@ model LegalRuleCatalogVersion {
   @@index([status])
 }
 
+model LegalCorpusVersion {
+  id             String                   @id @default(uuid())
+  version        String                   @unique
+  status         LegalRuleLifecycleStatus @default(DRAFT)
+  sourceManifest Json
+  createdAt      DateTime                 @default(now())
+  approvedAt     DateTime?
+  documents      LegalSourceDocument[]
+  chunks         LegalDocumentChunk[]
+  approvals      CorpusApprovalRecord[]
+
+  @@index([status, createdAt])
+}
+
+model LegalSourceDocument {
+  id                   String             @id @default(uuid())
+  legalCorpusVersionId String
+  documentId           String
+  title                String
+  sourceUrl            String
+  sourceSha256         String
+  effectiveDate        DateTime?
+  sourceEffectStatus   String
+  snapshotPath         String?
+  createdAt            DateTime           @default(now())
+  corpusVersion        LegalCorpusVersion @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Cascade)
+  chunks               LegalDocumentChunk[]
+
+  @@unique([legalCorpusVersionId, documentId])
+  @@index([documentId])
+}
+
+model LegalDocumentChunk {
+  id                    String              @id
+  legalCorpusVersionId  String
+  legalSourceDocumentId String
+  documentId            String
+  locator               String
+  content               String
+  contentSha256         String
+  hierarchy             Json
+  legalStatus           String
+  pageStart             Int?
+  pageEnd               Int?
+  createdAt             DateTime            @default(now())
+  corpusVersion         LegalCorpusVersion  @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Cascade)
+  sourceDocument        LegalSourceDocument @relation(fields: [legalSourceDocumentId], references: [id], onDelete: Cascade)
+
+  @@unique([legalCorpusVersionId, documentId, locator])
+  @@index([legalCorpusVersionId, documentId])
+  @@index([legalCorpusVersionId, legalStatus])
+}
+
+model CorpusApprovalRecord {
+  id                   String             @id @default(uuid())
+  legalCorpusVersionId String
+  approvedBy           String
+  status               LegalRuleLifecycleStatus
+  scopeDescription     String
+  comments             String?
+  approvalDate         DateTime           @default(now())
+  corpusVersion        LegalCorpusVersion @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Cascade)
+
+  @@index([legalCorpusVersionId])
+}
+
 model LegalRule {
   id                        String                   @id @default(uuid())
   legalRuleId               String                   @unique
@@ -808,4 +875,5 @@ enum LegalRuleLifecycleStatus {
   DRAFT
   APPROVED
   REJECTED
+  SUPERSEDED
 }

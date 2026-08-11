@@ -9,6 +9,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import {
   BadRequestException,
   ForbiddenException,
+  HttpStatus,
   NotFoundException,
 } from "@nestjs/common";
 
@@ -18,7 +19,10 @@ import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { RepositoryConnection } from "../../../domain/entities/repository-connection.entity.js";
-import type { GitHubAppClient } from "../../../infrastructure/github/github-app.client.js";
+import {
+  GitHubAppClientError,
+  type GitHubAppClient,
+} from "../../../infrastructure/github/github-app.client.js";
 import type { RepositoryConnectionRepository } from "../../ports/persistence/repository-connection.repository.js";
 import type { RepositorySnapshotRepository } from "../../ports/persistence/repository-snapshot.repository.js";
 import { PinSnapshotCommand } from "./pin-snapshot.command.js";
@@ -275,6 +279,37 @@ describe("PinSnapshotHandler", () => {
         eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotPinFailedAudit,
         decision: PBAC_DECISION.deny,
         payload: expect.not.objectContaining({ source: expect.anything() }),
+      }),
+    );
+  });
+
+  it("reports an inaccessible default branch as an installation permission failure", async () => {
+    const { handler, saveWithCreatedEvent, write } = buildHandler({
+      resolveError: new GitHubAppClientError(
+        "github_app_metadata_fetch_failed",
+        HttpStatus.NOT_FOUND,
+      ),
+    });
+
+    try {
+      await handler.execute(command({ branch: "main" }));
+      throw new Error("expected rejection");
+    } catch (error) {
+      expect((error as BadRequestException).getResponse()).toMatchObject({
+        ok: false,
+        problem: {
+          code: GITHUB_INTEGRATION_ERROR_CODES.permissionsInsufficient,
+          correlationId: "corr-1",
+        },
+      });
+    }
+
+    expect(saveWithCreatedEvent).not.toHaveBeenCalled();
+    expect(write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          reasonCode: GITHUB_INTEGRATION_ERROR_CODES.permissionsInsufficient,
+        }),
       }),
     );
   });

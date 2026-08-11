@@ -113,7 +113,14 @@ export class AcceptAIUsageFlowHandler implements ICommandHandler<AcceptAIUsageFl
             organizationId: technicalProfile.organizationId,
             schemaVersion: payload.schema_version,
             providerVersion: payload.provider_version,
-            claims: payload.claims as unknown as Prisma.InputJsonValue,
+            // The public callback claim contract is intentionally compact, but the
+            // Python worker also sends sanitized `flow_data.claims` containing the
+            // deterministic claim field/value/lifecycle/numeric confidence. Join
+            // those details by claim_id before persistence so reconciliation/legal
+            // matching does not have to guess values from descriptions later.
+            claims: enrichStoredClaims(
+              payload,
+            ) as unknown as Prisma.InputJsonValue,
             unknownUsages:
               payload.unknown_usages as unknown as Prisma.InputJsonValue,
             privacyFlags: payload.privacy_flags as Prisma.InputJsonValue,
@@ -245,11 +252,18 @@ export class AcceptAIUsageFlowHandler implements ICommandHandler<AcceptAIUsageFl
       );
     }
 
+    if (!hasConsistentRichClaims(payload)) {
+      throw new UnprocessableEntityException(
+        this.errorBody(command, SCAN_ERROR_CODES.aiUsageFlowSchemaInvalid),
+      );
+    }
+
     if (
       payload.privacy_flags.containsSourceCode !== false ||
       payload.privacy_flags.secretsRedacted !== true ||
       containsUnsafePayload(payload.claims) ||
-      containsUnsafePayload(payload.unknown_usages)
+      containsUnsafePayload(payload.unknown_usages) ||
+      containsUnsafePayload(flowDataOf(payload))
     ) {
       throw new UnprocessableEntityException(
         this.errorBody(command, SCAN_ERROR_CODES.privacyFlagsInvalid),
@@ -262,6 +276,106 @@ export class AcceptAIUsageFlowHandler implements ICommandHandler<AcceptAIUsageFl
       status: HttpStatus.BAD_REQUEST,
     });
   }
+}
+
+function hasConsistentRichClaims(payload: unknown): boolean {
+  if (!isRecord(payload)) return false;
+  if (payload.flow_data === undefined) return true;
+  if (
+    !isRecord(payload.flow_data) ||
+    !Array.isArray(payload.flow_data.claims)
+  ) {
+    return false;
+  }
+  if (!Array.isArray(payload.claims)) return false;
+
+  const compactClaims = payload.claims.filter(isRecord);
+  const richClaims = payload.flow_data.claims;
+  if (compactClaims.length !== payload.claims.length) return false;
+  if (richClaims.length !== compactClaims.length) return false;
+
+  const compactById = new Map<string, Record<string, unknown>>();
+  for (const compactClaim of compactClaims) {
+    const claimId = clean(compactClaim.claim_id);
+    if (!claimId || compactById.has(claimId)) return false;
+    compactById.set(claimId, compactClaim);
+  }
+
+  const seen = new Set<string>();
+  for (const value of richClaims) {
+    if (!isRecord(value)) return false;
+    const claimId = clean(value.claim_id);
+    if (!claimId || seen.has(claimId)) return false;
+    seen.add(claimId);
+
+    const compactClaim = compactById.get(claimId);
+    if (!compactClaim) return false;
+    const numericConfidence = value.confidence;
+    if (
+      !clean(value.claim_field) ||
+      !Object.prototype.hasOwnProperty.call(value, "claim_value") ||
+      !clean(value.lifecycle_state) ||
+      typeof numericConfidence !== "number" ||
+      !Number.isFinite(numericConfidence) ||
+      numericConfidence < 0 ||
+      numericConfidence > 1 ||
+      !sameEvidenceRefs(compactClaim.evidence_refs, value.evidence_refs)
+    ) {
+      return false;
+    }
+  }
+
+  return seen.size === compactById.size;
+}
+
+function sameEvidenceRefs(left: unknown, right: unknown): boolean {
+  if (!Array.isArray(left) || !Array.isArray(right)) return false;
+  if (left.some((ref) => !clean(ref)) || right.some((ref) => !clean(ref))) {
+    return false;
+  }
+  const leftRefs = [...new Set(left.map((ref) => clean(ref) as string))].sort();
+  const rightRefs = [
+    ...new Set(right.map((ref) => clean(ref) as string)),
+  ].sort();
+  return (
+    leftRefs.length === rightRefs.length &&
+    leftRefs.every((ref, index) => ref === rightRefs[index])
+  );
+}
+
+function enrichStoredClaims(payload: unknown): Record<string, unknown>[] {
+  if (!isRecord(payload) || !Array.isArray(payload.claims)) return [];
+
+  const flowData = flowDataOf(payload);
+  const richClaims =
+    flowData && Array.isArray(flowData.claims)
+      ? flowData.claims.filter(isRecord)
+      : [];
+  const byClaimId = new Map<string, Record<string, unknown>>();
+  for (const claim of richClaims) {
+    const claimId = clean(claim.claim_id);
+    if (claimId) byClaimId.set(claimId, claim);
+  }
+
+  return payload.claims.filter(isRecord).map((compactClaim) => {
+    const claimId = clean(compactClaim.claim_id);
+    const richClaim = claimId ? byClaimId.get(claimId) : undefined;
+    if (!richClaim) return { ...compactClaim };
+
+    return {
+      ...compactClaim,
+      claim_field: richClaim.claim_field,
+      claim_value: richClaim.claim_value,
+      lifecycle_state: richClaim.lifecycle_state,
+      claim_confidence: richClaim.confidence,
+      conflict_refs: richClaim.conflict_refs ?? null,
+    };
+  });
+}
+
+function flowDataOf(value: unknown): Record<string, unknown> | null {
+  if (!isRecord(value)) return null;
+  return isRecord(value.flow_data) ? value.flow_data : null;
 }
 
 function isClaim(value: unknown): value is AIUsageFlowClaimRequest {

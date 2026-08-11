@@ -49,7 +49,16 @@ describe("OutboxRepository", () => {
     const { tx, update } = makeTx();
     const now = new Date("2026-01-01T00:00:00Z");
 
-    await repository.markFailure(tx, "outbox-1", 3, 5, "boom", now);
+    const nextAttemptAt = new Date("2026-01-01T00:00:04.000Z");
+    await repository.markFailure(
+      tx,
+      "outbox-1",
+      3,
+      5,
+      "boom",
+      now,
+      nextAttemptAt,
+    );
 
     expect(update).toHaveBeenCalledWith({
       where: { id: "outbox-1" },
@@ -57,6 +66,7 @@ describe("OutboxRepository", () => {
         status: OUTBOX_STATUSES.failed,
         attempts: 3,
         lastAttemptAt: now,
+        nextAttemptAt,
         errorMessage: "boom",
       },
     });
@@ -67,7 +77,7 @@ describe("OutboxRepository", () => {
     const { tx, update } = makeTx();
     const now = new Date("2026-01-01T00:00:00Z");
 
-    await repository.markFailure(tx, "outbox-1", 5, 5, "boom", now);
+    await repository.markFailure(tx, "outbox-1", 5, 5, "boom", now, null);
 
     expect(update).toHaveBeenCalledWith({
       where: { id: "outbox-1" },
@@ -75,6 +85,7 @@ describe("OutboxRepository", () => {
         status: OUTBOX_STATUSES.dlq,
         attempts: 5,
         lastAttemptAt: now,
+        nextAttemptAt: null,
         errorMessage: "boom",
       },
     });
@@ -85,7 +96,15 @@ describe("OutboxRepository", () => {
     const { tx, update } = makeTx();
     const longMessage = "x".repeat(600);
 
-    await repository.markFailure(tx, "outbox-1", 1, 5, longMessage, new Date());
+    await repository.markFailure(
+      tx,
+      "outbox-1",
+      1,
+      5,
+      longMessage,
+      new Date(),
+      new Date(),
+    );
 
     const call = update.mock.calls[0][0] as {
       data: { errorMessage: string };

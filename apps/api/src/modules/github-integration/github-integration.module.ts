@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
 
 import { PbacModule } from "../../platform/pbac/pbac.module.js";
-import { InternalTokenGuard } from "../../platform/internal-auth/internal-token.guard.js";
+import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guard.js";
 import { GitHubAppCallbackHandler } from "./application/commands/github-app-callback/github-app-callback.handler.js";
 import { GitHubAppStartHandler } from "./application/commands/github-app-start/github-app-start.handler.js";
 import { PinSnapshotHandler } from "./application/commands/pin-snapshot/pin-snapshot.handler.js";
@@ -31,7 +31,7 @@ import { ScanTriggerGuard } from "./presentation/http/scan-trigger.guard.js";
     TriggerScanHandler,
     StreamSnapshotArchiveHandler,
     GitHubAppClient,
-    InternalTokenGuard,
+    WorkerApiKeyGuard,
     PrismaGitHubAppInstallStateRepository,
     PrismaRepositoryConnectionRepository,
     PrismaRepositorySnapshotRepository,

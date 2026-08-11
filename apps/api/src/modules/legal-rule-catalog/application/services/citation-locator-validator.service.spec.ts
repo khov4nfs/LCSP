@@ -6,10 +6,26 @@ import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.
 describe("CitationLocatorValidatorService", () => {
   let service: CitationLocatorValidatorService;
   let prisma: jest.Mocked<PrismaService>;
+  let mockFindApprovedCorpus: jest.Mock;
+  let mockFindChunk: jest.Mock;
 
   beforeEach(async () => {
+    mockFindApprovedCorpus = jest.fn().mockResolvedValue({ id: "v1" });
+    mockFindChunk = jest.fn().mockResolvedValue({
+      id: "chunk-1",
+      legalCorpusVersionId: "v1",
+      documentId: "doc1",
+      locator: "art-1",
+      legalStatus: "ACTIVE",
+    });
+
     prisma = {
-      // Mock any prisma delegates here when implemented
+      legalCorpusVersion: {
+        findFirst: mockFindApprovedCorpus,
+      },
+      legalDocumentChunk: {
+        findFirst: mockFindChunk,
+      },
     } as unknown as jest.Mocked<PrismaService>;
 
     const module: TestingModule = await Test.createTestingModule({
@@ -28,16 +44,18 @@ describe("CitationLocatorValidatorService", () => {
     expect(service).toBeDefined();
   });
 
-  it("should return successfully (stubbed)", async () => {
-    // Currently the service is just stubbed and returns without doing anything
+  it("accepts a locator backed by an approved corpus and active chunk", async () => {
     await expect(
       service.validateAll([
         {
           legalCorpusVersionId: "v1",
           documentId: "doc1",
-          locator: "loc1",
+          locator: "art-1",
         },
       ]),
     ).resolves.toBeUndefined();
+
+    expect(mockFindApprovedCorpus).toHaveBeenCalled();
+    expect(mockFindChunk).toHaveBeenCalled();
   });
 });

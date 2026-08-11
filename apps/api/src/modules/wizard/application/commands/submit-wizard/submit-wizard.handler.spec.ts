@@ -27,6 +27,7 @@ import { OutboxRepository } from "../../../../../platform/outbox/outbox.reposito
 import { WizardValidatorService } from "../../services/wizard/wizard-validator.service.js";
 import { WizardProfileEntity } from "../../../domain/entities/wizard-profile.entity.js";
 import { AssessmentNotFoundException } from "../../../domain/exceptions/wizard.exceptions.js";
+import type { RepositorySnapshot } from "@prisma/client";
 
 import { jest } from "@jest/globals";
 
@@ -70,7 +71,7 @@ describe("SubmitWizardHandler", () => {
 
     prismaService = {
       $transaction: mockTransaction,
-      repositoryConnection: {
+      repositorySnapshot: {
         findFirst: jest.fn(),
       },
     } as unknown as jest.Mocked<PrismaService>;
@@ -233,9 +234,9 @@ describe("SubmitWizardHandler", () => {
         status: WIZARD_STATUS_CODES.submitted,
       }),
     );
-    prismaService.repositoryConnection.findFirst.mockResolvedValue({
-      id: "repo-1",
-    } as any);
+    prismaService.repositorySnapshot.findFirst.mockResolvedValue({
+      id: "snapshot-1",
+    } as unknown as RepositorySnapshot);
 
     await expect(handler.execute(command)).rejects.toThrow(ConflictException);
   });

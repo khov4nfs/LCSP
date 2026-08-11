@@ -15,10 +15,6 @@ import {
   AUDIT_ACTOR_TYPES,
 } from "@lcsp/contracts/audit";
 import {
-  buildOutboxMessageInput,
-  OUTBOX_AGGREGATE_TYPES,
-} from "@lcsp/contracts/outbox";
-import {
   AI_USAGE_FLOW_STATUSES,
   CONFLICT_RECORD_STATUSES,
   SCAN_ERROR_CODES,
@@ -35,7 +31,6 @@ import {
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
 import { problemResult } from "../../../../../platform/problems/problem-factory.js";
 import type { VerifiedProfileCallbackDto } from "../../contracts/reconciliation/verified-profile-callback.contract.js";
 import { AcceptVerifiedProfileCommand } from "./accept-verified-profile.command.js";
@@ -47,7 +42,6 @@ export class AcceptVerifiedProfileHandler implements ICommandHandler<AcceptVerif
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditWriter: AuditWriterService,
-    private readonly outboxRepository: OutboxRepository,
   ) {}
 
   async execute(
@@ -118,13 +112,8 @@ export class AcceptVerifiedProfileHandler implements ICommandHandler<AcceptVerif
           },
         });
 
-        await this.enqueueReadyEvent(
-          command,
-          tx,
-          aiUsageFlow,
-          verifiedProfileId,
-          status,
-        );
+        // Generation is not approval. Do not emit verifiedProfileReady until a
+        // Manager explicitly approves this immutable profile.
         await this.auditAccepted(
           command,
           tx,
@@ -170,42 +159,6 @@ export class AcceptVerifiedProfileHandler implements ICommandHandler<AcceptVerif
         this.errorBody(command, SCAN_ERROR_CODES.verifiedProfileSchemaInvalid),
       );
     }
-  }
-
-  private async enqueueReadyEvent(
-    command: AcceptVerifiedProfileCommand,
-    tx: Prisma.TransactionClient,
-    aiUsageFlow: {
-      id: string;
-      assessmentId: string;
-      organizationId: string;
-    },
-    verifiedProfileId: string,
-    status: string,
-  ): Promise<void> {
-    const outboxEvent = buildOutboxMessageInput({
-      aggregateType: OUTBOX_AGGREGATE_TYPES.verifiedProfile,
-      aggregateId: verifiedProfileId,
-      eventType: SCAN_EVENT_TYPES.verifiedProfileReady,
-      organizationId: aiUsageFlow.organizationId,
-      assessmentId: aiUsageFlow.assessmentId,
-      correlationId: command.correlationId,
-      causationId: aiUsageFlow.id,
-      actor: {
-        id: VERIFIED_PROFILE_WORKER_ACTOR_ID,
-        type: AUDIT_ACTOR_TYPES.service,
-      },
-      result: SCAN_EVENT_TYPES.verifiedProfileAcceptedAudit,
-      redactionStatus: AUDIT_REDACTION_STATUSES.none,
-      idempotencyKey: `${verifiedProfileId}:${SCAN_EVENT_TYPES.verifiedProfileReady}`,
-      payload: {
-        verifiedProfileId,
-        assessmentId: aiUsageFlow.assessmentId,
-        status,
-        correlationId: command.correlationId,
-      },
-    });
-    await this.outboxRepository.enqueue(outboxEvent, tx);
   }
 
   private async auditAccepted(

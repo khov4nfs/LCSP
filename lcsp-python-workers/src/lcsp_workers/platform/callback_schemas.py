@@ -2,15 +2,25 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
+# Mirrors packages/contracts/src/scan/callback.ts at the Python boundary.
+SCAN_CALLBACK_STATUSES = {
+    "success": "SUCCESS",
+    "partial": "PARTIAL",
+    "failed": "FAILED",
+}
+
+
 class CallbackResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
     success: Optional[bool] = None
     accepted: Optional[bool] = None
     evidence_report_id: Optional[str] = None
+    technical_profile_id: Optional[str] = None
     verified_profile_id: Optional[str] = None
     ai_usage_flow_id: Optional[str] = None
     legal_rule_match_id: Optional[str] = None
     classification_result_id: Optional[str] = None
+    conflict_count: Optional[int] = None
     guardrail_status: Optional[str] = None
     status: Optional[str] = None
     correlation_id: Optional[str] = None

@@ -2,7 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getClassificationStatus } from "./classification-client";
+import {
+  approveVerifiedProfile,
+  getClassificationStatus,
+  rerunClassification,
+} from "./classification-client";
 import {
   getPendingConflicts,
   resolveConflict,
@@ -20,7 +24,9 @@ import {
   getReadinessStatus,
 } from "./readiness-client";
 import {
+  rerunRepositoryScan,
   startRepositoryAnalysis,
+  type RerunRepositoryScanInput,
   type StartRepositoryAnalysisInput,
 } from "./repository-analysis-client";
 import {
@@ -36,6 +42,33 @@ export function useClassificationStatusQuery(assessmentId: string) {
     queryKey: apiQueryKeys.assessment.classification(assessmentId),
     queryFn: () => getClassificationStatus(assessmentId),
     enabled: assessmentId.length > 0,
+  });
+}
+
+export function useRerunClassificationMutation(assessmentId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => rerunClassification(assessmentId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: apiQueryKeys.assessment.classification(assessmentId),
+      });
+    },
+  });
+}
+
+export function useApproveVerifiedProfileMutation(assessmentId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (verifiedProfileId: string) =>
+      approveVerifiedProfile(assessmentId, verifiedProfileId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: apiQueryKeys.assessment.classification(assessmentId),
+      });
+    },
   });
 }
 
@@ -60,6 +93,25 @@ export function useStartRepositoryAnalysisMutation(assessmentId: string) {
         }),
         queryClient.invalidateQueries({
           queryKey: apiQueryKeys.auth.repositories(),
+        }),
+      ]);
+    },
+  });
+}
+
+export function useRerunRepositoryScanMutation(assessmentId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: RerunRepositoryScanInput) =>
+      rerunRepositoryScan(assessmentId, input),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.assessment.readiness(assessmentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.assessment.evidence(assessmentId),
         }),
       ]);
     },
@@ -126,8 +178,6 @@ export function useTechnicalEvidenceQuery(assessmentId: string) {
     queryKey: apiQueryKeys.assessment.evidence(assessmentId),
     queryFn: () => getTechnicalEvidence(assessmentId),
     enabled: assessmentId.length > 0,
-    refetchInterval: 5_000,
-    refetchIntervalInBackground: false,
   });
 }
 

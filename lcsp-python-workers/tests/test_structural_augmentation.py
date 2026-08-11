@@ -83,7 +83,7 @@ def test_structural_augmentor_links_facts_to_existing_findings(tmp_path: Path) -
     assert payload.evidence_payload["structural_facts"][0]["pattern_type"] == "route_handler"
 
 
-def test_structural_augmentor_skips_files_without_ai_findings(tmp_path: Path) -> None:
+def test_structural_augmentor_processes_files_without_ai_findings(tmp_path: Path) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir(parents=True, exist_ok=True)
     target = workspace / "src" / "no_ai.py"
@@ -98,7 +98,8 @@ def test_structural_augmentor_skips_files_without_ai_findings(tmp_path: Path) ->
     augmentor = StructuralAugmentor(workspace_path=str(workspace))
     facts = augmentor.augment(files=["src/no_ai.py"], finding_ids=[])
 
-    assert facts == []
+    assert len(facts) == 1
+    assert facts[0].ai_finding_ids == []
 
 
 def test_structural_augmentor_records_controller_and_route_for_nestjs(tmp_path: Path) -> None:
@@ -140,10 +141,11 @@ def test_structural_augmentor_tracks_parser_failures_as_coverage_limitations(tmp
     facts = augmentor.augment(files=["src/ai.py"], finding_ids=["finding-3"])
 
     assert facts == []
-    assert any("structural augmentation" in note.lower() for note in augmentor.last_coverage_notes)
+    assert any("SCAN_COVERAGE_LIMITATION" in note for note in augmentor.last_coverage_notes)
+    assert any("src/ai.py" in note for note in augmentor.last_coverage_notes)
 
 
-def test_structural_augmentor_caps_processed_files_and_records_limitation(tmp_path: Path) -> None:
+def test_structural_augmentor_processes_all_eligible_files_without_a_fixed_cap(tmp_path: Path) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir(parents=True, exist_ok=True)
     for index in range(101):
@@ -157,5 +159,5 @@ def test_structural_augmentor_caps_processed_files_and_records_limitation(tmp_pa
         finding_ids=["finding-4"],
     )
 
-    assert len(facts) <= 100
-    assert any("100" in note for note in augmentor.last_coverage_notes)
+    assert len(facts) == 101
+    assert not any("cap" in note.lower() for note in augmentor.last_coverage_notes)
