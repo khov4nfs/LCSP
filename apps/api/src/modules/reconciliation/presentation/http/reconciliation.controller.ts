@@ -5,6 +5,7 @@ import {
   Controller,
   Get,
   Headers,
+  HttpStatus,
   HttpCode,
   NotFoundException,
   Param,
@@ -17,12 +18,18 @@ import {
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import { AI_USAGE_FLOW_STATUSES } from "@lcsp/contracts/scan";
+import {
+  ARTIFACT_CHAIN_STAGES,
+  type ArtifactChainStage,
+} from "@lcsp/contracts/evidence";
+import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
 import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import { AcceptConflictCommand } from "../../application/commands/accept-conflict/accept-conflict.command.js";
 import { AcceptVerifiedProfileCommand } from "../../application/commands/accept-verified-profile/accept-verified-profile.command.js";
@@ -32,6 +39,12 @@ import type { ConflictDetectionCallbackRequest } from "../../application/contrac
 import type { VerifiedProfileCallbackRequest } from "../../application/contracts/reconciliation/verified-profile-callback.contract.js";
 import { ListConflictsQuery } from "../../application/queries/list-conflicts/list-conflicts.query.js";
 import { GetVerifiedProfileByIdQuery } from "../../application/queries/get-verified-profile-by-id/get-verified-profile-by-id.query.js";
+import { GetArtifactChainQuery } from "../../application/queries/get-artifact-chain/get-artifact-chain.query.js";
+import { GetReconciliationContextQuery } from "../../application/queries/get-reconciliation-context/get-reconciliation-context.query.js";
+import {
+  RECONCILIATION_CONTEXT_STATUSES,
+  type ReconciliationContextStatus,
+} from "../../application/contracts/reconciliation/reconciliation-context.contract.js";
 
 type ResolveConflictRequest = {
   resolution?: unknown;
@@ -210,6 +223,64 @@ export class ReconciliationController {
     );
   }
 
+  @Get(":assessmentId/artifact-chain")
+  @UseGuards(PbacGuard)
+  @RequireAction(PBAC_ACTIONS.assessmentRead)
+  async getArtifactChain(
+    @Param("assessmentId") assessmentId: string,
+    @Query("required_stages") requiredStagesRaw: string | undefined,
+    @Query("exact_versions") exactVersionsRaw: string | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const pbacContext = request.pbacContext;
+    const requiredStages = parseArtifactChainStages(
+      requiredStagesRaw,
+      request.correlationId as string,
+    );
+
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new GetArtifactChainQuery(
+          assessmentId,
+          pbacContext.organizationId,
+          request.correlationId as string,
+          requiredStages,
+          exactVersionsRaw === "true",
+        ),
+      ),
+    );
+  }
+
+  @Get(":assessmentId/reconciliation-context")
+  @UseGuards(PbacGuard)
+  @RequireAction(PBAC_ACTIONS.conflictRead)
+  async getReconciliationContext(
+    @Param("assessmentId") assessmentId: string,
+    @Query("flow_ref") flowRef: string | undefined,
+    @Query("statuses") statusesRaw: string | undefined,
+    @Query("max_results") maxResultsRaw: string | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const pbacContext = request.pbacContext;
+    const correlationId = request.correlationId as string;
+    const flowId = parseFlowRef(flowRef, correlationId);
+    const statuses = parseReconciliationStatuses(statusesRaw, correlationId);
+    const maxResults = parseMaxResults(maxResultsRaw, correlationId);
+
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new GetReconciliationContextQuery(
+          assessmentId,
+          pbacContext.organizationId,
+          correlationId,
+          flowId,
+          maxResults,
+          statuses,
+        ),
+      ),
+    );
+  }
+
   @Patch(":assessmentId/conflicts/:conflictId/resolve")
   @UseGuards(PbacGuard)
   @RequireAction(PBAC_ACTIONS.conflictResolve)
@@ -271,4 +342,69 @@ export class ReconciliationController {
       ),
     );
   }
+}
+
+function parseArtifactChainStages(
+  value: string | undefined,
+  correlationId: string,
+): ArtifactChainStage[] {
+  if (!value) return [];
+
+  const allowed = new Set(Object.values(ARTIFACT_CHAIN_STAGES));
+  const stages = value
+    .split(",")
+    .map((stage) => stage.trim()) as ArtifactChainStage[];
+  if (stages.some((stage) => !allowed.has(stage))) {
+    throw problemException(
+      ASSESSMENT_ERROR_CODES.invalidRequest,
+      correlationId,
+      {
+        status: HttpStatus.UNPROCESSABLE_ENTITY,
+      },
+    );
+  }
+
+  return stages;
+}
+
+function parseFlowRef(
+  value: string | undefined,
+  correlationId: string,
+): string {
+  if (!value?.startsWith("flow:")) {
+    throwInvalidRequest(correlationId);
+  }
+  return value.slice("flow:".length);
+}
+
+function parseReconciliationStatuses(
+  value: string | undefined,
+  correlationId: string,
+): ReconciliationContextStatus[] {
+  if (!value) return [];
+  const allowed = new Set(Object.values(RECONCILIATION_CONTEXT_STATUSES));
+  const statuses = value
+    .split(",")
+    .map((status) => status.trim()) as ReconciliationContextStatus[];
+  if (statuses.some((status) => !allowed.has(status))) {
+    throwInvalidRequest(correlationId);
+  }
+  return statuses;
+}
+
+function parseMaxResults(
+  value: string | undefined,
+  correlationId: string,
+): number {
+  const maxResults = Number(value);
+  if (!Number.isInteger(maxResults) || maxResults < 1 || maxResults > 50) {
+    throwInvalidRequest(correlationId);
+  }
+  return maxResults;
+}
+
+function throwInvalidRequest(correlationId: string): never {
+  throw problemException(ASSESSMENT_ERROR_CODES.invalidRequest, correlationId, {
+    status: HttpStatus.UNPROCESSABLE_ENTITY,
+  });
 }

@@ -11,6 +11,7 @@ from lcsp_workers.platform.redaction import redact_dict, redact_source_code
 from lcsp_workers.scanner.analyzers.ai_invocation_detector import TechnicalFinding
 from lcsp_workers.scanner.analyzers.python_analyzer import PythonAnalysisResult
 from lcsp_workers.scanner.dependencies.dependency_fact import PackageDependency
+from lcsp_workers.scanner.inventory.language_types import LanguageClassification
 from lcsp_workers.scanner.ts_js_bridge.bridge_types import TsJsBridgeResult
 
 from .parsers.structural_types import StructuralFact
@@ -68,6 +69,7 @@ class EvidenceAssembler:
         technical_findings: list[TechnicalFinding] | None = None,
         structural_facts: list[StructuralFact] | None = None,
         evidence_graph: ScanGraph | None = None,
+        scan_coverage: list[LanguageClassification] | None = None,
     ) -> ScanCallbackPayload:
         executions = [
             *( [syft_result.execution] if syft_result is not None else [] ),
@@ -98,6 +100,7 @@ class EvidenceAssembler:
                 asdict(record) for record in self._tool_failures(executions)
             ],
             "coverage_notes": list(coverage_notes),
+            "scan_coverage": self._scan_coverage(scan_coverage or []),
             "evidence_graph": serialize_graph(evidence_graph) if evidence_graph else None,
         }
         safe_evidence_payload = redact_dict(evidence_payload)
@@ -120,6 +123,22 @@ class EvidenceAssembler:
             status=status,
             error_code=error_code,
         )
+
+    @staticmethod
+    def _scan_coverage(
+        classifications: list[LanguageClassification],
+    ) -> dict[str, object]:
+        files = [asdict(item) for item in classifications]
+        return {
+            "files": files,
+            "counts": {
+                "total": len(files),
+                "limited": sum(1 for item in classifications if item.coverage_limitation),
+                "skipped": sum(
+                    1 for item in classifications if item.support_level == "SKIP"
+                ),
+            },
+        }
 
     def _tools_version(
         self, executions: Iterable[ToolExecutionResult]

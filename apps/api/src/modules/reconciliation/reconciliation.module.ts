@@ -9,6 +9,8 @@ import { ApproveVerifiedProfileHandler } from "./application/commands/approve-ve
 import { ResolveConflictHandler } from "./application/commands/resolve-conflict/resolve-conflict.handler.js";
 import { ListConflictsHandler } from "./application/queries/list-conflicts/list-conflicts.handler.js";
 import { GetVerifiedProfileByIdHandler } from "./application/queries/get-verified-profile-by-id/get-verified-profile-by-id.handler.js";
+import { GetArtifactChainHandler } from "./application/queries/get-artifact-chain/get-artifact-chain.handler.js";
+import { GetReconciliationContextHandler } from "./application/queries/get-reconciliation-context/get-reconciliation-context.handler.js";
 import {
   InternalReconciliationController,
   ReconciliationController,
@@ -22,6 +24,8 @@ import {
     AcceptVerifiedProfileHandler,
     ApproveVerifiedProfileHandler,
     GetVerifiedProfileByIdHandler,
+    GetArtifactChainHandler,
+    GetReconciliationContextHandler,
     ListConflictsHandler,
     ResolveConflictHandler,
     WorkerApiKeyGuard,

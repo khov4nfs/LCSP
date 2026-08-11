@@ -123,6 +123,7 @@ class ScanConsumer(ConsumerBase):
             )
 
             classification_limitations: list[dict[str, str]] = []
+            classifications = []
             routed_python_files: list[str] | None = None
             routed_ts_js_files: list[str] | None = None
             try:
@@ -290,6 +291,7 @@ class ScanConsumer(ConsumerBase):
                 technical_findings=technical_findings,
                 structural_facts=structural_facts,
                 evidence_graph=evidence_graph,
+                scan_coverage=classifications,
             )
             self._api_client.post_scan_callback(
                 envelope.scan_job_id,
