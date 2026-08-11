@@ -513,6 +513,8 @@ const OUTBOX_AGGREGATE_TYPE_TO_PRISMA = {
     PrismaOutboxAggregateType.TECHNICAL_EVIDENCE_REPORT,
   [OUTBOX_AGGREGATE_TYPES.technicalProfile]:
     PrismaOutboxAggregateType.TECHNICAL_PROFILE,
+  [OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest]:
+    PrismaOutboxAggregateType.TARGETED_REANALYSIS_REQUEST,
   [OUTBOX_AGGREGATE_TYPES.verifiedProfile]:
     PrismaOutboxAggregateType.VERIFIED_PROFILE,
   [OUTBOX_AGGREGATE_TYPES.wizardProfile]:
@@ -537,6 +539,8 @@ const PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT = {
     OUTBOX_AGGREGATE_TYPES.technicalEvidenceReport,
   [PrismaOutboxAggregateType.TECHNICAL_PROFILE]:
     OUTBOX_AGGREGATE_TYPES.technicalProfile,
+  [PrismaOutboxAggregateType.TARGETED_REANALYSIS_REQUEST]:
+    OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest,
   [PrismaOutboxAggregateType.VERIFIED_PROFILE]:
     OUTBOX_AGGREGATE_TYPES.verifiedProfile,
   [PrismaOutboxAggregateType.WIZARD_PROFILE]:

@@ -14,6 +14,9 @@ class CallbackPath(StrEnum):
     LEGAL_RULE_MATCH = "/internal/classification/legal-rule-match-callback"
     CLASSIFICATION = "/internal/classification/result-callback"
     AUDIT_EXPORT = "/internal/callbacks/audit-export/{export_request_id}"
+    TARGETED_REANALYSIS_CLAIM = "/internal/targeted-reanalysis/{request_id}/claim"
+    TARGETED_REANALYSIS_REQUEUE = "/internal/targeted-reanalysis/{request_id}/requeue"
+    TARGETED_REANALYSIS_TERMINAL = "/internal/targeted-reanalysis/{request_id}/terminal"
 
 
 class InternalPath(StrEnum):
@@ -24,6 +27,7 @@ class InternalPath(StrEnum):
     VERIFIED_PROFILE_CONTEXT = "/internal/reconciliation/verified-profile-context/{assessment_id}"
     WIZARD_PROFILE = "/internal/assessments/{assessment_id}/wizard-profile"
     LEGAL_RULE_MATCH = "/internal/classification/runtime/legal-rule-matches/{legal_rule_match_id}"
+    TARGETED_REANALYSIS_REQUEST = "/internal/targeted-reanalysis/{request_id}"
 
 
 class CallbackLogEvent(StrEnum):

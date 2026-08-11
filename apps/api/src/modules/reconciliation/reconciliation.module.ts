@@ -11,6 +11,7 @@ import { ListConflictsHandler } from "./application/queries/list-conflicts/list-
 import { GetVerifiedProfileByIdHandler } from "./application/queries/get-verified-profile-by-id/get-verified-profile-by-id.handler.js";
 import { GetArtifactChainHandler } from "./application/queries/get-artifact-chain/get-artifact-chain.handler.js";
 import { GetReconciliationContextHandler } from "./application/queries/get-reconciliation-context/get-reconciliation-context.handler.js";
+import { ProposeMissingTargetsHandler } from "./application/queries/propose-missing-targets/propose-missing-targets.handler.js";
 import {
   InternalReconciliationController,
   ReconciliationController,
@@ -26,6 +27,7 @@ import {
     GetVerifiedProfileByIdHandler,
     GetArtifactChainHandler,
     GetReconciliationContextHandler,
+    ProposeMissingTargetsHandler,
     ListConflictsHandler,
     ResolveConflictHandler,
     WorkerApiKeyGuard,

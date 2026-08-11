@@ -32,6 +32,7 @@ export const PBAC_ACTIONS = {
   sessionVerify: "session:verify",
   scanRead: "scan:read",
   scanTrigger: "scan:trigger",
+  technicalEvidenceReanalyze: "technical-evidence:reanalyze",
   snapshotCreate: "snapshot:create",
   verifiedProfileApprove: "verified-profile:approve",
   wizardWrite: "wizard:write",

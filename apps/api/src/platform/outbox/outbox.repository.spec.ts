@@ -3,6 +3,8 @@ import {
   OUTBOX_STATUSES,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
+import { TARGETED_REANALYSIS_REQUEST_STATES } from "@lcsp/contracts/scan";
+import { TARGETED_REANALYSIS_CAPACITY_POLICY } from "@lcsp/contracts/scan";
 import { jest } from "@jest/globals";
 import type { Prisma } from "@prisma/client";
 
@@ -14,11 +16,26 @@ type CreateFn = (args: unknown) => Promise<unknown>;
 
 function makeTx() {
   const update = jest.fn<UpdateFn>().mockResolvedValue(undefined);
+  const updateMany = jest.fn<UpdateFn>().mockResolvedValue({ count: 1 });
+  const findUnique = jest.fn<UpdateFn>();
+  const count = jest.fn<UpdateFn>();
+  const checkpointUpdateMany = jest
+    .fn<UpdateFn>()
+    .mockResolvedValue({ count: 1 });
+  const $executeRaw = jest.fn<UpdateFn>().mockResolvedValue(undefined);
   return {
     tx: {
       outboxMessage: { update },
+      targetedReanalysisRequest: { updateMany, findUnique, count },
+      targetedReanalysisCheckpoint: { updateMany: checkpointUpdateMany },
+      $executeRaw,
     } as unknown as Prisma.TransactionClient,
     update,
+    updateMany,
+    findUnique,
+    count,
+    checkpointUpdateMany,
+    $executeRaw,
   };
 }
 
@@ -110,6 +127,97 @@ describe("OutboxRepository", () => {
       data: { errorMessage: string };
     };
     expect(call.data.errorMessage).toHaveLength(500);
+  });
+
+  it("records targeted reanalysis publish attempts and makes an exhausted command visible as DLQ", async () => {
+    const repository = new OutboxRepository({} as PrismaService);
+    const { tx, updateMany, checkpointUpdateMany } = makeTx();
+
+    await repository.recordTargetedReanalysisPublishFailure(
+      tx,
+      "request-1",
+      4,
+      "TARGETED_REANALYSIS_OUTBOX_DELIVERY_EXHAUSTED",
+    );
+
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "request-1",
+        state: {
+          in: [
+            TARGETED_REANALYSIS_REQUEST_STATES.queued,
+            TARGETED_REANALYSIS_REQUEST_STATES.dispatched,
+          ],
+        },
+      },
+      data: {
+        apiPublishAttempts: 4,
+        state: TARGETED_REANALYSIS_REQUEST_STATES.dlq,
+        safeFailureCode: "TARGETED_REANALYSIS_OUTBOX_DELIVERY_EXHAUSTED",
+      },
+    });
+    expect(checkpointUpdateMany).toHaveBeenCalledWith({
+      where: { requestId: "request-1" },
+      data: {
+        apiPublishAttempts: 4,
+        state: TARGETED_REANALYSIS_REQUEST_STATES.dlq,
+        safeFailureCode: "TARGETED_REANALYSIS_OUTBOX_DELIVERY_EXHAUSTED",
+      },
+    });
+  });
+
+  it("reserves a per-organization targeted-reanalysis dispatch slot atomically", async () => {
+    const repository = new OutboxRepository({} as PrismaService);
+    const { tx, findUnique, count, updateMany, $executeRaw } = makeTx();
+    findUnique.mockResolvedValue({
+      organizationId: "org-1",
+      state: TARGETED_REANALYSIS_REQUEST_STATES.queued,
+    });
+    count.mockResolvedValue(
+      TARGETED_REANALYSIS_CAPACITY_POLICY.maxRunningPerOrganization - 1,
+    );
+
+    await expect(
+      repository.reserveTargetedReanalysisDispatch(tx, "request-1"),
+    ).resolves.toBe(true);
+
+    expect($executeRaw).toHaveBeenCalledTimes(1);
+    expect(count).toHaveBeenCalledWith({
+      where: {
+        organizationId: "org-1",
+        state: {
+          in: [
+            TARGETED_REANALYSIS_REQUEST_STATES.dispatched,
+            TARGETED_REANALYSIS_REQUEST_STATES.running,
+          ],
+        },
+      },
+    });
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "request-1",
+        state: TARGETED_REANALYSIS_REQUEST_STATES.queued,
+      },
+      data: { state: TARGETED_REANALYSIS_REQUEST_STATES.dispatched },
+    });
+  });
+
+  it("leaves a request queued when all targeted-reanalysis slots are reserved", async () => {
+    const repository = new OutboxRepository({} as PrismaService);
+    const { tx, findUnique, count, updateMany } = makeTx();
+    findUnique.mockResolvedValue({
+      organizationId: "org-1",
+      state: TARGETED_REANALYSIS_REQUEST_STATES.queued,
+    });
+    count.mockResolvedValue(
+      TARGETED_REANALYSIS_CAPACITY_POLICY.maxRunningPerOrganization,
+    );
+
+    await expect(
+      repository.reserveTargetedReanalysisDispatch(tx, "request-1"),
+    ).resolves.toBe(false);
+
+    expect(updateMany).not.toHaveBeenCalled();
   });
 
   describe("enqueue", () => {

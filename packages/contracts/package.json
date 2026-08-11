@@ -47,6 +47,7 @@
     "./scan/callback": "./src/scan/callback.ts",
     "./scan/codes": "./src/scan/codes.ts",
     "./scan/guidance": "./src/scan/guidance.ts",
+    "./scan/targeted-reanalysis": "./src/scan/targeted-reanalysis.ts",
     "./shared": "./src/shared/index.ts",
     "./shared/health": "./src/shared/health.ts",
     "./shared/locale": "./src/shared/locale.ts",

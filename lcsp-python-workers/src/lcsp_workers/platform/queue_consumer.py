@@ -12,6 +12,10 @@ logger = get_logger(__name__)
 _RETRY_HEADER = "x-lcsp-retry-count"
 
 
+class NonRetryableWorkerError(RuntimeError):
+    """Signals a terminal, already-recorded failure that must enter the broker DLQ."""
+
+
 class ConsumerBase:
     queue_name: str  # Override in subclass
     routing_key: str  # Override in subclass
@@ -110,6 +114,9 @@ class ConsumerBase:
             message.setdefault("_delivery_attempt", attempts)
             self.handle(message, cid)
             ch.basic_ack(delivery_tag=method.delivery_tag)
+        except NonRetryableWorkerError as exc:
+            logger.error("HANDLER_TERMINAL_ERROR", error=str(exc), attempts=attempts)
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
         except Exception as exc:
             logger.error("HANDLER_ERROR", error=str(exc), attempts=attempts)
             self._retry_or_dead_letter(

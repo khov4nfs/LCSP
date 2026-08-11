@@ -31,18 +31,18 @@ sequenceDiagram
 
 Every request is validated before a worker starts. Fields use canonical contract values; a per-tool extension is schema-validated and cannot add a free-text path, URL, query language, shell command, or raw content field.
 
-| Field | Type / validation | Meaning |
-|---|---|---|
-| `toolName` | registered catalog capability | Exact allow-listed tool; unknown values are denied. |
-| `requestId` | UUID | Unique audit/trace identity. |
-| `assessmentId` | UUID | Tenant-scoped assessment authority. |
-| `workflowRunId` | UUID | Durable orchestration run; required for agent calls. |
-| `artifactVersions` | typed refs | Pinned immutable input versions; tool declares required ref types. |
-| `correlationId` | UUID | Propagates through queue, audit, and response. |
-| `scope` | typed bounded selector | Relative paths, IDs, labels, direction/depth, or corpus IDs allowed by that tool only. |
-| `budget` | `{maxItems,maxDepth,maxBytes,maxDurationMs}` | Positive server-capped limits. Client cannot raise a system maximum. |
-| `input` | tool-specific object | Validated against the per-tool packet. |
-| `idempotencyKey` | required only for mutation | Stable request identity; required for targeted reanalysis, activation, and resume. |
+| Field              | Type / validation                            | Meaning                                                                                |
+| ------------------ | -------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `toolName`         | registered catalog capability                | Exact allow-listed tool; unknown values are denied.                                    |
+| `requestId`        | UUID                                         | Unique audit/trace identity.                                                           |
+| `assessmentId`     | UUID                                         | Tenant-scoped assessment authority.                                                    |
+| `workflowRunId`    | UUID                                         | Durable orchestration run; required for agent calls.                                   |
+| `artifactVersions` | typed refs                                   | Pinned immutable input versions; tool declares required ref types.                     |
+| `correlationId`    | UUID                                         | Propagates through queue, audit, and response.                                         |
+| `scope`            | typed bounded selector                       | Relative paths, IDs, labels, direction/depth, or corpus IDs allowed by that tool only. |
+| `budget`           | `{maxItems,maxDepth,maxBytes,maxDurationMs}` | Positive server-capped limits. Client cannot raise a system maximum.                   |
+| `input`            | tool-specific object                         | Validated against the per-tool packet.                                                 |
+| `idempotencyKey`   | required only for mutation                   | Stable request identity; required for targeted reanalysis, activation, and resume.     |
 
 ### Required Preflight
 
@@ -61,7 +61,7 @@ Every request is validated before a worker starts. Fields use canonical contract
   "toolVersion": "1.0.0",
   "configHash": "sha256:...",
   "correlationId": "uuid",
-  "artifactVersions": {"technicalEvidenceReportId": "..."},
+  "artifactVersions": { "technicalEvidenceReportId": "..." },
   "provenanceRef": "prov:...",
   "coverageState": "SUFFICIENT",
   "evidenceRefs": ["evidence:..."],
@@ -70,50 +70,54 @@ Every request is validated before a worker starts. Fields use canonical contract
 }
 ```
 
-| Field | Rule |
-|---|---|
-| `status` | `READY`, `NEEDS_INPUT`, `CONFLICT`, `OUT_OF_COVERAGE`, `BLOCKED`, or `FAILED`. A domain result may have its own bounded value set, but does not replace tool status. |
-| `toolVersion`, `configHash` | Required for every response, including limited/failed responses when tool started. |
-| `artifactVersions` | Echoes only safe immutable version IDs/hashes used to produce the result. |
-| `provenanceRef` | Required safe reference to tool execution/provenance record. |
-| `coverageState` | `SUFFICIENT`, `PARTIAL`, `LIMITED`, or `UNAVAILABLE`; never implied from an empty result. |
-| `evidenceRefs` | Stable IDs/hashes/relative locators only; maximum controlled by `budget.maxItems`. |
-| `limitations` | Typed `{code, affectedScopeRef, reason, retryable}` records; no stack trace or raw input. |
-| `result` | Tool-specific safe schema in its packet. |
+| Field                       | Rule                                                                                                                                                                 |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `status`                    | `READY`, `NEEDS_INPUT`, `CONFLICT`, `OUT_OF_COVERAGE`, `BLOCKED`, or `FAILED`. A domain result may have its own bounded value set, but does not replace tool status. |
+| `toolVersion`, `configHash` | Required for every response, including limited/failed responses when tool started.                                                                                   |
+| `artifactVersions`          | Echoes only safe immutable version IDs/hashes used to produce the result.                                                                                            |
+| `provenanceRef`             | Required safe reference to tool execution/provenance record.                                                                                                         |
+| `coverageState`             | `SUFFICIENT`, `PARTIAL`, `LIMITED`, or `UNAVAILABLE`; never implied from an empty result.                                                                            |
+| `evidenceRefs`              | Stable IDs/hashes/relative locators only; maximum controlled by `budget.maxItems`.                                                                                   |
+| `limitations`               | Typed `{code, affectedScopeRef, reason, retryable}` records; no stack trace or raw input.                                                                            |
+| `result`                    | Tool-specific safe schema in its packet.                                                                                                                             |
 
 ## Shared Error and Resolver Mapping
 
-| Condition | Status | Required limitation / next action |
-|---|---|---|
-| Valid request, no matching evidence, sufficient scope | `READY` | Tool-specific empty/not-found result. |
-| Missing required artifact/input | `NEEDS_INPUT` | Typed requirement and permitted resolver ref. |
-| Incomplete scanner/corpus coverage | `OUT_OF_COVERAGE` | Affected scope and known limitation IDs. |
-| Evidence/material state conflict | `CONFLICT` | Conflict refs; no automatic resolution. |
-| PBAC denial, inactive corpus, exhausted retry, invalid transition | `BLOCKED` | Safe block reason and audit ref. |
-| Unexpected worker/schema/persistence failure | `FAILED` | Safe failure code; retry/DLQ only under severity policy. |
+| Condition                                                         | Status            | Required limitation / next action                        |
+| ----------------------------------------------------------------- | ----------------- | -------------------------------------------------------- |
+| Valid request, no matching evidence, sufficient scope             | `READY`           | Tool-specific empty/not-found result.                    |
+| Missing required artifact/input                                   | `NEEDS_INPUT`     | Typed requirement and permitted resolver ref.            |
+| Incomplete scanner/corpus coverage                                | `OUT_OF_COVERAGE` | Affected scope and known limitation IDs.                 |
+| Evidence/material state conflict                                  | `CONFLICT`        | Conflict refs; no automatic resolution.                  |
+| PBAC denial, inactive corpus, exhausted retry, invalid transition | `BLOCKED`         | Safe block reason and audit ref.                         |
+| Unexpected worker/schema/persistence failure                      | `FAILED`          | Safe failure code; retry/DLQ only under severity policy. |
+
+## Work-creating tool admission
+
+Tools that create asynchronous work must define a versioned capacity policy before they are marked implementation-ready: organization-scoped active/queued limits, rate windows, FIFO/fair-share scheduling, idempotency treatment, retry counts/backoff, terminal/DLQ transition and immutable-output behavior. `request_targeted_reanalysis` is governed by [the targeted-reanalysis capacity decision](../../../decisions/targeted-reanalysis-capacity-policy.md): 2 running, 10 queued, 12 active per organization; 12 submissions/15 minutes and 40/24 hours; API initial + 3 retries and worker initial + 3 retries. Queue saturation must return a typed `BLOCKED` outcome, not drop or silently overwrite work.
 
 ## Data, Privacy, and Audit Boundary
 
-| Area | Mandatory behavior |
-|---|---|
-| Data reads | Read only sanitized immutable artifact projections or catalog-authorized corpus objects named in the per-tool packet. |
-| Paths/locations | Relative repository location, line/range, symbol ID, or page/span hash only. Never absolute workspace paths. |
-| Prohibited data | Raw source, full prompts, secret values, raw tokens, full AST/CST bodies, exception text, arbitrary config values, binary content. |
-| Redaction | Validate deny-list before serialization; redaction is defense in depth, not permission to persist unsafe fields. |
-| Audit | Write actor/service, assessment/org/resource, tool/action, decision/status, correlation ID, policy/version, budget, artifact refs, output hash, and safe limitation refs. |
-| Persistence | API persists immutable callback/result artifacts. Worker does not mutate previous scan/evidence/corpus history. |
+| Area            | Mandatory behavior                                                                                                                                                        |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Data reads      | Read only sanitized immutable artifact projections or catalog-authorized corpus objects named in the per-tool packet.                                                     |
+| Paths/locations | Relative repository location, line/range, symbol ID, or page/span hash only. Never absolute workspace paths.                                                              |
+| Prohibited data | Raw source, full prompts, secret values, raw tokens, full AST/CST bodies, exception text, arbitrary config values, binary content.                                        |
+| Redaction       | Validate deny-list before serialization; redaction is defense in depth, not permission to persist unsafe fields.                                                          |
+| Audit           | Write actor/service, assessment/org/resource, tool/action, decision/status, correlation ID, policy/version, budget, artifact refs, output hash, and safe limitation refs. |
+| Persistence     | API persists immutable callback/result artifacts. Worker does not mutate previous scan/evidence/corpus history.                                                           |
 
 ## LLM Context Policy
 
 The orchestrator may provide an LLM only this object: `{toolName, status, result, evidenceRefs, provenanceRef, coverageState, limitations, artifactVersions, correlationId}`. It must not append hidden raw tool output.
 
-| LLM rule | Enforcement |
-|---|---|
-| Select tools | The model can choose only a registered tool made available for its workflow state. The orchestrator validates request schema and budget. |
-| Interpret results | A model may summarize/categorize/propose. It cannot state a fact without cited `evidenceRefs`, override `coverageState`, resolve a conflict, activate a corpus, or persist final classification/gap decisions. |
-| Empty/limited result | `READY` empty result is distinct from `OUT_OF_COVERAGE`; prompts must preserve that distinction. |
-| Context size | Orchestrator selects maximum `maxItems` evidence refs and server-side response byte cap. It must request a narrower follow-up tool call, never a raw dump. |
-| Missing input | The model emits a typed requirement; AO-3 selects the resolver sequence. It does not retry arbitrary tools. |
+| LLM rule             | Enforcement                                                                                                                                                                                                    |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Select tools         | The model can choose only a registered tool made available for its workflow state. The orchestrator validates request schema and budget.                                                                       |
+| Interpret results    | A model may summarize/categorize/propose. It cannot state a fact without cited `evidenceRefs`, override `coverageState`, resolve a conflict, activate a corpus, or persist final classification/gap decisions. |
+| Empty/limited result | `READY` empty result is distinct from `OUT_OF_COVERAGE`; prompts must preserve that distinction.                                                                                                               |
+| Context size         | Orchestrator selects maximum `maxItems` evidence refs and server-side response byte cap. It must request a narrower follow-up tool call, never a raw dump.                                                     |
+| Missing input        | The model emits a typed requirement; AO-3 selects the resolver sequence. It does not retry arbitrary tools.                                                                                                    |
 
 ## Implementation Skeleton
 

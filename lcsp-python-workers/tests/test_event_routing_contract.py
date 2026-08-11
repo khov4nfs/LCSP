@@ -10,6 +10,7 @@ from lcsp_workers.legal.legal_retrieval_consumer import LegalRetrievalConsumer
 from lcsp_workers.reporting.final_report_consumer import FinalReportConsumer
 from lcsp_workers.reporting.gap_analysis_consumer import GapAnalysisConsumer
 from lcsp_workers.scanner.scan_consumer import ScanConsumer
+from lcsp_workers.scanner.targeted_reanalysis_consumer import TargetedReanalysisConsumer
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -24,6 +25,9 @@ def test_worker_routing_keys_match_the_shared_contracts():
 
     expected = {
         ScanConsumer: event_value(github_contract, "scanTriggered"),
+        TargetedReanalysisConsumer: event_value(
+            github_contract, "targetedReanalysisRequested"
+        ),
         TechnicalProfileConsumer: event_value(scan_contract, "evidenceAccepted"),
         AIUsageFlowConsumer: event_value(scan_contract, "technicalProfileReady"),
         ConflictDetectionConsumer: event_value(scan_contract, "aiUsageFlowReady"),

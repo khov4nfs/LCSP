@@ -307,6 +307,52 @@ class WorkerApiClient:
             raise WorkerCallbackError("Technical evidence report is not accepted.")
         return data
 
+    def get_targeted_reanalysis_request(self, request_id: str) -> dict:
+        path = InternalPath.TARGETED_REANALYSIS_REQUEST.format(request_id=request_id)
+        data = self._get_with_retry(path)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Targeted reanalysis request response was invalid.")
+        return data
+
+    def claim_targeted_reanalysis_request(self, request_id: str) -> bool:
+        path = CallbackPath.TARGETED_REANALYSIS_CLAIM.format(request_id=request_id)
+        data = self._post_with_retry(path, {})
+        return bool(data.get("claimed"))
+
+    def complete_targeted_reanalysis_request(
+        self,
+        request_id: str,
+        *,
+        output_evidence_report_id: str,
+    ) -> dict:
+        return self._post_targeted_reanalysis_terminal(
+            request_id,
+            {"state": "COMPLETED", "output_evidence_report_id": output_evidence_report_id},
+        )
+
+    def fail_targeted_reanalysis_request(
+        self,
+        request_id: str,
+        *,
+        state: str,
+        safe_failure_code: str,
+    ) -> dict:
+        if state not in {"FAILED", "DLQ"}:
+            raise ValueError("Targeted reanalysis terminal state must be FAILED or DLQ.")
+        return self._post_targeted_reanalysis_terminal(
+            request_id,
+            {"state": state, "safe_failure_code": safe_failure_code},
+        )
+
+    def requeue_targeted_reanalysis_request(self, request_id: str) -> bool:
+        path = CallbackPath.TARGETED_REANALYSIS_REQUEUE.format(request_id=request_id)
+        data = self._post_with_retry(path, {})
+        return bool(data.get("requeued"))
+
+    def _post_targeted_reanalysis_terminal(self, request_id: str, payload: dict) -> dict:
+        path = CallbackPath.TARGETED_REANALYSIS_TERMINAL.format(request_id=request_id)
+        return self._post_with_retry(path, payload)
+
     def post_ai_usage_flow_callback(
         self, payload: AIUsageFlowCallbackPayload
     ) -> CallbackResponse:

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Callable
 
 from lcsp_workers.platform.api_client import WorkerApiClient
+from lcsp_workers.platform.callback_schemas import CallbackResponse
 from lcsp_workers.platform.correlation import set_correlation_id
 from lcsp_workers.platform.logging import get_logger
 from lcsp_workers.platform.queue_consumer import ConsumerBase
@@ -94,7 +95,7 @@ class ScanConsumer(ConsumerBase):
         self._structural_augmentor = structural_augmentor or StructuralAugmentor()
         self._evidence_graph_assembler = evidence_graph_assembler or EvidenceGraphAssembler()
 
-    def handle(self, message: dict, correlation_id: str) -> None:
+    def handle(self, message: dict, correlation_id: str) -> CallbackResponse:
         started_at = time.monotonic()
         envelope = self._read_envelope(message, correlation_id)
         set_correlation_id(envelope.correlation_id)
@@ -298,7 +299,7 @@ class ScanConsumer(ConsumerBase):
                 scan_coverage=classifications,
             )
             self._finalize_workspace_cleanup(envelope.scan_job_id)
-            self._api_client.post_scan_callback(
+            callback_response = self._api_client.post_scan_callback(
                 envelope.scan_job_id,
                 callback_payload,
             )
@@ -308,6 +309,7 @@ class ScanConsumer(ConsumerBase):
                 status=callback_payload.status,
                 schema_version=callback_payload.schema_version,
             )
+            return callback_response
         except PrivacyAssertionError as error:
             logger.error(
                 "SCAN_EVIDENCE_PRIVACY_ASSERTION_FAILED",

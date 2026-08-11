@@ -13,6 +13,8 @@ import { GetScanJobQuery } from "../../application/queries/get-scan-job/get-scan
 import { ProcessScanCallbackCommand } from "../../application/commands/process-scan-callback/process-scan-callback.command.js";
 import { RerunScanCommand } from "../../application/commands/rerun-scan/rerun-scan.command.js";
 import { InternalScanController, ScanController } from "./scan.controller.js";
+import { InternalTargetedReanalysisController } from "./scan.controller.js";
+import { TARGETED_REANALYSIS_REQUEST_STATES } from "@lcsp/contracts/scan";
 
 describe("ScanController", () => {
   it("requires the scan:read PBAC action", () => {
@@ -155,5 +157,77 @@ describe("InternalScanController", () => {
       payload,
       correlationId: "corr-1",
     });
+  });
+});
+
+describe("InternalTargetedReanalysisController", () => {
+  it("claims only a dispatched request while atomically enforcing the per-organization running limit", async () => {
+    const findUnique = jest.fn().mockResolvedValue({
+      organizationId: "org-1",
+      state: TARGETED_REANALYSIS_REQUEST_STATES.dispatched,
+    });
+    const count = jest.fn().mockResolvedValue(1);
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const $executeRaw = jest.fn().mockResolvedValue(undefined);
+    const transaction = {
+      targetedReanalysisRequest: { findUnique, count, updateMany },
+      targetedReanalysisCheckpoint: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      $executeRaw,
+    };
+    const prisma = {
+      $transaction: jest.fn((handler: (tx: typeof transaction) => unknown) =>
+        Promise.resolve(handler(transaction)),
+      ),
+    };
+    const controller = new InternalTargetedReanalysisController(
+      prisma as never,
+      { write: jest.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    const response = await controller.claimRequest("request-1");
+
+    expect(response).toEqual({ ok: true, data: { claimed: true } });
+    expect($executeRaw).toHaveBeenCalledTimes(1);
+    expect(updateMany).toHaveBeenCalledWith({
+      where: {
+        id: "request-1",
+        state: TARGETED_REANALYSIS_REQUEST_STATES.dispatched,
+      },
+      data: {
+        state: TARGETED_REANALYSIS_REQUEST_STATES.running,
+        workerDeliveryAttempts: { increment: 1 },
+      },
+    });
+  });
+
+  it("does not claim a queued request injected outside the outbox scheduler", async () => {
+    const findUnique = jest.fn().mockResolvedValue({
+      organizationId: "org-1",
+      state: TARGETED_REANALYSIS_REQUEST_STATES.queued,
+    });
+    const transaction = {
+      targetedReanalysisRequest: { findUnique },
+      targetedReanalysisCheckpoint: {
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      $executeRaw: jest.fn(),
+    };
+    const prisma = {
+      $transaction: jest.fn((handler: (tx: typeof transaction) => unknown) =>
+        Promise.resolve(handler(transaction)),
+      ),
+    };
+    const controller = new InternalTargetedReanalysisController(
+      prisma as never,
+      { write: jest.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    await expect(controller.claimRequest("request-1")).resolves.toEqual({
+      ok: true,
+      data: { claimed: false },
+    });
+    expect(transaction.$executeRaw).not.toHaveBeenCalled();
   });
 });

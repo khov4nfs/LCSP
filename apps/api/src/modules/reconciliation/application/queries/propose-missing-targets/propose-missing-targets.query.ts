@@ -1,0 +1,12 @@
+import type { TargetCandidateKind } from "../../contracts/missing-target-proposal.contract.js";
+export class ProposeMissingTargetsQuery {
+  constructor(
+    public readonly assessmentId: string,
+    public readonly organizationId: string,
+    public readonly wizardProfileId: string,
+    public readonly evidenceReportId: string,
+    public readonly candidateKinds: TargetCandidateKind[],
+    public readonly maxResults: number,
+    public readonly correlationId: string,
+  ) {}
+}

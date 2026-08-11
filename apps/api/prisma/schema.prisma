@@ -443,8 +443,28 @@ enum OutboxAggregateType {
   REPOSITORY_SNAPSHOT
   TECHNICAL_EVIDENCE_REPORT
   TECHNICAL_PROFILE
+  TARGETED_REANALYSIS_REQUEST
   VERIFIED_PROFILE
   WIZARD_PROFILE
+}
+
+enum TargetedReanalysisRequestState {
+  QUEUED
+  DISPATCHED
+  RUNNING
+  COMPLETED
+  FAILED
+  DLQ
+}
+
+enum TargetedReanalysisCheckpointState {
+  PENDING_DISPATCH
+  DISPATCHED
+  RUNNING
+  RETRY_SCHEDULED
+  COMPLETED
+  FAILED
+  DLQ
 }
 
 enum OutboxStatus {
@@ -537,6 +557,52 @@ model RepositoryScanJob {
 
   @@index([assessmentId])
   @@index([snapshotId])
+}
+
+model TargetedReanalysisRequest {
+  id                    String                         @id
+  scanJobId             String                         @unique
+  assessmentId          String
+  organizationId        String
+  inputEvidenceReportId String
+  snapshotId            String
+  commitSha             String
+  analyzerId            String
+  normalizedScope       Json
+  reasonRequirementId   String
+  idempotencyKey        String
+  state                 TargetedReanalysisRequestState @default(QUEUED)
+  apiPublishAttempts    Int                            @default(0)
+  workerDeliveryAttempts Int                           @default(0)
+  checkpointRef         String
+  outputEvidenceReportId String?
+  safeFailureCode       String?
+  correlationId         String
+  checkpoint            TargetedReanalysisCheckpoint?
+  createdAt             DateTime                       @default(now())
+  updatedAt             DateTime                       @updatedAt
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, state, createdAt])
+  @@index([assessmentId, createdAt])
+  @@index([inputEvidenceReportId])
+  @@index([snapshotId])
+}
+
+model TargetedReanalysisCheckpoint {
+  id                     String                            @id
+  requestId              String                            @unique
+  state                  TargetedReanalysisCheckpointState @default(PENDING_DISPATCH)
+  apiPublishAttempts     Int                               @default(0)
+  workerDeliveryAttempts Int                               @default(0)
+  outputEvidenceReportId String?
+  safeFailureCode        String?
+  correlationId          String
+  createdAt              DateTime                          @default(now())
+  updatedAt              DateTime                          @updatedAt
+  request                TargetedReanalysisRequest         @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([state, updatedAt])
 }
 
 model TechnicalEvidenceReport {

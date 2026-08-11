@@ -41,10 +41,12 @@ import { ListConflictsQuery } from "../../application/queries/list-conflicts/lis
 import { GetVerifiedProfileByIdQuery } from "../../application/queries/get-verified-profile-by-id/get-verified-profile-by-id.query.js";
 import { GetArtifactChainQuery } from "../../application/queries/get-artifact-chain/get-artifact-chain.query.js";
 import { GetReconciliationContextQuery } from "../../application/queries/get-reconciliation-context/get-reconciliation-context.query.js";
+import { ProposeMissingTargetsQuery } from "../../application/queries/propose-missing-targets/propose-missing-targets.query.js";
 import {
   RECONCILIATION_CONTEXT_STATUSES,
   type ReconciliationContextStatus,
 } from "../../application/contracts/reconciliation/reconciliation-context.contract.js";
+import { TARGET_CANDIDATE_KINDS } from "../../application/contracts/missing-target-proposal.contract.js";
 
 type ResolveConflictRequest = {
   resolution?: unknown;
@@ -276,6 +278,32 @@ export class ReconciliationController {
           flowId,
           maxResults,
           statuses,
+        ),
+      ),
+    );
+  }
+
+  @Get(":assessmentId/missing-targets")
+  @UseGuards(PbacGuard)
+  @RequireAction(PBAC_ACTIONS.assessmentRead)
+  async proposeMissingTargets(
+    @Param("assessmentId") assessmentId: string,
+    @Query("wizard_profile_id") wizardProfileId: string,
+    @Query("evidence_report_id") evidenceReportId: string,
+    @Query("max_results") maxResultsRaw: string | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const correlationId = request.correlationId as string;
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new ProposeMissingTargetsQuery(
+          assessmentId,
+          request.pbacContext.organizationId,
+          wizardProfileId,
+          evidenceReportId,
+          [TARGET_CANDIDATE_KINDS.providerUsage],
+          maxResultsRaw ? Number(maxResultsRaw) : 25,
+          correlationId,
         ),
       ),
     );

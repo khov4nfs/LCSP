@@ -1,6 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import {
+  TARGETED_REANALYSIS_CAPACITY_POLICY,
+  TARGETED_REANALYSIS_CHECKPOINT_STATES,
+  TARGETED_REANALYSIS_REQUEST_STATES,
+} from "@lcsp/contracts/scan";
+import {
   type OutboxAggregateType,
   OUTBOX_STATUSES,
   type OutboxMessageInput,
@@ -135,6 +140,109 @@ export class OutboxRepository {
         errorMessage: errorMessage.slice(0, 500),
       },
     });
+  }
+
+  /**
+   * Keeps a targeted-reanalysis request observable while its command is being
+   * published. This is deliberately in the same outbox transaction as
+   * `markFailure`, so an outbox DLQ cannot leave a request appearing queued.
+   */
+  async recordTargetedReanalysisPublishFailure(
+    tx: Prisma.TransactionClient,
+    requestId: string,
+    attempts: number,
+    terminalFailureCode: string | null,
+  ): Promise<void> {
+    await tx.targetedReanalysisRequest.updateMany({
+      where: {
+        id: requestId,
+        state: {
+          in: [
+            TARGETED_REANALYSIS_REQUEST_STATES.queued,
+            TARGETED_REANALYSIS_REQUEST_STATES.dispatched,
+          ],
+        },
+      },
+      data: {
+        apiPublishAttempts: attempts,
+        ...(terminalFailureCode
+          ? {
+              state: TARGETED_REANALYSIS_REQUEST_STATES.dlq,
+              safeFailureCode: terminalFailureCode,
+            }
+          : {}),
+      },
+    });
+    await tx.targetedReanalysisCheckpoint.updateMany({
+      where: { requestId },
+      data: {
+        apiPublishAttempts: attempts,
+        ...(terminalFailureCode
+          ? {
+              state: TARGETED_REANALYSIS_CHECKPOINT_STATES.dlq,
+              safeFailureCode: terminalFailureCode,
+            }
+          : {}),
+      },
+    });
+  }
+
+  /**
+   * Reserves one of an organization's two targeted-reanalysis worker slots
+   * before AMQP publication. The advisory lock serializes reservations for one
+   * organization without globally serializing unrelated tenants.
+   */
+  async reserveTargetedReanalysisDispatch(
+    tx: Prisma.TransactionClient,
+    requestId: string,
+  ): Promise<boolean> {
+    const request = await tx.targetedReanalysisRequest.findUnique({
+      where: { id: requestId },
+      select: { organizationId: true, state: true },
+    });
+    if (!request) return false;
+    if (request.state === TARGETED_REANALYSIS_REQUEST_STATES.dispatched) {
+      return true;
+    }
+    if (request.state !== TARGETED_REANALYSIS_REQUEST_STATES.queued) {
+      return false;
+    }
+
+    await tx.$executeRaw`
+      SELECT pg_advisory_xact_lock(hashtext(${request.organizationId}))
+    `;
+    const reservedCount = await tx.targetedReanalysisRequest.count({
+      where: {
+        organizationId: request.organizationId,
+        state: {
+          in: [
+            TARGETED_REANALYSIS_REQUEST_STATES.dispatched,
+            TARGETED_REANALYSIS_REQUEST_STATES.running,
+          ],
+        },
+      },
+    });
+    if (
+      reservedCount >=
+      TARGETED_REANALYSIS_CAPACITY_POLICY.maxRunningPerOrganization
+    ) {
+      return false;
+    }
+
+    const claimed = await tx.targetedReanalysisRequest.updateMany({
+      where: {
+        id: requestId,
+        state: TARGETED_REANALYSIS_REQUEST_STATES.queued,
+      },
+      data: { state: TARGETED_REANALYSIS_REQUEST_STATES.dispatched },
+    });
+    if (claimed.count === 1) {
+      await tx.targetedReanalysisCheckpoint.updateMany({
+        where: { requestId },
+        data: { state: TARGETED_REANALYSIS_CHECKPOINT_STATES.dispatched },
+      });
+    }
+    return claimed.count === 1;
   }
 
   async findDlqMessages(): Promise<OutboxMessageEntity[]> {

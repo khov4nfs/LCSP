@@ -43,6 +43,7 @@ export const OUTBOX_AGGREGATE_TYPES = {
   repositorySnapshot: "REPOSITORY_SNAPSHOT",
   technicalEvidenceReport: "TECHNICAL_EVIDENCE_REPORT",
   technicalProfile: "TECHNICAL_PROFILE",
+  targetedReanalysisRequest: "TARGETED_REANALYSIS_REQUEST",
   verifiedProfile: "VERIFIED_PROFILE",
   wizardProfile: "WIZARD_PROFILE",
 } as const;

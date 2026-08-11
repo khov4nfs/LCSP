@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from lcsp_workers.platform.config import WorkerConfig
-from lcsp_workers.platform.queue_consumer import ConsumerBase
+from lcsp_workers.platform.queue_consumer import ConsumerBase, NonRetryableWorkerError
 from lcsp_workers.platform.logging import configure_logging
 
 configure_logging("INFO")
@@ -136,6 +136,20 @@ def test_t04_handle_exception_retry_and_dlq(config, pbac_mock, channel_mock, met
 
     channel_mock.basic_publish.assert_not_called()
     channel_mock.basic_nack.assert_called_once_with(delivery_tag=1, requeue=False)
+
+
+def test_terminal_handler_error_bypasses_retry(config, pbac_mock, channel_mock, method_mock):
+    """A recorded terminal failure must enter the broker DLQ immediately."""
+    pbac_mock.check.return_value = "allow"
+    consumer = DummyConsumer(config, pbac_mock)
+    consumer.handle = MagicMock(side_effect=NonRetryableWorkerError("terminal"))
+
+    properties = MagicMock()
+    properties.headers = {}
+    consumer._on_message(channel_mock, method_mock, properties, b"{}")
+
+    channel_mock.basic_nack.assert_called_once_with(delivery_tag=1, requeue=False)
+    channel_mock.basic_publish.assert_not_called()
 
 
 def test_retry_count_falls_back_to_x_death(config):
