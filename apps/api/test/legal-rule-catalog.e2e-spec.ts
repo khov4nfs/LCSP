@@ -349,6 +349,35 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
       assert.equal(response.status, 422);
     });
 
+    it("fails closed when a document omits its chunk list", async () => {
+      const response = await httpRequest(app)
+        .post("/internal/legal-rule-catalog/corpus")
+        .set("Authorization", `Bearer ${authorToken}`)
+        .send({
+          version: "corpus-missing-chunks-v1",
+          sourceManifest: reviewManifest(
+            [
+              {
+                documentId: "LAW-MISSING-CHUNKS",
+                sourceSha256: sha256("missing-chunks-source"),
+              },
+            ],
+            "user-approver",
+          ),
+          documents: [
+            {
+              documentId: "LAW-MISSING-CHUNKS",
+              title: "Missing chunk list legal source",
+              sourceUrl: "https://example.test/missing-chunks-law",
+              sourceSha256: sha256("missing-chunks-source"),
+              sourceEffectStatus: "ACTIVE",
+            },
+          ],
+        });
+
+      assert.equal(response.status, 422);
+    });
+
     it("rejects approval when authenticated approver differs from reviewedBy", async () => {
       const content = "Điều 1. Reviewer mismatch.";
       const sourceSha = sha256("mismatch-source");
@@ -394,6 +423,212 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
         where: { id: draft.id },
       });
       assert.equal(stored?.status, LEGAL_RULE_LIFECYCLE_STATUSES.draft);
+    });
+
+    it("fails closed when chunk content hash does not match actual content", async () => {
+      const content = "Điều 1. Real content here.";
+      const wrongHash = sha256("totally-different-content");
+      const response = await httpRequest(app)
+        .post("/internal/legal-rule-catalog/corpus")
+        .set("Authorization", `Bearer ${authorToken}`)
+        .send({
+          version: "corpus-hash-mismatch-v1",
+          sourceManifest: reviewManifest(
+            [
+              {
+                documentId: "LAW-HASH-MISMATCH",
+                sourceSha256: sha256("hash-mismatch-source"),
+              },
+            ],
+            "user-approver",
+          ),
+          documents: [
+            {
+              documentId: "LAW-HASH-MISMATCH",
+              title: "Hash mismatch legal source",
+              sourceUrl: "https://example.test/hash-mismatch-law",
+              sourceSha256: sha256("hash-mismatch-source"),
+              sourceEffectStatus: "ACTIVE",
+              chunks: [
+                {
+                  id: "chunk-hash-mismatch-v1",
+                  locator: "art-1",
+                  content,
+                  contentSha256: wrongHash,
+                  hierarchy: { article: "1" },
+                  legalStatus: "ACTIVE",
+                },
+              ],
+            },
+          ],
+        });
+
+      assert.equal(response.status, 422);
+      const corpus = await prisma.legalCorpusVersion.findUnique({
+        where: { version: "corpus-hash-mismatch-v1" },
+      });
+      assert.equal(corpus, null);
+    });
+
+    it("fails closed when document sourceSha256 does not match signoff", async () => {
+      const content = "Điều 1. Source hash mismatch.";
+      const response = await httpRequest(app)
+        .post("/internal/legal-rule-catalog/corpus")
+        .set("Authorization", `Bearer ${authorToken}`)
+        .send({
+          version: "corpus-source-hash-mismatch-v1",
+          sourceManifest: reviewManifest(
+            [
+              {
+                documentId: "LAW-SOURCE-HASH-MISMATCH",
+                sourceSha256: sha256("signed-source-hash"),
+              },
+            ],
+            "user-approver",
+          ),
+          documents: [
+            {
+              documentId: "LAW-SOURCE-HASH-MISMATCH",
+              title: "Source hash mismatch legal source",
+              sourceUrl: "https://example.test/source-hash-mismatch-law",
+              sourceSha256: sha256("different-actual-hash"),
+              sourceEffectStatus: "ACTIVE",
+              chunks: [
+                {
+                  id: "chunk-source-hash-mismatch-v1",
+                  locator: "art-1",
+                  content,
+                  contentSha256: sha256(content),
+                  hierarchy: { article: "1" },
+                  legalStatus: "ACTIVE",
+                },
+              ],
+            },
+          ],
+        });
+
+      assert.equal(response.status, 422);
+    });
+
+    it("fails closed when version already exists", async () => {
+      const content = "Điều 1. Duplicate version test.";
+      const sourceSha = sha256("duplicate-source");
+
+      // First ingest succeeds
+      const first = await httpRequest(app)
+        .post("/internal/legal-rule-catalog/corpus")
+        .set("Authorization", `Bearer ${authorToken}`)
+        .send({
+          version: "corpus-duplicate-v1",
+          sourceManifest: reviewManifest(
+            [{ documentId: "LAW-DUPLICATE", sourceSha256: sourceSha }],
+            "user-approver",
+          ),
+          documents: [
+            {
+              documentId: "LAW-DUPLICATE",
+              title: "Duplicate version legal source",
+              sourceUrl: "https://example.test/duplicate-law",
+              sourceSha256: sourceSha,
+              sourceEffectStatus: "ACTIVE",
+              chunks: [
+                {
+                  id: "chunk-duplicate-v1",
+                  locator: "art-1",
+                  content,
+                  contentSha256: sha256(content),
+                  hierarchy: { article: "1" },
+                  legalStatus: "ACTIVE",
+                },
+              ],
+            },
+          ],
+        });
+      assert.equal(first.status, 201);
+
+      // Second ingest with same version should fail
+      const second = await httpRequest(app)
+        .post("/internal/legal-rule-catalog/corpus")
+        .set("Authorization", `Bearer ${authorToken}`)
+        .send({
+          version: "corpus-duplicate-v1",
+          sourceManifest: reviewManifest(
+            [{ documentId: "LAW-DUPLICATE", sourceSha256: sourceSha }],
+            "user-approver",
+          ),
+          documents: [
+            {
+              documentId: "LAW-DUPLICATE",
+              title: "Duplicate version legal source",
+              sourceUrl: "https://example.test/duplicate-law",
+              sourceSha256: sourceSha,
+              sourceEffectStatus: "ACTIVE",
+              chunks: [
+                {
+                  id: "chunk-duplicate-v1-attempt2",
+                  locator: "art-1",
+                  content,
+                  contentSha256: sha256(content),
+                  hierarchy: { article: "1" },
+                  legalStatus: "ACTIVE",
+                },
+              ],
+            },
+          ],
+        });
+      assert.equal(second.status, 409);
+    });
+
+    it("prevents approval when corpus is not in DRAFT status", async () => {
+      const content = "Điều 1. Already approved corpus.";
+      const sourceSha = sha256("approved-source");
+
+      // Create and approve corpus
+      const ingest = await httpRequest(app)
+        .post("/internal/legal-rule-catalog/corpus")
+        .set("Authorization", `Bearer ${authorToken}`)
+        .send({
+          version: "corpus-already-approved-v1",
+          sourceManifest: reviewManifest(
+            [{ documentId: "LAW-APPROVED", sourceSha256: sourceSha }],
+            "user-approver",
+          ),
+          documents: [
+            {
+              documentId: "LAW-APPROVED",
+              title: "Already approved legal source",
+              sourceUrl: "https://example.test/approved-law",
+              sourceSha256: sourceSha,
+              sourceEffectStatus: "ACTIVE",
+              chunks: [
+                {
+                  id: "chunk-approved-v1",
+                  locator: "art-1",
+                  content,
+                  contentSha256: sha256(content),
+                  hierarchy: { article: "1" },
+                  legalStatus: "ACTIVE",
+                },
+              ],
+            },
+          ],
+        });
+      assert.equal(ingest.status, 201);
+      const draft = successBody<{ id: string }>(ingest);
+
+      // First approval succeeds
+      const firstApproval = await httpRequest(app)
+        .post(`/internal/legal-rule-catalog/corpus/${draft.id}/approve`)
+        .set("Authorization", `Bearer ${approverToken}`)
+        .send({ scopeDescription: "Initial approval" });
+      assert.equal(firstApproval.status, 200);
+
+      // Second approval should fail (already approved)
+      const secondApproval = await httpRequest(app)
+        .post(`/internal/legal-rule-catalog/corpus/${draft.id}/approve`)
+        .set("Authorization", `Bearer ${approverToken}`)
+        .send({ scopeDescription: "Duplicate approval attempt" });
+      assert.equal(secondApproval.status, 409);
     });
   });
 

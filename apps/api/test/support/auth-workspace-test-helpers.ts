@@ -4,6 +4,7 @@ import {
   AUTH_MEMBERSHIP_STATUSES,
 } from "@lcsp/contracts/auth";
 import { execFileSync } from "node:child_process";
+import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -67,16 +68,28 @@ export class CapturingRecoveryNotifier {
 }
 
 export function pushPrismaSchema(): void {
-  execFileSync("pnpm", ["exec", "prisma", "db", "push", "--accept-data-loss"], {
-    cwd: apiRoot,
-    env: {
-      ...process.env,
-      DATABASE_URL: TEST_DATABASE_URL,
-      XDG_CACHE_HOME: resolve(apiRoot, ".cache"),
+  const cacheHome = resolve(apiRoot, ".cache");
+  mkdirSync(cacheHome, { recursive: true });
+
+  const prismaBinary =
+    process.platform === "win32"
+      ? resolve(apiRoot, "node_modules/.bin/prisma.cmd")
+      : resolve(apiRoot, "node_modules/.bin/prisma");
+
+  execFileSync(
+    prismaBinary,
+    ["db", "push", "--accept-data-loss", "--force-reset"],
+    {
+      cwd: apiRoot,
+      env: {
+        ...process.env,
+        DATABASE_URL: TEST_DATABASE_URL,
+        XDG_CACHE_HOME: cacheHome,
+      },
+      stdio: "pipe",
+      shell: process.platform === "win32",
     },
-    stdio: "pipe",
-    shell: process.platform === "win32",
-  });
+  );
 }
 
 export async function resetAuthWorkspaceDatabase(

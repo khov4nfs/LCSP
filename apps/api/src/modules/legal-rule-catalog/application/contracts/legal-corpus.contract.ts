@@ -24,6 +24,10 @@ export interface IngestLegalCorpusRequest {
   version: string;
   sourceManifest: Record<string, unknown>;
   documents: LegalCorpusDocumentInput[];
+  /** @description Optional retrieval timestamp; defaults to server time if not provided */
+  retrievedAt?: string | null;
+  /** @description Optional ingestion run identifier for audit trail */
+  ingestionRunId?: string | null;
 }
 
 export interface ApproveLegalCorpusRequest {
