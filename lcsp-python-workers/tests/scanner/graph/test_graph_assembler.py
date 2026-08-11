@@ -142,6 +142,7 @@ def test_t11_graph_identity_and_metadata_are_deterministic_and_traceable():
             workspace_path="/workspace",
             scan_job_id="scan-42",
             repository_ref="repository:demo",
+            snapshot_id="snapshot-42",
             commit_sha="abc123",
             tool_version="scanner-1.0.0",
             config_hash="sha256:scanner-config",
@@ -176,6 +177,7 @@ def test_t11_graph_identity_and_metadata_are_deterministic_and_traceable():
     assert first.nodes == second.nodes
     assert first.edges == second.edges
     assert first.provenance["scan_job_id"] == "scan-42"
+    assert first.provenance["snapshot_id"] == "snapshot-42"
     assert first.provenance["commit_sha"] == "abc123"
     assert first.coverage_state == "SUFFICIENT"
     assert first.nodes[0]["evidence_refs"] == ["evidence:finding-1"]

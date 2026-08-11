@@ -17,6 +17,19 @@ const FORBIDDEN_EVIDENCE_KEYS = new Set([
   "snippet",
   "sourcecode",
   "sourcecontent",
+  "prompt",
+  "prompttext",
+  "fullprompt",
+  "astbody",
+  "fullast",
+  "astdump",
+  "secret",
+  "token",
+  "apikey",
+  "apitoken",
+  "authorization",
+  "credential",
+  "password",
 ]);
 const SECRET_PATTERNS = [
   /\bgh[oprsu]_[A-Za-z0-9_]{20,}\b/,
@@ -24,6 +37,8 @@ const SECRET_PATTERNS = [
   /\bAKIA[A-Z0-9]{16}\b/,
   /\bBearer\s+[A-Za-z0-9._~+/-]{12,}=*/i,
 ];
+const SOURCE_BODY_PATTERN =
+  /(?:\bdef\s+\w+\s*\(|\bfunction\s+\w*\s*\(|\bclass\s+\w+|\bimport\s+[\w{*])/;
 
 @Injectable()
 export class EvidenceSchemaValidatorService {
@@ -83,7 +98,10 @@ function clean(value: unknown): string | null {
 
 function containsUnsafeEvidence(value: unknown): boolean {
   if (typeof value === "string") {
-    return SECRET_PATTERNS.some((pattern) => pattern.test(value));
+    return (
+      SECRET_PATTERNS.some((pattern) => pattern.test(value)) ||
+      (value.includes("\n") && SOURCE_BODY_PATTERN.test(value))
+    );
   }
   if (Array.isArray(value)) {
     return value.some(containsUnsafeEvidence);

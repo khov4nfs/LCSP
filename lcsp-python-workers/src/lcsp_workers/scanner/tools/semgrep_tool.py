@@ -90,8 +90,13 @@ class SemgrepTool:
         )
         self._pinned_version = pinned_version
 
-    def run(self, workspace_path: str | Path) -> SemgrepRunResult:
+    def run(
+        self,
+        workspace_path: str | Path,
+        include_files: list[str] | None = None,
+    ) -> SemgrepRunResult:
         workspace = Path(workspace_path)
+        targets = self._resolve_targets(workspace, include_files)
         try:
             ai_ruleset_hash = self._sha256_file(self._ai_ruleset_path)
             secret_ruleset_hash = self._sha256_file(self._secret_ruleset_path)
@@ -135,6 +140,7 @@ class SemgrepTool:
             config_hash=ai_ruleset_hash,
             tool_name=AI_USAGE_TOOL_NAME,
             tool_version=version_result.tool_version,
+            targets=targets,
         )
         secret_payload, secret_execution = self._run_ruleset(
             workspace=workspace,
@@ -142,6 +148,7 @@ class SemgrepTool:
             config_hash=secret_ruleset_hash,
             tool_name=SECRET_DETECT_TOOL_NAME,
             tool_version=version_result.tool_version,
+            targets=targets,
         )
 
         findings = []
@@ -220,14 +227,15 @@ class SemgrepTool:
         config_hash: str,
         tool_name: str,
         tool_version: str,
+        targets: list[Path] | None = None,
     ) -> tuple[dict | None, ToolExecutionResult]:
         command = [
             self._semgrep_binary,
             "--config",
             str(ruleset_path),
-            str(workspace),
             "--json",
             "--no-git-ignore",
+            *(str(target) for target in (targets if targets is not None else [workspace])),
         ]
 
         try:
@@ -282,6 +290,22 @@ class SemgrepTool:
             config_hash=config_hash,
             messages=[],
         )
+
+    @staticmethod
+    def _resolve_targets(workspace: Path, include_files: list[str] | None) -> list[Path] | None:
+        if include_files is None:
+            return None
+        resolved_workspace = workspace.resolve()
+        targets: list[Path] = []
+        for file_path in sorted(set(include_files)):
+            candidate = (workspace / file_path).resolve()
+            if (
+                not candidate.is_relative_to(resolved_workspace)
+                or not candidate.is_file()
+            ):
+                raise ValueError("semgrep target is outside the materialized workspace")
+            targets.append(candidate)
+        return targets
 
     def _parse_findings(self, payload: dict, workspace: Path) -> list[SemgrepFinding]:
         findings: list[SemgrepFinding] = []

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from lcsp_workers.platform.config import WorkerConfig
-from lcsp_workers.platform.queue_consumer import ConsumerBase
+from lcsp_workers.platform.queue_consumer import ConsumerBase, NonRetryableWorkerError
 from lcsp_workers.platform.logging import configure_logging
 
 configure_logging("INFO")
@@ -24,6 +24,10 @@ class DummyConsumer(ConsumerBase):
         if self.raise_in_handle:
             raise ValueError("Intentional error")
         self.handle_called = True
+
+
+class DelayedRetryConsumer(DummyConsumer):
+    retry_delays_seconds = (10, 60, 300)
 
 
 @pytest.fixture
@@ -138,9 +142,73 @@ def test_t04_handle_exception_retry_and_dlq(config, pbac_mock, channel_mock, met
     channel_mock.basic_nack.assert_called_once_with(delivery_tag=1, requeue=False)
 
 
+def test_terminal_handler_error_bypasses_retry(config, pbac_mock, channel_mock, method_mock):
+    """A recorded terminal failure must enter the broker DLQ immediately."""
+    pbac_mock.check.return_value = "allow"
+    consumer = DummyConsumer(config, pbac_mock)
+    consumer.handle = MagicMock(side_effect=NonRetryableWorkerError("terminal"))
+
+    properties = MagicMock()
+    properties.headers = {}
+    consumer._on_message(channel_mock, method_mock, properties, b"{}")
+
+    channel_mock.basic_nack.assert_called_once_with(delivery_tag=1, requeue=False)
+    channel_mock.basic_publish.assert_not_called()
+
+
 def test_retry_count_falls_back_to_x_death(config):
     consumer = DummyConsumer(config, MagicMock())
     assert consumer._get_attempt_count({"x-death": [{"count": 2}]}) == 2
+
+
+def test_retry_policy_uses_a_ttl_queue_for_each_attempt(
+    config,
+    pbac_mock,
+    channel_mock,
+    method_mock,
+):
+    pbac_mock.check.return_value = "allow"
+    consumer = DelayedRetryConsumer(config, pbac_mock)
+    consumer.raise_in_handle = True
+    properties = MagicMock()
+    properties.headers = {"x-lcsp-retry-count": 1}
+
+    consumer._on_message(channel_mock, method_mock, properties, b"{}")
+
+    assert channel_mock.basic_publish.call_args.kwargs["routing_key"] == "test_queue.retry.60s"
+
+
+def test_run_declares_ttl_retry_queues(monkeypatch, config):
+    consumer = DelayedRetryConsumer(config, MagicMock())
+    connection = MagicMock()
+    connection.is_open = True
+    connection.process_data_events.side_effect = KeyboardInterrupt()
+    channel = MagicMock()
+    connection.channel.return_value = channel
+    monkeypatch.setattr(
+        "lcsp_workers.platform.queue_consumer.pika.BlockingConnection",
+        lambda _params: connection,
+    )
+    monkeypatch.setattr(
+        "lcsp_workers.platform.queue_consumer.pika.URLParameters",
+        lambda url: url,
+    )
+    monkeypatch.setattr(
+        "lcsp_workers.platform.queue_consumer.HealthServer",
+        lambda **_kwargs: MagicMock(),
+    )
+
+    consumer.run()
+
+    assert channel.queue_declare.call_args_list[1].kwargs == {
+        "queue": "test_queue.retry.10s",
+        "durable": True,
+        "arguments": {
+            "x-message-ttl": 10_000,
+            "x-dead-letter-exchange": "",
+            "x-dead-letter-routing-key": "test_queue",
+        },
+    }
 
 
 def test_t05_sigterm_handling(config):

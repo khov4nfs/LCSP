@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Callable
 
 from lcsp_workers.platform.api_client import WorkerApiClient
+from lcsp_workers.platform.callback_schemas import CallbackResponse
 from lcsp_workers.platform.correlation import set_correlation_id
 from lcsp_workers.platform.logging import get_logger
 from lcsp_workers.platform.queue_consumer import ConsumerBase
@@ -37,11 +38,65 @@ from .workspace import ArchiveMaterializationError, ScannerWorkspace
 logger = get_logger(__name__)
 
 
+TARGETED_REANALYSIS_ANALYZER_IDS = {
+    "RUN_SEMGREP_RULES",
+    "RUN_PYTHON_SEMANTIC_ANALYSIS",
+    "RUN_TS_JS_SEMANTIC_ANALYSIS",
+    "RUN_STRUCTURAL_AUGMENTATION",
+}
+
+
 @dataclass(frozen=True)
 class ScanJobEnvelope:
     scan_job_id: str
     snapshot_id: str
+    commit_sha: str
     correlation_id: str
+
+
+@dataclass(frozen=True)
+class TargetedReanalysisPlan:
+    analyzer_id: str
+    path_prefixes: tuple[str, ...]
+
+    @classmethod
+    def from_message(cls, message: dict) -> "TargetedReanalysisPlan | None":
+        value = message.get("targetedReanalysis")
+        if value is None:
+            return None
+        if not isinstance(value, dict):
+            raise ArchiveMaterializationError("targeted reanalysis plan is invalid")
+        analyzer_id = value.get("analyzerId")
+        path_prefixes = value.get("pathPrefixes")
+        if (
+            not isinstance(analyzer_id, str)
+            or analyzer_id not in TARGETED_REANALYSIS_ANALYZER_IDS
+            or not isinstance(path_prefixes, list)
+        ):
+            raise ArchiveMaterializationError("targeted reanalysis plan is invalid")
+        normalized_prefixes = tuple(sorted(set(path_prefixes)))
+        if not normalized_prefixes or any(
+            not isinstance(prefix, str)
+            or not prefix.endswith("/")
+            or prefix.startswith("/")
+            or ".." in prefix.split("/")
+            for prefix in normalized_prefixes
+        ):
+            raise ArchiveMaterializationError("targeted reanalysis plan is invalid")
+        return cls(analyzer_id=analyzer_id, path_prefixes=normalized_prefixes)
+
+    def includes(self, file_path: str) -> bool:
+        normalized_path = file_path.replace("\\", "/")
+        return any(normalized_path.startswith(prefix) for prefix in self.path_prefixes)
+
+    def runs(self, analyzer_id: str) -> bool:
+        return self.analyzer_id == analyzer_id
+
+    def to_evidence_payload(self) -> dict[str, object]:
+        return {
+            "analyzer_id": self.analyzer_id,
+            "path_prefixes": list(self.path_prefixes),
+        }
 
 
 class ScanConsumer(ConsumerBase):
@@ -94,9 +149,10 @@ class ScanConsumer(ConsumerBase):
         self._structural_augmentor = structural_augmentor or StructuralAugmentor()
         self._evidence_graph_assembler = evidence_graph_assembler or EvidenceGraphAssembler()
 
-    def handle(self, message: dict, correlation_id: str) -> None:
+    def handle(self, message: dict, correlation_id: str) -> CallbackResponse:
         started_at = time.monotonic()
         envelope = self._read_envelope(message, correlation_id)
+        targeted_plan = TargetedReanalysisPlan.from_message(message)
         set_correlation_id(envelope.correlation_id)
 
         archive = self._snapshot_client.download_snapshot_archive(
@@ -134,6 +190,12 @@ class ScanConsumer(ConsumerBase):
                 classifications = self._language_classifier.classify_workspace(
                     result.workspace_path
                 )
+                if targeted_plan is not None:
+                    classifications = [
+                        classification
+                        for classification in classifications
+                        if targeted_plan.includes(classification.file_path)
+                    ]
                 dispatch = self._analyzer_router.route(classifications)
                 routed_python_files = list(dispatch.python_files)
                 routed_ts_js_files = list(dispatch.ts_js_files)
@@ -160,62 +222,79 @@ class ScanConsumer(ConsumerBase):
                     error=str(error),
                 )
 
-            syft_result = self._syft_tool.run(result.workspace_path)
-            self._record_tool_execution(
-                tool_registry,
-                syft_result.execution,
-                sbom_entries=len(syft_result.entries),
-            )
+            syft_result = None
+            if targeted_plan is None:
+                syft_result = self._syft_tool.run(result.workspace_path)
+                self._record_tool_execution(
+                    tool_registry,
+                    syft_result.execution,
+                    sbom_entries=len(syft_result.entries),
+                )
 
             if time.monotonic() - started_at > self.scan_timeout_seconds:
                 raise ArchiveMaterializationError(
                     f"scan timeout exceeded for job {envelope.scan_job_id!r}"
                 )
 
-            semgrep_result = self._semgrep_tool.run(result.workspace_path)
-            self._record_semgrep_executions(tool_registry, semgrep_result)
+            semgrep_result = None
+            if targeted_plan is None or targeted_plan.runs("RUN_SEMGREP_RULES"):
+                semgrep_result = self._semgrep_tool.run(
+                    result.workspace_path,
+                    include_files=(
+                        [classification.file_path for classification in classifications]
+                        if targeted_plan is not None
+                        else None
+                    ),
+                )
+                self._record_semgrep_executions(tool_registry, semgrep_result)
 
             if time.monotonic() - started_at > self.scan_timeout_seconds:
                 raise ArchiveMaterializationError(
                     f"scan timeout exceeded for job {envelope.scan_job_id!r}"
                 )
 
-            knip_result = self._knip_tool.run(result.workspace_path)
-            self._record_tool_execution(
-                tool_registry,
-                knip_result.execution,
-                dependency_facts=len(knip_result.facts),
-            )
+            knip_result = None
+            if targeted_plan is None:
+                knip_result = self._knip_tool.run(result.workspace_path)
+                self._record_tool_execution(
+                    tool_registry,
+                    knip_result.execution,
+                    dependency_facts=len(knip_result.facts),
+                )
 
             if time.monotonic() - started_at > self.scan_timeout_seconds:
                 raise ArchiveMaterializationError(
                     f"scan timeout exceeded for job {envelope.scan_job_id!r}"
                 )
 
-            deptry_result = self._deptry_tool.run(result.workspace_path)
-            self._record_tool_execution(
-                tool_registry,
-                deptry_result.execution,
-                dependency_facts=len(deptry_result.facts),
-            )
+            deptry_result = None
+            if targeted_plan is None:
+                deptry_result = self._deptry_tool.run(result.workspace_path)
+                self._record_tool_execution(
+                    tool_registry,
+                    deptry_result.execution,
+                    dependency_facts=len(deptry_result.facts),
+                )
 
             if time.monotonic() - started_at > self.scan_timeout_seconds:
                 raise ArchiveMaterializationError(
                     f"scan timeout exceeded for job {envelope.scan_job_id!r}"
                 )
 
-            ts_js_analysis = asyncio.run(
-                self._ts_js_bridge_factory(result.workspace_path).analyze(
-                    include_files=routed_ts_js_files
+            ts_js_analysis = None
+            if targeted_plan is None or targeted_plan.runs("RUN_TS_JS_SEMANTIC_ANALYSIS"):
+                ts_js_analysis = asyncio.run(
+                    self._ts_js_bridge_factory(result.workspace_path).analyze(
+                        include_files=routed_ts_js_files
+                    )
                 )
-            )
-            self._record_tool_execution(
-                tool_registry,
-                ts_js_analysis.execution,
-                ts_js_findings=len(ts_js_analysis.findings),
-                ts_js_dynamic_flows=len(ts_js_analysis.unsupported_dynamic_flows),
-                ts_js_coverage_limitations=len(ts_js_analysis.coverage_limitations),
-            )
+                self._record_tool_execution(
+                    tool_registry,
+                    ts_js_analysis.execution,
+                    ts_js_findings=len(ts_js_analysis.findings),
+                    ts_js_dynamic_flows=len(ts_js_analysis.unsupported_dynamic_flows),
+                    ts_js_coverage_limitations=len(ts_js_analysis.coverage_limitations),
+                )
 
             logger.info(
                 "SCAN_TOOL_PROVENANCE_RECORDED",
@@ -223,12 +302,19 @@ class ScanConsumer(ConsumerBase):
             )
 
             package_dependencies = self._dependency_normalizer.normalize(
-                sbom_entries=syft_result.entries,
-                usage_facts=[*knip_result.facts, *deptry_result.facts],
+                sbom_entries=syft_result.entries if syft_result is not None else [],
+                usage_facts=[
+                    *(knip_result.facts if knip_result is not None else []),
+                    *(deptry_result.facts if deptry_result is not None else []),
+                ],
             )
-            python_analysis = PythonAnalyzer(result.workspace_path).analyze(
-                include_files=routed_python_files
-            )
+            python_analysis = None
+            if targeted_plan is None or targeted_plan.runs(
+                "RUN_PYTHON_SEMANTIC_ANALYSIS"
+            ):
+                python_analysis = PythonAnalyzer(result.workspace_path).analyze(
+                    include_files=routed_python_files
+                )
             technical_findings = self._ai_invocation_detector.detect(
                 semgrep_result=semgrep_result,
                 python_analysis=python_analysis,
@@ -236,32 +322,45 @@ class ScanConsumer(ConsumerBase):
                 syft_result=syft_result,
                 package_dependencies=package_dependencies,
                 tool_executions=[
-                    syft_result.execution,
-                    *semgrep_result.executions,
-                    knip_result.execution,
-                    deptry_result.execution,
-                    ts_js_analysis.execution,
+                    *( [syft_result.execution] if syft_result is not None else [] ),
+                    *(semgrep_result.executions if semgrep_result is not None else []),
+                    *( [knip_result.execution] if knip_result is not None else [] ),
+                    *( [deptry_result.execution] if deptry_result is not None else [] ),
+                    *( [ts_js_analysis.execution] if ts_js_analysis is not None else [] ),
                 ],
             )
             coverage_notes = self._coverage_notes(
                 result,
                 [
                     *classification_limitations,
-                    *self._ts_js_coverage_limitations(ts_js_analysis.coverage_limitations),
+                    *self._ts_js_coverage_limitations(
+                        ts_js_analysis.coverage_limitations
+                        if ts_js_analysis is not None
+                        else []
+                    ),
                 ],
             )
+            if targeted_plan is not None:
+                coverage_notes.append(
+                    "TARGETED_REANALYSIS: "
+                    f"analyzer={targeted_plan.analyzer_id} "
+                    f"path_prefixes={len(targeted_plan.path_prefixes)}"
+                )
             structural_facts: list | None = None
             try:
-                self._structural_augmentor.set_workspace_path(result.workspace_path)
-                candidate_files = [
-                    *(routed_python_files or []),
-                    *(routed_ts_js_files or []),
-                ]
-                structural_facts = self._structural_augmentor.augment(
-                    files=candidate_files or [],
-                    finding_ids=[finding.finding_id for finding in technical_findings],
-                )
-                coverage_notes.extend(self._structural_augmentor.last_coverage_notes)
+                if targeted_plan is None or targeted_plan.runs(
+                    "RUN_STRUCTURAL_AUGMENTATION"
+                ):
+                    self._structural_augmentor.set_workspace_path(result.workspace_path)
+                    candidate_files = [
+                        *(routed_python_files or []),
+                        *(routed_ts_js_files or []),
+                    ]
+                    structural_facts = self._structural_augmentor.augment(
+                        files=candidate_files or [],
+                        finding_ids=[finding.finding_id for finding in technical_findings],
+                    )
+                    coverage_notes.extend(self._structural_augmentor.last_coverage_notes)
             except Exception as error:
                 coverage_notes.append(
                     "SCAN_COVERAGE_LIMITATION: "
@@ -274,6 +373,8 @@ class ScanConsumer(ConsumerBase):
                 )
             evidence_graph = self._evidence_graph_assembler.assemble(
                 scan_job_id=envelope.scan_job_id,
+                snapshot_id=envelope.snapshot_id,
+                commit_sha=envelope.commit_sha,
                 workspace_path=result.workspace_path,
                 technical_findings=technical_findings,
                 structural_facts=structural_facts or [],
@@ -287,8 +388,8 @@ class ScanConsumer(ConsumerBase):
                 coverage_notes=coverage_notes,
                 package_dependencies=package_dependencies,
                 dependency_executions=[
-                    knip_result.execution,
-                    deptry_result.execution,
+                    *( [knip_result.execution] if knip_result is not None else [] ),
+                    *( [deptry_result.execution] if deptry_result is not None else [] ),
                 ],
                 python_analysis=python_analysis,
                 ts_js_analysis=ts_js_analysis,
@@ -296,9 +397,14 @@ class ScanConsumer(ConsumerBase):
                 structural_facts=structural_facts,
                 evidence_graph=evidence_graph,
                 scan_coverage=classifications,
+                targeted_reanalysis=(
+                    targeted_plan.to_evidence_payload()
+                    if targeted_plan is not None
+                    else None
+                ),
             )
             self._finalize_workspace_cleanup(envelope.scan_job_id)
-            self._api_client.post_scan_callback(
+            callback_response = self._api_client.post_scan_callback(
                 envelope.scan_job_id,
                 callback_payload,
             )
@@ -308,6 +414,7 @@ class ScanConsumer(ConsumerBase):
                 status=callback_payload.status,
                 schema_version=callback_payload.schema_version,
             )
+            return callback_response
         except PrivacyAssertionError as error:
             logger.error(
                 "SCAN_EVIDENCE_PRIVACY_ASSERTION_FAILED",
@@ -338,6 +445,7 @@ class ScanConsumer(ConsumerBase):
     def _read_envelope(self, message: dict, correlation_id: str) -> ScanJobEnvelope:
         scan_job_id = self._read_field(message, "scan_job_id", "scanJobId")
         snapshot_id = self._read_field(message, "snapshot_id", "snapshotId")
+        commit_sha = self._read_field(message, "commit_sha", "commitSha") or ""
         message_correlation_id = self._read_field(
             message,
             "correlation_id",
@@ -352,6 +460,7 @@ class ScanConsumer(ConsumerBase):
         return ScanJobEnvelope(
             scan_job_id=scan_job_id,
             snapshot_id=snapshot_id,
+            commit_sha=commit_sha,
             correlation_id=message_correlation_id or correlation_id,
         )
 

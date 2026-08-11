@@ -61,6 +61,9 @@ describe("EvidenceSchemaValidatorService", () => {
     { nested: [{ raw_output: "scanner internals" }] },
     { description: "Bearer abcdefghijklmnopqrstuvwxyz" },
     { token: "AKIAIOSFODNN7EXAMPLE" },
+    { nested: { prompt: "do not persist" } },
+    { nested: { ast_body: "Module(...)" } },
+    { nested: { message: "def call_model():\n    return client.run()" } },
   ])("rejects unsafe evidence: %j", (evidencePayload) => {
     expectError(
       () =>

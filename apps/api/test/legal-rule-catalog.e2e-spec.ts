@@ -23,6 +23,8 @@ import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
 import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
 
 describe("Legal Rule Catalog Endpoints (e2e)", () => {
+  const WORKER_KEY = "worker-api-key-for-legal-corpus-123";
+  const SYSTEM_ACTOR = "legal-corpus-activation-service";
   let app: INestApplication;
   let prisma: PrismaClient;
   let authorToken: string;
@@ -32,6 +34,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
 
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DATABASE_URL;
+    process.env.WORKER_API_KEY = WORKER_KEY;
     pushPrismaSchema();
 
     prisma = new PrismaClient({ adapter: new PrismaPg(TEST_DATABASE_URL) });
@@ -46,6 +49,8 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
   });
 
   beforeEach(async () => {
+    await prisma.outboxMessage.deleteMany();
+    await prisma.legalRetrievalIndex.deleteMany();
     await prisma.ruleApprovalRecord.deleteMany();
     await prisma.legalRule.deleteMany();
     await prisma.legalRuleCatalogVersion.deleteMany();
@@ -259,7 +264,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
   });
 
   describe("legal corpus ingest and approval", () => {
-    it("stores immutable chunk locators as DRAFT and activates only after matching Legal Operator sign-off", async () => {
+    it("stores immutable chunk locators as DRAFT and activates them through the worker-only validated activation endpoint", async () => {
       const content = "Điều 1. Test corpus content.";
       const sourceSha = sha256("source");
       const response = await httpRequest(app)
@@ -294,16 +299,30 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
       assert.equal(response.status, 201);
       const draft = successBody<{ id: string; status: string }>(response);
       assert.equal(draft.status, LEGAL_RULE_LIFECYCLE_STATUSES.draft);
+      await seedValidatedDraftIndex(
+        prisma,
+        draft.id,
+        "retrieval-validation:draft-v1",
+      );
 
       const approval = await httpRequest(app)
-        .post(`/internal/legal-rule-catalog/corpus/${draft.id}/approve`)
-        .set("Authorization", `Bearer ${approverToken}`)
-        .send({ scopeDescription: "Verified source and chunk locator" });
+        .post(
+          `/internal/legal-rule-catalog/corpus/${draft.id}/activate-validated`,
+        )
+        .set("x-worker-api-key", WORKER_KEY)
+        .send({
+          integrityManifestRef: "integrity-manifest:draft-v1",
+          retrievalValidationRef: "retrieval-validation:draft-v1",
+          idempotencyKey: "11111111-1111-4111-8111-111111111111",
+          scopeDescription: "Verified source and chunk locator",
+        });
       assert.equal(approval.status, 200);
-      assert.equal(
-        successBody<{ status: string }>(approval).status,
-        LEGAL_RULE_LIFECYCLE_STATUSES.approved,
-      );
+      const approved = successBody<{
+        status: string;
+        result: { outboxEventRef: string };
+      }>(approval);
+      assert.equal(approved.status, LEGAL_RULE_LIFECYCLE_STATUSES.approved);
+      assert.match(approved.result.outboxEventRef, /^outbox:/);
 
       const stored = await prisma.legalDocumentChunk.findUnique({
         where: { id: "chunk-draft-v1" },
@@ -314,7 +333,15 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
       const approvalRecord = await prisma.corpusApprovalRecord.findFirst({
         where: { legalCorpusVersionId: draft.id },
       });
-      assert.equal(approvalRecord?.approvedBy, "user-approver");
+      assert.equal(approvalRecord?.approvedBy, SYSTEM_ACTOR);
+      assert.equal(
+        approvalRecord?.retrievalValidationRef,
+        "retrieval-validation:draft-v1",
+      );
+      const outbox = await prisma.outboxMessage.findMany({
+        where: { aggregateId: draft.id },
+      });
+      assert.equal(outbox.length, 1);
     });
 
     it("fails closed when Legal Operator sign-off is missing", async () => {
@@ -378,47 +405,30 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
       assert.equal(response.status, 422);
     });
 
-    it("rejects approval when authenticated approver differs from reviewedBy", async () => {
-      const content = "Điều 1. Reviewer mismatch.";
-      const sourceSha = sha256("mismatch-source");
-      const ingest = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/corpus")
-        .set("Authorization", `Bearer ${authorToken}`)
-        .send({
-          version: "corpus-mismatch-v1",
-          sourceManifest: reviewManifest(
-            [{ documentId: "LAW-MISMATCH", sourceSha256: sourceSha }],
-            "user-author",
-          ),
-          documents: [
-            {
-              documentId: "LAW-MISMATCH",
-              title: "Reviewer mismatch legal source",
-              sourceUrl: "https://example.test/mismatch-law",
-              sourceSha256: sourceSha,
-              sourceEffectStatus: "ACTIVE",
-              chunks: [
-                {
-                  id: "chunk-mismatch-v1",
-                  locator: "art-1",
-                  content,
-                  contentSha256: sha256(content),
-                  hierarchy: { article: "1" },
-                  legalStatus: "ACTIVE",
-                },
-              ],
-            },
-          ],
-        });
-      assert.equal(ingest.status, 201);
-      const draft = successBody<{ id: string }>(ingest);
+    it("fails closed when validated activation is called without the worker api key", async () => {
+      const draft = await seedDraftCorpus(prisma, {
+        version: "corpus-missing-worker-key-v1",
+        documentId: "LAW-WORKER-KEY",
+        chunkId: "chunk-worker-key-v1",
+      });
+      await seedValidatedDraftIndex(
+        prisma,
+        draft.id,
+        "retrieval-validation:worker-key-v1",
+      );
 
       const approval = await httpRequest(app)
-        .post(`/internal/legal-rule-catalog/corpus/${draft.id}/approve`)
-        .set("Authorization", `Bearer ${approverToken}`)
-        .send({ scopeDescription: "Must not approve for another reviewer" });
+        .post(
+          `/internal/legal-rule-catalog/corpus/${draft.id}/activate-validated`,
+        )
+        .send({
+          integrityManifestRef: "integrity-manifest:worker-key-v1",
+          retrievalValidationRef: "retrieval-validation:worker-key-v1",
+          idempotencyKey: "22222222-2222-4222-8222-222222222222",
+          scopeDescription: "Should require worker auth",
+        });
 
-      assert.equal(approval.status, 422);
+      assert.equal(approval.status, 401);
       const stored = await prisma.legalCorpusVersion.findUnique({
         where: { id: draft.id },
       });
@@ -615,20 +625,105 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
         });
       assert.equal(ingest.status, 201);
       const draft = successBody<{ id: string }>(ingest);
+      await seedValidatedDraftIndex(
+        prisma,
+        draft.id,
+        "retrieval-validation:approved-v1",
+      );
 
       // First approval succeeds
       const firstApproval = await httpRequest(app)
-        .post(`/internal/legal-rule-catalog/corpus/${draft.id}/approve`)
-        .set("Authorization", `Bearer ${approverToken}`)
-        .send({ scopeDescription: "Initial approval" });
+        .post(
+          `/internal/legal-rule-catalog/corpus/${draft.id}/activate-validated`,
+        )
+        .set("x-worker-api-key", WORKER_KEY)
+        .send({
+          integrityManifestRef: "integrity-manifest:approved-v1",
+          retrievalValidationRef: "retrieval-validation:approved-v1",
+          idempotencyKey: "33333333-3333-4333-8333-333333333333",
+          scopeDescription: "Initial approval",
+        });
       assert.equal(firstApproval.status, 200);
 
-      // Second approval should fail (already approved)
+      // Same idempotency key replays prior terminal result
       const secondApproval = await httpRequest(app)
-        .post(`/internal/legal-rule-catalog/corpus/${draft.id}/approve`)
-        .set("Authorization", `Bearer ${approverToken}`)
-        .send({ scopeDescription: "Duplicate approval attempt" });
-      assert.equal(secondApproval.status, 409);
+        .post(
+          `/internal/legal-rule-catalog/corpus/${draft.id}/activate-validated`,
+        )
+        .set("x-worker-api-key", WORKER_KEY)
+        .send({
+          integrityManifestRef: "integrity-manifest:approved-v1",
+          retrievalValidationRef: "retrieval-validation:approved-v1",
+          idempotencyKey: "33333333-3333-4333-8333-333333333333",
+          scopeDescription: "Duplicate approval attempt",
+        });
+      assert.equal(secondApproval.status, 200);
+
+      const conflictingApproval = await httpRequest(app)
+        .post(
+          `/internal/legal-rule-catalog/corpus/${draft.id}/activate-validated`,
+        )
+        .set("x-worker-api-key", WORKER_KEY)
+        .send({
+          integrityManifestRef: "integrity-manifest:approved-v1",
+          retrievalValidationRef: "retrieval-validation:approved-v1",
+          idempotencyKey: "44444444-4444-4444-8444-444444444444",
+          scopeDescription: "Conflicting replay",
+        });
+      assert.equal(conflictingApproval.status, 409);
+    });
+
+    it("blocks activation when the draft corpus has no validated retrieval index", async () => {
+      const content = "Điều 1. Missing retrieval validation.";
+      const sourceSha = sha256("blocked-source");
+      const ingest = await httpRequest(app)
+        .post("/internal/legal-rule-catalog/corpus")
+        .set("Authorization", `Bearer ${authorToken}`)
+        .send({
+          version: "corpus-blocked-v1",
+          sourceManifest: reviewManifest(
+            [{ documentId: "LAW-BLOCKED", sourceSha256: sourceSha }],
+            "user-approver",
+          ),
+          documents: [
+            {
+              documentId: "LAW-BLOCKED",
+              title: "Blocked legal source",
+              sourceUrl: "https://example.test/blocked-law",
+              sourceSha256: sourceSha,
+              sourceEffectStatus: "ACTIVE",
+              chunks: [
+                {
+                  id: "chunk-blocked-v1",
+                  locator: "art-1",
+                  content,
+                  contentSha256: sha256(content),
+                  hierarchy: { article: "1" },
+                  legalStatus: "ACTIVE",
+                },
+              ],
+            },
+          ],
+        });
+      assert.equal(ingest.status, 201);
+      const draft = successBody<{ id: string }>(ingest);
+
+      const approval = await httpRequest(app)
+        .post(
+          `/internal/legal-rule-catalog/corpus/${draft.id}/activate-validated`,
+        )
+        .set("x-worker-api-key", WORKER_KEY)
+        .send({
+          integrityManifestRef: "integrity-manifest:blocked-v1",
+          retrievalValidationRef: "retrieval-validation:missing-v1",
+          idempotencyKey: "55555555-5555-4555-8555-555555555555",
+          scopeDescription: "Should block without validated index",
+        });
+      assert.equal(approval.status, 422);
+      const stored = await prisma.legalCorpusVersion.findUnique({
+        where: { id: draft.id },
+      });
+      assert.equal(stored?.status, LEGAL_RULE_LIFECYCLE_STATUSES.draft);
     });
   });
 
@@ -725,6 +820,68 @@ async function seedApprovedCorpus(prisma: PrismaClient): Promise<void> {
       legalStatus: "ACTIVE",
     },
   });
+}
+
+async function seedValidatedDraftIndex(
+  prisma: PrismaClient,
+  corpusVersionId: string,
+  validationManifestRef: string,
+): Promise<void> {
+  await prisma.legalRetrievalIndex.create({
+    data: {
+      id: `idx-${corpusVersionId}`,
+      legalCorpusVersionId: corpusVersionId,
+      version: `index-${corpusVersionId}`,
+      status: "VALID",
+      configHash: sha256(`config:${corpusVersionId}`),
+      contentHash: sha256(`content:${corpusVersionId}`),
+      validationManifestRef,
+      validatedAt: new Date("2026-08-12T00:00:00.000Z"),
+    },
+  });
+}
+
+async function seedDraftCorpus(
+  prisma: PrismaClient,
+  input: {
+    version: string;
+    documentId: string;
+    chunkId: string;
+  },
+): Promise<{ id: string }> {
+  const sourceSha = sha256(`source:${input.version}`);
+  const content = `Điều 1. Draft content for ${input.version}.`;
+  const corpus = await prisma.legalCorpusVersion.create({
+    data: {
+      version: input.version,
+      status: "DRAFT",
+      sourceManifest: { automatedValidationCandidate: true },
+    },
+  });
+  const document = await prisma.legalSourceDocument.create({
+    data: {
+      legalCorpusVersionId: corpus.id,
+      documentId: input.documentId,
+      title: `Seeded ${input.documentId}`,
+      sourceUrl: "https://example.test/seeded-law",
+      sourceSha256: sourceSha,
+      sourceEffectStatus: "ACTIVE",
+    },
+  });
+  await prisma.legalDocumentChunk.create({
+    data: {
+      id: input.chunkId,
+      legalCorpusVersionId: corpus.id,
+      legalSourceDocumentId: document.id,
+      documentId: input.documentId,
+      locator: "art-1",
+      content,
+      contentSha256: sha256(content),
+      hierarchy: { article: "1" },
+      legalStatus: "ACTIVE",
+    },
+  });
+  return { id: corpus.id };
 }
 
 function reviewManifest(

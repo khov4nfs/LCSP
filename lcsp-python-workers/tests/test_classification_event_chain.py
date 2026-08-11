@@ -140,7 +140,11 @@ def test_approved_profile_flows_from_legal_matching_into_classification_callback
     )
 
     legal_consumer.handle(
-        {"verifiedProfileId": "vp-1", "assessmentId": "assessment-1"},
+        {
+            "verifiedProfileId": "vp-1",
+            "assessmentId": "assessment-1",
+            "corpusVersionId": "corpus-v1",
+        },
         correlation_id="corr-legal-1",
     )
 

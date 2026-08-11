@@ -32,6 +32,7 @@ MAX_RESPONSE_BYTES = 10 * 1024 * 1024
 class VbplSnapshot:
     document_id: str
     source_url: str
+    final_url: str
     gateway_document_id: str
     source_sha256: str
     html_sha256: str
@@ -80,15 +81,21 @@ class VbplDocumentCrawler:
             raise RuntimeError("VBPL detail response contained no extractable legal text")
 
         output_dir.mkdir(parents=True, exist_ok=True)
+        payload_path = output_dir / f"{document_id}.source.payload.json"
         html_path = output_dir / f"{document_id}.source.html"
         text_path = output_dir / f"{document_id}.source.txt"
         manifest_path = output_dir / f"{document_id}.source.json"
+        payload_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
         html_path.write_text(html, encoding="utf-8")
         text_path.write_text(text + "\n", encoding="utf-8")
         effect_status = self._effect_status(payload)
         snapshot = VbplSnapshot(
             document_id=document_id,
             source_url=source_url,
+            final_url=source_url,
             gateway_document_id=gateway_document_id,
             source_sha256=sha256(raw),
             html_sha256=sha256(html.encode()),
@@ -101,6 +108,7 @@ class VbplDocumentCrawler:
                 {
                     "documentId": snapshot.document_id,
                     "sourceUrl": snapshot.source_url,
+                    "finalUrl": snapshot.final_url,
                     "gatewayDocumentId": snapshot.gateway_document_id,
                     "sourceSha256": snapshot.source_sha256,
                     "htmlSha256": snapshot.html_sha256,
@@ -110,8 +118,10 @@ class VbplDocumentCrawler:
                     "documentNumber": payload.get("docNum"),
                     "title": payload.get("title"),
                     "effectiveFrom": payload.get("effFrom"),
+                    "snapshotFile": payload_path.name,
                     "htmlFile": html_path.name,
                     "textFile": text_path.name,
+                    "normalizationSource": "VBPL_GATEWAY_JSON",
                 },
                 ensure_ascii=False,
                 indent=2,

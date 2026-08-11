@@ -3,7 +3,7 @@
 import * as assert from "node:assert/strict";
 
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import { LegalRetrievalIndexStatus, PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
@@ -11,8 +11,10 @@ import {
   AUDIT_EVENT_SCHEMA_VERSION,
   AUDIT_REDACTION_STATUSES,
 } from "@lcsp/contracts/audit";
+import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
 import { OUTBOX_MESSAGE_SCHEMA_VERSION } from "@lcsp/contracts/outbox";
 import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { LEGAL_MATCHING_REQUEST_COMMAND } from "@lcsp/contracts/legal-rule-catalog";
 import {
   AI_USAGE_FLOW_STATUSES,
   CONFLICT_RECORD_STATUSES,
@@ -63,6 +65,7 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
     await grantVerifiedProfileApproval(prisma);
+    await seedReadyLegalMatchingTarget(prisma);
     await seedAssessmentChain(prisma, "assessment-1", "org-1");
   });
 
@@ -89,7 +92,7 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
         where: { id: body.verified_profile_id },
       }),
       prisma.outboxMessage.findFirst({
-        where: { eventType: SCAN_EVENT_TYPES.verifiedProfileReady },
+        where: { eventType: LEGAL_MATCHING_REQUEST_COMMAND },
       }),
       prisma.authAuditEvent.findFirst({
         where: { eventType: SCAN_EVENT_TYPES.verifiedProfileAcceptedAudit },
@@ -120,7 +123,7 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
     );
   });
 
-  it("T01b emits verified-profile-ready only after Manager approval", async () => {
+  it("T01b emits legal-matching work only after Manager approval", async () => {
     await seedConflicts(prisma, [
       { id: "conflict-1", status: CONFLICT_RECORD_STATUSES.resolved },
     ]);
@@ -157,7 +160,7 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
       }),
       prisma.outboxMessage.findFirst({
         where: {
-          eventType: SCAN_EVENT_TYPES.verifiedProfileReady,
+          eventType: LEGAL_MATCHING_REQUEST_COMMAND,
           aggregateId: generatedBody.verified_profile_id,
         },
       }),
@@ -178,8 +181,12 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
       OUTBOX_MESSAGE_SCHEMA_VERSION,
     );
     assert.equal(
-      (outbox?.payload as { status?: string }).status,
-      VERIFIED_PROFILE_STATUSES.approved,
+      (outbox?.payload as { result?: string }).result,
+      LEGAL_MATCHING_REQUEST_COMMAND,
+    );
+    assert.equal(
+      (outbox?.payload as { corpusVersionId?: string }).corpusVersionId,
+      "corpus-ready-1",
     );
     assert.equal(audit?.actorId, "user-1");
     assert.equal(audit?.policyId, "policy-manager-workspace");
@@ -215,7 +222,7 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
     assert.equal(
       await prisma.outboxMessage.count({
         where: {
-          eventType: SCAN_EVENT_TYPES.verifiedProfileReady,
+          eventType: LEGAL_MATCHING_REQUEST_COMMAND,
           aggregateId: generatedBody.verified_profile_id,
         },
       }),
@@ -392,8 +399,39 @@ async function resetDomainData(prisma: PrismaClient): Promise<void> {
   await prisma.technicalProfile.deleteMany();
   await prisma.technicalEvidenceReport.deleteMany();
   await prisma.repositoryScanJob.deleteMany();
+  await prisma.legalRetrievalIndex.deleteMany();
+  await prisma.legalDocumentChunk.deleteMany();
+  await prisma.legalSourceDocument.deleteMany();
+  await prisma.legalCorpusVersion.deleteMany();
   await prisma.outboxMessage.deleteMany();
   await prisma.assessment.deleteMany();
+}
+
+async function seedReadyLegalMatchingTarget(
+  prisma: PrismaClient,
+): Promise<void> {
+  await prisma.legalCorpusVersion.create({
+    data: {
+      id: "corpus-ready-1",
+      version: "corpus-ready-1",
+      status: LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+      sourceManifest: {},
+      approvedAt: new Date("2026-08-12T00:00:00.000Z"),
+      retrievalIndexes: {
+        create: {
+          id: "index-ready-1",
+          version: "index-ready-1",
+          status: LegalRetrievalIndexStatus.VALID,
+          configHash:
+            "sha256:2e5606c22f82d4607160a3d8743ce3489b15616c44333c008242f432780394b1",
+          contentHash:
+            "sha256:6ff279fb6419f64bc17f02eec2296a4e3de1a9d61eaad77ef19b8235c3948232",
+          validationManifestRef: "retrieval-validation:index-ready-1",
+          validatedAt: new Date("2026-08-12T00:00:00.000Z"),
+        },
+      },
+    },
+  });
 }
 
 async function seedAssessmentChain(
@@ -515,7 +553,7 @@ async function assertNoVerifiedProfileMutation(
   const [profiles, outbox] = await Promise.all([
     prisma.verifiedProfile.count(),
     prisma.outboxMessage.count({
-      where: { eventType: SCAN_EVENT_TYPES.verifiedProfileReady },
+      where: { eventType: LEGAL_MATCHING_REQUEST_COMMAND },
     }),
   ]);
   assert.equal(profiles, 0);

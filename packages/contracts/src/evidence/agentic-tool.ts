@@ -1,5 +1,6 @@
 /** Shared value sets for the first protected agentic-evidence tools. */
 export const AGENTIC_TOOL_NAMES = {
+  getAssessmentContext: "get_assessment_context",
   getScanCoverage: "get_scan_coverage",
   getArtifactChain: "get_artifact_chain",
   getFindingDetail: "get_finding_detail",
@@ -11,7 +12,27 @@ export const AGENTIC_TOOL_NAMES = {
   inspectHumanReviewPath: "inspect_human_review_path",
   inspectDecisionPath: "inspect_decision_path",
   inspectDataPath: "inspect_data_path",
+  findSimilarSymbols: "find_similar_symbols",
+  inspectDeploymentContext: "inspect_deployment_context",
+  proposeMissingTargets: "propose_missing_targets",
   getReconciliationContext: "get_reconciliation_context",
+  getVerifiedProfile: "get_verified_profile",
+  getLegalCorpusReadiness: "get_legal_corpus_readiness",
+  fetchOfficialSourceSnapshot: "fetch_official_source_snapshot",
+  retrieveLegalBasis: "retrieve_legal_basis",
+  getLegalRuleMatch: "get_legal_rule_match",
+  validateCitationSet: "validate_citation_set",
+  getClassificationBaseline: "get_classification_baseline",
+  validateClassificationProposal: "validate_classification_proposal",
+  evaluateGapMatrix: "evaluate_gap_matrix",
+  getGapEvidenceTrace: "get_gap_evidence_trace",
+  proposeGapRemediation: "propose_gap_remediation",
+  activateValidatedCorpusVersion: "activate_validated_corpus_version",
+  resumeWaitingRuns: "resume_waiting_runs",
+  requestTargetedReanalysis: "request_targeted_reanalysis",
+  submitClassificationForIndependentReview:
+    "submit_classification_for_independent_review",
+  reconcileProfileToVerifiedProfile: "reconcile_profile_to_verified_profile",
 } as const;
 
 export type AgenticToolName =
@@ -19,6 +40,11 @@ export type AgenticToolName =
 
 export const AGENTIC_TOOL_STATUSES = {
   ready: "READY",
+  needsInput: "NEEDS_INPUT",
+  conflict: "CONFLICT",
+  outOfCoverage: "OUT_OF_COVERAGE",
+  blocked: "BLOCKED",
+  failed: "FAILED",
 } as const;
 
 export type AgenticToolStatus =
@@ -26,7 +52,9 @@ export type AgenticToolStatus =
 
 export const AGENTIC_TOOL_COVERAGE_STATES = {
   sufficient: "SUFFICIENT",
+  partial: "PARTIAL",
   limited: "LIMITED",
+  unavailable: "UNAVAILABLE",
 } as const;
 
 export type AgenticToolCoverageState =
@@ -52,9 +80,26 @@ export type ArtifactChainIntegrity =
   (typeof ARTIFACT_CHAIN_INTEGRITY)[keyof typeof ARTIFACT_CHAIN_INTEGRITY];
 
 export const AGENTIC_TOOL_EVENT_TYPES = {
+  assessmentContextRead: "AGENTIC_TOOL_ASSESSMENT_CONTEXT_READ",
   scanCoverageRead: "AGENTIC_TOOL_SCAN_COVERAGE_READ",
   artifactChainRead: "AGENTIC_TOOL_ARTIFACT_CHAIN_READ",
   reconciliationContextRead: "AGENTIC_TOOL_RECONCILIATION_CONTEXT_READ",
+  verifiedProfileRead: "AGENTIC_TOOL_VERIFIED_PROFILE_READ",
+  legalCorpusReadinessRead: "AGENTIC_TOOL_LEGAL_CORPUS_READINESS_READ",
+  officialSourceSnapshotFetched: "AGENTIC_TOOL_OFFICIAL_SOURCE_SNAPSHOT_FETCHED",
+  legalBasisRetrieved: "AGENTIC_TOOL_LEGAL_BASIS_RETRIEVED",
+  legalRuleMatchRead: "AGENTIC_TOOL_LEGAL_RULE_MATCH_READ",
+  citationSetValidated: "AGENTIC_TOOL_CITATION_SET_VALIDATED",
+  classificationBaselineRead: "AGENTIC_TOOL_CLASSIFICATION_BASELINE_READ",
+  classificationProposalValidated:
+    "AGENTIC_TOOL_CLASSIFICATION_PROPOSAL_VALIDATED",
+  gapMatrixEvaluated: "AGENTIC_TOOL_GAP_MATRIX_EVALUATED",
+  gapEvidenceTraceRead: "AGENTIC_TOOL_GAP_EVIDENCE_TRACE_READ",
+  gapRemediationProposed: "AGENTIC_TOOL_GAP_REMEDIATION_PROPOSED",
+  legalCorpusActivated: "AGENTIC_TOOL_LEGAL_CORPUS_ACTIVATED",
+  waitingRunsResumed: "AGENTIC_TOOL_WAITING_RUNS_RESUMED",
+  targetedReanalysisRequested: "AGENTIC_TOOL_TARGETED_REANALYSIS_REQUESTED",
+  classificationReviewSubmitted: "AGENTIC_TOOL_CLASSIFICATION_REVIEW_SUBMITTED",
   findingDetailRead: "AGENTIC_TOOL_FINDING_DETAIL_READ",
   evidenceSearchRead: "AGENTIC_TOOL_EVIDENCE_SEARCH_READ",
   providerInvocationRead: "AGENTIC_TOOL_PROVIDER_INVOCATION_READ",
@@ -64,4 +109,8 @@ export const AGENTIC_TOOL_EVENT_TYPES = {
   humanReviewPathRead: "AGENTIC_TOOL_HUMAN_REVIEW_PATH_READ",
   decisionPathRead: "AGENTIC_TOOL_DECISION_PATH_READ",
   dataPathRead: "AGENTIC_TOOL_DATA_PATH_READ",
+  similarSymbolsRead: "AGENTIC_TOOL_SIMILAR_SYMBOLS_READ",
+  deploymentContextRead: "AGENTIC_TOOL_DEPLOYMENT_CONTEXT_READ",
+  missingTargetProposalRead: "AGENTIC_TOOL_MISSING_TARGET_PROPOSAL_READ",
+  verifiedProfilePersisted: "AGENTIC_TOOL_VERIFIED_PROFILE_PERSISTED",
 } as const;

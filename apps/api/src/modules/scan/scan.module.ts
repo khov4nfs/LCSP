@@ -7,23 +7,27 @@ import { GetScanJobHandler } from "./application/queries/get-scan-job/get-scan-j
 import { EvidenceSchemaValidatorService } from "./application/services/scan/evidence-schema-validator.service.js";
 import {
   InternalScanController,
+  InternalTargetedReanalysisController,
   ScanController,
 } from "./presentation/http/scan.controller.js";
 import { WorkspaceRuntimeEventsController } from "./presentation/http/workspace-runtime-events.controller.js";
 import { WorkerApiKeyGuard } from "./presentation/http/worker-api-key.guard.js";
 import { RerunScanHandler } from "./application/commands/rerun-scan/rerun-scan.handler.js";
+import { RequestTargetedReanalysisHandler } from "./application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.js";
 
 @Module({
   imports: [CqrsModule, PbacModule],
   controllers: [
     ScanController,
     InternalScanController,
+    InternalTargetedReanalysisController,
     WorkspaceRuntimeEventsController,
   ],
   providers: [
     GetScanJobHandler,
     ProcessScanCallbackHandler,
     RerunScanHandler,
+    RequestTargetedReanalysisHandler,
     EvidenceSchemaValidatorService,
     WorkerApiKeyGuard,
   ],

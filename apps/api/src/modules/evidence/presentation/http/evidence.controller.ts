@@ -35,6 +35,8 @@ import { InspectHumanReviewPathQuery } from "../../application/queries/inspect-h
 import { GetScanCoverageQuery } from "../../application/queries/get-scan-coverage/get-scan-coverage.query.js";
 import { InspectDecisionPathQuery } from "../../application/queries/inspect-decision-path/inspect-decision-path.query.js";
 import { InspectDataPathQuery } from "../../application/queries/inspect-data-path/inspect-data-path.query.js";
+import { FindSimilarSymbolsQuery } from "../../application/queries/find-similar-symbols/find-similar-symbols.query.js";
+import { InspectDeploymentContextQuery } from "../../application/queries/inspect-deployment-context/inspect-deployment-context.query.js";
 import {
   FINDING_DETAIL_INCLUDES,
   type FindingDetailInclude,
@@ -73,6 +75,14 @@ import {
   type DataCategory,
   type DataPathDirection,
 } from "../../application/contracts/evidence/data-path.contract.js";
+import {
+  SYMBOL_SIMILARITY_DIMENSIONS,
+  type SymbolSimilarityDimension,
+} from "../../application/contracts/evidence/similar-symbols.contract.js";
+import {
+  DEPLOYMENT_ENVIRONMENTS,
+  DEPLOYMENT_MANIFEST_KINDS,
+} from "../../application/contracts/evidence/deployment-context.contract.js";
 import { EVIDENCE_ERROR_CODES } from "@lcsp/contracts/evidence";
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { HttpStatus } from "@nestjs/common";
@@ -423,6 +433,66 @@ export class EvidenceController {
       ),
     );
   }
+
+  @Get(
+    ":assessmentId/evidence-reports/:evidenceReportId/similar-symbols/:seedNodeId",
+  )
+  @UseGuards(PbacGuard)
+  @RequireAnyAction(
+    PBAC_ACTIONS.evidenceRead,
+    PBAC_ACTIONS.evidenceReadRedacted,
+  )
+  async findSimilarSymbols(
+    @Param("assessmentId") assessmentId: string,
+    @Param("evidenceReportId") evidenceReportId: string,
+    @Param("seedNodeId") seedNodeId: string,
+    @Query("dimensions") dimensionsRaw: string | undefined,
+    @Query("max_results") maxResultsRaw: string | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const correlationId = request.correlationId as string;
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new FindSimilarSymbolsQuery(
+          assessmentId,
+          request.pbacContext.organizationId,
+          evidenceReportId,
+          seedNodeId,
+          parseSimilarityDimensions(dimensionsRaw, correlationId),
+          parseBoundedInteger(maxResultsRaw, 1, 50, correlationId),
+          correlationId,
+        ),
+      ),
+    );
+  }
+
+  @Get(":assessmentId/evidence-reports/:evidenceReportId/deployment-context")
+  @UseGuards(PbacGuard)
+  @RequireAnyAction(
+    PBAC_ACTIONS.evidenceRead,
+    PBAC_ACTIONS.evidenceReadRedacted,
+  )
+  async inspectDeploymentContext(
+    @Param("assessmentId") assessmentId: string,
+    @Param("evidenceReportId") evidenceReportId: string,
+    @Query("max_results") maxResultsRaw: string | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const correlationId = request.correlationId as string;
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new InspectDeploymentContextQuery(
+          assessmentId,
+          request.pbacContext.organizationId,
+          evidenceReportId,
+          Object.values(DEPLOYMENT_MANIFEST_KINDS),
+          Object.values(DEPLOYMENT_ENVIRONMENTS),
+          parseBoundedInteger(maxResultsRaw, 1, 100, correlationId),
+          correlationId,
+        ),
+      ),
+    );
+  }
 }
 
 function parseFindingDetailInclude(
@@ -651,6 +721,29 @@ function parseDataCategories(
       status: HttpStatus.NOT_FOUND,
     });
   return categories as DataCategory[];
+}
+function parseSimilarityDimensions(
+  value: string | undefined,
+  correlationId: string,
+): SymbolSimilarityDimension[] {
+  const dimensions =
+    value?.split(",").map((item) => item.trim()) ??
+    Object.values(SYMBOL_SIMILARITY_DIMENSIONS);
+  if (
+    dimensions.length === 0 ||
+    dimensions.length > Object.keys(SYMBOL_SIMILARITY_DIMENSIONS).length ||
+    dimensions.some(
+      (item) =>
+        !Object.values(SYMBOL_SIMILARITY_DIMENSIONS).includes(
+          item as SymbolSimilarityDimension,
+        ),
+    ) ||
+    new Set(dimensions).size !== dimensions.length
+  )
+    throw problemException(EVIDENCE_ERROR_CODES.notFound, correlationId, {
+      status: HttpStatus.NOT_FOUND,
+    });
+  return dimensions as SymbolSimilarityDimension[];
 }
 
 function parseBoundedInteger(

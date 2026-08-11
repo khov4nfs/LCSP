@@ -11,7 +11,14 @@ import {
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
-import { OUTBOX_AUDIT_EVENT_TYPES } from "@lcsp/contracts/outbox";
+import {
+  OUTBOX_AGGREGATE_TYPES,
+  OUTBOX_AUDIT_EVENT_TYPES,
+} from "@lcsp/contracts/outbox";
+import {
+  SCAN_ERROR_CODES,
+  TARGETED_REANALYSIS_CAPACITY_POLICY,
+} from "@lcsp/contracts/scan";
 
 import { AuditWriterService } from "../audit/audit-writer.service.js";
 import { OutboxRepository } from "./outbox.repository.js";
@@ -94,6 +101,17 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
           for (const message of messages) {
             const now = new Date();
 
+            if (
+              message.aggregateType ===
+                OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest &&
+              !(await this.outboxRepository.reserveTargetedReanalysisDispatch(
+                tx,
+                message.aggregateId,
+              ))
+            ) {
+              continue;
+            }
+
             try {
               const headers = authorizationHeaders(message.payload);
               if (headers) {
@@ -114,22 +132,38 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
             } catch (error) {
               const nextAttempts = message.attempts + 1;
               const reason = (error as Error).message;
+              const messageMaxAttempts = maxAttemptsFor(message, maxAttempts);
               const nextAttemptAt =
-                nextAttempts >= maxAttempts ? null : retryAt(now, nextAttempts);
+                nextAttempts >= messageMaxAttempts
+                  ? null
+                  : retryAt(now, nextAttempts);
 
               await this.outboxRepository.markFailure(
                 tx,
                 message.id,
                 nextAttempts,
-                maxAttempts,
+                messageMaxAttempts,
                 reason,
                 now,
                 nextAttemptAt,
               );
+              if (
+                message.aggregateType ===
+                OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest
+              ) {
+                await this.outboxRepository.recordTargetedReanalysisPublishFailure(
+                  tx,
+                  message.aggregateId,
+                  nextAttempts,
+                  nextAttempts >= messageMaxAttempts
+                    ? SCAN_ERROR_CODES.targetedReanalysisOutboxDeliveryExhausted
+                    : null,
+                );
+              }
               failures.push({
                 message,
                 attempts: nextAttempts,
-                maxAttempts,
+                maxAttempts: messageMaxAttempts,
                 reason,
                 nextAttemptAt,
               });
@@ -199,6 +233,18 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
       },
     });
   }
+}
+
+function maxAttemptsFor(
+  message: OutboxMessageEntity,
+  defaultMaxAttempts: number,
+): number {
+  if (
+    message.aggregateType === OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest
+  ) {
+    return TARGETED_REANALYSIS_CAPACITY_POLICY.apiOutboxMaxAttempts;
+  }
+  return defaultMaxAttempts;
 }
 
 function retryAt(now: Date, attempts: number): Date {

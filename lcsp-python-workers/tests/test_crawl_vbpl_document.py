@@ -52,6 +52,8 @@ def test_crawler_writes_html_text_and_manifest(tmp_path: Path):
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["sourceEffectStatus"] == "Còn hiệu lực"
+    assert manifest["normalizationSource"] == "VBPL_GATEWAY_JSON"
+    assert (tmp_path / manifest["snapshotFile"]).read_text(encoding="utf-8")
     assert (tmp_path / "LAW-71-2025-QH15.source.html").read_text(encoding="utf-8")
     assert (tmp_path / "LAW-71-2025-QH15.source.txt").read_text(encoding="utf-8") == "Điều 1\nNội dung luật\n"
 
