@@ -1,5 +1,7 @@
 import { ASSESSMENT_ACTIONS } from "../assessment/actions.ts";
 import { DOCUMENT_ACTIONS } from "../document/actions.ts";
+import { AO3_PBAC_ACTIONS } from "./ao3-actions.ts";
+import { AO5_PBAC_ACTIONS } from "./ao5-actions.ts";
 
 export const PBAC_ACTIONS = {
   assessmentCreate: ASSESSMENT_ACTIONS.create,
@@ -51,6 +53,8 @@ export const PBAC_ACTIONS = {
   wizardSubmit: "wizard:submit",
   wizardExport: "wizard:export",
   workspaceRead: "workspace:read",
+  ...AO5_PBAC_ACTIONS,
+  ...AO3_PBAC_ACTIONS,
 } as const;
 
 export type PbacAction = (typeof PBAC_ACTIONS)[keyof typeof PBAC_ACTIONS];

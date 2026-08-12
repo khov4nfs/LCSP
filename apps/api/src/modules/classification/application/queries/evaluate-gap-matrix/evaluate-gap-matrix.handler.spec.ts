@@ -1,5 +1,6 @@
 import { HttpException } from "@nestjs/common";
 import { jest } from "@jest/globals";
+import { ClassificationGuardrailStatus } from "@prisma/client";
 import {
   AGENTIC_TOOL_COVERAGE_STATES,
   AGENTIC_TOOL_STATUSES,
@@ -83,7 +84,7 @@ function acceptedClassification(input?: {
     legalRuleMatchId: input?.legalRuleMatchId ?? "match-1",
     verifiedProfileId: "verified-profile-1",
     classificationData: input?.classificationData ?? {
-      system_type: "HIGH_IMPACT_AI",
+      applicability_assessment: "applicable",
       risk_level: "HIGH",
       citation_basis: ["citation:chunk_allow_1"],
     },
@@ -136,7 +137,7 @@ describe("EvaluateGapMatrixHandler", () => {
     const { handler } = createHandler({
       classification: acceptedClassification({
         classificationData: {
-          system_type: null,
+          applicability_assessment: null,
           risk_level: null,
           citation_basis: [],
         },
@@ -197,7 +198,7 @@ describe("EvaluateGapMatrixHandler", () => {
     const { handler } = createHandler({
       classification: acceptedClassification({
         classificationData: {
-          system_type: { nested: true },
+          applicability_assessment: { nested: true },
           risk_level: ["HIGH"],
           citation_basis: "citation:chunk_allow_1",
         },
@@ -230,7 +231,7 @@ describe("EvaluateGapMatrixHandler", () => {
   it("TC-07: blocks guardrail-blocked classifications", async () => {
     const { handler } = createHandler({
       classification: acceptedClassification({
-        guardrailStatus: "BLOCKED",
+        guardrailStatus: ClassificationGuardrailStatus.BLOCKED,
         blockedReason: "NO_CITATION_BASIS",
       }),
     });
@@ -248,6 +249,27 @@ describe("EvaluateGapMatrixHandler", () => {
 
     await expect(handler.execute(query())).rejects.toBeInstanceOf(
       HttpException,
+    );
+  });
+
+  it("TC-09: preserves compatibility for legacy system_type values", async () => {
+    const { handler } = createHandler({
+      classification: acceptedClassification({
+        classificationData: {
+          system_type: "HIGH_IMPACT_AI",
+          risk_level: "HIGH",
+          citation_basis: ["citation:chunk_allow_1"],
+        },
+      }),
+    });
+
+    const response = await handler.execute(query());
+
+    expect(response.result.rows[0]?.rowRef).toBe(
+      "gap-row:classification-1:applicability_assessment",
+    );
+    expect(response.result.rows[0]?.status).toBe(
+      GAP_MATRIX_ROW_STATUSES.satisfied,
     );
   });
 });

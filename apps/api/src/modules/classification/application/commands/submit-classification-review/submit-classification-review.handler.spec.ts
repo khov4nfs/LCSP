@@ -63,14 +63,18 @@ function createHandler(input?: {
 }) {
   const write = jest
     .fn<AuditWriterService["write"]>()
-    .mockResolvedValue(undefined);
+    .mockImplementation(() => Promise.resolve());
   const writeInTx = jest
     .fn<AuditWriterService["writeInTx"]>()
-    .mockResolvedValue(undefined);
-  const enqueue = jest.fn<OutboxRepository["enqueue"]>().mockResolvedValue({});
+    .mockImplementation(() => Promise.resolve());
+  const enqueue = jest
+    .fn<OutboxRepository["enqueue"]>()
+    .mockImplementation(() => Promise.resolve());
   const tx = {
     classificationReviewRequest: {
-      create: jest.fn<() => Promise<object>>().mockResolvedValue({}),
+      create: jest
+        .fn<() => Promise<object>>()
+        .mockImplementation(() => Promise.resolve({})),
     },
   };
   const prisma = {
@@ -84,32 +88,40 @@ function createHandler(input?: {
     assessment: {
       findFirst: jest
         .fn<() => Promise<object | null>>()
-        .mockResolvedValue(input?.assessment ?? { id: "assessment-1" }),
+        .mockImplementation(() =>
+          Promise.resolve(input?.assessment ?? { id: "assessment-1" }),
+        ),
     },
     legalRuleMatch: {
       findFirst: jest
         .fn<() => Promise<object | null>>()
-        .mockResolvedValue(input?.legalRuleMatch ?? ruleMatch()),
+        .mockImplementation(() =>
+          Promise.resolve(input?.legalRuleMatch ?? ruleMatch()),
+        ),
     },
     classificationResult: {
       findUnique: jest
         .fn<() => Promise<object | null>>()
-        .mockResolvedValue(input?.classificationResult ?? null),
+        .mockImplementation(() =>
+          Promise.resolve(input?.classificationResult ?? null),
+        ),
     },
     classificationReviewRequest: {
       findUnique: jest
         .fn<() => Promise<object | null>>()
-        .mockResolvedValue(input?.reviewRequest ?? null),
+        .mockImplementation(() =>
+          Promise.resolve(input?.reviewRequest ?? null),
+        ),
     },
     verifiedProfile: {
       findFirst: jest
         .fn<() => Promise<object | null>>()
-        .mockResolvedValue({ aiUsageFlowId: "flow-1" }),
+        .mockImplementation(() => Promise.resolve({ aiUsageFlowId: "flow-1" })),
     },
     conflictRecord: {
       findFirst: jest
         .fn<() => Promise<object | null>>()
-        .mockResolvedValue(input?.conflict ?? null),
+        .mockImplementation(() => Promise.resolve(input?.conflict ?? null)),
     },
   } as unknown as PrismaService;
   const audit = { write, writeInTx } as unknown as AuditWriterService;

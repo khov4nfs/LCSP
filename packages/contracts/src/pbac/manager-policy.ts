@@ -1,3 +1,5 @@
+import { AO3_MANAGER_ONLY_ACTION_VALUES } from "./ao3-manager-policy.ts";
+import { AO5_MANAGER_ONLY_ACTION_VALUES } from "./ao5-manager-policy.ts";
 import { PBAC_ACTIONS } from "./actions.ts";
 
 export const MANAGER_ONLY_ACTION_VALUES = [
@@ -27,6 +29,8 @@ export const MANAGER_ONLY_ACTION_VALUES = [
   PBAC_ACTIONS.gapEvidenceTraceRead,
   PBAC_ACTIONS.gapRemediationPropose,
   PBAC_ACTIONS.classificationReviewSubmit,
+  ...AO5_MANAGER_ONLY_ACTION_VALUES,
+  ...AO3_MANAGER_ONLY_ACTION_VALUES,
 ] as const;
 
 export const MANAGER_ONLY_ACTIONS: string[] = [...MANAGER_ONLY_ACTION_VALUES];

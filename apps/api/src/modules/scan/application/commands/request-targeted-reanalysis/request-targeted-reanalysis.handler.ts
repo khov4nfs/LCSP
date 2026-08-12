@@ -22,6 +22,7 @@ import {
   TARGETED_REANALYSIS_COVERAGE_STATES,
   TARGETED_REANALYSIS_REQUEST_STATES,
   TARGETED_REANALYSIS_RESPONSE_STATES,
+  TECHNICAL_EVIDENCE_REPORT_STATUSES,
 } from "@lcsp/contracts/scan";
 import {
   REPOSITORY_SCAN_JOB_STATUSES,
@@ -100,7 +101,7 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
         id: input.inputArtifactVersion,
         assessmentId: input.assessmentId,
         organizationId,
-        status: "ACCEPTED",
+        status: TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
       },
       select: { id: true, evidencePayload: true, snapshotId: true },
     });

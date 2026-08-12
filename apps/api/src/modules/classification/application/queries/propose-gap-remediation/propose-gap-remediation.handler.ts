@@ -234,7 +234,10 @@ function evaluateRow(
   ruleMatch: MatchProjection,
 ): RowEvaluation {
   const data = asRecord(classificationData);
-  const fieldValue = data?.[rowKey];
+  const fieldValue =
+    rowKey === "applicability_assessment"
+      ? (data?.applicability_assessment ?? data?.system_type)
+      : data?.[rowKey];
   const coverageLimited =
     ruleMatch.overallCoverageStatus !== OverallCoverageStatus.COMPLETE_CITATION;
 
@@ -349,8 +352,15 @@ function parseRowRef(
   const parts = rowRef.slice(GAP_ROW_PREFIX.length).split(":");
   if (parts.length < 2) return null;
   const classificationId = parts.shift();
-  const rowKey = parts.join(":");
+  const rowKey = normalizeRowKey(parts.join(":"));
   return classificationId && rowKey ? { classificationId, rowKey } : null;
+}
+
+function normalizeRowKey(rowKey: string): string {
+  if (rowKey === "system_type") {
+    return "applicability_assessment";
+  }
+  return rowKey;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

@@ -4,6 +4,7 @@ import {
   AGENTIC_TOOL_COVERAGE_STATES,
   AGENTIC_TOOL_STATUSES,
   GAP_REMEDIATION_LIMITATION_CODES,
+  type GapRemediationTemplateId,
   GAP_REMEDIATION_TEMPLATE_IDS,
 } from "@lcsp/contracts/evidence";
 
@@ -34,7 +35,7 @@ function createHandler(input?: {
               id: "classification-1",
               legalRuleMatchId: "match-1",
               classificationData: {
-                system_type: "HIGH_IMPACT_AI",
+                applicability_assessment: "applicable",
                 citation_basis: ["citation:chunk_allow_1"],
               },
               guardrailStatus: "PASSED",
@@ -65,8 +66,8 @@ function createHandler(input?: {
 }
 
 function query(
-  rowRef = "gap-row:classification-1:system_type",
-  templateId = GAP_REMEDIATION_TEMPLATE_IDS.collectEvidence,
+  rowRef = "gap-row:classification-1:applicability_assessment",
+  templateId: GapRemediationTemplateId = GAP_REMEDIATION_TEMPLATE_IDS.collectEvidence,
 ) {
   return new ProposeGapRemediationQuery(
     "assessment-1",
@@ -114,7 +115,7 @@ describe("ProposeGapRemediationHandler", () => {
 
     const response = await handler.execute(
       query(
-        "gap-row:classification-1:system_type",
+        "gap-row:classification-1:applicability_assessment",
         GAP_REMEDIATION_TEMPLATE_IDS.resolveConflict,
       ),
     );
@@ -151,5 +152,25 @@ describe("ProposeGapRemediationHandler", () => {
     await expect(
       handler.execute(query("gap-row:classification-1")),
     ).rejects.toBeInstanceOf(HttpException);
+  });
+
+  it("TC-07: supports legacy system_type row refs for remediation decisions", async () => {
+    const { handler } = createHandler({
+      classification: {
+        id: "classification-1",
+        legalRuleMatchId: "match-1",
+        classificationData: {
+          system_type: "HIGH_IMPACT_AI",
+          citation_basis: ["citation:chunk_allow_1"],
+        },
+        guardrailStatus: "PASSED",
+      },
+    });
+
+    const response = await handler.execute(
+      query("gap-row:classification-1:system_type"),
+    );
+
+    expect(response.status).toBe(AGENTIC_TOOL_STATUSES.ready);
   });
 });

@@ -30,7 +30,7 @@ import { GetGapEvidenceTraceQuery } from "./get-gap-evidence-trace.query.js";
 
 const GAP_ROW_PREFIX = "gap-row:";
 const ROW_KEYS = {
-  systemType: "system_type",
+  applicabilityAssessment: "applicability_assessment",
   riskLevel: "risk_level",
   citationBasis: "citation_basis",
 } as const;
@@ -222,7 +222,10 @@ function buildTrace(input: {
     input.match.overallCoverageStatus !==
     OverallCoverageStatus.COMPLETE_CITATION;
   const allowlist = refs(input.match.citationAllowlist);
-  const fieldValue = data?.[input.rowKey];
+  const fieldValue =
+    input.rowKey === ROW_KEYS.applicabilityAssessment
+      ? (data?.applicability_assessment ?? data?.system_type)
+      : data?.[input.rowKey];
   const evidenceRefs =
     input.rowKey === ROW_KEYS.citationBasis && Array.isArray(fieldValue)
       ? fieldValue
@@ -365,11 +368,18 @@ function parseRowRef(
     return null;
   }
   const classificationId = parts.shift();
-  const rowKey = parts.join(":");
+  const rowKey = normalizeRowKey(parts.join(":"));
   if (!classificationId || !rowKey) {
     return null;
   }
   return { classificationId, rowKey };
+}
+
+function normalizeRowKey(rowKey: string): string {
+  if (rowKey === "system_type") {
+    return ROW_KEYS.applicabilityAssessment;
+  }
+  return rowKey;
 }
 
 function reportRef(reportId: string | null): string | null {

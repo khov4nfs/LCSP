@@ -233,19 +233,25 @@ describe("InternalScanController", () => {
 
 describe("InternalTargetedReanalysisController", () => {
   it("claims only a dispatched request while atomically enforcing the per-organization running limit", async () => {
-    const findUnique = jest.fn().mockResolvedValue({
-      organizationId: "org-1",
-      assessmentId: "assessment-1",
-      correlationId: "correlation-1",
-      state: TARGETED_REANALYSIS_REQUEST_STATES.dispatched,
-    });
-    const count = jest.fn().mockResolvedValue(1);
-    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
-    const $executeRaw = jest.fn().mockResolvedValue(undefined);
+    const findUnique = jest.fn().mockImplementation(() =>
+      Promise.resolve({
+        organizationId: "org-1",
+        assessmentId: "assessment-1",
+        correlationId: "correlation-1",
+        state: TARGETED_REANALYSIS_REQUEST_STATES.dispatched,
+      }),
+    );
+    const count = jest.fn().mockImplementation(() => Promise.resolve(1));
+    const updateMany = jest
+      .fn()
+      .mockImplementation(() => Promise.resolve({ count: 1 }));
+    const $executeRaw = jest.fn().mockImplementation(() => Promise.resolve());
     const transaction = {
       targetedReanalysisRequest: { findUnique, count, updateMany },
       targetedReanalysisCheckpoint: {
-        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        updateMany: jest
+          .fn()
+          .mockImplementation(() => Promise.resolve({ count: 1 })),
       },
       $executeRaw,
     };
@@ -254,7 +260,9 @@ describe("InternalTargetedReanalysisController", () => {
         Promise.resolve(handler(transaction)),
       ),
     };
-    const auditWriter = { write: jest.fn().mockResolvedValue(undefined) };
+    const auditWriter = {
+      write: jest.fn().mockImplementation(() => Promise.resolve()),
+    };
     const controller = new InternalTargetedReanalysisController(
       prisma as never,
       auditWriter as never,
@@ -284,14 +292,18 @@ describe("InternalTargetedReanalysisController", () => {
   });
 
   it("does not claim a queued request injected outside the outbox scheduler", async () => {
-    const findUnique = jest.fn().mockResolvedValue({
-      organizationId: "org-1",
-      state: TARGETED_REANALYSIS_REQUEST_STATES.queued,
-    });
+    const findUnique = jest.fn().mockImplementation(() =>
+      Promise.resolve({
+        organizationId: "org-1",
+        state: TARGETED_REANALYSIS_REQUEST_STATES.queued,
+      }),
+    );
     const transaction = {
       targetedReanalysisRequest: { findUnique },
       targetedReanalysisCheckpoint: {
-        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        updateMany: jest
+          .fn()
+          .mockImplementation(() => Promise.resolve({ count: 1 })),
       },
       $executeRaw: jest.fn(),
     };
@@ -302,7 +314,7 @@ describe("InternalTargetedReanalysisController", () => {
     };
     const controller = new InternalTargetedReanalysisController(
       prisma as never,
-      { write: jest.fn().mockResolvedValue(undefined) } as never,
+      { write: jest.fn().mockImplementation(() => Promise.resolve()) } as never,
     );
 
     await expect(controller.claimRequest("request-1")).resolves.toEqual({
@@ -313,16 +325,24 @@ describe("InternalTargetedReanalysisController", () => {
   });
 
   it("audits terminal and retry transitions with only the safe request reference", async () => {
-    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
-    const checkpointUpdate = jest.fn().mockResolvedValue({ count: 1 });
-    const auditWriter = { write: jest.fn().mockResolvedValue(undefined) };
+    const updateMany = jest
+      .fn()
+      .mockImplementation(() => Promise.resolve({ count: 1 }));
+    const checkpointUpdate = jest
+      .fn()
+      .mockImplementation(() => Promise.resolve({ count: 1 }));
+    const auditWriter = {
+      write: jest.fn().mockImplementation(() => Promise.resolve()),
+    };
     const prisma = {
       targetedReanalysisRequest: {
-        findUnique: jest.fn().mockResolvedValue({
-          organizationId: "org-1",
-          assessmentId: "assessment-1",
-          correlationId: "correlation-1",
-        }),
+        findUnique: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            organizationId: "org-1",
+            assessmentId: "assessment-1",
+            correlationId: "correlation-1",
+          }),
+        ),
         updateMany,
       },
       targetedReanalysisCheckpoint: { updateMany: checkpointUpdate },
