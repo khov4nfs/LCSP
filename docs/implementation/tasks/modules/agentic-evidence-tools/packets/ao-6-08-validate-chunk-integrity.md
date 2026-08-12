@@ -2,6 +2,7 @@
 template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-6-08-validate-chunk-integrity
+jira_issue: LCSP-210
 status: READY_FOR_PLANNING
 ---
 # TASK-AO-6-08 — `validate_chunk_integrity`

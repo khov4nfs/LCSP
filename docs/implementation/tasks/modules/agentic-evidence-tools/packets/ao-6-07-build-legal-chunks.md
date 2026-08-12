@@ -2,6 +2,7 @@
 template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-6-07-build-legal-chunks
+jira_issue: LCSP-209
 status: READY_FOR_PLANNING
 ---
 # TASK-AO-6-07 — `build_legal_chunks`
