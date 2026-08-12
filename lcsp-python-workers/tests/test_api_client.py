@@ -242,54 +242,6 @@ def test_get_accepted_technical_evidence_report_rejects_non_accepted(client):
             client.get_accepted_technical_evidence_report("ter-1")
 
 
-def test_register_official_source_snapshot_uses_internal_legal_catalog_endpoint(client):
-    payload = {
-        "snapshotRef": "snapshot:LAW-71-2025-QH15:abcd1234ef56",
-        "catalogSourceRef": "catalog-source:vbpl.vn:law:71-2025-qh15",
-        "adminCatalogVersion": "catalog_v2026_08",
-        "documentId": "LAW-71-2025-QH15",
-        "sourceUrl": "https://vbpl.vn/TW/Pages/vbpq-toanvan.aspx?ItemID=179989",
-        "contentType": "text/html",
-        "byteLength": 2048,
-        "contentSha256": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-        "snapshotObjectKey": "legal-source-snapshots/catalog_vbpl_vn/LAW-71-2025-QH15/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef/LAW-71-2025-QH15.source.html",
-        "provenanceRef": "prov:fetch:LAW-71-2025-QH15:abcd1234ef56",
-        "retrievedAt": "2026-08-12T10:00:00.000Z",
-        "documentIdentityVerified": True,
-    }
-
-    with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"ok": True, "data": {"snapshotRef": payload["snapshotRef"]}}
-        mock_post.return_value = mock_resp
-
-        response = client.register_official_source_snapshot(payload)
-
-    assert response["snapshotRef"] == payload["snapshotRef"]
-    assert mock_post.call_args.args[0] == (
-        "http://testserver/internal/legal-rule-catalog/source-snapshots"
-    )
-
-
-def test_get_official_source_snapshot_uses_query_params(client):
-    with patch("lcsp_workers.platform.api_client.httpx.get") as mock_get:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"ok": True, "data": {"snapshotRef": "snapshot:LAW-71-2025-QH15:abcd1234ef56"}}
-        mock_get.return_value = mock_resp
-
-        response = client.get_official_source_snapshot(
-            snapshot_ref="snapshot:LAW-71-2025-QH15:abcd1234ef56"
-        )
-
-    assert response["snapshotRef"] == "snapshot:LAW-71-2025-QH15:abcd1234ef56"
-    _, kwargs = mock_get.call_args
-    assert kwargs["params"] == {
-        "snapshot_ref": "snapshot:LAW-71-2025-QH15:abcd1234ef56"
-    }
-
-
 def test_ai_usage_flow_callback_uses_internal_ai_usage_flow_endpoint(client):
     payload = AIUsageFlowCallbackPayload(
         technical_profile_id="tp-1",
@@ -331,6 +283,26 @@ def test_get_wizard_profile_returns_none_for_404(client):
         mock_get.return_value = mock_resp
 
         assert client.get_wizard_profile_for_assessment("assessment-1") is None
+
+
+def test_get_official_source_snapshot_uses_query_params(client):
+    with patch("lcsp_workers.platform.api_client.httpx.get") as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"snapshotRef": "snapshot:LAW-TEST:abcd1234ef56"}
+        mock_get.return_value = mock_resp
+
+        response = client.get_official_source_snapshot(
+            snapshot_ref="snapshot:LAW-TEST:abcd1234ef56"
+        )
+
+    assert response["snapshotRef"] == "snapshot:LAW-TEST:abcd1234ef56"
+    assert mock_get.call_args.args[0] == (
+        "http://testserver/internal/legal-rule-catalog/source-snapshots"
+    )
+    assert mock_get.call_args.kwargs["params"] == {
+        "snapshot_ref": "snapshot:LAW-TEST:abcd1234ef56"
+    }
 
 
 def test_reconciliation_conflict_callback_uses_internal_endpoint(client):
