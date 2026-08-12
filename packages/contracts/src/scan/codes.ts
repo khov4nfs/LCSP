@@ -38,6 +38,9 @@ export const SCAN_ERROR_CODES = {
   legalRuleMatchSchemaInvalid: "SCHEMA_INVALID",
   legalRuleMatchNotFound: "LEGAL_RULE_MATCH_NOT_FOUND",
   resultAlreadyExists: "RESULT_ALREADY_EXISTS",
+  classificationReviewRequestAlreadyExists:
+    "CLASSIFICATION_REVIEW_REQUEST_ALREADY_EXISTS",
+  classificationReviewGateInvalid: "CLASSIFICATION_REVIEW_GATE_INVALID",
   classificationOverclaim: "CLASSIFICATION_OVERCLAIM",
   classificationSchemaInvalid: "SCHEMA_INVALID",
   classificationResultNotFound: "CLASSIFICATION_RESULT_NOT_FOUND",

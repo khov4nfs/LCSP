@@ -79,6 +79,7 @@ class CongBaoDocxCrawler:
                     "documentId": document_id,
                     "title": extract_title(page_html),
                     "sourceUrl": source_url,
+                    "finalUrl": docx_url,
                     "downloadUrl": docx_url,
                     "sourceSha256": sha256(docx),
                     "sourceEffectStatus": source_effect_status,

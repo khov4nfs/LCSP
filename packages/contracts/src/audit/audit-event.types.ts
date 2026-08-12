@@ -48,6 +48,7 @@ export const AUDIT_RESOURCE_TYPES = {
   authMfaRecoveryCode: "AUTH_MFA_RECOVERY_CODE",
   authOrganization: "AUTH_ORGANIZATION",
   authSession: "AUTH_SESSION",
+  classificationReviewRequest: "CLASSIFICATION_REVIEW_REQUEST",
   classificationResult: "CLASSIFICATION_RESULT",
   conflictRecord: "CONFLICT_RECORD",
   documentRequest: "DOCUMENT_REQUEST",

@@ -82,6 +82,11 @@ class VerifiedProfileCallbackPayload(BaseModel):
     provider_version: str
     profile_data: Dict[str, Any]
     gates_passed_at: Dict[str, Any]
+    wizard_profile_id: Optional[str] = None
+    technical_evidence_report_id: Optional[str] = None
+    reconciliation_decision_refs: Optional[List[str]] = None
+    idempotency_key: Optional[str] = None
+    organization_id: Optional[str] = None
 
 
 class LegalRuleMatchCallbackPayload(BaseModel):

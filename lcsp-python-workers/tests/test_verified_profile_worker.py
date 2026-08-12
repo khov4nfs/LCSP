@@ -46,6 +46,7 @@ def _ai_usage_flow(*, claims: list[dict] | None = None, **overrides: object) -> 
         "id": "auf-1",
         "ai_usage_flow_id": "auf-1",
         "assessment_id": "assessment-1",
+        "organization_id": "org-1",
         "status": "ready",
         "schema_version": "1.0.0",
         "provider_version": "lcsp.ai-usage-flow-worker.v1",
@@ -93,6 +94,7 @@ def test_t01_all_conflicts_resolved_submits_verified_profile() -> None:
         "ai_usage_flow": _ai_usage_flow(),
         "conflicts": [_conflict_record()],
         "wizard_profile": _wizard_profile(),
+        "technical_evidence_report_id": "report-1",
     }
     consumer = VerifiedProfileConsumer(_config(), api_client=api_client)
 
@@ -114,6 +116,10 @@ def test_t01_all_conflicts_resolved_submits_verified_profile() -> None:
     assert isinstance(payload, VerifiedProfileCallbackPayload)
     assert payload.ai_usage_flow_id == "auf-1"
     assert payload.assessment_id == "assessment-1"
+    assert payload.wizard_profile_id == "wizard-1"
+    assert payload.technical_evidence_report_id == "report-1"
+    assert payload.reconciliation_decision_refs == ["reconciliation:conflict-1"]
+    assert payload.idempotency_key is not None
     assert payload.gates_passed_at == {
         "conflicts_resolved": "2026-07-25T09:30:00Z"
     }
@@ -132,6 +138,7 @@ def test_t02_pending_conflicts_signal_is_requeued() -> None:
         "ai_usage_flow": _ai_usage_flow(),
         "conflicts": [_conflict_record()],
         "wizard_profile": _wizard_profile(),
+        "technical_evidence_report_id": "report-1",
     }
     api_client.post_verified_profile_callback.side_effect = WorkerCallbackError(
         "PENDING_CONFLICTS_EXIST"

@@ -5,13 +5,14 @@ import {
   PBAC_METADATA_TYPES,
   SUBJECT_ROLES,
 } from "@lcsp/contracts/pbac";
-import { SCAN_CALLBACK_STATUSES } from "@lcsp/contracts/scan";
+import { SCAN_CALLBACK_STATUSES, SCAN_EVENT_TYPES } from "@lcsp/contracts/scan";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 
 import { PBAC_METADATA_KEY } from "../../../../platform/pbac/decorators/pbac-metadata.js";
 import { GetScanJobQuery } from "../../application/queries/get-scan-job/get-scan-job.query.js";
 import { ProcessScanCallbackCommand } from "../../application/commands/process-scan-callback/process-scan-callback.command.js";
 import { RerunScanCommand } from "../../application/commands/rerun-scan/rerun-scan.command.js";
+import { RequestTargetedReanalysisCommand } from "../../application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.js";
 import { InternalScanController, ScanController } from "./scan.controller.js";
 import { InternalTargetedReanalysisController } from "./scan.controller.js";
 import { TARGETED_REANALYSIS_REQUEST_STATES } from "@lcsp/contracts/scan";
@@ -125,6 +126,76 @@ describe("ScanController", () => {
       reason: "Test rerun",
     });
   });
+
+  it("requires the technical-evidence:reanalyze PBAC action for requestTargetedReanalysis", () => {
+    const metadata = Reflect.getMetadata(
+      PBAC_METADATA_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      ScanController.prototype.requestTargetedReanalysis,
+    ) as unknown;
+
+    expect(metadata).toEqual({
+      type: PBAC_METADATA_TYPES.action,
+      action: PBAC_ACTIONS.technicalEvidenceReanalyze,
+    });
+  });
+
+  it("dispatches RequestTargetedReanalysisCommand with the packet-shaped body", async () => {
+    const execute = jest.fn<(command: unknown) => Promise<unknown>>();
+    execute.mockResolvedValue({
+      status: "READY",
+      toolName: "request_targeted_reanalysis",
+    });
+    const controller = new ScanController(
+      {} as unknown as QueryBus,
+      { execute } as unknown as CommandBus,
+    );
+
+    const pbacContext = {
+      userId: "manager-1",
+      sessionId: "session-1",
+      organizationId: "org-1",
+      subjectRole: SUBJECT_ROLES.manager,
+      scope: "assessment-1",
+      grantedActions: [PBAC_ACTIONS.technicalEvidenceReanalyze],
+      selectedAction: PBAC_ACTIONS.technicalEvidenceReanalyze,
+      policyId: "policy-manager",
+      policyVersion: "v1",
+    };
+
+    await controller.requestTargetedReanalysis(
+      "assessment-1",
+      "ter_12345678",
+      {
+        inputArtifactVersion: "ter_12345678",
+        analyzerId: "RUN_TS_JS_SEMANTIC_ANALYSIS",
+        scope: { pathPrefixes: ["src/web/"] },
+        reasonRequirementId: "requirement:gap_12345678",
+        idempotencyKey: "request_targeted_reanalysis_0001",
+      },
+      {
+        correlationId: "corr-1",
+        pbacContext,
+      },
+    );
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute.mock.calls[0]?.[0]).toBeInstanceOf(
+      RequestTargetedReanalysisCommand,
+    );
+    expect(execute.mock.calls[0]?.[0]).toMatchObject({
+      input: {
+        assessmentId: "assessment-1",
+        inputArtifactVersion: "ter_12345678",
+        analyzerId: "RUN_TS_JS_SEMANTIC_ANALYSIS",
+        scope: { pathPrefixes: ["src/web/"] },
+        reasonRequirementId: "requirement:gap_12345678",
+        idempotencyKey: "request_targeted_reanalysis_0001",
+      },
+      pbacContext,
+      correlationId: "corr-1",
+    });
+  });
 });
 
 describe("InternalScanController", () => {
@@ -164,6 +235,8 @@ describe("InternalTargetedReanalysisController", () => {
   it("claims only a dispatched request while atomically enforcing the per-organization running limit", async () => {
     const findUnique = jest.fn().mockResolvedValue({
       organizationId: "org-1",
+      assessmentId: "assessment-1",
+      correlationId: "correlation-1",
       state: TARGETED_REANALYSIS_REQUEST_STATES.dispatched,
     });
     const count = jest.fn().mockResolvedValue(1);
@@ -181,9 +254,10 @@ describe("InternalTargetedReanalysisController", () => {
         Promise.resolve(handler(transaction)),
       ),
     };
+    const auditWriter = { write: jest.fn().mockResolvedValue(undefined) };
     const controller = new InternalTargetedReanalysisController(
       prisma as never,
-      { write: jest.fn().mockResolvedValue(undefined) } as never,
+      auditWriter as never,
     );
 
     const response = await controller.claimRequest("request-1");
@@ -200,6 +274,13 @@ describe("InternalTargetedReanalysisController", () => {
         workerDeliveryAttempts: { increment: 1 },
       },
     });
+    expect(auditWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        assessmentId: "assessment-1",
+        correlationId: "correlation-1",
+      }),
+    );
   });
 
   it("does not claim a queued request injected outside the outbox scheduler", async () => {
@@ -229,5 +310,49 @@ describe("InternalTargetedReanalysisController", () => {
       data: { claimed: false },
     });
     expect(transaction.$executeRaw).not.toHaveBeenCalled();
+  });
+
+  it("audits terminal and retry transitions with only the safe request reference", async () => {
+    const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    const checkpointUpdate = jest.fn().mockResolvedValue({ count: 1 });
+    const auditWriter = { write: jest.fn().mockResolvedValue(undefined) };
+    const prisma = {
+      targetedReanalysisRequest: {
+        findUnique: jest.fn().mockResolvedValue({
+          organizationId: "org-1",
+          assessmentId: "assessment-1",
+          correlationId: "correlation-1",
+        }),
+        updateMany,
+      },
+      targetedReanalysisCheckpoint: { updateMany: checkpointUpdate },
+    };
+    const controller = new InternalTargetedReanalysisController(
+      prisma as never,
+      auditWriter as never,
+    );
+
+    await controller.requeueRequest("request-1");
+    await controller.setTerminalState("request-1", {
+      state: TARGETED_REANALYSIS_REQUEST_STATES.failed,
+      safe_failure_code: "SAFE_FAILURE",
+    });
+
+    expect(auditWriter.write).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        eventType: SCAN_EVENT_TYPES.targetedReanalysisRetryAudit,
+        resourceId: "request-1",
+        payload: { requestId: "request-1" },
+      }),
+    );
+    expect(auditWriter.write).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        eventType: SCAN_EVENT_TYPES.targetedReanalysisTerminalAudit,
+        resourceId: "request-1",
+        payload: { requestId: "request-1" },
+      }),
+    );
   });
 });

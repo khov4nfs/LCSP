@@ -135,6 +135,7 @@ describe("TriggerScanHandler", () => {
         scanJobId: job.id,
         assessmentId: "assessment-1",
         snapshotId: "snapshot-1",
+        commitSha: SNAPSHOT.commitSha,
         triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
         idempotencyKey: "scan-request:assessment-1:snapshot-1:1",
         correlationId: "corr-1",

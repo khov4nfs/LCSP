@@ -337,6 +337,78 @@ def test_scan_consumer_uses_internal_snapshot_service_and_cleans_up(
 
 @pytest.mark.p0
 @pytest.mark.integration
+def test_scan_consumer_limits_source_analyzers_to_targeted_path_prefixes(
+    workspace_dir: Path,
+) -> None:
+    workspace = ScannerWorkspace(root_path=workspace_dir / "scanner")
+    archive = _build_tar_gz(
+        {
+            "repo/src/in_scope.py": b"print('in')\n",
+            "repo/other/out_of_scope.py": b"print('out')\n",
+        }
+    )
+    snapshot_client = MagicMock(spec=SnapshotServiceClient)
+    snapshot_client.download_snapshot_archive.return_value = archive
+    config = WorkerConfig(
+        rabbitmq_url="amqp://guest:guest@localhost/",
+        rabbitmq_exchange="test.events",
+        nestjs_api_base_url="http://api.test",
+        worker_api_key="worker-test-key",
+        log_level="INFO",
+        max_retries=3,
+    )
+    syft_tool = MagicMock()
+    syft_tool.run.return_value = _mock_syft_result()
+    semgrep_tool = MagicMock()
+    semgrep_tool.run.return_value = _mock_semgrep_result()
+    knip_tool = MagicMock()
+    knip_tool.run.return_value = _mock_knip_result()
+    deptry_tool = MagicMock()
+    deptry_tool.run.return_value = _mock_deptry_result()
+    api_client = MagicMock()
+    consumer = ScanConsumer(
+        config,
+        snapshot_client=snapshot_client,
+        workspace=workspace,
+        syft_tool=syft_tool,
+        semgrep_tool=semgrep_tool,
+        knip_tool=knip_tool,
+        deptry_tool=deptry_tool,
+        api_client=api_client,
+    )
+
+    consumer.handle(
+        {
+            "scanJobId": "job-targeted-scope",
+            "snapshotId": "snap-targeted-scope",
+            "commitSha": "commit-targeted-scope",
+            "correlationId": "corr-targeted-scope",
+            "targetedReanalysis": {
+                "analyzerId": "RUN_PYTHON_SEMANTIC_ANALYSIS",
+                "pathPrefixes": ["repo/src/"],
+            },
+        },
+        correlation_id="fallback-corr",
+    )
+
+    semgrep_tool.run.assert_not_called()
+    syft_tool.run.assert_not_called()
+    knip_tool.run.assert_not_called()
+    deptry_tool.run.assert_not_called()
+    posted_payload = api_client.post_scan_callback.call_args.args[1]
+    coverage_files = posted_payload.evidence_payload["scan_coverage"]["files"]
+    assert [item["file_path"] for item in coverage_files] == ["repo/src/in_scope.py"]
+    assert posted_payload.evidence_payload["targeted_reanalysis"] == {
+        "analyzer_id": "RUN_PYTHON_SEMANTIC_ANALYSIS",
+        "path_prefixes": ["repo/src/"],
+    }
+    graph = posted_payload.evidence_payload["evidence_graph"]
+    assert graph["provenance"]["snapshot_id"] == "snap-targeted-scope"
+    assert graph["provenance"]["commit_sha"] == "commit-targeted-scope"
+
+
+@pytest.mark.p0
+@pytest.mark.integration
 def test_scan_consumer_defers_callback_until_cleanup_is_verified(
     workspace_dir: Path,
     monkeypatch: pytest.MonkeyPatch,

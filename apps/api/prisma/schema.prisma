@@ -374,6 +374,7 @@ enum AuditResourceType {
   AUTH_MFA_RECOVERY_CODE
   AUTH_ORGANIZATION
   AUTH_SESSION
+  CLASSIFICATION_REVIEW_REQUEST
   CLASSIFICATION_RESULT
   CONFLICT_RECORD
   DOCUMENT_REQUEST
@@ -436,8 +437,10 @@ enum OutboxAggregateType {
   AI_USAGE_FLOW
   ASSESSMENT
   AUTH_USER
+  CLASSIFICATION_REVIEW_REQUEST
   CLASSIFICATION_RESULT
   DOCUMENT_REQUEST
+  LEGAL_CORPUS_VERSION
   LEGAL_RULE_MATCH
   REPOSITORY_SCAN_JOB
   REPOSITORY_SNAPSHOT
@@ -678,6 +681,11 @@ model ConflictRecord {
 model VerifiedProfile {
   id              String                @id @default(uuid())
   aiUsageFlowId   String                @unique
+  version         Int                   @default(1)
+  wizardProfileId String?
+  technicalEvidenceReportId String?
+  reconciliationDecisionRefs Json?
+  idempotencyKey String?
   assessmentId    String
   organizationId  String
   schemaVersion   String
@@ -690,6 +698,8 @@ model VerifiedProfile {
   createdAt       DateTime              @default(now())
 
   @@index([assessmentId])
+  @@index([assessmentId, version])
+  @@unique([organizationId, idempotencyKey])
 }
 
 model ClassificationResult {
@@ -706,6 +716,26 @@ model ClassificationResult {
   createdAt          DateTime                      @default(now())
 
   @@index([assessmentId])
+}
+
+model ClassificationReviewRequest {
+  id                 String                            @id @default(uuid())
+  legalRuleMatchId   String
+  assessmentId       String
+  organizationId     String
+  proposalGateRef    String
+  baselineRef        String
+  candidateLabel     String
+  citationRefs       Json
+  requestedById      String
+  idempotencyKey     String
+  status             ClassificationReviewRequestStatus @default(PENDING_INDEPENDENT_REVIEW)
+  expiresAt          DateTime
+  createdAt          DateTime                          @default(now())
+
+  @@index([assessmentId, status])
+  @@index([legalRuleMatchId])
+  @@unique([organizationId, idempotencyKey])
 }
 
 model DocumentRequest {
@@ -755,13 +785,30 @@ model LegalCorpusVersion {
   version        String                   @unique
   status         LegalRuleLifecycleStatus @default(DRAFT)
   sourceManifest Json
+  integrityManifestRef String?
   createdAt      DateTime                 @default(now())
   approvedAt     DateTime?
   documents      LegalSourceDocument[]
   chunks         LegalDocumentChunk[]
   approvals      CorpusApprovalRecord[]
+  retrievalIndexes LegalRetrievalIndex[]
 
   @@index([status, createdAt])
+}
+
+model LegalRetrievalIndex {
+  id                    String                    @id @default(uuid())
+  legalCorpusVersionId  String
+  version               String                    @unique
+  status                LegalRetrievalIndexStatus @default(BUILDING)
+  configHash            String
+  contentHash           String
+  validationManifestRef String?
+  validatedAt           DateTime?
+  createdAt             DateTime                  @default(now())
+  corpusVersion         LegalCorpusVersion        @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Cascade)
+
+  @@index([legalCorpusVersionId, status, validatedAt])
 }
 
 model LegalSourceDocument {
@@ -780,6 +827,33 @@ model LegalSourceDocument {
 
   @@unique([legalCorpusVersionId, documentId])
   @@index([documentId])
+}
+
+model LegalSourceSnapshot {
+  id                  String   @id @default(uuid())
+  snapshotRef         String   @unique
+  snapshotId          String   @unique
+  catalogSourceRef    String
+  adminCatalogVersion String
+  documentId          String
+  documentNumber      String?
+  sourceUrl           String
+  finalUrl            String?
+  contentType         String
+  byteLength          Int
+  contentSha256       String
+  snapshotObjectKey   String
+  provenanceRef       String
+  retrievedAt         DateTime
+  sourceEffectStatus  String?
+  normalizationSource String?
+  identityVerified    Boolean  @default(false)
+  correlationId       String
+  createdAt           DateTime @default(now())
+
+  @@index([catalogSourceRef, createdAt])
+  @@index([documentId, createdAt])
+  @@index([contentSha256])
 }
 
 model LegalDocumentChunk {
@@ -808,12 +882,17 @@ model CorpusApprovalRecord {
   legalCorpusVersionId String
   approvedBy           String
   status               LegalRuleLifecycleStatus
+  idempotencyKey       String?
+  integrityManifestRef String?
+  retrievalValidationRef String?
+  outboxEventId        String?
   scopeDescription     String
   comments             String?
   approvalDate         DateTime           @default(now())
   corpusVersion        LegalCorpusVersion @relation(fields: [legalCorpusVersionId], references: [id], onDelete: Cascade)
 
   @@index([legalCorpusVersionId])
+  @@unique([idempotencyKey])
 }
 
 model LegalRule {
@@ -912,6 +991,13 @@ enum ClassificationGuardrailStatus {
   BLOCKED
 }
 
+enum ClassificationReviewRequestStatus {
+  PENDING_INDEPENDENT_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
 enum LegalRuleMatchGuardrailStatus {
   PASSED
   BLOCKED
@@ -942,4 +1028,10 @@ enum LegalRuleLifecycleStatus {
   APPROVED
   REJECTED
   SUPERSEDED
+}
+
+enum LegalRetrievalIndexStatus {
+  BUILDING
+  VALID
+  INVALID
 }

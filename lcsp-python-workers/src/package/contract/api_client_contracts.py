@@ -28,6 +28,7 @@ class InternalPath(StrEnum):
     WIZARD_PROFILE = "/internal/assessments/{assessment_id}/wizard-profile"
     LEGAL_RULE_MATCH = "/internal/classification/runtime/legal-rule-matches/{legal_rule_match_id}"
     TARGETED_REANALYSIS_REQUEST = "/internal/targeted-reanalysis/{request_id}"
+    LEGAL_SOURCE_SNAPSHOTS = "/internal/legal-rule-catalog/source-snapshots"
 
 
 class CallbackLogEvent(StrEnum):

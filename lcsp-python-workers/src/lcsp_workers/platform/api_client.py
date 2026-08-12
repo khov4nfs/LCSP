@@ -467,6 +467,27 @@ class WorkerApiClient:
             raise WorkerCallbackError("Legal corpus chunks response was invalid.")
         return data
 
+    def register_official_source_snapshot(self, payload: dict) -> dict:
+        path = InternalPath.LEGAL_SOURCE_SNAPSHOTS
+        data = self._post_with_retry(path, payload)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Official source snapshot response was invalid.")
+        return data
+
+    def get_official_source_snapshot(
+        self, *, snapshot_ref: str | None = None, snapshot_id: str | None = None
+    ) -> dict:
+        path = InternalPath.LEGAL_SOURCE_SNAPSHOTS
+        params = {}
+        if snapshot_ref:
+            params["snapshot_ref"] = snapshot_ref
+        if snapshot_id:
+            params["snapshot_id"] = snapshot_id
+        data = self._get_with_retry(path, params=params)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Official source snapshot response was invalid.")
+        return data
+
     def post_legal_rule_match_callback(
         self, payload: LegalRuleMatchCallbackPayload
     ) -> CallbackResponse:

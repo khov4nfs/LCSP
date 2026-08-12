@@ -1,11 +1,9 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { HttpException } from "@nestjs/common";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
+import { LEGAL_MATCHING_REQUEST_COMMAND } from "@lcsp/contracts/legal-rule-catalog";
 import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
-import {
-  SCAN_EVENT_TYPES,
-  VERIFIED_PROFILE_STATUSES,
-} from "@lcsp/contracts/scan";
+import { VERIFIED_PROFILE_STATUSES } from "@lcsp/contracts/scan";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -50,12 +48,21 @@ function buildHandler(input?: { owned?: boolean }) {
       status: VERIFIED_PROFILE_STATUSES.pendingApproval,
     });
   const countConflicts = jest.fn<() => Promise<number>>().mockResolvedValue(0);
+  const findCorpus = jest.fn<() => Promise<object | null>>().mockResolvedValue({
+    id: "corpus-1",
+    approvedAt: new Date("2026-08-12T00:00:00.000Z"),
+  });
+  const findIndex = jest.fn<() => Promise<object | null>>().mockResolvedValue({
+    id: "index-1",
+  });
   const updateProfile = jest.fn<() => Promise<object>>().mockResolvedValue({});
   const tx = {
     verifiedProfile: {
       findFirst: findProfile,
       update: updateProfile,
     },
+    legalCorpusVersion: { findFirst: findCorpus },
+    legalRetrievalIndex: { findFirst: findIndex },
     conflictRecord: { count: countConflicts },
   };
   const transaction = jest.fn(
@@ -84,6 +91,8 @@ function buildHandler(input?: { owned?: boolean }) {
     findAssessment,
     transaction,
     updateProfile,
+    findCorpus,
+    findIndex,
     write,
     writeInTx,
     enqueue,
@@ -124,7 +133,7 @@ describe("ApproveVerifiedProfileHandler", () => {
     expect(write).toHaveBeenCalledTimes(1);
   });
 
-  it("approves an owned pending profile and emits downstream work once", async () => {
+  it("approves an owned pending profile and emits legal-matching work when corpus/index are ready", async () => {
     const { handler, transaction, updateProfile, writeInTx, enqueue } =
       buildHandler();
 
@@ -144,8 +153,17 @@ describe("ApproveVerifiedProfileHandler", () => {
     expect(writeInTx).toHaveBeenCalledTimes(1);
     expect(enqueue).toHaveBeenCalledTimes(1);
     expect(enqueue.mock.calls[0][0]).toMatchObject({
-      eventType: SCAN_EVENT_TYPES.verifiedProfileReady,
+      eventType: LEGAL_MATCHING_REQUEST_COMMAND,
       aggregateId: "vp-1",
     });
+  });
+
+  it("approves without enqueueing legal-matching work when no validated corpus index is ready", async () => {
+    const { handler, enqueue, findIndex } = buildHandler();
+    findIndex.mockResolvedValue(null);
+
+    await handler.execute(command());
+
+    expect(enqueue).not.toHaveBeenCalled();
   });
 });

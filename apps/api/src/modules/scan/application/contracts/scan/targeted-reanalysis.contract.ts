@@ -1,20 +1,10 @@
-import type { TargetedReanalysisRequestState } from "@lcsp/contracts/scan";
+import type {
+  RequestTargetedReanalysisInput as SharedRequestTargetedReanalysisInput,
+  RequestTargetedReanalysisResponse,
+} from "@lcsp/contracts/scan";
 
-export interface RequestTargetedReanalysisInput {
+export interface RequestTargetedReanalysisInput extends SharedRequestTargetedReanalysisInput {
   assessmentId: string;
-  inputEvidenceReportId: string;
-  snapshotId: string;
-  commitSha: string;
-  analyzerId: string;
-  pathPrefixes?: string[];
-  subjectRefs?: string[];
-  reasonRequirementId: string;
-  idempotencyKey: string;
 }
 
-export interface RequestTargetedReanalysisResponse {
-  requestId: string;
-  state: TargetedReanalysisRequestState;
-  checkpointRef: string;
-  alreadyQueued: boolean;
-}
+export type { RequestTargetedReanalysisResponse };

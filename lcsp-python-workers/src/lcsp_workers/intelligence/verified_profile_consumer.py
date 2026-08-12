@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from uuid import NAMESPACE_URL, uuid5
 from typing import Any
 
 from structlog import get_logger
@@ -68,6 +69,13 @@ class VerifiedProfileConsumer(ConsumerBase):
             provider_version=DEFAULT_PROVIDER_VERSION,
             profile_data=profile.to_dict(),
             gates_passed_at=profile.gates_passed_at,
+            wizard_profile_id=self._wizard_id(context),
+            technical_evidence_report_id=self._required_context_id(
+                context, "technical_evidence_report_id"
+            ),
+            reconciliation_decision_refs=self._decision_refs(conflict_records),
+            idempotency_key=str(uuid5(NAMESPACE_URL, f"{assessment_id}:{self._flow_id(ai_usage_flow)}")),
+            organization_id=self._required_context_id(ai_usage_flow, "organization_id"),
         )
         try:
             self._api_client.post_verified_profile_callback(callback_payload)
@@ -155,3 +163,18 @@ class VerifiedProfileConsumer(ConsumerBase):
             or ai_usage_flow.get("id")
             or "ai-usage-flow"
         )
+
+    def _wizard_id(self, context: dict[str, Any]) -> str:
+        wizard = self._optional_context_dict(context, "wizard_profile")
+        if not wizard:
+            raise ValueError("missing wizard_profile")
+        return self._required_context_id(wizard, "id")
+
+    def _required_context_id(self, context: dict[str, Any], key: str) -> str:
+        value = context.get(key)
+        if not value:
+            raise ValueError(f"missing {key}")
+        return str(value)
+
+    def _decision_refs(self, records: list[dict[str, Any]]) -> list[str]:
+        return sorted(f"reconciliation:{record['conflict_id']}" for record in records)

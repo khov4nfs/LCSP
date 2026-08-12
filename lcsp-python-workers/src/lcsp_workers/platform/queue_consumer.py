@@ -20,6 +20,7 @@ class ConsumerBase:
     queue_name: str  # Override in subclass
     routing_key: str  # Override in subclass
     requires_pbac: bool = True  # Override to False for system-only workers
+    retry_delays_seconds: tuple[int, ...] = ()
 
     def __init__(self, config, pbac_client=None):
         self._config = config
@@ -49,6 +50,7 @@ class ConsumerBase:
             channel = conn.channel()
             self._channel = channel
             channel.queue_declare(queue=self.queue_name, durable=True)
+            self._declare_retry_queues(channel)
             channel.queue_bind(
                 exchange=self._config.rabbitmq_exchange,
                 queue=self.queue_name,
@@ -156,7 +158,7 @@ class ConsumerBase:
         try:
             ch.basic_publish(
                 exchange="",
-                routing_key=self.queue_name,
+                routing_key=self._retry_queue_name(attempts),
                 body=body,
                 properties=retry_properties,
             )
@@ -172,6 +174,23 @@ class ConsumerBase:
                 error=type(exc).__name__,
             )
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+
+    def _declare_retry_queues(self, channel) -> None:
+        for delay_seconds in self.retry_delays_seconds:
+            channel.queue_declare(
+                queue=f"{self.queue_name}.retry.{delay_seconds}s",
+                durable=True,
+                arguments={
+                    "x-message-ttl": delay_seconds * 1000,
+                    "x-dead-letter-exchange": "",
+                    "x-dead-letter-routing-key": self.queue_name,
+                },
+            )
+
+    def _retry_queue_name(self, attempts: int) -> str:
+        if attempts < len(self.retry_delays_seconds):
+            return f"{self.queue_name}.retry.{self.retry_delays_seconds[attempts]}s"
+        return self.queue_name
 
     def _handle_sigterm(self, signum, frame) -> None:
         logger.info("SIGTERM_RECEIVED", msg="Finishing current message then stopping")

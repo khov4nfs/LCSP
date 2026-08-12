@@ -50,10 +50,6 @@ class DummyApiClient:
             ],
         }
 
-    def get_active_legal_corpus(self):
-        self.calls.append(("corpus", None))
-        return {"versionId": "corpus-v1", "status": "APPROVED"}
-
     def get_legal_corpus_chunks(self, corpus_version_id):
         self.calls.append(("corpus_chunks", corpus_version_id))
         return {"versionId": corpus_version_id, "chunks": [{"id": "chunk-1", "content": "Legal content"}]}
@@ -79,13 +75,16 @@ def test_consumer_fetches_data_and_submits_callback():
     consumer = LegalRetrievalConsumer(DummyConfig(), api_client=api_client, retriever=DummyRetriever())
 
     consumer.handle(
-        {"verifiedProfileId": "vp-1", "assessmentId": "assessment-1"},
+        {
+            "verifiedProfileId": "vp-1",
+            "assessmentId": "assessment-1",
+            "corpusVersionId": "corpus-v1",
+        },
         correlation_id="corr-1",
     )
 
     assert any(call[0] == "verified_profile" for call in api_client.calls)
     assert any(call[0] == "catalog" for call in api_client.calls)
-    assert any(call[0] == "corpus" for call in api_client.calls)
     assert any(call[0] == "callback" for call in api_client.calls)
 
     callback_payload = next(call[1] for call in api_client.calls if call[0] == "callback")
@@ -107,7 +106,11 @@ def test_consumer_rejects_unapproved_verified_profile_before_legal_lookup():
 
     with pytest.raises(WorkerCallbackError, match="Verified profile is not approved"):
         consumer.handle(
-            {"verifiedProfileId": "vp-1", "assessmentId": "assessment-1"},
+            {
+                "verifiedProfileId": "vp-1",
+                "assessmentId": "assessment-1",
+                "corpusVersionId": "corpus-v1",
+            },
             correlation_id="corr-1",
         )
 

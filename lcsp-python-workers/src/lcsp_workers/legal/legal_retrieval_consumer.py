@@ -16,8 +16,8 @@ logger = get_logger(__name__)
 
 
 class LegalRetrievalConsumer(ConsumerBase):
-    queue_name = "legal.verified-profile-ready"
-    routing_key = "event.verified-profile.ready.v1"
+    queue_name = "legal.legal-matching-requested"
+    routing_key = "command.legal-matching.requested.v1"
     requires_pbac = False
 
     def __init__(
@@ -41,6 +41,7 @@ class LegalRetrievalConsumer(ConsumerBase):
     def handle(self, message: dict[str, Any], correlation_id: str) -> None:
         verified_profile_id = self._required_message_id(message, "verifiedProfileId")
         assessment_id = self._required_message_id(message, "assessmentId")
+        corpus_version_id = self._required_message_id(message, "corpusVersionId")
 
         verified_profile = self._api_client.get_verified_profile_by_id(verified_profile_id)
         verified_profile_status = str(verified_profile.get("status") or "").upper()
@@ -48,8 +49,6 @@ class LegalRetrievalConsumer(ConsumerBase):
             raise WorkerCallbackError("Verified profile is not approved.")
 
         legal_catalog = self._api_client.get_active_legal_rule_catalog()
-        legal_corpus = self._api_client.get_active_legal_corpus()
-        corpus_version_id = str(legal_corpus.get("versionId") or "")
         corpus_index = self._api_client.get_legal_corpus_chunks(corpus_version_id)
         self._retriever.index_corpus(corpus_version_id, corpus_index.get("chunks") or [])
 
@@ -100,7 +99,7 @@ class LegalRetrievalConsumer(ConsumerBase):
             verified_profile_id=verified_profile_id,
             assessment_id=assessment_id,
             legal_rule_catalog_version_id=legal_catalog.get("versionId") or legal_catalog.get("id") or "",
-            legal_corpus_version_id=legal_corpus.get("versionId") or legal_corpus.get("id") or "",
+            legal_corpus_version_id=corpus_version_id,
             matches=matches,
         )
         callback_payload = LegalRuleMatchCallbackPayload(

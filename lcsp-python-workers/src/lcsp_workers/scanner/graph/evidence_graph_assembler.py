@@ -14,6 +14,8 @@ class EvidenceGraphAssembler:
         self,
         *,
         scan_job_id: str,
+        snapshot_id: str,
+        commit_sha: str,
         workspace_path: Path,
         technical_findings: Iterable[object],
         structural_facts: Iterable[object],
@@ -24,7 +26,9 @@ class EvidenceGraphAssembler:
         builder = EvidenceGraphBuilder(
             str(workspace_path),
             scan_job_id=scan_job_id,
-            repository_ref=f"scan:{scan_job_id}",
+            repository_ref=f"snapshot:{snapshot_id}",
+            snapshot_id=snapshot_id,
+            commit_sha=commit_sha,
             tool_version="evidence-graph-assembler/1.0.0",
             config_hash=config_hash,
         )

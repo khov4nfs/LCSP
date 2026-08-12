@@ -44,7 +44,7 @@ export class OutboxRepository {
   async enqueue(
     input: OutboxMessageInput,
     tx?: Prisma.TransactionClient,
-  ): Promise<void> {
+  ): Promise<string> {
     const client = tx ?? this.prisma;
     const message = OutboxMessageEntity.create(input);
 
@@ -60,6 +60,8 @@ export class OutboxRepository {
         createdAt: message.createdAt,
       },
     });
+
+    return message.id;
   }
 
   /**

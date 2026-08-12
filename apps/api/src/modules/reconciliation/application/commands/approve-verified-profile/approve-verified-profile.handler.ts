@@ -1,6 +1,6 @@
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import type { Prisma } from "@prisma/client";
+import { LegalRetrievalIndexStatus, type Prisma } from "@prisma/client";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import {
   AUDIT_ACTOR_TYPES,
@@ -13,6 +13,10 @@ import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
+import {
+  LEGAL_MATCHING_REQUEST_COMMAND,
+  LEGAL_RULE_LIFECYCLE_STATUSES,
+} from "@lcsp/contracts/legal-rule-catalog";
 import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import {
   CONFLICT_RECORD_STATUSES,
@@ -24,6 +28,7 @@ import {
 import {
   fromPrismaVerifiedProfileStatus,
   toPrismaConflictRecordStatus,
+  toPrismaLegalRuleLifecycleStatus,
   toPrismaVerifiedProfileStatus,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -144,7 +149,7 @@ export class ApproveVerifiedProfileHandler implements ICommandHandler<ApproveVer
         tx,
       );
 
-      await this.enqueueReadyEvent(command, tx, profile.id, approvedAt);
+      await this.enqueueLegalMatchingCommandIfReady(command, tx, profile.id);
     });
 
     return {
@@ -221,31 +226,57 @@ export class ApproveVerifiedProfileHandler implements ICommandHandler<ApproveVer
     });
   }
 
-  private async enqueueReadyEvent(
+  private async enqueueLegalMatchingCommandIfReady(
     command: ApproveVerifiedProfileCommand,
     tx: Prisma.TransactionClient,
     verifiedProfileId: string,
-    approvedAt: Date,
   ): Promise<void> {
+    const corpus = await tx.legalCorpusVersion.findFirst({
+      where: {
+        status: toPrismaLegalRuleLifecycleStatus(
+          LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+        ),
+        approvedAt: { not: null },
+      },
+      orderBy: { approvedAt: "desc" },
+      select: { id: true, approvedAt: true },
+    });
+    if (!corpus) {
+      return;
+    }
+
+    const index = await tx.legalRetrievalIndex.findFirst({
+      where: {
+        legalCorpusVersionId: corpus.id,
+        status: LegalRetrievalIndexStatus.VALID,
+        validatedAt: { not: null },
+        validationManifestRef: { not: null },
+      },
+      orderBy: [{ validatedAt: "desc" }, { createdAt: "desc" }],
+      select: { id: true },
+    });
+    if (!index) {
+      return;
+    }
+
     const event = buildOutboxMessageInput({
       aggregateType: OUTBOX_AGGREGATE_TYPES.verifiedProfile,
       aggregateId: verifiedProfileId,
-      eventType: SCAN_EVENT_TYPES.verifiedProfileReady,
+      eventType: LEGAL_MATCHING_REQUEST_COMMAND,
       organizationId: command.organizationId,
       assessmentId: command.assessmentId,
       correlationId: command.correlationId,
       causationId: verifiedProfileId,
       actor: { id: command.approvedById, type: AUDIT_ACTOR_TYPES.user },
-      result: SCAN_EVENT_TYPES.verifiedProfileReady,
+      result: LEGAL_MATCHING_REQUEST_COMMAND,
       redactionStatus: AUDIT_REDACTION_STATUSES.none,
       authorizationAction: PBAC_ACTIONS.verifiedProfileApprove,
-      idempotencyKey: `${verifiedProfileId}:${SCAN_EVENT_TYPES.verifiedProfileReady}`,
+      idempotencyKey: `${verifiedProfileId}:${LEGAL_MATCHING_REQUEST_COMMAND}:${corpus.id}`,
       payload: {
         verifiedProfileId,
         assessmentId: command.assessmentId,
-        status: VERIFIED_PROFILE_STATUSES.approved,
-        approvedById: command.approvedById,
-        approvedAt: approvedAt.toISOString(),
+        corpusVersionId: corpus.id,
+        checkpointRef: `verified-profile:${verifiedProfileId}:${corpus.id}`,
         correlationId: command.correlationId,
       },
     });

@@ -17,14 +17,15 @@ Available with corpus/match pins and `LEGAL_CITATION_VALIDATE`; owner `CitationV
 | Parameter | Type | Required | Bounds | Example |
 |---|---|---:|---|---|
 | `corpusVersionId` | string | yes | corpus ID | `"corpus_01J9LEGAL"` |
+| `legalRuleMatchId` | string | yes | accepted immutable match ID | `"legal_rule_match_01J9A"` |
 | `citationRefs` | string[] | yes | 1–20 stable refs | `["citation:chunk_01J9A"]` |
 ```json
-{"type":"object","additionalProperties":false,"properties":{"corpusVersionId":{"type":"string","pattern":"^corpus_[A-Za-z0-9_-]{8,80}$"},"citationRefs":{"type":"array","items":{"type":"string","pattern":"^citation:chunk_[A-Za-z0-9_-]{6,80}$"},"minItems":1,"maxItems":20,"uniqueItems":true}},"required":["corpusVersionId","citationRefs"]}
+{"type":"object","additionalProperties":false,"properties":{"corpusVersionId":{"type":"string","pattern":"^corpus_[A-Za-z0-9_-]{8,80}$"},"legalRuleMatchId":{"type":"string","pattern":"^legal_rule_match_[A-Za-z0-9_-]{6,80}$"},"citationRefs":{"type":"array","items":{"type":"string","pattern":"^citation:chunk_[A-Za-z0-9_-]{6,80}$"},"minItems":1,"maxItems":20,"uniqueItems":true}},"required":["corpusVersionId","legalRuleMatchId","citationRefs"]}
 ```
 ## 6. Output Schema
 `result={valid,items:[{citationRef,validity,reasonCode}],validatedAtVersion}`; max 20, sorted ref.
 ```json
-{"status":"READY","toolName":"validate_citation_set","toolVersion":"1.0.0","configHash":"sha256:citation-validator-v1","correlationId":"d8ae70b8-9c88-45df-bcdf-74d0132ba251","artifactVersions":{"corpusVersionId":"corpus_01J9LEGAL"},"provenanceRef":"prov:citation-validation:01J9","coverageState":"SUFFICIENT","evidenceRefs":["citation:chunk_01J9A"],"limitations":[],"result":{"valid":true,"items":[{"citationRef":"citation:chunk_01J9A","validity":"VALID","reasonCode":null}],"validatedAtVersion":"corpus_01J9LEGAL"}}
+{"status":"READY","toolName":"validate_citation_set","toolVersion":"1.0.0","configHash":"sha256:citation-validator-v1","correlationId":"d8ae70b8-9c88-45df-bcdf-74d0132ba251","artifactVersions":{"corpusVersionId":"corpus_01J9LEGAL","legalRuleMatchId":"legal_rule_match_01J9A"},"provenanceRef":"prov:citation-validation:01J9","coverageState":"SUFFICIENT","evidenceRefs":["citation:chunk_01J9A"],"limitations":[],"result":{"valid":true,"items":[{"citationRef":"citation:chunk_01J9A","validity":"VALID","reasonCode":null}],"validatedAtVersion":"corpus_01J9LEGAL"}}
 ```
 ## 7. Error Codes and Typed Outcomes
 `INVALID_ARGUMENT` rejects extra/fabricated formats; `NEEDS_INPUT` missing pin; `NOT_FOUND` valid exhaustive lookup; `OUT_OF_COVERAGE` corpus limitation; `BLOCKED` PBAC/version; `FAILED` transient only. Invalid citation is `READY` with `valid:false`, not a silent failure.
@@ -41,7 +42,7 @@ V->>C: stable ref/effect check
 V-->>L: verdict + audit ref
 ```
 ## 9. Business Rules
-Validate existence, context role, allowlist, corpus version and effective/repealed status; no arbitrary locators, no mutation; deterministic sort.
+Validate existence, context role, allowlist supplied by the accepted immutable `legalRuleMatchId`, corpus version and effective/repealed status; no arbitrary locators, no mutation; deterministic sort. The match pin is required so an allowlist verdict is deterministic rather than inferred.
 ## 10. Execution Logic
 `validate → allow-list/PBAC/pin → resolve refs → effect/allowlist checks → normalize → privacy check → audit` in `CitationSetValidatorTool`.
 ## 11. LLM Tool Definition and Context Contract

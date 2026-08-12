@@ -31,6 +31,9 @@ export interface IngestLegalCorpusRequest {
 }
 
 export interface ApproveLegalCorpusRequest {
+  integrityManifestRef: string;
+  retrievalValidationRef: string;
+  idempotencyKey: string;
   scopeDescription?: string;
   comments?: string | null;
 }

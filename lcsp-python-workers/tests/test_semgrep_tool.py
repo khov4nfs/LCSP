@@ -151,6 +151,50 @@ def test_semgrep_tool_returns_empty_findings_when_no_ai_usage(
 
 
 @pytest.mark.p0
+def test_semgrep_tool_limits_each_ruleset_to_authorized_relative_files(
+    workspace_dir: Path,
+    sample_python_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    ai_ruleset, secret_ruleset = _write_rulesets(workspace_dir)
+    commands: list[list[str]] = []
+
+    def fake_run(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        if "--version" in command:
+            return _completed(command, 0, stdout="semgrep 1.99.0\n")
+        commands.append(command)
+        return _completed(command, 0, stdout=json.dumps({"results": []}))
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    SemgrepTool(
+        ai_ruleset_path=ai_ruleset,
+        secret_ruleset_path=secret_ruleset,
+        pinned_version="1.",
+    ).run(sample_python_repo, include_files=["src/ai_client.py"])
+
+    expected_target = str((sample_python_repo / "src" / "ai_client.py").resolve())
+    assert len(commands) == 2
+    assert all(expected_target in command for command in commands)
+    assert all(str(sample_python_repo) not in command for command in commands)
+
+
+@pytest.mark.p0
+def test_semgrep_tool_rejects_target_outside_materialized_workspace(
+    workspace_dir: Path,
+    sample_python_repo: Path,
+) -> None:
+    ai_ruleset, secret_ruleset = _write_rulesets(workspace_dir)
+
+    with pytest.raises(ValueError, match="outside the materialized workspace"):
+        SemgrepTool(
+            ai_ruleset_path=ai_ruleset,
+            secret_ruleset_path=secret_ruleset,
+            pinned_version="1.",
+        ).run(sample_python_repo, include_files=["../outside.py"])
+
+
+@pytest.mark.p0
 def test_semgrep_tool_strips_source_code_from_output(
     workspace_dir: Path,
     sample_python_repo: Path,

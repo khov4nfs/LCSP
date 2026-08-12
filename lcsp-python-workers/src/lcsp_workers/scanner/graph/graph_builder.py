@@ -17,6 +17,7 @@ class EvidenceGraphBuilder:
         *,
         scan_job_id: str = "",
         repository_ref: str = "",
+        snapshot_id: str = "",
         commit_sha: str = "",
         tool_version: str = "",
         config_hash: str = "",
@@ -25,6 +26,7 @@ class EvidenceGraphBuilder:
         self.provenance = {
             "scan_job_id": scan_job_id,
             "repository_ref": repository_ref,
+            "snapshot_id": snapshot_id,
             "commit_sha": commit_sha,
             "tool_version": tool_version,
             "config_hash": config_hash,

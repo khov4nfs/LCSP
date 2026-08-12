@@ -222,6 +222,7 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
         scanJobId: job.id,
         assessmentId: job.assessmentId,
         snapshotId: job.snapshotId,
+        commitSha: snapshot.commitSha,
         organizationId: job.organizationId,
         triggerSource: job.triggerSource,
         idempotencyKey: job.idempotencyKey,

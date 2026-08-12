@@ -411,6 +411,8 @@ const AUDIT_RESOURCE_TYPE_TO_PRISMA = {
   [AUDIT_RESOURCE_TYPES.authOrganization]:
     PrismaAuditResourceType.AUTH_ORGANIZATION,
   [AUDIT_RESOURCE_TYPES.authSession]: PrismaAuditResourceType.AUTH_SESSION,
+  [AUDIT_RESOURCE_TYPES.classificationReviewRequest]:
+    PrismaAuditResourceType.CLASSIFICATION_REVIEW_REQUEST,
   [AUDIT_RESOURCE_TYPES.classificationResult]:
     PrismaAuditResourceType.CLASSIFICATION_RESULT,
   [AUDIT_RESOURCE_TYPES.conflictRecord]:
@@ -461,6 +463,8 @@ const PRISMA_AUDIT_RESOURCE_TYPE_TO_CONTRACT = {
   [PrismaAuditResourceType.AUTH_ORGANIZATION]:
     AUDIT_RESOURCE_TYPES.authOrganization,
   [PrismaAuditResourceType.AUTH_SESSION]: AUDIT_RESOURCE_TYPES.authSession,
+  [PrismaAuditResourceType.CLASSIFICATION_REVIEW_REQUEST]:
+    AUDIT_RESOURCE_TYPES.classificationReviewRequest,
   [PrismaAuditResourceType.CLASSIFICATION_RESULT]:
     AUDIT_RESOURCE_TYPES.classificationResult,
   [PrismaAuditResourceType.CONFLICT_RECORD]:
@@ -499,10 +503,14 @@ const OUTBOX_AGGREGATE_TYPE_TO_PRISMA = {
   [OUTBOX_AGGREGATE_TYPES.aiUsageFlow]: PrismaOutboxAggregateType.AI_USAGE_FLOW,
   [OUTBOX_AGGREGATE_TYPES.assessment]: PrismaOutboxAggregateType.ASSESSMENT,
   [OUTBOX_AGGREGATE_TYPES.authUser]: PrismaOutboxAggregateType.AUTH_USER,
+  [OUTBOX_AGGREGATE_TYPES.classificationReviewRequest]:
+    PrismaOutboxAggregateType.CLASSIFICATION_REVIEW_REQUEST,
   [OUTBOX_AGGREGATE_TYPES.classificationResult]:
     PrismaOutboxAggregateType.CLASSIFICATION_RESULT,
   [OUTBOX_AGGREGATE_TYPES.documentRequest]:
     PrismaOutboxAggregateType.DOCUMENT_REQUEST,
+  [OUTBOX_AGGREGATE_TYPES.legalCorpusVersion]:
+    PrismaOutboxAggregateType.LEGAL_CORPUS_VERSION,
   [OUTBOX_AGGREGATE_TYPES.legalRuleMatch]:
     PrismaOutboxAggregateType.LEGAL_RULE_MATCH,
   [OUTBOX_AGGREGATE_TYPES.repositoryScanJob]:
@@ -525,10 +533,14 @@ const PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT = {
   [PrismaOutboxAggregateType.AI_USAGE_FLOW]: OUTBOX_AGGREGATE_TYPES.aiUsageFlow,
   [PrismaOutboxAggregateType.ASSESSMENT]: OUTBOX_AGGREGATE_TYPES.assessment,
   [PrismaOutboxAggregateType.AUTH_USER]: OUTBOX_AGGREGATE_TYPES.authUser,
+  [PrismaOutboxAggregateType.CLASSIFICATION_REVIEW_REQUEST]:
+    OUTBOX_AGGREGATE_TYPES.classificationReviewRequest,
   [PrismaOutboxAggregateType.CLASSIFICATION_RESULT]:
     OUTBOX_AGGREGATE_TYPES.classificationResult,
   [PrismaOutboxAggregateType.DOCUMENT_REQUEST]:
     OUTBOX_AGGREGATE_TYPES.documentRequest,
+  [PrismaOutboxAggregateType.LEGAL_CORPUS_VERSION]:
+    OUTBOX_AGGREGATE_TYPES.legalCorpusVersion,
   [PrismaOutboxAggregateType.LEGAL_RULE_MATCH]:
     OUTBOX_AGGREGATE_TYPES.legalRuleMatch,
   [PrismaOutboxAggregateType.REPOSITORY_SCAN_JOB]:

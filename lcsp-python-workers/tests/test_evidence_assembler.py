@@ -142,6 +142,31 @@ def test_t01_assembles_full_evidence_payload() -> None:
     assert payload.evidence_payload["coverage_notes"] == [
         "Workspace skipped 1 oversize file"
     ]
+    assert payload.evidence_payload["report_provenance"]["hash_algorithm"] == "SHA-256"
+    assert payload.evidence_payload["report_provenance"]["report_hash"].startswith(
+        "sha256:"
+    )
+
+
+@pytest.mark.p0
+def test_t01b_report_hash_is_deterministic_for_the_same_safe_artifact() -> None:
+    first = EvidenceAssembler().assemble(
+        scan_job_id="scan-job-1",
+        syft_result=_syft_result(),
+        semgrep_result=_semgrep_result(),
+        coverage_notes=[],
+    )
+    second = EvidenceAssembler().assemble(
+        scan_job_id="scan-job-1",
+        syft_result=_syft_result(),
+        semgrep_result=_semgrep_result(),
+        coverage_notes=[],
+    )
+
+    assert (
+        first.evidence_payload["report_provenance"]["report_hash"]
+        == second.evidence_payload["report_provenance"]["report_hash"]
+    )
 
 
 @pytest.mark.p0
@@ -207,6 +232,30 @@ def test_t04_privacy_assertion_blocks_source_code_payload() -> None:
         )
 
     assert exc_info.value.error_code == "PRIVACY_ASSERTION_FAILED"
+
+
+@pytest.mark.p0
+@pytest.mark.parametrize(
+    "unsafe_payload",
+    [
+        {"nested": {"prompt": "do not persist"}},
+        {"nested": {"ast_body": "Module(...)"}},
+        {"nested": {"api_key": "example"}},
+        {"nested": {"message": "Bearer abcdefghijklmnopqrstuvwxyz"}},
+        {"nested": {"message": "def call_model():\n    return client.run()"}},
+    ],
+)
+def test_t05_privacy_gate_rejects_nested_forbidden_payloads(
+    unsafe_payload: dict,
+) -> None:
+    with pytest.raises(PrivacyAssertionError):
+        EvidenceAssembler().assemble(
+            scan_job_id="scan-job-1",
+            syft_result=_syft_result(),
+            semgrep_result=_semgrep_result(),
+            coverage_notes=[],
+            targeted_reanalysis=unsafe_payload,
+        )
 
 
 @pytest.mark.p0
