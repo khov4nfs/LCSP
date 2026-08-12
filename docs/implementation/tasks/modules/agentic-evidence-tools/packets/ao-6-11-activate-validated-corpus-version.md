@@ -2,6 +2,7 @@
 template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-6-11-activate-validated-corpus-version
+jira_issue: LCSP-215
 status: READY_FOR_PLANNING
 ---
 # TASK-AO-6-11 — `activate_validated_corpus_version`
