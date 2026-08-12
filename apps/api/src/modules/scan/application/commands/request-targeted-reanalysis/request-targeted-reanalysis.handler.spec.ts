@@ -1,4 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
+import { SCAN_ERROR_CODES } from "@lcsp/contracts/scan";
 
 import { RequestTargetedReanalysisHandler } from "./request-targeted-reanalysis.handler.js";
 import { RequestTargetedReanalysisCommand } from "./request-targeted-reanalysis.command.js";
@@ -7,42 +8,56 @@ describe("RequestTargetedReanalysisHandler admission", () => {
   it("locks the organization before counting rate and active capacity in the creation transaction", async () => {
     const requestCount = jest
       .fn()
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0);
-    const $executeRaw = jest.fn().mockResolvedValue(undefined);
+      .mockImplementationOnce(() => Promise.resolve(0))
+      .mockImplementationOnce(() => Promise.resolve(0))
+      .mockImplementationOnce(() => Promise.resolve(0));
+    const $executeRaw = jest.fn().mockImplementation(() => Promise.resolve());
     const transaction = {
       $executeRaw,
       targetedReanalysisRequest: {
         count: requestCount,
-        create: jest.fn().mockResolvedValue({ id: "request-1" }),
+        create: jest
+          .fn()
+          .mockImplementation(() => Promise.resolve({ id: "request-1" })),
       },
-      targetedReanalysisCheckpoint: { create: jest.fn().mockResolvedValue({}) },
-      repositoryScanJob: { create: jest.fn().mockResolvedValue({}) },
+      targetedReanalysisCheckpoint: {
+        create: jest.fn().mockImplementation(() => Promise.resolve({})),
+      },
+      repositoryScanJob: {
+        create: jest.fn().mockImplementation(() => Promise.resolve({})),
+      },
     };
     const prisma = {
       targetedReanalysisRequest: {
-        findUnique: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn().mockImplementation(() => Promise.resolve(null)),
       },
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "ter-1",
-          snapshotId: "snapshot-1",
-          evidencePayload: {},
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "ter-1",
+            snapshotId: "snapshot-1",
+            evidencePayload: {},
+          }),
+        ),
       },
       repositorySnapshot: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "snapshot-1",
-          commitSha: "commit-1",
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "snapshot-1",
+            commitSha: "commit-1",
+          }),
+        ),
       },
       $transaction: jest.fn((handler: (tx: typeof transaction) => unknown) =>
         Promise.resolve(handler(transaction)),
       ),
     };
-    const outbox = { enqueue: jest.fn().mockResolvedValue(undefined) };
-    const auditWriter = { write: jest.fn().mockResolvedValue(undefined) };
+    const outbox = {
+      enqueue: jest.fn().mockImplementation(() => Promise.resolve()),
+    };
+    const auditWriter = {
+      write: jest.fn().mockImplementation(() => Promise.resolve()),
+    };
     const handler = new RequestTargetedReanalysisHandler(
       prisma as never,
       auditWriter as never,
@@ -74,41 +89,55 @@ describe("RequestTargetedReanalysisHandler admission", () => {
 
   it("resolves subject references to safe paths from the pinned evidence report", async () => {
     const transaction = {
-      $executeRaw: jest.fn().mockResolvedValue(undefined),
+      $executeRaw: jest.fn().mockImplementation(() => Promise.resolve()),
       targetedReanalysisRequest: {
-        count: jest.fn().mockResolvedValue(0),
-        create: jest.fn().mockResolvedValue({ id: "request-subject" }),
+        count: jest.fn().mockImplementation(() => Promise.resolve(0)),
+        create: jest
+          .fn()
+          .mockImplementation(() => Promise.resolve({ id: "request-subject" })),
       },
-      targetedReanalysisCheckpoint: { create: jest.fn().mockResolvedValue({}) },
-      repositoryScanJob: { create: jest.fn().mockResolvedValue({}) },
+      targetedReanalysisCheckpoint: {
+        create: jest.fn().mockImplementation(() => Promise.resolve({})),
+      },
+      repositoryScanJob: {
+        create: jest.fn().mockImplementation(() => Promise.resolve({})),
+      },
     };
     const prisma = {
       targetedReanalysisRequest: {
-        findUnique: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn().mockImplementation(() => Promise.resolve(null)),
       },
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "ter-1",
-          snapshotId: "snapshot-1",
-          evidencePayload: {
-            technical_findings: [
-              { finding_id: "finding-12345678", file_path: "repo/src/ai.py" },
-            ],
-          },
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "ter-1",
+            snapshotId: "snapshot-1",
+            evidencePayload: {
+              technical_findings: [
+                { finding_id: "finding-12345678", file_path: "repo/src/ai.py" },
+              ],
+            },
+          }),
+        ),
       },
       repositorySnapshot: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "snapshot-1",
-          commitSha: "commit-1",
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "snapshot-1",
+            commitSha: "commit-1",
+          }),
+        ),
       },
       $transaction: jest.fn((handler: (tx: typeof transaction) => unknown) =>
         Promise.resolve(handler(transaction)),
       ),
     };
-    const outbox = { enqueue: jest.fn().mockResolvedValue(undefined) };
-    const auditWriter = { write: jest.fn().mockResolvedValue(undefined) };
+    const outbox = {
+      enqueue: jest.fn().mockImplementation(() => Promise.resolve()),
+    };
+    const auditWriter = {
+      write: jest.fn().mockImplementation(() => Promise.resolve()),
+    };
     const handler = new RequestTargetedReanalysisHandler(
       prisma as never,
       auditWriter as never,
@@ -143,12 +172,12 @@ describe("RequestTargetedReanalysisHandler admission", () => {
   it("rejects a new request once the organization already has 10 queued requests", async () => {
     const requestCount = jest
       .fn()
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(0)
-      .mockResolvedValueOnce(11)
-      .mockResolvedValueOnce(10);
+      .mockImplementationOnce(() => Promise.resolve(0))
+      .mockImplementationOnce(() => Promise.resolve(0))
+      .mockImplementationOnce(() => Promise.resolve(11))
+      .mockImplementationOnce(() => Promise.resolve(10));
     const transaction = {
-      $executeRaw: jest.fn().mockResolvedValue(undefined),
+      $executeRaw: jest.fn().mockImplementation(() => Promise.resolve()),
       targetedReanalysisRequest: {
         count: requestCount,
         create: jest.fn(),
@@ -158,20 +187,24 @@ describe("RequestTargetedReanalysisHandler admission", () => {
     };
     const prisma = {
       targetedReanalysisRequest: {
-        findUnique: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn().mockImplementation(() => Promise.resolve(null)),
       },
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "ter-1",
-          snapshotId: "snapshot-1",
-          evidencePayload: {},
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "ter-1",
+            snapshotId: "snapshot-1",
+            evidencePayload: {},
+          }),
+        ),
       },
       repositorySnapshot: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "snapshot-1",
-          commitSha: "commit-1",
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "snapshot-1",
+            commitSha: "commit-1",
+          }),
+        ),
       },
       $transaction: jest.fn((handler: (tx: typeof transaction) => unknown) =>
         Promise.resolve(handler(transaction)),
@@ -213,7 +246,7 @@ describe("RequestTargetedReanalysisHandler admission", () => {
       (
         caught as { getResponse: () => { problem?: { code?: string } } }
       ).getResponse().problem?.code,
-    ).toBe("TENANT_REANALYSIS_CAPACITY_EXHAUSTED");
+    ).toBe(SCAN_ERROR_CODES.targetedReanalysisCapacityExhausted);
 
     expect(transaction.targetedReanalysisRequest.create).not.toHaveBeenCalled();
     expect(outbox.enqueue).not.toHaveBeenCalled();

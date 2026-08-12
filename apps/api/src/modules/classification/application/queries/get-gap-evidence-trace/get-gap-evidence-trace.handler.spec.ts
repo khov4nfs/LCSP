@@ -79,7 +79,7 @@ function createHandler(input?: {
   };
 }
 
-function query(rowRef = "gap-row:classification-1:system_type") {
+function query(rowRef = "gap-row:classification-1:applicability_assessment") {
   return new GetGapEvidenceTraceQuery(
     "assessment-1",
     "organization-1",
@@ -99,7 +99,7 @@ function acceptedClassification(input?: {
     legalRuleMatchId: input?.legalRuleMatchId ?? "match-1",
     verifiedProfileId: input?.verifiedProfileId ?? "verified-profile-1",
     classificationData: input?.classificationData ?? {
-      system_type: "HIGH_IMPACT_AI",
+      applicability_assessment: "applicable",
       risk_level: "HIGH",
       citation_basis: ["citation:chunk_allow_1"],
     },
@@ -161,7 +161,7 @@ describe("GetGapEvidenceTraceHandler", () => {
   it("TC-03: returns refresh-classification trace for malformed row source", async () => {
     const { handler } = createHandler({
       classification: acceptedClassification({
-        classificationData: { system_type: { nested: true } },
+        classificationData: { applicability_assessment: { nested: true } },
       }),
     });
 
@@ -205,5 +205,25 @@ describe("GetGapEvidenceTraceHandler", () => {
     await expect(
       handler.execute(query("gap-row:classification-1")),
     ).rejects.toBeInstanceOf(HttpException);
+  });
+
+  it("TC-07: maps legacy system_type row refs to applicability assessment traces", async () => {
+    const { handler } = createHandler({
+      classification: acceptedClassification({
+        classificationData: {
+          system_type: "HIGH_IMPACT_AI",
+          risk_level: "HIGH",
+          citation_basis: ["citation:chunk_allow_1"],
+        },
+      }),
+    });
+
+    const response = await handler.execute(
+      query("gap-row:classification-1:system_type"),
+    );
+
+    expect(response.result.resolverType).toBe(
+      GAP_MATRIX_RESOLVER_TYPES.collectEvidence,
+    );
   });
 });

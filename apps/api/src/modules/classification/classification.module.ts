@@ -13,6 +13,10 @@ import { ProposeGapRemediationHandler } from "./application/queries/propose-gap-
 import { ValidateClassificationProposalHandler } from "./application/queries/validate-classification-proposal/validate-classification-proposal.handler.js";
 import { CitationGuardrailService } from "./application/services/classification/citation-guardrail.service.js";
 import { OverclaimGuardrailService } from "./application/services/classification/overclaim-guardrail.service.js";
+import {
+  CLASSIFICATION_REVIEW_RESOLUTION_CONTROLLERS,
+  CLASSIFICATION_REVIEW_RESOLUTION_PROVIDERS,
+} from "./classification-review-resolution.registration.js";
 import { ClassificationController } from "./presentation/http/classification.controller.js";
 import { AssessmentClassificationController } from "./presentation/http/assessment-classification.controller.js";
 import { ClassificationBaselineController } from "./presentation/http/classification-baseline.controller.js";
@@ -22,6 +26,10 @@ import { ClassificationRuntimeController } from "./presentation/http/classificat
 import { GapMatrixEvaluationController } from "./presentation/http/gap-matrix-evaluation.controller.js";
 import { GapEvidenceTraceController } from "./presentation/http/gap-evidence-trace.controller.js";
 import { GapRemediationController } from "./presentation/http/gap-remediation.controller.js";
+import {
+  GAP_REQUIREMENTS_CONTROLLERS,
+  GAP_REQUIREMENTS_PROVIDERS,
+} from "./gap-requirements.registration.js";
 
 @Module({
   imports: [CqrsModule],
@@ -32,6 +40,8 @@ import { GapRemediationController } from "./presentation/http/gap-remediation.co
     ClassificationBaselineController,
     ClassificationProposalValidationController,
     ClassificationReviewSubmissionController,
+    ...CLASSIFICATION_REVIEW_RESOLUTION_CONTROLLERS,
+    ...GAP_REQUIREMENTS_CONTROLLERS,
     GapMatrixEvaluationController,
     GapEvidenceTraceController,
     GapRemediationController,
@@ -41,9 +51,11 @@ import { GapRemediationController } from "./presentation/http/gap-remediation.co
     AcceptClassificationHandler,
     RerunClassificationHandler,
     SubmitClassificationReviewHandler,
+    ...CLASSIFICATION_REVIEW_RESOLUTION_PROVIDERS,
     EvaluateGapMatrixHandler,
     GetGapEvidenceTraceHandler,
     GetClassificationBaselineHandler,
+    ...GAP_REQUIREMENTS_PROVIDERS,
     ProposeGapRemediationHandler,
     ValidateClassificationProposalHandler,
     CitationGuardrailService,

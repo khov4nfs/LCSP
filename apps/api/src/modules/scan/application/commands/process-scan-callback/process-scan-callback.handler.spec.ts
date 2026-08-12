@@ -10,26 +10,38 @@ import { ProcessScanCallbackCommand } from "./process-scan-callback.command.js";
 
 function buildHandler() {
   const repositoryScanJob = {
-    findUnique: jest.fn().mockResolvedValue({
-      id: "scan-job-1",
-      assessmentId: "assessment-1",
-      snapshotId: "snapshot-1",
-      organizationId: "org-1",
-      status: REPOSITORY_SCAN_JOB_STATUSES.running,
-    }),
-    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    findUnique: jest.fn().mockImplementation(() =>
+      Promise.resolve({
+        id: "scan-job-1",
+        assessmentId: "assessment-1",
+        snapshotId: "snapshot-1",
+        organizationId: "org-1",
+        status: REPOSITORY_SCAN_JOB_STATUSES.running,
+      }),
+    ),
+    updateMany: jest
+      .fn()
+      .mockImplementation(() => Promise.resolve({ count: 1 })),
   };
   const technicalEvidenceReport = {
-    create: jest.fn().mockResolvedValue(undefined),
+    create: jest.fn().mockImplementation(() => Promise.resolve()),
   };
   const targetedReanalysisRequest = {
-    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    updateMany: jest
+      .fn()
+      .mockImplementation(() => Promise.resolve({ count: 1 })),
   };
   const targetedReanalysisCheckpoint = {
-    updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+    updateMany: jest
+      .fn()
+      .mockImplementation(() => Promise.resolve({ count: 1 })),
   };
-  const outboxMessage = { create: jest.fn().mockResolvedValue(undefined) };
-  const authAuditEvent = { create: jest.fn().mockResolvedValue(undefined) };
+  const outboxMessage = {
+    create: jest.fn().mockImplementation(() => Promise.resolve()),
+  };
+  const authAuditEvent = {
+    create: jest.fn().mockImplementation(() => Promise.resolve()),
+  };
   const transaction = {
     repositoryScanJob,
     technicalEvidenceReport,
@@ -45,7 +57,9 @@ function buildHandler() {
     ),
   };
   const validator = { validate: jest.fn() };
-  const auditWriter = { write: jest.fn().mockResolvedValue(undefined) };
+  const auditWriter = {
+    write: jest.fn().mockImplementation(() => Promise.resolve()),
+  };
   return {
     handler: new ProcessScanCallbackHandler(
       prisma as never,

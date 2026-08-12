@@ -13,6 +13,10 @@ import { GetVerifiedProfileByIdHandler } from "./application/queries/get-verifie
 import { GetVerifiedProfileHandler } from "./application/queries/get-verified-profile/get-verified-profile.handler.js";
 import { GetArtifactChainHandler } from "./application/queries/get-artifact-chain/get-artifact-chain.handler.js";
 import { GetAssessmentContextHandler } from "./application/queries/get-assessment-context/get-assessment-context.handler.js";
+import {
+  COMPARE_WIZARD_CLAIM_CONTROLLERS,
+  COMPARE_WIZARD_CLAIM_PROVIDERS,
+} from "./compare-wizard-claim.registration.js";
 import { GetReconciliationContextHandler } from "./application/queries/get-reconciliation-context/get-reconciliation-context.handler.js";
 import { ProposeMissingTargetsHandler } from "./application/queries/propose-missing-targets/propose-missing-targets.handler.js";
 import {
@@ -22,7 +26,11 @@ import {
 
 @Module({
   imports: [CqrsModule, PbacModule],
-  controllers: [InternalReconciliationController, ReconciliationController],
+  controllers: [
+    InternalReconciliationController,
+    ReconciliationController,
+    ...COMPARE_WIZARD_CLAIM_CONTROLLERS,
+  ],
   providers: [
     AcceptConflictHandler,
     AcceptVerifiedProfileHandler,
@@ -31,6 +39,7 @@ import {
     GetVerifiedProfileHandler,
     GetArtifactChainHandler,
     GetAssessmentContextHandler,
+    ...COMPARE_WIZARD_CLAIM_PROVIDERS,
     GetReconciliationContextHandler,
     ProposeMissingTargetsHandler,
     ListConflictsHandler,

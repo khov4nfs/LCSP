@@ -1,3 +1,6 @@
+import { AO3_SCAN_EVENT_TYPES } from "./callback-ao3.ts";
+import { TARGETED_REANALYSIS_SCAN_EVENT_TYPES } from "./callback-targeted-reanalysis.ts";
+
 export const SCAN_CALLBACK_STATUSES = {
   success: "SUCCESS",
   partial: "PARTIAL",
@@ -126,7 +129,6 @@ export const SCAN_EVENT_TYPES = {
   verifiedProfileReady: "event.verified-profile.ready.v1",
   verifiedProfilePersisted: "event.verified-profile.persisted.v1",
   legalRuleMatchReady: "event.legal-rule-match.ready.v1",
-  classificationReviewRequested: "event.classification-review.requested.v1",
   classificationResultReady: "event.classification-result.ready.v1",
   evidenceAcceptedAudit: "SCAN_EVIDENCE_ACCEPTED",
   evidenceRejectedAudit: "SCAN_EVIDENCE_REJECTED",
@@ -144,10 +146,7 @@ export const SCAN_EVENT_TYPES = {
   classificationAcceptedAudit: "CLASSIFICATION_ACCEPTED",
   classificationBlockedAudit: "CLASSIFICATION_BLOCKED",
   classificationRerunTriggeredAudit: "CLASSIFICATION_RERUN_TRIGGERED",
-  classificationReviewRequestedAudit: "CLASSIFICATION_REVIEW_REQUESTED",
   scanRerunTriggeredAudit: "SCAN_RERUN_TRIGGERED",
-  targetedReanalysisQueuedAudit: "TARGETED_REANALYSIS_QUEUED",
-  targetedReanalysisRunningAudit: "TARGETED_REANALYSIS_RUNNING",
-  targetedReanalysisRetryAudit: "TARGETED_REANALYSIS_RETRY_SCHEDULED",
-  targetedReanalysisTerminalAudit: "TARGETED_REANALYSIS_TERMINAL",
+  ...AO3_SCAN_EVENT_TYPES,
+  ...TARGETED_REANALYSIS_SCAN_EVENT_TYPES,
 } as const;

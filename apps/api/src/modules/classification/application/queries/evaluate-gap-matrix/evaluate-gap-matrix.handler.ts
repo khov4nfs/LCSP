@@ -34,7 +34,7 @@ import { EvaluateGapMatrixQuery } from "./evaluate-gap-matrix.query.js";
 
 const MATRIX_REF_PREFIX = "matrix:";
 const ROW_KEYS = {
-  systemType: "system_type",
+  applicabilityAssessment: "applicability_assessment",
   riskLevel: "risk_level",
   citationBasis: "citation_basis",
 } as const;
@@ -264,8 +264,10 @@ function buildRows(input: {
   rows.push(
     buildFieldRow({
       classificationId: input.classification.id,
-      rowKey: ROW_KEYS.systemType,
-      fieldValue: input.classificationData?.[ROW_KEYS.systemType],
+      rowKey: ROW_KEYS.applicabilityAssessment,
+      fieldValue:
+        input.classificationData?.[ROW_KEYS.applicabilityAssessment] ??
+        input.classificationData?.system_type,
       coverageLimited: input.coverageLimited,
       supportedEvidenceRefs: input.supportedEvidenceRefs,
       contradictedEvidenceRefs: input.contradictedEvidenceRefs,
