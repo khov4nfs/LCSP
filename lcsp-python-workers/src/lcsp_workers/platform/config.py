@@ -10,6 +10,7 @@ class WorkerConfig:
     worker_api_key: str
     log_level: str
     max_retries: int
+    legal_source_storage_root: str | None = None
     langgraph_checkpoint_database_url: str | None = None
 
 
@@ -29,6 +30,7 @@ def load_config() -> WorkerConfig:
         worker_api_key=os.getenv("WORKER_API_KEY"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
         max_retries=int(os.getenv("MAX_RETRIES", "3")),
+        legal_source_storage_root=os.getenv("LEGAL_SOURCE_STORAGE_ROOT"),
         langgraph_checkpoint_database_url=os.getenv(
             "LANGGRAPH_CHECKPOINT_DATABASE_URL"
         ),

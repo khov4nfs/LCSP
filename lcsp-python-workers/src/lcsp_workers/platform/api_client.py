@@ -467,13 +467,6 @@ class WorkerApiClient:
             raise WorkerCallbackError("Legal corpus chunks response was invalid.")
         return data
 
-    def register_official_source_snapshot(self, payload: dict) -> dict:
-        path = InternalPath.LEGAL_SOURCE_SNAPSHOTS
-        data = self._post_with_retry(path, payload)
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("Official source snapshot response was invalid.")
-        return data
-
     def get_official_source_snapshot(
         self, *, snapshot_ref: str | None = None, snapshot_id: str | None = None
     ) -> dict:
