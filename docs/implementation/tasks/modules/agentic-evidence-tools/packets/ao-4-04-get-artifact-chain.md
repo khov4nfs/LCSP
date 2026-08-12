@@ -2,6 +2,7 @@
 template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-4-04-get-artifact-chain
+jira_issue: LCSP-185
 status: READY_FOR_PLANNING
 ---
 
