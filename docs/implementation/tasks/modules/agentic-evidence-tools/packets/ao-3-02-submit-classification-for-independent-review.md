@@ -2,6 +2,7 @@
 template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-3-02-submit-classification-for-independent-review
+jira_issue: LCSP-217
 status: READY_FOR_PLANNING
 ---
 
