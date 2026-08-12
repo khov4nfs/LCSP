@@ -2,6 +2,7 @@
 template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-2-12-inspect-deployment-context
+jira_issue: LCSP-184
 status: READY_FOR_PLANNING
 ---
 
