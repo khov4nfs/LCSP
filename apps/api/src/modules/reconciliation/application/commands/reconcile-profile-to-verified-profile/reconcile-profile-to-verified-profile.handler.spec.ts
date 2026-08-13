@@ -12,9 +12,11 @@ import { ReconcileProfileToVerifiedProfileCommand } from "./reconcile-profile-to
 import { ReconcileProfileToVerifiedProfileHandler } from "./reconcile-profile-to-verified-profile.handler.js";
 
 function buildHandler(pending = false) {
-  const create = jest.fn().mockResolvedValue({ id: "verified-1" });
-  const writeInTx = jest.fn().mockResolvedValue(undefined);
-  const enqueue = jest.fn().mockResolvedValue(undefined);
+  const create = jest
+    .fn()
+    .mockImplementation(() => Promise.resolve({ id: "verified-1" }));
+  const writeInTx = jest.fn().mockImplementation(() => Promise.resolve());
+  const enqueue = jest.fn().mockImplementation(() => Promise.resolve());
   const flow = {
     id: "flow-1",
     schemaVersion: "1.0.0",
@@ -24,23 +26,36 @@ function buildHandler(pending = false) {
     wizardProfile: {
       findFirst: jest
         .fn()
-        .mockResolvedValue({ id: "wizard-1", version: 2, answers: {} }),
+        .mockImplementation(() =>
+          Promise.resolve({ id: "wizard-1", version: 2, answers: {} }),
+        ),
     },
     technicalEvidenceReport: {
-      findFirst: jest.fn().mockResolvedValue({ id: "report-1" }),
+      findFirst: jest
+        .fn()
+        .mockImplementation(() => Promise.resolve({ id: "report-1" })),
     },
-    aIUsageFlow: { findFirst: jest.fn().mockResolvedValue(flow) },
-    verifiedProfile: { findFirst: jest.fn().mockResolvedValue(null), create },
+    aIUsageFlow: {
+      findFirst: jest.fn().mockImplementation(() => Promise.resolve(flow)),
+    },
+    verifiedProfile: {
+      findFirst: jest.fn().mockImplementation(() => Promise.resolve(null)),
+      create,
+    },
     technicalProfile: {
-      findFirst: jest.fn().mockResolvedValue({ id: "technical-1" }),
+      findFirst: jest
+        .fn()
+        .mockImplementation(() => Promise.resolve({ id: "technical-1" })),
     },
     conflictRecord: {
       findMany: jest
         .fn()
-        .mockResolvedValue(
-          pending
-            ? [{ id: "conflict-1", status: CONFLICT_RECORD_STATUSES.pending }]
-            : [],
+        .mockImplementation(() =>
+          Promise.resolve(
+            pending
+              ? [{ id: "conflict-1", status: CONFLICT_RECORD_STATUSES.pending }]
+              : [],
+          ),
         ),
     },
   };
@@ -107,13 +122,15 @@ describe("ReconcileProfileToVerifiedProfileHandler", () => {
 
   it("replays the same pinned idempotency key without a second profile", async () => {
     const { handler, command, create, tx } = buildHandler();
-    tx.verifiedProfile.findFirst.mockResolvedValue({
-      id: "verified-existing",
-      aiUsageFlowId: "flow-1",
-      wizardProfileId: "wizard-1",
-      technicalEvidenceReportId: "report-1",
-      reconciliationDecisionRefs: [],
-    });
+    tx.verifiedProfile.findFirst.mockImplementation(() =>
+      Promise.resolve({
+        id: "verified-existing",
+        aiUsageFlowId: "flow-1",
+        wizardProfileId: "wizard-1",
+        technicalEvidenceReportId: "report-1",
+        reconciliationDecisionRefs: [],
+      }),
+    );
 
     const result = await handler.execute(command);
 

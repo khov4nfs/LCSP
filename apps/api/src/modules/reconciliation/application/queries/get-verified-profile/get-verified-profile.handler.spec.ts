@@ -42,19 +42,21 @@ function buildHandler(input?: {
   };
   const findFirst = jest
     .fn()
-    .mockResolvedValue(
-      input && "profile" in input ? input.profile : defaultProfile,
+    .mockImplementation(() =>
+      Promise.resolve(
+        input && "profile" in input ? input.profile : defaultProfile,
+      ),
     );
   const count = jest
     .fn<() => Promise<number>>()
-    .mockResolvedValue(input?.pendingConflicts ?? 0);
+    .mockImplementation(() => Promise.resolve(input?.pendingConflicts ?? 0));
   const prisma = {
     verifiedProfile: { findFirst },
     conflictRecord: { count },
   } as unknown as PrismaService;
   const write = jest
     .fn<AuditWriterService["write"]>()
-    .mockResolvedValue(undefined);
+    .mockImplementation(() => Promise.resolve());
   const audit = { write } as unknown as AuditWriterService;
   return {
     handler: new GetVerifiedProfileHandler(prisma, audit),

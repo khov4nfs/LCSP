@@ -1,6 +1,6 @@
 # Shared Agentic Tool Contract
 
-Status: READY_FOR_PLANNING  
+Status: DELIVERED  
 Applies to: every capability in `docs/specs/spec-agentic-evidence-orchestration/tool-catalog.md`  
 Primary runtime owner: `lcsp-python-workers`  
 Supporting boundary owner: `apps/api` for trusted trigger, PBAC, audit, and immutable artifact persistence

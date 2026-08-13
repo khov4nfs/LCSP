@@ -3,7 +3,7 @@ template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-5-02-retrieve-legal-basis
 jira_issue: LCSP-193
-status: READY_FOR_PLANNING
+status: DONE
 ---
 # TASK-AO-5-02 — `retrieve_legal_basis`
 ## 1. Task Information

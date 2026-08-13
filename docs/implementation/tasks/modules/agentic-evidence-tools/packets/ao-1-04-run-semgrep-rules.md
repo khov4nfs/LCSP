@@ -2,7 +2,8 @@
 template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-1-04-run-semgrep-rules
-status: READY_FOR_PLANNING
+jira_issue: LCSP-158
+status: DONE
 ---
 # Build tool `run_semgrep_rules`
 

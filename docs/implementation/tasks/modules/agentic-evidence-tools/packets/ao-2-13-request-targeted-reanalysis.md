@@ -2,10 +2,9 @@
 template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-2-13-request-targeted-reanalysis
-jira_issue: LCSP-191
-status: READY_FOR_IMPLEMENTATION
+jira_issue: LCSP-187
+status: DONE
 ---
-
 # TASK-AO-2-13 — `request_targeted_reanalysis`
 
 ## 1–4. Task Information, Objective, Use Case, Definition

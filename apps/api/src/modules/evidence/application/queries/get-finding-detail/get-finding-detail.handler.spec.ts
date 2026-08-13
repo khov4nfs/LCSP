@@ -15,15 +15,17 @@ describe("GetFindingDetailHandler", () => {
   function createHandler(finding: Record<string, unknown>) {
     const prisma = {
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "report-1",
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-          evidencePayload: { technical_findings: [finding] },
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "report-1",
+            status: EvidenceAcceptanceStatus.ACCEPTED,
+            evidencePayload: { technical_findings: [finding] },
+          }),
+        ),
       },
     } as unknown as PrismaService;
     const auditWriter = {
-      write: jest.fn<AuditWriterService["write"]>(),
+      write: jest.fn().mockImplementation(() => Promise.resolve()),
     } as unknown as jest.Mocked<AuditWriterService>;
     return new GetFindingDetailHandler(prisma, auditWriter);
   }

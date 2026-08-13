@@ -3,9 +3,8 @@ template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-3-01-reconcile-profile-to-verified-profile
 jira_issue: LCSP-216
-status: READY_FOR_PLANNING
+status: DONE
 ---
-
 # TASK-AO-3-01 — `reconcile_profile_to_verified_profile`
 
 ## 1–4. Task information, objective, use case, definition

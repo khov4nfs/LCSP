@@ -23,14 +23,20 @@ function request(): AuthenticatedRequest {
   } as AuthenticatedRequest;
 }
 
+function queryBusWithResolvedValue(value: unknown) {
+  return {
+    execute: jest
+      .fn<(query: unknown) => Promise<unknown>>()
+      .mockResolvedValue(value),
+  };
+}
+
 describe("ReconciliationController.getVerifiedProfile", () => {
   it("TC-03: forwards an exact profile version and named purpose to the protected query", async () => {
     const commandBus = {};
-    const queryBus = {
-      execute: jest
-        .fn()
-        .mockResolvedValue({ result: { profile_ref: "verified:vp-1" } }),
-    };
+    const queryBus = queryBusWithResolvedValue({
+      result: { profile_ref: "verified:vp-1" },
+    });
     const controller = new ReconciliationController(
       commandBus as never,
       queryBus as never,
@@ -95,9 +101,7 @@ describe("ReconciliationController.getVerifiedProfile", () => {
 
 describe("ReconciliationController.getAssessmentContext", () => {
   it("forwards include and answer-field allow lists to the protected query", async () => {
-    const queryBus = {
-      execute: jest.fn().mockResolvedValue({ result: { wizard: {} } }),
-    };
+    const queryBus = queryBusWithResolvedValue({ result: { wizard: {} } });
     const controller = new ReconciliationController(
       {} as never,
       queryBus as never,
@@ -166,9 +170,7 @@ describe("ReconciliationController.getAssessmentContext", () => {
 
 describe("ReconciliationController.proposeMissingTargets", () => {
   it("forwards candidate kinds, seed refs, excludes, and capped max results", async () => {
-    const queryBus = {
-      execute: jest.fn().mockResolvedValue({ result: { candidates: [] } }),
-    };
+    const queryBus = queryBusWithResolvedValue({ result: { candidates: [] } });
     const controller = new ReconciliationController(
       {} as never,
       queryBus as never,

@@ -1,6 +1,6 @@
 # Admin-Managed Legal Corpus Recovery Tool Tasks
 
-Status: READY_FOR_PLANNING  
+Status: DELIVERED  
 Stories: AO-3 — Missing-Input Orchestration; AO-6 — Legal Corpus Recovery  
 Template: `agentic-tool-implementation-task-template.md`
 

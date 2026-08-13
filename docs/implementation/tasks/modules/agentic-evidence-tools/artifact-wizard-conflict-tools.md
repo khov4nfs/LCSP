@@ -1,6 +1,6 @@
 # Artifact, Wizard, and Conflict Tool Tasks
 
-Status: READY_FOR_PLANNING  
+Status: DELIVERED  
 Stories: AO-3 — Missing-Input Orchestration; AO-4 — Wizard Target Verification  
 Template: `agentic-tool-implementation-task-template.md`
 

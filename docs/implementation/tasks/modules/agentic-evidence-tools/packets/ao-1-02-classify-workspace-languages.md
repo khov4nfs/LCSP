@@ -2,7 +2,8 @@
 template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-1-02-classify-workspace-languages
-status: READY_FOR_PLANNING
+jira_issue: LCSP-158
+status: DONE
 ---
 # Build tool `classify_workspace_languages`
 

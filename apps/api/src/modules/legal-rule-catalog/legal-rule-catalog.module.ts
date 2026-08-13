@@ -20,6 +20,7 @@ import { ValidateCitationSetHandler } from "./application/queries/validate-citat
 import { AdminSourceCatalogService } from "./application/services/admin-source-catalog.service.js";
 import { CitationLocatorValidatorService } from "./application/services/citation-locator-validator.service.js";
 import { LegalCorpusService } from "./application/services/legal-corpus.service.js";
+import { OfficialSourceSnapshotService } from "./application/services/official-source-snapshot.service.js";
 import { RuleCatalogVersionService } from "./application/services/rule-catalog-version.service.js";
 
 const Handlers = [
@@ -50,6 +51,7 @@ const Handlers = [
     AdminSourceCatalogService,
     CitationLocatorValidatorService,
     LegalCorpusService,
+    OfficialSourceSnapshotService,
     RuleCatalogVersionService,
   ],
 })

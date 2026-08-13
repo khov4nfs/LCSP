@@ -13,33 +13,35 @@ describe("InspectDataPathHandler", () => {
   it("returns categories only and explicitly stops at dynamic flows", async () => {
     const prisma = {
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "report-1",
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-          evidencePayload: {
-            evidence_graph: {
-              nodes: [
-                {
-                  node_id: "start",
-                  node_type: "AI_INPUT",
-                  data_role: "INGRESS",
-                  data_categories: ["IDENTIFIER"],
-                  file_path: "src/input.ts",
-                  line_number: 3,
-                  raw_value: "alice@example.com",
-                },
-                { node_id: "dynamic", node_type: "UNSUPPORTED_FLOW" },
-              ],
-              edges: [
-                {
-                  edge_id: "edge-1",
-                  source_node_id: "start",
-                  target_node_id: "dynamic",
-                },
-              ],
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "report-1",
+            status: EvidenceAcceptanceStatus.ACCEPTED,
+            evidencePayload: {
+              evidence_graph: {
+                nodes: [
+                  {
+                    node_id: "start",
+                    node_type: "AI_INPUT",
+                    data_role: "INGRESS",
+                    data_categories: ["IDENTIFIER"],
+                    file_path: "src/input.ts",
+                    line_number: 3,
+                    raw_value: "alice@example.com",
+                  },
+                  { node_id: "dynamic", node_type: "UNSUPPORTED_FLOW" },
+                ],
+                edges: [
+                  {
+                    edge_id: "edge-1",
+                    source_node_id: "start",
+                    target_node_id: "dynamic",
+                  },
+                ],
+              },
             },
-          },
-        }),
+          }),
+        ),
       },
     } as unknown as PrismaService;
     const audit = {

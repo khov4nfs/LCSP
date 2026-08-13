@@ -14,22 +14,28 @@ import { GetReconciliationContextQuery } from "./get-reconciliation-context.quer
 describe("GetReconciliationContextHandler", () => {
   it("T01: returns only safe conflict projection and a human resolution path", async () => {
     const prisma = {
-      aIUsageFlow: { findFirst: jest.fn().mockResolvedValue({ id: "flow-1" }) },
+      aIUsageFlow: {
+        findFirst: jest
+          .fn()
+          .mockImplementation(() => Promise.resolve({ id: "flow-1" })),
+      },
       conflictRecord: {
-        findMany: jest.fn().mockResolvedValue([
-          {
-            id: "conflict-1",
-            conflictType: "provider_declaration",
-            conflictScore: 0.92,
-            status: ConflictRecordStatus.PENDING,
-            evidenceRefs: ["evidence:1"],
-            resolutionNote: "must never be selected",
-          },
-        ]),
+        findMany: jest.fn().mockImplementation(() =>
+          Promise.resolve([
+            {
+              id: "conflict-1",
+              conflictType: "provider_declaration",
+              conflictScore: 0.92,
+              status: ConflictRecordStatus.PENDING,
+              evidenceRefs: ["evidence:1"],
+              resolutionNote: "must never be selected",
+            },
+          ]),
+        ),
       },
     } as unknown as PrismaService;
     const audit = {
-      write: jest.fn<AuditWriterService["write"]>(),
+      write: jest.fn().mockImplementation(() => Promise.resolve(undefined)),
     } as unknown as jest.Mocked<AuditWriterService>;
     const handler = new GetReconciliationContextHandler(prisma, audit);
 

@@ -1,6 +1,6 @@
 # Legal Classification and Gap Tool Tasks
 
-Status: READY_FOR_PLANNING  
+Status: DELIVERED  
 Stories: AO-3 — Missing-Input Orchestration; AO-5 — Classification & Gap Gates  
 Template: `agentic-tool-implementation-task-template.md`
 

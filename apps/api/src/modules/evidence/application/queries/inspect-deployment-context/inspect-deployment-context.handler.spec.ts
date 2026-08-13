@@ -12,23 +12,25 @@ describe("InspectDeploymentContextHandler", () => {
   it("returns category-only contexts without config values", async () => {
     const prisma = {
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "report-1",
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-          evidencePayload: {
-            deployment_contexts: [
-              {
-                context_ref: "deployment:1",
-                manifest_kind: "KUBERNETES",
-                environment: "PRODUCTION",
-                relative_location: "deploy/api.yaml",
-                categories: ["WORKLOAD"],
-                evidence_refs: ["finding:1"],
-                secret: "dont-leak",
-              },
-            ],
-          },
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "report-1",
+            status: EvidenceAcceptanceStatus.ACCEPTED,
+            evidencePayload: {
+              deployment_contexts: [
+                {
+                  context_ref: "deployment:1",
+                  manifest_kind: "KUBERNETES",
+                  environment: "PRODUCTION",
+                  relative_location: "deploy/api.yaml",
+                  categories: ["WORKLOAD"],
+                  evidence_refs: ["finding:1"],
+                  secret: "dont-leak",
+                },
+              ],
+            },
+          }),
+        ),
       },
     } as unknown as PrismaService;
     const audit = {

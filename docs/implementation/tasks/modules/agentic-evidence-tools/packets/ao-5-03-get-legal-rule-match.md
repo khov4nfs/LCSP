@@ -2,7 +2,8 @@
 template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-5-03-get-legal-rule-match
-status: READY_FOR_PLANNING
+jira_issue: LCSP-162
+status: DONE
 ---
 # TASK-AO-5-03 — `get_legal_rule_match`
 ## 1. Task Information
