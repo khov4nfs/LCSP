@@ -10,34 +10,36 @@ describe("GetScanCoverageHandler", () => {
   it("returns sorted safe file coverage and explicit limitations", async () => {
     const prisma = {
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "report-1",
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-          evidencePayload: {
-            scan_coverage: {
-              files: [
-                {
-                  file_path: "src/z.py",
-                  language: "python",
-                  support_level: "FULL",
-                  coverage_limitation: false,
-                },
-                {
-                  file_path: "src/a.ts",
-                  language: "typescript",
-                  support_level: "SKIP",
-                  skip_reason: "file_access_failed",
-                  coverage_limitation: true,
-                  raw_source: "secret",
-                },
-              ],
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "report-1",
+            status: EvidenceAcceptanceStatus.ACCEPTED,
+            evidencePayload: {
+              scan_coverage: {
+                files: [
+                  {
+                    file_path: "src/z.py",
+                    language: "python",
+                    support_level: "FULL",
+                    coverage_limitation: false,
+                  },
+                  {
+                    file_path: "src/a.ts",
+                    language: "typescript",
+                    support_level: "SKIP",
+                    skip_reason: "file_access_failed",
+                    coverage_limitation: true,
+                    raw_source: "secret",
+                  },
+                ],
+              },
             },
-          },
-        }),
+          }),
+        ),
       },
     } as unknown as PrismaService;
     const audit = {
-      write: jest.fn<AuditWriterService["write"]>(),
+      write: jest.fn().mockImplementation(() => Promise.resolve()),
     } as unknown as jest.Mocked<AuditWriterService>;
     const response = await new GetScanCoverageHandler(prisma, audit).execute(
       new GetScanCoverageQuery(

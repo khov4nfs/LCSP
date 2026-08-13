@@ -30,32 +30,29 @@ function command() {
 function buildHandler(input?: { owned?: boolean }) {
   const owned = input?.owned ?? true;
   const findAssessment = jest
-    .fn<() => Promise<{ id: string } | null>>()
-    .mockResolvedValue(owned ? { id: "assessment-1" } : null);
-  const findProfile = jest
-    .fn<
-      () => Promise<{
-        id: string;
-        assessmentId: string;
-        organizationId: string;
-        status: string;
-      }>
-    >()
-    .mockResolvedValue({
+    .fn()
+    .mockImplementation(() =>
+      Promise.resolve(owned ? { id: "assessment-1" } : null),
+    );
+  const findProfile = jest.fn().mockImplementation(() =>
+    Promise.resolve({
       id: "vp-1",
       assessmentId: "assessment-1",
       organizationId: "org-1",
       status: VERIFIED_PROFILE_STATUSES.pendingApproval,
-    });
-  const countConflicts = jest.fn<() => Promise<number>>().mockResolvedValue(0);
-  const findCorpus = jest.fn<() => Promise<object | null>>().mockResolvedValue({
-    id: "corpus-1",
-    approvedAt: new Date("2026-08-12T00:00:00.000Z"),
-  });
-  const findIndex = jest.fn<() => Promise<object | null>>().mockResolvedValue({
-    id: "index-1",
-  });
-  const updateProfile = jest.fn<() => Promise<object>>().mockResolvedValue({});
+    }),
+  );
+  const countConflicts = jest.fn().mockImplementation(() => Promise.resolve(0));
+  const findCorpus = jest.fn().mockImplementation(() =>
+    Promise.resolve({
+      id: "corpus-1",
+      approvedAt: new Date("2026-08-12T00:00:00.000Z"),
+    }),
+  );
+  const findIndex = jest
+    .fn()
+    .mockImplementation(() => Promise.resolve({ id: "index-1" }));
+  const updateProfile = jest.fn().mockImplementation(() => Promise.resolve({}));
   const tx = {
     verifiedProfile: {
       findFirst: findProfile,
@@ -75,15 +72,15 @@ function buildHandler(input?: { owned?: boolean }) {
 
   const write = jest
     .fn<AuditWriterService["write"]>()
-    .mockResolvedValue(undefined);
+    .mockImplementation(() => Promise.resolve());
   const writeInTx = jest
     .fn<AuditWriterService["writeInTx"]>()
-    .mockResolvedValue(undefined);
+    .mockImplementation(() => Promise.resolve());
   const auditWriter = { write, writeInTx } as unknown as AuditWriterService;
 
   const enqueue = jest
     .fn<OutboxRepository["enqueue"]>()
-    .mockResolvedValue(undefined);
+    .mockImplementation(() => Promise.resolve());
   const outbox = { enqueue } as unknown as OutboxRepository;
 
   return {
@@ -160,7 +157,7 @@ describe("ApproveVerifiedProfileHandler", () => {
 
   it("approves without enqueueing legal-matching work when no validated corpus index is ready", async () => {
     const { handler, enqueue, findIndex } = buildHandler();
-    findIndex.mockResolvedValue(null);
+    findIndex.mockImplementation(() => Promise.resolve(null));
 
     await handler.execute(command());
 

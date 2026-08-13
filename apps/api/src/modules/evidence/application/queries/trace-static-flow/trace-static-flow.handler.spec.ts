@@ -14,41 +14,43 @@ describe("TraceStaticFlowHandler", () => {
   it("stops at the first unsupported dynamic flow without exposing source", async () => {
     const prisma = {
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "report-1",
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-          evidencePayload: {
-            evidence_graph: {
-              nodes: [
-                {
-                  node_id: "function-1",
-                  node_type: "FUNCTION",
-                  file_path: "src/worker.py",
-                  line_number: 8,
-                  raw_source: "client.invoke(secret_prompt)",
-                },
-                {
-                  node_id: "dynamic-1",
-                  node_type: "UNSUPPORTED_FLOW",
-                  raw_source: "getattr(client, name)(prompt)",
-                },
-              ],
-              edges: [
-                {
-                  edge_id: "flow-1",
-                  edge_type: "FLOWS_TO",
-                  source_node_id: "function-1",
-                  target_node_id: "dynamic-1",
-                  evidence_refs: ["finding:1"],
-                },
-              ],
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "report-1",
+            status: EvidenceAcceptanceStatus.ACCEPTED,
+            evidencePayload: {
+              evidence_graph: {
+                nodes: [
+                  {
+                    node_id: "function-1",
+                    node_type: "FUNCTION",
+                    file_path: "src/worker.py",
+                    line_number: 8,
+                    raw_source: "client.invoke(secret_prompt)",
+                  },
+                  {
+                    node_id: "dynamic-1",
+                    node_type: "UNSUPPORTED_FLOW",
+                    raw_source: "getattr(client, name)(prompt)",
+                  },
+                ],
+                edges: [
+                  {
+                    edge_id: "flow-1",
+                    edge_type: "FLOWS_TO",
+                    source_node_id: "function-1",
+                    target_node_id: "dynamic-1",
+                    evidence_refs: ["finding:1"],
+                  },
+                ],
+              },
             },
-          },
-        }),
+          }),
+        ),
       },
     } as unknown as PrismaService;
     const audit = {
-      write: jest.fn<AuditWriterService["write"]>(),
+      write: jest.fn().mockImplementation(() => Promise.resolve()),
     } as unknown as jest.Mocked<AuditWriterService>;
 
     const response = await new TraceStaticFlowHandler(prisma, audit).execute(

@@ -10,26 +10,28 @@ describe("FindProviderInvocationsHandler", () => {
   it("keeps dependency declarations separate from actual provider invocation facts", async () => {
     const prisma = {
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "report-1",
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-          evidencePayload: {
-            technical_findings: [
-              {
-                finding_id: "call-1",
-                finding_type: "AI_PROVIDER_INVOCATION",
-                file_path: "src/a.ts",
-                line_number: 8,
-                library_group: "openai",
-              },
-            ],
-            package_dependencies: [{ name: "openai", is_ai_relevant: true }],
-          },
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "report-1",
+            status: EvidenceAcceptanceStatus.ACCEPTED,
+            evidencePayload: {
+              technical_findings: [
+                {
+                  finding_id: "call-1",
+                  finding_type: "AI_PROVIDER_INVOCATION",
+                  file_path: "src/a.ts",
+                  line_number: 8,
+                  library_group: "openai",
+                },
+              ],
+              package_dependencies: [{ name: "openai", is_ai_relevant: true }],
+            },
+          }),
+        ),
       },
     } as unknown as PrismaService;
     const audit = {
-      write: jest.fn<AuditWriterService["write"]>(),
+      write: jest.fn().mockImplementation(() => Promise.resolve()),
     } as unknown as jest.Mocked<AuditWriterService>;
     const response = await new FindProviderInvocationsHandler(
       prisma,

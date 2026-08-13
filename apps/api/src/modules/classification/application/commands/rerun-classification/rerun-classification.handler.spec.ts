@@ -32,24 +32,28 @@ describe("RerunClassificationHandler", () => {
   }) {
     const prisma = {
       legalRuleMatch: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "match-1",
-          guardrailStatus: LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.passed,
-          status: LEGAL_RULE_MATCH_STATUSES.accepted,
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "match-1",
+            guardrailStatus: LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.passed,
+            status: LEGAL_RULE_MATCH_STATUSES.accepted,
+          }),
+        ),
       },
       classificationResult: {
-        findFirst: jest.fn().mockResolvedValue(options?.result ?? null),
+        findFirst: jest
+          .fn()
+          .mockImplementation(() => Promise.resolve(options?.result ?? null)),
       },
       $transaction: jest.fn((callback: (tx: unknown) => Promise<unknown>) =>
         callback(prisma),
       ),
     } as unknown as jest.Mocked<PrismaService>;
-    const enqueue = jest.fn().mockResolvedValue(undefined);
+    const enqueue = jest.fn().mockImplementation(() => Promise.resolve());
     const outbox = {
       enqueue,
     } as unknown as jest.Mocked<OutboxRepository>;
-    const writeInTx = jest.fn().mockResolvedValue(undefined);
+    const writeInTx = jest.fn().mockImplementation(() => Promise.resolve());
     const auditWriter = {
       writeInTx,
     } as unknown as jest.Mocked<AuditWriterService>;
@@ -95,7 +99,9 @@ describe("RerunClassificationHandler", () => {
 
   it("rejects a retry when no legal match exists", async () => {
     const { handler, prisma } = createHandler();
-    (prisma.legalRuleMatch.findFirst as jest.Mock).mockResolvedValue(null);
+    (prisma.legalRuleMatch.findFirst as jest.Mock).mockImplementation(() =>
+      Promise.resolve(null),
+    );
 
     await expect(
       handler.execute(

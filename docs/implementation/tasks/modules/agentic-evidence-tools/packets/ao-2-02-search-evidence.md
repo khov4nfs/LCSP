@@ -3,9 +3,8 @@ template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-2-02-search-evidence
 jira_issue: LCSP-177
-status: READY_FOR_PLANNING
+status: DONE
 ---
-
 # TASK-AO-2-02 — `search_evidence`
 
 ## 1. Task Information

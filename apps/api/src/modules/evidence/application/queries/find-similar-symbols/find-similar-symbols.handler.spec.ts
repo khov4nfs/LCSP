@@ -9,34 +9,36 @@ describe("FindSimilarSymbolsHandler", () => {
   it("returns stable structural candidates and excludes the seed", async () => {
     const prisma = {
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "report-1",
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-          evidencePayload: {
-            evidence_graph: {
-              nodes: [
-                {
-                  node_id: "seed",
-                  node_type: "FUNCTION",
-                  fingerprint: { CALL_GRAPH: "same" },
-                  raw_source: "secret",
-                },
-                {
-                  node_id: "candidate",
-                  node_type: "FUNCTION",
-                  file_path: "src/b.ts",
-                  line_number: 2,
-                  evidence_refs: ["finding:2"],
-                  fingerprint: { CALL_GRAPH: "same" },
-                },
-              ],
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "report-1",
+            status: EvidenceAcceptanceStatus.ACCEPTED,
+            evidencePayload: {
+              evidence_graph: {
+                nodes: [
+                  {
+                    node_id: "seed",
+                    node_type: "FUNCTION",
+                    fingerprint: { CALL_GRAPH: "same" },
+                    raw_source: "secret",
+                  },
+                  {
+                    node_id: "candidate",
+                    node_type: "FUNCTION",
+                    file_path: "src/b.ts",
+                    line_number: 2,
+                    evidence_refs: ["finding:2"],
+                    fingerprint: { CALL_GRAPH: "same" },
+                  },
+                ],
+              },
             },
-          },
-        }),
+          }),
+        ),
       },
     } as unknown as PrismaService;
     const audit = {
-      write: jest.fn<AuditWriterService["write"]>(),
+      write: jest.fn().mockImplementation(() => Promise.resolve()),
     } as unknown as jest.Mocked<AuditWriterService>;
     const response = await new FindSimilarSymbolsHandler(prisma, audit).execute(
       new FindSimilarSymbolsQuery(

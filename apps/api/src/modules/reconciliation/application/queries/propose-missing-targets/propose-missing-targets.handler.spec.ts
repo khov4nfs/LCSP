@@ -18,25 +18,29 @@ describe("ProposeMissingTargetsHandler", () => {
   it("returns OUT_OF_COVERAGE when submitted target ids are unavailable", async () => {
     const prisma = {
       wizardProfile: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "wizard-1",
-          status: WizardProfileStatus.SUBMITTED,
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "wizard-1",
+            status: WizardProfileStatus.SUBMITTED,
+          }),
+        ),
       },
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "report-1",
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-          evidencePayload: {
-            technical_findings: [
-              {
-                finding_id: "finding_01",
-                provider: "OPENAI",
-                raw_source: "secret",
-              },
-            ],
-          },
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "report-1",
+            status: EvidenceAcceptanceStatus.ACCEPTED,
+            evidencePayload: {
+              technical_findings: [
+                {
+                  finding_id: "finding_01",
+                  provider: "OPENAI",
+                  raw_source: "secret",
+                },
+              ],
+            },
+          }),
+        ),
       },
     } as unknown as PrismaService;
     const audit = {
@@ -72,22 +76,26 @@ describe("ProposeMissingTargetsHandler", () => {
   it("proposes provider candidates when caller supplies explicit excludes", async () => {
     const prisma = {
       wizardProfile: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "wizard-1",
-          status: WizardProfileStatus.SUBMITTED,
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "wizard-1",
+            status: WizardProfileStatus.SUBMITTED,
+          }),
+        ),
       },
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "report-1",
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-          evidencePayload: {
-            technical_findings: [
-              { finding_id: "finding_02", provider: "OPENAI" },
-              { finding_id: "finding_03", provider: "ANTHROPIC" },
-            ],
-          },
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "report-1",
+            status: EvidenceAcceptanceStatus.ACCEPTED,
+            evidencePayload: {
+              technical_findings: [
+                { finding_id: "finding_02", provider: "OPENAI" },
+                { finding_id: "finding_03", provider: "ANTHROPIC" },
+              ],
+            },
+          }),
+        ),
       },
     } as unknown as PrismaService;
     const audit = {
@@ -129,17 +137,21 @@ describe("ProposeMissingTargetsHandler", () => {
   it("returns NEEDS_INPUT when wizard profile is not submitted", async () => {
     const prisma = {
       wizardProfile: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "wizard-1",
-          status: WizardProfileStatus.IN_PROGRESS,
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "wizard-1",
+            status: WizardProfileStatus.IN_PROGRESS,
+          }),
+        ),
       },
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "report-1",
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-          evidencePayload: {},
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "report-1",
+            status: EvidenceAcceptanceStatus.ACCEPTED,
+            evidencePayload: {},
+          }),
+        ),
       },
     } as unknown as PrismaService;
     const audit = {

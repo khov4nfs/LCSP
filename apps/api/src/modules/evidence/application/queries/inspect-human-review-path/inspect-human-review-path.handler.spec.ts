@@ -36,7 +36,7 @@ describe("InspectHumanReviewPathHandler", () => {
     };
     const prisma = {
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue(report),
+        findFirst: jest.fn().mockImplementation(() => Promise.resolve(report)),
       },
     } as unknown as PrismaService;
     const audit = {
@@ -89,7 +89,7 @@ describe("InspectHumanReviewPathHandler", () => {
     };
     const prisma = {
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue(report),
+        findFirst: jest.fn().mockImplementation(() => Promise.resolve(report)),
       },
     } as unknown as PrismaService;
     const audit = {

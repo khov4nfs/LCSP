@@ -22,11 +22,13 @@ describe("InspectDecisionPathHandler", () => {
     new InspectDecisionPathHandler(
       {
         technicalEvidenceReport: {
-          findFirst: jest.fn().mockResolvedValue({
-            id: "report-1",
-            status: EvidenceAcceptanceStatus.ACCEPTED,
-            evidencePayload,
-          }),
+          findFirst: jest.fn().mockImplementation(() =>
+            Promise.resolve({
+              id: "report-1",
+              status: EvidenceAcceptanceStatus.ACCEPTED,
+              evidencePayload,
+            }),
+          ),
         },
       } as unknown as PrismaService,
       {

@@ -1,6 +1,6 @@
 # Technical Evidence Query Tool Tasks
 
-Status: READY_FOR_PLANNING  
+Status: DELIVERED  
 Story: AO-2 — Register Read-Only Evidence Query Tools  
 Template: `agentic-tool-implementation-task-template.md`
 

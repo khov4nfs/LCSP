@@ -3,7 +3,7 @@ template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-1-10-build-evidence-graph
 jira_issue: LCSP-172
-status: READY_FOR_PLANNING
+status: DONE
 ---
 # Build tool `build_evidence_graph`
 

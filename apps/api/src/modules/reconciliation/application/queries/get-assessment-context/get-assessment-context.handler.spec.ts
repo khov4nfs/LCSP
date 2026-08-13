@@ -15,38 +15,40 @@ describe("GetAssessmentContextHandler", () => {
   it("returns allow-listed submitted answers and pinned artifacts", async () => {
     const prisma = {
       wizardProfile: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "wizard-1",
-          assessmentId: "assessment-1",
-          version: 7,
-          status: WizardProfileStatus.SUBMITTED,
-          submittedAt: new Date("2026-08-12T01:00:00.000Z"),
-          answers: [
-            {
-              questionId: "businessProcess",
-              value: "LOAN_APPROVAL",
-              answerState: "ANSWERED",
-              updatedAt: "2026-08-12T01:00:00.000Z",
-            },
-            {
-              questionId: "humanReview",
-              value: "PRESENT",
-              answerState: "ANSWERED",
-              updatedAt: "2026-08-12T01:00:00.000Z",
-            },
-            {
-              questionId: "freeText",
-              value: "secret text",
-              answerState: "ANSWERED",
-              updatedAt: "2026-08-12T01:00:00.000Z",
-            },
-          ],
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "wizard-1",
+            assessmentId: "assessment-1",
+            version: 7,
+            status: WizardProfileStatus.SUBMITTED,
+            submittedAt: new Date("2026-08-12T01:00:00.000Z"),
+            answers: [
+              {
+                questionId: "businessProcess",
+                value: "LOAN_APPROVAL",
+                answerState: "ANSWERED",
+                updatedAt: "2026-08-12T01:00:00.000Z",
+              },
+              {
+                questionId: "humanReview",
+                value: "PRESENT",
+                answerState: "ANSWERED",
+                updatedAt: "2026-08-12T01:00:00.000Z",
+              },
+              {
+                questionId: "freeText",
+                value: "secret text",
+                answerState: "ANSWERED",
+                updatedAt: "2026-08-12T01:00:00.000Z",
+              },
+            ],
+          }),
+        ),
       },
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "report-1",
-        }),
+        findFirst: jest
+          .fn()
+          .mockImplementation(() => Promise.resolve({ id: "report-1" })),
       },
     } as unknown as PrismaService;
     const audit = {
@@ -87,14 +89,16 @@ describe("GetAssessmentContextHandler", () => {
   it("returns OUT_OF_COVERAGE when target ids are requested but unavailable", async () => {
     const prisma = {
       wizardProfile: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "wizard-1",
-          assessmentId: "assessment-1",
-          version: 7,
-          status: WizardProfileStatus.SUBMITTED,
-          submittedAt: null,
-          answers: [],
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "wizard-1",
+            assessmentId: "assessment-1",
+            version: 7,
+            status: WizardProfileStatus.SUBMITTED,
+            submittedAt: null,
+            answers: [],
+          }),
+        ),
       },
       technicalEvidenceReport: { findFirst: jest.fn() },
     } as unknown as PrismaService;
@@ -123,14 +127,16 @@ describe("GetAssessmentContextHandler", () => {
   it("returns NEEDS_INPUT when the wizard profile is not submitted", async () => {
     const prisma = {
       wizardProfile: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "wizard-1",
-          assessmentId: "assessment-1",
-          version: 7,
-          status: WizardProfileStatus.IN_PROGRESS,
-          submittedAt: null,
-          answers: [],
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "wizard-1",
+            assessmentId: "assessment-1",
+            version: 7,
+            status: WizardProfileStatus.IN_PROGRESS,
+            submittedAt: null,
+            answers: [],
+          }),
+        ),
       },
       technicalEvidenceReport: { findFirst: jest.fn() },
     } as unknown as PrismaService;

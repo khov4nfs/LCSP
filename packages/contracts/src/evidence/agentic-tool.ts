@@ -1,3 +1,20 @@
+import {
+  AO3_AGENTIC_TOOL_EVENT_TYPES,
+  AO3_AGENTIC_TOOL_NAMES,
+} from "./agentic-tool-ao3.ts";
+import {
+  AO4_AGENTIC_TOOL_EVENT_TYPES,
+  AO4_AGENTIC_TOOL_NAMES,
+} from "./agentic-tool-ao4.ts";
+import {
+  AO5_AGENTIC_TOOL_EVENT_TYPES,
+  AO5_AGENTIC_TOOL_NAMES,
+} from "./agentic-tool-ao5.ts";
+import {
+  AO6_AGENTIC_TOOL_EVENT_TYPES,
+  AO6_AGENTIC_TOOL_NAMES,
+} from "./agentic-tool-ao6.ts";
+
 /** Shared value sets for the first protected agentic-evidence tools. */
 export const AGENTIC_TOOL_NAMES = {
   getAssessmentContext: "get_assessment_context",
@@ -18,7 +35,6 @@ export const AGENTIC_TOOL_NAMES = {
   getReconciliationContext: "get_reconciliation_context",
   getVerifiedProfile: "get_verified_profile",
   getLegalCorpusReadiness: "get_legal_corpus_readiness",
-  getAdminSourceCatalog: "get_admin_source_catalog",
   retrieveLegalBasis: "retrieve_legal_basis",
   getLegalRuleMatch: "get_legal_rule_match",
   validateCitationSet: "validate_citation_set",
@@ -35,6 +51,10 @@ export const AGENTIC_TOOL_NAMES = {
   submitClassificationForIndependentReview:
     "submit_classification_for_independent_review",
   reconcileProfileToVerifiedProfile: "reconcile_profile_to_verified_profile",
+  ...AO6_AGENTIC_TOOL_NAMES,
+  ...AO4_AGENTIC_TOOL_NAMES,
+  ...AO5_AGENTIC_TOOL_NAMES,
+  ...AO3_AGENTIC_TOOL_NAMES,
 } as const;
 
 export type AgenticToolName =
@@ -88,7 +108,6 @@ export const AGENTIC_TOOL_EVENT_TYPES = {
   reconciliationContextRead: "AGENTIC_TOOL_RECONCILIATION_CONTEXT_READ",
   verifiedProfileRead: "AGENTIC_TOOL_VERIFIED_PROFILE_READ",
   legalCorpusReadinessRead: "AGENTIC_TOOL_LEGAL_CORPUS_READINESS_READ",
-  adminSourceCatalogRead: "AGENTIC_TOOL_ADMIN_SOURCE_CATALOG_READ",
   legalBasisRetrieved: "AGENTIC_TOOL_LEGAL_BASIS_RETRIEVED",
   legalRuleMatchRead: "AGENTIC_TOOL_LEGAL_RULE_MATCH_READ",
   citationSetValidated: "AGENTIC_TOOL_CITATION_SET_VALIDATED",
@@ -117,4 +136,8 @@ export const AGENTIC_TOOL_EVENT_TYPES = {
   deploymentContextRead: "AGENTIC_TOOL_DEPLOYMENT_CONTEXT_READ",
   missingTargetProposalRead: "AGENTIC_TOOL_MISSING_TARGET_PROPOSAL_READ",
   verifiedProfilePersisted: "AGENTIC_TOOL_VERIFIED_PROFILE_PERSISTED",
+  ...AO6_AGENTIC_TOOL_EVENT_TYPES,
+  ...AO4_AGENTIC_TOOL_EVENT_TYPES,
+  ...AO5_AGENTIC_TOOL_EVENT_TYPES,
+  ...AO3_AGENTIC_TOOL_EVENT_TYPES,
 } as const;

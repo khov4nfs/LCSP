@@ -37,6 +37,8 @@ test("Story 1.6 manager-only action set covers accountable Manager authority", (
     PBAC_ACTIONS.gapEvidenceTraceRead,
     PBAC_ACTIONS.gapRemediationPropose,
     PBAC_ACTIONS.classificationReviewSubmit,
+    PBAC_ACTIONS.gapRequirementsRead,
+    PBAC_ACTIONS.classificationReviewResolve,
   ]);
 });
 

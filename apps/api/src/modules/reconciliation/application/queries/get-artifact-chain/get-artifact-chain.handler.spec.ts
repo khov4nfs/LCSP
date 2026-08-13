@@ -23,47 +23,63 @@ describe("GetArtifactChainHandler", () => {
 
   function makeHandler(overrides: Record<string, unknown> = {}) {
     const prisma = {
-      assessment: { findFirst: jest.fn().mockResolvedValue(assessment) },
+      assessment: {
+        findFirst: jest
+          .fn()
+          .mockImplementation(() => Promise.resolve(assessment)),
+      },
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "report-1",
-          schemaVersion: "1.0.0",
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "report-1",
+            schemaVersion: "1.0.0",
+            status: EvidenceAcceptanceStatus.ACCEPTED,
+          }),
+        ),
       },
       wizardProfile: {
-        findUnique: jest.fn().mockResolvedValue({
-          id: "wizard-1",
-          version: 2,
-          status: WizardProfileStatus.SUBMITTED,
-        }),
+        findUnique: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "wizard-1",
+            version: 2,
+            status: WizardProfileStatus.SUBMITTED,
+          }),
+        ),
       },
       technicalProfile: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "profile-1",
-          schemaVersion: "1.0.0",
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "profile-1",
+            schemaVersion: "1.0.0",
+            status: EvidenceAcceptanceStatus.ACCEPTED,
+          }),
+        ),
       },
       aIUsageFlow: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "flow-1",
-          schemaVersion: "1.0.0",
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "flow-1",
+            schemaVersion: "1.0.0",
+            status: EvidenceAcceptanceStatus.ACCEPTED,
+          }),
+        ),
       },
-      conflictRecord: { findMany: jest.fn().mockResolvedValue([]) },
+      conflictRecord: {
+        findMany: jest.fn().mockImplementation(() => Promise.resolve([])),
+      },
       verifiedProfile: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "verified-1",
-          schemaVersion: "1.0.0",
-          status: VerifiedProfileStatus.APPROVED,
-        }),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "verified-1",
+            schemaVersion: "1.0.0",
+            status: VerifiedProfileStatus.APPROVED,
+          }),
+        ),
       },
       ...overrides,
     } as unknown as PrismaService;
     const auditWriter = {
-      write: jest.fn<AuditWriterService["write"]>(),
+      write: jest.fn().mockImplementation(() => Promise.resolve(undefined)),
     } as unknown as jest.Mocked<AuditWriterService>;
 
     return {
@@ -97,7 +113,9 @@ describe("GetArtifactChainHandler", () => {
 
   it("T02: reports a missing required stage as a limitation", async () => {
     const { handler } = makeHandler({
-      verifiedProfile: { findFirst: jest.fn().mockResolvedValue(null) },
+      verifiedProfile: {
+        findFirst: jest.fn().mockImplementation(() => Promise.resolve(null)),
+      },
     });
 
     const response = await handler.execute(

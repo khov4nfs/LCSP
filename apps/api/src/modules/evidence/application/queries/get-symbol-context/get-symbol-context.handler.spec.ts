@@ -10,43 +10,45 @@ describe("GetSymbolContextHandler", () => {
   it("returns capped, sorted symbol adjacency without graph attributes", async () => {
     const prisma = {
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "report-1",
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-          evidencePayload: {
-            evidence_graph: {
-              nodes: [
-                {
-                  node_id: "fn",
-                  node_type: "FUNCTION",
-                  label: "handle",
-                  file_path: "src/a.py",
-                  line_number: 2,
-                  evidence_refs: ["finding:1"],
-                  attributes: { prompt: "blocked" },
-                },
-              ],
-              edges: [
-                {
-                  edge_id: "b",
-                  edge_type: "CALLS",
-                  source_node_id: "fn",
-                  target_node_id: "callee-b",
-                },
-                {
-                  edge_id: "a",
-                  edge_type: "CALLS",
-                  source_node_id: "caller-a",
-                  target_node_id: "fn",
-                },
-              ],
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "report-1",
+            status: EvidenceAcceptanceStatus.ACCEPTED,
+            evidencePayload: {
+              evidence_graph: {
+                nodes: [
+                  {
+                    node_id: "fn",
+                    node_type: "FUNCTION",
+                    label: "handle",
+                    file_path: "src/a.py",
+                    line_number: 2,
+                    evidence_refs: ["finding:1"],
+                    attributes: { prompt: "blocked" },
+                  },
+                ],
+                edges: [
+                  {
+                    edge_id: "b",
+                    edge_type: "CALLS",
+                    source_node_id: "fn",
+                    target_node_id: "callee-b",
+                  },
+                  {
+                    edge_id: "a",
+                    edge_type: "CALLS",
+                    source_node_id: "caller-a",
+                    target_node_id: "fn",
+                  },
+                ],
+              },
             },
-          },
-        }),
+          }),
+        ),
       },
     } as unknown as PrismaService;
     const audit = {
-      write: jest.fn<AuditWriterService["write"]>(),
+      write: jest.fn().mockImplementation(() => Promise.resolve()),
     } as unknown as jest.Mocked<AuditWriterService>;
     const response = await new GetSymbolContextHandler(prisma, audit).execute(
       new GetSymbolContextQuery(

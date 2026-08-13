@@ -2,8 +2,8 @@
 template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-6-09-build-legal-retrieval-index
-jira_issue: LCSP-211
-status: READY_FOR_PLANNING
+jira_issue: LCSP-201
+status: DONE
 ---
 # TASK-AO-6-09 — `build_legal_retrieval_index`
 
