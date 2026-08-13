@@ -40,6 +40,7 @@ describe("ReconciliationController.getArtifactChain", () => {
 
     await controller.getArtifactChain(
       "assessment-1",
+      "ter:report-1",
       requiredStages.join(","),
       "true",
       request(),
@@ -50,6 +51,7 @@ describe("ReconciliationController.getArtifactChain", () => {
         "assessment-1",
         "org-1",
         "corr-1",
+        "ter:report-1",
         requiredStages,
         true,
       ),
@@ -66,6 +68,7 @@ describe("ReconciliationController.getArtifactChain", () => {
     await expect(
       controller.getArtifactChain(
         "assessment-1",
+        "bad-ref",
         "TECHNICAL_EVIDENCE_REPORT,UNKNOWN_STAGE",
         "false",
         request(),

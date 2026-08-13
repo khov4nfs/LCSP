@@ -42,7 +42,9 @@ describe("ReconciliationController.getReconciliationContext", () => {
     await controller.getReconciliationContext(
       "assessment-1",
       "flow:flow-1",
+      "conflict:conflict-1,conflict:conflict-2",
       statuses.join(","),
+      "Y29uZmxpY3QtMQ",
       "12",
       request(),
     );
@@ -53,6 +55,8 @@ describe("ReconciliationController.getReconciliationContext", () => {
         "org-1",
         "corr-1",
         "flow-1",
+        ["conflict-1", "conflict-2"],
+        "Y29uZmxpY3QtMQ",
         12,
         statuses,
       ),
@@ -70,7 +74,9 @@ describe("ReconciliationController.getReconciliationContext", () => {
       controller.getReconciliationContext(
         "assessment-1",
         "bad-flow",
+        undefined,
         RECONCILIATION_CONTEXT_STATUSES.open,
+        undefined,
         "12",
         request(),
       ),
@@ -80,7 +86,21 @@ describe("ReconciliationController.getReconciliationContext", () => {
       controller.getReconciliationContext(
         "assessment-1",
         "flow:flow-1",
+        undefined,
         "UNKNOWN_STATUS",
+        undefined,
+        "12",
+        request(),
+      ),
+    ).rejects.toBeInstanceOf(HttpException);
+
+    await expect(
+      controller.getReconciliationContext(
+        "assessment-1",
+        undefined,
+        undefined,
+        RECONCILIATION_CONTEXT_STATUSES.open,
+        undefined,
         "12",
         request(),
       ),

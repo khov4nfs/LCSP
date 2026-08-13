@@ -16,7 +16,11 @@ class FinalReportConsumer(ConsumerBase):
 
     def __init__(self, config, llm_client: LLMGatewayClient = None):
         super().__init__(config)
-        self.llm_client = llm_client or LLMGatewayClient() # Fallback for now if not provided
+        if llm_client is None:
+            raise ValueError(
+                "FinalReportConsumer requires an injected llm_client from runtime configuration."
+            )
+        self.llm_client = llm_client
         self.generator = FinalReportGenerator(self.llm_client)
 
     def handle(self, message: dict, correlation_id: str) -> None:

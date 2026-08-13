@@ -15,7 +15,7 @@ import { ProposeMissingTargetsHandler } from "./propose-missing-targets.handler.
 import { ProposeMissingTargetsQuery } from "./propose-missing-targets.query.js";
 
 describe("ProposeMissingTargetsHandler", () => {
-  it("returns OUT_OF_COVERAGE when submitted target ids are unavailable", async () => {
+  it("returns OUT_OF_COVERAGE with evidence-backed proposals when submitted target ids are unavailable", async () => {
     const prisma = {
       wizardProfile: {
         findFirst: jest.fn().mockImplementation(() =>
@@ -69,7 +69,14 @@ describe("ProposeMissingTargetsHandler", () => {
     expect(response.limitations).toContain(
       TARGET_CANDIDATE_LIMITATION_CODES.submittedTargetIdsUnavailable,
     );
-    expect(response.result.candidates).toEqual([]);
+    expect(response.result.candidates).toEqual([
+      expect.objectContaining({
+        candidate_ref: "candidate:provider_openai",
+        target_ref: "target:provider_openai",
+        attributes: { provider: "OPENAI" },
+      }),
+    ]);
+    expect(response.evidence_refs).toEqual(["finding:finding_01"]);
     expect(JSON.stringify(response)).not.toContain("secret");
   });
 

@@ -66,7 +66,7 @@ function buildHandler(options?: {
 
   const enqueue = jest
     .fn<OutboxRepository["enqueue"]>()
-    .mockResolvedValue(undefined);
+    .mockResolvedValue("outbox-message-1");
   const outbox = { enqueue } as unknown as OutboxRepository;
 
   const write = jest

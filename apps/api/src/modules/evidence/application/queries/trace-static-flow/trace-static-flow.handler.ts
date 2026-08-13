@@ -89,6 +89,7 @@ export class TraceStaticFlowHandler implements IQueryHandler<
       payload: {
         toolName: response.tool_name,
         startRef: `node:${query.startNodeId}`,
+        desiredStages: query.desiredStages,
       },
     });
     return response;
@@ -133,6 +134,11 @@ function follow(
         query.direction === STATIC_FLOW_DIRECTIONS.forward
           ? item.source_node_id === current
           : item.target_node_id === current,
+      )
+      .filter(
+        (item) =>
+          query.desiredStages.length === 0 ||
+          query.desiredStages.includes(String(item.edge_type)),
       )
       .sort((a, b) => String(a.edge_id).localeCompare(String(b.edge_id)))[0];
     if (!edge) break;

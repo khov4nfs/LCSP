@@ -9,6 +9,7 @@ export class RabbitMqClient implements OnModuleDestroy {
   private connection: amqp.ChannelModel | null = null;
   private channel: amqp.Channel | null = null;
   private connecting: Promise<amqp.Channel> | null = null;
+  private readonly exchangeType = "topic";
 
   constructor(private readonly url: string) {}
 
@@ -82,6 +83,13 @@ export class RabbitMqClient implements OnModuleDestroy {
       });
 
       const channel = await connection.createChannel();
+      await channel.assertExchange(
+        this.resolveExchangeName(),
+        this.exchangeType,
+        {
+          durable: true,
+        },
+      );
       this.connection = connection;
       this.channel = channel;
 
@@ -96,5 +104,9 @@ export class RabbitMqClient implements OnModuleDestroy {
     this.channel = null;
     this.connection = null;
     this.connecting = null;
+  }
+
+  private resolveExchangeName(): string {
+    return process.env.RABBITMQ_EXCHANGE ?? "lcsp.events";
   }
 }

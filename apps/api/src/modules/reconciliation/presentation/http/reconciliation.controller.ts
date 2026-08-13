@@ -283,11 +283,16 @@ export class ReconciliationController {
   @RequireAction(PBAC_ACTIONS.assessmentRead)
   async getArtifactChain(
     @Param("assessmentId") assessmentId: string,
+    @Query("artifact_ref") artifactRefRaw: string | undefined,
     @Query("required_stages") requiredStagesRaw: string | undefined,
     @Query("exact_versions") exactVersionsRaw: string | undefined,
     @Req() request: AuthenticatedRequest,
   ) {
     const pbacContext = request.pbacContext;
+    const artifactRef = parseArtifactRefQuery(
+      artifactRefRaw,
+      request.correlationId as string,
+    );
     const requiredStages = parseArtifactChainStages(
       requiredStagesRaw,
       request.correlationId as string,
@@ -299,6 +304,7 @@ export class ReconciliationController {
           assessmentId,
           pbacContext.organizationId,
           request.correlationId as string,
+          artifactRef,
           requiredStages,
           exactVersionsRaw === "true",
         ),
@@ -312,14 +318,21 @@ export class ReconciliationController {
   async getReconciliationContext(
     @Param("assessmentId") assessmentId: string,
     @Query("flow_ref") flowRef: string | undefined,
+    @Query("conflict_ids") conflictIdsRaw: string | undefined,
     @Query("statuses") statusesRaw: string | undefined,
+    @Query("cursor") cursorRaw: string | undefined,
     @Query("max_results") maxResultsRaw: string | undefined,
     @Req() request: AuthenticatedRequest,
   ) {
     const pbacContext = request.pbacContext;
     const correlationId = request.correlationId as string;
-    const flowId = parseFlowRef(flowRef, correlationId);
+    const flowId = parseOptionalFlowRef(flowRef, correlationId);
+    const conflictIds = parseConflictIds(conflictIdsRaw, correlationId);
+    if (!flowId && conflictIds.length === 0) {
+      throwInvalidRequest(correlationId);
+    }
     const statuses = parseReconciliationStatuses(statusesRaw, correlationId);
+    const cursor = parseCursor(cursorRaw, correlationId);
     const maxResults = parseMaxResults(maxResultsRaw, correlationId);
 
     return resultEnvelope(
@@ -329,6 +342,8 @@ export class ReconciliationController {
           pbacContext.organizationId,
           correlationId,
           flowId,
+          conflictIds,
+          cursor,
           maxResults,
           statuses,
         ),
@@ -556,6 +571,48 @@ function parseFlowRef(
     throwInvalidRequest(correlationId);
   }
   return value.slice("flow:".length);
+}
+
+function parseOptionalFlowRef(
+  value: string | undefined,
+  correlationId: string,
+): string | null {
+  if (!value) return null;
+  return parseFlowRef(value, correlationId);
+}
+
+function parseArtifactRefQuery(
+  value: string | undefined,
+  correlationId: string,
+): string | null {
+  if (!value) return null;
+  if (!/^(ter|flow|conflict|verified):[A-Za-z0-9_-]{1,160}$/u.test(value)) {
+    throwInvalidRequest(correlationId);
+  }
+  return value;
+}
+
+function parseConflictIds(
+  raw: string | undefined,
+  correlationId: string,
+): string[] {
+  const values = splitCsv(raw);
+  const allowedPattern = /^conflict:[A-Za-z0-9_-]{1,160}$/u;
+  if (values.some((value) => !allowedPattern.test(value))) {
+    throwInvalidRequest(correlationId);
+  }
+  return values.map((value) => value.slice("conflict:".length));
+}
+
+function parseCursor(
+  raw: string | undefined,
+  correlationId: string,
+): string | null {
+  if (!raw) return null;
+  if (raw.length > 512) {
+    throwInvalidRequest(correlationId);
+  }
+  return raw;
 }
 
 function parseReconciliationStatuses(

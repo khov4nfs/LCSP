@@ -23,7 +23,7 @@ describe("PrismaRepositoryScanJobRepository", () => {
       .mockImplementation((callback) => callback(tx));
     const enqueue = jest
       .fn<OutboxRepository["enqueue"]>()
-      .mockResolvedValue(undefined);
+      .mockResolvedValue("outbox-message-1");
     const repository = new PrismaRepositoryScanJobRepository(
       { $transaction: transaction } as unknown as PrismaService,
       { enqueue } as unknown as OutboxRepository,
@@ -94,7 +94,7 @@ describe("PrismaRepositoryScanJobRepository", () => {
       .mockResolvedValue({});
     const enqueue = jest
       .fn<OutboxRepository["enqueue"]>()
-      .mockResolvedValue(undefined);
+      .mockResolvedValue("outbox-message-1");
     const repository = new PrismaRepositoryScanJobRepository(
       {
         repositoryScanJob: { create },

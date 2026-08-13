@@ -38,15 +38,14 @@ export class GetReconciliationContextHandler implements IQueryHandler<
   async execute(
     query: GetReconciliationContextQuery,
   ): Promise<ReconciliationContextResponse> {
-    const flow = await this.prisma.aIUsageFlow.findFirst({
-      where: {
-        id: query.aiUsageFlowId,
-        assessmentId: query.assessmentId,
-        organizationId: query.organizationId,
-      },
-      select: { id: true },
-    });
-    if (!flow) {
+    const flowId =
+      query.aiUsageFlowId ??
+      (await this.resolveFlowIdFromConflictIds(
+        query.assessmentId,
+        query.organizationId,
+        query.conflictIds,
+      ));
+    if (!flowId) {
       throw problemException(
         ASSESSMENT_ERROR_CODES.notFound,
         query.correlationId,
@@ -64,9 +63,16 @@ export class GetReconciliationContextHandler implements IQueryHandler<
       );
     const conflicts = await this.prisma.conflictRecord.findMany({
       where: {
-        aiUsageFlowId: flow.id,
+        aiUsageFlowId: flowId,
         assessmentId: query.assessmentId,
         organizationId: query.organizationId,
+        ...(query.conflictIds.length > 0
+          ? {
+              id: {
+                in: query.conflictIds,
+              },
+            }
+          : {}),
         ...(conflictStatuses.length > 0
           ? {
               status: {
@@ -74,8 +80,18 @@ export class GetReconciliationContextHandler implements IQueryHandler<
               },
             }
           : {}),
+        ...(query.cursor
+          ? {
+              id: {
+                gt: decodeCursor(query.cursor) ?? "",
+                ...(query.conflictIds.length > 0
+                  ? { in: query.conflictIds }
+                  : {}),
+              },
+            }
+          : {}),
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { id: "asc" },
       take: query.maxResults + 1,
       select: {
         id: true,
@@ -104,7 +120,7 @@ export class GetReconciliationContextHandler implements IQueryHandler<
       tool_version: TOOL_VERSION,
       config_hash: TOOL_CONFIG_HASH,
       correlation_id: query.correlationId,
-      artifact_versions: { ai_usage_flow_id: flow.id },
+      artifact_versions: { ai_usage_flow_id: flowId },
       provenance_ref: `tool-execution:${query.correlationId}`,
       coverage_state: AGENTIC_TOOL_COVERAGE_STATES.sufficient,
       evidence_refs: resultConflicts.flatMap(
@@ -122,7 +138,10 @@ export class GetReconciliationContextHandler implements IQueryHandler<
               },
             ]
           : [],
-        next_cursor: null,
+        next_cursor:
+          truncated && page.length > 0
+            ? encodeCursor(page[page.length - 1].id)
+            : null,
         truncated,
       },
     };
@@ -132,13 +151,52 @@ export class GetReconciliationContextHandler implements IQueryHandler<
       organizationId: query.organizationId,
       assessmentId: query.assessmentId,
       resourceType: AUDIT_RESOURCE_TYPES.conflictRecord,
-      resourceId: flow.id,
+      resourceId: flowId,
       correlationId: query.correlationId,
       decision: AUDIT_DECISIONS.allow,
       result: response.status,
-      payload: { toolName: response.tool_name, flowRef: `flow:${flow.id}` },
+      payload: {
+        toolName: response.tool_name,
+        flowRef: `flow:${flowId}`,
+        conflictIds: query.conflictIds,
+        cursor: query.cursor,
+      },
     });
     return response;
+  }
+
+  private async resolveFlowIdFromConflictIds(
+    assessmentId: string,
+    organizationId: string,
+    conflictIds: string[],
+  ): Promise<string | null> {
+    if (conflictIds.length === 0) return null;
+    const conflicts = await this.prisma.conflictRecord.findMany({
+      where: {
+        id: { in: conflictIds },
+        assessmentId,
+        organizationId,
+      },
+      select: { aiUsageFlowId: true },
+      take: conflictIds.length,
+    });
+    const flowIds = [...new Set(conflicts.map((item) => item.aiUsageFlowId))];
+    return flowIds.length === 1 ? flowIds[0] : null;
+  }
+}
+
+function encodeCursor(value: string): string {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+
+function decodeCursor(value: string): string | null {
+  try {
+    const decoded = Buffer.from(value, "base64url").toString("utf8");
+    return decoded && encodeCursor(decoded) === value.replace(/=+$/u, "")
+      ? decoded
+      : null;
+  } catch {
+    return null;
   }
 }
 

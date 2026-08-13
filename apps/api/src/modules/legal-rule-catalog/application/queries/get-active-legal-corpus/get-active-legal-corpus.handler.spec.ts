@@ -9,15 +9,25 @@ describe("GetActiveLegalCorpusHandler", () => {
     const approvedAt = new Date("2026-08-11T00:00:00.000Z");
     const prisma = {
       legalCorpusVersion: {
-        findFirst: jest.fn().mockResolvedValue({
-          id: "corpus-v1",
-          version: "VN-LEGAL-2026-08",
-          status: toPrismaLegalRuleLifecycleStatus(
-            LEGAL_RULE_LIFECYCLE_STATUSES.approved,
-          ),
-          createdAt: new Date("2026-08-10T00:00:00.000Z"),
-          approvedAt,
-        }),
+        findFirst: jest
+          .fn<
+            () => Promise<{
+              id: string;
+              version: string;
+              status: ReturnType<typeof toPrismaLegalRuleLifecycleStatus>;
+              createdAt: Date;
+              approvedAt: Date;
+            } | null>
+          >()
+          .mockResolvedValue({
+            id: "corpus-v1",
+            version: "VN-LEGAL-2026-08",
+            status: toPrismaLegalRuleLifecycleStatus(
+              LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+            ),
+            createdAt: new Date("2026-08-10T00:00:00.000Z"),
+            approvedAt,
+          }),
       },
     } as unknown as PrismaService;
 

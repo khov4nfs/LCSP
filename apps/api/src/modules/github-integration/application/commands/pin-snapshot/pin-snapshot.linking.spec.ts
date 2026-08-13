@@ -66,11 +66,19 @@ describe("PinSnapshotHandler repository reuse", () => {
 
     const prisma = {
       assessment: {
-        findUnique: jest.fn().mockResolvedValue({
-          id: "assessment-1",
-          organizationId: "org-1",
-          ownerId: "manager-1",
-        }),
+        findUnique: jest
+          .fn<
+            () => Promise<{
+              id: string;
+              organizationId: string;
+              ownerId: string;
+            } | null>
+          >()
+          .mockResolvedValue({
+            id: "assessment-1",
+            organizationId: "org-1",
+            ownerId: "manager-1",
+          }),
       },
     } as unknown as PrismaService;
 

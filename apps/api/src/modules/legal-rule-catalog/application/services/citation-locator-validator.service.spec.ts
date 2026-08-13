@@ -6,18 +6,42 @@ import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.
 describe("CitationLocatorValidatorService", () => {
   let service: CitationLocatorValidatorService;
   let prisma: jest.Mocked<PrismaService>;
-  let mockFindApprovedCorpus: jest.Mock;
-  let mockFindChunk: jest.Mock;
+  let mockFindApprovedCorpus: ReturnType<
+    typeof jest.fn<() => Promise<{ id: string } | null>>
+  >;
+  let mockFindChunk: ReturnType<
+    typeof jest.fn<
+      () => Promise<{
+        id: string;
+        legalCorpusVersionId: string;
+        documentId: string;
+        locator: string;
+        legalStatus: string;
+      } | null>
+    >
+  >;
 
   beforeEach(async () => {
-    mockFindApprovedCorpus = jest.fn().mockResolvedValue({ id: "v1" });
-    mockFindChunk = jest.fn().mockResolvedValue({
-      id: "chunk-1",
-      legalCorpusVersionId: "v1",
-      documentId: "doc1",
-      locator: "art-1",
-      legalStatus: "ACTIVE",
-    });
+    mockFindApprovedCorpus = jest
+      .fn<() => Promise<{ id: string } | null>>()
+      .mockResolvedValue({ id: "v1" });
+    mockFindChunk = jest
+      .fn<
+        () => Promise<{
+          id: string;
+          legalCorpusVersionId: string;
+          documentId: string;
+          locator: string;
+          legalStatus: string;
+        } | null>
+      >()
+      .mockResolvedValue({
+        id: "chunk-1",
+        legalCorpusVersionId: "v1",
+        documentId: "doc1",
+        locator: "art-1",
+        legalStatus: "ACTIVE",
+      });
 
     prisma = {
       legalCorpusVersion: {

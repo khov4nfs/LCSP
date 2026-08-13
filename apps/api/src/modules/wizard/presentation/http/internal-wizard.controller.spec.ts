@@ -5,7 +5,8 @@ import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.
 import { InternalWizardController } from "./internal-wizard.controller.js";
 
 function buildController() {
-  const wizardProfileFindUnique = jest.fn();
+  const wizardProfileFindUnique =
+    jest.fn<(args?: unknown) => Promise<Record<string, unknown> | null>>();
   const prisma = {
     wizardProfile: { findUnique: wizardProfileFindUnique },
   } as unknown as PrismaService;
@@ -34,7 +35,8 @@ describe("InternalWizardController", () => {
     const result = await controller.getWizardProfile("assessment-1");
 
     expect(wizardProfileFindUnique).toHaveBeenCalledTimes(1);
-    expect(wizardProfileFindUnique.mock.calls[0]?.[0]).toEqual({
+    const [findUniqueArgs] = wizardProfileFindUnique.mock.calls[0] ?? [];
+    expect(findUniqueArgs).toEqual({
       where: { assessmentId: "assessment-1" },
       select: {
         id: true,

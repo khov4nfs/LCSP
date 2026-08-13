@@ -31,6 +31,7 @@ export type ArtifactChainToolResponse = {
   evidence_refs: string[];
   limitations: ArtifactChainLimitation[];
   result: {
+    anchor_artifact_ref: string | null;
     links: ArtifactChainLink[];
     missing_stages: ArtifactChainLimitation[];
     integrity: ArtifactChainIntegrity;

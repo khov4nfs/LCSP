@@ -19,7 +19,7 @@ describe("PrismaRepositorySnapshotRepository", () => {
     const prisma = { $transaction: transaction } as unknown as PrismaService;
     const enqueue = jest
       .fn<OutboxRepository["enqueue"]>()
-      .mockResolvedValue(undefined);
+      .mockResolvedValue("outbox-message-1");
     const repository = new PrismaRepositorySnapshotRepository(prisma, {
       enqueue,
     } as unknown as OutboxRepository);

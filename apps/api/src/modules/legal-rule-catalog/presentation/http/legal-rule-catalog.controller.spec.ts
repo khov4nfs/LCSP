@@ -5,8 +5,20 @@ import { LegalRuleCatalogController } from "./legal-rule-catalog.controller.js";
 describe("LegalRuleCatalogController official source snapshots", () => {
   it("registers a worker-owned official snapshot", async () => {
     const officialSourceSnapshots = {
-      register: jest.fn().mockResolvedValue({ snapshotRef: "snapshot:law:abc" }),
-      get: jest.fn(),
+      register: jest
+        .fn<
+          (
+            input?: unknown,
+            correlationId?: string,
+          ) => Promise<{ snapshotRef: string }>
+        >()
+        .mockResolvedValue({ snapshotRef: "snapshot:law:abc" }),
+      get: jest.fn<
+        (
+          query?: unknown,
+          correlationId?: string,
+        ) => Promise<{ snapshotRef: string }>
+      >(),
     };
     const controller = new LegalRuleCatalogController(
       {} as never,
@@ -43,13 +55,29 @@ describe("LegalRuleCatalogController official source snapshots", () => {
       }),
       "corr-1",
     );
-    expect(result).toEqual({ ok: true, data: { snapshotRef: "snapshot:law:abc" } });
+    expect(result).toEqual({
+      ok: true,
+      data: { snapshotRef: "snapshot:law:abc" },
+    });
   });
 
   it("reads a stored official snapshot by ref", async () => {
     const officialSourceSnapshots = {
-      register: jest.fn(),
-      get: jest.fn().mockResolvedValue({ snapshotRef: "snapshot:law:abc" }),
+      register:
+        jest.fn<
+          (
+            input?: unknown,
+            correlationId?: string,
+          ) => Promise<{ snapshotRef: string }>
+        >(),
+      get: jest
+        .fn<
+          (
+            query?: unknown,
+            correlationId?: string,
+          ) => Promise<{ snapshotRef: string }>
+        >()
+        .mockResolvedValue({ snapshotRef: "snapshot:law:abc" }),
     };
     const controller = new LegalRuleCatalogController(
       {} as never,
@@ -69,6 +97,9 @@ describe("LegalRuleCatalogController official source snapshots", () => {
       { snapshotRef: "snapshot:law:abc", snapshotId: undefined },
       "corr-2",
     );
-    expect(result).toEqual({ ok: true, data: { snapshotRef: "snapshot:law:abc" } });
+    expect(result).toEqual({
+      ok: true,
+      data: { snapshotRef: "snapshot:law:abc" },
+    });
   });
 });

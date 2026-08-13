@@ -51,6 +51,14 @@ export class FindSimilarSymbolsHandler implements IQueryHandler<
       );
     const candidates = nodes
       .filter((node) => node.node_id !== seed.node_id)
+      .filter(
+        (node) =>
+          query.pathPrefixes.length === 0 ||
+          (node.file_path !== null &&
+            query.pathPrefixes.some((prefix) =>
+              node.file_path!.startsWith(prefix),
+            )),
+      )
       .map((node) => candidate(seed, node, query.dimensions))
       .filter((item): item is NonNullable<typeof item> => item !== null)
       .sort(
@@ -87,6 +95,7 @@ export class FindSimilarSymbolsHandler implements IQueryHandler<
       payload: {
         toolName: response.tool_name,
         seedRef: `node:${query.seedNodeId}`,
+        pathPrefixes: query.pathPrefixes,
       },
     });
     return response;

@@ -45,13 +45,19 @@ describe("GetArtifactChainHandler", () => {
             status: WizardProfileStatus.SUBMITTED,
           }),
         ),
+        findFirst: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "wizard-1",
+            version: 2,
+            status: WizardProfileStatus.SUBMITTED,
+          }),
+        ),
       },
       technicalProfile: {
         findFirst: jest.fn().mockImplementation(() =>
           Promise.resolve({
             id: "profile-1",
-            schemaVersion: "1.0.0",
-            status: EvidenceAcceptanceStatus.ACCEPTED,
+            evidenceReportId: "report-1",
           }),
         ),
       },
@@ -61,6 +67,7 @@ describe("GetArtifactChainHandler", () => {
             id: "flow-1",
             schemaVersion: "1.0.0",
             status: EvidenceAcceptanceStatus.ACCEPTED,
+            technicalProfileId: "profile-1",
           }),
         ),
       },
@@ -73,6 +80,8 @@ describe("GetArtifactChainHandler", () => {
             id: "verified-1",
             schemaVersion: "1.0.0",
             status: VerifiedProfileStatus.APPROVED,
+            wizardProfileId: "wizard-1",
+            aiUsageFlowId: "flow-1",
           }),
         ),
       },
@@ -119,7 +128,7 @@ describe("GetArtifactChainHandler", () => {
     });
 
     const response = await handler.execute(
-      new GetArtifactChainQuery("assessment-1", "org-1", "corr-2", [
+      new GetArtifactChainQuery("assessment-1", "org-1", "corr-2", null, [
         ARTIFACT_CHAIN_STAGES.verifiedProfile,
       ]),
     );
@@ -131,5 +140,49 @@ describe("GetArtifactChainHandler", () => {
         reason: "ARTIFACT_LINK_MISSING",
       },
     ]);
+  });
+
+  it("T03: resolves exact chain from anchored artifact ref instead of latest substitution", async () => {
+    const { handler } = makeHandler({
+      technicalEvidenceReport: {
+        findFirst: jest
+          .fn()
+          .mockImplementation(({ where }: { where: { id?: string } }) =>
+            Promise.resolve(
+              where?.id === "report-anchor"
+                ? {
+                    id: "report-anchor",
+                    schemaVersion: "1.0.0",
+                    status: EvidenceAcceptanceStatus.ACCEPTED,
+                  }
+                : {
+                    id: "report-latest",
+                    schemaVersion: "1.0.0",
+                    status: EvidenceAcceptanceStatus.ACCEPTED,
+                  },
+            ),
+          ),
+      },
+      technicalProfile: {
+        findFirst: jest
+          .fn<(args?: unknown) => Promise<Record<string, unknown> | null>>()
+          .mockResolvedValue({
+            id: "profile-1",
+            evidenceReportId: "report-anchor",
+          }),
+      },
+    });
+
+    const response = await handler.execute(
+      new GetArtifactChainQuery(
+        "assessment-1",
+        "org-1",
+        "corr-3",
+        "ter:report-anchor",
+      ),
+    );
+
+    expect(response.result.anchor_artifact_ref).toBe("ter:report-anchor");
+    expect(response.result.links[0]?.artifact_ref).toBe("ter:report-anchor");
   });
 });

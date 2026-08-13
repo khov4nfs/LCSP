@@ -5,6 +5,8 @@ import {
 } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { config, configValidationSchema } from "./config/config.js";
 import { AppFeatureModule } from "./modules/app/app.module.js";
@@ -31,12 +33,21 @@ import { HttpLoggerMiddleware } from "./platform/logging/http-logger.middleware.
 import { ProblemExceptionFilter } from "./platform/problems/problem-exception.filter.js";
 import { ProblemStatusInterceptor } from "./platform/problems/problem-status.interceptor.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const appRoot = path.resolve(__dirname, "..");
+const workspaceRoot = path.resolve(appRoot, "..", "..");
+const rootEnvPath = path.join(workspaceRoot, ".env");
+const rootTestEnvPath = path.join(workspaceRoot, ".env.test");
+
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath:
-        process.env.NODE_ENV === "test" ? [".env.test", ".env"] : [".env"],
+        process.env.NODE_ENV === "test"
+          ? [rootTestEnvPath, rootEnvPath]
+          : [rootEnvPath],
       load: [config],
       validationSchema: configValidationSchema,
       validationOptions: { abortEarly: false, allowUnknown: true },

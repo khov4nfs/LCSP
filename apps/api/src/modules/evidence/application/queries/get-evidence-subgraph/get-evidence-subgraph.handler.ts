@@ -59,13 +59,32 @@ export class GetEvidenceSubgraphHandler implements IQueryHandler<
         query.correlationId,
         { status: HttpStatus.NOT_FOUND },
       );
-    const nodes = graph.nodes.filter(safeNode);
-    const edges = graph.edges.filter(safeEdge);
-    if (!nodes.some((node) => node.node_id === query.seedNodeId))
+    const safeNodes = graph.nodes.filter(safeNode);
+    const seed = safeNodes.find((node) => node.node_id === query.seedNodeId);
+    if (!seed)
       throw problemException(
         EVIDENCE_ERROR_CODES.notFound,
         query.correlationId,
         { status: HttpStatus.NOT_FOUND },
+      );
+
+    // Keep the explicit seed as the traversal anchor even when nodeTypes is used;
+    // every discovered neighbor must satisfy the selector.
+    const nodes = safeNodes.filter(
+      (node) =>
+        node.node_id === query.seedNodeId ||
+        query.nodeTypes.length === 0 ||
+        query.nodeTypes.includes(String(node.node_type)),
+    );
+    const allowedNodeIds = new Set(nodes.map((node) => String(node.node_id)));
+    const edges = graph.edges
+      .filter(safeEdge)
+      .filter(
+        (edge) =>
+          (query.edgeTypes.length === 0 ||
+            query.edgeTypes.includes(String(edge.edge_type))) &&
+          allowedNodeIds.has(String(edge.source_node_id)) &&
+          allowedNodeIds.has(String(edge.target_node_id)),
       );
     const traversal = bfs(nodes, edges, query);
     const response: EvidenceSubgraphResponse = {
@@ -106,6 +125,8 @@ export class GetEvidenceSubgraphHandler implements IQueryHandler<
       payload: {
         toolName: response.tool_name,
         seedRef: `node:${query.seedNodeId}`,
+        nodeTypes: query.nodeTypes,
+        edgeTypes: query.edgeTypes,
       },
     });
     return response;

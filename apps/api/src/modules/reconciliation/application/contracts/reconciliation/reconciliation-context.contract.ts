@@ -42,7 +42,7 @@ export type ReconciliationContextResponse = {
       required_actor: string;
       required_state: typeof RECONCILIATION_CONTEXT_STATUSES.open;
     }>;
-    next_cursor: null;
+    next_cursor: string | null;
     truncated: boolean;
   };
 };

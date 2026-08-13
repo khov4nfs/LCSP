@@ -11,5 +11,7 @@ export class InspectDeploymentContextQuery {
     public readonly environments: DeploymentEnvironment[],
     public readonly maxResults: number,
     public readonly correlationId: string,
+    public readonly pathPrefixes: string[] = [],
+    public readonly cursor: string | null = null,
   ) {}
 }
