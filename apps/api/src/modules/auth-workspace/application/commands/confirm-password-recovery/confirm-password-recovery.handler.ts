@@ -27,7 +27,7 @@ export class ConfirmPasswordRecoveryHandler {
     const { payload, requestMeta } = command;
     const { repositories } = this;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
 
     if (
       typeof payload.token !== "string" ||
@@ -53,7 +53,7 @@ export class ConfirmPasswordRecoveryHandler {
         organization_id: null,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.recoveryInvalid,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.recoveryInvalid,
@@ -83,9 +83,9 @@ export class ConfirmPasswordRecoveryHandler {
       actor_id: user.id,
       organization_id: null,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     });
 
-    return { ok: true, correlation_id: correlationId };
+    return { ok: true, correlationId: correlationId };
   }
 }

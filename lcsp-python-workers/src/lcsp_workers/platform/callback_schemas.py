@@ -11,7 +11,7 @@ SCAN_CALLBACK_STATUSES = {
 
 
 class CallbackResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
     success: Optional[bool] = None
     accepted: Optional[bool] = None
     evidence_report_id: Optional[str] = None
@@ -23,7 +23,7 @@ class CallbackResponse(BaseModel):
     conflict_count: Optional[int] = None
     guardrail_status: Optional[str] = None
     status: Optional[str] = None
-    correlation_id: Optional[str] = None
+    correlationId: Optional[str] = Field(default=None, alias="correlationId")
     message: Optional[str] = None
     data: Optional[Dict[str, Any]] = None
 

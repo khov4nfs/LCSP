@@ -23,11 +23,11 @@ class FinalReportConsumer(ConsumerBase):
         self.llm_client = llm_client
         self.generator = FinalReportGenerator(self.llm_client)
 
-    def handle(self, message: dict, correlation_id: str) -> None:
+    def handle(self, message: dict, correlationId: str) -> None:
         """
         Handle document.final-report-requested event.
         """
-        logger.info("PROCESSING_FINAL_REPORT_REQUEST", correlation_id=correlation_id)
+        logger.info("PROCESSING_FINAL_REPORT_REQUEST", correlationId=correlationId)
         
         document_id = message.get("document_id", "unknown-doc-id")
         guardrail_status = message.get("guardrailStatus", "unknown")

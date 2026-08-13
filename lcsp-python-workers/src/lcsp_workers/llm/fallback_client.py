@@ -23,7 +23,7 @@ class LLMClientProtocol(Protocol):
         workflow_run_id: str,
         node_name: str,
         max_tokens: int | None = None,
-        correlation_id: str | None = None,
+        correlationId: str | None = None,
     ) -> LLMResponse: ...
 
     def complete_with_tools(
@@ -34,7 +34,7 @@ class LLMClientProtocol(Protocol):
         workflow_run_id: str,
         node_name: str,
         max_tokens: int | None = None,
-        correlation_id: str | None = None,
+        correlationId: str | None = None,
     ) -> LLMToolResponse: ...
 
 
@@ -92,7 +92,7 @@ class PrimaryThenFallbackLLMClient:
         workflow_run_id: str,
         node_name: str,
         max_tokens: int | None = None,
-        correlation_id: str | None = None,
+        correlationId: str | None = None,
     ) -> LLMResponse:
         return self._dispatch(
             lambda client: client.complete(
@@ -100,7 +100,7 @@ class PrimaryThenFallbackLLMClient:
                 workflow_run_id=workflow_run_id,
                 node_name=node_name,
                 max_tokens=max_tokens,
-                correlation_id=correlation_id,
+                correlationId=correlationId,
             )
         )
 
@@ -112,7 +112,7 @@ class PrimaryThenFallbackLLMClient:
         workflow_run_id: str,
         node_name: str,
         max_tokens: int | None = None,
-        correlation_id: str | None = None,
+        correlationId: str | None = None,
     ) -> LLMToolResponse:
         return self._dispatch(
             lambda client: client.complete_with_tools(
@@ -121,7 +121,7 @@ class PrimaryThenFallbackLLMClient:
                 workflow_run_id=workflow_run_id,
                 node_name=node_name,
                 max_tokens=max_tokens,
-                correlation_id=correlation_id,
+                correlationId=correlationId,
             )
         )
 

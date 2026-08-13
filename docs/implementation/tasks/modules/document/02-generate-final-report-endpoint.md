@@ -18,11 +18,11 @@ Allow a Manager to trigger final report generation. Final report requires accept
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/document/presentation/http/document.controller.ts` | Modify | Add `POST /assessments/:assessmentId/documents/final-report` |
-| `apps/api/src/modules/document/application/commands/request-final-report/request-final-report.command.ts` | Create | Command shape |
-| `apps/api/src/modules/document/application/commands/request-final-report/request-final-report.handler.ts` | Create | Gate check + outbox enqueue |
+| File                                                                                                      | Action | Notes                                                        |
+| --------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------ |
+| `apps/api/src/modules/document/presentation/http/document.controller.ts`                                  | Modify | Add `POST /assessments/:assessmentId/documents/final-report` |
+| `apps/api/src/modules/document/application/commands/request-final-report/request-final-report.command.ts` | Create | Command shape                                                |
+| `apps/api/src/modules/document/application/commands/request-final-report/request-final-report.handler.ts` | Create | Gate check + outbox enqueue                                  |
 
 ## API Contract
 
@@ -33,21 +33,21 @@ Allow a Manager to trigger final report generation. Final report requires accept
 
 **Success response (202):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `document_request_id` | string | |
-| `status` | string | `QUEUED` |
-| `document_type` | string | `FinalReport` |
-| `correlation_id` | string | |
+| Field                 | Type   | Notes         |
+| --------------------- | ------ | ------------- |
+| `document_request_id` | string |               |
+| `status`              | string | `QUEUED`      |
+| `document_type`       | string | `FinalReport` |
+| `correlationId`       | string |               |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 403 | `PBAC_DENIED` | |
-| 404 | `ASSESSMENT_NOT_FOUND` | |
-| 409 | `CLASSIFICATION_GUARDRAIL_NOT_PASSED` | `ClassificationResult.guardrailStatus ≠ passed` |
-| 409 | `DOCUMENT_ALREADY_QUEUED` | |
+| HTTP | `error_code`                          | Meaning                                         |
+| ---- | ------------------------------------- | ----------------------------------------------- |
+| 403  | `PBAC_DENIED`                         |                                                 |
+| 404  | `ASSESSMENT_NOT_FOUND`                |                                                 |
+| 409  | `CLASSIFICATION_GUARDRAIL_NOT_PASSED` | `ClassificationResult.guardrailStatus ≠ passed` |
+| 409  | `DOCUMENT_ALREADY_QUEUED`             |                                                 |
 
 ## Business Rules
 
@@ -62,22 +62,22 @@ Allow a Manager to trigger final report generation. Final report requires accept
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `RequestFinalReportCommand` | App command | `{ assessmentId, organizationId, requestedById, classificationResultId, correlationId? }` |
-| `event.document.final-report-requested` | Outbox | `{ documentRequestId, assessmentId, classificationResultId, correlationId }` |
-| `DOCUMENT_FINAL_REPORT_REQUESTED` | `AuthAuditEvent` | `{ documentRequestId, assessmentId, correlationId }` |
+| Name                                    | Type             | Safe payload                                                                              |
+| --------------------------------------- | ---------------- | ----------------------------------------------------------------------------------------- |
+| `RequestFinalReportCommand`             | App command      | `{ assessmentId, organizationId, requestedById, classificationResultId, correlationId? }` |
+| `event.document.final-report-requested` | Outbox           | `{ documentRequestId, assessmentId, classificationResultId, correlationId }`              |
+| `DOCUMENT_FINAL_REPORT_REQUESTED`       | `AuthAuditEvent` | `{ documentRequestId, assessmentId, correlationId }`                                      |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Classification passed guardrail | 202 QUEUED |
-| T02 | Classification degraded | 409 `CLASSIFICATION_GUARDRAIL_NOT_PASSED` |
-| T03 | Classification blocked | 409 `CLASSIFICATION_GUARDRAIL_NOT_PASSED` |
-| T04 | Developer attempts request | 403 `PBAC_DENIED` |
-| T05 | Existing QUEUED request | 409 `DOCUMENT_ALREADY_QUEUED` |
-| T06 | 202 response (async) | HTTP status verified |
+| ID  | Scenario                        | Expected                                  |
+| --- | ------------------------------- | ----------------------------------------- |
+| T01 | Classification passed guardrail | 202 QUEUED                                |
+| T02 | Classification degraded         | 409 `CLASSIFICATION_GUARDRAIL_NOT_PASSED` |
+| T03 | Classification blocked          | 409 `CLASSIFICATION_GUARDRAIL_NOT_PASSED` |
+| T04 | Developer attempts request      | 403 `PBAC_DENIED`                         |
+| T05 | Existing QUEUED request         | 409 `DOCUMENT_ALREADY_QUEUED`             |
+| T06 | 202 response (async)            | HTTP status verified                      |
 
 ## Definition of Done
 

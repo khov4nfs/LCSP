@@ -1,4 +1,3 @@
-import { NotFoundException } from "@nestjs/common";
 import { describe, expect, it, jest } from "@jest/globals";
 import {
   REPOSITORY_SCAN_JOB_STATUSES,
@@ -6,6 +5,7 @@ import {
 } from "@lcsp/contracts/github-integration";
 import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import { SCAN_ERROR_CODES, SCAN_JOB_GUIDANCE } from "@lcsp/contracts/scan";
+import { NotFoundException } from "@nestjs/common";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { GetScanJobHandler } from "./get-scan-job.handler.js";
@@ -93,7 +93,7 @@ describe("GetScanJobHandler", () => {
       next_action: SCAN_JOB_GUIDANCE.queuedNextAction,
       created_at: CREATED_AT.toISOString(),
       updated_at: UPDATED_AT.toISOString(),
-      correlation_id: "job-corr-1",
+      correlationId: "job-corr-1",
     });
     expect(Object.keys(result)).not.toEqual(
       expect.arrayContaining([

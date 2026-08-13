@@ -1,8 +1,8 @@
-import * as assert from "node:assert/strict";
-import { test } from "node:test";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment/codes";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import { SCAN_ERROR_CODES } from "@lcsp/contracts/scan/codes";
+import * as assert from "node:assert/strict";
+import { test } from "node:test";
 
 import {
   buildResolveConflictApiBody,
@@ -44,7 +44,7 @@ test("conflict list payload sanitizer accepts valid shape", () => {
     total: 1,
     page: 1,
     page_size: 20,
-    correlation_id: "corr-1",
+    correlationId: "corr-1",
   };
 
   assert.deepEqual(sanitizeConflictListPayload(payload), payload);
@@ -116,7 +116,7 @@ test("resolve payload sanitizer accepts valid shape", () => {
     status: "DISMISSED",
     resolved_at: "2026-07-22T10:10:00Z",
     all_conflicts_resolved: true,
-    correlation_id: "corr-2",
+    correlationId: "corr-2",
   } as const;
 
   assert.deepEqual(sanitizeResolveConflictPayload(payload), payload);

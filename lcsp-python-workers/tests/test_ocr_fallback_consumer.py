@@ -136,7 +136,7 @@ def test_consumer_runs_ocr_fallback_and_persists_record(tmp_path: Path, monkeypa
             "pageNumbers": [1],
             "ocrProfile": "VI_OFFICIAL_V1",
         },
-        correlation_id="corr-ocr",
+        correlationId="corr-ocr",
     )
 
     repository = OcrFallbackRepository(storage_root=storage_root)
@@ -178,5 +178,5 @@ def test_consumer_rejects_invalid_page_numbers(tmp_path: Path):
                 "pageNumbers": [1, 1],
                 "ocrProfile": "VI_OFFICIAL_V1",
             },
-            correlation_id="corr-invalid",
+            correlationId="corr-invalid",
         )

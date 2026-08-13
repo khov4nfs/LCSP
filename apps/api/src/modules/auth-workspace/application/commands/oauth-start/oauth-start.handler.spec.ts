@@ -1,17 +1,17 @@
-import { PBAC_DECISION } from "@lcsp/contracts/pbac";
 import { AUTH_LEGACY_AUDIT_EVENT_TYPES } from "@lcsp/contracts/auth";
+import { PBAC_DECISION } from "@lcsp/contracts/pbac";
 /* eslint-disable @typescript-eslint/unbound-method */
 import { jest } from "@jest/globals";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 
-import { OAuthStartHandler } from "./oauth-start.handler.ts";
-import { OAuthStartCommand } from "./oauth-start.command.ts";
-import type { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
+import type { ConfigService } from "@nestjs/config";
+import type { OAuthProvider } from "../../../infrastructure/oauth/oauth-provider.interface.ts";
 import type { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
 import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
-import type { ConfigService } from "@nestjs/config";
-import type { OAuthProvider } from "../../../infrastructure/oauth/oauth-provider.interface.ts";
+import type { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
+import { OAuthStartCommand } from "./oauth-start.command.ts";
+import { OAuthStartHandler } from "./oauth-start.handler.ts";
 
 describe("OAuthStartHandler", () => {
   let handler: OAuthStartHandler;
@@ -102,7 +102,7 @@ describe("OAuthStartHandler", () => {
         provider: "invalid-provider",
         redirect_uri: "http://localhost:3000/callback",
       },
-      { correlation_id: "corr-1" },
+      { correlationId: "corr-1" },
     );
     const result = (await handler.execute(command)) as AuthProblemResult;
 
@@ -115,7 +115,7 @@ describe("OAuthStartHandler", () => {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthStartFailed,
         decision: PBAC_DECISION.deny,
         reason_code: AUTH_ERROR_CODES.unsupportedProvider,
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       }),
     );
   });
@@ -123,7 +123,7 @@ describe("OAuthStartHandler", () => {
   it("U04 - redirect_uri not in allowlist returns INVALID_REDIRECT_URI and records audit failure", async () => {
     const command = new OAuthStartCommand(
       { provider: "github", redirect_uri: "http://hacker.com/callback" },
-      { correlation_id: "corr-1" },
+      { correlationId: "corr-1" },
     );
     const result = (await handler.execute(command)) as AuthProblemResult;
 
@@ -143,7 +143,7 @@ describe("OAuthStartHandler", () => {
   it("U05 - happy path saves state, nonce and returns authorization_url", async () => {
     const command = new OAuthStartCommand(
       { provider: "github", redirect_uri: "http://localhost:3000/callback" },
-      { correlation_id: "corr-1" },
+      { correlationId: "corr-1" },
     );
     const result = await handler.execute(command);
 
@@ -152,7 +152,7 @@ describe("OAuthStartHandler", () => {
       expect(result.authorization_url).toBe(
         "https://mock-provider.com/auth?state=abc",
       );
-      expect(result.correlation_id).toBe("corr-1");
+      expect(result.correlationId).toBe("corr-1");
     }
 
     expect(mockRepositories.oauthStates.save).toHaveBeenCalledTimes(1);
@@ -168,7 +168,7 @@ describe("OAuthStartHandler", () => {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthStartSucceeded,
         decision: PBAC_DECISION.allow,
         provider: "github",
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       }),
     );
   });

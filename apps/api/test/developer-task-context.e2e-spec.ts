@@ -8,10 +8,10 @@ import {
   PBAC_STATE_GATES,
   SUBJECT_ROLES,
 } from "@lcsp/contracts/pbac";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, type Prisma } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient, type Prisma } from "@prisma/client";
 import * as assert from "node:assert/strict";
 
 import { AppModule } from "../src/app.module.js";
@@ -83,11 +83,11 @@ describe("Developer scoped workspace context endpoint (e2e) [MW-auth-016]", () =
       },
       granted_actions: [PBAC_ACTIONS.scanRead],
       session_expires_at: body.session_expires_at,
-      correlation_id: "corr-developer-task",
+      correlationId: "corr-developer-task",
     });
     assert.ok(Date.parse(body.session_expires_at));
     assert.deepEqual(Object.keys(body).sort(), [
-      "correlation_id",
+      "correlationId",
       "granted_actions",
       "organization",
       "scope",

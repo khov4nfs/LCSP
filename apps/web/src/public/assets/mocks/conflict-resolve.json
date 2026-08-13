@@ -3,5 +3,5 @@
   "status": "RESOLVED",
   "resolved_at": "2026-07-29T10:30:00.000Z",
   "all_conflicts_resolved": false,
-  "correlation_id": "mock-conflict-resolve"
+  "correlationId": "mock-conflict-resolve"
 }

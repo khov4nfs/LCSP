@@ -6,5 +6,5 @@ export type GithubIntegrationErrorCode =
 
 export interface GitHubAppStartDto {
   installation_url: string;
-  correlation_id: string;
+  correlationId: string;
 }

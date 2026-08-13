@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { CommandBus } from "@nestjs/cqrs";
-import { Test, type TestingModule } from "@nestjs/testing";
 import {
   CLASSIFICATION_GUARDRAIL_STATUSES,
   LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
 } from "@lcsp/contracts/scan";
+import { CommandBus } from "@nestjs/cqrs";
+import { Test, type TestingModule } from "@nestjs/testing";
 
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import type { AcceptClassificationDto } from "../../application/contracts/classification/classification-result-callback.contract.js";
@@ -62,7 +62,7 @@ describe("ClassificationController", () => {
         accepted: true,
         legal_rule_match_id: "lrm-123",
         guardrail_status: LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.passed,
-        correlation_id: "corr-123",
+        correlationId: "corr-123",
       });
 
     const commandBus = {
@@ -97,7 +97,7 @@ describe("ClassificationController", () => {
         accepted: true,
         legal_rule_match_id: "lrm-123",
         guardrail_status: LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.passed,
-        correlation_id: "corr-123",
+        correlationId: "corr-123",
       },
     });
 
@@ -121,7 +121,7 @@ describe("ClassificationController", () => {
         accepted: true,
         legal_rule_match_id: "lrm-123",
         guardrail_status: LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.passed,
-        correlation_id: "corr-123",
+        correlationId: "corr-123",
       },
     });
 

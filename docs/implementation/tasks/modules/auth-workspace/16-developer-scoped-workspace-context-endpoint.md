@@ -19,21 +19,21 @@ Return the current, display-safe organization and assessment context for an auth
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts` | Modify | Add `GET /workspace/developer-task` |
-| `apps/api/src/modules/auth-workspace/application/queries/get-developer-task-context/get-developer-task-context.query.ts` | Create | Authenticated query shape |
-| `apps/api/src/modules/auth-workspace/application/queries/get-developer-task-context/get-developer-task-context.handler.ts` | Create | PBAC/scope validation and safe projection |
-| `apps/api/src/modules/auth-workspace/application/contracts/auth-workspace/developer-task-context.contract.ts` | Create | Success and stable error contract |
-| `apps/api/src/modules/auth-workspace/application/ports/persistence/assessment-scope.repository.ts` | Modify | Add organization-scoped assessment display lookup |
-| `apps/api/src/modules/auth-workspace/infrastructure/persistence/prisma-assessment-scope.repository.ts` | Modify | Select only assessment ID, organization ID, and name |
-| `apps/api/src/modules/auth-workspace/application/services/auth-workspace/auth-workspace.facade.ts` | Modify | Expose query dispatch |
-| `apps/api/src/modules/auth-workspace/auth-workspace.module.ts` | Modify | Register the context handler |
-| `apps/api/src/platform/pbac/decorators/require-any-action-as-pbac.decorator.ts` | Create | Keep inactive-membership failures non-enumerating for this scoped route |
-| `apps/api/src/platform/pbac/decorators/pbac-metadata.ts` | Modify | Carry endpoint-specific membership denial behavior |
-| `apps/api/src/platform/pbac/pbac.guard.ts` | Modify | Map inactive membership to the endpoint's stable `PBAC_DENIED` contract |
-| `packages/contracts/src/auth/audit-event-types.ts` | Modify | Add allow/deny context projection audit events |
-| `apps/api/test/developer-task-context.e2e-spec.ts` | Create | Scope, revocation, narrowing, and non-leak coverage |
+| File                                                                                                                       | Action | Notes                                                                   |
+| -------------------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------- |
+| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts`                                       | Modify | Add `GET /workspace/developer-task`                                     |
+| `apps/api/src/modules/auth-workspace/application/queries/get-developer-task-context/get-developer-task-context.query.ts`   | Create | Authenticated query shape                                               |
+| `apps/api/src/modules/auth-workspace/application/queries/get-developer-task-context/get-developer-task-context.handler.ts` | Create | PBAC/scope validation and safe projection                               |
+| `apps/api/src/modules/auth-workspace/application/contracts/auth-workspace/developer-task-context.contract.ts`              | Create | Success and stable error contract                                       |
+| `apps/api/src/modules/auth-workspace/application/ports/persistence/assessment-scope.repository.ts`                         | Modify | Add organization-scoped assessment display lookup                       |
+| `apps/api/src/modules/auth-workspace/infrastructure/persistence/prisma-assessment-scope.repository.ts`                     | Modify | Select only assessment ID, organization ID, and name                    |
+| `apps/api/src/modules/auth-workspace/application/services/auth-workspace/auth-workspace.facade.ts`                         | Modify | Expose query dispatch                                                   |
+| `apps/api/src/modules/auth-workspace/auth-workspace.module.ts`                                                             | Modify | Register the context handler                                            |
+| `apps/api/src/platform/pbac/decorators/require-any-action-as-pbac.decorator.ts`                                            | Create | Keep inactive-membership failures non-enumerating for this scoped route |
+| `apps/api/src/platform/pbac/decorators/pbac-metadata.ts`                                                                   | Modify | Carry endpoint-specific membership denial behavior                      |
+| `apps/api/src/platform/pbac/pbac.guard.ts`                                                                                 | Modify | Map inactive membership to the endpoint's stable `PBAC_DENIED` contract |
+| `packages/contracts/src/auth/audit-event-types.ts`                                                                         | Modify | Add allow/deny context projection audit events                          |
+| `apps/api/test/developer-task-context.e2e-spec.ts`                                                                         | Create | Scope, revocation, narrowing, and non-leak coverage                     |
 
 ## API Contract
 
@@ -42,34 +42,34 @@ Return the current, display-safe organization and assessment context for an auth
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `organization` | `{ id: string, name: string }` | Session organization only |
-| `scope` | `{ type: 'assessment', assessment: { id: string, name: string } } \| { type: 'organization', assessment: null }` | Derived from current membership subject attributes |
-| `granted_actions` | string[] | Current policy actions intersected with invitation attributes and `DEVELOPER_ALLOWED_ACTIONS` |
-| `session_expires_at` | string | ISO 8601 |
-| `correlation_id` | string | Safe correlation identifier |
+| Field                | Type                                                                                                             | Notes                                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `organization`       | `{ id: string, name: string }`                                                                                   | Session organization only                                                                     |
+| `scope`              | `{ type: 'assessment', assessment: { id: string, name: string } } \| { type: 'organization', assessment: null }` | Derived from current membership subject attributes                                            |
+| `granted_actions`    | string[]                                                                                                         | Current policy actions intersected with invitation attributes and `DEVELOPER_ALLOWED_ACTIONS` |
+| `session_expires_at` | string                                                                                                           | ISO 8601                                                                                      |
+| `correlationId`      | string                                                                                                           | Safe correlation identifier                                                                   |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 401 | `SESSION_INVALID` | Session missing, expired, or revoked |
-| 401 | `MFA_REQUIRED` | Organization policy requires unfinished MFA |
-| 403 | `PBAC_DENIED` | Membership inactive, policy unavailable/denied, non-Developer subject, or required scoped access removed |
-| 404 | `TASK_SCOPE_NOT_FOUND` | Persisted assessment scope cannot be resolved inside the session organization |
+| HTTP | `error_code`           | Meaning                                                                                                  |
+| ---- | ---------------------- | -------------------------------------------------------------------------------------------------------- |
+| 401  | `SESSION_INVALID`      | Session missing, expired, or revoked                                                                     |
+| 401  | `MFA_REQUIRED`         | Organization policy requires unfinished MFA                                                              |
+| 403  | `PBAC_DENIED`          | Membership inactive, policy unavailable/denied, non-Developer subject, or required scoped access removed |
+| 404  | `TASK_SCOPE_NOT_FOUND` | Persisted assessment scope cannot be resolved inside the session organization                            |
 
 The 403 and 404 bodies expose no policy internals, membership details, foreign organization data, or alternate assessment identifiers.
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `AuthSession` | Read | Active session, user, organization, expiry, MFA state |
-| `AuthMembership` | Read | Status, subject attributes, pinned policy/version |
-| `AuthPolicy` | Read | Current allowed action projection |
-| `AuthOrganization` | Read | `id`, `name` |
-| `Assessment` | Read | `id`, `organizationId`, `name` |
+| Model              | Action | Key fields                                            |
+| ------------------ | ------ | ----------------------------------------------------- |
+| `AuthSession`      | Read   | Active session, user, organization, expiry, MFA state |
+| `AuthMembership`   | Read   | Status, subject attributes, pinned policy/version     |
+| `AuthPolicy`       | Read   | Current allowed action projection                     |
+| `AuthOrganization` | Read   | `id`, `name`                                          |
+| `Assessment`       | Read   | `id`, `organizationId`, `name`                        |
 
 ## Business Rules
 
@@ -89,18 +89,18 @@ Protected by session validation and PBAC. Assessment-scoped context requires the
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Active Developer with assessment scope | 200 with exact org/assessment labels and whitelisted current actions |
-| T02 | Active organization-scoped Developer | 200 with organization scope and null assessment |
-| T03 | Revoked or expired session | 401 `SESSION_INVALID` |
-| T04 | Policy narrowed while session remains valid | 403 `PBAC_DENIED` |
-| T05 | Membership revoked but session record remains | Fail closed; no context returned |
-| T06 | Scope points to foreign/missing assessment | 404 `TASK_SCOPE_NOT_FOUND`; no foreign label leaked |
-| T07 | Policy contains Manager-only action | Action absent from response |
-| T08 | Missing policy/evaluator failure | 403 `PBAC_DENIED` and deny audit |
-| T09 | Response inspection | No findings, location data, repository data, policy internals, or raw subject attributes |
-| T10 | Manager calls Developer endpoint | 403 `PBAC_DENIED`; Manager workspace remains unaffected |
+| ID  | Scenario                                      | Expected                                                                                 |
+| --- | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| T01 | Active Developer with assessment scope        | 200 with exact org/assessment labels and whitelisted current actions                     |
+| T02 | Active organization-scoped Developer          | 200 with organization scope and null assessment                                          |
+| T03 | Revoked or expired session                    | 401 `SESSION_INVALID`                                                                    |
+| T04 | Policy narrowed while session remains valid   | 403 `PBAC_DENIED`                                                                        |
+| T05 | Membership revoked but session record remains | Fail closed; no context returned                                                         |
+| T06 | Scope points to foreign/missing assessment    | 404 `TASK_SCOPE_NOT_FOUND`; no foreign label leaked                                      |
+| T07 | Policy contains Manager-only action           | Action absent from response                                                              |
+| T08 | Missing policy/evaluator failure              | 403 `PBAC_DENIED` and deny audit                                                         |
+| T09 | Response inspection                           | No findings, location data, repository data, policy internals, or raw subject attributes |
+| T10 | Manager calls Developer endpoint              | 403 `PBAC_DENIED`; Manager workspace remains unaffected                                  |
 
 ## Definition of Done
 

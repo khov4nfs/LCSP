@@ -1,18 +1,11 @@
 import * as crypto from "node:crypto";
 
 import {
-  ConflictException,
-  HttpStatus,
-  NotFoundException,
-  UnprocessableEntityException,
-} from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import {
+  AUDIT_ACTOR_IDS,
+  AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
-  AUDIT_ACTOR_IDS,
-  AUDIT_ACTOR_TYPES,
 } from "@lcsp/contracts/audit";
 import {
   AI_USAGE_FLOW_STATUSES,
@@ -22,6 +15,13 @@ import {
   VERIFIED_PROFILE_SCHEMA_VERSIONS,
   VERIFIED_PROFILE_STATUSES,
 } from "@lcsp/contracts/scan";
+import {
+  ConflictException,
+  HttpStatus,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { Prisma } from "@prisma/client";
 
 import {
@@ -138,7 +138,7 @@ export class AcceptVerifiedProfileHandler implements ICommandHandler<AcceptVerif
       accepted: true,
       verified_profile_id: verifiedProfileId,
       status,
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
     };
   }
 

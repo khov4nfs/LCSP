@@ -15,7 +15,7 @@ export type AcceptInvitationResponse = {
   scope:
     | { type: "assessment"; assessment_id: string }
     | { type: "organization"; assessment_id: null };
-  correlation_id: string;
+  correlationId: string;
 };
 
 export type AcceptInvitationErrorCode =

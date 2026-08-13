@@ -225,7 +225,7 @@ def test_consumer_fetches_accepted_evidence_and_posts_callback() -> None:
     api_client.get_accepted_technical_evidence_report.return_value = _evidence_report()
     consumer = TechnicalProfileConsumer(_config(), api_client=api_client)
 
-    consumer.handle({"evidenceReportId": "ter-1"}, correlation_id="corr-1")
+    consumer.handle({"evidenceReportId": "ter-1"}, correlationId="corr-1")
 
     api_client.get_accepted_technical_evidence_report.assert_called_once_with("ter-1")
     api_client.post_technical_profile_callback.assert_called_once()
@@ -243,7 +243,7 @@ def test_consumer_rejects_non_accepted_report_before_callback() -> None:
     consumer = TechnicalProfileConsumer(_config(), api_client=api_client)
 
     with pytest.raises(ValueError, match="accepted"):
-        consumer.handle({"evidenceReportId": "ter-1"}, correlation_id="corr-1")
+        consumer.handle({"evidenceReportId": "ter-1"}, correlationId="corr-1")
 
     api_client.post_technical_profile_callback.assert_not_called()
 

@@ -18,12 +18,12 @@ Receive the `TechnicalProfile` artifact from the Python intelligence worker afte
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/evidence/presentation/http/evidence.controller.ts` | Modify | Add `POST /internal/evidence/technical-profile-callback` |
-| `apps/api/src/modules/evidence/application/commands/accept-technical-profile/accept-technical-profile.command.ts` | Create | Command shape |
-| `apps/api/src/modules/evidence/application/commands/accept-technical-profile/accept-technical-profile.handler.ts` | Create | Validation + persistence + event emission |
-| `apps/api/prisma/schema.prisma` | Modify | Add `TechnicalProfile` model |
+| File                                                                                                              | Action | Notes                                                    |
+| ----------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------- |
+| `apps/api/src/modules/evidence/presentation/http/evidence.controller.ts`                                          | Modify | Add `POST /internal/evidence/technical-profile-callback` |
+| `apps/api/src/modules/evidence/application/commands/accept-technical-profile/accept-technical-profile.command.ts` | Create | Command shape                                            |
+| `apps/api/src/modules/evidence/application/commands/accept-technical-profile/accept-technical-profile.handler.ts` | Create | Validation + persistence + event emission                |
+| `apps/api/prisma/schema.prisma`                                                                                   | Modify | Add `TechnicalProfile` model                             |
 
 ## Prisma Model
 
@@ -52,32 +52,32 @@ model TechnicalProfile {
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `evidence_report_id` | string | Yes | Source evidence report |
-| `assessment_id` | string | Yes | |
-| `schema_version` | string | Yes | |
-| `provider_version` | string | Yes | Intelligence worker version |
-| `profile_data` | object | Yes | Validated TechnicalProfile payload |
-| `privacy_flags` | object | Yes | `containsSourceCode`, `secretsRedacted` |
+| Field                | Type   | Required | Notes                                   |
+| -------------------- | ------ | -------- | --------------------------------------- |
+| `evidence_report_id` | string | Yes      | Source evidence report                  |
+| `assessment_id`      | string | Yes      |                                         |
+| `schema_version`     | string | Yes      |                                         |
+| `provider_version`   | string | Yes      | Intelligence worker version             |
+| `profile_data`       | object | Yes      | Validated TechnicalProfile payload      |
+| `privacy_flags`      | object | Yes      | `containsSourceCode`, `secretsRedacted` |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `accepted` | boolean | |
-| `technical_profile_id` | string | |
-| `correlation_id` | string | |
+| Field                  | Type    | Notes |
+| ---------------------- | ------- | ----- |
+| `accepted`             | boolean |       |
+| `technical_profile_id` | string  |       |
+| `correlationId`        | string  |       |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 401 | `UNAUTHORIZED` | Invalid worker API key |
-| 404 | `EVIDENCE_REPORT_NOT_FOUND` | Source evidence report not found |
-| 409 | `PROFILE_ALREADY_EXISTS` | TechnicalProfile already accepted for this evidence |
-| 422 | `SCHEMA_INVALID` | Unknown schema version or missing required fields |
-| 422 | `PRIVACY_FLAGS_INVALID` | Source code or unredacted secrets in payload |
+| HTTP | `error_code`                | Meaning                                             |
+| ---- | --------------------------- | --------------------------------------------------- |
+| 401  | `UNAUTHORIZED`              | Invalid worker API key                              |
+| 404  | `EVIDENCE_REPORT_NOT_FOUND` | Source evidence report not found                    |
+| 409  | `PROFILE_ALREADY_EXISTS`    | TechnicalProfile already accepted for this evidence |
+| 422  | `SCHEMA_INVALID`            | Unknown schema version or missing required fields   |
+| 422  | `PRIVACY_FLAGS_INVALID`     | Source code or unredacted secrets in payload        |
 
 ## Business Rules
 
@@ -92,23 +92,23 @@ model TechnicalProfile {
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `AcceptTechnicalProfileCommand` | App command | `{ evidenceReportId, assessmentId, schemaVersion, providerVersion, privacyFlags, correlationId? }` |
-| `event.technical-profile-ready` | Outbox | `{ technicalProfileId, assessmentId, evidenceReportId, correlationId }` |
-| `TECHNICAL_PROFILE_ACCEPTED` | `AuthAuditEvent` | `{ technicalProfileId, assessmentId, evidenceReportId, correlationId }` |
+| Name                            | Type             | Safe payload                                                                                       |
+| ------------------------------- | ---------------- | -------------------------------------------------------------------------------------------------- |
+| `AcceptTechnicalProfileCommand` | App command      | `{ evidenceReportId, assessmentId, schemaVersion, providerVersion, privacyFlags, correlationId? }` |
+| `event.technical-profile-ready` | Outbox           | `{ technicalProfileId, assessmentId, evidenceReportId, correlationId }`                            |
+| `TECHNICAL_PROFILE_ACCEPTED`    | `AuthAuditEvent` | `{ technicalProfileId, assessmentId, evidenceReportId, correlationId }`                            |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid profile + clean privacy flags | 200 accepted |
-| T02 | `containsSourceCode = true` | 422 `PRIVACY_FLAGS_INVALID` |
-| T03 | Profile already exists | 409 `PROFILE_ALREADY_EXISTS` |
-| T04 | Evidence report not found | 404 `EVIDENCE_REPORT_NOT_FOUND` |
-| T05 | Invalid API key | 401 |
-| T06 | Outbox `technical-profile-ready` created | DB verified |
-| T07 | `TechnicalProfile` immutable | No update path |
+| ID  | Scenario                                 | Expected                        |
+| --- | ---------------------------------------- | ------------------------------- |
+| T01 | Valid profile + clean privacy flags      | 200 accepted                    |
+| T02 | `containsSourceCode = true`              | 422 `PRIVACY_FLAGS_INVALID`     |
+| T03 | Profile already exists                   | 409 `PROFILE_ALREADY_EXISTS`    |
+| T04 | Evidence report not found                | 404 `EVIDENCE_REPORT_NOT_FOUND` |
+| T05 | Invalid API key                          | 401                             |
+| T06 | Outbox `technical-profile-ready` created | DB verified                     |
+| T07 | `TechnicalProfile` immutable             | No update path                  |
 
 ## Definition of Done
 

@@ -33,7 +33,7 @@ class TechnicalProfileConsumer(ConsumerBase):
         )
         self._profile_builder = profile_builder or TechnicalProfileBuilder()
 
-    def handle(self, message: dict, correlation_id: str) -> None:
+    def handle(self, message: dict, correlationId: str) -> None:
         evidence_report_id = self._evidence_report_id(message)
         evidence_report = self._api_client.get_accepted_technical_evidence_report(
             evidence_report_id
@@ -56,7 +56,7 @@ class TechnicalProfileConsumer(ConsumerBase):
             evidence_report_id=profile.evidence_report_id,
             assessment_id=profile.assessment_id,
             evidence_quality=profile.evidence_quality,
-            correlation_id=correlation_id,
+            correlationId=correlationId,
         )
 
     def _evidence_report_id(self, message: dict[str, Any]) -> str:

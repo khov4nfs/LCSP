@@ -1,18 +1,19 @@
 import * as crypto from "node:crypto";
 
+import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import { Body, Controller, Headers, HttpStatus, Post } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 
-import { PbacPreflightService } from "./pbac-preflight.service.js";
 import { problemException } from "../problems/problem-factory.js";
 import { resultEnvelope } from "../problems/result-envelope.js";
+import { PbacPreflightService } from "./pbac-preflight.service.js";
 
 interface PreflightRequestBody {
   user_id?: string;
   organization_id?: string;
   action?: string;
-  correlation_id?: string;
+  correlationId?: string;
+  correlationId?: string;
 }
 
 @Controller("internal/pbac")
@@ -33,13 +34,13 @@ export class PbacPreflightController {
       userId: body.user_id ?? "",
       organizationId: body.organization_id ?? "",
       action: body.action ?? "",
-      correlationId: body.correlation_id ?? "",
+      correlationId: body.correlationId ?? body.correlationId ?? "",
     });
 
     return resultEnvelope({
       decision: result.decision,
       reason_code: result.reasonCode,
-      correlation_id: result.correlationId,
+      correlationId: result.correlationId,
     });
   }
 

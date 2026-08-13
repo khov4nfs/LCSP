@@ -106,7 +106,7 @@ def test_fetcher_routes_vbpl_and_returns_snapshot_metadata(tmp_path: Path):
     assert result.source_effect_status == "Còn hiệu lực"
     assert result.normalization_source == "VBPL_GATEWAY_JSON"
     tool_response = result.to_tool_response(
-        correlation_id="corr-1",
+        correlationId="corr-1",
         admin_catalog_version="catalog_v2026_08",
         catalog_source_ref="catalog-source:vbpl.vn:law:71-2025-qh15",
         expected_document_number="71/2025/QH15",

@@ -1,11 +1,11 @@
-import { HttpStatus } from "@nestjs/common";
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import {
   REPOSITORY_SCAN_JOB_STATUSES,
   type RepositoryScanJobStatus,
 } from "@lcsp/contracts/github-integration";
 import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import { SCAN_ERROR_CODES, SCAN_JOB_GUIDANCE } from "@lcsp/contracts/scan";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
 import {
   fromPrismaRepositoryScanJobStatus,
@@ -62,7 +62,7 @@ export class GetScanJobHandler implements IQueryHandler<GetScanJobQuery> {
       next_action: nextActionFor(status),
       created_at: job.createdAt.toISOString(),
       updated_at: job.updatedAt.toISOString(),
-      correlation_id: job.correlationId,
+      correlationId: job.correlationId,
     };
   }
 

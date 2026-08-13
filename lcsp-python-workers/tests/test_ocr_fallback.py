@@ -230,7 +230,7 @@ def test_run_ocr_fallback_supports_single_image_and_persists_record(tmp_path: Pa
     repository = OcrFallbackRepository(storage_root=storage_root)
     repository.save(result.to_record())
     loaded = repository.get_by_provenance_ref(result.provenance_ref)
-    payload = result.to_tool_response(correlation_id="corr-ocr")
+    payload = result.to_tool_response(correlationId="corr-ocr")
 
     assert result.status == "READY"
     assert loaded is not None

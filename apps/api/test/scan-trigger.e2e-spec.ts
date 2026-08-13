@@ -1,23 +1,23 @@
-import {
-  GITHUB_INTEGRATION_ERROR_CODES,
-  GITHUB_INTEGRATION_EVENT_TYPES,
-  REPOSITORY_SNAPSHOT_STATUSES,
-} from "@lcsp/contracts/github-integration";
 import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import {
   AUDIT_EVENT_SCHEMA_VERSION,
   AUDIT_REDACTION_STATUSES,
 } from "@lcsp/contracts/audit";
-import { PBAC_ACTIONS, PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
+import {
+  GITHUB_INTEGRATION_ERROR_CODES,
+  GITHUB_INTEGRATION_EVENT_TYPES,
+  REPOSITORY_SNAPSHOT_STATUSES,
+} from "@lcsp/contracts/github-integration";
 import { OUTBOX_MESSAGE_SCHEMA_VERSION } from "@lcsp/contracts/outbox";
+import { PBAC_ACTIONS, PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
 /** MW-gh-004: Scan Trigger Endpoint. */
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 import {
   REPOSITORY_SCAN_JOB_STATUSES,
@@ -25,8 +25,8 @@ import {
 } from "@lcsp/contracts/github-integration";
 
 import { AppModule } from "../src/app.module.js";
-import type { TriggerScanDto } from "../src/modules/github-integration/application/contracts/github-integration/trigger-scan.contract.js";
 import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
+import type { TriggerScanDto } from "../src/modules/github-integration/application/contracts/github-integration/trigger-scan.contract.js";
 import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
@@ -122,7 +122,7 @@ describe("Scan Trigger Endpoint (e2e) [MW-gh-004]", () => {
     );
     assert.equal(
       (event.payload as { causationId?: string }).causationId,
-      body.correlation_id,
+      body.correlationId,
     );
     const audit = await prisma.authAuditEvent.findFirst({
       where: {

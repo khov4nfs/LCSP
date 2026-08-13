@@ -2,10 +2,10 @@ import { HttpStatus, Inject, Logger } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import {
+  AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
-  AUDIT_ACTOR_TYPES,
 } from "@lcsp/contracts/audit";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
@@ -218,7 +218,7 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
       branch: snapshot.branch,
       status: snapshot.status,
       created_at: snapshot.createdAt.toISOString(),
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
     };
   }
 

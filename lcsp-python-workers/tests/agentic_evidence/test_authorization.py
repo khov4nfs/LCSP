@@ -18,7 +18,7 @@ def response(decision: str, reason: str | None = None) -> httpx.Response:
             "data": {
                 "decision": decision,
                 "reason_code": reason,
-                "correlation_id": str(uuid4()),
+                "correlationId": str(uuid4()),
             },
         },
     )
@@ -46,7 +46,7 @@ def test_technical_tool_accepts_redacted_read_when_full_read_is_denied() -> None
         tool_name="get_scan_coverage",
         user_id="user-1",
         organization_id="org-1",
-        correlation_id=uuid4(),
+        correlationId=uuid4(),
     )
 
     assert seen_actions == ["evidence:read", "evidence:read:redacted"]
@@ -70,7 +70,7 @@ def test_pbac_denial_is_safe_and_terminal() -> None:
             tool_name="propose_gap_remediation",
             user_id="user-1",
             organization_id="org-1",
-            correlation_id=uuid4(),
+            correlationId=uuid4(),
         )
 
 
@@ -97,7 +97,7 @@ def test_unregistered_pbac_action_fails_closed_without_network_call() -> None:
             tool_name="resume_waiting_runs",
             user_id="user-1",
             organization_id="org-1",
-            correlation_id=uuid4(),
+            correlationId=uuid4(),
         )
     assert called is False
 
@@ -121,5 +121,5 @@ def test_pbac_network_failure_does_not_dispatch_as_allow() -> None:
             tool_name="get_scan_coverage",
             user_id="user-1",
             organization_id="org-1",
-            correlation_id=uuid4(),
+            correlationId=uuid4(),
         )

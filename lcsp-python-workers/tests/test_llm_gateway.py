@@ -251,7 +251,7 @@ def test_t09_gemini_provider_integration_uses_google_genai(budget_tracker):
             "Hello Gemini",
             workflow_run_id="wf-gemini",
             node_name="classification.rationale_narrator",
-            correlation_id="corr-gemini-123"
+            correlationId="corr-gemini-123"
         )
 
         assert res.content == "Here is a Gemini response."

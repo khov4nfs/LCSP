@@ -19,13 +19,13 @@ Allow a Manager to trigger GapAnalysis document generation from an accepted `Cla
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/document/presentation/http/document.controller.ts` | Create | `POST /assessments/:assessmentId/documents/gap-analysis` |
-| `apps/api/src/modules/document/application/commands/request-gap-analysis/request-gap-analysis.command.ts` | Create | Command shape |
-| `apps/api/src/modules/document/application/commands/request-gap-analysis/request-gap-analysis.handler.ts` | Create | Gate check + outbox enqueue |
-| `apps/api/prisma/schema.prisma` | Modify | Add `DocumentRequest` model |
-| `apps/api/src/modules/document/document.module.ts` | Create | NestJS module |
+| File                                                                                                      | Action | Notes                                                    |
+| --------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------- |
+| `apps/api/src/modules/document/presentation/http/document.controller.ts`                                  | Create | `POST /assessments/:assessmentId/documents/gap-analysis` |
+| `apps/api/src/modules/document/application/commands/request-gap-analysis/request-gap-analysis.command.ts` | Create | Command shape                                            |
+| `apps/api/src/modules/document/application/commands/request-gap-analysis/request-gap-analysis.handler.ts` | Create | Gate check + outbox enqueue                              |
+| `apps/api/prisma/schema.prisma`                                                                           | Modify | Add `DocumentRequest` model                              |
+| `apps/api/src/modules/document/document.module.ts`                                                        | Create | NestJS module                                            |
 
 ## Prisma Model
 
@@ -57,21 +57,21 @@ model DocumentRequest {
 
 **Success response (202):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `document_request_id` | string | |
-| `status` | string | `QUEUED` |
-| `document_type` | string | `GapAnalysis` |
-| `correlation_id` | string | |
+| Field                 | Type   | Notes         |
+| --------------------- | ------ | ------------- |
+| `document_request_id` | string |               |
+| `status`              | string | `QUEUED`      |
+| `document_type`       | string | `GapAnalysis` |
+| `correlationId`       | string |               |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 403 | `PBAC_DENIED` | Actor lacks `document:generate` |
-| 404 | `ASSESSMENT_NOT_FOUND` | |
-| 409 | `CLASSIFICATION_REQUIRED` | No accepted `ClassificationResult` |
-| 409 | `DOCUMENT_ALREADY_QUEUED` | Existing QUEUED or GENERATING request |
+| HTTP | `error_code`              | Meaning                               |
+| ---- | ------------------------- | ------------------------------------- |
+| 403  | `PBAC_DENIED`             | Actor lacks `document:generate`       |
+| 404  | `ASSESSMENT_NOT_FOUND`    |                                       |
+| 409  | `CLASSIFICATION_REQUIRED` | No accepted `ClassificationResult`    |
+| 409  | `DOCUMENT_ALREADY_QUEUED` | Existing QUEUED or GENERATING request |
 
 ## Business Rules
 
@@ -86,22 +86,22 @@ model DocumentRequest {
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `RequestGapAnalysisCommand` | App command | `{ assessmentId, organizationId, requestedById, classificationResultId, correlationId? }` |
-| `event.document.gap-analysis-requested` | Outbox | `{ documentRequestId, assessmentId, classificationResultId, correlationId }` |
-| `DOCUMENT_GAP_ANALYSIS_REQUESTED` | `AuthAuditEvent` | `{ documentRequestId, assessmentId, correlationId }` |
+| Name                                    | Type             | Safe payload                                                                              |
+| --------------------------------------- | ---------------- | ----------------------------------------------------------------------------------------- |
+| `RequestGapAnalysisCommand`             | App command      | `{ assessmentId, organizationId, requestedById, classificationResultId, correlationId? }` |
+| `event.document.gap-analysis-requested` | Outbox           | `{ documentRequestId, assessmentId, classificationResultId, correlationId }`              |
+| `DOCUMENT_GAP_ANALYSIS_REQUESTED`       | `AuthAuditEvent` | `{ documentRequestId, assessmentId, correlationId }`                                      |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid request with accepted classification | 202 QUEUED |
-| T02 | No accepted classification | 409 `CLASSIFICATION_REQUIRED` |
-| T03 | Existing QUEUED request | 409 `DOCUMENT_ALREADY_QUEUED` |
-| T04 | Actor lacks `document:generate` | 403 `PBAC_DENIED` |
-| T05 | Outbox event created | DB verified |
-| T06 | Response is 202 (async) | HTTP status verified |
+| ID  | Scenario                                   | Expected                      |
+| --- | ------------------------------------------ | ----------------------------- |
+| T01 | Valid request with accepted classification | 202 QUEUED                    |
+| T02 | No accepted classification                 | 409 `CLASSIFICATION_REQUIRED` |
+| T03 | Existing QUEUED request                    | 409 `DOCUMENT_ALREADY_QUEUED` |
+| T04 | Actor lacks `document:generate`            | 403 `PBAC_DENIED`             |
+| T05 | Outbox event created                       | DB verified                   |
+| T06 | Response is 202 (async)                    | HTTP status verified          |
 
 ## Definition of Done
 

@@ -18,5 +18,5 @@ export interface ConflictListDto {
   total: number;
   page: number;
   page_size: number;
-  correlation_id: string;
+  correlationId: string;
 }

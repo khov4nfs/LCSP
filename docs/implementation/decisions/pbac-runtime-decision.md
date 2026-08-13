@@ -23,25 +23,25 @@ The default result is deny. Missing policy, missing attributes, stale policy ver
 
 ## Policy Storage
 
-| Object | Store | Owner | Mutability |
-|---|---|---|---|
-| Policy template | PostgreSQL | Platform | versioned append/update by migration |
-| Policy assignment | PostgreSQL | Platform | append/update with audit |
-| Subject attributes | PostgreSQL | Organization / Platform | mutable with audit |
-| Policy decision audit | AuditEvent | Platform | append-only |
+| Object                | Store      | Owner                   | Mutability                           |
+| --------------------- | ---------- | ----------------------- | ------------------------------------ |
+| Policy template       | PostgreSQL | Platform                | versioned append/update by migration |
+| Policy assignment     | PostgreSQL | Platform                | append/update with audit             |
+| Subject attributes    | PostgreSQL | Organization / Platform | mutable with audit                   |
+| Policy decision audit | AuditEvent | Platform                | append-only                          |
 
 Policy records must include `policy_id`, `policy_version`, `scope_type`, `scope_id`, `effect`, `actions`, `resource_constraints`, `subject_constraints`, `state_constraints`, `created_at`, and `activated_at`.
 
 ## Evaluation Topology
 
-| Boundary | Evaluator location | Required behavior |
-|---|---|---|
-| Web UI | Backend-projected capabilities only | UI hints are non-authoritative |
-| Public API | NestJS guard + domain service recheck | server-side deny-by-default |
-| Internal API | NestJS guard + service principal policy | service identity must be scoped |
-| Worker command | Python worker preflight | command principal and aggregate scope must match |
-| Worker result application | NestJS or persistence-side handler | state transition guard rechecked before commit |
-| Artifact download/export | API guard at request time | revocation after generation blocks download |
+| Boundary                  | Evaluator location                      | Required behavior                                |
+| ------------------------- | --------------------------------------- | ------------------------------------------------ |
+| Web UI                    | Backend-projected capabilities only     | UI hints are non-authoritative                   |
+| Public API                | NestJS guard + domain service recheck   | server-side deny-by-default                      |
+| Internal API              | NestJS guard + service principal policy | service identity must be scoped                  |
+| Worker command            | Python worker preflight                 | command principal and aggregate scope must match |
+| Worker result application | NestJS or persistence-side handler      | state transition guard rechecked before commit   |
+| Artifact download/export  | API guard at request time               | revocation after generation blocks download      |
 
 ## Cache and Invalidation
 
@@ -53,15 +53,15 @@ Policy records must include `policy_id`, `policy_version`, `scope_type`, `scope_
 
 ## Failure Behavior
 
-| Failure | Decision | User/operator signal | Audit |
-|---|---|---|---|
-| policy store unavailable | deny | `AUTHZ_POLICY_UNAVAILABLE` | denied PBAC event |
-| policy version unknown | deny | `AUTHZ_POLICY_VERSION_UNKNOWN` | denied PBAC event |
-| subject attributes missing | deny | `AUTHZ_SUBJECT_INCOMPLETE` | denied PBAC event |
-| organization mismatch | deny | `AUTHZ_TENANT_SCOPE_MISMATCH` | denied PBAC event |
-| resource scope mismatch | deny | `AUTHZ_RESOURCE_SCOPE_MISMATCH` | denied PBAC event |
-| state gate not satisfied | deny | `AUTHZ_STATE_GATE_BLOCKED` | state-gate denied event |
-| evaluator exception | deny | `AUTHZ_EVALUATOR_FAILURE` | denied PBAC event with correlation ID |
+| Failure                    | Decision | User/operator signal            | Audit                                 |
+| -------------------------- | -------- | ------------------------------- | ------------------------------------- |
+| policy store unavailable   | deny     | `AUTHZ_POLICY_UNAVAILABLE`      | denied PBAC event                     |
+| policy version unknown     | deny     | `AUTHZ_POLICY_VERSION_UNKNOWN`  | denied PBAC event                     |
+| subject attributes missing | deny     | `AUTHZ_SUBJECT_INCOMPLETE`      | denied PBAC event                     |
+| organization mismatch      | deny     | `AUTHZ_TENANT_SCOPE_MISMATCH`   | denied PBAC event                     |
+| resource scope mismatch    | deny     | `AUTHZ_RESOURCE_SCOPE_MISMATCH` | denied PBAC event                     |
+| state gate not satisfied   | deny     | `AUTHZ_STATE_GATE_BLOCKED`      | state-gate denied event               |
+| evaluator exception        | deny     | `AUTHZ_EVALUATOR_FAILURE`       | denied PBAC event with correlation ID |
 
 ## Audit Contract
 
@@ -75,17 +75,17 @@ Every material allow or deny must write or link an AuditEvent with:
 - `reason_code`;
 - `policy_id`, `policy_version`;
 - `state_before`, `state_after` when safe;
-- `correlation_id`;
+- `correlationId`;
 - safe context refs only.
 
 ## Acceptance Evidence
 
-| Requirement | Required evidence |
-|---|---|
-| NFR-008 | API and worker authorization negative tests for every protected action class |
-| NFR-009 | revoked Developer scope blocks read/action/download paths |
-| FR-012 | Developer cannot perform Manager-only actions server-side |
-| FR-043 | audit export redacts policy internals and secrets |
+| Requirement | Required evidence                                                            |
+| ----------- | ---------------------------------------------------------------------------- |
+| NFR-008     | API and worker authorization negative tests for every protected action class |
+| NFR-009     | revoked Developer scope blocks read/action/download paths                    |
+| FR-012      | Developer cannot perform Manager-only actions server-side                    |
+| FR-043      | audit export redacts policy internals and secrets                            |
 
 ## Implementation References
 

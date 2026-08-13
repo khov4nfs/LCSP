@@ -19,11 +19,11 @@ Allow a Manager to resolve or dismiss a conflict. Resolution is audited and immu
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/reconciliation/presentation/http/reconciliation.controller.ts` | Modify | Add `PATCH /assessments/:assessmentId/conflicts/:conflictId/resolve` |
-| `apps/api/src/modules/reconciliation/application/commands/resolve-conflict/resolve-conflict.command.ts` | Create | Command shape |
-| `apps/api/src/modules/reconciliation/application/commands/resolve-conflict/resolve-conflict.handler.ts` | Create | Resolution + gate check |
+| File                                                                                                    | Action | Notes                                                                |
+| ------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------------- |
+| `apps/api/src/modules/reconciliation/presentation/http/reconciliation.controller.ts`                    | Modify | Add `PATCH /assessments/:assessmentId/conflicts/:conflictId/resolve` |
+| `apps/api/src/modules/reconciliation/application/commands/resolve-conflict/resolve-conflict.command.ts` | Create | Command shape                                                        |
+| `apps/api/src/modules/reconciliation/application/commands/resolve-conflict/resolve-conflict.handler.ts` | Create | Resolution + gate check                                              |
 
 ## API Contract
 
@@ -32,28 +32,28 @@ Allow a Manager to resolve or dismiss a conflict. Resolution is audited and immu
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `resolution` | string | Yes | `RESOLVED` \| `DISMISSED` |
+| Field             | Type   | Required                                                                      | Notes                                          |
+| ----------------- | ------ | ----------------------------------------------------------------------------- | ---------------------------------------------- |
+| `resolution`      | string | Yes                                                                           | `RESOLVED` \| `DISMISSED`                      |
 | `resolution_note` | string | Required when `resolution = DISMISSED`; optional when `resolution = RESOLVED` | Max 2000 chars — business-language explanation |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `conflict_id` | string | |
-| `status` | string | `RESOLVED` or `DISMISSED` |
-| `resolved_at` | string | ISO 8601 |
+| Field                    | Type    | Notes                             |
+| ------------------------ | ------- | --------------------------------- |
+| `conflict_id`            | string  |                                   |
+| `status`                 | string  | `RESOLVED` or `DISMISSED`         |
+| `resolved_at`            | string  | ISO 8601                          |
 | `all_conflicts_resolved` | boolean | True if no more PENDING conflicts |
-| `correlation_id` | string | |
+| `correlationId`          | string  |                                   |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 403 | `PBAC_DENIED` | Actor lacks `conflict:resolve` |
-| 404 | `CONFLICT_NOT_FOUND` | Not found or not in org |
-| 409 | `CONFLICT_ALREADY_RESOLVED` | Already resolved or dismissed |
+| HTTP | `error_code`                | Meaning                        |
+| ---- | --------------------------- | ------------------------------ |
+| 403  | `PBAC_DENIED`               | Actor lacks `conflict:resolve` |
+| 404  | `CONFLICT_NOT_FOUND`        | Not found or not in org        |
+| 409  | `CONFLICT_ALREADY_RESOLVED` | Already resolved or dismissed  |
 
 ## Business Rules
 
@@ -71,24 +71,24 @@ Allow a Manager to resolve or dismiss a conflict. Resolution is audited and immu
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `ResolveConflictCommand` | App command | `{ conflictId, resolution, resolutionNote?, correlationId? }` |
-| `event.reconciliation.all-conflicts-resolved` | Outbox | `{ assessmentId, correlationId }` (emitted when all PENDING cleared) |
-| `CONFLICT_RESOLVED` | `AuthAuditEvent` | `{ conflictId, resolution, resolvedById, assessmentId, correlationId }` |
+| Name                                          | Type             | Safe payload                                                            |
+| --------------------------------------------- | ---------------- | ----------------------------------------------------------------------- |
+| `ResolveConflictCommand`                      | App command      | `{ conflictId, resolution, resolutionNote?, correlationId? }`           |
+| `event.reconciliation.all-conflicts-resolved` | Outbox           | `{ assessmentId, correlationId }` (emitted when all PENDING cleared)    |
+| `CONFLICT_RESOLVED`                           | `AuthAuditEvent` | `{ conflictId, resolution, resolvedById, assessmentId, correlationId }` |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Manager resolves PENDING conflict | 200 `status = RESOLVED` |
-| T02 | Manager dismisses conflict | 200 `status = DISMISSED` |
-| T03 | Last conflict resolved | `all_conflicts_resolved = true`, outbox event emitted |
-| T04 | Conflict already resolved | 409 `CONFLICT_ALREADY_RESOLVED` |
-| T05 | Developer attempts resolution | 403 `PBAC_DENIED` |
-| T06 | Conflict not in org | 404 `CONFLICT_NOT_FOUND` |
-| T07 | Outbox event only emitted when all resolved | DB verified — no early emission |
-| T08 | Dismiss without reason | 422 `SCHEMA_INVALID` |
+| ID  | Scenario                                    | Expected                                              |
+| --- | ------------------------------------------- | ----------------------------------------------------- |
+| T01 | Manager resolves PENDING conflict           | 200 `status = RESOLVED`                               |
+| T02 | Manager dismisses conflict                  | 200 `status = DISMISSED`                              |
+| T03 | Last conflict resolved                      | `all_conflicts_resolved = true`, outbox event emitted |
+| T04 | Conflict already resolved                   | 409 `CONFLICT_ALREADY_RESOLVED`                       |
+| T05 | Developer attempts resolution               | 403 `PBAC_DENIED`                                     |
+| T06 | Conflict not in org                         | 404 `CONFLICT_NOT_FOUND`                              |
+| T07 | Outbox event only emitted when all resolved | DB verified — no early emission                       |
+| T08 | Dismiss without reason                      | 422 `SCHEMA_INVALID`                                  |
 
 ## Definition of Done
 

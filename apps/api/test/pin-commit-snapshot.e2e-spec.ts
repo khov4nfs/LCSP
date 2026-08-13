@@ -10,21 +10,21 @@ import {
   REPOSITORY_CONNECTION_STATUSES,
   REPOSITORY_SNAPSHOT_STATUSES,
 } from "@lcsp/contracts/github-integration";
-import { PBAC_ACTIONS, PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
 import { OUTBOX_MESSAGE_SCHEMA_VERSION } from "@lcsp/contracts/outbox";
+import { PBAC_ACTIONS, PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
 /** MW-gh-003: Pin Commit Snapshot Endpoint. */
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
+import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
 import type { PinSnapshotDto } from "../src/modules/github-integration/application/contracts/github-integration/pin-snapshot.contract.js";
 import { GitHubAppClient } from "../src/modules/github-integration/infrastructure/github/github-app.client.js";
-import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
 import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
@@ -158,7 +158,7 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
     );
     assert.equal(
       (event.payload as { correlationId?: string }).correlationId,
-      body.correlation_id,
+      body.correlationId,
     );
     const audit = await prisma.authAuditEvent.findFirst({
       where: {

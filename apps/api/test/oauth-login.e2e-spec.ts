@@ -1,5 +1,5 @@
-import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
 import type { AuthMembershipStatus } from "@lcsp/contracts/auth";
+import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
 import {
   PBAC_ACTIONS,
   PBAC_STATE_GATES,
@@ -7,10 +7,10 @@ import {
 } from "@lcsp/contracts/pbac";
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 import { httpRequest, successBody } from "./support/http.js";
 
 import { AUTH_ERROR_CODES, type ProblemResult } from "@lcsp/contracts/auth";
@@ -97,7 +97,7 @@ describe("OAuth login (e2e)", () => {
     const success = successBody<OAuthStartSuccess>(result);
     const url = new URL(success.authorization_url);
     assert.ok(url.searchParams.get("state"));
-    assert.equal(typeof success.correlation_id, "string");
+    assert.equal(typeof success.correlationId, "string");
   });
 
   it("unsupported provider is rejected", async () => {

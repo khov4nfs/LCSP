@@ -1,14 +1,12 @@
 import * as crypto from "node:crypto";
 
-import { HttpStatus } from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
 import {
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import {
@@ -19,6 +17,8 @@ import {
   WIZARD_EVENT_TYPES,
   type WizardAnswer,
 } from "@lcsp/contracts/wizard";
+import { HttpStatus } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { Prisma } from "@prisma/client";
 
 import {
@@ -241,7 +241,7 @@ export class GenerateReadinessExportHandler implements ICommandHandler<
       classification_locked: true,
       generated_at: generatedAt.toISOString(),
       version,
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
       ...(guardrailResult.passed
         ? {
             missing_evidence: content.missing_evidence,

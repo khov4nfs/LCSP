@@ -1,11 +1,8 @@
-import { HttpStatus } from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import type { Prisma } from "@prisma/client";
 import {
+  AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
-  AUDIT_ACTOR_TYPES,
 } from "@lcsp/contracts/audit";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
@@ -18,6 +15,9 @@ import {
   SCAN_ERROR_CODES,
   SCAN_EVENT_TYPES,
 } from "@lcsp/contracts/scan";
+import { HttpStatus } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+import type { Prisma } from "@prisma/client";
 
 import {
   fromPrismaConflictRecordStatus,
@@ -38,7 +38,7 @@ export type ResolveConflictDto = {
     | typeof CONFLICT_RECORD_STATUSES.dismissed;
   resolved_at: string;
   all_conflicts_resolved: boolean;
-  correlation_id: string;
+  correlationId: string;
 };
 
 @CommandHandler(ResolveConflictCommand)
@@ -158,7 +158,7 @@ export class ResolveConflictHandler implements ICommandHandler<ResolveConflictCo
       status: resolution,
       resolved_at: resolvedAt.toISOString(),
       all_conflicts_resolved: result,
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
     };
   }
 

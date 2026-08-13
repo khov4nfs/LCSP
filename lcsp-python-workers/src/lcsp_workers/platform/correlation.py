@@ -2,17 +2,17 @@ import contextvars
 import uuid
 
 _cid: contextvars.ContextVar[str] = contextvars.ContextVar(
-    "correlation_id", default="unknown"
+    "correlationId", default="unknown"
 )
 
-def set_correlation_id(cid: str) -> None:
+def set_correlationId(cid: str) -> None:
     _cid.set(cid)
 
-def get_correlation_id() -> str:
+def get_correlationId() -> str:
     return _cid.get()
 
 def extract_from_amqp_headers(headers: dict | None) -> str:
-    """Extract correlation_id from AMQP headers or generate a new one."""
-    if headers and "correlation_id" in headers:
-        return str(headers["correlation_id"])
+    """Extract correlationId from AMQP headers or generate a new one."""
+    if headers and "correlationId" in headers:
+        return str(headers["correlationId"])
     return str(uuid.uuid4())

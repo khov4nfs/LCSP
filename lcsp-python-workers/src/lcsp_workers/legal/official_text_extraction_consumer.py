@@ -48,7 +48,7 @@ class OfficialTextExtractionConsumer(ConsumerBase):
         )
         self._extractor = extractor or OfficialTextExtractor()
 
-    def handle(self, message: dict[str, Any], correlation_id: str) -> None:
+    def handle(self, message: dict[str, Any], correlationId: str) -> None:
         envelope = self._read_envelope(message)
         storage_root = self._storage_root()
         repository = OfficialTextExtractionRepository(storage_root=storage_root)
@@ -77,7 +77,7 @@ class OfficialTextExtractionConsumer(ConsumerBase):
             snapshot_ref=envelope.snapshot_ref,
             extraction_ref=result.extraction_ref,
             span_manifest_path=str(result.span_manifest_path),
-            correlation_id=correlation_id,
+            correlationId=correlationId,
         )
 
     def _storage_root(self) -> Path:

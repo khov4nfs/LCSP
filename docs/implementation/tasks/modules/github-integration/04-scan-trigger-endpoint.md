@@ -19,13 +19,13 @@ Create or resume a `RepositoryScanJob` for a pinned snapshot. Idempotent: duplic
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/github-integration/presentation/http/github-integration.controller.ts` | Modify | Add `POST /assessments/:assessmentId/scan-jobs` |
-| `apps/api/src/modules/github-integration/application/commands/trigger-scan/trigger-scan.command.ts` | Create | Command shape |
-| `apps/api/src/modules/github-integration/application/commands/trigger-scan/trigger-scan.handler.ts` | Create | Idempotency + job creation |
-| `apps/api/src/modules/github-integration/domain/entities/repository-scan-job.entity.ts` | Create | `RepositoryScanJob` domain entity |
-| `apps/api/prisma/schema.prisma` | Modify | Add `RepositoryScanJob` model |
+| File                                                                                                | Action | Notes                                           |
+| --------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------- |
+| `apps/api/src/modules/github-integration/presentation/http/github-integration.controller.ts`        | Modify | Add `POST /assessments/:assessmentId/scan-jobs` |
+| `apps/api/src/modules/github-integration/application/commands/trigger-scan/trigger-scan.command.ts` | Create | Command shape                                   |
+| `apps/api/src/modules/github-integration/application/commands/trigger-scan/trigger-scan.handler.ts` | Create | Idempotency + job creation                      |
+| `apps/api/src/modules/github-integration/domain/entities/repository-scan-job.entity.ts`             | Create | `RepositoryScanJob` domain entity               |
+| `apps/api/prisma/schema.prisma`                                                                     | Modify | Add `RepositoryScanJob` model                   |
 
 ## Prisma Model
 
@@ -56,29 +56,29 @@ model RepositoryScanJob {
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `snapshot_id` | string | Yes | `RepositorySnapshot.id` |
-| `trigger_source` | string | No | `manual` (default) or `trusted` |
-| `idempotency_key` | string | Yes | Client-provided unique key for dedup |
+| Field             | Type   | Required | Notes                                |
+| ----------------- | ------ | -------- | ------------------------------------ |
+| `snapshot_id`     | string | Yes      | `RepositorySnapshot.id`              |
+| `trigger_source`  | string | No       | `manual` (default) or `trusted`      |
+| `idempotency_key` | string | Yes      | Client-provided unique key for dedup |
 
 **Success response (201 or 200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `scan_job_id` | string | |
-| `status` | string | `QUEUED` or existing state if idempotent return |
-| `is_new` | boolean | `true` if created, `false` if existing job returned |
-| `correlation_id` | string | |
+| Field           | Type    | Notes                                               |
+| --------------- | ------- | --------------------------------------------------- |
+| `scan_job_id`   | string  |                                                     |
+| `status`        | string  | `QUEUED` or existing state if idempotent return     |
+| `is_new`        | boolean | `true` if created, `false` if existing job returned |
+| `correlationId` | string  |                                                     |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 403 | `PBAC_DENIED` | Actor lacks `scan:trigger` |
-| 404 | `SNAPSHOT_NOT_FOUND` | Snapshot not found or not in org |
-| 409 | `ASSESSMENT_STATE_INVALID` | Assessment state does not allow scan |
-| 400 | `SCAN_BLOCKED_MAPPING` | Assessment context incomplete |
+| HTTP | `error_code`               | Meaning                              |
+| ---- | -------------------------- | ------------------------------------ |
+| 403  | `PBAC_DENIED`              | Actor lacks `scan:trigger`           |
+| 404  | `SNAPSHOT_NOT_FOUND`       | Snapshot not found or not in org     |
+| 409  | `ASSESSMENT_STATE_INVALID` | Assessment state does not allow scan |
+| 400  | `SCAN_BLOCKED_MAPPING`     | Assessment context incomplete        |
 
 ## Business Rules
 
@@ -93,23 +93,23 @@ model RepositoryScanJob {
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `TriggerScanCommand` | App command | `{ assessmentId, snapshotId, triggerSource, idempotencyKey, correlationId? }` |
-| `scan.triggered` | Outbox | `{ scanJobId, assessmentId, snapshotId, triggerSource, correlationId }` |
-| `SCAN_JOB_TRIGGERED` | `AuthAuditEvent` | `{ scanJobId, assessmentId, snapshotId, triggerSource, correlationId }` |
+| Name                 | Type             | Safe payload                                                                  |
+| -------------------- | ---------------- | ----------------------------------------------------------------------------- |
+| `TriggerScanCommand` | App command      | `{ assessmentId, snapshotId, triggerSource, idempotencyKey, correlationId? }` |
+| `scan.triggered`     | Outbox           | `{ scanJobId, assessmentId, snapshotId, triggerSource, correlationId }`       |
+| `SCAN_JOB_TRIGGERED` | `AuthAuditEvent` | `{ scanJobId, assessmentId, snapshotId, triggerSource, correlationId }`       |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid snapshot + valid assessment state | 201 scan job created |
-| T02 | Same `idempotency_key` sent twice | 200 existing job returned, `is_new = false` |
-| T03 | Assessment state invalid for scan | 409 `ASSESSMENT_STATE_INVALID` |
-| T04 | Snapshot not in org | 404 `SNAPSHOT_NOT_FOUND` |
-| T05 | Actor lacks `scan:trigger` | 403 `PBAC_DENIED` |
-| T06 | Outbox message created | `event.scan.triggered` in `OutboxMessage` |
-| T07 | Re-run does not mutate prior `TechnicalEvidenceReport` | Prior artifacts untouched |
+| ID  | Scenario                                               | Expected                                    |
+| --- | ------------------------------------------------------ | ------------------------------------------- |
+| T01 | Valid snapshot + valid assessment state                | 201 scan job created                        |
+| T02 | Same `idempotency_key` sent twice                      | 200 existing job returned, `is_new = false` |
+| T03 | Assessment state invalid for scan                      | 409 `ASSESSMENT_STATE_INVALID`              |
+| T04 | Snapshot not in org                                    | 404 `SNAPSHOT_NOT_FOUND`                    |
+| T05 | Actor lacks `scan:trigger`                             | 403 `PBAC_DENIED`                           |
+| T06 | Outbox message created                                 | `event.scan.triggered` in `OutboxMessage`   |
+| T07 | Re-run does not mutate prior `TechnicalEvidenceReport` | Prior artifacts untouched                   |
 
 ## Definition of Done
 

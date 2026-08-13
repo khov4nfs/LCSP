@@ -1,20 +1,20 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
+import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   PBAC_DECISION,
   PBAC_REASON_CODE,
   type PbacDecisionValue,
   type PbacReasonCode,
 } from "@lcsp/contracts/pbac";
-import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 
+import type { AuthorizationDecisionRepository } from "../../modules/auth-workspace/application/ports/persistence/authorization-decision.repository.js";
+import type { MembershipRepository } from "../../modules/auth-workspace/application/ports/persistence/membership.repository.js";
+import type { PolicyRepository } from "../../modules/auth-workspace/application/ports/persistence/policy.repository.js";
 import {
   PrismaAuthorizationDecisionRepository,
   PrismaMembershipRepository,
   PrismaPolicyRepository,
 } from "../../modules/auth-workspace/infrastructure/persistence/prisma-auth-workspace.repositories.js";
-import type { AuthorizationDecisionRepository } from "../../modules/auth-workspace/application/ports/persistence/authorization-decision.repository.js";
-import type { MembershipRepository } from "../../modules/auth-workspace/application/ports/persistence/membership.repository.js";
-import type { PolicyRepository } from "../../modules/auth-workspace/application/ports/persistence/policy.repository.js";
 import { PbacEvaluatorService } from "./pbac-evaluator.service.js";
 import type { PbacEvaluationContext, SubjectRole } from "./pbac.types.js";
 
@@ -167,7 +167,7 @@ export class PbacPreflightService {
         reason_code: reasonCode,
         policy_id: policyId,
         policy_version: policyVersion,
-        correlation_id: input.correlationId,
+        correlationId: input.correlationId,
       });
     } catch (error) {
       this.logger.error(

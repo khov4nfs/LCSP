@@ -16,7 +16,7 @@ paths:
           schema:
             type: string
       responses:
-        '202':
+        "202":
           description: Request accepted (document queued)
           content:
             application/json:
@@ -31,9 +31,9 @@ paths:
                   document_type:
                     type: string
                     example: GapAnalysis
-                  correlation_id:
+                  correlationId:
                     type: string
-        '403':
+        "403":
           description: PBAC denied
           content:
             application/json:
@@ -42,7 +42,7 @@ paths:
                 properties:
                   error_code:
                     type: string
-        '404':
+        "404":
           description: Assessment not found
           content:
             application/json:
@@ -51,7 +51,7 @@ paths:
                 properties:
                   error_code:
                     type: string
-        '409':
+        "409":
           description: Business rule conflict (classification required or already queued)
           content:
             application/json:

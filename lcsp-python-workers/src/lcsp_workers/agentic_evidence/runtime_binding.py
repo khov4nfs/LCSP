@@ -53,7 +53,7 @@ def _build_runtime_handler(
                     "maxDurationMs": request.budget.max_duration_ms,
                 },
                 "input": request.input,
-                "correlation_id": str(request.correlation_id),
+                "correlationId": str(request.correlationId),
             }
         )
 

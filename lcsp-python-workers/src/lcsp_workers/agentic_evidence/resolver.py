@@ -15,7 +15,7 @@ from .registry import AgenticToolRegistry, AgenticToolRequest, AgenticToolValida
 class AgenticInvocationContext:
     assessment_id: UUID
     workflow_run_id: UUID
-    correlation_id: UUID
+    correlationId: UUID
     user_id: str
     organization_id: str
     artifact_versions: dict[str, str]
@@ -79,7 +79,7 @@ class AgenticToolResolver:
                     "assessmentId": str(context.assessment_id),
                     "workflowRunId": str(context.workflow_run_id),
                     "artifactVersions": context.artifact_versions,
-                    "correlationId": str(context.correlation_id),
+                    "correlationId": str(context.correlationId),
                     "scope": context.scope,
                     "budget": {
                         "maxItems": _requested_max_items(call.arguments, capability.max_items),
@@ -97,7 +97,7 @@ class AgenticToolResolver:
                 tool_name=call.name,
                 user_id=context.user_id,
                 organization_id=context.organization_id,
-                correlation_id=context.correlation_id,
+                correlationId=context.correlationId,
             )
             response = self._registry.invoke_model_tool(request)
             results.append(

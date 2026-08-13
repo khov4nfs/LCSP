@@ -1,14 +1,19 @@
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawn, spawnSync } from "node:child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const workerRoot = path.join(repoRoot, "lcsp-python-workers");
 const workerPython = path.join(workerRoot, ".venv", "bin", "python");
+const defaultWorkerRuntimeVersion =
+  process.env.WORKER_RUNTIME_VERSION ?? "2026.08.13";
+const defaultWorkerRuntimeBuildRef =
+  process.env.WORKER_RUNTIME_BUILD_REF ?? detectGitBuildRef();
+const defaultOrchestrationDebug = process.env.ORCHESTRATION_DEBUG ?? "false";
 
 const targets = {
   proxy: {
@@ -24,7 +29,8 @@ const targets = {
     cwd: repoRoot,
     cmd: "bash",
     args: ["./fogewise-dev-launchers/fedora/fogewise-local-reset-fedora.sh"],
-    description: "Reset Fogewise Fedora local proxy (remove hosts override + stop Caddy)",
+    description:
+      "Reset Fogewise Fedora local proxy (remove hosts override + stop Caddy)",
     oneshot: true,
   },
   infra: {
@@ -37,7 +43,9 @@ const targets = {
   infra_reset: {
     cwd: repoRoot,
     cmd: "bash",
-    args: ["./fogewise-dev-launchers/fedora/fogewise-local-infra-reset-fedora.sh"],
+    args: [
+      "./fogewise-dev-launchers/fedora/fogewise-local-infra-reset-fedora.sh",
+    ],
     description: "Reset local RabbitMQ + Redis for Fedora",
     oneshot: true,
   },
@@ -96,33 +104,9 @@ const targets = {
 };
 
 const groups = {
-  min: ["infra", "api", "web", "scanner", "technical_profile", "ai_usage_flow"],
-  local: [
-    "proxy",
-    "infra",
-    "api",
-    "web",
-    "scanner",
-    "technical_profile",
-    "ai_usage_flow",
-  ],
-  local_full: [
-    "proxy",
-    "infra",
-    "api",
-    "web",
-    "scanner",
-    "technical_profile",
-    "ai_usage_flow",
-    "conflict_detection",
-    "verified_profile",
-    "legal_retrieval",
-    "classification",
-    "gap_analysis",
-  ],
-  all: [
-    "proxy",
-    "infra",
+  fogewise: ["proxy", "infra"],
+  fogewise_reset: ["proxy_reset", "infra_reset"],
+  dev: [
     "api",
     "web",
     "scanner",
@@ -151,15 +135,6 @@ async function main() {
     process.exit(0);
   }
 
-  if (selection === "stop") {
-    runStop();
-    process.exit(0);
-  }
-
-  if (selection === "all") {
-    console.warn("[run] 'all' is kept as a legacy alias. Prefer 'local_full' / 'pnpm run dev:local:full'.");
-  }
-
   if (selection in groups) {
     await runGroup(selection);
   } else if (selection in targets) {
@@ -179,9 +154,44 @@ function workerTarget(target, description, healthPort) {
     env: {
       PYTHONPATH: "src",
       HEALTH_PORT: String(healthPort),
+      WORKER_RUNTIME_VERSION: defaultWorkerRuntimeVersion,
+      WORKER_RUNTIME_BUILD_REF: defaultWorkerRuntimeBuildRef,
+      ORCHESTRATION_DEBUG: defaultOrchestrationDebug,
     },
     description,
   };
+}
+
+function detectGitBuildRef() {
+  const result = spawnSync("git", ["rev-parse", "--short", "HEAD"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+
+  if (result.status === 0) {
+    const value = result.stdout?.trim();
+    if (value) {
+      return `git:${value}`;
+    }
+  }
+
+  return "local";
+}
+
+function logWorkerRuntimeBanner(name, target) {
+  if (target.cmd !== workerPython) {
+    return;
+  }
+
+  const healthPort = target.env?.HEALTH_PORT ?? "unknown";
+  const runtimeVersion =
+    target.env?.WORKER_RUNTIME_VERSION ?? defaultWorkerRuntimeVersion;
+  const buildRef =
+    target.env?.WORKER_RUNTIME_BUILD_REF ?? defaultWorkerRuntimeBuildRef;
+
+  console.log(
+    `[run] Worker runtime -> name=${name} health_port=${healthPort} version=${runtimeVersion} build_ref=${buildRef}`,
+  );
 }
 
 function runTarget(name) {
@@ -197,6 +207,7 @@ function runTarget(name) {
     process.exit(1);
   }
 
+  logWorkerRuntimeBanner(name, target);
   console.log(`[run] Starting ${name}: ${target.description}`);
   const child = spawn(target.cmd, target.args, {
     cwd: target.cwd,
@@ -254,13 +265,16 @@ async function runGroup(name) {
   }
 
   if (members.includes("infra") && hasWorkerMember(longRunningMembers)) {
-    console.log("[run] Waiting for local RabbitMQ and Redis to accept connections...");
+    console.log(
+      "[run] Waiting for local RabbitMQ and Redis to accept connections...",
+    );
     await waitForPort("127.0.0.1", 5672, "RabbitMQ");
     await waitForPort("127.0.0.1", 6379, "Redis");
   }
 
   for (const member of longRunningMembers) {
     const target = targets[member];
+    logWorkerRuntimeBanner(member, target);
     console.log(`[run] Starting ${member}: ${target.description}`);
     const child = spawn(target.cmd, target.args, {
       cwd: target.cwd,
@@ -283,23 +297,13 @@ async function runGroup(name) {
         return;
       }
       if ((code ?? 0) !== 0) {
-        console.error(`[run] A process exited with code ${code}. Stopping remaining processes.`);
+        console.error(
+          `[run] A process exited with code ${code}. Stopping remaining processes.`,
+        );
       }
       shutdown(children);
       process.exit(code ?? 0);
     });
-  }
-}
-
-function runStop() {
-  const stopTargets = ["proxy_reset", "infra_reset"];
-  for (const name of stopTargets) {
-    const target = targets[name];
-    console.log(`[run] Running ${name}: ${target.description}`);
-    const child = spawnSyncCompatible(target);
-    if (child !== 0) {
-      process.exit(child);
-    }
   }
 }
 
@@ -351,7 +355,11 @@ function waitForPort(host, port, label, timeoutMs = 30_000) {
 
     const retryOrFail = () => {
       if (Date.now() - startedAt >= timeoutMs) {
-        reject(new Error(`${label} did not become ready on ${host}:${port} within ${timeoutMs}ms`));
+        reject(
+          new Error(
+            `${label} did not become ready on ${host}:${port} within ${timeoutMs}ms`,
+          ),
+        );
         return;
       }
       setTimeout(tryConnect, 500);
@@ -370,16 +378,8 @@ function forwardSignals(children) {
 }
 
 function printList() {
-  console.log("Targets:");
-  for (const [name, target] of Object.entries(targets)) {
-    console.log(`- ${name}: ${target.description}`);
-  }
-  console.log("\nGroups:");
+  console.log("Groups:");
   for (const [name, members] of Object.entries(groups)) {
-    if (name === "all") {
-      console.log(`- ${name}: legacy alias of local_full (${members.join(", ")})`);
-      continue;
-    }
     console.log(`- ${name}: ${members.join(", ")}`);
   }
 }
@@ -390,38 +390,13 @@ function printHelp() {
   node scripts/run.mjs <target>
 
 Targets:
-  list
-  proxy
-  proxy_reset
-  infra
-  infra_reset
-  stop
-  api
-  web
-  scanner
-  technical_profile
-  ai_usage_flow
-  conflict_detection
-  verified_profile
-  legal_retrieval
-  classification
-  gap_analysis
-  min
-  local
-  local_full
-  all (legacy alias of local_full)
+  fogewise
+  fogewise_reset
+  dev
 
 Examples:
-  node scripts/run.mjs proxy
-  node scripts/run.mjs proxy_reset
-  node scripts/run.mjs infra
-  node scripts/run.mjs infra_reset
-  node scripts/run.mjs stop
-  node scripts/run.mjs api
-  node scripts/run.mjs scanner
-  node scripts/run.mjs min
-  node scripts/run.mjs local
-  node scripts/run.mjs local_full
-  node scripts/run.mjs all  # legacy alias
+  pnpm run dev:fogewise
+  pnpm run dev:fogewise:reset
+  pnpm run dev
 `);
 }

@@ -11,11 +11,19 @@ import {
   Controller,
   HttpCode,
   HttpStatus,
+  Logger,
   Post,
   UseGuards,
 } from "@nestjs/common";
 import { QueryBus } from "@nestjs/cqrs";
 
+import { ConfigService } from "@nestjs/config";
+import type { AppConfig } from "../../../../config/config.types.js";
+import {
+  formatOrchestrationRuntimeLog,
+  ORCHESTRATION_RUNTIME_LOG_EVENTS,
+  sanitizeOrchestrationLogValue,
+} from "../../../../platform/logging/orchestration-runtime-log.js";
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { EvaluateGapMatrixQuery } from "../../../classification/application/queries/evaluate-gap-matrix/evaluate-gap-matrix.query.js";
@@ -67,6 +75,7 @@ import { InspectDeploymentContextQuery } from "../../application/queries/inspect
 import { InspectHumanReviewPathQuery } from "../../application/queries/inspect-human-review-path/inspect-human-review-path.query.js";
 import { SearchEvidenceQuery } from "../../application/queries/search-evidence/search-evidence.query.js";
 import { TraceStaticFlowQuery } from "../../application/queries/trace-static-flow/trace-static-flow.query.js";
+import { PythonWorkerRuntimeClient } from "../../application/services/evidence/python-worker-runtime.client.js";
 
 type DispatchRequest = {
   tool_name?: unknown;
@@ -75,13 +84,22 @@ type DispatchRequest = {
   user_id?: unknown;
   artifact_versions?: unknown;
   input?: unknown;
-  correlation_id?: unknown;
+  correlationId?: unknown;
+  correlationId?: unknown;
 };
 
 @Controller("internal/evidence/agentic-tools")
 @UseGuards(WorkerApiKeyGuard)
 export class InternalAgenticToolDispatchController {
-  constructor(private readonly queryBus: QueryBus) {}
+  private readonly logger = new Logger(
+    InternalAgenticToolDispatchController.name,
+  );
+
+  constructor(
+    private readonly queryBus: QueryBus,
+    private readonly pythonWorkerRuntime: PythonWorkerRuntimeClient,
+    private readonly configService: ConfigService<AppConfig, true>,
+  ) {}
 
   @Post("dispatch")
   @HttpCode(HttpStatus.OK)
@@ -90,9 +108,68 @@ export class InternalAgenticToolDispatchController {
     const assessmentId = requiredString(payload.assessment_id);
     const organizationId = requiredString(payload.organization_id);
     const userId = requiredString(payload.user_id);
-    const correlationId = requiredString(payload.correlation_id);
+    const correlationId = requiredString(
+      payload.correlationId ?? payload.correlationId,
+    );
     const artifactVersions = record(payload.artifact_versions) ?? {};
     const input = record(payload.input) ?? {};
+
+    if (
+      this.configService.get("orchestration.debug", {
+        infer: true,
+      })
+    ) {
+      this.logger.debug(
+        formatOrchestrationRuntimeLog(
+          ORCHESTRATION_RUNTIME_LOG_EVENTS.dispatchReceived,
+          {
+            correlationId,
+            toolName,
+            assessmentId,
+            organizationId,
+            artifactVersions,
+            input: sanitizeOrchestrationLogValue(input),
+          },
+        ),
+      );
+    }
+
+    if (toolName === AGENTIC_TOOL_NAMES.requestTargetedReanalysis) {
+      return resultEnvelope(
+        await this.pythonWorkerRuntime.requestTargetedReanalysis(
+          {
+            assessmentId,
+            organizationId,
+            userId,
+            inputArtifactVersion: requiredArtifactVersion(
+              artifactVersions,
+              "technicalEvidenceReportId",
+            ),
+            analyzerId: requiredString(input.analyzerId),
+            scope: requiredScope(input.scope),
+            reasonRequirementId: requiredString(input.reasonRequirementId),
+            idempotencyKey: requiredString(input.idempotencyKey),
+          },
+          correlationId,
+        ),
+      );
+    }
+
+    if (toolName === AGENTIC_TOOL_NAMES.resumeWaitingRuns) {
+      return resultEnvelope(
+        await this.pythonWorkerRuntime.resumeWaitingRuns(
+          {
+            corpusVersionId: requiredArtifactVersion(
+              artifactVersions,
+              "corpusVersionId",
+            ),
+            maxRuns: numberWithDefault(input.maxRuns, 25),
+            idempotencyKey: requiredString(input.idempotencyKey),
+          },
+          correlationId,
+        ),
+      );
+    }
 
     return resultEnvelope(
       await this.queryBus.execute(
@@ -510,6 +587,36 @@ function numberWithDefault(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isInteger(value) && value > 0
     ? value
     : fallback;
+}
+
+function requiredScope(
+  value: unknown,
+): { pathPrefixes: string[] } | { subjectRefs: string[] } {
+  const scope = record(value);
+  if (!scope) {
+    throw problemException(
+      EVIDENCE_ERROR_CODES.notFound,
+      "internal-agentic-dispatch",
+      {
+        status: HttpStatus.NOT_FOUND,
+      },
+    );
+  }
+  const pathPrefixes = stringArray(scope.pathPrefixes);
+  const subjectRefs = stringArray(scope.subjectRefs);
+  if (pathPrefixes.length > 0 && subjectRefs.length === 0) {
+    return { pathPrefixes };
+  }
+  if (subjectRefs.length > 0 && pathPrefixes.length === 0) {
+    return { subjectRefs };
+  }
+  throw problemException(
+    EVIDENCE_ERROR_CODES.notFound,
+    "internal-agentic-dispatch",
+    {
+      status: HttpStatus.NOT_FOUND,
+    },
+  );
 }
 
 function stripRef(value: string, prefix: string): string {

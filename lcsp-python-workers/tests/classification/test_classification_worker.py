@@ -140,7 +140,7 @@ def test_t10_consumer_derives_workflow_context_for_rationale_node():
     kwargs = mock_llm.complete.call_args.kwargs
     assert kwargs["workflow_run_id"] == "classification:asmt-1:2.0:corr-123"
     assert kwargs["node_name"] == "classification.proposal"
-    assert kwargs["correlation_id"] == "corr-123"
+    assert kwargs["correlationId"] == "corr-123"
     assert mock_submit.called
 
 def test_t11_consumer_rejects_mismatched_model_assisted_proposal():
@@ -203,7 +203,7 @@ def test_t13_classification_graph_blocks_without_valid_citations():
             "applicable_rules": [{"citation_chunk_ids": ["ref1"]}],
             "citation_allowlist": ["ref2"],
         },
-        correlation_id="corr-999",
+        correlationId="corr-999",
     )
 
     assert result.payload["risk_level"] == "BLOCKED"

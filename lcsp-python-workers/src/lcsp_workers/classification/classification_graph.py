@@ -26,7 +26,7 @@ class ClassificationGraphResult:
 
 class ClassificationLangGraphState(TypedDict, total=False):
     message: dict[str, Any]
-    correlation_id: str
+    correlationId: str
     workflow_run_id: str
     graph_state: GraphRunState
     usage_claims: list[dict[str, Any]]
@@ -68,7 +68,7 @@ class ClassificationGraph:
         self._app = None
 
     def run(
-        self, *, message: dict[str, Any], correlation_id: str
+        self, *, message: dict[str, Any], correlationId: str
     ) -> ClassificationGraphResult:
         classification_version = str(
             message.get("classification_version") or "1.0.0"
@@ -78,13 +78,13 @@ class ClassificationGraph:
             if message.get("assessment_id")
             else None
         )
-        workflow_run_id = self.workflow_run_id(message, correlation_id)
+        workflow_run_id = self.workflow_run_id(message, correlationId)
         state = GraphRunState(
             graph_name="classification",
             workflow_run_id=workflow_run_id,
             assessment_id=assessment_id,
             artifact_id=self._optional_string(message.get("legal_rule_match_id")),
-            correlation_id=correlation_id,
+            correlationId=correlationId,
             input_versions={"classification_version": classification_version},
             attempt=self._delivery_attempt(message),
             sanitized_inputs={
@@ -108,7 +108,7 @@ class ClassificationGraph:
 
         initial_state = ClassificationLangGraphState(
             message=message,
-            correlation_id=correlation_id,
+            correlationId=correlationId,
             workflow_run_id=workflow_run_id,
             graph_state=state,
             usage_claims=message.get("usage_claims", []),
@@ -222,7 +222,7 @@ class ClassificationGraph:
         proposer_context = GraphNodeContext(
             workflow_run_id=state["workflow_run_id"],
             node_name="classification.proposal",
-            correlation_id=state["correlation_id"],
+            correlationId=state["correlationId"],
         )
         proposal = self._proposer.generate_proposal(
             usage_claims=state["usage_claims"],
@@ -233,7 +233,7 @@ class ClassificationGraph:
             ],
             workflow_run_id=proposer_context.workflow_run_id,
             node_name=proposer_context.node_name,
-            correlation_id=proposer_context.correlation_id,
+            correlationId=proposer_context.correlationId,
         )
         if proposal and self.proposal_matches_baseline(
             proposal=proposal,
@@ -294,7 +294,7 @@ class ClassificationGraph:
         narrator_context = GraphNodeContext(
             workflow_run_id=state["workflow_run_id"],
             node_name="classification.rationale_narrator",
-            correlation_id=state["correlation_id"],
+            correlationId=state["correlationId"],
         )
         rationale = self._narrator.generate_rationale(
             usage_claims=state["usage_claims"],
@@ -303,7 +303,7 @@ class ClassificationGraph:
             applicability_assessment=state["applicability_assessment"],
             workflow_run_id=narrator_context.workflow_run_id,
             node_name=narrator_context.node_name,
-            correlation_id=narrator_context.correlation_id,
+            correlationId=narrator_context.correlationId,
         )
         state["graph_state"].record_node(
             node_name=narrator_context.node_name,
@@ -375,13 +375,13 @@ class ClassificationGraph:
         return {}
 
     @staticmethod
-    def workflow_run_id(message: dict[str, Any], correlation_id: str) -> str:
+    def workflow_run_id(message: dict[str, Any], correlationId: str) -> str:
         explicit = message.get("workflow_run_id")
         if explicit:
             return str(explicit)
         assessment_id = message.get("assessment_id", "unknown-assessment")
         classification_version = message.get("classification_version", "1.0.0")
-        return f"classification:{assessment_id}:{classification_version}:{correlation_id}"
+        return f"classification:{assessment_id}:{classification_version}:{correlationId}"
 
     @staticmethod
     def _citation_refs(applicable_rules: list[dict[str, Any]]) -> list[str]:

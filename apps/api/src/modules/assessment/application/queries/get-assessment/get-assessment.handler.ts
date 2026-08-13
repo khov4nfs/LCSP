@@ -1,7 +1,7 @@
-import { HttpStatus, Inject } from "@nestjs/common";
-import { QueryHandler } from "@nestjs/cqrs";
 import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { HttpStatus, Inject } from "@nestjs/common";
 import type { IQueryHandler } from "@nestjs/cqrs";
+import { QueryHandler } from "@nestjs/cqrs";
 
 import {
   ASSESSMENT_ERROR_CODES,
@@ -25,10 +25,6 @@ import {
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
-import {
-  ASSESSMENT_REPOSITORY,
-  type AssessmentRepository,
-} from "../../ports/persistence/assessment.repository.js";
 import type {
   AssessmentDetailDto,
   ClassificationResultSummaryDto,
@@ -36,6 +32,10 @@ import type {
   VerifiedProfileReviewDto,
   WizardStatus,
 } from "../../contracts/assessment/assessment-detail.contract.js";
+import {
+  ASSESSMENT_REPOSITORY,
+  type AssessmentRepository,
+} from "../../ports/persistence/assessment.repository.js";
 import { GetAssessmentQuery } from "./get-assessment.query.js";
 
 @QueryHandler(GetAssessmentQuery)
@@ -172,7 +172,7 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
       next_action: nextActionFor(wizardStatus),
       created_at: assessment.createdAt.toISOString(),
       updated_at: assessment.updatedAt.toISOString(),
-      correlation_id: query.correlationId,
+      correlationId: query.correlationId,
     };
   }
 

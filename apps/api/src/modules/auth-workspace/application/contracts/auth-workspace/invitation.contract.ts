@@ -12,7 +12,7 @@ export type InviteDeveloperResponse = {
   email: string;
   expires_at: string;
   allowed_actions: string[];
-  correlation_id: string;
+  correlationId: string;
 };
 
 export type InviteDeveloperErrorCode =

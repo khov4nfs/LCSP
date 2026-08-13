@@ -1,11 +1,25 @@
 import json
 import os
 import signal
+from http import HTTPStatus
+
 import pika
 
-from lcsp_workers.platform.correlation import extract_from_amqp_headers, set_correlation_id
-from lcsp_workers.platform.health import DEFAULT_HEALTH_PORT, HealthServer
+from lcsp_workers.platform.api_client import WorkerApiClient
+from lcsp_workers.platform.correlation import extract_from_amqp_headers, set_correlationId
+from lcsp_workers.platform.health import (
+    DEFAULT_HEALTH_PORT,
+    REQUEST_TARGETED_REANALYSIS_ENDPOINT,
+    RESUME_WAITING_RUNS_ENDPOINT,
+    HealthServer,
+    RuntimeCommandResponse,
+)
 from lcsp_workers.platform.logging import get_logger
+from lcsp_workers.platform.orchestration_logging import (
+    ORCHESTRATION_LOG_EVENTS,
+    orchestration_debug_enabled,
+    sanitize_orchestration_payload,
+)
 
 logger = get_logger(__name__)
 
@@ -29,7 +43,7 @@ class ConsumerBase:
         self._channel = None
         self._health_server: HealthServer | None = None
 
-    def handle(self, message: dict, correlation_id: str) -> None:
+    def handle(self, message: dict, correlationId: str) -> None:
         """Override with domain logic."""
         raise NotImplementedError
 
@@ -41,6 +55,14 @@ class ConsumerBase:
             worker_name=self.__class__.__name__,
             rabbitmq_connected_provider=self._is_rabbitmq_connected,
             port=self._read_health_port(),
+            api_key=self._config.worker_api_key,
+            command_handlers=self._build_runtime_command_handlers(),
+            capabilities=(
+                "request_targeted_reanalysis",
+                "resume_waiting_runs",
+            ),
+            version=os.getenv("WORKER_RUNTIME_VERSION", "dev"),
+            build_ref=os.getenv("WORKER_RUNTIME_BUILD_REF", "local"),
         )
 
         try:
@@ -87,7 +109,7 @@ class ConsumerBase:
     def _on_message(self, ch, method, properties, body) -> None:
         headers = properties.headers or {}
         cid = extract_from_amqp_headers(headers)
-        set_correlation_id(cid)
+        set_correlationId(cid)
         attempts = self._get_attempt_count(headers)
 
         if self.requires_pbac:
@@ -96,7 +118,7 @@ class ConsumerBase:
                     user_id=headers.get("user_id", ""),
                     organization_id=headers.get("organization_id", ""),
                     action=headers.get("action", ""),
-                    correlation_id=cid,
+                    correlationId=cid,
                 )
             except ConnectionError:
                 logger.warning(
@@ -155,7 +177,7 @@ class ConsumerBase:
             content_encoding=self._string_property(properties, "content_encoding"),
             headers=retry_headers,
             delivery_mode=2,
-            correlation_id=self._string_property(properties, "correlation_id"),
+            correlationId=self._string_property(properties, "correlationId"),
             message_id=self._string_property(properties, "message_id"),
             type=self._string_property(properties, "type"),
         )
@@ -241,3 +263,91 @@ class ConsumerBase:
             return DEFAULT_HEALTH_PORT
 
         return port
+
+    def _build_runtime_command_handlers(self):
+        api_client = WorkerApiClient(
+            self._config.nestjs_api_base_url,
+            self._config.worker_api_key,
+        )
+        return {
+            REQUEST_TARGETED_REANALYSIS_ENDPOINT: (
+                lambda payload, correlationId: self._request_targeted_reanalysis_runtime(
+                    api_client,
+                    payload,
+                    correlationId,
+                )
+            ),
+            RESUME_WAITING_RUNS_ENDPOINT: (
+                lambda payload, correlationId: self._resume_waiting_runs_runtime(
+                    api_client,
+                    payload,
+                    correlationId,
+                )
+            ),
+        }
+
+    def _request_targeted_reanalysis_runtime(
+        self,
+        api_client: WorkerApiClient,
+        payload: dict[str, object],
+        correlationId: str | None,
+    ) -> RuntimeCommandResponse:
+        request_payload = dict(payload)
+        if correlationId and "correlationId" not in request_payload:
+            request_payload["correlationId"] = correlationId
+        if orchestration_debug_enabled():
+            logger.info(
+                ORCHESTRATION_LOG_EVENTS["bridgeTargetedReanalysis"],
+                correlationId=correlationId,
+                payload=sanitize_orchestration_payload(request_payload),
+            )
+        response = api_client.create_targeted_reanalysis_request(request_payload)
+        if orchestration_debug_enabled():
+            logger.info(
+                ORCHESTRATION_LOG_EVENTS["bridgeTargetedReanalysisResult"],
+                correlationId=correlationId,
+                response=sanitize_orchestration_payload(response),
+            )
+        return RuntimeCommandResponse(
+            status_code=HTTPStatus.ACCEPTED,
+            payload=response,
+        )
+
+    def _resume_waiting_runs_runtime(
+        self,
+        api_client: WorkerApiClient,
+        payload: dict[str, object],
+        correlationId: str | None,
+    ) -> RuntimeCommandResponse:
+        corpus_version_id = payload.get("corpusVersionId")
+        if not isinstance(corpus_version_id, str) or not corpus_version_id.strip():
+            return RuntimeCommandResponse(
+                status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+                payload={"ok": False, "error": "CORPUS_VERSION_ID_REQUIRED"},
+            )
+        request_payload = dict(payload)
+        request_payload.pop("corpusVersionId", None)
+        if correlationId and "correlationId" not in request_payload:
+            request_payload["correlationId"] = correlationId
+        if orchestration_debug_enabled():
+            logger.info(
+                ORCHESTRATION_LOG_EVENTS["bridgeResumeWaitingRuns"],
+                correlationId=correlationId,
+                corpus_version_id=corpus_version_id.strip(),
+                payload=sanitize_orchestration_payload(request_payload),
+            )
+        response = api_client.resume_waiting_runs(
+            corpus_version_id.strip(),
+            request_payload,
+        )
+        if orchestration_debug_enabled():
+            logger.info(
+                ORCHESTRATION_LOG_EVENTS["bridgeResumeWaitingRunsResult"],
+                correlationId=correlationId,
+                corpus_version_id=corpus_version_id.strip(),
+                response=sanitize_orchestration_payload(response),
+            )
+        return RuntimeCommandResponse(
+            status_code=HTTPStatus.ACCEPTED,
+            payload=response,
+        )

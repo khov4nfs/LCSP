@@ -18,14 +18,14 @@ Receive `LegalRuleMatch` results from the Python legal worker after ChromaDB leg
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/classification/presentation/http/classification.controller.ts` | Create | `POST /internal/classification/legal-rule-match-callback` |
-| `apps/api/src/modules/classification/application/commands/accept-legal-rule-match/accept-legal-rule-match.command.ts` | Create | Command shape |
-| `apps/api/src/modules/classification/application/commands/accept-legal-rule-match/accept-legal-rule-match.handler.ts` | Create | Validation + guardrail + persistence |
-| `apps/api/src/modules/classification/application/services/classification/citation-guardrail.service.ts` | Create | Citation allowlist validation |
-| `apps/api/prisma/schema.prisma` | Modify | Add `LegalRuleMatch` model |
-| `apps/api/src/modules/classification/classification.module.ts` | Create | NestJS module |
+| File                                                                                                                  | Action | Notes                                                     |
+| --------------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------- |
+| `apps/api/src/modules/classification/presentation/http/classification.controller.ts`                                  | Create | `POST /internal/classification/legal-rule-match-callback` |
+| `apps/api/src/modules/classification/application/commands/accept-legal-rule-match/accept-legal-rule-match.command.ts` | Create | Command shape                                             |
+| `apps/api/src/modules/classification/application/commands/accept-legal-rule-match/accept-legal-rule-match.handler.ts` | Create | Validation + guardrail + persistence                      |
+| `apps/api/src/modules/classification/application/services/classification/citation-guardrail.service.ts`               | Create | Citation allowlist validation                             |
+| `apps/api/prisma/schema.prisma`                                                                                       | Modify | Add `LegalRuleMatch` model                                |
+| `apps/api/src/modules/classification/classification.module.ts`                                                        | Create | NestJS module                                             |
 
 ## Prisma Model
 
@@ -76,36 +76,36 @@ model LegalRuleMatch {
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `verified_profile_id` | string | Yes | |
-| `assessment_id` | string | Yes | |
-| `corpus_version_id` | string | Yes | Must be approved `LegalCorpusVersion` |
-| `legal_rule_catalog_version_id` | string | Yes | Must be approved `LegalRuleCatalogVersion` |
-| `schema_version` | string | Yes | |
-| `matches` | LegalRuleMatchItem[] | Yes | May be empty |
-| `citation_allowlist` | string[] | Yes | List of allowed citation chunk IDs |
-| `overall_coverage_status` | string | Yes | `NO_CITATION` \| `PARTIAL_CITATION` \| `COMPLETE_CITATION` |
+| Field                           | Type                 | Required | Notes                                                      |
+| ------------------------------- | -------------------- | -------- | ---------------------------------------------------------- |
+| `verified_profile_id`           | string               | Yes      |                                                            |
+| `assessment_id`                 | string               | Yes      |                                                            |
+| `corpus_version_id`             | string               | Yes      | Must be approved `LegalCorpusVersion`                      |
+| `legal_rule_catalog_version_id` | string               | Yes      | Must be approved `LegalRuleCatalogVersion`                 |
+| `schema_version`                | string               | Yes      |                                                            |
+| `matches`                       | LegalRuleMatchItem[] | Yes      | May be empty                                               |
+| `citation_allowlist`            | string[]             | Yes      | List of allowed citation chunk IDs                         |
+| `overall_coverage_status`       | string               | Yes      | `NO_CITATION` \| `PARTIAL_CITATION` \| `COMPLETE_CITATION` |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `accepted` | boolean | |
-| `legal_rule_match_id` | string | |
-| `guardrail_status` | string | `passed` \| `blocked` |
-| `correlation_id` | string | |
+| Field                 | Type    | Notes                 |
+| --------------------- | ------- | --------------------- |
+| `accepted`            | boolean |                       |
+| `legal_rule_match_id` | string  |                       |
+| `guardrail_status`    | string  | `passed` \| `blocked` |
+| `correlationId`       | string  |                       |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 401 | `UNAUTHORIZED` | |
-| 404 | `VERIFIED_PROFILE_NOT_FOUND` | |
-| 422 | `CORPUS_VERSION_NOT_APPROVED` | `corpus_version_id` is not an approved version |
-| 422 | `RULE_CATALOG_VERSION_NOT_APPROVED` | `legal_rule_catalog_version_id` is not an approved version |
-| 422 | `CITATION_OUT_OF_ALLOWLIST` | Citation chunk ID not in `citation_allowlist` |
-| 422 | `CITATION_REPEALED` | Citation chunk has `legal_status = REPEALED` — not a valid current-law citation |
+| HTTP | `error_code`                        | Meaning                                                                         |
+| ---- | ----------------------------------- | ------------------------------------------------------------------------------- |
+| 401  | `UNAUTHORIZED`                      |                                                                                 |
+| 404  | `VERIFIED_PROFILE_NOT_FOUND`        |                                                                                 |
+| 422  | `CORPUS_VERSION_NOT_APPROVED`       | `corpus_version_id` is not an approved version                                  |
+| 422  | `RULE_CATALOG_VERSION_NOT_APPROVED` | `legal_rule_catalog_version_id` is not an approved version                      |
+| 422  | `CITATION_OUT_OF_ALLOWLIST`         | Citation chunk ID not in `citation_allowlist`                                   |
+| 422  | `CITATION_REPEALED`                 | Citation chunk has `legal_status = REPEALED` — not a valid current-law citation |
 
 ## Business Rules
 
@@ -125,26 +125,26 @@ model LegalRuleMatch {
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `AcceptLegalRuleMatchCommand` | App command | `{ verifiedProfileId, assessmentId, corpusVersionId, schemaVersion, correlationId? }` |
-| `event.legal-rule-match-ready` | Outbox | `{ legalRuleMatchId, assessmentId, guardrailStatus, correlationId }` |
-| `LEGAL_RULE_MATCH_ACCEPTED` | `AuthAuditEvent` | `{ legalRuleMatchId, assessmentId, corpusVersionId, correlationId }` |
-| `LEGAL_RULE_MATCH_BLOCKED` | `AuthAuditEvent` | `{ assessmentId, guardrailStatus, blockedReason, correlationId }` |
+| Name                           | Type             | Safe payload                                                                          |
+| ------------------------------ | ---------------- | ------------------------------------------------------------------------------------- |
+| `AcceptLegalRuleMatchCommand`  | App command      | `{ verifiedProfileId, assessmentId, corpusVersionId, schemaVersion, correlationId? }` |
+| `event.legal-rule-match-ready` | Outbox           | `{ legalRuleMatchId, assessmentId, guardrailStatus, correlationId }`                  |
+| `LEGAL_RULE_MATCH_ACCEPTED`    | `AuthAuditEvent` | `{ legalRuleMatchId, assessmentId, corpusVersionId, correlationId }`                  |
+| `LEGAL_RULE_MATCH_BLOCKED`     | `AuthAuditEvent` | `{ assessmentId, guardrailStatus, blockedReason, correlationId }`                     |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid matches with allowlisted citations | 200 `guardrail_status = passed` |
-| T02 | Empty matches | 200 `guardrail_status = blocked` |
-| T03 | Citation chunk not in allowlist | 422 `CITATION_OUT_OF_ALLOWLIST` |
-| T04 | Corpus version not approved | 422 `CORPUS_VERSION_NOT_APPROVED` |
-| T04b | Rule catalog version not approved | 422 `RULE_CATALOG_VERSION_NOT_APPROVED` |
-| T04c | Citation chunk `legal_status = REPEALED` | 422 `CITATION_REPEALED` |
-| T05 | `PRIMARY_MATCH` and `REFERENCED_CONTEXT` distinct in DB | Field inspection |
-| T06 | Invalid API key | 401 |
-| T07 | Outbox event emitted | DB verified |
+| ID   | Scenario                                                | Expected                                |
+| ---- | ------------------------------------------------------- | --------------------------------------- |
+| T01  | Valid matches with allowlisted citations                | 200 `guardrail_status = passed`         |
+| T02  | Empty matches                                           | 200 `guardrail_status = blocked`        |
+| T03  | Citation chunk not in allowlist                         | 422 `CITATION_OUT_OF_ALLOWLIST`         |
+| T04  | Corpus version not approved                             | 422 `CORPUS_VERSION_NOT_APPROVED`       |
+| T04b | Rule catalog version not approved                       | 422 `RULE_CATALOG_VERSION_NOT_APPROVED` |
+| T04c | Citation chunk `legal_status = REPEALED`                | 422 `CITATION_REPEALED`                 |
+| T05  | `PRIMARY_MATCH` and `REFERENCED_CONTEXT` distinct in DB | Field inspection                        |
+| T06  | Invalid API key                                         | 401                                     |
+| T07  | Outbox event emitted                                    | DB verified                             |
 
 ## Definition of Done
 
@@ -168,4 +168,3 @@ model LegalRuleMatch {
   - Unit tests: `pnpm --filter @lcsp/api test apps/api/src/modules/classification/` passed 9/9 tests.
   - E2E tests: `pnpm --filter @lcsp/api test:e2e apps/api/test/legal-rule-match-callback.e2e-spec.ts` passed 9/9 tests.
   - Build: `pnpm --filter @lcsp/api build` passed with zero errors.
-

@@ -27,5 +27,5 @@ export interface EvidenceDetailDto {
   privacy_flags: EvidencePrivacyFlagsDto;
   status: typeof TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted;
   created_at: string;
-  correlation_id: string;
+  correlationId: string;
 }

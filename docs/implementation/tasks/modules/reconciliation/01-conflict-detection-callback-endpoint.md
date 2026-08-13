@@ -18,14 +18,14 @@ Receive reconciliation conflict detection results from the Python worker. Store 
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/reconciliation/presentation/http/reconciliation.controller.ts` | Create | `POST /internal/reconciliation/conflict-callback` |
-| `apps/api/src/modules/reconciliation/application/commands/accept-conflict/accept-conflict.command.ts` | Create | Command shape |
-| `apps/api/src/modules/reconciliation/application/commands/accept-conflict/accept-conflict.handler.ts` | Create | Validation + persistence |
-| `apps/api/src/modules/reconciliation/domain/entities/conflict-record.entity.ts` | Create | `ConflictRecord` domain entity |
-| `apps/api/prisma/schema.prisma` | Modify | Add `ConflictRecord` model |
-| `apps/api/src/modules/reconciliation/reconciliation.module.ts` | Create | NestJS module |
+| File                                                                                                  | Action | Notes                                             |
+| ----------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------- |
+| `apps/api/src/modules/reconciliation/presentation/http/reconciliation.controller.ts`                  | Create | `POST /internal/reconciliation/conflict-callback` |
+| `apps/api/src/modules/reconciliation/application/commands/accept-conflict/accept-conflict.command.ts` | Create | Command shape                                     |
+| `apps/api/src/modules/reconciliation/application/commands/accept-conflict/accept-conflict.handler.ts` | Create | Validation + persistence                          |
+| `apps/api/src/modules/reconciliation/domain/entities/conflict-record.entity.ts`                       | Create | `ConflictRecord` domain entity                    |
+| `apps/api/prisma/schema.prisma`                                                                       | Modify | Add `ConflictRecord` model                        |
+| `apps/api/src/modules/reconciliation/reconciliation.module.ts`                                        | Create | NestJS module                                     |
 
 ## Prisma Model
 
@@ -56,37 +56,37 @@ model ConflictRecord {
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `ai_usage_flow_id` | string | Yes | Source flow |
-| `assessment_id` | string | Yes | |
-| `conflicts` | ConflictInput[] | Yes | Array, may be empty (no conflicts) |
+| Field              | Type            | Required | Notes                              |
+| ------------------ | --------------- | -------- | ---------------------------------- |
+| `ai_usage_flow_id` | string          | Yes      | Source flow                        |
+| `assessment_id`    | string          | Yes      |                                    |
+| `conflicts`        | ConflictInput[] | Yes      | Array, may be empty (no conflicts) |
 
 **`ConflictInput` object:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `conflict_type` | string | Yes | `evidence_contradiction` \| `scope_mismatch` \| `unverifiable` |
-| `conflict_score` | number | Yes | 0.0 – 1.0 |
-| `score_explanation` | string | Yes | Human-readable explanation of score |
-| `evidence_refs` | string[] | Yes | Conflicting evidence IDs |
+| Field               | Type     | Required | Notes                                                          |
+| ------------------- | -------- | -------- | -------------------------------------------------------------- |
+| `conflict_type`     | string   | Yes      | `evidence_contradiction` \| `scope_mismatch` \| `unverifiable` |
+| `conflict_score`    | number   | Yes      | 0.0 – 1.0                                                      |
+| `score_explanation` | string   | Yes      | Human-readable explanation of score                            |
+| `evidence_refs`     | string[] | Yes      | Conflicting evidence IDs                                       |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `accepted` | boolean | |
-| `conflict_count` | number | Number of conflicts created |
-| `correlation_id` | string | |
+| Field            | Type    | Notes                       |
+| ---------------- | ------- | --------------------------- |
+| `accepted`       | boolean |                             |
+| `conflict_count` | number  | Number of conflicts created |
+| `correlationId`  | string  |                             |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 401 | `UNAUTHORIZED` | Invalid API key |
-| 404 | `AI_USAGE_FLOW_NOT_FOUND` | Source flow not found |
-| 422 | `CONFLICT_SCORE_INVALID` | `conflict_score` outside 0.0–1.0 |
-| 422 | `EVIDENCE_REFS_EMPTY` | Conflict has no `evidence_refs` |
+| HTTP | `error_code`              | Meaning                          |
+| ---- | ------------------------- | -------------------------------- |
+| 401  | `UNAUTHORIZED`            | Invalid API key                  |
+| 404  | `AI_USAGE_FLOW_NOT_FOUND` | Source flow not found            |
+| 422  | `CONFLICT_SCORE_INVALID`  | `conflict_score` outside 0.0–1.0 |
+| 422  | `EVIDENCE_REFS_EMPTY`     | Conflict has no `evidence_refs`  |
 
 ## Business Rules
 
@@ -102,24 +102,24 @@ model ConflictRecord {
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `AcceptConflictCommand` | App command | `{ aiUsageFlowId, assessmentId, conflicts[], correlationId? }` |
-| `event.reconciliation.conflicts-detected` | Outbox | `{ assessmentId, conflictCount, correlationId }` |
-| `event.reconciliation.no-conflicts` | Outbox | `{ assessmentId, correlationId }` |
-| `CONFLICT_DETECTED` | `AuthAuditEvent` | `{ conflictId, conflictType, assessmentId, correlationId }` |
+| Name                                      | Type             | Safe payload                                                   |
+| ----------------------------------------- | ---------------- | -------------------------------------------------------------- |
+| `AcceptConflictCommand`                   | App command      | `{ aiUsageFlowId, assessmentId, conflicts[], correlationId? }` |
+| `event.reconciliation.conflicts-detected` | Outbox           | `{ assessmentId, conflictCount, correlationId }`               |
+| `event.reconciliation.no-conflicts`       | Outbox           | `{ assessmentId, correlationId }`                              |
+| `CONFLICT_DETECTED`                       | `AuthAuditEvent` | `{ conflictId, conflictType, assessmentId, correlationId }`    |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid conflicts with scores and refs | 200, `ConflictRecord` rows created |
-| T02 | Empty conflicts array | 200, `conflict_count = 0`, no-conflicts event |
-| T03 | `conflict_score = 1.1` | 422 `CONFLICT_SCORE_INVALID` |
-| T04 | `evidence_refs` empty | 422 `EVIDENCE_REFS_EMPTY` |
-| T05 | Invalid API key | 401 |
-| T06 | AI usage flow not found | 404 `AI_USAGE_FLOW_NOT_FOUND` |
-| T07 | All conflicts `status = PENDING` | DB verified |
+| ID  | Scenario                             | Expected                                      |
+| --- | ------------------------------------ | --------------------------------------------- |
+| T01 | Valid conflicts with scores and refs | 200, `ConflictRecord` rows created            |
+| T02 | Empty conflicts array                | 200, `conflict_count = 0`, no-conflicts event |
+| T03 | `conflict_score = 1.1`               | 422 `CONFLICT_SCORE_INVALID`                  |
+| T04 | `evidence_refs` empty                | 422 `EVIDENCE_REFS_EMPTY`                     |
+| T05 | Invalid API key                      | 401                                           |
+| T06 | AI usage flow not found              | 404 `AI_USAGE_FLOW_NOT_FOUND`                 |
+| T07 | All conflicts `status = PENDING`     | DB verified                                   |
 
 ## Definition of Done
 

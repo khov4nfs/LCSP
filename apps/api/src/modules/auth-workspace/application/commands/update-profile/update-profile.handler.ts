@@ -30,7 +30,7 @@ export class UpdateProfileHandler {
   ): Promise<AuthProblemResult | UpdateProfileSuccess> {
     const { payload, requestMeta } = command;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
 
     const sessionToken = payload.session_token;
     if (!sessionToken) {
@@ -197,12 +197,12 @@ export class UpdateProfileHandler {
       organization_id: session.organizationId,
       decision: AUDIT_DECISIONS.allow,
       updated_fields: updatedFields,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     });
 
     return {
       ok: true,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       updated_fields: updatedFields,
     };
   }

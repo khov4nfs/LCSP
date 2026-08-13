@@ -63,6 +63,10 @@ export interface EmailConfig {
   smtpFrom: string;
 }
 
+export interface OrchestrationConfig {
+  debug: boolean;
+}
+
 export type NodeEnv = "development" | "production" | "test";
 
 export interface AppConfig {
@@ -78,4 +82,5 @@ export interface AppConfig {
   worker: WorkerConfig;
   internal: InternalConfig;
   email: EmailConfig;
+  orchestration: OrchestrationConfig;
 }

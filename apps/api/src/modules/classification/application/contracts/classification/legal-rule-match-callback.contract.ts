@@ -34,5 +34,5 @@ export interface LegalRuleMatchCallbackResponseDto {
   accepted: boolean;
   legal_rule_match_id: string;
   guardrail_status: LegalRuleMatchGuardrailStatus;
-  correlation_id?: string;
+  correlationId?: string;
 }

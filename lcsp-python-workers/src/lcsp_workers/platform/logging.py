@@ -1,10 +1,10 @@
 import structlog
-from lcsp_workers.platform.correlation import get_correlation_id
+from lcsp_workers.platform.correlation import get_correlationId
 from lcsp_workers.platform.redaction import redact_dict
 
 
-def _inject_correlation_id(logger, method_name, event_dict):
-    event_dict["correlation_id"] = get_correlation_id()
+def _inject_correlationId(logger, method_name, event_dict):
+    event_dict["correlationId"] = get_correlationId()
     return event_dict
 
 
@@ -15,7 +15,7 @@ def _redact_secrets(logger, method_name, event_dict):
 def configure_logging(level: str = "INFO") -> None:
     structlog.configure(
         processors=[
-            _inject_correlation_id,
+            _inject_correlationId,
             _redact_secrets,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),

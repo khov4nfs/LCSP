@@ -7,5 +7,5 @@ export interface PinSnapshotDto {
   branch: string | null;
   status: RepositorySnapshotStatus;
   created_at: string;
-  correlation_id: string;
+  correlationId: string;
 }

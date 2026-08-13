@@ -2,10 +2,6 @@
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
-import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
 import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
 import {
   DOCUMENT_ERROR_CODES,
@@ -15,17 +11,21 @@ import {
   type DocumentType,
 } from "@lcsp/contracts/document";
 import {
-  CLASSIFICATION_GUARDRAIL_STATUSES,
-  CLASSIFICATION_RESULT_STATUSES,
-  LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
-  OVERALL_COVERAGE_STATUSES,
-} from "@lcsp/contracts/scan";
-import {
   PBAC_ACTIONS,
   PBAC_REASON_CODE,
   PBAC_STATE_GATES,
   SUBJECT_ROLES,
 } from "@lcsp/contracts/pbac";
+import {
+  CLASSIFICATION_GUARDRAIL_STATUSES,
+  CLASSIFICATION_RESULT_STATUSES,
+  LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
+  OVERALL_COVERAGE_STATUSES,
+} from "@lcsp/contracts/scan";
+import type { INestApplication } from "@nestjs/common";
+import { Test, type TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
 import {
@@ -53,7 +53,7 @@ type SuccessResponse = {
   download_url_expires_at: string | null;
   requested_at: string;
   completed_at: string | null;
-  correlation_id: string;
+  correlationId: string;
 };
 
 describe("Document Status Endpoint (e2e) [MW-doc-003]", () => {

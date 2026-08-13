@@ -1,5 +1,5 @@
 export type UpdateProfileSuccess = {
   ok: true;
-  correlation_id: string;
+  correlationId: string;
   updated_fields: string[];
 };

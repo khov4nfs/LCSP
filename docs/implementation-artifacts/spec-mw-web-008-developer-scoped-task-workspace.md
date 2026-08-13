@@ -1,14 +1,14 @@
 ---
-title: 'MW-web-008 Developer Scoped Task Workspace'
-type: 'feature'
-created: '2026-07-19T00:00:00+07:00'
-status: 'blocked'
+title: "MW-web-008 Developer Scoped Task Workspace"
+type: "feature"
+created: "2026-07-19T00:00:00+07:00"
+status: "blocked"
 review_loop_iteration: 0
 followup_review_recommended: false
 context:
-  - '{project-root}/docs/project-context.md'
-  - '{project-root}/docs/implementation-artifacts/epic-1-context.md'
-  - '{project-root}/docs/implementation/tasks/modules/web/08-developer-scoped-task-workspace.md'
+  - "{project-root}/docs/project-context.md"
+  - "{project-root}/docs/implementation-artifacts/epic-1-context.md"
+  - "{project-root}/docs/implementation/tasks/modules/web/08-developer-scoped-task-workspace.md"
 warnings: []
 ---
 
@@ -30,14 +30,14 @@ warnings: []
 
 ## I/O & Edge-Case Matrix
 
-| Scenario | Input / State | Expected Output / Behavior | Error Handling |
-|----------|--------------|---------------------------|----------------|
-| Valid invitation | Valid token, 1-100 character display name, password of at least 12 characters | Preview exact organization/assessment/scope, accept once, set httpOnly session cookie, redirect to scoped assessment | No error expected |
-| Invalid invitation | Unknown, expired, consumed, or non-approved token | Show one non-leaking invalid-link message | Do not distinguish invalid causes |
-| Existing account | Invitation email already belongs to a user | Offer sign-in link | Map `EMAIL_ALREADY_EXISTS` only |
-| No evidence | Authorized scope with no accepted report | Show localized empty state | Treat `EVIDENCE_NOT_FOUND` as empty |
-| Revoked session | Evidence request returns `401 SESSION_INVALID` | Remove protected content and redirect to sign-in | Never retain findings |
-| Narrowed scope | Evidence request returns `403 PBAC_DENIED` | Show inline revoked banner with no findings | Do not redirect or expose policy internals |
+| Scenario           | Input / State                                                                 | Expected Output / Behavior                                                                                           | Error Handling                             |
+| ------------------ | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Valid invitation   | Valid token, 1-100 character display name, password of at least 12 characters | Preview exact organization/assessment/scope, accept once, set httpOnly session cookie, redirect to scoped assessment | No error expected                          |
+| Invalid invitation | Unknown, expired, consumed, or non-approved token                             | Show one non-leaking invalid-link message                                                                            | Do not distinguish invalid causes          |
+| Existing account   | Invitation email already belongs to a user                                    | Offer sign-in link                                                                                                   | Map `EMAIL_ALREADY_EXISTS` only            |
+| No evidence        | Authorized scope with no accepted report                                      | Show localized empty state                                                                                           | Treat `EVIDENCE_NOT_FOUND` as empty        |
+| Revoked session    | Evidence request returns `401 SESSION_INVALID`                                | Remove protected content and redirect to sign-in                                                                     | Never retain findings                      |
+| Narrowed scope     | Evidence request returns `403 PBAC_DENIED`                                    | Show inline revoked banner with no findings                                                                          | Do not redirect or expose policy internals |
 
 </intent-contract>
 
@@ -54,6 +54,7 @@ warnings: []
 ## Tasks & Acceptance
 
 **Execution:**
+
 - [ ] `docs/implementation/tasks/modules/auth-workspace/15-preview-developer-invitation-endpoint.md` -- complete MW-auth-015 and verify safe preview plus acceptance scope parity.
 - [ ] `docs/implementation/tasks/modules/auth-workspace/16-developer-scoped-workspace-context-endpoint.md` -- complete MW-auth-016 and verify current labels/actions plus revocation behavior.
 - [ ] `apps/web/src/app/api/auth/accept-invitation/route.ts` and protected assessment BFF route -- proxy API calls, set/read `lcsp_session`, and never serialize the session token to the browser.
@@ -64,6 +65,7 @@ warnings: []
 - [ ] `tests/story-1-5.web.test.ts` -- cover the complete matrix, token boundaries, redaction, action whitelist, and absence of Manager-only controls.
 
 **Acceptance Criteria:**
+
 - Given an unconsumed scoped invitation, when a Developer opens it, then organization, assessment, allowed scope, and expiry are visible before any account or membership mutation.
 - Given successful acceptance, when the BFF receives the API result, then only the httpOnly cookie is persisted and navigation targets the exact scoped assessment.
 - Given Developer-scoped evidence, when findings render, then location keys and Manager-only actions are absent from both the view model and DOM.
@@ -80,6 +82,7 @@ The Web must consume display-safe metadata from an authoritative backend project
 ## Verification
 
 **Commands:**
+
 - `rtk pnpm exec node --test tests/story-1-5.web.test.ts` -- expected: invitation, redaction, revocation, and action-boundary cases pass.
 - `rtk pnpm test:web` -- expected: all Web behavior tests pass.
 - `rtk pnpm run typecheck` -- expected: Web, contracts, and i18n compile without errors.
@@ -94,7 +97,7 @@ Blocking condition: intent gaps in the authoritative backend/Web boundary. The c
 
 Evidence gathered:
 
-- `AcceptInvitationResponse` contains `user_id`, `session_token`, `expires_at`, `organization_id`, `allowed_actions`, and `correlation_id`, but no `assessment_id` or scope.
+- `AcceptInvitationResponse` contains `user_id`, `session_token`, `expires_at`, `organization_id`, `allowed_actions`, and `correlationId`, but no `assessment_id` or scope.
 - `AcceptInvitationHandler` looks up the token directly as `authInvitation.id`; it is opaque and cannot be decoded safely.
 - `EvidenceDetailDto` returns evidence data and `assessment_id`, but no organization name, assessment label, or granted actions.
 - `GET /assessments/:id` requires `assessment:read`, which is not a Developer-allowed action.

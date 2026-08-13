@@ -1,10 +1,11 @@
+import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
+import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AUTH_AUDIT_EVENT_TYPES,
   AUTH_INVITATION_STATES,
   AUTH_MEMBERSHIP_STATUSES,
   INVITE_DEVELOPER_ERROR_CODES,
 } from "@lcsp/contracts/auth";
-import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   PBAC_ACTIONS,
   PBAC_DECISION,
@@ -12,17 +13,16 @@ import {
   PBAC_STATE_GATES,
   SUBJECT_ROLES,
 } from "@lcsp/contracts/pbac";
-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
-import { AppModule } from "../src/app.module.js";
 import { DEVELOPER_ALLOWED_ACTIONS } from "@lcsp/contracts/pbac";
+import { AppModule } from "../src/app.module.js";
 import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
 import {
   TEST_DATABASE_URL,
@@ -35,7 +35,7 @@ import {
 type InviteDeveloperBody = {
   invitation_id: string;
   email: string;
-  correlation_id: string;
+  correlationId: string;
   allowed_actions: string[];
 };
 
@@ -105,7 +105,7 @@ describe("Invite Developer endpoint (e2e) [MW-auth-010]", () => {
     assert.equal(result.status, 201);
     const body = successBody<InviteDeveloperBody>(result);
     assert.equal(body.email, "developer@example.test");
-    assert.equal(body.correlation_id, "corr-invite-1");
+    assert.equal(body.correlationId, "corr-invite-1");
     assert.deepEqual(body.allowed_actions, [
       PBAC_ACTIONS.evidenceReadRedacted,
       "ai-usage-flow:read",

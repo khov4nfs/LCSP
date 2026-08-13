@@ -1,7 +1,7 @@
-import * as assert from "node:assert/strict";
-import { test } from "node:test";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import { DOCUMENT_ERROR_CODES } from "@lcsp/contracts/document";
+import * as assert from "node:assert/strict";
+import { test } from "node:test";
 
 import {
   sanitizeDocumentRequestPayload,
@@ -29,7 +29,7 @@ test("document request outcome maps requested response correctly", () => {
       document_request_id: "req-123",
       status: "queued",
       document_type: "final_report",
-      correlation_id: "corr-456",
+      correlationId: "corr-456",
     },
     true,
     200,
@@ -40,7 +40,7 @@ test("document request outcome maps requested response correctly", () => {
     assert.equal(outcome.data.document_request_id, "req-123");
     assert.equal(outcome.data.status, "queued");
     assert.equal(outcome.data.document_type, "final_report");
-    assert.equal(outcome.data.correlation_id, "corr-456");
+    assert.equal(outcome.data.correlationId, "corr-456");
   }
 });
 
@@ -65,7 +65,10 @@ test("document request outcome maps classification guardrail failure to blocked"
   assert.equal(outcome.kind, "blocked");
   if (outcome.kind === "blocked") {
     assert.equal(outcome.titleKey, "pages.classification.errorTitle");
-    assert.equal(outcome.detailKey, "pages.classification.documentGuardrailBlocked");
+    assert.equal(
+      outcome.detailKey,
+      "pages.classification.documentGuardrailBlocked",
+    );
   }
 });
 
@@ -85,13 +88,13 @@ test("sanitizeDocumentRequestPayload accepts valid payloads", () => {
       document_request_id: "req-321",
       status: "queued",
       document_type: "FinalReport",
-      correlation_id: "corr-654",
+      correlationId: "corr-654",
     }),
     {
       document_request_id: "req-321",
       status: "queued",
       document_type: "FinalReport",
-      correlation_id: "corr-654",
+      correlationId: "corr-654",
     },
   );
 });
@@ -102,7 +105,7 @@ test("sanitizeDocumentRequestPayload rejects invalid payloads", () => {
       document_request_id: 123,
       status: "queued",
       document_type: "FinalReport",
-      correlation_id: "corr-654",
+      correlationId: "corr-654",
     }),
     null,
   );

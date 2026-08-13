@@ -2,10 +2,6 @@
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
-import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
 import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
@@ -24,6 +20,10 @@ import {
   TECHNICAL_PROFILE_STATUSES,
   type ConflictRecordStatus,
 } from "@lcsp/contracts/scan";
+import type { INestApplication } from "@nestjs/common";
+import { Test, type TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
 import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
@@ -41,7 +41,7 @@ type ResolveConflictDto = {
   status: ConflictRecordStatus;
   resolved_at: string;
   all_conflicts_resolved: boolean;
-  correlation_id: string;
+  correlationId: string;
 };
 
 describe("Resolve Conflict Endpoint (e2e) [MW-rec-003]", () => {
@@ -95,7 +95,7 @@ describe("Resolve Conflict Endpoint (e2e) [MW-rec-003]", () => {
     assert.equal(body.status, CONFLICT_RECORD_STATUSES.resolved);
     assert.equal(body.all_conflicts_resolved, false);
     assert.ok(body.resolved_at);
-    assert.ok(body.correlation_id);
+    assert.ok(body.correlationId);
 
     const [record, audit] = await Promise.all([
       prisma.conflictRecord.findUniqueOrThrow({ where: { id: "conflict-1" } }),

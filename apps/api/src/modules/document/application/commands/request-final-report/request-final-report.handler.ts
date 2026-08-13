@@ -1,5 +1,3 @@
-import { HttpStatus } from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   DOCUMENT_ERROR_CODES,
@@ -9,6 +7,8 @@ import {
 } from "@lcsp/contracts/document";
 import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
 import { CLASSIFICATION_GUARDRAIL_STATUSES } from "@lcsp/contracts/scan";
+import { HttpStatus } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import {
   fromPrismaClassificationGuardrailStatus,
@@ -174,7 +174,7 @@ export class RequestFinalReportHandler implements ICommandHandler<RequestFinalRe
       document_request_id: documentRequestId,
       status: DOCUMENT_REQUEST_STATUSES.queued,
       document_type: DOCUMENT_TYPES.finalReport,
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
     };
   }
 }

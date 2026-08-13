@@ -108,7 +108,7 @@ def test_ai_usage_flow_handle_smoke_e2e_runs_graph_and_submits_callback() -> Non
             "assessmentId": "assessment-smoke-1",
             "evidenceReportId": "ter-smoke-1",
         },
-        correlation_id="corr-smoke-ai-1",
+        correlationId="corr-smoke-ai-1",
     )
 
     api_client.post_ai_usage_flow_callback.assert_called_once()
@@ -152,7 +152,7 @@ def test_classification_handle_smoke_e2e_runs_graph_and_submits_callback() -> No
                 ],
                 "citation_allowlist": ["ref-smoke-1"],
             },
-            correlation_id="corr-smoke-classification-1",
+            correlationId="corr-smoke-classification-1",
         )
 
     mock_submit.assert_called_once()

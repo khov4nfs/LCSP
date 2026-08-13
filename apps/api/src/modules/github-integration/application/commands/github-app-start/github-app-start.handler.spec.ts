@@ -1,15 +1,15 @@
+import { describe, expect, it, jest } from "@jest/globals";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
-import { PBAC_DECISION } from "@lcsp/contracts/pbac";
 import {
   GITHUB_INTEGRATION_ERROR_CODES,
   GITHUB_INTEGRATION_EVENT_TYPES,
 } from "@lcsp/contracts/github-integration";
-import { describe, it, expect, jest } from "@jest/globals";
+import { PBAC_DECISION } from "@lcsp/contracts/pbac";
 import { BadRequestException } from "@nestjs/common";
 import type { ConfigService } from "@nestjs/config";
 
-import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
+import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import type { GitHubAppClient } from "../../../infrastructure/github/github-app.client.js";
 import type { GitHubAppInstallStateRepository } from "../../ports/persistence/github-app-install-state.repository.js";
 import { GitHubAppStartCommand } from "./github-app-start.command.js";
@@ -105,7 +105,7 @@ describe("GitHubAppStartHandler", () => {
     expect(result.installation_url).toContain(
       "https://github.com/apps/lcsp-app/installations/new",
     );
-    expect(result.correlation_id).toBe("corr-1");
+    expect(result.correlationId).toBe("corr-1");
     expect(save).toHaveBeenCalledTimes(1);
     expect(buildInstallationUrl).toHaveBeenCalledTimes(1);
   });

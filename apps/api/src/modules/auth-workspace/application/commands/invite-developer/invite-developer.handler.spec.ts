@@ -1,3 +1,9 @@
+import { describe, expect, it, jest } from "@jest/globals";
+import {
+  AUTH_AUDIT_EVENT_TYPES,
+  AUTH_INVITATION_STATES,
+  AUTH_MEMBERSHIP_STATUSES,
+} from "@lcsp/contracts/auth";
 import {
   DEVELOPER_ALLOWED_ACTIONS,
   PBAC_ACTIONS,
@@ -5,12 +11,6 @@ import {
   PBAC_STATE_GATES,
   SUBJECT_ROLES,
 } from "@lcsp/contracts/pbac";
-import {
-  AUTH_AUDIT_EVENT_TYPES,
-  AUTH_INVITATION_STATES,
-  AUTH_MEMBERSHIP_STATUSES,
-} from "@lcsp/contracts/auth";
-import { describe, expect, it, jest } from "@jest/globals";
 import {
   BadRequestException,
   UnprocessableEntityException,
@@ -112,7 +112,7 @@ describe("InviteDeveloperHandler", () => {
         PBAC_ACTIONS.evidenceReadRedacted,
         "ai-usage-flow:read",
       ],
-      correlation_id: "corr-1",
+      correlationId: "corr-1",
     });
 
     expect(invitation.state).toBe(AUTH_INVITATION_STATES.approved);
@@ -134,7 +134,7 @@ describe("InviteDeveloperHandler", () => {
       actor_id: "manager-1",
       organization_id: "org-1",
       decision: PBAC_DECISION.allow,
-      correlation_id: "corr-1",
+      correlationId: "corr-1",
     });
   });
 

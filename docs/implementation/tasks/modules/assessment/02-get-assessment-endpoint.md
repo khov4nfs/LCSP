@@ -18,12 +18,12 @@ Return the full assessment state for a Manager or scoped Developer. Includes cur
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/assessment/presentation/http/assessment.controller.ts` | Modify | Add `GET /assessments/:assessmentId` |
-| `apps/api/src/modules/assessment/application/queries/get-assessment/get-assessment.query.ts` | Create | Query shape |
-| `apps/api/src/modules/assessment/application/queries/get-assessment/get-assessment.handler.ts` | Create | Projection logic + readiness evaluation |
-| `apps/api/src/modules/assessment/application/contracts/assessment/assessment-detail.contract.ts` | Create | Response DTO |
+| File                                                                                             | Action | Notes                                   |
+| ------------------------------------------------------------------------------------------------ | ------ | --------------------------------------- |
+| `apps/api/src/modules/assessment/presentation/http/assessment.controller.ts`                     | Modify | Add `GET /assessments/:assessmentId`    |
+| `apps/api/src/modules/assessment/application/queries/get-assessment/get-assessment.query.ts`     | Create | Query shape                             |
+| `apps/api/src/modules/assessment/application/queries/get-assessment/get-assessment.handler.ts`   | Create | Projection logic + readiness evaluation |
+| `apps/api/src/modules/assessment/application/contracts/assessment/assessment-detail.contract.ts` | Create | Response DTO                            |
 
 ## API Contract
 
@@ -32,48 +32,48 @@ Return the full assessment state for a Manager or scoped Developer. Includes cur
 
 **Path parameters:**
 
-| Param | Type | Required | Notes |
-|---|---|---|---|
-| `assessmentId` | string | Yes | Must belong to session org |
+| Param          | Type   | Required | Notes                      |
+| -------------- | ------ | -------- | -------------------------- |
+| `assessmentId` | string | Yes      | Must belong to session org |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `assessment_id` | string | |
-| `name` | string | |
-| `status` | string | Current assessment state |
-| `owner_id` | string | |
-| `organization_id` | string | |
-| `wizard_status` | string | `NOT_STARTED` \| `IN_PROGRESS` \| `SUBMITTED` |
-| `readiness_state` | object | See below |
-| `next_action` | string | Business-language hint for Manager |
-| `created_at` | string | ISO 8601 |
-| `updated_at` | string | ISO 8601 |
-| `correlation_id` | string | |
+| Field             | Type   | Notes                                         |
+| ----------------- | ------ | --------------------------------------------- |
+| `assessment_id`   | string |                                               |
+| `name`            | string |                                               |
+| `status`          | string | Current assessment state                      |
+| `owner_id`        | string |                                               |
+| `organization_id` | string |                                               |
+| `wizard_status`   | string | `NOT_STARTED` \| `IN_PROGRESS` \| `SUBMITTED` |
+| `readiness_state` | object | See below                                     |
+| `next_action`     | string | Business-language hint for Manager            |
+| `created_at`      | string | ISO 8601                                      |
+| `updated_at`      | string | ISO 8601                                      |
+| `correlationId`   | string |                                               |
 
 **`readiness_state` object:**
 
-| Field | Type | Notes |
-|---|---|---|
-| `classification_locked` | boolean | `true` when no accepted technical evidence |
-| `lock_reason` | string \| null | `LOCKED_EVIDENCE_REQUIRED` or null |
-| `missing_evidence` | string[] | List of required-but-missing evidence types |
+| Field                   | Type           | Notes                                       |
+| ----------------------- | -------------- | ------------------------------------------- |
+| `classification_locked` | boolean        | `true` when no accepted technical evidence  |
+| `lock_reason`           | string \| null | `LOCKED_EVIDENCE_REQUIRED` or null          |
+| `missing_evidence`      | string[]       | List of required-but-missing evidence types |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 403 | `PBAC_DENIED` | Actor lacks `assessment:read` |
-| 404 | `ASSESSMENT_NOT_FOUND` | ID not found or not in session org |
+| HTTP | `error_code`           | Meaning                            |
+| ---- | ---------------------- | ---------------------------------- |
+| 403  | `PBAC_DENIED`          | Actor lacks `assessment:read`      |
+| 404  | `ASSESSMENT_NOT_FOUND` | ID not found or not in session org |
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `Assessment` | Read | All fields, verify `organizationId = session.organizationId` |
-| `WizardProfile` | Read | `status`, `submittedAt` (for wizard_status) |
-| `TechnicalEvidenceReport` | Read | Existence check for accepted evidence |
+| Model                     | Action | Key fields                                                   |
+| ------------------------- | ------ | ------------------------------------------------------------ |
+| `Assessment`              | Read   | All fields, verify `organizationId = session.organizationId` |
+| `WizardProfile`           | Read   | `status`, `submittedAt` (for wizard_status)                  |
+| `TechnicalEvidenceReport` | Read   | Existence check for accepted evidence                        |
 
 ## Business Rules
 
@@ -87,16 +87,16 @@ Return the full assessment state for a Manager or scoped Developer. Includes cur
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Manager reads own assessment | 200 with full state |
-| T02 | No technical evidence → `classification_locked = true` | `lock_reason = LOCKED_EVIDENCE_REQUIRED` |
-| T03 | Accepted evidence exists → `classification_locked = false` | Lock reason null |
-| T04 | Assessment not in session org | 404 `ASSESSMENT_NOT_FOUND` |
-| T05 | Manager lacks `assessment:read` | 403 `PBAC_DENIED` |
-| T06 | Response has no risk/severity/non-compliant wording | Verified by field inspection |
-| T07 | Developer with `assessment:read` scope | 200 with scoped projection |
-| T08 | `next_action` is business language | Verified by content |
+| ID  | Scenario                                                   | Expected                                 |
+| --- | ---------------------------------------------------------- | ---------------------------------------- |
+| T01 | Manager reads own assessment                               | 200 with full state                      |
+| T02 | No technical evidence → `classification_locked = true`     | `lock_reason = LOCKED_EVIDENCE_REQUIRED` |
+| T03 | Accepted evidence exists → `classification_locked = false` | Lock reason null                         |
+| T04 | Assessment not in session org                              | 404 `ASSESSMENT_NOT_FOUND`               |
+| T05 | Manager lacks `assessment:read`                            | 403 `PBAC_DENIED`                        |
+| T06 | Response has no risk/severity/non-compliant wording        | Verified by field inspection             |
+| T07 | Developer with `assessment:read` scope                     | 200 with scoped projection               |
+| T08 | `next_action` is business language                         | Verified by content                      |
 
 ## Definition of Done
 

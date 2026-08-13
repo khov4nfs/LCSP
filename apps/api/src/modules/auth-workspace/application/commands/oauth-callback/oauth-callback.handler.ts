@@ -5,8 +5,8 @@ import {
   createProblemResult,
 } from "@lcsp/contracts/auth";
 
-import type { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
 import type { OAuthCallbackClaims } from "../../../infrastructure/oauth/oauth-provider.interface.ts";
+import type { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
 import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { OAuthCallbackSuccess } from "../../contracts/auth-workspace/oauth.contract.ts";
 import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
@@ -26,7 +26,7 @@ export class OAuthCallbackHandler {
     const { payload, requestMeta } = command;
     const { repositories } = this;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
 
     const code = asNonEmptyString(payload?.code);
     const stateValue = asNonEmptyString(payload?.state);
@@ -184,7 +184,7 @@ export class OAuthCallbackHandler {
       actor_id: user.id,
       organization_id: organizationId,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       provider: oauthState.provider,
     });
 
@@ -204,7 +204,7 @@ export class OAuthCallbackHandler {
 
     return {
       ok: true,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       session_token: sessionState.token,
       expires_at: sessionState.session.expiresAt,
       mfa_required: mfaRequired,
@@ -225,7 +225,7 @@ export class OAuthCallbackHandler {
       organization_id: null,
       decision: AUDIT_DECISIONS.deny,
       reason_code: reasonCode,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     });
   }
 }

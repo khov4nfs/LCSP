@@ -14,5 +14,5 @@ export interface ScanCallbackRequest {
 export interface ScanCallbackDto {
   accepted: boolean;
   evidence_report_id: string;
-  correlation_id: string;
+  correlationId: string;
 }

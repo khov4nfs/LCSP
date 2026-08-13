@@ -8,5 +8,5 @@ export interface RerunScanResponseDto {
   scan_job_id: string;
   status: string;
   replaces_scan_job_id?: string;
-  correlation_id: string;
+  correlationId: string;
 }

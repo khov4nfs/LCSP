@@ -22,7 +22,7 @@ export class DisableMfaHandler {
   ): Promise<AuthProblemResult | DisableMfaSuccess> {
     const { sessionToken, requestMeta } = command;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
 
     const session = await this.support.findValidSession(
       this.repositories,
@@ -43,7 +43,7 @@ export class DisableMfaHandler {
       session.userId,
     );
     if (!enrollment) {
-      return { ok: true, correlation_id: correlationId };
+      return { ok: true, correlationId: correlationId };
     }
 
     const user = await this.support.resolveUserById(
@@ -73,10 +73,10 @@ export class DisableMfaHandler {
       actor_id: session.userId,
       organization_id: session.organizationId,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       session_id: session.id,
     });
 
-    return { ok: true, correlation_id: correlationId };
+    return { ok: true, correlationId: correlationId };
   }
 }

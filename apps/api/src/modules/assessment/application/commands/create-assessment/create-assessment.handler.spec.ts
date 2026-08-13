@@ -1,25 +1,25 @@
+import { describe, expect, it, jest } from "@jest/globals";
 import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
-import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
 import {
   PBAC_ACTIONS,
   PBAC_DECISION,
   SUBJECT_ROLES,
 } from "@lcsp/contracts/pbac";
-import { describe, it, expect, jest } from "@jest/globals";
 import {
   ForbiddenException,
   UnprocessableEntityException,
 } from "@nestjs/common";
 
-import type { AssessmentRepository } from "../../ports/persistence/assessment.repository.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import type { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
+import type { AssessmentRepository } from "../../ports/persistence/assessment.repository.js";
 import { CreateAssessmentCommand } from "./create-assessment.command.js";
 import { CreateAssessmentHandler } from "./create-assessment.handler.js";
 
@@ -103,7 +103,7 @@ describe("CreateAssessmentHandler", () => {
 
     expect(result.status).toBe(ASSESSMENT_STATUS_CODES.wizardInProgress);
     expect(result.assessment_id).toBeTruthy();
-    expect(result.correlation_id).toBe("corr-1");
+    expect(result.correlationId).toBe("corr-1");
     expect(saveInTx).toHaveBeenCalledTimes(1);
   });
 

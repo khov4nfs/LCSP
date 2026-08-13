@@ -2,16 +2,13 @@
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
-import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
 import {
   DOCUMENT_ERROR_CODES,
   DOCUMENT_EVENT_TYPES,
   DOCUMENT_REQUEST_STATUSES,
   DOCUMENT_TYPES,
 } from "@lcsp/contracts/document";
+import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
 import {
   CLASSIFICATION_GUARDRAIL_STATUSES,
   CLASSIFICATION_RESULT_STATUSES,
@@ -19,7 +16,10 @@ import {
   OVERALL_COVERAGE_STATUSES,
   type ClassificationGuardrailStatus,
 } from "@lcsp/contracts/scan";
-import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
+import type { INestApplication } from "@nestjs/common";
+import { Test, type TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
 import {
@@ -40,7 +40,7 @@ type SuccessResponse = {
   document_request_id: string;
   status: string;
   document_type: string;
-  correlation_id: string;
+  correlationId: string;
 };
 
 const WORKER_KEY = "test-only-worker-api-key-at-least-32-chars";
@@ -117,7 +117,7 @@ describe("Request Gap Analysis Endpoint (e2e) [LCSP-80]", () => {
     assert.ok(body.document_request_id);
     assert.equal(body.status, DOCUMENT_REQUEST_STATUSES.queued);
     assert.equal(body.document_type, DOCUMENT_TYPES.gapAnalysis);
-    assert.ok(body.correlation_id);
+    assert.ok(body.correlationId);
 
     const [docRequest, outbox, auditCount] = await Promise.all([
       prisma.documentRequest.findUnique({
@@ -133,7 +133,7 @@ describe("Request Gap Analysis Endpoint (e2e) [LCSP-80]", () => {
       prisma.authAuditEvent.count({
         where: {
           eventType: DOCUMENT_EVENT_TYPES.gapAnalysisRequestedAudit,
-          correlationId: body.correlation_id,
+          correlationId: body.correlationId,
         },
       }),
     ]);

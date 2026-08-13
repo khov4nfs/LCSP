@@ -21,5 +21,5 @@ export interface ReadinessResponse {
   completed_steps: string[];
   next_action: string;
   updated_at: string;
-  correlation_id: string;
+  correlationId: string;
 }

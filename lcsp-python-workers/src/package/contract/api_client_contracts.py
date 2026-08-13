@@ -2,7 +2,7 @@ from enum import StrEnum
 
 
 WORKER_API_KEY_HEADER = "X-Worker-Api-Key"
-CORRELATION_ID_HEADER = "X-Correlation-Id"
+correlationId_HEADER = "X-Correlation-Id"
 
 
 class CallbackPath(StrEnum):
@@ -24,6 +24,7 @@ class InternalPath(StrEnum):
     TECHNICAL_EVIDENCE_REPORT = "/internal/evidence/reports/{evidence_report_id}"
     TECHNICAL_PROFILE = "/internal/evidence/technical-profiles/{technical_profile_id}"
     AGENTIC_TOOL_DISPATCH = "/internal/evidence/agentic-tools/dispatch"
+    TARGETED_REANALYSIS_CREATE = "/internal/scan-jobs/targeted-reanalysis"
     AI_USAGE_FLOW = "/internal/ai-usage-flow/{ai_usage_flow_id}"
     VERIFIED_PROFILE_CONTEXT = "/internal/reconciliation/verified-profile-context/{assessment_id}"
     WIZARD_PROFILE = "/internal/assessments/{assessment_id}/wizard-profile"

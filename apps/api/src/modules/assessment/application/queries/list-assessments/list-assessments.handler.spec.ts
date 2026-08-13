@@ -1,19 +1,19 @@
+import { describe, expect, it, jest } from "@jest/globals";
 import {
   ASSESSMENT_STATUS_CODES,
   WIZARD_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 import { SUBJECT_ROLES, type SubjectRole } from "@lcsp/contracts/pbac";
-import { describe, it, expect, jest } from "@jest/globals";
 import { UnprocessableEntityException } from "@nestjs/common";
 
+import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { Assessment } from "../../../domain/entities/assessment.entity.js";
 import type {
   AssessmentListResult,
   AssessmentRepository,
 } from "../../ports/persistence/assessment.repository.js";
-import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { ListAssessmentsQuery } from "./list-assessments.query.js";
 import { ListAssessmentsHandler } from "./list-assessments.handler.js";
+import { ListAssessmentsQuery } from "./list-assessments.query.js";
 
 function makeAssessment(name = "Assessment") {
   return Assessment.create({
@@ -88,7 +88,7 @@ describe("ListAssessmentsHandler", () => {
     expect(result.total).toBe(1);
     expect(result.page).toBe(1);
     expect(result.page_size).toBe(20);
-    expect(result.correlation_id).toBe("corr-1");
+    expect(result.correlationId).toBe("corr-1");
   });
 
   // T02

@@ -20,7 +20,7 @@ class DummyConsumer(ConsumerBase):
         self.handle_called = False
         self.raise_in_handle = False
 
-    def handle(self, message: dict, correlation_id: str) -> None:
+    def handle(self, message: dict, correlationId: str) -> None:
         if self.raise_in_handle:
             raise ValueError("Intentional error")
         self.handle_called = True
@@ -298,15 +298,15 @@ def test_run_swallows_keyboard_interrupt_while_closing(monkeypatch, config):
     connection.close.assert_called_once()
 
 
-def test_t06_correlation_id_in_logs(
+def test_t06_correlationId_in_logs(
     config, pbac_mock, channel_mock, method_mock, capsys
 ):
-    """T06: every log line contains correlation_id field."""
+    """T06: every log line contains correlationId field."""
     pbac_mock.check.return_value = "deny"
     consumer = DummyConsumer(config, pbac_mock)
 
     properties = MagicMock()
-    properties.headers = {"correlation_id": "test-cid-123"}
+    properties.headers = {"correlationId": "test-cid-123"}
     body = b"{}"
 
     consumer._on_message(channel_mock, method_mock, properties, body)

@@ -1,18 +1,12 @@
 import * as crypto from "node:crypto";
 
 import {
-  HttpStatus,
-  NotFoundException,
-  UnprocessableEntityException,
-} from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import {
-  AUDIT_DECISIONS,
-  AUDIT_REDACTION_STATUSES,
-  buildAuditEventInput,
-  AUDIT_RESOURCE_TYPES,
   AUDIT_ACTOR_IDS,
   AUDIT_ACTOR_TYPES,
+  AUDIT_DECISIONS,
+  AUDIT_REDACTION_STATUSES,
+  AUDIT_RESOURCE_TYPES,
+  buildAuditEventInput,
   type AuditResourceType,
 } from "@lcsp/contracts/audit";
 import {
@@ -26,6 +20,12 @@ import {
   SCAN_ERROR_CODES,
   SCAN_EVENT_TYPES,
 } from "@lcsp/contracts/scan";
+import {
+  HttpStatus,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { Prisma } from "@prisma/client";
 
 import {
@@ -207,7 +207,7 @@ export class AcceptConflictHandler implements ICommandHandler<AcceptConflictComm
     return {
       accepted: true,
       conflict_count: payload.conflicts.length,
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
     };
   }
 

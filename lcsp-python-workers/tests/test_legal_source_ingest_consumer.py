@@ -49,7 +49,7 @@ def test_consumer_fetches_and_registers_official_snapshot(config):
             },
             "gatewayDocumentId": "123",
         },
-        correlation_id="corr-1",
+        correlationId="corr-1",
     )
 
     fetch_request = snapshot_fetcher.fetch.call_args.args[0]
@@ -85,7 +85,7 @@ def test_consumer_rejects_invalid_expected_identity(config):
                 "sourceUrl": "https://vbpl.vn/TW/Pages/vbpq-toanvan.aspx?ItemID=179989",
                 "maxBytes": 1024 * 1024,
             },
-            correlation_id="corr-1",
+            correlationId="corr-1",
         )
 
 

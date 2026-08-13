@@ -23,7 +23,7 @@ export class ReauthenticatePasswordHandler {
   ): Promise<AuthProblemResult | PasswordReauthSuccess> {
     const { payload, requestMeta } = command;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
 
     if (
       typeof payload.session_token !== "string" ||
@@ -71,7 +71,7 @@ export class ReauthenticatePasswordHandler {
         organization_id: session.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.invalidCredentials,
-        correlation_id: correlationId,
+        correlationId: correlationId,
         session_id: session.id,
       });
       return createProblemResult(
@@ -88,13 +88,13 @@ export class ReauthenticatePasswordHandler {
       actor_id: user.id,
       organization_id: session.organizationId,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       session_id: session.id,
     });
 
     return {
       ok: true,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       verified: true,
     };
   }

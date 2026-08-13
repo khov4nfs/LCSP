@@ -12,7 +12,7 @@ def test_download_snapshot_archive_uses_worker_api_key_header():
     request = SnapshotArchiveRequest(
         snapshot_id="snapshot-1",
         scan_job_id="scan-job-1",
-        correlation_id="corr-1",
+        correlationId="corr-1",
     )
 
     with patch(

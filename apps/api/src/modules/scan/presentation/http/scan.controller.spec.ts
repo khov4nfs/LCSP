@@ -229,6 +229,49 @@ describe("InternalScanController", () => {
       correlationId: "corr-1",
     });
   });
+
+  it("creates targeted reanalysis through the internal worker-auth endpoint", async () => {
+    const execute = jest.fn<(command: unknown) => Promise<unknown>>();
+    execute.mockResolvedValue({ status: "READY" });
+    const controller = new InternalScanController({
+      execute,
+    } as unknown as CommandBus);
+
+    await controller.createTargetedReanalysis(
+      {
+        assessmentId: "assessment-1",
+        organizationId: "org-1",
+        userId: "user-1",
+        inputArtifactVersion: "ter_12345678",
+        analyzerId: "RUN_SEMGREP_RULES",
+        scope: { pathPrefixes: ["apps/api/"] },
+        reasonRequirementId: "requirement:gap_12345678",
+        idempotencyKey: "request_targeted_reanalysis_0001",
+      },
+      "corr-1",
+    );
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute.mock.calls[0]?.[0]).toBeInstanceOf(
+      RequestTargetedReanalysisCommand,
+    );
+    expect(execute.mock.calls[0]?.[0]).toMatchObject({
+      input: {
+        assessmentId: "assessment-1",
+        inputArtifactVersion: "ter_12345678",
+        analyzerId: "RUN_SEMGREP_RULES",
+        scope: { pathPrefixes: ["apps/api/"] },
+        reasonRequirementId: "requirement:gap_12345678",
+        idempotencyKey: "request_targeted_reanalysis_0001",
+      },
+      pbacContext: expect.objectContaining({
+        userId: "user-1",
+        organizationId: "org-1",
+        selectedAction: PBAC_ACTIONS.technicalEvidenceReanalyze,
+      }),
+      correlationId: "corr-1",
+    });
+  });
 });
 
 describe("InternalTargetedReanalysisController", () => {

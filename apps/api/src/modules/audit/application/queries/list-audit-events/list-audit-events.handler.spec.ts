@@ -1,7 +1,7 @@
+import { jest } from "@jest/globals";
 import { AUDIT_DECISIONS, type AuditDecision } from "@lcsp/contracts/audit";
 import { ORGANIZATION_SCOPE_ERROR_CODES } from "@lcsp/contracts/auth";
 import { BadRequestException } from "@nestjs/common";
-import { jest } from "@jest/globals";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditRedactorService } from "../../services/audit/audit-redactor.service.js";
@@ -102,7 +102,7 @@ describe("ListAuditEventsHandler", () => {
       total: 1,
       page: 1,
       page_size: 20,
-      correlation_id: "corr-1",
+      correlationId: "corr-1",
     });
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({

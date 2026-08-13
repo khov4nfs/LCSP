@@ -1,5 +1,4 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { ConflictException, NotFoundException } from "@nestjs/common";
 import {
   DOCUMENT_ERROR_CODES,
   DOCUMENT_EVENT_TYPES,
@@ -7,6 +6,7 @@ import {
   DOCUMENT_TYPES,
 } from "@lcsp/contracts/document";
 import { CLASSIFICATION_GUARDRAIL_STATUSES } from "@lcsp/contracts/scan";
+import { ConflictException, NotFoundException } from "@nestjs/common";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -104,7 +104,7 @@ describe("RequestFinalReportHandler", () => {
 
     expect(result.status).toBe(DOCUMENT_REQUEST_STATUSES.queued);
     expect(result.document_type).toBe(DOCUMENT_TYPES.finalReport);
-    expect(result.correlation_id).toBe("corr-1");
+    expect(result.correlationId).toBe("corr-1");
     expect(result.document_request_id).toBeTruthy();
     expect(transaction).toHaveBeenCalledTimes(1);
     expect(enqueue).toHaveBeenCalledTimes(1);

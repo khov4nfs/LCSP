@@ -17,13 +17,13 @@ Allow an authenticated user to enroll TOTP MFA: generate a secret, return provis
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts` | Verify | `POST /auth/mfa/enroll` exists |
-| `apps/api/src/modules/auth-workspace/application/commands/enroll-mfa/enroll-mfa.command.ts` | Verify | Command shape |
+| File                                                                                        | Action | Notes                                           |
+| ------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------- |
+| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts`        | Verify | `POST /auth/mfa/enroll` exists                  |
+| `apps/api/src/modules/auth-workspace/application/commands/enroll-mfa/enroll-mfa.command.ts` | Verify | Command shape                                   |
 | `apps/api/src/modules/auth-workspace/application/commands/enroll-mfa/enroll-mfa.handler.ts` | Verify | Secret generation, encryption, provisioning URI |
-| `apps/api/src/modules/auth-workspace/domain/entities/mfa-enrollment.entity.ts` | Verify | MFA enrollment state |
-| `apps/api/src/modules/auth-workspace/infrastructure/security/security.utils.ts` | Verify | TOTP secret generation, AES encryption |
+| `apps/api/src/modules/auth-workspace/domain/entities/mfa-enrollment.entity.ts`              | Verify | MFA enrollment state                            |
+| `apps/api/src/modules/auth-workspace/infrastructure/security/security.utils.ts`             | Verify | TOTP secret generation, AES encryption          |
 
 ## API Contract
 
@@ -32,31 +32,31 @@ Allow an authenticated user to enroll TOTP MFA: generate a secret, return provis
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `session_token` | string | Yes | Must be valid, non-expired, non-revoked |
+| Field           | Type   | Required | Notes                                   |
+| --------------- | ------ | -------- | --------------------------------------- |
+| `session_token` | string | Yes      | Must be valid, non-expired, non-revoked |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `totp_uri` | string | `otpauth://totp/LCSP:<email>?secret=<base32>&issuer=LCSP` |
-| `correlation_id` | string | |
+| Field           | Type   | Notes                                                     |
+| --------------- | ------ | --------------------------------------------------------- |
+| `totp_uri`      | string | `otpauth://totp/LCSP:<email>?secret=<base32>&issuer=LCSP` |
+| `correlationId` | string |                                                           |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 401 | `SESSION_INVALID` | Session expired, revoked, or not found |
-| 409 | `MFA_ALREADY_ENROLLED` | `AuthUserMfa` row exists for this user |
-| 400 | `INVALID_REQUEST` | Missing session_token |
+| HTTP | `error_code`           | Meaning                                |
+| ---- | ---------------------- | -------------------------------------- |
+| 401  | `SESSION_INVALID`      | Session expired, revoked, or not found |
+| 409  | `MFA_ALREADY_ENROLLED` | `AuthUserMfa` row exists for this user |
+| 400  | `INVALID_REQUEST`      | Missing session_token                  |
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `AuthSession` | Read | Validate `tokenHash`, `expiresAt`, `revokedAt` |
-| `AuthUserMfa` | Create | `userId`, `encryptedSecret`, `enrolledAt` |
+| Model            | Action | Key fields                                                 |
+| ---------------- | ------ | ---------------------------------------------------------- |
+| `AuthSession`    | Read   | Validate `tokenHash`, `expiresAt`, `revokedAt`             |
+| `AuthUserMfa`    | Create | `userId`, `encryptedSecret`, `enrolledAt`                  |
 | `AuthAuditEvent` | Create | `eventType: AUTH_MFA_ENROLL_STARTED`, no secret in payload |
 
 ## Business Rules
@@ -72,9 +72,9 @@ Allow an authenticated user to enroll TOTP MFA: generate a secret, return provis
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `EnrollMfaCommand` | App command | `{ sessionToken, correlationId? }` |
+| Name                            | Type             | Safe payload                                  |
+| ------------------------------- | ---------------- | --------------------------------------------- |
+| `EnrollMfaCommand`              | App command      | `{ sessionToken, correlationId? }`            |
 | `event.auth.mfa-enroll-started` | `AuthAuditEvent` | `{ actorId, correlationId, decision: allow }` |
 
 ## PBAC
@@ -83,15 +83,15 @@ Requires valid session. No additional PBAC check beyond active session. Any auth
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid session, no existing MFA | 200, `totp_uri` contains `otpauth://totp/` |
-| T02 | Expired session | 401 `SESSION_INVALID` |
-| T03 | Revoked session | 401 `SESSION_INVALID` |
-| T04 | MFA already enrolled | 409 `MFA_ALREADY_ENROLLED` |
-| T05 | `AuthUserMfa` created with encrypted secret | DB row `encryptedSecret` is JSON, not plaintext |
-| T06 | `totp_uri` does not contain base32 secret as plaintext after second call | Secret not retrievable from any API |
-| T07 | Audit event has no TOTP secret | `AuthAuditEvent.payload` clean |
+| ID  | Scenario                                                                 | Expected                                        |
+| --- | ------------------------------------------------------------------------ | ----------------------------------------------- |
+| T01 | Valid session, no existing MFA                                           | 200, `totp_uri` contains `otpauth://totp/`      |
+| T02 | Expired session                                                          | 401 `SESSION_INVALID`                           |
+| T03 | Revoked session                                                          | 401 `SESSION_INVALID`                           |
+| T04 | MFA already enrolled                                                     | 409 `MFA_ALREADY_ENROLLED`                      |
+| T05 | `AuthUserMfa` created with encrypted secret                              | DB row `encryptedSecret` is JSON, not plaintext |
+| T06 | `totp_uri` does not contain base32 secret as plaintext after second call | Secret not retrievable from any API             |
+| T07 | Audit event has no TOTP secret                                           | `AuthAuditEvent.payload` clean                  |
 
 ## Definition of Done
 

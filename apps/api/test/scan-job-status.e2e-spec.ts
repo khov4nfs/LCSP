@@ -2,10 +2,6 @@
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
-import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
 import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
 import {
@@ -20,11 +16,15 @@ import {
   SUBJECT_ROLES,
 } from "@lcsp/contracts/pbac";
 import { SCAN_ERROR_CODES, SCAN_JOB_GUIDANCE } from "@lcsp/contracts/scan";
+import type { INestApplication } from "@nestjs/common";
+import { Test, type TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
-import type { ScanJobStatusDto } from "../src/modules/scan/application/contracts/scan/scan-job-status.contract.js";
 import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
 import { hashSecret } from "../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+import type { ScanJobStatusDto } from "../src/modules/scan/application/contracts/scan/scan-job-status.contract.js";
 import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
@@ -98,7 +98,7 @@ describe("Scan Job Status Endpoint (e2e) [MW-scan-001]", () => {
       "assessment_id",
       "attempt_count",
       "blocked_reason",
-      "correlation_id",
+      "correlationId",
       "created_at",
       "next_action",
       "scan_job_id",

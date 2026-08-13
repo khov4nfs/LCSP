@@ -1,21 +1,21 @@
+import { describe, expect, it, jest } from "@jest/globals";
 import {
   ASSESSMENT_LOCK_REASONS,
   ASSESSMENT_STATUS_CODES,
   WIZARD_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
+import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import {
   CLASSIFICATION_GUARDRAIL_STATUSES,
   VERIFIED_PROFILE_STATUSES,
 } from "@lcsp/contracts/scan";
-import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
-import { describe, it, expect, jest } from "@jest/globals";
 import { NotFoundException } from "@nestjs/common";
 
+import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { Assessment } from "../../../domain/entities/assessment.entity.js";
 import type { AssessmentRepository } from "../../ports/persistence/assessment.repository.js";
-import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { GetAssessmentQuery } from "./get-assessment.query.js";
 import { GetAssessmentHandler } from "./get-assessment.handler.js";
+import { GetAssessmentQuery } from "./get-assessment.query.js";
 
 function makeAssessment(
   overrides: Partial<{
@@ -136,7 +136,7 @@ describe("GetAssessmentHandler", () => {
     expect(result.status).toBe(ASSESSMENT_STATUS_CODES.wizardInProgress);
     expect(result.owner_id).toBe("user-1");
     expect(result.organization_id).toBe("org-1");
-    expect(result.correlation_id).toBe("corr-1");
+    expect(result.correlationId).toBe("corr-1");
   });
 
   // T02: no WizardProfile row -> NOT_STARTED

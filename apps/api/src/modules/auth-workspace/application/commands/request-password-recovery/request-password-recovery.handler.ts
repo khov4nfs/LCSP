@@ -14,8 +14,8 @@ import {
 } from "../../../infrastructure/security/security.utils.ts";
 import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { RequestRecoverySuccess } from "../../contracts/auth-workspace/recovery.contract.ts";
-import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
 import type { RecoveryNotifier } from "../../ports/notification/recovery-notifier.ts";
+import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
 import { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
 import { RequestPasswordRecoveryCommand } from "./request-password-recovery.command.ts";
 
@@ -34,7 +34,7 @@ export class RequestPasswordRecoveryHandler {
     const { payload, requestMeta } = command;
     const { repositories } = this;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
 
     if (
       typeof payload.email !== "string" ||
@@ -58,9 +58,9 @@ export class RequestPasswordRecoveryHandler {
         actor_id: null,
         organization_id: null,
         decision: AUDIT_DECISIONS.allow,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
-      return { ok: true, correlation_id: correlationId };
+      return { ok: true, correlationId: correlationId };
     }
 
     const now = this.support.now();
@@ -88,10 +88,10 @@ export class RequestPasswordRecoveryHandler {
       actor_id: user.id,
       organization_id: null,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     });
 
-    return { ok: true, correlation_id: correlationId };
+    return { ok: true, correlationId: correlationId };
   }
 
   private resolveRecoveryDestination(user: {

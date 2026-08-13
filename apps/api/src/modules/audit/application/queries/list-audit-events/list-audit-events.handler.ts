@@ -1,8 +1,8 @@
+import { AUDIT_ERROR_CODES } from "@lcsp/contracts/audit";
+import { ORGANIZATION_SCOPE_ERROR_CODES } from "@lcsp/contracts/auth";
 import { HttpStatus } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import type { Prisma } from "@prisma/client";
-import { ORGANIZATION_SCOPE_ERROR_CODES } from "@lcsp/contracts/auth";
-import { AUDIT_ERROR_CODES } from "@lcsp/contracts/audit";
 
 import { fromPrismaAuthDecision } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -116,7 +116,7 @@ export class ListAuditEventsHandler implements IQueryHandler<ListAuditEventsQuer
       total,
       page,
       page_size: pageSize,
-      correlation_id: query.correlationId,
+      correlationId: query.correlationId,
     };
   }
 

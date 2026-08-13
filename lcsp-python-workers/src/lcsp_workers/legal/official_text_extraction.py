@@ -132,13 +132,13 @@ class OfficialTextExtractionResult:
     coverage_state: str
     limitations: list[dict[str, Any]]
 
-    def to_tool_response(self, *, correlation_id: str) -> dict[str, Any]:
+    def to_tool_response(self, *, correlationId: str) -> dict[str, Any]:
         return {
             "status": self.status,
             "toolName": OFFICIAL_TEXT_EXTRACTION_TOOL["name"],
             "toolVersion": OFFICIAL_TEXT_EXTRACTION_TOOL["version"],
             "configHash": OFFICIAL_TEXT_EXTRACTION_TOOL["config_hash"],
-            "correlationId": correlation_id,
+            "correlationId": correlationId,
             "artifactVersions": {
                 "snapshotId": self.snapshot_ref.removeprefix("snapshot:"),
                 "extractionId": self.extraction_id,

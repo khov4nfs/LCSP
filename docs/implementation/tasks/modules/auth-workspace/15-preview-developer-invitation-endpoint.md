@@ -18,18 +18,18 @@ Allow an invited Developer to inspect display-safe organization, assessment, gra
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts` | Modify | Add public `POST /auth/invitations/preview` |
-| `apps/api/src/modules/auth-workspace/application/queries/preview-invitation/preview-invitation.query.ts` | Create | Query containing the opaque token and correlation ID |
-| `apps/api/src/modules/auth-workspace/application/queries/preview-invitation/preview-invitation.handler.ts` | Create | Validate without mutation and build the safe projection |
-| `apps/api/src/modules/auth-workspace/application/contracts/auth-workspace/invitation-preview.contract.ts` | Create | Preview request/response DTOs |
-| `apps/api/src/modules/auth-workspace/application/contracts/auth-workspace/accept-invitation.contract.ts` | Modify | Add the accepted invitation's typed scope projection |
-| `apps/api/src/modules/auth-workspace/application/commands/accept-invitation/accept-invitation.handler.ts` | Modify | Return scope from the consumed invitation, not client input |
-| `apps/api/src/modules/auth-workspace/application/services/auth-workspace/auth-workspace.facade.ts` | Modify | Expose preview query dispatch |
-| `apps/api/src/modules/auth-workspace/auth-workspace.module.ts` | Modify | Register the preview handler |
-| `apps/api/test/preview-invitation.e2e-spec.ts` | Create | Public preview and non-leak regression coverage |
-| `apps/api/test/accept-invitation.e2e-spec.ts` | Modify | Assert acceptance scope parity |
+| File                                                                                                       | Action | Notes                                                       |
+| ---------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------- |
+| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts`                       | Modify | Add public `POST /auth/invitations/preview`                 |
+| `apps/api/src/modules/auth-workspace/application/queries/preview-invitation/preview-invitation.query.ts`   | Create | Query containing the opaque token and correlation ID        |
+| `apps/api/src/modules/auth-workspace/application/queries/preview-invitation/preview-invitation.handler.ts` | Create | Validate without mutation and build the safe projection     |
+| `apps/api/src/modules/auth-workspace/application/contracts/auth-workspace/invitation-preview.contract.ts`  | Create | Preview request/response DTOs                               |
+| `apps/api/src/modules/auth-workspace/application/contracts/auth-workspace/accept-invitation.contract.ts`   | Modify | Add the accepted invitation's typed scope projection        |
+| `apps/api/src/modules/auth-workspace/application/commands/accept-invitation/accept-invitation.handler.ts`  | Modify | Return scope from the consumed invitation, not client input |
+| `apps/api/src/modules/auth-workspace/application/services/auth-workspace/auth-workspace.facade.ts`         | Modify | Expose preview query dispatch                               |
+| `apps/api/src/modules/auth-workspace/auth-workspace.module.ts`                                             | Modify | Register the preview handler                                |
+| `apps/api/test/preview-invitation.e2e-spec.ts`                                                             | Create | Public preview and non-leak regression coverage             |
+| `apps/api/test/accept-invitation.e2e-spec.ts`                                                              | Modify | Assert acceptance scope parity                              |
 
 ## API Contract
 
@@ -38,44 +38,44 @@ Allow an invited Developer to inspect display-safe organization, assessment, gra
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `invitation_token` | string | Yes | Opaque `AuthInvitation.id` value |
+| Field              | Type   | Required | Notes                            |
+| ------------------ | ------ | -------- | -------------------------------- |
+| `invitation_token` | string | Yes      | Opaque `AuthInvitation.id` value |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `organization` | `{ id: string, name: string }` | Display-safe organization identity |
-| `scope` | `{ type: 'assessment', assessment: { id: string, name: string } } \| { type: 'organization', assessment: null }` | Authoritative invitation scope |
-| `allowed_actions` | string[] | Filtered through `DEVELOPER_ALLOWED_ACTIONS`; UI hint only |
-| `expires_at` | string | ISO 8601 invitation expiry |
-| `correlation_id` | string | Safe request correlation identifier |
+| Field             | Type                                                                                                             | Notes                                                      |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `organization`    | `{ id: string, name: string }`                                                                                   | Display-safe organization identity                         |
+| `scope`           | `{ type: 'assessment', assessment: { id: string, name: string } } \| { type: 'organization', assessment: null }` | Authoritative invitation scope                             |
+| `allowed_actions` | string[]                                                                                                         | Filtered through `DEVELOPER_ALLOWED_ACTIONS`; UI hint only |
+| `expires_at`      | string                                                                                                           | ISO 8601 invitation expiry                                 |
+| `correlationId`   | string                                                                                                           | Safe request correlation identifier                        |
 
 **Acceptance response extension (`POST /auth/accept-invitation`):**
 
-| Field | Type | Notes |
-|---|---|---|
+| Field   | Type                                                                                             | Notes                                                                |
+| ------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
 | `scope` | `{ type: 'assessment', assessment_id: string } \| { type: 'organization', assessment_id: null }` | Derived from the accepted invitation inside the transaction boundary |
 
 All existing acceptance response fields remain unchanged.
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 400 | `INVITATION_INVALID` | Missing, unknown, expired, consumed, non-approved, malformed-scope, missing-policy, wrong-organization assessment, or missing display entity |
+| HTTP | `error_code`         | Meaning                                                                                                                                      |
+| ---- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| 400  | `INVITATION_INVALID` | Missing, unknown, expired, consumed, non-approved, malformed-scope, missing-policy, wrong-organization assessment, or missing display entity |
 
 All invalid states use the same status and code. The response must not reveal whether the token ever existed or why it is unusable.
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `AuthInvitation` | Read only for preview | `id`, `state`, `expiresAt`, `organizationId`, `subjectAttributes`, `policyId`, `policyVersion` |
-| `AuthOrganization` | Read only | `id`, `name` |
-| `Assessment` | Read only for assessment scope | `id`, `organizationId`, `name` |
-| `AuthPolicy` | Read only | Confirm pinned policy exists and intersect actions safely |
+| Model              | Action                         | Key fields                                                                                     |
+| ------------------ | ------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `AuthInvitation`   | Read only for preview          | `id`, `state`, `expiresAt`, `organizationId`, `subjectAttributes`, `policyId`, `policyVersion` |
+| `AuthOrganization` | Read only                      | `id`, `name`                                                                                   |
+| `Assessment`       | Read only for assessment scope | `id`, `organizationId`, `name`                                                                 |
+| `AuthPolicy`       | Read only                      | Confirm pinned policy exists and intersect actions safely                                      |
 
 ## Business Rules
 
@@ -95,18 +95,18 @@ Public endpoint. The invitation token authorizes only this narrow, read-only pre
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid assessment-scoped invitation | 200 with organization, assessment, whitelisted actions, expiry, correlation ID |
-| T02 | Valid organization-scoped invitation | 200 with `type = organization` and `assessment = null` |
-| T03 | Unknown, expired, consumed, or non-approved token | Same 400 `INVITATION_INVALID` envelope |
-| T04 | Assessment belongs to another organization | 400 `INVITATION_INVALID`; no cross-tenant label leaked |
-| T05 | Policy or display entity missing | 400 `INVITATION_INVALID` |
-| T06 | Preview repeated before acceptance | Invitation remains approved and expiry unchanged |
-| T07 | Preview followed by acceptance | Acceptance succeeds once and returns matching scope ID |
-| T08 | Invalid action present in stored attributes/policy | Action omitted; Manager action never returned |
-| T09 | Response and audit inspection | No email, token, policy internals, subject attributes, or secret material |
-| T10 | Manager workspace flow | No behavior change |
+| ID  | Scenario                                           | Expected                                                                       |
+| --- | -------------------------------------------------- | ------------------------------------------------------------------------------ |
+| T01 | Valid assessment-scoped invitation                 | 200 with organization, assessment, whitelisted actions, expiry, correlation ID |
+| T02 | Valid organization-scoped invitation               | 200 with `type = organization` and `assessment = null`                         |
+| T03 | Unknown, expired, consumed, or non-approved token  | Same 400 `INVITATION_INVALID` envelope                                         |
+| T04 | Assessment belongs to another organization         | 400 `INVITATION_INVALID`; no cross-tenant label leaked                         |
+| T05 | Policy or display entity missing                   | 400 `INVITATION_INVALID`                                                       |
+| T06 | Preview repeated before acceptance                 | Invitation remains approved and expiry unchanged                               |
+| T07 | Preview followed by acceptance                     | Acceptance succeeds once and returns matching scope ID                         |
+| T08 | Invalid action present in stored attributes/policy | Action omitted; Manager action never returned                                  |
+| T09 | Response and audit inspection                      | No email, token, policy internals, subject attributes, or secret material      |
+| T10 | Manager workspace flow                             | No behavior change                                                             |
 
 ## Definition of Done
 

@@ -1,41 +1,40 @@
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import { HttpStatus, Inject } from "@nestjs/common";
-import {
-  AUDIT_DECISIONS,
-  AUDIT_REDACTION_STATUSES,
-  AUDIT_RESOURCE_TYPES,
-  AUDIT_ACTOR_TYPES,
-} from "@lcsp/contracts/audit";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
-import { WIZARD_EVENT_TYPES } from "@lcsp/contracts/wizard";
-import {
-  buildOutboxMessageInput,
-  OUTBOX_AGGREGATE_TYPES,
-} from "@lcsp/contracts/outbox";
 import {
   ASSESSMENT_STATUS_CODES,
   WIZARD_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
-import { WIZARD_ERROR_CODES } from "@lcsp/contracts/wizard";
+import {
+  AUDIT_ACTOR_TYPES,
+  AUDIT_DECISIONS,
+  AUDIT_REDACTION_STATUSES,
+  AUDIT_RESOURCE_TYPES,
+} from "@lcsp/contracts/audit";
+import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import {
+  buildOutboxMessageInput,
+  OUTBOX_AGGREGATE_TYPES,
+} from "@lcsp/contracts/outbox";
+import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { WIZARD_ERROR_CODES, WIZARD_EVENT_TYPES } from "@lcsp/contracts/wizard";
+import { HttpStatus, Inject } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { SubmitWizardCommand } from "./submit-wizard.command.js";
+import { Prisma } from "@prisma/client";
 import {
   toPrismaAssessmentStatus,
   toPrismaWizardStatus,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
+import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
+import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
+import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { AssessmentNotFoundException } from "../../../domain/exceptions/wizard.exceptions.js";
 import type { SubmitWizardResponse } from "../../contracts/wizard/wizard-submit.contract.js";
 import {
   WIZARD_PROFILE_REPOSITORY,
   type WizardProfileRepository,
 } from "../../ports/persistence/wizard-profile.repository.js";
-import { AssessmentNotFoundException } from "../../../domain/exceptions/wizard.exceptions.js";
-import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
-import { Prisma } from "@prisma/client";
 import { WizardValidatorService } from "../../services/wizard/wizard-validator.service.js";
+import { SubmitWizardCommand } from "./submit-wizard.command.js";
 
 @CommandHandler(SubmitWizardCommand)
 export class SubmitWizardHandler implements ICommandHandler<
@@ -196,7 +195,7 @@ export class SubmitWizardHandler implements ICommandHandler<
       version,
       submitted_at: submittedAt.toISOString(),
       assessment_status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
   }
 

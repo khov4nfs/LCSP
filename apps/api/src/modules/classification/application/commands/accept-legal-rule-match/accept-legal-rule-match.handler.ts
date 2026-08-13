@@ -1,23 +1,17 @@
 import * as crypto from "node:crypto";
 
 import {
-  HttpStatus,
-  NotFoundException,
-  UnprocessableEntityException,
-} from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import {
+  AUDIT_ACTOR_IDS,
+  AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
-  AUDIT_ACTOR_IDS,
-  AUDIT_ACTOR_TYPES,
 } from "@lcsp/contracts/audit";
+import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
-import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
 import {
   LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
   LEGAL_RULE_MATCH_SCHEMA_VERSIONS,
@@ -27,6 +21,12 @@ import {
   SCAN_EVENT_TYPES,
   VERIFIED_PROFILE_STATUSES,
 } from "@lcsp/contracts/scan";
+import {
+  HttpStatus,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { Prisma } from "@prisma/client";
 
 import {
@@ -177,7 +177,7 @@ export class AcceptLegalRuleMatchHandler implements ICommandHandler<AcceptLegalR
       accepted: true,
       legal_rule_match_id: legalRuleMatchId,
       guardrail_status: guardrailStatus,
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
     };
   }
 

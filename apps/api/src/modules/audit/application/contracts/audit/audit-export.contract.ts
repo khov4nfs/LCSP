@@ -1,6 +1,6 @@
 import type {
-  AuditExportStatus,
   AUDIT_EXPORT_STATUSES,
+  AuditExportStatus,
 } from "@lcsp/contracts/audit";
 
 export interface AuditExportRequestDto {
@@ -10,7 +10,7 @@ export interface AuditExportRequestDto {
   to_date: string;
   version: number;
   generated_at: string | null;
-  correlation_id: string;
+  correlationId: string;
 }
 
 export interface AuditExportStatusDto extends AuditExportRequestDto {

@@ -18,6 +18,7 @@ import { InspectDataPathHandler } from "./application/queries/inspect-data-path/
 import { FindSimilarSymbolsHandler } from "./application/queries/find-similar-symbols/find-similar-symbols.handler.js";
 import { InspectDeploymentContextHandler } from "./application/queries/inspect-deployment-context/inspect-deployment-context.handler.js";
 import { EvidenceRedactorService } from "./application/services/evidence/evidence-redactor.service.js";
+import { PythonWorkerRuntimeClient } from "./application/services/evidence/python-worker-runtime.client.js";
 import { InternalAgenticToolDispatchController } from "./presentation/http/agentic-tool-dispatch.controller.js";
 import {
   EvidenceController,
@@ -47,6 +48,7 @@ import {
     InspectDeploymentContextHandler,
     AcceptTechnicalProfileHandler,
     EvidenceRedactorService,
+    PythonWorkerRuntimeClient,
     WorkerApiKeyGuard,
   ],
 })

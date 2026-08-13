@@ -18,14 +18,14 @@ Authenticate a user with email + password against an approved LCSP account, enfo
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts` | Verify | `POST /auth/sign-in` handler exists |
-| `apps/api/src/modules/auth-workspace/application/commands/sign-in/sign-in.command.ts` | Verify | Command shape: `{ email, password, organizationId?, correlationId? }` |
-| `apps/api/src/modules/auth-workspace/application/commands/sign-in/sign-in.handler.ts` | Verify | All business rules below |
-| `apps/api/src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.ts` | Verify | `CredentialPayload` DTO + response type |
-| `apps/api/src/modules/auth-workspace/domain/entities/session.entity.ts` | Verify | Session creation logic |
-| `apps/api/src/modules/auth-workspace/infrastructure/security/security.utils.ts` | Verify | Password hashing, token generation |
+| File                                                                                           | Action | Notes                                                                 |
+| ---------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------- |
+| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts`           | Verify | `POST /auth/sign-in` handler exists                                   |
+| `apps/api/src/modules/auth-workspace/application/commands/sign-in/sign-in.command.ts`          | Verify | Command shape: `{ email, password, organizationId?, correlationId? }` |
+| `apps/api/src/modules/auth-workspace/application/commands/sign-in/sign-in.handler.ts`          | Verify | All business rules below                                              |
+| `apps/api/src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.ts` | Verify | `CredentialPayload` DTO + response type                               |
+| `apps/api/src/modules/auth-workspace/domain/entities/session.entity.ts`                        | Verify | Session creation logic                                                |
+| `apps/api/src/modules/auth-workspace/infrastructure/security/security.utils.ts`                | Verify | Password hashing, token generation                                    |
 
 ## API Contract
 
@@ -34,42 +34,42 @@ Authenticate a user with email + password against an approved LCSP account, enfo
 
 **Request body:**
 
-| Field | Type | Required | Rules |
-|---|---|---|---|
-| `email` | string | Yes | Normalize to lowercase before lookup |
-| `password` | string | Yes | Never log, compare against bcrypt hash only |
-| `organization_id` | string | No | Scope membership check; defaults to single org if only one |
+| Field             | Type   | Required | Rules                                                      |
+| ----------------- | ------ | -------- | ---------------------------------------------------------- |
+| `email`           | string | Yes      | Normalize to lowercase before lookup                       |
+| `password`        | string | Yes      | Never log, compare against bcrypt hash only                |
+| `organization_id` | string | No       | Scope membership check; defaults to single org if only one |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `session_token` | string | Opaque 32-byte random; securely transmitted only |
-| `expires_at` | string (ISO 8601) | 8h if no MFA, 1h if MFA challenge pending |
-| `mfa_required` | boolean | True if user has `AuthUserMfa` and `mfaVerifiedAt` is null |
-| `organization_id` | string | Active org scope |
-| `correlation_id` | string | Echo of request header or server-generated |
+| Field             | Type              | Notes                                                      |
+| ----------------- | ----------------- | ---------------------------------------------------------- |
+| `session_token`   | string            | Opaque 32-byte random; securely transmitted only           |
+| `expires_at`      | string (ISO 8601) | 8h if no MFA, 1h if MFA challenge pending                  |
+| `mfa_required`    | boolean           | True if user has `AuthUserMfa` and `mfaVerifiedAt` is null |
+| `organization_id` | string            | Active org scope                                           |
+| `correlationId`   | string            | Echo of request header or server-generated                 |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 401 | `INVALID_CREDENTIALS` | Wrong password or non-existent email (same code to prevent enumeration) |
-| 401 | `ACCOUNT_LOCKED` | `lockUntil > now()` — do not check password |
-| 403 | `MEMBERSHIP_MISSING` | No `active` membership in requested org |
-| 403 | `EMAIL_VERIFICATION_REQUIRED` | `AuthUser.emailVerified = false` |
-| 400 | `INVALID_REQUEST` | Missing or malformed fields |
+| HTTP | `error_code`                  | Meaning                                                                 |
+| ---- | ----------------------------- | ----------------------------------------------------------------------- |
+| 401  | `INVALID_CREDENTIALS`         | Wrong password or non-existent email (same code to prevent enumeration) |
+| 401  | `ACCOUNT_LOCKED`              | `lockUntil > now()` — do not check password                             |
+| 403  | `MEMBERSHIP_MISSING`          | No `active` membership in requested org                                 |
+| 403  | `EMAIL_VERIFICATION_REQUIRED` | `AuthUser.emailVerified = false`                                        |
+| 400  | `INVALID_REQUEST`             | Missing or malformed fields                                             |
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `AuthUser` | Read | `id`, `email`, `passwordHash`, `failedLoginCount`, `lockUntil`, `emailVerified` |
-| `AuthMembership` | Read | `userId`, `organizationId`, `status` = `active` required |
-| `AuthSession` | Create | `id` (uuid), `userId`, `organizationId`, `tokenHash` (bcrypt), `tokenFingerprint` (first 8 bytes hex), `expiresAt`, `mfaVerifiedAt` = null |
-| `AuthAuditEvent` | Create | `eventType`, `actorId`, `organizationId`, `decision`, `reasonCode`, `correlationId`, `sessionId`, `payload` (no password) |
-| `AuthMfaRateLimit` | Read + Update | `userId`, `failedCount`, `lockedUntil` |
-| `AuthUserMfa` | Read | `userId` — presence indicates MFA enrolled |
+| Model              | Action        | Key fields                                                                                                                                 |
+| ------------------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `AuthUser`         | Read          | `id`, `email`, `passwordHash`, `failedLoginCount`, `lockUntil`, `emailVerified`                                                            |
+| `AuthMembership`   | Read          | `userId`, `organizationId`, `status` = `active` required                                                                                   |
+| `AuthSession`      | Create        | `id` (uuid), `userId`, `organizationId`, `tokenHash` (bcrypt), `tokenFingerprint` (first 8 bytes hex), `expiresAt`, `mfaVerifiedAt` = null |
+| `AuthAuditEvent`   | Create        | `eventType`, `actorId`, `organizationId`, `decision`, `reasonCode`, `correlationId`, `sessionId`, `payload` (no password)                  |
+| `AuthMfaRateLimit` | Read + Update | `userId`, `failedCount`, `lockedUntil`                                                                                                     |
+| `AuthUserMfa`      | Read          | `userId` — presence indicates MFA enrolled                                                                                                 |
 
 ## Business Rules
 
@@ -86,11 +86,11 @@ Authenticate a user with email + password against an approved LCSP account, enfo
 
 ## Commands / Events
 
-| Name | Type | Emitter | Safe payload |
-|---|---|---|---|
-| `SignInCommand` | App command | Controller | `{ email, password, organizationId?, correlationId? }` |
+| Name                           | Type             | Emitter         | Safe payload                                                             |
+| ------------------------------ | ---------------- | --------------- | ------------------------------------------------------------------------ |
+| `SignInCommand`                | App command      | Controller      | `{ email, password, organizationId?, correlationId? }`                   |
 | `event.auth.sign-in-succeeded` | `AuthAuditEvent` | `SignInHandler` | `{ actorId, organizationId, sessionId, correlationId, decision: allow }` |
-| `event.auth.sign-in-failed` | `AuthAuditEvent` | `SignInHandler` | `{ reasonCode, correlationId, decision: deny }` — no email or password |
+| `event.auth.sign-in-failed`    | `AuthAuditEvent` | `SignInHandler` | `{ reasonCode, correlationId, decision: deny }` — no email or password   |
 
 ## PBAC
 
@@ -98,21 +98,21 @@ This endpoint is public. No session guard applied. PBAC kicks in after session i
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid credentials + active membership + no MFA | 200, `mfa_required: false`, session token present |
-| T02 | Valid credentials + active membership + MFA enrolled | 200, `mfa_required: true`, `expires_at` ~1h |
-| T03 | Wrong password | 401 `INVALID_CREDENTIALS` |
-| T04 | Non-existent email | 401 `INVALID_CREDENTIALS` |
-| T05 | 5th consecutive failure | 401 `INVALID_CREDENTIALS`; lockUntil set |
-| T06 | 6th attempt while locked | 401 `ACCOUNT_LOCKED`; password not compared |
-| T07 | Email not verified | 403 `EMAIL_VERIFICATION_REQUIRED` |
-| T08 | No active membership | 403 `MEMBERSHIP_MISSING` |
-| T09 | Missing `email` field | 400 `INVALID_REQUEST` |
-| T10 | Audit event on success has no password | `AuthAuditEvent.payload` does not contain `password` |
-| T11 | Audit event on failure has no password | `AuthAuditEvent.payload` does not contain `password` |
-| T12 | Valid credentials + invited (not active) membership | 403 `MEMBERSHIP_MISSING` |
-| T13 | Valid credentials + revoked membership | 403 `MEMBERSHIP_MISSING` |
+| ID  | Scenario                                             | Expected                                             |
+| --- | ---------------------------------------------------- | ---------------------------------------------------- |
+| T01 | Valid credentials + active membership + no MFA       | 200, `mfa_required: false`, session token present    |
+| T02 | Valid credentials + active membership + MFA enrolled | 200, `mfa_required: true`, `expires_at` ~1h          |
+| T03 | Wrong password                                       | 401 `INVALID_CREDENTIALS`                            |
+| T04 | Non-existent email                                   | 401 `INVALID_CREDENTIALS`                            |
+| T05 | 5th consecutive failure                              | 401 `INVALID_CREDENTIALS`; lockUntil set             |
+| T06 | 6th attempt while locked                             | 401 `ACCOUNT_LOCKED`; password not compared          |
+| T07 | Email not verified                                   | 403 `EMAIL_VERIFICATION_REQUIRED`                    |
+| T08 | No active membership                                 | 403 `MEMBERSHIP_MISSING`                             |
+| T09 | Missing `email` field                                | 400 `INVALID_REQUEST`                                |
+| T10 | Audit event on success has no password               | `AuthAuditEvent.payload` does not contain `password` |
+| T11 | Audit event on failure has no password               | `AuthAuditEvent.payload` does not contain `password` |
+| T12 | Valid credentials + invited (not active) membership  | 403 `MEMBERSHIP_MISSING`                             |
+| T13 | Valid credentials + revoked membership               | 403 `MEMBERSHIP_MISSING`                             |
 
 ## Definition of Done
 

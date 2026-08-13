@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       : undefined;
 
   if (isMockModeEnabled()) {
-    return successJson({ correlation_id: crypto.randomUUID() });
+    return successJson({ correlationId: crypto.randomUUID() });
   }
 
   const upstream = await upstreamRequest("/auth/mfa/recovery-codes/access", {

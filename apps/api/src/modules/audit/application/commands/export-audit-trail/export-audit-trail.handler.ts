@@ -1,6 +1,3 @@
-import { HttpStatus } from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import type { Prisma } from "@prisma/client";
 import {
   AUDIT_DECISIONS,
   AUDIT_ERROR_CODES,
@@ -9,6 +6,9 @@ import {
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
 import { ORGANIZATION_SCOPE_ERROR_CODES } from "@lcsp/contracts/auth";
+import { HttpStatus } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+import type { Prisma } from "@prisma/client";
 import { createHash } from "node:crypto";
 
 import {
@@ -171,7 +171,7 @@ export class ExportAuditTrailHandler implements ICommandHandler<ExportAuditTrail
       to_date: toDate.toISOString(),
       version,
       generated_at: generatedAt.toISOString(),
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
     };
   }
 

@@ -31,7 +31,7 @@ export type ProviderInvocationResponse = {
   tool_name: AgenticToolName;
   tool_version: string;
   config_hash: string;
-  correlation_id: string;
+  correlationId: string;
   artifact_versions: { technical_evidence_report_id: string };
   provenance_ref: string;
   coverage_state: AgenticToolCoverageState;

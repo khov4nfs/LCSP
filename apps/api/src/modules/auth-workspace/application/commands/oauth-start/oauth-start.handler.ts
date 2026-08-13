@@ -7,8 +7,8 @@ import {
 import type { ConfigService } from "@nestjs/config";
 
 import { OAuthState } from "../../../domain/models/auth-workspace.models.ts";
-import { issueOAuthStateToken } from "../../../infrastructure/security/security.utils.ts";
 import type { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
+import { issueOAuthStateToken } from "../../../infrastructure/security/security.utils.ts";
 import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { OAuthStartSuccess } from "../../contracts/auth-workspace/oauth.contract.ts";
 import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
@@ -31,7 +31,7 @@ export class OAuthStartHandler {
     const { payload, requestMeta } = command;
     const { repositories } = this;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
 
     const providerName = asNonEmptyString(payload?.provider);
     const redirectUri = asNonEmptyString(payload?.redirect_uri);
@@ -94,13 +94,13 @@ export class OAuthStartHandler {
       actor_id: null,
       organization_id: null,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       provider: providerName,
     });
 
     return {
       ok: true,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       authorization_url: authorizationUrl,
     };
   }
@@ -116,7 +116,7 @@ export class OAuthStartHandler {
       organization_id: null,
       decision: AUDIT_DECISIONS.deny,
       reason_code: reasonCode,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     });
   }
 }

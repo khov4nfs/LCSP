@@ -45,7 +45,7 @@ export type GetVerifiedProfileResponse = {
   tool_name: AgenticToolName;
   tool_version: string;
   config_hash: string;
-  correlation_id: string;
+  correlationId: string;
   artifact_versions: { verified_profile_id: string; version: string };
   provenance_ref: string;
   coverage_state: AgenticToolCoverageState;

@@ -1,4 +1,3 @@
-import { NotFoundException } from "@nestjs/common";
 import { jest } from "@jest/globals";
 import {
   AGENTIC_TOOL_NAMES,
@@ -6,10 +5,11 @@ import {
   ASSESSMENT_CONTEXT_ANSWER_FIELDS,
   ASSESSMENT_CONTEXT_INCLUDES,
 } from "@lcsp/contracts/evidence";
+import { NotFoundException } from "@nestjs/common";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
-import { InternalEvidenceController } from "./evidence.controller.js";
 import { InternalAgenticToolDispatchController } from "./agentic-tool-dispatch.controller.js";
+import { InternalEvidenceController } from "./evidence.controller.js";
 
 function buildController() {
   const technicalEvidenceReportFindUnique =
@@ -145,9 +145,20 @@ describe("InternalAgenticToolDispatchController", () => {
     const execute = jest
       .fn<(query?: unknown) => Promise<{ status: string }>>()
       .mockResolvedValue({ status: "READY" });
-    const controller = new InternalAgenticToolDispatchController({
-      execute,
-    } as never);
+    const pythonWorkerRuntime = {
+      requestTargetedReanalysis: jest.fn(),
+      resumeWaitingRuns: jest.fn(),
+    };
+    const configService = {
+      get: jest.fn().mockReturnValue(false),
+    };
+    const controller = new InternalAgenticToolDispatchController(
+      {
+        execute,
+      } as never,
+      pythonWorkerRuntime as never,
+      configService as never,
+    );
 
     await controller.dispatch({
       tool_name: "get_scan_coverage",
@@ -164,7 +175,7 @@ describe("InternalAgenticToolDispatchController", () => {
         dispositions: ["ANALYZED"],
         cursor: "abc",
       },
-      correlation_id: "corr-1",
+      correlationId: "corr-1",
     });
 
     expect(execute).toHaveBeenCalledWith(
@@ -198,7 +209,7 @@ describe("InternalAgenticToolDispatchController", () => {
           minConfidence: "HIGH",
           cursor: "cursor-1",
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -225,7 +236,7 @@ describe("InternalAgenticToolDispatchController", () => {
           findingId: "finding:finding-1",
           include: ["LOCATION", "RELATED_REFS"],
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -250,7 +261,7 @@ describe("InternalAgenticToolDispatchController", () => {
           pathPrefixes: ["apps/api/"],
           maxResults: 10,
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -280,7 +291,7 @@ describe("InternalAgenticToolDispatchController", () => {
           nodeTypes: ["FILE", "FUNCTION"],
           edgeTypes: ["CALLS"],
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -309,7 +320,7 @@ describe("InternalAgenticToolDispatchController", () => {
           include: ["CATEGORIES", "CALLERS"],
           maxNeighbors: 8,
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -335,7 +346,7 @@ describe("InternalAgenticToolDispatchController", () => {
           maxHops: 4,
           desiredStages: ["INPUT", "INVOCATION"],
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -361,7 +372,7 @@ describe("InternalAgenticToolDispatchController", () => {
           reviewKinds: ["QUEUE", "APPROVAL"],
           maxHops: 4,
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -387,7 +398,7 @@ describe("InternalAgenticToolDispatchController", () => {
           maxHops: 3,
           maxResults: 7,
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -415,7 +426,7 @@ describe("InternalAgenticToolDispatchController", () => {
           maxHops: 6,
           maxResults: 12,
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -443,7 +454,7 @@ describe("InternalAgenticToolDispatchController", () => {
           pathPrefixes: ["apps/web/"],
           maxResults: 9,
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -471,7 +482,7 @@ describe("InternalAgenticToolDispatchController", () => {
           cursor: "cursor-3",
           maxResults: 11,
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -503,7 +514,7 @@ describe("InternalAgenticToolDispatchController", () => {
             ASSESSMENT_CONTEXT_ANSWER_FIELDS.providerDeclaration,
           ],
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -536,7 +547,7 @@ describe("InternalAgenticToolDispatchController", () => {
           ],
           exactVersions: true,
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -565,7 +576,7 @@ describe("InternalAgenticToolDispatchController", () => {
           cursor: "cursor-2",
           maxResults: 20,
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -595,7 +606,7 @@ describe("InternalAgenticToolDispatchController", () => {
           excludeTargetIds: ["target-1"],
           maxResults: 10,
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -622,7 +633,7 @@ describe("InternalAgenticToolDispatchController", () => {
           expectedVersion: "1.0.0",
           requiredFor: "CLASSIFICATION",
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -642,7 +653,7 @@ describe("InternalAgenticToolDispatchController", () => {
         user_id: "user-1",
         artifact_versions: {},
         input: { profileRef: "verified:vp-1", maxResults: 10 },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -663,7 +674,7 @@ describe("InternalAgenticToolDispatchController", () => {
         user_id: "user-1",
         artifact_versions: {},
         input: { rowRef: "gap-row:row-1" },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -685,7 +696,7 @@ describe("InternalAgenticToolDispatchController", () => {
           rowRef: "gap-row:row-1",
           templateId: "remediation:collect-evidence",
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -707,7 +718,7 @@ describe("InternalAgenticToolDispatchController", () => {
         user_id: "user-1",
         artifact_versions: {},
         input: { proposalRef: "proposal:proposal-1" },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -728,7 +739,7 @@ describe("InternalAgenticToolDispatchController", () => {
         user_id: "user-1",
         artifact_versions: {},
         input: { matrixRef: "matrix:matrix-1" },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -750,7 +761,7 @@ describe("InternalAgenticToolDispatchController", () => {
           effectiveDate: "2026-08-13",
           pinnedCorpusVersionId: "corpus_abc123",
         },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -772,7 +783,7 @@ describe("InternalAgenticToolDispatchController", () => {
         user_id: "user-1",
         artifact_versions: {},
         input: { legalQuery: "ai scoring for recruitment" },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -793,7 +804,7 @@ describe("InternalAgenticToolDispatchController", () => {
         user_id: "user-1",
         artifact_versions: {},
         input: { ruleRef: "rule:rule-1", targetRef: "target:target-1" },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -814,7 +825,7 @@ describe("InternalAgenticToolDispatchController", () => {
         user_id: "user-1",
         artifact_versions: {},
         input: { citationSetRef: "citation-set:set-1" },
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
       expected: {
         assessmentId: "assessment-1",
@@ -832,9 +843,20 @@ describe("InternalAgenticToolDispatchController", () => {
       const execute = jest
         .fn<(query?: unknown) => Promise<{ status: string }>>()
         .mockResolvedValue({ status: "READY" });
-      const controller = new InternalAgenticToolDispatchController({
-        execute,
-      } as never);
+      const pythonWorkerRuntime = {
+        requestTargetedReanalysis: jest.fn(),
+        resumeWaitingRuns: jest.fn(),
+      };
+      const configService = {
+        get: jest.fn().mockReturnValue(false),
+      };
+      const controller = new InternalAgenticToolDispatchController(
+        {
+          execute,
+        } as never,
+        pythonWorkerRuntime as never,
+        configService as never,
+      );
 
       await controller.dispatch(payload);
 
@@ -853,4 +875,97 @@ describe("InternalAgenticToolDispatchController", () => {
       expect(query).toEqual(expect.objectContaining(expected));
     },
   );
+
+  it("routes request_targeted_reanalysis through the python worker runtime", async () => {
+    const pythonWorkerRuntime = {
+      requestTargetedReanalysis: jest
+        .fn<
+          (
+            payload: Record<string, unknown>,
+            correlationId: string,
+          ) => Promise<Record<string, unknown>>
+        >()
+        .mockResolvedValue({ status: "READY", state: "QUEUED" }),
+      resumeWaitingRuns: jest.fn(),
+    };
+    const controller = new InternalAgenticToolDispatchController(
+      { execute: jest.fn() } as never,
+      pythonWorkerRuntime as never,
+      { get: jest.fn().mockReturnValue(false) } as never,
+    );
+
+    await controller.dispatch({
+      tool_name: AGENTIC_TOOL_NAMES.requestTargetedReanalysis,
+      assessment_id: "assessment-1",
+      organization_id: "org-1",
+      user_id: "user-1",
+      artifact_versions: {
+        technicalEvidenceReportId: "ter_12345678",
+      },
+      input: {
+        analyzerId: "RUN_TS_JS_SEMANTIC_ANALYSIS",
+        scope: { pathPrefixes: ["apps/api/"] },
+        reasonRequirementId: "requirement:gap_12345678",
+        idempotencyKey: "request_targeted_reanalysis_0001",
+      },
+      correlationId: "corr-1",
+    });
+
+    expect(pythonWorkerRuntime.requestTargetedReanalysis).toHaveBeenCalledWith(
+      {
+        assessmentId: "assessment-1",
+        organizationId: "org-1",
+        userId: "user-1",
+        inputArtifactVersion: "ter_12345678",
+        analyzerId: "RUN_TS_JS_SEMANTIC_ANALYSIS",
+        scope: { pathPrefixes: ["apps/api/"] },
+        reasonRequirementId: "requirement:gap_12345678",
+        idempotencyKey: "request_targeted_reanalysis_0001",
+      },
+      "corr-1",
+    );
+  });
+
+  it("routes resume_waiting_runs through the python worker runtime", async () => {
+    const pythonWorkerRuntime = {
+      requestTargetedReanalysis: jest.fn(),
+      resumeWaitingRuns: jest
+        .fn<
+          (
+            payload: Record<string, unknown>,
+            correlationId: string,
+          ) => Promise<Record<string, unknown>>
+        >()
+        .mockResolvedValue({ status: "READY", resumedRunCount: 1 }),
+    };
+    const controller = new InternalAgenticToolDispatchController(
+      { execute: jest.fn() } as never,
+      pythonWorkerRuntime as never,
+      { get: jest.fn().mockReturnValue(false) } as never,
+    );
+
+    await controller.dispatch({
+      tool_name: AGENTIC_TOOL_NAMES.resumeWaitingRuns,
+      assessment_id: "assessment-1",
+      organization_id: "org-1",
+      user_id: "user-1",
+      artifact_versions: {
+        corpusVersionId: "corpus-1",
+      },
+      input: {
+        maxRuns: 10,
+        idempotencyKey: "resume_waiting_runs_0001",
+      },
+      correlationId: "corr-1",
+    });
+
+    expect(pythonWorkerRuntime.resumeWaitingRuns).toHaveBeenCalledWith(
+      {
+        corpusVersionId: "corpus-1",
+        maxRuns: 10,
+        idempotencyKey: "resume_waiting_runs_0001",
+      },
+      "corr-1",
+    );
+  });
 });

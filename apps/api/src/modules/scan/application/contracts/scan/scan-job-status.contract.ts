@@ -13,5 +13,5 @@ export interface ScanJobStatusDto {
   next_action: string | null;
   created_at: string;
   updated_at: string;
-  correlation_id: string;
+  correlationId: string;
 }

@@ -13,33 +13,33 @@ import {
 } from "@lcsp/contracts/pbac";
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
-import { AUTH_ERROR_CODES, type ProblemResult } from "@lcsp/contracts/auth";
 import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
+import { AUTH_ERROR_CODES, type ProblemResult } from "@lcsp/contracts/auth";
 import { resolveMessage } from "@lcsp/i18n";
 
 import { AppModule } from "../src/app.module.js";
-import { AUTH_WORKSPACE_RECOVERY_NOTIFIER } from "../src/modules/auth-workspace/application/ports/notification/recovery-notifier.js";
 import type {
   EnrollMfaSuccess,
   GenerateMfaRecoveryCodesSuccess,
-  VerifyMfaRecoveryCodeSuccess,
   VerifyMfaOtpSuccess,
+  VerifyMfaRecoveryCodeSuccess,
 } from "../src/modules/auth-workspace/application/contracts/auth-workspace/mfa.contract.js";
+import type { PasswordReauthSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/password-reauth.contract.js";
 import type { UpdateProfileSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/profile.contract.js";
 import type {
   ConfirmRecoverySuccess,
   RequestRecoverySuccess,
 } from "../src/modules/auth-workspace/application/contracts/auth-workspace/recovery.contract.js";
-import type { PasswordReauthSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/password-reauth.contract.js";
 import type { RegisterSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/register-approved-path.contract.js";
 import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
 import type { WorkspaceSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/workspace.contract.js";
+import { AUTH_WORKSPACE_RECOVERY_NOTIFIER } from "../src/modules/auth-workspace/application/ports/notification/recovery-notifier.js";
 import {
   type AuthFixture,
   CapturingRecoveryNotifier,
@@ -483,7 +483,7 @@ describe("Auth workspace (e2e)", () => {
       PBAC_ACTIONS.wizardExport,
     ]);
     assert.equal(body.mfa_verified, true);
-    assert.equal(body.correlation_id, "corr-manager-workspace-context");
+    assert.equal(body.correlationId, "corr-manager-workspace-context");
     assert.equal(Number.isNaN(Date.parse(body.session_expires_at)), false);
     assert.equal("policyId" in body, false);
     assert.equal("policyVersion" in body, false);

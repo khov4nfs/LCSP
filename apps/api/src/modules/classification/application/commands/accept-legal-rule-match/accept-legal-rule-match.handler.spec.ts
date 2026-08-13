@@ -1,8 +1,4 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import {
-  NotFoundException,
-  UnprocessableEntityException,
-} from "@nestjs/common";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
 import {
@@ -11,9 +7,13 @@ import {
   SCAN_ERROR_CODES,
   SCAN_EVENT_TYPES,
 } from "@lcsp/contracts/scan";
+import {
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
 
-import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { toPrismaOverallCoverageStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import type { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
 import type { AcceptLegalRuleMatchDto } from "../../contracts/classification/legal-rule-match-callback.contract.js";
@@ -180,7 +180,7 @@ describe("AcceptLegalRuleMatchHandler", () => {
     expect(result.guardrail_status).toBe(
       LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.passed,
     );
-    expect(result.correlation_id).toBe("corr-123");
+    expect(result.correlationId).toBe("corr-123");
 
     expect(mockCreateLegalRuleMatch).toHaveBeenCalledWith(
       expect.objectContaining({

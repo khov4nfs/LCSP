@@ -1,7 +1,5 @@
 import * as crypto from "node:crypto";
 
-import { HttpStatus } from "@nestjs/common";
-import type { Prisma } from "@prisma/client";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   ACCEPT_INVITATION_ERROR_CODES,
@@ -9,8 +7,16 @@ import {
   AUTH_INVITATION_STATES,
   AUTH_MEMBERSHIP_STATUSES,
 } from "@lcsp/contracts/auth";
+import { HttpStatus } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
 
+import {
+  fromPrismaAuthInvitationState,
+  toPrismaAuthInvitationState,
+  toPrismaAuthMembershipStatus,
+} from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.ts";
+import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import {
   createCorrelationId,
   fingerprintToken,
@@ -24,12 +30,6 @@ import {
   projectInvitationScope,
 } from "../../services/auth-workspace/invitation-scope-projection.ts";
 import { AcceptInvitationCommand } from "./accept-invitation.command.ts";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
-import {
-  fromPrismaAuthInvitationState,
-  toPrismaAuthInvitationState,
-  toPrismaAuthMembershipStatus,
-} from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 
 const SESSION_TTL_MS = 8 * 60 * 60_000;
 const MIN_PASSWORD_LENGTH = 12;
@@ -202,7 +202,7 @@ export class AcceptInvitationHandler {
             actor_id: userId,
             organization_id: invitation.organizationId,
             decision: AUDIT_DECISIONS.allow,
-            correlation_id: correlationId,
+            correlationId: correlationId,
             session_id: sessionId,
             policy_id: invitation.policyId,
             policy_version: invitation.policyVersion,
@@ -227,7 +227,7 @@ export class AcceptInvitationHandler {
               assessment_id: accepted.projection.scope.assessmentId,
             }
           : { type: "organization", assessment_id: null },
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
   }
 }

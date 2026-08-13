@@ -20,19 +20,19 @@ Before a Python worker processes any task-queue message that requires authorizat
 
 **NestJS API side:**
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/platform/pbac/pbac-preflight.controller.ts` | Create | `POST /internal/pbac/preflight` |
-| `apps/api/src/platform/pbac/pbac-preflight.service.ts` | Create | Re-evaluates PBAC for worker context |
-| `apps/api/src/platform/pbac/pbac.module.ts` | Modify | Register preflight controller |
+| File                                                      | Action | Notes                                |
+| --------------------------------------------------------- | ------ | ------------------------------------ |
+| `apps/api/src/platform/pbac/pbac-preflight.controller.ts` | Create | `POST /internal/pbac/preflight`      |
+| `apps/api/src/platform/pbac/pbac-preflight.service.ts`    | Create | Re-evaluates PBAC for worker context |
+| `apps/api/src/platform/pbac/pbac.module.ts`               | Modify | Register preflight controller        |
 
 **Python Worker side (specification only — implemented in python-workers tasks):**
 
-| Pattern | Notes |
-|---|---|
-| Before processing: POST `/internal/pbac/preflight` | Pass `userId`, `orgId`, `action`, `correlationId` |
-| If response `decision = deny` → discard message, emit `WORKER_TASK_DENIED` event | Do not process |
-| If response `decision = allow` → process task | Continue |
+| Pattern                                                                          | Notes                                             |
+| -------------------------------------------------------------------------------- | ------------------------------------------------- |
+| Before processing: POST `/internal/pbac/preflight`                               | Pass `userId`, `orgId`, `action`, `correlationId` |
+| If response `decision = deny` → discard message, emit `WORKER_TASK_DENIED` event | Do not process                                    |
+| If response `decision = allow` → process task                                    | Continue                                          |
 
 ## API Contract
 
@@ -41,20 +41,20 @@ Before a Python worker processes any task-queue message that requires authorizat
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `user_id` | string | Yes | The user on whose behalf the task runs |
-| `organization_id` | string | Yes | |
-| `action` | string | Yes | The specific action the worker will perform |
-| `correlation_id` | string | Yes | Task correlation ID |
+| Field             | Type   | Required | Notes                                       |
+| ----------------- | ------ | -------- | ------------------------------------------- |
+| `user_id`         | string | Yes      | The user on whose behalf the task runs      |
+| `organization_id` | string | Yes      |                                             |
+| `action`          | string | Yes      | The specific action the worker will perform |
+| `correlationId`   | string | Yes      | Task correlation ID                         |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `decision` | `allow` \| `deny` | |
-| `reason_code` | string \| null | Only on deny |
-| `correlation_id` | string | |
+| Field           | Type              | Notes        |
+| --------------- | ----------------- | ------------ |
+| `decision`      | `allow` \| `deny` |              |
+| `reason_code`   | string \| null    | Only on deny |
+| `correlationId` | string            |              |
 
 ## Business Rules
 
@@ -67,24 +67,24 @@ Before a Python worker processes any task-queue message that requires authorizat
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `AuthMembership` | Read | `(userId, orgId, status = active)` |
-| `AuthPolicy` | Read | From membership |
+| Model             | Action | Key fields                                                                         |
+| ----------------- | ------ | ---------------------------------------------------------------------------------- |
+| `AuthMembership`  | Read   | `(userId, orgId, status = active)`                                                 |
+| `AuthPolicy`      | Read   | From membership                                                                    |
 | `AuthDecisionLog` | Create | `decision`, `reasonCode`, `action`, `userId`, `orgId`, `policyId`, `policyVersion` |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid membership + action granted | 200 `decision: allow` |
-| T02 | Membership revoked since task dispatch | 200 `decision: deny`, `reason: STATE_GATE_FAILED` |
-| T03 | Action not in policy | 200 `decision: deny`, `reason: ACTION_NOT_GRANTED` |
-| T04 | Missing/invalid `X-Worker-Api-Key` | 401 |
-| T05 | Worker discards task on deny | No processing — logged as `WORKER_TASK_DENIED` |
-| T06 | Preflight unreachable — worker behavior | Worker fails task, does not process |
-| T07 | `AuthDecisionLog` written for allow | DB row exists |
-| T08 | `AuthDecisionLog` written for deny | DB row exists |
+| ID  | Scenario                                | Expected                                           |
+| --- | --------------------------------------- | -------------------------------------------------- |
+| T01 | Valid membership + action granted       | 200 `decision: allow`                              |
+| T02 | Membership revoked since task dispatch  | 200 `decision: deny`, `reason: STATE_GATE_FAILED`  |
+| T03 | Action not in policy                    | 200 `decision: deny`, `reason: ACTION_NOT_GRANTED` |
+| T04 | Missing/invalid `X-Worker-Api-Key`      | 401                                                |
+| T05 | Worker discards task on deny            | No processing — logged as `WORKER_TASK_DENIED`     |
+| T06 | Preflight unreachable — worker behavior | Worker fails task, does not process                |
+| T07 | `AuthDecisionLog` written for allow     | DB row exists                                      |
+| T08 | `AuthDecisionLog` written for deny      | DB row exists                                      |
 
 ## Definition of Done
 

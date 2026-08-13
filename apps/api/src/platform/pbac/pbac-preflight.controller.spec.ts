@@ -1,5 +1,5 @@
-import { PBAC_DECISION, PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
 import { jest } from "@jest/globals";
+import { PBAC_DECISION, PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
 import { UnauthorizedException } from "@nestjs/common";
 import type { ConfigService } from "@nestjs/config";
 
@@ -48,7 +48,7 @@ describe("PbacPreflightController", () => {
           user_id: "u",
           organization_id: "o",
           action: "a",
-          correlation_id: "c",
+          correlationId: "c",
         },
         undefined,
       ),
@@ -64,18 +64,18 @@ describe("PbacPreflightController", () => {
           user_id: "u",
           organization_id: "o",
           action: "a",
-          correlation_id: "c",
+          correlationId: "c",
         },
         "wrong-key",
       ),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it("returns the decision as a snake_case body when the key is valid", async () => {
+  it("returns the decision with camelCase correlationId when the key is valid", async () => {
     const { controller } = makeController();
 
     const response = await controller.preflight(
-      { user_id: "u", organization_id: "o", action: "a", correlation_id: "c" },
+      { user_id: "u", organization_id: "o", action: "a", correlationId: "c" },
       VALID_KEY,
     );
 
@@ -84,7 +84,7 @@ describe("PbacPreflightController", () => {
       data: {
         decision: PBAC_DECISION.allow,
         reason_code: null,
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
     });
   });
@@ -100,7 +100,7 @@ describe("PbacPreflightController", () => {
     });
 
     const response = await controller.preflight(
-      { user_id: "u", organization_id: "o", action: "a", correlation_id: "c" },
+      { user_id: "u", organization_id: "o", action: "a", correlationId: "c" },
       VALID_KEY,
     );
 
@@ -109,8 +109,28 @@ describe("PbacPreflightController", () => {
       data: {
         decision: PBAC_DECISION.deny,
         reason_code: PBAC_REASON_CODE.actionNotGranted,
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       },
     });
+  });
+
+  it("accepts camelCase correlationId from runtime callers", async () => {
+    const { controller, evaluate } = makeController();
+
+    await controller.preflight(
+      {
+        user_id: "u",
+        organization_id: "o",
+        action: "a",
+        correlationId: "camel-corr-1",
+      },
+      VALID_KEY,
+    );
+
+    expect(evaluate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        correlationId: "camel-corr-1",
+      }),
+    );
   });
 });

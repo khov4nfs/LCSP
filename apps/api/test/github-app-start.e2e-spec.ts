@@ -1,21 +1,21 @@
 import {
-  GITHUB_INTEGRATION_ERROR_CODES,
-  GITHUB_INTEGRATION_EVENT_TYPES,
-} from "@lcsp/contracts/github-integration";
-import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
+import {
+  AUTH_ERROR_CODES,
+  AUTH_MEMBERSHIP_STATUSES,
+} from "@lcsp/contracts/auth";
+import {
+  GITHUB_INTEGRATION_ERROR_CODES,
+  GITHUB_INTEGRATION_EVENT_TYPES,
+} from "@lcsp/contracts/github-integration";
 import {
   PBAC_ACTIONS,
   PBAC_REASON_CODE,
   PBAC_STATE_GATES,
   SUBJECT_ROLES,
 } from "@lcsp/contracts/pbac";
-import {
-  AUTH_ERROR_CODES,
-  AUTH_MEMBERSHIP_STATUSES,
-} from "@lcsp/contracts/auth";
 /**
  * MW-gh-001: GitHub App OAuth Start Endpoint.
  * Test cases T01-T08 from docs/implementation/tasks/modules/github-integration/01-github-app-oauth-start-endpoint.md
@@ -23,15 +23,15 @@ import {
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
-import type { GitHubAppStartDto } from "../src/modules/github-integration/application/contracts/github-integration/github-app-start.contract.js";
 import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
+import type { GitHubAppStartDto } from "../src/modules/github-integration/application/contracts/github-integration/github-app-start.contract.js";
 import {
   TEST_DATABASE_URL,
   pushPrismaSchema,
@@ -103,7 +103,7 @@ describe("GitHub App OAuth Start Endpoint (e2e) [MW-gh-001]", () => {
       /^https:\/\/github\.com\/apps\/.+\/installations\/new\?/,
     );
     assert.match(body.installation_url, /state=/);
-    assert.ok(body.correlation_id);
+    assert.ok(body.correlationId);
   });
 
   // T02

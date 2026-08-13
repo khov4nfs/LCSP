@@ -50,15 +50,15 @@ class AIUsageFlowConsumer(ConsumerBase):
             logger=logger,
         )
 
-    def handle(self, message: dict, correlation_id: str) -> None:
-        result = self._graph.run(message=message, correlation_id=correlation_id)
+    def handle(self, message: dict, correlationId: str) -> None:
+        result = self._graph.run(message=message, correlationId=correlationId)
         logger.info(
             "AI_USAGE_FLOW_CALLBACK_SUBMITTED",
             technical_profile_id=result.flow.technical_profile_id,
             assessment_id=result.flow.assessment_id,
             status=result.flow.status,
             workflow_run_id=result.workflow_run_id,
-            correlation_id=correlation_id,
+            correlationId=correlationId,
         )
 
     def _required_message_id(self, message: dict[str, Any], key: str) -> str:

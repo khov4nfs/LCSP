@@ -64,7 +64,7 @@ def test_ai_usage_flow_graph_maps_internal_claim_to_api_callback_contract() -> N
             "assessmentId": "assessment-1",
             "evidenceReportId": "ter-1",
         },
-        correlation_id="corr-1",
+        correlationId="corr-1",
     )
 
     assert result.callback_payload.claims
@@ -112,7 +112,7 @@ def test_classification_consumer_loads_persisted_match_and_posts_typed_callback(
     consumer = ClassificationConsumer(_config(), api_client=api_client)
     consumer.handle(
         {"legalRuleMatchId": "lrm-1", "assessmentId": "assessment-1"},
-        correlation_id="corr-2",
+        correlationId="corr-2",
     )
 
     api_client.get_legal_rule_match_by_id.assert_called_once_with("lrm-1")
@@ -139,7 +139,7 @@ def test_classification_consumer_does_not_start_for_blocked_legal_match_event() 
             "assessmentId": "assessment-1",
             "guardrailStatus": "blocked",
         },
-        correlation_id="corr-blocked",
+        correlationId="corr-blocked",
     )
 
     consumer.graph.run.assert_not_called()

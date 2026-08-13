@@ -7,6 +7,7 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  Logger,
   Param,
   Post,
   Req,
@@ -14,6 +15,7 @@ import {
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import {
   AUDIT_ACTOR_IDS,
   AUDIT_ACTOR_TYPES,
@@ -45,6 +47,8 @@ import { resultEnvelope } from "../../../../platform/problems/result-envelope.js
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { ORCHESTRATION_RUNTIME_LOG_EVENTS } from "../../../../platform/logging/orchestration-runtime-log.js";
+import { formatOrchestrationRuntimeLog } from "../../../../platform/logging/orchestration-runtime-log.js";
 
 interface ScanStatusRequest {
   pbacContext: PbacRequestContext;
@@ -63,6 +67,13 @@ interface TargetedReanalysisRequestBody {
       };
   reasonRequirementId: string;
   idempotencyKey: string;
+}
+
+interface InternalTargetedReanalysisCreateBody
+  extends TargetedReanalysisRequestBody {
+  assessmentId: string;
+  organizationId: string;
+  userId?: string;
 }
 
 @Controller("assessments/:assessmentId/scan-jobs")
@@ -151,6 +162,8 @@ export class ScanController {
 
 @Controller("internal/scan-jobs")
 export class InternalScanController {
+  private readonly logger = new Logger(InternalScanController.name);
+
   constructor(private readonly commandBus: CommandBus) {}
 
   @Post(":scanJobId/callback")
@@ -167,6 +180,67 @@ export class InternalScanController {
           scanJobId,
           payload,
           correlationId?.trim() || randomUUID(),
+        ),
+      ),
+    );
+  }
+
+  @Post("targeted-reanalysis")
+  @HttpCode(202)
+  @UseGuards(WorkerApiKeyGuard)
+  async createTargetedReanalysis(
+    @Body() body: InternalTargetedReanalysisCreateBody,
+    @Headers("x-correlation-id") correlationId?: string,
+  ) {
+    const resolvedCorrelationId = correlationId?.trim() || randomUUID();
+    if ((process.env.ORCHESTRATION_DEBUG ?? "false").toLowerCase() === "true") {
+      this.logger.debug(
+        formatOrchestrationRuntimeLog(
+          ORCHESTRATION_RUNTIME_LOG_EVENTS.targetedReanalysisCreate,
+          {
+            correlationId: resolvedCorrelationId,
+            toolName: "request_targeted_reanalysis",
+            assessmentId: body.assessmentId,
+            organizationId: body.organizationId,
+            analyzerId: body.analyzerId,
+            scope: body.scope,
+          },
+        ),
+      );
+    }
+    const input = parseTargetedReanalysisInput(
+      {
+        inputArtifactVersion: body.inputArtifactVersion,
+        analyzerId: body.analyzerId,
+        scope: body.scope,
+        reasonRequirementId: body.reasonRequirementId,
+        idempotencyKey: body.idempotencyKey,
+      },
+      body.inputArtifactVersion,
+      resolvedCorrelationId,
+    );
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new RequestTargetedReanalysisCommand(
+          {
+            assessmentId: body.assessmentId,
+            ...input,
+          },
+          {
+            userId:
+              typeof body.userId === "string" && body.userId.trim().length > 0
+                ? body.userId.trim()
+                : "worker-runtime",
+            sessionId: "worker-runtime",
+            organizationId: body.organizationId,
+            subjectRole: SUBJECT_ROLES.manager,
+            scope: body.assessmentId,
+            grantedActions: [PBAC_ACTIONS.technicalEvidenceReanalyze],
+            selectedAction: PBAC_ACTIONS.technicalEvidenceReanalyze,
+            policyId: "worker-runtime",
+            policyVersion: "worker-runtime",
+          },
+          resolvedCorrelationId,
         ),
       ),
     );

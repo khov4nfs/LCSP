@@ -26,7 +26,7 @@ export class GenerateMfaRecoveryCodesHandler {
   ): Promise<AuthProblemResult | GenerateMfaRecoveryCodesSuccess> {
     const { sessionToken, requestMeta } = command;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
 
     const session = await this.support.findValidSession(
       this.repositories,
@@ -70,7 +70,7 @@ export class GenerateMfaRecoveryCodesHandler {
       resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
       resource_id: batchId,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       session_id: session.id,
       batch_id: batchId,
       code_count: recoveryCodes.length,
@@ -82,14 +82,14 @@ export class GenerateMfaRecoveryCodesHandler {
       resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
       resource_id: batchId,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       session_id: session.id,
       batch_id: batchId,
     });
 
     return {
       ok: true,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       recovery_codes: recoveryCodes,
     };
   }

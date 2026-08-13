@@ -4,23 +4,23 @@ import {
   ASSESSMENT_STATUS_CODES,
   WIZARD_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
+import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
 import {
   PBAC_ACTIONS,
   PBAC_REASON_CODE,
   PBAC_STATE_GATES,
   SUBJECT_ROLES,
 } from "@lcsp/contracts/pbac";
-import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
 /**
  * MW-asmt-003: List Assessments Endpoint.
  */
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
@@ -96,7 +96,7 @@ describe("List Assessments Endpoint (e2e) [MW-asmt-003]", () => {
     assert.equal(body.total, 2);
     assert.equal(body.page, 1);
     assert.equal(body.page_size, 20);
-    assert.ok(body.correlation_id);
+    assert.ok(body.correlationId);
     body.assessments.forEach((item) => {
       assert.equal(item.wizard_status, WIZARD_STATUS_CODES.notStarted);
       assert.ok(item.assessment_id);

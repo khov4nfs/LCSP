@@ -1,10 +1,10 @@
-import { HttpStatus } from "@nestjs/common";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { HttpStatus } from "@nestjs/common";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
+import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import type { RevokeOwnedSessionSuccess } from "../../contracts/auth-workspace/settings.contract.ts";
 import { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { RevokeOwnedSessionCommand } from "./revoke-owned-session.command.ts";
 
 export class RevokeOwnedSessionHandler {
@@ -17,7 +17,7 @@ export class RevokeOwnedSessionHandler {
     command: RevokeOwnedSessionCommand,
   ): Promise<RevokeOwnedSessionSuccess> {
     const correlationId =
-      command.requestMeta.correlation_id ?? this.support.createCorrelationId();
+      command.requestMeta.correlationId ?? this.support.createCorrelationId();
     const session = await this.prisma.authSession.findFirst({
       where: {
         id: command.sessionId,

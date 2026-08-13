@@ -35,7 +35,7 @@ export type MissingTargetProposalResponse = {
   tool_name: AgenticToolName;
   tool_version: string;
   config_hash: string;
-  correlation_id: string;
+  correlationId: string;
   artifact_versions: {
     wizard_profile_id: string;
     technical_evidence_report_id: string;

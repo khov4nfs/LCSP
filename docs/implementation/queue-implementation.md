@@ -8,7 +8,6 @@ AUTHORITATIVE IMPLEMENTATION DOCUMENT
 
 Single source for RabbitMQ topology, retries, idempotency, worker orchestration and async job behavior.
 
-
 ## Queue Jobs, Retry and Idempotency
 
 ## Purpose
@@ -36,42 +35,42 @@ Queue handles trusted scan trigger resolution, Repository Scan, workflow/orchest
 
 ## Job Types
 
-| Job Type | Purpose | Idempotency Basis |
-| --- | --- | --- |
-| `scan_trigger_resolution` | Resolve trusted scan trigger context and mapping | org + repository connection + assessment/pending mapping + branch + commit + trigger source/delivery |
-| `repository_scan` | Static scan selected repo/commit | repo + commit + scanner/toolchain version + config/ruleset version |
-| `workflow_continue` | Resume orchestrator after node/result | workflow run + state version |
-| `classification_run` | Legal RAG + risk classification | VerifiedProfile version + corpus version |
-| `gap_analysis_run` | Generate compliance gap analysis after classification | classification result + legal-match versions |
-| `document_generation` | Generate document artifact | assessment + template + result versions |
-| `cleanup_verification` | Verify scanner workspace cleanup | scan id + workspace id |
-| `recovery_replay` | Reconcile stuck job/state | workflow run + checkpoint |
+| Job Type                  | Purpose                                               | Idempotency Basis                                                                                    |
+| ------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `scan_trigger_resolution` | Resolve trusted scan trigger context and mapping      | org + repository connection + assessment/pending mapping + branch + commit + trigger source/delivery |
+| `repository_scan`         | Static scan selected repo/commit                      | repo + commit + scanner/toolchain version + config/ruleset version                                   |
+| `workflow_continue`       | Resume orchestrator after node/result                 | workflow run + state version                                                                         |
+| `classification_run`      | Legal RAG + risk classification                       | VerifiedProfile version + corpus version                                                             |
+| `gap_analysis_run`        | Generate compliance gap analysis after classification | classification result + legal-match versions                                                         |
+| `document_generation`     | Generate document artifact                            | assessment + template + result versions                                                              |
+| `cleanup_verification`    | Verify scanner workspace cleanup                      | scan id + workspace id                                                                               |
+| `recovery_replay`         | Reconcile stuck job/state                             | workflow run + checkpoint                                                                            |
 
 ## Job Envelope
 
-| Field | Required | Notes |
-| --- | ---: | --- |
-| `job_id` | Yes | Unique job identity |
-| `job_type` | Yes | Stable type |
-| `correlation_id` | Yes | Audit/trace |
-| `assessment_id` | Yes | Scope |
-| `workflow_run_id` | Yes | Orchestration scope |
-| `idempotency_key` | Yes | Duplicate handling |
-| `input_refs` | Yes | DB/object refs only |
-| `attempt` | Yes | Retry count |
-| `created_at` | Yes | Timeout/retry |
+| Field             | Required | Notes               |
+| ----------------- | -------: | ------------------- |
+| `job_id`          |      Yes | Unique job identity |
+| `job_type`        |      Yes | Stable type         |
+| `correlationId`   |      Yes | Audit/trace         |
+| `assessment_id`   |      Yes | Scope               |
+| `workflow_run_id` |      Yes | Orchestration scope |
+| `idempotency_key` |      Yes | Duplicate handling  |
+| `input_refs`      |      Yes | DB/object refs only |
+| `attempt`         |      Yes | Retry count         |
+| `created_at`      |      Yes | Timeout/retry       |
 
 ## Retryable and Non-Retryable Failures
 
-| Failure | Retry? | Behavior |
-| --- | ---: | --- |
-| Transient GitHub/network failure | Yes | Retry with backoff |
-| Queue delivery interruption | Yes | Re-deliver idempotently |
-| Worker crash | Yes | Resume from checkpoint |
-| Invalid evidence schema | No | Reject report, classification locked |
-| Missing authorization/precondition | No | Fail closed |
-| Missing citation | No automatic retry | Block/degrade until corpus/rule issue addressed |
-| Raw source cleanup failure | Escalate | Critical security alert |
+| Failure                            |             Retry? | Behavior                                        |
+| ---------------------------------- | -----------------: | ----------------------------------------------- |
+| Transient GitHub/network failure   |                Yes | Retry with backoff                              |
+| Queue delivery interruption        |                Yes | Re-deliver idempotently                         |
+| Worker crash                       |                Yes | Resume from checkpoint                          |
+| Invalid evidence schema            |                 No | Reject report, classification locked            |
+| Missing authorization/precondition |                 No | Fail closed                                     |
+| Missing citation                   | No automatic retry | Block/degrade until corpus/rule issue addressed |
+| Raw source cleanup failure         |           Escalate | Critical security alert                         |
 
 ## Retry Budget and Backoff
 
@@ -104,19 +103,19 @@ Audit job queued, started, checkpointed, retried, dead-lettered, canceled, compl
 
 All worker retries use bounded exponential backoff with jitter: `30s`, `120s`, `600s`, then DLQ after max attempts. Jitter is plus/minus 20 percent. Non-retryable domain guard failures persist blocked/failed state and do not consume retry budget.
 
-| Worker | Queue | DLQ | Max Attempts | Terminal Failure Behavior |
-|---|---|---|---:|---|
-| Scan Trigger worker (Python) | `lcsp.scan-trigger-worker.v1` | `lcsp.scan-trigger-worker.dlq.v1` | 5 | Persist safe mapping state or rejected trigger, audit PBAC/trigger decision. Retry/DLQ/replay behavior follows `docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`. |
-| Scan worker (Python) | `lcsp.scan-worker.v1` | `lcsp.scan-worker.dlq.v1` | 3 | Persist `event.scan.failed.v1`, mark ScanJob `FAILED`, audit redacted failure. |
-| Legal Source Ingest worker (Python) | `lcsp.legal-source-ingest.v1` | `lcsp.legal-source-ingest.dlq.v1` | 3 | Publish `event.legal-source.ingest.failed.v1`, block corpus building, audit. |
-| Legal Index Build worker (Python) | `lcsp.legal-index-build.v1` | `lcsp.legal-index-build.dlq.v1` | 3 | Publish `event.legal-index-build.failed.v1`, block ChromaDB legal retriever, audit. |
-| TechnicalProfile worker (Python) | `lcsp.technical-profile-worker.v1` | `lcsp.technical-profile-worker.dlq.v1` | 3 | Publish `event.technical-profile.failed.v1`, block downstream, audit. |
-| AIUsageFlow worker (Python) | `lcsp.ai-usage-flow-worker.v1` | `lcsp.ai-usage-flow-worker.dlq.v1` | 3 | Publish `event.ai-usage-flow.failed.v1`, block reconciliation, audit. |
-| Reconciliation worker (Python) | `lcsp.reconciliation-worker.v1` | `lcsp.reconciliation-worker.dlq.v1` | 3 | Persist conflict/blocked state when possible; otherwise audit worker failure. |
-| LegalMatching worker (Python) | `lcsp.legal-matching-worker.v1` | `lcsp.legal-matching-worker.dlq.v1` | 3 | Publish `event.legal-matching.failed.v1`, block/degrade classification, audit. |
-| Classification worker (Python) | `lcsp.classification-worker.v1` | `lcsp.classification-worker.dlq.v1` | 3 | Publish `event.classification.blocked.v1` or failed audit record depending on failure type. |
-| GapAnalysis worker (Python) | `lcsp.gap-analysis-worker.v1` | `lcsp.gap-analysis-worker.dlq.v1` | 3 | Publish `event.gap-analysis.failed.v1` or `event.gap-analysis.blocked.v1`, block document generation, audit. |
-| Document worker (Python) | `lcsp.document-worker.v1` | `lcsp.document-worker.dlq.v1` | 3 | Publish `event.document.blocked.v1` or failed audit record depending on failure type. |
+| Worker                              | Queue                              | DLQ                                    | Max Attempts | Terminal Failure Behavior                                                                                                                                                                         |
+| ----------------------------------- | ---------------------------------- | -------------------------------------- | -----------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scan Trigger worker (Python)        | `lcsp.scan-trigger-worker.v1`      | `lcsp.scan-trigger-worker.dlq.v1`      |            5 | Persist safe mapping state or rejected trigger, audit PBAC/trigger decision. Retry/DLQ/replay behavior follows `docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`. |
+| Scan worker (Python)                | `lcsp.scan-worker.v1`              | `lcsp.scan-worker.dlq.v1`              |            3 | Persist `event.scan.failed.v1`, mark ScanJob `FAILED`, audit redacted failure.                                                                                                                    |
+| Legal Source Ingest worker (Python) | `lcsp.legal-source-ingest.v1`      | `lcsp.legal-source-ingest.dlq.v1`      |            3 | Publish `event.legal-source.ingest.failed.v1`, block corpus building, audit.                                                                                                                      |
+| Legal Index Build worker (Python)   | `lcsp.legal-index-build.v1`        | `lcsp.legal-index-build.dlq.v1`        |            3 | Publish `event.legal-index-build.failed.v1`, block ChromaDB legal retriever, audit.                                                                                                               |
+| TechnicalProfile worker (Python)    | `lcsp.technical-profile-worker.v1` | `lcsp.technical-profile-worker.dlq.v1` |            3 | Publish `event.technical-profile.failed.v1`, block downstream, audit.                                                                                                                             |
+| AIUsageFlow worker (Python)         | `lcsp.ai-usage-flow-worker.v1`     | `lcsp.ai-usage-flow-worker.dlq.v1`     |            3 | Publish `event.ai-usage-flow.failed.v1`, block reconciliation, audit.                                                                                                                             |
+| Reconciliation worker (Python)      | `lcsp.reconciliation-worker.v1`    | `lcsp.reconciliation-worker.dlq.v1`    |            3 | Persist conflict/blocked state when possible; otherwise audit worker failure.                                                                                                                     |
+| LegalMatching worker (Python)       | `lcsp.legal-matching-worker.v1`    | `lcsp.legal-matching-worker.dlq.v1`    |            3 | Publish `event.legal-matching.failed.v1`, block/degrade classification, audit.                                                                                                                    |
+| Classification worker (Python)      | `lcsp.classification-worker.v1`    | `lcsp.classification-worker.dlq.v1`    |            3 | Publish `event.classification.blocked.v1` or failed audit record depending on failure type.                                                                                                       |
+| GapAnalysis worker (Python)         | `lcsp.gap-analysis-worker.v1`      | `lcsp.gap-analysis-worker.dlq.v1`      |            3 | Publish `event.gap-analysis.failed.v1` or `event.gap-analysis.blocked.v1`, block document generation, audit.                                                                                      |
+| Document worker (Python)            | `lcsp.document-worker.v1`          | `lcsp.document-worker.dlq.v1`          |            3 | Publish `event.document.blocked.v1` or failed audit record depending on failure type.                                                                                                             |
 
 ## Locked Orchestration Persistence for Controlled MVP
 
@@ -128,27 +127,27 @@ Checkpoint persistence uses existing domain state, job status rows, `OutboxEvent
 
 ### Exchanges
 
-| Exchange | Purpose |
-| --- | --- |
-| `lcsp.commands.v1` | Commands requesting work. |
-| `lcsp.events.v1` | Facts emitted after persisted state changes. |
+| Exchange             | Purpose                                               |
+| -------------------- | ----------------------------------------------------- |
+| `lcsp.commands.v1`   | Commands requesting work.                             |
+| `lcsp.events.v1`     | Facts emitted after persisted state changes.          |
 | `lcsp.deadletter.v1` | Dead-letter routing for exhausted or poison messages. |
 
 ### Queues and DLQs
 
-| Queue | DLQ | Consumer |
-| --- | --- | --- |
-| `lcsp.scan-trigger-worker.v1` | `lcsp.scan-trigger-worker.dlq.v1` | Python Scan Trigger Worker |
-| `lcsp.scan-worker.v1` | `lcsp.scan-worker.dlq.v1` | Python Worker |
-| `lcsp.legal-source-ingest.v1` | `lcsp.legal-source-ingest.dlq.v1` | Python Legal Source Ingestion worker |
-| `lcsp.legal-index-build.v1` | `lcsp.legal-index-build.dlq.v1` | Python ChromaDB Legal Index worker |
-| `lcsp.technical-profile-worker.v1` | `lcsp.technical-profile-worker.dlq.v1` | Python TechnicalProfile worker |
-| `lcsp.ai-usage-flow-worker.v1` | `lcsp.ai-usage-flow-worker.dlq.v1` | Python AIUsageFlow worker |
-| `lcsp.reconciliation-worker.v1` | `lcsp.reconciliation-worker.dlq.v1` | Python Reconciliation worker |
-| `lcsp.legal-matching-worker.v1` | `lcsp.legal-matching-worker.dlq.v1` | Python Legal Matching worker |
-| `lcsp.classification-worker.v1` | `lcsp.classification-worker.dlq.v1` | Python Classification worker |
-| `lcsp.gap-analysis-worker.v1` | `lcsp.gap-analysis-worker.dlq.v1` | Python Gap Analysis worker |
-| `lcsp.document-worker.v1` | `lcsp.document-worker.dlq.v1` | Python Document worker |
+| Queue                              | DLQ                                    | Consumer                             |
+| ---------------------------------- | -------------------------------------- | ------------------------------------ |
+| `lcsp.scan-trigger-worker.v1`      | `lcsp.scan-trigger-worker.dlq.v1`      | Python Scan Trigger Worker           |
+| `lcsp.scan-worker.v1`              | `lcsp.scan-worker.dlq.v1`              | Python Worker                        |
+| `lcsp.legal-source-ingest.v1`      | `lcsp.legal-source-ingest.dlq.v1`      | Python Legal Source Ingestion worker |
+| `lcsp.legal-index-build.v1`        | `lcsp.legal-index-build.dlq.v1`        | Python ChromaDB Legal Index worker   |
+| `lcsp.technical-profile-worker.v1` | `lcsp.technical-profile-worker.dlq.v1` | Python TechnicalProfile worker       |
+| `lcsp.ai-usage-flow-worker.v1`     | `lcsp.ai-usage-flow-worker.dlq.v1`     | Python AIUsageFlow worker            |
+| `lcsp.reconciliation-worker.v1`    | `lcsp.reconciliation-worker.dlq.v1`    | Python Reconciliation worker         |
+| `lcsp.legal-matching-worker.v1`    | `lcsp.legal-matching-worker.dlq.v1`    | Python Legal Matching worker         |
+| `lcsp.classification-worker.v1`    | `lcsp.classification-worker.dlq.v1`    | Python Classification worker         |
+| `lcsp.gap-analysis-worker.v1`      | `lcsp.gap-analysis-worker.dlq.v1`      | Python Gap Analysis worker           |
+| `lcsp.document-worker.v1`          | `lcsp.document-worker.dlq.v1`          | Python Document worker               |
 
 ### Routing Keys
 

@@ -1,14 +1,14 @@
+import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import * as assert from "node:assert/strict";
 import { test } from "node:test";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 
+import { buildMfaVerifyApiBody } from "../src/app/api/auth/mfa/verify-otp/mfa-verify-proxy.ts";
+import { mfaVerifySchema } from "../src/features/auth/schemas/mfa-verify.schema.ts";
 import {
   toMfaVerifyOutcome,
-  type MfaVerifyOutcome,
   verifyMfaOtp,
+  type MfaVerifyOutcome,
 } from "../src/lib/api/auth-client.ts";
-import { mfaVerifySchema } from "../src/features/auth/schemas/mfa-verify.schema.ts";
-import { buildMfaVerifyApiBody } from "../src/app/api/auth/mfa/verify-otp/mfa-verify-proxy.ts";
 
 function problem(code: string, status: number) {
   return {
@@ -40,7 +40,7 @@ test("successful MFA verification returns a workspace redirect outcome", () => {
 
 test("successful MFA verification accepts the API success envelope payload", () => {
   assert.deepEqual(
-    toMfaVerifyOutcome({ correlation_id: "corr-verified" }, true),
+    toMfaVerifyOutcome({ correlationId: "corr-verified" }, true),
     {
       kind: "verified",
     },
@@ -55,20 +55,14 @@ test("invalid OTP responses use the shared non-leaking error contract", () => {
   };
 
   assert.deepEqual(
-    toMfaVerifyOutcome(
-      problem(AUTH_ERROR_CODES.mfaInvalid, 403),
-      false,
-    ),
+    toMfaVerifyOutcome(problem(AUTH_ERROR_CODES.mfaInvalid, 403), false),
     expected,
   );
 });
 
 test("MFA rate limiting returns a locked outcome", () => {
   assert.deepEqual(
-    toMfaVerifyOutcome(
-      problem(AUTH_ERROR_CODES.mfaRateLimited, 429),
-      false,
-    ),
+    toMfaVerifyOutcome(problem(AUTH_ERROR_CODES.mfaRateLimited, 429), false),
     {
       kind: "rate_limited",
       titleKey: "auth.errors.mfaRateLimited.title",
@@ -79,20 +73,14 @@ test("MFA rate limiting returns a locked outcome", () => {
 
 test("undecryptable MFA enrollment redirects back to setup", () => {
   assert.deepEqual(
-    toMfaVerifyOutcome(
-      problem(AUTH_ERROR_CODES.mfaRequired, 403),
-      false,
-    ),
+    toMfaVerifyOutcome(problem(AUTH_ERROR_CODES.mfaRequired, 403), false),
     { kind: "mfa_required" },
   );
 });
 
 test("invalid or expired pending sessions return a sign-in outcome", () => {
   assert.deepEqual(
-    toMfaVerifyOutcome(
-      problem(AUTH_ERROR_CODES.sessionInvalid, 401),
-      false,
-    ),
+    toMfaVerifyOutcome(problem(AUTH_ERROR_CODES.sessionInvalid, 401), false),
     { kind: "session_invalid" },
   );
 });

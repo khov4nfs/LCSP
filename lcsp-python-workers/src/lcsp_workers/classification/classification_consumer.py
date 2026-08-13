@@ -46,9 +46,9 @@ class ClassificationConsumer(ConsumerBase):
             logger=logger,
         )
 
-    def handle(self, message: dict, correlation_id: str) -> None:
+    def handle(self, message: dict, correlationId: str) -> None:
         """Handle a legal-rule-match-ready event."""
-        logger.info("PROCESSING_CLASSIFICATION", correlation_id=correlation_id)
+        logger.info("PROCESSING_CLASSIFICATION", correlationId=correlationId)
 
         event_guardrail = self._message_value(
             message, "guardrail_status", "guardrailStatus"
@@ -60,7 +60,7 @@ class ClassificationConsumer(ConsumerBase):
                 legal_rule_match_id=self._message_value(
                     message, "legal_rule_match_id", "legalRuleMatchId"
                 ),
-                correlation_id=correlation_id,
+                correlationId=correlationId,
             )
             return
 
@@ -70,7 +70,7 @@ class ClassificationConsumer(ConsumerBase):
         if not legal_rule_match_id:
             self.graph.run(
                 message=self._normalize_graph_message(message),
-                correlation_id=correlation_id,
+                correlationId=correlationId,
             )
             return
 
@@ -82,14 +82,14 @@ class ClassificationConsumer(ConsumerBase):
                 "CLASSIFICATION_NOT_STARTED",
                 reason="LEGAL_RULE_MATCH_BLOCKED",
                 legal_rule_match_id=legal_rule_match_id,
-                correlation_id=correlation_id,
+                correlationId=correlationId,
             )
             return
 
         graph_message = self._graph_message_from_artifact(message, artifact)
         self.graph.run(
             message=graph_message,
-            correlation_id=correlation_id,
+            correlationId=correlationId,
         )
 
     def _persist_graph_result(

@@ -12,7 +12,7 @@ def test_check_reads_allow_decision_from_api_result_envelope():
             user_id="user-1",
             organization_id="org-1",
             action="scan:trigger",
-            correlation_id="corr-1",
+            correlationId="corr-1",
         )
 
     assert decision == "allow"
@@ -28,7 +28,7 @@ def test_check_denies_missing_or_non_allow_decision():
             user_id="user-1",
             organization_id="org-1",
             action="scan:trigger",
-            correlation_id="corr-1",
+            correlationId="corr-1",
         )
 
     assert decision == "deny"

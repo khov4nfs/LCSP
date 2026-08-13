@@ -1,33 +1,33 @@
-import {
-  type CanActivate,
-  type ExecutionContext,
-  HttpStatus,
-  Inject,
-  Injectable,
-  Logger,
-  type HttpException,
-} from "@nestjs/common";
-import { Reflector } from "@nestjs/core";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import type { AuthErrorCode } from "@lcsp/contracts/auth";
+import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
-  PBAC_DECISION,
   PBAC_ACTIONS,
+  PBAC_DECISION,
   PBAC_METADATA_TYPES,
   PBAC_REASON_CODE,
   type PbacDecisionValue,
   type PbacReasonCode,
 } from "@lcsp/contracts/pbac";
-import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
+import {
+  HttpStatus,
+  Inject,
+  Injectable,
+  Logger,
+  type CanActivate,
+  type ExecutionContext,
+  type HttpException,
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 
+import type { AuthorizationDecisionRepository } from "../../modules/auth-workspace/application/ports/persistence/authorization-decision.repository.js";
 import { PrismaAuthorizationDecisionRepository } from "../../modules/auth-workspace/infrastructure/persistence/prisma-auth-workspace.repositories.js";
 import { createCorrelationId } from "../../modules/auth-workspace/infrastructure/security/security.utils.js";
-import type { AuthorizationDecisionRepository } from "../../modules/auth-workspace/application/ports/persistence/authorization-decision.repository.js";
+import { ALLOW_PENDING_MFA_METADATA_KEY } from "./decorators/allow-pending-mfa.decorator.js";
 import {
   PBAC_METADATA_KEY,
   type PbacMetadata,
 } from "./decorators/pbac-metadata.js";
-import { ALLOW_PENDING_MFA_METADATA_KEY } from "./decorators/allow-pending-mfa.decorator.js";
 import {
   PbacContextLoader,
   type PbacContextDenialReason,
@@ -440,7 +440,7 @@ export class PbacGuard implements CanActivate {
         reason_code: input.reasonCode,
         policy_id: input.policyId,
         policy_version: input.policyVersion,
-        correlation_id: input.correlationId,
+        correlationId: input.correlationId,
       });
     } catch (error) {
       this.logger.error(

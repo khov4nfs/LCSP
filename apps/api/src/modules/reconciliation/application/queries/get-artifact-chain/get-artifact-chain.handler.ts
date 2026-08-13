@@ -1,9 +1,5 @@
-import { HttpStatus } from "@nestjs/common";
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
-import type {
-  EvidenceAcceptanceStatus as PrismaEvidenceAcceptanceStatus,
-  VerifiedProfileStatus as PrismaVerifiedProfileStatus,
-} from "@prisma/client";
+import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
+import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AGENTIC_TOOL_COVERAGE_STATES,
   AGENTIC_TOOL_EVENT_TYPES,
@@ -13,8 +9,12 @@ import {
   ARTIFACT_CHAIN_STAGES,
   type ArtifactChainStage,
 } from "@lcsp/contracts/evidence";
-import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
-import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
+import type {
+  EvidenceAcceptanceStatus as PrismaEvidenceAcceptanceStatus,
+  VerifiedProfileStatus as PrismaVerifiedProfileStatus,
+} from "@prisma/client";
 import {
   fromPrismaEvidenceAcceptanceStatus,
   fromPrismaVerifiedProfileStatus,
@@ -24,8 +24,8 @@ import { PrismaService } from "../../../../../infrastructure/prisma/prisma.servi
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import type {
-  ArtifactChainLink,
   ArtifactChainLimitation,
+  ArtifactChainLink,
   ArtifactChainToolResponse,
 } from "../../contracts/reconciliation/artifact-chain.contract.js";
 import { GetArtifactChainQuery } from "./get-artifact-chain.query.js";
@@ -174,7 +174,7 @@ export class GetArtifactChainHandler implements IQueryHandler<
       tool_name: AGENTIC_TOOL_NAMES.getArtifactChain,
       tool_version: TOOL_VERSION,
       config_hash: TOOL_CONFIG_HASH,
-      correlation_id: query.correlationId,
+      correlationId: query.correlationId,
       artifact_versions: { assessment_id: assessment.id },
       provenance_ref: `tool-execution:${query.correlationId}`,
       coverage_state: coverageState,

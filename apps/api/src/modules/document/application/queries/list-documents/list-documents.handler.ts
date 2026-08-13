@@ -1,12 +1,12 @@
-import { HttpStatus } from "@nestjs/common";
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
+import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
   DOCUMENT_ACTIONS,
   DOCUMENT_ERROR_CODES,
   DOCUMENT_REQUEST_STATUSES,
   DOCUMENT_TYPES,
 } from "@lcsp/contracts/document";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
 import {
   fromPrismaClassificationGuardrailStatus,
@@ -111,7 +111,7 @@ export class ListDocumentsHandler implements IQueryHandler<ListDocumentsQuery> {
             status === DOCUMENT_REQUEST_STATUSES.blocked
               ? documentRequest.updatedAt.toISOString()
               : null,
-          correlation_id: documentRequest.correlationId,
+          correlationId: documentRequest.correlationId,
         };
       })
       .filter(Boolean);

@@ -48,7 +48,7 @@ class OcrFallbackConsumer(ConsumerBase):
         )
         self._tool = tool
 
-    def handle(self, message: dict[str, Any], correlation_id: str) -> None:
+    def handle(self, message: dict[str, Any], correlationId: str) -> None:
         envelope = self._read_envelope(message)
         storage_root = self._storage_root()
         repository = OcrFallbackRepository(storage_root=storage_root)
@@ -82,7 +82,7 @@ class OcrFallbackConsumer(ConsumerBase):
             snapshot_ref=envelope.snapshot_ref,
             ocr_ref=result.ocr_ref,
             provenance_ref=result.provenance_ref,
-            correlation_id=correlation_id,
+            correlationId=correlationId,
         )
 
     def _storage_root(self) -> Path:

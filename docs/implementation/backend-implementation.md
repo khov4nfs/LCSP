@@ -8,7 +8,6 @@ AUTHORITATIVE IMPLEMENTATION DOCUMENT
 
 Single source for NestJS API, auth, GitHub App integration, API contracts, audit and local backend run behavior.
 
-
 ---
 
 ## NestJS API Implementation
@@ -41,27 +40,27 @@ The NestJS API owns synchronous request handling, authentication, PBAC authoriza
 
 ## Module Boundaries
 
-| Module | Responsibility | Controller Boundary | Service Boundary | Repository Boundary |
-| --- | --- | --- | --- | --- |
-| Auth | Password/session login and logout | Login/logout endpoints | Credential/session policy | User, Session |
-| OAuth/OIDC | Start login, validate callback, link identity | Auth redirect/callback endpoints | Provider validation, linking policy | OAuthIdentity |
-| MFA | TOTP setup/challenge/reset/disable | MFA endpoints | MFA policy and verification | UserMfaMethod |
-| User/Profile | Profile and security settings | Profile endpoints | User update policy | User |
-| Organization | Organization membership context | Organization endpoints | Membership/PBAC policy | Organization |
-| Assessment | Assessment lifecycle | Assessment endpoints | Workflow state guard | Assessment |
-| Wizard | WizardProfile save/submit | Wizard endpoints | Wizard validation | WizardProfile |
-| GitHub Integration | GitHub App connection | Repository connection endpoints | Installation/access policy | RepositoryConnection |
-| Repository Scan | Trusted trigger request/status and scan status | Scan endpoints / webhook handler / scheduler boundary | Trigger/job enqueue/idempotency | TrustedScanTrigger, ScanMappingResolution, RepositoryScanJob |
-| Evidence | Evidence/report/finding read models | Evidence endpoints | Access + state policy | TechnicalEvidenceReport, TechnicalFinding |
-| AIUsageFlow | Usage flow review | AIUsageFlow endpoints | Read/uncertainty policy | AIUsageFlow, AIUsageFlowClaim |
-| Reconciliation | Conflict resolution | Conflict endpoints | Manager resolution policy | ConflictRecord, ConflictResolution |
-| VerifiedProfile | Profile review/approval | VerifiedProfile endpoints | Prerequisite validation | VerifiedProfile |
-| Classification | Classification request/result | Classification endpoints | Gate check + job enqueue | RiskClassification |
-| Gap Analysis | Gap results | Gap endpoints | Result access policy | GapAnalysis |
-| Document | Document request/download | Document endpoints | Final report gate + storage refs | GeneratedDocument, GeneratedDocument |
-| Audit | Audit view/export | Audit endpoints | Redacted query/export policy | AuditEvent |
-| Workflow / Job Status | Progress and blocking reasons | Status endpoints | State projection | WorkflowRun, job tables |
-| Future Permission Delegation | Post-MVP delegated technical permissions | Permission endpoints if enabled | Grant/revoke policy | PermissionGrant |
+| Module                       | Responsibility                                 | Controller Boundary                                   | Service Boundary                    | Repository Boundary                                          |
+| ---------------------------- | ---------------------------------------------- | ----------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------ |
+| Auth                         | Password/session login and logout              | Login/logout endpoints                                | Credential/session policy           | User, Session                                                |
+| OAuth/OIDC                   | Start login, validate callback, link identity  | Auth redirect/callback endpoints                      | Provider validation, linking policy | OAuthIdentity                                                |
+| MFA                          | TOTP setup/challenge/reset/disable             | MFA endpoints                                         | MFA policy and verification         | UserMfaMethod                                                |
+| User/Profile                 | Profile and security settings                  | Profile endpoints                                     | User update policy                  | User                                                         |
+| Organization                 | Organization membership context                | Organization endpoints                                | Membership/PBAC policy              | Organization                                                 |
+| Assessment                   | Assessment lifecycle                           | Assessment endpoints                                  | Workflow state guard                | Assessment                                                   |
+| Wizard                       | WizardProfile save/submit                      | Wizard endpoints                                      | Wizard validation                   | WizardProfile                                                |
+| GitHub Integration           | GitHub App connection                          | Repository connection endpoints                       | Installation/access policy          | RepositoryConnection                                         |
+| Repository Scan              | Trusted trigger request/status and scan status | Scan endpoints / webhook handler / scheduler boundary | Trigger/job enqueue/idempotency     | TrustedScanTrigger, ScanMappingResolution, RepositoryScanJob |
+| Evidence                     | Evidence/report/finding read models            | Evidence endpoints                                    | Access + state policy               | TechnicalEvidenceReport, TechnicalFinding                    |
+| AIUsageFlow                  | Usage flow review                              | AIUsageFlow endpoints                                 | Read/uncertainty policy             | AIUsageFlow, AIUsageFlowClaim                                |
+| Reconciliation               | Conflict resolution                            | Conflict endpoints                                    | Manager resolution policy           | ConflictRecord, ConflictResolution                           |
+| VerifiedProfile              | Profile review/approval                        | VerifiedProfile endpoints                             | Prerequisite validation             | VerifiedProfile                                              |
+| Classification               | Classification request/result                  | Classification endpoints                              | Gate check + job enqueue            | RiskClassification                                           |
+| Gap Analysis                 | Gap results                                    | Gap endpoints                                         | Result access policy                | GapAnalysis                                                  |
+| Document                     | Document request/download                      | Document endpoints                                    | Final report gate + storage refs    | GeneratedDocument, GeneratedDocument                         |
+| Audit                        | Audit view/export                              | Audit endpoints                                       | Redacted query/export policy        | AuditEvent                                                   |
+| Workflow / Job Status        | Progress and blocking reasons                  | Status endpoints                                      | State projection                    | WorkflowRun, job tables                                      |
+| Future Permission Delegation | Post-MVP delegated technical permissions       | Permission endpoints if enabled                       | Grant/revoke policy                 | PermissionGrant                                              |
 
 ## Request Validation
 
@@ -78,15 +77,15 @@ The NestJS API owns synchronous request handling, authentication, PBAC authoriza
 
 ## State Transition Validation
 
-| Transition | Required Preconditions | Failure Behavior |
-| --- | --- | --- |
-| Submit WizardProfile | Assessment exists, Manager authorized, Wizard valid | Return validation errors |
-| Connect repository | Manager authorized, GitHub App installation valid | Block scan until connected |
-| Resolve trusted scan trigger | Trusted source, PBAC allow, mapping context valid or safely pending | Create/resume scan context or safe mapping state |
-| Request scan | Trusted trigger or repository context exists, branch/commit selected, idempotency valid | Return existing job or block with reason |
-| Resolve conflict | Conflict open, Manager authorized, traceable resolution supplied | Keep workflow paused |
-| Request classification | VerifiedProfile ready, no unresolved conflict, usage purpose resolved | Return blocked state |
-| Request document | Valid classification, citations, gap analysis and output guardrail preconditions | Return blocked state |
+| Transition                   | Required Preconditions                                                                  | Failure Behavior                                 |
+| ---------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| Submit WizardProfile         | Assessment exists, Manager authorized, Wizard valid                                     | Return validation errors                         |
+| Connect repository           | Manager authorized, GitHub App installation valid                                       | Block scan until connected                       |
+| Resolve trusted scan trigger | Trusted source, PBAC allow, mapping context valid or safely pending                     | Create/resume scan context or safe mapping state |
+| Request scan                 | Trusted trigger or repository context exists, branch/commit selected, idempotency valid | Return existing job or block with reason         |
+| Resolve conflict             | Conflict open, Manager authorized, traceable resolution supplied                        | Keep workflow paused                             |
+| Request classification       | VerifiedProfile ready, no unresolved conflict, usage purpose resolved                   | Return blocked state                             |
+| Request document             | Valid classification, citations, gap analysis and output guardrail preconditions        | Return blocked state                             |
 
 ## Transaction Boundaries
 
@@ -104,14 +103,14 @@ Expose workflow progress through polling or SSE over API-owned status endpoints.
 
 ## Error Response Contract
 
-| Field | Meaning |
-| --- | --- |
-| `error_code` | Stable machine-readable code |
-| `message` | User-safe summary |
+| Field             | Meaning                              |
+| ----------------- | ------------------------------------ |
+| `error_code`      | Stable machine-readable code         |
+| `message`         | User-safe summary                    |
 | `blocking_reason` | Gate or state reason when applicable |
-| `correlation_id` | Trace id for audit/support |
-| `recoverable` | Whether user can retry/correct |
-| `required_action` | Next allowed user/system action |
+| `correlationId`   | Trace id for audit/support           |
+| `recoverable`     | Whether user can retry/correct       |
+| `required_action` | Next allowed user/system action      |
 
 ## Idempotency Behavior
 
@@ -128,8 +127,6 @@ Use versioned public API groups and versioned async event contracts. Breaking ch
 ## Locked Progress API Decision for Controlled MVP
 
 Controlled MVP uses polling through API-owned status endpoints. SSE may be added later without changing domain state or queue contracts.
-
-
 
 ---
 
@@ -160,12 +157,12 @@ LCSP supports OAuth/OIDC Login as the active controlled MVP identity boundary, T
 
 ## Authentication Flows
 
-| Flow | Required Controls | Output |
-| --- | --- | --- |
-| Password Login | Credential validation, lockout/session policy, MFA when required | LCSP session |
-| OAuth/OIDC Login | Authorization Code Flow, PKCE when applicable, state, nonce, issuer, audience, expiry and redirect URI validation | Linked LCSP identity + session candidate |
-| TOTP MFA Challenge | User-bound TOTP secret, rate limiting, lockout, recovery/reset policy | Session continuation |
-| Logout / Session Revocation | Server-side session invalidation | Session ended |
+| Flow                        | Required Controls                                                                                                 | Output                                   |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Password Login              | Credential validation, lockout/session policy, MFA when required                                                  | LCSP session                             |
+| OAuth/OIDC Login            | Authorization Code Flow, PKCE when applicable, state, nonce, issuer, audience, expiry and redirect URI validation | Linked LCSP identity + session candidate |
+| TOTP MFA Challenge          | User-bound TOTP secret, rate limiting, lockout, recovery/reset policy                                             | Session continuation                     |
+| Logout / Session Revocation | Server-side session invalidation                                                                                  | Session ended                            |
 
 ## Safe Account Linking
 
@@ -176,45 +173,45 @@ LCSP supports OAuth/OIDC Login as the active controlled MVP identity boundary, T
 
 ## MVP Subject Label Matrix
 
-| Capability | Manager | Developer |
-| --- | --- | --- |
-| Create assessment | Yes | No unless future delegation |
-| Complete WizardProfile | Yes | No |
-| Connect GitHub repository | Yes | Optional if assigned |
-| Run Repository Scan | Yes | Optional if assigned |
-| View scan status | Yes | Optional if assigned |
-| View TechnicalEvidenceReport and findings | Yes | Optional if assigned |
-| Review AIUsageFlow | Yes | Optional if assigned |
-| Resolve business conflict | Yes | No |
-| Resolve technical conflict | Yes | Optional input only |
-| Finalize conflict resolution | Yes | No |
-| Build/approve VerifiedProfile | Yes | No |
-| Trigger risk classification | Yes | No |
-| View gap analysis | Yes | Optional if permitted |
-| Generate compliance document | Yes | No |
-| View audit trail | Yes | Limited to assigned scope if Developer exists |
-| Manage organization and assignments | Yes | No |
+| Capability                                | Manager | Developer                                     |
+| ----------------------------------------- | ------- | --------------------------------------------- |
+| Create assessment                         | Yes     | No unless future delegation                   |
+| Complete WizardProfile                    | Yes     | No                                            |
+| Connect GitHub repository                 | Yes     | Optional if assigned                          |
+| Run Repository Scan                       | Yes     | Optional if assigned                          |
+| View scan status                          | Yes     | Optional if assigned                          |
+| View TechnicalEvidenceReport and findings | Yes     | Optional if assigned                          |
+| Review AIUsageFlow                        | Yes     | Optional if assigned                          |
+| Resolve business conflict                 | Yes     | No                                            |
+| Resolve technical conflict                | Yes     | Optional input only                           |
+| Finalize conflict resolution              | Yes     | No                                            |
+| Build/approve VerifiedProfile             | Yes     | No                                            |
+| Trigger risk classification               | Yes     | No                                            |
+| View gap analysis                         | Yes     | Optional if permitted                         |
+| Generate compliance document              | Yes     | No                                            |
+| View audit trail                          | Yes     | Limited to assigned scope if Developer exists |
+| Manage organization and assignments       | Yes     | No                                            |
 
 ## Post-MVP PermissionGrant
 
-| Field | Purpose |
-| --- | --- |
-| `granted_by_manager_id` | Manager who delegated the scope |
-| `grantee_user_id` | Developer or collaborator receiving scope |
-| `scope_type` / `scope_id` | Organization, assessment, repository or task boundary |
-| `permission_code` | Delegated technical permission |
-| `status`, `expires_at`, `revoked_at` | Revocable lifecycle |
+| Field                                | Purpose                                               |
+| ------------------------------------ | ----------------------------------------------------- |
+| `granted_by_manager_id`              | Manager who delegated the scope                       |
+| `grantee_user_id`                    | Developer or collaborator receiving scope             |
+| `scope_type` / `scope_id`            | Organization, assessment, repository or task boundary |
+| `permission_code`                    | Delegated technical permission                        |
+| `status`, `expires_at`, `revoked_at` | Revocable lifecycle                                   |
 
 Delegation never removes Manager permissions and never gives Developer final compliance authority by default.
 
 ## Required Inputs and Outputs
 
-| Input | Output |
-| --- | --- |
+| Input                           | Output                                       |
+| ------------------------------- | -------------------------------------------- |
 | Provider authorization response | Validated OAuthIdentity or rejected callback |
-| MFA code | MFA pass/fail state |
-| Session token/cookie | Authenticated user context |
-| User role/grants | Allowed action set |
+| MFA code                        | MFA pass/fail state                          |
+| Session token/cookie            | Authenticated user context                   |
+| User role/grants                | Allowed action set                           |
 
 ## State / Error / Failure Handling
 
@@ -244,8 +241,6 @@ Mock provider claims are local-development identities only. Backend must still v
 
 MFA recovery uses admin-assisted local reset with audit event for controlled MVP; production recovery policy is a release-environment control.
 
-
-
 ---
 
 ## GitHub App Repository Scan and Automatic Trusted Scan Initiation Implementation
@@ -267,12 +262,12 @@ MVP technical evidence is acquired only through GitHub App read-only Repository 
 
 ## Implementation Boundaries
 
-| Capability | Boundary |
-| --- | --- |
-| OAuth/OIDC Login | Authenticates LCSP user identity |
-| GitHub App Connection | Grants read-only repository access for scan |
-| Automatic Trusted Scan Initiation | Creates/resumes safe pending scan workflow from verified context |
-| Repository Scan | Produces `TechnicalEvidenceReport` from selected repo/branch/commit |
+| Capability                        | Boundary                                                            |
+| --------------------------------- | ------------------------------------------------------------------- |
+| OAuth/OIDC Login                  | Authenticates LCSP user identity                                    |
+| GitHub App Connection             | Grants read-only repository access for scan                         |
+| Automatic Trusted Scan Initiation | Creates/resumes safe pending scan workflow from verified context    |
+| Repository Scan                   | Produces `TechnicalEvidenceReport` from selected repo/branch/commit |
 
 OAuth/OIDC Login does not install GitHub App, does not grant repository access and does not authorize scanning. PBAC and GitHub App scope must both allow scan initiation.
 
@@ -302,23 +297,23 @@ Trusted trigger received from verified webhook, scheduler, backend trigger, or a
 
 ## Static Scanner Lifecycle
 
-| Step | Implementation Contract |
-| --- | --- |
-| Snapshot | Shallow clone selected repository at pinned commit SHA |
-| Workspace | Ephemeral isolated container or restricted temporary volume |
-| Execution | Static file reads and parsing only; no customer code/scripts/builds/tests/install/Docker/CI/API probes |
-| Analysis | Inventory, manifest/config parsing, AST/symbol analysis, AI invocation/input/output/action/review signals |
-| Persistence | Structured findings, hashes, graph refs, report metadata, coverage limitations |
-| Cleanup | Raw workspace deletion is mandatory and audited |
+| Step        | Implementation Contract                                                                                   |
+| ----------- | --------------------------------------------------------------------------------------------------------- |
+| Snapshot    | Shallow clone selected repository at pinned commit SHA                                                    |
+| Workspace   | Ephemeral isolated container or restricted temporary volume                                               |
+| Execution   | Static file reads and parsing only; no customer code/scripts/builds/tests/install/Docker/CI/API probes    |
+| Analysis    | Inventory, manifest/config parsing, AST/symbol analysis, AI invocation/input/output/action/review signals |
+| Persistence | Structured findings, hashes, graph refs, report metadata, coverage limitations                            |
+| Cleanup     | Raw workspace deletion is mandatory and audited                                                           |
 
 ## Required Inputs and Outputs
 
-| Input | Source | Output |
-| --- | --- | --- |
-| Assessment id, repository id, branch, commit SHA | Manager/API | RepositoryScanJob |
-| GitHub App installation reference | GitHub Integration | Temporary repository access context |
-| Scanner/ruleset version | Worker config | Versioned scan metadata |
-| Structured findings | Scanner | TechnicalEvidenceReport |
+| Input                                            | Source             | Output                              |
+| ------------------------------------------------ | ------------------ | ----------------------------------- |
+| Assessment id, repository id, branch, commit SHA | Manager/API        | RepositoryScanJob                   |
+| GitHub App installation reference                | GitHub Integration | Temporary repository access context |
+| Scanner/ruleset version                          | Worker config      | Versioned scan metadata             |
+| Structured findings                              | Scanner            | TechnicalEvidenceReport             |
 
 ## Idempotency and Re-scan
 
@@ -326,14 +321,14 @@ Use an idempotency key based on repository, commit SHA, scanner version and rule
 
 ## Failure and Retry Behavior
 
-| Failure | Behavior |
-| --- | --- |
-| Missing GitHub App installation | Block scan and show repository connection required |
-| Token/access failure | Mark scan failed, audit, allow Manager correction/retry |
-| Clone failure | Retry if transient, otherwise fail job |
-| Scanner failure | Mark report unavailable, classification locked |
-| Workspace cleanup failure | Critical security event requiring alert and remediation |
-| Report hash mismatch | Reject report and keep classification locked |
+| Failure                         | Behavior                                                |
+| ------------------------------- | ------------------------------------------------------- |
+| Missing GitHub App installation | Block scan and show repository connection required      |
+| Token/access failure            | Mark scan failed, audit, allow Manager correction/retry |
+| Clone failure                   | Retry if transient, otherwise fail job                  |
+| Scanner failure                 | Mark report unavailable, classification locked          |
+| Workspace cleanup failure       | Critical security event requiring alert and remediation |
+| Report hash mismatch            | Reject report and keep classification locked            |
 
 ## Security and Privacy Considerations
 
@@ -354,8 +349,6 @@ Audit repository connected/disconnected, access denied, scan requested, scan sta
 Scanner uses restricted temporary local filesystem workspace at `${LCSP_SCANNER_WORKSPACE_ROOT:-.lcsp/tmp/scanner-workspaces}`. It does not use isolated container sandboxing in the controlled MVP. GitHub App access is least-privilege selected repository read access.
 
 Workspace cleanup is mandatory after scan completion or terminal failure. Cleanup failure marks scan failed with `SCANNER_WORKSPACE_CLEANUP_FAILED`, emits security-sensitive audit and blocks downstream.
-
-
 
 ---
 
@@ -384,54 +377,54 @@ The API exposes Manager-owned MVP workflow actions and optional Post-MVP delegat
 
 ## API Group Contract
 
-| Purpose | Method | Request Fields | Response Fields | Permission | State Preconditions | Async Effect | Audit Event |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Auth / password login | POST | credentials, CSRF/session context | session candidate or MFA required | public | no active session | none | login success/failure |
-| OAuth/OIDC start/callback | GET/POST | provider, state/callback params | session candidate or failure | public | configured provider | none | OAuth callback result |
-| MFA | POST | TOTP code/setup/reset request | MFA status/session continuation | authenticated/pending | MFA policy | none | MFA events |
-| Profile | GET/PATCH | profile fields | profile view/update | self | authenticated | none | profile updated |
-| Assessment | GET/POST | organization, assessment fields | assessment state | Manager | Manager session | none | `ASSESSMENT_CREATED` |
-| Wizard | GET/PUT/POST | WizardProfile answers/version | saved/submitted WizardProfile | Manager | assessment exists | may unblock next state | `WIZARD_SUBMITTED` |
-| GitHub Repository | GET/POST/DELETE | installation/repo/branch/commit refs | repository connection | Manager | assessment exists | none | `GITHUB_REPOSITORY_CONNECTED` |
-| Repository Scan | POST/GET | assessment, repo, commit, idempotency key | scan job/status | Manager | repo connected | scan job queued | `REPOSITORY_SCAN_REQUESTED` |
-| Evidence and Findings | GET | report/finding ids | report/finding summaries | Manager | scan completed | none | findings viewed |
-| AIUsageFlow | GET | flow id/assessment | claim set/uncertainty | Manager | TechnicalProfile ready | none | AIUsageFlow viewed |
-| Conflict Resolution | GET/POST | conflict id, resolution/update refs | resolution state | Manager | conflict open | reconciliation resume | `CONFLICT_RESOLVED` |
-| VerifiedProfile | GET/POST | profile id/version approval | VerifiedProfile state | Manager | no unresolved conflict | may unlock classification | `VERIFIED_PROFILE_READY` |
-| Classification | POST/GET | assessment, profile version | job/result/block reason | Manager | VerifiedProfile ready | classification job queued | `CLASSIFICATION_REQUESTED` |
-| Gap Analysis | GET | classification/gap ids | gap result | Manager | classification valid | none | gap viewed |
-| Documents | POST/GET | template/doc request | job/file/block reason | Manager | final report gate pass | document job queued | `DOCUMENT_GENERATION_REQUESTED` |
-| Audit | GET/EXPORT | filters | redacted audit events/export | Manager | assessment/org access | optional export job | audit viewed/exported |
-| Workflow Status | GET | assessment/workflow/job id | state, progress, blocking reason | Manager | assessment access | none | status viewed |
-| Future Permission Delegation | POST/DELETE/GET | scope, grantee, permission code | grant status | Manager | Post-MVP enabled | none | grant/revoke audited |
+| Purpose                      | Method          | Request Fields                            | Response Fields                   | Permission            | State Preconditions    | Async Effect              | Audit Event                     |
+| ---------------------------- | --------------- | ----------------------------------------- | --------------------------------- | --------------------- | ---------------------- | ------------------------- | ------------------------------- |
+| Auth / password login        | POST            | credentials, CSRF/session context         | session candidate or MFA required | public                | no active session      | none                      | login success/failure           |
+| OAuth/OIDC start/callback    | GET/POST        | provider, state/callback params           | session candidate or failure      | public                | configured provider    | none                      | OAuth callback result           |
+| MFA                          | POST            | TOTP code/setup/reset request             | MFA status/session continuation   | authenticated/pending | MFA policy             | none                      | MFA events                      |
+| Profile                      | GET/PATCH       | profile fields                            | profile view/update               | self                  | authenticated          | none                      | profile updated                 |
+| Assessment                   | GET/POST        | organization, assessment fields           | assessment state                  | Manager               | Manager session        | none                      | `ASSESSMENT_CREATED`            |
+| Wizard                       | GET/PUT/POST    | WizardProfile answers/version             | saved/submitted WizardProfile     | Manager               | assessment exists      | may unblock next state    | `WIZARD_SUBMITTED`              |
+| GitHub Repository            | GET/POST/DELETE | installation/repo/branch/commit refs      | repository connection             | Manager               | assessment exists      | none                      | `GITHUB_REPOSITORY_CONNECTED`   |
+| Repository Scan              | POST/GET        | assessment, repo, commit, idempotency key | scan job/status                   | Manager               | repo connected         | scan job queued           | `REPOSITORY_SCAN_REQUESTED`     |
+| Evidence and Findings        | GET             | report/finding ids                        | report/finding summaries          | Manager               | scan completed         | none                      | findings viewed                 |
+| AIUsageFlow                  | GET             | flow id/assessment                        | claim set/uncertainty             | Manager               | TechnicalProfile ready | none                      | AIUsageFlow viewed              |
+| Conflict Resolution          | GET/POST        | conflict id, resolution/update refs       | resolution state                  | Manager               | conflict open          | reconciliation resume     | `CONFLICT_RESOLVED`             |
+| VerifiedProfile              | GET/POST        | profile id/version approval               | VerifiedProfile state             | Manager               | no unresolved conflict | may unlock classification | `VERIFIED_PROFILE_READY`        |
+| Classification               | POST/GET        | assessment, profile version               | job/result/block reason           | Manager               | VerifiedProfile ready  | classification job queued | `CLASSIFICATION_REQUESTED`      |
+| Gap Analysis                 | GET             | classification/gap ids                    | gap result                        | Manager               | classification valid   | none                      | gap viewed                      |
+| Documents                    | POST/GET        | template/doc request                      | job/file/block reason             | Manager               | final report gate pass | document job queued       | `DOCUMENT_GENERATION_REQUESTED` |
+| Audit                        | GET/EXPORT      | filters                                   | redacted audit events/export      | Manager               | assessment/org access  | optional export job       | audit viewed/exported           |
+| Workflow Status              | GET             | assessment/workflow/job id                | state, progress, blocking reason  | Manager               | assessment access      | none                      | status viewed                   |
+| Future Permission Delegation | POST/DELETE/GET | scope, grantee, permission code           | grant status                      | Manager               | Post-MVP enabled       | none                      | grant/revoke audited            |
 
 ## Event Catalogue
 
-| Event | Producer | Meaning |
-| --- | --- | --- |
-| `ASSESSMENT_CREATED` | API | Manager created assessment |
-| `WIZARD_SUBMITTED` | API | WizardProfile submitted |
-| `GITHUB_REPOSITORY_CONNECTED` | API | GitHub App repo connection recorded |
-| `REPOSITORY_SCAN_REQUESTED` | API | Scan job requested |
-| `REPOSITORY_SCAN_STARTED` | Worker | Scanner started |
-| `REPOSITORY_SCAN_COMPLETED` | Worker | Scanner completed |
-| `REPOSITORY_SCAN_FAILED` | Worker | Scanner failed |
-| `TECHNICAL_EVIDENCE_READY` | Worker | TechnicalEvidenceReport ready |
-| `EVIDENCE_SCHEMA_FAILED` | Worker | Schema Gate failed |
-| `EVIDENCE_QUALITY_INSUFFICIENT` | Worker | Quality Gate insufficient |
-| `TECHNICAL_PROFILE_READY` | Worker | TechnicalProfile built |
-| `AI_USAGE_FLOW_READY` | Worker | AIUsageFlow created |
-| `CONFLICT_FOUND` | Worker | Reconciliation detected conflict |
-| `MANAGER_CONFLICT_RESOLUTION_REQUIRED` | Worker/API | Manager task created |
-| `CONFLICT_RESOLVED` | API | Manager resolution recorded |
-| `VERIFIED_PROFILE_READY` | Worker/API | VerifiedProfile ready |
-| `CLASSIFICATION_REQUESTED` | API | Classification job requested |
-| `CLASSIFICATION_BLOCKED` | Worker/API | Gate blocked classification |
-| `CLASSIFICATION_COMPLETED` | Worker | Classification completed |
-| `GAP_ANALYSIS_COMPLETED` | Worker | Gap analysis completed |
-| `DOCUMENT_GENERATION_REQUESTED` | API | Document job requested |
-| `DOCUMENT_GENERATION_BLOCKED` | Worker/API | Final report gate blocked |
-| `DOCUMENT_GENERATION_COMPLETED` | Worker | Document generated |
+| Event                                  | Producer   | Meaning                             |
+| -------------------------------------- | ---------- | ----------------------------------- |
+| `ASSESSMENT_CREATED`                   | API        | Manager created assessment          |
+| `WIZARD_SUBMITTED`                     | API        | WizardProfile submitted             |
+| `GITHUB_REPOSITORY_CONNECTED`          | API        | GitHub App repo connection recorded |
+| `REPOSITORY_SCAN_REQUESTED`            | API        | Scan job requested                  |
+| `REPOSITORY_SCAN_STARTED`              | Worker     | Scanner started                     |
+| `REPOSITORY_SCAN_COMPLETED`            | Worker     | Scanner completed                   |
+| `REPOSITORY_SCAN_FAILED`               | Worker     | Scanner failed                      |
+| `TECHNICAL_EVIDENCE_READY`             | Worker     | TechnicalEvidenceReport ready       |
+| `EVIDENCE_SCHEMA_FAILED`               | Worker     | Schema Gate failed                  |
+| `EVIDENCE_QUALITY_INSUFFICIENT`        | Worker     | Quality Gate insufficient           |
+| `TECHNICAL_PROFILE_READY`              | Worker     | TechnicalProfile built              |
+| `AI_USAGE_FLOW_READY`                  | Worker     | AIUsageFlow created                 |
+| `CONFLICT_FOUND`                       | Worker     | Reconciliation detected conflict    |
+| `MANAGER_CONFLICT_RESOLUTION_REQUIRED` | Worker/API | Manager task created                |
+| `CONFLICT_RESOLVED`                    | API        | Manager resolution recorded         |
+| `VERIFIED_PROFILE_READY`               | Worker/API | VerifiedProfile ready               |
+| `CLASSIFICATION_REQUESTED`             | API        | Classification job requested        |
+| `CLASSIFICATION_BLOCKED`               | Worker/API | Gate blocked classification         |
+| `CLASSIFICATION_COMPLETED`             | Worker     | Classification completed            |
+| `GAP_ANALYSIS_COMPLETED`               | Worker     | Gap analysis completed              |
+| `DOCUMENT_GENERATION_REQUESTED`        | API        | Document job requested              |
+| `DOCUMENT_GENERATION_BLOCKED`          | Worker/API | Final report gate blocked           |
+| `DOCUMENT_GENERATION_COMPLETED`        | Worker     | Document generated                  |
 
 ## Common Event Metadata
 
@@ -452,8 +445,6 @@ Events and API transitions must map to audit events for critical workflow transi
 ## Locked API and Event Contract Decision for Controlled MVP
 
 Route names are the canonical `/api/v1/...` routes in the Phase 5.5 section below. Event transport uses the canonical reference-only envelope from `docs/specs/event-catalog.md` and `docs/implementation/queue-implementation.md`.
-
-
 
 ---
 
@@ -481,18 +472,18 @@ Audit supports compliance traceability, security review, workflow debugging and 
 
 ## Audit Event Taxonomy
 
-| Category | Events |
-| --- | --- |
-| Auth | login success/failure, OAuth callback validation, account linked/unlinked, MFA events, session revoked |
-| Authorization | access denied, permission grant/revoke, Developer delegated action |
-| Assessment | created, Wizard submitted, state changed |
-| Repository | GitHub connected/disconnected, scan requested/started/completed/failed |
-| Evidence | schema passed/failed, quality ready/insufficient, report hash verified |
-| AIUsageFlow | ready, uncertain, conflict candidate created |
-| Reconciliation | conflict found, Manager task created, conflict resolved, reconciliation re-run |
-| Classification | requested, blocked, completed, citation missing |
-| Document | requested, blocked, generated, downloaded |
-| Security | redaction event, cleanup failure, disallowed LLM input rejected |
+| Category       | Events                                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------------------------ |
+| Auth           | login success/failure, OAuth callback validation, account linked/unlinked, MFA events, session revoked |
+| Authorization  | access denied, permission grant/revoke, Developer delegated action                                     |
+| Assessment     | created, Wizard submitted, state changed                                                               |
+| Repository     | GitHub connected/disconnected, scan requested/started/completed/failed                                 |
+| Evidence       | schema passed/failed, quality ready/insufficient, report hash verified                                 |
+| AIUsageFlow    | ready, uncertain, conflict candidate created                                                           |
+| Reconciliation | conflict found, Manager task created, conflict resolved, reconciliation re-run                         |
+| Classification | requested, blocked, completed, citation missing                                                        |
+| Document       | requested, blocked, generated, downloaded                                                              |
+| Security       | redaction event, cleanup failure, disallowed LLM input rejected                                        |
 
 ## Correlation and Workflow Tracing
 
@@ -500,20 +491,20 @@ Every audit event should include correlation id, workflow run id, assessment id,
 
 ## Metrics
 
-| Metric | Purpose |
-| --- | --- |
-| scan success/failure rate | Scanner reliability |
-| schema failure rate | Contract quality |
-| quality insufficient rate | Evidence sufficiency |
-| AIUsageFlow uncertainty rate | A2-b and scanner quality |
-| conflict rate | Wizard/evidence mismatch signal |
-| classification block rate | Gate health |
-| citation-missing rate | Legal corpus quality |
-| document success/failure rate | Output reliability |
-| queue latency | Async health |
-| worker duration | Worker capacity |
-| LLM timeout rate | Provider/gateway health |
-| conflict-resolution age | Human workflow SLA |
+| Metric                        | Purpose                         |
+| ----------------------------- | ------------------------------- |
+| scan success/failure rate     | Scanner reliability             |
+| schema failure rate           | Contract quality                |
+| quality insufficient rate     | Evidence sufficiency            |
+| AIUsageFlow uncertainty rate  | A2-b and scanner quality        |
+| conflict rate                 | Wizard/evidence mismatch signal |
+| classification block rate     | Gate health                     |
+| citation-missing rate         | Legal corpus quality            |
+| document success/failure rate | Output reliability              |
+| queue latency                 | Async health                    |
+| worker duration               | Worker capacity                 |
+| LLM timeout rate              | Provider/gateway health         |
+| conflict-resolution age       | Human workflow SLA              |
 
 ## Alerting
 
@@ -538,8 +529,6 @@ This document defines audit requirements. Each implementation component must emi
 ## Locked Audit and Observability Decision for Controlled MVP
 
 Audit events are append-oriented rows in PostgreSQL and must not be updated in normal workflow execution. Controlled MVP observability uses structured JSON logs, correlation ids and persisted audit events. External metrics backend selection is a release-environment concern.
-
-
 
 ---
 
@@ -570,32 +559,32 @@ Covers authentication, authorization, GitHub App access, scanner isolation, sour
 
 ## Threat-to-Control Mapping
 
-| Threat | Required Control |
-| --- | --- |
-| OAuth callback spoofing | Validate redirect URI, state, nonce, issuer, audience and expiry |
-| Account takeover via linking | Do not link by unverified email; audit account link/unlink |
-| Session theft | Secure cookies, revocation, expiration, MFA policy |
-| Privilege escalation | Server-side PBAC, Manager subject-label policy template, scoped Post-MVP PermissionGrant |
-| Developer overreach | Developer cannot finalize conflict/classification/document by default |
-| Excess GitHub access | Least privilege GitHub App installation and selected repository scope |
-| Source leakage | Temporary workspace, no long-term raw source persistence |
-| Secret leakage | Deterministic redaction before persistence/audit |
-| Prompt leakage | Do not store full system prompts by default |
-| LLM data exfiltration | Gateway-only calls, sanitized metadata, reject disallowed inputs |
-| Corpus poisoning | Approved/versioned legal corpus with provenance |
-| Object storage exposure | Scoped access, hashes, retention, no raw source artifacts |
-| Audit tampering | Append-oriented audit, correlation ids, export controls |
-| Abuse/rate pressure | Rate limits on auth, scan request, LLM and document generation |
+| Threat                       | Required Control                                                                         |
+| ---------------------------- | ---------------------------------------------------------------------------------------- |
+| OAuth callback spoofing      | Validate redirect URI, state, nonce, issuer, audience and expiry                         |
+| Account takeover via linking | Do not link by unverified email; audit account link/unlink                               |
+| Session theft                | Secure cookies, revocation, expiration, MFA policy                                       |
+| Privilege escalation         | Server-side PBAC, Manager subject-label policy template, scoped Post-MVP PermissionGrant |
+| Developer overreach          | Developer cannot finalize conflict/classification/document by default                    |
+| Excess GitHub access         | Least privilege GitHub App installation and selected repository scope                    |
+| Source leakage               | Temporary workspace, no long-term raw source persistence                                 |
+| Secret leakage               | Deterministic redaction before persistence/audit                                         |
+| Prompt leakage               | Do not store full system prompts by default                                              |
+| LLM data exfiltration        | Gateway-only calls, sanitized metadata, reject disallowed inputs                         |
+| Corpus poisoning             | Approved/versioned legal corpus with provenance                                          |
+| Object storage exposure      | Scoped access, hashes, retention, no raw source artifacts                                |
+| Audit tampering              | Append-oriented audit, correlation ids, export controls                                  |
+| Abuse/rate pressure          | Rate limits on auth, scan request, LLM and document generation                           |
 
 ## Required Inputs and Outputs
 
-| Input | Security Output |
-| --- | --- |
-| Auth callbacks | Validated identity or rejection |
-| Repository scan request | Authorized scan job or denial |
-| Scanner findings | Redacted evidence metadata |
-| LLM input request | Accepted sanitized payload or rejected security event |
-| Legal corpus update | Versioned provenance record |
+| Input                   | Security Output                                       |
+| ----------------------- | ----------------------------------------------------- |
+| Auth callbacks          | Validated identity or rejection                       |
+| Repository scan request | Authorized scan job or denial                         |
+| Scanner findings        | Redacted evidence metadata                            |
+| LLM input request       | Accepted sanitized payload or rejected security event |
+| Legal corpus update     | Versioned provenance record                           |
 
 ## State / Error / Failure Handling
 
@@ -619,8 +608,6 @@ Audit auth events, access denied, GitHub connection, scan lifecycle, redaction, 
 ## Locked Security Configuration Decisions for Controlled MVP
 
 Scanner sandbox is restricted temporary local filesystem workspace. Encryption key management uses secret references in local MVP configuration; concrete production KMS tooling is a release-environment concern, not a controlled MVP coding prerequisite.
-
-
 
 ---
 
@@ -652,17 +639,17 @@ Future developers will need runtime support for Web, API, Worker, PostgreSQL, qu
 
 ## Startup Order
 
-| Order | Area | Reason |
-| ---: | --- | --- |
-| 1 | Configuration and secrets | Services fail closed when required config missing |
-| 2 | PostgreSQL and migrations | API/Worker need durable state |
-| 3 | Queue | Async job boundary |
-| 4 | Object storage | Document artifacts and allowed refs |
-| 5 | API | Auth/domain/job creation |
-| 6 | Worker | Queue consumption and orchestrator |
-| 7 | Web | UI integration |
-| 8 | Legal corpus fixtures | RAG/classification tests |
-| 9 | Scanner fixtures | A2-b/local scanner tests |
+| Order | Area                      | Reason                                            |
+| ----: | ------------------------- | ------------------------------------------------- |
+|     1 | Configuration and secrets | Services fail closed when required config missing |
+|     2 | PostgreSQL and migrations | API/Worker need durable state                     |
+|     3 | Queue                     | Async job boundary                                |
+|     4 | Object storage            | Document artifacts and allowed refs               |
+|     5 | API                       | Auth/domain/job creation                          |
+|     6 | Worker                    | Queue consumption and orchestrator                |
+|     7 | Web                       | UI integration                                    |
+|     8 | Legal corpus fixtures     | RAG/classification tests                          |
+|     9 | Scanner fixtures          | A2-b/local scanner tests                          |
 
 ## Local Environment Variables by Category
 
@@ -694,13 +681,13 @@ Do not use real customer repositories, secrets, full prompts or regulated person
 
 ## Troubleshooting
 
-| Symptom | Likely Area |
-| --- | --- |
-| Login succeeds but repo unavailable | GitHub App not connected; OAuth does not grant repo access |
-| Scan stuck | Queue/Worker/job state |
-| Classification blocked | Missing VerifiedProfile, unresolved conflict, unclear usage or missing citation |
-| Document blocked | Final report gate failed |
-| AIUsageFlow unknown | Scanner coverage limitation or unsupported dynamic flow |
+| Symptom                             | Likely Area                                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------------- |
+| Login succeeds but repo unavailable | GitHub App not connected; OAuth does not grant repo access                      |
+| Scan stuck                          | Queue/Worker/job state                                                          |
+| Classification blocked              | Missing VerifiedProfile, unresolved conflict, unclear usage or missing citation |
+| Document blocked                    | Final report gate failed                                                        |
+| AIUsageFlow unknown                 | Scanner coverage limitation or unsupported dynamic flow                         |
 
 ## Audit Requirements
 
@@ -709,6 +696,7 @@ Local runs should still emit redacted audit events so developers can verify trac
 ## Locked Local Integration Defaults for Controlled MVP
 
 Local development execution may utilize local mocks for OIDC, the local filesystem for object storage, and deterministic mock LLM modes for offline unit/CI tests. However, the authoritative controlled MVP happy path requires:
+
 1. Python Worker Platform scanner module (`lcsp-python-workers/src/lcsp_workers/scanner`) executing repository scans.
 2. A real configured LLM provider mandatory for the A-to-Z happy path (mock LLM is restricted to test/offline only).
 3. A provenance-preserving legal corpus derived from approved legal source URLs (with metadata, hashes, hierarchy, xref edges and approval records) built into a ChromaDB vectorless legal retrieval index.
@@ -720,24 +708,24 @@ Local development execution may utilize local mocks for OIDC, the local filesyst
 
 ### Controlled MVP API Routes
 
-| Method | Route | Module | Purpose |
-| --- | --- | --- | --- |
-| `POST` | `/api/v1/assessments` | `assessments` | Create assessment. |
-| `GET` | `/api/v1/assessments/:assessmentId` | `assessments` | Read assessment state. |
-| `POST` | `/api/v1/assessments/:assessmentId/wizard-profile` | `wizard` | Save WizardProfile. |
-| `POST` | `/api/v1/assessments/:assessmentId/github/repository-connections` | `github` | Connect GitHub App repository. |
-| `POST` | `/api/v1/assessments/:assessmentId/repository-snapshots` | `github` | Create commit-pinned repository snapshot metadata. |
-| `POST` | `/api/v1/assessments/:assessmentId/scans` | `scans` | Request repository scan. |
-| `GET` | `/api/v1/assessments/:assessmentId/scans/:scanJobId` | `scans` | Read scan job status. |
-| `GET` | `/api/v1/assessments/:assessmentId/technical-profile` | `technical-profile` | Read latest TechnicalProfile. |
-| `GET` | `/api/v1/assessments/:assessmentId/ai-usage-flow` | `ai-usage-flow` | Read latest AIUsageFlow. |
-| `GET` | `/api/v1/assessments/:assessmentId/reconciliation-conflicts` | `reconciliation` | List open/resolved conflicts. |
-| `POST` | `/api/v1/assessments/:assessmentId/reconciliation-conflicts/:conflictId/resolve` | `reconciliation` | Manager conflict resolution. |
-| `POST` | `/api/v1/assessments/:assessmentId/classifications` | `classification` | Request classification after legal matching prerequisites. |
-| `GET` | `/api/v1/assessments/:assessmentId/classifications/latest` | `classification` | Read latest classification or blocked state. |
-| `GET` | `/api/v1/assessments/:assessmentId/gap-analysis/latest` | `gap-analysis` | Read latest GapAnalysis or blocked state. |
-| `POST` | `/api/v1/assessments/:assessmentId/documents` | `documents` | Request document generation. |
-| `GET` | `/api/v1/assessments/:assessmentId/documents/:documentId` | `documents` | Read generated document metadata/status. |
+| Method | Route                                                                            | Module              | Purpose                                                    |
+| ------ | -------------------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------- |
+| `POST` | `/api/v1/assessments`                                                            | `assessments`       | Create assessment.                                         |
+| `GET`  | `/api/v1/assessments/:assessmentId`                                              | `assessments`       | Read assessment state.                                     |
+| `POST` | `/api/v1/assessments/:assessmentId/wizard-profile`                               | `wizard`            | Save WizardProfile.                                        |
+| `POST` | `/api/v1/assessments/:assessmentId/github/repository-connections`                | `github`            | Connect GitHub App repository.                             |
+| `POST` | `/api/v1/assessments/:assessmentId/repository-snapshots`                         | `github`            | Create commit-pinned repository snapshot metadata.         |
+| `POST` | `/api/v1/assessments/:assessmentId/scans`                                        | `scans`             | Request repository scan.                                   |
+| `GET`  | `/api/v1/assessments/:assessmentId/scans/:scanJobId`                             | `scans`             | Read scan job status.                                      |
+| `GET`  | `/api/v1/assessments/:assessmentId/technical-profile`                            | `technical-profile` | Read latest TechnicalProfile.                              |
+| `GET`  | `/api/v1/assessments/:assessmentId/ai-usage-flow`                                | `ai-usage-flow`     | Read latest AIUsageFlow.                                   |
+| `GET`  | `/api/v1/assessments/:assessmentId/reconciliation-conflicts`                     | `reconciliation`    | List open/resolved conflicts.                              |
+| `POST` | `/api/v1/assessments/:assessmentId/reconciliation-conflicts/:conflictId/resolve` | `reconciliation`    | Manager conflict resolution.                               |
+| `POST` | `/api/v1/assessments/:assessmentId/classifications`                              | `classification`    | Request classification after legal matching prerequisites. |
+| `GET`  | `/api/v1/assessments/:assessmentId/classifications/latest`                       | `classification`    | Read latest classification or blocked state.               |
+| `GET`  | `/api/v1/assessments/:assessmentId/gap-analysis/latest`                          | `gap-analysis`      | Read latest GapAnalysis or blocked state.                  |
+| `POST` | `/api/v1/assessments/:assessmentId/documents`                                    | `documents`         | Request document generation.                               |
+| `GET`  | `/api/v1/assessments/:assessmentId/documents/:documentId`                        | `documents`         | Read generated document metadata/status.                   |
 
 ### Service Command Transaction Rule
 
@@ -758,19 +746,19 @@ No service may publish directly to RabbitMQ inside the same transaction.
 
 ### Local Development Command Contract
 
-| Command | Expected Output |
-| --- | --- |
-| `npm install` | npm workspace dependencies installed from lockfile. |
-| `poetry install` | Python Worker dependencies and virtual environment initialized. |
-| `npm run db:generate` | Prisma client generated successfully. |
-| `npm run db:migrate` | Local PostgreSQL schema migrated for relational metadata without pgvector requirement. |
-| `npm run dev:api` | API starts and reports ready state without logging secrets. |
-| `npm run dev:worker` | NestJS background orchestration workers start and initialize queue bindings. |
-| `poetry run python -m lcsp_workers.scanner.main` | Python Scanner Worker starts, connects to RabbitMQ and PostgreSQL, and logs ready status. |
-| `npm run dev:web` | Web app starts and can reach API health endpoint. |
-| `npm run test` | Unit and contract test suite passes. |
-| `npm run test:scanner` | Python AST/static-analysis stack and extraction parser tests pass. |
-| `npm run smoke:scan-fixture` | Synthetic scan fixture triggers scan job through Python Worker, creates TechnicalEvidenceReport, and verifies downstream command projection or explicit blocked reason. |
+| Command                                          | Expected Output                                                                                                                                                         |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm install`                                    | npm workspace dependencies installed from lockfile.                                                                                                                     |
+| `poetry install`                                 | Python Worker dependencies and virtual environment initialized.                                                                                                         |
+| `npm run db:generate`                            | Prisma client generated successfully.                                                                                                                                   |
+| `npm run db:migrate`                             | Local PostgreSQL schema migrated for relational metadata without pgvector requirement.                                                                                  |
+| `npm run dev:api`                                | API starts and reports ready state without logging secrets.                                                                                                             |
+| `npm run dev:worker`                             | NestJS background orchestration workers start and initialize queue bindings.                                                                                            |
+| `poetry run python -m lcsp_workers.scanner.main` | Python Scanner Worker starts, connects to RabbitMQ and PostgreSQL, and logs ready status.                                                                               |
+| `npm run dev:web`                                | Web app starts and can reach API health endpoint.                                                                                                                       |
+| `npm run test`                                   | Unit and contract test suite passes.                                                                                                                                    |
+| `npm run test:scanner`                           | Python AST/static-analysis stack and extraction parser tests pass.                                                                                                      |
+| `npm run smoke:scan-fixture`                     | Synthetic scan fixture triggers scan job through Python Worker, creates TechnicalEvidenceReport, and verifies downstream command projection or explicit blocked reason. |
 
 ### Smoke Scan Fixture Expected Behavior
 
@@ -783,4 +771,5 @@ No service may publish directly to RabbitMQ inside the same transaction.
 7. Confirm `OutboxEvent` has routing key `event.scan.completed.v1`.
 8. Confirm `command.technical-profile.requested.v1` and `command.ai-usage-flow.requested.v1` are enqueued in order or blocked with explicit reason.
 9. For full MVP smoke, continue the chain through Reconciliation, Legal Matching, Classification, Gap Analysis and Document Generation using only canonical `command.*` and `event.*` routing keys.
+
 <!-- PHASE-5-5-BACKEND-CONTRACT:END -->

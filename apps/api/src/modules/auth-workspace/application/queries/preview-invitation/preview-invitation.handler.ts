@@ -1,16 +1,16 @@
-import { HttpStatus } from "@nestjs/common";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   ACCEPT_INVITATION_ERROR_CODES,
   AUTH_AUDIT_EVENT_TYPES,
   AUTH_INVITATION_STATES,
 } from "@lcsp/contracts/auth";
+import { HttpStatus } from "@nestjs/common";
 
-import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.ts";
 import { fromPrismaAuthInvitationState } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.ts";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
-import type { InvitationPreviewResponse } from "../../contracts/auth-workspace/invitation-preview.contract.ts";
 import { createCorrelationId } from "../../../infrastructure/security/security.utils.ts";
+import type { InvitationPreviewResponse } from "../../contracts/auth-workspace/invitation-preview.contract.ts";
 import { AuthAuditService } from "../../services/auth-workspace/auth-audit.service.ts";
 import {
   invitationAssessmentId,
@@ -84,7 +84,7 @@ export class PreviewInvitationHandler {
           : { type: "organization", assessment: null },
       allowed_actions: projection.allowedActions,
       expires_at: invitation.expiresAt.toISOString(),
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
   }
 
@@ -103,7 +103,7 @@ export class PreviewInvitationHandler {
       payload: {
         event_type: AUTH_AUDIT_EVENT_TYPES.authDeveloperInvitationPreviewDenied,
         decision: AUDIT_DECISIONS.deny,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       },
     });
     throw problemException(

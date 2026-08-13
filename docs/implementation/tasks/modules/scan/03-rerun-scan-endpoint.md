@@ -18,11 +18,11 @@ Allow a Manager to trigger a re-scan on the same or a new snapshot without mutat
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/scan/presentation/http/scan.controller.ts` | Modify | Add `POST /assessments/:assessmentId/scan-jobs/rerun` |
-| `apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.command.ts` | Create | Command shape |
-| `apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.handler.ts` | Create | New job creation without mutating history |
+| File                                                                              | Action | Notes                                                 |
+| --------------------------------------------------------------------------------- | ------ | ----------------------------------------------------- |
+| `apps/api/src/modules/scan/presentation/http/scan.controller.ts`                  | Modify | Add `POST /assessments/:assessmentId/scan-jobs/rerun` |
+| `apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.command.ts` | Create | Command shape                                         |
+| `apps/api/src/modules/scan/application/commands/rerun-scan/rerun-scan.handler.ts` | Create | New job creation without mutating history             |
 
 ## API Contract
 
@@ -31,28 +31,28 @@ Allow a Manager to trigger a re-scan on the same or a new snapshot without mutat
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `snapshot_id` | string | Yes | New or same snapshot (re-snapshot required for new commit) |
-| `idempotency_key` | string | Yes | Client-generated unique key |
-| `reason` | string | No | Business reason for re-run (audit record only) |
+| Field             | Type   | Required | Notes                                                      |
+| ----------------- | ------ | -------- | ---------------------------------------------------------- |
+| `snapshot_id`     | string | Yes      | New or same snapshot (re-snapshot required for new commit) |
+| `idempotency_key` | string | Yes      | Client-generated unique key                                |
+| `reason`          | string | No       | Business reason for re-run (audit record only)             |
 
 **Success response (201):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `scan_job_id` | string | New `RepositoryScanJob.id` |
-| `status` | string | `QUEUED` |
+| Field                  | Type   | Notes                             |
+| ---------------------- | ------ | --------------------------------- |
+| `scan_job_id`          | string | New `RepositoryScanJob.id`        |
+| `status`               | string | `QUEUED`                          |
 | `replaces_scan_job_id` | string | Prior scan job ID (informational) |
-| `correlation_id` | string | |
+| `correlationId`        | string |                                   |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 403 | `PBAC_DENIED` | Actor lacks `scan:trigger` |
-| 404 | `SNAPSHOT_NOT_FOUND` | Snapshot not found or not in org |
-| 409 | `ASSESSMENT_STATE_INVALID` | Assessment state does not allow re-scan |
+| HTTP | `error_code`               | Meaning                                 |
+| ---- | -------------------------- | --------------------------------------- |
+| 403  | `PBAC_DENIED`              | Actor lacks `scan:trigger`              |
+| 404  | `SNAPSHOT_NOT_FOUND`       | Snapshot not found or not in org        |
+| 409  | `ASSESSMENT_STATE_INVALID` | Assessment state does not allow re-scan |
 
 ## Business Rules
 
@@ -65,20 +65,20 @@ Allow a Manager to trigger a re-scan on the same or a new snapshot without mutat
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `RerunScanCommand` | App command | `{ assessmentId, snapshotId, idempotencyKey, reason?, correlationId? }` |
-| `SCAN_RERUN_TRIGGERED` | `AuthAuditEvent` | `{ newScanJobId, priorScanJobId, assessmentId, correlationId }` |
+| Name                   | Type             | Safe payload                                                            |
+| ---------------------- | ---------------- | ----------------------------------------------------------------------- |
+| `RerunScanCommand`     | App command      | `{ assessmentId, snapshotId, idempotencyKey, reason?, correlationId? }` |
+| `SCAN_RERUN_TRIGGERED` | `AuthAuditEvent` | `{ newScanJobId, priorScanJobId, assessmentId, correlationId }`         |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid re-run | 201 new scan job, prior job/evidence intact |
-| T02 | Same `idempotency_key` | 200 existing re-run job returned |
-| T03 | Prior `TechnicalEvidenceReport` unchanged | DB inspection confirms immutability |
-| T04 | Actor lacks `scan:trigger` | 403 `PBAC_DENIED` |
-| T05 | Snapshot not in org | 404 `SNAPSHOT_NOT_FOUND` |
+| ID  | Scenario                                  | Expected                                    |
+| --- | ----------------------------------------- | ------------------------------------------- |
+| T01 | Valid re-run                              | 201 new scan job, prior job/evidence intact |
+| T02 | Same `idempotency_key`                    | 200 existing re-run job returned            |
+| T03 | Prior `TechnicalEvidenceReport` unchanged | DB inspection confirms immutability         |
+| T04 | Actor lacks `scan:trigger`                | 403 `PBAC_DENIED`                           |
+| T05 | Snapshot not in org                       | 404 `SNAPSHOT_NOT_FOUND`                    |
 
 ## Definition of Done
 

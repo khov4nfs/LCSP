@@ -43,7 +43,7 @@ class VerifiedProfileConsumer(ConsumerBase):
         )
         self._builder = builder or VerifiedProfileBuilder()
 
-    def handle(self, message: dict, correlation_id: str) -> None:
+    def handle(self, message: dict, correlationId: str) -> None:
         assessment_id = self._required_message_id(message, "assessmentId")
         ai_usage_flow_id = self._optional_message_id(message, "aiUsageFlowId")
         conflicts_resolved_at = self._event_timestamp(message)
@@ -88,7 +88,7 @@ class VerifiedProfileConsumer(ConsumerBase):
             ai_usage_flow_id=callback_payload.ai_usage_flow_id,
             assessment_id=callback_payload.assessment_id,
             evidence_chain_integrity=profile.evidence_chain_integrity,
-            correlation_id=correlation_id,
+            correlationId=correlationId,
         )
 
     def _required_message_id(self, message: dict[str, Any], key: str) -> str:

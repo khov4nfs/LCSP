@@ -31,7 +31,7 @@ export class SignInHandler {
     const { payload, requestMeta } = command;
     const { repositories } = this;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
     const validationError = this.support.validateCredentialPayload(
       payload,
       correlationId,
@@ -61,7 +61,7 @@ export class SignInHandler {
         organization_id: organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.invalidCredentials,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.invalidCredentials,
@@ -76,7 +76,7 @@ export class SignInHandler {
         organization_id: organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.temporaryLock,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createTemporaryLockProblem(user.lockUntil, correlationId);
     }
@@ -96,7 +96,7 @@ export class SignInHandler {
         reason_code: user.lockUntil
           ? AUTH_ERROR_CODES.temporaryLock
           : AUTH_ERROR_CODES.invalidCredentials,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         user.lockUntil
@@ -119,7 +119,7 @@ export class SignInHandler {
         organization_id: organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.emailVerificationRequired,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.emailVerificationRequired,
@@ -148,7 +148,7 @@ export class SignInHandler {
         organization_id: organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.membershipMissing,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.membershipMissing,
@@ -163,7 +163,7 @@ export class SignInHandler {
         organization_id: targetOrgId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.invalidInviteState,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.invalidInviteState,
@@ -182,7 +182,7 @@ export class SignInHandler {
       actor_id: user.id,
       organization_id: targetOrgId,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     });
 
     const mfaEnrollment = await this.support.findMfaEnrollment(
@@ -201,7 +201,7 @@ export class SignInHandler {
 
     return {
       ok: true,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       session_token: sessionState.token,
       user: this.support.safeUserProjection(user, targetOrgId, membership),
       mfa_enrolled: this.support.isMfaEnrolled(mfaEnrollment),

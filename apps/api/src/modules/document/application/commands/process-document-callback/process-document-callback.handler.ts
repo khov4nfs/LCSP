@@ -1,18 +1,18 @@
-import { HttpStatus } from "@nestjs/common";
-import * as crypto from "node:crypto";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import { Prisma } from "@prisma/client";
 import {
-  buildAuditEventInput,
+  AUDIT_ACTOR_IDS,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
-  AUDIT_ACTOR_IDS,
+  buildAuditEventInput,
 } from "@lcsp/contracts/audit";
 import {
   DOCUMENT_ERROR_CODES,
   DOCUMENT_EVENT_TYPES,
 } from "@lcsp/contracts/document";
+import { HttpStatus } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+import { Prisma } from "@prisma/client";
+import * as crypto from "node:crypto";
 
 import {
   toPrismaAuditResourceType,
@@ -23,8 +23,8 @@ import { PrismaService } from "../../../../../infrastructure/prisma/prisma.servi
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import type {
-  DocumentCallbackRequest,
   DocumentCallbackDto,
+  DocumentCallbackRequest,
 } from "../../contracts/document/document-callback.contract.js";
 import { ProcessDocumentCallbackCommand } from "./process-document-callback.command.js";
 
@@ -109,7 +109,7 @@ export class ProcessDocumentCallbackHandler implements ICommandHandler<ProcessDo
     return {
       processed: true,
       document_request_id: payload.document_request_id,
-      correlation_id: request.correlationId ?? command.correlationId,
+      correlationId: request.correlationId ?? command.correlationId,
     };
   }
 }

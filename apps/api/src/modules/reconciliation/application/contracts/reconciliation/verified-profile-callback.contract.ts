@@ -16,5 +16,5 @@ export interface VerifiedProfileCallbackDto {
   accepted: boolean;
   verified_profile_id: string;
   status: string;
-  correlation_id: string;
+  correlationId: string;
 }

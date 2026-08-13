@@ -1,5 +1,3 @@
-import { HttpStatus } from "@nestjs/common";
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AGENTIC_TOOL_COVERAGE_STATES,
@@ -16,6 +14,8 @@ import {
   SCAN_ERROR_CODES,
   VERIFIED_PROFILE_STATUSES,
 } from "@lcsp/contracts/scan";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
 import {
   fromPrismaVerifiedProfileStatus,
@@ -88,7 +88,7 @@ export class GetVerifiedProfileHandler implements IQueryHandler<
       tool_name: AGENTIC_TOOL_NAMES.getVerifiedProfile,
       tool_version: GET_VERIFIED_PROFILE_TOOL.version,
       config_hash: GET_VERIFIED_PROFILE_TOOL.configHash,
-      correlation_id: query.correlationId,
+      correlationId: query.correlationId,
       artifact_versions: {
         verified_profile_id: profile.id,
         version: String(profile.version),

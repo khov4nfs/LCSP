@@ -18,11 +18,11 @@ Allow an authenticated user to update their display name and/or recovery email. 
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts` | Verify | `PATCH /auth/profile` exists |
+| File                                                                                                | Action | Notes                        |
+| --------------------------------------------------------------------------------------------------- | ------ | ---------------------------- |
+| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts`                | Verify | `PATCH /auth/profile` exists |
 | `apps/api/src/modules/auth-workspace/application/commands/update-profile/update-profile.command.ts` | Verify | `UpdateProfilePayload` shape |
-| `apps/api/src/modules/auth-workspace/application/commands/update-profile/update-profile.handler.ts` | Verify | Business rules |
+| `apps/api/src/modules/auth-workspace/application/commands/update-profile/update-profile.handler.ts` | Verify | Business rules               |
 
 ## API Contract
 
@@ -31,33 +31,33 @@ Allow an authenticated user to update their display name and/or recovery email. 
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `session_token` | string | Yes | Must be valid and non-revoked |
-| `display_name` | string | No | Optional; 1–100 chars |
-| `recovery_email` | string | No | Optional; must be valid email format |
+| Field            | Type   | Required | Notes                                |
+| ---------------- | ------ | -------- | ------------------------------------ |
+| `session_token`  | string | Yes      | Must be valid and non-revoked        |
+| `display_name`   | string | No       | Optional; 1–100 chars                |
+| `recovery_email` | string | No       | Optional; must be valid email format |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `updated` | boolean | Always `true` |
-| `correlation_id` | string | |
+| Field           | Type    | Notes         |
+| --------------- | ------- | ------------- |
+| `updated`       | boolean | Always `true` |
+| `correlationId` | string  |               |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 401 | `SESSION_INVALID` | |
-| 400 | `INVALID_REQUEST` | Nothing to update or invalid field values |
-| 422 | `INVALID_EMAIL` | `recovery_email` format invalid |
+| HTTP | `error_code`      | Meaning                                   |
+| ---- | ----------------- | ----------------------------------------- |
+| 401  | `SESSION_INVALID` |                                           |
+| 400  | `INVALID_REQUEST` | Nothing to update or invalid field values |
+| 422  | `INVALID_EMAIL`   | `recovery_email` format invalid           |
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `AuthSession` | Read | Validate token |
-| `AuthUser` | Update | `displayName`, `recoveryEmail` |
+| Model            | Action | Key fields                                                        |
+| ---------------- | ------ | ----------------------------------------------------------------- |
+| `AuthSession`    | Read   | Validate token                                                    |
+| `AuthUser`       | Update | `displayName`, `recoveryEmail`                                    |
 | `AuthAuditEvent` | Create | `eventType: AUTH_PROFILE_UPDATED`, no sensitive values in payload |
 
 ## Business Rules
@@ -71,9 +71,9 @@ Allow an authenticated user to update their display name and/or recovery email. 
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `UpdateProfileCommand` | App command | `{ sessionToken, displayName?, recoveryEmail?, correlationId? }` |
+| Name                         | Type             | Safe payload                                                                   |
+| ---------------------------- | ---------------- | ------------------------------------------------------------------------------ |
+| `UpdateProfileCommand`       | App command      | `{ sessionToken, displayName?, recoveryEmail?, correlationId? }`               |
 | `event.auth.profile-updated` | `AuthAuditEvent` | `{ actorId, fieldsUpdated: ['displayName'?,'recoveryEmail'?], correlationId }` |
 
 ## PBAC
@@ -82,16 +82,16 @@ Requires valid session. User updates their own profile only. No organization-sco
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid session + display_name | 200, `AuthUser.displayName` updated |
-| T02 | Valid session + recovery_email | 200, `AuthUser.recoveryEmail` updated |
-| T03 | Both fields provided | 200, both updated |
-| T04 | No fields provided | 400 `INVALID_REQUEST` |
-| T05 | Invalid email format | 422 `INVALID_EMAIL` |
-| T06 | Audit payload has no `recovery_email` value | Only flags updated fields, not values |
-| T07 | Expired session | 401 `SESSION_INVALID` |
-| T08 | `passwordHash` unchanged | DB still has same passwordHash after update |
+| ID  | Scenario                                    | Expected                                    |
+| --- | ------------------------------------------- | ------------------------------------------- |
+| T01 | Valid session + display_name                | 200, `AuthUser.displayName` updated         |
+| T02 | Valid session + recovery_email              | 200, `AuthUser.recoveryEmail` updated       |
+| T03 | Both fields provided                        | 200, both updated                           |
+| T04 | No fields provided                          | 400 `INVALID_REQUEST`                       |
+| T05 | Invalid email format                        | 422 `INVALID_EMAIL`                         |
+| T06 | Audit payload has no `recovery_email` value | Only flags updated fields, not values       |
+| T07 | Expired session                             | 401 `SESSION_INVALID`                       |
+| T08 | `passwordHash` unchanged                    | DB still has same passwordHash after update |
 
 ## Definition of Done
 

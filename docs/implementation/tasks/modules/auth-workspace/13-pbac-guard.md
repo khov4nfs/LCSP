@@ -20,13 +20,13 @@ Enforce Policy-Based Access Control on all protected endpoints via a reusable Ne
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/auth-workspace/presentation/guards/pbac.guard.ts` | Create | NestJS `CanActivate` guard |
-| `apps/api/src/modules/auth-workspace/presentation/decorators/require-action.decorator.ts` | Create | `@RequireAction('action:name')` endpoint decorator |
-| `apps/api/src/modules/auth-workspace/presentation/decorators/require-session.decorator.ts` | Create | `@RequireSession()` endpoint decorator |
+| File                                                                                               | Action | Notes                                                            |
+| -------------------------------------------------------------------------------------------------- | ------ | ---------------------------------------------------------------- |
+| `apps/api/src/modules/auth-workspace/presentation/guards/pbac.guard.ts`                            | Create | NestJS `CanActivate` guard                                       |
+| `apps/api/src/modules/auth-workspace/presentation/decorators/require-action.decorator.ts`          | Create | `@RequireAction('action:name')` endpoint decorator               |
+| `apps/api/src/modules/auth-workspace/presentation/decorators/require-session.decorator.ts`         | Create | `@RequireSession()` endpoint decorator                           |
 | `apps/api/src/modules/auth-workspace/application/services/auth-workspace/pbac-session.resolver.ts` | Create | Resolves `AuthSession` → `AuthMembership` → `AuthPolicy` context |
-| `apps/api/src/modules/auth-workspace/auth-workspace.module.ts` | Modify | Register guard and decorators globally or per-module |
+| `apps/api/src/modules/auth-workspace/auth-workspace.module.ts`                                     | Modify | Register guard and decorators globally or per-module             |
 
 ## Guard Behaviour
 
@@ -45,6 +45,7 @@ Enforce Policy-Based Access Control on all protected endpoints via a reusable Ne
 9. On any deny → log `AuthDecisionLog` with decision `deny` + reason code. Return 403 `PBAC_DENIED` (no policy internals in response).
 
 **Default deny conditions:**
+
 - Session invalid/expired/revoked
 - MFA enrolled but unverified
 - Membership not found or not active
@@ -55,18 +56,18 @@ Enforce Policy-Based Access Control on all protected endpoints via a reusable Ne
 
 ## Module Files (Infrastructure)
 
-| File | Action | Notes |
-|---|---|---|
+| File                                                                                                   | Action | Notes                                                   |
+| ------------------------------------------------------------------------------------------------------ | ------ | ------------------------------------------------------- |
 | `apps/api/src/modules/auth-workspace/infrastructure/persistence/prisma-auth-workspace.repositories.ts` | Modify | Add session + membership + policy loaders used by guard |
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `AuthSession` | Read | `tokenFingerprint`, `tokenHash`, `userId`, `organizationId`, `expiresAt`, `revokedAt`, `mfaVerifiedAt` |
-| `AuthMembership` | Read | `userId`, `organizationId`, `status`, `subjectAttributes`, `policyId`, `policyVersion` |
-| `AuthPolicy` | Read | `id`, `version`, `actions`, `subjectRole`, `stateGate` |
-| `AuthDecisionLog` | Create | `decision`, `reasonCode`, `action`, `sessionId`, `userId`, `orgId`, `policyId`, `policyVersion` |
+| Model             | Action | Key fields                                                                                             |
+| ----------------- | ------ | ------------------------------------------------------------------------------------------------------ |
+| `AuthSession`     | Read   | `tokenFingerprint`, `tokenHash`, `userId`, `organizationId`, `expiresAt`, `revokedAt`, `mfaVerifiedAt` |
+| `AuthMembership`  | Read   | `userId`, `organizationId`, `status`, `subjectAttributes`, `policyId`, `policyVersion`                 |
+| `AuthPolicy`      | Read   | `id`, `version`, `actions`, `subjectRole`, `stateGate`                                                 |
+| `AuthDecisionLog` | Create | `decision`, `reasonCode`, `action`, `sessionId`, `userId`, `orgId`, `policyId`, `policyVersion`        |
 
 ## Business Rules
 
@@ -79,10 +80,10 @@ Enforce Policy-Based Access Control on all protected endpoints via a reusable Ne
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| (No command — guard is infrastructure) | — | — |
-| `event.pbac.decision` | `AuthDecisionLog` | `{ decision, reasonCode, action, sessionId, userId, orgId, policyId, policyVersion }` |
+| Name                                   | Type              | Safe payload                                                                          |
+| -------------------------------------- | ----------------- | ------------------------------------------------------------------------------------- |
+| (No command — guard is infrastructure) | —                 | —                                                                                     |
+| `event.pbac.decision`                  | `AuthDecisionLog` | `{ decision, reasonCode, action, sessionId, userId, orgId, policyId, policyVersion }` |
 
 ## PBAC
 
@@ -90,20 +91,20 @@ This file IS the PBAC implementation. No circular dependency.
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid session + active membership + action in policy | Pass (200 from endpoint) |
-| T02 | Session expired | 403 `PBAC_DENIED` + deny logged |
-| T03 | Session revoked | 403 `PBAC_DENIED` + deny logged |
-| T04 | MFA enrolled + not verified | 403 `MFA_REQUIRED` + deny logged |
-| T05 | No active membership | 403 `PBAC_DENIED` + deny logged |
-| T06 | Policy not found | 403 `PBAC_DENIED` + deny logged |
-| T07 | Action not in `policy.actions` | 403 `PBAC_DENIED` + deny logged |
-| T08 | Subject role mismatch | 403 `PBAC_DENIED` + deny logged |
-| T09 | Evaluator throws (DB error) | 403 `PBAC_DENIED` + deny logged |
-| T10 | 403 response body has no policy internals | Response only has `error_code`, `correlation_id` |
-| T11 | `AuthDecisionLog` written for allow | DB row with `decision = allow` |
-| T12 | `AuthDecisionLog` written for deny | DB row with `decision = deny` + `reasonCode` |
+| ID  | Scenario                                             | Expected                                        |
+| --- | ---------------------------------------------------- | ----------------------------------------------- |
+| T01 | Valid session + active membership + action in policy | Pass (200 from endpoint)                        |
+| T02 | Session expired                                      | 403 `PBAC_DENIED` + deny logged                 |
+| T03 | Session revoked                                      | 403 `PBAC_DENIED` + deny logged                 |
+| T04 | MFA enrolled + not verified                          | 403 `MFA_REQUIRED` + deny logged                |
+| T05 | No active membership                                 | 403 `PBAC_DENIED` + deny logged                 |
+| T06 | Policy not found                                     | 403 `PBAC_DENIED` + deny logged                 |
+| T07 | Action not in `policy.actions`                       | 403 `PBAC_DENIED` + deny logged                 |
+| T08 | Subject role mismatch                                | 403 `PBAC_DENIED` + deny logged                 |
+| T09 | Evaluator throws (DB error)                          | 403 `PBAC_DENIED` + deny logged                 |
+| T10 | 403 response body has no policy internals            | Response only has `error_code`, `correlationId` |
+| T11 | `AuthDecisionLog` written for allow                  | DB row with `decision = allow`                  |
+| T12 | `AuthDecisionLog` written for deny                   | DB row with `decision = deny` + `reasonCode`    |
 
 ## Definition of Done
 

@@ -18,12 +18,12 @@ Return the readiness state of an assessment when technical evidence is not yet a
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/wizard/presentation/http/wizard.controller.ts` | Modify | Add `GET /assessments/:assessmentId/readiness` |
-| `apps/api/src/modules/wizard/application/queries/get-readiness/get-readiness.query.ts` | Create | Query shape |
-| `apps/api/src/modules/wizard/application/queries/get-readiness/get-readiness.handler.ts` | Create | Readiness projection logic |
-| `apps/api/src/modules/wizard/application/contracts/wizard/readiness.contract.ts` | Create | Response DTO |
+| File                                                                                     | Action | Notes                                             |
+| ---------------------------------------------------------------------------------------- | ------ | ------------------------------------------------- |
+| `apps/api/src/modules/wizard/presentation/http/wizard.controller.ts`                     | Modify | Add `GET /assessments/:assessmentId/readiness`    |
+| `apps/api/src/modules/wizard/application/queries/get-readiness/get-readiness.query.ts`   | Create | Query shape                                       |
+| `apps/api/src/modules/wizard/application/queries/get-readiness/get-readiness.handler.ts` | Create | Readiness projection logic                        |
+| `apps/api/src/modules/wizard/application/contracts/wizard/readiness.contract.ts`         | Create | Response DTO                                      |
 | `apps/api/src/modules/wizard/application/services/wizard/readiness-evaluator.service.ts` | Create | Evaluates evidence gates + produces readiness DTO |
 
 ## API Contract
@@ -33,41 +33,41 @@ Return the readiness state of an assessment when technical evidence is not yet a
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `assessment_id` | string | |
-| `wizard_status` | string | `SUBMITTED` \| `IN_PROGRESS` |
-| `classification_locked` | boolean | `true` if no accepted evidence |
-| `lock_reason` | string \| null | `LOCKED_EVIDENCE_REQUIRED` |
-| `missing_evidence` | MissingEvidenceItem[] | See below |
-| `completed_steps` | string[] | Steps completed (e.g., `wizard_profile`, `repository_connected`) |
-| `next_action` | string | Business-language next step |
-| `updated_at` | string | ISO 8601 |
-| `correlation_id` | string | |
+| Field                   | Type                  | Notes                                                            |
+| ----------------------- | --------------------- | ---------------------------------------------------------------- |
+| `assessment_id`         | string                |                                                                  |
+| `wizard_status`         | string                | `SUBMITTED` \| `IN_PROGRESS`                                     |
+| `classification_locked` | boolean               | `true` if no accepted evidence                                   |
+| `lock_reason`           | string \| null        | `LOCKED_EVIDENCE_REQUIRED`                                       |
+| `missing_evidence`      | MissingEvidenceItem[] | See below                                                        |
+| `completed_steps`       | string[]              | Steps completed (e.g., `wizard_profile`, `repository_connected`) |
+| `next_action`           | string                | Business-language next step                                      |
+| `updated_at`            | string                | ISO 8601                                                         |
+| `correlationId`         | string                |                                                                  |
 
 **`MissingEvidenceItem` object:**
 
-| Field | Type | Notes |
-|---|---|---|
-| `type` | string | e.g., `technical_evidence`, `repository_connection` |
-| `label` | string | Business-language label |
-| `description` | string | Business-language description |
+| Field         | Type   | Notes                                               |
+| ------------- | ------ | --------------------------------------------------- |
+| `type`        | string | e.g., `technical_evidence`, `repository_connection` |
+| `label`       | string | Business-language label                             |
+| `description` | string | Business-language description                       |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 403 | `PBAC_DENIED` | Actor lacks `assessment:read` |
-| 404 | `ASSESSMENT_NOT_FOUND` | Not found or not in org |
+| HTTP | `error_code`           | Meaning                       |
+| ---- | ---------------------- | ----------------------------- |
+| 403  | `PBAC_DENIED`          | Actor lacks `assessment:read` |
+| 404  | `ASSESSMENT_NOT_FOUND` | Not found or not in org       |
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `Assessment` | Read | `status`, `organizationId` |
-| `WizardProfile` | Read | `status`, `submittedAt` |
-| `RepositoryConnection` | Read | Existence check for connected repo |
-| `TechnicalEvidenceReport` | Read | Existence check for accepted evidence |
+| Model                     | Action | Key fields                            |
+| ------------------------- | ------ | ------------------------------------- |
+| `Assessment`              | Read   | `status`, `organizationId`            |
+| `WizardProfile`           | Read   | `status`, `submittedAt`               |
+| `RepositoryConnection`    | Read   | Existence check for connected repo    |
+| `TechnicalEvidenceReport` | Read   | Existence check for accepted evidence |
 
 ## Business Rules
 
@@ -82,15 +82,15 @@ Return the readiness state of an assessment when technical evidence is not yet a
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | WizardProfile submitted, no evidence | `classification_locked = true`, `LOCKED_EVIDENCE_REQUIRED` |
-| T02 | WizardProfile submitted, evidence accepted | `classification_locked = false` |
-| T03 | No repository connected | `missing_evidence` includes `repository_connection` |
-| T04 | Repository connected, no evidence | `missing_evidence` includes `technical_evidence` |
-| T05 | Response has no risk labels when locked | Verified by field inspection |
-| T06 | `next_action` is business language | No technical/risk terms |
-| T07 | Assessment not in org | 404 `ASSESSMENT_NOT_FOUND` |
+| ID  | Scenario                                   | Expected                                                   |
+| --- | ------------------------------------------ | ---------------------------------------------------------- |
+| T01 | WizardProfile submitted, no evidence       | `classification_locked = true`, `LOCKED_EVIDENCE_REQUIRED` |
+| T02 | WizardProfile submitted, evidence accepted | `classification_locked = false`                            |
+| T03 | No repository connected                    | `missing_evidence` includes `repository_connection`        |
+| T04 | Repository connected, no evidence          | `missing_evidence` includes `technical_evidence`           |
+| T05 | Response has no risk labels when locked    | Verified by field inspection                               |
+| T06 | `next_action` is business language         | No technical/risk terms                                    |
+| T07 | Assessment not in org                      | 404 `ASSESSMENT_NOT_FOUND`                                 |
 
 ## Definition of Done
 
