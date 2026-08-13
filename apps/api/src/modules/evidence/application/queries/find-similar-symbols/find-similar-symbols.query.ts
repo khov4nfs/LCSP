@@ -8,5 +8,6 @@ export class FindSimilarSymbolsQuery {
     public readonly dimensions: SymbolSimilarityDimension[],
     public readonly maxResults: number,
     public readonly correlationId: string,
+    public readonly pathPrefixes: string[] = [],
   ) {}
 }

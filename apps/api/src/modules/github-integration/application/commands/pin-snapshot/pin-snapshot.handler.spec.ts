@@ -80,6 +80,9 @@ function buildHandler(options?: {
     );
   const connectionRepository = {
     findById,
+    linkToAssessment: jest
+      .fn<RepositoryConnectionRepository["linkToAssessment"]>()
+      .mockResolvedValue(true),
     save: jest
       .fn<RepositoryConnectionRepository["save"]>()
       .mockResolvedValue(undefined),

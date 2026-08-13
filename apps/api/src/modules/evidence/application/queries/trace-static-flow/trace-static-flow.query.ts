@@ -8,5 +8,6 @@ export class TraceStaticFlowQuery {
     public readonly direction: StaticFlowDirection,
     public readonly maxHops: number,
     public readonly correlationId: string,
+    public readonly desiredStages: string[] = [],
   ) {}
 }

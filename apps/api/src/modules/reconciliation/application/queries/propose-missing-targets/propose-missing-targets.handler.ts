@@ -116,7 +116,7 @@ export class ProposeMissingTargetsHandler implements IQueryHandler<
         ? AGENTIC_TOOL_COVERAGE_STATES.partial
         : AGENTIC_TOOL_COVERAGE_STATES.sufficient,
       limitations,
-      explicitExcludes.size === 0 ? [] : sortedCandidates,
+      sortedCandidates,
       providerCandidates.length > query.maxResults,
     );
 

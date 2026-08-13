@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from lcsp_workers.agentic_evidence import AgenticToolCallResult
 from lcsp_workers.intelligence.ai_usage_flow_consumer import AIUsageFlowConsumer
 from lcsp_workers.intelligence.ai_usage_flow_graph import AIUsageFlowGraph
 from lcsp_workers.intelligence.ai_usage_flow_rule_engine import (
@@ -402,6 +403,88 @@ def test_consumer_rejects_summary_proposal_that_conflicts_with_wizard_authority(
         correlation_id="corr-3",
     )
 
+    payload = api_client.post_ai_usage_flow_callback.call_args.args[0]
+    assert payload.flow_data["summary"]["businessProcess"] == "loan_approval"
+
+
+@pytest.mark.p0
+def test_consumer_routes_summary_proposal_through_agentic_tool_resolver() -> None:
+    api_client = MagicMock()
+    api_client.get_accepted_technical_profile.return_value = _technical_profile(
+        organization_id="org-1"
+    )
+    api_client.get_accepted_technical_evidence_report.return_value = _evidence_report()
+    api_client.get_wizard_profile_for_assessment.return_value = _wizard_profile(
+        businessProcess="loan_approval",
+        aiPurpose="credit_scoring_decision_support",
+        affectedSubjects=["loan_applicant"],
+        humanReview="present",
+    )
+    llm_client = MagicMock()
+    tool_call = MagicMock()
+    tool_call.name = "get_scan_coverage"
+    tool_call.arguments = {"maxResults": 10}
+    tool_call.call_id = "call-1"
+    first_response = MagicMock()
+    first_response.content = ""
+    first_response.tool_calls = (tool_call,)
+    first_response.request_id = "req-tool-1"
+    second_response = MagicMock()
+    second_response.content = (
+        '{"summary_updates":{"businessProcess":"loan_approval","aiPurpose":"credit_scoring_decision_support"}}'
+    )
+    second_response.request_id = "req-final-1"
+    llm_client.complete_with_tools.return_value = first_response
+    llm_client.complete.return_value = second_response
+
+    resolver = MagicMock()
+    resolver.tool_definitions.return_value = [
+        MagicMock(
+            name="get_scan_coverage",
+            description="Coverage",
+            input_schema={
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {"maxResults": {"type": "integer"}},
+            },
+        )
+    ]
+    resolver.invoke_tool_calls.return_value = (
+        AgenticToolCallResult(
+            call_id="call-1",
+            tool_name="get_scan_coverage",
+            authorized_action="evidence:read",
+            response={"status": "READY", "result": {"counts": {"analyzed": 3}}},
+        ),
+    )
+
+    consumer = AIUsageFlowConsumer(
+        _config(),
+        api_client=api_client,
+        llm_client=llm_client,
+        agentic_tool_resolver=resolver,
+    )
+
+    consumer.handle(
+        {
+            "technicalProfileId": "tp-1",
+            "assessmentId": "assessment-1",
+            "evidenceReportId": "ter-1",
+        },
+        correlation_id="corr-tools",
+    )
+
+    resolver.tool_definitions.assert_called_once()
+    llm_client.complete_with_tools.assert_called_once()
+    resolver.invoke_tool_calls.assert_called_once()
+    context = resolver.invoke_tool_calls.call_args.kwargs["context"]
+    assert context.user_id == "worker-runtime"
+    assert context.organization_id == "org-1"
+    assert context.artifact_versions == {"technicalEvidenceReportId": "ter-1"}
+    llm_client.complete.assert_called_once()
+    final_prompt = llm_client.complete.call_args.kwargs["prompt"]
+    assert "TOOL_RESULTS" in final_prompt
+    assert "get_scan_coverage" in final_prompt
     payload = api_client.post_ai_usage_flow_callback.call_args.args[0]
     assert payload.flow_data["summary"]["businessProcess"] == "loan_approval"
 

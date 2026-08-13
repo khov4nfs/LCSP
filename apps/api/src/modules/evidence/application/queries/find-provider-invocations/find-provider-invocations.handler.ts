@@ -15,7 +15,9 @@ import { PrismaService } from "../../../../../infrastructure/prisma/prisma.servi
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import {
+  PROVIDER_INVOCATION_FRAMEWORKS,
   PROVIDER_INVOCATION_PROVIDERS,
+  type ProviderInvocationFramework,
   type ProviderInvocationProvider,
   type ProviderInvocationResponse,
 } from "../../contracts/evidence/provider-invocation.contract.js";
@@ -65,6 +67,10 @@ export class FindProviderInvocationsHandler implements IQueryHandler<
       .sort((left, right) => location(left).localeCompare(location(right)))
       .slice(0, query.maxResults + 1);
     const truncated = invocations.length > query.maxResults;
+    const coverageLimited = scopeCoverageLimited(
+      report.evidencePayload,
+      query.pathPrefixes,
+    );
     const results = invocations.slice(0, query.maxResults).map((finding) => {
       const id = text(finding.finding_id) ?? "";
       return {
@@ -89,20 +95,41 @@ export class FindProviderInvocationsHandler implements IQueryHandler<
           ? [{ kind: "DEPENDENCY_SIGNAL", ref: `dependency:${name}` }]
           : [];
       });
+    const configuredSignals = deploymentSignals(
+      payload,
+      query.provider,
+      query.pathPrefixes,
+    );
     const response: ProviderInvocationResponse = {
-      status: AGENTIC_TOOL_STATUSES.ready,
+      status:
+        results.length === 0 && coverageLimited
+          ? AGENTIC_TOOL_STATUSES.outOfCoverage
+          : AGENTIC_TOOL_STATUSES.ready,
       tool_name: AGENTIC_TOOL_NAMES.findProviderInvocations,
       tool_version: TOOL_VERSION,
       config_hash: TOOL_CONFIG_HASH,
       correlation_id: query.correlationId,
       artifact_versions: { technical_evidence_report_id: report.id },
       provenance_ref: `tool-execution:${query.correlationId}`,
-      coverage_state: AGENTIC_TOOL_COVERAGE_STATES.sufficient,
+      coverage_state: coverageLimited
+        ? AGENTIC_TOOL_COVERAGE_STATES.limited
+        : AGENTIC_TOOL_COVERAGE_STATES.sufficient,
       evidence_refs: results.flatMap((item) => item.evidence_refs),
-      limitations: truncated ? ["RESULT_LIMIT_REACHED"] : [],
+      limitations: [
+        ...(coverageLimited ? ["SCAN_COVERAGE_LIMITATION"] : []),
+        ...(truncated ? ["RESULT_LIMIT_REACHED"] : []),
+      ],
       result: {
         invocations: results,
         declared_signals: declaredSignals,
+        configured_signals: configuredSignals,
+        searched_scope: {
+          artifact_version: report.id,
+          provider: query.provider ?? null,
+          framework: query.framework ?? null,
+          path_prefixes: query.pathPrefixes,
+          exhaustive: !coverageLimited && !truncated,
+        },
         truncated,
       },
     };
@@ -128,12 +155,14 @@ function invocation(
 ): boolean {
   const kind = text(finding.finding_type);
   const findingProvider = provider(finding);
+  const findingFramework = framework(finding);
   const path = text(finding.file_path);
   return (
     kind !== null &&
     kind.includes("AI_PROVIDER") &&
     findingProvider !== null &&
     (query.provider === undefined || query.provider === findingProvider) &&
+    (query.framework === undefined || query.framework === findingFramework) &&
     (query.pathPrefixes.length === 0 ||
       (path !== null &&
         query.pathPrefixes.some((prefix) => path.startsWith(prefix))))
@@ -155,15 +184,20 @@ function provider(
   return PROVIDER_INVOCATION_PROVIDERS.other;
 }
 
-function framework(finding: Record<string, unknown>): string | null {
+function framework(
+  finding: Record<string, unknown>,
+): ProviderInvocationFramework | null {
   const library = text(finding.library_group)?.toUpperCase();
-  return library?.includes("LANGCHAIN")
-    ? "LANGCHAIN"
-    : library?.includes("LANGGRAPH")
-      ? "LANGGRAPH"
-      : library?.includes("OPENAI")
-        ? "OPENAI_SDK"
-        : null;
+  if (!library) return null;
+  if (library.includes("LANGCHAIN"))
+    return PROVIDER_INVOCATION_FRAMEWORKS.langchain;
+  if (library.includes("LANGGRAPH"))
+    return PROVIDER_INVOCATION_FRAMEWORKS.langgraph;
+  if (library.includes("GOOGLE") || library.includes("GEMINI"))
+    return PROVIDER_INVOCATION_FRAMEWORKS.genaiSdk;
+  if (library.includes("OPENAI"))
+    return PROVIDER_INVOCATION_FRAMEWORKS.openaiSdk;
+  return PROVIDER_INVOCATION_FRAMEWORKS.other;
 }
 function location(finding: Record<string, unknown>): string {
   const path = text(finding.file_path) ?? "";
@@ -180,4 +214,47 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 function text(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function scopeCoverageLimited(
+  payload: unknown,
+  pathPrefixes: string[],
+): boolean {
+  const root = asRecord(payload);
+  const coverage = asRecord(root?.scan_coverage);
+  const files = Array.isArray(coverage?.files) ? coverage.files : [];
+  return files.some((item) => {
+    if (!record(item)) return false;
+    const path = text(item.file_path);
+    if (!path || item.coverage_limitation !== true) return false;
+    if (pathPrefixes.length === 0) return true;
+    return pathPrefixes.some((prefix) => path.startsWith(prefix));
+  });
+}
+
+function deploymentSignals(
+  payload: Record<string, unknown> | null,
+  providerFilter: ProviderInvocationProvider | undefined,
+  pathPrefixes: string[],
+): Array<{ kind: string; ref: string }> {
+  const contexts = Array.isArray(payload?.deployment_contexts)
+    ? payload.deployment_contexts
+    : [];
+  return contexts.flatMap((item) => {
+    if (!record(item)) return [];
+    const ref = text(item.context_ref);
+    const path = text(item.relative_location);
+    const provider = text(item.provider)?.toUpperCase();
+    if (!ref || !path) return [];
+    if (
+      pathPrefixes.length > 0 &&
+      !pathPrefixes.some((prefix) => path.startsWith(prefix))
+    ) {
+      return [];
+    }
+    if (providerFilter && provider !== providerFilter) {
+      return [];
+    }
+    return [{ kind: "CONFIG_SIGNAL", ref: `deployment:${ref}` }];
+  });
 }

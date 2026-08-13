@@ -200,6 +200,11 @@ def test_run_declares_ttl_retry_queues(monkeypatch, config):
 
     consumer.run()
 
+    channel.exchange_declare.assert_called_once_with(
+        exchange="test.events",
+        exchange_type="topic",
+        durable=True,
+    )
     assert channel.queue_declare.call_args_list[1].kwargs == {
         "queue": "test_queue.retry.10s",
         "durable": True,
@@ -252,6 +257,11 @@ def test_run_treats_keyboard_interrupt_as_shutdown(monkeypatch, config):
     consumer.run()
 
     assert consumer._shutdown is True
+    channel.exchange_declare.assert_called_once_with(
+        exchange="test.events",
+        exchange_type="topic",
+        durable=True,
+    )
     channel.queue_bind.assert_called_once_with(
         exchange="test.events",
         queue="test_queue",

@@ -47,6 +47,8 @@ import {
 } from "../../application/contracts/evidence/search-evidence.contract.js";
 import {
   PROVIDER_INVOCATION_PROVIDERS,
+  PROVIDER_INVOCATION_FRAMEWORKS,
+  type ProviderInvocationFramework,
   type ProviderInvocationProvider,
 } from "../../application/contracts/evidence/provider-invocation.contract.js";
 import {
@@ -125,6 +127,11 @@ export class EvidenceController {
     @Param("assessmentId") assessmentId: string,
     @Param("evidenceReportId") evidenceReportId: string,
     @Query("max_results") maxResultsRaw: string | undefined,
+    @Query("path_prefixes") pathPrefixesRaw: string | undefined,
+    @Query("tool_names") toolNamesRaw: string | undefined,
+    @Query("languages") languagesRaw: string | undefined,
+    @Query("dispositions") dispositionsRaw: string | undefined,
+    @Query("cursor") cursorRaw: string | undefined,
     @Req() request: AuthenticatedRequest,
   ) {
     const correlationId = request.correlationId as string;
@@ -136,6 +143,11 @@ export class EvidenceController {
           evidenceReportId,
           parseBoundedInteger(maxResultsRaw, 1, 500, correlationId),
           correlationId,
+          parsePathPrefixes(pathPrefixesRaw, correlationId),
+          parseCsv(languagesRaw, correlationId),
+          parseScanCoverageDispositions(dispositionsRaw, correlationId),
+          parseCsv(toolNamesRaw, correlationId),
+          parseOpaqueCursor(cursorRaw, correlationId),
         ),
       ),
     );
@@ -186,6 +198,7 @@ export class EvidenceController {
     @Query("providers") providersRaw: string | undefined,
     @Query("path_prefixes") pathPrefixesRaw: string | undefined,
     @Query("min_confidence") minConfidenceRaw: string | undefined,
+    @Query("cursor") cursorRaw: string | undefined,
     @Req() request: AuthenticatedRequest,
   ) {
     const correlationId = request.correlationId as string;
@@ -201,6 +214,7 @@ export class EvidenceController {
           parseCsv(providersRaw, correlationId),
           parsePathPrefixes(pathPrefixesRaw, correlationId),
           parseSearchConfidence(minConfidenceRaw, correlationId),
+          parseOpaqueCursor(cursorRaw, correlationId),
         ),
       ),
     );
@@ -217,6 +231,7 @@ export class EvidenceController {
     @Param("evidenceReportId") evidenceReportId: string,
     @Query("max_results") maxResultsRaw: string | undefined,
     @Query("provider") providerRaw: string | undefined,
+    @Query("framework") frameworkRaw: string | undefined,
     @Query("path_prefixes") pathPrefixesRaw: string | undefined,
     @Req() request: AuthenticatedRequest,
   ) {
@@ -231,6 +246,7 @@ export class EvidenceController {
           correlationId,
           parseProvider(providerRaw, correlationId),
           parsePathPrefixes(pathPrefixesRaw, correlationId),
+          parseProviderFramework(frameworkRaw, correlationId),
         ),
       ),
     );
@@ -592,6 +608,33 @@ function parseSearchConfidence(
   return value as SearchEvidenceConfidence;
 }
 
+function parseScanCoverageDispositions(
+  value: string | undefined,
+  correlationId: string,
+): Array<"ANALYZED" | "SKIPPED" | "LIMITED"> {
+  const items = parseCsv(value, correlationId);
+  const allowed = new Set(["ANALYZED", "SKIPPED", "LIMITED"]);
+  if (items.some((item) => !allowed.has(item))) {
+    throw problemException(EVIDENCE_ERROR_CODES.notFound, correlationId, {
+      status: HttpStatus.NOT_FOUND,
+    });
+  }
+  return items as Array<"ANALYZED" | "SKIPPED" | "LIMITED">;
+}
+
+function parseOpaqueCursor(
+  value: string | undefined,
+  correlationId: string,
+): string | null {
+  if (!value) return null;
+  if (value.length > 512) {
+    throw problemException(EVIDENCE_ERROR_CODES.notFound, correlationId, {
+      status: HttpStatus.NOT_FOUND,
+    });
+  }
+  return value;
+}
+
 function parseProvider(
   value: string | undefined,
   correlationId: string,
@@ -607,6 +650,23 @@ function parseProvider(
     });
   }
   return value as ProviderInvocationProvider;
+}
+
+function parseProviderFramework(
+  value: string | undefined,
+  correlationId: string,
+): ProviderInvocationFramework | undefined {
+  if (!value) return undefined;
+  if (
+    !Object.values(PROVIDER_INVOCATION_FRAMEWORKS).includes(
+      value as ProviderInvocationFramework,
+    )
+  ) {
+    throw problemException(EVIDENCE_ERROR_CODES.notFound, correlationId, {
+      status: HttpStatus.NOT_FOUND,
+    });
+  }
+  return value as ProviderInvocationFramework;
 }
 
 function parseDirection(

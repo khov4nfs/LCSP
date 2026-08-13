@@ -208,6 +208,31 @@ def test_technical_profile_callback_uses_evidence_endpoint(client):
         assert response.technical_profile_id == "technical-profile-1"
 
 
+def test_dispatch_agentic_tool_uses_internal_runtime_endpoint(client):
+    with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {"ok": True, "data": {"status": "READY"}}
+        mock_post.return_value = mock_resp
+
+        response = client.dispatch_agentic_tool(
+            {
+                "tool_name": "get_scan_coverage",
+                "assessment_id": "assessment-1",
+                "organization_id": "org-1",
+                "user_id": "user-1",
+                "artifact_versions": {"technicalEvidenceReportId": "report-1"},
+                "input": {"maxResults": 10},
+                "correlation_id": "corr-1",
+            }
+        )
+
+        assert response["status"] == "READY"
+        assert mock_post.call_args.args[0] == (
+            "http://testserver/internal/evidence/agentic-tools/dispatch"
+        )
+
+
 def test_profile_already_exists_is_an_idempotent_callback_result(client):
     payload = TechnicalProfileCallbackPayload(
         evidence_report_id="ter-1",

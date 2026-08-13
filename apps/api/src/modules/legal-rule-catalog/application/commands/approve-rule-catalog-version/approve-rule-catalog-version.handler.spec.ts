@@ -53,7 +53,9 @@ describe("ApproveRuleCatalogVersionHandler", () => {
     } as unknown as jest.Mocked<AuditWriterService>;
 
     citationLocatorValidator = {
-      validateAll: jest.fn().mockResolvedValue(undefined),
+      validateAll: jest
+        .fn<CitationLocatorValidatorService["validateAll"]>()
+        .mockResolvedValue(undefined),
     } as unknown as jest.Mocked<CitationLocatorValidatorService>;
 
     const module: TestingModule = await Test.createTestingModule({

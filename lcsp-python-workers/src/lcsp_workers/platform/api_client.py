@@ -389,6 +389,13 @@ class WorkerApiClient:
             raise WorkerCallbackError("Technical profile is not accepted.")
         return data
 
+    def dispatch_agentic_tool(self, payload: dict) -> dict:
+        path = InternalPath.AGENTIC_TOOL_DISPATCH
+        data = self._post_with_retry(path, payload)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Agentic tool dispatch response was invalid.")
+        return data
+
     def get_wizard_profile_for_assessment(self, assessment_id: str) -> dict | None:
         path = InternalPath.WIZARD_PROFILE.format(assessment_id=assessment_id)
         try:

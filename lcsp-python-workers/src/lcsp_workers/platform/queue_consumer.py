@@ -49,6 +49,11 @@ class ConsumerBase:
             conn = pika.BlockingConnection(pika.URLParameters(self._config.rabbitmq_url))
             channel = conn.channel()
             self._channel = channel
+            channel.exchange_declare(
+                exchange=self._config.rabbitmq_exchange,
+                exchange_type="topic",
+                durable=True,
+            )
             channel.queue_declare(queue=self.queue_name, durable=True)
             self._declare_retry_queues(channel)
             channel.queue_bind(

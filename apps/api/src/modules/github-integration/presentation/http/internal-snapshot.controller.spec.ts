@@ -23,14 +23,25 @@ describe("InternalSnapshotController", () => {
       },
     ) as unknown as Response;
     const queryBus = {
-      execute: jest.fn().mockResolvedValue({
-        snapshotId: "snapshot-1",
-        commitSha: "a".repeat(40),
-        repositoryFullName: "acme/example-repo",
-        contentType: "application/gzip",
-        resolvedUrl: "https://codeload.github.com/acme/example-repo/tar.gz/a",
-        stream: Readable.from([Buffer.from("archive")]),
-      }),
+      execute: jest
+        .fn<
+          () => Promise<{
+            snapshotId: string;
+            commitSha: string;
+            repositoryFullName: string;
+            contentType: string;
+            resolvedUrl: string;
+            stream: Readable;
+          }>
+        >()
+        .mockResolvedValue({
+          snapshotId: "snapshot-1",
+          commitSha: "a".repeat(40),
+          repositoryFullName: "acme/example-repo",
+          contentType: "application/gzip",
+          resolvedUrl: "https://codeload.github.com/acme/example-repo/tar.gz/a",
+          stream: Readable.from([Buffer.from("archive")]),
+        }),
     } as unknown as QueryBus;
     const controller = new InternalSnapshotController(queryBus);
 

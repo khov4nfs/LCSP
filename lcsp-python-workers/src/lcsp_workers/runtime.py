@@ -5,6 +5,19 @@ import importlib
 import inspect
 from typing import Type
 
+from lcsp_workers.agentic_evidence import (
+    AgenticToolResolver,
+    bind_runtime_handlers,
+    build_sprint6_agentic_registry,
+)
+from lcsp_workers.agentic_evidence.authorization import ApiPbacToolAuthorizer
+from lcsp_workers.llm import (
+    BudgetTracker,
+    LLMGatewayClient,
+    LlmProviderCandidate,
+    PrimaryThenFallbackLLMClient,
+)
+from lcsp_workers.platform.api_client import WorkerApiClient
 from lcsp_workers.platform.config import load_config
 from lcsp_workers.platform.pbac_client import PbacClient
 from lcsp_workers.platform.queue_consumer import ConsumerBase
@@ -36,7 +49,72 @@ def _build_consumer(target: str) -> ConsumerBase:
             config.worker_api_key,
         )
 
+    if "agentic_tool_resolver" in constructor.parameters:
+        api_client = WorkerApiClient(
+            config.nestjs_api_base_url,
+            config.worker_api_key,
+        )
+        registry = build_sprint6_agentic_registry()
+        bind_runtime_handlers(
+            registry,
+            api_client=api_client,
+            user_id="worker-runtime",
+            organization_id="worker-runtime",
+        )
+        kwargs["agentic_tool_resolver"] = AgenticToolResolver(
+            registry,
+            ApiPbacToolAuthorizer(
+                base_url=config.nestjs_api_base_url,
+                worker_api_key=config.worker_api_key,
+                timeout_seconds=config.pbac_preflight.timeout_seconds,
+            ),
+            max_tool_calls=config.agentic_runtime.max_tool_calls,
+        )
+
+    if "llm_client" in constructor.parameters:
+        llm_client = _build_llm_client(config)
+        if llm_client is not None:
+            kwargs["llm_client"] = llm_client
+
     return consumer_type(config, **kwargs)
+
+
+def _build_llm_client(config):
+    runtime = config.llm_runtime
+    if not runtime.enabled:
+        return None
+
+    budget_tracker = BudgetTracker(
+        monthly_budget_usd=runtime.monthly_budget_usd,
+        monthly_token_cap=runtime.monthly_token_cap,
+        redis_url=runtime.redis_url,
+    )
+    providers: list[LlmProviderCandidate] = []
+    for provider in runtime.providers:
+        if not provider.api_key:
+            continue
+        providers.append(
+            LlmProviderCandidate(
+                name=provider.provider,
+                client=LLMGatewayClient(
+                    provider=provider.provider,
+                    api_key=provider.api_key,
+                    model=provider.model,
+                    budget_tracker=budget_tracker,
+                    max_tokens_per_call=runtime.max_tokens_per_call,
+                    timeout_seconds=runtime.provider_timeout_seconds,
+                ),
+            )
+        )
+
+    if not providers:
+        return None
+
+    return PrimaryThenFallbackLLMClient(
+        tuple(providers),
+        fallback_on_codes=runtime.fallback_on_codes,
+        max_provider_attempts=runtime.max_provider_attempts,
+    )
 
 
 def main() -> None:

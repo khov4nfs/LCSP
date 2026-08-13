@@ -79,6 +79,9 @@ function buildHandler(options?: {
     findById: jest
       .fn<RepositoryConnectionRepository["findById"]>()
       .mockResolvedValue(null),
+    linkToAssessment: jest
+      .fn<RepositoryConnectionRepository["linkToAssessment"]>()
+      .mockResolvedValue(true),
   };
 
   const exchangeCodeForAccessToken = jest

@@ -80,7 +80,7 @@ function buildHandler(input?: { owned?: boolean }) {
 
   const enqueue = jest
     .fn<OutboxRepository["enqueue"]>()
-    .mockImplementation(() => Promise.resolve());
+    .mockImplementation(() => Promise.resolve("outbox-message-1"));
   const outbox = { enqueue } as unknown as OutboxRepository;
 
   return {

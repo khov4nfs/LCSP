@@ -24,9 +24,9 @@ function buildHandler(input?: {
   const hasIndex = input ? "index" in input : false;
   const prisma = {
     legalCorpusVersion: {
-      findFirst: jest.fn().mockResolvedValue(
+      findFirst: jest.fn<() => Promise<object | null>>().mockResolvedValue(
         hasCorpus
-          ? input?.corpus
+          ? (input?.corpus ?? null)
           : {
               id: "corpus-1",
               approvedAt: new Date("2026-08-12T00:00:00.000Z"),
@@ -35,36 +35,51 @@ function buildHandler(input?: {
     },
     legalRetrievalIndex: {
       findFirst: jest
-        .fn()
-        .mockResolvedValue(hasIndex ? input?.index : { id: "index-1" }),
+        .fn<() => Promise<object | null>>()
+        .mockResolvedValue(
+          hasIndex ? (input?.index ?? null) : { id: "index-1" },
+        ),
     },
     verifiedProfile: {
-      findMany: jest.fn().mockResolvedValue(
-        input?.approvedProfiles ?? [
-          {
-            id: "vp-1",
-            assessmentId: "assessment-1",
-            organizationId: "org-1",
-            approvedAt: new Date("2026-08-11T00:00:00.000Z"),
-          },
-          {
-            id: "vp-2",
-            assessmentId: "assessment-2",
-            organizationId: "org-1",
-            approvedAt: new Date("2026-08-11T00:05:00.000Z"),
-          },
-        ],
-      ),
+      findMany: jest
+        .fn<
+          () => Promise<
+            Array<{
+              id: string;
+              assessmentId: string;
+              organizationId: string;
+              approvedAt: Date | null;
+            }>
+          >
+        >()
+        .mockResolvedValue(
+          input?.approvedProfiles ?? [
+            {
+              id: "vp-1",
+              assessmentId: "assessment-1",
+              organizationId: "org-1",
+              approvedAt: new Date("2026-08-11T00:00:00.000Z"),
+            },
+            {
+              id: "vp-2",
+              assessmentId: "assessment-2",
+              organizationId: "org-1",
+              approvedAt: new Date("2026-08-11T00:05:00.000Z"),
+            },
+          ],
+        ),
     },
     legalRuleMatch: {
       findMany: jest
-        .fn()
+        .fn<() => Promise<Array<{ verifiedProfileId: string }>>>()
         .mockResolvedValue(
           input?.legalRuleMatches ?? [{ verifiedProfileId: "vp-2" }],
         ),
     },
     outboxMessage: {
-      findMany: jest.fn().mockResolvedValue(input?.existingCommands ?? []),
+      findMany: jest
+        .fn<() => Promise<Array<{ aggregateId: string }>>>()
+        .mockResolvedValue(input?.existingCommands ?? []),
     },
     $transaction: jest.fn(async (callback: (tx: object) => Promise<void>) =>
       callback({}),
@@ -73,7 +88,7 @@ function buildHandler(input?: {
 
   const enqueue = jest
     .fn<OutboxRepository["enqueue"]>()
-    .mockResolvedValue(undefined);
+    .mockResolvedValue("outbox-message-1");
   const outbox = { enqueue } as unknown as OutboxRepository;
   const audit = {
     write: jest.fn<AuditWriterService["write"]>().mockResolvedValue(undefined),

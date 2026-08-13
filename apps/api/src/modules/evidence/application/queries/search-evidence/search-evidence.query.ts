@@ -12,5 +12,6 @@ export class SearchEvidenceQuery {
     public readonly pathPrefixes: string[] = [],
     public readonly minConfidence:
       SearchEvidenceConfidence | undefined = undefined,
+    public readonly cursor: string | null = null,
   ) {}
 }

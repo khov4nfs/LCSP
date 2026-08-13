@@ -11,5 +11,7 @@ export class GetEvidenceSubgraphQuery {
     public readonly maxNodes: number,
     public readonly maxEdges: number,
     public readonly correlationId: string,
+    public readonly nodeTypes: string[] = [],
+    public readonly edgeTypes: string[] = [],
   ) {}
 }

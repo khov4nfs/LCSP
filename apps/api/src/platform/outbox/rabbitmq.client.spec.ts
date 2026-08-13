@@ -2,6 +2,11 @@ import { ASSESSMENT_EVENT_TYPES } from "@lcsp/contracts/assessment";
 import { jest } from "@jest/globals";
 
 interface FakeChannel {
+  assertExchange: ReturnType<
+    typeof jest.fn<
+      (exchange: string, type: string, options?: unknown) => Promise<void>
+    >
+  >;
   publish: ReturnType<
     typeof jest.fn<
       (
@@ -33,9 +38,13 @@ jest.unstable_mockModule("amqplib", () => ({
 }));
 
 const { RabbitMqClient } = await import("./rabbitmq.client.js");
+const expectedExchange = process.env.RABBITMQ_EXCHANGE ?? "lcsp.events";
 
 function makeChannel(): FakeChannel {
   return {
+    assertExchange: jest.fn<
+      (exchange: string, type: string, options?: unknown) => Promise<void>
+    >(() => Promise.resolve()),
     publish: jest.fn<
       (
         exchange: string,
@@ -87,6 +96,13 @@ describe("RabbitMqClient", () => {
 
     expect(connect).toHaveBeenCalledTimes(1);
     expect(connection.createChannel).toHaveBeenCalledTimes(1);
+    expect(channel.assertExchange).toHaveBeenCalledWith(
+      expectedExchange,
+      "topic",
+      {
+        durable: true,
+      },
+    );
   });
 
   it("publishes with the exact exchange, routing key, and JSON payload", async () => {

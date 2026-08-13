@@ -49,18 +49,30 @@ export class InspectDeploymentContextHandler implements IQueryHandler<
         query.correlationId,
         { status: HttpStatus.NOT_FOUND },
       );
+    const cursorKey = query.cursor ? decodeCursor(query.cursor) : null;
     const candidates = contexts
       .filter(
         (item) =>
-          query.manifestKinds.includes(item.manifest_kind) &&
-          query.environments.includes(item.environment),
+          (query.manifestKinds.length === 0 ||
+            query.manifestKinds.includes(item.manifest_kind)) &&
+          (query.environments.length === 0 ||
+            query.environments.includes(item.environment)) &&
+          (query.pathPrefixes.length === 0 ||
+            query.pathPrefixes.some((prefix) =>
+              item.relative_location.startsWith(prefix),
+            )),
       )
-      .sort(
-        (a, b) =>
-          a.relative_location.localeCompare(b.relative_location) ||
-          a.context_ref.localeCompare(b.context_ref),
-      );
-    const selected = candidates.slice(0, query.maxResults);
+      .sort((a, b) => contextKey(a).localeCompare(contextKey(b)));
+    const afterCursor = cursorKey
+      ? candidates.filter((item) => contextKey(item) > cursorKey)
+      : candidates;
+    const page = afterCursor.slice(0, query.maxResults + 1);
+    const truncated = page.length > query.maxResults;
+    const selected = page.slice(0, query.maxResults);
+    const nextCursor =
+      truncated && selected.length > 0
+        ? encodeCursor(contextKey(selected[selected.length - 1]))
+        : null;
     const response: DeploymentContextResponse = {
       status: AGENTIC_TOOL_STATUSES.ready,
       tool_name: AGENTIC_TOOL_NAMES.inspectDeploymentContext,
@@ -71,10 +83,11 @@ export class InspectDeploymentContextHandler implements IQueryHandler<
       provenance_ref: `tool-execution:${query.correlationId}`,
       coverage_state: AGENTIC_TOOL_COVERAGE_STATES.sufficient,
       evidence_refs: selected.flatMap((item) => item.evidence_refs),
-      limitations: [],
+      limitations: truncated ? ["RESULT_LIMIT_REACHED"] : [],
       result: {
         contexts: selected,
-        truncated: candidates.length > selected.length,
+        next_cursor: nextCursor,
+        truncated,
       },
     };
     await this.auditWriter.write({
@@ -87,7 +100,12 @@ export class InspectDeploymentContextHandler implements IQueryHandler<
       correlationId: query.correlationId,
       decision: AUDIT_DECISIONS.allow,
       result: response.status,
-      payload: { toolName: response.tool_name },
+      payload: {
+        toolName: response.tool_name,
+        pathPrefixes: query.pathPrefixes,
+        resultCount: selected.length,
+        truncated,
+      },
     });
     return response;
   }
@@ -131,6 +149,24 @@ function contextsFrom(
       ];
     },
   );
+}
+function contextKey(
+  item: DeploymentContextResponse["result"]["contexts"][number],
+): string {
+  return `${item.relative_location}\u0000${item.context_ref}`;
+}
+function encodeCursor(value: string): string {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+function decodeCursor(value: string): string | null {
+  try {
+    const decoded = Buffer.from(value, "base64url").toString("utf8");
+    return decoded && encodeCursor(decoded) === value.replace(/=+$/u, "")
+      ? decoded
+      : null;
+  } catch {
+    return null;
+  }
 }
 function rec(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)

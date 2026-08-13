@@ -23,6 +23,7 @@ class InternalPath(StrEnum):
     AUDIT_EVENTS = "/internal/organizations/{organization_id}/audit-events"
     TECHNICAL_EVIDENCE_REPORT = "/internal/evidence/reports/{evidence_report_id}"
     TECHNICAL_PROFILE = "/internal/evidence/technical-profiles/{technical_profile_id}"
+    AGENTIC_TOOL_DISPATCH = "/internal/evidence/agentic-tools/dispatch"
     AI_USAGE_FLOW = "/internal/ai-usage-flow/{ai_usage_flow_id}"
     VERIFIED_PROFILE_CONTEXT = "/internal/reconciliation/verified-profile-context/{assessment_id}"
     WIZARD_PROFILE = "/internal/assessments/{assessment_id}/wizard-profile"

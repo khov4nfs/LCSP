@@ -34,7 +34,15 @@ export type SearchEvidenceResponse = {
       evidence_refs: string[];
       limitation_refs: string[];
     }>;
-    next_cursor: null;
+    searched_scope: {
+      artifact_version: string;
+      finding_kinds: string[];
+      providers: string[];
+      path_prefixes: string[];
+      min_confidence: SearchEvidenceConfidence | null;
+      exhaustive: boolean;
+    };
+    next_cursor: string | null;
     truncated: boolean;
   };
 };

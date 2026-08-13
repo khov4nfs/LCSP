@@ -41,6 +41,7 @@ export type DeploymentContextResponse = {
       categories: string[];
       evidence_refs: string[];
     }>;
+    next_cursor: string | null;
     truncated: boolean;
   };
 };

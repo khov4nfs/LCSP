@@ -53,7 +53,7 @@ function buildHandler() {
 
   const enqueue = jest
     .fn<OutboxRepository["enqueue"]>()
-    .mockResolvedValue(undefined);
+    .mockResolvedValue("outbox-message-1");
   const outboxRepository = { enqueue } as unknown as OutboxRepository;
   const tx = { tx: "assessment-create" };
   const transaction = jest.fn((callback: (tx: unknown) => unknown) =>

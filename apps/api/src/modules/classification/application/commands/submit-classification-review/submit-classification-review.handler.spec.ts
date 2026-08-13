@@ -69,7 +69,7 @@ function createHandler(input?: {
     .mockImplementation(() => Promise.resolve());
   const enqueue = jest
     .fn<OutboxRepository["enqueue"]>()
-    .mockImplementation(() => Promise.resolve());
+    .mockImplementation(() => Promise.resolve("outbox-message-1"));
   const tx = {
     classificationReviewRequest: {
       create: jest

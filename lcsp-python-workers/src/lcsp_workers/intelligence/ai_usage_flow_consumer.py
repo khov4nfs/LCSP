@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from lcsp_workers.agentic_evidence import AgenticToolResolver
 from structlog import get_logger
 
 from lcsp_workers.llm.gateway_client import LLMGatewayClient
@@ -28,6 +29,7 @@ class AIUsageFlowConsumer(ConsumerBase):
         api_client: WorkerApiClient | None = None,
         rule_engine: AIUsageFlowRuleEngine | None = None,
         llm_client: LLMGatewayClient | None = None,
+        agentic_tool_resolver: AgenticToolResolver | None = None,
     ) -> None:
         super().__init__(config, pbac_client)
         self._api_client = api_client or WorkerApiClient(
@@ -38,7 +40,10 @@ class AIUsageFlowConsumer(ConsumerBase):
         self._graph = AIUsageFlowGraph(
             api_client=self._api_client,
             rule_engine=self._rule_engine,
-            proposer=AIUsageFlowModelAssistedProposer(llm_client)
+            proposer=AIUsageFlowModelAssistedProposer(
+                llm_client,
+                agentic_tool_resolver=agentic_tool_resolver,
+            )
             if llm_client
             else None,
             checkpoint_url=config.langgraph_checkpoint_database_url,

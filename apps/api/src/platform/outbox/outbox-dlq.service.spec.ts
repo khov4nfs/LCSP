@@ -26,9 +26,15 @@ describe("OutboxDlqService", () => {
   >;
   let deleteMessage: jest.MockedFunction<OutboxRepository["deleteMessage"]>;
   let writeAudit: jest.MockedFunction<AuditWriterService["write"]>;
-  let repositoryScanJobFindUnique: jest.Mock;
-  let technicalEvidenceReportFindUnique: jest.Mock;
-  let technicalProfileFindUnique: jest.Mock;
+  let repositoryScanJobFindUnique: ReturnType<
+    typeof jest.fn<() => Promise<Record<string, unknown> | null>>
+  >;
+  let technicalEvidenceReportFindUnique: ReturnType<
+    typeof jest.fn<() => Promise<Record<string, unknown> | null>>
+  >;
+  let technicalProfileFindUnique: ReturnType<
+    typeof jest.fn<() => Promise<Record<string, unknown> | null>>
+  >;
 
   beforeEach(async () => {
     findDlqMessages = jest.fn<OutboxRepository["findDlqMessages"]>();
@@ -37,9 +43,12 @@ describe("OutboxDlqService", () => {
       jest.fn<OutboxRepository["resetMessageForReplay"]>();
     deleteMessage = jest.fn<OutboxRepository["deleteMessage"]>();
     writeAudit = jest.fn<AuditWriterService["write"]>();
-    repositoryScanJobFindUnique = jest.fn();
-    technicalEvidenceReportFindUnique = jest.fn();
-    technicalProfileFindUnique = jest.fn();
+    repositoryScanJobFindUnique =
+      jest.fn<() => Promise<Record<string, unknown> | null>>();
+    technicalEvidenceReportFindUnique =
+      jest.fn<() => Promise<Record<string, unknown> | null>>();
+    technicalProfileFindUnique =
+      jest.fn<() => Promise<Record<string, unknown> | null>>();
 
     const outboxRepositoryMock = {
       findDlqMessages,
