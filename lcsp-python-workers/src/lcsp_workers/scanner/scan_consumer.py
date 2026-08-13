@@ -8,7 +8,7 @@ from typing import Callable
 
 from lcsp_workers.platform.api_client import WorkerApiClient
 from lcsp_workers.platform.callback_schemas import CallbackResponse
-from lcsp_workers.platform.correlation import set_correlation_id
+from lcsp_workers.platform.correlation import set_correlationId
 from lcsp_workers.platform.logging import get_logger
 from lcsp_workers.platform.queue_consumer import ConsumerBase
 
@@ -51,7 +51,7 @@ class ScanJobEnvelope:
     scan_job_id: str
     snapshot_id: str
     commit_sha: str
-    correlation_id: str
+    correlationId: str
 
 
 @dataclass(frozen=True)
@@ -149,17 +149,17 @@ class ScanConsumer(ConsumerBase):
         self._structural_augmentor = structural_augmentor or StructuralAugmentor()
         self._evidence_graph_assembler = evidence_graph_assembler or EvidenceGraphAssembler()
 
-    def handle(self, message: dict, correlation_id: str) -> CallbackResponse:
+    def handle(self, message: dict, correlationId: str) -> CallbackResponse:
         started_at = time.monotonic()
-        envelope = self._read_envelope(message, correlation_id)
+        envelope = self._read_envelope(message, correlationId)
         targeted_plan = TargetedReanalysisPlan.from_message(message)
-        set_correlation_id(envelope.correlation_id)
+        set_correlationId(envelope.correlationId)
 
         archive = self._snapshot_client.download_snapshot_archive(
             SnapshotArchiveRequest(
                 snapshot_id=envelope.snapshot_id,
                 scan_job_id=envelope.scan_job_id,
-                correlation_id=envelope.correlation_id,
+                correlationId=envelope.correlationId,
             )
         )
 
@@ -442,13 +442,13 @@ class ScanConsumer(ConsumerBase):
         except CleanupBlockedError as error:
             raise ArchiveMaterializationError(str(error)) from error
 
-    def _read_envelope(self, message: dict, correlation_id: str) -> ScanJobEnvelope:
+    def _read_envelope(self, message: dict, correlationId: str) -> ScanJobEnvelope:
         scan_job_id = self._read_field(message, "scan_job_id", "scanJobId")
         snapshot_id = self._read_field(message, "snapshot_id", "snapshotId")
         commit_sha = self._read_field(message, "commit_sha", "commitSha") or ""
-        message_correlation_id = self._read_field(
+        message_correlationId = self._read_field(
             message,
-            "correlation_id",
+            "correlationId",
             "correlationId",
         )
 
@@ -461,7 +461,7 @@ class ScanConsumer(ConsumerBase):
             scan_job_id=scan_job_id,
             snapshot_id=snapshot_id,
             commit_sha=commit_sha,
-            correlation_id=message_correlation_id or correlation_id,
+            correlationId=message_correlationId or correlationId,
         )
 
     def _read_field(self, message: dict, *names: str) -> str | None:

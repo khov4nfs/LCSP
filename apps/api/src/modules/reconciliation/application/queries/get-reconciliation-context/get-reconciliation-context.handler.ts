@@ -1,5 +1,3 @@
-import { HttpStatus } from "@nestjs/common";
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
@@ -9,6 +7,8 @@ import {
   AGENTIC_TOOL_STATUSES,
 } from "@lcsp/contracts/evidence";
 import { CONFLICT_RECORD_STATUSES } from "@lcsp/contracts/scan";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
 import { toPrismaConflictRecordStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -119,7 +119,7 @@ export class GetReconciliationContextHandler implements IQueryHandler<
       tool_name: AGENTIC_TOOL_NAMES.getReconciliationContext,
       tool_version: TOOL_VERSION,
       config_hash: TOOL_CONFIG_HASH,
-      correlation_id: query.correlationId,
+      correlationId: query.correlationId,
       artifact_versions: { ai_usage_flow_id: flowId },
       provenance_ref: `tool-execution:${query.correlationId}`,
       coverage_state: AGENTIC_TOOL_COVERAGE_STATES.sufficient,

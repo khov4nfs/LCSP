@@ -210,7 +210,7 @@ def test_consumer_fetches_ai_usage_flow_and_wizard_profile_then_posts_callback()
 
     consumer.handle(
         {"aiUsageFlowId": "auf-1", "assessmentId": "assessment-1"},
-        correlation_id="corr-1",
+        correlationId="corr-1",
     )
 
     api_client.get_accepted_ai_usage_flow.assert_called_once_with("auf-1")

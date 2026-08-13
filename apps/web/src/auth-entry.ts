@@ -28,6 +28,6 @@ export function buildBlockedAuthViewModel(
       : resolveMessage(locale, "auth.errors.validationFailed.title"),
     body: problem ? resolveMessage(locale, problem.detailKey) : null,
     required_action: problem?.requiredAction,
-    correlation_id: problem?.correlationId,
+    correlationId: problem?.correlationId,
   };
 }

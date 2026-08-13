@@ -1,23 +1,23 @@
-import { CommandHandler } from "@nestjs/cqrs";
-import type { ICommandHandler } from "@nestjs/cqrs";
-import { HttpStatus, Inject } from "@nestjs/common";
+import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import { WIZARD_EVENT_TYPES } from "@lcsp/contracts/wizard";
-import { SaveWizardDraftCommand } from "./save-wizard-draft.command.js";
-import type { SaveWizardDraftResponse } from "../../contracts/wizard/wizard-draft.contract.js";
-import { WIZARD_PROFILE_REPOSITORY } from "../../ports/persistence/wizard-profile.repository.js";
-import type { WizardProfileRepository } from "../../ports/persistence/wizard-profile.repository.js";
+import { HttpStatus, Inject } from "@nestjs/common";
+import type { ICommandHandler } from "@nestjs/cqrs";
+import { CommandHandler } from "@nestjs/cqrs";
+import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
+import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
+import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { WizardProfileEntity } from "../../../domain/entities/wizard-profile.entity.js";
 import {
   AssessmentNotFoundException,
   WizardAlreadySubmittedException,
 } from "../../../domain/exceptions/wizard.exceptions.js";
-import { WizardProfileEntity } from "../../../domain/entities/wizard-profile.entity.js";
-import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
-import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
+import type { SaveWizardDraftResponse } from "../../contracts/wizard/wizard-draft.contract.js";
+import type { WizardProfileRepository } from "../../ports/persistence/wizard-profile.repository.js";
+import { WIZARD_PROFILE_REPOSITORY } from "../../ports/persistence/wizard-profile.repository.js";
+import { SaveWizardDraftCommand } from "./save-wizard-draft.command.js";
 
 @CommandHandler(SaveWizardDraftCommand)
 export class SaveWizardDraftHandler implements ICommandHandler<
@@ -107,7 +107,7 @@ export class SaveWizardDraftHandler implements ICommandHandler<
       status: savedProfile.status,
       version: savedProfile.version,
       updated_at: savedProfile.updatedAt.toISOString(),
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
   }
 

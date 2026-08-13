@@ -10,5 +10,5 @@ export interface TechnicalProfileCallbackRequest {
 export interface TechnicalProfileCallbackDto {
   accepted: boolean;
   technical_profile_id: string;
-  correlation_id: string;
+  correlationId: string;
 }

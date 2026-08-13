@@ -1,5 +1,3 @@
-import { HttpStatus } from "@nestjs/common";
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import {
   ASSESSMENT_ERROR_CODES,
   WIZARD_STATUS_CODES,
@@ -17,6 +15,8 @@ import {
 } from "@lcsp/contracts/evidence";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import type { WizardAnswer } from "@lcsp/contracts/wizard";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
 import {
   fromPrismaWizardStatus,
@@ -184,7 +184,7 @@ export class GetAssessmentContextHandler implements IQueryHandler<
       tool_name: AGENTIC_TOOL_NAMES.getAssessmentContext,
       tool_version: TOOL_VERSION,
       config_hash: TOOL_CONFIG_HASH,
-      correlation_id: query.correlationId,
+      correlationId: query.correlationId,
       artifact_versions: {
         wizard_profile_id: profile.id,
         ...(artifactVersions ?? {}),

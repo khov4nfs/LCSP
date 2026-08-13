@@ -1,21 +1,12 @@
 import * as crypto from "node:crypto";
 
 import {
-  ConflictException,
-  HttpException,
-  HttpStatus,
-  Logger,
-  NotFoundException,
-} from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import type { Prisma } from "@prisma/client";
-import {
-  AUDIT_DECISIONS,
-  AUDIT_REDACTION_STATUSES,
-  buildAuditEventInput,
-  AUDIT_RESOURCE_TYPES,
   AUDIT_ACTOR_IDS,
   AUDIT_ACTOR_TYPES,
+  AUDIT_DECISIONS,
+  AUDIT_REDACTION_STATUSES,
+  AUDIT_RESOURCE_TYPES,
+  buildAuditEventInput,
 } from "@lcsp/contracts/audit";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import {
@@ -26,10 +17,19 @@ import {
   SCAN_CALLBACK_STATUSES,
   SCAN_ERROR_CODES,
   SCAN_EVENT_TYPES,
-  TECHNICAL_EVIDENCE_REPORT_STATUSES,
   TARGETED_REANALYSIS_CHECKPOINT_STATES,
   TARGETED_REANALYSIS_REQUEST_STATES,
+  TECHNICAL_EVIDENCE_REPORT_STATUSES,
 } from "@lcsp/contracts/scan";
+import {
+  ConflictException,
+  HttpException,
+  HttpStatus,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+import type { Prisma } from "@prisma/client";
 
 import {
   fromPrismaRepositoryScanJobStatus,
@@ -273,7 +273,7 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
     return {
       accepted: !isRejected,
       evidence_report_id: reportId,
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
     };
   }
 

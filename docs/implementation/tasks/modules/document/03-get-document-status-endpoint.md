@@ -18,13 +18,13 @@ Return status of a document request and, when ready, a signed download URL for t
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/document/presentation/http/document.controller.ts` | Modify | Add `GET /assessments/:assessmentId/documents/:documentRequestId` |
-| `apps/api/src/modules/document/application/queries/get-document/get-document.query.ts` | Create | Query shape |
-| `apps/api/src/modules/document/application/queries/get-document/get-document.handler.ts` | Create | Status projection + signed URL generation |
-| `apps/api/src/modules/document/application/contracts/document/document-status.contract.ts` | Create | Response DTO |
-| `apps/api/src/modules/document/infrastructure/storage/document-storage.service.ts` | Create | Object storage pre-signed URL generator |
+| File                                                                                       | Action | Notes                                                             |
+| ------------------------------------------------------------------------------------------ | ------ | ----------------------------------------------------------------- |
+| `apps/api/src/modules/document/presentation/http/document.controller.ts`                   | Modify | Add `GET /assessments/:assessmentId/documents/:documentRequestId` |
+| `apps/api/src/modules/document/application/queries/get-document/get-document.query.ts`     | Create | Query shape                                                       |
+| `apps/api/src/modules/document/application/queries/get-document/get-document.handler.ts`   | Create | Status projection + signed URL generation                         |
+| `apps/api/src/modules/document/application/contracts/document/document-status.contract.ts` | Create | Response DTO                                                      |
+| `apps/api/src/modules/document/infrastructure/storage/document-storage.service.ts`         | Create | Object storage pre-signed URL generator                           |
 
 ## API Contract
 
@@ -33,25 +33,25 @@ Return status of a document request and, when ready, a signed download URL for t
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `document_request_id` | string | |
-| `document_type` | string | `GapAnalysis` \| `FinalReport` \| `ReadinessExport` |
-| `status` | string | `QUEUED` \| `GENERATING` \| `READY` \| `FAILED` \| `BLOCKED` |
-| `blocked_reason` | string \| null | Business-language reason when blocked |
-| `guardrail_status` | string \| null | `passed` \| `degraded` \| `blocked` |
-| `download_url` | string \| null | Pre-signed URL (only when `status = READY`) |
-| `download_url_expires_at` | string \| null | ISO 8601 (5-min TTL) |
-| `requested_at` | string | ISO 8601 |
-| `completed_at` | string \| null | ISO 8601 |
-| `correlation_id` | string | |
+| Field                     | Type           | Notes                                                        |
+| ------------------------- | -------------- | ------------------------------------------------------------ |
+| `document_request_id`     | string         |                                                              |
+| `document_type`           | string         | `GapAnalysis` \| `FinalReport` \| `ReadinessExport`          |
+| `status`                  | string         | `QUEUED` \| `GENERATING` \| `READY` \| `FAILED` \| `BLOCKED` |
+| `blocked_reason`          | string \| null | Business-language reason when blocked                        |
+| `guardrail_status`        | string \| null | `passed` \| `degraded` \| `blocked`                          |
+| `download_url`            | string \| null | Pre-signed URL (only when `status = READY`)                  |
+| `download_url_expires_at` | string \| null | ISO 8601 (5-min TTL)                                         |
+| `requested_at`            | string         | ISO 8601                                                     |
+| `completed_at`            | string \| null | ISO 8601                                                     |
+| `correlationId`           | string         |                                                              |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 403 | `PBAC_DENIED` | Actor lacks `document:read` or developer accessing restricted doc |
-| 404 | `DOCUMENT_NOT_FOUND` | Not found or not in org |
+| HTTP | `error_code`         | Meaning                                                           |
+| ---- | -------------------- | ----------------------------------------------------------------- |
+| 403  | `PBAC_DENIED`        | Actor lacks `document:read` or developer accessing restricted doc |
+| 404  | `DOCUMENT_NOT_FOUND` | Not found or not in org                                           |
 
 ## Business Rules
 
@@ -64,22 +64,22 @@ Return status of a document request and, when ready, a signed download URL for t
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `DocumentRequest` | Read | `id`, `assessmentId`, `status`, `documentUrl`, `guardrailStatus`, etc. |
+| Model             | Action | Key fields                                                             |
+| ----------------- | ------ | ---------------------------------------------------------------------- |
+| `DocumentRequest` | Read   | `id`, `assessmentId`, `status`, `documentUrl`, `guardrailStatus`, etc. |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | READY document | 200 with `download_url` |
-| T02 | QUEUED document | 200 `download_url = null` |
-| T03 | BLOCKED document | 200 with `blocked_reason`, no `download_url` |
-| T04 | Download URL expires after 5 min | URL TTL verified |
-| T05 | Actor lacks `document:read` | 403 `PBAC_DENIED` |
-| T06 | Document not in org | 404 `DOCUMENT_NOT_FOUND` |
-| T07 | Developer accessing FinalReport | 403 `PBAC_DENIED` |
-| T08 | `blocked_reason` is business language | No technical terms |
+| ID  | Scenario                              | Expected                                     |
+| --- | ------------------------------------- | -------------------------------------------- |
+| T01 | READY document                        | 200 with `download_url`                      |
+| T02 | QUEUED document                       | 200 `download_url = null`                    |
+| T03 | BLOCKED document                      | 200 with `blocked_reason`, no `download_url` |
+| T04 | Download URL expires after 5 min      | URL TTL verified                             |
+| T05 | Actor lacks `document:read`           | 403 `PBAC_DENIED`                            |
+| T06 | Document not in org                   | 404 `DOCUMENT_NOT_FOUND`                     |
+| T07 | Developer accessing FinalReport       | 403 `PBAC_DENIED`                            |
+| T08 | `blocked_reason` is business language | No technical terms                           |
 
 ## Definition of Done
 

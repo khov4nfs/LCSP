@@ -1,5 +1,3 @@
-import { HttpStatus } from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import {
   AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
@@ -12,13 +10,15 @@ import {
 } from "@lcsp/contracts/outbox";
 import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import {
-  CLASSIFICATION_RESULT_STATUSES,
   CLASSIFICATION_RERUN_STATUSES,
+  CLASSIFICATION_RESULT_STATUSES,
   LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
   LEGAL_RULE_MATCH_STATUSES,
   SCAN_ERROR_CODES,
   SCAN_EVENT_TYPES,
 } from "@lcsp/contracts/scan";
+import { HttpStatus } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import {
   fromPrismaEvidenceAcceptanceStatus,
@@ -145,7 +145,7 @@ export class RerunClassificationHandler implements ICommandHandler<RerunClassifi
     return {
       legal_rule_match_id: legalRuleMatch.id,
       status: CLASSIFICATION_RERUN_STATUSES.queued,
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
     };
   }
 }

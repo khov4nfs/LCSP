@@ -4,20 +4,20 @@ import {
   ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 import {
+  AUDIT_EVENT_SCHEMA_VERSION,
+  AUDIT_REDACTION_STATUSES,
+} from "@lcsp/contracts/audit";
+import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
+import {
+  OUTBOX_MESSAGE_SCHEMA_VERSION,
+  OUTBOX_STATUSES,
+} from "@lcsp/contracts/outbox";
+import {
   PBAC_ACTIONS,
   PBAC_REASON_CODE,
   PBAC_STATE_GATES,
   SUBJECT_ROLES,
 } from "@lcsp/contracts/pbac";
-import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
-import {
-  AUDIT_EVENT_SCHEMA_VERSION,
-  AUDIT_REDACTION_STATUSES,
-} from "@lcsp/contracts/audit";
-import {
-  OUTBOX_MESSAGE_SCHEMA_VERSION,
-  OUTBOX_STATUSES,
-} from "@lcsp/contracts/outbox";
 /**
  * MW-asmt-001: Create Assessment Endpoint.
  * Test cases T01-T08 from docs/implementation/tasks/modules/assessment/01-create-assessment-endpoint.md
@@ -25,10 +25,10 @@ import {
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
@@ -98,7 +98,7 @@ describe("Create Assessment Endpoint (e2e) [MW-asmt-001]", () => {
     assert.equal(body.owner_id, "user-1");
     assert.equal(body.organization_id, orgId);
     assert.ok(body.created_at);
-    assert.ok(body.correlation_id);
+    assert.ok(body.correlationId);
   });
 
   // T02
@@ -255,8 +255,8 @@ describe("Create Assessment Endpoint (e2e) [MW-asmt-001]", () => {
       idempotencyKey?: string;
     };
     assert.equal(payload.schemaVersion, OUTBOX_MESSAGE_SCHEMA_VERSION);
-    assert.equal(payload.correlationId, body.correlation_id);
-    assert.equal(payload.causationId, body.correlation_id);
+    assert.equal(payload.correlationId, body.correlationId);
+    assert.equal(payload.causationId, body.correlationId);
     assert.equal(
       payload.idempotencyKey,
       `${body.assessment_id}:${ASSESSMENT_EVENT_TYPES.createdOutbox}`,

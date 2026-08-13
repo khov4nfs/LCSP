@@ -13,5 +13,5 @@ export interface ClassificationResultCallbackResponseDto {
   accepted: boolean;
   classification_result_id: string;
   guardrail_status: ClassificationGuardrailStatus;
-  correlation_id?: string;
+  correlationId?: string;
 }

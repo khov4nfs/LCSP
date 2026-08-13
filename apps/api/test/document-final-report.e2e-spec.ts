@@ -2,16 +2,13 @@
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
-import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
 import {
   DOCUMENT_ERROR_CODES,
   DOCUMENT_EVENT_TYPES,
   DOCUMENT_REQUEST_STATUSES,
   DOCUMENT_TYPES,
 } from "@lcsp/contracts/document";
+import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
 import { PBAC_ACTIONS, PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
 import {
   CLASSIFICATION_GUARDRAIL_STATUSES,
@@ -20,7 +17,10 @@ import {
   OVERALL_COVERAGE_STATUSES,
   type ClassificationGuardrailStatus,
 } from "@lcsp/contracts/scan";
-import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
+import type { INestApplication } from "@nestjs/common";
+import { Test, type TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
 import {
@@ -41,7 +41,7 @@ type SuccessResponse = {
   document_request_id: string;
   status: string;
   document_type: string;
-  correlation_id: string;
+  correlationId: string;
 };
 
 describe("Request Final Report Endpoint (e2e) [LCSP-81]", () => {
@@ -115,7 +115,7 @@ describe("Request Final Report Endpoint (e2e) [LCSP-81]", () => {
     assert.ok(body.document_request_id);
     assert.equal(body.status, DOCUMENT_REQUEST_STATUSES.queued);
     assert.equal(body.document_type, DOCUMENT_TYPES.finalReport);
-    assert.ok(body.correlation_id);
+    assert.ok(body.correlationId);
 
     const [docRequest, outbox, auditCount] = await Promise.all([
       prisma.documentRequest.findUnique({
@@ -131,7 +131,7 @@ describe("Request Final Report Endpoint (e2e) [LCSP-81]", () => {
       prisma.authAuditEvent.count({
         where: {
           eventType: DOCUMENT_EVENT_TYPES.finalReportRequestedAudit,
-          correlationId: body.correlation_id,
+          correlationId: body.correlationId,
         },
       }),
     ]);

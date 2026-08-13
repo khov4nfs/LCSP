@@ -33,7 +33,7 @@ class ConflictDetectionConsumer(ConsumerBase):
         )
         self._detector = detector or ConflictDetector()
 
-    def handle(self, message: dict, correlation_id: str) -> None:
+    def handle(self, message: dict, correlationId: str) -> None:
         ai_usage_flow_id = self._required_message_id(message, "aiUsageFlowId")
         ai_usage_flow = self._api_client.get_accepted_ai_usage_flow(ai_usage_flow_id)
         assessment_id = (
@@ -60,7 +60,7 @@ class ConflictDetectionConsumer(ConsumerBase):
             ai_usage_flow_id=callback_payload.ai_usage_flow_id,
             assessment_id=callback_payload.assessment_id,
             conflict_count=len(callback_payload.conflicts),
-            correlation_id=correlation_id,
+            correlationId=correlationId,
         )
 
     def _required_message_id(self, message: dict[str, Any], key: str) -> str:

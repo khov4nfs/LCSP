@@ -2,10 +2,6 @@
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
-import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
 import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_STATUS_CODES,
@@ -21,10 +17,14 @@ import {
   CONFLICT_RECORD_STATUSES,
   type ConflictRecordStatus,
 } from "@lcsp/contracts/scan";
+import type { INestApplication } from "@nestjs/common";
+import { Test, type TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
-import type { ConflictListDto } from "../src/modules/reconciliation/application/contracts/reconciliation/conflict-list.contract.js";
 import { hashSecret } from "../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+import type { ConflictListDto } from "../src/modules/reconciliation/application/contracts/reconciliation/conflict-list.contract.js";
 import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
@@ -123,7 +123,7 @@ describe("List Conflicts Endpoint (e2e) [MW-rec-002]", () => {
     assert.equal(body.total, 2);
     assert.equal(body.page, 1);
     assert.equal(body.page_size, 20);
-    assert.ok(body.correlation_id);
+    assert.ok(body.correlationId);
     body.conflicts.forEach((conflict) => {
       assert.ok(conflict.conflict_id);
       assert.ok(conflict.conflict_type);

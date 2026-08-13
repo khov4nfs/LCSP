@@ -1,19 +1,12 @@
 import * as crypto from "node:crypto";
 
 import {
-  ConflictException,
-  HttpStatus,
-  NotFoundException,
-  UnprocessableEntityException,
-} from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import {
-  AUDIT_DECISIONS,
-  AUDIT_REDACTION_STATUSES,
-  buildAuditEventInput,
-  AUDIT_RESOURCE_TYPES,
   AUDIT_ACTOR_IDS,
   AUDIT_ACTOR_TYPES,
+  AUDIT_DECISIONS,
+  AUDIT_REDACTION_STATUSES,
+  AUDIT_RESOURCE_TYPES,
+  buildAuditEventInput,
 } from "@lcsp/contracts/audit";
 import {
   buildOutboxMessageInput,
@@ -26,6 +19,13 @@ import {
   TECHNICAL_PROFILE_SCHEMA_VERSIONS,
   TECHNICAL_PROFILE_STATUSES,
 } from "@lcsp/contracts/scan";
+import {
+  ConflictException,
+  HttpStatus,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { Prisma } from "@prisma/client";
 
 import {
@@ -208,7 +208,7 @@ export class AcceptTechnicalProfileHandler implements ICommandHandler<AcceptTech
     return {
       accepted: true,
       technical_profile_id: technicalProfileId,
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
     };
   }
 

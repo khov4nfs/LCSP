@@ -1,10 +1,10 @@
-import { Logger } from "@nestjs/common";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
   createProblemResult,
 } from "@lcsp/contracts/auth";
+import { Logger } from "@nestjs/common";
 
 import { MfaRateLimit } from "../../../domain/entities/mfa-rate-limit.entity.ts";
 import {
@@ -33,7 +33,7 @@ export class VerifyMfaRecoveryCodeHandler {
   ): Promise<AuthProblemResult | VerifyMfaRecoveryCodeSuccess> {
     const { sessionToken, code, requestMeta } = command;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
 
     const session = await this.support.findValidSession(
       this.repositories,
@@ -64,7 +64,7 @@ export class VerifyMfaRecoveryCodeHandler {
         organization_id: session.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.mfaRateLimited,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.mfaRateLimited,
@@ -129,11 +129,11 @@ export class VerifyMfaRecoveryCodeHandler {
       resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
       resource_id: session.userId,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       session_id: session.id,
     });
 
-    return { ok: true, correlation_id: correlationId };
+    return { ok: true, correlationId: correlationId };
   }
 
   private async recordFailedAttempt(
@@ -157,7 +157,7 @@ export class VerifyMfaRecoveryCodeHandler {
       decision: AUDIT_DECISIONS.deny,
       reason_code: AUTH_ERROR_CODES.mfaInvalid,
       recovery_code_failure_reason: reason,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     });
 
     this.logger.warn(

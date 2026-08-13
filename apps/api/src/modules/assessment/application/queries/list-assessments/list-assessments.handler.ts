@@ -1,6 +1,6 @@
 import { HttpStatus, Inject } from "@nestjs/common";
-import { QueryHandler } from "@nestjs/cqrs";
 import type { IQueryHandler } from "@nestjs/cqrs";
+import { QueryHandler } from "@nestjs/cqrs";
 
 import {
   ASSESSMENT_ERROR_CODES,
@@ -11,16 +11,16 @@ import {
 import { fromPrismaWizardStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import type { WizardStatus } from "../../contracts/assessment/assessment-detail.contract.js";
+import type {
+  AssessmentListDto,
+  AssessmentSummary,
+} from "../../contracts/assessment/assessment-list.contract.js";
 import {
   ASSESSMENT_REPOSITORY,
   type AssessmentListCriteria,
   type AssessmentRepository,
 } from "../../ports/persistence/assessment.repository.js";
-import type {
-  AssessmentListDto,
-  AssessmentSummary,
-} from "../../contracts/assessment/assessment-list.contract.js";
-import type { WizardStatus } from "../../contracts/assessment/assessment-detail.contract.js";
 import { ListAssessmentsQuery } from "./list-assessments.query.js";
 
 const DEFAULT_PAGE = 1;
@@ -59,7 +59,7 @@ export class ListAssessmentsHandler implements IQueryHandler<ListAssessmentsQuer
       total: 0,
       page,
       page_size: pageSize,
-      correlation_id: query.correlationId,
+      correlationId: query.correlationId,
     });
 
     // Developer (or any non-Manager role) with no scope on their membership has
@@ -103,7 +103,7 @@ export class ListAssessmentsHandler implements IQueryHandler<ListAssessmentsQuer
       total,
       page,
       page_size: pageSize,
-      correlation_id: query.correlationId,
+      correlationId: query.correlationId,
     };
   }
 

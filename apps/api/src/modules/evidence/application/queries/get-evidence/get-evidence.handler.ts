@@ -1,20 +1,20 @@
-import { HttpStatus } from "@nestjs/common";
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import { EVIDENCE_ERROR_CODES } from "@lcsp/contracts/evidence";
 import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import {
   SCAN_EVIDENCE_SCHEMA_VERSIONS,
   TECHNICAL_EVIDENCE_REPORT_STATUSES,
 } from "@lcsp/contracts/scan";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
 import { toPrismaEvidenceAcceptanceStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
-import { EvidenceRedactorService } from "../../services/evidence/evidence-redactor.service.js";
 import type {
   EvidenceDetailDto,
   EvidencePrivacyFlagsDto,
 } from "../../contracts/evidence/evidence-detail.contract.js";
+import { EvidenceRedactorService } from "../../services/evidence/evidence-redactor.service.js";
 import { GetEvidenceQuery } from "./get-evidence.query.js";
 
 @QueryHandler(GetEvidenceQuery)
@@ -87,7 +87,7 @@ export class GetEvidenceHandler implements IQueryHandler<GetEvidenceQuery> {
       privacy_flags: privacyFlags,
       status: TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
       created_at: report.createdAt.toISOString(),
-      correlation_id: query.correlationId,
+      correlationId: query.correlationId,
     };
   }
 

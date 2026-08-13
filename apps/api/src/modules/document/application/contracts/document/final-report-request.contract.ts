@@ -7,5 +7,5 @@ export interface FinalReportRequestDto {
   document_request_id: string;
   status: DocumentRequestStatus;
   document_type: DocumentType;
-  correlation_id: string;
+  correlationId: string;
 }

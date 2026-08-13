@@ -311,7 +311,7 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
       scan_job_id: job.id,
       status: job.status,
       is_new: isNew,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
   }
 

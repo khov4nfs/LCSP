@@ -12,26 +12,25 @@ import { Injectable } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 
 import {
+  toPrismaAuditResourceType,
   toPrismaAuthBackupEmailPolicy,
+  toPrismaAuthDecision,
   toPrismaAuthInvitationState,
   toPrismaAuthMembershipStatus,
-  toPrismaAuthPrimaryEmailAddressPolicy,
-  toPrismaAuditResourceType,
   toPrismaAuthorizationReasonCode,
-  toPrismaAuthDecision,
+  toPrismaAuthPrimaryEmailAddressPolicy,
 } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditEventRepository } from "../../application/ports/persistence/audit-event.repository.ts";
 import type { AuthorizationDecisionRepository } from "../../application/ports/persistence/authorization-decision.repository.ts";
 import type { InvitationRepository } from "../../application/ports/persistence/invitation.repository.ts";
 import type { MembershipRepository } from "../../application/ports/persistence/membership.repository.ts";
-import { DuplicateEmailError } from "../../application/ports/persistence/user.repository.ts";
 import type {
   MfaEnrollmentRepository,
   MfaOtpUsedRepository,
   MfaRateLimitRepository,
-  MfaRecoveryCodeRepository,
   MfaRecoveryCodeCreateInput,
+  MfaRecoveryCodeRepository,
 } from "../../application/ports/persistence/mfa.repository.ts";
 import type { OAuthIdentityRepository } from "../../application/ports/persistence/oauth-identity.repository.ts";
 import type { OAuthStateRepository } from "../../application/ports/persistence/oauth-state.repository.ts";
@@ -40,6 +39,7 @@ import type { PolicyRepository } from "../../application/ports/persistence/polic
 import type { RecoveryRequestRepository } from "../../application/ports/persistence/recovery-request.repository.ts";
 import type { SessionRepository } from "../../application/ports/persistence/session.repository.ts";
 import type { UserRepository } from "../../application/ports/persistence/user.repository.ts";
+import { DuplicateEmailError } from "../../application/ports/persistence/user.repository.ts";
 import type {
   AuditEvent,
   AuthorizationDecision,
@@ -458,7 +458,7 @@ export class PrismaAuthorizationDecisionRepository implements AuthorizationDecis
         reasonCode: toPrismaAuthorizationReasonCode(decision.reason_code),
         policyId: decision.policy_id,
         policyVersion: decision.policy_version,
-        correlationId: decision.correlation_id,
+        correlationId: decision.correlationId,
         payload: decision,
       },
     });
@@ -833,7 +833,7 @@ function normalizeAuditEvent(
     organizationId: authAuditReadNullableString(event, "organization_id"),
     decision: mapNullableAuthDecision(authAuditReadDecision(event, "decision")),
     reasonCode: authAuditReadNullableString(event, "reason_code"),
-    correlationId: authAuditReadString(event, "correlation_id"),
+    correlationId: authAuditReadString(event, "correlationId"),
     sessionId: authAuditReadNullableString(event, "session_id"),
     policyId: authAuditReadNullableString(event, "policy_id"),
     policyVersion: authAuditReadNullableString(event, "policy_version"),

@@ -1,25 +1,25 @@
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
-import { WIZARD_EVENT_TYPES } from "@lcsp/contracts/wizard";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { WIZARD_EVENT_TYPES } from "@lcsp/contracts/wizard";
 /* eslint-disable @typescript-eslint/unbound-method */
+import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { ForbiddenException } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import { SaveWizardDraftHandler } from "./save-wizard-draft.handler.js";
-import { SaveWizardDraftCommand } from "./save-wizard-draft.command.js";
-import {
-  WIZARD_PROFILE_REPOSITORY,
-  type WizardProfileRepository,
-} from "../../ports/persistence/wizard-profile.repository.js";
+import type { RepositorySnapshot } from "@prisma/client";
+import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { WizardProfileEntity } from "../../../domain/entities/wizard-profile.entity.js";
 import {
   AssessmentNotFoundException,
   WizardAlreadySubmittedException,
 } from "../../../domain/exceptions/wizard.exceptions.js";
-import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
-import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import type { RepositorySnapshot } from "@prisma/client";
+import {
+  WIZARD_PROFILE_REPOSITORY,
+  type WizardProfileRepository,
+} from "../../ports/persistence/wizard-profile.repository.js";
+import { SaveWizardDraftCommand } from "./save-wizard-draft.command.js";
+import { SaveWizardDraftHandler } from "./save-wizard-draft.handler.js";
 
 import { jest } from "@jest/globals";
 
@@ -140,7 +140,7 @@ describe("SaveWizardDraftHandler", () => {
       expect(result.wizard_profile_id).toBe("wizard-id-1");
       expect(result.status).toBe(WIZARD_STATUS_CODES.inProgress);
       expect(result.version).toBe(1);
-      expect(result.correlation_id).toBe("corr-id-1");
+      expect(result.correlationId).toBe("corr-id-1");
     });
 
     it("T02: should update an existing IN_PROGRESS draft and bump version", async () => {

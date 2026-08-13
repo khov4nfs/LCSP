@@ -12,7 +12,7 @@ class PbacClient:
         user_id: str,
         organization_id: str,
         action: str,
-        correlation_id: str,
+        correlationId: str,
     ) -> Literal["allow", "deny"]:
         """
         Calls POST /internal/pbac/preflight to check permissions.
@@ -26,7 +26,7 @@ class PbacClient:
                     "user_id": user_id,
                     "organization_id": organization_id,
                     "action": action,
-                    "correlation_id": correlation_id,
+                    "correlationId": correlationId,
                 },
                 headers={"X-Worker-Api-Key": self._api_key},
                 timeout=5.0,

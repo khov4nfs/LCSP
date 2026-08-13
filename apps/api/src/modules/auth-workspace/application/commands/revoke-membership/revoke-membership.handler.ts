@@ -1,5 +1,3 @@
-import { HttpStatus } from "@nestjs/common";
-import type { Prisma } from "@prisma/client";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AUTH_AUDIT_EVENT_TYPES,
@@ -7,17 +5,19 @@ import {
   REVOKE_MEMBERSHIP_ERROR_CODES,
 } from "@lcsp/contracts/auth";
 import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { HttpStatus } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
 
-import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.ts";
 import {
   fromPrismaAuthMembershipStatus,
   toPrismaAuthMembershipStatus,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
-import { createCorrelationId } from "../../../infrastructure/security/security.utils.ts";
-import { AuthAuditService } from "../../services/auth-workspace/auth-audit.service.ts";
-import type { RevokeMembershipResponse } from "../../contracts/auth-workspace/revoke-membership.contract.ts";
-import { RevokeMembershipCommand } from "./revoke-membership.command.ts";
+import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.ts";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { createCorrelationId } from "../../../infrastructure/security/security.utils.ts";
+import type { RevokeMembershipResponse } from "../../contracts/auth-workspace/revoke-membership.contract.ts";
+import { AuthAuditService } from "../../services/auth-workspace/auth-audit.service.ts";
+import { RevokeMembershipCommand } from "./revoke-membership.command.ts";
 
 export class RevokeMembershipHandler {
   constructor(
@@ -109,7 +109,7 @@ export class RevokeMembershipHandler {
             actor_id: actorId,
             organization_id: orgId,
             decision: AUDIT_DECISIONS.allow,
-            correlation_id: correlationId,
+            correlationId: correlationId,
             target_user_id: targetUserId,
             affected_sessions: revokedSessions.count,
             membership_id: membership.id,
@@ -126,7 +126,7 @@ export class RevokeMembershipHandler {
     return {
       revoked: true,
       affected_sessions: affectedSessions,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
   }
 }

@@ -315,14 +315,14 @@ def test_scan_consumer_uses_internal_snapshot_service_and_cleans_up(
             "snapshotId": "snap-4",
             "correlationId": "corr-4",
         },
-        correlation_id="fallback-corr",
+        correlationId="fallback-corr",
     )
 
     snapshot_client.download_snapshot_archive.assert_called_once_with(
         SnapshotArchiveRequest(
             snapshot_id="snap-4",
             scan_job_id="job-4",
-            correlation_id="corr-4",
+            correlationId="corr-4",
         )
     )
     syft_tool.run.assert_called_once()
@@ -388,7 +388,7 @@ def test_scan_consumer_limits_source_analyzers_to_targeted_path_prefixes(
                 "pathPrefixes": ["repo/src/"],
             },
         },
-        correlation_id="fallback-corr",
+        correlationId="fallback-corr",
     )
 
     semgrep_tool.run.assert_not_called()
@@ -460,7 +460,7 @@ def test_scan_consumer_defers_callback_until_cleanup_is_verified(
                 "snapshotId": "snap-6",
                 "correlationId": "corr-6",
             },
-            correlation_id="fallback-corr",
+            correlationId="fallback-corr",
         )
 
     api_client.post_scan_callback.assert_not_called()
@@ -517,7 +517,7 @@ def test_scan_consumer_cleanup_runs_on_timeout(
                 "snapshotId": "snap-5",
                 "correlationId": "corr-5",
             },
-            correlation_id="fallback-corr",
+            correlationId="fallback-corr",
         )
 
     assert not workspace.workspace_path("job-5").exists()
@@ -573,7 +573,7 @@ def test_scan_consumer_privacy_assertion_aborts_callback_and_cleans_up(
                 "snapshotId": "snap-privacy",
                 "correlationId": "corr-privacy",
             },
-            correlation_id="fallback-corr",
+            correlationId="fallback-corr",
         )
 
     evidence_assembler.assemble.assert_called_once()
@@ -636,7 +636,7 @@ def test_scan_consumer_emits_classifier_coverage_limitations_in_callback(
             "snapshotId": "snap-8",
             "correlationId": "corr-8",
         },
-        correlation_id="fallback-corr",
+        correlationId="fallback-corr",
     )
 
     api_client.post_scan_callback.assert_called_once()
@@ -700,7 +700,7 @@ def test_scan_consumer_limits_python_analysis_to_routed_quota(
             "snapshotId": "snap-9",
             "correlationId": "corr-9",
         },
-        correlation_id="fallback-corr",
+        correlationId="fallback-corr",
     )
 
     api_client.post_scan_callback.assert_called_once()
@@ -777,7 +777,7 @@ def test_scan_consumer_invokes_ts_js_bridge_with_routed_files(
             "snapshotId": "snap-ts",
             "correlationId": "corr-ts",
         },
-        correlation_id="fallback-corr",
+        correlationId="fallback-corr",
     )
 
     bridge_factory.assert_called_once()

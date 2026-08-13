@@ -1,4 +1,3 @@
-import { HttpStatus } from "@nestjs/common";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_AUDIT_EVENT_TYPES,
@@ -6,20 +5,21 @@ import {
   AUTH_MEMBERSHIP_STATUSES,
   INVITE_DEVELOPER_ERROR_CODES,
 } from "@lcsp/contracts/auth";
+import { HttpStatus } from "@nestjs/common";
 
-import { Invitation } from "../../../domain/models/auth-workspace.models.ts";
-import { EmailAddress } from "../../../domain/value-objects/email-address.value-object.ts";
-import type { AssessmentScopeRepository } from "../../ports/persistence/assessment-scope.repository.ts";
-import type { InvitationRepository } from "../../ports/persistence/invitation.repository.ts";
-import type { PolicyRepository } from "../../ports/persistence/policy.repository.ts";
-import { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
-import type { InviteDeveloperResponse } from "../../contracts/auth-workspace/invitation.contract.ts";
 import {
   DEVELOPER_SUBJECT_ROLE,
   isDeveloperAllowedAction,
 } from "@lcsp/contracts/pbac";
-import { InviteDeveloperCommand } from "./invite-developer.command.ts";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { Invitation } from "../../../domain/models/auth-workspace.models.ts";
+import { EmailAddress } from "../../../domain/value-objects/email-address.value-object.ts";
+import type { InviteDeveloperResponse } from "../../contracts/auth-workspace/invitation.contract.ts";
+import type { AssessmentScopeRepository } from "../../ports/persistence/assessment-scope.repository.ts";
+import type { InvitationRepository } from "../../ports/persistence/invitation.repository.ts";
+import type { PolicyRepository } from "../../ports/persistence/policy.repository.ts";
+import { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
+import { InviteDeveloperCommand } from "./invite-developer.command.ts";
 
 const DEFAULT_EXPIRY_HOURS = 72;
 const MAX_EXPIRY_HOURS = 168;
@@ -124,7 +124,7 @@ export class InviteDeveloperHandler {
       actor_id: input.actorId,
       organization_id: input.orgId,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       policy_id: developerPolicy.id,
       policy_version: developerPolicy.version,
       invitee_email: email,
@@ -139,7 +139,7 @@ export class InviteDeveloperHandler {
       email,
       expires_at: new Date(expiresAt).toISOString(),
       allowed_actions: allowedActions,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
   }
 }

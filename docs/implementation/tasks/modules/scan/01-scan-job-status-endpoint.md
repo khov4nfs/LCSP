@@ -44,7 +44,7 @@ Return current status and progress of a `RepositoryScanJob`. Manager and scoped 
 | `next_action`    | string \| null | Business-language guidance                                    |
 | `created_at`     | string         | ISO 8601                                                      |
 | `updated_at`     | string         | ISO 8601                                                      |
-| `correlation_id` | string         |                                                               |
+| `correlationId`  | string         |                                                               |
 
 **Error responses:**
 

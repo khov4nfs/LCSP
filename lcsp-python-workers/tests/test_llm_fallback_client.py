@@ -23,9 +23,9 @@ class FakeClient:
         workflow_run_id: str,
         node_name: str,
         max_tokens: int | None = None,
-        correlation_id: str | None = None,
+        correlationId: str | None = None,
     ):
-        del prompt, workflow_run_id, node_name, max_tokens, correlation_id
+        del prompt, workflow_run_id, node_name, max_tokens, correlationId
         self.calls += 1
         if self.error is not None:
             raise self.error

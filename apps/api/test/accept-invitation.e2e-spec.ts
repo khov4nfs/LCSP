@@ -1,3 +1,4 @@
+import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import {
   ACCEPT_INVITATION_ERROR_CODES,
   AUTH_AUDIT_EVENT_TYPES,
@@ -9,17 +10,16 @@ import {
   PBAC_STATE_GATES,
   SUBJECT_ROLES,
 } from "@lcsp/contracts/pbac";
-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
-import { AppModule } from "../src/app.module.js";
 import { DEVELOPER_ALLOWED_ACTIONS } from "@lcsp/contracts/pbac";
+import { AppModule } from "../src/app.module.js";
 import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
 import { hashSecret } from "../src/modules/auth-workspace/infrastructure/security/security.utils.js";
 import {
@@ -39,7 +39,7 @@ type AcceptInvitationBody = {
   scope:
     | { type: "assessment"; assessment_id: string }
     | { type: "organization"; assessment_id: null };
-  correlation_id: string;
+  correlationId: string;
 };
 
 type PreviewBody = {
@@ -108,7 +108,7 @@ describe("Accept Developer Invitation endpoint (e2e) [MW-auth-011]", () => {
     assert.equal(result.status, 201);
     const body = successBody<AcceptInvitationBody>(result);
     assert.equal(body.organization_id, fixture.organizationId);
-    assert.equal(body.correlation_id, "corr-accept-1");
+    assert.equal(body.correlationId, "corr-accept-1");
     assert.deepEqual(body.allowed_actions, DEVELOPER_ALLOWED_ACTIONS);
     assert.deepEqual(body.scope, {
       type: "assessment",

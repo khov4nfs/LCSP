@@ -1,7 +1,7 @@
-import { HttpStatus } from "@nestjs/common";
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import { CONFLICT_RECORD_STATUSES } from "@lcsp/contracts/scan";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
 import {
   fromPrismaConflictRecordStatus,
@@ -87,7 +87,7 @@ export class ListConflictsHandler implements IQueryHandler<ListConflictsQuery> {
       total,
       page,
       page_size: pageSize,
-      correlation_id: query.correlationId,
+      correlationId: query.correlationId,
     };
   }
 }

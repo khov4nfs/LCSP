@@ -38,7 +38,7 @@ class LegalRetrievalConsumer(ConsumerBase):
         self._retriever = retriever or ChromaDbCitationRetriever()
         self._builder = builder or LegalMatchBuilder()
 
-    def handle(self, message: dict[str, Any], correlation_id: str) -> None:
+    def handle(self, message: dict[str, Any], correlationId: str) -> None:
         verified_profile_id = self._required_message_id(message, "verifiedProfileId")
         assessment_id = self._required_message_id(message, "assessmentId")
         corpus_version_id = self._required_message_id(message, "corpusVersionId")
@@ -117,7 +117,7 @@ class LegalRetrievalConsumer(ConsumerBase):
             "LEGAL_RULE_MATCH_CALLBACK_SUBMITTED",
             assessment_id=assessment_id,
             match_count=len(matches),
-            correlation_id=correlation_id,
+            correlationId=correlationId,
         )
 
     def _required_message_id(self, message: dict[str, Any], key: str) -> str:

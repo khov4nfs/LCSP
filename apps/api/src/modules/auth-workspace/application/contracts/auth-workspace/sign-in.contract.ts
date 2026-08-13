@@ -8,7 +8,7 @@ export type CredentialPayload = {
 
 export type SignInSuccess = {
   ok: true;
-  correlation_id: string;
+  correlationId: string;
   session_token: string;
   user: SafeUserProjection;
   mfa_required?: boolean;

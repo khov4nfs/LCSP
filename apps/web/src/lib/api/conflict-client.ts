@@ -25,7 +25,7 @@ export type ConflictListResult = {
   total: number;
   page: number;
   page_size: number;
-  correlation_id?: string;
+  correlationId?: string;
 };
 
 export type ResolveConflictPayload = {
@@ -42,7 +42,7 @@ export type ResolveConflictResult = {
     | typeof CONFLICT_RECORD_STATUSES.dismissed;
   resolved_at: string;
   all_conflicts_resolved: boolean;
-  correlation_id?: string;
+  correlationId?: string;
 };
 
 export type ConflictListOutcome =
@@ -156,7 +156,10 @@ export function toResolveConflictOutcome(
       : { kind: API_OUTCOME_KINDS.error };
   }
 
-  if (status === 400 && problemCode === SCAN_ERROR_CODES.dismissReasonRequired) {
+  if (
+    status === 400 &&
+    problemCode === SCAN_ERROR_CODES.dismissReasonRequired
+  ) {
     return {
       kind: API_OUTCOME_KINDS.validationError,
       reason: API_VALIDATION_REASONS.dismissReasonRequired,
@@ -174,7 +177,10 @@ export function toResolveConflictOutcome(
   if (status === 403 || problemCode === AUTH_ERROR_CODES.pbacDenied) {
     return { kind: API_OUTCOME_KINDS.accessRevoked };
   }
-  if (status === 409 && problemCode === SCAN_ERROR_CODES.conflictAlreadyResolved) {
+  if (
+    status === 409 &&
+    problemCode === SCAN_ERROR_CODES.conflictAlreadyResolved
+  ) {
     return { kind: API_OUTCOME_KINDS.alreadyResolved };
   }
   if (status === 404 && problemCode === SCAN_ERROR_CODES.conflictNotFound) {
@@ -196,7 +202,7 @@ export function sanitizeConflictListPayload(
     total?: unknown;
     page?: unknown;
     page_size?: unknown;
-    correlation_id?: unknown;
+    correlationId?: unknown;
   };
 
   if (!Array.isArray(candidate.conflicts)) {
@@ -222,9 +228,9 @@ export function sanitizeConflictListPayload(
     total: candidate.total,
     page: candidate.page,
     page_size: candidate.page_size,
-    correlation_id:
-      typeof candidate.correlation_id === "string"
-        ? candidate.correlation_id
+    correlationId:
+      typeof candidate.correlationId === "string"
+        ? candidate.correlationId
         : undefined,
   };
 }
@@ -241,7 +247,7 @@ export function sanitizeResolveConflictPayload(
     status?: unknown;
     resolved_at?: unknown;
     all_conflicts_resolved?: unknown;
-    correlation_id?: unknown;
+    correlationId?: unknown;
   };
 
   if (
@@ -259,14 +265,16 @@ export function sanitizeResolveConflictPayload(
     status: candidate.status,
     resolved_at: candidate.resolved_at,
     all_conflicts_resolved: candidate.all_conflicts_resolved,
-    correlation_id:
-      typeof candidate.correlation_id === "string"
-        ? candidate.correlation_id
+    correlationId:
+      typeof candidate.correlationId === "string"
+        ? candidate.correlationId
         : undefined,
   };
 }
 
-export function buildResolveConflictApiBody(body: unknown): ResolveConflictPayload {
+export function buildResolveConflictApiBody(
+  body: unknown,
+): ResolveConflictPayload {
   const request =
     typeof body === "object" && body !== null
       ? (body as { resolution?: unknown; resolution_note?: unknown })

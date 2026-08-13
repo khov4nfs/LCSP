@@ -145,7 +145,7 @@ def test_approved_profile_flows_from_legal_matching_into_classification_callback
             "assessmentId": "assessment-1",
             "corpusVersionId": "corpus-v1",
         },
-        correlation_id="corr-legal-1",
+        correlationId="corr-legal-1",
     )
 
     assert api_client.legal_callback is not None
@@ -162,7 +162,7 @@ def test_approved_profile_flows_from_legal_matching_into_classification_callback
             "assessmentId": "assessment-1",
             "guardrailStatus": "PASSED",
         },
-        correlation_id="corr-classification-1",
+        correlationId="corr-classification-1",
     )
 
     result = api_client.classification_callback

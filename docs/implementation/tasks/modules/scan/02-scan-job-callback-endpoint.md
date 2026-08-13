@@ -18,13 +18,13 @@ Receive scan results from the Python scanner worker. Worker-authenticated (API k
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/scan/presentation/http/scan.controller.ts` | Modify | Add `POST /internal/scan-jobs/:scanJobId/callback` |
-| `apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.command.ts` | Create | Command shape |
-| `apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.handler.ts` | Create | Evidence acceptance + state transition |
-| `apps/api/src/modules/scan/application/services/scan/evidence-schema-validator.service.ts` | Create | Schema validation + provenance check |
-| `apps/api/prisma/schema.prisma` | Modify | Add `TechnicalEvidenceReport` model |
+| File                                                                                                    | Action | Notes                                              |
+| ------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------------- |
+| `apps/api/src/modules/scan/presentation/http/scan.controller.ts`                                        | Modify | Add `POST /internal/scan-jobs/:scanJobId/callback` |
+| `apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.command.ts` | Create | Command shape                                      |
+| `apps/api/src/modules/scan/application/commands/process-scan-callback/process-scan-callback.handler.ts` | Create | Evidence acceptance + state transition             |
+| `apps/api/src/modules/scan/application/services/scan/evidence-schema-validator.service.ts`              | Create | Schema validation + provenance check               |
+| `apps/api/prisma/schema.prisma`                                                                         | Modify | Add `TechnicalEvidenceReport` model                |
 
 ## Prisma Model
 
@@ -56,34 +56,34 @@ model TechnicalEvidenceReport {
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `scan_job_id` | string | Yes | Must match path param |
-| `tools_version` | object | Yes | Tool name → version mapping |
-| `config_hash` | object | Yes | Tool name → config hash mapping |
-| `evidence_payload` | object | Yes | Structured findings JSON |
-| `privacy_flags` | object | Yes | `containsSourceCode`, `secretsRedacted`, etc. |
-| `schema_version` | string | Yes | Evidence schema version |
-| `status` | string | Yes | `success` \| `partial` \| `failed` |
-| `error_code` | string | No | Required when `status = failed` |
+| Field              | Type   | Required | Notes                                         |
+| ------------------ | ------ | -------- | --------------------------------------------- |
+| `scan_job_id`      | string | Yes      | Must match path param                         |
+| `tools_version`    | object | Yes      | Tool name → version mapping                   |
+| `config_hash`      | object | Yes      | Tool name → config hash mapping               |
+| `evidence_payload` | object | Yes      | Structured findings JSON                      |
+| `privacy_flags`    | object | Yes      | `containsSourceCode`, `secretsRedacted`, etc. |
+| `schema_version`   | string | Yes      | Evidence schema version                       |
+| `status`           | string | Yes      | `success` \| `partial` \| `failed`            |
+| `error_code`       | string | No       | Required when `status = failed`               |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `accepted` | boolean | `true` if evidence accepted |
-| `evidence_report_id` | string | `TechnicalEvidenceReport.id` |
-| `correlation_id` | string | |
+| Field                | Type    | Notes                        |
+| -------------------- | ------- | ---------------------------- |
+| `accepted`           | boolean | `true` if evidence accepted  |
+| `evidence_report_id` | string  | `TechnicalEvidenceReport.id` |
+| `correlationId`      | string  |                              |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 401 | `UNAUTHORIZED` | Invalid or missing `X-Worker-Api-Key` |
-| 404 | `SCAN_JOB_NOT_FOUND` | Job not found |
-| 409 | `SCAN_JOB_WRONG_STATE` | Job not in `RUNNING` state |
-| 422 | `EVIDENCE_SCHEMA_INVALID` | Schema version unknown or fields missing |
-| 422 | `PRIVACY_FLAGS_INVALID` | `containsSourceCode = true` or secrets not redacted |
+| HTTP | `error_code`              | Meaning                                             |
+| ---- | ------------------------- | --------------------------------------------------- |
+| 401  | `UNAUTHORIZED`            | Invalid or missing `X-Worker-Api-Key`               |
+| 404  | `SCAN_JOB_NOT_FOUND`      | Job not found                                       |
+| 409  | `SCAN_JOB_WRONG_STATE`    | Job not in `RUNNING` state                          |
+| 422  | `EVIDENCE_SCHEMA_INVALID` | Schema version unknown or fields missing            |
+| 422  | `PRIVACY_FLAGS_INVALID`   | `containsSourceCode = true` or secrets not redacted |
 
 ## Business Rules
 
@@ -100,25 +100,25 @@ model TechnicalEvidenceReport {
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `ProcessScanCallbackCommand` | App command | `{ scanJobId, toolsVersion, configHash, schemaVersion, status, errorCode?, correlationId? }` |
-| `event.scan.evidence-accepted` | Outbox | `{ evidenceReportId, assessmentId, scanJobId, correlationId }` |
-| `SCAN_EVIDENCE_ACCEPTED` | `AuthAuditEvent` | `{ evidenceReportId, assessmentId, scanJobId, correlationId }` |
+| Name                           | Type             | Safe payload                                                                                 |
+| ------------------------------ | ---------------- | -------------------------------------------------------------------------------------------- |
+| `ProcessScanCallbackCommand`   | App command      | `{ scanJobId, toolsVersion, configHash, schemaVersion, status, errorCode?, correlationId? }` |
+| `event.scan.evidence-accepted` | Outbox           | `{ evidenceReportId, assessmentId, scanJobId, correlationId }`                               |
+| `SCAN_EVIDENCE_ACCEPTED`       | `AuthAuditEvent` | `{ evidenceReportId, assessmentId, scanJobId, correlationId }`                               |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid evidence + privacy flags clean | 200 `accepted = true` |
-| T02 | `containsSourceCode = true` | 422 `PRIVACY_FLAGS_INVALID`, rejected |
-| T03 | `secretsRedacted = false` | 422 `PRIVACY_FLAGS_INVALID`, rejected |
-| T04 | Unknown `schema_version` | 422 `EVIDENCE_SCHEMA_INVALID` |
-| T05 | Invalid API key | 401 |
-| T06 | Job not in `RUNNING` state | 409 `SCAN_JOB_WRONG_STATE` |
-| T07 | Scanner reports `status = failed` | Job transitions to `FAILED`, `TechnicalEvidenceReport.status = rejected` |
-| T08 | Outbox message created on accept | `event.scan.evidence-accepted` in DB |
-| T09 | `evidencePayload` has no raw source | Verified by schema validation |
+| ID  | Scenario                             | Expected                                                                 |
+| --- | ------------------------------------ | ------------------------------------------------------------------------ |
+| T01 | Valid evidence + privacy flags clean | 200 `accepted = true`                                                    |
+| T02 | `containsSourceCode = true`          | 422 `PRIVACY_FLAGS_INVALID`, rejected                                    |
+| T03 | `secretsRedacted = false`            | 422 `PRIVACY_FLAGS_INVALID`, rejected                                    |
+| T04 | Unknown `schema_version`             | 422 `EVIDENCE_SCHEMA_INVALID`                                            |
+| T05 | Invalid API key                      | 401                                                                      |
+| T06 | Job not in `RUNNING` state           | 409 `SCAN_JOB_WRONG_STATE`                                               |
+| T07 | Scanner reports `status = failed`    | Job transitions to `FAILED`, `TechnicalEvidenceReport.status = rejected` |
+| T08 | Outbox message created on accept     | `event.scan.evidence-accepted` in DB                                     |
+| T09 | `evidencePayload` has no raw source  | Verified by schema validation                                            |
 
 ## Definition of Done
 

@@ -26,8 +26,20 @@ import {
   SUBJECT_ROLES,
 } from "@lcsp/contracts/pbac";
 
-import type { RequestMeta } from "../../application/contracts/auth-workspace/common.contract.ts";
+import { REVOKE_MEMBERSHIP_ERROR_CODES } from "@lcsp/contracts/auth";
+import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
+import { AllowPendingMfa } from "../../../../platform/pbac/decorators/allow-pending-mfa.decorator.js";
+import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
+import { RequireAnyActionAsPbac } from "../../../../platform/pbac/decorators/require-any-action-as-pbac.decorator.js";
+import { RequireSession } from "../../../../platform/pbac/decorators/require-session.decorator.js";
+import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
+import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { ReAuthForSensitiveRoute } from "../../../../platform/security/decorators/re-auth-for-sensitive-route.decorator.js";
+import { SENSITIVE_ROUTE_IDS } from "../../../../platform/security/sensitive-route-policy.js";
+import type { UpdateProfilePayload } from "../../application/commands/update-profile/update-profile.command.ts";
 import type { AcceptInvitationRequest } from "../../application/contracts/auth-workspace/accept-invitation.contract.ts";
+import type { RequestMeta } from "../../application/contracts/auth-workspace/common.contract.ts";
 import type { InvitationPreviewRequest } from "../../application/contracts/auth-workspace/invitation-preview.contract.ts";
 import type { InviteDeveloperRequest } from "../../application/contracts/auth-workspace/invitation.contract.ts";
 import type {
@@ -36,29 +48,17 @@ import type {
   OAuthLinkStartPayload,
   OAuthStartPayload,
 } from "../../application/contracts/auth-workspace/oauth.contract.ts";
-import type { RegisterPayload } from "../../application/contracts/auth-workspace/register-approved-path.contract.ts";
+import type { PasswordReauthPayload } from "../../application/contracts/auth-workspace/password-reauth.contract.ts";
 import type {
   ConfirmRecoveryPayload,
   RequestRecoveryPayload,
 } from "../../application/contracts/auth-workspace/recovery.contract.ts";
-import type { PasswordReauthPayload } from "../../application/contracts/auth-workspace/password-reauth.contract.ts";
+import type { RegisterPayload } from "../../application/contracts/auth-workspace/register-approved-path.contract.ts";
+import type { SensitiveRouteCheckDto } from "../../application/contracts/auth-workspace/sensitive-route.contract.ts";
 import type { CredentialPayload } from "../../application/contracts/auth-workspace/sign-in.contract.ts";
 import type { WorkspaceRequest } from "../../application/contracts/auth-workspace/workspace.contract.ts";
-import type { UpdateProfilePayload } from "../../application/commands/update-profile/update-profile.command.ts";
-import { REVOKE_MEMBERSHIP_ERROR_CODES } from "@lcsp/contracts/auth";
-import { AuthWorkspaceFacade } from "../../application/services/auth-workspace/auth-workspace.facade.ts";
-import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
-import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
-import { RequireAnyActionAsPbac } from "../../../../platform/pbac/decorators/require-any-action-as-pbac.decorator.js";
-import { RequireSession } from "../../../../platform/pbac/decorators/require-session.decorator.js";
-import { AllowPendingMfa } from "../../../../platform/pbac/decorators/allow-pending-mfa.decorator.js";
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
-import { ReAuthForSensitiveRoute } from "../../../../platform/security/decorators/re-auth-for-sensitive-route.decorator.js";
-import { SENSITIVE_ROUTE_IDS } from "../../../../platform/security/sensitive-route-policy.js";
-import type { SensitiveRouteCheckDto } from "../../application/contracts/auth-workspace/sensitive-route.contract.ts";
 import { CheckSensitiveRouteQuery } from "../../application/queries/check-sensitive-route/check-sensitive-route.query.ts";
+import { AuthWorkspaceFacade } from "../../application/services/auth-workspace/auth-workspace.facade.ts";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 
@@ -319,7 +319,7 @@ export class AuthWorkspaceController {
     const workspaceRequest: WorkspaceRequest = {
       organization_id: organizationId,
       session_token: bearerToken(authorization),
-      correlation_id: request.correlationId,
+      correlationId: request.correlationId,
     };
     return resultEnvelope(
       await this.authWorkspaceFacade.getWorkspace(workspaceRequest),
@@ -683,7 +683,7 @@ export class AuthWorkspaceController {
 
 function requestMeta(correlationId?: string, appOrigin?: string): RequestMeta {
   return {
-    ...(correlationId ? { correlation_id: correlationId } : {}),
+    ...(correlationId ? { correlationId: correlationId } : {}),
     ...(appOrigin ? { app_origin: appOrigin } : {}),
   };
 }

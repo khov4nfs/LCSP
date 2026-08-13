@@ -22,5 +22,5 @@
   "total": 2,
   "page": 1,
   "page_size": 20,
-  "correlation_id": "mock-correlation-conflicts"
+  "correlationId": "mock-correlation-conflicts"
 }

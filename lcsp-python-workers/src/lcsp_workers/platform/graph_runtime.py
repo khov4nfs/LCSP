@@ -12,7 +12,7 @@ StateT = TypeVar("StateT")
 class GraphNodeContext:
     workflow_run_id: str
     node_name: str
-    correlation_id: str | None = None
+    correlationId: str | None = None
     request_id: str | None = None
 
 
@@ -30,7 +30,7 @@ class GraphRunState:
     workflow_run_id: str
     assessment_id: str | None = None
     artifact_id: str | None = None
-    correlation_id: str | None = None
+    correlationId: str | None = None
     input_versions: dict[str, str] = field(default_factory=dict)
     attempt: int = 0
     current_node: str | None = None
@@ -81,7 +81,7 @@ class GraphRunState:
             "workflow_run_id": self.workflow_run_id,
             "assessment_id": self.assessment_id,
             "artifact_id": self.artifact_id,
-            "correlation_id": self.correlation_id,
+            "correlationId": self.correlationId,
             "artifact_versions": dict(self.input_versions),
             "attempt": self.attempt,
             "node_name": self.current_node,

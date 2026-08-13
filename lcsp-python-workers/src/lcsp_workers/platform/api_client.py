@@ -4,7 +4,7 @@ import httpx
 from structlog import get_logger
 
 from package.contract.api_client_contracts import (
-    CORRELATION_ID_HEADER,
+    correlationId_HEADER,
     WORKER_API_KEY_HEADER,
     CallbackLogEvent,
     CallbackPath,
@@ -14,7 +14,7 @@ from package.contract.api_client_contracts import (
     server_error_message,
     unexpected_error_message,
 )
-from lcsp_workers.platform.correlation import get_correlation_id
+from lcsp_workers.platform.correlation import get_correlationId
 from lcsp_workers.platform.redaction import redact_dict, redact_source_code
 from lcsp_workers.platform.callback_schemas import (
     CallbackResponse,
@@ -61,10 +61,10 @@ class WorkerApiClient:
         Fails fast on non-idempotent 4xx errors.
         """
         url = f"{self._base_url}{path}"
-        cid = get_correlation_id()
+        cid = get_correlationId()
         headers = {
             WORKER_API_KEY_HEADER: self._api_key,
-            CORRELATION_ID_HEADER: cid,
+            correlationId_HEADER: cid,
         }
         safe_payload = self._redact_callback_payload(payload)
 
@@ -88,7 +88,7 @@ class WorkerApiClient:
                         return {
                             "accepted": True,
                             "status": "duplicate",
-                            "correlation_id": cid,
+                            "correlationId": cid,
                         }
                     logger.error(
                         CallbackLogEvent.CLIENT_ERROR,
@@ -178,10 +178,10 @@ class WorkerApiClient:
         Fails fast on 4xx errors.
         """
         url = f"{self._base_url}{path}"
-        cid = get_correlation_id()
+        cid = get_correlationId()
         headers = {
             WORKER_API_KEY_HEADER: self._api_key,
-            CORRELATION_ID_HEADER: cid,
+            correlationId_HEADER: cid,
         }
 
         for attempt in range(self._max_retries):
@@ -394,6 +394,25 @@ class WorkerApiClient:
         data = self._post_with_retry(path, payload)
         if not isinstance(data, dict):
             raise WorkerCallbackError("Agentic tool dispatch response was invalid.")
+        return data
+
+    def create_targeted_reanalysis_request(self, payload: dict) -> dict:
+        path = InternalPath.TARGETED_REANALYSIS_CREATE
+        data = self._post_with_retry(path, payload)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError(
+                "Targeted reanalysis runtime response was invalid."
+            )
+        return data
+
+    def resume_waiting_runs(self, corpus_version_id: str, payload: dict) -> dict:
+        path = (
+            f"/internal/legal-rule-catalog/corpus/{corpus_version_id}"
+            "/resume-waiting-runs"
+        )
+        data = self._post_with_retry(path, payload)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Resume waiting runs response was invalid.")
         return data
 
     def get_wizard_profile_for_assessment(self, assessment_id: str) -> dict | None:

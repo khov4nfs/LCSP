@@ -1,19 +1,12 @@
 import * as crypto from "node:crypto";
 
 import {
-  ConflictException,
-  HttpStatus,
-  NotFoundException,
-  UnprocessableEntityException,
-} from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import {
-  AUDIT_DECISIONS,
-  AUDIT_REDACTION_STATUSES,
-  buildAuditEventInput,
-  AUDIT_RESOURCE_TYPES,
   AUDIT_ACTOR_IDS,
   AUDIT_ACTOR_TYPES,
+  AUDIT_DECISIONS,
+  AUDIT_REDACTION_STATUSES,
+  AUDIT_RESOURCE_TYPES,
+  buildAuditEventInput,
 } from "@lcsp/contracts/audit";
 import {
   buildOutboxMessageInput,
@@ -26,6 +19,13 @@ import {
   SCAN_EVENT_TYPES,
   TECHNICAL_PROFILE_STATUSES,
 } from "@lcsp/contracts/scan";
+import {
+  ConflictException,
+  HttpStatus,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { Prisma } from "@prisma/client";
 
 import {
@@ -221,7 +221,7 @@ export class AcceptAIUsageFlowHandler implements ICommandHandler<AcceptAIUsageFl
     return {
       accepted: true,
       ai_usage_flow_id: aiUsageFlowId,
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
     };
   }
 

@@ -18,13 +18,13 @@ Allow a Developer to consume a scoped invitation token, create their account and
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts` | Modify | Add `POST /auth/accept-invitation` |
-| `apps/api/src/modules/auth-workspace/application/commands/accept-invitation/accept-invitation.command.ts` | Create | Command shape |
+| File                                                                                                      | Action | Notes                                           |
+| --------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------- |
+| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts`                      | Modify | Add `POST /auth/accept-invitation`              |
+| `apps/api/src/modules/auth-workspace/application/commands/accept-invitation/accept-invitation.command.ts` | Create | Command shape                                   |
 | `apps/api/src/modules/auth-workspace/application/commands/accept-invitation/accept-invitation.handler.ts` | Create | Invitation consumption + account creation logic |
-| `apps/api/src/modules/auth-workspace/application/contracts/auth-workspace/accept-invitation.contract.ts` | Create | Request/response DTOs |
-| `apps/api/src/modules/auth-workspace/auth-workspace.module.ts` | Modify | Register new handler |
+| `apps/api/src/modules/auth-workspace/application/contracts/auth-workspace/accept-invitation.contract.ts`  | Create | Request/response DTOs                           |
+| `apps/api/src/modules/auth-workspace/auth-workspace.module.ts`                                            | Modify | Register new handler                            |
 
 ## API Contract
 
@@ -33,41 +33,41 @@ Allow a Developer to consume a scoped invitation token, create their account and
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `invitation_token` | string | Yes | From invitation link (maps to `AuthInvitation.id` or signed token) |
-| `display_name` | string | Yes | Developer display name; 1–100 chars |
-| `password` | string | Yes | Min 12 chars; bcrypt stored |
+| Field              | Type   | Required | Notes                                                              |
+| ------------------ | ------ | -------- | ------------------------------------------------------------------ |
+| `invitation_token` | string | Yes      | From invitation link (maps to `AuthInvitation.id` or signed token) |
+| `display_name`     | string | Yes      | Developer display name; 1–100 chars                                |
+| `password`         | string | Yes      | Min 12 chars; bcrypt stored                                        |
 
 **Success response (201):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `user_id` | string | Newly created user ID |
-| `session_token` | string | Active LCSP session |
-| `expires_at` | string | ISO 8601 |
-| `organization_id` | string | |
+| Field             | Type     | Notes                          |
+| ----------------- | -------- | ------------------------------ |
+| `user_id`         | string   | Newly created user ID          |
+| `session_token`   | string   | Active LCSP session            |
+| `expires_at`      | string   | ISO 8601                       |
+| `organization_id` | string   |                                |
 | `allowed_actions` | string[] | From accepted invitation scope |
-| `correlation_id` | string | |
+| `correlationId`   | string   |                                |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 400 | `INVITATION_INVALID` | Not found, expired, or already consumed |
-| 400 | `INVITATION_NOT_APPROVED` | Invitation not in `approved` state |
-| 409 | `EMAIL_ALREADY_EXISTS` | Invitation email already has an account |
-| 422 | `PASSWORD_TOO_SHORT` | Password under 12 chars |
+| HTTP | `error_code`              | Meaning                                 |
+| ---- | ------------------------- | --------------------------------------- |
+| 400  | `INVITATION_INVALID`      | Not found, expired, or already consumed |
+| 400  | `INVITATION_NOT_APPROVED` | Invitation not in `approved` state      |
+| 409  | `EMAIL_ALREADY_EXISTS`    | Invitation email already has an account |
+| 422  | `PASSWORD_TOO_SHORT`      | Password under 12 chars                 |
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `AuthInvitation` | Read + Update | Find by token, verify `state = approved`, `expiresAt > now()`. Atomic update `state = consumed`. |
-| `AuthUser` | Create | `id`, `email` (from invitation), `passwordHash`, `displayName`, `emailVerified = true` (invite implies email verified) |
-| `AuthMembership` | Create | `userId`, `organizationId`, `status = active`, `subjectAttributes` (from invitation), `policyId`, `policyVersion` |
-| `AuthSession` | Create | `tokenFingerprint`, `tokenHash`, `userId`, `organizationId`, `expiresAt` |
-| `AuthAuditEvent` | Create | `AUTH_DEVELOPER_INVITATION_ACCEPTED` |
+| Model            | Action        | Key fields                                                                                                             |
+| ---------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `AuthInvitation` | Read + Update | Find by token, verify `state = approved`, `expiresAt > now()`. Atomic update `state = consumed`.                       |
+| `AuthUser`       | Create        | `id`, `email` (from invitation), `passwordHash`, `displayName`, `emailVerified = true` (invite implies email verified) |
+| `AuthMembership` | Create        | `userId`, `organizationId`, `status = active`, `subjectAttributes` (from invitation), `policyId`, `policyVersion`      |
+| `AuthSession`    | Create        | `tokenFingerprint`, `tokenHash`, `userId`, `organizationId`, `expiresAt`                                               |
+| `AuthAuditEvent` | Create        | `AUTH_DEVELOPER_INVITATION_ACCEPTED`                                                                                   |
 
 ## Business Rules
 
@@ -86,9 +86,9 @@ Allow a Developer to consume a scoped invitation token, create their account and
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `AcceptInvitationCommand` | App command | `{ invitationToken, displayName, password, correlationId? }` |
+| Name                             | Type             | Safe payload                                                   |
+| -------------------------------- | ---------------- | -------------------------------------------------------------- |
+| `AcceptInvitationCommand`        | App command      | `{ invitationToken, displayName, password, correlationId? }`   |
 | `event.auth.invitation-accepted` | `AuthAuditEvent` | `{ userId, orgId, invitationId, correlationId }` — no password |
 
 ## PBAC
@@ -97,19 +97,19 @@ Public endpoint. Developer's PBAC policy is seeded from the invitation's `subjec
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid invitation + valid password | 201 — user, membership, session created |
-| T02 | Token not found | 400 `INVITATION_INVALID` |
-| T03 | Invitation already consumed | 400 `INVITATION_INVALID` |
-| T04 | Invitation expired | 400 `INVITATION_INVALID` |
-| T05 | Email already has an account | 409 `EMAIL_ALREADY_EXISTS` |
-| T06 | Password under 12 chars | 422 `PASSWORD_TOO_SHORT` |
-| T07 | Transaction rolled back if any step fails | No partial state in DB |
-| T08 | `AuthInvitation.state = consumed` after acceptance | DB verified |
-| T09 | Audit event has no password or token material | Clean payload |
-| T10 | `allowed_actions` in response matches invitation scope | Projection correct |
-| T11 | Manager workspace not affected | Manager flow uninterrupted |
+| ID  | Scenario                                               | Expected                                |
+| --- | ------------------------------------------------------ | --------------------------------------- |
+| T01 | Valid invitation + valid password                      | 201 — user, membership, session created |
+| T02 | Token not found                                        | 400 `INVITATION_INVALID`                |
+| T03 | Invitation already consumed                            | 400 `INVITATION_INVALID`                |
+| T04 | Invitation expired                                     | 400 `INVITATION_INVALID`                |
+| T05 | Email already has an account                           | 409 `EMAIL_ALREADY_EXISTS`              |
+| T06 | Password under 12 chars                                | 422 `PASSWORD_TOO_SHORT`                |
+| T07 | Transaction rolled back if any step fails              | No partial state in DB                  |
+| T08 | `AuthInvitation.state = consumed` after acceptance     | DB verified                             |
+| T09 | Audit event has no password or token material          | Clean payload                           |
+| T10 | `allowed_actions` in response matches invitation scope | Projection correct                      |
+| T11 | Manager workspace not affected                         | Manager flow uninterrupted              |
 
 ## Definition of Done
 

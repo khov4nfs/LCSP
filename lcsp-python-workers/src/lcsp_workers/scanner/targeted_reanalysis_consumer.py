@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from lcsp_workers.platform.api_client import WorkerApiClient
-from lcsp_workers.platform.correlation import set_correlation_id
+from lcsp_workers.platform.correlation import set_correlationId
 from lcsp_workers.platform.logging import get_logger
 from lcsp_workers.platform.queue_consumer import (
     ConsumerBase,
@@ -29,7 +29,7 @@ SAFE_UNRESOLVED_SCOPE_CODE = "TARGETED_REANALYSIS_SCOPE_UNRESOLVED"
 
 
 class ScanRunner(Protocol):
-    def handle(self, message: dict, correlation_id: str) -> object: ...
+    def handle(self, message: dict, correlationId: str) -> object: ...
 
 
 @dataclass(frozen=True)
@@ -41,7 +41,7 @@ class TargetedReanalysisEnvelope:
     analyzer_id: str
     normalized_scope: dict[str, object]
     checkpoint_ref: str
-    correlation_id: str
+    correlationId: str
     delivery_attempt: int
 
 
@@ -70,9 +70,9 @@ class TargetedReanalysisConsumer(ConsumerBase):
             api_client=self._api_client,
         )
 
-    def handle(self, message: dict, correlation_id: str) -> None:
-        envelope = self._read_envelope(message, correlation_id)
-        set_correlation_id(envelope.correlation_id)
+    def handle(self, message: dict, correlationId: str) -> None:
+        envelope = self._read_envelope(message, correlationId)
+        set_correlationId(envelope.correlationId)
         request = self._api_client.get_targeted_reanalysis_request(envelope.request_id)
         self._assert_matches_authorized_request(envelope, request)
 
@@ -98,13 +98,13 @@ class TargetedReanalysisConsumer(ConsumerBase):
                     "scanJobId": envelope.scan_job_id,
                     "snapshotId": envelope.snapshot_id,
                     "commitSha": envelope.commit_sha,
-                    "correlationId": envelope.correlation_id,
+                    "correlationId": envelope.correlationId,
                     "targetedReanalysis": {
                         "analyzerId": envelope.analyzer_id,
                         "pathPrefixes": envelope.normalized_scope["pathPrefixes"],
                     },
                 },
-                envelope.correlation_id,
+                envelope.correlationId,
             )
         except PrivacyAssertionError as error:
             self._fail_terminal(
@@ -155,7 +155,7 @@ class TargetedReanalysisConsumer(ConsumerBase):
     def _read_envelope(
         self,
         message: dict,
-        correlation_id: str,
+        correlationId: str,
     ) -> TargetedReanalysisEnvelope:
         request_id = self._read_string(message, "requestId", "request_id")
         scan_job_id = self._read_string(message, "scanJobId", "scan_job_id")
@@ -163,10 +163,10 @@ class TargetedReanalysisConsumer(ConsumerBase):
         commit_sha = self._read_string(message, "commitSha", "commit_sha")
         analyzer_id = self._read_string(message, "analyzerId", "analyzer_id")
         checkpoint_ref = self._read_string(message, "checkpointRef", "checkpoint_ref")
-        message_correlation_id = self._read_string(
+        message_correlationId = self._read_string(
             message,
             "correlationId",
-            "correlation_id",
+            "correlationId",
         )
         normalized_scope = message.get("normalizedScope", message.get("normalized_scope"))
         if (
@@ -195,7 +195,7 @@ class TargetedReanalysisConsumer(ConsumerBase):
             analyzer_id=analyzer_id,
             normalized_scope=normalized_scope,
             checkpoint_ref=checkpoint_ref,
-            correlation_id=message_correlation_id or correlation_id,
+            correlationId=message_correlationId or correlationId,
             delivery_attempt=delivery_attempt,
         )
 

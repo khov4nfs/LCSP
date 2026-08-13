@@ -88,7 +88,7 @@ def test_extracts_html_snapshot_into_deterministic_spans(tmp_path: Path):
     assert manifest["spanCount"] == 3
     assert spans[0]["spanRef"].startswith("span:")
     assert spans[0]["text"] == "Điều 1. Phạm vi điều chỉnh"
-    response = result.to_tool_response(correlation_id="corr-1")
+    response = result.to_tool_response(correlationId="corr-1")
     assert response["toolName"] == "extract_official_text"
     assert response["result"]["canonicalExtractionAvailable"] is True
     serialized = json.dumps(response, ensure_ascii=False)
@@ -220,7 +220,7 @@ def test_missing_identity_returns_needs_input_with_limitation(tmp_path: Path):
         )
     )
 
-    response = result.to_tool_response(correlation_id="corr-missing")
+    response = result.to_tool_response(correlationId="corr-missing")
     assert result.status == "NEEDS_INPUT"
     assert result.coverage_state == "PARTIAL"
     assert response["status"] == "NEEDS_INPUT"
@@ -256,7 +256,7 @@ def test_empty_canonical_extraction_returns_blocked_limitation(tmp_path: Path):
         )
     )
 
-    response = result.to_tool_response(correlation_id="corr-empty")
+    response = result.to_tool_response(correlationId="corr-empty")
     manifest = json.loads(result.span_manifest_path.read_text(encoding="utf-8"))
     spans = json.loads(result.spans_path.read_text(encoding="utf-8"))
     assert result.status == "BLOCKED"

@@ -1,11 +1,11 @@
-import { HttpStatus } from "@nestjs/common";
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import {
   AUDIT_ERROR_CODES,
   AUDIT_EXPORT_STATUSES,
   type AuditExportStatus,
 } from "@lcsp/contracts/audit";
 import { ORGANIZATION_SCOPE_ERROR_CODES } from "@lcsp/contracts/auth";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
@@ -80,7 +80,7 @@ export class GetAuditExportHandler implements IQueryHandler<GetAuditExportQuery>
       completed_at: exportRequest.completedAt?.toISOString() ?? null,
       download_url: download?.url ?? null,
       download_url_expires_at: download?.expiresAt ?? null,
-      correlation_id: exportRequest.correlationId,
+      correlationId: exportRequest.correlationId,
     };
   }
 

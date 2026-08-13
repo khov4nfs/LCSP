@@ -18,14 +18,14 @@ Return paginated audit trail for an organization. Responses are pre-redacted: no
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/audit/presentation/http/audit.controller.ts` | Create | `GET /organizations/:orgId/audit-events` |
-| `apps/api/src/modules/audit/application/queries/list-audit-events/list-audit-events.query.ts` | Create | Query shape + pagination + filters |
-| `apps/api/src/modules/audit/application/queries/list-audit-events/list-audit-events.handler.ts` | Create | Paginated query + redaction |
-| `apps/api/src/modules/audit/application/services/audit/audit-redactor.service.ts` | Create | Per-event payload redaction |
-| `apps/api/src/modules/audit/application/contracts/audit/audit-event-list.contract.ts` | Create | Response DTO |
-| `apps/api/src/modules/audit/audit.module.ts` | Create | NestJS module |
+| File                                                                                            | Action | Notes                                    |
+| ----------------------------------------------------------------------------------------------- | ------ | ---------------------------------------- |
+| `apps/api/src/modules/audit/presentation/http/audit.controller.ts`                              | Create | `GET /organizations/:orgId/audit-events` |
+| `apps/api/src/modules/audit/application/queries/list-audit-events/list-audit-events.query.ts`   | Create | Query shape + pagination + filters       |
+| `apps/api/src/modules/audit/application/queries/list-audit-events/list-audit-events.handler.ts` | Create | Paginated query + redaction              |
+| `apps/api/src/modules/audit/application/services/audit/audit-redactor.service.ts`               | Create | Per-event payload redaction              |
+| `apps/api/src/modules/audit/application/contracts/audit/audit-event-list.contract.ts`           | Create | Response DTO                             |
+| `apps/api/src/modules/audit/audit.module.ts`                                                    | Create | NestJS module                            |
 
 ## API Contract
 
@@ -34,43 +34,43 @@ Return paginated audit trail for an organization. Responses are pre-redacted: no
 
 **Query parameters:**
 
-| Param | Type | Required | Default | Notes |
-|---|---|---|---|---|
-| `event_type` | string | No | — | Filter by event type |
-| `actor_id` | string | No | — | Filter by actor |
-| `from_date` | string | No | — | ISO 8601 — inclusive |
-| `to_date` | string | No | — | ISO 8601 — inclusive |
-| `page` | number | No | 1 | |
-| `page_size` | number | No | 20 | Max 100 |
+| Param        | Type   | Required | Default | Notes                |
+| ------------ | ------ | -------- | ------- | -------------------- |
+| `event_type` | string | No       | —       | Filter by event type |
+| `actor_id`   | string | No       | —       | Filter by actor      |
+| `from_date`  | string | No       | —       | ISO 8601 — inclusive |
+| `to_date`    | string | No       | —       | ISO 8601 — inclusive |
+| `page`       | number | No       | 1       |                      |
+| `page_size`  | number | No       | 20      | Max 100              |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `events` | AuditEventSummary[] | See below |
-| `total` | number | |
-| `page` | number | |
-| `page_size` | number | |
-| `correlation_id` | string | |
+| Field           | Type                | Notes     |
+| --------------- | ------------------- | --------- |
+| `events`        | AuditEventSummary[] | See below |
+| `total`         | number              |           |
+| `page`          | number              |           |
+| `page_size`     | number              |           |
+| `correlationId` | string              |           |
 
 **`AuditEventSummary` object:**
 
-| Field | Type | Notes |
-|---|---|---|
-| `event_id` | string | |
-| `event_type` | string | |
-| `actor_id` | string \| null | |
-| `organization_id` | string | |
-| `decision` | string | `allow` \| `deny` |
-| `payload` | object \| null | Pre-redacted by `AuditRedactorService` |
-| `occurred_at` | string | ISO 8601 |
+| Field             | Type           | Notes                                  |
+| ----------------- | -------------- | -------------------------------------- |
+| `event_id`        | string         |                                        |
+| `event_type`      | string         |                                        |
+| `actor_id`        | string \| null |                                        |
+| `organization_id` | string         |                                        |
+| `decision`        | string         | `allow` \| `deny`                      |
+| `payload`         | object \| null | Pre-redacted by `AuditRedactorService` |
+| `occurred_at`     | string         | ISO 8601                               |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 403 | `PBAC_DENIED` | Actor lacks `audit:read` |
-| 400 | `ORG_SCOPE_MISMATCH` | `orgId` ≠ session org |
+| HTTP | `error_code`         | Meaning                  |
+| ---- | -------------------- | ------------------------ |
+| 403  | `PBAC_DENIED`        | Actor lacks `audit:read` |
+| 400  | `ORG_SCOPE_MISMATCH` | `orgId` ≠ session org    |
 
 ## Business Rules
 
@@ -83,22 +83,22 @@ Return paginated audit trail for an organization. Responses are pre-redacted: no
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
+| Model            | Action           | Key fields                            |
+| ---------------- | ---------------- | ------------------------------------- |
 | `AuthAuditEvent` | Read (paginated) | `organizationId`, filters, date range |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Manager lists audit events | 200 paginated list |
-| T02 | Filter by `event_type` | Only matching events |
-| T03 | Filter by `actor_id` | Only events for that actor |
-| T04 | Date range filter | Events within range |
-| T05 | Date range > 90 days | 400 or clamped |
-| T06 | Actor lacks `audit:read` | 403 `PBAC_DENIED` |
-| T07 | `orgId` mismatch | 400 `ORG_SCOPE_MISMATCH` |
-| T08 | `payload` has no sensitive fields | Redaction verified |
+| ID  | Scenario                          | Expected                   |
+| --- | --------------------------------- | -------------------------- |
+| T01 | Manager lists audit events        | 200 paginated list         |
+| T02 | Filter by `event_type`            | Only matching events       |
+| T03 | Filter by `actor_id`              | Only events for that actor |
+| T04 | Date range filter                 | Events within range        |
+| T05 | Date range > 90 days              | 400 or clamped             |
+| T06 | Actor lacks `audit:read`          | 403 `PBAC_DENIED`          |
+| T07 | `orgId` mismatch                  | 400 `ORG_SCOPE_MISMATCH`   |
+| T08 | `payload` has no sensitive fields | Redaction verified         |
 
 ## Definition of Done
 

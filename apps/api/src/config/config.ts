@@ -81,6 +81,7 @@ export const configValidationSchema = Joi.object({
     }),
   PYTHON_WORKER_BASE_URL: Joi.string().required(),
   WORKER_API_KEY: Joi.string().min(32).required(),
+  ORCHESTRATION_DEBUG: Joi.boolean().default(false),
 }).unknown(true);
 
 function parseRedirectUris(value: string): string[] {
@@ -166,6 +167,9 @@ export function config(): AppConfig {
       smtpUser: env.SMTP_USER?.trim() ?? "",
       smtpPass: env.SMTP_PASS?.trim() ?? "",
       smtpFrom: env.SMTP_FROM?.trim() ?? "",
+    },
+    orchestration: {
+      debug: (env.ORCHESTRATION_DEBUG ?? "false").toLowerCase() === "true",
     },
   };
 }

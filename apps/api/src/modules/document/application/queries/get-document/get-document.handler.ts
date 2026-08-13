@@ -1,13 +1,13 @@
-import { HttpStatus } from "@nestjs/common";
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
+import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
   DOCUMENT_ERROR_CODES,
   DOCUMENT_REQUEST_STATUSES,
-  type DocumentRequestStatus,
   DOCUMENT_TYPES,
+  type DocumentRequestStatus,
 } from "@lcsp/contracts/document";
 import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
 import {
   fromPrismaClassificationGuardrailStatus,
@@ -107,7 +107,7 @@ export class GetDocumentHandler implements IQueryHandler<GetDocumentQuery> {
       completed_at: isCompletedStatus(status)
         ? documentRequest.updatedAt.toISOString()
         : null,
-      correlation_id: documentRequest.correlationId,
+      correlationId: documentRequest.correlationId,
     };
   }
 

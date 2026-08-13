@@ -8,8 +8,8 @@ import {
 import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import {
   GITHUB_INTEGRATION_EVENT_TYPES,
-  REPOSITORY_SCAN_TRIGGER_SOURCES,
   REPOSITORY_SCAN_JOB_STATUSES,
+  REPOSITORY_SCAN_TRIGGER_SOURCES,
 } from "@lcsp/contracts/github-integration";
 import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 
@@ -124,7 +124,7 @@ describe("TriggerScanHandler", () => {
     expect(result).toMatchObject({
       status: REPOSITORY_SCAN_JOB_STATUSES.queued,
       is_new: true,
-      correlation_id: "corr-1",
+      correlationId: "corr-1",
     });
     const [job, event] = saveWithTriggeredEvent.mock.calls[0];
     expect(job.snapshotId).toBe("snapshot-1");
@@ -179,7 +179,7 @@ describe("TriggerScanHandler", () => {
       scan_job_id: "scan-job-existing",
       status: REPOSITORY_SCAN_JOB_STATUSES.running,
       is_new: false,
-      correlation_id: "corr-1",
+      correlationId: "corr-1",
     });
     expect(saveWithTriggeredEvent).not.toHaveBeenCalled();
   });
@@ -247,7 +247,7 @@ describe("TriggerScanHandler", () => {
     expect(result).toMatchObject({
       status: REPOSITORY_SCAN_JOB_STATUSES.pendingMapping,
       is_new: true,
-      correlation_id: "corr-1",
+      correlationId: "corr-1",
     });
     const [job] = save.mock.calls[0] ?? [];
     expect(job.status).toBe(REPOSITORY_SCAN_JOB_STATUSES.pendingMapping);

@@ -5,6 +5,6 @@ export type PasswordReauthPayload = {
 
 export type PasswordReauthSuccess = {
   ok: true;
-  correlation_id: string;
+  correlationId: string;
   verified: true;
 };

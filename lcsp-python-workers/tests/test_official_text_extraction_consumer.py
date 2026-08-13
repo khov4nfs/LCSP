@@ -96,7 +96,7 @@ def test_consumer_extracts_from_snapshot_ref(tmp_path: Path):
             "extractorProfile": "HTML_OFFICIAL_V1",
             "maxPages": 10,
         },
-        correlation_id="corr-1",
+        correlationId="corr-1",
     )
 
     output_dir = storage_root / "official-text-extractions" / "LAW-TEST_abcd1234ef56"
@@ -182,5 +182,5 @@ def test_consumer_treats_profile_content_mismatch_as_terminal(tmp_path: Path):
                 "extractorProfile": "HTML_OFFICIAL_V1",
                 "maxPages": 10,
             },
-            correlation_id="corr-mismatch",
+            correlationId="corr-mismatch",
         )

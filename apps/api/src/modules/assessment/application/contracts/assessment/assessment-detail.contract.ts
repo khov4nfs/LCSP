@@ -58,5 +58,5 @@ export interface AssessmentDetailDto {
   next_action: AssessmentNextActionKey;
   created_at: string;
   updated_at: string;
-  correlation_id: string;
+  correlationId: string;
 }

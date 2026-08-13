@@ -20,13 +20,13 @@ Allow a Manager to revoke a Developer's membership in their organization. Revoca
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts` | Modify | Add `DELETE /organizations/:orgId/memberships/:userId` |
-| `apps/api/src/modules/auth-workspace/application/commands/revoke-membership/revoke-membership.command.ts` | Create | Command shape |
-| `apps/api/src/modules/auth-workspace/application/commands/revoke-membership/revoke-membership.handler.ts` | Create | Revocation logic |
-| `apps/api/src/modules/auth-workspace/application/contracts/auth-workspace/revoke-membership.contract.ts` | Create | Request/response DTOs |
-| `apps/api/src/modules/auth-workspace/auth-workspace.module.ts` | Modify | Register new handler |
+| File                                                                                                      | Action | Notes                                                  |
+| --------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------ |
+| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts`                      | Modify | Add `DELETE /organizations/:orgId/memberships/:userId` |
+| `apps/api/src/modules/auth-workspace/application/commands/revoke-membership/revoke-membership.command.ts` | Create | Command shape                                          |
+| `apps/api/src/modules/auth-workspace/application/commands/revoke-membership/revoke-membership.handler.ts` | Create | Revocation logic                                       |
+| `apps/api/src/modules/auth-workspace/application/contracts/auth-workspace/revoke-membership.contract.ts`  | Create | Request/response DTOs                                  |
+| `apps/api/src/modules/auth-workspace/auth-workspace.module.ts`                                            | Modify | Register new handler                                   |
 
 ## API Contract
 
@@ -35,36 +35,36 @@ Allow a Manager to revoke a Developer's membership in their organization. Revoca
 
 **Path parameters:**
 
-| Param | Type | Required | Notes |
-|---|---|---|---|
-| `orgId` | string | Yes | Organization ID — must match session org |
-| `userId` | string | Yes | Target Developer user ID to revoke |
+| Param    | Type   | Required | Notes                                    |
+| -------- | ------ | -------- | ---------------------------------------- |
+| `orgId`  | string | Yes      | Organization ID — must match session org |
+| `userId` | string | Yes      | Target Developer user ID to revoke       |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `revoked` | boolean | Always `true` |
-| `affected_sessions` | number | Count of sessions invalidated |
-| `correlation_id` | string | |
+| Field               | Type    | Notes                         |
+| ------------------- | ------- | ----------------------------- |
+| `revoked`           | boolean | Always `true`                 |
+| `affected_sessions` | number  | Count of sessions invalidated |
+| `correlationId`     | string  |                               |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 403 | `PBAC_DENIED` | Manager lacks `membership:revoke` permission |
-| 404 | `MEMBERSHIP_NOT_FOUND` | No active membership for `userId` in `orgId` |
-| 400 | `CANNOT_SELF_REVOKE` | Manager cannot revoke their own membership |
-| 400 | `ORG_SCOPE_MISMATCH` | `orgId` path param ≠ session org |
+| HTTP | `error_code`           | Meaning                                      |
+| ---- | ---------------------- | -------------------------------------------- |
+| 403  | `PBAC_DENIED`          | Manager lacks `membership:revoke` permission |
+| 404  | `MEMBERSHIP_NOT_FOUND` | No active membership for `userId` in `orgId` |
+| 400  | `CANNOT_SELF_REVOKE`   | Manager cannot revoke their own membership   |
+| 400  | `ORG_SCOPE_MISMATCH`   | `orgId` path param ≠ session org             |
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `AuthMembership` | Update | Find `(userId, orgId, status = active)`. Set `status = revoked`, `revokedAt = now()`. |
-| `AuthSession` | Update bulk | Find all non-revoked sessions for `(userId, orgId)`. Set `revokedAt = now()` for each. |
-| `AuthDecisionLog` | Create | PBAC allow/deny for `membership:revoke` action |
-| `AuthAuditEvent` | Create | `AUTH_DEVELOPER_REVOKED` |
+| Model             | Action      | Key fields                                                                             |
+| ----------------- | ----------- | -------------------------------------------------------------------------------------- |
+| `AuthMembership`  | Update      | Find `(userId, orgId, status = active)`. Set `status = revoked`, `revokedAt = now()`.  |
+| `AuthSession`     | Update bulk | Find all non-revoked sessions for `(userId, orgId)`. Set `revokedAt = now()` for each. |
+| `AuthDecisionLog` | Create      | PBAC allow/deny for `membership:revoke` action                                         |
+| `AuthAuditEvent`  | Create      | `AUTH_DEVELOPER_REVOKED`                                                               |
 
 ## Business Rules
 
@@ -80,9 +80,9 @@ Allow a Manager to revoke a Developer's membership in their organization. Revoca
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `RevokeMembershipCommand` | App command | `{ orgId, targetUserId, correlationId? }` |
+| Name                           | Type             | Safe payload                                                         |
+| ------------------------------ | ---------------- | -------------------------------------------------------------------- |
+| `RevokeMembershipCommand`      | App command      | `{ orgId, targetUserId, correlationId? }`                            |
 | `event.auth.developer-revoked` | `AuthAuditEvent` | `{ actorId, orgId, revokedUserId, affectedSessions, correlationId }` |
 
 ## PBAC
@@ -91,18 +91,18 @@ Manager must have `membership:revoke` in their `AuthPolicy.actions`. PBAC decisi
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
+| ID  | Scenario                                                  | Expected                                       |
+| --- | --------------------------------------------------------- | ---------------------------------------------- |
 | T01 | Manager with `membership:revoke` + valid Developer userId | 200 — membership revoked, sessions invalidated |
-| T02 | Manager lacks `membership:revoke` | 403 `PBAC_DENIED` |
-| T03 | Developer has no active membership | 404 `MEMBERSHIP_NOT_FOUND` |
-| T04 | Manager tries to revoke own membership | 400 `CANNOT_SELF_REVOKE` |
-| T05 | orgId path param ≠ session org | 400 `ORG_SCOPE_MISMATCH` |
-| T06 | Developer's active session returns 401 after revoke | Session invalidation verified |
-| T07 | `affected_sessions` count matches bulk update | Correct count in response |
-| T08 | Audit payload has no session token values | Clean payload |
-| T09 | Manager workspace and sessions unaffected | Manager flow continues |
-| T10 | Already-revoked membership returns 404 | Idempotent lookup |
+| T02 | Manager lacks `membership:revoke`                         | 403 `PBAC_DENIED`                              |
+| T03 | Developer has no active membership                        | 404 `MEMBERSHIP_NOT_FOUND`                     |
+| T04 | Manager tries to revoke own membership                    | 400 `CANNOT_SELF_REVOKE`                       |
+| T05 | orgId path param ≠ session org                            | 400 `ORG_SCOPE_MISMATCH`                       |
+| T06 | Developer's active session returns 401 after revoke       | Session invalidation verified                  |
+| T07 | `affected_sessions` count matches bulk update             | Correct count in response                      |
+| T08 | Audit payload has no session token values                 | Clean payload                                  |
+| T09 | Manager workspace and sessions unaffected                 | Manager flow continues                         |
+| T10 | Already-revoked membership returns 404                    | Idempotent lookup                              |
 
 ## Definition of Done
 

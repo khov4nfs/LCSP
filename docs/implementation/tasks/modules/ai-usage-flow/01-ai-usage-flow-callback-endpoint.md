@@ -19,14 +19,14 @@ Receive the `AIUsageFlow` artifact from the Python intelligence worker after AI 
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/ai-usage-flow/presentation/http/ai-usage-flow.controller.ts` | Create | `POST /internal/ai-usage-flow/callback` |
-| `apps/api/src/modules/ai-usage-flow/application/commands/accept-ai-usage-flow/accept-ai-usage-flow.command.ts` | Create | Command shape |
-| `apps/api/src/modules/ai-usage-flow/application/commands/accept-ai-usage-flow/accept-ai-usage-flow.handler.ts` | Create | Validation + persistence + event |
-| `apps/api/src/modules/ai-usage-flow/domain/entities/ai-usage-flow.entity.ts` | Create | `AIUsageFlow` domain entity |
-| `apps/api/prisma/schema.prisma` | Modify | Add `AIUsageFlow` model |
-| `apps/api/src/modules/ai-usage-flow/ai-usage-flow.module.ts` | Create | NestJS module |
+| File                                                                                                           | Action | Notes                                   |
+| -------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------- |
+| `apps/api/src/modules/ai-usage-flow/presentation/http/ai-usage-flow.controller.ts`                             | Create | `POST /internal/ai-usage-flow/callback` |
+| `apps/api/src/modules/ai-usage-flow/application/commands/accept-ai-usage-flow/accept-ai-usage-flow.command.ts` | Create | Command shape                           |
+| `apps/api/src/modules/ai-usage-flow/application/commands/accept-ai-usage-flow/accept-ai-usage-flow.handler.ts` | Create | Validation + persistence + event        |
+| `apps/api/src/modules/ai-usage-flow/domain/entities/ai-usage-flow.entity.ts`                                   | Create | `AIUsageFlow` domain entity             |
+| `apps/api/prisma/schema.prisma`                                                                                | Modify | Add `AIUsageFlow` model                 |
+| `apps/api/src/modules/ai-usage-flow/ai-usage-flow.module.ts`                                                   | Create | NestJS module                           |
 
 ## Prisma Model
 
@@ -70,33 +70,33 @@ model AIUsageFlow {
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `technical_profile_id` | string | Yes | Source profile |
-| `assessment_id` | string | Yes | |
-| `schema_version` | string | Yes | |
-| `provider_version` | string | Yes | |
-| `claims` | AIUsageClaim[] | Yes | May be empty |
-| `unknown_usages` | object[] | Yes | Preserved unclear signals (may be empty) |
-| `privacy_flags` | object | Yes | |
+| Field                  | Type           | Required | Notes                                    |
+| ---------------------- | -------------- | -------- | ---------------------------------------- |
+| `technical_profile_id` | string         | Yes      | Source profile                           |
+| `assessment_id`        | string         | Yes      |                                          |
+| `schema_version`       | string         | Yes      |                                          |
+| `provider_version`     | string         | Yes      |                                          |
+| `claims`               | AIUsageClaim[] | Yes      | May be empty                             |
+| `unknown_usages`       | object[]       | Yes      | Preserved unclear signals (may be empty) |
+| `privacy_flags`        | object         | Yes      |                                          |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `accepted` | boolean | |
-| `ai_usage_flow_id` | string | |
-| `correlation_id` | string | |
+| Field              | Type    | Notes |
+| ------------------ | ------- | ----- |
+| `accepted`         | boolean |       |
+| `ai_usage_flow_id` | string  |       |
+| `correlationId`    | string  |       |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 401 | `UNAUTHORIZED` | Invalid worker API key |
-| 404 | `TECHNICAL_PROFILE_NOT_FOUND` | Source profile not found |
-| 409 | `FLOW_ALREADY_EXISTS` | AIUsageFlow already accepted for this profile |
-| 422 | `CLAIM_MISSING_EVIDENCE_REF` | Material claim has no `evidence_refs` |
-| 422 | `PRIVACY_FLAGS_INVALID` | Source code or secrets in payload |
+| HTTP | `error_code`                  | Meaning                                       |
+| ---- | ----------------------------- | --------------------------------------------- |
+| 401  | `UNAUTHORIZED`                | Invalid worker API key                        |
+| 404  | `TECHNICAL_PROFILE_NOT_FOUND` | Source profile not found                      |
+| 409  | `FLOW_ALREADY_EXISTS`         | AIUsageFlow already accepted for this profile |
+| 422  | `CLAIM_MISSING_EVIDENCE_REF`  | Material claim has no `evidence_refs`         |
+| 422  | `PRIVACY_FLAGS_INVALID`       | Source code or secrets in payload             |
 
 ## Business Rules
 
@@ -112,23 +112,23 @@ model AIUsageFlow {
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `AcceptAIUsageFlowCommand` | App command | `{ technicalProfileId, assessmentId, schemaVersion, privacyFlags, correlationId? }` |
-| `event.ai-usage-flow-ready` | Outbox | `{ aiUsageFlowId, assessmentId, technicalProfileId, correlationId }` |
-| `AI_USAGE_FLOW_ACCEPTED` | `AuthAuditEvent` | `{ aiUsageFlowId, assessmentId, correlationId }` |
+| Name                        | Type             | Safe payload                                                                        |
+| --------------------------- | ---------------- | ----------------------------------------------------------------------------------- |
+| `AcceptAIUsageFlowCommand`  | App command      | `{ technicalProfileId, assessmentId, schemaVersion, privacyFlags, correlationId? }` |
+| `event.ai-usage-flow-ready` | Outbox           | `{ aiUsageFlowId, assessmentId, technicalProfileId, correlationId }`                |
+| `AI_USAGE_FLOW_ACCEPTED`    | `AuthAuditEvent` | `{ aiUsageFlowId, assessmentId, correlationId }`                                    |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid claims with evidence refs | 200 accepted |
-| T02 | Material claim missing `evidence_refs` | 422 `CLAIM_MISSING_EVIDENCE_REF` |
-| T03 | `unknown_usages` not empty — preserved | DB field non-null |
-| T04 | Flow already exists | 409 `FLOW_ALREADY_EXISTS` |
-| T05 | Privacy flags invalid | 422 `PRIVACY_FLAGS_INVALID` |
-| T06 | Outbox `ai-usage-flow-ready` created | DB verified |
-| T07 | Empty `claims` accepted (no AI usage found) | 200 accepted |
+| ID  | Scenario                                    | Expected                         |
+| --- | ------------------------------------------- | -------------------------------- |
+| T01 | Valid claims with evidence refs             | 200 accepted                     |
+| T02 | Material claim missing `evidence_refs`      | 422 `CLAIM_MISSING_EVIDENCE_REF` |
+| T03 | `unknown_usages` not empty — preserved      | DB field non-null                |
+| T04 | Flow already exists                         | 409 `FLOW_ALREADY_EXISTS`        |
+| T05 | Privacy flags invalid                       | 422 `PRIVACY_FLAGS_INVALID`      |
+| T06 | Outbox `ai-usage-flow-ready` created        | DB verified                      |
+| T07 | Empty `claims` accepted (no AI usage found) | 200 accepted                     |
 
 ## Definition of Done
 

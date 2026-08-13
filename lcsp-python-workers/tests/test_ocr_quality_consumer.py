@@ -117,7 +117,7 @@ def test_consumer_persists_quality_manifest(tmp_path: Path):
             "expectedIdentityRef": "catalog-source:vbpl.vn:decree:13-2023-nd-cp",
             "qualityProfile": "VI_LEGAL_V1",
         },
-        correlation_id="corr-quality",
+        correlationId="corr-quality",
     )
 
     repository = OcrQualityRepository(storage_root=storage_root)
@@ -154,5 +154,5 @@ def test_consumer_rejects_missing_required_field(tmp_path: Path):
                 "extractionRef": "extraction:test",
                 "qualityProfile": "VI_LEGAL_V1",
             },
-            correlation_id="corr-missing",
+            correlationId="corr-missing",
         )

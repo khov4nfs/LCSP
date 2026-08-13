@@ -1,18 +1,18 @@
-import { HttpStatus } from "@nestjs/common";
+import type { AuditResourceType } from "@lcsp/contracts/audit";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AUTH_AUDIT_EVENT_TYPES,
   AUTH_MEMBERSHIP_STATUSES,
 } from "@lcsp/contracts/auth";
-import type { AuditResourceType } from "@lcsp/contracts/audit";
+import { HttpStatus } from "@nestjs/common";
 
-import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.ts";
 import { fromPrismaAuthMembershipStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
-import type { AssessmentScopeRepository } from "../../ports/persistence/assessment-scope.repository.ts";
+import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.ts";
+import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import type { DeveloperTaskContextResponse } from "../../contracts/auth-workspace/developer-task-context.contract.ts";
 import { DEVELOPER_TASK_CONTEXT_ERROR_CODES } from "../../contracts/auth-workspace/developer-task-context.contract.ts";
+import type { AssessmentScopeRepository } from "../../ports/persistence/assessment-scope.repository.ts";
 import { AuthAuditService } from "../../services/auth-workspace/auth-audit.service.ts";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import {
   invitationAssessmentId,
   projectInvitationScope,
@@ -196,7 +196,7 @@ export class GetDeveloperTaskContextHandler {
           : { type: "organization", assessment: null },
       granted_actions: projection.allowedActions,
       session_expires_at: session.expiresAt.toISOString(),
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
   }
 

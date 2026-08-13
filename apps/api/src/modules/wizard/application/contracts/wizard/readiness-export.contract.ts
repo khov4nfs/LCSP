@@ -1,9 +1,9 @@
-import type { MissingEvidenceItem } from "./readiness.contract.js";
 import type {
   READINESS_CLASSIFICATION_STATUSES,
   READINESS_EXPORT_ARTIFACT_TYPES,
   READINESS_EXPORT_STATUSES,
 } from "@lcsp/contracts/wizard";
+import type { MissingEvidenceItem } from "./readiness.contract.js";
 
 export type ReadinessExportStatus =
   (typeof READINESS_EXPORT_STATUSES)[keyof typeof READINESS_EXPORT_STATUSES];
@@ -74,6 +74,6 @@ export interface ReadinessExportResponse {
   media_type?: "application/pdf";
   file_name?: string;
   download_url?: string;
-  correlation_id: string;
+  correlationId: string;
   blocked_reason?: string;
 }

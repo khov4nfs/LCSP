@@ -1,9 +1,5 @@
 import * as assert from "node:assert/strict";
 
-import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Prisma, PrismaClient } from "@prisma/client";
 import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
 import { EVIDENCE_ERROR_CODES } from "@lcsp/contracts/evidence";
@@ -19,11 +15,15 @@ import {
   type TechnicalEvidenceReportStatus,
 } from "@lcsp/contracts/scan";
 import { SERVICE_HEALTH_STATUSES } from "@lcsp/contracts/shared";
+import type { INestApplication } from "@nestjs/common";
+import { Test, type TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
-import type { EvidenceDetailDto } from "../src/modules/evidence/application/contracts/evidence/evidence-detail.contract.js";
 import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
 import { hashSecret } from "../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+import type { EvidenceDetailDto } from "../src/modules/evidence/application/contracts/evidence/evidence-detail.contract.js";
 import {
   TEST_DATABASE_URL,
   pushPrismaSchema,
@@ -114,7 +114,7 @@ describe("Get Technical Evidence Report Endpoint (e2e) [MW-evid-001]", () => {
       secretsRedacted: true,
     });
     assert.equal(body.status, TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted);
-    assert.equal(body.correlation_id, "corr-evidence-manager");
+    assert.equal(body.correlationId, "corr-evidence-manager");
   });
 
   it("T02: scoped Developer receives redacted file and line locations", async () => {

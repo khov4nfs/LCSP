@@ -80,7 +80,7 @@ def test_consumer_fetches_data_and_submits_callback():
             "assessmentId": "assessment-1",
             "corpusVersionId": "corpus-v1",
         },
-        correlation_id="corr-1",
+        correlationId="corr-1",
     )
 
     assert any(call[0] == "verified_profile" for call in api_client.calls)
@@ -111,7 +111,7 @@ def test_consumer_rejects_unapproved_verified_profile_before_legal_lookup():
                 "assessmentId": "assessment-1",
                 "corpusVersionId": "corpus-v1",
             },
-            correlation_id="corr-1",
+            correlationId="corr-1",
         )
 
     assert api_client.calls == [("verified_profile", "vp-1")]

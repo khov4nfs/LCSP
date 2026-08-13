@@ -38,7 +38,7 @@ export type DocumentRequestResult = {
   document_request_id: string;
   status: string;
   document_type: string;
-  correlation_id: string;
+  correlationId: string;
 };
 
 export type DocumentStatusResult = {
@@ -51,7 +51,7 @@ export type DocumentStatusResult = {
   download_url_expires_at: string | null;
   requested_at: string;
   completed_at: string | null;
-  correlation_id: string;
+  correlationId: string;
 };
 
 export async function getDocuments(
@@ -68,9 +68,7 @@ export async function getDocuments(
     return [];
   }
 
-  return Array.isArray(payload)
-    ? payload.filter(isDocumentStatusResult)
-    : [];
+  return Array.isArray(payload) ? payload.filter(isDocumentStatusResult) : [];
 }
 
 export async function requestFinalReport(
@@ -132,7 +130,10 @@ export function toDocumentRequestOutcome(
     };
   }
 
-  if (status === 409 && problemCode === DOCUMENT_ERROR_CODES.classificationGuardrailNotPassed) {
+  if (
+    status === 409 &&
+    problemCode === DOCUMENT_ERROR_CODES.classificationGuardrailNotPassed
+  ) {
     return {
       kind: API_OUTCOME_KINDS.blocked,
       titleKey: "pages.classification.errorTitle",
@@ -171,7 +172,9 @@ export function toDocumentStatusOutcome(
   };
 }
 
-function isDocumentRequestResult(payload: unknown): payload is DocumentRequestResult {
+function isDocumentRequestResult(
+  payload: unknown,
+): payload is DocumentRequestResult {
   if (typeof payload !== "object" || payload === null) {
     return false;
   }
@@ -181,11 +184,13 @@ function isDocumentRequestResult(payload: unknown): payload is DocumentRequestRe
     typeof candidate.document_request_id === "string" &&
     typeof candidate.status === "string" &&
     typeof candidate.document_type === "string" &&
-    typeof candidate.correlation_id === "string"
+    typeof candidate.correlationId === "string"
   );
 }
 
-function isDocumentStatusResult(payload: unknown): payload is DocumentStatusResult {
+function isDocumentStatusResult(
+  payload: unknown,
+): payload is DocumentStatusResult {
   if (typeof payload !== "object" || payload === null) {
     return false;
   }
@@ -196,7 +201,7 @@ function isDocumentStatusResult(payload: unknown): payload is DocumentStatusResu
     typeof candidate.document_type === "string" &&
     typeof candidate.status === "string" &&
     typeof candidate.requested_at === "string" &&
-    typeof candidate.correlation_id === "string"
+    typeof candidate.correlationId === "string"
   );
 }
 

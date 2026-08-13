@@ -1,13 +1,13 @@
 ---
 stepsCompleted: [1, 2, 3, 4, 5, 6]
 inputDocuments: []
-workflowType: 'research'
+workflowType: "research"
 lastStep: 1
-research_type: 'technical'
-research_topic: 'migrate apps/api, apps/web, packages/*, tests/* từ JavaScript sang TypeScript với shared i18n dictionary vi/en và error/message key architecture'
-research_goals: 'đề xuất migration JS→TS, shared i18n dictionary, backend trả key thay vì hardcoded text, frontend resolve từ dictionary, cấu trúc thư mục, typing strategy và test impact'
-user_name: 'lcsp-team'
-date: '2026-07-02'
+research_type: "technical"
+research_topic: "migrate apps/api, apps/web, packages/*, tests/* từ JavaScript sang TypeScript với shared i18n dictionary vi/en và error/message key architecture"
+research_goals: "đề xuất migration JS→TS, shared i18n dictionary, backend trả key thay vì hardcoded text, frontend resolve từ dictionary, cấu trúc thư mục, typing strategy và test impact"
+user_name: "lcsp-team"
+date: "2026-07-02"
 web_research_enabled: true
 source_verification: true
 ---
@@ -108,7 +108,7 @@ _Source: https://www.typescriptlang.org/tsconfig/; https://www.typescriptlang.or
 
 ### API Design Patterns
 
-Đối với LCSP, pattern phù hợp nhất không phải đổi sang GraphQL/gRPC mà là chuẩn hóa REST-style error contract hiện có thành machine-readable envelope với human-readable text được resolve ở edge. RFC 9457 định nghĩa problem details để mang thông tin lỗi machine-readable trong HTTP responses, tránh phải tự phát minh format lỗi mới cho mỗi API. Zalando REST guidelines cũng yêu cầu endpoint hỗ trợ `application/problem+json` cho cả lỗi 4xx và 5xx, và cho phép mở rộng object này bằng custom fields. So với code hiện tại của repo, `createSafeError()` đã gần đúng về intent nhưng còn trộn hai trách nhiệm: contract machine-readable (`error_code`, `required_action`) và localized text (`message`). Hướng tích hợp tốt hơn là backend chỉ trả `type`, `status`, `code/message_key`, `required_action`, `correlation_id`, cùng optional metadata an toàn; frontend hoặc API consumer sẽ resolve text bằng dictionary tương ứng locale.  
+Đối với LCSP, pattern phù hợp nhất không phải đổi sang GraphQL/gRPC mà là chuẩn hóa REST-style error contract hiện có thành machine-readable envelope với human-readable text được resolve ở edge. RFC 9457 định nghĩa problem details để mang thông tin lỗi machine-readable trong HTTP responses, tránh phải tự phát minh format lỗi mới cho mỗi API. Zalando REST guidelines cũng yêu cầu endpoint hỗ trợ `application/problem+json` cho cả lỗi 4xx và 5xx, và cho phép mở rộng object này bằng custom fields. So với code hiện tại của repo, `createSafeError()` đã gần đúng về intent nhưng còn trộn hai trách nhiệm: contract machine-readable (`error_code`, `required_action`) và localized text (`message`). Hướng tích hợp tốt hơn là backend chỉ trả `type`, `status`, `code/message_key`, `required_action`, `correlationId`, cùng optional metadata an toàn; frontend hoặc API consumer sẽ resolve text bằng dictionary tương ứng locale.  
 _RESTful APIs: Dùng RFC 9457 `application/problem+json` làm envelope chuẩn cho HTTP errors; giữ `code` hoặc extension field như application-specific key để frontend map copy._  
 _GraphQL APIs: GraphQL spec cũng tách `errors` thành list error maps và cho phép partial data khi có field errors, nhưng không phù hợp scope repo hiện tại vì flow hiện hữu là request/response auth endpoints đơn giản._  
 _RPC and gRPC: Không có lợi thế rõ cho migration này vì bài toán chính là typed contracts và localization, không phải binary transport hoặc service mesh scale._  
@@ -126,7 +126,7 @@ _Source: https://datatracker.ietf.org/doc/html/rfc9457; https://opensource.zalan
 
 ### Data Formats and Standards
 
-Về data format, JSON vẫn là format đúng cho contract giữa `apps/api` và `apps/web`, nhưng cần phân tách rõ lớp semantic. JSON:API mô tả error objects có thể chứa `type`, `status`, và application-specific `code`; RFC 9457 chuẩn hóa `type`, `title`, `detail`, `status`, `instance` cùng extension members. Từ hai chuẩn này có thể suy ra một shape thực dụng cho LCSP:  
+Về data format, JSON vẫn là format đúng cho contract giữa `apps/api` và `apps/web`, nhưng cần phân tách rõ lớp semantic. JSON:API mô tả error objects có thể chứa `type`, `status`, và application-specific `code`; RFC 9457 chuẩn hóa `type`, `title`, `detail`, `status`, `instance` cùng extension members. Từ hai chuẩn này có thể suy ra một shape thực dụng cho LCSP:
 
 - `type`: URI hoặc namespaced string của problem family, ví dụ `auth/invalid-credentials`
 - `status`: HTTP status
@@ -134,7 +134,7 @@ Về data format, JSON vẫn là format đúng cho contract giữa `apps/api` v�
 - `title_key`: key cho headline UI
 - `detail_key`: key cho message body
 - `required_action`: stable action key
-- `correlation_id`: trace/support key
+- `correlationId`: trace/support key
 - `meta`: object cho interpolation params an toàn như `{ retry_after_minutes: 15 }`
 
 Điểm quan trọng là `meta` phải chứa data chứ không chứa copy, để formatter phía frontend nội suy theo dictionary locale. Điều này cũng giải quyết vấn đề hiện có trong `apps/web/src/auth-entry.js`, nơi title đang được map theo code còn body lại tin vào `apiResult.message`, khiến copy source bị tách đôi và khó đồng bộ.  
@@ -197,7 +197,7 @@ Security-wise, việc bỏ hardcoded text khỏi backend còn có lợi ở ch�
 - safe `meta`
 - internal-only debug/audit context không serialize ra client
 
-Ngoài ra, `correlation_id` hiện có trong repo là điểm mạnh cần giữ. Frontend nên render correlation id ở blocked states khi phù hợp, nhưng không nên dùng nó làm lookup cho copy.  
+Ngoài ra, `correlationId` hiện có trong repo là điểm mạnh cần giữ. Frontend nên render correlation id ở blocked states khi phù hợp, nhưng không nên dùng nó làm lookup cho copy.  
 _OAuth 2.0 and JWT: Không phải phần thay đổi của migration này, nhưng auth errors vẫn nên trả theo stable key contract._  
 _API Key Management: Không liên quan._  
 _Mutual TLS: Không liên quan._  
@@ -239,7 +239,7 @@ _Source: https://nodejs.org/api/packages.html_
 
 Security architecture đúng cho scope này là tách public problem contract khỏi internal diagnostic context. Project context của LCSP đã yêu cầu secret-safe, audit-safe outputs; vì vậy architecture nên chia ba tầng:
 
-- `problem public contract`: `code`, `title_key`, `detail_key`, `required_action`, `correlation_id`, `meta`
+- `problem public contract`: `code`, `title_key`, `detail_key`, `required_action`, `correlationId`, `meta`
 - `server-only diagnostic context`: policy id, evaluator reason, internal stack/debug data
 - `audit event payload`: redacted, immutable, domain-safe event records
 

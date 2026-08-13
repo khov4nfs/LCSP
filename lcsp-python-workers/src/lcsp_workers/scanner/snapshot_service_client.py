@@ -9,7 +9,7 @@ import httpx
 class SnapshotArchiveRequest:
     snapshot_id: str
     scan_job_id: str
-    correlation_id: str
+    correlationId: str
 
 
 class SnapshotServiceClient:
@@ -23,7 +23,7 @@ class SnapshotServiceClient:
             params={"scanJobId": request.scan_job_id},
             headers={
                 "X-Worker-Api-Key": self._worker_api_key,
-                "X-Correlation-Id": request.correlation_id,
+                "X-Correlation-Id": request.correlationId,
             },
             timeout=30.0,
         )

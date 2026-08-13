@@ -31,7 +31,7 @@ class AgenticToolRequest(BaseModel):
     assessment_id: UUID = Field(alias="assessmentId")
     workflow_run_id: UUID = Field(alias="workflowRunId")
     artifact_versions: dict[str, str] = Field(alias="artifactVersions", min_length=1)
-    correlation_id: UUID = Field(alias="correlationId")
+    correlationId: UUID = Field(alias="correlationId")
     scope: dict[str, Any] = Field(default_factory=dict)
     budget: AgenticToolBudget
     input: dict[str, Any] = Field(default_factory=dict)

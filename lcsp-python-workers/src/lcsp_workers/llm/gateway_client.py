@@ -149,14 +149,14 @@ class LLMGatewayClient:
         workflow_run_id: str,
         node_name: str,
         max_tokens: Optional[int] = None,
-        correlation_id: Optional[str] = None,
+        correlationId: Optional[str] = None,
     ) -> LLMResponse:
         context = self._prepare_request(
             prompt=prompt,
             workflow_run_id=workflow_run_id,
             node_name=node_name,
             max_tokens=max_tokens,
-            correlation_id=correlation_id,
+            correlationId=correlationId,
         )
         safe_prompt, max_tokens_to_use, extra_headers = context
 
@@ -230,7 +230,7 @@ class LLMGatewayClient:
         workflow_run_id: str,
         node_name: str,
         max_tokens: Optional[int] = None,
-        correlation_id: Optional[str] = None,
+        correlationId: Optional[str] = None,
     ) -> LLMToolResponse:
         """Request manual tool calls without allowing an SDK to execute them.
 
@@ -243,7 +243,7 @@ class LLMGatewayClient:
             workflow_run_id=workflow_run_id,
             node_name=node_name,
             max_tokens=max_tokens,
-            correlation_id=correlation_id,
+            correlationId=correlationId,
         )
 
         content = ""
@@ -385,7 +385,7 @@ class LLMGatewayClient:
         workflow_run_id: str,
         node_name: str,
         max_tokens: Optional[int],
-        correlation_id: Optional[str],
+        correlationId: Optional[str],
     ) -> tuple[str, int, dict[str, str]]:
         if not workflow_run_id:
             raise ValueError("workflow_run_id is required")
@@ -405,8 +405,8 @@ class LLMGatewayClient:
             "X-Workflow-Run-Id": workflow_run_id,
             "X-Node-Name": node_name,
         }
-        if correlation_id:
-            extra_headers["X-Correlation-Id"] = correlation_id
+        if correlationId:
+            extra_headers["X-Correlation-Id"] = correlationId
         return safe_prompt, max_tokens_to_use, extra_headers
 
     def _record_actual_usage(self, input_tokens: int, output_tokens: int) -> None:

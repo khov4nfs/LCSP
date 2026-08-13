@@ -6,18 +6,18 @@ import {
   ASSESSMENT_STATUS_CODES,
   WIZARD_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
-import {
-  CLASSIFICATION_GUARDRAIL_STATUSES,
-  CLASSIFICATION_RESULT_STATUSES,
-  TECHNICAL_EVIDENCE_REPORT_STATUSES,
-} from "@lcsp/contracts/scan";
+import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
 import {
   PBAC_ACTIONS,
   PBAC_REASON_CODE,
   PBAC_STATE_GATES,
   SUBJECT_ROLES,
 } from "@lcsp/contracts/pbac";
-import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
+import {
+  CLASSIFICATION_GUARDRAIL_STATUSES,
+  CLASSIFICATION_RESULT_STATUSES,
+  TECHNICAL_EVIDENCE_REPORT_STATUSES,
+} from "@lcsp/contracts/scan";
 /**
  * MW-asmt-002: Get Assessment Endpoint.
  * Test cases T01-T08.
@@ -25,10 +25,10 @@ import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
@@ -111,7 +111,7 @@ describe("Get Assessment Endpoint (e2e) [MW-asmt-002]", () => {
     assert.equal(body.wizard_status, WIZARD_STATUS_CODES.notStarted);
     assert.ok(body.created_at);
     assert.ok(body.updated_at);
-    assert.ok(body.correlation_id);
+    assert.ok(body.correlationId);
   });
 
   // T02

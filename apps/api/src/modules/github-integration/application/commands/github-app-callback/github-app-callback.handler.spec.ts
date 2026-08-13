@@ -1,11 +1,11 @@
+import { describe, expect, it, jest } from "@jest/globals";
+import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   GITHUB_INTEGRATION_ERROR_CODES,
   GITHUB_INTEGRATION_EVENT_TYPES,
   GITHUB_REPOSITORY_PERMISSION_LEVELS,
   REPOSITORY_CONNECTION_STATUSES,
 } from "@lcsp/contracts/github-integration";
-import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
-import { describe, it, expect, jest } from "@jest/globals";
 import { BadRequestException } from "@nestjs/common";
 
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -149,7 +149,7 @@ describe("GitHubAppCallbackHandler", () => {
     expect(result.repository_full_name).toBe("acme/example-repo");
     expect(result.default_branch).toBe("main");
     expect(result.status).toBe(REPOSITORY_CONNECTION_STATUSES.active);
-    expect(result.correlation_id).toBe("corr-1");
+    expect(result.correlationId).toBe("corr-1");
     expect(save).toHaveBeenCalledTimes(1);
   });
 

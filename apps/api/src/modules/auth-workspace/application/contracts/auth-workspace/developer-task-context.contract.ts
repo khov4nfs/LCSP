@@ -17,5 +17,5 @@ export type DeveloperTaskContextResponse = {
     | { type: "organization"; assessment: null };
   granted_actions: string[];
   session_expires_at: string;
-  correlation_id: string;
+  correlationId: string;
 };

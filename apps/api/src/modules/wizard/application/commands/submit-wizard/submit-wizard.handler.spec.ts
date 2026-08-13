@@ -1,33 +1,33 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 
-import { Test, TestingModule } from "@nestjs/testing";
+import {
+  ASSESSMENT_STATUS_CODES,
+  WIZARD_STATUS_CODES,
+} from "@lcsp/contracts/assessment";
+import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
+import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { WIZARD_EVENT_TYPES, type WizardAnswer } from "@lcsp/contracts/wizard";
 import {
   ConflictException,
   ForbiddenException,
   UnprocessableEntityException,
 } from "@nestjs/common";
-import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
-import { WIZARD_EVENT_TYPES, type WizardAnswer } from "@lcsp/contracts/wizard";
-import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
-import {
-  ASSESSMENT_STATUS_CODES,
-  WIZARD_STATUS_CODES,
-} from "@lcsp/contracts/assessment";
+import { Test, TestingModule } from "@nestjs/testing";
 
-import { SubmitWizardHandler } from "./submit-wizard.handler.js";
-import { SubmitWizardCommand } from "./submit-wizard.command.js";
+import type { RepositorySnapshot } from "@prisma/client";
+import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
+import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
+import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
+import { WizardProfileEntity } from "../../../domain/entities/wizard-profile.entity.js";
+import { AssessmentNotFoundException } from "../../../domain/exceptions/wizard.exceptions.js";
 import {
   WIZARD_PROFILE_REPOSITORY,
   type WizardProfileRepository,
 } from "../../ports/persistence/wizard-profile.repository.js";
-import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
 import { WizardValidatorService } from "../../services/wizard/wizard-validator.service.js";
-import { WizardProfileEntity } from "../../../domain/entities/wizard-profile.entity.js";
-import { AssessmentNotFoundException } from "../../../domain/exceptions/wizard.exceptions.js";
-import type { RepositorySnapshot } from "@prisma/client";
+import { SubmitWizardCommand } from "./submit-wizard.command.js";
+import { SubmitWizardHandler } from "./submit-wizard.handler.js";
 
 import { jest } from "@jest/globals";
 
@@ -170,7 +170,7 @@ describe("SubmitWizardHandler", () => {
       ASSESSMENT_STATUS_CODES.wizardSubmitted,
     );
     expect(result.version).toBe(1);
-    expect(result.correlation_id).toBe("corr-id-1");
+    expect(result.correlationId).toBe("corr-id-1");
   });
 
   it("T02: Missing businessProcess -> 422 WIZARD_VALIDATION_FAILED", async () => {

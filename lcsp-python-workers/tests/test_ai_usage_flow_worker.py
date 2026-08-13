@@ -312,7 +312,7 @@ def test_consumer_fetches_inputs_and_posts_callback() -> None:
             "assessmentId": "assessment-1",
             "evidenceReportId": "ter-1",
         },
-        correlation_id="corr-1",
+        correlationId="corr-1",
     )
 
     api_client.get_accepted_technical_profile.assert_called_once_with("tp-1")
@@ -365,7 +365,7 @@ def test_consumer_accepts_summary_proposal_that_matches_wizard_authority() -> No
             "assessmentId": "assessment-1",
             "evidenceReportId": "ter-1",
         },
-        correlation_id="corr-2",
+        correlationId="corr-2",
     )
 
     payload = api_client.post_ai_usage_flow_callback.call_args.args[0]
@@ -400,7 +400,7 @@ def test_consumer_rejects_summary_proposal_that_conflicts_with_wizard_authority(
             "assessmentId": "assessment-1",
             "evidenceReportId": "ter-1",
         },
-        correlation_id="corr-3",
+        correlationId="corr-3",
     )
 
     payload = api_client.post_ai_usage_flow_callback.call_args.args[0]
@@ -471,7 +471,7 @@ def test_consumer_routes_summary_proposal_through_agentic_tool_resolver() -> Non
             "assessmentId": "assessment-1",
             "evidenceReportId": "ter-1",
         },
-        correlation_id="corr-tools",
+        correlationId="corr-tools",
     )
 
     resolver.tool_definitions.assert_called_once()
@@ -503,7 +503,7 @@ def test_graph_derives_workflow_context_and_callback_payload() -> None:
             "assessmentId": "assessment-1",
             "evidenceReportId": "ter-1",
         },
-        correlation_id="corr-graph",
+        correlationId="corr-graph",
     )
 
     assert result.workflow_run_id == "ai-usage-flow:tp-1:corr-graph"

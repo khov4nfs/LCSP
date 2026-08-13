@@ -29,7 +29,7 @@ class AuditExportConsumer(ConsumerBase):
         s3_client = boto3.client("s3")
         self.generator = AuditExportGenerator(self.api_client, s3_client, bucket_name)
 
-    def handle(self, message: dict, correlation_id: str) -> None:
+    def handle(self, message: dict, correlationId: str) -> None:
         export_request_id = message.get("exportRequestId")
         org_id = message.get("organizationId")
         from_date = message.get("fromDate")

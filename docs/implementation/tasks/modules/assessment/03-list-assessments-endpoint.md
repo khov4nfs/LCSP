@@ -18,12 +18,12 @@ Return a paginated list of assessments in the Manager's organization. Managers s
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/assessment/presentation/http/assessment.controller.ts` | Modify | Add `GET /assessments` |
-| `apps/api/src/modules/assessment/application/queries/list-assessments/list-assessments.query.ts` | Create | Query shape + pagination params |
-| `apps/api/src/modules/assessment/application/queries/list-assessments/list-assessments.handler.ts` | Create | Paginated DB query |
-| `apps/api/src/modules/assessment/application/contracts/assessment/assessment-list.contract.ts` | Create | Response DTO |
+| File                                                                                               | Action | Notes                           |
+| -------------------------------------------------------------------------------------------------- | ------ | ------------------------------- |
+| `apps/api/src/modules/assessment/presentation/http/assessment.controller.ts`                       | Modify | Add `GET /assessments`          |
+| `apps/api/src/modules/assessment/application/queries/list-assessments/list-assessments.query.ts`   | Create | Query shape + pagination params |
+| `apps/api/src/modules/assessment/application/queries/list-assessments/list-assessments.handler.ts` | Create | Paginated DB query              |
+| `apps/api/src/modules/assessment/application/contracts/assessment/assessment-list.contract.ts`     | Create | Response DTO                    |
 
 ## API Contract
 
@@ -32,45 +32,45 @@ Return a paginated list of assessments in the Manager's organization. Managers s
 
 **Query parameters:**
 
-| Param | Type | Required | Default | Notes |
-|---|---|---|---|---|
-| `page` | number | No | 1 | Min 1 |
-| `page_size` | number | No | 20 | Max 100 |
-| `status` | string | No | — | Filter by status value |
+| Param       | Type   | Required | Default | Notes                  |
+| ----------- | ------ | -------- | ------- | ---------------------- |
+| `page`      | number | No       | 1       | Min 1                  |
+| `page_size` | number | No       | 20      | Max 100                |
+| `status`    | string | No       | —       | Filter by status value |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `assessments` | AssessmentSummary[] | See below |
-| `total` | number | Total count (for pagination UI) |
-| `page` | number | Current page |
-| `page_size` | number | |
-| `correlation_id` | string | |
+| Field           | Type                | Notes                           |
+| --------------- | ------------------- | ------------------------------- |
+| `assessments`   | AssessmentSummary[] | See below                       |
+| `total`         | number              | Total count (for pagination UI) |
+| `page`          | number              | Current page                    |
+| `page_size`     | number              |                                 |
+| `correlationId` | string              |                                 |
 
 **`AssessmentSummary` object:**
 
-| Field | Type | Notes |
-|---|---|---|
-| `assessment_id` | string | |
-| `name` | string | |
-| `status` | string | |
+| Field           | Type   | Notes                                         |
+| --------------- | ------ | --------------------------------------------- |
+| `assessment_id` | string |                                               |
+| `name`          | string |                                               |
+| `status`        | string |                                               |
 | `wizard_status` | string | `NOT_STARTED` \| `IN_PROGRESS` \| `SUBMITTED` |
-| `created_at` | string | ISO 8601 |
-| `updated_at` | string | ISO 8601 |
+| `created_at`    | string | ISO 8601                                      |
+| `updated_at`    | string | ISO 8601                                      |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 403 | `PBAC_DENIED` | Actor lacks `assessment:list` |
+| HTTP | `error_code`  | Meaning                       |
+| ---- | ------------- | ----------------------------- |
+| 403  | `PBAC_DENIED` | Actor lacks `assessment:list` |
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `Assessment` | Read (paginated) | `organizationId = session.organizationId`, `ownerId = session.userId` (for Manager) |
-| `WizardProfile` | Read (join) | `status` per assessment |
+| Model           | Action           | Key fields                                                                          |
+| --------------- | ---------------- | ----------------------------------------------------------------------------------- |
+| `Assessment`    | Read (paginated) | `organizationId = session.organizationId`, `ownerId = session.userId` (for Manager) |
+| `WizardProfile` | Read (join)      | `status` per assessment                                                             |
 
 ## Business Rules
 
@@ -83,16 +83,16 @@ Return a paginated list of assessments in the Manager's organization. Managers s
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Manager with assessments | 200, paginated list |
-| T02 | Manager with no assessments | 200, empty `assessments` array |
-| T03 | `page_size = 5` | Only 5 returned |
-| T04 | `status` filter | Only matching status returned |
-| T05 | Manager lacks `assessment:list` | 403 `PBAC_DENIED` |
+| ID  | Scenario                              | Expected                       |
+| --- | ------------------------------------- | ------------------------------ |
+| T01 | Manager with assessments              | 200, paginated list            |
+| T02 | Manager with no assessments           | 200, empty `assessments` array |
+| T03 | `page_size = 5`                       | Only 5 returned                |
+| T04 | `status` filter                       | Only matching status returned  |
+| T05 | Manager lacks `assessment:list`       | 403 `PBAC_DENIED`              |
 | T06 | Developer sees only scoped assessment | Only assessment matching scope |
-| T07 | `page_size > 100` | Clamped to 100 or rejected |
-| T08 | No risk labels in response | Verified by field inspection |
+| T07 | `page_size > 100`                     | Clamped to 100 or rejected     |
+| T08 | No risk labels in response            | Verified by field inspection   |
 
 ## Definition of Done
 

@@ -20,14 +20,14 @@ Generate and return a "Wizard Readiness Export" artifact for assessments where c
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/wizard/presentation/http/wizard.controller.ts` | Modify | Add `POST /assessments/:assessmentId/wizard/readiness-export` |
-| `apps/api/src/modules/wizard/application/commands/generate-readiness-export/generate-readiness-export.command.ts` | Create | Command shape |
-| `apps/api/src/modules/wizard/application/commands/generate-readiness-export/generate-readiness-export.handler.ts` | Create | Export generation + guardrail check |
-| `apps/api/src/modules/wizard/application/services/wizard/readiness-export-guardrail.service.ts` | Create | Output guardrail — blocks overclaim content |
-| `apps/api/src/modules/wizard/domain/entities/readiness-export.entity.ts` | Create | Immutable export artifact |
-| `apps/api/prisma/schema.prisma` | Modify | Add `ReadinessExport` model |
+| File                                                                                                              | Action | Notes                                                         |
+| ----------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------- |
+| `apps/api/src/modules/wizard/presentation/http/wizard.controller.ts`                                              | Modify | Add `POST /assessments/:assessmentId/wizard/readiness-export` |
+| `apps/api/src/modules/wizard/application/commands/generate-readiness-export/generate-readiness-export.command.ts` | Create | Command shape                                                 |
+| `apps/api/src/modules/wizard/application/commands/generate-readiness-export/generate-readiness-export.handler.ts` | Create | Export generation + guardrail check                           |
+| `apps/api/src/modules/wizard/application/services/wizard/readiness-export-guardrail.service.ts`                   | Create | Output guardrail — blocks overclaim content                   |
+| `apps/api/src/modules/wizard/domain/entities/readiness-export.entity.ts`                                          | Create | Immutable export artifact                                     |
+| `apps/api/prisma/schema.prisma`                                                                                   | Modify | Add `ReadinessExport` model                                   |
 
 ## Prisma Model
 
@@ -56,26 +56,26 @@ model ReadinessExport {
 
 **Success response (201):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `export_id` | string | |
-| `status` | string | `GENERATED` or `BLOCKED` |
-| `label` | string | Always `"Wizard Readiness Export"` |
-| `classification_locked` | boolean | Always `true` (export only available when locked) |
-| `missing_evidence` | MissingEvidenceItem[] | |
-| `preparation_guidance` | string[] | Business-language guidance items |
-| `generated_at` | string | ISO 8601 |
-| `version` | number | |
-| `correlation_id` | string | |
+| Field                   | Type                  | Notes                                             |
+| ----------------------- | --------------------- | ------------------------------------------------- |
+| `export_id`             | string                |                                                   |
+| `status`                | string                | `GENERATED` or `BLOCKED`                          |
+| `label`                 | string                | Always `"Wizard Readiness Export"`                |
+| `classification_locked` | boolean               | Always `true` (export only available when locked) |
+| `missing_evidence`      | MissingEvidenceItem[] |                                                   |
+| `preparation_guidance`  | string[]              | Business-language guidance items                  |
+| `generated_at`          | string                | ISO 8601                                          |
+| `version`               | number                |                                                   |
+| `correlationId`         | string                |                                                   |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 403 | `PBAC_DENIED` | Actor lacks `wizard:export` |
-| 404 | `ASSESSMENT_NOT_FOUND` | Not found or not in org |
-| 409 | `EXPORT_REQUIRES_LOCKED_CLASSIFICATION` | Evidence already accepted — export not needed |
-| 422 | `WIZARD_NOT_SUBMITTED` | WizardProfile not yet submitted |
+| HTTP | `error_code`                            | Meaning                                       |
+| ---- | --------------------------------------- | --------------------------------------------- |
+| 403  | `PBAC_DENIED`                           | Actor lacks `wizard:export`                   |
+| 404  | `ASSESSMENT_NOT_FOUND`                  | Not found or not in org                       |
+| 409  | `EXPORT_REQUIRES_LOCKED_CLASSIFICATION` | Evidence already accepted — export not needed |
+| 422  | `WIZARD_NOT_SUBMITTED`                  | WizardProfile not yet submitted               |
 
 ## Business Rules
 
@@ -93,25 +93,25 @@ model ReadinessExport {
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `GenerateReadinessExportCommand` | App command | `{ assessmentId, organizationId, ownerId, correlationId? }` |
-| `READINESS_EXPORT_GENERATED` | `AuthAuditEvent` | `{ exportId, assessmentId, status, version, correlationId }` |
-| `READINESS_EXPORT_BLOCKED` | `AuthAuditEvent` | `{ exportId, assessmentId, blockedReason, correlationId }` |
+| Name                             | Type             | Safe payload                                                 |
+| -------------------------------- | ---------------- | ------------------------------------------------------------ |
+| `GenerateReadinessExportCommand` | App command      | `{ assessmentId, organizationId, ownerId, correlationId? }`  |
+| `READINESS_EXPORT_GENERATED`     | `AuthAuditEvent` | `{ exportId, assessmentId, status, version, correlationId }` |
+| `READINESS_EXPORT_BLOCKED`       | `AuthAuditEvent` | `{ exportId, assessmentId, blockedReason, correlationId }`   |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | WizardProfile submitted, classification locked | 201 `status = GENERATED` |
-| T02 | Evidence accepted (not locked) | 409 `EXPORT_REQUIRES_LOCKED_CLASSIFICATION` |
-| T03 | WizardProfile not submitted | 422 `WIZARD_NOT_SUBMITTED` |
-| T04 | Content contains risk label → guardrail fires | `status = BLOCKED`, audit logged |
-| T05 | Export labeled `Wizard Readiness Export` | `label` field verified |
-| T06 | No HIGH/MEDIUM/LOW in export | Field inspection |
-| T07 | Actor lacks `wizard:export` | 403 `PBAC_DENIED` |
-| T08 | Export is immutable (new row per generation) | New `ReadinessExport` row created each call |
-| T09 | Audit event has no content | Clean payload |
+| ID  | Scenario                                       | Expected                                    |
+| --- | ---------------------------------------------- | ------------------------------------------- |
+| T01 | WizardProfile submitted, classification locked | 201 `status = GENERATED`                    |
+| T02 | Evidence accepted (not locked)                 | 409 `EXPORT_REQUIRES_LOCKED_CLASSIFICATION` |
+| T03 | WizardProfile not submitted                    | 422 `WIZARD_NOT_SUBMITTED`                  |
+| T04 | Content contains risk label → guardrail fires  | `status = BLOCKED`, audit logged            |
+| T05 | Export labeled `Wizard Readiness Export`       | `label` field verified                      |
+| T06 | No HIGH/MEDIUM/LOW in export                   | Field inspection                            |
+| T07 | Actor lacks `wizard:export`                    | 403 `PBAC_DENIED`                           |
+| T08 | Export is immutable (new row per generation)   | New `ReadinessExport` row created each call |
+| T09 | Audit event has no content                     | Clean payload                               |
 
 ## Definition of Done
 

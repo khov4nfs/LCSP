@@ -34,7 +34,7 @@ export class RecordMfaRecoveryCodeAccessHandler {
   ): Promise<AuthProblemResult | RecordMfaRecoveryCodeAccessSuccess> {
     const { sessionToken, action, requestMeta } = command;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
 
     const session = await this.support.findValidSession(
       this.repositories,
@@ -66,11 +66,11 @@ export class RecordMfaRecoveryCodeAccessHandler {
       resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
       resource_id: session.userId,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       session_id: session.id,
       action,
     });
 
-    return { ok: true, correlation_id: correlationId };
+    return { ok: true, correlationId: correlationId };
   }
 }

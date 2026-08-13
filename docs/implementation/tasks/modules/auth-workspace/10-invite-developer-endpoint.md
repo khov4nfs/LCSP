@@ -50,7 +50,7 @@ Allow a Manager to create a scoped Developer invitation for a specific assessmen
 | `email`           | string   |                         |
 | `expires_at`      | string   | ISO 8601                |
 | `allowed_actions` | string[] | Echo of granted actions |
-| `correlation_id`  | string   |                         |
+| `correlationId`   | string   |                         |
 
 **Error responses:**
 

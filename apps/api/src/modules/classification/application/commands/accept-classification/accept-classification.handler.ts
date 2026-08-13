@@ -1,18 +1,11 @@
 import * as crypto from "node:crypto";
 
 import {
-  ConflictException,
-  HttpStatus,
-  NotFoundException,
-  UnprocessableEntityException,
-} from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import {
+  AUDIT_ACTOR_IDS,
+  AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
-  AUDIT_ACTOR_IDS,
-  AUDIT_ACTOR_TYPES,
 } from "@lcsp/contracts/audit";
 import {
   buildOutboxMessageInput,
@@ -20,14 +13,21 @@ import {
 } from "@lcsp/contracts/outbox";
 import {
   CLASSIFICATION_GUARDRAIL_STATUSES,
-  CLASSIFICATION_RESULT_STATUSES,
   CLASSIFICATION_RESULT_SCHEMA_VERSIONS,
+  CLASSIFICATION_RESULT_STATUSES,
   LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
   SCAN_ERROR_CODES,
   SCAN_EVENT_TYPES,
   VERIFIED_PROFILE_STATUSES,
   type ClassificationGuardrailStatus,
 } from "@lcsp/contracts/scan";
+import {
+  ConflictException,
+  HttpStatus,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import type { Prisma } from "@prisma/client";
 
 import {
@@ -179,7 +179,7 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
       accepted: true,
       classification_result_id: classificationResultId,
       guardrail_status: guardrailStatus,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
   }
 

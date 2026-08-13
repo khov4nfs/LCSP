@@ -91,7 +91,7 @@ describe("GitHubIntegrationController.triggerScan", () => {
         scan_job_id: "scan-job-1",
         status: REPOSITORY_SCAN_JOB_STATUSES.queued,
         is_new: true,
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
       });
     const status = jest.fn<(code: number) => unknown>();
     const controller = new GitHubIntegrationController({

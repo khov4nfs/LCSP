@@ -1,11 +1,11 @@
-import { PBAC_DECISION } from "@lcsp/contracts/pbac";
+import { describe, expect, it, jest } from "@jest/globals";
 import {
   GITHUB_INTEGRATION_ERROR_CODES,
   GITHUB_INTEGRATION_EVENT_TYPES,
   GITHUB_REPOSITORY_PERMISSION_LEVELS,
   REPOSITORY_SNAPSHOT_STATUSES,
 } from "@lcsp/contracts/github-integration";
-import { describe, expect, it, jest } from "@jest/globals";
+import { PBAC_DECISION } from "@lcsp/contracts/pbac";
 import {
   BadRequestException,
   ForbiddenException,
@@ -162,7 +162,7 @@ describe("PinSnapshotHandler", () => {
       commit_sha: "a".repeat(40),
       branch: "main",
       status: REPOSITORY_SNAPSHOT_STATUSES.ready,
-      correlation_id: "corr-1",
+      correlationId: "corr-1",
     });
     expect(saveWithCreatedEvent).toHaveBeenCalledTimes(1);
     const [snapshot, event] = saveWithCreatedEvent.mock.calls[0];

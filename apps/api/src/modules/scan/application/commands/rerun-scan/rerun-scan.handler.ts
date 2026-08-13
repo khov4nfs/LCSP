@@ -1,13 +1,13 @@
-import { randomUUID } from "node:crypto";
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+import { randomUUID } from "node:crypto";
 
 import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import {
+  AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
-  AUDIT_ACTOR_TYPES,
 } from "@lcsp/contracts/audit";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
@@ -246,7 +246,7 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
       scan_job_id: scanJobId,
       status,
       replaces_scan_job_id: replacesScanJobId,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
   }
 }

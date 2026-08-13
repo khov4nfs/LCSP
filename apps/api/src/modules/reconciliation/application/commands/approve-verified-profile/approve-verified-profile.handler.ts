@@ -1,6 +1,3 @@
-import { HttpStatus } from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import { LegalRetrievalIndexStatus, type Prisma } from "@prisma/client";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import {
   AUDIT_ACTOR_TYPES,
@@ -10,13 +7,13 @@ import {
 } from "@lcsp/contracts/audit";
 import { AUTH_ERROR_CODES, type AuthErrorCode } from "@lcsp/contracts/auth";
 import {
-  buildOutboxMessageInput,
-  OUTBOX_AGGREGATE_TYPES,
-} from "@lcsp/contracts/outbox";
-import {
   LEGAL_MATCHING_REQUEST_COMMAND,
   LEGAL_RULE_LIFECYCLE_STATUSES,
 } from "@lcsp/contracts/legal-rule-catalog";
+import {
+  buildOutboxMessageInput,
+  OUTBOX_AGGREGATE_TYPES,
+} from "@lcsp/contracts/outbox";
 import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import {
   CONFLICT_RECORD_STATUSES,
@@ -24,6 +21,9 @@ import {
   SCAN_EVENT_TYPES,
   VERIFIED_PROFILE_STATUSES,
 } from "@lcsp/contracts/scan";
+import { HttpStatus } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+import { LegalRetrievalIndexStatus, type Prisma } from "@prisma/client";
 
 import {
   fromPrismaVerifiedProfileStatus,
@@ -42,7 +42,7 @@ export type ApproveVerifiedProfileDto = {
   status: typeof VERIFIED_PROFILE_STATUSES.approved;
   approved_at: string;
   approved_by_id: string;
-  correlation_id: string;
+  correlationId: string;
 };
 
 @CommandHandler(ApproveVerifiedProfileCommand)
@@ -157,7 +157,7 @@ export class ApproveVerifiedProfileHandler implements ICommandHandler<ApproveVer
       status: VERIFIED_PROFILE_STATUSES.approved,
       approved_at: approvedAt.toISOString(),
       approved_by_id: command.approvedById,
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
     };
   }
 

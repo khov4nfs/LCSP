@@ -63,7 +63,7 @@ def test_google_tool_call_is_manual_and_registry_validated() -> None:
             tools=[tool_definition()],
             workflow_run_id=str(uuid4()),
             node_name="agentic.resolve_missing_input",
-            correlation_id=str(uuid4()),
+            correlationId=str(uuid4()),
         )
 
         assert response.content == ""

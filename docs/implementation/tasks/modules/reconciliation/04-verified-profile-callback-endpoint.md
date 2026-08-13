@@ -18,12 +18,12 @@ Receive the `VerifiedProfile` artifact from the Python worker after all conflict
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/reconciliation/presentation/http/reconciliation.controller.ts` | Modify | Add `POST /internal/reconciliation/verified-profile-callback` |
-| `apps/api/src/modules/reconciliation/application/commands/accept-verified-profile/accept-verified-profile.command.ts` | Create | Command shape |
-| `apps/api/src/modules/reconciliation/application/commands/accept-verified-profile/accept-verified-profile.handler.ts` | Create | Gate check + persistence |
-| `apps/api/prisma/schema.prisma` | Modify | Add `VerifiedProfile` model |
+| File                                                                                                                  | Action | Notes                                                         |
+| --------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------- |
+| `apps/api/src/modules/reconciliation/presentation/http/reconciliation.controller.ts`                                  | Modify | Add `POST /internal/reconciliation/verified-profile-callback` |
+| `apps/api/src/modules/reconciliation/application/commands/accept-verified-profile/accept-verified-profile.command.ts` | Create | Command shape                                                 |
+| `apps/api/src/modules/reconciliation/application/commands/accept-verified-profile/accept-verified-profile.handler.ts` | Create | Gate check + persistence                                      |
+| `apps/api/prisma/schema.prisma`                                                                                       | Modify | Add `VerifiedProfile` model                                   |
 
 ## Prisma Model
 
@@ -53,32 +53,32 @@ model VerifiedProfile {
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `ai_usage_flow_id` | string | Yes | |
-| `assessment_id` | string | Yes | |
-| `schema_version` | string | Yes | |
-| `provider_version` | string | Yes | |
-| `profile_data` | object | Yes | Verified usage claims with evidence chain |
-| `gates_passed_at` | object | Yes | Gate timestamps |
+| Field              | Type   | Required | Notes                                     |
+| ------------------ | ------ | -------- | ----------------------------------------- |
+| `ai_usage_flow_id` | string | Yes      |                                           |
+| `assessment_id`    | string | Yes      |                                           |
+| `schema_version`   | string | Yes      |                                           |
+| `provider_version` | string | Yes      |                                           |
+| `profile_data`     | object | Yes      | Verified usage claims with evidence chain |
+| `gates_passed_at`  | object | Yes      | Gate timestamps                           |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `accepted` | boolean | |
-| `verified_profile_id` | string | |
-| `status` | string | `pending_approval` or `auto_approved` |
-| `correlation_id` | string | |
+| Field                 | Type    | Notes                                 |
+| --------------------- | ------- | ------------------------------------- |
+| `accepted`            | boolean |                                       |
+| `verified_profile_id` | string  |                                       |
+| `status`              | string  | `pending_approval` or `auto_approved` |
+| `correlationId`       | string  |                                       |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 401 | `UNAUTHORIZED` | |
-| 404 | `AI_USAGE_FLOW_NOT_FOUND` | |
-| 409 | `PENDING_CONFLICTS_EXIST` | Unresolved conflicts still exist |
-| 409 | `PROFILE_ALREADY_EXISTS` | Already accepted for this flow |
+| HTTP | `error_code`              | Meaning                          |
+| ---- | ------------------------- | -------------------------------- |
+| 401  | `UNAUTHORIZED`            |                                  |
+| 404  | `AI_USAGE_FLOW_NOT_FOUND` |                                  |
+| 409  | `PENDING_CONFLICTS_EXIST` | Unresolved conflicts still exist |
+| 409  | `PROFILE_ALREADY_EXISTS`  | Already accepted for this flow   |
 
 ## Business Rules
 
@@ -93,22 +93,22 @@ model VerifiedProfile {
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `AcceptVerifiedProfileCommand` | App command | `{ aiUsageFlowId, assessmentId, schemaVersion, providerVersion, gatesPassedAt, correlationId? }` |
-| `event.verified-profile-ready` | Outbox | `{ verifiedProfileId, assessmentId, status, correlationId }` |
-| `VERIFIED_PROFILE_ACCEPTED` | `AuthAuditEvent` | `{ verifiedProfileId, assessmentId, status, correlationId }` |
+| Name                           | Type             | Safe payload                                                                                     |
+| ------------------------------ | ---------------- | ------------------------------------------------------------------------------------------------ |
+| `AcceptVerifiedProfileCommand` | App command      | `{ aiUsageFlowId, assessmentId, schemaVersion, providerVersion, gatesPassedAt, correlationId? }` |
+| `event.verified-profile-ready` | Outbox           | `{ verifiedProfileId, assessmentId, status, correlationId }`                                     |
+| `VERIFIED_PROFILE_ACCEPTED`    | `AuthAuditEvent` | `{ verifiedProfileId, assessmentId, status, correlationId }`                                     |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
+| ID  | Scenario                                    | Expected                        |
+| --- | ------------------------------------------- | ------------------------------- |
 | T01 | All conflicts resolved, no existing profile | 200 `status = pending_approval` |
-| T02 | Unresolved conflicts exist | 409 `PENDING_CONFLICTS_EXIST` |
-| T03 | Profile already exists | 409 `PROFILE_ALREADY_EXISTS` |
-| T04 | Outbox event emitted | DB verified |
-| T05 | Invalid API key | 401 |
-| T06 | `profile_data` immutable after acceptance | No update path |
+| T02 | Unresolved conflicts exist                  | 409 `PENDING_CONFLICTS_EXIST`   |
+| T03 | Profile already exists                      | 409 `PROFILE_ALREADY_EXISTS`    |
+| T04 | Outbox event emitted                        | DB verified                     |
+| T05 | Invalid API key                             | 401                             |
+| T06 | `profile_data` immutable after acceptance   | No update path                  |
 
 ## Definition of Done
 

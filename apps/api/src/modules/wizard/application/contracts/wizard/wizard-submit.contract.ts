@@ -10,5 +10,5 @@ export interface SubmitWizardResponse {
   version: number;
   submitted_at: string;
   assessment_status: string;
-  correlation_id: string;
+  correlationId: string;
 }

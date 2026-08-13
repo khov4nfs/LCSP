@@ -92,13 +92,13 @@ class OcrFallbackResult:
     pages: list[OcrFallbackPageResult]
     profile: str
 
-    def to_tool_response(self, *, correlation_id: str) -> dict[str, Any]:
+    def to_tool_response(self, *, correlationId: str) -> dict[str, Any]:
         return {
             "status": self.status,
             "toolName": OCR_FALLBACK_TOOL["name"],
             "toolVersion": OCR_FALLBACK_TOOL["version"],
             "configHash": OCR_FALLBACK_TOOL["config_hash"],
-            "correlationId": correlation_id,
+            "correlationId": correlationId,
             "artifactVersions": {
                 "snapshotId": self.snapshot_ref.removeprefix("snapshot:"),
                 "ocrId": self.ocr_id,

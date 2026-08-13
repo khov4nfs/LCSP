@@ -20,5 +20,5 @@ export interface ConflictDetectionCallbackRequest {
 export interface ConflictDetectionCallbackDto {
   accepted: boolean;
   conflict_count: number;
-  correlation_id: string;
+  correlationId: string;
 }

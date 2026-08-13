@@ -13,7 +13,7 @@ export class AssessmentMapper {
       owner_id: assessment.ownerId,
       organization_id: assessment.organizationId,
       created_at: assessment.createdAt.toISOString(),
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
   }
 }

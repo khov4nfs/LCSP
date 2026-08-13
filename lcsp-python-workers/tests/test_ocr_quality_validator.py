@@ -203,7 +203,7 @@ def test_quality_validator_accepts_canonical_extraction_without_leaking_text(tmp
         )
     )
 
-    payload = result.to_tool_response(correlation_id="corr-quality")
+    payload = result.to_tool_response(correlationId="corr-quality")
     assert result.status == "READY"
     assert result.coverage_state == "SUFFICIENT"
     assert payload["result"]["decision"] == "PASS"

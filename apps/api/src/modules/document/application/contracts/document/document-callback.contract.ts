@@ -11,5 +11,5 @@ export interface DocumentCallbackRequest {
 export interface DocumentCallbackDto {
   processed: boolean;
   document_request_id: string;
-  correlation_id: string;
+  correlationId: string;
 }

@@ -17,11 +17,11 @@ Allow a user to explicitly revoke their current session, preventing further acce
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts` | Verify | `POST /auth/revoke-session` exists |
-| `apps/api/src/modules/auth-workspace/application/commands/revoke-session/revoke-session.command.ts` | Verify | Command shape |
-| `apps/api/src/modules/auth-workspace/application/commands/revoke-session/revoke-session.handler.ts` | Verify | Business rules |
+| File                                                                                                | Action | Notes                              |
+| --------------------------------------------------------------------------------------------------- | ------ | ---------------------------------- |
+| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts`                | Verify | `POST /auth/revoke-session` exists |
+| `apps/api/src/modules/auth-workspace/application/commands/revoke-session/revoke-session.command.ts` | Verify | Command shape                      |
+| `apps/api/src/modules/auth-workspace/application/commands/revoke-session/revoke-session.handler.ts` | Verify | Business rules                     |
 
 ## API Contract
 
@@ -30,31 +30,31 @@ Allow a user to explicitly revoke their current session, preventing further acce
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `session_token` | string | Yes | Token to revoke |
+| Field           | Type   | Required | Notes           |
+| --------------- | ------ | -------- | --------------- |
+| `session_token` | string | Yes      | Token to revoke |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `revoked` | boolean | Always `true` |
-| `correlation_id` | string | |
+| Field           | Type    | Notes         |
+| --------------- | ------- | ------------- |
+| `revoked`       | boolean | Always `true` |
+| `correlationId` | string  |               |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 400 | `INVALID_REQUEST` | Missing token |
-| 404 | `SESSION_NOT_FOUND` | Token fingerprint not found |
-| 410 | `SESSION_ALREADY_REVOKED` | `revokedAt` already set |
+| HTTP | `error_code`              | Meaning                     |
+| ---- | ------------------------- | --------------------------- |
+| 400  | `INVALID_REQUEST`         | Missing token               |
+| 404  | `SESSION_NOT_FOUND`       | Token fingerprint not found |
+| 410  | `SESSION_ALREADY_REVOKED` | `revokedAt` already set     |
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `AuthSession` | Read + Update | Lookup by `tokenFingerprint`, verify `tokenHash`, set `revokedAt = now()` |
-| `AuthAuditEvent` | Create | `eventType: AUTH_SESSION_REVOKED`, `sessionId`, `actorId`, `correlationId` |
+| Model            | Action        | Key fields                                                                 |
+| ---------------- | ------------- | -------------------------------------------------------------------------- |
+| `AuthSession`    | Read + Update | Lookup by `tokenFingerprint`, verify `tokenHash`, set `revokedAt = now()`  |
+| `AuthAuditEvent` | Create        | `eventType: AUTH_SESSION_REVOKED`, `sessionId`, `actorId`, `correlationId` |
 
 ## Business Rules
 
@@ -68,9 +68,9 @@ Allow a user to explicitly revoke their current session, preventing further acce
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `RevokeSessionCommand` | App command | `{ sessionToken, correlationId? }` |
+| Name                         | Type             | Safe payload                                                             |
+| ---------------------------- | ---------------- | ------------------------------------------------------------------------ |
+| `RevokeSessionCommand`       | App command      | `{ sessionToken, correlationId? }`                                       |
 | `event.auth.session-revoked` | `AuthAuditEvent` | `{ actorId, sessionId, organizationId, correlationId, decision: allow }` |
 
 ## PBAC
@@ -79,14 +79,14 @@ No PBAC check beyond proving ownership of the session token. A user can only rev
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid token, active session | 200 `revoked: true`, `revokedAt` set |
-| T02 | Already revoked | 410 `SESSION_ALREADY_REVOKED` |
-| T03 | Token not found | 404 `SESSION_NOT_FOUND` |
-| T04 | Revoked session cannot access workspace routes | 401 on subsequent workspace calls |
-| T05 | Audit event emitted with no token in payload | `AuthAuditEvent.payload` has no `session_token` |
-| T06 | Token fingerprint mismatch (wrong token) | 404 `SESSION_NOT_FOUND` |
+| ID  | Scenario                                       | Expected                                        |
+| --- | ---------------------------------------------- | ----------------------------------------------- |
+| T01 | Valid token, active session                    | 200 `revoked: true`, `revokedAt` set            |
+| T02 | Already revoked                                | 410 `SESSION_ALREADY_REVOKED`                   |
+| T03 | Token not found                                | 404 `SESSION_NOT_FOUND`                         |
+| T04 | Revoked session cannot access workspace routes | 401 on subsequent workspace calls               |
+| T05 | Audit event emitted with no token in payload   | `AuthAuditEvent.payload` has no `session_token` |
+| T06 | Token fingerprint mismatch (wrong token)       | 404 `SESSION_NOT_FOUND`                         |
 
 ## Definition of Done
 

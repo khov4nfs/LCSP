@@ -1,5 +1,3 @@
-import { HttpStatus } from "@nestjs/common";
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AGENTIC_TOOL_COVERAGE_STATES,
@@ -9,6 +7,8 @@ import {
   EVIDENCE_ERROR_CODES,
 } from "@lcsp/contracts/evidence";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import { toPrismaEvidenceAcceptanceStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -92,7 +92,7 @@ export class GetEvidenceSubgraphHandler implements IQueryHandler<
       tool_name: AGENTIC_TOOL_NAMES.getEvidenceSubgraph,
       tool_version: TOOL_VERSION,
       config_hash: TOOL_CONFIG_HASH,
-      correlation_id: query.correlationId,
+      correlationId: query.correlationId,
       artifact_versions: {
         technical_evidence_report_id: report.id,
         evidence_graph_id: graph.graph_id,

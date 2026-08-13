@@ -104,7 +104,7 @@ def test_t01_all_conflicts_resolved_submits_verified_profile() -> None:
             "aiUsageFlowId": "auf-1",
             "conflictsResolvedAt": "2026-07-25T09:30:00Z",
         },
-        correlation_id="corr-1",
+        correlationId="corr-1",
     )
 
     api_client.get_verified_profile_reconciliation_context.assert_called_once_with(
@@ -151,7 +151,7 @@ def test_t02_pending_conflicts_signal_is_requeued() -> None:
                 "assessmentId": "assessment-1",
                 "conflictsResolvedAt": "2026-07-25T09:30:00Z",
             },
-            correlation_id="corr-1",
+            correlationId="corr-1",
         )
 
 

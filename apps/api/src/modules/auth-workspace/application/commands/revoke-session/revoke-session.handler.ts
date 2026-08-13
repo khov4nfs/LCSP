@@ -17,7 +17,7 @@ export class RevokeSessionHandler {
     const { sessionToken, requestMeta } = command;
     const { repositories } = this;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
     const session = await repositories.sessions.findByFingerprint(
       fingerprintToken(sessionToken),
     );
@@ -30,8 +30,8 @@ export class RevokeSessionHandler {
       actor_id: session?.userId ?? null,
       organization_id: session?.organizationId ?? null,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     });
-    return { ok: true, correlation_id: correlationId };
+    return { ok: true, correlationId: correlationId };
   }
 }

@@ -1,3 +1,4 @@
+import type { WizardStatusCode } from "@lcsp/contracts/assessment";
 import type { WizardAnswer } from "@lcsp/contracts/wizard";
 
 export interface SaveWizardDraftRequest {
@@ -9,6 +10,5 @@ export interface SaveWizardDraftResponse {
   status: WizardStatusCode;
   version: number;
   updated_at: string;
-  correlation_id: string;
+  correlationId: string;
 }
-import type { WizardStatusCode } from "@lcsp/contracts/assessment";

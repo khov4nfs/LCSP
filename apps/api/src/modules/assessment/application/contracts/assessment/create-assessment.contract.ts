@@ -19,5 +19,5 @@ export interface CreateAssessmentDto {
   owner_id: string;
   organization_id: string;
   created_at: string;
-  correlation_id: string;
+  correlationId: string;
 }

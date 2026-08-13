@@ -13,5 +13,5 @@ export interface DocumentStatusDto {
   download_url_expires_at: string | null;
   requested_at: string;
   completed_at: string | null;
-  correlation_id: string;
+  correlationId: string;
 }

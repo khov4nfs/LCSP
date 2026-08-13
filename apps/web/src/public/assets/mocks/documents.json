@@ -9,7 +9,7 @@
     "download_url_expires_at": "2026-08-05T10:00:00.000Z",
     "requested_at": "2026-07-29T08:00:00.000Z",
     "completed_at": "2026-07-29T08:04:00.000Z",
-    "correlation_id": "mock-document-final"
+    "correlationId": "mock-document-final"
   },
   {
     "document_request_id": "document-gap-analysis",
@@ -21,6 +21,6 @@
     "download_url_expires_at": null,
     "requested_at": "2026-07-29T09:00:00.000Z",
     "completed_at": null,
-    "correlation_id": "mock-document-gap"
+    "correlationId": "mock-document-gap"
   }
 ]

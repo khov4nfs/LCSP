@@ -92,6 +92,6 @@ def test_bound_runtime_handler_dispatches_expected_worker_payload() -> None:
                 "maxDurationMs": 1_000,
             },
             "input": {"maxResults": 10},
-            "correlation_id": str(request.correlation_id),
+            "correlationId": str(request.correlationId),
         }
     )

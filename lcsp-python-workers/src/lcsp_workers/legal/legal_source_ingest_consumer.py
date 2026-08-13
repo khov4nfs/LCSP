@@ -62,7 +62,7 @@ class LegalSourceIngestConsumer(ConsumerBase):
         )
         self._snapshot_fetcher = snapshot_fetcher or OfficialSourceSnapshotFetcher()
 
-    def handle(self, message: dict[str, Any], correlation_id: str) -> None:
+    def handle(self, message: dict[str, Any], correlationId: str) -> None:
         envelope = self._read_envelope(message)
         with TemporaryDirectory(prefix="lcsp-legal-source-") as temp_dir:
             result = self._snapshot_fetcher.fetch(
@@ -92,7 +92,7 @@ class LegalSourceIngestConsumer(ConsumerBase):
             idempotency_key=envelope.idempotency_key,
             actor_ref=envelope.actor_ref,
             snapshot_ref=registered.get("snapshotRef"),
-            correlation_id=correlation_id,
+            correlationId=correlationId,
         )
 
     def _read_envelope(self, message: dict[str, Any]) -> LegalSourceIngestEnvelope:

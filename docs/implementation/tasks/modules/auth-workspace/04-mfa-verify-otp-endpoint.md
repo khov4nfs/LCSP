@@ -17,12 +17,12 @@ Verify a TOTP code against the enrolled secret, mark the session as MFA-verified
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts` | Verify | `POST /auth/mfa/verify-otp` exists |
-| `apps/api/src/modules/auth-workspace/application/commands/verify-mfa-otp/verify-mfa-otp.command.ts` | Verify | Command shape |
-| `apps/api/src/modules/auth-workspace/application/commands/verify-mfa-otp/verify-mfa-otp.handler.ts` | Verify | All business rules |
-| `apps/api/src/modules/auth-workspace/domain/entities/mfa-rate-limit.entity.ts` | Verify | MFA rate limit logic |
+| File                                                                                                | Action | Notes                              |
+| --------------------------------------------------------------------------------------------------- | ------ | ---------------------------------- |
+| `apps/api/src/modules/auth-workspace/presentation/http/auth-workspace.controller.ts`                | Verify | `POST /auth/mfa/verify-otp` exists |
+| `apps/api/src/modules/auth-workspace/application/commands/verify-mfa-otp/verify-mfa-otp.command.ts` | Verify | Command shape                      |
+| `apps/api/src/modules/auth-workspace/application/commands/verify-mfa-otp/verify-mfa-otp.handler.ts` | Verify | All business rules                 |
+| `apps/api/src/modules/auth-workspace/domain/entities/mfa-rate-limit.entity.ts`                      | Verify | MFA rate limit logic               |
 
 ## API Contract
 
@@ -31,37 +31,37 @@ Verify a TOTP code against the enrolled secret, mark the session as MFA-verified
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `session_token` | string | Yes | Session where `mfaVerifiedAt = null` |
-| `otp` | string | Yes | 6-digit TOTP code |
+| Field           | Type   | Required | Notes                                |
+| --------------- | ------ | -------- | ------------------------------------ |
+| `session_token` | string | Yes      | Session where `mfaVerifiedAt = null` |
+| `otp`           | string | Yes      | 6-digit TOTP code                    |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `verified` | boolean | Always `true` on success |
-| `correlation_id` | string | |
+| Field           | Type    | Notes                    |
+| --------------- | ------- | ------------------------ |
+| `verified`      | boolean | Always `true` on success |
+| `correlationId` | string  |                          |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 401 | `SESSION_INVALID` | Session expired, revoked, or not found |
-| 400 | `MFA_NOT_ENROLLED` | No `AuthUserMfa` row for this user |
-| 400 | `OTP_INVALID` | Wrong code or outside time window |
-| 400 | `OTP_REPLAYED` | OTP already used (found in `AuthMfaOtpUsed`) |
-| 429 | `MFA_RATE_LIMITED` | Too many failed OTP attempts |
+| HTTP | `error_code`       | Meaning                                      |
+| ---- | ------------------ | -------------------------------------------- |
+| 401  | `SESSION_INVALID`  | Session expired, revoked, or not found       |
+| 400  | `MFA_NOT_ENROLLED` | No `AuthUserMfa` row for this user           |
+| 400  | `OTP_INVALID`      | Wrong code or outside time window            |
+| 400  | `OTP_REPLAYED`     | OTP already used (found in `AuthMfaOtpUsed`) |
+| 429  | `MFA_RATE_LIMITED` | Too many failed OTP attempts                 |
 
 ## Prisma Models Used
 
-| Model | Action | Key fields |
-|---|---|---|
-| `AuthSession` | Read + Update | Validate, then set `mfaVerifiedAt = now()` |
-| `AuthUserMfa` | Read | `userId`, `encryptedSecret` (decrypt to verify) |
-| `AuthMfaOtpUsed` | Read + Create | `userId`, `otpCode`, `usedAt` — replay prevention |
-| `AuthMfaRateLimit` | Read + Update | `userId`, `failedCount`, `lockedUntil` |
-| `AuthAuditEvent` | Create | `eventType: AUTH_MFA_VERIFIED` or `AUTH_MFA_FAILED` |
+| Model              | Action        | Key fields                                          |
+| ------------------ | ------------- | --------------------------------------------------- |
+| `AuthSession`      | Read + Update | Validate, then set `mfaVerifiedAt = now()`          |
+| `AuthUserMfa`      | Read          | `userId`, `encryptedSecret` (decrypt to verify)     |
+| `AuthMfaOtpUsed`   | Read + Create | `userId`, `otpCode`, `usedAt` — replay prevention   |
+| `AuthMfaRateLimit` | Read + Update | `userId`, `failedCount`, `lockedUntil`              |
+| `AuthAuditEvent`   | Create        | `eventType: AUTH_MFA_VERIFIED` or `AUTH_MFA_FAILED` |
 
 ## Business Rules
 
@@ -78,11 +78,11 @@ Verify a TOTP code against the enrolled secret, mark the session as MFA-verified
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `VerifyMfaOtpCommand` | App command | `{ sessionToken, otp, correlationId? }` |
-| `event.auth.mfa-verified` | `AuthAuditEvent` | `{ actorId, correlationId, decision: allow }` |
-| `event.auth.mfa-failed` | `AuthAuditEvent` | `{ reasonCode, correlationId, decision: deny }` — no OTP code |
+| Name                      | Type             | Safe payload                                                  |
+| ------------------------- | ---------------- | ------------------------------------------------------------- |
+| `VerifyMfaOtpCommand`     | App command      | `{ sessionToken, otp, correlationId? }`                       |
+| `event.auth.mfa-verified` | `AuthAuditEvent` | `{ actorId, correlationId, decision: allow }`                 |
+| `event.auth.mfa-failed`   | `AuthAuditEvent` | `{ reasonCode, correlationId, decision: deny }` — no OTP code |
 
 ## PBAC
 
@@ -90,18 +90,18 @@ Requires a valid (but potentially MFA-pending) session. No further PBAC check at
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid session + correct OTP, first use | 200, `verified: true`, `mfaVerifiedAt` set |
-| T02 | Valid session + correct OTP, replay same code | 400 `OTP_REPLAYED` |
-| T03 | Valid session + wrong OTP | 400 `OTP_INVALID`, failedCount +1 |
-| T04 | 5 consecutive wrong OTPs | 429 `MFA_RATE_LIMITED` after 5th attempt |
-| T05 | Attempt while rate-limited | 429 `MFA_RATE_LIMITED` without checking OTP |
-| T06 | Session already MFA-verified | 200 idempotent |
-| T07 | MFA not enrolled | 400 `MFA_NOT_ENROLLED` |
-| T08 | Expired session | 401 `SESSION_INVALID` |
-| T09 | OTP not in audit payload | `AuthAuditEvent.payload` has no `otp` field |
-| T10 | Decryption error (corrupted secret) | Internal error → return safe 500-class response, audit records failure |
+| ID  | Scenario                                      | Expected                                                               |
+| --- | --------------------------------------------- | ---------------------------------------------------------------------- |
+| T01 | Valid session + correct OTP, first use        | 200, `verified: true`, `mfaVerifiedAt` set                             |
+| T02 | Valid session + correct OTP, replay same code | 400 `OTP_REPLAYED`                                                     |
+| T03 | Valid session + wrong OTP                     | 400 `OTP_INVALID`, failedCount +1                                      |
+| T04 | 5 consecutive wrong OTPs                      | 429 `MFA_RATE_LIMITED` after 5th attempt                               |
+| T05 | Attempt while rate-limited                    | 429 `MFA_RATE_LIMITED` without checking OTP                            |
+| T06 | Session already MFA-verified                  | 200 idempotent                                                         |
+| T07 | MFA not enrolled                              | 400 `MFA_NOT_ENROLLED`                                                 |
+| T08 | Expired session                               | 401 `SESSION_INVALID`                                                  |
+| T09 | OTP not in audit payload                      | `AuthAuditEvent.payload` has no `otp` field                            |
+| T10 | Decryption error (corrupted secret)           | Internal error → return safe 500-class response, audit records failure |
 
 ## Definition of Done
 

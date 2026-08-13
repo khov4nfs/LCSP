@@ -1,9 +1,4 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import {
-  ConflictException,
-  NotFoundException,
-  UnprocessableEntityException,
-} from "@nestjs/common";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
 import {
@@ -13,6 +8,11 @@ import {
   SCAN_ERROR_CODES,
   SCAN_EVENT_TYPES,
 } from "@lcsp/contracts/scan";
+import {
+  ConflictException,
+  NotFoundException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -150,7 +150,7 @@ describe("AcceptClassificationHandler", () => {
     expect(result.guardrail_status).toBe(
       CLASSIFICATION_GUARDRAIL_STATUSES.passed,
     );
-    expect(result.correlation_id).toBe("corr-123");
+    expect(result.correlationId).toBe("corr-123");
 
     expect(mockCreateClassificationResult).toHaveBeenCalledWith(
       expect.objectContaining({

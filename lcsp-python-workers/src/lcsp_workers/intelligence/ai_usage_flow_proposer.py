@@ -36,7 +36,7 @@ class AIUsageFlowModelAssistedProposer:
         organization_id: str | None,
         workflow_run_id: str,
         node_name: str,
-        correlation_id: str | None = None,
+        correlationId: str | None = None,
     ) -> dict[str, Any] | None:
         prompt = self._build_initial_prompt(
             baseline_summary=baseline_summary,
@@ -53,7 +53,7 @@ class AIUsageFlowModelAssistedProposer:
             organization_id=organization_id,
             workflow_run_id=workflow_run_id,
             node_name=node_name,
-            correlation_id=correlation_id,
+            correlationId=correlationId,
         )
         if response is None:
             return None
@@ -151,7 +151,7 @@ class AIUsageFlowModelAssistedProposer:
         organization_id: str | None,
         workflow_run_id: str,
         node_name: str,
-        correlation_id: str | None,
+        correlationId: str | None,
     ):
         if self.agentic_tool_resolver is None:
             try:
@@ -160,7 +160,7 @@ class AIUsageFlowModelAssistedProposer:
                     workflow_run_id=workflow_run_id,
                     node_name=node_name,
                     max_tokens=256,
-                    correlation_id=correlation_id,
+                    correlationId=correlationId,
                 )
             except Exception:
                 return None
@@ -172,7 +172,7 @@ class AIUsageFlowModelAssistedProposer:
                 workflow_run_id=workflow_run_id,
                 node_name=node_name,
                 max_tokens=256,
-                correlation_id=correlation_id,
+                correlationId=correlationId,
             )
         except Exception:
             return None
@@ -188,7 +188,7 @@ class AIUsageFlowModelAssistedProposer:
                     evidence_report_id=evidence_report_id,
                     organization_id=organization_id,
                     workflow_run_id=workflow_run_id,
-                    correlation_id=correlation_id,
+                    correlationId=correlationId,
                 ),
             )
             return self.llm_client.complete(
@@ -208,7 +208,7 @@ class AIUsageFlowModelAssistedProposer:
                 workflow_run_id=workflow_run_id,
                 node_name=node_name,
                 max_tokens=256,
-                correlation_id=correlation_id,
+                correlationId=correlationId,
             )
         except Exception:
             return None
@@ -239,12 +239,12 @@ class AIUsageFlowModelAssistedProposer:
         evidence_report_id: str,
         organization_id: str | None,
         workflow_run_id: str,
-        correlation_id: str | None,
+        correlationId: str | None,
     ) -> AgenticInvocationContext:
         return AgenticInvocationContext(
             assessment_id=_stable_uuid(f"assessment:{assessment_id}"),
             workflow_run_id=_stable_uuid(f"workflow:{workflow_run_id}"),
-            correlation_id=_stable_uuid(f"correlation:{correlation_id or workflow_run_id}"),
+            correlationId=_stable_uuid(f"correlation:{correlationId or workflow_run_id}"),
             user_id="worker-runtime",
             organization_id=organization_id or "worker-runtime",
             artifact_versions={"technicalEvidenceReportId": evidence_report_id},

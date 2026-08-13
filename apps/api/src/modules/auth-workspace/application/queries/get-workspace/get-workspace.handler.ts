@@ -6,9 +6,9 @@ import {
 } from "@lcsp/contracts/auth";
 
 import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
+import type { WorkspaceSuccess } from "../../contracts/auth-workspace/workspace.contract.ts";
 import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
 import { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
-import type { WorkspaceSuccess } from "../../contracts/auth-workspace/workspace.contract.ts";
 import { GetWorkspaceQuery } from "./get-workspace.query.ts";
 
 export class GetWorkspaceHandler {
@@ -23,7 +23,7 @@ export class GetWorkspaceHandler {
     const { request } = query;
     const { repositories } = this;
     const correlationId =
-      request.correlation_id ?? this.support.createCorrelationId();
+      request.correlationId ?? this.support.createCorrelationId();
     const sessionToken = request.session_token;
     if (!sessionToken) {
       await this.support.recordAudit(repositories, {
@@ -32,7 +32,7 @@ export class GetWorkspaceHandler {
         organization_id: request.organization_id ?? null,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.authRequired,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(AUTH_ERROR_CODES.authRequired, correlationId);
     }
@@ -48,7 +48,7 @@ export class GetWorkspaceHandler {
         organization_id: request.organization_id ?? null,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.sessionInvalid,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.sessionInvalid,
@@ -67,7 +67,7 @@ export class GetWorkspaceHandler {
         organization_id: session.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.sessionInvalid,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.sessionInvalid,
@@ -90,7 +90,7 @@ export class GetWorkspaceHandler {
         organization_id: session.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.authzPolicyUnavailable,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.authzPolicyUnavailable,
@@ -109,7 +109,7 @@ export class GetWorkspaceHandler {
         organization_id: session.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.mfaRequired,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
@@ -124,7 +124,7 @@ export class GetWorkspaceHandler {
         organization_id: session.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.authzTenantScopeMismatch,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.authzTenantScopeMismatch,
@@ -150,7 +150,7 @@ export class GetWorkspaceHandler {
         organization_id: session.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: authorization.problem.code,
-        correlation_id: correlationId,
+        correlationId: correlationId,
         policy_id: membership?.policyId ?? null,
         policy_version: membership?.policyVersion ?? null,
       });
@@ -162,7 +162,7 @@ export class GetWorkspaceHandler {
       actor_id: user.id,
       organization_id: session.organizationId,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       policy_id: membership?.policyId ?? null,
       policy_version: membership?.policyVersion ?? null,
     });
@@ -178,7 +178,7 @@ export class GetWorkspaceHandler {
       granted_actions: authorization.granted_actions,
       session_expires_at: new Date(session.expiresAt).toISOString(),
       mfa_verified: session.isMfaVerified(),
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
   }
 }

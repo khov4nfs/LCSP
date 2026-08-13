@@ -72,7 +72,7 @@ class OfficialSourceSnapshotResult:
     def to_tool_response(
         self,
         *,
-        correlation_id: str,
+        correlationId: str,
         admin_catalog_version: str,
         catalog_source_ref: str,
         expected_document_number: str | None,
@@ -82,7 +82,7 @@ class OfficialSourceSnapshotResult:
             "toolName": OFFICIAL_SOURCE_SNAPSHOT_TOOL["name"],
             "toolVersion": OFFICIAL_SOURCE_SNAPSHOT_TOOL["version"],
             "configHash": OFFICIAL_SOURCE_SNAPSHOT_TOOL["config_hash"],
-            "correlationId": correlation_id,
+            "correlationId": correlationId,
             "artifactVersions": {
                 "adminCatalogVersion": admin_catalog_version,
                 "snapshotId": self.snapshot_ref.removeprefix("snapshot:"),

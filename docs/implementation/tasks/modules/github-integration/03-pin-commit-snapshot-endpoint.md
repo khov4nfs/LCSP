@@ -19,13 +19,13 @@ Allow a Manager or scoped Developer to pin a branch/ref/commit SHA to create an 
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/github-integration/presentation/http/github-integration.controller.ts` | Modify | Add `POST /assessments/:assessmentId/snapshots` |
-| `apps/api/src/modules/github-integration/application/commands/pin-snapshot/pin-snapshot.command.ts` | Create | Command shape |
-| `apps/api/src/modules/github-integration/application/commands/pin-snapshot/pin-snapshot.handler.ts` | Create | Ref resolution + snapshot creation |
-| `apps/api/src/modules/github-integration/domain/entities/repository-snapshot.entity.ts` | Create | `RepositorySnapshot` domain entity |
-| `apps/api/prisma/schema.prisma` | Modify | Add `RepositorySnapshot` model |
+| File                                                                                                | Action | Notes                                           |
+| --------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------- |
+| `apps/api/src/modules/github-integration/presentation/http/github-integration.controller.ts`        | Modify | Add `POST /assessments/:assessmentId/snapshots` |
+| `apps/api/src/modules/github-integration/application/commands/pin-snapshot/pin-snapshot.command.ts` | Create | Command shape                                   |
+| `apps/api/src/modules/github-integration/application/commands/pin-snapshot/pin-snapshot.handler.ts` | Create | Ref resolution + snapshot creation              |
+| `apps/api/src/modules/github-integration/domain/entities/repository-snapshot.entity.ts`             | Create | `RepositorySnapshot` domain entity              |
+| `apps/api/prisma/schema.prisma`                                                                     | Modify | Add `RepositorySnapshot` model                  |
 
 ## Prisma Model
 
@@ -56,33 +56,33 @@ model RepositorySnapshot {
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `connection_id` | string | Yes | `RepositoryConnection.id` |
-| `branch` | string | No | Branch name |
-| `ref` | string | No | Git ref |
-| `commit_sha` | string | No | Specific commit SHA (overrides branch) |
+| Field           | Type   | Required | Notes                                  |
+| --------------- | ------ | -------- | -------------------------------------- |
+| `connection_id` | string | Yes      | `RepositoryConnection.id`              |
+| `branch`        | string | No       | Branch name                            |
+| `ref`           | string | No       | Git ref                                |
+| `commit_sha`    | string | No       | Specific commit SHA (overrides branch) |
 
 **Success response (201):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `snapshot_id` | string | |
-| `repository_full_name` | string | |
-| `commit_sha` | string | Resolved immutable SHA |
-| `branch` | string \| null | |
-| `status` | string | `ready` |
-| `created_at` | string | ISO 8601 |
-| `correlation_id` | string | |
+| Field                  | Type           | Notes                  |
+| ---------------------- | -------------- | ---------------------- |
+| `snapshot_id`          | string         |                        |
+| `repository_full_name` | string         |                        |
+| `commit_sha`           | string         | Resolved immutable SHA |
+| `branch`               | string \| null |                        |
+| `status`               | string         | `ready`                |
+| `created_at`           | string         | ISO 8601               |
+| `correlationId`        | string         |                        |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 403 | `PBAC_DENIED` | Actor lacks `snapshot:create` |
-| 404 | `CONNECTION_NOT_FOUND` | Connection not found or not in org |
-| 400 | `REF_NOT_RESOLVABLE` | Branch/ref/commit cannot be resolved via GitHub API |
-| 400 | `REF_OUT_OF_SCOPE` | Ref outside connection's repository scope |
+| HTTP | `error_code`           | Meaning                                             |
+| ---- | ---------------------- | --------------------------------------------------- |
+| 403  | `PBAC_DENIED`          | Actor lacks `snapshot:create`                       |
+| 404  | `CONNECTION_NOT_FOUND` | Connection not found or not in org                  |
+| 400  | `REF_NOT_RESOLVABLE`   | Branch/ref/commit cannot be resolved via GitHub API |
+| 400  | `REF_OUT_OF_SCOPE`     | Ref outside connection's repository scope           |
 
 ## Business Rules
 
@@ -98,24 +98,24 @@ model RepositorySnapshot {
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `PinSnapshotCommand` | App command | `{ assessmentId, connectionId, branch?, ref?, commitSha?, correlationId? }` |
-| `snapshot.created` | Outbox | `{ snapshotId, assessmentId, commitSha, connectionId, correlationId }` |
-| `SNAPSHOT_CREATED` | `AuthAuditEvent` | `{ snapshotId, assessmentId, commitSha, correlationId }` |
+| Name                 | Type             | Safe payload                                                                |
+| -------------------- | ---------------- | --------------------------------------------------------------------------- |
+| `PinSnapshotCommand` | App command      | `{ assessmentId, connectionId, branch?, ref?, commitSha?, correlationId? }` |
+| `snapshot.created`   | Outbox           | `{ snapshotId, assessmentId, commitSha, connectionId, correlationId }`      |
+| `SNAPSHOT_CREATED`   | `AuthAuditEvent` | `{ snapshotId, assessmentId, commitSha, correlationId }`                    |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid connection + branch resolves to SHA | 201 snapshot created with `commitSha` |
-| T02 | Specific `commit_sha` provided | 201 snapshot with that SHA |
-| T03 | Branch not resolvable | 400 `REF_NOT_RESOLVABLE`, failure audited |
-| T04 | Connection not in session org | 404 `CONNECTION_NOT_FOUND` |
-| T05 | Actor lacks `snapshot:create` | 403 `PBAC_DENIED` |
-| T06 | No raw source in DB | `RepositorySnapshot` has no source code fields |
-| T07 | Outbox message created | `event.snapshot.created` in `OutboxMessage` |
-| T08 | Manager can snapshot without Developer | Manager flow independent |
+| ID  | Scenario                                  | Expected                                       |
+| --- | ----------------------------------------- | ---------------------------------------------- |
+| T01 | Valid connection + branch resolves to SHA | 201 snapshot created with `commitSha`          |
+| T02 | Specific `commit_sha` provided            | 201 snapshot with that SHA                     |
+| T03 | Branch not resolvable                     | 400 `REF_NOT_RESOLVABLE`, failure audited      |
+| T04 | Connection not in session org             | 404 `CONNECTION_NOT_FOUND`                     |
+| T05 | Actor lacks `snapshot:create`             | 403 `PBAC_DENIED`                              |
+| T06 | No raw source in DB                       | `RepositorySnapshot` has no source code fields |
+| T07 | Outbox message created                    | `event.snapshot.created` in `OutboxMessage`    |
+| T08 | Manager can snapshot without Developer    | Manager flow independent                       |
 
 ## Definition of Done
 

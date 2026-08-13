@@ -1,8 +1,10 @@
-import { PBAC_DECISION, PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
-import { AUTH_LEGACY_AUDIT_EVENT_TYPES } from "@lcsp/contracts/auth";
 import { jest } from "@jest/globals";
+import {
+  AUTH_AUDIT_EVENT_TYPES,
+  AUTH_LEGACY_AUDIT_EVENT_TYPES,
+} from "@lcsp/contracts/auth";
+import { PBAC_DECISION, PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
 import type { Prisma } from "@prisma/client";
-import { AUTH_AUDIT_EVENT_TYPES } from "@lcsp/contracts/auth";
 
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { AuthAuditService } from "./auth-audit.service.ts";
@@ -177,7 +179,7 @@ describe("AuthAuditService", () => {
       actor_id: "user-1",
       organization_id: "org-1",
       decision: PBAC_DECISION.allow,
-      correlation_id: "corr-1",
+      correlationId: "corr-1",
       reason_code: PBAC_REASON_CODE.authorized,
       session_id: "session-1",
       policy_id: "policy-1",
@@ -203,7 +205,7 @@ describe("AuthAuditService", () => {
         actor_id: "user-1",
         organization_id: "org-1",
         decision: PBAC_DECISION.allow,
-        correlation_id: "corr-1",
+        correlationId: "corr-1",
         reason_code: PBAC_REASON_CODE.authorized,
         session_id: "session-1",
         policy_id: "policy-1",

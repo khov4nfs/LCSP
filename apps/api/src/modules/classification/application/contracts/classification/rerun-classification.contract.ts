@@ -5,6 +5,6 @@ export interface RerunClassificationRequestDto {
 export interface RerunClassificationResponseDto {
   legal_rule_match_id: string;
   status: ClassificationRerunStatus;
-  correlation_id: string;
+  correlationId: string;
 }
 import type { ClassificationRerunStatus } from "@lcsp/contracts/scan";

@@ -13,7 +13,7 @@ from lcsp_workers.platform.callback_schemas import (
     TechnicalProfileCallbackPayload,
     VerifiedProfileCallbackPayload,
 )
-from lcsp_workers.platform.correlation import set_correlation_id
+from lcsp_workers.platform.correlation import set_correlationId
 
 @pytest.fixture
 def client():
@@ -82,7 +82,7 @@ def test_t04_network_timeout(client, dummy_payload):
 
 def test_t05_t06_headers(client, dummy_payload):
     """T05 & T06: X-Worker-Api-Key and X-Correlation-Id are included in every request."""
-    set_correlation_id("test-cid-999")
+    set_correlationId("test-cid-999")
     with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
@@ -223,13 +223,51 @@ def test_dispatch_agentic_tool_uses_internal_runtime_endpoint(client):
                 "user_id": "user-1",
                 "artifact_versions": {"technicalEvidenceReportId": "report-1"},
                 "input": {"maxResults": 10},
-                "correlation_id": "corr-1",
+                "correlationId": "corr-1",
             }
         )
 
         assert response["status"] == "READY"
         assert mock_post.call_args.args[0] == (
             "http://testserver/internal/evidence/agentic-tools/dispatch"
+        )
+
+
+def test_create_targeted_reanalysis_request_uses_internal_api_endpoint(client):
+    with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 202
+        mock_resp.json.return_value = {"ok": True, "data": {"state": "QUEUED"}}
+        mock_post.return_value = mock_resp
+
+        response = client.create_targeted_reanalysis_request(
+            {"assessmentId": "assessment-1"}
+        )
+
+        assert response["state"] == "QUEUED"
+        assert mock_post.call_args.args[0] == (
+            "http://testserver/internal/scan-jobs/targeted-reanalysis"
+        )
+
+
+def test_resume_waiting_runs_uses_internal_legal_catalog_endpoint(client):
+    with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 202
+        mock_resp.json.return_value = {
+            "ok": True,
+            "data": {"resumedRunCount": 3},
+        }
+        mock_post.return_value = mock_resp
+
+        response = client.resume_waiting_runs(
+            "corpus-1",
+            {"maxRuns": 10, "idempotencyKey": "resume_waiting_runs_0001"},
+        )
+
+        assert response["resumedRunCount"] == 3
+        assert mock_post.call_args.args[0] == (
+            "http://testserver/internal/legal-rule-catalog/corpus/corpus-1/resume-waiting-runs"
         )
 
 
@@ -346,7 +384,7 @@ def test_reconciliation_conflict_callback_uses_internal_endpoint(client):
         mock_resp.json.return_value = {
             "accepted": True,
             "conflict_count": 0,
-            "correlation_id": "correlation-1",
+            "correlationId": "correlation-1",
         }
         mock_post.return_value = mock_resp
 

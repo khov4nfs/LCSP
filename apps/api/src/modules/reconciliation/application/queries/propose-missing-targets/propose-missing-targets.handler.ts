@@ -1,5 +1,3 @@
-import { HttpStatus } from "@nestjs/common";
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
@@ -10,6 +8,8 @@ import {
   EVIDENCE_ERROR_CODES,
 } from "@lcsp/contracts/evidence";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import {
   fromPrismaWizardStatus,
   toPrismaEvidenceAcceptanceStatus,
@@ -18,8 +18,8 @@ import { PrismaService } from "../../../../../infrastructure/prisma/prisma.servi
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import {
-  TARGET_CANDIDATE_LIMITATION_CODES,
   TARGET_CANDIDATE_KINDS,
+  TARGET_CANDIDATE_LIMITATION_CODES,
   type MissingTargetCandidate,
   type MissingTargetProposalResponse,
 } from "../../contracts/missing-target-proposal.contract.js";
@@ -138,7 +138,7 @@ export class ProposeMissingTargetsHandler implements IQueryHandler<
       tool_name: AGENTIC_TOOL_NAMES.proposeMissingTargets,
       tool_version: TOOL_VERSION,
       config_hash: TOOL_CONFIG_HASH,
-      correlation_id: query.correlationId,
+      correlationId: query.correlationId,
       artifact_versions: {
         wizard_profile_id: wizardId,
         technical_evidence_report_id: reportId,

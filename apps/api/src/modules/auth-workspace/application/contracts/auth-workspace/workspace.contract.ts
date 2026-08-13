@@ -1,9 +1,9 @@
-import type { AuthorizationDecision } from "../../../domain/models/auth-workspace.models.ts";
 import type { AuthMembershipStatus } from "@lcsp/contracts/auth";
+import type { AuthorizationDecision } from "../../../domain/models/auth-workspace.models.ts";
 import type { AuthProblemResult } from "./common.contract.ts";
 
 export type WorkspaceRequest = {
-  correlation_id?: string;
+  correlationId?: string;
   organization_id?: string;
   session_token?: string;
 };
@@ -29,5 +29,5 @@ export type WorkspaceSuccess = {
   granted_actions: string[];
   session_expires_at: string;
   mfa_verified: boolean;
-  correlation_id: string;
+  correlationId: string;
 };

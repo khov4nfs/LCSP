@@ -5,7 +5,7 @@ export type OAuthStartPayload = {
 
 export type OAuthStartSuccess = {
   ok: true;
-  correlation_id: string;
+  correlationId: string;
   authorization_url: string;
 };
 
@@ -17,7 +17,7 @@ export type OAuthCallbackPayload = {
 
 export type OAuthCallbackSuccess = {
   ok: true;
-  correlation_id: string;
+  correlationId: string;
   session_token: string;
   expires_at: number;
   mfa_required: boolean;
@@ -33,7 +33,7 @@ export type OAuthLinkCallbackPayload = OAuthCallbackPayload;
 
 export type OAuthLinkCallbackSuccess = {
   ok: true;
-  correlation_id: string;
+  correlationId: string;
   provider: string;
   linked: boolean;
 };

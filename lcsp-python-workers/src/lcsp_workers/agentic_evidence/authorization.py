@@ -44,7 +44,7 @@ class AgenticToolAuthorizer(Protocol):
         tool_name: str,
         user_id: str,
         organization_id: str,
-        correlation_id: UUID,
+        correlationId: UUID,
     ) -> AgenticAuthorizationResult: ...
 
 
@@ -74,7 +74,7 @@ class ApiPbacToolAuthorizer:
         tool_name: str,
         user_id: str,
         organization_id: str,
-        correlation_id: UUID,
+        correlationId: UUID,
     ) -> AgenticAuthorizationResult:
         actions = TOOL_PBAC_ACTIONS.get(tool_name)
         if not actions:
@@ -88,7 +88,7 @@ class ApiPbacToolAuthorizer:
                 user_id=user_id,
                 organization_id=organization_id,
                 action=action,
-                correlation_id=correlation_id,
+                correlationId=correlationId,
             )
             if decision == "ALLOW":
                 return AgenticAuthorizationResult(action=action)
@@ -107,17 +107,17 @@ class ApiPbacToolAuthorizer:
         user_id: str,
         organization_id: str,
         action: str,
-        correlation_id: UUID,
+        correlationId: UUID,
     ) -> tuple[str, str | None]:
         payload = {
             "user_id": user_id,
             "organization_id": organization_id,
             "action": action,
-            "correlation_id": str(correlation_id),
+            "correlationId": str(correlationId),
         }
         headers = {
             "x-worker-api-key": self._worker_api_key,
-            "x-correlation-id": str(correlation_id),
+            "x-correlation-id": str(correlationId),
         }
         try:
             if self._client is not None:

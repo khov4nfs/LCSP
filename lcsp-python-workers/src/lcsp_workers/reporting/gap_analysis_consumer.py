@@ -13,11 +13,11 @@ class GapAnalysisConsumer(ConsumerBase):
     routing_key = "document.gap-analysis-requested"
     requires_pbac = False  # System event
 
-    def handle(self, message: dict, correlation_id: str) -> None:
+    def handle(self, message: dict, correlationId: str) -> None:
         """
         Handle document.gap-analysis-requested event.
         """
-        logger.info("PROCESSING_GAP_ANALYSIS_REQUEST", correlation_id=correlation_id)
+        logger.info("PROCESSING_GAP_ANALYSIS_REQUEST", correlationId=correlationId)
         
         # 1. Fetch data. Assuming data is in the payload for now.
         document_id = message.get("document_id", "unknown-doc-id")

@@ -1,9 +1,6 @@
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
-import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
+import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import {
   ACCEPT_INVITATION_ERROR_CODES,
   AUTH_AUDIT_EVENT_TYPES,
@@ -16,7 +13,10 @@ import {
   PBAC_STATE_GATES,
   SUBJECT_ROLES,
 } from "@lcsp/contracts/pbac";
-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
+import type { INestApplication } from "@nestjs/common";
+import { Test, type TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
 import {
@@ -38,7 +38,7 @@ type PreviewBody = {
     | { type: "organization"; assessment: null };
   allowed_actions: string[];
   expires_at: string;
-  correlation_id: string;
+  correlationId: string;
 };
 
 describe("Preview Developer Invitation endpoint (e2e) [MW-auth-015]", () => {
@@ -103,7 +103,7 @@ describe("Preview Developer Invitation endpoint (e2e) [MW-auth-015]", () => {
       });
       assert.deepEqual(body.allowed_actions, [PBAC_ACTIONS.scanRead]);
       assert.equal(body.expires_at, before.expiresAt.toISOString());
-      assert.equal(body.correlation_id, "corr-preview");
+      assert.equal(body.correlationId, "corr-preview");
     }
 
     const after = await prisma.authInvitation.findUniqueOrThrow({

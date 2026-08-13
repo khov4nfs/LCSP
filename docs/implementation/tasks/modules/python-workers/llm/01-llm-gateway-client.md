@@ -17,23 +17,23 @@ Provide a single Python LLM Gateway client used by all workers that require LLM 
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/llm/__init__.py` | Create | Package init |
-| `lcsp-python-workers/src/lcsp_workers/llm/gateway_client.py` | Create | LLM Gateway client |
-| `lcsp-python-workers/src/lcsp_workers/llm/prompt_safety.py` | Create | Prompt pre-flight safety check |
+| File                                                         | Action | Notes                              |
+| ------------------------------------------------------------ | ------ | ---------------------------------- |
+| `lcsp-python-workers/src/lcsp_workers/llm/__init__.py`       | Create | Package init                       |
+| `lcsp-python-workers/src/lcsp_workers/llm/gateway_client.py` | Create | LLM Gateway client                 |
+| `lcsp-python-workers/src/lcsp_workers/llm/prompt_safety.py`  | Create | Prompt pre-flight safety check     |
 | `lcsp-python-workers/src/lcsp_workers/llm/budget_tracker.py` | Create | Monthly token/cost budget tracking |
 
 ## LLM Gateway Configuration
 
-| Variable | Type | Required | Notes |
-|---|---|---|---|
-| `LLM_PROVIDER` | string | Yes | `openai` \| `anthropic` |
-| `LLM_API_KEY` | string | Yes | Provider API key — never logged |
-| `LLM_MODEL` | string | Yes | e.g., `gpt-4o`, `claude-opus-4-5` |
-| `LLM_MAX_TOKENS_PER_CALL` | number | No | Default 4096 |
-| `LLM_MONTHLY_BUDGET_USD` | number | Yes | Hard monthly cost cap |
-| `LLM_MONTHLY_TOKEN_CAP` | number | Yes | Hard monthly token cap |
+| Variable                  | Type   | Required | Notes                             |
+| ------------------------- | ------ | -------- | --------------------------------- |
+| `LLM_PROVIDER`            | string | Yes      | `openai` \| `anthropic`           |
+| `LLM_API_KEY`             | string | Yes      | Provider API key — never logged   |
+| `LLM_MODEL`               | string | Yes      | e.g., `gpt-4o`, `claude-opus-4-5` |
+| `LLM_MAX_TOKENS_PER_CALL` | number | No       | Default 4096                      |
+| `LLM_MONTHLY_BUDGET_USD`  | number | Yes      | Hard monthly cost cap             |
+| `LLM_MONTHLY_TOKEN_CAP`   | number | Yes      | Hard monthly token cap            |
 
 ## Client Interface
 
@@ -45,7 +45,7 @@ class LLMGatewayClient:
         workflow_run_id: str,
         node_name: str,
         max_tokens: int | None = None,
-        correlation_id: str | None = None
+        correlationId: str | None = None
     ) -> LLMResponse:
         ...
 
@@ -63,7 +63,7 @@ class LLMResponse:
 
 Pre-flight check before every LLM call:
 
-```python
+````python
 FORBIDDEN_PROMPT_PATTERNS = [
     r'def\s+\w+\s*\(',          # Python function definition
     r'function\s+\w+\s*\(',      # JS function definition
@@ -71,7 +71,7 @@ FORBIDDEN_PROMPT_PATTERNS = [
     r'import\s+\w+',             # Import statement (heuristic)
     r'```[\s\S]{500,}```',       # Long code block
 ]
-```
+````
 
 If any pattern matches → raise `PromptSafetyViolation` (never send the prompt).
 
@@ -88,16 +88,16 @@ If any pattern matches → raise `PromptSafetyViolation` (never send the prompt)
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid prompt → LLM response | Response returned |
-| T02 | Prompt with Python function definition | `PromptSafetyViolation` raised |
-| T03 | Prompt with long code block | `PromptSafetyViolation` raised |
-| T04 | Monthly token cap exceeded | `BudgetExceeded` raised before API call |
-| T05 | `LLM_API_KEY` not in any log | Log inspection |
-| T06 | Response redacted | `redact_string()` applied |
-| T07 | `PromptSafetyViolation` — no API call made | Provider not contacted |
-| T08 | Missing `workflow_run_id` or `node_name` | Request rejected before provider call |
+| ID  | Scenario                                   | Expected                                |
+| --- | ------------------------------------------ | --------------------------------------- |
+| T01 | Valid prompt → LLM response                | Response returned                       |
+| T02 | Prompt with Python function definition     | `PromptSafetyViolation` raised          |
+| T03 | Prompt with long code block                | `PromptSafetyViolation` raised          |
+| T04 | Monthly token cap exceeded                 | `BudgetExceeded` raised before API call |
+| T05 | `LLM_API_KEY` not in any log               | Log inspection                          |
+| T06 | Response redacted                          | `redact_string()` applied               |
+| T07 | `PromptSafetyViolation` — no API call made | Provider not contacted                  |
+| T08 | Missing `workflow_run_id` or `node_name`   | Request rejected before provider call   |
 
 ## Definition of Done
 

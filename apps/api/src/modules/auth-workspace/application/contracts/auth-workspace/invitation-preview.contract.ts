@@ -19,7 +19,7 @@ export type InvitationPreviewResponse = {
   scope: InvitationPreviewScope;
   allowed_actions: string[];
   expires_at: string;
-  correlation_id: string;
+  correlationId: string;
 };
 
 export type InvitationPreviewErrorCode =

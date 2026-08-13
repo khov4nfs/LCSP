@@ -5,6 +5,7 @@ import {
   createProblemResult,
 } from "@lcsp/contracts/auth";
 
+import { MfaEnrollment } from "../../../domain/entities/mfa-enrollment.entity.ts";
 import {
   generateMfaRecoveryCodes,
   hashMfaRecoveryCode,
@@ -14,7 +15,6 @@ import {
   encryptMfaSecret,
   generateTotpSecret,
 } from "../../../infrastructure/security/security.utils.ts";
-import { MfaEnrollment } from "../../../domain/entities/mfa-enrollment.entity.ts";
 import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { EnrollMfaSuccess } from "../../contracts/auth-workspace/mfa.contract.ts";
 import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
@@ -32,7 +32,7 @@ export class EnrollMfaHandler {
   ): Promise<AuthProblemResult | EnrollMfaSuccess> {
     const { sessionToken, requestMeta } = command;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
 
     const session = await this.support.findValidSession(
       this.repositories,
@@ -111,7 +111,7 @@ export class EnrollMfaHandler {
         resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
         resource_id: batchId,
         decision: AUDIT_DECISIONS.allow,
-        correlation_id: correlationId,
+        correlationId: correlationId,
         session_id: session.id,
         batch_id: batchId,
         code_count: recoveryCodes.length,
@@ -123,7 +123,7 @@ export class EnrollMfaHandler {
         resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
         resource_id: batchId,
         decision: AUDIT_DECISIONS.allow,
-        correlation_id: correlationId,
+        correlationId: correlationId,
         session_id: session.id,
         batch_id: batchId,
       });
@@ -134,12 +134,12 @@ export class EnrollMfaHandler {
       actor_id: session.userId,
       organization_id: session.organizationId,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     });
 
     return {
       ok: true,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       totp_uri: buildTotpUri(plainSecret, user.primaryEmailAddress()),
       recovery_codes: recoveryCodes,
     };

@@ -24,7 +24,7 @@ export type ArtifactChainToolResponse = {
   tool_name: AgenticToolName;
   tool_version: string;
   config_hash: string;
-  correlation_id: string;
+  correlationId: string;
   artifact_versions: { assessment_id: string };
   provenance_ref: string;
   coverage_state: AgenticToolCoverageState;

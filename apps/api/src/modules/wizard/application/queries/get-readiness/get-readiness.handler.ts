@@ -1,22 +1,22 @@
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
-import { HttpStatus } from "@nestjs/common";
-import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
-import { WIZARD_EVENT_TYPES, type WizardAnswer } from "@lcsp/contracts/wizard";
+import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
-import { GetReadinessQuery } from "./get-readiness.query.js";
-import type { ReadinessResponse } from "../../contracts/wizard/readiness.contract.js";
-import { AssessmentNotFoundException } from "../../../domain/exceptions/wizard.exceptions.js";
-import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
-import { ReadinessEvaluatorService } from "../../services/wizard/readiness-evaluator.service.js";
+import { WIZARD_EVENT_TYPES, type WizardAnswer } from "@lcsp/contracts/wizard";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import {
   fromPrismaWizardStatus,
   toPrismaEvidenceAcceptanceStatus,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
+import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
+import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { AssessmentNotFoundException } from "../../../domain/exceptions/wizard.exceptions.js";
+import type { ReadinessResponse } from "../../contracts/wizard/readiness.contract.js";
+import { ReadinessEvaluatorService } from "../../services/wizard/readiness-evaluator.service.js";
+import { GetReadinessQuery } from "./get-readiness.query.js";
 
 @QueryHandler(GetReadinessQuery)
 export class GetReadinessHandler implements IQueryHandler<
@@ -90,7 +90,7 @@ export class GetReadinessHandler implements IQueryHandler<
       completed_steps: evaluation.completed_steps,
       next_action: evaluation.next_action,
       updated_at: new Date().toISOString(),
-      correlation_id: query.correlationId,
+      correlationId: query.correlationId,
     };
   }
 

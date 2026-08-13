@@ -10,7 +10,7 @@ export async function DELETE(request: NextRequest) {
   if (!session.ok) return session.response;
 
   if (isMockModeEnabled()) {
-    return successJson({ correlation_id: crypto.randomUUID() });
+    return successJson({ correlationId: crypto.randomUUID() });
   }
 
   const upstream = await upstreamRequest("/auth/mfa", {

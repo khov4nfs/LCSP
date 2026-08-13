@@ -11,16 +11,16 @@ import {
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
+import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
 import type { GitHubAppCallbackDto } from "../src/modules/github-integration/application/contracts/github-integration/github-app-callback.contract.js";
 import type { GitHubAppStartDto } from "../src/modules/github-integration/application/contracts/github-integration/github-app-start.contract.js";
-import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
 import {
   TEST_DATABASE_URL,
   pushPrismaSchema,
@@ -176,7 +176,7 @@ describe("GitHub App Callback Endpoint (e2e) [MW-gh-002]", () => {
     assert.equal(body.default_branch, "main");
     assert.equal(body.status, REPOSITORY_CONNECTION_STATUSES.active);
     assert.ok(body.connection_id);
-    assert.ok(body.correlation_id);
+    assert.ok(body.correlationId);
 
     const connection = await prisma.repositoryConnection.findUnique({
       where: { id: body.connection_id },

@@ -30,7 +30,7 @@ export class RegisterApprovedPathHandler {
     const { payload, requestMeta } = command;
     const { repositories } = this;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
     const validationError = this.support.validateRegisterPayload(
       payload,
       correlationId,
@@ -49,7 +49,7 @@ export class RegisterApprovedPathHandler {
         organization_id: invite?.organizationId ?? null,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.invalidInviteState,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.invalidInviteState,
@@ -64,7 +64,7 @@ export class RegisterApprovedPathHandler {
         organization_id: invite.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.emailVerificationRequired,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.emailVerificationRequired,
@@ -79,7 +79,7 @@ export class RegisterApprovedPathHandler {
         organization_id: invite.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.invalidInviteState,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.invalidInviteState,
@@ -95,7 +95,7 @@ export class RegisterApprovedPathHandler {
         organization_id: invite.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.invalidInviteState,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.invalidInviteState,
@@ -111,7 +111,7 @@ export class RegisterApprovedPathHandler {
         organization_id: invite.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.invalidInviteState,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return createProblemResult(
         AUTH_ERROR_CODES.invalidInviteState,
@@ -136,7 +136,7 @@ export class RegisterApprovedPathHandler {
           organization_id: invite.organizationId,
           decision: AUDIT_DECISIONS.deny,
           reason_code: AUTH_ERROR_CODES.invalidInviteState,
-          correlation_id: correlationId,
+          correlationId: correlationId,
         });
         return createProblemResult(
           AUTH_ERROR_CODES.invalidInviteState,
@@ -167,12 +167,12 @@ export class RegisterApprovedPathHandler {
       actor_id: user.id,
       organization_id: invite.organizationId,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     });
 
     return {
       ok: true,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       session_token: sessionState.token,
       user: this.support.safeUserProjection(
         user,

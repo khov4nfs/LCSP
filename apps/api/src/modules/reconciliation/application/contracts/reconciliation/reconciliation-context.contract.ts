@@ -22,7 +22,7 @@ export type ReconciliationContextResponse = {
   tool_name: AgenticToolName;
   tool_version: string;
   config_hash: string;
-  correlation_id: string;
+  correlationId: string;
   artifact_versions: { ai_usage_flow_id: string };
   provenance_ref: string;
   coverage_state: AgenticToolCoverageState;

@@ -1,12 +1,12 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import {
+  CLASSIFICATION_RERUN_STATUSES,
   LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
   LEGAL_RULE_MATCH_STATUSES,
-  CLASSIFICATION_RERUN_STATUSES,
   SCAN_EVENT_TYPES,
 } from "@lcsp/contracts/scan";
-import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { ConflictException, NotFoundException } from "@nestjs/common";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -80,7 +80,7 @@ describe("RerunClassificationHandler", () => {
     expect(result).toEqual({
       legal_rule_match_id: "match-1",
       status: CLASSIFICATION_RERUN_STATUSES.queued,
-      correlation_id: "correlation-1",
+      correlationId: "correlation-1",
     });
     expect(enqueue).toHaveBeenCalledWith(
       expect.objectContaining({

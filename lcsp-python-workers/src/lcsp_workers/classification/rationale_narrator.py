@@ -12,7 +12,7 @@ class RationaleNarrator:
         applicability_assessment: str,
         workflow_run_id: str,
         node_name: str,
-        correlation_id: str | None = None,
+        correlationId: str | None = None,
     ) -> str | None:
         """
         Draft a human-readable rationale using LLM.
@@ -44,7 +44,7 @@ class RationaleNarrator:
                 workflow_run_id=workflow_run_id,
                 node_name=node_name,
                 max_tokens=256,
-                correlation_id=correlation_id,
+                correlationId=correlationId,
             )
             
             # Simple check if LLM contradicts the computed decision

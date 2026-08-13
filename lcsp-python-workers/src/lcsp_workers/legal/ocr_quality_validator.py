@@ -92,13 +92,13 @@ class OcrQualityResult:
     minimum_confidence: float
     finding_refs: list[str]
 
-    def to_tool_response(self, *, correlation_id: str) -> dict[str, Any]:
+    def to_tool_response(self, *, correlationId: str) -> dict[str, Any]:
         return {
             "status": self.status,
             "toolName": OCR_QUALITY_TOOL["name"],
             "toolVersion": OCR_QUALITY_TOOL["version"],
             "configHash": OCR_QUALITY_TOOL["config_hash"],
-            "correlationId": correlation_id,
+            "correlationId": correlationId,
             "artifactVersions": {
                 "extractionId": self.extraction_ref.split(":", 1)[1],
             },

@@ -28,5 +28,5 @@ export interface AIUsageFlowCallbackRequest {
 export interface AIUsageFlowCallbackDto {
   accepted: boolean;
   ai_usage_flow_id: string;
-  correlation_id: string;
+  correlationId: string;
 }

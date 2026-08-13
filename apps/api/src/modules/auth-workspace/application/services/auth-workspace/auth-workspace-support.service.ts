@@ -1,9 +1,9 @@
+import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
   createProblemResult,
 } from "@lcsp/contracts/auth";
-import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   PBAC_ACTIONS,
   PBAC_DECISION,
@@ -29,7 +29,6 @@ import {
   hashSecret,
   issueOpaqueToken,
 } from "../../../infrastructure/security/security.utils.ts";
-import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
 import type {
   AuthProblemResult,
   SafeUserProjection,
@@ -37,6 +36,7 @@ import type {
 import type { RegisterPayload } from "../../contracts/auth-workspace/register-approved-path.contract.ts";
 import type { CredentialPayload } from "../../contracts/auth-workspace/sign-in.contract.ts";
 import type { WorkspaceAuthorization } from "../../contracts/auth-workspace/workspace.contract.ts";
+import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
 import type { AuthAuditService } from "./auth-audit.service.ts";
 
 const FAILED_LOGIN_LIMIT = 3;
@@ -210,7 +210,7 @@ export class AuthWorkspaceSupportService {
       actor_id: user.id,
       organization_id: organizationId,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       session_id: session.id,
       policy_id: null,
       policy_version: null,
@@ -277,7 +277,7 @@ export class AuthWorkspaceSupportService {
         reason_code: denialCode,
         policy_id: membership?.policyId ?? null,
         policy_version: membership?.policyVersion ?? null,
-        correlation_id: correlationId,
+        correlationId: correlationId,
       });
       return denied;
     }
@@ -293,7 +293,7 @@ export class AuthWorkspaceSupportService {
       reason_code: PBAC_REASON_CODE.authorized,
       policy_id: membership?.policyId ?? null,
       policy_version: membership?.policyVersion ?? null,
-      correlation_id: correlationId,
+      correlationId: correlationId,
     };
     await this.recordDecision(repositories, allowed);
     return {

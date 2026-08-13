@@ -1,10 +1,10 @@
+import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AUTH_AUDIT_EVENT_TYPES,
   AUTH_MEMBERSHIP_STATUSES,
   ORGANIZATION_SCOPE_ERROR_CODES,
   REVOKE_MEMBERSHIP_ERROR_CODES,
 } from "@lcsp/contracts/auth";
-import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   PBAC_ACTIONS,
   PBAC_DECISION,
@@ -14,10 +14,10 @@ import {
 } from "@lcsp/contracts/pbac";
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
@@ -37,7 +37,7 @@ import {
 type RevokeMembershipBody = {
   revoked: boolean;
   affected_sessions: number;
-  correlation_id: string;
+  correlationId: string;
 };
 
 describe("Revoke Developer Membership endpoint (e2e) [MW-auth-012]", () => {
@@ -102,7 +102,7 @@ describe("Revoke Developer Membership endpoint (e2e) [MW-auth-012]", () => {
     const body = successBody<RevokeMembershipBody>(result);
     assert.equal(body.revoked, true);
     assert.equal(body.affected_sessions, 2);
-    assert.equal(body.correlation_id, "corr-revoke-1");
+    assert.equal(body.correlationId, "corr-revoke-1");
 
     const membership = await prisma.authMembership.findUniqueOrThrow({
       where: {

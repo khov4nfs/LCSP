@@ -7,7 +7,7 @@ export type RegisterPayload = {
 
 export type RegisterSuccess = {
   ok: true;
-  correlation_id: string;
+  correlationId: string;
   session_token: string;
   user: SafeUserProjection;
 };

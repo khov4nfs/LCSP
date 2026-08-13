@@ -25,19 +25,18 @@ depends_on:
   - Emitted `event.classification-result.ready.v1` outbox event and audit logs (`CLASSIFICATION_ACCEPTED` / `CLASSIFICATION_BLOCKED`).
   - Verified with 22 unit tests and 9 E2E tests passing 100%.
 
-
 ## Outcome
 
 Receive the final classification result from the Python classification worker. Validate it references a `VerifiedProfile` plus a `LegalRuleMatch` (not the `verified-profile-ready` event directly). Apply citation guardrail: block or degrade output if citation basis is missing. Store immutable `ClassificationResult`. Emit event for document generation.
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/modules/classification/presentation/http/classification.controller.ts` | Modify | Add `POST /internal/classification/result-callback` |
-| `apps/api/src/modules/classification/application/commands/accept-classification/accept-classification.command.ts` | Create | Command shape |
-| `apps/api/src/modules/classification/application/commands/accept-classification/accept-classification.handler.ts` | Create | Validation + citation guardrail + persistence |
-| `apps/api/prisma/schema.prisma` | Modify | Add `ClassificationResult` model |
+| File                                                                                                              | Action | Notes                                               |
+| ----------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------- |
+| `apps/api/src/modules/classification/presentation/http/classification.controller.ts`                              | Modify | Add `POST /internal/classification/result-callback` |
+| `apps/api/src/modules/classification/application/commands/accept-classification/accept-classification.command.ts` | Create | Command shape                                       |
+| `apps/api/src/modules/classification/application/commands/accept-classification/accept-classification.handler.ts` | Create | Validation + citation guardrail + persistence       |
+| `apps/api/prisma/schema.prisma`                                                                                   | Modify | Add `ClassificationResult` model                    |
 
 ## Prisma Model
 
@@ -66,33 +65,33 @@ model ClassificationResult {
 
 **Request body:**
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `legal_rule_match_id` | string | Yes | Must reference accepted `LegalRuleMatch` |
-| `verified_profile_id` | string | Yes | Must reference accepted `VerifiedProfile` |
-| `assessment_id` | string | Yes | |
-| `schema_version` | string | Yes | |
-| `classification_data` | object | Yes | Cited classification output |
-| `guardrail_status` | string | Yes | `passed` \| `degraded` \| `blocked` (worker-assigned) |
+| Field                 | Type   | Required | Notes                                                 |
+| --------------------- | ------ | -------- | ----------------------------------------------------- |
+| `legal_rule_match_id` | string | Yes      | Must reference accepted `LegalRuleMatch`              |
+| `verified_profile_id` | string | Yes      | Must reference accepted `VerifiedProfile`             |
+| `assessment_id`       | string | Yes      |                                                       |
+| `schema_version`      | string | Yes      |                                                       |
+| `classification_data` | object | Yes      | Cited classification output                           |
+| `guardrail_status`    | string | Yes      | `passed` \| `degraded` \| `blocked` (worker-assigned) |
 
 **Success response (200):**
 
-| Field | Type | Notes |
-|---|---|---|
-| `accepted` | boolean | |
-| `classification_result_id` | string | |
-| `guardrail_status` | string | |
-| `correlation_id` | string | |
+| Field                      | Type    | Notes |
+| -------------------------- | ------- | ----- |
+| `accepted`                 | boolean |       |
+| `classification_result_id` | string  |       |
+| `guardrail_status`         | string  |       |
+| `correlationId`            | string  |       |
 
 **Error responses:**
 
-| HTTP | `error_code` | Meaning |
-|---|---|---|
-| 401 | `UNAUTHORIZED` | |
-| 404 | `LEGAL_RULE_MATCH_NOT_FOUND` | |
-| 404 | `VERIFIED_PROFILE_NOT_FOUND` | |
-| 409 | `RESULT_ALREADY_EXISTS` | Already accepted for this match |
-| 422 | `CLASSIFICATION_OVERCLAIM` | `classification_data` contains overclaim wording |
+| HTTP | `error_code`                 | Meaning                                          |
+| ---- | ---------------------------- | ------------------------------------------------ |
+| 401  | `UNAUTHORIZED`               |                                                  |
+| 404  | `LEGAL_RULE_MATCH_NOT_FOUND` |                                                  |
+| 404  | `VERIFIED_PROFILE_NOT_FOUND` |                                                  |
+| 409  | `RESULT_ALREADY_EXISTS`      | Already accepted for this match                  |
+| 422  | `CLASSIFICATION_OVERCLAIM`   | `classification_data` contains overclaim wording |
 
 ## Business Rules
 
@@ -109,24 +108,24 @@ model ClassificationResult {
 
 ## Commands / Events
 
-| Name | Type | Safe payload |
-|---|---|---|
-| `AcceptClassificationCommand` | App command | `{ legalRuleMatchId, verifiedProfileId, assessmentId, schemaVersion, guardrailStatus, correlationId? }` |
-| `event.classification-result-ready` | Outbox | `{ classificationResultId, assessmentId, guardrailStatus, correlationId }` |
-| `CLASSIFICATION_ACCEPTED` | `AuthAuditEvent` | `{ classificationResultId, assessmentId, guardrailStatus, correlationId }` |
+| Name                                | Type             | Safe payload                                                                                            |
+| ----------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------- |
+| `AcceptClassificationCommand`       | App command      | `{ legalRuleMatchId, verifiedProfileId, assessmentId, schemaVersion, guardrailStatus, correlationId? }` |
+| `event.classification-result-ready` | Outbox           | `{ classificationResultId, assessmentId, guardrailStatus, correlationId }`                              |
+| `CLASSIFICATION_ACCEPTED`           | `AuthAuditEvent` | `{ classificationResultId, assessmentId, guardrailStatus, correlationId }`                              |
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | Valid classification with citations | 200 `guardrail_status = passed` |
-| T02 | `guardrail_status = degraded` | 200 accepted with degraded status |
-| T03 | `guardrail_status = blocked` | 200 accepted with blocked status |
-| T04 | `classification_data` contains `certified` | 422 `CLASSIFICATION_OVERCLAIM` |
-| T05 | `LegalRuleMatch` has `guardrailStatus = blocked` | 422 or reject — classification must not proceed |
-| T06 | Result already exists | 409 `RESULT_ALREADY_EXISTS` |
-| T07 | Outbox event emitted | DB verified |
-| T08 | Classification triggered from `LegalRuleMatch` not from raw event | Verified by prerequisite check |
+| ID  | Scenario                                                          | Expected                                        |
+| --- | ----------------------------------------------------------------- | ----------------------------------------------- |
+| T01 | Valid classification with citations                               | 200 `guardrail_status = passed`                 |
+| T02 | `guardrail_status = degraded`                                     | 200 accepted with degraded status               |
+| T03 | `guardrail_status = blocked`                                      | 200 accepted with blocked status                |
+| T04 | `classification_data` contains `certified`                        | 422 `CLASSIFICATION_OVERCLAIM`                  |
+| T05 | `LegalRuleMatch` has `guardrailStatus = blocked`                  | 422 or reject — classification must not proceed |
+| T06 | Result already exists                                             | 409 `RESULT_ALREADY_EXISTS`                     |
+| T07 | Outbox event emitted                                              | DB verified                                     |
+| T08 | Classification triggered from `LegalRuleMatch` not from raw event | Verified by prerequisite check                  |
 
 ## Definition of Done
 

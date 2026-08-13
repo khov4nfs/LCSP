@@ -1,24 +1,24 @@
-import { HttpStatus, Inject } from "@nestjs/common";
-import { CommandHandler } from "@nestjs/cqrs";
-import type { ICommandHandler } from "@nestjs/cqrs";
-import { ConfigService } from "@nestjs/config";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
+import { HttpStatus, Inject } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import type { ICommandHandler } from "@nestjs/cqrs";
+import { CommandHandler } from "@nestjs/cqrs";
 
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import {
   GITHUB_INTEGRATION_ERROR_CODES,
   GITHUB_INTEGRATION_EVENT_TYPES,
 } from "@lcsp/contracts/github-integration";
-import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
+import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { GitHubAppInstallState } from "../../../domain/entities/github-app-install-state.entity.js";
 import { GitHubAppClient } from "../../../infrastructure/github/github-app.client.js";
+import type { GitHubAppStartDto } from "../../contracts/github-integration/github-app-start.contract.js";
 import {
   GITHUB_APP_INSTALL_STATE_REPOSITORY,
   type GitHubAppInstallStateRepository,
 } from "../../ports/persistence/github-app-install-state.repository.js";
-import type { GitHubAppStartDto } from "../../contracts/github-integration/github-app-start.contract.js";
 import { GitHubAppStartCommand } from "./github-app-start.command.js";
 
 const INSTALL_STATE_TTL_MS = 10 * 60_000;
@@ -120,7 +120,7 @@ export class GitHubAppStartHandler implements ICommandHandler<GitHubAppStartComm
 
     return {
       installation_url: installationUrl,
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
     };
   }
 }

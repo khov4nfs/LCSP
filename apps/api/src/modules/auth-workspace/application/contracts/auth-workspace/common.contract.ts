@@ -10,7 +10,7 @@ export type SafeUserProjection = {
 };
 
 export type RequestMeta = {
-  correlation_id?: string;
+  correlationId?: string;
   app_origin?: string;
 };
 

@@ -1,5 +1,3 @@
-import { HttpStatus } from "@nestjs/common";
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
@@ -14,6 +12,8 @@ import {
   type CompareWizardClaimResponse,
 } from "@lcsp/contracts/evidence";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
 import {
   fromPrismaWizardStatus,
@@ -132,7 +132,7 @@ export class CompareWizardClaimHandler implements IQueryHandler<
       tool_name: AGENTIC_TOOL_NAMES.compareWizardClaim,
       tool_version: TOOL_VERSION,
       config_hash: TOOL_CONFIG_HASH,
-      correlation_id: query.correlationId,
+      correlationId: query.correlationId,
       artifact_versions: {
         wizard_profile_id: wizardId,
         technical_evidence_report_id: reportId,

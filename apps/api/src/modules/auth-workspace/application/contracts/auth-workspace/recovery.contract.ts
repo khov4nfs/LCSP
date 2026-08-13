@@ -4,7 +4,7 @@ export type RequestRecoveryPayload = {
 
 export type RequestRecoverySuccess = {
   ok: true;
-  correlation_id: string;
+  correlationId: string;
 };
 
 export type ConfirmRecoveryPayload = {
@@ -14,5 +14,5 @@ export type ConfirmRecoveryPayload = {
 
 export type ConfirmRecoverySuccess = {
   ok: true;
-  correlation_id: string;
+  correlationId: string;
 };

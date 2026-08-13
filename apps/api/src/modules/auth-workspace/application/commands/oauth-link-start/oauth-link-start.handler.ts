@@ -30,7 +30,7 @@ export class OAuthLinkStartHandler {
   ): Promise<AuthProblemResult | OAuthLinkStartSuccess> {
     const { payload, requestMeta } = command;
     const correlationId =
-      requestMeta.correlation_id ?? this.support.createCorrelationId();
+      requestMeta.correlationId ?? this.support.createCorrelationId();
 
     const providerName = asNonEmptyString(payload?.provider);
     const redirectUri = asNonEmptyString(payload?.redirect_uri);
@@ -96,14 +96,14 @@ export class OAuthLinkStartHandler {
       actor_id: command.userId,
       organization_id: null,
       decision: AUDIT_DECISIONS.allow,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       provider: providerName,
       flow: "link",
     });
 
     return {
       ok: true,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       authorization_url: authorizationUrl,
     };
   }
@@ -119,7 +119,7 @@ export class OAuthLinkStartHandler {
       organization_id: null,
       decision: AUDIT_DECISIONS.deny,
       reason_code: reasonCode,
-      correlation_id: correlationId,
+      correlationId: correlationId,
       flow: "link",
     });
   }

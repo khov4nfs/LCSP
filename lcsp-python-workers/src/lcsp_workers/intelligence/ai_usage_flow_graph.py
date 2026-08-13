@@ -29,7 +29,7 @@ class AIUsageFlowGraphResult:
 
 class AIUsageFlowLangGraphState(TypedDict, total=False):
     message: dict[str, Any]
-    correlation_id: str
+    correlationId: str
     workflow_run_id: str
     graph_state: GraphRunState
     technical_profile_id: str
@@ -60,19 +60,19 @@ class AIUsageFlowGraph:
         self._app = None
 
     def run(
-        self, *, message: dict[str, Any], correlation_id: str
+        self, *, message: dict[str, Any], correlationId: str
     ) -> AIUsageFlowGraphResult:
         technical_profile_id = self.required_message_id(message, "technicalProfileId")
         assessment_id = self.required_message_id(message, "assessmentId")
         workflow_run_id = self.workflow_run_id(
-            message, correlation_id, technical_profile_id
+            message, correlationId, technical_profile_id
         )
         state = GraphRunState(
             graph_name="ai_usage_flow",
             workflow_run_id=workflow_run_id,
             assessment_id=assessment_id,
             artifact_id=technical_profile_id,
-            correlation_id=correlation_id,
+            correlationId=correlationId,
             attempt=self._delivery_attempt(message),
             sanitized_inputs={
                 "technical_profile_id": technical_profile_id,
@@ -81,7 +81,7 @@ class AIUsageFlowGraph:
         )
         initial_state = AIUsageFlowLangGraphState(
             message=message,
-            correlation_id=correlation_id,
+            correlationId=correlationId,
             workflow_run_id=workflow_run_id,
             graph_state=state,
             technical_profile_id=technical_profile_id,
@@ -191,12 +191,12 @@ class AIUsageFlowGraph:
 
     @staticmethod
     def workflow_run_id(
-        message: dict[str, Any], correlation_id: str, technical_profile_id: str
+        message: dict[str, Any], correlationId: str, technical_profile_id: str
     ) -> str:
         explicit = message.get("workflow_run_id")
         if explicit:
             return str(explicit)
-        return f"ai-usage-flow:{technical_profile_id}:{correlation_id}"
+        return f"ai-usage-flow:{technical_profile_id}:{correlationId}"
 
     @staticmethod
     def required_message_id(message: dict[str, Any], key: str) -> str:
@@ -236,7 +236,7 @@ class AIUsageFlowGraph:
         proposer_context = GraphNodeContext(
             workflow_run_id=state["workflow_run_id"],
             node_name="ai_usage_flow.summary_proposal",
-            correlation_id=state["correlation_id"],
+            correlationId=state["correlationId"],
         )
         proposal = self._proposer.generate_summary_proposal(
             baseline_summary=flow.summary,
@@ -247,7 +247,7 @@ class AIUsageFlowGraph:
             organization_id=state["technical_profile"].get("organization_id"),
             workflow_run_id=proposer_context.workflow_run_id,
             node_name=proposer_context.node_name,
-            correlation_id=proposer_context.correlation_id,
+            correlationId=proposer_context.correlationId,
         )
         if not proposal:
             state["graph_state"].record_node(

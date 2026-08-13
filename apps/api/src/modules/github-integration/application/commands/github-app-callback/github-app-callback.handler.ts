@@ -1,14 +1,17 @@
-import { HttpStatus, Inject, Logger } from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   GITHUB_INTEGRATION_EVENT_TYPES,
   GITHUB_REPOSITORY_PERMISSION_LEVELS,
 } from "@lcsp/contracts/github-integration";
+import { HttpStatus, Inject, Logger } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { RepositoryConnection } from "../../../domain/entities/repository-connection.entity.js";
+import { GitHubAppClient } from "../../../infrastructure/github/github-app.client.js";
+import type { GitHubAppCallbackDto } from "../../contracts/github-integration/github-app-callback.contract.js";
+import { GITHUB_INTEGRATION_ERROR_CODES } from "../../contracts/github-integration/github-app-callback.contract.js";
 import {
   GITHUB_APP_INSTALL_STATE_REPOSITORY,
   type GitHubAppInstallStateRepository,
@@ -17,9 +20,6 @@ import {
   REPOSITORY_CONNECTION_REPOSITORY,
   type RepositoryConnectionRepository,
 } from "../../ports/persistence/repository-connection.repository.js";
-import { GITHUB_INTEGRATION_ERROR_CODES } from "../../contracts/github-integration/github-app-callback.contract.js";
-import type { GitHubAppCallbackDto } from "../../contracts/github-integration/github-app-callback.contract.js";
-import { GitHubAppClient } from "../../../infrastructure/github/github-app.client.js";
 import { GitHubAppCallbackCommand } from "./github-app-callback.command.js";
 
 const GITHUB_REPOSITORY_PERMISSION_KEYS = {
@@ -182,7 +182,7 @@ export class GitHubAppCallbackHandler implements ICommandHandler<GitHubAppCallba
       repository_full_name: primaryConnection.repositoryFullName,
       default_branch: primaryConnection.defaultBranch,
       status: primaryConnection.status,
-      correlation_id: command.correlationId,
+      correlationId: command.correlationId,
     };
   }
 

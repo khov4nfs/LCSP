@@ -20,7 +20,7 @@ class ModelAssistedClassificationProposer:
         baseline_applicability_assessment: str,
         workflow_run_id: str,
         node_name: str,
-        correlation_id: str | None = None,
+        correlationId: str | None = None,
     ) -> dict[str, Any] | None:
         prompt = f"""
         You are a classification proposal assistant.
@@ -54,7 +54,7 @@ class ModelAssistedClassificationProposer:
                 workflow_run_id=workflow_run_id,
                 node_name=node_name,
                 max_tokens=256,
-                correlation_id=correlation_id,
+                correlationId=correlationId,
             )
         except Exception:
             return None
