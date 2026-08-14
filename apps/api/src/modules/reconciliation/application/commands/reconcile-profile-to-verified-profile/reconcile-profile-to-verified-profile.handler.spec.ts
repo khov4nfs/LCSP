@@ -1,9 +1,12 @@
-import { ConflictException } from "@nestjs/common";
 import { describe, expect, it, jest } from "@jest/globals";
 import {
   CONFLICT_RECORD_STATUSES,
   VERIFIED_PROFILE_STATUSES,
 } from "@lcsp/contracts/scan";
+import {
+  ConflictException,
+  UnprocessableEntityException,
+} from "@nestjs/common";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -20,7 +23,11 @@ function buildHandler(pending = false) {
     .mockImplementation(() => Promise.resolve({ id: "verified-existing" }));
   const writeInTx = jest.fn().mockImplementation(() => Promise.resolve());
   const enqueue = jest.fn().mockImplementation(() => Promise.resolve());
-  const flow = {
+  const flow: {
+    id: string;
+    schemaVersion: string;
+    claims: Record<string, unknown>[];
+  } = {
     id: "flow-1",
     schemaVersion: "1.0.0",
     claims: [{ claim_id: "claim-1", evidence_refs: ["evidence:1"] }],
@@ -85,7 +92,7 @@ function buildHandler(pending = false) {
     "org-1",
     "corr-1",
   );
-  return { handler, command, create, update, writeInTx, enqueue, tx };
+  return { handler, command, create, update, writeInTx, enqueue, tx, flow };
 }
 
 describe("ReconcileProfileToVerifiedProfileHandler", () => {
@@ -140,6 +147,37 @@ describe("ReconcileProfileToVerifiedProfileHandler", () => {
     const result = await handler.execute(command);
 
     expect(result.result.verifiedProfileId).toBe("verified-existing");
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("accepts domain claim keys that mention prompt references", async () => {
+    const { handler, command, create, flow } = buildHandler();
+    flow.claims = [
+      {
+        claim_id: "claim-prompt-reference",
+        claim_value: { promptReferenceDetected: true },
+        evidence_refs: ["evidence:prompt-reference"],
+      },
+    ];
+
+    await handler.execute(command);
+
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects raw prompt fields in AI usage flow claims", async () => {
+    const { handler, command, create, flow } = buildHandler();
+    flow.claims = [
+      {
+        claim_id: "claim-raw-prompt",
+        prompt: "Summarize this personal data record",
+        evidence_refs: ["evidence:prompt-reference"],
+      },
+    ];
+
+    await expect(handler.execute(command)).rejects.toBeInstanceOf(
+      UnprocessableEntityException,
+    );
     expect(create).not.toHaveBeenCalled();
   });
 
