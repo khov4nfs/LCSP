@@ -678,6 +678,34 @@ model ConflictRecord {
   @@index([assessmentId, status])
 }
 
+model AssessmentRuntimeEvent {
+  id               String                      @id @default(uuid())
+  organizationId   String
+  assessmentId     String
+  runId            String
+  correlationId    String
+  sequence         Int
+  eventType        AssessmentRuntimeEventType
+  runStatus        AssessmentRuntimeRunStatus
+  stage            AssessmentRuntimeStage
+  toolName         String?
+  summary          String
+  inputSummaryJson Json?
+  outputSummaryJson Json?
+  errorSummary     String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  durationMs       Int?
+  attempt          Int?
+  waitingReason    String?
+  createdAt        DateTime                    @default(now())
+
+  @@unique([runId, sequence])
+  @@index([assessmentId, createdAt])
+  @@index([runId, sequence])
+  @@index([organizationId, createdAt])
+}
+
 model VerifiedProfile {
   id              String                @id @default(uuid())
   aiUsageFlowId   String                @unique
@@ -966,6 +994,38 @@ enum RepositoryScanJobStatus {
 enum RepositoryScanTriggerSource {
   MANUAL
   TRUSTED
+}
+
+enum AssessmentRuntimeEventType {
+  RUN_STARTED
+  RUN_STAGE_CHANGED
+  TOOL_STARTED
+  TOOL_COMPLETED
+  TOOL_FAILED
+  TOOL_WAITING_INPUT
+  TOOL_SKIPPED
+  RUN_COMPLETED
+  RUN_FAILED
+}
+
+enum AssessmentRuntimeRunStatus {
+  RUNNING
+  WAITING
+  COMPLETED
+  FAILED
+}
+
+enum AssessmentRuntimeStage {
+  SNAPSHOT
+  SCAN
+  TECHNICAL_EVIDENCE
+  TECHNICAL_PROFILE
+  AI_USAGE_FLOW
+  RECONCILIATION
+  CLASSIFICATION
+  CONFLICTS
+  DOCUMENTS
+  LEGAL_RETRIEVAL
 }
 
 enum EvidenceAcceptanceStatus {

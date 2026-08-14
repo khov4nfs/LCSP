@@ -13,6 +13,8 @@ def get_correlationId() -> str:
 
 def extract_from_amqp_headers(headers: dict | None) -> str:
     """Extract correlationId from AMQP headers or generate a new one."""
-    if headers and "correlationId" in headers:
-        return str(headers["correlationId"])
+    if headers:
+        for key in ("correlationId", "x-correlation-id"):
+            if key in headers:
+                return str(headers[key])
     return str(uuid.uuid4())

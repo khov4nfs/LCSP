@@ -42,10 +42,11 @@ class TsJsBridge:
     ) -> None:
         self._workspace = Path(workspace)
         self._node_executable = node_executable
+        self._uses_default_analyzer_script_path = analyzer_script_path is None
         self._analyzer_script_path = (
-            Path(analyzer_script_path)
-            if analyzer_script_path is not None
-            else self._default_analyzer_script_path()
+            self._default_analyzer_script_path()
+            if self._uses_default_analyzer_script_path
+            else Path(analyzer_script_path)
         )
         self._timeout_seconds = timeout_seconds
         self._schema_validator = schema_validator or TsJsSchemaValidator()
@@ -59,6 +60,18 @@ class TsJsBridge:
             return self._skipped_result("ts/js analyzer skipped: no JS/TS files present")
 
         config_hash = self._config_hash()
+        if (
+            self._uses_default_analyzer_script_path
+            and not self._analyzer_script_path.is_file()
+        ):
+            return self._failure_result(
+                outcome=OUTCOME_TOOL_FAILURE,
+                config_hash=config_hash,
+                message=(
+                    f"{TS_JS_ANALYZER_FAILED}: analyzer script not found at "
+                    f"{self._analyzer_script_path}"
+                ),
+            )
         request_json = json.dumps(
             {
                 "schema_version": EXPECTED_SCHEMA_VERSION,

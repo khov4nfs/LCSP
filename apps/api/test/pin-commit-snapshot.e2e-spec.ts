@@ -9,6 +9,7 @@ import {
   GITHUB_REPOSITORY_PERMISSION_LEVELS,
   REPOSITORY_CONNECTION_STATUSES,
   REPOSITORY_SNAPSHOT_STATUSES,
+  REPOSITORY_SCAN_TRIGGER_SOURCES,
 } from "@lcsp/contracts/github-integration";
 import { OUTBOX_MESSAGE_SCHEMA_VERSION } from "@lcsp/contracts/outbox";
 import { PBAC_ACTIONS, PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
@@ -25,6 +26,8 @@ import { AppModule } from "../src/app.module.js";
 import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
 import type { PinSnapshotDto } from "../src/modules/github-integration/application/contracts/github-integration/pin-snapshot.contract.js";
 import { GitHubAppClient } from "../src/modules/github-integration/infrastructure/github/github-app.client.js";
+import { OutboxPublisherService } from "../src/platform/outbox/outbox-publisher.service.js";
+import { RabbitMqClient } from "../src/platform/outbox/rabbitmq.client.js";
 import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
@@ -64,6 +67,11 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
             committerDate: "2026-07-18T00:00:01.000Z",
           });
         },
+      })
+      .overrideProvider(RabbitMqClient)
+      .useValue({
+        ensureConnected: () => Promise.resolve(),
+        publish: () => Promise.resolve(),
       })
       .compile();
 
@@ -252,5 +260,42 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
     assert.equal(response.status, 403);
     assert.equal(problemCode(response), PBAC_REASON_CODE.denied);
     assert.equal(await prisma.repositorySnapshot.count(), 0);
+  });
+
+  it("auto-chains a trusted scan job after snapshotCreated when the assessment is submitted", async () => {
+    await prisma.assessment.update({
+      where: { id: "assessment-1" },
+      data: { status: ASSESSMENT_STATUS_CODES.wizardSubmitted },
+    });
+
+    const response = await httpRequest(app)
+      .post("/assessments/assessment-1/snapshots")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ connection_id: "connection-1", branch: "main" });
+    const body = successBody<PinSnapshotDto>(response);
+
+    await app.get(OutboxPublisherService).poll();
+
+    const scanJob = await prisma.repositoryScanJob.findFirst({
+      where: { assessmentId: "assessment-1", snapshotId: body.snapshot_id },
+      orderBy: { createdAt: "desc" },
+    });
+    assert.ok(scanJob);
+    assert.equal(
+      scanJob.triggerSource,
+      REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+    );
+    assert.equal(
+      scanJob.idempotencyKey,
+      `snapshot-auto:assessment-1:${body.snapshot_id}`,
+    );
+    assert.ok(
+      await prisma.outboxMessage.findFirst({
+        where: {
+          aggregateId: scanJob.id,
+          eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered,
+        },
+      }),
+    );
   });
 });

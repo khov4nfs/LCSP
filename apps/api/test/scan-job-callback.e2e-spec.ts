@@ -24,6 +24,8 @@ import {
 } from "@lcsp/contracts/scan";
 import { OUTBOX_MESSAGE_SCHEMA_VERSION } from "@lcsp/contracts/outbox";
 
+import { json } from "express";
+import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { AppModule } from "../src/app.module.js";
 import type {
   ScanCallbackDto,
@@ -53,7 +55,14 @@ describe("Scan Job Callback Endpoint (e2e) [MW-scan-002]", () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
-    app = moduleFixture.createNestApplication();
+    app = moduleFixture.createNestApplication({ bodyParser: false });
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (req.path.match(/^\/internal\/scan-jobs\/[^/]+\/callback$/)) {
+        (json({ limit: "50mb" }) as RequestHandler)(req, res, next);
+      } else {
+        (json({ limit: "1mb" }) as RequestHandler)(req, res, next);
+      }
+    });
     await app.init();
   });
 
@@ -248,6 +257,38 @@ describe("Scan Job Callback Endpoint (e2e) [MW-scan-002]", () => {
       SCAN_ERROR_CODES.privacyFlagsInvalid,
     );
     await assertNoMutation(prisma);
+  });
+
+  it("T10 accepts large payload under 50MB (e.g. 2MB)", async () => {
+    await createJob(prisma, REPOSITORY_SCAN_JOB_STATUSES.running);
+    const largeStr = "a".repeat(2 * 1024 * 1024);
+    const response = await callback(
+      app,
+      validPayload({
+        evidence_payload: {
+          findings: [{ finding_type: "AI_MODEL_INVOCATION" }],
+          large_field: largeStr,
+        },
+      }),
+    );
+    assert.equal(response.status, 200);
+    const body = successBody<ScanCallbackDto>(response);
+    assert.equal(body.accepted, true);
+  });
+
+  it("T11 rejects oversized payload exceeding 50MB (e.g. 51MB)", async () => {
+    await createJob(prisma, REPOSITORY_SCAN_JOB_STATUSES.running);
+    const giantStr = "a".repeat(51 * 1024 * 1024);
+    const response = await callback(
+      app,
+      validPayload({
+        evidence_payload: {
+          findings: [{ finding_type: "AI_MODEL_INVOCATION" }],
+          large_field: giantStr,
+        },
+      }),
+    );
+    assert.equal(response.status, 413);
   });
 });
 

@@ -1,4 +1,8 @@
+from pathlib import Path
+
 import pytest
+
+from lcsp_workers.scanner.graph.evidence_graph_assembler import EvidenceGraphAssembler
 from lcsp_workers.scanner.graph.graph_builder import EvidenceGraphBuilder
 
 def get_node(graph, node_type):
@@ -106,6 +110,30 @@ def test_t08_raw_source_assertion():
         
     with pytest.raises(AssertionError):
         builder.add_node("FUNCTION", "test", attributes={"content": "def func():\n    return 1"})
+
+
+def test_t08b_multiline_coverage_note_is_sanitized_for_graph_attributes():
+    assembler = EvidenceGraphAssembler()
+    graph = assembler.assemble(
+        scan_job_id="scan-1",
+        snapshot_id="snapshot-1",
+        commit_sha="abc123",
+        workspace_path=Path("/workspace"),
+        technical_findings=[],
+        structural_facts=[],
+        package_dependencies=[],
+        coverage_notes=[
+            "SCAN_COVERAGE_LIMITATION: file=<workspace> reason=TS_JS_ANALYZER_FAILED: node:internal/modules/cjs/loader:1433\n"
+            "  throw err;\n"
+            "  ^\n\n"
+            "Error: Cannot find module '/workspace/ts-js-analyzer/dist/tools/ts-js-analyzer/cli.js'"
+        ],
+    )
+
+    gap = get_node(graph, "COVERAGE_GAP")
+    assert gap is not None
+    assert gap["attributes"]["reason"].endswith("... [truncated]")
+    assert "\n" not in gap["attributes"]["reason"]
 
 def test_t09_max_nodes_truncation():
     """T09: 10,001 nodes -> Truncated at 10,000, COVERAGE_GAP added"""

@@ -33,49 +33,51 @@ describe("Python worker runtime bridge (e2e) [LCSP-234]", () => {
   let captured: CapturedRequest[] = [];
 
   const workerServer = createServer(
-    async (req: IncomingMessage, res: ServerResponse) => {
-      const body = await readJson(req);
-      captured.push({
-        method: req.method ?? "GET",
-        path: req.url ?? "/",
-        headers: req.headers,
-        body,
-      });
+    (req: IncomingMessage, res: ServerResponse) => {
+      void (async () => {
+        const body = await readJson(req);
+        captured.push({
+          method: req.method ?? "GET",
+          path: req.url ?? "/",
+          headers: req.headers,
+          body,
+        });
 
-      if (req.url === "/runtime/commands/request-targeted-reanalysis") {
-        res.writeHead(202, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({
-            ok: true,
-            data: {
-              status: "READY",
-              execution_mode: "ASYNC_ACCEPTED",
-              request_ref: "reanalysis:req-1",
-              state: "QUEUED",
-            },
-          }),
-        );
-        return;
-      }
+        if (req.url === "/runtime/commands/request-targeted-reanalysis") {
+          res.writeHead(202, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              ok: true,
+              data: {
+                status: "READY",
+                execution_mode: "ASYNC_ACCEPTED",
+                request_ref: "reanalysis:req-1",
+                state: "QUEUED",
+              },
+            }),
+          );
+          return;
+        }
 
-      if (req.url === "/runtime/commands/legal-corpus/resume-waiting-runs") {
-        res.writeHead(202, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({
-            ok: true,
-            data: {
-              status: "READY",
-              execution_mode: "ASYNC_ACCEPTED",
-              request_ref: "resume:req-1",
-              state: "QUEUED",
-            },
-          }),
-        );
-        return;
-      }
+        if (req.url === "/runtime/commands/legal-corpus/resume-waiting-runs") {
+          res.writeHead(202, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              ok: true,
+              data: {
+                status: "READY",
+                execution_mode: "ASYNC_ACCEPTED",
+                request_ref: "resume:req-1",
+                state: "QUEUED",
+              },
+            }),
+          );
+          return;
+        }
 
-      res.writeHead(404, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ ok: false }));
+        res.writeHead(404, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false }));
+      })();
     },
   );
 
@@ -123,7 +125,7 @@ describe("Python worker runtime bridge (e2e) [LCSP-234]", () => {
   });
 
   it("bridges request_targeted_reanalysis through PYTHON_WORKER_BASE_URL", async () => {
-    const response = await httpRequest(app)
+    const response = (await httpRequest(app)
       .post("/internal/evidence/agentic-tools/dispatch")
       .set("X-Worker-Api-Key", WORKER_KEY)
       .set("X-Correlation-Id", "corr-rt-1")
@@ -132,6 +134,7 @@ describe("Python worker runtime bridge (e2e) [LCSP-234]", () => {
         assessment_id: "assessment-1",
         organization_id: "org-1",
         user_id: "user-1",
+        workflow_run_id: "run-rt-1",
         artifact_versions: {
           technicalEvidenceReportId: "ter_12345678",
         },
@@ -142,7 +145,7 @@ describe("Python worker runtime bridge (e2e) [LCSP-234]", () => {
           idempotencyKey: "request_targeted_reanalysis_0001",
         },
         correlationId: "corr-rt-1",
-      });
+      })) as { status: number; body: { ok: boolean; data: { state: string } } };
 
     assert.equal(response.status, 200);
     assert.equal(response.body.ok, true);
@@ -164,10 +167,34 @@ describe("Python worker runtime bridge (e2e) [LCSP-234]", () => {
       reasonRequirementId: "requirement:gap_12345678",
       idempotencyKey: "request_targeted_reanalysis_0001",
     });
+
+    const events = (await (
+      prisma as unknown as {
+        assessmentRuntimeEvent: {
+          findMany: (args: Record<string, unknown>) => Promise<
+            Array<{
+              eventType: string;
+              toolName: string | null;
+            }>
+          >;
+        };
+      }
+    ).assessmentRuntimeEvent.findMany({
+      where: {
+        assessmentId: "assessment-1",
+        runId: "run-rt-1",
+      },
+      orderBy: { sequence: "asc" },
+    })) as Array<{ eventType: string; toolName: string | null }>;
+    assert.deepEqual(
+      events.map((event) => event.eventType),
+      ["RUN_STARTED", "TOOL_STARTED", "TOOL_COMPLETED"],
+    );
+    assert.equal(events[1]?.toolName, "request_targeted_reanalysis");
   });
 
   it("bridges resume_waiting_runs through PYTHON_WORKER_BASE_URL", async () => {
-    const response = await httpRequest(app)
+    const response = (await httpRequest(app)
       .post("/internal/evidence/agentic-tools/dispatch")
       .set("X-Worker-Api-Key", WORKER_KEY)
       .set("X-Correlation-Id", "corr-rt-2")
@@ -176,6 +203,7 @@ describe("Python worker runtime bridge (e2e) [LCSP-234]", () => {
         assessment_id: "assessment-1",
         organization_id: "org-1",
         user_id: "user-1",
+        workflow_run_id: "run-rt-2",
         artifact_versions: {
           corpusVersionId: "corpus-1",
         },
@@ -184,7 +212,7 @@ describe("Python worker runtime bridge (e2e) [LCSP-234]", () => {
           idempotencyKey: "resume_waiting_runs_0001",
         },
         correlationId: "corr-rt-2",
-      });
+      })) as { status: number; body: { ok: boolean; data: { state: string } } };
 
     assert.equal(response.status, 200);
     assert.equal(response.body.ok, true);
@@ -201,6 +229,30 @@ describe("Python worker runtime bridge (e2e) [LCSP-234]", () => {
       maxRuns: 15,
       idempotencyKey: "resume_waiting_runs_0001",
     });
+
+    const events = (await (
+      prisma as unknown as {
+        assessmentRuntimeEvent: {
+          findMany: (args: Record<string, unknown>) => Promise<
+            Array<{
+              eventType: string;
+              toolName: string | null;
+            }>
+          >;
+        };
+      }
+    ).assessmentRuntimeEvent.findMany({
+      where: {
+        assessmentId: "assessment-1",
+        runId: "run-rt-2",
+      },
+      orderBy: { sequence: "asc" },
+    })) as Array<{ eventType: string; toolName: string | null }>;
+    assert.deepEqual(
+      events.map((event) => event.eventType),
+      ["RUN_STARTED", "TOOL_STARTED", "TOOL_COMPLETED"],
+    );
+    assert.equal(events[1]?.toolName, "resume_waiting_runs");
   });
 });
 

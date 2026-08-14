@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,11 +9,17 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const workerRoot = path.join(repoRoot, "lcsp-python-workers");
 const workerPython = path.join(workerRoot, ".venv", "bin", "python");
+const rootEnv = loadDotEnv(path.join(repoRoot, ".env"));
 const defaultWorkerRuntimeVersion =
-  process.env.WORKER_RUNTIME_VERSION ?? "2026.08.13";
+  process.env.WORKER_RUNTIME_VERSION ??
+  rootEnv.WORKER_RUNTIME_VERSION ??
+  "2026.08.13";
 const defaultWorkerRuntimeBuildRef =
-  process.env.WORKER_RUNTIME_BUILD_REF ?? detectGitBuildRef();
-const defaultOrchestrationDebug = process.env.ORCHESTRATION_DEBUG ?? "false";
+  process.env.WORKER_RUNTIME_BUILD_REF ??
+  rootEnv.WORKER_RUNTIME_BUILD_REF ??
+  detectGitBuildRef();
+const defaultOrchestrationDebug =
+  process.env.ORCHESTRATION_DEBUG ?? rootEnv.ORCHESTRATION_DEBUG ?? "false";
 
 const targets = {
   proxy: {
@@ -53,12 +59,17 @@ const targets = {
     cwd: repoRoot,
     cmd: "pnpm",
     args: ["--dir", "apps/api", "start:dev"],
+    env: rootEnv,
     description: "Start NestJS API in watch mode",
   },
   web: {
     cwd: repoRoot,
     cmd: "pnpm",
     args: ["--dir", "apps/web", "dev"],
+    env: {
+      ...rootEnv,
+      PORT: rootEnv.NEXT_PORT ?? "3000",
+    },
     description: "Start Next.js web app in dev mode",
   },
   scanner: workerTarget(
@@ -106,6 +117,7 @@ const targets = {
 const groups = {
   fogewise: ["proxy", "infra"],
   fogewise_reset: ["proxy_reset", "infra_reset"],
+  dev_stop: ["dev_stop"],
   dev: [
     "api",
     "web",
@@ -135,6 +147,11 @@ async function main() {
     process.exit(0);
   }
 
+  if (selection === "dev_stop") {
+    stopDevProcesses();
+    process.exit(0);
+  }
+
   if (selection in groups) {
     await runGroup(selection);
   } else if (selection in targets) {
@@ -159,6 +176,7 @@ function workerTarget(target, description, healthPort) {
       ORCHESTRATION_DEBUG: defaultOrchestrationDebug,
     },
     description,
+    healthPort,
   };
 }
 
@@ -176,6 +194,147 @@ function detectGitBuildRef() {
   }
 
   return "local";
+}
+
+function stopDevProcesses() {
+  const patterns = [
+    "lcsp_workers.runtime",
+    "pnpm --dir apps/api start:dev",
+    "nest start --watch",
+    "pnpm --dir apps/web dev",
+    "next dev",
+  ];
+  const protectedPids = new Set([
+    process.pid,
+    process.ppid,
+    ...listParentPids(process.pid),
+  ]);
+  const killed = [];
+
+  for (const pattern of patterns) {
+    for (const pid of findMatchingPids(pattern, protectedPids)) {
+      try {
+        process.kill(pid, "SIGTERM");
+        killed.push({ pid, signal: "SIGTERM", pattern });
+      } catch {}
+    }
+  }
+
+  sleepMs(750);
+
+  for (const pattern of patterns) {
+    for (const pid of findMatchingPids(pattern, protectedPids)) {
+      try {
+        process.kill(pid, "SIGKILL");
+        killed.push({ pid, signal: "SIGKILL", pattern });
+      } catch {}
+    }
+  }
+
+  if (killed.length === 0) {
+    console.log("[run] No matching local LCSP dev processes were running.");
+    return;
+  }
+
+  console.log("[run] Stopped local LCSP dev processes:");
+  for (const entry of killed) {
+    console.log(
+      `  - pid=${entry.pid} signal=${entry.signal} pattern=${entry.pattern}`,
+    );
+  }
+}
+
+function findMatchingPids(pattern, protectedPids) {
+  const result = spawnSync(
+    "bash",
+    ["-lc", `ps -eo pid=,args= | grep -F ${shellQuote(pattern)} | grep -v grep`],
+    {
+      cwd: repoRoot,
+      encoding: "utf8",
+    },
+  );
+
+  if (result.status !== 0 || !result.stdout.trim()) {
+    return [];
+  }
+
+  const pids = [];
+  for (const line of result.stdout.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const pidText = trimmed.split(/\s+/, 1)[0];
+    const pid = Number.parseInt(pidText, 10);
+    if (!Number.isInteger(pid) || pid <= 0 || protectedPids.has(pid)) {
+      continue;
+    }
+    pids.push(pid);
+  }
+  return [...new Set(pids)];
+}
+
+function listParentPids(startPid) {
+  const result = [];
+  let currentPid = startPid;
+
+  for (;;) {
+    const parentPid = readParentPid(currentPid);
+    if (!parentPid || result.includes(parentPid)) {
+      break;
+    }
+    result.push(parentPid);
+    currentPid = parentPid;
+  }
+
+  return result;
+}
+
+function readParentPid(pid) {
+  const result = spawnSync("ps", ["-o", "ppid=", "-p", String(pid)], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  if (result.status !== 0) {
+    return null;
+  }
+  const value = Number.parseInt(result.stdout.trim(), 10);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function shellQuote(value) {
+  return `'${String(value).replaceAll("'", `'\"'\"'`)}'`;
+}
+
+function sleepMs(durationMs) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, durationMs);
+}
+
+function loadDotEnv(filePath) {
+  if (!existsSync(filePath)) {
+    return {};
+  }
+
+  const env = {};
+  const text = readFileSync(filePath, "utf8");
+  for (const rawLine of text.split(/\r?\n/u)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) {
+      continue;
+    }
+    const separatorIndex = line.indexOf("=");
+    if (separatorIndex <= 0) {
+      continue;
+    }
+    const key = line.slice(0, separatorIndex).trim();
+    let value = line.slice(separatorIndex + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    env[key] = value;
+  }
+  return env;
 }
 
 function logWorkerRuntimeBanner(name, target) {
@@ -264,6 +423,8 @@ async function runGroup(name) {
     longRunningMembers.push(member);
   }
 
+  assertPortsAvailable(longRunningMembers);
+
   if (members.includes("infra") && hasWorkerMember(longRunningMembers)) {
     console.log(
       "[run] Waiting for local RabbitMQ and Redis to accept connections...",
@@ -305,6 +466,59 @@ async function runGroup(name) {
       process.exit(code ?? 0);
     });
   }
+}
+
+function assertPortsAvailable(members) {
+  const conflicts = [];
+
+  for (const member of members) {
+    const target = targets[member];
+    const healthPort = target?.healthPort;
+    if (!healthPort) {
+      continue;
+    }
+    const owner = describeListeningPort(healthPort);
+    if (owner) {
+      conflicts.push({
+        member,
+        port: healthPort,
+        owner,
+      });
+    }
+  }
+
+  if (conflicts.length === 0) {
+    return;
+  }
+
+  console.error(
+    "[run] Cannot start dev group because required ports are already in use:",
+  );
+  for (const conflict of conflicts) {
+    console.error(
+      `  - target=${conflict.member} health_port=${conflict.port}${conflict.owner ? ` owner=${conflict.owner}` : ""}`,
+    );
+  }
+  console.error("[run] Stop the stale process first, then re-run `pnpm dev`.");
+  process.exit(1);
+}
+
+function describeListeningPort(port) {
+  const result = spawnSync("bash", ["-lc", `ss -ltnp | grep ':${port}\\b'`], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+
+  if (result.status !== 0) {
+    return null;
+  }
+
+  const line = result.stdout
+    .split("\n")
+    .map((value) => value.trim())
+    .find(Boolean);
+
+  return line || null;
 }
 
 function spawnSyncCompatible(target) {
@@ -392,11 +606,13 @@ function printHelp() {
 Targets:
   fogewise
   fogewise_reset
+  dev_stop
   dev
 
 Examples:
   pnpm run dev:fogewise
   pnpm run dev:fogewise:reset
+  pnpm run dev:stop
   pnpm run dev
 `);
 }

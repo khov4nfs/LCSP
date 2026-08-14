@@ -77,6 +77,32 @@ def test_t01_valid_message_pbac_allow(config, pbac_mock, channel_mock, method_mo
     channel_mock.basic_publish.assert_not_called()
 
 
+def test_t01_scan_trigger_headers_allow(config, pbac_mock, channel_mock, method_mock):
+    """T01b: Snapshot auto-scan headers are enough for PBAC allow."""
+    pbac_mock.check.return_value = "allow"
+    consumer = DummyConsumer(config, pbac_mock)
+
+    properties = MagicMock()
+    properties.headers = {
+        "user_id": "user-1",
+        "organization_id": "org-1",
+        "action": "scan:trigger",
+        "x-correlation-id": "corr-1",
+    }
+    body = json.dumps({"snapshotId": "snapshot-1"}).encode("utf-8")
+
+    consumer._on_message(channel_mock, method_mock, properties, body)
+
+    pbac_mock.check.assert_called_once_with(
+        user_id="user-1",
+        organization_id="org-1",
+        action="scan:trigger",
+        correlationId="corr-1",
+    )
+    assert consumer.handle_called is True
+    channel_mock.basic_ack.assert_called_once_with(delivery_tag=1)
+
+
 def test_t02_pbac_deny(config, pbac_mock, channel_mock, method_mock, capsys):
     """T02: PBAC deny nacks without requeue and logs WORKER_TASK_DENIED."""
     pbac_mock.check.return_value = "deny"
@@ -126,11 +152,13 @@ def test_t04_handle_exception_retry_and_dlq(config, pbac_mock, channel_mock, met
 
     properties1 = MagicMock()
     properties1.headers = {"x-lcsp-retry-count": 2}
+    properties1.correlationId = "cid-123"
     consumer._on_message(channel_mock, method_mock, properties1, body)
 
     channel_mock.basic_publish.assert_called_once()
     retry_properties = channel_mock.basic_publish.call_args.kwargs["properties"]
     assert retry_properties.headers["x-lcsp-retry-count"] == 3
+    assert retry_properties.correlation_id == "cid-123"
     channel_mock.basic_ack.assert_called_with(delivery_tag=1)
 
     channel_mock.reset_mock()

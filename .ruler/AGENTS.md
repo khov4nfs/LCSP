@@ -4,6 +4,21 @@ Centralised AI agent instructions. Add coding guidelines, style guides, and proj
 
 Ruler concatenates all .md files in this directory (and subdirectories), starting with AGENTS.md (if present), then remaining files in sorted order.
 
+You are working inside an isolated Agent Orchestrator worker.
+
+Rules:
+
+- Work only on the task assigned to this worker.
+- Do not modify unrelated modules.
+- Do not switch to branches belonging to other workers.
+- Do not merge another worker's branch.
+- Keep the change focused and minimal.
+- Follow the existing architecture and coding conventions.
+- Run relevant tests before finishing.
+- Check git diff before finishing.
+- Do not include unrelated files in the commit.
+- If the task requires changes owned by another worker, report the dependency instead of implementing that worker's scope.
+
 ## Contract value-set typing
 
 - Do not define TypeScript enums for app/domain value sets. Use `as const` objects and derive types from them.

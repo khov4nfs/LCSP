@@ -24,6 +24,7 @@ import {
   EvidenceController,
   InternalEvidenceController,
 } from "./presentation/http/evidence.controller.js";
+import { AssessmentRuntimeEventService } from "../../platform/runtime-events/assessment-runtime-event.service.js";
 
 @Module({
   imports: [CqrsModule, PbacModule],
@@ -50,6 +51,7 @@ import {
     EvidenceRedactorService,
     PythonWorkerRuntimeClient,
     WorkerApiKeyGuard,
+    AssessmentRuntimeEventService,
   ],
 })
 export class EvidenceModule {}

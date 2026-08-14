@@ -47,6 +47,8 @@ import {
 
 import type { AppShellNavigationSection } from "../../types/app-shell.types";
 import type { AssessmentSummary } from "../../types/workspace.types";
+import { useWorkspaceRuntime } from "./workspace-runtime-provider";
+import { AssessmentRuntimeSidebarPanel } from "./assessment-runtime-sidebar-panel";
 import { SidebarAssessmentList } from "../molecules/sidebar-assessment-list";
 import { WorkspaceSwitcher } from "../molecules/workspace-switcher";
 
@@ -78,6 +80,7 @@ export function AppSidebar({
     boolean | null
   >(null);
   const settingsOpen = settingsOpenOverride ?? isSettingsRoute;
+  const runtime = useWorkspaceRuntime();
 
   async function handleSignOut() {
     await signOutMutation.mutateAsync();
@@ -180,6 +183,15 @@ export function AppSidebar({
                     );
                   })}
                 </SidebarMenu>
+                {section.kind === "assessment" && section.assessmentId ? (
+                  <AssessmentRuntimeSidebarPanel
+                    assessmentId={section.assessmentId}
+                    timeline={{
+                      ...runtime.getAssessmentRuntime(section.assessmentId),
+                      connectionState: runtime.connectionState,
+                    }}
+                  />
+                ) : null}
               </SidebarGroupContent>
             </SidebarGroup>
             {index === 0 ? <SidebarAssessmentList /> : null}

@@ -1,9 +1,12 @@
 import { Catch, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import type { ArgumentsHost, ExceptionFilter } from "@nestjs/common";
-import type { ProblemResult } from "@lcsp/contracts/auth";
+import {
+  AUTH_ERROR_CODES,
+  createProblemResult,
+  type ProblemResult,
+} from "@lcsp/contracts/auth";
 import { randomUUID } from "node:crypto";
 
-import { internalServerProblem } from "./problem-factory.js";
 import { setProblemResponseMetadata } from "./problem-response-metadata.js";
 
 type HttpResponse = {
@@ -40,7 +43,7 @@ export class ProblemExceptionFilter implements ExceptionFilter {
       );
     } else if (status >= 400) {
       this.logger.warn(
-        `[${correlationId}] ${request.method ?? "HTTP"} ${request.url ?? ""} ${status} - ${formatExceptionBody(body)}`,
+        `[${correlationId}] ${request.method ?? "HTTP"} ${request.url ?? ""} ${status} - ${formatExceptionBody(body || exception)}`,
       );
     }
 
@@ -88,12 +91,28 @@ function toProblemResult(
     };
   }
 
-  return internalServerProblem(correlationId);
+  return createProblemResult(AUTH_ERROR_CODES.validationFailed, correlationId, {
+    status,
+  });
 }
 
 function getHttpStatus(exception: unknown): number {
   if (exception instanceof HttpException) {
     return exception.getStatus();
+  }
+  if (
+    exception !== null &&
+    typeof exception === "object" &&
+    typeof (exception as { status?: unknown }).status === "number"
+  ) {
+    return (exception as { status: number }).status;
+  }
+  if (
+    exception !== null &&
+    typeof exception === "object" &&
+    typeof (exception as { statusCode?: unknown }).statusCode === "number"
+  ) {
+    return (exception as { statusCode: number }).statusCode;
   }
 
   return HttpStatus.INTERNAL_SERVER_ERROR;

@@ -7,7 +7,48 @@ CREATE TYPE "TargetedReanalysisRequestState" AS ENUM (
   'DLQ'
 );
 
-ALTER TYPE "OutboxAggregateType" ADD VALUE IF NOT EXISTS 'TARGETED_REANALYSIS_REQUEST';
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type
+    WHERE typname = 'OutboxAggregateType'
+  ) THEN
+    CREATE TYPE "OutboxAggregateType" AS ENUM (
+      'AI_USAGE_FLOW',
+      'ASSESSMENT',
+      'AUTH_USER',
+      'CLASSIFICATION_RESULT',
+      'DOCUMENT_REQUEST',
+      'LEGAL_RULE_MATCH',
+      'REPOSITORY_SCAN_JOB',
+      'REPOSITORY_SNAPSHOT',
+      'TECHNICAL_EVIDENCE_REPORT',
+      'TECHNICAL_PROFILE',
+      'TARGETED_REANALYSIS_REQUEST',
+      'VERIFIED_PROFILE',
+      'WIZARD_PROFILE'
+    );
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'OutboxMessage'
+      AND column_name = 'aggregateType'
+      AND udt_name <> 'OutboxAggregateType'
+  ) THEN
+    EXECUTE '
+      ALTER TABLE "OutboxMessage"
+        ALTER COLUMN "aggregateType" TYPE "OutboxAggregateType"
+        USING ("aggregateType"::text::"OutboxAggregateType")
+    ';
+  END IF;
+END $$;
 
 CREATE TABLE "TargetedReanalysisRequest" (
   "id" TEXT NOT NULL,

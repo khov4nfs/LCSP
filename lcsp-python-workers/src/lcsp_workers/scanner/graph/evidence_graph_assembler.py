@@ -6,9 +6,20 @@ from typing import Iterable
 from .graph_builder import EvidenceGraphBuilder
 from .graph_serializer import ScanGraph
 
+MAX_COVERAGE_REASON_LENGTH = 240
+
 
 class EvidenceGraphAssembler:
     """Build the scan-local, sanitized graph persisted with an evidence report."""
+
+    @staticmethod
+    def _graph_safe_coverage_note(note: str) -> str:
+        first_line = str(note).splitlines()[0].strip()
+        if len(first_line) > MAX_COVERAGE_REASON_LENGTH:
+            return f"{first_line[:MAX_COVERAGE_REASON_LENGTH]}... [truncated]"
+        if first_line != str(note).strip():
+            return f"{first_line}... [truncated]"
+        return first_line
 
     def assemble(
         self,
@@ -90,5 +101,10 @@ class EvidenceGraphAssembler:
                     builder.add_edge("CORROBORATES", dependency_id, invocation)
 
         for note in coverage_notes:
-            builder.add_node("COVERAGE_GAP", "Coverage limitation", attributes={"reason": note}, coverage_state="LIMITED")
+            builder.add_node(
+                "COVERAGE_GAP",
+                "Coverage limitation",
+                attributes={"reason": self._graph_safe_coverage_note(note)},
+                coverage_state="LIMITED",
+            )
         return builder.build_scan_graph()

@@ -1,13 +1,13 @@
 views {
   view index {
     title 'LCSP System Landscape'
-    description 'High-level overview of LCSP Platform, actors, and external system integrations.'
+    description 'High-level overview of LCSP Platform, actors, external integrations, and shared assessment-memory architecture for multi-tenant orchestration.'
     include *
   }
 
   view containers of lcsp {
     title 'LCSP System Containers'
-    description 'Containers inside LCSP: Web Frontend, NestJS API, Python Workers, Database, ChromaDB, Queue, and Object Storage.'
+    description 'Containers inside LCSP: Web Frontend, NestJS API, Python Workers, Database, ChromaDB, Queue, Object Storage, and the assessment-memory services/read-models used by orchestration.'
     include *
   }
 
@@ -45,5 +45,29 @@ views {
       lcsp.pythonWorkers.classificationWorker,
       lcsp.pythonWorkers.gapAnalysisWorker,
       lcsp.pythonWorkers.documentWorker
+  }
+
+  view assessmentMemoryEntry of lcsp {
+    title 'Assessment Memory Entry View'
+    description 'Entry-point view for assessment-scoped memory: identity context, orchestration checkpoints, pinned artifacts, tool execution logs, and prompt-safe projections.'
+    include
+      lcsp.web,
+      lcsp.api.assessmentContextService,
+      lcsp.api.orchestrationRuntime,
+      lcsp.api.toolDispatchController,
+      lcsp.api.artifactReadModel,
+      lcsp.api.promptContextBuilder,
+      lcsp.pythonWorkers.toolResolver,
+      lcsp.pythonWorkers.llmGateway,
+      lcsp.database.assessmentEntity,
+      lcsp.database.wizardProfileEntity,
+      lcsp.database.workflowRunEntity,
+      lcsp.database.workflowCheckpointEntity,
+      lcsp.database.missingInputStateEntity,
+      lcsp.database.pinnedArtifactRefEntity,
+      lcsp.database.toolExecutionLogEntity,
+      lcsp.database.decisionLedgerEntity,
+      lcsp.database.assessmentPromptViewEntity,
+      lcsp.queue
   }
 }
