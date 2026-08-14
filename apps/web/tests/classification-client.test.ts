@@ -187,7 +187,11 @@ test("sanitizeAssessmentDetailPayload accepts valid classification payloads", ()
   });
 
   assert.deepEqual(payload, {
-    readiness_state: { classification_locked: false },
+    readiness_state: {
+      classification_locked: false,
+      lock_reason: null,
+      missing_evidence: [],
+    },
     guardrail_status: "passed",
     classification_result: {
       risk_level: "HIGH",

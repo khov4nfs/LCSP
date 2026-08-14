@@ -16,12 +16,17 @@ import {
   LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
   LEGAL_RULE_MATCH_STATUSES,
   TECHNICAL_EVIDENCE_REPORT_STATUSES,
+  VERIFIED_PROFILE_STATUSES,
 } from "@lcsp/contracts/scan";
+import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
+import { LegalRetrievalIndexStatus } from "@prisma/client";
 import {
   fromPrismaClassificationGuardrailStatus,
   fromPrismaVerifiedProfileStatus,
   fromPrismaWizardStatus,
   toPrismaEvidenceAcceptanceStatus,
+  toPrismaLegalRuleLifecycleStatus,
+  toPrismaVerifiedProfileStatus,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
@@ -81,20 +86,6 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
         select: { id: true },
       });
 
-    const readinessState: ReadinessState = acceptedEvidenceReport
-      ? {
-          classification_locked: false,
-          lock_reason: null,
-          missing_evidence: [],
-        }
-      : {
-          classification_locked: true,
-          lock_reason: ASSESSMENT_LOCK_REASONS.evidenceRequired,
-          missing_evidence: [
-            ASSESSMENT_MISSING_EVIDENCE_CODES.technicalEvidenceReport,
-          ],
-        };
-
     const classificationResult = acceptedEvidenceReport
       ? await this.prisma.classificationResult.findFirst({
           where: {
@@ -132,6 +123,46 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
             orderBy: { createdAt: "desc" },
           })
         : null;
+
+    const approvedProfileForPipeline =
+      acceptedEvidenceReport && !classificationResult
+        ? await this.prisma.verifiedProfile.findFirst({
+            where: {
+              assessmentId: assessment.id,
+              organizationId: assessment.organizationId,
+              status: toPrismaVerifiedProfileStatus(
+                VERIFIED_PROFILE_STATUSES.approved,
+              ),
+            },
+            select: { id: true },
+            orderBy: { createdAt: "desc" },
+          })
+        : null;
+
+    const legalReadinessMissingEvidence =
+      approvedProfileForPipeline && !classificationResult
+        ? await this.getLegalPipelineMissingEvidence()
+        : [];
+
+    const readinessState: ReadinessState = !acceptedEvidenceReport
+      ? {
+          classification_locked: true,
+          lock_reason: ASSESSMENT_LOCK_REASONS.evidenceRequired,
+          missing_evidence: [
+            ASSESSMENT_MISSING_EVIDENCE_CODES.technicalEvidenceReport,
+          ],
+        }
+      : legalReadinessMissingEvidence.length
+        ? {
+            classification_locked: true,
+            lock_reason: ASSESSMENT_LOCK_REASONS.legalReadinessRequired,
+            missing_evidence: legalReadinessMissingEvidence,
+          }
+        : {
+            classification_locked: false,
+            lock_reason: null,
+            missing_evidence: [],
+          };
 
     const rerunnableLegalRuleMatch =
       acceptedEvidenceReport && !classificationResult
@@ -180,6 +211,59 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
     throw problemException(ASSESSMENT_ERROR_CODES.notFound, correlationId, {
       status: HttpStatus.NOT_FOUND,
     });
+  }
+
+  private async getLegalPipelineMissingEvidence(): Promise<
+    ReadinessState["missing_evidence"]
+  > {
+    const corpus = await this.prisma.legalCorpusVersion.findFirst({
+      where: {
+        status: toPrismaLegalRuleLifecycleStatus(
+          LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+        ),
+        approvedAt: { not: null },
+      },
+      orderBy: { approvedAt: "desc" },
+      select: { id: true },
+    });
+
+    if (!corpus) {
+      return [ASSESSMENT_MISSING_EVIDENCE_CODES.legalCorpusVersion];
+    }
+
+    const index = await this.prisma.legalRetrievalIndex.findFirst({
+      where: {
+        legalCorpusVersionId: corpus.id,
+        status: LegalRetrievalIndexStatus.VALID,
+        validatedAt: { not: null },
+        validationManifestRef: { not: null },
+      },
+      orderBy: [{ validatedAt: "desc" }, { createdAt: "desc" }],
+      select: { id: true },
+    });
+
+    return index
+      ? await this.getLegalCatalogMissingEvidence()
+      : [ASSESSMENT_MISSING_EVIDENCE_CODES.legalRetrievalIndex];
+  }
+
+  private async getLegalCatalogMissingEvidence(): Promise<
+    ReadinessState["missing_evidence"]
+  > {
+    const catalog = await this.prisma.legalRuleCatalogVersion.findFirst({
+      where: {
+        status: toPrismaLegalRuleLifecycleStatus(
+          LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+        ),
+        approvedAt: { not: null },
+      },
+      orderBy: { approvedAt: "desc" },
+      select: { id: true },
+    });
+
+    return catalog
+      ? []
+      : [ASSESSMENT_MISSING_EVIDENCE_CODES.legalRuleCatalogVersion];
   }
 }
 

@@ -61,6 +61,7 @@ type ResumeWaitingRunsResponse = {
 const BLOCK_CODES = {
   corpusNotApproved: "CORPUS_VERSION_NOT_APPROVED",
   indexNotReady: "CORPUS_INDEX_NOT_READY",
+  ruleCatalogNotApproved: "LEGAL_RULE_CATALOG_NOT_APPROVED",
 } as const;
 
 const OUTBOX_VISIBLE_STATUSES = ["PENDING", "PUBLISHED", "FAILED"] as const;
@@ -116,6 +117,24 @@ export class ResumeWaitingRunsHandler implements ICommandHandler<
         command,
         BLOCK_CODES.indexNotReady,
         "The approved corpus version does not have a validated retrieval index.",
+      );
+    }
+
+    const catalog = await this.prisma.legalRuleCatalogVersion.findFirst({
+      where: {
+        status: toPrismaLegalRuleLifecycleStatus(
+          LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+        ),
+        approvedAt: { not: null },
+      },
+      orderBy: { approvedAt: "desc" },
+      select: { id: true },
+    });
+    if (!catalog) {
+      return this.blockedResponse(
+        command,
+        BLOCK_CODES.ruleCatalogNotApproved,
+        "No approved legal rule catalog is available for legal matching.",
       );
     }
 

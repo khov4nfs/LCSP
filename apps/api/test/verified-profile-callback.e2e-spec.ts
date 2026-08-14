@@ -403,6 +403,7 @@ async function resetDomainData(prisma: PrismaClient): Promise<void> {
   await prisma.legalDocumentChunk.deleteMany();
   await prisma.legalSourceDocument.deleteMany();
   await prisma.legalCorpusVersion.deleteMany();
+  await prisma.legalRuleCatalogVersion.deleteMany();
   await prisma.outboxMessage.deleteMany();
   await prisma.assessment.deleteMany();
 }
@@ -430,6 +431,15 @@ async function seedReadyLegalMatchingTarget(
           validatedAt: new Date("2026-08-12T00:00:00.000Z"),
         },
       },
+    },
+  });
+  await prisma.legalRuleCatalogVersion.create({
+    data: {
+      id: "catalog-ready-1",
+      version: "catalog-ready-1",
+      status: LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+      ruleRefs: [],
+      approvedAt: new Date("2026-08-12T00:00:00.000Z"),
     },
   });
 }
