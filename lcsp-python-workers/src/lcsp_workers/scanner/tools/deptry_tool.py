@@ -67,7 +67,8 @@ class DeptryTool:
         workspace = Path(workspace_path)
         config_hash = self._config_hash()
 
-        if not self._should_run(workspace):
+        project_roots = self._find_project_roots(workspace)
+        if not project_roots:
             return DeptryRunResult(
                 facts=[],
                 execution=ToolExecutionResult(
@@ -75,13 +76,56 @@ class DeptryTool:
                     tool_version="not-run",
                     outcome=OUTCOME_SUCCESS,
                     config_hash=config_hash,
-                    messages=["deptry skipped: no Python files with dependency manifest present"],
+                    messages=["deptry skipped: no Python dependency manifest present"],
                 ),
             )
 
         version_result = self._read_version(config_hash)
         if version_result.outcome != OUTCOME_SUCCESS:
             return DeptryRunResult(facts=[], execution=version_result)
+
+        facts: list[DependencyUsageFact] = []
+        messages: list[str] = []
+        outcome = OUTCOME_SUCCESS
+        for project_root in project_roots:
+            result = self._run_project(project_root, workspace, version_result, config_hash)
+            facts.extend(result.facts)
+            messages.extend(
+                f"{project_root.relative_to(workspace)}: {message}"
+                for message in result.execution.messages
+            )
+            if result.execution.outcome != OUTCOME_SUCCESS:
+                outcome = result.execution.outcome
+
+        return DeptryRunResult(
+            facts=facts,
+            execution=ToolExecutionResult(
+                tool_name=DEFAULT_TOOL_NAME,
+                tool_version=version_result.tool_version,
+                outcome=outcome,
+                config_hash=config_hash,
+                messages=messages,
+            ),
+        )
+
+    def _run_project(
+        self,
+        project_root: Path,
+        workspace: Path,
+        version_result: ToolExecutionResult,
+        config_hash: str,
+    ) -> DeptryRunResult:
+        if not self._has_python(project_root):
+            return DeptryRunResult(
+                facts=[],
+                execution=ToolExecutionResult(
+                    tool_name=DEFAULT_TOOL_NAME,
+                    tool_version=version_result.tool_version,
+                    outcome=OUTCOME_SUCCESS,
+                    config_hash=config_hash,
+                    messages=["deptry skipped: no Python files present"],
+                ),
+            )
 
         with tempfile.NamedTemporaryFile(prefix="lcsp-deptry-", suffix=".json") as out:
             command = [
@@ -93,7 +137,7 @@ class DeptryTool:
             try:
                 completed = subprocess.run(
                     command,
-                    cwd=workspace,
+                    cwd=project_root,
                     capture_output=True,
                     text=True,
                     timeout=self._timeout_seconds,
@@ -139,7 +183,7 @@ class DeptryTool:
                 )
 
         return DeptryRunResult(
-            facts=self._parse_facts(payload, workspace),
+            facts=self._parse_facts(payload, project_root, workspace),
             execution=ToolExecutionResult(
                 tool_name=DEFAULT_TOOL_NAME,
                 tool_version=version_result.tool_version,
@@ -217,7 +261,7 @@ class DeptryTool:
         return payload if isinstance(payload, dict) else {}
 
     def _parse_facts(
-        self, payload: dict[str, Any], workspace: Path
+        self, payload: dict[str, Any], project_root: Path, workspace: Path
     ) -> list[DependencyUsageFact]:
         facts: list[DependencyUsageFact] = []
         for name, files in self._iter_entries(payload, "unused", "DEP002"):
@@ -225,7 +269,10 @@ class DeptryTool:
                 self.fact(
                     package_name=name,
                     usage_state=USAGE_UNUSED,
-                    file_refs=[self._relative_path(path, workspace) for path in files],
+                    file_refs=[
+                        self._relative_path(path, project_root, workspace)
+                        for path in files
+                    ],
                 )
             )
         for name, files in self._iter_entries(payload, "missing", "DEP001"):
@@ -233,7 +280,10 @@ class DeptryTool:
                 self.fact(
                     package_name=name,
                     usage_state=USAGE_MISSING,
-                    file_refs=[self._relative_path(path, workspace) for path in files],
+                    file_refs=[
+                        self._relative_path(path, project_root, workspace)
+                        for path in files
+                    ],
                 )
             )
         for name, files in self._iter_entries(payload, "transitive", "DEP003"):
@@ -241,7 +291,10 @@ class DeptryTool:
                 self.fact(
                     package_name=name,
                     usage_state=USAGE_TRANSITIVE,
-                    file_refs=[self._relative_path(path, workspace) for path in files],
+                    file_refs=[
+                        self._relative_path(path, project_root, workspace)
+                        for path in files
+                    ],
                 )
             )
         return facts
@@ -276,11 +329,17 @@ class DeptryTool:
             return [item for item in files if isinstance(item, str)]
         return []
 
-    def _relative_path(self, raw_path: str, workspace: Path) -> str:
+    def _relative_path(self, raw_path: str, project_root: Path, workspace: Path) -> str:
         candidate = Path(raw_path)
         if not candidate.is_absolute():
             cleaned = raw_path.replace("\\", "/")
-            return cleaned[2:] if cleaned.startswith("./") else cleaned
+            relative = cleaned[2:] if cleaned.startswith("./") else cleaned
+            try:
+                return (project_root / relative).resolve(strict=False).relative_to(
+                    workspace.resolve(strict=False)
+                ).as_posix()
+            except ValueError:
+                return relative
         try:
             return candidate.resolve(strict=False).relative_to(
                 workspace.resolve(strict=False)
@@ -288,18 +347,26 @@ class DeptryTool:
         except ValueError:
             return candidate.name
 
-    def _should_run(self, workspace: Path) -> bool:
-        has_python = any(
-            path.is_file() and path.suffix == ".py" for path in workspace.rglob("*")
-        )
-        if not has_python:
-            return False
+    def _has_python(self, workspace: Path) -> bool:
         return any(
-            manifest.exists()
-            for pattern in ("pyproject.toml", "requirements*.txt")
-            for manifest in workspace.glob(pattern)
+            path.is_file()
+            and path.suffix == ".py"
+            and ".venv" not in path.parts
+            and "venv" not in path.parts
+            for path in workspace.rglob("*")
+        )
+
+    def _find_project_roots(self, workspace: Path) -> list[Path]:
+        return sorted(
+            {
+                manifest.parent
+                for pattern in ("pyproject.toml", "requirements*.txt")
+                for manifest in workspace.rglob(pattern)
+                if ".venv" not in manifest.parts and "venv" not in manifest.parts
+            },
+            key=lambda path: (len(path.relative_to(workspace).parts), str(path)),
         )
 
     def _config_hash(self) -> str:
-        material = f"{DEFAULT_TOOL_NAME}:{self._pinned_version}:json-output"
+        material = f"{DEFAULT_TOOL_NAME}:{self._pinned_version}:json-output-all-manifest-roots"
         return f"sha256:{hashlib.sha256(material.encode('utf-8')).hexdigest()}"
