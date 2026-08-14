@@ -318,7 +318,7 @@ function toClassificationStatusViewModel(
   payload: AssessmentDetailPayload,
 ): ClassificationStatusViewModel {
   const locked = payload.readiness_state?.classification_locked === true;
-  const guardrailStatus = payload.guardrail_status ?? null;
+  const guardrailStatus = normalizeGuardrailStatus(payload.guardrail_status);
   const classificationResult = payload.classification_result ?? null;
   const references = classificationResult?.citation_basis ?? [];
   const summaryText = classificationResult?.rationale ?? undefined;
@@ -419,6 +419,15 @@ function toClassificationStatusViewModel(
     hasClassification: false,
     canRerunClassification: payload.can_rerun_classification === true,
   };
+}
+
+function normalizeGuardrailStatus(value: string | null | undefined) {
+  const normalized = value?.trim().toLowerCase();
+  return normalized === "passed" ||
+    normalized === "degraded" ||
+    normalized === "blocked"
+    ? normalized
+    : null;
 }
 
 type ClassificationResultPayload = {

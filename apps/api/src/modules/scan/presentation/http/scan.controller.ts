@@ -69,8 +69,7 @@ interface TargetedReanalysisRequestBody {
   idempotencyKey: string;
 }
 
-interface InternalTargetedReanalysisCreateBody
-  extends TargetedReanalysisRequestBody {
+interface InternalTargetedReanalysisCreateBody extends TargetedReanalysisRequestBody {
   assessmentId: string;
   organizationId: string;
   userId?: string;

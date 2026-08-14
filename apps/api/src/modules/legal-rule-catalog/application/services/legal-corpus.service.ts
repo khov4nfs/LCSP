@@ -26,7 +26,7 @@ import {
   OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
 import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
-import { Prisma } from "@prisma/client";
+import { LegalRetrievalIndexStatus, Prisma } from "@prisma/client";
 import { VERIFIED_PROFILE_STATUSES } from "@lcsp/contracts/scan";
 
 import {
@@ -369,6 +369,83 @@ export class LegalCorpusService {
     );
   }
 
+  async registerValidatedRetrievalIndex(input: {
+    corpusVersionId: string;
+    version: string;
+    configHash: string;
+    contentHash: string;
+    validationManifestRef: string;
+    validatedAt?: string | null;
+    correlationId: string;
+  }) {
+    this.validateRetrievalIndexInput(input);
+
+    const corpus = await this.prisma.legalCorpusVersion.findUnique({
+      where: { id: input.corpusVersionId },
+      select: { id: true, version: true },
+    });
+    if (!corpus) {
+      throw problemException(
+        LEGAL_RULE_ERROR_CODES.corpusVersionNotFound,
+        input.correlationId,
+        { status: HttpStatus.NOT_FOUND },
+      );
+    }
+
+    const existing = await this.prisma.legalRetrievalIndex.findUnique({
+      where: { version: input.version },
+      select: {
+        id: true,
+        legalCorpusVersionId: true,
+        version: true,
+        status: true,
+        validationManifestRef: true,
+      },
+    });
+    if (existing) {
+      if (
+        existing.legalCorpusVersionId !== input.corpusVersionId ||
+        existing.validationManifestRef !== input.validationManifestRef
+      ) {
+        throw problemException(
+          LEGAL_RULE_ERROR_CODES.corpusIngestInvalid,
+          input.correlationId,
+          {
+            status: HttpStatus.CONFLICT,
+            meta: { reason: "retrieval_index_version_conflict" },
+          },
+        );
+      }
+      return {
+        id: existing.id,
+        version: existing.version,
+        status: existing.status,
+        validationManifestRef: existing.validationManifestRef,
+      };
+    }
+
+    const index = await this.prisma.legalRetrievalIndex.create({
+      data: {
+        legalCorpusVersionId: input.corpusVersionId,
+        version: input.version,
+        status: LegalRetrievalIndexStatus.VALID,
+        configHash: input.configHash,
+        contentHash: input.contentHash,
+        validationManifestRef: input.validationManifestRef,
+        validatedAt: input.validatedAt
+          ? new Date(input.validatedAt)
+          : new Date(),
+      },
+    });
+
+    return {
+      id: index.id,
+      version: index.version,
+      status: index.status,
+      validationManifestRef: index.validationManifestRef,
+    };
+  }
+
   private validateActivationInput(input: {
     integrityManifestRef: string;
     retrievalValidationRef: string;
@@ -408,6 +485,32 @@ export class LegalCorpusService {
         {
           status: HttpStatus.UNPROCESSABLE_ENTITY,
           meta: { reason: "idempotency_key_required" },
+        },
+      );
+    }
+  }
+
+  private validateRetrievalIndexInput(input: {
+    version: string;
+    configHash: string;
+    contentHash: string;
+    validationManifestRef: string;
+    validatedAt?: string | null;
+    correlationId: string;
+  }): void {
+    const valid =
+      Boolean(input.version.trim()) &&
+      isSha256(input.configHash) &&
+      isSha256(input.contentHash) &&
+      SAFE_MANIFEST_REF.test(input.validationManifestRef) &&
+      (!input.validatedAt || !Number.isNaN(Date.parse(input.validatedAt)));
+    if (!valid) {
+      throw problemException(
+        LEGAL_RULE_ERROR_CODES.corpusIngestInvalid,
+        input.correlationId,
+        {
+          status: HttpStatus.UNPROCESSABLE_ENTITY,
+          meta: { reason: "retrieval_index_validation_manifest_invalid" },
         },
       );
     }

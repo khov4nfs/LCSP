@@ -1,7 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { HttpException } from "@nestjs/common";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
-import { LEGAL_MATCHING_REQUEST_COMMAND } from "@lcsp/contracts/legal-rule-catalog";
+import {
+  LEGAL_CORPUS_RECOVERY_MISSING_REQUIREMENTS,
+  LEGAL_CORPUS_RECOVERY_REQUEST_COMMAND,
+  LEGAL_MATCHING_REQUEST_COMMAND,
+} from "@lcsp/contracts/legal-rule-catalog";
 import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import { VERIFIED_PROFILE_STATUSES } from "@lcsp/contracts/scan";
 
@@ -160,13 +164,23 @@ describe("ApproveVerifiedProfileHandler", () => {
     });
   });
 
-  it("approves without enqueueing legal-matching work when no validated corpus index is ready", async () => {
+  it("approves and emits legal-corpus recovery when no validated corpus index is ready", async () => {
     const { handler, enqueue, findIndex } = buildHandler();
     findIndex.mockImplementation(() => Promise.resolve(null));
 
     await handler.execute(command());
 
-    expect(enqueue).not.toHaveBeenCalled();
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    expect(enqueue.mock.calls[0][0]).toMatchObject({
+      eventType: LEGAL_CORPUS_RECOVERY_REQUEST_COMMAND,
+      aggregateId: "vp-1",
+      payload: {
+        verifiedProfileId: "vp-1",
+        missingRequirement:
+          LEGAL_CORPUS_RECOVERY_MISSING_REQUIREMENTS.validLegalRetrievalIndex,
+        corpusVersionId: "corpus-1",
+      },
+    });
   });
 
   it("approves without enqueueing legal-matching work when no approved rule catalog is ready", async () => {

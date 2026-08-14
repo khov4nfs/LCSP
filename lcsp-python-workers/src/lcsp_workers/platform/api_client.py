@@ -415,6 +415,43 @@ class WorkerApiClient:
             raise WorkerCallbackError("Resume waiting runs response was invalid.")
         return data
 
+    def ingest_validated_legal_corpus_draft(self, payload: dict) -> dict:
+        data = self._post_with_retry(
+            "/internal/legal-rule-catalog/corpus/validated-draft",
+            payload,
+        )
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Legal corpus ingest response was invalid.")
+        return data
+
+    def register_validated_retrieval_index(
+        self, corpus_version_id: str, payload: dict
+    ) -> dict:
+        data = self._post_with_retry(
+            (
+                f"/internal/legal-rule-catalog/corpus/{corpus_version_id}"
+                "/retrieval-indexes/validated"
+            ),
+            payload,
+        )
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Retrieval index response was invalid.")
+        return data
+
+    def activate_validated_corpus_version(
+        self, corpus_version_id: str, payload: dict
+    ) -> dict:
+        data = self._post_with_retry(
+            (
+                f"/internal/legal-rule-catalog/corpus/{corpus_version_id}"
+                "/activate-validated"
+            ),
+            payload,
+        )
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Legal corpus activation response was invalid.")
+        return data
+
     def get_wizard_profile_for_assessment(self, assessment_id: str) -> dict | None:
         path = InternalPath.WIZARD_PROFILE.format(assessment_id=assessment_id)
         try:

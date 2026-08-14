@@ -6,6 +6,7 @@ from lcsp_workers.intelligence.ai_usage_flow_consumer import AIUsageFlowConsumer
 from lcsp_workers.intelligence.conflict_detection_consumer import ConflictDetectionConsumer
 from lcsp_workers.intelligence.technical_profile_consumer import TechnicalProfileConsumer
 from lcsp_workers.intelligence.verified_profile_consumer import VerifiedProfileConsumer
+from lcsp_workers.legal.legal_corpus_recovery_consumer import LegalCorpusRecoveryConsumer
 from lcsp_workers.legal.legal_retrieval_consumer import LegalRetrievalConsumer
 from lcsp_workers.reporting.final_report_consumer import FinalReportConsumer
 from lcsp_workers.reporting.gap_analysis_consumer import GapAnalysisConsumer
@@ -39,6 +40,9 @@ def test_worker_routing_keys_match_the_shared_contracts():
         ),
         LegalRetrievalConsumer: event_value(
             legal_matching_contract, "LEGAL_MATCHING_REQUEST_COMMAND"
+        ),
+        LegalCorpusRecoveryConsumer: event_value(
+            legal_matching_contract, "LEGAL_CORPUS_RECOVERY_REQUEST_COMMAND"
         ),
         ClassificationConsumer: event_value(scan_contract, "legalRuleMatchReady"),
         FinalReportConsumer: event_value(document_contract, "finalReportRequested"),

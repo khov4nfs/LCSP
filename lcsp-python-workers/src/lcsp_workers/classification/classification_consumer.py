@@ -192,7 +192,9 @@ class ClassificationConsumer(ConsumerBase):
                 graph_payload.get("classification_version") or "1.0.0"
             ),
             classification_data=classification_data,
-            guardrail_status=str(graph_payload["guardrail_status"]),
+            guardrail_status=self._contract_guardrail_status(
+                graph_payload["guardrail_status"]
+            ),
         )
 
     @classmethod
@@ -247,3 +249,12 @@ class ClassificationConsumer(ConsumerBase):
         if not isinstance(value, list):
             return []
         return [str(entry) for entry in value if entry]
+
+    @staticmethod
+    def _contract_guardrail_status(value: Any) -> str:
+        normalized = str(value or "").strip().upper()
+        if normalized in {"PASSED", "DEGRADED", "BLOCKED"}:
+            return normalized
+        if normalized == "PASS":
+            return "PASSED"
+        return "BLOCKED"
