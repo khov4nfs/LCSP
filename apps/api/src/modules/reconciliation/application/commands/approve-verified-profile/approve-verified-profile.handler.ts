@@ -259,6 +259,20 @@ export class ApproveVerifiedProfileHandler implements ICommandHandler<ApproveVer
       return;
     }
 
+    const catalog = await tx.legalRuleCatalogVersion.findFirst({
+      where: {
+        status: toPrismaLegalRuleLifecycleStatus(
+          LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+        ),
+        approvedAt: { not: null },
+      },
+      orderBy: { approvedAt: "desc" },
+      select: { id: true },
+    });
+    if (!catalog) {
+      return;
+    }
+
     const event = buildOutboxMessageInput({
       aggregateType: OUTBOX_AGGREGATE_TYPES.verifiedProfile,
       aggregateId: verifiedProfileId,

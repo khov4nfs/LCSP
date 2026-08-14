@@ -1,4 +1,8 @@
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import {
+  ASSESSMENT_LOCK_REASONS,
+  ASSESSMENT_MISSING_EVIDENCE_CODES,
+} from "@lcsp/contracts/assessment";
 import type { MessageKey } from "@lcsp/i18n";
 
 import { PUBLIC_ENTRY_ROUTES } from "../../auth-entry.ts";
@@ -7,6 +11,7 @@ import { getProblemCode } from "./problem-envelope.ts";
 
 export const CLASSIFICATION_STATUS_STATES = {
   locked: "locked",
+  waitingLegalReadiness: "waiting_legal_readiness",
   processing: "processing",
   passed: "passed",
   degraded: "degraded",
@@ -60,7 +65,10 @@ type ClassificationStatusOutcome =
       kind: typeof CLASSIFICATION_STATUS_OUTCOME_KINDS.loaded;
       data: ClassificationStatusViewModel;
     }
-  | { kind: typeof CLASSIFICATION_STATUS_OUTCOME_KINDS.redirect; location: string }
+  | {
+      kind: typeof CLASSIFICATION_STATUS_OUTCOME_KINDS.redirect;
+      location: string;
+    }
   | {
       kind: typeof CLASSIFICATION_STATUS_OUTCOME_KINDS.error;
       titleKey: MessageKey;
@@ -155,11 +163,35 @@ export function sanitizeAssessmentDetailPayload(
     return null;
   }
 
-  const locked = readiness === undefined
-    ? undefined
-    : (readiness as { classification_locked?: unknown }).classification_locked;
+  const locked =
+    readiness === undefined
+      ? undefined
+      : (readiness as { classification_locked?: unknown })
+          .classification_locked;
+  const lockReason =
+    readiness === undefined
+      ? undefined
+      : (readiness as { lock_reason?: unknown }).lock_reason;
+  const missingEvidence =
+    readiness === undefined
+      ? undefined
+      : (readiness as { missing_evidence?: unknown }).missing_evidence;
 
   if (locked !== undefined && typeof locked !== "boolean") {
+    return null;
+  }
+  if (
+    lockReason !== undefined &&
+    lockReason !== null &&
+    typeof lockReason !== "string"
+  ) {
+    return null;
+  }
+  if (
+    missingEvidence !== undefined &&
+    (!Array.isArray(missingEvidence) ||
+      missingEvidence.some((entry) => typeof entry !== "string"))
+  ) {
     return null;
   }
 
@@ -216,9 +248,16 @@ export function sanitizeAssessmentDetailPayload(
   }
 
   if (readiness !== undefined) {
-    sanitized.readiness_state = locked === undefined
-      ? {}
-      : { classification_locked: locked };
+    sanitized.readiness_state =
+      locked === undefined
+        ? {}
+        : {
+            classification_locked: locked,
+            lock_reason: typeof lockReason === "string" ? lockReason : null,
+            missing_evidence: Array.isArray(missingEvidence)
+              ? missingEvidence
+              : [],
+          };
   }
 
   if (guardrailStatus !== undefined) {
@@ -250,7 +289,10 @@ export function toClassificationStatusOutcome(
     const sanitized = sanitizeAssessmentDetailPayload(payload);
     if (sanitized) {
       const viewModel = toClassificationStatusViewModel(sanitized);
-      return { kind: CLASSIFICATION_STATUS_OUTCOME_KINDS.loaded, data: viewModel };
+      return {
+        kind: CLASSIFICATION_STATUS_OUTCOME_KINDS.loaded,
+        data: viewModel,
+      };
     }
   }
 
@@ -272,7 +314,9 @@ export function toClassificationStatusOutcome(
   };
 }
 
-function toClassificationStatusViewModel(payload: AssessmentDetailPayload): ClassificationStatusViewModel {
+function toClassificationStatusViewModel(
+  payload: AssessmentDetailPayload,
+): ClassificationStatusViewModel {
   const locked = payload.readiness_state?.classification_locked === true;
   const guardrailStatus = payload.guardrail_status ?? null;
   const classificationResult = payload.classification_result ?? null;
@@ -283,6 +327,33 @@ function toClassificationStatusViewModel(payload: AssessmentDetailPayload): Clas
     : null;
 
   if (locked) {
+    const missingEvidence = payload.readiness_state?.missing_evidence ?? [];
+    const waitingOnLegalReadiness =
+      payload.readiness_state?.lock_reason ===
+        ASSESSMENT_LOCK_REASONS.legalReadinessRequired ||
+      missingEvidence.includes(
+        ASSESSMENT_MISSING_EVIDENCE_CODES.legalCorpusVersion,
+      ) ||
+      missingEvidence.includes(
+        ASSESSMENT_MISSING_EVIDENCE_CODES.legalRetrievalIndex,
+      ) ||
+      missingEvidence.includes(
+        ASSESSMENT_MISSING_EVIDENCE_CODES.legalRuleCatalogVersion,
+      );
+
+    if (waitingOnLegalReadiness) {
+      return {
+        state: CLASSIFICATION_STATUS_STATES.waitingLegalReadiness,
+        titleKey: "pages.classification.states.waitingLegalReadinessTitle",
+        badgeKey: "pages.classification.states.waitingLegalReadinessBadge",
+        descriptionKey:
+          "pages.classification.states.waitingLegalReadinessDescription",
+        verifiedProfileReview,
+        hasClassification: false,
+        canRerunClassification: false,
+      };
+    }
+
     return {
       state: "locked",
       titleKey: "pages.classification.states.lockedTitle",
@@ -377,6 +448,8 @@ type AssessmentDetailPayload = {
   wizard_status?: string;
   readiness_state?: {
     classification_locked?: boolean;
+    lock_reason?: string | null;
+    missing_evidence?: string[];
   };
   guardrail_status?: string | null;
   classification_result?: ClassificationResultPayload | null;
@@ -384,13 +457,18 @@ type AssessmentDetailPayload = {
   can_rerun_classification?: boolean;
 };
 
-function isAssessmentDetailPayload(payload: unknown): payload is AssessmentDetailPayload {
+function isAssessmentDetailPayload(
+  payload: unknown,
+): payload is AssessmentDetailPayload {
   if (typeof payload !== "object" || payload === null) {
     return false;
   }
 
   const candidate = payload as AssessmentDetailPayload;
-  return typeof candidate.readiness_state?.classification_locked === "boolean" || "guardrail_status" in candidate;
+  return (
+    typeof candidate.readiness_state?.classification_locked === "boolean" ||
+    "guardrail_status" in candidate
+  );
 }
 
 function sanitizeClassificationResult(
@@ -443,7 +521,8 @@ function sanitizeVerifiedProfileReview(
   const status = requiredString(candidate.status);
   const providerVersion = requiredString(candidate.provider_version);
   const createdAt = requiredString(candidate.created_at);
-  if (!verifiedProfileId || !status || !providerVersion || !createdAt) return null;
+  if (!verifiedProfileId || !status || !providerVersion || !createdAt)
+    return null;
 
   if (!recordArrayValue(candidate.verified_claims)) return null;
   if (!recordArrayValue(candidate.conflict_resolutions)) return null;
@@ -459,7 +538,11 @@ function sanitizeVerifiedProfileReview(
   const verificationSource = nullableString(candidate.verification_source);
   const approvedAt = nullableString(candidate.approved_at);
   const approvedById = nullableString(candidate.approved_by_id);
-  if (verificationSource === undefined || approvedAt === undefined || approvedById === undefined) {
+  if (
+    verificationSource === undefined ||
+    approvedAt === undefined ||
+    approvedById === undefined
+  ) {
     return null;
   }
 
@@ -469,7 +552,10 @@ function sanitizeVerifiedProfileReview(
     provider_version: providerVersion,
     verified_claims: candidate.verified_claims as Record<string, unknown>[],
     verification_source: verificationSource,
-    conflict_resolutions: candidate.conflict_resolutions as Record<string, unknown>[],
+    conflict_resolutions: candidate.conflict_resolutions as Record<
+      string,
+      unknown
+    >[],
     gates_passed_at: candidate.gates_passed_at as Record<string, unknown>,
     evidence_chain_integrity:
       typeof candidate.evidence_chain_integrity === "boolean"

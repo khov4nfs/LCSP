@@ -1152,6 +1152,9 @@ export type PagesMessages = {
       lockedBadge: string;
       lockedDescription: string;
       lockedNextSteps: string;
+      waitingLegalReadinessTitle: string;
+      waitingLegalReadinessBadge: string;
+      waitingLegalReadinessDescription: string;
       processingTitle: string;
       processingBadge: string;
       processingDescription: string;

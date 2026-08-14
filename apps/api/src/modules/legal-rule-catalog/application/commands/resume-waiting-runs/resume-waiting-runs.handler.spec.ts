@@ -11,6 +11,7 @@ import { ResumeWaitingRunsHandler } from "./resume-waiting-runs.handler.js";
 function buildHandler(input?: {
   corpus?: object | null;
   index?: object | null;
+  catalog?: object | null;
   approvedProfiles?: Array<{
     id: string;
     assessmentId: string;
@@ -22,6 +23,7 @@ function buildHandler(input?: {
 }) {
   const hasCorpus = input ? "corpus" in input : false;
   const hasIndex = input ? "index" in input : false;
+  const hasCatalog = input ? "catalog" in input : false;
   const prisma = {
     legalCorpusVersion: {
       findFirst: jest.fn<() => Promise<object | null>>().mockResolvedValue(
@@ -38,6 +40,13 @@ function buildHandler(input?: {
         .fn<() => Promise<object | null>>()
         .mockResolvedValue(
           hasIndex ? (input?.index ?? null) : { id: "index-1" },
+        ),
+    },
+    legalRuleCatalogVersion: {
+      findFirst: jest
+        .fn<() => Promise<object | null>>()
+        .mockResolvedValue(
+          hasCatalog ? (input?.catalog ?? null) : { id: "catalog-1" },
         ),
     },
     verifiedProfile: {
@@ -130,6 +139,18 @@ describe("ResumeWaitingRunsHandler", () => {
       eventType: LEGAL_MATCHING_REQUEST_COMMAND,
       aggregateId: "vp-1",
     });
+  });
+
+  it("blocks when no approved legal rule catalog is available", async () => {
+    const { handler, enqueue } = buildHandler({ catalog: null });
+
+    const result = await handler.execute(
+      new ResumeWaitingRunsCommand("corpus-1", 10, "resume-key", "corr-1"),
+    );
+
+    expect(result.status).toBe(AGENTIC_TOOL_STATUSES.blocked);
+    expect(result.result.resumedRunCount).toBe(0);
+    expect(enqueue).not.toHaveBeenCalled();
   });
 
   it("skips profiles that already have a pending or published legal-matching command", async () => {

@@ -1144,8 +1144,7 @@ export const enPages = {
       notProvided: "Not provided",
       yes: "Yes",
       no: "No",
-      conflictSummary:
-        "reconciliation decisions are attached to this profile.",
+      conflictSummary: "reconciliation decisions are attached to this profile.",
       approvalFailedTitle: "Approval failed",
       approvalFailedDetail:
         "The profile was not approved. Refresh the assessment and confirm that it is still pending approval.",
@@ -1179,8 +1178,7 @@ export const enPages = {
           "Whether human review is part of the AI-assisted process.",
         affected_subjects:
           "The people or groups affected by the AI-assisted process.",
-        business_process:
-          "The business workflow where AI assistance is used.",
+        business_process: "The business workflow where AI assistance is used.",
         ai_purpose: "The purpose of the AI-assisted functionality.",
       },
       confidenceLevels: {
@@ -1204,6 +1202,10 @@ export const enPages = {
         "Technical evidence is still required before classification can proceed.",
       lockedNextSteps:
         "Add the missing technical evidence so the classification can continue and the next step can be prepared.",
+      waitingLegalReadinessTitle: "Preparing legal basis",
+      waitingLegalReadinessBadge: "Preparing legal data",
+      waitingLegalReadinessDescription:
+        "The evidence profile is approved. Orchestration will continue automatically after the official legal corpus, retrieval index, and approved rule catalog are ready.",
       processingTitle: "Classification is in progress",
       processingBadge: "Processing",
       processingDescription: "The classification is still being prepared.",

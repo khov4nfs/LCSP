@@ -1138,8 +1138,7 @@ export const viPages = {
       notProvided: "Chưa có dữ liệu",
       yes: "Có",
       no: "Không",
-      conflictSummary:
-        "quyết định đối soát đang được gắn với hồ sơ này.",
+      conflictSummary: "quyết định đối soát đang được gắn với hồ sơ này.",
       approvalFailedTitle: "Phê duyệt thất bại",
       approvalFailedDetail:
         "Hồ sơ chưa được phê duyệt. Hãy tải lại assessment và kiểm tra hồ sơ vẫn đang chờ phê duyệt.",
@@ -1170,8 +1169,7 @@ export const viPages = {
           "Repository có đường code gọi hoặc vận hành mô hình AI.",
         personal_data_input:
           "Có dấu hiệu dữ liệu cá nhân được đưa vào luồng xử lý AI.",
-        human_review:
-          "Quy trình có hoặc cần bước rà soát bởi con người.",
+        human_review: "Quy trình có hoặc cần bước rà soát bởi con người.",
         affected_subjects:
           "Những cá nhân hoặc nhóm chịu tác động bởi quy trình có AI.",
         business_process:
@@ -1199,6 +1197,10 @@ export const viPages = {
         "Vẫn cần bằng chứng kỹ thuật trước khi phân loại có thể tiếp tục.",
       lockedNextSteps:
         "Cung cấp thêm bằng chứng kỹ thuật bị thiếu để quá trình phân loại tiếp tục và bước tiếp theo có thể được chuẩn bị.",
+      waitingLegalReadinessTitle: "Đang chuẩn bị nền pháp lý",
+      waitingLegalReadinessBadge: "Đang chuẩn bị",
+      waitingLegalReadinessDescription:
+        "Hồ sơ bằng chứng đã được phê duyệt. Orchestration sẽ tự tiếp tục sau khi corpus pháp lý chính thống, index truy xuất và rule catalog đã duyệt sẵn sàng.",
       processingTitle: "Đang phân loại",
       processingBadge: "Đang xử lý",
       processingDescription: "Quá trình phân loại vẫn đang được chuẩn bị.",

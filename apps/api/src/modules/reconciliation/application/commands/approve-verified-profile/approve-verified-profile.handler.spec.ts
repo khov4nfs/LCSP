@@ -52,6 +52,9 @@ function buildHandler(input?: { owned?: boolean }) {
   const findIndex = jest
     .fn()
     .mockImplementation(() => Promise.resolve({ id: "index-1" }));
+  const findCatalog = jest
+    .fn()
+    .mockImplementation(() => Promise.resolve({ id: "catalog-1" }));
   const updateProfile = jest.fn().mockImplementation(() => Promise.resolve({}));
   const tx = {
     verifiedProfile: {
@@ -60,6 +63,7 @@ function buildHandler(input?: { owned?: boolean }) {
     },
     legalCorpusVersion: { findFirst: findCorpus },
     legalRetrievalIndex: { findFirst: findIndex },
+    legalRuleCatalogVersion: { findFirst: findCatalog },
     conflictRecord: { count: countConflicts },
   };
   const transaction = jest.fn(
@@ -90,6 +94,7 @@ function buildHandler(input?: { owned?: boolean }) {
     updateProfile,
     findCorpus,
     findIndex,
+    findCatalog,
     write,
     writeInTx,
     enqueue,
@@ -158,6 +163,15 @@ describe("ApproveVerifiedProfileHandler", () => {
   it("approves without enqueueing legal-matching work when no validated corpus index is ready", async () => {
     const { handler, enqueue, findIndex } = buildHandler();
     findIndex.mockImplementation(() => Promise.resolve(null));
+
+    await handler.execute(command());
+
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it("approves without enqueueing legal-matching work when no approved rule catalog is ready", async () => {
+    const { handler, enqueue, findCatalog } = buildHandler();
+    findCatalog.mockImplementation(() => Promise.resolve(null));
 
     await handler.execute(command());
 

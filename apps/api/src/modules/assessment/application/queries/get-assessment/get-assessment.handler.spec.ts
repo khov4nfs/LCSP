@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import {
   ASSESSMENT_LOCK_REASONS,
+  ASSESSMENT_MISSING_EVIDENCE_CODES,
   ASSESSMENT_STATUS_CODES,
   WIZARD_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
@@ -52,6 +53,9 @@ function buildHandler(input: {
   } | null;
   verifiedProfileReview?: VerifiedProfileReviewFixture | null;
   rerunnableLegalRuleMatch?: { id: string } | null;
+  legalCorpusVersion?: { id: string } | null;
+  legalRetrievalIndex?: { id: string } | null;
+  legalRuleCatalogVersion?: { id: string } | null;
 }) {
   const findById = jest
     .fn<AssessmentRepository["findById"]>()
@@ -92,12 +96,24 @@ function buildHandler(input: {
   const findRerunnableLegalRuleMatch = jest
     .fn<() => Promise<{ id: string } | null>>()
     .mockResolvedValue(input.rerunnableLegalRuleMatch ?? null);
+  const findLegalCorpusVersion = jest
+    .fn<() => Promise<{ id: string } | null>>()
+    .mockResolvedValue(input.legalCorpusVersion ?? null);
+  const findLegalRetrievalIndex = jest
+    .fn<() => Promise<{ id: string } | null>>()
+    .mockResolvedValue(input.legalRetrievalIndex ?? null);
+  const findLegalRuleCatalogVersion = jest
+    .fn<() => Promise<{ id: string } | null>>()
+    .mockResolvedValue(input.legalRuleCatalogVersion ?? null);
   const prisma = {
     wizardProfile: { findUnique },
     technicalEvidenceReport: { findFirst: findAcceptedEvidence },
     classificationResult: { findFirst: findClassificationResult },
     verifiedProfile: { findFirst: findVerifiedProfileReview },
     legalRuleMatch: { findFirst: findRerunnableLegalRuleMatch },
+    legalCorpusVersion: { findFirst: findLegalCorpusVersion },
+    legalRetrievalIndex: { findFirst: findLegalRetrievalIndex },
+    legalRuleCatalogVersion: { findFirst: findLegalRuleCatalogVersion },
   } as unknown as PrismaService;
 
   const handler = new GetAssessmentHandler(repository, prisma);
@@ -109,6 +125,9 @@ function buildHandler(input: {
     findClassificationResult,
     findVerifiedProfileReview,
     findRerunnableLegalRuleMatch,
+    findLegalCorpusVersion,
+    findLegalRetrievalIndex,
+    findLegalRuleCatalogVersion,
   };
 }
 
@@ -333,6 +352,43 @@ describe("GetAssessmentHandler", () => {
 
     expect(findRerunnableLegalRuleMatch).toHaveBeenCalledTimes(1);
     expect(result.can_rerun_classification).toBe(true);
+  });
+
+  it("locks classification when an approved profile is waiting for legal readiness", async () => {
+    const assessment = makeAssessment();
+    const profile: VerifiedProfileReviewFixture = {
+      id: "vp-approved",
+      status: VERIFIED_PROFILE_STATUSES.approved,
+      providerVersion: "lcsp.verified-profile-worker.v1",
+      profileData: {},
+      gatesPassedAt: {},
+      createdAt: new Date("2026-08-11T00:01:00.000Z"),
+      approvedAt: new Date("2026-08-11T00:02:00.000Z"),
+      approvedById: "user-1",
+    };
+    const { handler, findLegalCorpusVersion } = buildHandler({
+      assessment,
+      acceptedEvidenceReport: { id: "evidence-1" },
+      verifiedProfileReview: profile,
+      legalCorpusVersion: null,
+    });
+
+    const result = await handler.execute(
+      new GetAssessmentQuery(
+        assessment.id,
+        "org-1",
+        "user-1",
+        SUBJECT_ROLES.manager,
+        "corr-1",
+      ),
+    );
+
+    expect(findLegalCorpusVersion).toHaveBeenCalledTimes(1);
+    expect(result.readiness_state).toEqual({
+      classification_locked: true,
+      lock_reason: ASSESSMENT_LOCK_REASONS.legalReadinessRequired,
+      missing_evidence: [ASSESSMENT_MISSING_EVIDENCE_CODES.legalCorpusVersion],
+    });
   });
 
   // T04
