@@ -1041,6 +1041,78 @@ export type PagesMessages = {
     rerunSubmitting: string;
     errorTitle: string;
     errorDetail: string;
+    verifiedProfileReview: {
+      title: string;
+      description: string;
+      verificationSourceLabel: string;
+      evidenceChainLabel: string;
+      evidenceChainVerified: string;
+      evidenceChainNeedsReview: string;
+      providerVersionLabel: string;
+      verificationSources: {
+        TECHNICAL_PLUS_WIZARD: string;
+        UNKNOWN: string;
+      };
+      factsTitle: string;
+      noClaims: string;
+      unknownClaimTitle: string;
+      claimIdLabel: string;
+      claimTypeLabel: string;
+      claimFieldLabel: string;
+      confidenceLabel: string;
+      lifecycleStateLabel: string;
+      materialityLabel: string;
+      evidenceSummaryLabel: string;
+      evidenceItemLabel: string;
+      evidenceItemsLabel: string;
+      notProvided: string;
+      yes: string;
+      no: string;
+      conflictSummary: string;
+      approvalFailedTitle: string;
+      approvalFailedDetail: string;
+      approveButton: string;
+      approvingButton: string;
+      approvedMessage: string;
+      statuses: {
+        PENDING_APPROVAL: string;
+        APPROVED: string;
+        REJECTED: string;
+        UNKNOWN: string;
+      };
+      claimTitles: {
+        MODEL_PROVIDER_USAGE: string;
+        MODEL_INVOCATION: string;
+        PERSONAL_DATA_INPUT: string;
+        HUMAN_REVIEW: string;
+        AFFECTED_SUBJECTS: string;
+        BUSINESS_PROCESS: string;
+        AI_PURPOSE: string;
+        UNKNOWN: string;
+      };
+      claimDescriptions: {
+        model_provider_usage: string;
+        model_invocation: string;
+        personal_data_input: string;
+        human_review: string;
+        affected_subjects: string;
+        business_process: string;
+        ai_purpose: string;
+      };
+      confidenceLevels: {
+        low: string;
+        medium: string;
+        high: string;
+        unknown: string;
+      };
+      lifecycleStates: {
+        DETECTED: string;
+        ABSTAINED: string;
+        INFERRED: string;
+        CONFIRMED: string;
+        UNKNOWN: string;
+      };
+    };
     finalReportRequestedTitle: string;
     finalReportRequestedDetail: string;
     documentsPageDescription: string;

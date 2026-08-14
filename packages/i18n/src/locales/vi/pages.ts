@@ -1110,6 +1110,88 @@ export const viPages = {
     rerunSubmitting: "Đang đưa vào hàng đợi",
     errorTitle: "Không thể tải trạng thái phân loại",
     errorDetail: "Vui lòng thử lại sau ít phút.",
+    verifiedProfileReview: {
+      title: "Rà soát hồ sơ bằng chứng",
+      description:
+        "Kiểm tra các sự kiện assessment đã có bằng chứng trước khi đối chiếu pháp lý và phân loại.",
+      verificationSourceLabel: "Nguồn xác minh",
+      evidenceChainLabel: "Chuỗi bằng chứng",
+      evidenceChainVerified: "Đã xác minh",
+      evidenceChainNeedsReview: "Cần rà soát",
+      providerVersionLabel: "Phiên bản provider",
+      verificationSources: {
+        TECHNICAL_PLUS_WIZARD: "Bằng chứng kỹ thuật và câu trả lời wizard",
+        UNKNOWN: "Chưa có dữ liệu",
+      },
+      factsTitle: "Sự kiện assessment",
+      noClaims: "Chưa có sự kiện assessment nào được ghi nhận.",
+      unknownClaimTitle: "Sự kiện assessment",
+      claimIdLabel: "Mã tham chiếu",
+      claimTypeLabel: "Nhóm sự kiện",
+      claimFieldLabel: "Trường assessment",
+      confidenceLabel: "Độ tin cậy",
+      lifecycleStateLabel: "Trạng thái",
+      materialityLabel: "Có trọng yếu",
+      evidenceSummaryLabel: "Bằng chứng",
+      evidenceItemLabel: "nguồn bằng chứng được gắn",
+      evidenceItemsLabel: "nguồn bằng chứng được gắn",
+      notProvided: "Chưa có dữ liệu",
+      yes: "Có",
+      no: "Không",
+      conflictSummary:
+        "quyết định đối soát đang được gắn với hồ sơ này.",
+      approvalFailedTitle: "Phê duyệt thất bại",
+      approvalFailedDetail:
+        "Hồ sơ chưa được phê duyệt. Hãy tải lại assessment và kiểm tra hồ sơ vẫn đang chờ phê duyệt.",
+      approveButton: "Phê duyệt hồ sơ bằng chứng",
+      approvingButton: "Đang phê duyệt",
+      approvedMessage:
+        "Đã phê duyệt. Đối chiếu pháp lý có thể tự động tiếp tục.",
+      statuses: {
+        PENDING_APPROVAL: "Chờ phê duyệt",
+        APPROVED: "Đã phê duyệt",
+        REJECTED: "Đã từ chối",
+        UNKNOWN: "Cần rà soát",
+      },
+      claimTitles: {
+        MODEL_PROVIDER_USAGE: "Sử dụng nhà cung cấp AI",
+        MODEL_INVOCATION: "Gọi mô hình AI",
+        PERSONAL_DATA_INPUT: "Dữ liệu cá nhân đưa vào AI",
+        HUMAN_REVIEW: "Có rà soát bởi con người",
+        AFFECTED_SUBJECTS: "Đối tượng bị ảnh hưởng",
+        BUSINESS_PROCESS: "Quy trình nghiệp vụ",
+        AI_PURPOSE: "Mục đích sử dụng AI",
+        UNKNOWN: "Sự kiện assessment",
+      },
+      claimDescriptions: {
+        model_provider_usage:
+          "Hệ thống có dấu hiệu dùng nhà cung cấp AI bên ngoài hoặc nội bộ.",
+        model_invocation:
+          "Repository có đường code gọi hoặc vận hành mô hình AI.",
+        personal_data_input:
+          "Có dấu hiệu dữ liệu cá nhân được đưa vào luồng xử lý AI.",
+        human_review:
+          "Quy trình có hoặc cần bước rà soát bởi con người.",
+        affected_subjects:
+          "Những cá nhân hoặc nhóm chịu tác động bởi quy trình có AI.",
+        business_process:
+          "Quy trình nghiệp vụ nơi AI được sử dụng để hỗ trợ xử lý.",
+        ai_purpose: "Mục đích của chức năng hoặc quy trình có dùng AI.",
+      },
+      confidenceLevels: {
+        low: "Thấp",
+        medium: "Trung bình",
+        high: "Cao",
+        unknown: "Không rõ",
+      },
+      lifecycleStates: {
+        DETECTED: "Đã phát hiện",
+        ABSTAINED: "Chưa kết luận",
+        INFERRED: "Suy luận từ bằng chứng",
+        CONFIRMED: "Đã xác nhận",
+        UNKNOWN: "Không rõ",
+      },
+    },
     states: {
       lockedTitle: "Phân loại đã bị khóa",
       lockedBadge: "Đã khóa",

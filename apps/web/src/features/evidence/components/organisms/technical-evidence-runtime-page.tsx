@@ -38,6 +38,14 @@ export function TechnicalEvidenceRuntimePage({
   );
   const timeline = runtime.getAssessmentRuntime(assessmentId);
   const latestScan = scanJobs[0];
+  const activeCurrentRun = isActiveRuntimeStatus(timeline.currentRun?.status)
+    ? timeline.currentRun
+    : null;
+  const activeActivity = timeline.recentActivity.filter((item) =>
+    isActiveRuntimeStatus(item.runStatus),
+  );
+  const showOrchestration =
+    activeCurrentRun !== null || activeActivity.length > 0;
   const rerunMutation = useRerunRepositoryScanMutation(assessmentId);
 
   return (
@@ -56,37 +64,39 @@ export function TechnicalEvidenceRuntimePage({
         </p>
       </header>
 
-      <section className="overflow-hidden rounded-lg border">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <ActivityIcon className="size-4 text-muted-foreground" />
-            <h2 className="text-sm font-medium">
-              {t("pages.technicalEvidence.orchestrationTitle")}
-            </h2>
+      {showOrchestration ? (
+        <section className="overflow-hidden rounded-lg border">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-4 py-3">
+            <div className="flex min-w-0 items-center gap-2">
+              <ActivityIcon className="size-4 text-muted-foreground" />
+              <h2 className="text-sm font-medium">
+                {t("pages.technicalEvidence.orchestrationTitle")}
+              </h2>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {timeline.lastEmittedAt === null
+                ? t("pages.technicalEvidence.awaitingEvent")
+                : `${t("pages.technicalEvidence.lastUpdated")}: ${formatDate(timeline.lastEmittedAt)}`}
+            </span>
           </div>
-          <span className="text-xs text-muted-foreground">
-            {timeline.lastEmittedAt === null
-              ? t("pages.technicalEvidence.awaitingEvent")
-              : `${t("pages.technicalEvidence.lastUpdated")}: ${formatDate(timeline.lastEmittedAt)}`}
-          </span>
-        </div>
 
-        {timeline.currentRun !== null ? (
-          <CurrentRunPanel run={timeline.currentRun} />
-        ) : null}
+          {activeCurrentRun !== null ? (
+            <CurrentRunPanel run={activeCurrentRun} />
+          ) : null}
 
-        {timeline.recentActivity.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-muted-foreground">
-            {t("pages.technicalEvidence.noOrchestrationActivity")}
-          </p>
-        ) : (
-          <ul className="divide-y">
-            {timeline.recentActivity.map((item) => (
-              <RuntimeActivityItem key={item.eventId} item={item} />
-            ))}
-          </ul>
-        )}
-      </section>
+          {activeActivity.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-muted-foreground">
+              {t("pages.technicalEvidence.noOrchestrationActivity")}
+            </p>
+          ) : (
+            <ul className="divide-y">
+              {activeActivity.map((item) => (
+                <RuntimeActivityItem key={item.eventId} item={item} />
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
 
       <section className="overflow-hidden rounded-lg border">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-4 py-3">
@@ -376,6 +386,13 @@ function runtimeStatusBadgeVariant(status: string) {
   if (status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed) return "destructive";
   if (status === ASSESSMENT_RUNTIME_RUN_STATUSES.completed) return "default";
   return "secondary";
+}
+
+function isActiveRuntimeStatus(status: string | null | undefined): boolean {
+  return (
+    status === ASSESSMENT_RUNTIME_RUN_STATUSES.running ||
+    status === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting
+  );
 }
 
 function runtimeStatusLabel(status: string) {

@@ -177,6 +177,7 @@ def test_semgrep_tool_limits_each_ruleset_to_authorized_relative_files(
     assert len(commands) == 2
     assert all(expected_target in command for command in commands)
     assert all(str(sample_python_repo) not in command for command in commands)
+    assert all("--jobs" in command and "1" in command for command in commands)
 
 
 @pytest.mark.p0

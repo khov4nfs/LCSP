@@ -1116,6 +1116,87 @@ export const enPages = {
     rerunSubmitting: "Queueing classification",
     errorTitle: "Unable to load classification status",
     errorDetail: "Please try again in a moment.",
+    verifiedProfileReview: {
+      title: "Evidence profile review",
+      description:
+        "Review the evidence-backed assessment facts before legal matching and classification begin.",
+      verificationSourceLabel: "Verification source",
+      evidenceChainLabel: "Evidence chain",
+      evidenceChainVerified: "Verified",
+      evidenceChainNeedsReview: "Needs review",
+      providerVersionLabel: "Provider version",
+      verificationSources: {
+        TECHNICAL_PLUS_WIZARD: "Technical evidence and wizard answers",
+        UNKNOWN: "Not provided",
+      },
+      factsTitle: "Assessment facts",
+      noClaims: "No assessment facts were included.",
+      unknownClaimTitle: "Assessment fact",
+      claimIdLabel: "Fact reference",
+      claimTypeLabel: "Fact area",
+      claimFieldLabel: "Assessment field",
+      confidenceLabel: "Confidence",
+      lifecycleStateLabel: "State",
+      materialityLabel: "Material",
+      evidenceSummaryLabel: "Evidence",
+      evidenceItemLabel: "evidence item attached",
+      evidenceItemsLabel: "evidence items attached",
+      notProvided: "Not provided",
+      yes: "Yes",
+      no: "No",
+      conflictSummary:
+        "reconciliation decisions are attached to this profile.",
+      approvalFailedTitle: "Approval failed",
+      approvalFailedDetail:
+        "The profile was not approved. Refresh the assessment and confirm that it is still pending approval.",
+      approveButton: "Approve evidence profile",
+      approvingButton: "Approving",
+      approvedMessage: "Approved. Legal matching can proceed automatically.",
+      statuses: {
+        PENDING_APPROVAL: "Pending approval",
+        APPROVED: "Approved",
+        REJECTED: "Rejected",
+        UNKNOWN: "Review required",
+      },
+      claimTitles: {
+        MODEL_PROVIDER_USAGE: "AI provider usage",
+        MODEL_INVOCATION: "AI model invocation",
+        PERSONAL_DATA_INPUT: "Personal data input",
+        HUMAN_REVIEW: "Human review",
+        AFFECTED_SUBJECTS: "Affected people or groups",
+        BUSINESS_PROCESS: "Business process",
+        AI_PURPOSE: "AI purpose",
+        UNKNOWN: "Assessment fact",
+      },
+      claimDescriptions: {
+        model_provider_usage:
+          "Whether the system uses an external or internal AI provider.",
+        model_invocation:
+          "Whether the repository contains code paths that invoke an AI model.",
+        personal_data_input:
+          "Whether personal data appears to be sent into the AI workflow.",
+        human_review:
+          "Whether human review is part of the AI-assisted process.",
+        affected_subjects:
+          "The people or groups affected by the AI-assisted process.",
+        business_process:
+          "The business workflow where AI assistance is used.",
+        ai_purpose: "The purpose of the AI-assisted functionality.",
+      },
+      confidenceLevels: {
+        low: "Low",
+        medium: "Medium",
+        high: "High",
+        unknown: "Unknown",
+      },
+      lifecycleStates: {
+        DETECTED: "Detected",
+        ABSTAINED: "Not concluded",
+        INFERRED: "Inferred",
+        CONFIRMED: "Confirmed",
+        UNKNOWN: "Unknown",
+      },
+    },
     states: {
       lockedTitle: "Classification is locked",
       lockedBadge: "Locked",
