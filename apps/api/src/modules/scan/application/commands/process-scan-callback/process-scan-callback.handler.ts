@@ -47,6 +47,7 @@ import { EvidenceSchemaValidatorService } from "../../services/scan/evidence-sch
 import { ProcessScanCallbackCommand } from "./process-scan-callback.command.js";
 
 const SCANNER_WORKER_ACTOR_ID = AUDIT_ACTOR_IDS.scannerWorker;
+const SCAN_CALLBACK_TRANSACTION_TIMEOUT_MS = 15_000;
 
 @CommandHandler(ProcessScanCallbackCommand)
 export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCallbackCommand> {
@@ -121,154 +122,162 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
       ? (command.payload.error_code ?? null)
       : null;
 
-    await this.prisma.$transaction(async (tx) => {
-      const transition = await tx.repositoryScanJob.updateMany({
-        where: {
-          id: job.id,
-          status: {
-            in: [
-              toPrismaRepositoryScanJobStatus(
-                REPOSITORY_SCAN_JOB_STATUSES.queued,
-              ),
-              toPrismaRepositoryScanJobStatus(
-                REPOSITORY_SCAN_JOB_STATUSES.running,
-              ),
-            ],
+    await this.prisma.$transaction(
+      async (tx) => {
+        const transition = await tx.repositoryScanJob.updateMany({
+          where: {
+            id: job.id,
+            status: {
+              in: [
+                toPrismaRepositoryScanJobStatus(
+                  REPOSITORY_SCAN_JOB_STATUSES.queued,
+                ),
+                toPrismaRepositoryScanJobStatus(
+                  REPOSITORY_SCAN_JOB_STATUSES.running,
+                ),
+              ],
+            },
           },
-        },
-        data: { status: toPrismaRepositoryScanJobStatus(nextJobStatus) },
-      });
-      if (transition.count !== 1) {
-        throw new ConflictException(
-          this.errorBody(
-            command,
-            SCAN_ERROR_CODES.jobWrongState,
-            HttpStatus.CONFLICT,
-          ),
-        );
-      }
+          data: { status: toPrismaRepositoryScanJobStatus(nextJobStatus) },
+        });
+        if (transition.count !== 1) {
+          throw new ConflictException(
+            this.errorBody(
+              command,
+              SCAN_ERROR_CODES.jobWrongState,
+              HttpStatus.CONFLICT,
+            ),
+          );
+        }
 
-      await tx.technicalEvidenceReport.create({
-        data: {
-          id: reportId,
-          scanJobId: job.id,
-          assessmentId: job.assessmentId,
-          organizationId: job.organizationId,
-          snapshotId: job.snapshotId,
-          toolsVersion: command.payload.tools_version as Prisma.InputJsonValue,
-          configHash: command.payload.config_hash as Prisma.InputJsonValue,
-          evidencePayload: command.payload
-            .evidence_payload as Prisma.InputJsonValue,
-          privacyFlags: command.payload.privacy_flags as Prisma.InputJsonValue,
-          schemaVersion: command.payload.schema_version,
-          status: toPrismaEvidenceAcceptanceStatus(reportStatus),
-          rejectionReason,
-        },
-      });
+        await tx.technicalEvidenceReport.create({
+          data: {
+            id: reportId,
+            scanJobId: job.id,
+            assessmentId: job.assessmentId,
+            organizationId: job.organizationId,
+            snapshotId: job.snapshotId,
+            toolsVersion: command.payload
+              .tools_version as Prisma.InputJsonValue,
+            configHash: command.payload.config_hash as Prisma.InputJsonValue,
+            evidencePayload: command.payload
+              .evidence_payload as Prisma.InputJsonValue,
+            privacyFlags: command.payload
+              .privacy_flags as Prisma.InputJsonValue,
+            schemaVersion: command.payload.schema_version,
+            status: toPrismaEvidenceAcceptanceStatus(reportStatus),
+            rejectionReason,
+          },
+        });
 
-      await tx.targetedReanalysisRequest.updateMany({
-        where: {
-          scanJobId: job.id,
-          state: TARGETED_REANALYSIS_REQUEST_STATES.running,
-        },
-        data: isRejected
-          ? {
-              state: TARGETED_REANALYSIS_REQUEST_STATES.failed,
-              safeFailureCode: rejectionReason,
-            }
-          : {
-              state: TARGETED_REANALYSIS_REQUEST_STATES.completed,
-              outputEvidenceReportId: reportId,
+        await tx.targetedReanalysisRequest.updateMany({
+          where: {
+            scanJobId: job.id,
+            state: TARGETED_REANALYSIS_REQUEST_STATES.running,
+          },
+          data: isRejected
+            ? {
+                state: TARGETED_REANALYSIS_REQUEST_STATES.failed,
+                safeFailureCode: rejectionReason,
+              }
+            : {
+                state: TARGETED_REANALYSIS_REQUEST_STATES.completed,
+                outputEvidenceReportId: reportId,
+              },
+        });
+        await tx.targetedReanalysisCheckpoint.updateMany({
+          where: { request: { scanJobId: job.id } },
+          data: isRejected
+            ? {
+                state: TARGETED_REANALYSIS_CHECKPOINT_STATES.failed,
+                safeFailureCode: rejectionReason,
+              }
+            : {
+                state: TARGETED_REANALYSIS_CHECKPOINT_STATES.completed,
+                outputEvidenceReportId: reportId,
+              },
+        });
+
+        if (!isRejected) {
+          const event = buildOutboxMessageInput({
+            aggregateType: OUTBOX_AGGREGATE_TYPES.technicalEvidenceReport,
+            aggregateId: reportId,
+            eventType: SCAN_EVENT_TYPES.evidenceAccepted,
+            organizationId: job.organizationId,
+            assessmentId: job.assessmentId,
+            correlationId: command.correlationId,
+            causationId: job.id,
+            actor: {
+              id: SCANNER_WORKER_ACTOR_ID,
+              type: AUDIT_ACTOR_TYPES.service,
             },
-      });
-      await tx.targetedReanalysisCheckpoint.updateMany({
-        where: { request: { scanJobId: job.id } },
-        data: isRejected
-          ? {
-              state: TARGETED_REANALYSIS_CHECKPOINT_STATES.failed,
-              safeFailureCode: rejectionReason,
-            }
-          : {
-              state: TARGETED_REANALYSIS_CHECKPOINT_STATES.completed,
-              outputEvidenceReportId: reportId,
+            result: SCAN_EVENT_TYPES.evidenceAcceptedAudit,
+            redactionStatus: AUDIT_REDACTION_STATUSES.none,
+            idempotencyKey: `${reportId}:${SCAN_EVENT_TYPES.evidenceAccepted}`,
+            payload: {
+              evidenceReportId: reportId,
+              assessmentId: job.assessmentId,
+              scanJobId: job.id,
+              correlationId: command.correlationId,
             },
-      });
+          });
+          await tx.outboxMessage.create({
+            data: {
+              id: crypto.randomUUID(),
+              aggregateType: toPrismaOutboxAggregateType(event.aggregateType),
+              aggregateId: event.aggregateId,
+              eventType: event.eventType,
+              payload: event.payload as Prisma.InputJsonValue,
+            },
+          });
+        }
 
-      if (!isRejected) {
-        const event = buildOutboxMessageInput({
-          aggregateType: OUTBOX_AGGREGATE_TYPES.technicalEvidenceReport,
-          aggregateId: reportId,
-          eventType: SCAN_EVENT_TYPES.evidenceAccepted,
+        const auditEvent = buildAuditEventInput({
+          eventType: auditEventType,
+          actorId: SCANNER_WORKER_ACTOR_ID,
           organizationId: job.organizationId,
           assessmentId: job.assessmentId,
+          resourceType: AUDIT_RESOURCE_TYPES.technicalEvidenceReport,
+          resourceId: reportId,
           correlationId: command.correlationId,
+          reasonCode: rejectionReason,
           causationId: job.id,
+          decision: isRejected ? AUDIT_DECISIONS.deny : AUDIT_DECISIONS.allow,
+          result: auditEventType,
+          redactionStatus: AUDIT_REDACTION_STATUSES.none,
           actor: {
             id: SCANNER_WORKER_ACTOR_ID,
             type: AUDIT_ACTOR_TYPES.service,
           },
-          result: SCAN_EVENT_TYPES.evidenceAcceptedAudit,
-          redactionStatus: AUDIT_REDACTION_STATUSES.none,
-          idempotencyKey: `${reportId}:${SCAN_EVENT_TYPES.evidenceAccepted}`,
           payload: {
             evidenceReportId: reportId,
             assessmentId: job.assessmentId,
             scanJobId: job.id,
+            evidenceSchemaVersion: command.payload.schema_version,
             correlationId: command.correlationId,
           },
         });
-        await tx.outboxMessage.create({
+        await tx.authAuditEvent.create({
           data: {
             id: crypto.randomUUID(),
-            aggregateType: toPrismaOutboxAggregateType(event.aggregateType),
-            aggregateId: event.aggregateId,
-            eventType: event.eventType,
-            payload: event.payload as Prisma.InputJsonValue,
+            eventType: auditEvent.eventType,
+            actorId: auditEvent.actorId,
+            organizationId: auditEvent.organizationId,
+            resourceType: auditEvent.resourceType
+              ? toPrismaAuditResourceType(auditEvent.resourceType)
+              : null,
+            resourceId: auditEvent.resourceId ?? null,
+            correlationId: auditEvent.correlationId,
+            reasonCode: auditEvent.reasonCode ?? null,
+            decision: auditEvent.decision
+              ? toPrismaAuthDecision(auditEvent.decision)
+              : null,
+            payload: auditEvent.payload as Prisma.InputJsonValue,
           },
         });
-      }
-
-      const auditEvent = buildAuditEventInput({
-        eventType: auditEventType,
-        actorId: SCANNER_WORKER_ACTOR_ID,
-        organizationId: job.organizationId,
-        assessmentId: job.assessmentId,
-        resourceType: AUDIT_RESOURCE_TYPES.technicalEvidenceReport,
-        resourceId: reportId,
-        correlationId: command.correlationId,
-        causationId: job.id,
-        reasonCode: rejectionReason,
-        decision: isRejected ? AUDIT_DECISIONS.deny : AUDIT_DECISIONS.allow,
-        result: auditEventType,
-        redactionStatus: AUDIT_REDACTION_STATUSES.none,
-        actor: { id: SCANNER_WORKER_ACTOR_ID, type: AUDIT_ACTOR_TYPES.service },
-        payload: {
-          evidenceReportId: reportId,
-          assessmentId: job.assessmentId,
-          scanJobId: job.id,
-          evidenceSchemaVersion: command.payload.schema_version,
-          correlationId: command.correlationId,
-        },
-      });
-      await tx.authAuditEvent.create({
-        data: {
-          id: crypto.randomUUID(),
-          eventType: auditEvent.eventType,
-          actorId: auditEvent.actorId,
-          organizationId: auditEvent.organizationId,
-          resourceType: auditEvent.resourceType
-            ? toPrismaAuditResourceType(auditEvent.resourceType)
-            : null,
-          resourceId: auditEvent.resourceId ?? null,
-          correlationId: auditEvent.correlationId,
-          reasonCode: auditEvent.reasonCode ?? null,
-          decision: auditEvent.decision
-            ? toPrismaAuthDecision(auditEvent.decision)
-            : null,
-          payload: auditEvent.payload as Prisma.InputJsonValue,
-        },
-      });
-    });
+      },
+      { timeout: SCAN_CALLBACK_TRANSACTION_TIMEOUT_MS },
+    );
 
     return {
       accepted: !isRejected,

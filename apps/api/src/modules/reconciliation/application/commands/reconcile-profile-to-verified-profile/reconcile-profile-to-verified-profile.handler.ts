@@ -1,19 +1,17 @@
 import { randomUUID } from "node:crypto";
 
-import { HttpStatus } from "@nestjs/common";
-import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
-import type { Prisma } from "@prisma/client";
-import {
-  RECONCILE_VERIFIED_PROFILE_STATUSES,
-  RECONCILE_VERIFIED_PROFILE_TOOL,
-  type ReconcileVerifiedProfileResult,
-} from "@lcsp/contracts/evidence";
+import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
 import {
   AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
+import {
+  RECONCILE_VERIFIED_PROFILE_STATUSES,
+  RECONCILE_VERIFIED_PROFILE_TOOL,
+  type ReconcileVerifiedProfileResult,
+} from "@lcsp/contracts/evidence";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
@@ -26,7 +24,9 @@ import {
   TECHNICAL_EVIDENCE_REPORT_STATUSES,
   VERIFIED_PROFILE_STATUSES,
 } from "@lcsp/contracts/scan";
-import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
+import { HttpStatus } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+import type { Prisma } from "@prisma/client";
 
 import {
   toPrismaConflictRecordStatus,
@@ -44,6 +44,23 @@ const DECISION_REF_PREFIX = "reconciliation:";
 const MAX_DECISION_REFS = 50;
 const MAX_FACT_REFS = 100;
 const SERVICE_ACTOR_ID = "agentic-evidence-orchestrator";
+const RAW_EVIDENCE_FIELD_NAMES = new Set([
+  "ast",
+  "astBody",
+  "ast_body",
+  "body",
+  "prompt",
+  "promptText",
+  "prompt_text",
+  "rawPrompt",
+  "rawSource",
+  "raw_prompt",
+  "raw_source",
+  "secret",
+  "sourceCode",
+  "source_code",
+  "token",
+]);
 
 export type ReconcileProfileToVerifiedProfileDto = {
   status: typeof RECONCILE_VERIFIED_PROFILE_STATUSES.ready;
@@ -517,8 +534,6 @@ function containsUnsafe(value: unknown): boolean {
   if (Array.isArray(value)) return value.some(containsUnsafe);
   if (!isRecord(value)) return false;
   return Object.entries(value).some(
-    ([key, item]) =>
-      /(?:source|prompt|secret|token|ast|body)/i.test(key) ||
-      containsUnsafe(item),
+    ([key, item]) => RAW_EVIDENCE_FIELD_NAMES.has(key) || containsUnsafe(item),
   );
 }
