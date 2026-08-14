@@ -15,6 +15,9 @@ function buildHandler(pending = false) {
   const create = jest
     .fn()
     .mockImplementation(() => Promise.resolve({ id: "verified-1" }));
+  const update = jest
+    .fn()
+    .mockImplementation(() => Promise.resolve({ id: "verified-existing" }));
   const writeInTx = jest.fn().mockImplementation(() => Promise.resolve());
   const enqueue = jest.fn().mockImplementation(() => Promise.resolve());
   const flow = {
@@ -41,6 +44,7 @@ function buildHandler(pending = false) {
     verifiedProfile: {
       findFirst: jest.fn().mockImplementation(() => Promise.resolve(null)),
       create,
+      update,
     },
     technicalProfile: {
       findFirst: jest
@@ -81,7 +85,7 @@ function buildHandler(pending = false) {
     "org-1",
     "corr-1",
   );
-  return { handler, command, create, writeInTx, enqueue, tx };
+  return { handler, command, create, update, writeInTx, enqueue, tx };
 }
 
 describe("ReconcileProfileToVerifiedProfileHandler", () => {
@@ -125,6 +129,7 @@ describe("ReconcileProfileToVerifiedProfileHandler", () => {
     tx.verifiedProfile.findFirst.mockImplementation(() =>
       Promise.resolve({
         id: "verified-existing",
+        assessmentId: "assessment-1",
         aiUsageFlowId: "flow-1",
         wizardProfileId: "wizard-1",
         technicalEvidenceReportId: "report-1",
@@ -136,5 +141,38 @@ describe("ReconcileProfileToVerifiedProfileHandler", () => {
 
     expect(result.result.verifiedProfileId).toBe("verified-existing");
     expect(create).not.toHaveBeenCalled();
+  });
+
+  it("replaces the existing assessment profile when rerun produces a new flow", async () => {
+    const { handler, command, create, update, tx } = buildHandler();
+    tx.verifiedProfile.findFirst
+      .mockImplementationOnce(() => Promise.resolve(null))
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          id: "verified-existing",
+          aiUsageFlowId: "flow-old",
+          wizardProfileId: "wizard-old",
+          technicalEvidenceReportId: "report-old",
+          reconciliationDecisionRefs: [],
+        }),
+      );
+
+    const result = await handler.execute(command);
+
+    expect(result.result.verifiedProfileId).toBe("verified-existing");
+    expect(create).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "verified-existing" },
+        data: expect.objectContaining({
+          aiUsageFlowId: "flow-1",
+          technicalEvidenceReportId: "report-1",
+          status: expect.anything(),
+          approvedAt: null,
+          approvedById: null,
+          version: { increment: 1 },
+        }),
+      }),
+    );
   });
 });

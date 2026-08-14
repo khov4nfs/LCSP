@@ -1,6 +1,7 @@
 import {
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
+  ASSESSMENT_RUNTIME_STAGE_CODES,
   type AssessmentRuntimeEventType,
   type AssessmentRuntimeActiveTool,
   type AssessmentRuntimeActivityEvent,
@@ -10,6 +11,8 @@ import {
   type AssessmentRuntimeStageCode,
   type AssessmentRuntimeSummaryValue,
 } from "@lcsp/contracts/evidence";
+import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
+import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import type { Prisma } from "@prisma/client";
 import { Injectable, Logger } from "@nestjs/common";
 
@@ -72,6 +75,26 @@ type PersistedAssessmentRuntimeEvent = {
   durationMs: number | null;
   attempt: number | null;
   waitingReason: string | null;
+  createdAt: Date;
+};
+
+type RuntimeScanJobSnapshot = {
+  id: string;
+  assessmentId: string;
+  snapshotId: string;
+  status: string;
+  attemptCount: number;
+  blockedReason: string | null;
+  updatedAt: Date;
+};
+
+type RuntimeEvidenceReportSnapshot = {
+  id: string;
+  assessmentId: string;
+  scanJobId: string;
+  snapshotId: string;
+  status: string;
+  rejectionReason: string | null;
   createdAt: Date;
 };
 
@@ -197,9 +220,16 @@ export class AssessmentRuntimeEventService {
       }),
     ]);
 
-    const recentActivity = events
-      .slice(0, 50)
-      .map((event) => this.toActivityEvent(event));
+    const persistedActivity = events.map((event) => this.toActivityEvent(event));
+    const syntheticActivity = buildSyntheticRuntimeActivity(
+      organizationId,
+      scanJobs,
+      evidenceReports,
+      persistedActivity,
+    );
+    const recentActivity = [...persistedActivity, ...syntheticActivity]
+      .sort((left, right) => right.emittedAt.localeCompare(left.emittedAt))
+      .slice(0, 50);
     const runs = deriveRuns(events).slice(0, 20);
 
     return {
@@ -353,6 +383,133 @@ export class AssessmentRuntimeEventService {
       this.logger.debug(error.message);
     }
   }
+}
+
+function buildSyntheticRuntimeActivity(
+  organizationId: string,
+  scanJobs: RuntimeScanJobSnapshot[],
+  evidenceReports: RuntimeEvidenceReportSnapshot[],
+  existingActivity: AssessmentRuntimeActivityEvent[],
+): AssessmentRuntimeActivityEvent[] {
+  const existingEventIds = new Set(existingActivity.map((event) => event.eventId));
+  return [
+    ...scanJobs.map((scanJob) =>
+      scanJobToSyntheticRuntimeActivity(organizationId, scanJob),
+    ),
+    ...evidenceReports.map((report) =>
+      evidenceReportToSyntheticRuntimeActivity(organizationId, report),
+    ),
+  ].filter((event) => !existingEventIds.has(event.eventId));
+}
+
+function scanJobToSyntheticRuntimeActivity(
+  organizationId: string,
+  scanJob: RuntimeScanJobSnapshot,
+): AssessmentRuntimeActivityEvent {
+  const runStatus = runtimeStatusForScanJob(scanJob.status);
+  return {
+    eventId: `scan-job:${scanJob.id}:${scanJob.status}`,
+    sequence: 0,
+    emittedAt: scanJob.updatedAt.toISOString(),
+    organizationId,
+    assessmentId: scanJob.assessmentId,
+    runId: scanJob.id,
+    correlationId: scanJob.id,
+    eventType:
+      runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.running
+        ? ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted
+        : runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.failed
+          ? ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed
+          : ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
+    runStatus,
+    stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
+    toolName: "repository_scan",
+    summary: scanJobSummary(scanJob),
+    inputSummary: { snapshotId: scanJob.snapshotId },
+    outputSummary: { status: scanJob.status },
+    errorSummary: scanJob.blockedReason,
+    startedAt: null,
+    completedAt:
+      runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.running
+        ? null
+        : scanJob.updatedAt.toISOString(),
+    durationMs: null,
+    attempt: scanJob.attemptCount,
+    waitingReason:
+      runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting
+        ? scanJob.blockedReason
+        : null,
+  };
+}
+
+function evidenceReportToSyntheticRuntimeActivity(
+  organizationId: string,
+  report: RuntimeEvidenceReportSnapshot,
+): AssessmentRuntimeActivityEvent {
+  const failed =
+    report.status === TECHNICAL_EVIDENCE_REPORT_STATUSES.rejected;
+  return {
+    eventId: `technical-evidence-report:${report.id}:${report.status}`,
+    sequence: 0,
+    emittedAt: report.createdAt.toISOString(),
+    organizationId,
+    assessmentId: report.assessmentId,
+    runId: report.scanJobId,
+    correlationId: report.scanJobId,
+    eventType: failed
+      ? ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed
+      : ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
+    runStatus: failed
+      ? ASSESSMENT_RUNTIME_RUN_STATUSES.failed
+      : ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
+    stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
+    toolName: "technical_evidence_report",
+    summary: failed
+      ? "Technical evidence report was rejected"
+      : "Technical evidence report was accepted",
+    inputSummary: {
+      scanJobId: report.scanJobId,
+      snapshotId: report.snapshotId,
+    },
+    outputSummary: { status: report.status },
+    errorSummary: report.rejectionReason,
+    startedAt: null,
+    completedAt: report.createdAt.toISOString(),
+    durationMs: null,
+    attempt: null,
+    waitingReason: null,
+  };
+}
+
+function runtimeStatusForScanJob(status: string): AssessmentRuntimeRunStatus {
+  if (status === REPOSITORY_SCAN_JOB_STATUSES.running) {
+    return ASSESSMENT_RUNTIME_RUN_STATUSES.running;
+  }
+  if (status === REPOSITORY_SCAN_JOB_STATUSES.completed) {
+    return ASSESSMENT_RUNTIME_RUN_STATUSES.completed;
+  }
+  if (
+    status === REPOSITORY_SCAN_JOB_STATUSES.failed ||
+    status === REPOSITORY_SCAN_JOB_STATUSES.blocked ||
+    status === REPOSITORY_SCAN_JOB_STATUSES.blockedMapping
+  ) {
+    return ASSESSMENT_RUNTIME_RUN_STATUSES.failed;
+  }
+  return ASSESSMENT_RUNTIME_RUN_STATUSES.waiting;
+}
+
+function scanJobSummary(scanJob: RuntimeScanJobSnapshot): string {
+  const status = runtimeStatusForScanJob(scanJob.status);
+  if (status === ASSESSMENT_RUNTIME_RUN_STATUSES.running) {
+    return "Repository scan is running";
+  }
+  if (status === ASSESSMENT_RUNTIME_RUN_STATUSES.completed) {
+    return "Repository scan completed";
+  }
+  if (status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed) {
+    return scanJob.blockedReason ?? "Repository scan failed";
+  }
+  return scanJob.blockedReason ?? "Repository scan is waiting";
 }
 
 function deriveRuns(

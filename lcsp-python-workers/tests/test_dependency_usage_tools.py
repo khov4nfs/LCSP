@@ -191,6 +191,36 @@ def test_t03_deptry_marks_langchain_missing(
 
 
 @pytest.mark.p0
+def test_deptry_runs_each_independent_python_service(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service_roots = [tmp_path / "services" / "api", tmp_path / "workers" / "scan"]
+    for project_root in service_roots:
+        source_file = project_root / "src" / "main.py"
+        source_file.parent.mkdir(parents=True)
+        source_file.write_text("print('ok')\n", encoding="utf-8")
+        (project_root / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
+
+    invoked_roots: list[Path] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if "--version" in command:
+            return _completed(command, 0, stdout="0.23.0\n")
+        invoked_roots.append(kwargs["cwd"])
+        out_path = Path(command[command.index("--json-output") + 1])
+        out_path.write_text("{}", encoding="utf-8")
+        return _completed(command, 0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = DeptryTool().run(tmp_path)
+
+    assert result.execution.outcome == OUTCOME_SUCCESS
+    assert invoked_roots == service_roots
+
+
+@pytest.mark.p0
 def test_t04_normalizer_marks_syft_only_package_transitive() -> None:
     packages = DependencyNormalizer().normalize(
         sbom_entries=[

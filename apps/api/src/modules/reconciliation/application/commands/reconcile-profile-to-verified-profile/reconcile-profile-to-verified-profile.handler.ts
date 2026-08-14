@@ -65,7 +65,13 @@ export class ReconcileProfileToVerifiedProfileHandler implements ICommandHandler
     this.assertInput(command);
     const input = command.input;
     const result = await this.prisma.$transaction(async (tx) => {
-      const [wizard, report, flow, existing] = await Promise.all([
+      const [
+        wizard,
+        report,
+        flow,
+        existingByIdempotencyKey,
+        existingForAssessment,
+      ] = await Promise.all([
         tx.wizardProfile.findFirst({
           where: {
             id: input.wizardProfileId,
@@ -104,29 +110,180 @@ export class ReconcileProfileToVerifiedProfileHandler implements ICommandHandler
           },
           select: {
             id: true,
+            assessmentId: true,
             aiUsageFlowId: true,
             wizardProfileId: true,
             technicalEvidenceReportId: true,
             reconciliationDecisionRefs: true,
           },
         }),
+        tx.verifiedProfile.findFirst({
+          where: {
+            assessmentId: input.assessmentId,
+            organizationId: command.organizationId,
+          },
+          select: {
+            id: true,
+            aiUsageFlowId: true,
+            wizardProfileId: true,
+            technicalEvidenceReportId: true,
+            reconciliationDecisionRefs: true,
+          },
+          orderBy: { createdAt: "desc" },
+        }),
       ]);
-      if (existing) {
-        if (
-          existing.aiUsageFlowId !== input.aiUsageFlowId ||
-          existing.wizardProfileId !== input.wizardProfileId ||
-          existing.technicalEvidenceReportId !==
-            input.technicalEvidenceReportId ||
-          !sameRefs(
-            refsFromJson(existing.reconciliationDecisionRefs),
-            input.reconciliationDecisionRefs,
-          )
+      const existing = existingByIdempotencyKey ?? existingForAssessment;
+      if (
+        existingByIdempotencyKey &&
+        existingByIdempotencyKey.assessmentId !== input.assessmentId
+      ) {
+        this.idempotencyConflict(command);
+      }
+      if (
+        existing &&
+        existing.aiUsageFlowId === input.aiUsageFlowId &&
+        existing.wizardProfileId === input.wizardProfileId &&
+        existing.technicalEvidenceReportId ===
+          input.technicalEvidenceReportId &&
+        sameRefs(
+          refsFromJson(existing.reconciliationDecisionRefs),
+          input.reconciliationDecisionRefs,
         )
-          this.idempotencyConflict(command);
+      ) {
         return {
           profileId: existing.id,
           factEvidenceRefs: [] as string[],
           replay: true,
+        };
+      }
+      if (
+        existingByIdempotencyKey &&
+        existingForAssessment?.id !== existingByIdempotencyKey.id
+      ) {
+        this.idempotencyConflict(command);
+      }
+      if (existing) {
+        if (!wizard || !report || !flow) this.missingInput(command);
+        const profile = await tx.technicalProfile.findFirst({
+          where: {
+            evidenceReportId: report.id,
+            assessmentId: input.assessmentId,
+            organizationId: command.organizationId,
+          },
+          select: { id: true },
+        });
+        if (
+          !profile ||
+          !(await tx.aIUsageFlow.findFirst({
+            where: { id: flow.id, technicalProfileId: profile.id },
+            select: { id: true },
+          }))
+        )
+          this.missingInput(command);
+        if (containsUnsafe(flow.claims)) this.invalid(command);
+        const conflicts = await tx.conflictRecord.findMany({
+          where: {
+            aiUsageFlowId: flow.id,
+            assessmentId: input.assessmentId,
+            organizationId: command.organizationId,
+          },
+          select: { id: true, status: true },
+        });
+        if (
+          conflicts.some(
+            (item) =>
+              item.status ===
+              toPrismaConflictRecordStatus(CONFLICT_RECORD_STATUSES.pending),
+          )
+        )
+          this.conflict(command);
+        const expectedRefs = conflicts
+          .map((item) => `${DECISION_REF_PREFIX}${item.id}`)
+          .sort();
+        if (!sameRefs(expectedRefs, input.reconciliationDecisionRefs))
+          this.missingInput(command);
+        const factEvidenceRefs = evidenceRefs(flow.claims).slice(
+          0,
+          MAX_FACT_REFS,
+        );
+        await tx.verifiedProfile.update({
+          where: { id: existing.id },
+          data: {
+            aiUsageFlowId: flow.id,
+            wizardProfileId: wizard.id,
+            technicalEvidenceReportId: report.id,
+            reconciliationDecisionRefs: expectedRefs,
+            idempotencyKey: input.idempotencyKey,
+            schemaVersion: flow.schemaVersion,
+            providerVersion: RECONCILE_VERIFIED_PROFILE_TOOL.providerVersion,
+            profileData: safeProfile(
+              flow.claims,
+              wizard.id,
+              wizard.version,
+              factEvidenceRefs,
+            ) as Prisma.InputJsonValue,
+            gatesPassedAt: {
+              reconciliation_complete: new Date().toISOString(),
+            },
+            status: toPrismaVerifiedProfileStatus(
+              VERIFIED_PROFILE_STATUSES.pendingApproval,
+            ),
+            approvedAt: null,
+            approvedById: null,
+            version: { increment: 1 },
+          },
+        });
+        await this.auditWriter.writeInTx(
+          {
+            eventType: SCAN_EVENT_TYPES.verifiedProfilePersistedAudit,
+            actorId: SERVICE_ACTOR_ID,
+            organizationId: command.organizationId,
+            assessmentId: input.assessmentId,
+            resourceType: AUDIT_RESOURCE_TYPES.verifiedProfile,
+            resourceId: existing.id,
+            correlationId: command.correlationId,
+            causationId: flow.id,
+            decision: AUDIT_DECISIONS.allow,
+            result: RECONCILE_VERIFIED_PROFILE_STATUSES.ready,
+            redactionStatus: AUDIT_REDACTION_STATUSES.none,
+            actor: { id: SERVICE_ACTOR_ID, type: AUDIT_ACTOR_TYPES.service },
+            payload: {
+              verifiedProfileId: existing.id,
+              wizardProfileId: wizard.id,
+              technicalEvidenceReportId: report.id,
+              aiUsageFlowId: flow.id,
+              factEvidenceRefCount: factEvidenceRefs.length,
+              replacedExistingProfile: true,
+            },
+          },
+          tx,
+        );
+        await this.outbox.enqueue(
+          buildOutboxMessageInput({
+            aggregateType: OUTBOX_AGGREGATE_TYPES.verifiedProfile,
+            aggregateId: existing.id,
+            eventType: SCAN_EVENT_TYPES.verifiedProfilePersisted,
+            organizationId: command.organizationId,
+            assessmentId: input.assessmentId,
+            correlationId: command.correlationId,
+            causationId: flow.id,
+            actor: { id: SERVICE_ACTOR_ID, type: AUDIT_ACTOR_TYPES.service },
+            result: RECONCILE_VERIFIED_PROFILE_STATUSES.ready,
+            redactionStatus: AUDIT_REDACTION_STATUSES.none,
+            idempotencyKey: `${existing.id}:${SCAN_EVENT_TYPES.verifiedProfilePersisted}:${flow.id}`,
+            payload: {
+              verifiedProfileId: existing.id,
+              status: VERIFIED_PROFILE_STATUSES.pendingApproval,
+              correlationId: command.correlationId,
+              replacedExistingProfile: true,
+            },
+          }),
+          tx,
+        );
+        return {
+          profileId: existing.id,
+          factEvidenceRefs,
+          replay: false,
         };
       }
       if (!wizard || !report || !flow) this.missingInput(command);

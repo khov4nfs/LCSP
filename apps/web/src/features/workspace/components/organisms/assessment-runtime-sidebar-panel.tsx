@@ -16,7 +16,6 @@ import {
   connectionLabel,
   runStatusLabel,
   stageLabel,
-  runtimeEventLabel,
   formatTimelineTime,
 } from "../../utils/assessment-runtime-formatter.ts";
 
@@ -44,8 +43,27 @@ export function AssessmentRuntimeSidebarPanel({
         lastEmittedAt: null,
       };
 
-  const hasActivity =
-    effectiveTimeline.currentRun !== null || effectiveTimeline.recentActivity.length > 0;
+  const activeRun = isActiveRuntimeStatus(effectiveTimeline.currentRun?.status)
+    ? effectiveTimeline.currentRun
+    : null;
+  const activeActivity =
+    effectiveTimeline.recentActivity.find((item) =>
+      isActiveRuntimeStatus(item.runStatus),
+    ) ?? null;
+
+  if (activeRun === null && activeActivity === null) {
+    return null;
+  }
+
+  const activeStage = activeRun?.stage ?? activeActivity?.stage ?? null;
+  const activeStatus = activeRun?.status ?? activeActivity?.runStatus ?? null;
+  const activeSummary =
+    activeActivity?.summary ??
+    (activeStage === null ? null : stageLabel(activeStage));
+  const activeUpdatedAt =
+    activeActivity?.emittedAt ??
+    activeRun?.updatedAt ??
+    effectiveTimeline.lastEmittedAt;
 
   return (
     <div className="mt-3 rounded-lg border border-sidebar-border/70 bg-sidebar-accent/20 p-3">
@@ -55,10 +73,10 @@ export function AssessmentRuntimeSidebarPanel({
             {t("pages.appShell.runtimePanelTitle")}
           </p>
           <p className="mt-1 text-xs text-sidebar-foreground/65">
-            {effectiveTimeline.lastEmittedAt === null
+            {activeUpdatedAt === null
               ? t("pages.appShell.runtimePanelAwaiting")
               : `${t("pages.appShell.runtimePanelLastUpdated")}: ${formatTimelineTime(
-                  effectiveTimeline.lastEmittedAt,
+                  activeUpdatedAt,
                   isHydrated,
                 )}`}
           </p>
@@ -68,76 +86,21 @@ export function AssessmentRuntimeSidebarPanel({
         </Badge>
       </div>
 
-      {effectiveTimeline.currentRun ? (
-        <div className="mt-3 space-y-2">
+      <div className="mt-3 space-y-2">
+        {activeStage !== null && activeStatus !== null ? (
           <div className="flex items-center gap-2">
-            <Badge variant={statusBadgeVariant(effectiveTimeline.currentRun.status)}>
-              {runStatusLabel(effectiveTimeline.currentRun.status)}
+            <Badge variant={statusBadgeVariant(activeStatus)}>
+              {runStatusLabel(activeStatus)}
             </Badge>
             <span className="truncate text-xs text-sidebar-foreground/80">
-              {stageLabel(effectiveTimeline.currentRun.stage)}
+              {stageLabel(activeStage)}
             </span>
           </div>
-
-          {effectiveTimeline.currentRun.activeTools.length > 0 ? (
-            <div className="space-y-2">
-              <p className="text-[11px] font-medium tracking-wide text-sidebar-foreground/70 uppercase">
-                {t("pages.appShell.runtimePanelActiveTools")}
-              </p>
-              <ul className="space-y-2">
-                {effectiveTimeline.currentRun.activeTools.map((tool) => (
-                  <li
-                    className="rounded-md border border-sidebar-border/50 px-2 py-2"
-                    key={`${effectiveTimeline.currentRun?.runId}-${tool.toolName}`}
-                  >
-                    <p className="truncate text-xs font-medium">{tool.toolName}</p>
-                    <p className="mt-1 text-[11px] text-sidebar-foreground/70">
-                      {tool.summary}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {effectiveTimeline.recentActivity.length > 0 ? (
-        <div className="mt-3 space-y-2">
-          <p className="text-[11px] font-medium tracking-wide text-sidebar-foreground/70 uppercase">
-            {t("pages.appShell.runtimePanelRecentActivity")}
-          </p>
-          <ul className="space-y-2">
-            {effectiveTimeline.recentActivity.slice(0, 6).map((item) => (
-              <li
-                className="rounded-md border border-sidebar-border/50 px-2 py-2"
-                key={item.eventId}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-xs font-medium">
-                    {item.toolName ?? runtimeEventLabel(item.eventType)}
-                  </span>
-                  <Badge variant={statusBadgeVariant(item.runStatus)}>
-                    {runStatusLabel(item.runStatus)}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-[11px] text-sidebar-foreground/70">
-                  {item.summary}
-                </p>
-                <p className="mt-1 text-[10px] text-sidebar-foreground/55">
-                  {formatTimelineTime(item.emittedAt, isHydrated)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {!hasActivity ? (
-        <p className="mt-3 text-xs text-sidebar-foreground/65">
-          {t("pages.appShell.runtimePanelEmpty")}
-        </p>
-      ) : null}
+        ) : null}
+        {activeSummary !== null ? (
+          <p className="text-xs text-sidebar-foreground/70">{activeSummary}</p>
+        ) : null}
+      </div>
 
       <div className="mt-3">
         <Link
@@ -165,4 +128,11 @@ function statusBadgeVariant(status: string) {
   if (status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed) return "destructive";
   if (status === ASSESSMENT_RUNTIME_RUN_STATUSES.completed) return "default";
   return "secondary";
+}
+
+function isActiveRuntimeStatus(status: string | null | undefined): boolean {
+  return (
+    status === ASSESSMENT_RUNTIME_RUN_STATUSES.running ||
+    status === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting
+  );
 }

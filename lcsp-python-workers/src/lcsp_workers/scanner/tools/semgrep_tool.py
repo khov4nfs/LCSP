@@ -234,6 +234,8 @@ class SemgrepTool:
             "--config",
             str(ruleset_path),
             "--json",
+            "--jobs",
+            "1",
             "--no-git-ignore",
             *(str(target) for target in (targets if targets is not None else [workspace])),
         ]

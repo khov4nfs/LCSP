@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { resolveMessage } from "@lcsp/i18n";
+import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,113 @@ import {
 } from "@/lib/api/assessment-queries";
 import { appLocale } from "@/lib/locale";
 import type { ClassificationStatusPageProps } from "../../types/component-props.types";
+
+const VERIFIED_PROFILE_REVIEW_KEYS = {
+  title: "pages.classification.verifiedProfileReview.title",
+  description: "pages.classification.verifiedProfileReview.description",
+  verificationSourceLabel:
+    "pages.classification.verifiedProfileReview.verificationSourceLabel",
+  evidenceChainLabel:
+    "pages.classification.verifiedProfileReview.evidenceChainLabel",
+  evidenceChainVerified:
+    "pages.classification.verifiedProfileReview.evidenceChainVerified",
+  evidenceChainNeedsReview:
+    "pages.classification.verifiedProfileReview.evidenceChainNeedsReview",
+  providerVersionLabel:
+    "pages.classification.verifiedProfileReview.providerVersionLabel",
+  factsTitle: "pages.classification.verifiedProfileReview.factsTitle",
+  noClaims: "pages.classification.verifiedProfileReview.noClaims",
+  confidenceLabel: "pages.classification.verifiedProfileReview.confidenceLabel",
+  lifecycleStateLabel:
+    "pages.classification.verifiedProfileReview.lifecycleStateLabel",
+  materialityLabel:
+    "pages.classification.verifiedProfileReview.materialityLabel",
+  evidenceSummaryLabel:
+    "pages.classification.verifiedProfileReview.evidenceSummaryLabel",
+  evidenceItemLabel:
+    "pages.classification.verifiedProfileReview.evidenceItemLabel",
+  evidenceItemsLabel:
+    "pages.classification.verifiedProfileReview.evidenceItemsLabel",
+  notProvided: "pages.classification.verifiedProfileReview.notProvided",
+  yes: "pages.classification.verifiedProfileReview.yes",
+  no: "pages.classification.verifiedProfileReview.no",
+  conflictSummary:
+    "pages.classification.verifiedProfileReview.conflictSummary",
+  approvalFailedTitle:
+    "pages.classification.verifiedProfileReview.approvalFailedTitle",
+  approvalFailedDetail:
+    "pages.classification.verifiedProfileReview.approvalFailedDetail",
+  approveButton: "pages.classification.verifiedProfileReview.approveButton",
+  approvingButton:
+    "pages.classification.verifiedProfileReview.approvingButton",
+  approvedMessage: "pages.classification.verifiedProfileReview.approvedMessage",
+} as const satisfies Record<string, MessageKey>;
+
+const VERIFIED_PROFILE_STATUS_KEYS = {
+  PENDING_APPROVAL:
+    "pages.classification.verifiedProfileReview.statuses.PENDING_APPROVAL",
+  APPROVED: "pages.classification.verifiedProfileReview.statuses.APPROVED",
+  REJECTED: "pages.classification.verifiedProfileReview.statuses.REJECTED",
+  UNKNOWN: "pages.classification.verifiedProfileReview.statuses.UNKNOWN",
+} as const satisfies Record<string, MessageKey>;
+
+const CLAIM_TITLE_KEYS = {
+  MODEL_PROVIDER_USAGE:
+    "pages.classification.verifiedProfileReview.claimTitles.MODEL_PROVIDER_USAGE",
+  MODEL_INVOCATION:
+    "pages.classification.verifiedProfileReview.claimTitles.MODEL_INVOCATION",
+  PERSONAL_DATA_INPUT:
+    "pages.classification.verifiedProfileReview.claimTitles.PERSONAL_DATA_INPUT",
+  HUMAN_REVIEW:
+    "pages.classification.verifiedProfileReview.claimTitles.HUMAN_REVIEW",
+  AFFECTED_SUBJECTS:
+    "pages.classification.verifiedProfileReview.claimTitles.AFFECTED_SUBJECTS",
+  BUSINESS_PROCESS:
+    "pages.classification.verifiedProfileReview.claimTitles.BUSINESS_PROCESS",
+  AI_PURPOSE: "pages.classification.verifiedProfileReview.claimTitles.AI_PURPOSE",
+  UNKNOWN: "pages.classification.verifiedProfileReview.claimTitles.UNKNOWN",
+} as const satisfies Record<string, MessageKey>;
+
+const CLAIM_DESCRIPTION_KEYS = {
+  model_provider_usage:
+    "pages.classification.verifiedProfileReview.claimDescriptions.model_provider_usage",
+  model_invocation:
+    "pages.classification.verifiedProfileReview.claimDescriptions.model_invocation",
+  personal_data_input:
+    "pages.classification.verifiedProfileReview.claimDescriptions.personal_data_input",
+  human_review:
+    "pages.classification.verifiedProfileReview.claimDescriptions.human_review",
+  affected_subjects:
+    "pages.classification.verifiedProfileReview.claimDescriptions.affected_subjects",
+  business_process:
+    "pages.classification.verifiedProfileReview.claimDescriptions.business_process",
+  ai_purpose:
+    "pages.classification.verifiedProfileReview.claimDescriptions.ai_purpose",
+} as const satisfies Record<string, MessageKey>;
+
+const CONFIDENCE_KEYS = {
+  low: "pages.classification.verifiedProfileReview.confidenceLevels.low",
+  medium: "pages.classification.verifiedProfileReview.confidenceLevels.medium",
+  high: "pages.classification.verifiedProfileReview.confidenceLevels.high",
+  unknown: "pages.classification.verifiedProfileReview.confidenceLevels.unknown",
+} as const satisfies Record<string, MessageKey>;
+
+const LIFECYCLE_STATE_KEYS = {
+  DETECTED: "pages.classification.verifiedProfileReview.lifecycleStates.DETECTED",
+  ABSTAINED:
+    "pages.classification.verifiedProfileReview.lifecycleStates.ABSTAINED",
+  INFERRED: "pages.classification.verifiedProfileReview.lifecycleStates.INFERRED",
+  CONFIRMED:
+    "pages.classification.verifiedProfileReview.lifecycleStates.CONFIRMED",
+  UNKNOWN: "pages.classification.verifiedProfileReview.lifecycleStates.UNKNOWN",
+} as const satisfies Record<string, MessageKey>;
+
+const VERIFICATION_SOURCE_KEYS = {
+  TECHNICAL_PLUS_WIZARD:
+    "pages.classification.verifiedProfileReview.verificationSources.TECHNICAL_PLUS_WIZARD",
+  UNKNOWN:
+    "pages.classification.verifiedProfileReview.verificationSources.UNKNOWN",
+} as const satisfies Record<string, MessageKey>;
 
 export function ClassificationStatusPage({
   assessmentId,
@@ -203,29 +310,50 @@ function VerifiedProfileReviewCard({
   onApprove: () => void;
 }) {
   const pendingApproval = profile.status === "PENDING_APPROVAL";
+  const t = (key: MessageKey) => resolveMessage(appLocale, key);
 
   return (
-    <section className="rounded-xl border bg-card p-5" aria-label="Verified profile review">
+    <section
+      className="rounded-lg border bg-card p-5"
+      aria-label={t(VERIFIED_PROFILE_REVIEW_KEYS.title)}
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold">Verified profile review</h2>
+          <h2 className="text-lg font-semibold">
+            {t(VERIFIED_PROFILE_REVIEW_KEYS.title)}
+          </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Review the evidence-backed facts below before legal matching and classification begin.
+            {t(VERIFIED_PROFILE_REVIEW_KEYS.description)}
           </p>
         </div>
         <span className="rounded-full border px-2.5 py-1 text-xs font-medium">
-          {formatStatus(profile.status)}
+          {formatProfileStatus(profile.status)}
         </span>
       </div>
 
       <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-        <Metadata label="Verification source" value={profile.verificationSource ?? "Not provided"} />
-        <Metadata label="Evidence chain" value={profile.evidenceChainIntegrity === true ? "Verified" : "Needs review"} />
-        <Metadata label="Provider version" value={profile.providerVersion} />
+        <Metadata
+          label={t(VERIFIED_PROFILE_REVIEW_KEYS.verificationSourceLabel)}
+          value={formatVerificationSource(profile.verificationSource)}
+        />
+        <Metadata
+          label={t(VERIFIED_PROFILE_REVIEW_KEYS.evidenceChainLabel)}
+          value={
+            profile.evidenceChainIntegrity === true
+              ? t(VERIFIED_PROFILE_REVIEW_KEYS.evidenceChainVerified)
+              : t(VERIFIED_PROFILE_REVIEW_KEYS.evidenceChainNeedsReview)
+          }
+        />
+        <Metadata
+          label={t(VERIFIED_PROFILE_REVIEW_KEYS.providerVersionLabel)}
+          value={profile.providerVersion}
+        />
       </dl>
 
       <div className="mt-5">
-        <p className="text-sm font-medium">Verified facts</p>
+        <p className="text-sm font-medium">
+          {t(VERIFIED_PROFILE_REVIEW_KEYS.factsTitle)}
+        </p>
         {profile.verifiedClaims.length ? (
           <div className="mt-2 grid gap-3">
             {profile.verifiedClaims.map((claim, index) => (
@@ -233,39 +361,52 @@ function VerifiedProfileReviewCard({
                 key={claimKey(claim, index)}
                 className="rounded-lg border bg-muted/20 p-3"
               >
-                <p className="text-sm font-medium">{claimTitle(claim, index)}</p>
-                <dl className="mt-2 grid gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
-                  {claimFacts(claim).map(([key, value]) => (
-                    <div key={key} className="flex gap-2">
-                      <dt className="font-medium text-muted-foreground">{humanizeKey(key)}:</dt>
-                      <dd className="break-words">{value}</dd>
-                    </div>
-                  ))}
+                <p className="text-sm font-medium">{claimTitle(claim)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {claimDescription(claim)}
+                </p>
+                <dl className="mt-3 grid gap-x-4 gap-y-2 text-xs sm:grid-cols-2">
+                  <MetadataRow
+                    label={t(VERIFIED_PROFILE_REVIEW_KEYS.confidenceLabel)}
+                    value={formatConfidence(claim)}
+                  />
+                  <MetadataRow
+                    label={t(VERIFIED_PROFILE_REVIEW_KEYS.lifecycleStateLabel)}
+                    value={formatLifecycleState(claim)}
+                  />
+                  <MetadataRow
+                    label={t(VERIFIED_PROFILE_REVIEW_KEYS.materialityLabel)}
+                    value={formatBoolean(claim.is_material)}
+                  />
+                  <MetadataRow
+                    label={t(VERIFIED_PROFILE_REVIEW_KEYS.evidenceSummaryLabel)}
+                    value={formatEvidenceSummary(claim)}
+                  />
                 </dl>
-                {claimEvidenceRefs(claim).length ? (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Evidence: {claimEvidenceRefs(claim).join(", ")}
-                  </p>
-                ) : null}
               </article>
             ))}
           </div>
         ) : (
-          <p className="mt-2 text-sm text-muted-foreground">No verified claims were included.</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t(VERIFIED_PROFILE_REVIEW_KEYS.noClaims)}
+          </p>
         )}
       </div>
 
       {profile.conflictResolutions.length ? (
         <p className="mt-4 text-sm text-muted-foreground">
-          {profile.conflictResolutions.length} reconciliation decision(s) are attached to this profile.
+          {profile.conflictResolutions.length}{" "}
+          {t(VERIFIED_PROFILE_REVIEW_KEYS.conflictSummary)}
         </p>
       ) : null}
 
       {approvalFailed ? (
         <Alert variant="destructive" className="mt-4">
-          <AlertTitle>Approval failed</AlertTitle>
+          <AlertTitle>
+            {t(VERIFIED_PROFILE_REVIEW_KEYS.approvalFailedTitle)}
+          </AlertTitle>
           <AlertDescription>
-            The profile was not approved. Refresh the assessment and confirm that it is still pending approval.
+            {t(VERIFIED_PROFILE_REVIEW_KEYS.approvalFailedDetail)}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -273,11 +414,13 @@ function VerifiedProfileReviewCard({
       <div className="mt-5 flex flex-wrap items-center gap-3">
         {pendingApproval ? (
           <Button disabled={isApproving} onClick={onApprove}>
-            {isApproving ? "Approving…" : "Approve verified profile"}
+            {isApproving
+              ? t(VERIFIED_PROFILE_REVIEW_KEYS.approvingButton)
+              : t(VERIFIED_PROFILE_REVIEW_KEYS.approveButton)}
           </Button>
         ) : (
           <p className="text-sm font-medium">
-            Approved. Legal matching can proceed automatically.
+            {t(VERIFIED_PROFILE_REVIEW_KEYS.approvedMessage)}
           </p>
         )}
       </div>
@@ -294,25 +437,33 @@ function Metadata({ label, value }: { label: string; value: string }) {
   );
 }
 
+function MetadataRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="font-medium text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 break-words">{value}</dd>
+    </div>
+  );
+}
+
 function claimKey(claim: Record<string, unknown>, index: number): string {
   return String(claim.claim_id ?? claim.id ?? `claim-${index}`);
 }
 
-function claimTitle(claim: Record<string, unknown>, index: number): string {
-  const value = claim.claim_category ?? claim.claim_type ?? claim.claim_id ?? claim.id;
-  return typeof value === "string" && value.trim()
-    ? value.trim()
-    : `Verified claim ${index + 1}`;
+function claimTitle(claim: Record<string, unknown>): string {
+  const key = readClaimType(claim);
+  return resolveMessage(appLocale, CLAIM_TITLE_KEYS[key]);
 }
 
-function claimFacts(claim: Record<string, unknown>): Array<[string, string]> {
-  const omitted = new Set(["evidence_refs", "evidenceRefs"]);
-  return Object.entries(claim).flatMap(([key, value]) => {
-    if (omitted.has(key) || !isDisplayValue(value)) {
-      return [];
-    }
-    return [[key, formatValue(value)] as [string, string]];
-  });
+function claimDescription(claim: Record<string, unknown>): string {
+  const field = readString(claim.claim_field);
+  const key =
+    field && hasMessageKey(CLAIM_DESCRIPTION_KEYS, field)
+      ? CLAIM_DESCRIPTION_KEYS[field]
+      : undefined;
+  return key
+    ? resolveMessage(appLocale, key)
+    : resolveMessage(appLocale, CLAIM_TITLE_KEYS.UNKNOWN);
 }
 
 function claimEvidenceRefs(claim: Record<string, unknown>): string[] {
@@ -322,23 +473,74 @@ function claimEvidenceRefs(claim: Record<string, unknown>): string[] {
     : [];
 }
 
-function isDisplayValue(value: unknown): value is string | number | boolean | string[] {
-  return (
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean" ||
-    (Array.isArray(value) && value.every((entry) => typeof entry === "string"))
+function formatEvidenceSummary(claim: Record<string, unknown>): string {
+  const count = claimEvidenceRefs(claim).length;
+  const labelKey =
+    count === 1
+      ? VERIFIED_PROFILE_REVIEW_KEYS.evidenceItemLabel
+      : VERIFIED_PROFILE_REVIEW_KEYS.evidenceItemsLabel;
+  return `${count} ${resolveMessage(appLocale, labelKey)}`;
+}
+
+function formatProfileStatus(value: string): string {
+  const key = hasMessageKey(VERIFIED_PROFILE_STATUS_KEYS, value)
+    ? VERIFIED_PROFILE_STATUS_KEYS[value]
+    : VERIFIED_PROFILE_STATUS_KEYS.UNKNOWN;
+  return resolveMessage(appLocale, key);
+}
+
+function formatVerificationSource(value: string | null): string {
+  const key =
+    value && hasMessageKey(VERIFICATION_SOURCE_KEYS, value)
+      ? VERIFICATION_SOURCE_KEYS[value]
+      : VERIFICATION_SOURCE_KEYS.UNKNOWN;
+  return resolveMessage(appLocale, key);
+}
+
+function formatConfidence(claim: Record<string, unknown>): string {
+  const value = readString(claim.confidence);
+  const normalized = value?.toLowerCase();
+  const key =
+    normalized && hasMessageKey(CONFIDENCE_KEYS, normalized)
+      ? CONFIDENCE_KEYS[normalized]
+      : undefined;
+  return resolveMessage(appLocale, key ?? CONFIDENCE_KEYS.unknown);
+}
+
+function formatLifecycleState(claim: Record<string, unknown>): string {
+  const value = readString(claim.lifecycle_state);
+  const normalized = value?.toUpperCase();
+  const key =
+    normalized && hasMessageKey(LIFECYCLE_STATE_KEYS, normalized)
+      ? LIFECYCLE_STATE_KEYS[normalized]
+      : undefined;
+  return resolveMessage(appLocale, key ?? LIFECYCLE_STATE_KEYS.UNKNOWN);
+}
+
+function formatBoolean(value: unknown): string {
+  return resolveMessage(
+    appLocale,
+    value === true
+      ? VERIFIED_PROFILE_REVIEW_KEYS.yes
+      : VERIFIED_PROFILE_REVIEW_KEYS.no,
   );
 }
 
-function formatValue(value: string | number | boolean | string[]): string {
-  return Array.isArray(value) ? value.join(", ") : String(value);
+function readClaimType(claim: Record<string, unknown>): keyof typeof CLAIM_TITLE_KEYS {
+  const rawValue = readString(claim.claim_type ?? claim.claim_category);
+  const normalized = rawValue?.toUpperCase();
+  return normalized && normalized in CLAIM_TITLE_KEYS
+    ? (normalized as keyof typeof CLAIM_TITLE_KEYS)
+    : "UNKNOWN";
 }
 
-function humanizeKey(value: string): string {
-  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+function readString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function formatStatus(value: string): string {
-  return humanizeKey(value.toLowerCase());
+function hasMessageKey<TMap extends Record<string, MessageKey>>(
+  map: TMap,
+  key: string,
+): key is keyof TMap & string {
+  return Object.prototype.hasOwnProperty.call(map, key);
 }
