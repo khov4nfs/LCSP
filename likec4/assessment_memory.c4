@@ -1,0 +1,256 @@
+model {
+  extend lcsp {
+    assessmentMemoryArchitecture = system 'Assessment Memory Architecture' {
+      description 'Durable memory architecture for multi-tenant, multi-assessment orchestration. Keeps assessment truth in persistence, checkpoints, versioned artifacts, and sanitized prompt views instead of implicit LLM memory.'
+    }
+  }
+
+  extend lcsp.api {
+    assessmentContextService = service 'Assessment Context Service' {
+      technology 'NestJS Service Layer'
+      description 'Loads identity context, pinned artifact refs, workflow state, and assessment-scoped memory slices.'
+    }
+
+    orchestrationRuntime = service 'Orchestration Runtime' {
+      technology 'NestJS Runtime / LangGraph-style coordinator'
+      description 'Coordinates tool execution and background orchestration using exact workflowRun, assessment, organization, and artifact version context.'
+    }
+
+    artifactReadModel = service 'Artifact Projection / Read Model' {
+      technology 'NestJS Query Layer'
+      description 'Projects sanitized artifact views for evidence, reconciliation, classification, and prompt-safe retrieval.'
+    }
+
+    promptContextBuilder = service 'Prompt Context Builder' {
+      technology 'NestJS Service Layer'
+      description 'Builds bounded, sanitized prompt context from durable orchestration state and versioned artifacts.'
+    }
+
+    toolDispatchController = controller 'Agentic Tool Dispatch Controller' {
+      technology 'apps/api/src/modules/evidence/presentation/http/agentic-tool-dispatch.controller.ts'
+      description 'Accepts worker/runtime tool dispatch requests and routes each tool to the correct assessment-scoped query or runtime command.'
+    }
+  }
+
+  extend lcsp.pythonWorkers {
+    toolResolver = workerService 'Agentic Tool Resolver' {
+      technology 'Python Runtime Binding'
+      description 'Bridges model-callable tool names to trusted API runtime dispatch with exact assessment context and correlationId.'
+    }
+  }
+
+  extend lcsp.database {
+    workflowRunEntity = entity 'WorkflowRun' {
+      description 'Authoritative execution lane for one orchestration run of one assessment inside one organization.'
+    }
+
+    workflowCheckpointEntity = entity 'WorkflowCheckpoint' {
+      description 'Durable checkpoint state for orchestration resume, retry, and rehydration after worker or process restart.'
+    }
+
+    missingInputStateEntity = entity 'MissingInputState' {
+      description 'Typed unresolved input requirements, requested resolver paths, and current state of missing data for a workflow run.'
+    }
+
+    orchestrationTaskEntity = entity 'OrchestrationTask' {
+      description 'Queued or active orchestration tasks, retries, nextAttemptAt, and state transitions for background execution.'
+    }
+
+    pinnedArtifactRefEntity = entity 'PinnedArtifactRef' {
+      description 'Immutable mapping from workflow run to exact artifact ids and versions that must be used for tool reads and reasoning.'
+    }
+
+    toolExecutionLogEntity = entity 'ToolExecutionLog' {
+      description 'Execution audit for each tool call, carrying toolName, assessment scope, correlationId, status, result refs, and limitations.'
+    }
+
+    runtimeCommandRequestEntity = entity 'RuntimeCommandRequest' {
+      description 'Durable record for sync HTTP runtime commands that trigger background orchestration or resumable worker-side actions.'
+    }
+
+    targetedReanalysisRequestEntity = entity 'TargetedReanalysisRequest' {
+      description 'Command record for bounded targeted reanalysis with analyzer id, scope, idempotency, attempts, and final state.'
+    }
+
+    decisionLedgerEntity = entity 'DecisionLedger' {
+      description 'Append-only record of material orchestration decisions, their evidence refs, policy version, and resulting state transitions.'
+    }
+
+    legalSourceCatalogEntity = entity 'LegalSourceCatalog' {
+      description 'Admin-managed registry of authoritative legal sources allowed for automated corpus recovery.'
+    }
+
+    officialSourceSnapshotEntity = entity 'OfficialSourceSnapshot' {
+      description 'Immutable fetched official-source snapshot used for OCR, extraction, chunking, and corpus version builds.'
+    }
+
+    corpusVersionEntity = entity 'CorpusVersion' {
+      description 'Versioned legal corpus build gated by validation and later activated for retrieval.'
+    }
+
+    corpusChunkEntity = entity 'CorpusChunk' {
+      description 'Chunked legal text units derived from validated corpus versions and retrieval structure.'
+    }
+
+    retrievalIndexVersionEntity = entity 'RetrievalIndexVersion' {
+      description 'Retrieval index build metadata bound to one validated corpus version.'
+    }
+
+    assessmentPromptViewEntity = entity 'AssessmentPromptView' {
+      description 'Prompt-safe assessment summary view containing identity, workflow stage, pinned refs, facts, and limitations only.'
+    }
+
+    evidenceProjectionEntity = entity 'EvidenceProjection' {
+      description 'Sanitized evidence projection for read-only technical tools such as coverage, search, subgraph, and static-flow inspection.'
+    }
+
+    reconciliationProjectionEntity = entity 'ReconciliationProjection' {
+      description 'Sanitized read model for artifact chain, missing-target proposals, reconciliation context, and verified-profile reads.'
+    }
+
+    classificationProjectionEntity = entity 'ClassificationProjection' {
+      description 'Sanitized read model for legal matching, classification baselines, gaps, and remediation evidence.'
+    }
+  }
+
+  lcsp.api.assessmentContextService -> lcsp.database.assessmentEntity 'Reads Assessment identity and lifecycle state'
+  lcsp.api.assessmentContextService -> lcsp.database.wizardProfileEntity 'Reads submitted WizardProfile and declared targets'
+  lcsp.api.assessmentContextService -> lcsp.database.workflowRunEntity 'Reads active workflow execution lane'
+  lcsp.api.assessmentContextService -> lcsp.database.workflowCheckpointEntity 'Reads durable orchestration memory'
+  lcsp.api.assessmentContextService -> lcsp.database.pinnedArtifactRefEntity 'Reads exact artifact version pins'
+
+  lcsp.api.orchestrationRuntime -> lcsp.database.workflowRunEntity 'Persists orchestration status and current node'
+  lcsp.api.orchestrationRuntime -> lcsp.database.workflowCheckpointEntity 'Persists resume state and working memory'
+  lcsp.api.orchestrationRuntime -> lcsp.database.missingInputStateEntity 'Tracks missing typed inputs and resolver outcomes'
+  lcsp.api.orchestrationRuntime -> lcsp.database.orchestrationTaskEntity 'Schedules retries, waiting tasks, and resumable work'
+  lcsp.api.orchestrationRuntime -> lcsp.database.toolExecutionLogEntity 'Records tool call outcomes and limitations'
+  lcsp.api.orchestrationRuntime -> lcsp.database.decisionLedgerEntity 'Records material decisions with evidence refs'
+  lcsp.api.orchestrationRuntime -> lcsp.queue 'Dispatches background orchestration work' #async
+
+  lcsp.api.toolDispatchController -> lcsp.api.artifactReadModel 'Routes tool queries to assessment-scoped projections'
+  lcsp.api.toolDispatchController -> lcsp.api.orchestrationRuntime 'Routes runtime commands that require orchestration mutation'
+
+  lcsp.api.artifactReadModel -> lcsp.database.evidenceProjectionEntity 'Reads technical evidence tool memory'
+  lcsp.api.artifactReadModel -> lcsp.database.reconciliationProjectionEntity 'Reads reconciliation tool memory'
+  lcsp.api.artifactReadModel -> lcsp.database.classificationProjectionEntity 'Reads classification tool memory'
+  lcsp.api.artifactReadModel -> lcsp.database.assessmentPromptViewEntity 'Reads prompt-safe memory views'
+
+  lcsp.api.promptContextBuilder -> lcsp.database.assessmentPromptViewEntity 'Builds or reads bounded prompt-safe assessment memory'
+  lcsp.api.promptContextBuilder -> lcsp.pythonWorkers.llmGateway 'Sends sanitized context for reasoning only' #guardrail
+
+  lcsp.pythonWorkers.toolResolver -> lcsp.api.toolDispatchController 'Calls trusted runtime dispatch with exact correlationId and assessment scope' #sync
+
+  lcsp.database.assessmentEntity -> lcsp.database.workflowRunEntity '1:N Workflow runs'
+  lcsp.database.workflowRunEntity -> lcsp.database.workflowCheckpointEntity '1:N Durable checkpoints'
+  lcsp.database.workflowRunEntity -> lcsp.database.missingInputStateEntity '1:N Missing input states'
+  lcsp.database.workflowRunEntity -> lcsp.database.orchestrationTaskEntity '1:N Runtime tasks'
+  lcsp.database.workflowRunEntity -> lcsp.database.pinnedArtifactRefEntity '1:N Pinned artifact refs'
+  lcsp.database.workflowRunEntity -> lcsp.database.toolExecutionLogEntity '1:N Tool executions'
+  lcsp.database.workflowRunEntity -> lcsp.database.decisionLedgerEntity '1:N Material decisions'
+  lcsp.database.workflowRunEntity -> lcsp.database.runtimeCommandRequestEntity '1:N Runtime commands'
+  lcsp.database.workflowRunEntity -> lcsp.database.targetedReanalysisRequestEntity '1:N Targeted reanalysis requests'
+
+  lcsp.database.assessmentEntity -> lcsp.database.technicalEvidenceReportEntity '1:N Technical evidence reports'
+  lcsp.database.technicalEvidenceReportEntity -> lcsp.database.technicalProfileEntity '1:1 Technical profile'
+  lcsp.database.technicalProfileEntity -> lcsp.database.aiUsageFlowEntity '1:1 AI usage flow'
+  lcsp.database.aiUsageFlowEntity -> lcsp.database.conflictRecordEntity '1:N Conflict records'
+  lcsp.database.aiUsageFlowEntity -> lcsp.database.verifiedProfileEntity '1:1 Verified profile'
+  lcsp.database.verifiedProfileEntity -> lcsp.database.legalRuleMatchEntity '1:N Legal rule matches'
+
+  lcsp.database.legalSourceCatalogEntity -> lcsp.database.officialSourceSnapshotEntity '1:N Source snapshots'
+  lcsp.database.officialSourceSnapshotEntity -> lcsp.database.corpusVersionEntity '1:N Corpus versions'
+  lcsp.database.corpusVersionEntity -> lcsp.database.corpusChunkEntity '1:N Corpus chunks'
+  lcsp.database.corpusVersionEntity -> lcsp.database.retrievalIndexVersionEntity '1:N Retrieval indexes'
+}
+
+views {
+  view assessment_memory_overview of lcsp {
+    title 'Assessment Memory Architecture Overview'
+    description 'Shows how LCSP keeps assessment memory in persistence, checkpoints, projections, and prompt-safe views instead of relying on implicit LLM memory.'
+    include
+      lcsp.web,
+      lcsp.api.assessmentContextService,
+      lcsp.api.orchestrationRuntime,
+      lcsp.api.toolDispatchController,
+      lcsp.api.artifactReadModel,
+      lcsp.api.promptContextBuilder,
+      lcsp.pythonWorkers.toolResolver,
+      lcsp.pythonWorkers.llmGateway,
+      lcsp.database.assessmentEntity,
+      lcsp.database.wizardProfileEntity,
+      lcsp.database.workflowRunEntity,
+      lcsp.database.workflowCheckpointEntity,
+      lcsp.database.missingInputStateEntity,
+      lcsp.database.pinnedArtifactRefEntity,
+      lcsp.database.toolExecutionLogEntity,
+      lcsp.database.decisionLedgerEntity,
+      lcsp.database.assessmentPromptViewEntity,
+      lcsp.queue
+  }
+
+  view assessment_memory_storage of lcsp.database {
+    title 'Assessment Memory Storage Map'
+    description 'Maps the minimum durable memory stores for orchestration state, tool state, artifact chains, legal corpus recovery, and prompt-safe projections.'
+    include
+      lcsp.database.assessmentEntity,
+      lcsp.database.wizardProfileEntity,
+      lcsp.database.workflowRunEntity,
+      lcsp.database.workflowCheckpointEntity,
+      lcsp.database.missingInputStateEntity,
+      lcsp.database.orchestrationTaskEntity,
+      lcsp.database.pinnedArtifactRefEntity,
+      lcsp.database.technicalEvidenceReportEntity,
+      lcsp.database.technicalProfileEntity,
+      lcsp.database.aiUsageFlowEntity,
+      lcsp.database.conflictRecordEntity,
+      lcsp.database.verifiedProfileEntity,
+      lcsp.database.legalRuleMatchEntity,
+      lcsp.database.toolExecutionLogEntity,
+      lcsp.database.runtimeCommandRequestEntity,
+      lcsp.database.targetedReanalysisRequestEntity,
+      lcsp.database.decisionLedgerEntity,
+      lcsp.database.legalSourceCatalogEntity,
+      lcsp.database.officialSourceSnapshotEntity,
+      lcsp.database.corpusVersionEntity,
+      lcsp.database.corpusChunkEntity,
+      lcsp.database.retrievalIndexVersionEntity,
+      lcsp.database.assessmentPromptViewEntity,
+      lcsp.database.evidenceProjectionEntity,
+      lcsp.database.reconciliationProjectionEntity,
+      lcsp.database.classificationProjectionEntity
+  }
+
+  dynamic view assessment_memory_hydration_flow {
+    title 'Assessment Memory Hydration Flow'
+    description 'Shows how orchestration rehydrates assessment-scoped memory before a model step or tool call, then persists durable outcomes back to the authoritative stores.'
+
+    lcsp.web -> lcsp.api.assessmentContextService '1. User action or orchestration resume requests assessment context'
+    lcsp.api.assessmentContextService -> lcsp.database.assessmentEntity '2. Load organizationId, assessmentId, status'
+    lcsp.api.assessmentContextService -> lcsp.database.workflowRunEntity '3. Resolve current workflowRun'
+    lcsp.api.assessmentContextService -> lcsp.database.workflowCheckpointEntity '4. Load durable checkpoint state'
+    lcsp.api.assessmentContextService -> lcsp.database.pinnedArtifactRefEntity '5. Load exact artifact version pins'
+    lcsp.api.orchestrationRuntime -> lcsp.api.artifactReadModel '6. Request sanitized artifact memory slices for current step'
+    lcsp.api.artifactReadModel -> lcsp.database.evidenceProjectionEntity '7. Read technical evidence projection if needed'
+    lcsp.api.artifactReadModel -> lcsp.database.reconciliationProjectionEntity '8. Read reconciliation projection if needed'
+    lcsp.api.artifactReadModel -> lcsp.database.classificationProjectionEntity '9. Read classification projection if needed'
+    lcsp.api.promptContextBuilder -> lcsp.database.assessmentPromptViewEntity '10. Build bounded prompt-safe memory view'
+    lcsp.api.promptContextBuilder -> lcsp.pythonWorkers.llmGateway '11. Send sanitized context to LLM'
+    lcsp.api.orchestrationRuntime -> lcsp.database.toolExecutionLogEntity '12. Persist tool execution result / limitation'
+    lcsp.api.orchestrationRuntime -> lcsp.database.workflowCheckpointEntity '13. Persist updated run memory'
+    lcsp.api.orchestrationRuntime -> lcsp.database.decisionLedgerEntity '14. Persist material decisions with evidence refs'
+  }
+
+  dynamic view prompt_exposure_policy {
+    title 'Prompt Exposure Policy'
+    description 'Shows which memory is exposed to LLM prompt context and which remains durable but non-exposed.'
+
+    lcsp.api.assessmentContextService -> lcsp.database.workflowCheckpointEntity '1. Reads full orchestration memory'
+    lcsp.api.artifactReadModel -> lcsp.database.evidenceProjectionEntity '2. Reads sanitized evidence only'
+    lcsp.api.artifactReadModel -> lcsp.database.reconciliationProjectionEntity '3. Reads sanitized reconciliation context only'
+    lcsp.api.artifactReadModel -> lcsp.database.classificationProjectionEntity '4. Reads sanitized classification context only'
+    lcsp.api.promptContextBuilder -> lcsp.database.assessmentPromptViewEntity '5. Produces prompt-safe assessment view'
+    lcsp.api.promptContextBuilder -> lcsp.pythonWorkers.llmGateway '6. Exposes only prompt-safe view to LLM'
+    lcsp.database.technicalEvidenceReportEntity -> lcsp.api.promptContextBuilder '7. Raw evidence payload is not sent directly'
+    lcsp.database.officialSourceSnapshotEntity -> lcsp.api.promptContextBuilder '8. Raw OCR/source snapshot is not sent directly'
+  }
+}

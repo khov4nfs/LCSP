@@ -13,6 +13,7 @@ import { Logger } from "@nestjs/common";
 
 import { OutboxMessageEntity } from "./outbox-message.entity.js";
 import { OutboxPublisherService } from "./outbox-publisher.service.js";
+import type { SnapshotCreatedAutoScanService } from "./snapshot-created-auto-scan.service.js";
 import type { OutboxRepository } from "./outbox.repository.js";
 import type { RabbitMqClient } from "./rabbitmq.client.js";
 import type { AuditWriterService } from "../audit/audit-writer.service.js";
@@ -121,6 +122,20 @@ function makeAuditWriter(): AuditWriterDouble {
   } as unknown as AuditWriterDouble;
 }
 
+type SnapshotCreatedAutoScanDouble = SnapshotCreatedAutoScanService & {
+  handleMock: jest.MockedFunction<SnapshotCreatedAutoScanService["handle"]>;
+};
+
+function makeSnapshotCreatedAutoScanService(): SnapshotCreatedAutoScanDouble {
+  const handleMock = jest
+    .fn<SnapshotCreatedAutoScanService["handle"]>()
+    .mockResolvedValue(undefined);
+  return {
+    handle: handleMock,
+    handleMock,
+  } as unknown as SnapshotCreatedAutoScanDouble;
+}
+
 function makeMessage(
   overrides: Partial<
     Parameters<typeof OutboxMessageEntity.fromPersistence>[0]
@@ -164,6 +179,7 @@ describe("OutboxPublisherService", () => {
       makeRabbitMqClient({}),
       makeConfigService({ "outbox.enabled": false }),
       makeAuditWriter(),
+      makeSnapshotCreatedAutoScanService(),
     );
 
     service.onModuleInit();
@@ -199,6 +215,7 @@ describe("OutboxPublisherService", () => {
       rabbitMqClient,
       makeConfigService(),
       makeAuditWriter(),
+      makeSnapshotCreatedAutoScanService(),
     );
 
     await service.poll();
@@ -214,6 +231,66 @@ describe("OutboxPublisherService", () => {
       {},
       "outbox-1",
       expect.any(Date),
+    );
+  });
+
+  it("auto-chains scan creation before publishing snapshotCreated", async () => {
+    const message = makeMessage({
+      aggregateType: OUTBOX_AGGREGATE_TYPES.repositorySnapshot,
+      eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreated,
+      payload: {
+        snapshotId: "snapshot-1",
+        assessmentId: "assessment-1",
+        organizationId: "org-1",
+        correlationId: "corr-1",
+        actor: {
+          id: "user-1",
+          type: "USER",
+        },
+        authorizationAction: "scan:trigger",
+      },
+    });
+    const withPendingBatch = jest
+      .fn<WithPendingBatchFn>()
+      .mockImplementation(async (_batchSize, handler) =>
+        handler([message], {} as Prisma.TransactionClient),
+      );
+    const markPublished = jest
+      .fn<MarkPublishedFn>()
+      .mockResolvedValue(undefined);
+    const outboxRepository = makeOutboxRepository({
+      withPendingBatch,
+      markPublished,
+    });
+    const publish = jest.fn<PublishFn>().mockResolvedValue(undefined);
+    const autoScan = makeSnapshotCreatedAutoScanService();
+
+    const service = new OutboxPublisherService(
+      outboxRepository,
+      makeRabbitMqClient({
+        ensureConnected: jest
+          .fn<EnsureConnectedFn>()
+          .mockResolvedValue(undefined),
+        publish,
+      }),
+      makeConfigService(),
+      makeAuditWriter(),
+      autoScan,
+    );
+
+    await service.poll();
+
+    expect(autoScan.handleMock).toHaveBeenCalledWith(message);
+    expect(publish).toHaveBeenCalledWith(
+      "lcsp.events",
+      GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreated,
+      message.payload,
+      {
+        user_id: "user-1",
+        organization_id: "org-1",
+        action: "scan:trigger",
+        "x-correlation-id": "corr-1",
+      },
     );
   });
 
@@ -245,6 +322,7 @@ describe("OutboxPublisherService", () => {
       rabbitMqClient,
       makeConfigService({ "outbox.maxAttempts": 5 }),
       auditWriter,
+      makeSnapshotCreatedAutoScanService(),
     );
 
     await service.poll();
@@ -297,6 +375,7 @@ describe("OutboxPublisherService", () => {
       }),
       makeConfigService({ "outbox.maxAttempts": 5 }),
       makeAuditWriter(),
+      makeSnapshotCreatedAutoScanService(),
     );
 
     await service.poll();
@@ -349,6 +428,7 @@ describe("OutboxPublisherService", () => {
       }),
       makeConfigService(),
       makeAuditWriter(),
+      makeSnapshotCreatedAutoScanService(),
     );
 
     await service.poll();
@@ -388,6 +468,7 @@ describe("OutboxPublisherService", () => {
       }),
       makeConfigService(),
       makeAuditWriter(),
+      makeSnapshotCreatedAutoScanService(),
     );
 
     await service.poll();
@@ -420,6 +501,7 @@ describe("OutboxPublisherService", () => {
       rabbitMqClient,
       makeConfigService(),
       makeAuditWriter(),
+      makeSnapshotCreatedAutoScanService(),
     );
 
     await expect(service.poll()).resolves.toBeUndefined();
@@ -445,6 +527,7 @@ describe("OutboxPublisherService", () => {
       rabbitMqClient,
       makeConfigService(),
       makeAuditWriter(),
+      makeSnapshotCreatedAutoScanService(),
     );
 
     const firstPoll = service.poll();
@@ -473,6 +556,7 @@ describe("OutboxPublisherService", () => {
       rabbitMqClient,
       makeConfigService({ "outbox.pollIntervalMs": 100 }),
       makeAuditWriter(),
+      makeSnapshotCreatedAutoScanService(),
     );
 
     service.onModuleInit();

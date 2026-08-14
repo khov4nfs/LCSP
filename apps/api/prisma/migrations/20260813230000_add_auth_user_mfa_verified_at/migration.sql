@@ -1,0 +1,2 @@
+ALTER TABLE "AuthUserMfa"
+ADD COLUMN IF NOT EXISTS "verifiedAt" TIMESTAMP(3);

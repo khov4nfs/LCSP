@@ -7,6 +7,7 @@
   "scripts": {
     "dev:fogewise": "node scripts/run.mjs fogewise",
     "dev:fogewise:reset": "node scripts/run.mjs fogewise_reset",
+    "dev:stop": "node scripts/run.mjs dev_stop",
     "dev": "node scripts/run.mjs dev",
     "check:imports": "node scripts/check-import-policy.mjs",
     "check:contracts": "node scripts/check-contract-literals.mjs",

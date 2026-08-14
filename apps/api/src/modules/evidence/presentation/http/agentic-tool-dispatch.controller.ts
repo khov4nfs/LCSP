@@ -1,6 +1,10 @@
 import {
+  AGENTIC_TOOL_STATUSES,
   AGENTIC_TOOL_NAMES,
   ARTIFACT_CHAIN_STAGES,
+  ASSESSMENT_RUNTIME_RUN_STATUSES,
+  ASSESSMENT_RUNTIME_STAGE_CODES,
+  type AssessmentRuntimeStageCode,
   ASSESSMENT_CONTEXT_ANSWER_FIELDS,
   ASSESSMENT_CONTEXT_INCLUDES,
   EVIDENCE_ERROR_CODES,
@@ -26,6 +30,10 @@ import {
 } from "../../../../platform/logging/orchestration-runtime-log.js";
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import {
+  AssessmentRuntimeEventService,
+  summarizeFailure,
+} from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import { EvaluateGapMatrixQuery } from "../../../classification/application/queries/evaluate-gap-matrix/evaluate-gap-matrix.query.js";
 import { GetClassificationBaselineQuery } from "../../../classification/application/queries/get-classification-baseline/get-classification-baseline.query.js";
 import { GetGapEvidenceTraceQuery } from "../../../classification/application/queries/get-gap-evidence-trace/get-gap-evidence-trace.query.js";
@@ -85,7 +93,10 @@ type DispatchRequest = {
   artifact_versions?: unknown;
   input?: unknown;
   correlationId?: unknown;
-  correlationId?: unknown;
+  workflow_run_id?: unknown;
+  workflowRunId?: unknown;
+  run_id?: unknown;
+  runId?: unknown;
 };
 
 @Controller("internal/evidence/agentic-tools")
@@ -99,6 +110,7 @@ export class InternalAgenticToolDispatchController {
     private readonly queryBus: QueryBus,
     private readonly pythonWorkerRuntime: PythonWorkerRuntimeClient,
     private readonly configService: ConfigService<AppConfig, true>,
+    private readonly runtimeEvents: AssessmentRuntimeEventService,
   ) {}
 
   @Post("dispatch")
@@ -111,8 +123,17 @@ export class InternalAgenticToolDispatchController {
     const correlationId = requiredString(
       payload.correlationId ?? payload.correlationId,
     );
+    const runId =
+      optionalString(
+        payload.workflow_run_id ??
+          payload.workflowRunId ??
+          payload.run_id ??
+          payload.runId,
+      ) ?? correlationId;
     const artifactVersions = record(payload.artifact_versions) ?? {};
     const input = record(payload.input) ?? {};
+    const stage = runtimeStageForTool(toolName);
+    const startedAt = new Date();
 
     if (
       this.configService.get("orchestration.debug", {
@@ -134,56 +155,129 @@ export class InternalAgenticToolDispatchController {
       );
     }
 
-    if (toolName === AGENTIC_TOOL_NAMES.requestTargetedReanalysis) {
-      return resultEnvelope(
-        await this.pythonWorkerRuntime.requestTargetedReanalysis(
-          {
-            assessmentId,
-            organizationId,
-            userId,
-            inputArtifactVersion: requiredArtifactVersion(
-              artifactVersions,
-              "technicalEvidenceReportId",
-            ),
-            analyzerId: requiredString(input.analyzerId),
-            scope: requiredScope(input.scope),
-            reasonRequirementId: requiredString(input.reasonRequirementId),
-            idempotencyKey: requiredString(input.idempotencyKey),
-          },
-          correlationId,
-        ),
-      );
-    }
+    await this.runtimeEvents.recordRunStartedIfMissing({
+      organizationId,
+      assessmentId,
+      runId,
+      correlationId,
+      stage,
+      summary: "Assessment orchestration run started",
+      startedAt,
+    });
+    await this.runtimeEvents.recordRunStageChangedIfNeeded({
+      organizationId,
+      assessmentId,
+      runId,
+      correlationId,
+      stage,
+      runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+      summary: `Entered ${humanizeRuntimeStage(stage)} stage`,
+      startedAt,
+    });
+    await this.runtimeEvents.recordToolStarted({
+      organizationId,
+      assessmentId,
+      runId,
+      correlationId,
+      stage,
+      toolName,
+      summary: startedSummaryForTool(toolName),
+      inputSummary: buildToolInputSummary(toolName, input, artifactVersions),
+      startedAt,
+      attempt: inputAttempt(input),
+    });
 
-    if (toolName === AGENTIC_TOOL_NAMES.resumeWaitingRuns) {
-      return resultEnvelope(
-        await this.pythonWorkerRuntime.resumeWaitingRuns(
-          {
-            corpusVersionId: requiredArtifactVersion(
-              artifactVersions,
-              "corpusVersionId",
-            ),
-            maxRuns: numberWithDefault(input.maxRuns, 25),
-            idempotencyKey: requiredString(input.idempotencyKey),
-          },
-          correlationId,
-        ),
-      );
-    }
+    try {
+      const result = (
+        toolName === AGENTIC_TOOL_NAMES.requestTargetedReanalysis
+          ? await this.pythonWorkerRuntime.requestTargetedReanalysis(
+              {
+                assessmentId,
+                organizationId,
+                userId,
+                inputArtifactVersion: requiredArtifactVersion(
+                  artifactVersions,
+                  "technicalEvidenceReportId",
+                ),
+                analyzerId: requiredString(input.analyzerId),
+                scope: requiredScope(input.scope),
+                reasonRequirementId: requiredString(input.reasonRequirementId),
+                idempotencyKey: requiredString(input.idempotencyKey),
+              },
+              correlationId,
+            )
+          : toolName === AGENTIC_TOOL_NAMES.resumeWaitingRuns
+            ? await this.pythonWorkerRuntime.resumeWaitingRuns(
+                {
+                  corpusVersionId: requiredArtifactVersion(
+                    artifactVersions,
+                    "corpusVersionId",
+                  ),
+                  maxRuns: numberWithDefault(input.maxRuns, 25),
+                  idempotencyKey: requiredString(input.idempotencyKey),
+                },
+                correlationId,
+              )
+            : await this.queryBus.execute(
+                buildQuery({
+                  toolName,
+                  assessmentId,
+                  organizationId,
+                  userId,
+                  correlationId,
+                  artifactVersions,
+                  input,
+                }),
+              )
+      ) as unknown;
 
-    return resultEnvelope(
-      await this.queryBus.execute(
-        buildQuery({
-          toolName,
-          assessmentId,
+      if (isNeedsInputResult(result)) {
+        await this.runtimeEvents.recordToolWaitingInput({
           organizationId,
-          userId,
+          assessmentId,
+          runId,
           correlationId,
-          artifactVersions,
-          input,
-        }),
-      ),
-    );
+          stage,
+          toolName,
+          summary: waitingSummaryForTool(toolName),
+          outputSummary: buildToolOutputSummary(result),
+          waitingReason: resolveWaitingReason(result),
+          startedAt,
+          attempt: inputAttempt(input),
+        });
+      } else {
+        await this.runtimeEvents.recordToolCompleted({
+          organizationId,
+          assessmentId,
+          runId,
+          correlationId,
+          stage,
+          toolName,
+          summary: completedSummaryForTool(toolName, result),
+          outputSummary: buildToolOutputSummary(result),
+          startedAt,
+          completedAt: new Date(),
+          attempt: inputAttempt(input),
+        });
+      }
+
+      return resultEnvelope(result);
+    } catch (error) {
+      await this.runtimeEvents.recordToolFailed({
+        organizationId,
+        assessmentId,
+        runId,
+        correlationId,
+        stage,
+        toolName,
+        summary: failedSummaryForTool(toolName),
+        errorSummary: summarizeFailure(error),
+        startedAt,
+        completedAt: new Date(),
+        attempt: inputAttempt(input),
+      });
+      throw error;
+    }
   }
 }
 
@@ -676,3 +770,172 @@ function typedStringArray<T extends string>(
   }
   return values as T[];
 }
+
+function runtimeStageForTool(toolName: string): AssessmentRuntimeStageCode {
+  if (TECHNICAL_EVIDENCE_TOOL_NAMES.has(toolName)) {
+    return ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence;
+  }
+  if (RECONCILIATION_TOOL_NAMES.has(toolName)) {
+    return ASSESSMENT_RUNTIME_STAGE_CODES.reconciliation;
+  }
+  if (CLASSIFICATION_TOOL_NAMES.has(toolName)) {
+    return ASSESSMENT_RUNTIME_STAGE_CODES.classification;
+  }
+  if (LEGAL_RETRIEVAL_TOOL_NAMES.has(toolName)) {
+    return ASSESSMENT_RUNTIME_STAGE_CODES.legalRetrieval;
+  }
+  return ASSESSMENT_RUNTIME_STAGE_CODES.documents;
+}
+
+function humanizeRuntimeStage(stage: string): string {
+  return stage.toLowerCase().replaceAll("_", " ");
+}
+
+function startedSummaryForTool(toolName: string): string {
+  return `Starting ${toolName}`;
+}
+
+function waitingSummaryForTool(toolName: string): string {
+  return `${toolName} is waiting for additional input`;
+}
+
+function completedSummaryForTool(toolName: string, result: unknown): string {
+  const count = resultCount(result);
+  return count === null
+    ? `Completed ${toolName}`
+    : `Completed ${toolName} with ${count} item${count === 1 ? "" : "s"}`;
+}
+
+function failedSummaryForTool(toolName: string): string {
+  return `Failed ${toolName}`;
+}
+
+function buildToolInputSummary(
+  toolName: string,
+  input: Record<string, unknown>,
+  artifactVersions: Record<string, unknown>,
+) {
+  const summary: Record<string, unknown> = { toolName };
+  if (typeof input.maxResults === "number") {
+    summary.maxResults = input.maxResults;
+  }
+  if (typeof input.maxRuns === "number") {
+    summary.maxRuns = input.maxRuns;
+  }
+  const pathPrefixes = stringArray(input.pathPrefixes);
+  if (pathPrefixes.length > 0) {
+    summary.pathPrefixes = pathPrefixes.slice(0, 5);
+  }
+  const subjectRefs = stringArray(input.subjectRefs);
+  if (subjectRefs.length > 0) {
+    summary.subjectRefs = subjectRefs.slice(0, 5);
+  }
+  const artifactVersionKeys = Object.keys(artifactVersions).sort();
+  if (artifactVersionKeys.length > 0) {
+    summary.artifactVersionKeys = artifactVersionKeys;
+  }
+  if (toolName === AGENTIC_TOOL_NAMES.requestTargetedReanalysis) {
+    summary.analyzerId = optionalString(input.analyzerId);
+  }
+  return summary;
+}
+
+function buildToolOutputSummary(result: unknown) {
+  const output = record(result);
+  if (!output) {
+    return null;
+  }
+  const summary: Record<string, unknown> = {};
+  const status = optionalString(output.status);
+  if (status) {
+    summary.status = status;
+  }
+  const coverageState = optionalString(output.coverageState);
+  if (coverageState) {
+    summary.coverageState = coverageState;
+  }
+  const resultLimit = record(output.resultLimit);
+  if (resultLimit) {
+    summary.resultLimit = resultLimit;
+  }
+  const itemCount = resultCount(result);
+  if (itemCount !== null) {
+    summary.itemCount = itemCount;
+  }
+  return Object.keys(summary).length > 0 ? summary : null;
+}
+
+function inputAttempt(input: Record<string, unknown>): number | null {
+  return typeof input.attempt === "number" && Number.isInteger(input.attempt)
+    ? input.attempt
+    : null;
+}
+
+function isNeedsInputResult(result: unknown): boolean {
+  return record(result)?.status === AGENTIC_TOOL_STATUSES.needsInput;
+}
+
+function resolveWaitingReason(result: unknown): string | null {
+  const body = record(result);
+  if (!body) {
+    return null;
+  }
+  return optionalString(body.waitingReason) ?? optionalString(body.reason);
+}
+
+function resultCount(result: unknown): number | null {
+  const body = record(result);
+  const data = record(body?.data);
+  if (!data) {
+    return null;
+  }
+  for (const value of Object.values(data)) {
+    if (Array.isArray(value)) {
+      return value.length;
+    }
+  }
+  return null;
+}
+
+const TECHNICAL_EVIDENCE_TOOL_NAMES = new Set<string>([
+  AGENTIC_TOOL_NAMES.getScanCoverage,
+  AGENTIC_TOOL_NAMES.searchEvidence,
+  AGENTIC_TOOL_NAMES.getFindingDetail,
+  AGENTIC_TOOL_NAMES.findProviderInvocations,
+  AGENTIC_TOOL_NAMES.getEvidenceSubgraph,
+  AGENTIC_TOOL_NAMES.getSymbolContext,
+  AGENTIC_TOOL_NAMES.traceStaticFlow,
+  AGENTIC_TOOL_NAMES.inspectHumanReviewPath,
+  AGENTIC_TOOL_NAMES.inspectDecisionPath,
+  AGENTIC_TOOL_NAMES.inspectDataPath,
+  AGENTIC_TOOL_NAMES.findSimilarSymbols,
+  AGENTIC_TOOL_NAMES.inspectDeploymentContext,
+  AGENTIC_TOOL_NAMES.requestTargetedReanalysis,
+]);
+
+const RECONCILIATION_TOOL_NAMES = new Set<string>([
+  AGENTIC_TOOL_NAMES.getAssessmentContext,
+  AGENTIC_TOOL_NAMES.getArtifactChain,
+  AGENTIC_TOOL_NAMES.proposeMissingTargets,
+  AGENTIC_TOOL_NAMES.getReconciliationContext,
+  AGENTIC_TOOL_NAMES.getVerifiedProfile,
+]);
+
+const CLASSIFICATION_TOOL_NAMES = new Set<string>([
+  AGENTIC_TOOL_NAMES.getClassificationBaseline,
+  AGENTIC_TOOL_NAMES.validateClassificationProposal,
+  AGENTIC_TOOL_NAMES.evaluateGapMatrix,
+  AGENTIC_TOOL_NAMES.getGapEvidenceTrace,
+  AGENTIC_TOOL_NAMES.proposeGapRemediation,
+]);
+
+const LEGAL_RETRIEVAL_TOOL_NAMES = new Set<string>([
+  AGENTIC_TOOL_NAMES.getLegalCorpusReadiness,
+  AGENTIC_TOOL_NAMES.retrieveLegalBasis,
+  AGENTIC_TOOL_NAMES.getLegalRuleMatch,
+  AGENTIC_TOOL_NAMES.validateCitationSet,
+  AGENTIC_TOOL_NAMES.resumeWaitingRuns,
+  AGENTIC_TOOL_NAMES.extractOfficialText,
+  AGENTIC_TOOL_NAMES.runOcrFallback,
+  AGENTIC_TOOL_NAMES.evaluateOcrQuality,
+]);

@@ -1,5 +1,3 @@
-import { REPOSITORY_SCAN_TRIGGER_SOURCES } from "@lcsp/contracts/github-integration";
-
 import { apiRequest } from "./api-request.ts";
 
 export type StartRepositoryAnalysisInput = {
@@ -10,8 +8,6 @@ export type StartRepositoryAnalysisInput = {
 export type StartRepositoryAnalysisResult = {
   snapshotId: string;
   commitSha: string;
-  scanJobId: string;
-  scanStatus: string;
 };
 
 type SnapshotPayload = {
@@ -55,36 +51,9 @@ export async function startRepositoryAnalysis(
     );
   }
 
-  const idempotencyKey = [
-    "readiness",
-    assessmentId,
-    snapshotResponse.payload.snapshot_id,
-  ].join(":");
-
-  const scanResponse = await apiRequest(
-    `/api/assessments/${encodeURIComponent(assessmentId)}/scan-jobs`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        snapshot_id: snapshotResponse.payload.snapshot_id,
-        trigger_source: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
-        idempotency_key: idempotencyKey,
-      }),
-    },
-  );
-
-  if (!scanResponse.ok || !isScanPayload(scanResponse.payload)) {
-    throw new Error(
-      scanResponse.problemCode ?? "repository-scan-trigger-failed",
-    );
-  }
-
   return {
     snapshotId: snapshotResponse.payload.snapshot_id,
     commitSha: snapshotResponse.payload.commit_sha,
-    scanJobId: scanResponse.payload.scan_job_id,
-    scanStatus: scanResponse.payload.status,
   };
 }
 

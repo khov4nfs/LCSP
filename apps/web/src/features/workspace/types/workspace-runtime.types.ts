@@ -27,12 +27,76 @@ export type WorkspaceRuntimeEvidenceReport = {
   createdAt: string;
 };
 
+export type WorkspaceRuntimeSummaryValue =
+  | string
+  | number
+  | boolean
+  | null
+  | WorkspaceRuntimeSummaryValue[]
+  | { [key: string]: WorkspaceRuntimeSummaryValue };
+
+export type WorkspaceRuntimeActiveTool = {
+  toolName: string;
+  status: string;
+  summary: string;
+  startedAt: string | null;
+  attempt: number | null;
+};
+
+export type WorkspaceRuntimeRun = {
+  assessmentId: string;
+  runId: string;
+  stage: string;
+  status: string;
+  activeTools: WorkspaceRuntimeActiveTool[];
+  updatedAt: string;
+};
+
+export type WorkspaceRuntimeActivityItem = {
+  eventId: string;
+  sequence: number;
+  emittedAt: string;
+  organizationId: string;
+  assessmentId: string;
+  runId: string;
+  correlationId: string;
+  eventType: string;
+  runStatus: string;
+  stage: string;
+  toolName: string | null;
+  summary: string;
+  inputSummary: WorkspaceRuntimeSummaryValue | null;
+  outputSummary: WorkspaceRuntimeSummaryValue | null;
+  errorSummary: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  durationMs: number | null;
+  attempt: number | null;
+  waitingReason: string | null;
+};
+
+export type WorkspaceRuntimeAssessmentTimeline = {
+  currentRun: WorkspaceRuntimeRun | null;
+  recentActivity: WorkspaceRuntimeActivityItem[];
+  latestRunId: string | null;
+  connectionState: WorkspaceRuntimeConnectionState;
+  lastEmittedAt: string | null;
+};
+
 export type WorkspaceRuntimeSnapshot = {
   emittedAt: string | null;
+  runs: WorkspaceRuntimeRun[];
+  recentActivity: WorkspaceRuntimeActivityItem[];
   scanJobs: WorkspaceRuntimeScanJob[];
   evidenceReports: WorkspaceRuntimeEvidenceReport[];
 };
 
 export type WorkspaceRuntimeContextValue = WorkspaceRuntimeSnapshot & {
   connectionState: WorkspaceRuntimeConnectionState;
+  runsByAssessmentId: Record<string, WorkspaceRuntimeRun[]>;
+  recentActivityByAssessmentId: Record<string, WorkspaceRuntimeActivityItem[]>;
+  latestRunIdByAssessmentId: Record<string, string>;
+  getAssessmentRuntime: (
+    assessmentId: string,
+  ) => WorkspaceRuntimeAssessmentTimeline;
 };

@@ -380,6 +380,35 @@ async def test_t10_no_js_ts_files_skips_subprocess(
 
 
 @pytest.mark.p0
+async def test_t11_missing_analyzer_script_records_concise_failure(
+    sample_ts_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from lcsp_workers.scanner.ts_js_bridge.bridge import TsJsBridge
+
+    async def fake_exec(*_: str, **__: Any) -> FakeProcess:
+        raise AssertionError("subprocess should not run when analyzer script is missing")
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", fake_exec)
+    monkeypatch.setattr(
+        TsJsBridge,
+        "_default_analyzer_script_path",
+        lambda self: sample_ts_repo / "missing-cli.js",
+    )
+
+    result = await TsJsBridge(
+        workspace=sample_ts_repo,
+        node_executable="node",
+    ).analyze()
+
+    assert result.execution.outcome == OUTCOME_TOOL_FAILURE
+    assert result.coverage_limitations[0].reason.startswith(
+        "TS_JS_ANALYZER_FAILED: analyzer script not found"
+    )
+    assert "\n" not in result.coverage_limitations[0].reason
+
+
+@pytest.mark.p0
 def test_ts_analyzer_source_contains_required_rule_ids() -> None:
     analyzer = (
         Path(__file__).parents[1]

@@ -223,6 +223,7 @@ describe("config()", () => {
       pythonWorker: { baseUrl: VALID_ENV.PYTHON_WORKER_BASE_URL },
       worker: { apiKey: VALID_ENV.WORKER_API_KEY },
       internal: { apiToken: "test-internal-token" },
+      orchestration: { debug: false },
     });
   });
 

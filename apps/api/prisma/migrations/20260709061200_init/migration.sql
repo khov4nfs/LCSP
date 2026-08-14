@@ -1,14 +1,14 @@
 -- CreateEnum
-CREATE TYPE "AuthMembershipStatus" AS ENUM ('invited', 'active', 'revoked');
+CREATE TYPE "AuthMembershipStatus" AS ENUM ('INVITED', 'ACTIVE', 'REVOKED');
 
 -- CreateEnum
-CREATE TYPE "AuthInvitationState" AS ENUM ('approved', 'pending', 'consumed');
+CREATE TYPE "AuthInvitationState" AS ENUM ('APPROVED', 'PENDING', 'CONSUMED');
 
 -- CreateEnum
-CREATE TYPE "AuthDecision" AS ENUM ('allow', 'deny');
+CREATE TYPE "AuthDecision" AS ENUM ('ALLOW', 'DENY');
 
 -- CreateEnum
-CREATE TYPE "AuthStateGate" AS ENUM ('membership_active');
+CREATE TYPE "AuthStateGate" AS ENUM ('MEMBERSHIP_ACTIVE');
 
 -- CreateTable
 CREATE TABLE "AuthOrganization" (

@@ -13,7 +13,6 @@ interface PreflightRequestBody {
   organization_id?: string;
   action?: string;
   correlationId?: string;
-  correlationId?: string;
 }
 
 @Controller("internal/pbac")

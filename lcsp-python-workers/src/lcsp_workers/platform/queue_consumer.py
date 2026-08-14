@@ -177,7 +177,7 @@ class ConsumerBase:
             content_encoding=self._string_property(properties, "content_encoding"),
             headers=retry_headers,
             delivery_mode=2,
-            correlationId=self._string_property(properties, "correlationId"),
+            correlation_id=self._string_property(properties, "correlationId"),
             message_id=self._string_property(properties, "message_id"),
             type=self._string_property(properties, "type"),
         )

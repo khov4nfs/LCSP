@@ -25,6 +25,7 @@ import { OutboxRepository } from "./outbox.repository.js";
 import { OutboxMessageEntity } from "./outbox-message.entity.js";
 import { RabbitMqClient } from "./rabbitmq.client.js";
 import type { RabbitMqMessageHeaders } from "./rabbitmq.client.js";
+import { SnapshotCreatedAutoScanService } from "./snapshot-created-auto-scan.service.js";
 
 @Injectable()
 export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
@@ -37,6 +38,7 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
     private readonly rabbitMqClient: RabbitMqClient,
     private readonly configService: ConfigService,
     private readonly auditWriter: AuditWriterService,
+    private readonly snapshotCreatedAutoScanService: SnapshotCreatedAutoScanService,
   ) {}
 
   onModuleInit(): void {
@@ -113,6 +115,7 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
             }
 
             try {
+              await this.snapshotCreatedAutoScanService.handle(message);
               const headers = authorizationHeaders(message.payload);
               if (headers) {
                 await this.rabbitMqClient.publish(

@@ -158,6 +158,14 @@ describe("InternalAgenticToolDispatchController", () => {
       } as never,
       pythonWorkerRuntime as never,
       configService as never,
+      {
+        recordRunStartedIfMissing: jest.fn(),
+        recordRunStageChangedIfNeeded: jest.fn(),
+        recordToolStarted: jest.fn(),
+        recordToolCompleted: jest.fn(),
+        recordToolWaitingInput: jest.fn(),
+        recordToolFailed: jest.fn(),
+      } as never,
     );
 
     await controller.dispatch({
@@ -856,6 +864,14 @@ describe("InternalAgenticToolDispatchController", () => {
         } as never,
         pythonWorkerRuntime as never,
         configService as never,
+        {
+          recordRunStartedIfMissing: jest.fn(),
+          recordRunStageChangedIfNeeded: jest.fn(),
+          recordToolStarted: jest.fn(),
+          recordToolCompleted: jest.fn(),
+          recordToolWaitingInput: jest.fn(),
+          recordToolFailed: jest.fn(),
+        } as never,
       );
 
       await controller.dispatch(payload);
@@ -892,6 +908,14 @@ describe("InternalAgenticToolDispatchController", () => {
       { execute: jest.fn() } as never,
       pythonWorkerRuntime as never,
       { get: jest.fn().mockReturnValue(false) } as never,
+      {
+        recordRunStartedIfMissing: jest.fn(),
+        recordRunStageChangedIfNeeded: jest.fn(),
+        recordToolStarted: jest.fn(),
+        recordToolCompleted: jest.fn(),
+        recordToolWaitingInput: jest.fn(),
+        recordToolFailed: jest.fn(),
+      } as never,
     );
 
     await controller.dispatch({
@@ -942,6 +966,14 @@ describe("InternalAgenticToolDispatchController", () => {
       { execute: jest.fn() } as never,
       pythonWorkerRuntime as never,
       { get: jest.fn().mockReturnValue(false) } as never,
+      {
+        recordRunStartedIfMissing: jest.fn(),
+        recordRunStageChangedIfNeeded: jest.fn(),
+        recordToolStarted: jest.fn(),
+        recordToolCompleted: jest.fn(),
+        recordToolWaitingInput: jest.fn(),
+        recordToolFailed: jest.fn(),
+      } as never,
     );
 
     await controller.dispatch({
