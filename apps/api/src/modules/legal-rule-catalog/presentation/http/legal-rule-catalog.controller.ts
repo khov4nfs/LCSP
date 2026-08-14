@@ -18,6 +18,7 @@ import type { CreateRuleCatalogVersionRequest } from "../../application/contract
 import type {
   ApproveLegalCorpusRequest,
   IngestLegalCorpusRequest,
+  RegisterValidatedRetrievalIndexRequest,
 } from "../../application/contracts/legal-corpus.contract.js";
 import type { RegisterOfficialSourceSnapshotRequest } from "../../application/contracts/official-source-snapshot.contract.js";
 import type { ResumeWaitingRunsRequest } from "../../application/contracts/resume-waiting-runs.contract.js";
@@ -73,6 +74,39 @@ export class LegalRuleCatalogController {
       await this.legalCorpus.ingestDraft({
         ...body,
         ingestionRunId: body.ingestionRunId || randomUUID(),
+      }),
+    );
+  }
+
+  @Post("corpus/validated-draft")
+  @HttpCode(201)
+  @UseGuards(WorkerApiKeyGuard)
+  async ingestValidatedCorpusDraft(@Body() body: IngestLegalCorpusRequest) {
+    return resultEnvelope(
+      await this.legalCorpus.ingestDraft({
+        ...body,
+        ingestionRunId: body.ingestionRunId || randomUUID(),
+      }),
+    );
+  }
+
+  @Post("corpus/:versionId/retrieval-indexes/validated")
+  @HttpCode(201)
+  @UseGuards(WorkerApiKeyGuard)
+  async registerValidatedRetrievalIndex(
+    @Param("versionId") versionId: string,
+    @Body() body: RegisterValidatedRetrievalIndexRequest,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.legalCorpus.registerValidatedRetrievalIndex({
+        corpusVersionId: versionId,
+        version: body.version,
+        configHash: body.configHash,
+        contentHash: body.contentHash,
+        validationManifestRef: body.validationManifestRef,
+        validatedAt: body.validatedAt ?? null,
+        correlationId: req.correlationId || randomUUID(),
       }),
     );
   }

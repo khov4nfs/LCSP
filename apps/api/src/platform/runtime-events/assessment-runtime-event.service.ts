@@ -181,6 +181,16 @@ export class AssessmentRuntimeEventService {
     });
   }
 
+  async recordRunCompleted(
+    input: Omit<RecordRuntimeEventInput, "eventType" | "runStatus">,
+  ): Promise<void> {
+    await this.recordEvent({
+      ...input,
+      eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted,
+      runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
+    });
+  }
+
   async buildWorkspaceSnapshot(
     organizationId: string,
   ): Promise<AssessmentRuntimeSnapshot> {
@@ -220,7 +230,9 @@ export class AssessmentRuntimeEventService {
       }),
     ]);
 
-    const persistedActivity = events.map((event) => this.toActivityEvent(event));
+    const persistedActivity = events.map((event) =>
+      this.toActivityEvent(event),
+    );
     const syntheticActivity = buildSyntheticRuntimeActivity(
       organizationId,
       scanJobs,
@@ -391,7 +403,9 @@ function buildSyntheticRuntimeActivity(
   evidenceReports: RuntimeEvidenceReportSnapshot[],
   existingActivity: AssessmentRuntimeActivityEvent[],
 ): AssessmentRuntimeActivityEvent[] {
-  const existingEventIds = new Set(existingActivity.map((event) => event.eventId));
+  const existingEventIds = new Set(
+    existingActivity.map((event) => event.eventId),
+  );
   return [
     ...scanJobs.map((scanJob) =>
       scanJobToSyntheticRuntimeActivity(organizationId, scanJob),
@@ -446,8 +460,7 @@ function evidenceReportToSyntheticRuntimeActivity(
   organizationId: string,
   report: RuntimeEvidenceReportSnapshot,
 ): AssessmentRuntimeActivityEvent {
-  const failed =
-    report.status === TECHNICAL_EVIDENCE_REPORT_STATUSES.rejected;
+  const failed = report.status === TECHNICAL_EVIDENCE_REPORT_STATUSES.rejected;
   return {
     eventId: `technical-evidence-report:${report.id}:${report.status}`,
     sequence: 0,

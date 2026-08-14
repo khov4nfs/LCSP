@@ -7,8 +7,11 @@ import {
 } from "@lcsp/contracts/audit";
 import { AUTH_ERROR_CODES, type AuthErrorCode } from "@lcsp/contracts/auth";
 import {
+  LEGAL_CORPUS_RECOVERY_MISSING_REQUIREMENTS,
+  LEGAL_CORPUS_RECOVERY_REQUEST_COMMAND,
   LEGAL_MATCHING_REQUEST_COMMAND,
   LEGAL_RULE_LIFECYCLE_STATUSES,
+  type LegalCorpusRecoveryMissingRequirement,
 } from "@lcsp/contracts/legal-rule-catalog";
 import {
   buildOutboxMessageInput,
@@ -149,7 +152,7 @@ export class ApproveVerifiedProfileHandler implements ICommandHandler<ApproveVer
         tx,
       );
 
-      await this.enqueueLegalMatchingCommandIfReady(command, tx, profile.id);
+      await this.enqueueLegalMatchingOrRecoveryCommand(command, tx, profile.id);
     });
 
     return {
@@ -226,7 +229,7 @@ export class ApproveVerifiedProfileHandler implements ICommandHandler<ApproveVer
     });
   }
 
-  private async enqueueLegalMatchingCommandIfReady(
+  private async enqueueLegalMatchingOrRecoveryCommand(
     command: ApproveVerifiedProfileCommand,
     tx: Prisma.TransactionClient,
     verifiedProfileId: string,
@@ -242,6 +245,16 @@ export class ApproveVerifiedProfileHandler implements ICommandHandler<ApproveVer
       select: { id: true, approvedAt: true },
     });
     if (!corpus) {
+      await this.enqueueLegalCorpusRecoveryCommand(
+        command,
+        tx,
+        verifiedProfileId,
+        {
+          missingRequirement:
+            LEGAL_CORPUS_RECOVERY_MISSING_REQUIREMENTS.approvedLegalCorpus,
+          corpusVersionId: null,
+        },
+      );
       return;
     }
 
@@ -256,6 +269,16 @@ export class ApproveVerifiedProfileHandler implements ICommandHandler<ApproveVer
       select: { id: true },
     });
     if (!index) {
+      await this.enqueueLegalCorpusRecoveryCommand(
+        command,
+        tx,
+        verifiedProfileId,
+        {
+          missingRequirement:
+            LEGAL_CORPUS_RECOVERY_MISSING_REQUIREMENTS.validLegalRetrievalIndex,
+          corpusVersionId: corpus.id,
+        },
+      );
       return;
     }
 
@@ -291,6 +314,43 @@ export class ApproveVerifiedProfileHandler implements ICommandHandler<ApproveVer
         assessmentId: command.assessmentId,
         corpusVersionId: corpus.id,
         checkpointRef: `verified-profile:${verifiedProfileId}:${corpus.id}`,
+        correlationId: command.correlationId,
+      },
+    });
+    await this.outboxRepository.enqueue(event, tx);
+  }
+
+  private async enqueueLegalCorpusRecoveryCommand(
+    command: ApproveVerifiedProfileCommand,
+    tx: Prisma.TransactionClient,
+    verifiedProfileId: string,
+    input: {
+      missingRequirement: LegalCorpusRecoveryMissingRequirement;
+      corpusVersionId: string | null;
+    },
+  ): Promise<void> {
+    const event = buildOutboxMessageInput({
+      aggregateType: OUTBOX_AGGREGATE_TYPES.verifiedProfile,
+      aggregateId: verifiedProfileId,
+      eventType: LEGAL_CORPUS_RECOVERY_REQUEST_COMMAND,
+      organizationId: command.organizationId,
+      assessmentId: command.assessmentId,
+      correlationId: command.correlationId,
+      causationId: verifiedProfileId,
+      actor: { id: command.approvedById, type: AUDIT_ACTOR_TYPES.user },
+      result: LEGAL_CORPUS_RECOVERY_REQUEST_COMMAND,
+      redactionStatus: AUDIT_REDACTION_STATUSES.none,
+      authorizationAction: PBAC_ACTIONS.verifiedProfileApprove,
+      idempotencyKey: `${verifiedProfileId}:${LEGAL_CORPUS_RECOVERY_REQUEST_COMMAND}`,
+      payload: {
+        verifiedProfileId,
+        assessmentId: command.assessmentId,
+        organizationId: command.organizationId,
+        requestedById: command.approvedById,
+        missingRequirement: input.missingRequirement,
+        corpusVersionId: input.corpusVersionId,
+        checkpointRef: `legal-corpus-recovery:${verifiedProfileId}`,
+        idempotencyKey: `${verifiedProfileId}:${LEGAL_CORPUS_RECOVERY_REQUEST_COMMAND}`,
         correlationId: command.correlationId,
       },
     });

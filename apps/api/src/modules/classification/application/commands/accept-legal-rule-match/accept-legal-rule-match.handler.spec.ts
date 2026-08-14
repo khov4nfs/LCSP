@@ -16,6 +16,7 @@ import { toPrismaOverallCoverageStatus } from "../../../../../infrastructure/pri
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import type { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
+import type { AssessmentRuntimeEventService } from "../../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import type { AcceptLegalRuleMatchDto } from "../../contracts/classification/legal-rule-match-callback.contract.js";
 import { CitationGuardrailService } from "../../services/classification/citation-guardrail.service.js";
 import { AcceptLegalRuleMatchCommand } from "./accept-legal-rule-match.command.js";
@@ -55,6 +56,7 @@ describe("AcceptLegalRuleMatchHandler", () => {
   let mockWriteAuditInTx: jest.Mock<
     (event: unknown, tx: unknown) => Promise<void>
   >;
+  let mockRecordToolCompleted: jest.Mock<(event: unknown) => Promise<void>>;
 
   const validPayload: AcceptLegalRuleMatchDto = {
     verified_profile_id: "vp-123",
@@ -132,6 +134,9 @@ describe("AcceptLegalRuleMatchHandler", () => {
     mockWriteAuditInTx = jest
       .fn<(event: unknown, tx: unknown) => Promise<void>>()
       .mockResolvedValue(undefined);
+    mockRecordToolCompleted = jest
+      .fn<(event: unknown) => Promise<void>>()
+      .mockResolvedValue(undefined);
 
     prisma = {
       legalCorpusVersion: {
@@ -161,6 +166,9 @@ describe("AcceptLegalRuleMatchHandler", () => {
     const outboxRepository = {
       enqueue: mockEnqueueOutbox,
     } as unknown as jest.Mocked<OutboxRepository>;
+    const runtimeEvents = {
+      recordToolCompleted: mockRecordToolCompleted,
+    } as unknown as jest.Mocked<AssessmentRuntimeEventService>;
 
     citationGuardrail = new CitationGuardrailService();
 
@@ -169,6 +177,7 @@ describe("AcceptLegalRuleMatchHandler", () => {
       auditWriter,
       outboxRepository,
       citationGuardrail,
+      runtimeEvents,
     );
   });
 
@@ -211,6 +220,14 @@ describe("AcceptLegalRuleMatchHandler", () => {
         decision: AUDIT_DECISIONS.allow,
       }),
       prisma,
+    );
+    expect(mockRecordToolCompleted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assessmentId: "asm-123",
+        stage: "LEGAL_RETRIEVAL",
+        toolName: "legal_rule_match",
+        outputSummary: expect.objectContaining({ matchCount: 2 }),
+      }),
     );
   });
 

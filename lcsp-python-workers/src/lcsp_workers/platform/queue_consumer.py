@@ -9,6 +9,7 @@ from lcsp_workers.platform.api_client import WorkerApiClient
 from lcsp_workers.platform.correlation import extract_from_amqp_headers, set_correlationId
 from lcsp_workers.platform.health import (
     DEFAULT_HEALTH_PORT,
+    RECOVER_LEGAL_CORPUS_ENDPOINT,
     REQUEST_TARGETED_REANALYSIS_ENDPOINT,
     RESUME_WAITING_RUNS_ENDPOINT,
     HealthServer,
@@ -59,6 +60,7 @@ class ConsumerBase:
             command_handlers=self._build_runtime_command_handlers(),
             capabilities=(
                 "request_targeted_reanalysis",
+                "recover_legal_corpus",
                 "resume_waiting_runs",
             ),
             version=os.getenv("WORKER_RUNTIME_VERSION", "dev"),
@@ -284,6 +286,13 @@ class ConsumerBase:
                     correlationId,
                 )
             ),
+            RECOVER_LEGAL_CORPUS_ENDPOINT: (
+                lambda payload, correlationId: self._recover_legal_corpus_runtime(
+                    api_client,
+                    payload,
+                    correlationId,
+                )
+            ),
         }
 
     def _request_targeted_reanalysis_runtime(
@@ -308,6 +317,40 @@ class ConsumerBase:
                 correlationId=correlationId,
                 response=sanitize_orchestration_payload(response),
             )
+        return RuntimeCommandResponse(
+            status_code=HTTPStatus.ACCEPTED,
+            payload=response,
+        )
+
+    def _recover_legal_corpus_runtime(
+        self,
+        api_client: WorkerApiClient,
+        payload: dict[str, object],
+        correlationId: str | None,
+    ) -> RuntimeCommandResponse:
+        idempotency_key = payload.get("idempotencyKey")
+        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+            return RuntimeCommandResponse(
+                status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+                payload={"ok": False, "error": "IDEMPOTENCY_KEY_REQUIRED"},
+            )
+        request_payload = dict(payload)
+        if correlationId and "correlationId" not in request_payload:
+            request_payload["correlationId"] = correlationId
+        if orchestration_debug_enabled():
+            logger.info(
+                "LEGAL_CORPUS_RECOVERY_RUNTIME_REQUESTED",
+                correlationId=correlationId,
+                payload=sanitize_orchestration_payload(request_payload),
+            )
+        from lcsp_workers.legal.legal_corpus_recovery_driver import (
+            LegalCorpusRecoveryDriver,
+        )
+
+        response = LegalCorpusRecoveryDriver(api_client=api_client).run(
+            request_payload,
+            correlationId or str(request_payload.get("correlationId") or ""),
+        )
         return RuntimeCommandResponse(
             status_code=HTTPStatus.ACCEPTED,
             payload=response,

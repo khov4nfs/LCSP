@@ -125,7 +125,7 @@ def test_classification_consumer_loads_persisted_match_and_posts_typed_callback(
     assert payload.schema_version == "1.0.0"
     assert payload.classification_data["risk_level"] == "HIGH"
     assert payload.classification_data["citation_basis"] == ["chunk-1"]
-    assert payload.guardrail_status == "passed"
+    assert payload.guardrail_status == "PASSED"
 
 
 def test_classification_consumer_does_not_start_for_blocked_legal_match_event() -> None:

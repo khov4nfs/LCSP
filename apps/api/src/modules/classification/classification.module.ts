@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
 
 import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guard.js";
+import { AssessmentRuntimeEventService } from "../../platform/runtime-events/assessment-runtime-event.service.js";
 import { AcceptClassificationHandler } from "./application/commands/accept-classification/accept-classification.handler.js";
 import { AcceptLegalRuleMatchHandler } from "./application/commands/accept-legal-rule-match/accept-legal-rule-match.handler.js";
 import { RerunClassificationHandler } from "./application/commands/rerun-classification/rerun-classification.handler.js";
@@ -60,6 +61,7 @@ import {
     ValidateClassificationProposalHandler,
     CitationGuardrailService,
     OverclaimGuardrailService,
+    AssessmentRuntimeEventService,
     WorkerApiKeyGuard,
   ],
 })

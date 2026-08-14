@@ -7,6 +7,7 @@ import {
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
+import { ASSESSMENT_RUNTIME_STAGE_CODES } from "@lcsp/contracts/evidence";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
@@ -40,6 +41,7 @@ import { PrismaService } from "../../../../../infrastructure/prisma/prisma.servi
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
 import { problemResult } from "../../../../../platform/problems/problem-factory.js";
+import { AssessmentRuntimeEventService } from "../../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import type { ClassificationResultCallbackResponseDto } from "../../contracts/classification/classification-result-callback.contract.js";
 import { OverclaimGuardrailService } from "../../services/classification/overclaim-guardrail.service.js";
 import { AcceptClassificationCommand } from "./accept-classification.command.js";
@@ -54,6 +56,7 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
     private readonly auditWriter: AuditWriterService,
     private readonly outboxRepository: OutboxRepository,
     private readonly overclaimGuardrail: OverclaimGuardrailService,
+    private readonly runtimeEvents: AssessmentRuntimeEventService,
   ) {}
 
   async execute(
@@ -132,10 +135,10 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
 
     const classificationResultId = crypto.randomUUID();
     const guardrailStatus = payload.guardrail_status;
+    const isBlocked =
+      guardrailStatus === CLASSIFICATION_GUARDRAIL_STATUSES.blocked;
     const blockedReason =
-      guardrailStatus === CLASSIFICATION_GUARDRAIL_STATUSES.blocked
-        ? "CITATION_BASIS_MISSING"
-        : null;
+      isBlocked ? "CITATION_BASIS_MISSING" : null;
 
     await this.prisma.$transaction(async (tx) => {
       await tx.classificationResult.create({
@@ -173,6 +176,42 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
         guardrailStatus,
         blockedReason,
       );
+    });
+
+    const runId = classificationRunId(
+      verifiedProfile.assessmentId,
+      verifiedProfile.id,
+    );
+    await this.runtimeEvents.recordToolCompleted({
+      organizationId: verifiedProfile.organizationId,
+      assessmentId: verifiedProfile.assessmentId,
+      runId,
+      correlationId,
+      stage: ASSESSMENT_RUNTIME_STAGE_CODES.classification,
+      toolName: "classification_result",
+      summary: isBlocked
+        ? "Classification completed with guardrail block"
+        : "Classification completed",
+      outputSummary: {
+        classificationResultId,
+        legalRuleMatchId: payload.legal_rule_match_id,
+        guardrailStatus,
+      },
+      completedAt: new Date(),
+    });
+    await this.runtimeEvents.recordRunCompleted({
+      organizationId: verifiedProfile.organizationId,
+      assessmentId: verifiedProfile.assessmentId,
+      runId,
+      correlationId,
+      stage: ASSESSMENT_RUNTIME_STAGE_CODES.classification,
+      toolName: "classification_result",
+      summary: "Assessment classification orchestration completed",
+      outputSummary: {
+        classificationResultId,
+        guardrailStatus,
+      },
+      completedAt: new Date(),
     });
 
     return {
@@ -308,4 +347,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function clean(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function classificationRunId(assessmentId: string, verifiedProfileId: string): string {
+  return `classification:${assessmentId}:${verifiedProfileId}`;
 }

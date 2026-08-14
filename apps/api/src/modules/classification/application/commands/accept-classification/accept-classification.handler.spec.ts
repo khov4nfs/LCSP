@@ -17,6 +17,7 @@ import {
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import type { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
+import type { AssessmentRuntimeEventService } from "../../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import type { AcceptClassificationDto } from "../../contracts/classification/classification-result-callback.contract.js";
 import { OverclaimGuardrailService } from "../../services/classification/overclaim-guardrail.service.js";
 import { AcceptClassificationCommand } from "./accept-classification.command.js";
@@ -56,6 +57,8 @@ describe("AcceptClassificationHandler", () => {
   let mockWriteAuditInTx: jest.Mock<
     (event: unknown, tx: unknown) => Promise<void>
   >;
+  let mockRecordToolCompleted: jest.Mock<(event: unknown) => Promise<void>>;
+  let mockRecordRunCompleted: jest.Mock<(event: unknown) => Promise<void>>;
 
   const validPayload: AcceptClassificationDto = {
     legal_rule_match_id: "lrm-123",
@@ -104,6 +107,12 @@ describe("AcceptClassificationHandler", () => {
     mockWriteAuditInTx = jest
       .fn<(event: unknown, tx: unknown) => Promise<void>>()
       .mockResolvedValue(undefined);
+    mockRecordToolCompleted = jest
+      .fn<(event: unknown) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    mockRecordRunCompleted = jest
+      .fn<(event: unknown) => Promise<void>>()
+      .mockResolvedValue(undefined);
 
     prisma = {
       legalRuleMatch: {
@@ -131,6 +140,10 @@ describe("AcceptClassificationHandler", () => {
     const outboxRepository = {
       enqueue: mockEnqueueOutbox,
     } as unknown as jest.Mocked<OutboxRepository>;
+    const runtimeEvents = {
+      recordToolCompleted: mockRecordToolCompleted,
+      recordRunCompleted: mockRecordRunCompleted,
+    } as unknown as jest.Mocked<AssessmentRuntimeEventService>;
 
     overclaimGuardrail = new OverclaimGuardrailService();
 
@@ -139,6 +152,7 @@ describe("AcceptClassificationHandler", () => {
       auditWriter,
       outboxRepository,
       overclaimGuardrail,
+      runtimeEvents,
     );
   });
 
@@ -185,6 +199,19 @@ describe("AcceptClassificationHandler", () => {
         decision: AUDIT_DECISIONS.allow,
       }),
       prisma,
+    );
+    expect(mockRecordToolCompleted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assessmentId: "asm-123",
+        stage: "CLASSIFICATION",
+        toolName: "classification_result",
+      }),
+    );
+    expect(mockRecordRunCompleted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assessmentId: "asm-123",
+        stage: "CLASSIFICATION",
+      }),
     );
   });
 

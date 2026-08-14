@@ -37,3 +37,11 @@ export interface ApproveLegalCorpusRequest {
   scopeDescription?: string;
   comments?: string | null;
 }
+
+export interface RegisterValidatedRetrievalIndexRequest {
+  version: string;
+  configHash: string;
+  contentHash: string;
+  validationManifestRef: string;
+  validatedAt?: string | null;
+}

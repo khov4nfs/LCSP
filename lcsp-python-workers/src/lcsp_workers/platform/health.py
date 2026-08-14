@@ -26,6 +26,7 @@ REQUEST_TARGETED_REANALYSIS_ENDPOINT = (
 RESUME_WAITING_RUNS_ENDPOINT = (
     "/runtime/commands/legal-corpus/resume-waiting-runs"
 )
+RECOVER_LEGAL_CORPUS_ENDPOINT = "/runtime/commands/legal-corpus/recover"
 DEFAULT_HEALTH_PORT = 8080
 logger = get_logger(__name__)
 

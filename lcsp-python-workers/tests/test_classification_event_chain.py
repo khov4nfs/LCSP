@@ -170,7 +170,7 @@ def test_approved_profile_flows_from_legal_matching_into_classification_callback
     assert result.legal_rule_match_id == "lrm-1"
     assert result.verified_profile_id == "vp-1"
     assert result.assessment_id == "assessment-1"
-    assert result.guardrail_status == "passed"
+    assert result.guardrail_status == "PASSED"
     assert result.classification_data["risk_level"] == "HIGH"
     assert result.classification_data["applicability_assessment"] == "applicable"
     assert result.classification_data["citation_basis"] == ["chunk-1"]
