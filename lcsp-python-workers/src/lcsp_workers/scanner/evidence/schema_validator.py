@@ -65,3 +65,22 @@ def validate_schema(payload: Dict[str, Any], tool_provenance: List[Dict[str, Any
                 if field == "config_hash":
                     continue
                 raise SchemaValidationError(f"Missing required provenance field: {field}", "FAILED")
+
+
+class ValidationResult:
+    def __init__(self, severity: str):
+        self.severity = severity
+
+
+def validate_evidence_schema(payload: Dict[str, Any]) -> ValidationResult:
+    from lcsp_workers.scanner.evidence.severity_mapper import SeverityCode
+    # Check config_hash
+    if "config_hash" not in payload or not payload["config_hash"]:
+        return ValidationResult(SeverityCode.PROVENANCE_BLOCKED)
+    # Check ruleset_hash if semgrep is in tools_version
+    tools = payload.get("tools_version", {}) or {}
+    if "semgrep" in tools:
+        if "ruleset_hash" not in payload or not payload["ruleset_hash"]:
+            return ValidationResult(SeverityCode.PROVENANCE_BLOCKED)
+    return ValidationResult(SeverityCode.ACCEPTED)
+

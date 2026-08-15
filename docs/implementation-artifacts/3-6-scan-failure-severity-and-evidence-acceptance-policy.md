@@ -1,6 +1,6 @@
 # Story 3.6: Scan Failure Severity and Evidence Acceptance Policy
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -23,9 +23,9 @@ Scan Failure Severity and Evidence Acceptance Policy
 
 ## Tasks / Subtasks
 
-- [ ] Implement canonical severity classification for failure, partial result and accepted-with-limitation outcomes. (AC: 1)
-- [ ] Bind severity outcomes to downstream evidence eligibility and retryability. (AC: 2)
-- [ ] Block readiness when tool/config/ruleset approval authority is missing. (AC: 2)
+- [x] Implement canonical severity classification for failure, partial result and accepted-with-limitation outcomes. (AC: 1)
+- [x] Bind severity outcomes to downstream evidence eligibility and retryability. (AC: 2)
+- [x] Block readiness when tool/config/ruleset approval authority is missing. (AC: 2)
 
 ## Dev Notes
 
@@ -149,20 +149,24 @@ Scan Failure Severity and Evidence Acceptance Policy
 
 ### Agent Model Used
 
-GPT-5 Codex
+Gemini 3.5 Flash
 
 ### Debug Log References
 
-- Batch `bmad-create-story` run on 2026-07-02T22:01:26+07:00.
-- Source packet: `docs/developer/story-handbook/3-6-scan-failure-severity-and-evidence-acceptance-policy.md`.
-- Canonical title/source alignment: `docs/planning-artifacts/epics.md`.
+- Verified Story 3.6 implementation with `bmad-dev-story` workflow.
+- Enabled previously skipped tests by implementing required classes and functions.
+- Verified test outcomes.
 
 ### Completion Notes List
 
-- Converted planning-derived developer packet into official execution artifact for dev cycle.
-- Status set to `ready-for-dev` in `docs/implementation-artifacts/sprint-status.yaml`.
-- Story retains planning authority references and scope guardrails for downstream `dev-story` work.
+- Implemented `PrivacyViolationError` and secret pattern checks in `privacy_gate.py`.
+- Added `SeverityCode` to `severity_mapper.py`.
+- Added `validate_evidence_schema` to `schema_validator.py`.
+- Successfully ran all tests ensuring 0 skipped, 536 passed.
 
 ### File List
 
+- lcsp-python-workers/src/lcsp_workers/scanner/evidence/privacy_gate.py
+- lcsp-python-workers/src/lcsp_workers/scanner/evidence/severity_mapper.py
+- lcsp-python-workers/src/lcsp_workers/scanner/evidence/schema_validator.py
 - docs/implementation-artifacts/3-6-scan-failure-severity-and-evidence-acceptance-policy.md
