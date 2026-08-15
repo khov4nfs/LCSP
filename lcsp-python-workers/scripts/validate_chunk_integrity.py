@@ -12,6 +12,7 @@ from lcsp_workers.legal.chunk_integrity_validator import (
     ValidateChunkIntegrityRequest,
 )
 from lcsp_workers.legal.legal_chunk_repository import LegalChunkRepository
+from lcsp_workers.legal.chunk_integrity_repository import ChunkIntegrityRepository
 from lcsp_workers.legal.relationship_manifest_repository import (
     RelationshipManifestRepository,
 )
@@ -43,6 +44,8 @@ def main() -> None:
             validation_profile=args.validation_profile,
         )
     )
+    if result.status == 'READY':
+        ChunkIntegrityRepository(storage_root=args.storage_root).save(result.to_record())
     print(
         json.dumps(
             result.to_tool_response(correlationId=args.correlation_id),

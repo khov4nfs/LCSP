@@ -442,8 +442,8 @@ def parse_legal_chunks(*, identity_token: str, text: str) -> list[dict[str, Any]
         elif article_chunk is not None:
             append_content(article_chunk, line)
         else:
-            raise RuntimeError("content appeared before any legal hierarchy anchor")
-
+            # Bỏ qua phần header (quốc hiệu, tiêu đề luật...) trước khi vào Chương/Điều đầu tiên
+            continue
     if not chunks:
         raise RuntimeError("no reviewed legal hierarchy found")
     return chunks
