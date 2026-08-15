@@ -25,6 +25,7 @@ import { PbacGuard } from "./pbac.guard.js";
     PbacEvaluatorService,
     PbacContextLoader,
     PbacGuard,
+    PbacPreflightService,
     AuthWorkspaceModule,
   ],
 })

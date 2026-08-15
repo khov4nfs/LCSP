@@ -9,7 +9,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError, ValidationError as JsonSchemaValidationError
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .catalog import AgenticToolSpec, SPRINT6_AGENTIC_TOOL_SPECS
+from .catalog import AgenticToolSpec, AGENTIC_TOOL_SPECS
 
 
 class AgenticToolValidationError(ValueError):
@@ -68,7 +68,7 @@ class AgenticToolRequest(BaseModel):
 
 AgenticToolCapability = AgenticToolSpec
 AgenticToolHandler = Callable[[AgenticToolRequest], Mapping[str, Any]]
-SPRINT6_AGENTIC_CAPABILITIES = SPRINT6_AGENTIC_TOOL_SPECS
+SPRINT6_AGENTIC_CAPABILITIES = AGENTIC_TOOL_SPECS
 
 
 class AgenticToolRegistry:
@@ -211,7 +211,7 @@ class AgenticToolRegistry:
 
 def build_sprint6_agentic_registry() -> AgenticToolRegistry:
     """Build the runtime registry from the canonical Sprint 6 capability catalog."""
-    return AgenticToolRegistry(SPRINT6_AGENTIC_TOOL_SPECS)
+    return AgenticToolRegistry(AGENTIC_TOOL_SPECS)
 
 
 _FORBIDDEN_KEYS = {

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 import platform
@@ -10,6 +9,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
+from lcsp_workers.agentic_evidence.dispatcher import ScannerToolDispatcher
+from lcsp_workers.agentic_evidence.scanner_tool_entrypoints import (
+    ScannerToolExecutionContext,
+)
 from lcsp_workers.platform.api_client import WorkerApiClient
 from lcsp_workers.platform.callback_schemas import CallbackResponse
 from lcsp_workers.platform.correlation import set_correlationId
@@ -18,7 +21,7 @@ from lcsp_workers.platform.queue_consumer import ConsumerBase
 
 from .analyzers.ai_invocation_detector import AIInvocationDetector
 from .analyzers.ai_pattern_rules import AI_RULE_TABLE
-from .analyzers.python_analyzer import PythonAnalysisResult, PythonAnalyzer
+from .analyzers.python_analyzer import PythonAnalysisResult
 from .dependencies.dependency_normalizer import DependencyNormalizer
 from .evidence_assembler import EvidenceAssembler, PrivacyAssertionError
 from .inventory.analyzer_router import AnalyzerRouter
@@ -183,6 +186,19 @@ class ScanConsumer(ConsumerBase):
         self._structural_augmentor = structural_augmentor or StructuralAugmentor()
         self._evidence_graph_assembler = evidence_graph_assembler or EvidenceGraphAssembler()
         self._execution_planner = execution_planner or ToolchainExecutionPlanner()
+        self._scanner_tool_dispatcher = ScannerToolDispatcher(
+            ScannerToolExecutionContext(
+                workspace=self._workspace,
+                language_classifier=self._language_classifier,
+                syft_tool=self._syft_tool,
+                semgrep_tool=self._semgrep_tool,
+                knip_tool=self._knip_tool,
+                deptry_tool=self._deptry_tool,
+                ts_js_bridge_factory=self._ts_js_bridge_factory,
+                structural_augmentor=self._structural_augmentor,
+                evidence_graph_assembler=self._evidence_graph_assembler,
+            )
+        )
 
     def handle(self, message: dict, correlationId: str) -> CallbackResponse:
         started_at = time.monotonic()
@@ -201,9 +217,10 @@ class ScanConsumer(ConsumerBase):
         result = None
         tool_registry = ToolRegistry()
         try:
-            result = self._workspace.materialize(
-                envelope.scan_job_id,
-                archive,
+            result = self._scanner_tool_dispatcher.dispatch(
+                "materialize_snapshot",
+                scan_job_id=envelope.scan_job_id,
+                archive=archive,
                 snapshot_id=envelope.snapshot_id,
             )
             logger.info(
@@ -226,8 +243,9 @@ class ScanConsumer(ConsumerBase):
                 [], targeted=targeted_plan is not None
             )
             try:
-                classifications = self._language_classifier.classify_workspace(
-                    result.workspace_path
+                classifications = self._scanner_tool_dispatcher.dispatch(
+                    "classify_workspace_languages",
+                    workspace_path=result.workspace_path,
                 )
                 if targeted_plan is not None:
                     classifications = [
@@ -268,7 +286,10 @@ class ScanConsumer(ConsumerBase):
 
             if execution_plan.should_run(APPROVED_TOOL_NAMES["syft"]):
                 syft_started_at = self._utc_timestamp()
-                syft_result = self._syft_tool.run(result.workspace_path)
+                syft_result = self._scanner_tool_dispatcher.dispatch(
+                    "run_syft_inventory",
+                    workspace_path=result.workspace_path,
+                )
                 self._record_tool_execution(
                     tool_registry,
                     syft_result.execution,
@@ -298,7 +319,10 @@ class ScanConsumer(ConsumerBase):
 
             if execution_plan.should_run(APPROVED_TOOL_NAMES["semgrep"]):
                 semgrep_started_at = self._utc_timestamp()
-                semgrep_result = self._semgrep_tool.run(result.workspace_path)
+                semgrep_result = self._scanner_tool_dispatcher.dispatch(
+                    "run_semgrep_rules",
+                    workspace_path=result.workspace_path,
+                )
                 self._record_semgrep_executions(
                     tool_registry,
                     semgrep_result,
@@ -326,7 +350,10 @@ class ScanConsumer(ConsumerBase):
 
             if execution_plan.should_run(APPROVED_TOOL_NAMES["knip"]):
                 knip_started_at = self._utc_timestamp()
-                knip_result = self._knip_tool.run(result.workspace_path)
+                knip_result = self._scanner_tool_dispatcher.dispatch(
+                    "run_knip_usage_analysis",
+                    workspace_path=result.workspace_path,
+                )
                 self._record_tool_execution(
                     tool_registry,
                     knip_result.execution,
@@ -356,7 +383,10 @@ class ScanConsumer(ConsumerBase):
 
             if execution_plan.should_run(APPROVED_TOOL_NAMES["deptry"]):
                 deptry_started_at = self._utc_timestamp()
-                deptry_result = self._deptry_tool.run(result.workspace_path)
+                deptry_result = self._scanner_tool_dispatcher.dispatch(
+                    "run_deptry_usage_analysis",
+                    workspace_path=result.workspace_path,
+                )
                 self._record_tool_execution(
                     tool_registry,
                     deptry_result.execution,
@@ -386,10 +416,10 @@ class ScanConsumer(ConsumerBase):
 
             if execution_plan.should_run(APPROVED_TOOL_NAMES["ts_morph"]):
                 ts_js_started_at = self._utc_timestamp()
-                ts_js_analysis = asyncio.run(
-                    self._ts_js_bridge_factory(result.workspace_path).analyze(
-                        include_files=routed_ts_js_files
-                    )
+                ts_js_analysis = self._scanner_tool_dispatcher.dispatch(
+                    "run_ts_js_semantic_analysis",
+                    workspace_path=result.workspace_path,
+                    include_files=routed_ts_js_files,
                 )
                 self._record_tool_execution(
                     tool_registry,
@@ -428,8 +458,10 @@ class ScanConsumer(ConsumerBase):
             )
             if execution_plan.should_run(APPROVED_TOOL_NAMES["python_ast"]):
                 python_started_at = self._utc_timestamp()
-                python_analysis = PythonAnalyzer(result.workspace_path).analyze(
-                    include_files=routed_python_files
+                python_analysis = self._scanner_tool_dispatcher.dispatch(
+                    "run_python_semantic_analysis",
+                    workspace_path=result.workspace_path,
+                    include_files=routed_python_files,
                 )
                 python_ended_at = self._utc_timestamp()
                 python_limitations = (
@@ -514,9 +546,13 @@ class ScanConsumer(ConsumerBase):
                         *routed_ts_js_files,
                         *routed_basic_files,
                     ]
-                    structural_facts = self._structural_augmentor.augment(
+                    structural_facts = self._scanner_tool_dispatcher.dispatch(
+                        "run_structural_augmentation",
+                        workspace_path=result.workspace_path,
                         files=candidate_files,
-                        finding_ids=[finding.finding_id for finding in technical_findings],
+                        finding_ids=[
+                            finding.finding_id for finding in technical_findings
+                        ],
                     )
                     self._record_tool_execution(
                         tool_registry,
@@ -568,7 +604,8 @@ class ScanConsumer(ConsumerBase):
                 "SCAN_TOOL_PROVENANCE_RECORDED",
                 tool_provenance=[asdict(item) for item in tool_registry.all()],
             )
-            evidence_graph = self._evidence_graph_assembler.assemble(
+            evidence_graph = self._scanner_tool_dispatcher.dispatch(
+                "build_evidence_graph",
                 scan_job_id=envelope.scan_job_id,
                 snapshot_id=envelope.snapshot_id,
                 commit_sha=envelope.commit_sha,

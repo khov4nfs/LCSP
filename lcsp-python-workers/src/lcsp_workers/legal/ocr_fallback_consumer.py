@@ -8,12 +8,14 @@ from typing import Any
 
 from structlog import get_logger
 
+from lcsp_workers.agentic_evidence.dispatcher import LegalToolDispatcher
+from lcsp_workers.agentic_evidence.legal_tool_entrypoints import (
+    LegalToolExecutionContext,
+)
 from lcsp_workers.platform.api_client import WorkerApiClient
 from lcsp_workers.platform.queue_consumer import ConsumerBase, NonRetryableWorkerError
 
-from .official_text_extraction import OfficialSourceSnapshotResolver
-from .official_text_extraction_repository import OfficialTextExtractionRepository
-from .ocr_fallback import OcrFallbackRequest, OcrFallbackTool
+from .ocr_fallback import OcrFallbackTool
 from .ocr_fallback_repository import OcrFallbackRepository
 
 logger = get_logger(__name__)
@@ -56,40 +58,28 @@ class OcrFallbackConsumer(ConsumerBase):
         self._tool = tool
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
-        """Validate fallback authorization, run bounded OCR, and persist its record.
-
-        Args:
-            message: OCR fallback command containing snapshot/proof/page/profile data.
-            correlationId: End-to-end trace identifier for the delivery.
-
-        Raises:
-            NonRetryableWorkerError: If command validation, snapshot resolution,
-                fallback proof, OCR execution, or artifact persistence fails.
-        """
+        """Validate fallback authorization, dispatch bounded OCR, and persist it."""
         envelope = self._read_envelope(message)
         storage_root = self._storage_root()
         repository = OcrFallbackRepository(storage_root=storage_root)
-        tool = self._tool or OcrFallbackTool(
-            snapshot_resolver=OfficialSourceSnapshotResolver(
+        dispatcher = LegalToolDispatcher(
+            LegalToolExecutionContext(
                 api_client=self._api_client,
                 storage_root=storage_root,
-            ),
-            extraction_repository=OfficialTextExtractionRepository(
-                storage_root=storage_root
-            ),
+                ocr_tool=self._tool,
+            )
         )
         try:
-            result = tool.run(
-                OcrFallbackRequest(
+            result = dispatcher.dispatch(
+                "run_ocr_fallback",
+                snapshot_ref=envelope.snapshot_ref,
+                fallback_proof_ref=envelope.fallback_proof_ref,
+                page_numbers=envelope.page_numbers,
+                ocr_profile=envelope.ocr_profile,
+                output_dir=self._output_dir(
+                    storage_root=storage_root,
                     snapshot_ref=envelope.snapshot_ref,
-                    fallback_proof_ref=envelope.fallback_proof_ref,
-                    page_numbers=envelope.page_numbers,
-                    ocr_profile=envelope.ocr_profile,
-                    output_dir=self._output_dir(
-                        storage_root=storage_root,
-                        snapshot_ref=envelope.snapshot_ref,
-                    ),
-                )
+                ),
             )
         except (ValueError, RuntimeError, OSError, TimeoutError) as exc:
             raise NonRetryableWorkerError(str(exc)) from exc

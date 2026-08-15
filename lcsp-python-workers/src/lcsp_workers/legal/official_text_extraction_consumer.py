@@ -8,13 +8,14 @@ from typing import Any
 
 from structlog import get_logger
 
+from lcsp_workers.agentic_evidence.dispatcher import LegalToolDispatcher
+from lcsp_workers.agentic_evidence.legal_tool_entrypoints import (
+    LegalToolExecutionContext,
+)
 from lcsp_workers.platform.api_client import WorkerApiClient
 from lcsp_workers.platform.queue_consumer import ConsumerBase, NonRetryableWorkerError
 
-from .official_text_extraction import (
-    OfficialSourceSnapshotResolver,
-    OfficialTextExtractor,
-)
+from .official_text_extraction import OfficialTextExtractor
 from .official_text_extraction_repository import OfficialTextExtractionRepository
 
 logger = get_logger(__name__)
@@ -53,38 +54,26 @@ class OfficialTextExtractionConsumer(ConsumerBase):
             config.nestjs_api_base_url,
             config.worker_api_key,
         )
-        self._extractor = extractor or OfficialTextExtractor()
+        self._extractor = extractor
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
-        """Resolve the immutable snapshot, extract bounded text, and save its registry record.
-
-        Args:
-            message: Extraction command identifying snapshot/profile/page budget.
-            correlationId: End-to-end trace identifier for the delivery.
-
-        Raises:
-            NonRetryableWorkerError: If configuration, snapshot resolution, or
-                extraction validation fails deterministically.
-        """
+        """Dispatch canonical snapshot extraction and persist its registry record."""
         envelope = self._read_envelope(message)
         storage_root = self._storage_root()
         repository = OfficialTextExtractionRepository(storage_root=storage_root)
-        resolver = OfficialSourceSnapshotResolver(
-            api_client=self._api_client,
-            storage_root=storage_root,
+        dispatcher = LegalToolDispatcher(
+            LegalToolExecutionContext(
+                api_client=self._api_client,
+                storage_root=storage_root,
+                text_extractor=self._extractor,
+            )
         )
         try:
-            resolved = resolver.resolve(snapshot_ref=envelope.snapshot_ref)
-            output_dir = (
-                storage_root
-                / "official-text-extractions"
-                / resolved.snapshot_ref.removeprefix("snapshot:").replace(":", "_")
-            )
-            result = self._extractor.extract_from_resolved_snapshot(
-                resolved_snapshot=resolved,
+            result = dispatcher.dispatch(
+                "extract_official_text",
+                snapshot_ref=envelope.snapshot_ref,
                 extractor_profile=envelope.extractor_profile,
                 max_pages=envelope.max_pages,
-                output_dir=output_dir,
             )
         except (ValueError, RuntimeError) as exc:
             raise NonRetryableWorkerError(str(exc)) from exc
