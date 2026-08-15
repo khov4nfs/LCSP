@@ -38,6 +38,7 @@ def main() -> None:
         ocr_repository=OcrFallbackRepository(storage_root=args.storage_root),
         quality_repository=OcrQualityRepository(storage_root=args.storage_root),
     )
+    from lcsp_workers.legal.reviewed_corpus_input_repository import ReviewedCorpusInputRepository
     result = builder.build(
         BuildReviewedCorpusInputRequest(
             extraction_ref=args.extraction_ref,
@@ -45,9 +46,11 @@ def main() -> None:
             correction_profile=args.correction_profile,
         )
     )
+    if result.status == 'READY':
+        ReviewedCorpusInputRepository(storage_root=args.storage_root).save(result.to_record())
     print(
         json.dumps(
-            result.to_tool_response(correlation_id=args.correlation_id),
+            result.to_tool_response(correlationId=args.correlation_id),
             ensure_ascii=False,
             indent=2,
         )

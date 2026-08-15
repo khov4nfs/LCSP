@@ -34,6 +34,7 @@ def main() -> None:
             storage_root=args.storage_root
         ),
     )
+    from lcsp_workers.legal.legal_chunk_repository import LegalChunkRepository
     result = builder.build(
         BuildLegalChunksRequest(
             reviewed_input_ref=args.reviewed_input_ref,
@@ -41,9 +42,11 @@ def main() -> None:
             chunk_schema_version=args.chunk_schema_version,
         )
     )
+    if result.status == 'READY':
+        LegalChunkRepository(storage_root=args.storage_root).save(result.to_record())
     print(
         json.dumps(
-            result.to_tool_response(correlation_id=args.correlation_id),
+            result.to_tool_response(correlationId=args.correlation_id),
             ensure_ascii=False,
             indent=2,
         )

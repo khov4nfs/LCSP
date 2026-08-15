@@ -41,7 +41,7 @@ def main() -> None:
     )
     print(
         json.dumps(
-            result.to_tool_response(correlationId=args.correlationId),
+            result.to_tool_response(correlationId=args.correlation_id),
             ensure_ascii=False,
             indent=2,
         )
