@@ -664,6 +664,17 @@ export type PagesMessages = {
     pendingSectionLabel: string;
     pendingBadge: string;
     scoreLabel: string;
+    scorePriorityLabel: string;
+    affectedFieldLabel: string;
+    confidenceLabel: string;
+    materialityReasonLabel: string;
+    sourceValuesLabel: string;
+    managerAnswerLabel: string;
+    technicalEvidenceLabel: string;
+    evidenceBasisLabel: string;
+    redactedContextLabel: string;
+    coverageLimitationsLabel: string;
+    notProvided: string;
     evidenceRefsLabel: string;
     resolutionLabel: string;
     resolutionResolved: string;

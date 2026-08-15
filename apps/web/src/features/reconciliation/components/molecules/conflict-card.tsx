@@ -60,8 +60,15 @@ export function ConflictCard({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between gap-4">
-          <CardTitle>{resolveMessage(appLocale, getConflictTypeLabelKey(conflict.conflict_type))}</CardTitle>
-          <Badge variant="outline">{resolveMessage(appLocale, "pages.reconciliation.pendingBadge")}</Badge>
+          <CardTitle>
+            {resolveMessage(
+              appLocale,
+              getConflictTypeLabelKey(conflict.conflict_type),
+            )}
+          </CardTitle>
+          <Badge variant="outline">
+            {resolveMessage(appLocale, "pages.reconciliation.pendingBadge")}
+          </Badge>
         </div>
         <CardDescription>{conflict.score_explanation}</CardDescription>
       </CardHeader>
@@ -69,14 +76,20 @@ export function ConflictCard({
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-4 text-sm">
             <span className="text-muted-foreground">
-              {resolveMessage(appLocale, "pages.reconciliation.scoreLabel")}
+              {resolveMessage(
+                appLocale,
+                "pages.reconciliation.scorePriorityLabel",
+              )}
             </span>
             <span className="font-medium">{scorePercent}%</span>
           </div>
           <div
             className="h-2 overflow-hidden rounded-full bg-muted"
             role="progressbar"
-            aria-label={resolveMessage(appLocale, "pages.reconciliation.scoreLabel")}
+            aria-label={resolveMessage(
+              appLocale,
+              "pages.reconciliation.scoreLabel",
+            )}
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={scorePercent}
@@ -86,11 +99,88 @@ export function ConflictCard({
               style={{ width: `${scorePercent}%` }}
             />
           </div>
+          <p className="text-sm text-muted-foreground">
+            {conflict.explanation_basis.score_priority_explanation}
+          </p>
+        </div>
+
+        <dl className="grid gap-3 text-sm md:grid-cols-3">
+          <div>
+            <dt className="text-muted-foreground">
+              {resolveMessage(
+                appLocale,
+                "pages.reconciliation.affectedFieldLabel",
+              )}
+            </dt>
+            <dd className="font-medium">
+              {conflict.explanation_basis.affected_field}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">
+              {resolveMessage(
+                appLocale,
+                "pages.reconciliation.confidenceLabel",
+              )}
+            </dt>
+            <dd className="font-medium">
+              {conflict.explanation_basis.confidence}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted-foreground">
+              {resolveMessage(
+                appLocale,
+                "pages.reconciliation.materialityReasonLabel",
+              )}
+            </dt>
+            <dd>{conflict.explanation_basis.materiality_reason}</dd>
+          </div>
+        </dl>
+
+        <div className="flex flex-col gap-2 text-sm">
+          <p className="font-medium">
+            {resolveMessage(
+              appLocale,
+              "pages.reconciliation.sourceValuesLabel",
+            )}
+          </p>
+          <dl className="grid gap-3 md:grid-cols-2">
+            <div>
+              <dt className="text-muted-foreground">
+                {resolveMessage(
+                  appLocale,
+                  "pages.reconciliation.managerAnswerLabel",
+                )}
+              </dt>
+              <dd>
+                {formatNullableValue(
+                  conflict.explanation_basis.source_values.manager_answer,
+                )}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">
+                {resolveMessage(
+                  appLocale,
+                  "pages.reconciliation.technicalEvidenceLabel",
+                )}
+              </dt>
+              <dd>
+                {formatNullableValue(
+                  conflict.explanation_basis.source_values.technical_evidence,
+                )}
+              </dd>
+            </div>
+          </dl>
         </div>
 
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium">
-            {resolveMessage(appLocale, "pages.reconciliation.evidenceRefsLabel")}
+            {resolveMessage(
+              appLocale,
+              "pages.reconciliation.evidenceRefsLabel",
+            )}
           </p>
           <div className="flex flex-wrap gap-2">
             {conflict.evidence_refs.map((ref, index) => (
@@ -101,10 +191,50 @@ export function ConflictCard({
           </div>
         </div>
 
+        <div className="flex flex-col gap-3 text-sm">
+          <p className="font-medium">
+            {resolveMessage(
+              appLocale,
+              "pages.reconciliation.evidenceBasisLabel",
+            )}
+          </p>
+          {conflict.explanation_basis.evidence_context.map((context) => (
+            <div
+              key={context.evidence_ref}
+              className="border-l-2 border-muted pl-3"
+            >
+              <p className="font-medium">{context.evidence_ref}</p>
+              <dl className="mt-2 grid gap-2">
+                <div>
+                  <dt className="text-muted-foreground">
+                    {resolveMessage(
+                      appLocale,
+                      "pages.reconciliation.redactedContextLabel",
+                    )}
+                  </dt>
+                  <dd>{context.redacted_context}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">
+                    {resolveMessage(
+                      appLocale,
+                      "pages.reconciliation.coverageLimitationsLabel",
+                    )}
+                  </dt>
+                  <dd>{context.coverage_limitations}</dd>
+                </div>
+              </dl>
+            </div>
+          ))}
+        </div>
+
         <FieldGroup>
           <Field>
             <FieldLabel htmlFor={`resolution-${conflict.conflict_id}`}>
-              {resolveMessage(appLocale, "pages.reconciliation.resolutionLabel")}
+              {resolveMessage(
+                appLocale,
+                "pages.reconciliation.resolutionLabel",
+              )}
             </FieldLabel>
             <Select
               value={resolution}
@@ -137,10 +267,16 @@ export function ConflictCard({
           </Field>
           <Field data-invalid={Boolean(formError) || undefined}>
             <FieldLabel htmlFor={`note-${conflict.conflict_id}`}>
-              {resolveMessage(appLocale, "pages.reconciliation.resolutionNoteLabel")}
+              {resolveMessage(
+                appLocale,
+                "pages.reconciliation.resolutionNoteLabel",
+              )}
             </FieldLabel>
             <FieldDescription>
-              {resolveMessage(appLocale, "pages.reconciliation.resolutionNotePlaceholder")}
+              {resolveMessage(
+                appLocale,
+                "pages.reconciliation.resolutionNotePlaceholder",
+              )}
             </FieldDescription>
             <Textarea
               id={`note-${conflict.conflict_id}`}
@@ -168,4 +304,8 @@ export function ConflictCard({
       </CardFooter>
     </Card>
   );
+}
+
+function formatNullableValue(value: string | null): string {
+  return value ?? resolveMessage(appLocale, "pages.reconciliation.notProvided");
 }

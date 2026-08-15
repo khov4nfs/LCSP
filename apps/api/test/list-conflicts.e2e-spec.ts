@@ -131,6 +131,27 @@ describe("List Conflicts Endpoint (e2e) [MW-rec-002]", () => {
       assert.ok(conflict.conflict_score >= 0);
       assert.ok(conflict.conflict_score <= 1);
       assert.ok(conflict.score_explanation);
+      assert.equal(
+        conflict.explanation_basis.affected_field,
+        "external_llm_usage",
+      );
+      assert.equal(conflict.explanation_basis.confidence, "high");
+      assert.match(
+        conflict.explanation_basis.score_priority_explanation,
+        /prioritizes Manager review effort/i,
+      );
+      assert.doesNotMatch(
+        conflict.explanation_basis.score_priority_explanation,
+        /^legal risk$/i,
+      );
+      assert.deepEqual(conflict.explanation_basis.source_values, {
+        manager_answer: "No external AI use",
+        technical_evidence: "External model invocation detected",
+      });
+      assert.equal(
+        conflict.explanation_basis.evidence_context[0]?.coverage_limitations,
+        "Evidence covers invocation detection only and does not classify compliance status.",
+      );
       assert.ok(conflict.created_at);
       assert.ok(Array.isArray(conflict.evidence_refs));
     });
@@ -275,6 +296,7 @@ describe("List Conflicts Endpoint (e2e) [MW-rec-002]", () => {
       conflictScore: number;
       scoreExplanation: string;
       evidenceRefs: unknown;
+      explanationBasis: unknown;
       status: ConflictRecordStatus;
     }> = {},
   ) {
@@ -292,6 +314,31 @@ describe("List Conflicts Endpoint (e2e) [MW-rec-002]", () => {
         evidenceRefs: overrides.evidenceRefs ?? [
           "evidence-report-1::finding-1",
         ],
+        explanationBasis: overrides.explanationBasis ?? {
+          affected_field: "external_llm_usage",
+          confidence: "high",
+          materiality_reason:
+            "The manager answer and technical evidence differ on whether external AI is used.",
+          score_priority_explanation:
+            "This score prioritizes Manager review effort and is not a legal risk, compliance status, or final classification.",
+          source_values: {
+            manager_answer: "No external AI use",
+            technical_evidence: "External model invocation detected",
+          },
+          source_refs: {
+            wizard_answer: "answers.external_llm_usage",
+            ai_usage_flow_claim: "claim-1",
+          },
+          evidence_context: [
+            {
+              evidence_ref: "evidence-report-1::finding-1",
+              redacted_context:
+                "A scanner finding indicates external model invocation. Raw source and secrets are redacted.",
+              coverage_limitations:
+                "Evidence covers invocation detection only and does not classify compliance status.",
+            },
+          ],
+        },
         status: overrides.status ?? CONFLICT_RECORD_STATUSES.pending,
       },
     });

@@ -6,6 +6,14 @@ export interface ConflictInputRequest {
   conflict_score: number;
   score_explanation: string;
   evidence_refs: string[];
+  affected_claim_field?: string;
+  conflicting_source_refs?: Record<string, unknown>;
+  confidence?: string;
+  contradiction_severity?: string;
+  materiality_reason?: string;
+  source_values?: Record<string, unknown>;
+  evidence_context?: unknown[];
+  explanation_basis?: Record<string, unknown>;
 }
 
 export interface ConflictDetectionCallbackRequest {

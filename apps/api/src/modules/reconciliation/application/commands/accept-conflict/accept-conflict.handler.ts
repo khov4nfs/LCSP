@@ -68,6 +68,12 @@ const SECRET_PATTERNS = [
   /\bAKIA[A-Z0-9]{16}\b/,
   /\bBearer\s+[A-Za-z0-9._~+/-]{12,}=*/i,
 ];
+const SCORE_PRIORITY_EXPLANATION =
+  "This score prioritizes Manager review effort and is not a legal risk, compliance status, or final classification.";
+const DEFAULT_REDACTED_CONTEXT =
+  "Only redacted evidence context is available for this conflict.";
+const DEFAULT_COVERAGE_LIMITATIONS =
+  "Evidence references identify the supporting findings only and do not provide legal risk, compliance status, or final classification.";
 
 @CommandHandler(AcceptConflictCommand)
 export class AcceptConflictHandler implements ICommandHandler<AcceptConflictCommand> {
@@ -114,6 +120,9 @@ export class AcceptConflictHandler implements ICommandHandler<AcceptConflictComm
               conflictScore: conflict.conflict_score,
               scoreExplanation: conflict.score_explanation,
               evidenceRefs: conflict.evidence_refs,
+              explanationBasis: buildConflictExplanationBasis(
+                conflict,
+              ) as Prisma.InputJsonValue,
               status: toPrismaConflictRecordStatus(
                 CONFLICT_RECORD_STATUSES.pending,
               ),
@@ -343,6 +352,101 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function clean(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function buildConflictExplanationBasis(
+  conflict: ConflictInputRequest,
+): Record<string, unknown> {
+  const explicitBasis = isRecord(conflict.explanation_basis)
+    ? conflict.explanation_basis
+    : {};
+  const sourceValues = isRecord(explicitBasis.source_values)
+    ? explicitBasis.source_values
+    : isRecord(conflict.source_values)
+      ? conflict.source_values
+      : {};
+  const sourceRefs = isRecord(explicitBasis.source_refs)
+    ? explicitBasis.source_refs
+    : isRecord(conflict.conflicting_source_refs)
+      ? conflict.conflicting_source_refs
+      : {};
+
+  return {
+    affected_field:
+      clean(explicitBasis.affected_field) ??
+      clean(conflict.affected_claim_field) ??
+      "not_provided",
+    confidence:
+      clean(explicitBasis.confidence) ??
+      clean(conflict.confidence) ??
+      "unknown",
+    materiality_reason:
+      clean(explicitBasis.materiality_reason) ??
+      clean(conflict.materiality_reason) ??
+      materialityReasonForType(conflict.conflict_type),
+    score_priority_explanation:
+      clean(explicitBasis.score_priority_explanation) ??
+      SCORE_PRIORITY_EXPLANATION,
+    source_values: {
+      manager_answer: clean(sourceValues.manager_answer),
+      technical_evidence: clean(sourceValues.technical_evidence),
+    },
+    source_refs: stringifyRecord(sourceRefs),
+    evidence_context: normalizeEvidenceContext(
+      explicitBasis.evidence_context ?? conflict.evidence_context,
+      conflict.evidence_refs,
+    ),
+  };
+}
+
+function normalizeEvidenceContext(
+  value: unknown,
+  evidenceRefs: string[],
+): Record<string, string>[] {
+  if (Array.isArray(value)) {
+    const contexts: Record<string, string>[] = [];
+    for (const item of value) {
+      if (!isRecord(item)) continue;
+      const evidenceRef = clean(item.evidence_ref);
+      if (!evidenceRef) continue;
+      contexts.push({
+        evidence_ref: evidenceRef,
+        redacted_context:
+          clean(item.redacted_context) ?? DEFAULT_REDACTED_CONTEXT,
+        coverage_limitations:
+          clean(item.coverage_limitations) ?? DEFAULT_COVERAGE_LIMITATIONS,
+      });
+    }
+    if (contexts.length > 0) {
+      return contexts;
+    }
+  }
+
+  return evidenceRefs.map((evidenceRef) => ({
+    evidence_ref: evidenceRef,
+    redacted_context: DEFAULT_REDACTED_CONTEXT,
+    coverage_limitations: DEFAULT_COVERAGE_LIMITATIONS,
+  }));
+}
+
+function materialityReasonForType(conflictType: ConflictType): string {
+  if (conflictType === "evidence_contradiction") {
+    return "Manager answers and technical evidence differ on a material AI usage claim.";
+  }
+  if (conflictType === "scope_mismatch") {
+    return "Manager answers and technical evidence differ on the role or scope of AI use.";
+  }
+  return "The claim needs review because supporting evidence has limited coverage.";
+}
+
+function stringifyRecord(
+  value: Record<string, unknown>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([key, entry]) => [key, clean(entry)] as const)
+      .filter((entry): entry is readonly [string, string] => entry[1] !== null),
+  );
 }
 
 function containsUnsafePayload(value: unknown): boolean {
