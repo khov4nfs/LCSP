@@ -4,10 +4,15 @@ from pathlib import Path
 
 from .language_types import (
     LANGUAGE_BINARY,
+    LANGUAGE_CSHARP,
+    LANGUAGE_GO,
     LANGUAGE_JAVASCRIPT,
+    LANGUAGE_JAVA,
     LANGUAGE_JSON,
+    LANGUAGE_KOTLIN,
     LANGUAGE_OTHER,
     LANGUAGE_PYTHON,
+    LANGUAGE_RUST,
     LANGUAGE_TYPESCRIPT,
     LANGUAGE_UNKNOWN,
     LANGUAGE_YAML,
@@ -237,6 +242,25 @@ class LanguageClassifier:
                 file_path=relative_path,
                 language=LANGUAGE_JAVASCRIPT,
                 support_level=SUPPORT_FULL,
+                file_size_bytes=file_size,
+                line_count=line_count,
+                skip_reason=None,
+                coverage_limitation=False,
+            )
+
+        basic_language = {
+            ".java": LANGUAGE_JAVA,
+            ".kt": LANGUAGE_KOTLIN,
+            ".kts": LANGUAGE_KOTLIN,
+            ".go": LANGUAGE_GO,
+            ".cs": LANGUAGE_CSHARP,
+            ".rs": LANGUAGE_RUST,
+        }.get(suffix)
+        if basic_language is not None:
+            return LanguageClassification(
+                file_path=relative_path,
+                language=basic_language,
+                support_level=SUPPORT_BASIC,
                 file_size_bytes=file_size,
                 line_count=line_count,
                 skip_reason=None,

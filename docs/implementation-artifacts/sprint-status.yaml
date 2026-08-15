@@ -71,7 +71,7 @@ development_status:
   3-2-pin-commit-and-create-repositorysnapshot: review
   3-3-trusted-scan-trigger-and-scan-job-orchestration: ready-for-dev
   3-4-static-scanner-workspace-and-sandbox: ready-for-dev
-  3-5-static-scanner-toolchain-execution: ready-for-dev
+  3-5-static-scanner-toolchain-execution: review
   3-6-scan-failure-severity-and-evidence-acceptance-policy: ready-for-dev
   3-7-technicalevidencereport-gates: ready-for-dev
   3-8-technicalprofile-generation: ready-for-dev

@@ -350,3 +350,64 @@ def test_t10_llamaindex_query_engine_detected(workspace_dir: Path) -> None:
         and site.finding_type == "RAG_USAGE_SIGNAL"
         for site in result.ai_call_sites
     )
+
+
+@pytest.mark.p0
+def test_t11_python_cst_parser_executes_the_pinned_libcst_backend(
+    workspace_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import lcsp_workers.scanner.parsers.python_cst_parser as parser_module
+
+    source_file = workspace_dir / "app.py"
+    source_file.write_text(
+        "client.responses.create(model='gpt-4o', messages=[])\n",
+        encoding="utf-8",
+    )
+    calls = 0
+    real_parse_module = parser_module.cst.parse_module
+
+    def tracking_parse_module(source: str):
+        nonlocal calls
+        calls += 1
+        return real_parse_module(source)
+
+    monkeypatch.setattr(parser_module.cst, "parse_module", tracking_parse_module)
+
+    names = parser_module.PythonCstParser().kwarg_names_for_calls(
+        source_file,
+        workspace_dir,
+    )
+
+    assert calls == 1
+    assert names == {1: ["model", "messages"]}
+    assert parser_module.PythonCstParser.tool_version() != "not-installed"
+
+
+@pytest.mark.p0
+def test_t12_python_cst_parse_error_records_coverage_limitation(
+    workspace_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import lcsp_workers.scanner.parsers.python_cst_parser as parser_module
+    from lcsp_workers.scanner.analyzers.python_analyzer import PythonAnalyzer
+
+    source_file = workspace_dir / "app.py"
+    source_file.write_text(
+        "client.responses.create(model='gpt-4o', messages=[])\n",
+        encoding="utf-8",
+    )
+
+    def fail_parse_module(source: str):
+        raise UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid")
+
+    monkeypatch.setattr(parser_module.cst, "parse_module", fail_parse_module)
+
+    result = PythonAnalyzer(workspace_dir).analyze()
+
+    assert result.files_analyzed == 1
+    assert result.files_skipped == 0
+    assert result.coverage_limitation is True
+    assert result.coverage_limitations == [
+        "python_libcst_parse_failed: file=app.py reason=UnicodeDecodeError"
+    ]

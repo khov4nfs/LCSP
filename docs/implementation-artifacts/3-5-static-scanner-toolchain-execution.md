@@ -1,6 +1,10 @@
+---
+baseline_commit: 98f34e2598d781ab58157344757280203e116fd3
+---
+
 # Story 3.5: Static Scanner Toolchain Execution
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -22,9 +26,9 @@ Static Scanner Toolchain Execution
 
 ## Tasks / Subtasks
 
-- [ ] Build language-profile-aware execution plan for approved static tools. (AC: 1)
-- [ ] Record tool versions, config hash, ruleset hash and coverage limitations per run. (AC: 2)
-- [ ] Skip unsupported tools explicitly instead of treating absence as success. (AC: 2)
+- [x] Build language-profile-aware execution plan for approved static tools. (AC: 1)
+- [x] Record tool versions, config hash, ruleset hash and coverage limitations per run. (AC: 2)
+- [x] Skip unsupported tools explicitly instead of treating absence as success. (AC: 2)
 
 ## Dev Notes
 
@@ -150,6 +154,12 @@ Static Scanner Toolchain Execution
 
 GPT-5 Codex
 
+### Implementation Plan
+
+- Task 1: derive a deterministic repository language profile from bounded file classifications, then build an allowlisted RUN/SKIP plan for Syft, Knip, deptry, Python AST/libcst, ts-morph, tree-sitter/custom parsing, and Semgrep.
+- Task 2: capture immutable per-run provenance at each execution boundary and serialize version/hash/time/language/limitation metadata into the redacted scan callback; replace the AST fallback with pinned real `libcst` execution.
+- Task 3: short-circuit unsupported tools at the execution-plan boundary, persist non-evidentiary skip provenance, and propagate explicit coverage limitations/partial callback state without invoking the unsupported runtime.
+
 ### Debug Log References
 
 - Batch `bmad-create-story` run on 2026-07-02T22:01:26+07:00.
@@ -161,7 +171,30 @@ GPT-5 Codex
 - Converted planning-derived developer packet into official execution artifact for dev cycle.
 - Status set to `ready-for-dev` in `docs/implementation-artifacts/sprint-status.yaml`.
 - Story retains planning authority references and scope guardrails for downstream `dev-story` work.
+- Task 1 complete: added deterministic language-profile-aware planning, basic-signal language classification, and unit/routing coverage; full Python worker regression suite passes (330 passed, 5 skipped).
+- Task 2 complete: added end-to-end tool provenance, real pinned `libcst` parsing, failure-safe structural provenance, callback integration coverage, static compilation, and a passing full regression suite (333 passed, 5 skipped).
+- Task 3 complete: unsupported tools are not invoked, skips are `skipped_unsupported` and `evidence_eligible: false`, basic-only/Python/TS inverse routing is covered, and the full regression suite passes (336 passed, 5 skipped).
+- Story definition of done complete: all acceptance criteria and tasks are satisfied; static compilation and `git diff --check` pass; final full regression suite passes (336 passed, 5 skipped).
 
 ### File List
 
 - docs/implementation-artifacts/3-5-static-scanner-toolchain-execution.md
+- docs/implementation-artifacts/sprint-status.yaml
+- lcsp-python-workers/src/lcsp_workers/scanner/inventory/language_classifier.py
+- lcsp-python-workers/src/lcsp_workers/scanner/inventory/language_types.py
+- lcsp-python-workers/src/lcsp_workers/scanner/evidence_assembler.py
+- lcsp-python-workers/src/lcsp_workers/scanner/parsers/python_cst_parser.py
+- lcsp-python-workers/src/lcsp_workers/scanner/scan_consumer.py
+- lcsp-python-workers/src/lcsp_workers/scanner/tool_registry.py
+- lcsp-python-workers/src/lcsp_workers/scanner/toolchain_execution.py
+- lcsp-python-workers/src/lcsp_workers/scanner/tools/tool_base.py
+- lcsp-python-workers/pyproject.toml
+- lcsp-python-workers/tests/scanner/test_toolchain_execution_plan.py
+- lcsp-python-workers/tests/test_evidence_assembler.py
+- lcsp-python-workers/tests/test_language_classifier.py
+- lcsp-python-workers/tests/test_scanner_analyzer.py
+- lcsp-python-workers/tests/test_scanner_workspace.py
+
+## Change Log
+
+- 2026-08-11: Implemented language-profile-aware bounded scanner toolchain execution, complete per-run provenance, real pinned `libcst`, and explicit non-evidentiary unsupported-tool skips; moved story to `review`.
