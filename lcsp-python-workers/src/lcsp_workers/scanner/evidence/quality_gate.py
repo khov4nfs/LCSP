@@ -1,6 +1,22 @@
 from typing import List, Dict, Any
 
+
 def classify_quality(findings: List[Any], tool_provenance: List[Dict[str, Any]]) -> str:
+    """Classify whether scan evidence is sufficient for downstream assessment.
+
+    Critical tool timeouts/malformed output fail the gate immediately. Coverage-gap
+    and unsupported-flow findings are not treated as substantive AI evidence, so a
+    scan containing only limitations is also insufficient rather than a false clean
+    result.
+
+    Args:
+        findings: Scanner findings in object or dictionary form.
+        tool_provenance: Tool execution metadata used to detect critical failures.
+
+    Returns:
+        ``QUALITY_VALID`` when usable AI evidence exists and critical tools are sound;
+        otherwise ``QUALITY_INSUFFICIENT``.
+    """
     CRITICAL_TOOLS = {"syft", "semgrep", "python_ast"}
 
     critical_timeouts = {

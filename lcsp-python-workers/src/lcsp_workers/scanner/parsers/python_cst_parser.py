@@ -15,6 +15,16 @@ class PythonCstParser:
     """
 
     def kwarg_names_for_calls(self, path: Path, workspace: Path) -> dict[int, list[str]]:
+        """Extract only keyword names for calls, keyed by source line.
+
+        Args:
+            path: Python file to parse inside the extracted workspace.
+            workspace: Workspace root used for safe repository-relative parsing.
+
+        Returns:
+            Mapping from call line number to keyword argument names. Values and raw
+            source are deliberately excluded from the result.
+        """
         parsed = PythonAstParser().parse_file(path, workspace)
         if parsed.tree is None:
             return {}

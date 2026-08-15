@@ -13,13 +13,28 @@ import {
 } from "../../ports/persistence/user.repository.js";
 import { GetUserByIdQuery } from "./get-user-by-id.query.js";
 
+/**
+ * Resolves a user lookup query through the user repository and DTO mapper.
+ */
 @QueryHandler(GetUserByIdQuery)
 export class GetUserByIdHandler implements IQueryHandler<GetUserByIdQuery> {
+  /**
+   * Creates the query handler with the user persistence port.
+   *
+   * @param userRepository - Repository used to retrieve the requested user aggregate.
+   */
   constructor(
     @Inject(USER_REPOSITORY)
     private readonly userRepository: UserRepository,
   ) {}
 
+  /**
+   * Retrieves one user by identifier and maps it to the application DTO.
+   *
+   * @param query - User lookup query containing the requested identifier.
+   * @returns The matching user DTO.
+   * @throws When no user exists for the supplied identifier.
+   */
   async execute(query: GetUserByIdQuery) {
     const user = await this.userRepository.findById(query.id);
 

@@ -1,3 +1,5 @@
+"""Orchestrate deterministic classification, optional LLM assistance, and guardrails."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -19,12 +21,16 @@ from .risk_tier_calculator import calculate_risk_tier
 
 @dataclass(frozen=True)
 class ClassificationGraphResult:
+    """Final classification payload plus workflow execution metadata."""
+
     payload: dict[str, Any]
     workflow_run_id: str
     state: GraphRunState
 
 
 class ClassificationLangGraphState(TypedDict, total=False):
+    """State exchanged between classification LangGraph nodes."""
+
     message: dict[str, Any]
     correlationId: str
     workflow_run_id: str
@@ -51,6 +57,13 @@ ClassificationPersister = Callable[
 
 
 class ClassificationGraph:
+    """Run the classification workflow with deterministic authority boundaries.
+
+    Citation validation and the baseline risk decision are deterministic. LLM
+    proposal/narration nodes are optional and can only contribute when they
+    remain consistent with the deterministic baseline and output guardrails.
+    """
+
     def __init__(
         self,
         *,
@@ -60,6 +73,15 @@ class ClassificationGraph:
         checkpoint_url: str | None = None,
         logger=None,
     ) -> None:
+        """Create a classification graph and its optional integrations.
+
+        Args:
+            proposer: Optional model-assisted proposal node.
+            narrator: Optional LLM rationale narrator.
+            persister: Optional callback invoked after finalization.
+            checkpoint_url: Optional LangGraph checkpoint database URL.
+            logger: Optional structured logger for rejected proposals/guardrails.
+        """
         self._proposer = proposer
         self._narrator = narrator
         self._persister = persister
@@ -70,6 +92,15 @@ class ClassificationGraph:
     def run(
         self, *, message: dict[str, Any], correlationId: str
     ) -> ClassificationGraphResult:
+        """Execute one classification workflow.
+
+        Args:
+            message: Normalized classification evidence and artifact identifiers.
+            correlationId: End-to-end correlation identifier.
+
+        Returns:
+            Final payload together with workflow ID and recorded graph state.
+        """
         classification_version = str(
             message.get("classification_version") or "1.0.0"
         )
@@ -130,6 +161,17 @@ class ClassificationGraph:
         )
 
     def _build_graph(self, checkpointer=None):
+        """Compile the classification LangGraph and conditional routes.
+
+        Args:
+            checkpointer: Optional LangGraph checkpoint implementation.
+
+        Returns:
+            Compiled LangGraph application.
+
+        Raises:
+            RuntimeError: If LangGraph is not installed in the worker runtime.
+        """
         try:
             from langgraph.graph import END, START, StateGraph
         except ImportError as exc:
@@ -163,16 +205,19 @@ class ClassificationGraph:
         return graph.compile(checkpointer=checkpointer)
 
     def _get_app(self):
+        """Lazily compile and cache the non-checkpointed graph application."""
         if self._app is None:
             self._app = self._build_graph()
         return self._app
 
     def _runtime_app(self, checkpointer):
+        """Build a checkpoint-aware graph or reuse the cached stateless graph."""
         if checkpointer is None:
             return self._get_app()
         return self._build_graph(checkpointer=checkpointer)
 
     def _node_citation_guardrail(self, state: ClassificationLangGraphState):
+        """Validate citation references before any classification decision runs."""
         citation_refs = self._citation_refs(state["applicable_rules"])
         guardrail_status, guardrail_reason = check_citations(
             citation_refs=citation_refs,
@@ -193,9 +238,11 @@ class ClassificationGraph:
 
     @staticmethod
     def _route_after_citation_guardrail(state: ClassificationLangGraphState) -> str:
+        """Route blocked citation sets directly to finalization."""
         return "blocked" if state["guardrail_status"] == "blocked" else "continue"
 
     def _node_deterministic_baseline(self, state: ClassificationLangGraphState):
+        """Compute the authoritative rule-based classification baseline."""
         risk_level, applicability_assessment, citation_coverage = calculate_risk_tier(
             state["applicable_rules"]
         )
@@ -213,6 +260,7 @@ class ClassificationGraph:
         }
 
     def _node_proposal(self, state: ClassificationLangGraphState):
+        """Accept an optional LLM proposal only when it matches the baseline."""
         if not self._proposer:
             state["graph_state"].record_node(
                 node_name="classification.proposal",
@@ -282,9 +330,11 @@ class ClassificationGraph:
 
     @staticmethod
     def _route_after_proposal(state: ClassificationLangGraphState) -> str:
+        """Skip narration when an accepted proposal already supplied rationale."""
         return "has_rationale" if state.get("rationale") else "need_rationale"
 
     def _node_rationale(self, state: ClassificationLangGraphState):
+        """Optionally narrate the already-authoritative classification decision."""
         if not self._narrator:
             state["graph_state"].record_node(
                 node_name="classification.rationale_narrator",
@@ -312,6 +362,7 @@ class ClassificationGraph:
         return {"rationale": rationale}
 
     def _node_overclaim_guardrail(self, state: ClassificationLangGraphState):
+        """Remove rationale text that asserts prohibited certainty/compliance claims."""
         rationale = state.get("rationale")
         if rationale and check_overclaim(rationale):
             if self._logger:
@@ -331,6 +382,7 @@ class ClassificationGraph:
         return {}
 
     def _node_finalize(self, state: ClassificationLangGraphState):
+        """Assemble the contract payload, forcing blocked citation runs to BLOCKED."""
         if state["guardrail_status"] == "blocked":
             payload = {
                 "classification_version": state["classification_version"],
@@ -365,6 +417,7 @@ class ClassificationGraph:
         return {"result_payload": payload}
 
     def _node_persist(self, state: ClassificationLangGraphState):
+        """Persist the finalized payload when a persister callback is configured."""
         if not self._persister:
             return {}
         self._persister(state["result_payload"], state)
@@ -376,6 +429,7 @@ class ClassificationGraph:
 
     @staticmethod
     def workflow_run_id(message: dict[str, Any], correlationId: str) -> str:
+        """Return an explicit workflow ID or derive a stable traceable identifier."""
         explicit = message.get("workflow_run_id")
         if explicit:
             return str(explicit)
@@ -385,6 +439,7 @@ class ClassificationGraph:
 
     @staticmethod
     def _citation_refs(applicable_rules: list[dict[str, Any]]) -> list[str]:
+        """Flatten citation chunk identifiers from applicable legal rules."""
         refs: list[str] = []
         for rule in applicable_rules:
             refs.extend(rule.get("citation_chunk_ids", []))
@@ -397,6 +452,11 @@ class ClassificationGraph:
         baseline_applicability_assessment: str,
         usage_claims: list[dict[str, Any]],
     ) -> bool:
+        """Enforce that an LLM proposal cannot override deterministic authority.
+
+        Model-provider-only claims are deliberately excluded from model-assisted
+        acceptance, and overclaiming rationale also causes rejection.
+        """
         if proposal.get("risk_level") != baseline_risk_level:
             return False
         if (
@@ -418,6 +478,7 @@ class ClassificationGraph:
 
     @staticmethod
     def _delivery_attempt(message: dict[str, Any]) -> int:
+        """Normalize the delivery-attempt header into a non-negative integer."""
         try:
             return max(0, int(message.get("_delivery_attempt", 0)))
         except (TypeError, ValueError):
@@ -425,6 +486,7 @@ class ClassificationGraph:
 
     @staticmethod
     def _optional_string(value: Any) -> str | None:
+        """Convert a present identifier to string while preserving missing values."""
         if value is None or value == "":
             return None
         return str(value)

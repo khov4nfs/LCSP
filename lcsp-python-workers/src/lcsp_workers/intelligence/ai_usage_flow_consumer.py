@@ -1,3 +1,5 @@
+"""Consume technical-profile events and orchestrate AI usage flow construction."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -18,6 +20,8 @@ logger = get_logger(__name__)
 
 
 class AIUsageFlowConsumer(ConsumerBase):
+    """Bridge a ready TechnicalProfile into the governed AIUsageFlow graph."""
+
     queue_name = "intelligence.technical-profile-ready"
     routing_key = "event.technical-profile.ready.v1"
     requires_pbac = False
@@ -31,6 +35,17 @@ class AIUsageFlowConsumer(ConsumerBase):
         llm_client: LLMGatewayClient | None = None,
         agentic_tool_resolver: AgenticToolResolver | None = None,
     ) -> None:
+        """Create the consumer with deterministic rules and optional model assistance.
+
+        Args:
+            config: Worker runtime configuration.
+            pbac_client: Optional base-consumer PBAC dependency.
+            api_client: Optional internal API client override.
+            rule_engine: Optional deterministic AI-usage rule engine override.
+            llm_client: Optional LLM client used for bounded proposals only.
+            agentic_tool_resolver: Optional read-only agentic evidence resolver made
+                available to the model-assisted proposer.
+        """
         super().__init__(config, pbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
@@ -51,6 +66,12 @@ class AIUsageFlowConsumer(ConsumerBase):
         )
 
     def handle(self, message: dict, correlationId: str) -> None:
+        """Run the AI usage flow graph and log the persisted artifact result.
+
+        Args:
+            message: Technical-profile-ready event payload.
+            correlationId: End-to-end trace identifier for this delivery.
+        """
         result = self._graph.run(message=message, correlationId=correlationId)
         logger.info(
             "AI_USAGE_FLOW_CALLBACK_SUBMITTED",
@@ -62,4 +83,5 @@ class AIUsageFlowConsumer(ConsumerBase):
         )
 
     def _required_message_id(self, message: dict[str, Any], key: str) -> str:
+        """Delegate required event-identifier normalization to the graph contract."""
         return self._graph.required_message_id(message, key)

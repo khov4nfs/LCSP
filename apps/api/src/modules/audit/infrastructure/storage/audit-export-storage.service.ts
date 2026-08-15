@@ -13,8 +13,17 @@ interface SignedDownloadTokenPayload {
   expiresAt: string;
 }
 
+/**
+ * Creates and verifies HMAC-signed, time-limited download tokens for audit export artifacts.
+ */
 @Injectable()
 export class AuditExportStorageService {
+  /**
+   * Creates a signed relative download URL bound to one organization, export request, and expiration time.
+   *
+   * @param input - Organization/export identity and token expiration timestamp.
+   * @returns Relative download URL containing the encoded payload and HMAC signature.
+   */
   createSignedDownloadUrl(input: SignedDownloadInput): string {
     const payload: SignedDownloadTokenPayload = {
       organizationId: input.organizationId,
@@ -30,6 +39,14 @@ export class AuditExportStorageService {
     return `/organizations/${encodeURIComponent(input.organizationId)}/audit-events/export/${encodeURIComponent(input.exportRequestId)}/download?token=${encodedPayload}.${signature}`;
   }
 
+  /**
+   * Verifies a signed download token against its signature, route identity, and expiration time.
+   *
+   * @param token - Encoded payload and signature supplied by the download client.
+   * @param organizationId - Organization identifier expected by the route.
+   * @param exportRequestId - Export request identifier expected by the route.
+   * @returns Verified token payload, or null when the token is malformed, forged, mismatched, or expired.
+   */
   verifySignedDownloadToken(
     token: string,
     organizationId: string,
@@ -72,12 +89,23 @@ export class AuditExportStorageService {
     }
   }
 
+  /**
+   * Computes the HMAC signature for an encoded token payload.
+   *
+   * @param value - Base64url-encoded token payload to sign.
+   * @returns Base64url SHA-256 HMAC signature.
+   */
   private sign(value: string): string {
     return createHmac("sha256", this.secret())
       .update(value)
       .digest("base64url");
   }
 
+  /**
+   * Resolves the download-signing secret from environment configuration with a local-development fallback.
+   *
+   * @returns Secret used to sign and verify audit download tokens.
+   */
   private secret(): string {
     return (
       process.env.AUDIT_EXPORT_DOWNLOAD_SIGNING_SECRET ??
@@ -87,6 +115,13 @@ export class AuditExportStorageService {
   }
 }
 
+/**
+ * Compares two signatures in constant time after rejecting unequal byte lengths.
+ *
+ * @param left - Supplied signature.
+ * @param right - Expected signature.
+ * @returns True when both signatures are byte-for-byte equal.
+ */
 function safeCompare(left: string, right: string): boolean {
   const leftBuffer = Buffer.from(left);
   const rightBuffer = Buffer.from(right);

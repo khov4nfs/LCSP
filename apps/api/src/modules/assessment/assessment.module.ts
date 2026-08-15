@@ -9,6 +9,9 @@ import { ASSESSMENT_REPOSITORY } from "./application/ports/persistence/assessmen
 import { PrismaAssessmentRepository } from "./infrastructure/persistence/prisma-assessment.repository.js";
 import { AssessmentController } from "./presentation/http/assessment.controller.js";
 
+/**
+ * Wires PBAC-protected assessment commands and queries to Prisma-backed persistence and HTTP endpoints.
+ */
 @Module({
   imports: [CqrsModule, PbacModule],
   controllers: [AssessmentController],

@@ -19,13 +19,29 @@ import { resultEnvelope } from "../../../../platform/problems/result-envelope.js
 import { AcceptAIUsageFlowCommand } from "../../application/commands/accept-ai-usage-flow/accept-ai-usage-flow.command.js";
 import type { AIUsageFlowCallbackRequest } from "../../application/contracts/ai-usage-flow/ai-usage-flow-callback.contract.js";
 
+/**
+ * Exposes worker-authenticated endpoints for accepting and inspecting AI usage-flow artifacts.
+ */
 @Controller("internal/ai-usage-flow")
 export class InternalAIUsageFlowController {
+  /**
+   * Creates the internal controller with command dispatch and read-model persistence access.
+   *
+   * @param commandBus - CQRS command bus used to process worker callbacks.
+   * @param prisma - Prisma service used to retrieve persisted AI usage-flow artifacts.
+   */
   constructor(
     private readonly commandBus: CommandBus,
     private readonly prisma: PrismaService,
   ) {}
 
+  /**
+   * Accepts a sanitized AI usage-flow callback from the worker and dispatches it through the command pipeline.
+   *
+   * @param payload - Worker callback payload containing claims, provider metadata, and privacy assertions.
+   * @param correlationId - Optional upstream correlation identifier; a UUID is generated when absent.
+   * @returns The standard result envelope containing callback acceptance metadata.
+   */
   @Post("callback")
   @HttpCode(200)
   @UseGuards(WorkerApiKeyGuard)
@@ -43,6 +59,13 @@ export class InternalAIUsageFlowController {
     );
   }
 
+  /**
+   * Retrieves a persisted AI usage-flow artifact in the worker-facing contract shape.
+   *
+   * @param aiUsageFlowId - AI usage-flow identifier to retrieve.
+   * @returns The standard result envelope containing the persisted usage-flow artifact.
+   * @throws When no AI usage-flow exists for the supplied identifier.
+   */
   @Get(":aiUsageFlowId")
   @UseGuards(WorkerApiKeyGuard)
   async getAIUsageFlow(@Param("aiUsageFlowId") aiUsageFlowId: string) {

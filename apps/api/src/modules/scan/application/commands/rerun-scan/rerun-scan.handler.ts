@@ -36,14 +36,31 @@ import { problemException } from "../../../../../platform/problems/problem-facto
 import type { RerunScanResponseDto } from "../../contracts/scan/rerun-scan.contract.js";
 import { RerunScanCommand } from "./rerun-scan.command.js";
 
+/**
+ * Creates manual scan reruns for manager-owned assessments while preserving snapshot, tenant, lifecycle, and idempotency guarantees.
+ */
 @CommandHandler(RerunScanCommand)
 export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
+  /**
+   * Creates the rerun handler with scan persistence, audit, and transactional outbox dependencies.
+   *
+   * @param prisma - Prisma service used for idempotency, snapshot/assessment validation, and scan-job persistence.
+   * @param auditWriter - Audit writer used to record successful rerun requests.
+   * @param outbox - Transactional outbox used to dispatch the new scan job.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditWriter: AuditWriterService,
     private readonly outbox: OutboxRepository,
   ) {}
 
+  /**
+   * Deduplicates, authorizes, validates, and queues a new manual scan job for an existing pinned snapshot.
+   *
+   * @param command - Assessment/snapshot identity, idempotency key, PBAC context, correlation ID, and optional reason.
+   * @returns Rerun scan job metadata, including the prior job identifier when available.
+   * @throws When the idempotency key conflicts, snapshot/assessment is unavailable, manager ownership fails, or assessment state is ineligible.
+   */
   async execute(command: RerunScanCommand): Promise<RerunScanResponseDto> {
     const pbac = command.pbacContext;
     // Basic org validation and PBAC was handled by the guard, but we still ensure assessment belongs to org
@@ -236,6 +253,15 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
     );
   }
 
+  /**
+   * Maps scan-job identity/status into the rerun response contract.
+   *
+   * @param scanJobId - Current scan-job identifier.
+   * @param status - Normalized scan-job lifecycle status.
+   * @param replacesScanJobId - Prior scan-job identifier when this rerun supersedes one.
+   * @param correlationId - Correlation identifier to include in the response.
+   * @returns Rerun scan response DTO.
+   */
   private toDto(
     scanJobId: string,
     status: string,

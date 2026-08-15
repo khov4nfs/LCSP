@@ -16,6 +16,9 @@ import { RerunScanHandler } from "./application/commands/rerun-scan/rerun-scan.h
 import { RequestTargetedReanalysisHandler } from "./application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.js";
 import { AssessmentRuntimeEventService } from "../../platform/runtime-events/assessment-runtime-event.service.js";
 
+/**
+ * Wires scan-job reads/reruns, worker callbacks, targeted reanalysis, evidence validation, and workspace runtime-event streaming.
+ */
 @Module({
   imports: [CqrsModule, PbacModule],
   controllers: [

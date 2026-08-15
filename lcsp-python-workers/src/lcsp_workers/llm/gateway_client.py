@@ -1,3 +1,5 @@
+"""Normalize safe, budgeted text/tool completion calls across supported LLM providers."""
+
 import os
 import json
 import logging
@@ -15,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class LLMResponse:
+    """Provider-neutral text completion response and usage metadata."""
+
     content: str
     input_tokens: int
     output_tokens: int
@@ -25,6 +29,8 @@ class LLMResponse:
 
 @dataclass(frozen=True)
 class LLMToolDefinition:
+    """Provider-neutral definition for one manually dispatched model tool."""
+
     name: str
     description: str
     input_schema: dict[str, Any]
@@ -32,6 +38,8 @@ class LLMToolDefinition:
 
 @dataclass(frozen=True)
 class LLMToolCall:
+    """Structured model-requested tool call awaiting registry validation/dispatch."""
+
     name: str
     arguments: dict[str, Any]
     call_id: str | None = None
@@ -39,6 +47,8 @@ class LLMToolCall:
 
 @dataclass
 class LLMToolResponse(LLMResponse):
+    """Completion response that may include unexecuted structured tool calls."""
+
     tool_calls: tuple[LLMToolCall, ...] = ()
 
 
@@ -64,6 +74,7 @@ _TOOL_NAME_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 
 
 def get_model_pricing() -> dict[str, tuple[float, float]]:
+    """Load optional per-million-token pricing overrides or return safe defaults."""
     pricing_env = os.environ.get("LLM_MODEL_PRICING")
     if pricing_env:
         try:
@@ -90,6 +101,7 @@ def get_model_pricing() -> dict[str, tuple[float, float]]:
 
 
 def estimate_tokens(text: str) -> int:
+    """Estimate token count with tiktoken and fall back to a conservative heuristic."""
     try:
         encoding = tiktoken.get_encoding("cl100k_base")
         return len(encoding.encode(text))
@@ -98,6 +110,7 @@ def estimate_tokens(text: str) -> int:
 
 
 def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
+    """Estimate call cost from configured model input/output token pricing."""
     pricing = get_model_pricing()
     in_price, out_price = pricing.get(model, (10.0, 30.0))
     return (input_tokens / 1_000_000 * in_price) + (
@@ -106,6 +119,13 @@ def estimate_cost(model: str, input_tokens: int, output_tokens: int) -> float:
 
 
 class LLMGatewayClient:
+    """Provider-neutral LLM boundary enforcing prompt safety, redaction, and budget.
+
+    The gateway never executes model-requested tools automatically. Tool calls are
+    returned as data so the agentic registry can schema-check, authorize, budget,
+    and dispatch them explicitly.
+    """
+
     def __init__(
         self,
         provider: str,
@@ -115,6 +135,19 @@ class LLMGatewayClient:
         max_tokens_per_call: int = 4096,
         timeout_seconds: float = 30.0,
     ):
+        """Create a provider-specific SDK client behind the common gateway interface.
+
+        Args:
+            provider: Supported provider name (OpenAI, Anthropic, or Google/Gemini).
+            api_key: Provider credential used only by the SDK client.
+            model: Provider model identifier.
+            budget_tracker: Shared/process-local budget enforcement adapter.
+            max_tokens_per_call: Default maximum output tokens for one call.
+            timeout_seconds: Provider request timeout.
+
+        Raises:
+            ValueError: If the provider is unsupported.
+        """
         self.provider = provider.lower()
         self.api_key = api_key
         self.model = model
@@ -151,6 +184,18 @@ class LLMGatewayClient:
         max_tokens: Optional[int] = None,
         correlationId: Optional[str] = None,
     ) -> LLMResponse:
+        """Execute one safe budgeted text completion and normalize provider usage.
+
+        Args:
+            prompt: Structured prompt that must pass source-code safety checks.
+            workflow_run_id: Workflow identifier propagated to provider metadata.
+            node_name: Graph/orchestration node issuing the call.
+            max_tokens: Optional output-token override bounded by caller policy.
+            correlationId: Optional end-to-end trace identifier.
+
+        Returns:
+            Redacted provider-neutral completion response.
+        """
         context = self._prepare_request(
             prompt=prompt,
             workflow_run_id=workflow_run_id,
@@ -232,10 +277,11 @@ class LLMGatewayClient:
         max_tokens: Optional[int] = None,
         correlationId: Optional[str] = None,
     ) -> LLMToolResponse:
-        """Request manual tool calls without allowing an SDK to execute them.
+        """Request manual tool calls without allowing a provider SDK to execute them.
 
         The caller must pass every returned call through the agentic registry before
-        dispatch. This method intentionally performs no automatic function execution.
+        dispatch. Tool definitions are fail-closed validated and undeclared calls
+        returned by a provider are rejected.
         """
         self._validate_tool_definitions(tools)
         safe_prompt, max_tokens_to_use, extra_headers = self._prepare_request(
@@ -387,6 +433,7 @@ class LLMGatewayClient:
         max_tokens: Optional[int],
         correlationId: Optional[str],
     ) -> tuple[str, int, dict[str, str]]:
+        """Validate request identity/safety, redact prompt, and preflight its budget."""
         if not workflow_run_id:
             raise ValueError("workflow_run_id is required")
         if not node_name:
@@ -410,6 +457,7 @@ class LLMGatewayClient:
         return safe_prompt, max_tokens_to_use, extra_headers
 
     def _record_actual_usage(self, input_tokens: int, output_tokens: int) -> None:
+        """Calculate actual provider cost and atomically add it to monthly usage."""
         actual_cost = estimate_cost(self.model, input_tokens, output_tokens)
         self.budget_tracker.check_budget_and_accumulate(
             input_tokens,
@@ -419,6 +467,7 @@ class LLMGatewayClient:
 
     @staticmethod
     def _parse_json_arguments(value: str) -> dict[str, Any]:
+        """Parse provider tool arguments and require an object-shaped JSON value."""
         try:
             parsed = json.loads(value)
         except (TypeError, json.JSONDecodeError) as exc:
@@ -429,6 +478,7 @@ class LLMGatewayClient:
 
     @staticmethod
     def _validate_tool_definitions(tools: list[LLMToolDefinition]) -> None:
+        """Fail closed on missing, duplicate, unsafe, or open-ended tool schemas."""
         if not tools:
             raise ValueError("at least one tool definition is required")
         names: set[str] = set()

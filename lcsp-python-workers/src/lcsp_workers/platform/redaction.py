@@ -1,3 +1,5 @@
+"""Redact credentials and raw source fragments before worker data leaves trust boundaries."""
+
 import re
 from collections.abc import Mapping, Sequence
 from typing import Any
@@ -26,12 +28,27 @@ ANTHROPIC_KEY_PATTERN = re.compile(r"\bsk-ant-[A-Za-z0-9._-]+\b")
 
 
 def redact_dict(obj: dict, depth: int = 10) -> dict:
-    """Recursively redact sensitive keys and string values from a dict."""
+    """Recursively redact sensitive keys and string values in a mapping.
+
+    Args:
+        obj: Mapping payload that may contain credentials or secret-like text.
+        depth: Maximum recursive depth inspected before failing closed.
+
+    Returns:
+        A redacted mapping that preserves non-sensitive structure where safe.
+    """
     return _redact_mapping(obj, max(depth, 0), set())
 
 
 def redact_string(text: str) -> str:
-    """Redact known secret patterns from free text."""
+    """Replace known credential patterns in free-form text.
+
+    Args:
+        text: Text that may contain tokens, API keys, or credential assignments.
+
+    Returns:
+        Sanitized text with supported secret patterns replaced by markers.
+    """
     redacted = GITHUB_TOKEN_PATTERN.sub(REDACTED_GITHUB_TOKEN, text)
     redacted = BEARER_TOKEN_PATTERN.sub("Bearer [REDACTED]", redacted)
     redacted = AWS_ACCESS_KEY_PATTERN.sub("[REDACTED:AWS_ACCESS_KEY]", redacted)
@@ -40,7 +57,18 @@ def redact_string(text: str) -> str:
 
 
 def redact_source_code(findings: list[dict]) -> list[dict]:
-    """Remove findings that contain raw source code according to a small heuristic."""
+    """Remove findings that appear to contain raw source code.
+
+    Findings retained by the heuristic are still passed through secret
+    redaction. This keeps worker callbacks focused on evidence metadata rather
+    than transmitting repository source content.
+
+    Args:
+        findings: Finding payloads produced by scanners or analyzers.
+
+    Returns:
+        Sanitized findings with source-like payloads omitted.
+    """
     redacted_findings: list[dict] = []
     for finding in findings:
         if _contains_source_code(finding):
@@ -50,6 +78,7 @@ def redact_source_code(findings: list[dict]) -> list[dict]:
 
 
 def _redact_mapping(obj: Mapping[Any, Any], depth: int, seen: set[int]) -> Any:
+    """Redact a mapping while guarding against cycles and excessive depth."""
     if depth <= 0:
         return REDACTED_MAX_DEPTH
 
@@ -73,6 +102,7 @@ def _redact_mapping(obj: Mapping[Any, Any], depth: int, seen: set[int]) -> Any:
 
 
 def _redact_value(value: Any, depth: int, seen: set[int]) -> Any:
+    """Redact one nested value according to its runtime container type."""
     if isinstance(value, str):
         return redact_string(value)
 
@@ -96,10 +126,12 @@ def _redact_value(value: Any, depth: int, seen: set[int]) -> Any:
 
 
 def _redact_assignment(match: re.Match[str]) -> str:
+    """Render a matched secret assignment while preserving its key/separator."""
     return f"{match.group('key')}{match.group('sep')}{REDACTED_VALUE}"
 
 
 def _contains_source_code(value: Any) -> bool:
+    """Recursively determine whether a payload contains source-like text."""
     if isinstance(value, str):
         return _looks_like_source_code(value)
 
@@ -113,6 +145,7 @@ def _contains_source_code(value: Any) -> bool:
 
 
 def _looks_like_source_code(text: str) -> bool:
+    """Score text against a conservative multi-language source-code heuristic."""
     normalized = text.strip()
     if not normalized:
         return False

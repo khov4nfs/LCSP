@@ -1,9 +1,13 @@
+"""Build deterministic conflict candidates from technical and wizard profiles."""
+
 from __future__ import annotations
 
 from typing import Any
 
 
 class ConflictCandidateBuilder:
+    """Detect explicit manager-answer contradictions supported by technical evidence."""
+
     def build(
         self,
         *,
@@ -11,6 +15,17 @@ class ConflictCandidateBuilder:
         wizard_profile: dict[str, Any] | None,
         has_validated_invocation: bool,
     ) -> list[dict[str, Any]]:
+        """Build conflict records when wizard answers deny detected AI use.
+
+        Args:
+            technical_profile: Aggregated technical profile from scan evidence.
+            wizard_profile: Optional manager/wizard answer profile.
+            has_validated_invocation: Whether a validated model-invocation claim exists.
+
+        Returns:
+            Conflict candidate dictionaries; empty when no material contradiction
+            can be established from the supplied profiles.
+        """
         if not wizard_profile:
             return []
 
@@ -48,4 +63,3 @@ class ConflictCandidateBuilder:
                 }
             )
         return conflicts
-

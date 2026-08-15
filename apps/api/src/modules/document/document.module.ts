@@ -11,6 +11,9 @@ import { DocumentStorageService } from "./infrastructure/storage/document-storag
 import { DocumentController } from "./presentation/http/document.controller.js";
 import { InternalDocumentController } from "./presentation/http/internal-document.controller.js";
 
+/**
+ * Wires document generation, worker callbacks, PBAC-filtered reads, and signed artifact downloads.
+ */
 @Module({
   imports: [CqrsModule, PbacModule],
   controllers: [DocumentController, InternalDocumentController],

@@ -1,3 +1,5 @@
+"""Consume final-report requests and publish guarded terminal document status."""
+
 import requests
 from lcsp_workers.platform.queue_consumer import ConsumerBase
 from lcsp_workers.platform.logging import get_logger
@@ -9,12 +11,20 @@ from .storage_uploader import StorageUploader
 
 logger = get_logger(__name__)
 
+
 class FinalReportConsumer(ConsumerBase):
+    """Generate final reports only after the upstream classification guardrail passes."""
+
     queue_name = "reporting.document-final-report-requested"
     routing_key = "document.final-report-requested"
     requires_pbac = False
 
     def __init__(self, config, llm_client: LLMGatewayClient = None):
+        """Create the consumer with the required runtime-injected LLM client.
+
+        Raises:
+            ValueError: If no configured LLM client is supplied.
+        """
         super().__init__(config)
         if llm_client is None:
             raise ValueError(
@@ -24,14 +34,21 @@ class FinalReportConsumer(ConsumerBase):
         self.generator = FinalReportGenerator(self.llm_client)
 
     def handle(self, message: dict, correlationId: str) -> None:
-        """
-        Handle document.final-report-requested event.
+        """Validate prerequisites, generate, guard, upload, and callback a final report.
+
+        Args:
+            message: Structured final-report request payload.
+            correlationId: End-to-end trace identifier for the delivery.
+
+        Upstream classification guardrail failure blocks generation before any
+        LLM call. LLM failures, overclaim detection, and upload errors are each
+        mapped to explicit terminal callback states.
         """
         logger.info("PROCESSING_FINAL_REPORT_REQUEST", correlationId=correlationId)
-        
+
         document_id = message.get("document_id", "unknown-doc-id")
         guardrail_status = message.get("guardrailStatus", "unknown")
-        
+
         # 1. Verify guardrailStatus = passed
         if guardrail_status != "passed":
             logger.warning("FINAL_REPORT_BLOCKED_GUARDRAIL", document_id=document_id, status=guardrail_status)
@@ -40,7 +57,7 @@ class FinalReportConsumer(ConsumerBase):
                 "blocked_reason": f"ClassificationResult guardrailStatus was not passed: {guardrail_status}"
             })
             return
-            
+
         assessment_name = message.get("assessment_name", "Unknown Assessment")
         assessment_context = message.get("assessment_context", "")
         technical_evidence = message.get("technical_evidence", [])
@@ -49,7 +66,7 @@ class FinalReportConsumer(ConsumerBase):
         citations = message.get("citations", [])
         limitations = message.get("limitations", "No known limitations.")
         evidence_provenance = message.get("evidence_provenance", "Audit Trail: Complete")
-        
+
         # 2. Generate Document (Markdown with LLM Executive Summary)
         try:
             content = self.generator.generate(
@@ -70,10 +87,10 @@ class FinalReportConsumer(ConsumerBase):
                 "blocked_reason": f"LLM Generation Error: {str(e)}"
             })
             return
-        
+
         # 3. Output Guardrail Check
         has_overclaim = OutputGuardrail.check(content)
-        
+
         if has_overclaim:
             logger.warning("FINAL_REPORT_GUARDRAIL_BLOCKED", document_id=document_id)
             self._submit_callback(document_id, {
@@ -81,11 +98,11 @@ class FinalReportConsumer(ConsumerBase):
                 "blocked_reason": "Output guardrail blocked due to overclaiming terminology."
             })
             return
-            
+
         # 4. Upload to Object Storage
         try:
             document_url = StorageUploader.upload_document(document_id, content)
-            
+
             # 5. Submit Callback to API
             self._submit_callback(document_id, {
                 "status": "READY",
@@ -99,11 +116,17 @@ class FinalReportConsumer(ConsumerBase):
             })
 
     def _submit_callback(self, document_id: str, payload: dict) -> None:
-        """
-        Submit results to NestJS API callback using PATCH /internal/document-requests/:id.
+        """Patch the final-report document request with its terminal result.
+
+        Args:
+            document_id: Document request identifier.
+            payload: READY, BLOCKED, or FAILED status payload.
+
+        Raises:
+            requests.RequestException: If the NestJS callback fails.
         """
         url = f"http://localhost:3000/internal/document-requests/{document_id}"
-        
+
         logger.info("SUBMITTING_FINAL_REPORT_CALLBACK", document_id=document_id, status=payload.get("status"))
         try:
             response = requests.patch(url, json=payload, timeout=10)

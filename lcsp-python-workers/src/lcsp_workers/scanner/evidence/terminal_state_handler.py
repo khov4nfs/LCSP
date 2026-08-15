@@ -5,10 +5,22 @@ from typing import Any
 
 
 class CleanupBlockedError(Exception):
+    """Raised when a scan cannot safely finish because its workspace still exists."""
+
     pass
 
 
 async def mark_terminal_state(job_id: str, quality_state: str, api_client: Any) -> None:
+    """Persist the scan terminal state with a small bounded retry budget.
+
+    Args:
+        job_id: Scan job being finalized.
+        quality_state: Evidence-quality state persisted with completion.
+        api_client: API client exposing ``mark_scan_job_complete``.
+
+    Raises:
+        RuntimeError: If all callback attempts fail.
+    """
     attempts = 0
     max_attempts = 3
     while attempts < max_attempts:
@@ -25,6 +37,17 @@ async def mark_terminal_state(job_id: str, quality_state: str, api_client: Any) 
 
 
 def verify_workspace_cleanup_sync(workspace_path: str | os.PathLike[str]) -> bool:
+    """Require extracted repository data to be deleted before terminal completion.
+
+    Args:
+        workspace_path: Temporary scan workspace expected to have been removed.
+
+    Returns:
+        ``True`` when the workspace no longer exists.
+
+    Raises:
+        CleanupBlockedError: If repository material remains on disk.
+    """
     resolved_path = Path(workspace_path)
     if resolved_path.exists():
         raise CleanupBlockedError(
@@ -34,4 +57,5 @@ def verify_workspace_cleanup_sync(workspace_path: str | os.PathLike[str]) -> boo
 
 
 async def verify_workspace_cleanup(workspace_path: str | os.PathLike[str]) -> bool:
+    """Async-compatible wrapper around the synchronous cleanup assertion."""
     return verify_workspace_cleanup_sync(workspace_path)

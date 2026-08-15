@@ -22,6 +22,26 @@ def calculate_confidence(
     material_coverage_limitations: int = 0,
     has_unresolved_path: bool = False,
 ) -> tuple[float, dict[str, float]]:
+    """Calculate a deterministic confidence score and expose its components.
+
+    The arithmetic intentionally mirrors the scanner specification component by
+    component so downstream policy logic can explain why a finding gained or lost
+    confidence instead of receiving an opaque model-style score.
+
+    Args:
+        finding_type: Registered finding type used to select base confidence.
+        has_direct_ast_cst_evidence: Whether structural parsing directly supports
+            the finding.
+        corroborating_tools: Independent tools that observed the same signal.
+        material_coverage_limitations: Count of meaningful analysis limitations.
+        has_unresolved_path: Whether the scanner could not statically resolve a path.
+
+    Returns:
+        A two-decimal confidence score in ``[0, 1]`` and the named contribution map.
+
+    Raises:
+        KeyError: If ``finding_type`` is not registered in ``FINDING_TYPES``.
+    """
     # Keep this arithmetic intentionally literal: downstream policy logic and
     # tests depend on the scanner-spec.md confidence components by name.
     base = FINDING_TYPES[finding_type]["base_confidence"]

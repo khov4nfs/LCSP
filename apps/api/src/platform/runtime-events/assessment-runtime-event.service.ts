@@ -98,12 +98,26 @@ type RuntimeEvidenceReportSnapshot = {
   createdAt: Date;
 };
 
+/**
+ * Persists privacy-safe assessment runtime events and builds workspace snapshots for live runtime observability.
+ */
 @Injectable()
 export class AssessmentRuntimeEventService {
   private readonly logger = new Logger(AssessmentRuntimeEventService.name);
 
+  /**
+   * Creates the runtime-event service with access to Prisma persistence.
+   *
+   * @param prisma - Prisma service used to persist runtime events and query scan/evidence state.
+   */
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Records the initial run-started event only when the run has no existing runtime events.
+   *
+   * @param input - Run identity, organization, assessment, stage, correlation, and summary metadata.
+   * @returns A promise that resolves after the event is recorded or skipped because the run already exists.
+   */
   async recordRunStartedIfMissing(input: EnsureRunInput): Promise<void> {
     const existing = (await this.safeFindFirst({
       where: { runId: input.runId },
@@ -122,6 +136,12 @@ export class AssessmentRuntimeEventService {
     });
   }
 
+  /**
+   * Records a run-stage transition only when a prior event exists and its stage differs from the requested stage.
+   *
+   * @param input - Run identity and target stage metadata used to detect and persist the transition.
+   * @returns A promise that resolves after the stage event is recorded or skipped when no change is needed.
+   */
   async recordRunStageChangedIfNeeded(input: EnsureRunInput): Promise<void> {
     const latest = (await this.safeFindFirst({
       where: { runId: input.runId },
@@ -141,6 +161,12 @@ export class AssessmentRuntimeEventService {
     });
   }
 
+  /**
+   * Records that an orchestration tool has started execution.
+   *
+   * @param input - Runtime event data excluding the event type and run status supplied by this method.
+   * @returns A promise that resolves after the tool-started event is persisted.
+   */
   async recordToolStarted(
     input: Omit<RecordRuntimeEventInput, "eventType" | "runStatus">,
   ): Promise<void> {
@@ -151,6 +177,12 @@ export class AssessmentRuntimeEventService {
     });
   }
 
+  /**
+   * Records that an orchestration tool completed and the run is now waiting for its next step.
+   *
+   * @param input - Runtime event data excluding the event type and run status supplied by this method.
+   * @returns A promise that resolves after the tool-completed event is persisted.
+   */
   async recordToolCompleted(
     input: Omit<RecordRuntimeEventInput, "eventType" | "runStatus">,
   ): Promise<void> {
@@ -161,6 +193,12 @@ export class AssessmentRuntimeEventService {
     });
   }
 
+  /**
+   * Records that a tool cannot continue until additional input becomes available.
+   *
+   * @param input - Runtime event data excluding the event type and run status supplied by this method.
+   * @returns A promise that resolves after the waiting-input event is persisted.
+   */
   async recordToolWaitingInput(
     input: Omit<RecordRuntimeEventInput, "eventType" | "runStatus">,
   ): Promise<void> {
@@ -171,6 +209,12 @@ export class AssessmentRuntimeEventService {
     });
   }
 
+  /**
+   * Records a failed orchestration-tool execution and marks the runtime run as failed for the event.
+   *
+   * @param input - Runtime event data excluding the event type and run status supplied by this method.
+   * @returns A promise that resolves after the tool-failed event is persisted.
+   */
   async recordToolFailed(
     input: Omit<RecordRuntimeEventInput, "eventType" | "runStatus">,
   ): Promise<void> {
@@ -181,6 +225,12 @@ export class AssessmentRuntimeEventService {
     });
   }
 
+  /**
+   * Records successful completion of an assessment runtime run.
+   *
+   * @param input - Runtime event data excluding the event type and run status supplied by this method.
+   * @returns A promise that resolves after the run-completed event is persisted.
+   */
   async recordRunCompleted(
     input: Omit<RecordRuntimeEventInput, "eventType" | "runStatus">,
   ): Promise<void> {
@@ -191,6 +241,12 @@ export class AssessmentRuntimeEventService {
     });
   }
 
+  /**
+   * Builds the workspace runtime snapshot from persisted runtime events plus current scan-job and evidence-report state.
+   *
+   * @param organizationId - Organization whose assessment runtime state should be returned.
+   * @returns Snapshot containing recent activity, derived runs, scan jobs, and evidence reports.
+   */
   async buildWorkspaceSnapshot(
     organizationId: string,
   ): Promise<AssessmentRuntimeSnapshot> {
@@ -269,6 +325,12 @@ export class AssessmentRuntimeEventService {
     };
   }
 
+  /**
+   * Sanitizes and persists one runtime event with a per-run sequence number, retrying sequence collisions up to three times.
+   *
+   * @param input - Complete runtime event data to sanitize and persist.
+   * @returns A promise that resolves after persistence, or silently degrades when the runtime-event table has not been migrated yet.
+   */
   private async recordEvent(input: RecordRuntimeEventInput): Promise<void> {
     const startedAt = input.startedAt ?? null;
     const completedAt = input.completedAt ?? null;
@@ -328,6 +390,12 @@ export class AssessmentRuntimeEventService {
     }
   }
 
+  /**
+   * Maps one persisted runtime-event row into the public activity-event contract.
+   *
+   * @param event - Persisted runtime-event row from Prisma.
+   * @returns Contract activity event with timestamps converted to ISO strings.
+   */
   private toActivityEvent(
     event: PersistedAssessmentRuntimeEvent,
   ): AssessmentRuntimeActivityEvent {
@@ -359,6 +427,12 @@ export class AssessmentRuntimeEventService {
     };
   }
 
+  /**
+   * Queries the runtime-event delegate while treating a not-yet-migrated runtime-event table as an empty result.
+   *
+   * @param args - Prisma-compatible `findFirst` arguments forwarded to the runtime-event delegate.
+   * @returns Query result, or null when the runtime-event table is unavailable.
+   */
   private async safeFindFirst(args: Record<string, unknown>): Promise<unknown> {
     try {
       return (await runtimeEventDelegate(this.prisma).findFirst(
@@ -373,6 +447,12 @@ export class AssessmentRuntimeEventService {
     }
   }
 
+  /**
+   * Queries multiple runtime events while treating a not-yet-migrated runtime-event table as an empty collection.
+   *
+   * @param args - Prisma-compatible `findMany` arguments forwarded to the runtime-event delegate.
+   * @returns Persisted runtime-event rows, or an empty list when the table is unavailable.
+   */
   private async safeFindMany(args: Record<string, unknown>) {
     try {
       return (await runtimeEventDelegate(this.prisma).findMany(
@@ -387,6 +467,12 @@ export class AssessmentRuntimeEventService {
     }
   }
 
+  /**
+   * Logs the controlled fallback used when the assessment runtime-event migration has not yet been applied.
+   *
+   * @param operation - Runtime-event database operation that encountered the missing table.
+   * @param error - Original database error used for debug-level diagnostics.
+   */
   private logRuntimeEventTableMissing(operation: string, error: unknown) {
     this.logger.warn(
       `AssessmentRuntimeEvent table missing during ${operation}; returning empty runtime activity until migration 20260813235900_add_assessment_runtime_event is applied.`,
@@ -397,6 +483,15 @@ export class AssessmentRuntimeEventService {
   }
 }
 
+/**
+ * Produces synthetic activity from scan jobs and evidence reports when equivalent persisted runtime events are not already present.
+ *
+ * @param organizationId - Organization attached to generated activity events.
+ * @param scanJobs - Recent repository scan-job snapshots.
+ * @param evidenceReports - Recent technical-evidence report snapshots.
+ * @param existingActivity - Persisted activity used to remove duplicate synthetic event IDs.
+ * @returns Synthetic activity events not represented by persisted runtime events.
+ */
 function buildSyntheticRuntimeActivity(
   organizationId: string,
   scanJobs: RuntimeScanJobSnapshot[],
@@ -416,6 +511,13 @@ function buildSyntheticRuntimeActivity(
   ].filter((event) => !existingEventIds.has(event.eventId));
 }
 
+/**
+ * Maps repository scan-job state into a synthetic runtime activity event.
+ *
+ * @param organizationId - Organization that owns the scan job.
+ * @param scanJob - Repository scan-job snapshot to convert.
+ * @returns Synthetic scan activity event suitable for the runtime feed.
+ */
 function scanJobToSyntheticRuntimeActivity(
   organizationId: string,
   scanJob: RuntimeScanJobSnapshot,
@@ -456,6 +558,13 @@ function scanJobToSyntheticRuntimeActivity(
   };
 }
 
+/**
+ * Maps a technical-evidence report into a synthetic runtime completion or failure activity event.
+ *
+ * @param organizationId - Organization that owns the evidence report.
+ * @param report - Technical-evidence report snapshot to convert.
+ * @returns Synthetic evidence-report activity event suitable for the runtime feed.
+ */
 function evidenceReportToSyntheticRuntimeActivity(
   organizationId: string,
   report: RuntimeEvidenceReportSnapshot,
@@ -494,6 +603,12 @@ function evidenceReportToSyntheticRuntimeActivity(
   };
 }
 
+/**
+ * Maps repository scan-job status to the normalized assessment runtime run status.
+ *
+ * @param status - Repository scan-job status value.
+ * @returns Runtime status used by the activity contract.
+ */
 function runtimeStatusForScanJob(status: string): AssessmentRuntimeRunStatus {
   if (status === REPOSITORY_SCAN_JOB_STATUSES.running) {
     return ASSESSMENT_RUNTIME_RUN_STATUSES.running;
@@ -511,6 +626,12 @@ function runtimeStatusForScanJob(status: string): AssessmentRuntimeRunStatus {
   return ASSESSMENT_RUNTIME_RUN_STATUSES.waiting;
 }
 
+/**
+ * Builds a concise human-readable summary for a repository scan job.
+ *
+ * @param scanJob - Repository scan-job snapshot whose status and blocked reason should be summarized.
+ * @returns Runtime summary text for the scan job.
+ */
 function scanJobSummary(scanJob: RuntimeScanJobSnapshot): string {
   const status = runtimeStatusForScanJob(scanJob.status);
   if (status === ASSESSMENT_RUNTIME_RUN_STATUSES.running) {
@@ -525,6 +646,12 @@ function scanJobSummary(scanJob: RuntimeScanJobSnapshot): string {
   return scanJob.blockedReason ?? "Repository scan is waiting";
 }
 
+/**
+ * Groups persisted activity by run and derives each run's latest stage, status, active tools, and update time.
+ *
+ * @param events - Persisted runtime events to group chronologically by run ID.
+ * @returns Derived runs sorted by most recent update first.
+ */
 function deriveRuns(
   events: PersistedAssessmentRuntimeEvent[],
 ): AssessmentRuntimeRun[] {
@@ -556,6 +683,12 @@ function deriveRuns(
   );
 }
 
+/**
+ * Derives tools that are still active after replaying a run's tool lifecycle events in order.
+ *
+ * @param events - Chronological runtime events belonging to one run.
+ * @returns Tool descriptors that have started but have not completed, failed, skipped, or begun waiting for input.
+ */
 function deriveActiveTools(
   events: PersistedAssessmentRuntimeEvent[],
 ): AssessmentRuntimeActiveTool[] {
@@ -586,6 +719,12 @@ function deriveActiveTools(
   return Array.from(active.values());
 }
 
+/**
+ * Converts a sanitized runtime summary into a Prisma JSON input value while preserving null as database null.
+ *
+ * @param value - Sanitized runtime summary value to persist.
+ * @returns Prisma-compatible JSON value or null.
+ */
 function toJsonOrNull(
   value: AssessmentRuntimeSummaryValue | null,
 ): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | null {
@@ -595,10 +734,22 @@ function toJsonOrNull(
   return value;
 }
 
+/**
+ * Detects the unique-key collision raised when concurrent writers choose the same per-run event sequence.
+ *
+ * @param error - Unknown persistence error to inspect.
+ * @returns True when the error identifies the `runId_sequence_key` constraint.
+ */
 function isUniqueSequenceViolation(error: unknown): boolean {
   return error instanceof Error && error.message.includes("runId_sequence_key");
 }
 
+/**
+ * Detects database errors caused by the assessment runtime-event table not yet existing.
+ *
+ * @param error - Unknown database error to inspect.
+ * @returns True when the error reports a missing `AssessmentRuntimeEvent` table.
+ */
 function isMissingAssessmentRuntimeEventTable(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -608,10 +759,22 @@ function isMissingAssessmentRuntimeEventTable(error: unknown): boolean {
   );
 }
 
+/**
+ * Converts an arbitrary runtime failure into the shared privacy-safe summary text.
+ *
+ * @param error - Error or thrown value to summarize.
+ * @returns Sanitized runtime failure summary.
+ */
 export function summarizeFailure(error: unknown): string {
   return summarizeRuntimeError(error);
 }
 
+/**
+ * Accesses the assessment-runtime-event Prisma delegate without requiring generated client typing at compile time.
+ *
+ * @param prisma - Prisma service or transaction client expected to expose the runtime-event delegate.
+ * @returns Runtime-event delegate supporting `findFirst`, `findMany`, and `create` operations.
+ */
 function runtimeEventDelegate(prisma: unknown) {
   return (
     prisma as {

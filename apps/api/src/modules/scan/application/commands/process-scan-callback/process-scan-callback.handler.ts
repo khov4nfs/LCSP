@@ -49,16 +49,33 @@ import { ProcessScanCallbackCommand } from "./process-scan-callback.command.js";
 const SCANNER_WORKER_ACTOR_ID = AUDIT_ACTOR_IDS.scannerWorker;
 const SCAN_CALLBACK_TRANSACTION_TIMEOUT_MS = 15_000;
 
+/**
+ * Validates scanner callbacks and atomically transitions the scan job, persists evidence, updates targeted reanalysis, and emits audit/outbox state.
+ */
 @CommandHandler(ProcessScanCallbackCommand)
 export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCallbackCommand> {
   private readonly logger = new Logger(ProcessScanCallbackHandler.name);
 
+  /**
+   * Creates the callback handler with persistence, schema-validation, and audit dependencies.
+   *
+   * @param prisma - Prisma service used to resolve and transactionally update scan/evidence state.
+   * @param validator - Validator enforcing evidence schema and privacy constraints before persistence.
+   * @param auditWriter - Audit writer used to record callbacks rejected before the transaction begins.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly validator: EvidenceSchemaValidatorService,
     private readonly auditWriter: AuditWriterService,
   ) {}
 
+  /**
+   * Processes one active scan-job callback and produces an accepted or rejected technical evidence report.
+   *
+   * @param command - Scan-job identifier, worker callback payload, and correlation context.
+   * @returns Callback acknowledgement with the persisted evidence report identifier.
+   * @throws When the scan job is missing/inactive or evidence validation fails.
+   */
   async execute(command: ProcessScanCallbackCommand): Promise<ScanCallbackDto> {
     const job = await this.prisma.repositoryScanJob.findUnique({
       where: { id: command.scanJobId },
@@ -286,6 +303,14 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
     };
   }
 
+  /**
+   * Records an auditable rejection when the callback fails schema/privacy validation before evidence persistence.
+   *
+   * @param command - Callback command that failed validation.
+   * @param job - Resolved scan-job identity and tenant context.
+   * @param error - Validation exception used to derive a stable rejection reason code.
+   * @returns A promise that resolves after the rejection audit event is written.
+   */
   private async auditValidationRejection(
     command: ProcessScanCallbackCommand,
     job: {
@@ -321,6 +346,14 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
     );
   }
 
+  /**
+   * Builds the standardized scan problem response used by callback state and lookup failures.
+   *
+   * @param command - Callback command providing the correlation identifier.
+   * @param errorCode - Stable scan-domain error code.
+   * @param status - HTTP status associated with the problem.
+   * @returns Standard problem result payload.
+   */
   private errorBody(
     command: ProcessScanCallbackCommand,
     errorCode: string,
@@ -332,6 +365,12 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
   }
 }
 
+/**
+ * Extracts a stable error code from a standardized HTTP exception, falling back to evidence-schema failure.
+ *
+ * @param error - Validation error to inspect.
+ * @returns Error code suitable for the audit rejection reason.
+ */
 function errorCode(error: unknown): string {
   if (error instanceof HttpException) {
     const response = error.getResponse();

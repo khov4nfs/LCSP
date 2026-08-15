@@ -1,3 +1,11 @@
+"""Bootstrap LCSP worker consumers and their runtime dependencies.
+
+This module resolves a consumer class from the CLI target, injects optional
+PBAC, agentic-tool, and LLM dependencies based on the consumer constructor,
+and starts the selected RabbitMQ consumer without coupling individual workers
+to process-level configuration code.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -24,6 +32,18 @@ from lcsp_workers.platform.queue_consumer import ConsumerBase
 
 
 def _load_consumer(target: str) -> Type[ConsumerBase]:
+    """Resolve and validate a worker consumer class from an import target.
+
+    Args:
+        target: Import target in ``module.path:ClassName`` format.
+
+    Returns:
+        The resolved ``ConsumerBase`` subclass.
+
+    Raises:
+        ValueError: If the target does not use the required module/class syntax.
+        TypeError: If the resolved object is not a ``ConsumerBase`` subclass.
+    """
     module_name, separator, class_name = target.partition(":")
     if not separator or not module_name or not class_name:
         raise ValueError(
@@ -38,6 +58,18 @@ def _load_consumer(target: str) -> Type[ConsumerBase]:
 
 
 def _build_consumer(target: str) -> ConsumerBase:
+    """Construct a consumer and inject only the dependencies it declares.
+
+    Constructor inspection keeps worker implementations lightweight: PBAC,
+    agentic-tool resolution, and LLM clients are created only when the selected
+    consumer exposes matching constructor parameters.
+
+    Args:
+        target: Import target identifying the consumer class to instantiate.
+
+    Returns:
+        A configured worker consumer ready to run.
+    """
     config = load_config()
     consumer_type = _load_consumer(target)
     constructor = inspect.signature(consumer_type)
@@ -80,6 +112,19 @@ def _build_consumer(target: str) -> ConsumerBase:
 
 
 def _build_llm_client(config):
+    """Build the budget-aware primary/fallback LLM client when enabled.
+
+    Providers without credentials are ignored. Returning ``None`` deliberately
+    preserves deterministic worker behavior when LLM runtime is disabled or no
+    usable provider has been configured.
+
+    Args:
+        config: Loaded worker configuration containing LLM runtime settings.
+
+    Returns:
+        A ``PrimaryThenFallbackLLMClient`` when at least one provider is
+        available; otherwise ``None``.
+    """
     runtime = config.llm_runtime
     if not runtime.enabled:
         return None
@@ -118,6 +163,7 @@ def _build_llm_client(config):
 
 
 def main() -> None:
+    """Parse the worker target from the CLI and run the configured consumer."""
     parser = argparse.ArgumentParser(
         description="Run one LCSP RabbitMQ worker consumer."
     )

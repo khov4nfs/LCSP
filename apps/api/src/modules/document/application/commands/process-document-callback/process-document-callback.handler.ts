@@ -28,13 +28,29 @@ import type {
 } from "../../contracts/document/document-callback.contract.js";
 import { ProcessDocumentCallbackCommand } from "./process-document-callback.command.js";
 
+/**
+ * Applies worker document-generation callbacks to persisted requests and records the resulting audit event.
+ */
 @CommandHandler(ProcessDocumentCallbackCommand)
 export class ProcessDocumentCallbackHandler implements ICommandHandler<ProcessDocumentCallbackCommand> {
+  /**
+   * Creates the callback handler with document persistence and audit dependencies.
+   *
+   * @param prisma - Prisma service used to locate/update document requests and persist the callback audit event.
+   * @param auditWriter - Audit writer dependency available for document audit flows.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditWriter: AuditWriterService,
   ) {}
 
+  /**
+   * Resolves the target document request, applies worker status/output fields, and writes an audit record.
+   *
+   * @param command - Worker callback payload and fallback correlation identifier.
+   * @returns Callback acknowledgement containing the processed document request identifier.
+   * @throws A document-not-found problem when the callback references an unknown request.
+   */
   async execute(
     command: ProcessDocumentCallbackCommand,
   ): Promise<DocumentCallbackDto> {

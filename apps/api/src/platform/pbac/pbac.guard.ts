@@ -46,10 +46,21 @@ import { isSensitiveActionVerificationFresh } from "../security/sensitive-route-
 
 const DECISION_LOG_RESOURCE_TYPE = AUDIT_RESOURCE_TYPES.httpRoute;
 
+/**
+ * Enforces route PBAC metadata by validating session context, membership, policy actions, and optional sensitive-route re-authentication.
+ */
 @Injectable()
 export class PbacGuard implements CanActivate {
   private readonly logger = new Logger(PbacGuard.name);
 
+  /**
+   * Creates the guard with metadata lookup, context loading, policy evaluation, and decision logging dependencies.
+   *
+   * @param reflector - Nest reflector used to read route and controller authorization metadata.
+   * @param loader - PBAC context loader that validates session, MFA, membership, and policy state.
+   * @param evaluator - Deterministic evaluator used to decide requested PBAC actions.
+   * @param decisions - Repository used to persist authorization decision logs.
+   */
   constructor(
     private readonly reflector: Reflector,
     private readonly loader: PbacContextLoader,
@@ -58,6 +69,13 @@ export class PbacGuard implements CanActivate {
     private readonly decisions: AuthorizationDecisionRepository,
   ) {}
 
+  /**
+   * Authorizes an incoming HTTP request from route metadata and attaches the resolved PBAC context when allowed.
+   *
+   * @param context - Nest execution context containing handler metadata and the incoming HTTP request.
+   * @returns True when all required session, membership, policy, and sensitive-route checks succeed.
+   * @throws A standardized authentication or PBAC problem when any required check fails.
+   */
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const metadata = this.reflector.getAllAndOverride<PbacMetadata | undefined>(
       PBAC_METADATA_KEY,
@@ -312,6 +330,12 @@ export class PbacGuard implements CanActivate {
     return true;
   }
 
+  /**
+   * Extracts a bearer token from the request Authorization header without accepting alternate schemes.
+   *
+   * @param request - Authenticated-request shape containing HTTP headers.
+   * @returns Bearer token value, or null when the header is missing or malformed.
+   */
   private extractToken(request: AuthenticatedRequest): string | null {
     const header = request.headers?.authorization;
     if (typeof header !== "string") return null;
@@ -320,6 +344,13 @@ export class PbacGuard implements CanActivate {
     return token;
   }
 
+  /**
+   * Enforces recent sensitive-action verification for routes marked as requiring re-authentication.
+   *
+   * @param input - Requirement flag, session verification timestamp, resource/action context, policy metadata, and correlation ID.
+   * @returns A promise that resolves when re-authentication is unnecessary or still fresh.
+   * @throws A standardized re-auth-required problem when sensitive verification is stale or absent.
+   */
   private async enforceSensitiveReauth(input: {
     required: boolean;
     session: {
@@ -365,6 +396,14 @@ export class PbacGuard implements CanActivate {
     );
   }
 
+  /**
+   * Maps PBAC context-loading denial reasons to the external authentication/PBAC exception contract.
+   *
+   * @param denial - Context-loader denial reason and optional MFA enrollment metadata.
+   * @param correlationId - Correlation identifier attached to the resulting problem.
+   * @param membershipMissingAsPbacDenied - Whether missing membership should be hidden behind a generic PBAC denial.
+   * @returns HTTP exception representing the appropriate external denial.
+   */
   private exceptionFor(
     denial:
       | { reason: PbacContextDenialReason; mfaEnrolled?: boolean }
@@ -409,13 +448,24 @@ export class PbacGuard implements CanActivate {
     }
   }
 
+  /**
+   * Creates the generic forbidden exception used when detailed PBAC denial information must not be exposed.
+   *
+   * @param correlationId - Correlation identifier attached to the problem response.
+   * @returns Standard PBAC-denied HTTP exception.
+   */
   private pbacDenied(correlationId: string): HttpException {
     return problemException(AUTH_ERROR_CODES.pbacDenied, correlationId, {
       status: HttpStatus.FORBIDDEN,
     });
   }
 
-  /** Never throws — a decision-log write failure must not change the allow/deny outcome. */
+  /**
+   * Appends an authorization decision log without allowing audit-log failures to change the authorization outcome.
+   *
+   * @param input - Actor, session, organization, resource, action, decision, policy, reason, and correlation metadata.
+   * @returns A promise that always resolves after the append succeeds or its failure is logged.
+   */
   private async recordDecision(input: {
     actorId: string | null;
     sessionId: string | null;
@@ -450,10 +500,22 @@ export class PbacGuard implements CanActivate {
   }
 }
 
+/**
+ * Reads a subject or route attribute only when its runtime value is a string.
+ *
+ * @param value - Unknown attribute value to inspect.
+ * @returns String value when valid; otherwise undefined.
+ */
 function readStringAttribute(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+/**
+ * Normalizes a correlation header to one non-empty string value.
+ *
+ * @param value - Raw HTTP header value.
+ * @returns First non-empty string value, or null when absent.
+ */
 function headerString(value: string | string[] | undefined): string | null {
   if (typeof value === "string" && value.trim().length > 0) {
     return value;
@@ -464,6 +526,13 @@ function headerString(value: string | string[] | undefined): string | null {
   return null;
 }
 
+/**
+ * Derives a stable, human-readable authorization resource identifier from common route parameters or request metadata.
+ *
+ * @param request - Incoming request containing route params, method, route path, and original URL.
+ * @param fallbackAction - Action identifier used when no more specific resource can be derived.
+ * @returns Resource identifier used in authorization decision logs.
+ */
 function requestResourceId(
   request: AuthenticatedRequest,
   fallbackAction: string,

@@ -29,15 +29,31 @@ export type SnapshotArchiveStreamResult = {
   stream: NodeJS.ReadableStream;
 };
 
+/**
+ * Claims an eligible scan job and streams the exact pinned GitHub repository archive associated with its snapshot.
+ */
 @QueryHandler(StreamSnapshotArchiveQuery)
 export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapshotArchiveQuery> {
   private readonly logger = new Logger(StreamSnapshotArchiveHandler.name);
 
+  /**
+   * Creates the archive-stream handler with persistence and GitHub App access.
+   *
+   * @param prisma - Prisma service used to validate scan/snapshot/connection state and atomically claim queued jobs.
+   * @param githubAppClient - GitHub App client used to download the repository archive for the pinned commit.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly githubAppClient: GitHubAppClient,
   ) {}
 
+  /**
+   * Validates scan-to-snapshot binding, claims queued work, resolves the active GitHub installation, and returns the archive stream.
+   *
+   * @param query - Snapshot identifier, scan-job identifier, and correlation context.
+   * @returns Repository archive stream metadata for the exact pinned commit.
+   * @throws When scan/snapshot/connection state is inconsistent or GitHub archive retrieval fails.
+   */
   async execute(
     query: StreamSnapshotArchiveQuery,
   ): Promise<SnapshotArchiveStreamResult> {
@@ -175,6 +191,12 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
   }
 }
 
+/**
+ * Converts a GitHub archive retrieval failure into a safe log reason without serializing the original error object.
+ *
+ * @param error - Unknown error raised by the GitHub archive client.
+ * @returns GitHub client message when available, otherwise a stable unknown-failure label.
+ */
 function archiveFailureReason(error: unknown): string {
   if (error instanceof GitHubAppClientError) {
     return error.message;
@@ -183,6 +205,12 @@ function archiveFailureReason(error: unknown): string {
   return "github_repository_archive_unknown_failure";
 }
 
+/**
+ * Extracts the upstream GitHub HTTP status from a typed archive-client error.
+ *
+ * @param error - Unknown archive retrieval error.
+ * @returns GitHub HTTP status, or null for non-client errors.
+ */
 function archiveFailureStatus(error: unknown): number | null {
   return error instanceof GitHubAppClientError ? error.status : null;
 }

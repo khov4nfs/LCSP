@@ -24,14 +24,31 @@ import { RequestGapAnalysisCommand } from "./request-gap-analysis.command.js";
 
 const DOCUMENT_REQUEST_LOCK_PREFIX = "document-gap-analysis";
 
+/**
+ * Queues gap-analysis generation after classification is present and guardrails pass, while preventing duplicate active requests.
+ */
 @CommandHandler(RequestGapAnalysisCommand)
 export class RequestGapAnalysisHandler implements ICommandHandler<RequestGapAnalysisCommand> {
+  /**
+   * Creates the handler with persistence, outbox, and audit dependencies.
+   *
+   * @param prisma - Prisma service used for assessment/classification checks and transactional request creation.
+   * @param outboxRepository - Outbox used to dispatch gap-analysis generation work.
+   * @param auditWriter - Audit writer used to record document and assessment-level request events.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly outboxRepository: OutboxRepository,
     private readonly auditWriter: AuditWriterService,
   ) {}
 
+  /**
+   * Validates assessment/classification readiness, reserves one active request, then publishes and audits the generation request.
+   *
+   * @param command - Assessment, organization, requester, and correlation context for the gap-analysis request.
+   * @returns Queued gap-analysis document request metadata.
+   * @throws When the assessment/classification is unavailable, guardrails have not passed, or an active request already exists.
+   */
   async execute(command: RequestGapAnalysisCommand): Promise<{
     document_request_id: string;
     status: string;
@@ -187,6 +204,12 @@ export class RequestGapAnalysisHandler implements ICommandHandler<RequestGapAnal
   }
 }
 
+/**
+ * Checks whether a persisted classification guardrail status resolves to the passed contract state.
+ *
+ * @param status - Prisma classification guardrail status to normalize.
+ * @returns True when gap-analysis generation is permitted by the classification guardrail.
+ */
 function hasPassedGuardrail(
   status: Parameters<typeof fromPrismaClassificationGuardrailStatus>[0],
 ): boolean {

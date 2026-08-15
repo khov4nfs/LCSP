@@ -1,3 +1,5 @@
+"""Consume official legal-source ingest commands and register immutable source snapshots."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -22,13 +24,19 @@ LEGAL_SOURCE_INGEST_QUEUE = "lcsp.legal-source-ingest.v1"
 
 
 class SnapshotFetcher(Protocol):
+    """Abstraction for downloading and validating one official source snapshot."""
+
     def fetch(
         self, request: OfficialSourceSnapshotRequest
-    ): ...
+    ):
+        """Fetch a snapshot for the supplied official-source request."""
+        ...
 
 
 @dataclass(frozen=True)
 class LegalSourceIngestEnvelope:
+    """Validated command fields needed to snapshot and register an official source."""
+
     document_id: str
     catalog_source_ref: str
     admin_catalog_version: str
@@ -43,6 +51,8 @@ class LegalSourceIngestEnvelope:
 
 
 class LegalSourceIngestConsumer(ConsumerBase):
+    """Fetch an official source into a temporary snapshot and register its provenance."""
+
     queue_name = LEGAL_SOURCE_INGEST_QUEUE
     routing_key = LEGAL_SOURCE_INGEST_COMMAND
     requires_pbac = False
@@ -55,6 +65,7 @@ class LegalSourceIngestConsumer(ConsumerBase):
         api_client: WorkerApiClient | None = None,
         snapshot_fetcher: SnapshotFetcher | None = None,
     ) -> None:
+        """Create the consumer with injectable API and snapshot-fetching adapters."""
         super().__init__(config, pbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
@@ -63,6 +74,19 @@ class LegalSourceIngestConsumer(ConsumerBase):
         self._snapshot_fetcher = snapshot_fetcher or OfficialSourceSnapshotFetcher()
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
+        """Validate the command, fetch the official source, and register the snapshot.
+
+        Downloaded bytes live only in a temporary directory during validation and
+        registration. The command carries expected legal-document identity so the
+        snapshot layer can reject a source that does not match the catalog record.
+
+        Args:
+            message: Legal-source ingest command envelope.
+            correlationId: End-to-end trace identifier for the delivery.
+
+        Raises:
+            NonRetryableWorkerError: If mandatory command/identity fields are invalid.
+        """
         envelope = self._read_envelope(message)
         with TemporaryDirectory(prefix="lcsp-legal-source-") as temp_dir:
             result = self._snapshot_fetcher.fetch(
@@ -96,6 +120,7 @@ class LegalSourceIngestConsumer(ConsumerBase):
         )
 
     def _read_envelope(self, message: dict[str, Any]) -> LegalSourceIngestEnvelope:
+        """Normalize and validate the system command into a typed ingest envelope."""
         expected_identity = message.get("expectedIdentity")
         if not isinstance(expected_identity, dict):
             raise NonRetryableWorkerError("legal source ingest expectedIdentity is invalid")
@@ -146,6 +171,7 @@ class LegalSourceIngestConsumer(ConsumerBase):
 
     @staticmethod
     def _read_required_string(container: dict[str, Any], *keys: str) -> str:
+        """Read the first non-empty string alias or raise a terminal command error."""
         for key in keys:
             value = container.get(key)
             if isinstance(value, str) and value.strip():
@@ -154,6 +180,7 @@ class LegalSourceIngestConsumer(ConsumerBase):
 
     @staticmethod
     def _read_optional_string(container: dict[str, Any], *keys: str) -> str | None:
+        """Read the first non-empty optional string alias."""
         for key in keys:
             value = container.get(key)
             if isinstance(value, str) and value.strip():

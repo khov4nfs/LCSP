@@ -53,6 +53,8 @@ AI_PACKAGE_REGISTRY = {
 
 @dataclass(frozen=True)
 class DependencyUsageFact:
+    """One tool's observation about how a package appears in the repository."""
+
     package_name: str
     version: str | None
     ecosystem: str
@@ -64,6 +66,8 @@ class DependencyUsageFact:
 
 @dataclass(frozen=True)
 class PackageDependency:
+    """Normalized package record combining SBOM identity and usage observations."""
+
     name: str
     version: str | None
     ecosystem: str
@@ -74,9 +78,11 @@ class PackageDependency:
 
 
 def normalize_package_name(name: str) -> str:
+    """Canonicalize package spelling before cross-tool matching."""
     return name.strip().lower().replace("_", "-")
 
 
 def is_ai_package(name: str) -> bool:
+    """Return whether a package is in the deterministic AI dependency registry."""
     normalized = normalize_package_name(name)
     return normalized in AI_PACKAGE_REGISTRY

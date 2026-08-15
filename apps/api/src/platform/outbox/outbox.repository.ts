@@ -36,11 +36,25 @@ interface OutboxRow {
   createdAt: Date;
 }
 
+/**
+ * Encapsulates transactional outbox persistence, delivery-state updates, and targeted-reanalysis dispatch reservation.
+ */
 @Injectable()
 export class OutboxRepository {
+  /**
+   * Creates the repository with the application Prisma client.
+   *
+   * @param prisma - Prisma service used for outbox and targeted-reanalysis database operations.
+   */
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Inserts a new pending OutboxMessage; the publisher poller picks it up separately. */
+  /**
+   * Inserts a new pending outbox message; the publisher poller delivers it separately.
+   *
+   * @param input - Aggregate and event payload to enqueue.
+   * @param tx - Optional existing Prisma transaction in which the enqueue must participate.
+   * @returns Identifier of the newly created outbox message.
+   */
   async enqueue(
     input: OutboxMessageInput,
     tx?: Prisma.TransactionClient,
@@ -65,9 +79,12 @@ export class OutboxRepository {
   }
 
   /**
-   * Selects up to `batchSize` pending messages with SELECT ... FOR UPDATE SKIP LOCKED,
-   * then runs `handler` before committing — so the row lock is held for the duration of
-   * the publish attempt, preventing a second instance from picking up the same message.
+   * Locks an eligible pending batch with `FOR UPDATE SKIP LOCKED` and executes a handler before the transaction commits.
+   * The row locks remain held while `handler` runs, preventing another publisher instance from selecting the same messages concurrently.
+   *
+   * @param batchSize - Maximum number of deliverable messages to lock in one transaction.
+   * @param handler - Callback that processes the locked entities using the same Prisma transaction.
+   * @returns The handler result, or null when no eligible outbox messages are available.
    */
   async withPendingBatch<T>(
     batchSize: number,
@@ -106,6 +123,14 @@ export class OutboxRepository {
     });
   }
 
+  /**
+   * Marks an outbox message as successfully published within the active transaction.
+   *
+   * @param tx - Prisma transaction holding the outbox row lock.
+   * @param id - Outbox message identifier.
+   * @param publishedAt - Timestamp at which publication succeeded.
+   * @returns A promise that resolves after the delivery state is updated.
+   */
   async markPublished(
     tx: Prisma.TransactionClient,
     id: string,
@@ -120,6 +145,18 @@ export class OutboxRepository {
     });
   }
 
+  /**
+   * Records a failed publication attempt and transitions the message to retryable failure or DLQ state.
+   *
+   * @param tx - Prisma transaction holding the outbox row lock.
+   * @param id - Outbox message identifier.
+   * @param attempts - Updated number of attempts after the failure.
+   * @param maxAttempts - Maximum attempts allowed before entering the DLQ.
+   * @param errorMessage - Delivery error message stored in bounded form.
+   * @param now - Timestamp of the failed attempt.
+   * @param nextAttemptAt - Scheduled retry time, or null for a terminal DLQ failure.
+   * @returns A promise that resolves after failure state is persisted.
+   */
   async markFailure(
     tx: Prisma.TransactionClient,
     id: string,
@@ -145,9 +182,14 @@ export class OutboxRepository {
   }
 
   /**
-   * Keeps a targeted-reanalysis request observable while its command is being
-   * published. This is deliberately in the same outbox transaction as
-   * `markFailure`, so an outbox DLQ cannot leave a request appearing queued.
+   * Keeps a targeted-reanalysis request and checkpoint observable while its command publication is retrying or exhausted.
+   * This update intentionally runs in the same outbox transaction as `markFailure`, so an outbox message entering DLQ cannot leave the request appearing queued.
+   *
+   * @param tx - Prisma transaction shared with the outbox failure update.
+   * @param requestId - Targeted-reanalysis request identifier represented by the message.
+   * @param attempts - Updated API-side publication-attempt count.
+   * @param terminalFailureCode - Safe failure code when retries are exhausted; null while retryable.
+   * @returns A promise that resolves after request and checkpoint state are synchronized.
    */
   async recordTargetedReanalysisPublishFailure(
     tx: Prisma.TransactionClient,
@@ -190,9 +232,13 @@ export class OutboxRepository {
   }
 
   /**
-   * Reserves one of an organization's two targeted-reanalysis worker slots
-   * before AMQP publication. The advisory lock serializes reservations for one
-   * organization without globally serializing unrelated tenants.
+   * Atomically reserves one of an organization's targeted-reanalysis worker slots before AMQP publication.
+   * The organization-scoped PostgreSQL advisory lock serializes competing reservations for the same tenant without globally serializing unrelated organizations.
+   * Capacity is enforced by `TARGETED_REANALYSIS_CAPACITY_POLICY.maxRunningPerOrganization` rather than by this method assuming a hard-coded slot count.
+   *
+   * @param tx - Prisma transaction used for the organization-scoped advisory lock and state transition.
+   * @param requestId - Targeted-reanalysis request that should be dispatched.
+   * @returns True when the request is already dispatched or successfully reserved; otherwise false.
    */
   async reserveTargetedReanalysisDispatch(
     tx: Prisma.TransactionClient,
@@ -247,6 +293,11 @@ export class OutboxRepository {
     return claimed.count === 1;
   }
 
+  /**
+   * Lists outbox messages currently in the dead-letter queue, newest first.
+   *
+   * @returns Rehydrated DLQ message entities.
+   */
   async findDlqMessages(): Promise<OutboxMessageEntity[]> {
     const rows = await this.prisma.outboxMessage.findMany({
       where: { status: toPrismaOutboxStatus(OUTBOX_STATUSES.dlq) },
@@ -262,6 +313,12 @@ export class OutboxRepository {
     );
   }
 
+  /**
+   * Finds a single outbox message by its identifier.
+   *
+   * @param id - Outbox message identifier to look up.
+   * @returns Rehydrated message entity, or null when no row exists.
+   */
   async findMessageById(id: string): Promise<OutboxMessageEntity | null> {
     const row = await this.prisma.outboxMessage.findUnique({
       where: { id },
@@ -275,6 +332,12 @@ export class OutboxRepository {
     });
   }
 
+  /**
+   * Resets a DLQ message to a clean pending state so the publisher can replay it.
+   *
+   * @param id - Outbox message identifier to reset.
+   * @returns A promise that resolves after retry metadata is cleared.
+   */
   async resetMessageForReplay(id: string): Promise<void> {
     await this.prisma.outboxMessage.update({
       where: { id },
@@ -287,6 +350,12 @@ export class OutboxRepository {
     });
   }
 
+  /**
+   * Permanently removes an outbox message by identifier.
+   *
+   * @param id - Outbox message identifier to delete.
+   * @returns A promise that resolves after the row is removed.
+   */
   async deleteMessage(id: string): Promise<void> {
     await this.prisma.outboxMessage.delete({
       where: { id },

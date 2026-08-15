@@ -11,6 +11,13 @@ const templateDirPaths = [
 
 const templateCache = new Map<string, string>();
 
+/**
+ * Renders an HTML mail template by replacing escaped `{{variable}}` placeholders.
+ *
+ * @param templateName - File name of the mail template to render.
+ * @param variables - Placeholder values keyed by template variable name.
+ * @returns Rendered template HTML with all supplied values HTML-escaped.
+ */
 export function renderMailTemplate(
   templateName: string,
   variables: Record<string, string>,
@@ -23,6 +30,12 @@ export function renderMailTemplate(
   );
 }
 
+/**
+ * Loads a template from disk once and reuses the cached content for later renders.
+ *
+ * @param templateName - File name of the template to load.
+ * @returns Raw template content.
+ */
 function getTemplate(templateName: string): string {
   const cached = templateCache.get(templateName);
   if (cached) {
@@ -35,6 +48,12 @@ function getTemplate(templateName: string): string {
   return template;
 }
 
+/**
+ * Resolves a mail template against the supported runtime template directories.
+ *
+ * @param templateName - File name of the template to resolve.
+ * @returns Absolute path to the first existing template, or the primary expected path.
+ */
 function resolveTemplatePath(templateName: string): string {
   for (const templateDirPath of templateDirPaths) {
     const templatePath = resolve(templateDirPath, templateName);
@@ -46,6 +65,12 @@ function resolveTemplatePath(templateName: string): string {
   return resolve(templateDirPaths[0], templateName);
 }
 
+/**
+ * Escapes characters that could be interpreted as HTML before inserting user-controlled text.
+ *
+ * @param value - Plain-text value to escape.
+ * @returns HTML-safe representation of the supplied value.
+ */
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")

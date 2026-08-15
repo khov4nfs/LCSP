@@ -1,3 +1,5 @@
+"""Evaluate authored legal-rule facts against evidence-backed verified profile facts deterministically."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -13,6 +15,8 @@ UNKNOWN_FACT_VALUES = {
 
 @dataclass(slots=True)
 class RuleEvaluationResult:
+    """Applicability decision plus matched/blocking fact audit details."""
+
     rule_id: str
     status: str
     confidence: float
@@ -22,7 +26,7 @@ class RuleEvaluationResult:
 
 
 class RuleApplicabilityEvaluator:
-    """Deterministic evaluation of legal rules against verified profile facts."""
+    """Apply legal rule fact predicates without LLM inference or scalar coercion."""
 
     def evaluate_rule(
         self,
@@ -30,6 +34,12 @@ class RuleApplicabilityEvaluator:
         rule: dict[str, Any],
         verified_profile: dict[str, Any],
     ) -> RuleEvaluationResult:
+        """Evaluate one legal rule against evidence-backed verified-profile facts.
+
+        Required facts without eligible evidence are unresolved rather than proof
+        of applicability/non-applicability. Blocking facts take precedence, and
+        unknown-fact behavior follows the rule's authored policy.
+        """
         rule_id = str(rule.get("legalRuleId") or "unknown")
         merged_profile = verified_profile.get("mergedProfile") or {}
         if not isinstance(merged_profile, dict):
@@ -185,6 +195,7 @@ class RuleApplicabilityEvaluator:
 
 
 def blocked_invalid_rule(rule_id: str, reason: str) -> RuleEvaluationResult:
+    """Fail closed for malformed/incomplete rule definitions."""
     return RuleEvaluationResult(
         rule_id=rule_id,
         status="BLOCKED_UNKNOWN_FACT",
@@ -200,6 +211,7 @@ def is_valid_fact_definition(
     *,
     expected_value_optional: bool = False,
 ) -> bool:
+    """Validate the minimum authored structure required for a fact predicate."""
     if not isinstance(value, dict):
         return False
     field = value.get("field")
@@ -209,12 +221,14 @@ def is_valid_fact_definition(
 
 
 def has_evidence_refs(value: Any) -> bool:
+    """Return whether a fact has at least one non-empty eligible evidence reference."""
     return isinstance(value, list) and any(
         isinstance(ref, str) and bool(ref.strip()) for ref in value
     )
 
 
 def is_unknown_fact(value: Any) -> bool:
+    """Recognize explicit unknown markers recursively in scalar/list fact values."""
     if value is None:
         return True
     if isinstance(value, str):
@@ -226,14 +240,12 @@ def is_unknown_fact(value: Any) -> bool:
 
 
 def fact_matches(actual_value: Any, expected_value: Any) -> bool:
-    """Match rule facts without requiring exact list equality.
+    """Match authored fact expectations without requiring exact list equality.
 
     Legal profile list fields are additive (for example harm categories), so a
-    rule requiring one category must still match when the verified profile has
-    other categories as well. Scalar expectations also match membership in an
-    actual list. No coercion between unrelated scalar types is performed.
+    rule requiring one category still matches when the verified profile has
+    additional categories. No coercion between unrelated scalar types occurs.
     """
-
     if isinstance(expected_value, list):
         if not isinstance(actual_value, list):
             return False

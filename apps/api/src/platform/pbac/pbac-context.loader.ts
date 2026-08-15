@@ -36,12 +36,19 @@ export type PbacContextResult =
     };
 
 /**
- * Orchestrates the guard's DB reads (session -> MFA -> membership -> policy),
- * reusing auth-workspace's existing repositories instead of re-querying Prisma
- * directly, so session/membership semantics can't drift between the two paths.
+ * Loads the authenticated PBAC context in session → MFA → membership → policy order.
+ * Reuses the auth-workspace repositories instead of querying Prisma directly so session and membership semantics remain consistent across authentication and PBAC paths.
  */
 @Injectable()
 export class PbacContextLoader {
+  /**
+   * Creates the loader with the repositories needed to resolve authorization context.
+   *
+   * @param sessions - Session repository used to validate the presented bearer token.
+   * @param memberships - Membership repository used to resolve the user's organization membership.
+   * @param policies - Policy repository used to resolve the membership's pinned policy version.
+   * @param mfaEnrollments - MFA repository used to determine whether verified MFA is required for the session.
+   */
   constructor(
     @Inject(PrismaSessionRepository)
     private readonly sessions: SessionRepository,
@@ -53,6 +60,14 @@ export class PbacContextLoader {
     private readonly mfaEnrollments: MfaEnrollmentRepository,
   ) {}
 
+  /**
+   * Validates a session token and resolves the active membership plus policy required for PBAC evaluation.
+   *
+   * @param token - Raw bearer token presented by the request.
+   * @param now - Current time in milliseconds used to evaluate session activity.
+   * @param options - Loading options, including whether a pending-MFA session is temporarily acceptable.
+   * @returns A resolved PBAC context or a fail-closed denial reason.
+   */
   async load(
     token: string,
     now: number,

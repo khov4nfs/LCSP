@@ -1,3 +1,5 @@
+"""Orchestrate canonical input loading, deterministic claim rules, optional summary assistance, and persistence."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
@@ -21,6 +23,8 @@ from .ai_usage_flow_rule_engine import (
 
 @dataclass(frozen=True)
 class AIUsageFlowGraphResult:
+    """Persisted AIUsageFlow result plus callback/workflow execution metadata."""
+
     flow: AIUsageFlow
     callback_payload: AIUsageFlowCallbackPayload
     workflow_run_id: str
@@ -28,6 +32,8 @@ class AIUsageFlowGraphResult:
 
 
 class AIUsageFlowLangGraphState(TypedDict, total=False):
+    """State exchanged between AIUsageFlow LangGraph nodes."""
+
     message: dict[str, Any]
     correlationId: str
     workflow_run_id: str
@@ -43,6 +49,13 @@ class AIUsageFlowLangGraphState(TypedDict, total=False):
 
 
 class AIUsageFlowGraph:
+    """Build AI usage claims with deterministic rules and bounded summary assistance.
+
+    The rule engine owns claim creation and lifecycle decisions. Optional LLM
+    assistance may update only wizard-authoritative summary fields and is rejected
+    when it disagrees with the canonical wizard profile.
+    """
+
     def __init__(
         self,
         *,
@@ -52,6 +65,7 @@ class AIUsageFlowGraph:
         checkpoint_url: str | None = None,
         logger=None,
     ) -> None:
+        """Create the graph with API, deterministic rules, and optional proposer."""
         self._api_client = api_client
         self._rule_engine = rule_engine
         self._proposer = proposer
@@ -62,6 +76,15 @@ class AIUsageFlowGraph:
     def run(
         self, *, message: dict[str, Any], correlationId: str
     ) -> AIUsageFlowGraphResult:
+        """Execute one AIUsageFlow workflow from a technical-profile event.
+
+        Args:
+            message: Technical-profile-ready event payload.
+            correlationId: End-to-end trace identifier.
+
+        Returns:
+            Flow, callback payload, workflow ID, and graph execution state.
+        """
         technical_profile_id = self.required_message_id(message, "technicalProfileId")
         assessment_id = self.required_message_id(message, "assessmentId")
         workflow_run_id = self.workflow_run_id(
@@ -101,6 +124,11 @@ class AIUsageFlowGraph:
         )
 
     def _build_graph(self, checkpointer=None):
+        """Compile the load → rule → optional proposal → finalize → persist graph.
+
+        Raises:
+            RuntimeError: If LangGraph is unavailable in the worker runtime.
+        """
         try:
             from langgraph.graph import END, START, StateGraph
         except ImportError as exc:
@@ -121,16 +149,19 @@ class AIUsageFlowGraph:
         return graph.compile(checkpointer=checkpointer)
 
     def _get_app(self):
+        """Lazily build and cache the non-checkpointed graph application."""
         if self._app is None:
             self._app = self._build_graph()
         return self._app
 
     def _runtime_app(self, checkpointer):
+        """Return a checkpoint-aware graph or reuse the cached stateless graph."""
         if checkpointer is None:
             return self._get_app()
         return self._build_graph(checkpointer=checkpointer)
 
     def _node_load_inputs(self, state: AIUsageFlowLangGraphState):
+        """Load canonical technical evidence and optional wizard context from API."""
         technical_profile = self._api_client.get_accepted_technical_profile(
             state["technical_profile_id"]
         )
@@ -169,6 +200,7 @@ class AIUsageFlowGraph:
         }
 
     def _node_rule_engine(self, state: AIUsageFlowLangGraphState):
+        """Generate authoritative claims/status using deterministic rule logic."""
         flow = self._rule_engine.generate(
             technical_profile=state["technical_profile"],
             evidence_report=state["evidence_report"],
@@ -193,6 +225,7 @@ class AIUsageFlowGraph:
     def workflow_run_id(
         message: dict[str, Any], correlationId: str, technical_profile_id: str
     ) -> str:
+        """Use an explicit workflow ID or derive one from artifact and trace IDs."""
         explicit = message.get("workflow_run_id")
         if explicit:
             return str(explicit)
@@ -200,6 +233,7 @@ class AIUsageFlowGraph:
 
     @staticmethod
     def required_message_id(message: dict[str, Any], key: str) -> str:
+        """Resolve a required camelCase event field from camel/snake-case aliases."""
         snake_key = key[0].lower() + "".join(
             f"_{char.lower()}" if char.isupper() else char for char in key[1:]
         )
@@ -210,6 +244,7 @@ class AIUsageFlowGraph:
 
     @staticmethod
     def _delivery_attempt(message: dict[str, Any]) -> int:
+        """Normalize the delivery-attempt marker into a non-negative integer."""
         try:
             return max(0, int(message.get("_delivery_attempt", 0)))
         except (TypeError, ValueError):
@@ -220,6 +255,7 @@ class AIUsageFlowGraph:
         *,
         state: AIUsageFlowLangGraphState,
     ):
+        """Apply optional LLM summary updates only when wizard authority agrees."""
         flow = state["flow"]
         wizard_profile = state.get("wizard_profile")
         if not self._proposer or not wizard_profile or flow.status == "BLOCKED":
@@ -281,9 +317,11 @@ class AIUsageFlowGraph:
         return {"flow": replace(flow, summary=updated_summary)}
 
     def _node_summary_proposal(self, state: AIUsageFlowLangGraphState):
+        """Execute the bounded summary-proposal node."""
         return self._apply_summary_proposal(state=state)
 
     def _node_finalize(self, state: AIUsageFlowLangGraphState):
+        """Translate the governed flow into the API callback contract."""
         flow = state["flow"]
         callback_payload = AIUsageFlowCallbackPayload(
             technical_profile_id=flow.technical_profile_id,
@@ -305,6 +343,7 @@ class AIUsageFlowGraph:
         return {"callback_payload": callback_payload}
 
     def _node_persist(self, state: AIUsageFlowLangGraphState):
+        """Enforce callback privacy and persist the finalized AIUsageFlow artifact."""
         payload = state["callback_payload"]
         if payload.privacy_flags.get("containsSourceCode") is not False:
             raise ValueError("AIUsageFlow callback privacy flag is unsafe")
@@ -322,6 +361,7 @@ class AIUsageFlowGraph:
 
     @staticmethod
     def _to_callback_claim(claim: AIUsageFlowClaim) -> dict[str, Any]:
+        """Project internal numeric/lifecycle claim data to the callback contract."""
         if claim.confidence >= 0.75:
             confidence = "high"
         elif claim.confidence >= 0.40:
@@ -354,6 +394,7 @@ class AIUsageFlowGraph:
         summary_updates: dict[str, Any],
         wizard_profile: dict[str, Any],
     ) -> bool:
+        """Accept proposed summary values only when identical to wizard authority."""
         answers = wizard_profile.get("answers")
         if not isinstance(answers, dict):
             return False

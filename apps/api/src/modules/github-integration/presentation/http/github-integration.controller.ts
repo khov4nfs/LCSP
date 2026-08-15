@@ -39,10 +39,27 @@ interface GitHubIntegrationRequest extends ScanTriggerRequestContext {
   correlationId?: string;
 }
 
+/**
+ * Exposes GitHub App connection, repository snapshot pinning, and scan-trigger HTTP operations.
+ */
 @Controller()
 export class GitHubIntegrationController {
+  /**
+   * Creates the controller with the CQRS command dispatcher used by all GitHub integration mutations.
+   *
+   * @param commandBus - Command bus used to start/complete App installation, pin snapshots, and trigger scans.
+   */
   constructor(private readonly commandBus: CommandBus) {}
 
+  /**
+   * Starts or resumes the sensitive GitHub App installation flow for the authenticated organization/user.
+   *
+   * @param redirectUri - Allowlisted client redirect URI to restore after GitHub callback.
+   * @param assessmentId - Optional assessment to bind to the resulting repository connection.
+   * @param installationId - Optional existing installation identifier for reconnect/resume flows.
+   * @param request - PBAC-authenticated request containing tenant, user, session, and correlation context.
+   * @returns Standard result envelope containing the GitHub installation URL.
+   */
   @Get("github/app/start")
   @UseGuards(PbacGuard)
   @RequireAction(PBAC_ACTIONS.githubConnect)
@@ -75,6 +92,16 @@ export class GitHubIntegrationController {
     );
   }
 
+  /**
+   * Completes the public GitHub App callback using the opaque state created by the installation-start flow.
+   *
+   * @param installationId - GitHub App installation identifier returned by GitHub.
+   * @param code - GitHub callback authorization code.
+   * @param state - Opaque installation state binding the callback to the original request.
+   * @param repositoryId - Optional repository selected during the installation flow.
+   * @param correlationId - Optional upstream correlation identifier; generated when absent.
+   * @returns Standard result envelope containing the established repository connection.
+   */
   @Get("github/app/callback")
   async handleAppCallback(
     @Query("installation_id") installationId: string,
@@ -96,6 +123,14 @@ export class GitHubIntegrationController {
     );
   }
 
+  /**
+   * Pins an exact immutable GitHub commit as an assessment repository snapshot.
+   *
+   * @param assessmentId - Assessment that will own the snapshot.
+   * @param body - Repository connection plus optional branch/ref/commit selectors.
+   * @param request - PBAC-authenticated request containing actor, tenant, scope, and correlation context.
+   * @returns Standard result envelope containing persisted snapshot metadata.
+   */
   @Post("assessments/:assessmentId/snapshots")
   @UseGuards(PbacGuard)
   @RequireAction(PBAC_ACTIONS.snapshotCreate)
@@ -123,6 +158,15 @@ export class GitHubIntegrationController {
     );
   }
 
+  /**
+   * Triggers a repository scan either from a trusted worker key or a manually PBAC-authorized user request.
+   *
+   * @param assessmentId - Assessment whose pinned snapshot should be scanned.
+   * @param body - Snapshot identifier, idempotency key, and optional requested trigger source.
+   * @param request - Guard-enriched request containing trusted/manual source and optional PBAC context.
+   * @param response - Express response used to distinguish newly created jobs (201) from idempotent duplicates (200).
+   * @returns Standard result envelope containing scan-job trigger metadata.
+   */
   @Post("assessments/:assessmentId/scan-jobs")
   @UseGuards(ScanTriggerGuard)
   @RequireAction(PBAC_ACTIONS.scanTrigger)

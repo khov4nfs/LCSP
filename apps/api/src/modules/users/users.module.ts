@@ -7,6 +7,9 @@ import { USER_REPOSITORY } from "./application/ports/persistence/user.repository
 import { PrismaUserRepository } from "./infrastructure/persistence/prisma-user.repository.js";
 import { UsersController } from "./presentation/http/users.controller.js";
 
+/**
+ * Wires user registration and lookup flows to CQRS handlers and Prisma persistence.
+ */
 @Module({
   imports: [CqrsModule],
   controllers: [UsersController],

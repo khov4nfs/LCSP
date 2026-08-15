@@ -1,3 +1,5 @@
+"""Index and retrieve legal corpus chunks by exact structural identifiers in ChromaDB."""
+
 from __future__ import annotations
 
 import os
@@ -8,6 +10,8 @@ from typing import Any
 
 @dataclass(slots=True)
 class RetrievedChunk:
+    """Citation chunk projected with legal status and structural retrieval role."""
+
     id: str
     document_id: str
     locator: str
@@ -19,9 +23,19 @@ class ChromaDbCitationRetriever:
     """Structure-first ChromaDB retrieval with no embeddings or similarity search."""
 
     def __init__(self, chroma_path: str | None = None) -> None:
+        """Create the retriever using an explicit or environment-backed Chroma path."""
         self._chroma_path = chroma_path or os.getenv("LEGAL_CHROMA_PATH", "/tmp/lcsp-chroma")
 
     def index_corpus(self, corpus_version_id: str, chunks: list[dict[str, Any]]) -> None:
+        """Upsert stable corpus chunks and hierarchy metadata without embeddings.
+
+        Args:
+            corpus_version_id: Pinned corpus version used to isolate the collection.
+            chunks: Persisted legal chunks containing stable IDs, text, and hierarchy.
+
+        Raises:
+            ValueError: If any chunk lacks a stable ID or content required for indexing.
+        """
         collection = self._collection(corpus_version_id)
         ids: list[str] = []
         documents: list[str] = []
@@ -54,6 +68,16 @@ class ChromaDbCitationRetriever:
             collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
 
     def retrieve_exact(self, corpus_version_id: str, chunk_ids: list[str]) -> list[RetrievedChunk]:
+        """Retrieve exact primary chunks plus parent and referenced structural context.
+
+        Args:
+            corpus_version_id: Pinned corpus version to query.
+            chunk_ids: Exact citation chunk IDs authored by legal rules.
+
+        Returns:
+            Primary, parent-context, and referenced-context chunks without semantic
+            similarity expansion.
+        """
         if not chunk_ids:
             return []
         primary_records = self._records(corpus_version_id, chunk_ids)
@@ -84,11 +108,13 @@ class ChromaDbCitationRetriever:
         ]
 
     def build_citation_allowlist(self, chunks: list[RetrievedChunk]) -> dict[str, Any]:
+        """Partition retrieved chunks into allowed and repealed citation identifiers."""
         allowlist = [chunk.id for chunk in chunks if chunk.legal_status != "REPEALED"]
         repealed = [chunk.id for chunk in chunks if chunk.legal_status == "REPEALED"]
         return {"allowlist": allowlist, "repealed_chunk_ids": repealed}
 
     def _collection(self, corpus_version_id: str):
+        """Open/create the version-scoped Chroma collection with embeddings disabled."""
         try:
             import chromadb
         except ImportError as error:
@@ -102,6 +128,7 @@ class ChromaDbCitationRetriever:
     def _records(
         self, corpus_version_id: str, chunk_ids: list[str]
     ) -> list[tuple[str, dict[str, Any]]]:
+        """Fetch exact chunk metadata records from one version-scoped collection."""
         if not chunk_ids:
             return []
         result = self._collection(corpus_version_id).get(
@@ -119,6 +146,7 @@ class ChromaDbCitationRetriever:
     def _to_chunks(
         self, records: list[tuple[str, dict[str, Any]]], role: str
     ) -> list[RetrievedChunk]:
+        """Project raw Chroma metadata into typed citation chunks with a context role."""
         return [
             RetrievedChunk(
                 id=chunk_id,
@@ -131,6 +159,7 @@ class ChromaDbCitationRetriever:
         ]
 
     def _metadata_related_ids(self, metadata: dict[str, Any]) -> list[str]:
+        """Decode serialized related-chunk IDs from Chroma metadata safely."""
         raw = metadata.get("related_chunk_ids")
         if not isinstance(raw, str):
             return []
@@ -141,6 +170,7 @@ class ChromaDbCitationRetriever:
         return [str(value) for value in parsed if str(value)] if isinstance(parsed, list) else []
 
     def _related_chunk_ids(self, hierarchy: dict[str, Any]) -> list[str]:
+        """Merge incoming/outgoing structural reference IDs from a chunk hierarchy."""
         values = [
             *(hierarchy.get("outgoingRefIds") or hierarchy.get("outgoing_ref_ids") or []),
             *(hierarchy.get("incomingRefIds") or hierarchy.get("incoming_ref_ids") or []),
@@ -148,4 +178,5 @@ class ChromaDbCitationRetriever:
         return self._unique(str(value) for value in values if str(value))
 
     def _unique(self, values: Any) -> list[str]:
+        """Deduplicate identifiers while preserving first-seen order."""
         return list(dict.fromkeys(value for value in values if value))

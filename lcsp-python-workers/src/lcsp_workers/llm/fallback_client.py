@@ -1,3 +1,5 @@
+"""Dispatch LLM calls across primary/fallback providers under explicit policy."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -17,6 +19,8 @@ from .prompt_safety import PromptSafetyViolation
 
 @runtime_checkable
 class LLMClientProtocol(Protocol):
+    """Minimal completion interface consumed by worker orchestration code."""
+
     def complete(
         self,
         prompt: str,
@@ -24,7 +28,9 @@ class LLMClientProtocol(Protocol):
         node_name: str,
         max_tokens: int | None = None,
         correlationId: str | None = None,
-    ) -> LLMResponse: ...
+    ) -> LLMResponse:
+        """Execute a plain-text completion request."""
+        ...
 
     def complete_with_tools(
         self,
@@ -35,42 +41,55 @@ class LLMClientProtocol(Protocol):
         node_name: str,
         max_tokens: int | None = None,
         correlationId: str | None = None,
-    ) -> LLMToolResponse: ...
+    ) -> LLMToolResponse:
+        """Execute a completion request that may return structured tool calls."""
+        ...
 
 
 class LlmProviderAuthError(Exception):
-    pass
+    """Raised for provider authentication failures."""
 
 
 class LlmProviderRateLimitError(Exception):
-    pass
+    """Raised when a provider rejects a request due to rate limiting."""
 
 
 class LlmProviderQuotaError(Exception):
-    pass
+    """Raised when a provider account has exhausted its quota."""
 
 
 class LlmProviderTimeoutError(Exception):
-    pass
+    """Raised when a provider request exceeds its timeout."""
 
 
 class LlmProviderNetworkError(Exception):
-    pass
+    """Raised for transport-level provider connectivity failures."""
 
 
 class LlmProviderUnavailableError(Exception):
+    """Raised when no eligible provider completes the operation."""
+
     def __init__(self, reasons: list[str]):
+        """Store provider failure reasons for audit/debug visibility.
+
+        Args:
+            reasons: Ordered ``provider:error_code`` entries from attempted providers.
+        """
         self.reasons = reasons
         super().__init__("No eligible LLM provider completed the request.")
 
 
 @dataclass(frozen=True)
 class LlmProviderCandidate:
+    """Named LLM gateway client considered during provider dispatch."""
+
     name: str
     client: LLMGatewayClient
 
 
 class PrimaryThenFallbackLLMClient:
+    """Try providers in order while honoring explicit fallback error codes."""
+
     def __init__(
         self,
         providers: tuple[LlmProviderCandidate, ...],
@@ -78,6 +97,16 @@ class PrimaryThenFallbackLLMClient:
         fallback_on_codes: tuple[str, ...],
         max_provider_attempts: int,
     ) -> None:
+        """Create a bounded provider-fallback dispatcher.
+
+        Args:
+            providers: Ordered provider candidates; first entry is primary.
+            fallback_on_codes: Classified error codes allowed to trigger fallback.
+            max_provider_attempts: Maximum provider calls for one logical request.
+
+        Raises:
+            ValueError: If no providers are supplied or the attempt limit is invalid.
+        """
         if not providers:
             raise ValueError("at least one LLM provider candidate is required")
         if max_provider_attempts < 1:
@@ -94,6 +123,7 @@ class PrimaryThenFallbackLLMClient:
         max_tokens: int | None = None,
         correlationId: str | None = None,
     ) -> LLMResponse:
+        """Dispatch a plain completion through the provider fallback policy."""
         return self._dispatch(
             lambda client: client.complete(
                 prompt=prompt,
@@ -114,6 +144,7 @@ class PrimaryThenFallbackLLMClient:
         max_tokens: int | None = None,
         correlationId: str | None = None,
     ) -> LLMToolResponse:
+        """Dispatch a tool-enabled completion through the same fallback policy."""
         return self._dispatch(
             lambda client: client.complete_with_tools(
                 prompt=prompt,
@@ -126,6 +157,7 @@ class PrimaryThenFallbackLLMClient:
         )
 
     def _dispatch(self, operation):
+        """Run one operation against eligible providers until policy stops fallback."""
         reasons: list[str] = []
         attempts = 0
         for provider in self._providers:
@@ -146,6 +178,14 @@ class PrimaryThenFallbackLLMClient:
 
 
 def _classify_provider_error(exc: Exception) -> str:
+    """Normalize provider/transport exceptions into fallback policy codes.
+
+    Args:
+        exc: Exception raised by a provider client.
+
+    Returns:
+        One of the known provider error codes or ``UNKNOWN``.
+    """
     if isinstance(exc, LlmProviderAuthError):
         return "AUTH"
     if isinstance(exc, LlmProviderRateLimitError):

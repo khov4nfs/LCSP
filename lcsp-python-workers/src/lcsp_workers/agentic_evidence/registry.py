@@ -1,3 +1,5 @@
+"""Fail-closed registry, schema validator, and dispatcher for agentic capabilities."""
+
 from __future__ import annotations
 
 from typing import Any, Callable, Mapping
@@ -11,10 +13,12 @@ from .catalog import AgenticToolSpec, SPRINT6_AGENTIC_TOOL_SPECS
 
 
 class AgenticToolValidationError(ValueError):
-    """Safe validation failure raised before an agentic tool handler is dispatched."""
+    """Safe validation failure raised before an agentic handler is dispatched."""
 
 
 class AgenticToolBudget(BaseModel):
+    """Server-enforced result, traversal, payload, and duration limits."""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     max_items: int = Field(alias="maxItems", ge=1, le=500)
@@ -24,6 +28,8 @@ class AgenticToolBudget(BaseModel):
 
 
 class AgenticToolRequest(BaseModel):
+    """Validated envelope for one agentic tool invocation."""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     tool_name: str = Field(alias="toolName", min_length=1, max_length=100)
@@ -45,6 +51,7 @@ class AgenticToolRequest(BaseModel):
     @field_validator("artifact_versions")
     @classmethod
     def validate_artifact_versions(cls, value: dict[str, str]) -> dict[str, str]:
+        """Require a bounded set of non-empty pinned artifact references."""
         if len(value) > 20:
             raise ValueError("artifactVersions exceeds the maximum number of pinned refs")
         if any(not key.strip() or not ref.strip() for key, ref in value.items()):
@@ -54,6 +61,7 @@ class AgenticToolRequest(BaseModel):
     @field_validator("scope", "input")
     @classmethod
     def validate_safe_projection(cls, value: dict[str, Any]) -> dict[str, Any]:
+        """Reject unsafe source, secret, URL, command, and path projections."""
         _assert_safe_agent_input(value)
         return value
 
@@ -64,9 +72,17 @@ SPRINT6_AGENTIC_CAPABILITIES = SPRINT6_AGENTIC_TOOL_SPECS
 
 
 class AgenticToolRegistry:
-    """Fail-closed catalog, validator and dispatcher for Agentic tools."""
+    """Catalog, validate, and dispatch registered agentic tools fail-closed."""
 
     def __init__(self, capabilities: tuple[AgenticToolSpec, ...]) -> None:
+        """Build registry indexes and compile each capability JSON schema.
+
+        Args:
+            capabilities: Static capability specifications to register.
+
+        Raises:
+            ValueError: If names are duplicated or a capability schema is invalid.
+        """
         self._capabilities = {capability.name: capability for capability in capabilities}
         if len(self._capabilities) != len(capabilities):
             raise ValueError("agentic tool capability names must be unique")
@@ -84,9 +100,11 @@ class AgenticToolRegistry:
         self._handlers: dict[str, AgenticToolHandler] = {}
 
     def names(self) -> tuple[str, ...]:
+        """Return all registered capability names in deterministic order."""
         return tuple(sorted(self._capabilities))
 
     def model_callable_names(self) -> tuple[str, ...]:
+        """Return only capabilities explicitly exposed to LLM tool calling."""
         return tuple(
             sorted(
                 capability.name
@@ -96,18 +114,39 @@ class AgenticToolRegistry:
         )
 
     def capability(self, name: str) -> AgenticToolSpec:
+        """Resolve a registered capability by name.
+
+        Raises:
+            AgenticToolValidationError: If the name is not in the catalog.
+        """
         capability = self._capabilities.get(name)
         if capability is None:
             raise AgenticToolValidationError("UNREGISTERED_AGENTIC_TOOL")
         return capability
 
     def register_handler(self, name: str, handler: AgenticToolHandler) -> None:
+        """Bind one implementation to an already-cataloged capability.
+
+        Raises:
+            AgenticToolValidationError: If the tool is unknown or already bound.
+        """
         self.capability(name)
         if name in self._handlers:
             raise AgenticToolValidationError("AGENTIC_TOOL_HANDLER_ALREADY_REGISTERED")
         self._handlers[name] = handler
 
     def validate(self, request: AgenticToolRequest) -> AgenticToolSpec:
+        """Validate budgets, pinned artifacts, JSON schema, and idempotency rules.
+
+        Args:
+            request: Parsed agentic request envelope.
+
+        Returns:
+            Capability specification matched to the request.
+
+        Raises:
+            AgenticToolValidationError: If any server-side safety invariant fails.
+        """
         capability = self.capability(request.tool_name)
         budget = request.budget
         if (
@@ -138,6 +177,11 @@ class AgenticToolRegistry:
         return capability
 
     def validate_model_request(self, request: AgenticToolRequest) -> AgenticToolSpec:
+        """Apply additional restrictions to a model-originated tool request.
+
+        Model requests must be explicitly LLM-callable and read-only before the
+        general registry validation runs.
+        """
         capability = self.capability(request.tool_name)
         if capability.exposure != "LLM_CALLABLE":
             raise AgenticToolValidationError("AGENTIC_TOOL_NOT_MODEL_CALLABLE")
@@ -146,14 +190,17 @@ class AgenticToolRegistry:
         return self.validate(request)
 
     def invoke(self, request: AgenticToolRequest) -> Mapping[str, Any]:
+        """Validate and dispatch a non-model registry request."""
         self.validate(request)
         return self._invoke_bound_handler(request)
 
     def invoke_model_tool(self, request: AgenticToolRequest) -> Mapping[str, Any]:
+        """Validate model exposure/read-only constraints and dispatch the handler."""
         self.validate_model_request(request)
         return self._invoke_bound_handler(request)
 
     def _invoke_bound_handler(self, request: AgenticToolRequest) -> Mapping[str, Any]:
+        """Invoke the explicit handler and validate its response safety recursively."""
         handler = self._handlers.get(request.tool_name)
         if handler is None:
             raise AgenticToolValidationError("AGENTIC_TOOL_HANDLER_NOT_BOUND")
@@ -163,6 +210,7 @@ class AgenticToolRegistry:
 
 
 def build_sprint6_agentic_registry() -> AgenticToolRegistry:
+    """Build the runtime registry from the canonical Sprint 6 capability catalog."""
     return AgenticToolRegistry(SPRINT6_AGENTIC_TOOL_SPECS)
 
 
@@ -192,6 +240,7 @@ _FORBIDDEN_KEYS = {
 
 
 def _assert_safe_agent_input(value: Any, *, key: str | None = None) -> None:
+    """Recursively reject sensitive fields, arbitrary URLs, and unsafe paths."""
     if key is not None:
         normalized_key = key.replace("-", "_").lower()
         if normalized_key in _FORBIDDEN_KEYS:
@@ -218,6 +267,7 @@ def _assert_safe_agent_input(value: Any, *, key: str | None = None) -> None:
 
 
 def _assert_safe_agent_output(value: Any, *, key: str | None = None) -> None:
+    """Recursively prevent sensitive/raw fields from returning to the model."""
     if key is not None and key.replace("-", "_").lower() in _FORBIDDEN_KEYS:
         raise AgenticToolValidationError("AGENTIC_TOOL_UNSAFE_OUTPUT")
     if isinstance(value, Mapping):

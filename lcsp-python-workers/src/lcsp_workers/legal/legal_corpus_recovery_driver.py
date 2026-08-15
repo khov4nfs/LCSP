@@ -1,3 +1,5 @@
+"""Rebuild, validate, activate, and resume workflows for the reviewed AO-6 legal corpus."""
+
 from __future__ import annotations
 
 import hashlib
@@ -24,6 +26,8 @@ DEFAULT_INDEX_CONFIG = "chromadb-vectorless-legal-retriever-v1"
 
 @dataclass(frozen=True)
 class LegalCorpusRecoveryResult:
+    """Terminal corpus recovery identifiers and resumed workflow count."""
+
     status: str
     corpus_version_id: str
     retrieval_index_id: str | None
@@ -31,6 +35,14 @@ class LegalCorpusRecoveryResult:
 
 
 class LegalCorpusRecoveryDriver:
+    """Run the reviewed legal-corpus recovery pipeline with integrity validation.
+
+    Recovery rebuilds a deterministic version from source manifests/reviewed
+    artifacts, ingests the validated draft, verifies exact retrieval coverage,
+    registers the retrieval index, activates the corpus, then resumes workflows
+    waiting for the newly active version.
+    """
+
     def __init__(
         self,
         *,
@@ -39,12 +51,34 @@ class LegalCorpusRecoveryDriver:
         source_manifest_paths: list[Path] | None = None,
         reviewed_dir: Path | None = None,
     ) -> None:
+        """Create the recovery driver with optional storage/source overrides.
+
+        Args:
+            api_client: Internal API adapter for corpus lifecycle operations.
+            chroma_path: Optional Chroma persistence path used for index validation.
+            source_manifest_paths: Optional explicit official-source manifest paths.
+            reviewed_dir: Optional directory containing reviewed OCR/text artifacts.
+        """
         self._api_client = api_client
         self._chroma_path = chroma_path or os.getenv("LEGAL_CHROMA_PATH")
         self._source_manifest_paths = source_manifest_paths
         self._reviewed_dir = reviewed_dir
 
     def run(self, message: dict[str, Any], correlationId: str) -> dict[str, Any]:
+        """Execute corpus rebuild, index validation, activation, and workflow resume.
+
+        Args:
+            message: Recovery command containing ``idempotencyKey`` and optional
+                ``maxRuns`` for resumed workflows.
+            correlationId: End-to-end trace identifier.
+
+        Returns:
+            READY response with active corpus/index identifiers and resumed count.
+
+        Raises:
+            RuntimeError: If required source/review artifacts, script modules,
+                response identifiers, or retrieval validation are incomplete.
+        """
         idempotency_key = required_string(message, "idempotencyKey")
         manifests = self._resolve_source_manifests()
         reviewed_dir = self._resolve_reviewed_dir()
@@ -121,6 +155,12 @@ class LegalCorpusRecoveryDriver:
     def _validate_retrieval_index(
         self, corpus_version_id: str, payload: dict[str, Any]
     ) -> None:
+        """Require every corpus chunk to round-trip as an exact PRIMARY_MATCH.
+
+        Raises:
+            RuntimeError: If no chunks exist, a chunk lacks a stable ID, or exact
+                retrieval misses any expected chunk identifier.
+        """
         chunks = [
             chunk
             for document in payload.get("documents") or []
@@ -146,6 +186,11 @@ class LegalCorpusRecoveryDriver:
             )
 
     def _resolve_source_manifests(self) -> list[Path]:
+        """Resolve official-source manifests from explicit paths, env, or repo reports.
+
+        Raises:
+            RuntimeError: If no source manifests can be found.
+        """
         if self._source_manifest_paths:
             return self._source_manifest_paths
         raw = os.getenv("AO6_LEGAL_CORPUS_SOURCE_MANIFESTS", "")
@@ -161,6 +206,7 @@ class LegalCorpusRecoveryDriver:
         return paths
 
     def _resolve_reviewed_dir(self) -> Path:
+        """Resolve the reviewed legal artifact directory and require it to exist."""
         if self._reviewed_dir is not None:
             return self._reviewed_dir
         raw = os.getenv("AO6_LEGAL_CORPUS_REVIEWED_DIR", "")
@@ -173,6 +219,7 @@ class LegalCorpusRecoveryDriver:
         return path
 
     def _corpus_version(self, manifests: list[Path], reviewed_dir: Path) -> str:
+        """Derive a content-addressed corpus version from manifests and reviewed files."""
         digest = hashlib.sha256()
         for path in sorted(manifests):
             digest.update(path.read_bytes())
@@ -184,6 +231,11 @@ class LegalCorpusRecoveryDriver:
 
 
 def required_string(values: dict[str, Any], key: str) -> str:
+    """Read a required non-empty command string.
+
+    Raises:
+        RuntimeError: If the requested field is missing or blank.
+    """
     value = values.get(key)
     if not isinstance(value, str) or not value.strip():
         raise RuntimeError(f"missing {key}")
@@ -191,6 +243,7 @@ def required_string(values: dict[str, Any], key: str) -> str:
 
 
 def required_response_string(values: dict[str, Any], key: str, source: str) -> str:
+    """Read a required non-empty string from an internal API response."""
     value = values.get(key)
     if not isinstance(value, str) or not value.strip():
         raise RuntimeError(f"{source} is missing {key}")
@@ -198,6 +251,7 @@ def required_response_string(values: dict[str, Any], key: str, source: str) -> s
 
 
 def _load_script_module(filename: str):
+    """Load an AO-6 corpus build/orchestration script from the worker scripts dir."""
     path = _worker_root() / "scripts" / filename
     spec = importlib.util.spec_from_file_location(filename.removesuffix(".py"), path)
     if spec is None or spec.loader is None:
@@ -208,21 +262,26 @@ def _load_script_module(filename: str):
 
 
 def _worker_root() -> Path:
+    """Return the root directory of the Python worker package/project."""
     return Path(__file__).resolve().parents[3]
 
 
 def _repo_root() -> Path:
+    """Return the LCSP monorepo root containing reports and worker project."""
     return _worker_root().parent
 
 
 def _sha256_text(value: str) -> str:
+    """Return a tagged SHA-256 digest for deterministic text configuration."""
     return f"sha256:{hashlib.sha256(value.encode()).hexdigest()}"
 
 
 def _sha256_json(value: Any) -> str:
+    """Return a tagged SHA-256 digest for canonical sorted JSON content."""
     payload = json.dumps(value, ensure_ascii=False, sort_keys=True).encode()
     return f"sha256:{hashlib.sha256(payload).hexdigest()}"
 
 
 def _safe_ref(value: str) -> str:
+    """Normalize a bounded identifier for validation/integrity manifest references."""
     return "".join(ch if ch.isalnum() or ch in "._:-" else "-" for ch in value)[:128]

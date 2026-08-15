@@ -1,3 +1,5 @@
+"""Detect deterministic conflicts between AI usage evidence and wizard answers."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -13,6 +15,8 @@ LOW_COVERAGE_MARKERS = {"low", "limited", "partial", "unknown"}
 
 @dataclass(frozen=True)
 class ConflictRecord:
+    """Normalized reconciliation conflict with scoring and provenance metadata."""
+
     conflict_id: str
     conflict_type: str
     ai_usage_flow_id: str
@@ -28,16 +32,20 @@ class ConflictRecord:
     source_versions: dict[str, Any]
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the conflict record for callback persistence."""
         return asdict(self)
 
 
 class ConflictDetector:
+    """Compare claims with manager answers and flag material contradictions."""
+
     def __init__(
         self,
         *,
         provider_version: str = DEFAULT_PROVIDER_VERSION,
         score_calculator: ConflictScoreCalculator | None = None,
     ) -> None:
+        """Create the detector with an optional deterministic score calculator."""
         self.provider_version = provider_version
         self._score_calculator = score_calculator or ConflictScoreCalculator()
 
@@ -47,6 +55,16 @@ class ConflictDetector:
         ai_usage_flow: dict[str, Any] | None,
         wizard_profile: dict[str, Any] | None,
     ) -> list[ConflictRecord]:
+        """Detect supported contradiction, scope-mismatch, and unverifiable conflicts.
+
+        Args:
+            ai_usage_flow: Accepted AIUsageFlow artifact containing evidence claims.
+            wizard_profile: Manager/wizard answers for the same assessment.
+
+        Returns:
+            Deterministically constructed conflict records; empty when either
+            comparison source is absent or no supported conflict is detected.
+        """
         if not ai_usage_flow or not wizard_profile:
             return []
 
@@ -104,6 +122,7 @@ class ConflictDetector:
         ai_usage_flow: dict[str, Any],
         wizard_profile: dict[str, Any] | None,
     ) -> dict[str, Any]:
+        """Build the privacy-safe reconciliation callback around detected conflicts."""
         flow_data = self._flow_data(ai_usage_flow)
         return {
             "ai_usage_flow_id": self._flow_id(flow_data),
@@ -133,6 +152,7 @@ class ConflictDetector:
         wizard_answer_ref: str,
         severity: str,
     ) -> ConflictRecord:
+        """Create one conflict record with stable IDs, score, and source versions."""
         confidence = self._confidence_label(claim)
         score = self._score_calculator.calculate(
             evidence_confidence=confidence,
@@ -174,6 +194,7 @@ class ConflictDetector:
         )
 
     def _flow_data(self, ai_usage_flow: dict[str, Any]) -> dict[str, Any]:
+        """Normalize embedded ``flow_data`` while retaining top-level claims."""
         flow_data = ai_usage_flow.get("flow_data") or ai_usage_flow.get("flowData")
         if isinstance(flow_data, dict):
             merged = dict(flow_data)
@@ -182,15 +203,18 @@ class ConflictDetector:
         return ai_usage_flow
 
     def _claims(self, ai_usage_flow: dict[str, Any]) -> list[dict[str, Any]]:
+        """Extract structured claims from compact or rich AIUsageFlow shapes."""
         flow_data = self._flow_data(ai_usage_flow)
         raw_claims = ai_usage_flow.get("claims") or flow_data.get("claims") or []
         return [claim for claim in raw_claims if isinstance(claim, dict)]
 
     def _answers(self, wizard_profile: dict[str, Any]) -> dict[str, Any]:
+        """Return wizard answers only when represented as a dictionary."""
         answers = wizard_profile.get("answers")
         return answers if isinstance(answers, dict) else {}
 
     def _wizard_external_llm_usage_is_false(self, answers: dict[str, Any]) -> bool:
+        """Recognize supported answer aliases that explicitly deny external AI use."""
         values = [
             answers.get("external_llm_usage"),
             answers.get("externalLlmUsage"),
@@ -202,10 +226,12 @@ class ConflictDetector:
         return any(self._is_false(value) for value in values)
 
     def _wizard_says_no_autonomous_decision(self, answers: dict[str, Any]) -> bool:
+        """Return whether the wizard explicitly denies autonomous decision-making."""
         value = answers.get("decision_role") or answers.get("decisionRole")
         return str(value or "").lower() == "no_autonomous_decision"
 
     def _claim_says_external_llm_usage(self, claim: dict[str, Any]) -> bool:
+        """Recognize claim values/categories/fields that establish external LLM use."""
         value = claim.get("claim_value") or claim.get("claimValue") or {}
         category = str(claim.get("claim_category") or claim.get("claimCategory") or "")
         field = str(claim.get("claim_field") or claim.get("claimField") or "")
@@ -226,6 +252,7 @@ class ConflictDetector:
         }
 
     def _claim_says_agent_pattern(self, claim: dict[str, Any]) -> bool:
+        """Recognize claim shapes that indicate an agent/autonomous-decision pattern."""
         value = claim.get("claim_value") or claim.get("claimValue") or {}
         category = str(claim.get("claim_category") or claim.get("claimCategory") or "")
         field = str(claim.get("claim_field") or claim.get("claimField") or "")
@@ -246,12 +273,14 @@ class ConflictDetector:
         return False
 
     def _is_high_confidence(self, claim: dict[str, Any]) -> bool:
+        """Apply the configured high-confidence threshold/label convention."""
         raw = claim.get("confidence")
         if isinstance(raw, (int, float)):
             return float(raw) >= 0.8
         return str(raw or "").lower() == "high"
 
     def _low_coverage_only(self, claim: dict[str, Any]) -> bool:
+        """Return whether all available evidence coverage indicators are weak."""
         ref_details = claim.get("evidence_ref_details") or claim.get("evidenceRefDetails")
         if isinstance(ref_details, list) and ref_details:
             coverage_values = [
@@ -285,6 +314,7 @@ class ConflictDetector:
         )
 
     def _confidence_label(self, claim: dict[str, Any]) -> str:
+        """Normalize numeric/string confidence into high/medium/low/unknown."""
         raw = claim.get("confidence")
         if isinstance(raw, (int, float)):
             value = float(raw)
@@ -298,9 +328,11 @@ class ConflictDetector:
         return label if label in {"high", "medium", "low"} else "unknown"
 
     def _claim_id(self, claim: dict[str, Any]) -> str:
+        """Resolve a claim identifier from supported field aliases."""
         return str(claim.get("claim_id") or claim.get("claimId") or "claim")
 
     def _flow_id(self, ai_usage_flow: dict[str, Any]) -> str:
+        """Resolve an AIUsageFlow identifier from supported field aliases."""
         return str(
             ai_usage_flow.get("ai_usage_flow_id")
             or ai_usage_flow.get("aiUsageFlowId")
@@ -313,6 +345,7 @@ class ConflictDetector:
         ai_usage_flow: dict[str, Any],
         wizard_profile: dict[str, Any] | None,
     ) -> str:
+        """Resolve the assessment ID from flow data then wizard context."""
         return str(
             ai_usage_flow.get("assessment_id")
             or ai_usage_flow.get("assessmentId")
@@ -322,13 +355,16 @@ class ConflictDetector:
         )
 
     def _evidence_refs(self, claim: dict[str, Any]) -> list[str]:
+        """Normalize a claim's evidence-reference list to strings."""
         refs = claim.get("evidence_refs") or claim.get("evidenceRefs") or []
         return [str(ref) for ref in refs]
 
     def _is_false(self, value: Any) -> bool:
+        """Normalize boolean/string representations of a negative answer."""
         if value is None:
             return False
         return value is False or str(value).lower() in {"false", "no", "none", "no_ai"}
 
     def _is_true(self, value: Any) -> bool:
+        """Normalize boolean/string representations of a positive/detected fact."""
         return value is True or str(value).lower() in {"true", "yes", "detected"}

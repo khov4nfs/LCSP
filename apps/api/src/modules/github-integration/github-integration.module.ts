@@ -21,6 +21,9 @@ import { InternalSnapshotController } from "./presentation/http/internal-snapsho
 import { GitHubIntegrationController } from "./presentation/http/github-integration.controller.js";
 import { ScanTriggerGuard } from "./presentation/http/scan-trigger.guard.js";
 
+/**
+ * Wires GitHub App connectivity, immutable snapshot pinning/streaming, and repository scan triggering across HTTP, CQRS, and Prisma adapters.
+ */
 @Module({
   imports: [CqrsModule, PbacModule],
   controllers: [GitHubIntegrationController, InternalSnapshotController],

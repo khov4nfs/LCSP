@@ -22,6 +22,8 @@ class ArchiveMaterializationError(RuntimeError):
 
 @dataclass(frozen=True)
 class MaterializationResult:
+    """Summarizes the temporary workspace created for an immutable scan snapshot."""
+
     job_id: str
     snapshot_id: str | None
     workspace_path: Path
@@ -32,6 +34,14 @@ class MaterializationResult:
 
 
 class ScannerWorkspace:
+    """Materialize repository archives into bounded, isolated temporary workspaces.
+
+    Archive extraction is treated as an untrusted-input boundary. The workspace
+    rejects traversal, links/devices, excessive path depth/member count/expansion,
+    and oversized archives. Individual oversized files are skipped with an explicit
+    coverage limitation instead of weakening the global extraction limits.
+    """
+
     def __init__(
         self,
         root_path: str | Path | None = None,
@@ -41,6 +51,7 @@ class ScannerWorkspace:
         max_path_depth: int = DEFAULT_MAX_PATH_DEPTH,
         max_expansion_ratio: int = DEFAULT_MAX_EXPANSION_RATIO,
     ) -> None:
+        """Configure the temporary workspace root and archive safety budgets."""
         self._root_path = Path(root_path) if root_path is not None else Path(
             tempfile.gettempdir()
         ) / "lcsp-scanner"
@@ -52,17 +63,26 @@ class ScannerWorkspace:
 
     @property
     def root_path(self) -> Path:
+        """Return the parent directory that contains per-scan workspaces."""
         return self._root_path
 
     def workspace_path(self, job_id: str) -> Path:
+        """Return the deterministic temporary path allocated to a scan job."""
         return self._root_path / job_id
 
     def create(self, job_id: str) -> Path:
+        """Create and return the per-job workspace directory."""
         workspace_path = self.workspace_path(job_id)
         workspace_path.mkdir(parents=True, exist_ok=True)
         return workspace_path
 
     def cleanup(self, job_id: str) -> None:
+        """Delete all materialized repository data for a scan job.
+
+        Raises:
+            ArchiveMaterializationError: If filesystem cleanup fails for a reason
+                other than the workspace already being absent.
+        """
         workspace_path = self.workspace_path(job_id)
         try:
             shutil.rmtree(workspace_path)
@@ -79,6 +99,21 @@ class ScannerWorkspace:
         archive_stream: BinaryIO | bytes,
         snapshot_id: str | None = None,
     ) -> MaterializationResult:
+        """Safely extract a gzip tar snapshot into the scan workspace.
+
+        Args:
+            job_id: Scan job used to isolate the temporary directory.
+            archive_stream: Snapshot archive bytes or seekable binary stream.
+            snapshot_id: Optional immutable snapshot identifier for provenance.
+
+        Returns:
+            Extraction counts, size, workspace path, and coverage-limit status.
+
+        Raises:
+            ArchiveMaterializationError: If archive structure or resource usage
+                violates a safety limit.
+            tarfile.TarError: If the snapshot is not a readable gzip tar archive.
+        """
         workspace_path = self.create(job_id)
         archive_file = self._ensure_binary_stream(archive_stream)
         archive_size_bytes = self._archive_size_bytes(archive_stream)
@@ -161,11 +196,13 @@ class ScannerWorkspace:
         workspace_path: Path,
         members: list[tarfile.TarInfo],
     ) -> None:
+        """Preflight all archive member paths before any file content is written."""
         for member in members:
             self._validate_member_depth(member.name)
             self._safe_member_path(workspace_path, member.name)
 
     def _validate_member_depth(self, member_name: str) -> None:
+        """Reject empty or excessively nested archive paths."""
         normalized = member_name.replace("\\", "/").strip("/")
         if not normalized:
             raise ArchiveMaterializationError("archive entry name is empty")
@@ -177,6 +214,7 @@ class ScannerWorkspace:
             )
 
     def _safe_member_path(self, workspace_path: Path, member_name: str) -> Path:
+        """Resolve an archive member and enforce that it remains inside the workspace."""
         workspace_resolved = workspace_path.resolve(strict=False)
         candidate = (workspace_path / member_name).resolve(strict=False)
         if candidate != workspace_resolved and workspace_resolved not in candidate.parents:
@@ -187,11 +225,13 @@ class ScannerWorkspace:
         return candidate
 
     def _ensure_binary_stream(self, archive_stream: BinaryIO | bytes) -> BinaryIO:
+        """Wrap byte archives in an in-memory stream while preserving file-like inputs."""
         if isinstance(archive_stream, bytes):
             return io.BytesIO(archive_stream)
         return archive_stream
 
     def _archive_size_bytes(self, archive_stream: BinaryIO | bytes) -> int:
+        """Best-effort compressed-size measurement used by the expansion-ratio guard."""
         if isinstance(archive_stream, bytes):
             return len(archive_stream)
 

@@ -47,14 +47,31 @@ const ALLOWED_ANALYZERS = new Set([
   "RUN_STRUCTURAL_AUGMENTATION",
 ]);
 
+/**
+ * Queues bounded targeted reanalysis requests against accepted evidence while enforcing idempotency, organization capacity, and deterministic scope resolution.
+ */
 @CommandHandler(RequestTargetedReanalysisCommand)
 export class RequestTargetedReanalysisHandler implements ICommandHandler<RequestTargetedReanalysisCommand> {
+  /**
+   * Creates the targeted-reanalysis handler with persistence, audit, and transactional outbox dependencies.
+   *
+   * @param prisma - Prisma service used for evidence/snapshot validation, capacity checks, and lifecycle persistence.
+   * @param auditWriter - Audit writer used to record successfully queued reanalysis work.
+   * @param outbox - Transactional outbox used to dispatch the reanalysis request to worker orchestration.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditWriter: AuditWriterService,
     private readonly outbox: OutboxRepository,
   ) {}
 
+  /**
+   * Validates/deduplicates a targeted reanalysis request, resolves its bounded code scope, applies tenant capacity limits, and queues worker execution.
+   *
+   * @param command - Requested artifact/analyzer/scope plus authorized PBAC and correlation context.
+   * @returns Agentic-tool response describing the queued or already-queued reanalysis request.
+   * @throws When the analyzer/scope is invalid, idempotency conflicts, evidence/snapshot is unavailable, or rate/capacity limits are exhausted.
+   */
   async execute(
     command: RequestTargetedReanalysisCommand,
   ): Promise<RequestTargetedReanalysisResponse> {
@@ -284,6 +301,14 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
     });
   }
 
+  /**
+   * Enforces the analyzer allowlist, exclusive scope shape, and configured per-request scope-size limits.
+   *
+   * @param input - Targeted-reanalysis request input to validate.
+   * @param correlationId - Correlation identifier attached to validation problems.
+   * @returns Nothing when analyzer and scope are valid.
+   * @throws An invalid-analyzer or invalid-scope problem when input falls outside the bounded tool contract.
+   */
   private assertInput(
     input: RequestTargetedReanalysisCommand["input"],
     correlationId: string,
@@ -316,6 +341,15 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
       );
   }
 
+  /**
+   * Normalizes an explicit path scope or resolves subject references to containing directory prefixes from the input evidence artifact.
+   *
+   * @param input - Targeted-reanalysis input containing one supported scope representation.
+   * @param evidencePayload - Persisted technical-evidence payload used to resolve subject references.
+   * @param correlationId - Correlation identifier attached to scope-resolution problems.
+   * @returns Sorted path-prefix scope that can be consumed by the worker.
+   * @throws An invalid-scope problem when subject references cannot resolve to safe repository paths.
+   */
   private resolveScope(
     input: RequestTargetedReanalysisCommand["input"],
     evidencePayload: unknown,
@@ -339,6 +373,12 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
     return { pathPrefixes };
   }
 
+  /**
+   * Maps a targeted-reanalysis lifecycle row into the standardized agentic tool response contract.
+   *
+   * @param input - Request identity, artifact/analyzer/checkpoint references, correlation ID, and response lifecycle state.
+   * @returns Agentic tool response representing queued coverage with stable provenance/audit/scope references.
+   */
   private buildResponse(input: {
     requestId: string;
     inputEvidenceReportId: string;
@@ -386,6 +426,13 @@ type SubjectRefKind =
 
 type EvidenceRecord = Record<string, unknown>;
 
+/**
+ * Resolves finding/node/symbol references to unique sorted directory prefixes found in the recursive evidence payload.
+ *
+ * @param evidencePayload - Persisted technical-evidence payload to search.
+ * @param subjectRefs - Stable subject references requested by the caller.
+ * @returns Safe repository directory prefixes containing matching evidence subjects.
+ */
 function resolveSubjectRefPathPrefixes(
   evidencePayload: unknown,
   subjectRefs: string[],
@@ -404,6 +451,12 @@ function resolveSubjectRefPathPrefixes(
   return [...prefixes].sort();
 }
 
+/**
+ * Recursively flattens record-like objects from nested evidence JSON so subject-reference lookup can inspect all evidence nodes.
+ *
+ * @param value - Arbitrary evidence payload subtree.
+ * @returns All record nodes reachable from the subtree.
+ */
 function collectEvidenceRecords(value: unknown): EvidenceRecord[] {
   if (Array.isArray(value)) {
     return value.flatMap((item) => collectEvidenceRecords(item));
@@ -415,10 +468,22 @@ function collectEvidenceRecords(value: unknown): EvidenceRecord[] {
   ];
 }
 
+/**
+ * Checks whether an unknown evidence value is a non-array object record.
+ *
+ * @param value - Unknown value to inspect.
+ * @returns True when the value is record-like.
+ */
 function isEvidenceRecord(value: unknown): value is EvidenceRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/**
+ * Parses a supported `finding:`, `node:`, or `symbol:` subject reference.
+ *
+ * @param value - Subject reference string to parse.
+ * @returns Parsed kind/id pair, or null when the reference is malformed or unsupported.
+ */
 function parseSubjectRef(
   value: string,
 ): { kind: SubjectRefKind; id: string } | null {
@@ -427,6 +492,14 @@ function parseSubjectRef(
   return { kind: kind as SubjectRefKind, id };
 }
 
+/**
+ * Determines whether an evidence record identifies the requested finding, node, or symbol.
+ *
+ * @param record - Evidence record to inspect.
+ * @param kind - Subject reference category.
+ * @param id - Subject identifier to match.
+ * @returns True when the record directly or collectively references the requested subject.
+ */
 function matchesSubjectRef(
   record: EvidenceRecord,
   kind: SubjectRefKind,
@@ -446,11 +519,23 @@ function matchesSubjectRef(
   return record.symbol_id === id || record.symbolId === id;
 }
 
+/**
+ * Reads a snake_case or camelCase file-path field from an evidence record.
+ *
+ * @param record - Evidence record that may contain a file path.
+ * @returns File path string, or null when absent/non-string.
+ */
 function readFilePath(record: EvidenceRecord): string | null {
   const value = record.file_path ?? record.filePath;
   return typeof value === "string" ? value : null;
 }
 
+/**
+ * Converts a safe relative file path into its containing directory prefix for bounded reanalysis.
+ *
+ * @param filePath - Relative repository file path to normalize.
+ * @returns Directory prefix ending in `/`, or null for absolute/traversal/root-level paths.
+ */
 function toPathPrefix(filePath: string | null): string | null {
   if (
     !filePath ||

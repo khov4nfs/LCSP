@@ -28,14 +28,31 @@ import { ExportAuditTrailCommand } from "./export-audit-trail.command.js";
 
 const MAX_DATE_RANGE_MS = 365 * 24 * 60 * 60 * 1_000;
 
+/**
+ * Builds immutable, redacted audit export artifacts for an organization and records the export action itself.
+ */
 @CommandHandler(ExportAuditTrailCommand)
 export class ExportAuditTrailHandler implements ICommandHandler<ExportAuditTrailCommand> {
+  /**
+   * Creates the export handler with audit persistence, redaction, and audit-writing dependencies.
+   *
+   * @param prisma - Prisma service used to read audit events and persist export requests.
+   * @param redactor - Service used to sanitize event payloads before they leave the audit store.
+   * @param auditWriter - Audit writer used to record successful export generation.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly redactor: AuditRedactorService,
     private readonly auditWriter: AuditWriterService,
   ) {}
 
+  /**
+   * Validates tenant/date scope, creates a versioned SHA-256-protected export artifact, and persists its request record.
+   *
+   * @param command - Organization, requester, date range, and correlation context for the export.
+   * @returns Export request metadata for the generated artifact.
+   * @throws When organization scope mismatches or the date range is invalid/too large.
+   */
   async execute(
     command: ExportAuditTrailCommand,
   ): Promise<AuditExportRequestDto> {
@@ -175,6 +192,15 @@ export class ExportAuditTrailHandler implements ICommandHandler<ExportAuditTrail
     };
   }
 
+  /**
+   * Parses a required ISO-compatible date field and maps invalid values to the audit problem contract.
+   *
+   * @param value - Raw date string supplied by the caller.
+   * @param field - Request field name reported in validation metadata.
+   * @param correlationId - Correlation identifier attached to validation errors.
+   * @returns Parsed date value.
+   * @throws An invalid-query problem when the date cannot be parsed.
+   */
   private parseDate(value: string, field: string, correlationId: string): Date {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
@@ -184,6 +210,14 @@ export class ExportAuditTrailHandler implements ICommandHandler<ExportAuditTrail
     return date;
   }
 
+  /**
+   * Throws a standardized audit bad-request problem.
+   *
+   * @param errorCode - Stable audit or organization-scope error code.
+   * @param correlationId - Correlation identifier attached to the problem response.
+   * @param field - Optional invalid field name to expose in problem metadata.
+   * @throws Always throws the constructed bad-request problem.
+   */
   private badRequest(
     errorCode: string,
     correlationId: string,

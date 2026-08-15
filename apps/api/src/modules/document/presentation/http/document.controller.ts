@@ -26,14 +26,31 @@ import { GetDocumentQuery } from "../../application/queries/get-document/get-doc
 import { ListDocumentsQuery } from "../../application/queries/list-documents/list-documents.query.js";
 import { DocumentStorageService } from "../../infrastructure/storage/document-storage.service.js";
 
+/**
+ * Exposes PBAC-protected document generation/read endpoints and verifies signed document download redirects.
+ */
 @Controller("assessments")
 export class DocumentController {
+  /**
+   * Creates the controller with command/query dispatch and download-token verification support.
+   *
+   * @param commandBus - CQRS command bus used to request generated documents.
+   * @param queryBus - CQRS query bus used to read document status/list views.
+   * @param storage - Service used to verify signed document download tokens.
+   */
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
     private readonly storage: DocumentStorageService,
   ) {}
 
+  /**
+   * Queues final-report generation for an assessment.
+   *
+   * @param assessmentId - Assessment identifier from the route.
+   * @param request - Authenticated request containing organization/user and correlation context.
+   * @returns The standard result envelope containing queued final-report request metadata.
+   */
   @Post(":assessmentId/documents/final-report")
   @HttpCode(202)
   @UseGuards(PbacGuard)
@@ -59,6 +76,13 @@ export class DocumentController {
     );
   }
 
+  /**
+   * Queues gap-analysis document generation for an assessment.
+   *
+   * @param assessmentId - Assessment identifier from the route.
+   * @param request - Authenticated request containing organization/user and correlation context.
+   * @returns The standard result envelope containing queued gap-analysis request metadata.
+   */
   @Post(":assessmentId/documents/gap-analysis")
   @HttpCode(202)
   @UseGuards(PbacGuard)
@@ -84,6 +108,14 @@ export class DocumentController {
     );
   }
 
+  /**
+   * Retrieves one document status view using the full or redacted PBAC read mode selected by the guard.
+   *
+   * @param assessmentId - Assessment identifier from the route.
+   * @param documentRequestId - Document request identifier from the route.
+   * @param request - Authenticated request containing tenant, scope, selected action, and correlation context.
+   * @returns The standard result envelope containing document status/download metadata.
+   */
   @Get(":assessmentId/documents/:documentRequestId")
   @UseGuards(PbacGuard)
   @RequireAnyAction(
@@ -110,6 +142,13 @@ export class DocumentController {
     );
   }
 
+  /**
+   * Lists document status views visible to the caller for one assessment.
+   *
+   * @param assessmentId - Assessment identifier from the route.
+   * @param request - Authenticated request containing tenant, scope, selected action, and correlation context.
+   * @returns The standard result envelope containing visible document request records.
+   */
   @Get(":assessmentId/documents")
   @UseGuards(PbacGuard)
   @RequireAnyAction(
@@ -134,6 +173,15 @@ export class DocumentController {
     );
   }
 
+  /**
+   * Verifies an expiring signed token and redirects the client to the backing document artifact URL.
+   *
+   * @param assessmentId - Assessment identifier bound into the signed token.
+   * @param documentRequestId - Document request identifier bound into the signed token.
+   * @param token - Signed document download token.
+   * @returns Redirect target containing the verified backing document URL.
+   * @throws A download-url-invalid problem when the token is missing, forged, mismatched, malformed, or expired.
+   */
   @Get(":assessmentId/documents/:documentRequestId/download")
   @Redirect(undefined, 302)
   downloadDocument(

@@ -1,22 +1,27 @@
+"""Derive classification risk tier and citation coverage without an LLM."""
+
 from typing import Dict, List, Tuple
 
+
 def calculate_risk_tier(matches: List[Dict]) -> Tuple[str, str, str]:
-    """
-    Calculate risk_level, applicability_assessment, and citation_coverage deterministically.
-    Never uses an LLM.
-    
+    """Calculate risk level, applicability, and citation coverage deterministically.
+
+    This function is intentionally rule-based: classification severity is
+    derived from match confidence and citation coverage so the final risk tier
+    is reproducible and does not depend on narrative LLM output.
+
     Args:
-        matches: List of dicts representing LegalRuleMatch.
-            Expects keys: 'status', 'confidence', 'coverage_status'.
-            
+        matches: Legal-rule match dictionaries containing ``confidence`` and
+            ``coverage_status`` values.
+
     Returns:
-        tuple: (risk_level, applicability_assessment, citation_coverage)
+        A ``(risk_level, applicability_assessment, citation_coverage)`` tuple.
     """
     if not matches:
         return "LOW", "not_applicable", "NO_CITATION"
-        
+
     applicability = "applicable"
-    
+
     # Calculate aggregate citation coverage
     coverages = [m.get("coverage_status", "NO_CITATION") for m in matches]
     if all(c == "COMPLETE_CITATION" for c in coverages):
@@ -25,11 +30,11 @@ def calculate_risk_tier(matches: List[Dict]) -> Tuple[str, str, str]:
         overall_coverage = "NO_CITATION"
     else:
         overall_coverage = "PARTIAL_CITATION"
-        
+
     # Calculate Risk Level deterministically
     # Simple logic based on confidence and coverage for now
     max_confidence = max([m.get("confidence", 0.0) for m in matches], default=0.0)
-    
+
     if overall_coverage == "NO_CITATION":
         # Missing citations block or degrade classification
         risk_level = "BLOCKED"

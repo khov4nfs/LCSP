@@ -1,3 +1,5 @@
+"""Extract deterministic canonical text spans from validated HTML/DOCX legal snapshots."""
+
 from __future__ import annotations
 
 import json
@@ -69,6 +71,8 @@ SOURCE_EFFECT_STATUS = {
 
 @dataclass(frozen=True)
 class OfficialTextExtractionRequest:
+    """Bounded extraction request pinned to one immutable source snapshot manifest."""
+
     snapshot_ref: str
     extractor_profile: str
     max_pages: int
@@ -77,13 +81,19 @@ class OfficialTextExtractionRequest:
 
 
 class SnapshotRegistryClient(Protocol):
+    """Minimal registry API used to resolve immutable official source snapshots."""
+
     def get_official_source_snapshot(
         self, *, snapshot_ref: str | None = None, snapshot_id: str | None = None
-    ) -> dict: ...
+    ) -> dict:
+        """Fetch snapshot registry metadata by reference or identifier."""
+        ...
 
 
 @dataclass(frozen=True)
 class ResolvedOfficialSnapshot:
+    """Verified local artifact resolved from the official snapshot registry."""
+
     snapshot_ref: str
     document_id: str
     source_manifest_path: Path
@@ -94,6 +104,8 @@ class ResolvedOfficialSnapshot:
 
 @dataclass(frozen=True)
 class OfficialTextExtractionSpan:
+    """Stable page/sequence text span with locator and content digest."""
+
     span_ref: str
     page_number: int
     sequence: int
@@ -102,6 +114,7 @@ class OfficialTextExtractionSpan:
     text: str
 
     def to_json(self) -> dict[str, Any]:
+        """Serialize the span using the extraction artifact contract field names."""
         return {
             "spanRef": self.span_ref,
             "pageNumber": self.page_number,
@@ -114,6 +127,8 @@ class OfficialTextExtractionSpan:
 
 @dataclass(frozen=True)
 class OfficialTextExtractionResult:
+    """Extraction artifact metadata, evidence refs, coverage state, and limitations."""
+
     status: str
     extraction_ref: str
     extraction_id: str
@@ -133,6 +148,7 @@ class OfficialTextExtractionResult:
     limitations: list[dict[str, Any]]
 
     def to_tool_response(self, *, correlationId: str) -> dict[str, Any]:
+        """Project extraction metadata into the bounded agentic-tool response."""
         return {
             "status": self.status,
             "toolName": OFFICIAL_TEXT_EXTRACTION_TOOL["name"],
@@ -171,6 +187,7 @@ class OfficialTextExtractionResult:
         spans_path: Path,
         reason: str,
     ) -> "OfficialTextExtractionResult":
+        """Build a fail-closed result when the official snapshot has no canonical text."""
         return cls(
             status=AGENTIC_TOOL_STATUSES["blocked"],
             extraction_ref=extraction_ref,
@@ -206,29 +223,36 @@ class OfficialTextExtractionResult:
 
 
 class _HtmlBlockParser(HTMLParser):
+    """Collect normalized text from block-level HTML elements in source order."""
+
     _BLOCK_ELEMENTS = {"p", "div", "li", "tr", "h1", "h2", "h3", "h4", "h5", "h6"}
 
     def __init__(self) -> None:
+        """Initialize parser state for the currently open block element."""
         super().__init__()
         self._current_tag: str | None = None
         self._parts: list[str] = []
         self.blocks: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        """Flush the previous block and begin collecting a supported block tag."""
         if tag.lower() in self._BLOCK_ELEMENTS:
             self._flush()
             self._current_tag = tag.lower()
             self._parts = []
 
     def handle_endtag(self, tag: str) -> None:
+        """Flush text when the current supported block closes."""
         if self._current_tag == tag.lower():
             self._flush()
 
     def handle_data(self, data: str) -> None:
+        """Append text only while a supported block is active."""
         if self._current_tag:
             self._parts.append(data)
 
     def _flush(self) -> None:
+        """Normalize whitespace and append the current non-empty block."""
         if not self._current_tag:
             return
         text = " ".join("".join(self._parts).split())
@@ -239,9 +263,24 @@ class _HtmlBlockParser(HTMLParser):
 
 
 class OfficialTextExtractor:
+    """Extract stable spans from supported official HTML/DOCX snapshots without OCR."""
+
     def extract(
         self, request: OfficialTextExtractionRequest
     ) -> OfficialTextExtractionResult:
+        """Extract canonical text and write span/manifest artifacts.
+
+        Args:
+            request: Snapshot manifest, extraction profile, page budget, and output dir.
+
+        Returns:
+            READY/NEEDS_INPUT extraction metadata, or BLOCKED when canonical text
+            is unavailable and an OCR fallback is required.
+
+        Raises:
+            ValueError: If the page budget/profile/manifest is invalid.
+            RuntimeError: If the extracted snapshot exceeds the page budget.
+        """
         if request.max_pages < 1:
             raise ValueError("max_pages must be positive")
 
@@ -403,6 +442,7 @@ class OfficialTextExtractor:
         max_pages: int,
         output_dir: Path,
     ) -> OfficialTextExtractionResult:
+        """Validate registry content type then extract from an already resolved snapshot."""
         self._validate_resolved_snapshot(
             resolved_snapshot=resolved_snapshot,
             extractor_profile=extractor_profile,
@@ -423,6 +463,7 @@ class OfficialTextExtractor:
         resolved_snapshot: ResolvedOfficialSnapshot,
         extractor_profile: str,
     ) -> None:
+        """Require the registered MIME type to match the chosen extraction profile."""
         profile = _normalize_profile(extractor_profile)
         supported_types = SUPPORTED_CONTENT_TYPES.get(profile, set())
         if resolved_snapshot.content_type not in supported_types:
@@ -432,11 +473,20 @@ class OfficialTextExtractor:
 
 
 class OfficialSourceSnapshotResolver:
+    """Resolve a registry snapshot to local storage and verify artifact/manifest integrity."""
+
     def __init__(self, *, api_client: SnapshotRegistryClient, storage_root: Path) -> None:
+        """Create a resolver for the internal snapshot registry and legal storage root."""
         self._api_client = api_client
         self._storage_root = storage_root
 
     def resolve(self, *, snapshot_ref: str) -> ResolvedOfficialSnapshot:
+        """Resolve a snapshot and verify its bytes/hash/document identity before extraction.
+
+        Raises:
+            RuntimeError: If registry metadata, artifact, hash, manifest, or document
+                identity is missing or inconsistent.
+        """
         record = self._api_client.get_official_source_snapshot(snapshot_ref=snapshot_ref)
         if not isinstance(record, dict):
             raise RuntimeError("official source snapshot record is invalid")
@@ -467,6 +517,7 @@ class OfficialSourceSnapshotResolver:
 
 
 def _normalize_profile(value: str) -> str:
+    """Normalize a supported extraction profile to its canonical enum value."""
     normalized = value.strip().upper()
     if normalized in EXTRACTION_PROFILES.values():
         return normalized
@@ -474,12 +525,14 @@ def _normalize_profile(value: str) -> str:
 
 
 def _extract_html_blocks(html: str) -> list[str]:
+    """Extract normalized block-level text from an official HTML snapshot."""
     parser = _HtmlBlockParser()
     parser.feed(html)
     return parser.blocks
 
 
 def _extract_docx_paragraphs(docx_bytes: bytes) -> list[str]:
+    """Extract non-empty WordprocessingML paragraphs from DOCX bytes."""
     with zipfile.ZipFile(BytesIO(docx_bytes)) as archive:
         document = archive.read("word/document.xml")
     root = ElementTree.fromstring(document)
@@ -497,6 +550,7 @@ def _extract_docx_paragraphs(docx_bytes: bytes) -> list[str]:
 def _build_spans(
     *, extraction_id: str, document_id: str, blocks: list[str]
 ) -> list[OfficialTextExtractionSpan]:
+    """Assign deterministic page/sequence locators and hashes to extracted blocks."""
     spans: list[OfficialTextExtractionSpan] = []
     for sequence, text in enumerate(blocks, start=1):
         locator = f"{document_id}::p1:s{sequence:02d}"
@@ -517,12 +571,14 @@ def _build_spans(
 def _extraction_id(
     *, document_id: str, snapshot_ref: str, extractor_profile: str
 ) -> str:
+    """Derive a stable extraction ID from document, snapshot, and profile."""
     suffix = _sha256_text(f"{snapshot_ref}:{extractor_profile}")[:19].removeprefix("sha256:")
     safe_document_id = re.sub(r"[^A-Za-z0-9_-]+", "-", document_id).strip("-")
     return f"{safe_document_id}:{suffix}"
 
 
 def _derive_manifest_file_name(artifact_name: str) -> str:
+    """Map a supported ``*.source.*`` artifact name to its adjacent manifest name."""
     if ".source." not in artifact_name:
         raise RuntimeError("official snapshot artifact name is unsupported")
     prefix, _, _ = artifact_name.partition(".source.")
@@ -530,6 +586,7 @@ def _derive_manifest_file_name(artifact_name: str) -> str:
 
 
 def _required_string(values: dict[str, Any], key: str) -> str:
+    """Read a required non-empty manifest/registry string."""
     value = values.get(key)
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"source manifest is missing {key}")
@@ -537,6 +594,7 @@ def _required_string(values: dict[str, Any], key: str) -> str:
 
 
 def _optional_string(value: Any) -> str | None:
+    """Normalize an optional non-empty string."""
     if isinstance(value, str):
         normalized = value.strip()
         return normalized or None
@@ -544,8 +602,10 @@ def _optional_string(value: Any) -> str | None:
 
 
 def _sha256_text(value: str) -> str:
+    """Return a tagged SHA-256 digest for UTF-8 text."""
     return _sha256_bytes(value.encode("utf-8"))
 
 
 def _sha256_bytes(value: bytes) -> str:
+    """Return a tagged SHA-256 digest for arbitrary bytes."""
     return f"sha256:{sha256(value).hexdigest()}"

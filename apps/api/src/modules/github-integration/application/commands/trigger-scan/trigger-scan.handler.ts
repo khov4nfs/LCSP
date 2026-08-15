@@ -41,8 +41,18 @@ import {
 } from "../../ports/persistence/repository-scan-job.repository.js";
 import { TriggerScanCommand } from "./trigger-scan.command.js";
 
+/**
+ * Creates idempotent repository scan jobs after validating snapshot, assessment, PBAC ownership, lifecycle, and mapping readiness.
+ */
 @CommandHandler(TriggerScanCommand)
 export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
+  /**
+   * Creates the scan trigger handler with job persistence, tenant state, and audit dependencies.
+   *
+   * @param scanJobRepository - Repository used for idempotent scan-job lookup and transactional creation/outbox persistence.
+   * @param prisma - Prisma service used to validate snapshot and assessment state.
+   * @param auditWriter - Audit writer used to record accepted, duplicate, blocked, and rejected triggers.
+   */
   constructor(
     @Inject(REPOSITORY_SCAN_JOB_REPOSITORY)
     private readonly scanJobRepository: RepositoryScanJobRepository,
@@ -50,6 +60,13 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
     private readonly auditWriter: AuditWriterService,
   ) {}
 
+  /**
+   * Validates the trigger request, deduplicates by idempotency key, handles mapping readiness, and persists the scan-trigger outbox event.
+   *
+   * @param command - Assessment/snapshot, trigger provenance, actor/PBAC, idempotency, and correlation context.
+   * @returns Scan-job metadata indicating whether a new job was created.
+   * @throws When required idempotency/snapshot/assessment/PBAC/lifecycle constraints are not satisfied.
+   */
   async execute(command: TriggerScanCommand): Promise<TriggerScanDto> {
     const snapshotId = clean(command.snapshotId);
     const idempotencyKey = clean(command.idempotencyKey);
@@ -259,6 +276,15 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
     return this.toDto(job, true, command.correlationId);
   }
 
+  /**
+   * Validates an idempotent existing job against the incoming trigger and records a duplicate audit event when compatible.
+   *
+   * @param command - Incoming scan-trigger command.
+   * @param existing - Existing job found by the idempotency key.
+   * @param organizationId - Organization resolved from the validated snapshot.
+   * @returns Existing scan job projected as a non-new response.
+   * @throws When the same idempotency key is reused for different scan inputs.
+   */
   private async resolveExisting(
     command: TriggerScanCommand,
     existing: RepositoryScanJob,
@@ -302,6 +328,14 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
     return this.toDto(existing, false, command.correlationId);
   }
 
+  /**
+   * Maps a scan-job aggregate to the external trigger response contract.
+   *
+   * @param job - Scan-job aggregate to serialize.
+   * @param isNew - Whether this request created the job rather than returning an idempotent existing one.
+   * @param correlationId - Correlation identifier to include in the response.
+   * @returns Trigger scan DTO.
+   */
   private toDto(
     job: RepositoryScanJob,
     isNew: boolean,
@@ -315,6 +349,14 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
     };
   }
 
+  /**
+   * Records a rejected scan trigger before the corresponding external exception is raised.
+   *
+   * @param command - Incoming trigger context.
+   * @param reasonCode - Stable rejection reason.
+   * @param organizationId - Organization to attribute the rejection to; defaults to the command organization.
+   * @returns A promise that resolves after the denial audit event is written.
+   */
   private async auditRejected(
     command: TriggerScanCommand,
     reasonCode: string,
@@ -339,6 +381,13 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
     });
   }
 
+  /**
+   * Builds the standard problem payload used by scan-trigger HTTP exceptions.
+   *
+   * @param command - Trigger command supplying the correlation identifier.
+   * @param errorCode - Stable GitHub integration or PBAC error code.
+   * @returns Standard bad-request-shaped problem result.
+   */
   private errorBody(command: TriggerScanCommand, errorCode: string) {
     return problemResult(errorCode, command.correlationId, {
       status: HttpStatus.BAD_REQUEST,
@@ -346,12 +395,24 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
   }
 }
 
+/**
+ * Normalizes a non-empty string without coercing other runtime types.
+ *
+ * @param value - Unknown value to normalize.
+ * @returns Trimmed string, or null when empty/non-string.
+ */
 function clean(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
 }
 
+/**
+ * Derives the pre-scan mapping state from snapshot repository identity and commit completeness.
+ *
+ * @param snapshot - Minimal snapshot fields required to assess mapping readiness.
+ * @returns Scan-job status describing whether mapping is pending, blocked, waiting for commit context, or ready to snapshot.
+ */
 function resolveMappingStatus(snapshot: {
   repositoryId: string;
   repositoryFullName: string;

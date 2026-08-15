@@ -19,14 +19,29 @@ import {
   fromPrismaRepositoryScanJobStatus,
 } from "../../infrastructure/prisma/prisma-enum-mappers.js";
 
+/**
+ * Implements operator workflows for inspecting, replaying, and discarding outbox DLQ messages.
+ */
 @Injectable()
 export class OutboxDlqService {
+  /**
+   * Creates the DLQ service with persistence, audit, and aggregate-state dependencies.
+   *
+   * @param outboxRepository - Repository used to query and mutate outbox messages.
+   * @param auditWriter - Audit service used to record operator replay and discard decisions.
+   * @param prisma - Prisma service used to validate the current state of replay targets.
+   */
   constructor(
     private readonly outboxRepository: OutboxRepository,
     private readonly auditWriter: AuditWriterService,
     private readonly prisma: PrismaService,
   ) {}
 
+  /**
+   * Retrieves all outbox messages currently in the dead-letter queue.
+   *
+   * @returns DLQ messages together with their total count.
+   */
   async getDlqMessages(): Promise<{
     messages: OutboxMessageEntity[];
     count: number;
@@ -35,6 +50,15 @@ export class OutboxDlqService {
     return { messages, count: messages.length };
   }
 
+  /**
+   * Validates a DLQ message for safe replay, resets it to pending, and audits the decision.
+   *
+   * @param id - Outbox message identifier to replay.
+   * @param actorId - Operator user identifier performing the replay.
+   * @param organizationId - Organization context of the operator action.
+   * @param correlationId - Correlation identifier used for errors and audit tracing.
+   * @returns A promise that resolves after the message is reset and audited.
+   */
   async replayMessage(
     id: string,
     actorId: string,
@@ -90,6 +114,15 @@ export class OutboxDlqService {
     });
   }
 
+  /**
+   * Permanently removes a DLQ message and records the discard action in the audit log.
+   *
+   * @param id - Outbox message identifier to delete.
+   * @param actorId - Operator user identifier performing the deletion.
+   * @param organizationId - Organization context of the operator action.
+   * @param correlationId - Correlation identifier used for errors and audit tracing.
+   * @returns A promise that resolves after deletion and audit persistence complete.
+   */
   async deleteMessage(
     id: string,
     actorId: string,
@@ -124,6 +157,13 @@ export class OutboxDlqService {
     });
   }
 
+  /**
+   * Rejects replay when the target aggregate has already reached a terminal state that must not be repeated.
+   *
+   * @param message - DLQ message whose aggregate target should be checked.
+   * @param correlationId - Correlation identifier used when reporting an unsafe replay.
+   * @returns A promise that resolves when replay is considered safe.
+   */
   private async assertReplayTargetIsSafe(
     message: OutboxMessageEntity,
     correlationId: string,
@@ -173,6 +213,12 @@ export class OutboxDlqService {
     }
   }
 
+  /**
+   * Raises the standardized conflict used when a DLQ replay would target an unsafe terminal aggregate.
+   *
+   * @param correlationId - Correlation identifier attached to the problem response.
+   * @returns Never; this helper always throws.
+   */
   private unsafeReplay(correlationId: string): never {
     throw problemException(
       OUTBOX_ERROR_CODES.dlqReplayUnsafeTarget,

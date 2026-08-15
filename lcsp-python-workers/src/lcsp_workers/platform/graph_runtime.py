@@ -1,3 +1,5 @@
+"""Shared LangGraph execution state and durable checkpoint/resume helpers."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -10,6 +12,8 @@ StateT = TypeVar("StateT")
 
 @dataclass(frozen=True)
 class GraphNodeContext:
+    """Identifiers propagated into optional LLM/tool work performed by a node."""
+
     workflow_run_id: str
     node_name: str
     correlationId: str | None = None
@@ -18,6 +22,8 @@ class GraphNodeContext:
 
 @dataclass(frozen=True)
 class GraphNodeResult:
+    """Recorded status and metadata for one completed/skipped graph node."""
+
     node_name: str
     status: str
     request_id: str | None = None
@@ -26,6 +32,8 @@ class GraphNodeResult:
 
 @dataclass
 class GraphRunState:
+    """Mutable audit state accumulated across one governed graph execution."""
+
     graph_name: str
     workflow_run_id: str
     assessment_id: str | None = None
@@ -47,9 +55,11 @@ class GraphRunState:
         return self.input_versions
 
     def record_input_version(self, name: str, value: str) -> None:
+        """Pin an input artifact/version used by this workflow run."""
         self.input_versions[name] = value
 
     def record_guardrail(self, status: str, reason: str | None = None) -> None:
+        """Record guardrail status and preserve a reason only for degraded/blocked runs."""
         self.guardrail_status = status
         self.blocked_or_degraded_reason = (
             reason if status in {"blocked", "degraded"} else None
@@ -63,6 +73,7 @@ class GraphRunState:
         request_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> None:
+        """Append node execution metadata and deduplicate associated LLM request IDs."""
         self.current_node = node_name
         if request_id and request_id not in self.llm_run_refs:
             self.llm_run_refs.append(request_id)
@@ -76,6 +87,7 @@ class GraphRunState:
         )
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the graph execution state for diagnostics/audit persistence."""
         return {
             "graph_name": self.graph_name,
             "workflow_run_id": self.workflow_run_id,
@@ -104,6 +116,8 @@ class GraphRunState:
 
 @dataclass(frozen=True)
 class GraphRunResult(Generic[PayloadT]):
+    """Generic graph payload bundled with workflow and execution state."""
+
     graph_name: str
     workflow_run_id: str
     state: GraphRunState
@@ -111,7 +125,11 @@ class GraphRunResult(Generic[PayloadT]):
 
 
 def checkpoint_database_url(value: object) -> str | None:
-    """Return a configured Postgres checkpoint URL or disable checkpointing."""
+    """Return a configured Postgres checkpoint URL or disable checkpointing.
+
+    Raises:
+        ValueError: If a non-empty URL does not use a Postgres scheme.
+    """
     if not isinstance(value, str):
         return None
     cleaned = value.strip()
@@ -131,12 +149,20 @@ def invoke_graph(
     workflow_run_id: str,
     checkpoint_url: str | None,
 ) -> StateT:
-    """
-    Invoke a graph with durable Postgres checkpoint/resume when configured.
+    """Invoke a graph and resume/checkpoint its workflow thread when configured.
 
     A failed thread resumes from its last successful LangGraph checkpoint. A
-    completed thread returns the checkpointed terminal state, which prevents a
-    broker redelivery from repeating optional LLM calls or persistence nodes.
+    completed thread returns the checkpointed terminal state, preventing broker
+    redelivery from repeating optional LLM calls or persistence nodes.
+
+    Args:
+        build_graph: Factory accepting an optional checkpointer and returning a graph app.
+        initial_state: State used only when no prior checkpoint exists.
+        workflow_run_id: Stable thread identifier for checkpoint lookup.
+        checkpoint_url: Optional validated Postgres checkpoint connection URL.
+
+    Returns:
+        Terminal or resumed graph state.
     """
     if not checkpoint_url:
         return build_graph(None).invoke(initial_state)

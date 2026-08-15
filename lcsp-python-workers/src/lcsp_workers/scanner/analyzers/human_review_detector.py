@@ -15,20 +15,42 @@ from lcsp_workers.scanner.analyzers.decision_patterns import (
     INCIDENT_HANDLING_PATTERNS_PY
 )
 
+
 @dataclass
 class DetectedSignal:
+    """Normalized governance-control signal detected in application source."""
+
     finding_type: str
     matched_rule_id: str
     confidence: float
 
+
 class HumanReviewDetector:
+    """Detect human-oversight, disclosure, and incident-handling controls in Python.
+
+    Text rules provide broad recall for explicit controls, while AST inspection adds
+    structural evidence for exception-handling/reporting patterns. Parse failures are
+    intentionally non-fatal because this detector supplements the broader scanner.
+    """
+
     def __init__(self):
+        """Load the scanner-spec rule groups used by this detector."""
         self.review_patterns = HUMAN_REVIEW_PATTERNS_PY
         self.oversight_patterns = HUMAN_OVERSIGHT_CONTROL_PATTERNS_PY
         self.disclosure_patterns = AI_INTERACTION_DISCLOSURE_PATTERNS_PY
         self.incident_patterns = INCIDENT_HANDLING_PATTERNS_PY
 
     def detect_signals(self, source_code: str, ai_call_line: int = -1, has_interaction_surface: bool = False) -> List[DetectedSignal]:
+        """Detect governance controls without persisting the inspected source body.
+
+        Args:
+            source_code: In-memory Python source inspected for control patterns.
+            ai_call_line: Reserved AI-call location context for detector composition.
+            has_interaction_surface: Whether disclosure rules are relevant to this file.
+
+        Returns:
+            At most the first matching signal per supported control category.
+        """
         signals = []
         
         # Simple text-based pattern matching as fallback / complement

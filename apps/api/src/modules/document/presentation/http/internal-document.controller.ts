@@ -13,10 +13,25 @@ import { resultEnvelope } from "../../../../platform/problems/result-envelope.js
 import { ProcessDocumentCallbackCommand } from "../../application/commands/process-document-callback/process-document-callback.command.js";
 import type { DocumentCallbackRequest } from "../../application/contracts/document/document-callback.contract.js";
 
+/**
+ * Exposes the worker-authenticated callback endpoint used to update document generation requests.
+ */
 @Controller("internal/document-requests")
 export class InternalDocumentController {
+  /**
+   * Creates the internal controller with the document callback command dispatcher.
+   *
+   * @param commandBus - CQRS command bus used to process worker document callbacks.
+   */
   constructor(private readonly commandBus: CommandBus) {}
 
+  /**
+   * Accepts a document-generation callback from the worker and dispatches it for persistence/audit processing.
+   *
+   * @param payload - Worker callback describing document status and optional artifact/blocked fields.
+   * @param correlationId - Optional upstream correlation identifier; a UUID is generated when absent.
+   * @returns The standard result envelope containing callback acknowledgement metadata.
+   */
   @Post(":documentRequestId/callback")
   @HttpCode(200)
   @UseGuards(WorkerApiKeyGuard)

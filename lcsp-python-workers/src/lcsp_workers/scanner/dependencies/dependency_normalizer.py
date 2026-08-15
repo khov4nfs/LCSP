@@ -18,12 +18,28 @@ from .dependency_fact import (
 
 
 class DependencyNormalizer:
+    """Merge SBOM inventory and usage signals into deterministic package evidence."""
+
     def normalize(
         self,
         *,
         sbom_entries: list[SBOMEntry],
         usage_facts: list[DependencyUsageFact],
     ) -> list[PackageDependency]:
+        """Normalize package identity and reconcile cross-tool dependency facts.
+
+        SBOM-only entries are classified as declared or transitive from their
+        location, while usage-only facts are retained even when Syft does not emit a
+        matching package. Independent usage tools contribute a bounded confidence
+        boost without changing the underlying observations.
+
+        Args:
+            sbom_entries: Package inventory discovered by Syft.
+            usage_facts: Manifest/import observations emitted by dependency scanners.
+
+        Returns:
+            Package dependencies sorted by canonical package name.
+        """
         facts_by_package: dict[str, list[DependencyUsageFact]] = defaultdict(list)
         for fact in usage_facts:
             facts_by_package[normalize_package_name(fact.package_name)].append(fact)
@@ -71,12 +87,14 @@ class DependencyNormalizer:
         return [packages[key] for key in sorted(packages)]
 
     def _sbom_only_state(self, entry: SBOMEntry) -> str:
+        """Infer declared versus transitive state when only SBOM evidence exists."""
         location = entry.location.lower()
         if any(name in location for name in ("lock", "node_modules", "site-packages")):
             return USAGE_TRANSITIVE
         return USAGE_DECLARED
 
     def _confidence_boost(self, facts: list[DependencyUsageFact]) -> float:
+        """Compute the bounded corroboration bonus from independent usage tools."""
         confirming_tools = {
             fact.source_tool
             for fact in facts
@@ -87,6 +105,7 @@ class DependencyNormalizer:
     def _normalize_ai_flags(
         self, facts: list[DependencyUsageFact]
     ) -> list[DependencyUsageFact]:
+        """Recompute AI relevance from the shared deterministic package registry."""
         return [
             replace(fact, is_ai_relevant=is_ai_package(fact.package_name))
             for fact in facts

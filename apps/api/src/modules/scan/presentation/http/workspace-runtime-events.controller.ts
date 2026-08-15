@@ -12,10 +12,24 @@ interface WorkspaceRuntimeRequest {
   pbacContext: PbacRequestContext;
 }
 
+/**
+ * Streams organization-scoped orchestration runtime snapshots to authorized workspace clients over Server-Sent Events.
+ */
 @Controller("workspace/runtime-events")
 export class WorkspaceRuntimeEventsController {
+  /**
+   * Creates the SSE controller with the runtime snapshot aggregation service.
+   *
+   * @param runtimeEvents - Service that builds current workspace run/tool/activity snapshots.
+   */
   constructor(private readonly runtimeEvents: AssessmentRuntimeEventService) {}
 
+  /**
+   * Emits an immediate workspace runtime snapshot and refreshes it every two seconds for the caller's organization.
+   *
+   * @param request - Authenticated request containing the organization-scoped PBAC context.
+   * @returns RxJS stream of `workspace.runtime` SSE messages.
+   */
   @Sse()
   @UseGuards(PbacGuard)
   @RequireAction(PBAC_ACTIONS.workspaceRead)
@@ -77,6 +91,12 @@ export class WorkspaceRuntimeEventsController {
   }
 }
 
+/**
+ * Projects the current scan-job record into the legacy SSE payload shape retained for workspace clients.
+ *
+ * @param scanJob - Runtime scan-job record to serialize.
+ * @returns Legacy snake_case scan-job payload.
+ */
 function toLegacyScanJobPayload(scanJob: unknown) {
   const item = scanJob as Record<string, unknown>;
   return {
@@ -93,6 +113,12 @@ function toLegacyScanJobPayload(scanJob: unknown) {
   };
 }
 
+/**
+ * Projects a technical evidence report into the legacy SSE payload shape retained for workspace clients.
+ *
+ * @param report - Runtime evidence-report record to serialize.
+ * @returns Legacy snake_case evidence-report payload.
+ */
 function toLegacyEvidenceReportPayload(report: unknown) {
   const item = report as Record<string, unknown>;
   return {

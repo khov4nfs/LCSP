@@ -10,6 +10,9 @@ import { AuditRedactorService } from "./application/services/audit/audit-redacto
 import { AuditExportStorageService } from "./infrastructure/storage/audit-export-storage.service.js";
 import { AuditController } from "./presentation/http/audit.controller.js";
 
+/**
+ * Wires PBAC-protected audit browsing and export flows to redaction, signed-download, and persistence services.
+ */
 @Module({
   imports: [CqrsModule, PbacModule],
   controllers: [AuditController],

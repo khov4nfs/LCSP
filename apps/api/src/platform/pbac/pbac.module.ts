@@ -8,6 +8,9 @@ import { PbacPreflightController } from "./pbac-preflight.controller.js";
 import { PbacPreflightService } from "./pbac-preflight.service.js";
 import { PbacGuard } from "./pbac.guard.js";
 
+/**
+ * Registers the global PBAC guard, context loader, evaluator, and worker preflight authorization endpoint.
+ */
 @Global()
 @Module({
   imports: [AuthWorkspaceModule, ConfigModule],
