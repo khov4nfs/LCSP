@@ -1,39 +1,68 @@
 from __future__ import annotations
 
-import ast
+from dataclasses import dataclass, field
+from importlib.metadata import version
 from pathlib import Path
 
-from .python_ast_parser import PythonAstParser
+import libcst as cst
+from libcst.metadata import MetadataWrapper, PositionProvider
+
+
+@dataclass(frozen=True)
+class PythonCstParseResult:
+    kwarg_names_by_line: dict[int, list[str]]
+    coverage_limitations: list[str] = field(default_factory=list)
+
+
+class _CallKeywordVisitor(cst.CSTVisitor):
+    METADATA_DEPENDENCIES = (PositionProvider,)
+
+    def __init__(self) -> None:
+        self.names_by_line: dict[int, list[str]] = {}
+
+    def visit_Call(self, node: cst.Call) -> None:
+        names = [
+            argument.keyword.value
+            for argument in node.args
+            if isinstance(argument.keyword, cst.Name)
+        ]
+        self.names_by_line[self.get_metadata(PositionProvider, node).start.line] = names
 
 
 class PythonCstParser:
-    """Best-effort CST adapter.
+    """Pinned libcst adapter that extracts argument names without source values."""
 
-    libcst is not required in this runtime image today. This adapter keeps the
-    CST seam explicit while using stdlib AST for kwarg-name extraction. It never
-    returns argument values or source snippets.
-    """
+    @staticmethod
+    def tool_version() -> str:
+        return version("libcst")
+
+    def parse_call_keywords(self, path: Path, workspace: Path) -> PythonCstParseResult:
+        """Extract call keyword names and report sanitized CST coverage limitations."""
+        relative_path = self._relative_path(path, workspace)
+        try:
+            source = path.read_text(encoding="utf-8")
+            module = cst.parse_module(source)
+        except (OSError, UnicodeDecodeError, cst.ParserSyntaxError) as error:
+            return PythonCstParseResult(
+                kwarg_names_by_line={},
+                coverage_limitations=[
+                    f"python_libcst_parse_failed: file={relative_path} "
+                    f"reason={type(error).__name__}"
+                ],
+            )
+
+        visitor = _CallKeywordVisitor()
+        MetadataWrapper(module).visit(visitor)
+        return PythonCstParseResult(kwarg_names_by_line=visitor.names_by_line)
 
     def kwarg_names_for_calls(self, path: Path, workspace: Path) -> dict[int, list[str]]:
-        """Extract only keyword names for calls, keyed by source line.
+        """Backward-compatible keyword-name view for existing parser callers."""
+        return self.parse_call_keywords(path, workspace).kwarg_names_by_line
 
-        Args:
-            path: Python file to parse inside the extracted workspace.
-            workspace: Workspace root used for safe repository-relative parsing.
-
-        Returns:
-            Mapping from call line number to keyword argument names. Values and raw
-            source are deliberately excluded from the result.
-        """
-        parsed = PythonAstParser().parse_file(path, workspace)
-        if parsed.tree is None:
-            return {}
-
-        names_by_line: dict[int, list[str]] = {}
-        for node in ast.walk(parsed.tree):
-            if isinstance(node, ast.Call):
-                names_by_line[getattr(node, "lineno", 1)] = [
-                    keyword.arg for keyword in node.keywords if keyword.arg is not None
-                ]
-        return names_by_line
-
+    def _relative_path(self, path: Path, workspace: Path) -> str:
+        try:
+            return path.resolve(strict=False).relative_to(
+                workspace.resolve(strict=False)
+            ).as_posix()
+        except ValueError:
+            return path.name

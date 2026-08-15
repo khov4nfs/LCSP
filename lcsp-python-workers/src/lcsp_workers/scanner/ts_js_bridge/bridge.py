@@ -11,6 +11,7 @@ from typing import Iterable
 from lcsp_workers.platform.logging import get_logger
 from lcsp_workers.platform.redaction import SENSITIVE_KEY_PATTERN, redact_string
 from lcsp_workers.scanner.tools.tool_base import (
+    NOT_RUN_VERSION,
     OUTCOME_SUCCESS,
     OUTCOME_TOOL_FAILURE,
     OUTCOME_TOOL_TIMEOUT,
@@ -190,10 +191,10 @@ class TsJsBridge:
             findings=[],
             unsupported_dynamic_flows=[],
             coverage_limitations=[],
-            analyzer_version="not-run",
+            analyzer_version=NOT_RUN_VERSION,
             execution=ToolExecutionResult(
                 tool_name=DEFAULT_TOOL_NAME,
-                tool_version="not-run",
+                tool_version=NOT_RUN_VERSION,
                 outcome=OUTCOME_SUCCESS,
                 config_hash=self._config_hash(),
                 messages=[message],

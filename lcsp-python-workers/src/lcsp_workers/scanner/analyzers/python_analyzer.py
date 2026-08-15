@@ -45,6 +45,7 @@ class PythonAnalysisResult:
     import_map: dict[str, str]
     unsupported_dynamic_flows: list[dict]
     coverage_limitation: bool
+    coverage_limitations: list[str] = field(default_factory=list)
 
     @property
     def findings(self) -> list[TechnicalFinding]:
@@ -91,13 +92,22 @@ class PythonAnalyzer:
         for parsed in parsed_files:
             import_map.update(parsed.import_map)
 
-        kwarg_names = {
-            parsed.relative_path: self._cst_parser.kwarg_names_for_calls(
-                parsed.path, self._workspace
-            )
+        kwarg_names: dict[str, dict[int, list[str]]] = {}
+        coverage_limitations = [
+            f"python_ast_parse_skipped: file={parsed.relative_path} "
+            f"reason={parsed.skip_reason or 'unavailable'}"
             for parsed in parsed_files
-            if parsed.tree is not None
-        }
+            if parsed.coverage_limited
+        ]
+        for parsed in parsed_files:
+            if parsed.tree is None:
+                continue
+            cst_result = self._cst_parser.parse_call_keywords(
+                parsed.path,
+                self._workspace,
+            )
+            kwarg_names[parsed.relative_path] = cst_result.kwarg_names_by_line
+            coverage_limitations.extend(cst_result.coverage_limitations)
 
         call_sites: list[AiCallSite] = []
         unsupported: list[dict] = []
@@ -112,7 +122,7 @@ class PythonAnalyzer:
             call_sites.extend(sites)
             unsupported.extend(flows)
 
-        call_sites.extend(self._l3_import_chain_sites(parsed_files))
+        call_sites.extend(self._l3_import_chain_sites(parsed_files, kwarg_names))
 
         return PythonAnalysisResult(
             files_analyzed=sum(1 for parsed in parsed_files if parsed.tree is not None),
@@ -120,7 +130,8 @@ class PythonAnalyzer:
             ai_call_sites=self._dedupe_sites(call_sites),
             import_map=import_map,
             unsupported_dynamic_flows=self._dedupe_flows(unsupported),
-            coverage_limitation=any(parsed.coverage_limited for parsed in parsed_files),
+            coverage_limitation=bool(coverage_limitations),
+            coverage_limitations=coverage_limitations,
         )
 
     def _parse_workspace(
@@ -269,7 +280,11 @@ class PythonAnalyzer:
             )
         return candidates
 
-    def _l3_import_chain_sites(self, parsed_files: list[ParsedPythonFile]) -> list[AiCallSite]:
+    def _l3_import_chain_sites(
+        self,
+        parsed_files: list[ParsedPythonFile],
+        kwarg_names_by_file: dict[str, dict[int, list[str]]],
+    ) -> list[AiCallSite]:
         if self._max_l3_hops < 1:
             return []
         by_module = {
@@ -288,9 +303,7 @@ class PythonAnalyzer:
                 target = by_module.get(module)
                 if target is None or target is parsed:
                     continue
-                target_kwarg_names = self._cst_parser.kwarg_names_for_calls(
-                    target.path, self._workspace
-                )
+                target_kwarg_names = kwarg_names_by_file.get(target.relative_path, {})
                 target_sites, _flows = self._analyze_file(target, target_kwarg_names, "L3")
                 sites.extend(target_sites)
         return sites
@@ -388,4 +401,3 @@ class PythonAnalyzer:
             seen.add(key)
             deduped.append(flow)
         return deduped
-

@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
+import platform
 import time
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -13,12 +17,14 @@ from lcsp_workers.platform.logging import get_logger
 from lcsp_workers.platform.queue_consumer import ConsumerBase
 
 from .analyzers.ai_invocation_detector import AIInvocationDetector
-from .analyzers.python_analyzer import PythonAnalyzer
+from .analyzers.ai_pattern_rules import AI_RULE_TABLE
+from .analyzers.python_analyzer import PythonAnalysisResult, PythonAnalyzer
 from .dependencies.dependency_normalizer import DependencyNormalizer
 from .evidence_assembler import EvidenceAssembler, PrivacyAssertionError
 from .inventory.analyzer_router import AnalyzerRouter
 from .inventory.language_classifier import LanguageClassifier
 from .parsers.structural_augmentor import StructuralAugmentor
+from .parsers.structural_types import StructuralFact
 from .graph.evidence_graph_assembler import EvidenceGraphAssembler
 from .evidence.terminal_state_handler import (
     CleanupBlockedError,
@@ -28,14 +34,41 @@ from .snapshot_service_client import SnapshotArchiveRequest, SnapshotServiceClie
 from .ts_js_bridge.bridge import TsJsBridge
 from .ts_js_bridge.bridge_types import TsJsCoverageLimitation
 from .tool_registry import ToolRegistry
-from .tools.deptry_tool import DeptryTool
-from .tools.knip_tool import KnipTool
+from .toolchain_execution import (
+    APPROVED_TOOL_NAMES,
+    RepositoryLanguageProfile,
+    ToolchainExecutionPlan,
+    ToolchainExecutionPlanner,
+)
+from .tools.deptry_tool import DeptryRunResult, DeptryTool
+from .tools.knip_tool import KnipRunResult, KnipTool
 from .tools.semgrep_tool import SemgrepRunResult, SemgrepTool
-from .tools.syft_tool import SyftTool
-from .tools.tool_base import OUTCOME_SUCCESS
+from .tools.syft_tool import SyftRunResult, SyftTool
+from .tools.tool_base import (
+    NOT_RUN_VERSION,
+    OUTCOME_SUCCESS,
+    OUTCOME_TOOL_FAILURE,
+    ToolExecutionResult,
+)
+from .ts_js_bridge.bridge_types import TsJsBridgeResult
 from .workspace import ArchiveMaterializationError, ScannerWorkspace
 
 logger = get_logger(__name__)
+
+NOT_APPLICABLE_RULESET_HASH = "sha256:not-applicable"
+PYTHON_ANALYZER_CONFIG_HASH = "sha256:" + hashlib.sha256(
+    b"lcsp-python-analyzer:max-l3-hops=1"
+).hexdigest()
+PYTHON_RULESET_HASH = "sha256:" + hashlib.sha256(
+    json.dumps(
+        AI_RULE_TABLE,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+).hexdigest()
+STRUCTURAL_CONFIG_HASH = "sha256:" + hashlib.sha256(
+    b"lcsp-structural-custom-parser:file-limit=100"
+).hexdigest()
 
 
 TARGETED_REANALYSIS_ANALYZER_IDS = {
@@ -123,6 +156,7 @@ class ScanConsumer(ConsumerBase):
         evidence_assembler: EvidenceAssembler | None = None,
         structural_augmentor: StructuralAugmentor | None = None,
         evidence_graph_assembler: EvidenceGraphAssembler | None = None,
+        execution_planner: ToolchainExecutionPlanner | None = None,
     ):
         super().__init__(config, pbac_client)
         self._snapshot_client = snapshot_client or SnapshotServiceClient(
@@ -148,6 +182,7 @@ class ScanConsumer(ConsumerBase):
         self._evidence_assembler = evidence_assembler or EvidenceAssembler()
         self._structural_augmentor = structural_augmentor or StructuralAugmentor()
         self._evidence_graph_assembler = evidence_graph_assembler or EvidenceGraphAssembler()
+        self._execution_planner = execution_planner or ToolchainExecutionPlanner()
 
     def handle(self, message: dict, correlationId: str) -> CallbackResponse:
         started_at = time.monotonic()
@@ -184,8 +219,12 @@ class ScanConsumer(ConsumerBase):
 
             classification_limitations: list[dict[str, str]] = []
             classifications = []
-            routed_python_files: list[str] | None = None
-            routed_ts_js_files: list[str] | None = None
+            routed_python_files: list[str] = []
+            routed_ts_js_files: list[str] = []
+            routed_basic_files: list[str] = []
+            execution_plan = self._execution_planner.build(
+                [], targeted=targeted_plan is not None
+            )
             try:
                 classifications = self._language_classifier.classify_workspace(
                     result.workspace_path
@@ -197,8 +236,12 @@ class ScanConsumer(ConsumerBase):
                         if targeted_plan.includes(classification.file_path)
                     ]
                 dispatch = self._analyzer_router.route(classifications)
+                execution_plan = self._execution_planner.build(
+                    classifications, targeted=targeted_plan is not None
+                )
                 routed_python_files = list(dispatch.python_files)
                 routed_ts_js_files = list(dispatch.ts_js_files)
+                routed_basic_files = list(dispatch.basic_files)
                 classification_limitations = list(dispatch.coverage_limitations)
                 logger.info(
                     "SCAN_LANGUAGE_CLASSIFIED",
@@ -221,45 +264,89 @@ class ScanConsumer(ConsumerBase):
                     scan_job_id=envelope.scan_job_id,
                     error=str(error),
                 )
+            classification_limitations.extend(execution_plan.coverage_limitations())
 
-            syft_result = None
-            if targeted_plan is None:
+            if execution_plan.should_run(APPROVED_TOOL_NAMES["syft"]):
+                syft_started_at = self._utc_timestamp()
                 syft_result = self._syft_tool.run(result.workspace_path)
                 self._record_tool_execution(
                     tool_registry,
                     syft_result.execution,
+                    ruleset_hash=NOT_APPLICABLE_RULESET_HASH,
+                    started_at=syft_started_at,
+                    ended_at=self._utc_timestamp(),
+                    language_profile=execution_plan.language_profile,
+                    coverage_limitations=self._execution_limitations(
+                        syft_result.execution
+                    ),
                     sbom_entries=len(syft_result.entries),
                 )
-
-            if time.monotonic() - started_at > self.scan_timeout_seconds:
-                raise ArchiveMaterializationError(
-                    f"scan timeout exceeded for job {envelope.scan_job_id!r}"
-                )
-
-            semgrep_result = None
-            if targeted_plan is None or targeted_plan.runs("RUN_SEMGREP_RULES"):
-                semgrep_result = self._semgrep_tool.run(
-                    result.workspace_path,
-                    include_files=(
-                        [classification.file_path for classification in classifications]
-                        if targeted_plan is not None
-                        else None
+            else:
+                syft_result = SyftRunResult(
+                    entries=[],
+                    execution=self._register_skipped_tool(
+                        tool_registry,
+                        execution_plan,
+                        "syft",
                     ),
                 )
-                self._record_semgrep_executions(tool_registry, semgrep_result)
 
             if time.monotonic() - started_at > self.scan_timeout_seconds:
                 raise ArchiveMaterializationError(
                     f"scan timeout exceeded for job {envelope.scan_job_id!r}"
                 )
 
-            knip_result = None
-            if targeted_plan is None:
+            if execution_plan.should_run(APPROVED_TOOL_NAMES["semgrep"]):
+                semgrep_started_at = self._utc_timestamp()
+                semgrep_result = self._semgrep_tool.run(result.workspace_path)
+                self._record_semgrep_executions(
+                    tool_registry,
+                    semgrep_result,
+                    started_at=semgrep_started_at,
+                    ended_at=self._utc_timestamp(),
+                    language_profile=execution_plan.language_profile,
+                )
+            else:
+                semgrep_result = SemgrepRunResult(
+                    findings=[],
+                    executions=[
+                        self._register_skipped_tool(
+                            tool_registry,
+                            execution_plan,
+                            "semgrep",
+                        )
+                    ],
+                    redaction_applied=False,
+                )
+
+            if time.monotonic() - started_at > self.scan_timeout_seconds:
+                raise ArchiveMaterializationError(
+                    f"scan timeout exceeded for job {envelope.scan_job_id!r}"
+                )
+
+            if execution_plan.should_run(APPROVED_TOOL_NAMES["knip"]):
+                knip_started_at = self._utc_timestamp()
                 knip_result = self._knip_tool.run(result.workspace_path)
                 self._record_tool_execution(
                     tool_registry,
                     knip_result.execution,
+                    ruleset_hash=NOT_APPLICABLE_RULESET_HASH,
+                    started_at=knip_started_at,
+                    ended_at=self._utc_timestamp(),
+                    language_profile=execution_plan.language_profile,
+                    coverage_limitations=self._execution_limitations(
+                        knip_result.execution
+                    ),
                     dependency_facts=len(knip_result.facts),
+                )
+            else:
+                knip_result = KnipRunResult(
+                    facts=[],
+                    execution=self._register_skipped_tool(
+                        tool_registry,
+                        execution_plan,
+                        "knip",
+                    ),
                 )
 
             if time.monotonic() - started_at > self.scan_timeout_seconds:
@@ -267,13 +354,29 @@ class ScanConsumer(ConsumerBase):
                     f"scan timeout exceeded for job {envelope.scan_job_id!r}"
                 )
 
-            deptry_result = None
-            if targeted_plan is None:
+            if execution_plan.should_run(APPROVED_TOOL_NAMES["deptry"]):
+                deptry_started_at = self._utc_timestamp()
                 deptry_result = self._deptry_tool.run(result.workspace_path)
                 self._record_tool_execution(
                     tool_registry,
                     deptry_result.execution,
+                    ruleset_hash=NOT_APPLICABLE_RULESET_HASH,
+                    started_at=deptry_started_at,
+                    ended_at=self._utc_timestamp(),
+                    language_profile=execution_plan.language_profile,
+                    coverage_limitations=self._execution_limitations(
+                        deptry_result.execution
+                    ),
                     dependency_facts=len(deptry_result.facts),
+                )
+            else:
+                deptry_result = DeptryRunResult(
+                    facts=[],
+                    execution=self._register_skipped_tool(
+                        tool_registry,
+                        execution_plan,
+                        "deptry",
+                    ),
                 )
 
             if time.monotonic() - started_at > self.scan_timeout_seconds:
@@ -281,8 +384,8 @@ class ScanConsumer(ConsumerBase):
                     f"scan timeout exceeded for job {envelope.scan_job_id!r}"
                 )
 
-            ts_js_analysis = None
-            if targeted_plan is None or targeted_plan.runs("RUN_TS_JS_SEMANTIC_ANALYSIS"):
+            if execution_plan.should_run(APPROVED_TOOL_NAMES["ts_morph"]):
+                ts_js_started_at = self._utc_timestamp()
                 ts_js_analysis = asyncio.run(
                     self._ts_js_bridge_factory(result.workspace_path).analyze(
                         include_files=routed_ts_js_files
@@ -291,30 +394,86 @@ class ScanConsumer(ConsumerBase):
                 self._record_tool_execution(
                     tool_registry,
                     ts_js_analysis.execution,
+                    ruleset_hash=ts_js_analysis.execution.config_hash,
+                    started_at=ts_js_started_at,
+                    ended_at=self._utc_timestamp(),
+                    language_profile=execution_plan.language_profile,
+                    coverage_limitations=[
+                        limitation.reason
+                        for limitation in ts_js_analysis.coverage_limitations
+                    ],
+                    tool_name=APPROVED_TOOL_NAMES["ts_morph"],
                     ts_js_findings=len(ts_js_analysis.findings),
                     ts_js_dynamic_flows=len(ts_js_analysis.unsupported_dynamic_flows),
                     ts_js_coverage_limitations=len(ts_js_analysis.coverage_limitations),
                 )
-
-            logger.info(
-                "SCAN_TOOL_PROVENANCE_RECORDED",
-                tool_provenance=[asdict(item) for item in tool_registry.all()],
-            )
+            else:
+                ts_js_analysis = TsJsBridgeResult(
+                    files_analyzed=0,
+                    files_skipped=0,
+                    findings=[],
+                    unsupported_dynamic_flows=[],
+                    coverage_limitations=[],
+                    analyzer_version=NOT_RUN_VERSION,
+                    execution=self._register_skipped_tool(
+                        tool_registry,
+                        execution_plan,
+                        "ts_morph",
+                    ),
+                )
 
             package_dependencies = self._dependency_normalizer.normalize(
-                sbom_entries=syft_result.entries if syft_result is not None else [],
-                usage_facts=[
-                    *(knip_result.facts if knip_result is not None else []),
-                    *(deptry_result.facts if deptry_result is not None else []),
-                ],
+                sbom_entries=syft_result.entries,
+                usage_facts=[*knip_result.facts, *deptry_result.facts],
             )
-            python_analysis = None
-            if targeted_plan is None or targeted_plan.runs(
-                "RUN_PYTHON_SEMANTIC_ANALYSIS"
-            ):
+            if execution_plan.should_run(APPROVED_TOOL_NAMES["python_ast"]):
+                python_started_at = self._utc_timestamp()
                 python_analysis = PythonAnalyzer(result.workspace_path).analyze(
                     include_files=routed_python_files
                 )
+                python_ended_at = self._utc_timestamp()
+                python_limitations = (
+                    list(python_analysis.coverage_limitations)
+                    or (
+                        ["Python analysis reported bounded coverage limitations"]
+                        if python_analysis.coverage_limitation
+                        or python_analysis.files_skipped
+                        else []
+                    )
+                )
+                for tool_key, tool_version in (
+                    ("python_ast", f"python-{platform.python_version()}"),
+                    ("python_libcst", self._libcst_version()),
+                ):
+                    self._record_tool_execution(
+                        tool_registry,
+                        ToolExecutionResult(
+                            tool_name=APPROVED_TOOL_NAMES[tool_key],
+                            tool_version=tool_version,
+                            outcome=OUTCOME_SUCCESS,
+                            config_hash=PYTHON_ANALYZER_CONFIG_HASH,
+                        ),
+                        ruleset_hash=PYTHON_RULESET_HASH,
+                        started_at=python_started_at,
+                        ended_at=python_ended_at,
+                        language_profile=execution_plan.language_profile,
+                        coverage_limitations=python_limitations,
+                    )
+            else:
+                python_analysis = PythonAnalysisResult(
+                    files_analyzed=0,
+                    files_skipped=0,
+                    ai_call_sites=[],
+                    import_map={},
+                    unsupported_dynamic_flows=[],
+                    coverage_limitation=True,
+                )
+                for tool_key in ("python_ast", "python_libcst"):
+                    self._register_skipped_tool(
+                        tool_registry,
+                        execution_plan,
+                        tool_key,
+                    )
             technical_findings = self._ai_invocation_detector.detect(
                 semgrep_result=semgrep_result,
                 python_analysis=python_analysis,
@@ -346,38 +505,76 @@ class ScanConsumer(ConsumerBase):
                     f"analyzer={targeted_plan.analyzer_id} "
                     f"path_prefixes={len(targeted_plan.path_prefixes)}"
                 )
-            structural_facts: list | None = None
-            try:
-                if targeted_plan is None or targeted_plan.runs(
-                    "RUN_STRUCTURAL_AUGMENTATION"
-                ):
-                    self._structural_augmentor.set_workspace_path(result.workspace_path)
+            structural_facts: list[StructuralFact] = []
+            if execution_plan.should_run(APPROVED_TOOL_NAMES["tree_sitter"]):
+                structural_started_at = self._utc_timestamp()
+                try:
                     candidate_files = [
-                        *(routed_python_files or []),
-                        *(routed_ts_js_files or []),
+                        *routed_python_files,
+                        *routed_ts_js_files,
+                        *routed_basic_files,
                     ]
                     structural_facts = self._structural_augmentor.augment(
-                        files=candidate_files or [],
+                        files=candidate_files,
                         finding_ids=[finding.finding_id for finding in technical_findings],
                     )
-                    coverage_notes.extend(self._structural_augmentor.last_coverage_notes)
-            except Exception as error:
-                coverage_notes.append(
-                    "SCAN_COVERAGE_LIMITATION: "
-                    f"file=<workspace> reason=structural_augmentation_failed:{type(error).__name__}"
+                    self._record_tool_execution(
+                        tool_registry,
+                        ToolExecutionResult(
+                            tool_name=APPROVED_TOOL_NAMES["tree_sitter"],
+                            tool_version="custom-parser-1.0.0",
+                            outcome=OUTCOME_SUCCESS,
+                            config_hash=STRUCTURAL_CONFIG_HASH,
+                        ),
+                        ruleset_hash=NOT_APPLICABLE_RULESET_HASH,
+                        started_at=structural_started_at,
+                        ended_at=self._utc_timestamp(),
+                        language_profile=execution_plan.language_profile,
+                        coverage_limitations=list(
+                            self._structural_augmentor.last_coverage_notes
+                        ),
+                    )
+                except Exception as error:
+                    structural_ended_at = self._utc_timestamp()
+                    self._record_tool_execution(
+                        tool_registry,
+                        ToolExecutionResult(
+                            tool_name=APPROVED_TOOL_NAMES["tree_sitter"],
+                            tool_version="custom-parser-1.0.0",
+                            outcome=OUTCOME_TOOL_FAILURE,
+                            config_hash=STRUCTURAL_CONFIG_HASH,
+                            messages=["structural augmentation failed safely"],
+                        ),
+                        ruleset_hash=NOT_APPLICABLE_RULESET_HASH,
+                        started_at=structural_started_at,
+                        ended_at=structural_ended_at,
+                        language_profile=execution_plan.language_profile,
+                        coverage_limitations=[
+                            "Structural parser failed; affected structural facts are unavailable"
+                        ],
+                    )
+                    logger.warning(
+                        "SCAN_STRUCTURAL_AUGMENTATION_FAILED",
+                        scan_job_id=envelope.scan_job_id,
+                        error=str(error),
+                    )
+            else:
+                self._register_skipped_tool(
+                    tool_registry,
+                    execution_plan,
+                    "tree_sitter",
                 )
-                logger.warning(
-                    "SCAN_STRUCTURAL_AUGMENTATION_FAILED",
-                    scan_job_id=envelope.scan_job_id,
-                    error=str(error),
-                )
+            logger.info(
+                "SCAN_TOOL_PROVENANCE_RECORDED",
+                tool_provenance=[asdict(item) for item in tool_registry.all()],
+            )
             evidence_graph = self._evidence_graph_assembler.assemble(
                 scan_job_id=envelope.scan_job_id,
                 snapshot_id=envelope.snapshot_id,
                 commit_sha=envelope.commit_sha,
                 workspace_path=result.workspace_path,
                 technical_findings=technical_findings,
-                structural_facts=structural_facts or [],
+                structural_facts=structural_facts,
                 package_dependencies=package_dependencies,
                 coverage_notes=coverage_notes,
             )
@@ -402,6 +599,7 @@ class ScanConsumer(ConsumerBase):
                     if targeted_plan is not None
                     else None
                 ),
+                tool_provenance=tool_registry.all(),
             )
             self._finalize_workspace_cleanup(envelope.scan_job_id)
             callback_response = self._api_client.post_scan_callback(
@@ -475,6 +673,10 @@ class ScanConsumer(ConsumerBase):
         self,
         tool_registry: ToolRegistry,
         semgrep_result: SemgrepRunResult,
+        *,
+        started_at: str,
+        ended_at: str,
+        language_profile: RepositoryLanguageProfile,
     ) -> None:
         from .tools.semgrep_tool import AI_USAGE_TOOL_NAME
 
@@ -485,15 +687,39 @@ class ScanConsumer(ConsumerBase):
             else:
                 context["redaction_applied"] = semgrep_result.redaction_applied
 
-            self._record_tool_execution(tool_registry, execution, **context)
+            self._record_tool_execution(
+                tool_registry,
+                execution,
+                ruleset_hash=execution.config_hash,
+                started_at=started_at,
+                ended_at=ended_at,
+                language_profile=language_profile,
+                coverage_limitations=self._execution_limitations(execution),
+                **context,
+            )
 
     def _record_tool_execution(
         self,
         tool_registry: ToolRegistry,
         execution,
+        *,
+        ruleset_hash: str,
+        started_at: str,
+        ended_at: str,
+        language_profile: RepositoryLanguageProfile,
+        coverage_limitations: list[str],
+        tool_name: str | None = None,
         **context: object,
     ) -> None:
-        tool_registry.register(execution)
+        tool_registry.register(
+            execution,
+            ruleset_hash=ruleset_hash,
+            started_at=started_at,
+            ended_at=ended_at,
+            language_profile=language_profile,
+            coverage_limitations=coverage_limitations,
+            tool_name=tool_name,
+        )
 
         logger.info(
             "SCAN_TOOL_EXECUTED",
@@ -511,6 +737,45 @@ class ScanConsumer(ConsumerBase):
                 outcome=execution.outcome,
                 messages=execution.messages,
             )
+
+    def _utc_timestamp(self) -> str:
+        return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+    def _execution_limitations(self, execution: ToolExecutionResult) -> list[str]:
+        if execution.outcome == OUTCOME_SUCCESS:
+            return []
+        if execution.messages:
+            return list(execution.messages)
+        return [f"{execution.tool_name}: {execution.outcome} without diagnostic messages"]
+
+    def _register_skipped_tool(
+        self,
+        tool_registry: ToolRegistry,
+        execution_plan: ToolchainExecutionPlan,
+        tool_key: str,
+    ) -> ToolExecutionResult:
+        tool_name = APPROVED_TOOL_NAMES[tool_key]
+        entry = execution_plan.entry_for(tool_name)
+        execution = tool_registry.register_skipped(
+            entry,
+            language_profile=execution_plan.language_profile,
+            recorded_at=self._utc_timestamp(),
+        )
+        logger.info(
+            "SCAN_TOOL_SKIPPED_UNSUPPORTED",
+            tool_name=tool_name,
+            reason=entry.reason,
+            language_profile=asdict(execution_plan.language_profile),
+        )
+        return execution
+
+    def _libcst_version(self) -> str:
+        try:
+            from importlib.metadata import version
+
+            return version("libcst")
+        except Exception:
+            return "not-installed"
 
     def _coverage_notes(
         self,

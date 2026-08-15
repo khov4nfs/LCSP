@@ -18,10 +18,11 @@ from lcsp_workers.scanner.inventory.language_types import LanguageClassification
 from lcsp_workers.scanner.ts_js_bridge.bridge_types import TsJsBridgeResult
 
 from .parsers.structural_types import StructuralFact
+from .tool_registry import ToolProvenance
 from .tools.semgrep_tool import SemgrepRunResult
 from .tools.syft_tool import SyftRunResult
 from .graph.graph_serializer import ScanGraph, serialize_graph
-from .tools.tool_base import OUTCOME_SUCCESS, ToolExecutionResult
+from .tools.tool_base import OUTCOME_SKIPPED_UNSUPPORTED, OUTCOME_SUCCESS, ToolExecutionResult
 
 
 SCHEMA_VERSION = "1.0.0"
@@ -119,6 +120,7 @@ class EvidenceAssembler:
         evidence_graph: ScanGraph | None = None,
         scan_coverage: list[LanguageClassification] | None = None,
         targeted_reanalysis: dict[str, object] | None = None,
+        tool_provenance: list[ToolProvenance] | None = None,
     ) -> ScanCallbackPayload:
         """Assemble the callback payload after enforcing evidence privacy invariants.
 
@@ -174,6 +176,9 @@ class EvidenceAssembler:
             ],
             "tool_failures": [
                 asdict(record) for record in self._tool_failures(executions)
+            ],
+            "tool_provenance": [
+                asdict(record) for record in (tool_provenance or [])
             ],
             "coverage_notes": list(coverage_notes),
             "scan_coverage": self._scan_coverage(scan_coverage or []),
@@ -279,10 +284,10 @@ class EvidenceAssembler:
                 tool_name=execution.tool_name,
                 tool_version=execution.tool_version,
                 outcome=execution.outcome,
-                messages=list(execution.messages),
+                messages=self._failure_messages(execution),
             )
             for execution in executions
-            if execution.outcome != OUTCOME_SUCCESS
+            if execution.outcome not in (OUTCOME_SUCCESS, OUTCOME_SKIPPED_UNSUPPORTED)
         ]
 
     def _status_for(
@@ -296,12 +301,26 @@ class EvidenceAssembler:
         outcomes = [execution.outcome for execution in executions]
         if not outcomes:
             return SCAN_CALLBACK_STATUSES["success"], None
-        failed_count = sum(1 for outcome in outcomes if outcome != OUTCOME_SUCCESS)
+        # Skipped tools are expected behaviour for language profiles that do not
+        # support them; exclude them from failure counting entirely.
+        failed_count = sum(
+            1 for outcome in outcomes
+            if outcome not in (OUTCOME_SUCCESS, OUTCOME_SKIPPED_UNSUPPORTED)
+        )
+        run_count = sum(
+            1 for outcome in outcomes if outcome != OUTCOME_SKIPPED_UNSUPPORTED
+        )
         if failed_count == 0:
             return SCAN_CALLBACK_STATUSES["success"], None
-        if failed_count == len(outcomes):
+        if run_count > 0 and failed_count == run_count:
             return SCAN_CALLBACK_STATUSES["failed"], ALL_TOOLS_FAILED
         return SCAN_CALLBACK_STATUSES["partial"], None
+
+    @staticmethod
+    def _failure_messages(execution: ToolExecutionResult) -> list[str]:
+        if execution.messages:
+            return list(execution.messages)
+        return [f"{execution.tool_name}: {execution.outcome} without diagnostic messages"]
 
     def _assert_privacy(
         self,

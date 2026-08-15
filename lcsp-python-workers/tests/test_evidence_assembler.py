@@ -11,11 +11,19 @@ from lcsp_workers.scanner.evidence_assembler import (
     EvidenceAssembler,
     PrivacyAssertionError,
 )
+from lcsp_workers.scanner.inventory.language_types import (
+    LANGUAGE_PYTHON,
+    SUPPORT_FULL,
+    LanguageClassification,
+)
+from lcsp_workers.scanner.tool_registry import ToolRegistry
+from lcsp_workers.scanner.toolchain_execution import ToolchainExecutionPlanner
 from lcsp_workers.scanner.analyzers.ai_invocation_detector import TechnicalFinding
 from lcsp_workers.scanner.ts_js_bridge.bridge_types import TsJsBridgeResult, TsJsFinding
 from lcsp_workers.scanner.tools.semgrep_tool import SemgrepFinding, SemgrepRunResult
 from lcsp_workers.scanner.tools.syft_tool import SBOMEntry, SyftRunResult
 from lcsp_workers.scanner.tools.tool_base import (
+    OUTCOME_SKIPPED_UNSUPPORTED,
     OUTCOME_SUCCESS,
     OUTCOME_TOOL_FAILURE,
     ToolExecutionResult,
@@ -353,3 +361,116 @@ def test_t09_serializes_sanitized_versioned_evidence_graph() -> None:
     assert graph["schema_version"] == "1.0.0"
     assert graph["graph_hash"].startswith("sha256:")
     assert graph["nodes"][0]["evidence_refs"] == ["evidence:finding-1"]
+
+
+@pytest.mark.p0
+def test_t09b_assembles_complete_tool_run_provenance() -> None:
+    profile = ToolchainExecutionPlanner().build(
+        [
+            LanguageClassification(
+                file_path="src/app.py",
+                language=LANGUAGE_PYTHON,
+                support_level=SUPPORT_FULL,
+                file_size_bytes=10,
+                line_count=1,
+                skip_reason=None,
+                coverage_limitation=False,
+            )
+        ]
+    ).language_profile
+    registry = ToolRegistry()
+    syft_result = _syft_result()
+    registry.register(
+        syft_result.execution,
+        ruleset_hash="sha256:not-applicable",
+        started_at="2026-08-11T06:00:00Z",
+        ended_at="2026-08-11T06:00:01Z",
+        language_profile=profile,
+        coverage_limitations=[],
+    )
+
+    payload = EvidenceAssembler().assemble(
+        scan_job_id="scan-job-1",
+        syft_result=syft_result,
+        semgrep_result=_semgrep_result(),
+        coverage_notes=[],
+        tool_provenance=registry.all(),
+    )
+
+    provenance = payload.evidence_payload["tool_provenance"][0]
+    assert provenance["tool_name"] == "syft"
+    assert provenance["ruleset_hash"] == "sha256:not-applicable"
+    assert provenance["started_at"] == "2026-08-11T06:00:00Z"
+    assert provenance["ended_at"] == "2026-08-11T06:00:01Z"
+    assert provenance["language_profile"]["languages"] == (LANGUAGE_PYTHON,)
+
+
+@pytest.mark.p0
+def test_t10_unsupported_skip_yields_success_and_empty_tool_failures() -> None:
+    """OUTCOME_SKIPPED_UNSUPPORTED is expected behaviour for language-profile-filtered
+    tools (e.g. knip on a Python-only repo).  It must not inflate failure counts or
+    appear in tool_failures — a repo whose non-applicable tools are all skipped should
+    receive a success callback, not partial/failed."""
+    semgrep_result = SemgrepRunResult(
+        findings=[],
+        executions=[
+            ToolExecutionResult(
+                tool_name="semgrep",
+                tool_version="not-run",
+                outcome=OUTCOME_SKIPPED_UNSUPPORTED,
+                config_hash="sha256:not-executed",
+                messages=["semgrep: unsupported_for_language_profile"],
+            )
+        ],
+        redaction_applied=False,
+    )
+
+    payload = EvidenceAssembler().assemble(
+        scan_job_id="scan-job-1",
+        syft_result=_syft_result(),
+        semgrep_result=semgrep_result,
+        coverage_notes=[
+            "SCAN_COVERAGE_LIMITATION: file=<tool:semgrep> "
+            "reason=unsupported_for_language_profile"
+        ],
+    )
+
+    # Skipped tools are not failures — status must be success
+    assert payload.status == SCAN_CALLBACK_STATUSES["success"]
+    assert payload.error_code is None
+    # Skipped tools must not appear in tool_failures
+    assert payload.evidence_payload["tool_failures"] == []
+
+
+@pytest.mark.p0
+def test_t11_failed_tool_without_messages_gets_default_failure_limitation() -> None:
+    payload = EvidenceAssembler().assemble(
+        scan_job_id="scan-job-1",
+        syft_result=_syft_result(),
+        semgrep_result=SemgrepRunResult(
+            findings=[],
+            executions=[
+                ToolExecutionResult(
+                    tool_name="semgrep_ai_usage",
+                    tool_version="semgrep 1.99.0",
+                    outcome=OUTCOME_TOOL_FAILURE,
+                    config_hash="sha256:semgrep-ai",
+                    messages=[],
+                )
+            ],
+            redaction_applied=False,
+        ),
+        coverage_notes=[],
+    )
+
+    assert payload.status == SCAN_CALLBACK_STATUSES["partial"]
+    assert payload.evidence_payload["tool_failures"] == [
+        {
+            "tool_name": "semgrep_ai_usage",
+            "tool_version": "semgrep 1.99.0",
+            "outcome": OUTCOME_TOOL_FAILURE,
+            "messages": [
+                "semgrep_ai_usage: tool_failure without diagnostic messages"
+            ],
+        }
+    ]

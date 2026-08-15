@@ -11,6 +11,9 @@ TResult = TypeVar("TResult")
 OUTCOME_SUCCESS = "success"
 OUTCOME_TOOL_FAILURE = "tool_failure"
 OUTCOME_TOOL_TIMEOUT = "tool_timeout"
+OUTCOME_SKIPPED_UNSUPPORTED = "skipped_unsupported"
+NOT_RUN_VERSION = "not-run"
+NOT_EXECUTED_HASH = "sha256:not-executed"
 
 
 @dataclass(frozen=True)

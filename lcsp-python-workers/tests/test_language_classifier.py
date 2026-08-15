@@ -8,8 +8,14 @@ from lcsp_workers.scanner.inventory.analyzer_router import AnalyzerRouter
 from lcsp_workers.scanner.inventory.language_classifier import LanguageClassifier
 from lcsp_workers.scanner.inventory.language_types import (
     LANGUAGE_BINARY,
+    LANGUAGE_CSHARP,
+    LANGUAGE_GO,
+    LANGUAGE_JAVA,
+    LANGUAGE_KOTLIN,
     LANGUAGE_PYTHON,
+    LANGUAGE_RUST,
     LANGUAGE_TYPESCRIPT,
+    SUPPORT_BASIC,
     SUPPORT_FULL,
     SUPPORT_MANIFEST_ONLY,
     SUPPORT_SKIP,
@@ -153,3 +159,30 @@ def test_t10_large_package_json_is_manifest_only(workspace_dir: Path) -> None:
 
     assert target.support_level == SUPPORT_MANIFEST_ONLY
     assert target.coverage_limitation is True
+
+
+@pytest.mark.p0
+@pytest.mark.parametrize(
+    ("file_name", "expected_language"),
+    [
+        ("Service.java", LANGUAGE_JAVA),
+        ("Service.kt", LANGUAGE_KOTLIN),
+        ("main.go", LANGUAGE_GO),
+        ("Service.cs", LANGUAGE_CSHARP),
+        ("main.rs", LANGUAGE_RUST),
+    ],
+)
+def test_basic_signal_languages_are_classified_and_routed(
+    workspace_dir: Path,
+    file_name: str,
+    expected_language: str,
+) -> None:
+    (workspace_dir / file_name).write_text("class Service {}\n", encoding="utf-8")
+
+    classifications = LanguageClassifier().classify_workspace(workspace_dir)
+    target = _find_classification(classifications, file_name)
+    dispatch = AnalyzerRouter().route(classifications)
+
+    assert target.language == expected_language
+    assert target.support_level == SUPPORT_BASIC
+    assert file_name in dispatch.basic_files

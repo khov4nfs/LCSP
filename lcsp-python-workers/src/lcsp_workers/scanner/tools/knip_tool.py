@@ -16,6 +16,7 @@ from lcsp_workers.scanner.dependencies.dependency_fact import (
 )
 
 from .tool_base import (
+    NOT_RUN_VERSION,
     OUTCOME_SUCCESS,
     OUTCOME_TOOL_FAILURE,
     OUTCOME_TOOL_TIMEOUT,
@@ -72,7 +73,7 @@ class KnipTool:
                 facts=[],
                 execution=ToolExecutionResult(
                     tool_name=DEFAULT_TOOL_NAME,
-                    tool_version="not-run",
+                    tool_version=NOT_RUN_VERSION,
                     outcome=OUTCOME_SUCCESS,
                     config_hash=config_hash,
                     messages=["knip skipped: package.json not found in workspace"],

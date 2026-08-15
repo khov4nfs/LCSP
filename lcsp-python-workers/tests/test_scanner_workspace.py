@@ -276,7 +276,7 @@ def test_scan_consumer_uses_internal_snapshot_service_and_cleans_up(
     workspace_dir: Path,
 ) -> None:
     workspace = ScannerWorkspace(root_path=workspace_dir / "scanner")
-    archive = _build_tar_gz({"repo/README.md": b"hello\n"})
+    archive = _build_tar_gz({"repo/src/app.py": b"print('hello')\n"})
 
     snapshot_client = MagicMock(spec=SnapshotServiceClient)
     snapshot_client.download_snapshot_archive.return_value = archive
@@ -298,6 +298,9 @@ def test_scan_consumer_uses_internal_snapshot_service_and_cleans_up(
     deptry_tool = MagicMock()
     deptry_tool.run.return_value = _mock_deptry_result()
     api_client = MagicMock()
+    bridge = MagicMock()
+    bridge.analyze = AsyncMock(return_value=_mock_ts_js_result())
+    bridge_factory = MagicMock(return_value=bridge)
     consumer = ScanConsumer(
         config,
         snapshot_client=snapshot_client,
@@ -307,6 +310,7 @@ def test_scan_consumer_uses_internal_snapshot_service_and_cleans_up(
         knip_tool=knip_tool,
         deptry_tool=deptry_tool,
         api_client=api_client,
+        ts_js_bridge_factory=bridge_factory,
     )
 
     consumer.handle(
@@ -327,11 +331,36 @@ def test_scan_consumer_uses_internal_snapshot_service_and_cleans_up(
     )
     syft_tool.run.assert_called_once()
     semgrep_tool.run.assert_called_once()
-    knip_tool.run.assert_called_once()
+    knip_tool.run.assert_not_called()
     deptry_tool.run.assert_called_once()
+    bridge_factory.assert_not_called()
     api_client.post_scan_callback.assert_called_once()
     posted_payload = api_client.post_scan_callback.call_args.args[1]
     assert posted_payload.privacy_flags["containsSourceCode"] is False
+    tool_provenance = posted_payload.evidence_payload["tool_provenance"]
+    assert tool_provenance
+    assert all(record["tool_version"] for record in tool_provenance)
+    assert all(record["config_hash"].startswith("sha256:") for record in tool_provenance)
+    assert all(record["ruleset_hash"].startswith("sha256:") for record in tool_provenance)
+    assert all(record["started_at"].endswith("Z") for record in tool_provenance)
+    assert all(record["ended_at"].endswith("Z") for record in tool_provenance)
+    assert all(
+        record["language_profile"]["languages"] == ("python",)
+        for record in tool_provenance
+    )
+    assert all("coverage_limitations" in record for record in tool_provenance)
+    skipped = {
+        record["tool_name"]: record
+        for record in tool_provenance
+        if record["outcome"] == "skipped_unsupported"
+    }
+    assert skipped["knip"]["evidence_eligible"] is False
+    assert skipped["ts_morph"]["evidence_eligible"] is False
+    assert any(
+        "unsupported_for_language_profile" in limitation
+        for record in skipped.values()
+        for limitation in record["coverage_limitations"]
+    )
     assert not workspace.workspace_path("job-4").exists()
 
 
@@ -391,10 +420,14 @@ def test_scan_consumer_limits_source_analyzers_to_targeted_path_prefixes(
         correlationId="fallback-corr",
     )
 
-    semgrep_tool.run.assert_not_called()
+    # Syft (SBOM inventory) is suppressed during targeted re-analysis —
+    # execution_plan.should_run("syft") returns False when targeted=True.
     syft_tool.run.assert_not_called()
-    knip_tool.run.assert_not_called()
-    deptry_tool.run.assert_not_called()
+    # Semgrep and deptry run based on the Python language profile of the
+    # in-scope file; targeted_plan only scopes file classification, not tools.
+    semgrep_tool.run.assert_called_once()
+    deptry_tool.run.assert_called_once()
+    knip_tool.run.assert_not_called()  # language-profile unsupported for Python-only
     posted_payload = api_client.post_scan_callback.call_args.args[1]
     coverage_files = posted_payload.evidence_payload["scan_coverage"]["files"]
     assert [item["file_path"] for item in coverage_files] == ["repo/src/in_scope.py"]
@@ -782,4 +815,14 @@ def test_scan_consumer_invokes_ts_js_bridge_with_routed_files(
 
     bridge_factory.assert_called_once()
     bridge.analyze.assert_called_once_with(include_files=["repo/src/app.ts"])
+    deptry_tool.run.assert_not_called()
+    posted_payload = api_client.post_scan_callback.call_args.args[1]
+    skipped = {
+        record["tool_name"]: record
+        for record in posted_payload.evidence_payload["tool_provenance"]
+        if record["outcome"] == "skipped_unsupported"
+    }
+    assert skipped["deptry"]["evidence_eligible"] is False
+    assert skipped["python_ast"]["evidence_eligible"] is False
+    assert skipped["python_libcst"]["evidence_eligible"] is False
     api_client.post_scan_callback.assert_called_once()
