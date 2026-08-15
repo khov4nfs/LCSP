@@ -46,6 +46,7 @@ export const AGENTIC_TOOL_NAMES = {
   extractOfficialText: "extract_official_text",
   runOcrFallback: "run_ocr_fallback",
   evaluateOcrQuality: "evaluate_ocr_quality",
+  buildLegalChunks: "build_legal_chunks",
   resumeWaitingRuns: "resume_waiting_runs",
   requestTargetedReanalysis: "request_targeted_reanalysis",
   submitClassificationForIndependentReview:
@@ -120,6 +121,7 @@ export const AGENTIC_TOOL_EVENT_TYPES = {
   officialTextExtracted: "AGENTIC_TOOL_OFFICIAL_TEXT_EXTRACTED",
   ocrFallbackRun: "AGENTIC_TOOL_OCR_FALLBACK_RUN",
   ocrQualityEvaluated: "AGENTIC_TOOL_OCR_QUALITY_EVALUATED",
+  legalChunksBuilt: "AGENTIC_TOOL_LEGAL_CHUNKS_BUILT",
   waitingRunsResumed: "AGENTIC_TOOL_WAITING_RUNS_RESUMED",
   targetedReanalysisRequested: "AGENTIC_TOOL_TARGETED_REANALYSIS_REQUESTED",
   classificationReviewSubmitted: "AGENTIC_TOOL_CLASSIFICATION_REVIEW_SUBMITTED",

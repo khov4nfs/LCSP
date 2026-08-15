@@ -24,6 +24,7 @@ export * from "./fetch-official-source-snapshot.ts";
 export * from "./extract-official-text.ts";
 export * from "./run-ocr-fallback.ts";
 export * from "./evaluate-ocr-quality.ts";
+export * from "./build-legal-chunks.ts";
 export * from "./ao4-agentic-evidence.ts";
 export * from "./ao5-agentic-evidence.ts";
 export * from "./ao3-agentic-evidence.ts";
