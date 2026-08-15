@@ -31,6 +31,15 @@ export interface PbacPreflightResult {
   correlationId: string;
 }
 
+/**
+ * Internal-only enriched preflight result. Policy metadata is returned from the
+ * trusted membership/policy lookup, never accepted from a worker payload.
+ */
+export interface PbacPreflightPolicyResult extends PbacPreflightResult {
+  policyId: string | null;
+  policyVersion: string | null;
+}
+
 const DECISION_LOG_RESOURCE_TYPE = AUDIT_RESOURCE_TYPES.workerTask;
 
 /**
@@ -44,14 +53,6 @@ const DECISION_LOG_RESOURCE_TYPE = AUDIT_RESOURCE_TYPES.workerTask;
 export class PbacPreflightService {
   private readonly logger = new Logger(PbacPreflightService.name);
 
-  /**
-   * Creates the preflight service with membership, policy, evaluator, and decision-log dependencies.
-   *
-   * @param memberships - Repository used to resolve the worker subject's current organization membership.
-   * @param policies - Repository used to load the membership's pinned policy version.
-   * @param evaluator - Deterministic PBAC evaluator applied to the current worker context.
-   * @param decisions - Repository used to append authorization decision records.
-   */
   constructor(
     @Inject(PrismaMembershipRepository)
     private readonly memberships: MembershipRepository,
@@ -63,12 +64,26 @@ export class PbacPreflightService {
   ) {}
 
   /**
-   * Re-evaluates the requested worker action against current membership and policy data and records the result.
-   *
-   * @param input - User, organization, action, and correlation context supplied by the worker.
-   * @returns PBAC decision with a denial reason when access is not allowed.
+   * Preserve the existing worker preflight contract without exposing policy
+   * metadata over the public/internal HTTP response shape.
    */
   async evaluate(input: PbacPreflightInput): Promise<PbacPreflightResult> {
+    const result = await this.evaluateWithPolicy(input);
+    return {
+      decision: result.decision,
+      reasonCode: result.reasonCode,
+      correlationId: result.correlationId,
+    };
+  }
+
+  /**
+   * Re-evaluate PBAC and return the trusted policy identifier/version used for
+   * an allowed decision. This is intended for in-process protected command
+   * dispatch, so mutation handlers never trust caller-supplied policy metadata.
+   */
+  async evaluateWithPolicy(
+    input: PbacPreflightInput,
+  ): Promise<PbacPreflightPolicyResult> {
     try {
       const membership = await this.memberships.findByUserAndOrganization(
         input.userId,
@@ -109,19 +124,24 @@ export class PbacPreflightService {
         result.decision === PBAC_DECISION.deny
           ? (result.reasonCode ?? PBAC_REASON_CODE.denied)
           : PBAC_REASON_CODE.authorized;
+      const policyId = result.policyId ?? policy.id;
+      const policyVersion = result.policyVersion ?? policy.version;
 
       await this.recordDecision(
         input,
         result.decision,
         reasonCode,
-        result.policyId,
-        result.policyVersion,
+        policyId,
+        policyVersion,
       );
 
       return {
         decision: result.decision,
         reasonCode: result.decision === PBAC_DECISION.deny ? reasonCode : null,
         correlationId: input.correlationId,
+        policyId: result.decision === PBAC_DECISION.allow ? policyId : null,
+        policyVersion:
+          result.decision === PBAC_DECISION.allow ? policyVersion : null,
       };
     } catch (error) {
       this.logger.error(
@@ -138,21 +158,16 @@ export class PbacPreflightService {
         decision: PBAC_DECISION.deny,
         reasonCode: PBAC_REASON_CODE.loadError,
         correlationId: input.correlationId,
+        policyId: null,
+        policyVersion: null,
       };
     }
   }
 
-  /**
-   * Builds and records a preflight denial that occurs before full policy evaluation.
-   *
-   * @param input - Original preflight request context.
-   * @param reasonCode - Stable reason explaining why preflight was denied.
-   * @returns Deny result preserving the caller's correlation identifier.
-   */
   private async deny(
     input: PbacPreflightInput,
     reasonCode: PbacReasonCode,
-  ): Promise<PbacPreflightResult> {
+  ): Promise<PbacPreflightPolicyResult> {
     await this.recordDecision(
       input,
       PBAC_DECISION.deny,
@@ -164,19 +179,11 @@ export class PbacPreflightService {
       decision: PBAC_DECISION.deny,
       reasonCode,
       correlationId: input.correlationId,
+      policyId: null,
+      policyVersion: null,
     };
   }
 
-  /**
-   * Appends the worker authorization decision without allowing logging failures to change the allow/deny outcome.
-   *
-   * @param input - Original worker preflight context.
-   * @param decision - Final PBAC allow or deny decision.
-   * @param reasonCode - Stable reason associated with the decision.
-   * @param policyId - Policy identifier used for evaluation, when available.
-   * @param policyVersion - Policy version used for evaluation, when available.
-   * @returns A promise that always resolves after the append succeeds or its failure is logged.
-   */
   private async recordDecision(
     input: PbacPreflightInput,
     decision: PbacDecisionValue,
@@ -206,12 +213,6 @@ export class PbacPreflightService {
   }
 }
 
-/**
- * Reads a string-valued subject attribute without coercing other runtime types.
- *
- * @param value - Unknown attribute value to inspect.
- * @returns The string value when valid; otherwise undefined.
- */
 function readStringAttribute(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }

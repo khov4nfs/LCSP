@@ -6,11 +6,13 @@ from typing import Any
 
 from structlog import get_logger
 
+from lcsp_workers.agentic_evidence.dispatcher import LegalToolDispatcher
+from lcsp_workers.agentic_evidence.legal_tool_entrypoints import (
+    LegalToolExecutionContext,
+)
 from lcsp_workers.platform.queue_consumer import ConsumerBase, NonRetryableWorkerError
 
-from .legal_chunk_builder import BuildLegalChunksRequest, LegalChunkBuilder
 from .legal_chunk_repository import LegalChunkRepository
-from .reviewed_corpus_input_repository import ReviewedCorpusInputRepository
 
 logger = get_logger(__name__)
 
@@ -34,19 +36,15 @@ class LegalChunkConsumer(ConsumerBase):
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
         envelope = self._read_envelope(message)
         storage_root = self._storage_root()
-        builder = LegalChunkBuilder(
-            storage_root=storage_root,
-            reviewed_input_repository=ReviewedCorpusInputRepository(
-                storage_root=storage_root
-            ),
+        dispatcher = LegalToolDispatcher(
+            LegalToolExecutionContext(api_client=None, storage_root=storage_root)
         )
         try:
-            result = builder.build(
-                BuildLegalChunksRequest(
-                    reviewed_input_ref=envelope.reviewed_input_ref,
-                    document_identity_ref=envelope.document_identity_ref,
-                    chunk_schema_version=envelope.chunk_schema_version,
-                )
+            result = dispatcher.dispatch(
+                "build_legal_chunks",
+                reviewed_input_ref=envelope.reviewed_input_ref,
+                document_identity_ref=envelope.document_identity_ref,
+                chunk_schema_version=envelope.chunk_schema_version,
             )
         except (ValueError, RuntimeError, OSError) as exc:
             raise NonRetryableWorkerError(str(exc)) from exc

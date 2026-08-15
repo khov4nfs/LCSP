@@ -6,15 +6,13 @@ from typing import Any
 
 from structlog import get_logger
 
+from lcsp_workers.agentic_evidence.dispatcher import LegalToolDispatcher
+from lcsp_workers.agentic_evidence.legal_tool_entrypoints import (
+    LegalToolExecutionContext,
+)
 from lcsp_workers.platform.queue_consumer import ConsumerBase, NonRetryableWorkerError
 
 from .chunk_integrity_repository import ChunkIntegrityRepository
-from .chunk_integrity_validator import (
-    ChunkIntegrityValidator,
-    ValidateChunkIntegrityRequest,
-)
-from .legal_chunk_repository import LegalChunkRepository
-from .relationship_manifest_repository import RelationshipManifestRepository
 
 logger = get_logger(__name__)
 
@@ -38,20 +36,15 @@ class ChunkIntegrityConsumer(ConsumerBase):
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
         envelope = self._read_envelope(message)
         storage_root = self._storage_root()
-        validator = ChunkIntegrityValidator(
-            storage_root=storage_root,
-            chunk_repository=LegalChunkRepository(storage_root=storage_root),
-            relationship_repository=RelationshipManifestRepository(
-                storage_root=storage_root
-            ),
+        dispatcher = LegalToolDispatcher(
+            LegalToolExecutionContext(api_client=None, storage_root=storage_root)
         )
         try:
-            result = validator.validate(
-                ValidateChunkIntegrityRequest(
-                    chunk_set_ref=envelope.chunk_set_ref,
-                    relationship_manifest_ref=envelope.relationship_manifest_ref,
-                    validation_profile=envelope.validation_profile,
-                )
+            result = dispatcher.dispatch(
+                "validate_chunk_integrity",
+                chunk_set_ref=envelope.chunk_set_ref,
+                relationship_manifest_ref=envelope.relationship_manifest_ref,
+                validation_profile=envelope.validation_profile,
             )
         except (ValueError, RuntimeError, OSError) as exc:
             raise NonRetryableWorkerError(str(exc)) from exc

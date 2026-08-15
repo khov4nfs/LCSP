@@ -6,12 +6,13 @@ from typing import Any
 
 from structlog import get_logger
 
+from lcsp_workers.agentic_evidence.dispatcher import LegalToolDispatcher
+from lcsp_workers.agentic_evidence.legal_tool_entrypoints import (
+    LegalToolExecutionContext,
+)
 from lcsp_workers.platform.queue_consumer import ConsumerBase, NonRetryableWorkerError
 
-from .official_text_extraction_repository import OfficialTextExtractionRepository
-from .ocr_fallback_repository import OcrFallbackRepository
 from .ocr_quality_repository import OcrQualityRepository
-from .ocr_quality_validator import EvaluateOcrQualityRequest, OcrQualityValidator
 
 logger = get_logger(__name__)
 
@@ -35,20 +36,18 @@ class OcrQualityConsumer(ConsumerBase):
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
         envelope = self._read_envelope(message)
         storage_root = self._storage_root()
-        validator = OcrQualityValidator(
-            storage_root=storage_root,
-            extraction_repository=OfficialTextExtractionRepository(
-                storage_root=storage_root
-            ),
-            ocr_repository=OcrFallbackRepository(storage_root=storage_root),
+        dispatcher = LegalToolDispatcher(
+            LegalToolExecutionContext(
+                api_client=None,
+                storage_root=storage_root,
+            )
         )
         try:
-            result = validator.evaluate(
-                EvaluateOcrQualityRequest(
-                    extraction_ref=envelope.extraction_ref,
-                    expected_identity_ref=envelope.expected_identity_ref,
-                    quality_profile=envelope.quality_profile,
-                )
+            result = dispatcher.dispatch(
+                "evaluate_ocr_quality",
+                extraction_ref=envelope.extraction_ref,
+                expected_identity_ref=envelope.expected_identity_ref,
+                quality_profile=envelope.quality_profile,
             )
         except (ValueError, RuntimeError, OSError) as exc:
             raise NonRetryableWorkerError(str(exc)) from exc

@@ -6,15 +6,12 @@ from typing import Any
 
 from structlog import get_logger
 
+from lcsp_workers.agentic_evidence.dispatcher import LegalToolDispatcher
+from lcsp_workers.agentic_evidence.legal_tool_entrypoints import (
+    LegalToolExecutionContext,
+)
 from lcsp_workers.platform.queue_consumer import ConsumerBase, NonRetryableWorkerError
 
-from .official_text_extraction_repository import OfficialTextExtractionRepository
-from .ocr_fallback_repository import OcrFallbackRepository
-from .ocr_quality_repository import OcrQualityRepository
-from .reviewed_corpus_input_builder import (
-    BuildReviewedCorpusInputRequest,
-    ReviewedCorpusInputBuilder,
-)
 from .reviewed_corpus_input_repository import ReviewedCorpusInputRepository
 
 logger = get_logger(__name__)
@@ -39,21 +36,15 @@ class ReviewedCorpusInputConsumer(ConsumerBase):
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
         envelope = self._read_envelope(message)
         storage_root = self._storage_root()
-        builder = ReviewedCorpusInputBuilder(
-            storage_root=storage_root,
-            extraction_repository=OfficialTextExtractionRepository(
-                storage_root=storage_root
-            ),
-            ocr_repository=OcrFallbackRepository(storage_root=storage_root),
-            quality_repository=OcrQualityRepository(storage_root=storage_root),
+        dispatcher = LegalToolDispatcher(
+            LegalToolExecutionContext(api_client=None, storage_root=storage_root)
         )
         try:
-            result = builder.build(
-                BuildReviewedCorpusInputRequest(
-                    extraction_ref=envelope.extraction_ref,
-                    quality_manifest_ref=envelope.quality_manifest_ref,
-                    correction_profile=envelope.correction_profile,
-                )
+            result = dispatcher.dispatch(
+                "build_reviewed_corpus_input",
+                extraction_ref=envelope.extraction_ref,
+                quality_manifest_ref=envelope.quality_manifest_ref,
+                correction_profile=envelope.correction_profile,
             )
         except (ValueError, RuntimeError, OSError) as exc:
             raise NonRetryableWorkerError(str(exc)) from exc

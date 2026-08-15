@@ -65,7 +65,7 @@ _START_REF = {"type": "string", "pattern": r"^(symbol|finding|node):[A-Za-z0-9_-
 _GAP_ROW_REF = {"type": "string", "pattern": r"^gap-row:[A-Za-z0-9_-]{6,80}$"}
 
 
-SPRINT6_AGENTIC_TOOL_SPECS: tuple[AgenticToolSpec, ...] = (
+AGENTIC_TOOL_SPECS: tuple[AgenticToolSpec, ...] = (
     AgenticToolSpec(
         name="resume_waiting_runs",
         description=(
@@ -862,16 +862,16 @@ SPRINT6_AGENTIC_TOOL_SPECS: tuple[AgenticToolSpec, ...] = (
 
 
 SPRINT6_AGENTIC_TOOL_SPEC_BY_NAME = {
-    spec.name: spec for spec in SPRINT6_AGENTIC_TOOL_SPECS
+    spec.name: spec for spec in AGENTIC_TOOL_SPECS
 }
 
-if len(SPRINT6_AGENTIC_TOOL_SPEC_BY_NAME) != len(SPRINT6_AGENTIC_TOOL_SPECS):
+if len(SPRINT6_AGENTIC_TOOL_SPEC_BY_NAME) != len(AGENTIC_TOOL_SPECS):
     raise RuntimeError("Agentic tool names must be unique")
 
 
 def llm_callable_tool_specs() -> tuple[AgenticToolSpec, ...]:
     return tuple(
-        spec for spec in SPRINT6_AGENTIC_TOOL_SPECS if spec.exposure == "LLM_CALLABLE"
+        spec for spec in AGENTIC_TOOL_SPECS if spec.exposure == "LLM_CALLABLE"
     )
 
 

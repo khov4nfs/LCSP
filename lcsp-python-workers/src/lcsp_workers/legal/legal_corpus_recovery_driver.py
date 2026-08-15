@@ -13,7 +13,10 @@ from typing import Any
 
 from structlog import get_logger
 
-from lcsp_workers.legal.chromadb_citation_retriever import ChromaDbCitationRetriever
+from lcsp_workers.agentic_evidence.dispatcher import LegalToolDispatcher
+from lcsp_workers.agentic_evidence.legal_tool_entrypoints import (
+    LegalToolExecutionContext,
+)
 from lcsp_workers.platform.api_client import WorkerApiClient
 
 logger = get_logger(__name__)
@@ -40,7 +43,8 @@ class LegalCorpusRecoveryDriver:
     Recovery rebuilds a deterministic version from source manifests/reviewed
     artifacts, ingests the validated draft, verifies exact retrieval coverage,
     registers the retrieval index, activates the corpus, then resumes workflows
-    waiting for the newly active version.
+    waiting for the newly active version. Canonical AO-6 validation and activation
+    are forced through ``LegalToolDispatcher`` rather than invoked directly.
     """
 
     def __init__(
@@ -50,35 +54,23 @@ class LegalCorpusRecoveryDriver:
         chroma_path: str | None = None,
         source_manifest_paths: list[Path] | None = None,
         reviewed_dir: Path | None = None,
+        legal_dispatcher: LegalToolDispatcher | None = None,
     ) -> None:
-        """Create the recovery driver with optional storage/source overrides.
-
-        Args:
-            api_client: Internal API adapter for corpus lifecycle operations.
-            chroma_path: Optional Chroma persistence path used for index validation.
-            source_manifest_paths: Optional explicit official-source manifest paths.
-            reviewed_dir: Optional directory containing reviewed OCR/text artifacts.
-        """
+        """Create the recovery driver with optional storage/source overrides."""
         self._api_client = api_client
         self._chroma_path = chroma_path or os.getenv("LEGAL_CHROMA_PATH")
         self._source_manifest_paths = source_manifest_paths
         self._reviewed_dir = reviewed_dir
+        self._legal_dispatcher = legal_dispatcher or LegalToolDispatcher(
+            LegalToolExecutionContext(
+                api_client=self._api_client,
+                storage_root=None,
+                chroma_path=self._chroma_path,
+            )
+        )
 
     def run(self, message: dict[str, Any], correlationId: str) -> dict[str, Any]:
-        """Execute corpus rebuild, index validation, activation, and workflow resume.
-
-        Args:
-            message: Recovery command containing ``idempotencyKey`` and optional
-                ``maxRuns`` for resumed workflows.
-            correlationId: End-to-end trace identifier.
-
-        Returns:
-            READY response with active corpus/index identifiers and resumed count.
-
-        Raises:
-            RuntimeError: If required source/review artifacts, script modules,
-                response identifiers, or retrieval validation are incomplete.
-        """
+        """Execute corpus rebuild, canonical validation/activation, and resume."""
         idempotency_key = required_string(message, "idempotencyKey")
         manifests = self._resolve_source_manifests()
         reviewed_dir = self._resolve_reviewed_dir()
@@ -90,9 +82,7 @@ class LegalCorpusRecoveryDriver:
         signoff = orchestrator.build_review_signoff(payload, reviewed_dir=reviewed_dir)
         enriched_payload = orchestrator.enrich_payload_with_signoff(payload, signoff)
 
-        draft = self._api_client.ingest_validated_legal_corpus_draft(
-            enriched_payload
-        )
+        draft = self._api_client.ingest_validated_legal_corpus_draft(enriched_payload)
         corpus_id = required_response_string(draft, "id", "corpus ingest response")
 
         validation_ref = f"retrieval-validation:{_safe_ref(version)}"
@@ -109,9 +99,10 @@ class LegalCorpusRecoveryDriver:
             },
         )
 
-        approved = self._api_client.activate_validated_corpus_version(
-            corpus_id,
-            {
+        approved = self._legal_dispatcher.dispatch(
+            "activate_validated_corpus_version",
+            corpus_version_id=corpus_id,
+            payload={
                 "integrityManifestRef": integrity_ref,
                 "retrievalValidationRef": validation_ref,
                 "idempotencyKey": f"{idempotency_key}:activate:{version}",
@@ -155,42 +146,15 @@ class LegalCorpusRecoveryDriver:
     def _validate_retrieval_index(
         self, corpus_version_id: str, payload: dict[str, Any]
     ) -> None:
-        """Require every corpus chunk to round-trip as an exact PRIMARY_MATCH.
-
-        Raises:
-            RuntimeError: If no chunks exist, a chunk lacks a stable ID, or exact
-                retrieval misses any expected chunk identifier.
-        """
-        chunks = [
-            chunk
-            for document in payload.get("documents") or []
-            if isinstance(document, dict)
-            for chunk in document.get("chunks") or []
-            if isinstance(chunk, dict)
-        ]
-        if not chunks:
-            raise RuntimeError("Corpus payload has no chunks to index")
-        retriever = ChromaDbCitationRetriever(self._chroma_path)
-        retriever.index_corpus(corpus_version_id, chunks)
-        expected_ids = {str(chunk.get("id") or "") for chunk in chunks}
-        if "" in expected_ids:
-            raise RuntimeError("Corpus payload contains a chunk without stable ID")
-        retrieved = retriever.retrieve_exact(corpus_version_id, list(expected_ids))
-        primary_ids = {
-            chunk.id for chunk in retrieved if chunk.role == "PRIMARY_MATCH"
-        }
-        if primary_ids != expected_ids:
-            missing = sorted(expected_ids - primary_ids)
-            raise RuntimeError(
-                f"Retrieval index validation failed; missing chunk IDs: {missing}"
-            )
+        """Compatibility wrapper that still crosses the canonical tool boundary."""
+        self._legal_dispatcher.dispatch(
+            "validate_retrieval_index",
+            corpus_version_id=corpus_version_id,
+            payload=payload,
+        )
 
     def _resolve_source_manifests(self) -> list[Path]:
-        """Resolve official-source manifests from explicit paths, env, or repo reports.
-
-        Raises:
-            RuntimeError: If no source manifests can be found.
-        """
+        """Resolve official-source manifests from explicit paths, env, or repo reports."""
         if self._source_manifest_paths:
             return self._source_manifest_paths
         raw = os.getenv("AO6_LEGAL_CORPUS_SOURCE_MANIFESTS", "")
@@ -231,11 +195,7 @@ class LegalCorpusRecoveryDriver:
 
 
 def required_string(values: dict[str, Any], key: str) -> str:
-    """Read a required non-empty command string.
-
-    Raises:
-        RuntimeError: If the requested field is missing or blank.
-    """
+    """Read a required non-empty command string."""
     value = values.get(key)
     if not isinstance(value, str) or not value.strip():
         raise RuntimeError(f"missing {key}")

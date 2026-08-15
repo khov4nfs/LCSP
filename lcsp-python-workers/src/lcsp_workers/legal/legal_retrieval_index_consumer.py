@@ -6,14 +6,12 @@ from typing import Any
 
 from structlog import get_logger
 
+from lcsp_workers.agentic_evidence.dispatcher import LegalToolDispatcher
+from lcsp_workers.agentic_evidence.legal_tool_entrypoints import (
+    LegalToolExecutionContext,
+)
 from lcsp_workers.platform.queue_consumer import ConsumerBase, NonRetryableWorkerError
 
-from .chunk_integrity_repository import ChunkIntegrityRepository
-from .legal_chunk_repository import LegalChunkRepository
-from .legal_retrieval_index_builder import (
-    BuildLegalRetrievalIndexRequest,
-    LegalRetrievalIndexBuilder,
-)
 from .legal_retrieval_index_repository import LegalRetrievalIndexRepository
 
 logger = get_logger(__name__)
@@ -38,18 +36,15 @@ class LegalRetrievalIndexConsumer(ConsumerBase):
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
         envelope = self._read_envelope(message)
         storage_root = self._storage_root()
-        builder = LegalRetrievalIndexBuilder(
-            storage_root=storage_root,
-            chunk_repository=LegalChunkRepository(storage_root=storage_root),
-            integrity_repository=ChunkIntegrityRepository(storage_root=storage_root),
+        dispatcher = LegalToolDispatcher(
+            LegalToolExecutionContext(api_client=None, storage_root=storage_root)
         )
         try:
-            result = builder.build(
-                BuildLegalRetrievalIndexRequest(
-                    chunk_set_ref=envelope.chunk_set_ref,
-                    integrity_manifest_ref=envelope.integrity_manifest_ref,
-                    index_profile=envelope.index_profile,
-                )
+            result = dispatcher.dispatch(
+                "build_legal_retrieval_index",
+                chunk_set_ref=envelope.chunk_set_ref,
+                integrity_manifest_ref=envelope.integrity_manifest_ref,
+                index_profile=envelope.index_profile,
             )
         except (ValueError, RuntimeError, OSError) as exc:
             raise NonRetryableWorkerError(str(exc)) from exc

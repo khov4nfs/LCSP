@@ -9,13 +9,12 @@ from typing import Any, Protocol
 
 from structlog import get_logger
 
+from lcsp_workers.agentic_evidence.dispatcher import LegalToolDispatcher
+from lcsp_workers.agentic_evidence.legal_tool_entrypoints import (
+    LegalToolExecutionContext,
+)
 from lcsp_workers.platform.api_client import WorkerApiClient
 from lcsp_workers.platform.queue_consumer import ConsumerBase, NonRetryableWorkerError
-
-from .official_source_snapshot import (
-    OfficialSourceSnapshotFetcher,
-    OfficialSourceSnapshotRequest,
-)
 
 logger = get_logger(__name__)
 
@@ -26,9 +25,7 @@ LEGAL_SOURCE_INGEST_QUEUE = "lcsp.legal-source-ingest.v1"
 class SnapshotFetcher(Protocol):
     """Abstraction for downloading and validating one official source snapshot."""
 
-    def fetch(
-        self, request: OfficialSourceSnapshotRequest
-    ):
+    def fetch(self, request: Any):
         """Fetch a snapshot for the supplied official-source request."""
         ...
 
@@ -71,35 +68,37 @@ class LegalSourceIngestConsumer(ConsumerBase):
             config.nestjs_api_base_url,
             config.worker_api_key,
         )
-        self._snapshot_fetcher = snapshot_fetcher or OfficialSourceSnapshotFetcher()
+        self._snapshot_fetcher = snapshot_fetcher
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
-        """Validate the command, fetch the official source, and register the snapshot.
+        """Validate the command, dispatch snapshot fetch, and register the result.
 
         Downloaded bytes live only in a temporary directory during validation and
-        registration. The command carries expected legal-document identity so the
-        snapshot layer can reject a source that does not match the catalog record.
-
-        Args:
-            message: Legal-source ingest command envelope.
-            correlationId: End-to-end trace identifier for the delivery.
-
-        Raises:
-            NonRetryableWorkerError: If mandatory command/identity fields are invalid.
+        registration. The fetch operation is forced through the canonical
+        ``fetch_official_source_snapshot`` boundary before provenance registration.
+        Fetch/runtime failures remain retryable exactly as before this refactor;
+        only deterministic envelope validation is terminal.
         """
         envelope = self._read_envelope(message)
         with TemporaryDirectory(prefix="lcsp-legal-source-") as temp_dir:
-            result = self._snapshot_fetcher.fetch(
-                OfficialSourceSnapshotRequest(
-                    document_id=envelope.document_id,
-                    catalog_source_ref=envelope.catalog_source_ref,
-                    source_url=envelope.source_url,
-                    output_dir=Path(temp_dir),
-                    max_bytes=envelope.max_bytes,
-                    gateway_document_id=envelope.gateway_document_id,
-                    source_effect_status=envelope.source_effect_status,
-                    expected_document_number=envelope.expected_document_number,
+            temp_root = Path(temp_dir)
+            dispatcher = LegalToolDispatcher(
+                LegalToolExecutionContext(
+                    api_client=self._api_client,
+                    storage_root=temp_root,
+                    snapshot_fetcher=self._snapshot_fetcher,
                 )
+            )
+            result = dispatcher.dispatch(
+                "fetch_official_source_snapshot",
+                document_id=envelope.document_id,
+                catalog_source_ref=envelope.catalog_source_ref,
+                source_url=envelope.source_url,
+                output_dir=temp_root,
+                max_bytes=envelope.max_bytes,
+                gateway_document_id=envelope.gateway_document_id,
+                source_effect_status=envelope.source_effect_status,
+                expected_document_number=envelope.expected_document_number,
             )
             registered = result.register_with_api(
                 api_client=self._api_client,
