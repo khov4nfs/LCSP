@@ -34,17 +34,24 @@ export interface PbacPreflightResult {
 const DECISION_LOG_RESOURCE_TYPE = AUDIT_RESOURCE_TYPES.workerTask;
 
 /**
- * Re-evaluates PBAC for a Python worker task, on the worker's behalf, right
- * before it processes a queued message. Unlike PbacGuard, membership status
- * is NOT gated before evaluation — an existing-but-revoked membership must
- * still reach PbacEvaluatorService so its STATE_GATE_FAILED path fires (a
- * membership revoked after task dispatch is a distinct case from no
- * membership ever having existed).
+ * Re-evaluates PBAC for a queued worker task immediately before processing so authorization reflects current membership and policy state.
+ *
+ * Unlike `PbacGuard`, this service does not reject an existing membership before evaluation solely because its status is no longer active.
+ * A membership revoked after task dispatch must still reach `PbacEvaluatorService` so the state-gate rule can produce `STATE_GATE_FAILED`;
+ * that case is intentionally distinct from a membership that does not exist at all.
  */
 @Injectable()
 export class PbacPreflightService {
   private readonly logger = new Logger(PbacPreflightService.name);
 
+  /**
+   * Creates the preflight service with membership, policy, evaluator, and decision-log dependencies.
+   *
+   * @param memberships - Repository used to resolve the worker subject's current organization membership.
+   * @param policies - Repository used to load the membership's pinned policy version.
+   * @param evaluator - Deterministic PBAC evaluator applied to the current worker context.
+   * @param decisions - Repository used to append authorization decision records.
+   */
   constructor(
     @Inject(PrismaMembershipRepository)
     private readonly memberships: MembershipRepository,
@@ -55,6 +62,12 @@ export class PbacPreflightService {
     private readonly decisions: AuthorizationDecisionRepository,
   ) {}
 
+  /**
+   * Re-evaluates the requested worker action against current membership and policy data and records the result.
+   *
+   * @param input - User, organization, action, and correlation context supplied by the worker.
+   * @returns PBAC decision with a denial reason when access is not allowed.
+   */
   async evaluate(input: PbacPreflightInput): Promise<PbacPreflightResult> {
     try {
       const membership = await this.memberships.findByUserAndOrganization(
@@ -129,6 +142,13 @@ export class PbacPreflightService {
     }
   }
 
+  /**
+   * Builds and records a preflight denial that occurs before full policy evaluation.
+   *
+   * @param input - Original preflight request context.
+   * @param reasonCode - Stable reason explaining why preflight was denied.
+   * @returns Deny result preserving the caller's correlation identifier.
+   */
   private async deny(
     input: PbacPreflightInput,
     reasonCode: PbacReasonCode,
@@ -147,7 +167,16 @@ export class PbacPreflightService {
     };
   }
 
-  /** Never throws — a decision-log write failure must not change the allow/deny outcome. */
+  /**
+   * Appends the worker authorization decision without allowing logging failures to change the allow/deny outcome.
+   *
+   * @param input - Original worker preflight context.
+   * @param decision - Final PBAC allow or deny decision.
+   * @param reasonCode - Stable reason associated with the decision.
+   * @param policyId - Policy identifier used for evaluation, when available.
+   * @param policyVersion - Policy version used for evaluation, when available.
+   * @returns A promise that always resolves after the append succeeds or its failure is logged.
+   */
   private async recordDecision(
     input: PbacPreflightInput,
     decision: PbacDecisionValue,
@@ -177,6 +206,12 @@ export class PbacPreflightService {
   }
 }
 
+/**
+ * Reads a string-valued subject attribute without coercing other runtime types.
+ *
+ * @param value - Unknown attribute value to inspect.
+ * @returns The string value when valid; otherwise undefined.
+ */
 function readStringAttribute(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }

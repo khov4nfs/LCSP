@@ -40,8 +40,20 @@ const SECRET_PATTERNS = [
 const SOURCE_BODY_PATTERN =
   /(?:\bdef\s+\w+\s*\(|\bfunction\s+\w*\s*\(|\bclass\s+\w+|\bimport\s+[\w{*])/;
 
+/**
+ * Enforces scanner callback schema/version and fail-closed privacy constraints before technical evidence is persisted.
+ */
 @Injectable()
 export class EvidenceSchemaValidatorService {
+  /**
+   * Validates callback identity, required records/status, supported schema version, privacy assertions, and unsafe evidence content.
+   *
+   * @param pathScanJobId - Scan-job identifier from the callback route; must match the payload identifier.
+   * @param payload - Scanner callback payload to validate.
+   * @param correlationId - Correlation identifier attached to validation problems.
+   * @returns Nothing when the callback satisfies all schema and privacy constraints.
+   * @throws An unprocessable-entity problem when schema or privacy validation fails.
+   */
   validate(
     pathScanJobId: string,
     payload: ScanCallbackRequest,
@@ -73,6 +85,13 @@ export class EvidenceSchemaValidatorService {
     }
   }
 
+  /**
+   * Throws the standardized evidence-validation problem for a scan callback.
+   *
+   * @param errorCode - Stable scan-domain validation error code.
+   * @param correlationId - Correlation identifier attached to the problem response.
+   * @throws Always throws the unprocessable-entity problem.
+   */
   private invalid(errorCode: string, correlationId: string): never {
     throw problemException(errorCode, correlationId, {
       status: HttpStatus.UNPROCESSABLE_ENTITY,
@@ -80,10 +99,22 @@ export class EvidenceSchemaValidatorService {
   }
 }
 
+/**
+ * Checks whether an unknown value is a non-array object record.
+ *
+ * @param value - Unknown value to inspect.
+ * @returns True when the value is record-like.
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+/**
+ * Validates a non-empty record whose values are all non-empty strings.
+ *
+ * @param value - Unknown version/config record to inspect.
+ * @returns True when the record contains at least one normalized string value and no non-string/empty values.
+ */
 function isStringRecord(value: unknown): value is Record<string, string> {
   return (
     isRecord(value) &&
@@ -92,10 +123,22 @@ function isStringRecord(value: unknown): value is Record<string, string> {
   );
 }
 
+/**
+ * Normalizes a non-empty runtime string without coercing other types.
+ *
+ * @param value - Unknown value to normalize.
+ * @returns Trimmed string value, or null when empty/non-string.
+ */
 function clean(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+/**
+ * Recursively detects forbidden raw/source/prompt/secret keys, recognizable secrets, or source-code body strings in evidence JSON.
+ *
+ * @param value - Arbitrary evidence subtree to inspect.
+ * @returns True when unsafe content is present and persistence must be rejected.
+ */
 function containsUnsafeEvidence(value: unknown): boolean {
   if (typeof value === "string") {
     return (

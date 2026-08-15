@@ -27,10 +27,21 @@ const GITHUB_REPOSITORY_PERMISSION_KEYS = {
   metadata: "metadata",
 } as const;
 
+/**
+ * Completes the GitHub App callback by consuming installation state, validating permissions, and persisting repository connections.
+ */
 @CommandHandler(GitHubAppCallbackCommand)
 export class GitHubAppCallbackHandler implements ICommandHandler<GitHubAppCallbackCommand> {
   private readonly logger = new Logger(GitHubAppCallbackHandler.name);
 
+  /**
+   * Creates the callback handler with installation state, repository persistence, GitHub API, and audit dependencies.
+   *
+   * @param installStateRepository - Repository used to consume and delete the opaque callback state.
+   * @param repositoryConnectionRepository - Repository used to persist connected GitHub repositories.
+   * @param githubAppClient - Client used to exchange the callback code and fetch installation metadata.
+   * @param auditWriter - Audit writer used to record successful and rejected connection attempts.
+   */
   constructor(
     @Inject(GITHUB_APP_INSTALL_STATE_REPOSITORY)
     private readonly installStateRepository: GitHubAppInstallStateRepository,
@@ -40,6 +51,13 @@ export class GitHubAppCallbackHandler implements ICommandHandler<GitHubAppCallba
     private readonly auditWriter: AuditWriterService,
   ) {}
 
+  /**
+   * Verifies callback state/TTL, exchanges credentials, enforces read-only permissions, connects selected repositories, and audits the outcome.
+   *
+   * @param command - Installation ID, callback code/state, optional repository selection, and correlation context.
+   * @returns Primary connected repository metadata for the callback response.
+   * @throws When callback state is invalid/expired, token or metadata exchange fails, or installation permissions exceed the allowed read-only set.
+   */
   async execute(
     command: GitHubAppCallbackCommand,
   ): Promise<GitHubAppCallbackDto> {
@@ -186,6 +204,12 @@ export class GitHubAppCallbackHandler implements ICommandHandler<GitHubAppCallba
     };
   }
 
+  /**
+   * Records a failed GitHub App connection attempt with only safe installation/context metadata.
+   *
+   * @param input - Callback command, optional recovered installation state, and stable rejection reason code.
+   * @returns A promise that resolves after the rejection audit event is written.
+   */
   private async recordConnectionRejected(input: {
     command: GitHubAppCallbackCommand;
     installState?: {
@@ -218,6 +242,12 @@ export class GitHubAppCallbackHandler implements ICommandHandler<GitHubAppCallba
   }
 }
 
+/**
+ * Ensures the GitHub installation exposes only the required read permissions for contents and metadata.
+ *
+ * @param permissions - Permission map returned by the GitHub installation API.
+ * @returns True when contents is read-only and every granted permission is an allowed read-only key.
+ */
 function hasOnlyRequiredReadPermissions(
   permissions: Record<string, string>,
 ): boolean {
@@ -240,6 +270,12 @@ function hasOnlyRequiredReadPermissions(
   });
 }
 
+/**
+ * Produces a safe diagnostic reason for callback failures without assuming the thrown value is an Error.
+ *
+ * @param error - Unknown callback failure value.
+ * @returns Error message when available, otherwise a stable fallback label.
+ */
 function safeGitHubCallbackFailureReason(error: unknown): string {
   return error instanceof Error && error.message
     ? error.message

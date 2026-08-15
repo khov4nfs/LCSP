@@ -1,3 +1,5 @@
+"""Consume legal-rule-match events and persist guarded classification results."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -19,6 +21,8 @@ logger = get_logger(__name__)
 
 
 class ClassificationConsumer(ConsumerBase):
+    """Bridge legal-rule-match events into the classification LangGraph flow."""
+
     queue_name = "classification.legal-rule-match-ready"
     routing_key = "event.legal-rule-match.ready.v1"
     requires_pbac = False  # System event
@@ -29,6 +33,13 @@ class ClassificationConsumer(ConsumerBase):
         llm_client: LLMGatewayClient | None = None,
         api_client: WorkerApiClient | None = None,
     ) -> None:
+        """Create the classification consumer and optional LLM assistants.
+
+        Args:
+            config: Worker runtime configuration.
+            llm_client: Optional LLM client used only for proposal/narration nodes.
+            api_client: Optional API client override, primarily for tests.
+        """
         super().__init__(config)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
@@ -47,7 +58,17 @@ class ClassificationConsumer(ConsumerBase):
         )
 
     def handle(self, message: dict, correlationId: str) -> None:
-        """Handle a legal-rule-match-ready event."""
+        """Process one legal-rule-match-ready event.
+
+        Blocked upstream matches are never classified. When the event references
+        a persisted legal-rule-match artifact, the canonical artifact is loaded
+        from the API before graph execution instead of trusting event payload
+        details as the source of truth.
+
+        Args:
+            message: RabbitMQ event payload.
+            correlationId: End-to-end trace identifier for this delivery.
+        """
         logger.info("PROCESSING_CLASSIFICATION", correlationId=correlationId)
 
         event_guardrail = self._message_value(
@@ -97,6 +118,12 @@ class ClassificationConsumer(ConsumerBase):
         graph_payload: dict[str, Any],
         state: ClassificationLangGraphState,
     ) -> None:
+        """Translate a graph result into the persisted callback contract.
+
+        Args:
+            graph_payload: Final graph output after guardrails.
+            state: LangGraph state containing the canonical classification context.
+        """
         context = state["message"]
         if context.get("legal_rule_match_id"):
             self._submit_callback(
@@ -110,6 +137,15 @@ class ClassificationConsumer(ConsumerBase):
     def _submit_callback(
         self, payload: ClassificationCallbackPayload | dict[str, Any]
     ) -> None:
+        """Submit a contract-shaped classification result to the API.
+
+        Args:
+            payload: Validated callback model produced from a persisted artifact.
+
+        Raises:
+            ValueError: If legacy rich-message output is used without a persisted
+                legal-rule-match artifact.
+        """
         if isinstance(payload, ClassificationCallbackPayload):
             self._api_client.post_classification_callback(payload)
             logger.info(
@@ -129,6 +165,18 @@ class ClassificationConsumer(ConsumerBase):
         event: dict[str, Any],
         artifact: dict[str, Any],
     ) -> dict[str, Any]:
+        """Build graph input from the canonical persisted legal-rule-match artifact.
+
+        Args:
+            event: Original event carrying workflow/version metadata.
+            artifact: Legal-rule-match artifact fetched from the API.
+
+        Returns:
+            Normalized graph input with identifiers, claims, rules, and citations.
+
+        Raises:
+            ValueError: If required persisted identifiers are missing.
+        """
         profile_data = artifact.get("verified_profile_data")
         usage_claims = self._usage_claims(profile_data)
         classification_version = str(
@@ -168,6 +216,18 @@ class ClassificationConsumer(ConsumerBase):
         context: dict[str, Any],
         graph_payload: dict[str, Any],
     ) -> ClassificationCallbackPayload:
+        """Build the API callback model from canonical context and graph output.
+
+        Args:
+            context: Persisted artifact identifiers and workflow metadata.
+            graph_payload: Guarded classification output.
+
+        Returns:
+            Contract-valid classification callback payload.
+
+        Raises:
+            ValueError: If required artifact identifiers are incomplete.
+        """
         legal_rule_match_id = str(context.get("legal_rule_match_id") or "")
         verified_profile_id = str(context.get("verified_profile_id") or "")
         assessment_id = str(context.get("assessment_id") or "")
@@ -199,6 +259,7 @@ class ClassificationConsumer(ConsumerBase):
 
     @classmethod
     def _normalize_graph_message(cls, message: dict[str, Any]) -> dict[str, Any]:
+        """Normalize legacy camel/snake-case rich events into graph input."""
         return {
             **message,
             "assessment_id": cls._message_value(
@@ -222,6 +283,7 @@ class ClassificationConsumer(ConsumerBase):
 
     @staticmethod
     def _message_value(message: dict[str, Any], *keys: str):
+        """Return the first non-empty value among compatible message keys."""
         for key in keys:
             value = message.get(key)
             if value is not None and value != "":
@@ -230,6 +292,7 @@ class ClassificationConsumer(ConsumerBase):
 
     @staticmethod
     def _usage_claims(profile_data: Any) -> list[dict[str, Any]]:
+        """Extract dictionary usage claims from supported profile payload shapes."""
         if not isinstance(profile_data, dict):
             return []
         for key in ("usage_claims", "usageClaims", "claims"):
@@ -240,18 +303,21 @@ class ClassificationConsumer(ConsumerBase):
 
     @staticmethod
     def _dict_list(value: Any) -> list[dict[str, Any]]:
+        """Filter an arbitrary value down to a list of dictionaries."""
         if not isinstance(value, list):
             return []
         return [entry for entry in value if isinstance(entry, dict)]
 
     @staticmethod
     def _string_list(value: Any) -> list[str]:
+        """Normalize a list-like contract field into non-empty strings."""
         if not isinstance(value, list):
             return []
         return [str(entry) for entry in value if entry]
 
     @staticmethod
     def _contract_guardrail_status(value: Any) -> str:
+        """Map internal guardrail spelling to the API contract, failing closed."""
         normalized = str(value or "").strip().upper()
         if normalized in {"PASSED", "DEGRADED", "BLOCKED"}:
             return normalized

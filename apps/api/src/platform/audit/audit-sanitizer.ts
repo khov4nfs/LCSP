@@ -6,7 +6,16 @@ export interface SanitizeResult {
   removedKeys: string[];
 }
 
+/**
+ * Removes sensitive fields from audit payloads before they are persisted or logged.
+ */
 export class AuditSanitizer {
+  /**
+   * Sanitizes an audit payload recursively while recording every removed field path.
+   *
+   * @param payload - Optional structured audit payload to sanitize.
+   * @returns The sanitized payload together with the paths of removed sensitive fields.
+   */
   static sanitize(payload?: Record<string, unknown>): SanitizeResult {
     if (!payload) {
       return { payload: undefined, removedKeys: [] };
@@ -20,6 +29,14 @@ export class AuditSanitizer {
   }
 }
 
+/**
+ * Sanitizes the fields of an object and tracks removed sensitive keys using dotted paths.
+ *
+ * @param value - Record whose fields should be inspected.
+ * @param parentPath - Path prefix used when reporting nested removed keys.
+ * @param removedKeys - Mutable collection that receives removed field paths.
+ * @returns A copy of the record with sensitive fields removed.
+ */
 function sanitizeRecord(
   value: Record<string, unknown>,
   parentPath: string,
@@ -40,6 +57,14 @@ function sanitizeRecord(
   );
 }
 
+/**
+ * Sanitizes nested records and arrays while preserving primitive values.
+ *
+ * @param value - Value to inspect for nested records.
+ * @param path - Current field path used for removed-key reporting.
+ * @param removedKeys - Mutable collection that receives removed field paths.
+ * @returns The sanitized value.
+ */
 function sanitizeValue(
   value: unknown,
   path: string,
@@ -56,6 +81,12 @@ function sanitizeValue(
   return isRecord(value) ? sanitizeRecord(value, path, removedKeys) : value;
 }
 
+/**
+ * Determines whether a value is a non-array object that can be sanitized as a record.
+ *
+ * @param value - Value to inspect.
+ * @returns True when the value is a record-like object.
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }

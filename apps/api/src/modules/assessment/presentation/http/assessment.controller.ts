@@ -21,13 +21,29 @@ import { GetAssessmentQuery } from "../../application/queries/get-assessment/get
 import { ListAssessmentsQuery } from "../../application/queries/list-assessments/list-assessments.query.js";
 import { CreateAssessmentRequest } from "./dto/create-assessment.request.js";
 
+/**
+ * Exposes PBAC-protected assessment creation, listing, and detail endpoints through CQRS handlers.
+ */
 @Controller("assessments")
 export class AssessmentController {
+  /**
+   * Creates the controller with command and query dispatchers.
+   *
+   * @param commandBus - CQRS command bus used for assessment mutations.
+   * @param queryBus - CQRS query bus used for assessment reads.
+   */
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
   ) {}
 
+  /**
+   * Creates a manager-owned assessment using the PBAC context attached by the guard.
+   *
+   * @param body - Assessment creation request containing name and optional description.
+   * @param request - Authenticated request containing PBAC and correlation context.
+   * @returns The standard result envelope containing the created assessment DTO.
+   */
   @Post()
   @UseGuards(PbacGuard)
   @RequireAction(PBAC_ACTIONS.assessmentCreate)
@@ -56,6 +72,15 @@ export class AssessmentController {
     );
   }
 
+  /**
+   * Lists assessments visible to the current PBAC subject with optional pagination and status filtering.
+   *
+   * @param page - Optional 1-based page query parameter.
+   * @param pageSize - Optional page-size query parameter.
+   * @param status - Optional assessment status filter.
+   * @param request - Authenticated request containing organization, role, scope, and correlation context.
+   * @returns The standard result envelope containing the paginated assessment list.
+   */
   @Get()
   @UseGuards(PbacGuard)
   @RequireAction(PBAC_ACTIONS.assessmentList)
@@ -83,6 +108,13 @@ export class AssessmentController {
     );
   }
 
+  /**
+   * Retrieves the caller-visible detail view for one assessment.
+   *
+   * @param assessmentId - Assessment identifier from the route path.
+   * @param request - Authenticated request containing organization, user, role, and correlation context.
+   * @returns The standard result envelope containing assessment readiness and pipeline detail.
+   */
   @Get(":assessmentId")
   @UseGuards(PbacGuard)
   @RequireAction(PBAC_ACTIONS.assessmentRead)

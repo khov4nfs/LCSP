@@ -7,6 +7,9 @@ import {
   type OutboxStatus,
 } from "@lcsp/contracts/outbox";
 
+/**
+ * Represents an outbox message and its delivery state across creation and persistence rehydration.
+ */
 export class OutboxMessageEntity {
   readonly id: string;
   readonly aggregateType: OutboxAggregateType;
@@ -20,6 +23,11 @@ export class OutboxMessageEntity {
   readonly errorMessage: string | null;
   readonly createdAt: Date;
 
+  /**
+   * Creates an outbox entity from normalized delivery fields.
+   *
+   * @param fields - Aggregate identity, event payload, delivery state, retry metadata, and creation time.
+   */
   private constructor(fields: {
     aggregateType: OutboxAggregateType;
     aggregateId: string;
@@ -45,6 +53,13 @@ export class OutboxMessageEntity {
     this.createdAt = fields.createdAt;
   }
 
+  /**
+   * Creates a new pending outbox message with no prior delivery attempts.
+   *
+   * @param input - Aggregate and event data to place in the transactional outbox.
+   * @param createdAt - Optional creation timestamp; defaults to the current time.
+   * @returns A new pending outbox message entity.
+   */
   static create(
     input: OutboxMessageInput,
     createdAt: Date = new Date(),
@@ -63,6 +78,12 @@ export class OutboxMessageEntity {
     });
   }
 
+  /**
+   * Rehydrates an outbox entity from a previously persisted database record.
+   *
+   * @param fields - Persisted outbox fields including the original message identifier.
+   * @returns An outbox entity whose ID and delivery state match the persisted record.
+   */
   static fromPersistence(fields: {
     id: string;
     aggregateType: OutboxAggregateType;

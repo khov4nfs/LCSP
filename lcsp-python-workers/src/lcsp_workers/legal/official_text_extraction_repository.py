@@ -1,3 +1,5 @@
+"""Persist official-text extraction registry records by extraction and provenance refs."""
+
 from __future__ import annotations
 
 import json
@@ -10,6 +12,8 @@ from .official_text_extraction import OfficialTextExtractionResult
 
 @dataclass(frozen=True)
 class OfficialTextExtractionRecord:
+    """Serializable registry record for one official-text extraction artifact."""
+
     extraction_ref: str
     provenance_ref: str
     snapshot_ref: str
@@ -27,6 +31,7 @@ class OfficialTextExtractionRecord:
     identity_candidate: dict[str, str | None]
 
     def to_json(self) -> dict[str, Any]:
+        """Serialize the record using the external registry field names."""
         return {
             "extractionRef": self.extraction_ref,
             "provenanceRef": self.provenance_ref,
@@ -47,6 +52,7 @@ class OfficialTextExtractionRecord:
 
     @classmethod
     def from_json(cls, payload: dict[str, Any]) -> "OfficialTextExtractionRecord":
+        """Deserialize a persisted registry JSON payload into a typed record."""
         return cls(
             extraction_ref=str(payload["extractionRef"]),
             provenance_ref=str(payload["provenanceRef"]),
@@ -73,6 +79,7 @@ class OfficialTextExtractionRecord:
     def from_result(
         cls, result: OfficialTextExtractionResult
     ) -> "OfficialTextExtractionRecord":
+        """Project a completed extraction result into its durable registry representation."""
         return cls(
             extraction_ref=result.extraction_ref,
             provenance_ref=result.provenance_ref,
@@ -93,10 +100,14 @@ class OfficialTextExtractionRecord:
 
 
 class OfficialTextExtractionRepository:
+    """File-backed lookup registry keyed by extraction and provenance references."""
+
     def __init__(self, *, storage_root: Path) -> None:
+        """Create the repository under the configured legal-source storage root."""
         self._storage_root = storage_root
 
     def save(self, result: OfficialTextExtractionResult) -> OfficialTextExtractionRecord:
+        """Persist one extraction record under both extraction and provenance indexes."""
         record = OfficialTextExtractionRecord.from_result(result)
         self._write_json(self._path_for_extraction_ref(record.extraction_ref), record.to_json())
         self._write_json(self._path_for_provenance_ref(record.provenance_ref), record.to_json())
@@ -105,6 +116,7 @@ class OfficialTextExtractionRepository:
     def get_by_extraction_ref(
         self, extraction_ref: str
     ) -> OfficialTextExtractionRecord | None:
+        """Load a record by extraction ref, returning ``None`` when absent."""
         path = self._path_for_extraction_ref(extraction_ref)
         if not path.is_file():
             return None
@@ -115,6 +127,7 @@ class OfficialTextExtractionRepository:
     def get_by_provenance_ref(
         self, provenance_ref: str
     ) -> OfficialTextExtractionRecord | None:
+        """Load a record by provenance ref, returning ``None`` when absent."""
         path = self._path_for_provenance_ref(provenance_ref)
         if not path.is_file():
             return None
@@ -125,6 +138,7 @@ class OfficialTextExtractionRepository:
     def list_by_snapshot_ref(
         self, snapshot_ref: str
     ) -> list[OfficialTextExtractionRecord]:
+        """Return all extraction records derived from a given immutable snapshot."""
         registry_dir = (
             self._storage_root
             / "official-text-extractions"
@@ -143,6 +157,7 @@ class OfficialTextExtractionRepository:
         return matches
 
     def _path_for_extraction_ref(self, extraction_ref: str) -> Path:
+        """Build the extraction-ref registry path."""
         return (
             self._storage_root
             / "official-text-extractions"
@@ -152,6 +167,7 @@ class OfficialTextExtractionRepository:
         )
 
     def _path_for_provenance_ref(self, provenance_ref: str) -> Path:
+        """Build the provenance-ref registry path."""
         return (
             self._storage_root
             / "official-text-extractions"
@@ -162,6 +178,7 @@ class OfficialTextExtractionRepository:
 
     @staticmethod
     def _write_json(path: Path, payload: dict[str, Any]) -> None:
+        """Create parent directories and write deterministic UTF-8 JSON."""
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
@@ -170,4 +187,5 @@ class OfficialTextExtractionRepository:
 
 
 def _safe_ref(value: str) -> str:
+    """Convert colon-delimited refs to file-system-safe registry names."""
     return value.replace(":", "__")

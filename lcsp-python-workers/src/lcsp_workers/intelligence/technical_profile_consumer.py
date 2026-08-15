@@ -1,3 +1,5 @@
+"""Consume accepted technical evidence and persist a privacy-safe technical profile."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -15,6 +17,8 @@ logger = get_logger(__name__)
 
 
 class TechnicalProfileConsumer(ConsumerBase):
+    """Bridge accepted TechnicalEvidenceReport artifacts to technical profiles."""
+
     queue_name = "intelligence.evidence-accepted"
     routing_key = "event.technical-evidence.accepted.v1"
     requires_pbac = False
@@ -26,6 +30,7 @@ class TechnicalProfileConsumer(ConsumerBase):
         api_client: WorkerApiClient | None = None,
         profile_builder: TechnicalProfileBuilder | None = None,
     ) -> None:
+        """Create the consumer and injectable API/profile-building dependencies."""
         super().__init__(config, pbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
@@ -34,6 +39,16 @@ class TechnicalProfileConsumer(ConsumerBase):
         self._profile_builder = profile_builder or TechnicalProfileBuilder()
 
     def handle(self, message: dict, correlationId: str) -> None:
+        """Fetch canonical accepted evidence, build a profile, and callback the API.
+
+        Args:
+            message: Event identifying the accepted technical evidence report.
+            correlationId: End-to-end trace identifier for the delivery.
+
+        Raises:
+            ValueError: If the event/report is incomplete or produced privacy
+                flags are unsafe for the technical-profile callback.
+        """
         evidence_report_id = self._evidence_report_id(message)
         evidence_report = self._api_client.get_accepted_technical_evidence_report(
             evidence_report_id
@@ -60,6 +75,7 @@ class TechnicalProfileConsumer(ConsumerBase):
         )
 
     def _evidence_report_id(self, message: dict[str, Any]) -> str:
+        """Resolve the evidence-report identifier from supported event aliases."""
         value = (
             message.get("evidenceReportId")
             or message.get("evidence_report_id")
@@ -71,5 +87,6 @@ class TechnicalProfileConsumer(ConsumerBase):
         return str(value)
 
     def _scan_job_id(self, evidence_report: dict[str, Any]) -> str | None:
+        """Read the optional originating scan-job identifier from an artifact."""
         value = evidence_report.get("scan_job_id") or evidence_report.get("scanJobId")
         return str(value) if value else None

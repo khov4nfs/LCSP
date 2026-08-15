@@ -1,3 +1,5 @@
+"""Bind validated agentic registry capabilities to the trusted worker API bridge."""
+
 from __future__ import annotations
 
 from typing import Any, Mapping
@@ -14,8 +16,15 @@ def bind_runtime_handlers(
     user_id: str,
     organization_id: str,
 ) -> None:
-    """Bind all model-callable Sprint 6 tools to the trusted API runtime bridge."""
+    """Bind every model-callable tool to the trusted API runtime dispatcher.
 
+    Args:
+        registry: Agentic capability registry whose model-callable entries need
+            concrete runtime handlers.
+        api_client: Internal worker API client used for actual data access.
+        user_id: Principal propagated into downstream tool requests.
+        organization_id: Tenant boundary propagated into downstream requests.
+    """
     for tool_name in registry.model_callable_names():
         registry.register_handler(
             tool_name,
@@ -35,7 +44,20 @@ def _build_runtime_handler(
     user_id: str,
     organization_id: str,
 ):
+    """Create a handler that maps a validated registry request to API payload.
+
+    Args:
+        tool_name: Registered capability name being bound.
+        api_client: Internal API bridge used to dispatch the tool.
+        user_id: Principal to include in the downstream request.
+        organization_id: Tenant boundary to include in the request.
+
+    Returns:
+        Callable accepting ``AgenticToolRequest`` and returning a mapping result.
+    """
+
     def handler(request: AgenticToolRequest) -> Mapping[str, Any]:
+        """Dispatch one already-validated request through the internal API bridge."""
         return api_client.dispatch_agentic_tool(
             {
                 "tool_name": tool_name,

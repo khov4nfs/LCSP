@@ -1,9 +1,20 @@
+"""PBAC preflight client used by worker-side authorization boundaries."""
+
 from typing import Literal
 
 import httpx
 
+
 class PbacClient:
+    """Call the NestJS PBAC preflight endpoint for worker actions."""
+
     def __init__(self, base_url: str, api_key: str) -> None:
+        """Create a PBAC client.
+
+        Args:
+            base_url: Base URL of the LCSP NestJS API.
+            api_key: Worker API key used to authenticate internal requests.
+        """
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
 
@@ -14,10 +25,25 @@ class PbacClient:
         action: str,
         correlationId: str,
     ) -> Literal["allow", "deny"]:
-        """
-        Calls POST /internal/pbac/preflight to check permissions.
-        Returns "allow" or "deny".
-        Raises ConnectionError if the PBAC server is unreachable.
+        """Evaluate whether a worker action is allowed by PBAC.
+
+        The client fails closed for any successful response that does not
+        explicitly contain the ``ALLOW`` decision. Transport failures remain
+        distinguishable so callers can apply retry/dead-letter behavior.
+
+        Args:
+            user_id: User or technical principal requesting the action.
+            organization_id: Tenant boundary for the authorization decision.
+            action: PBAC action identifier to evaluate.
+            correlationId: Correlation identifier propagated to the API.
+
+        Returns:
+            ``"allow"`` only for an explicit ALLOW response; otherwise
+            ``"deny"``.
+
+        Raises:
+            ConnectionError: If the PBAC service cannot be reached.
+            httpx.HTTPStatusError: If the service returns a non-success status.
         """
         try:
             resp = httpx.post(

@@ -1,3 +1,5 @@
+"""Calculate reproducible confidence scores and claim lifecycle states."""
+
 from __future__ import annotations
 
 
@@ -28,6 +30,23 @@ def calculate_claim_confidence(
     has_wizard_conflict: bool,
     missing_required_evidence_class: bool,
 ) -> tuple[float, dict[str, float]]:
+    """Calculate a bounded confidence score from deterministic evidence factors.
+
+    Args:
+        claim_category: Supported AI-usage claim category selecting the base score.
+        required_evidence_present: Whether mandatory evidence exists for the claim.
+        optional_signal_count: Number of corroborating optional signals.
+        material_coverage_limitations: Count of material scan-coverage limitations.
+        has_wizard_conflict: Whether manager/wizard input contradicts the evidence.
+        missing_required_evidence_class: Whether a required evidence class is absent.
+
+    Returns:
+        The rounded confidence value and a factor breakdown containing base,
+        bonuses, and penalties.
+
+    Raises:
+        KeyError: If ``claim_category`` has no configured deterministic base score.
+    """
     base = CLAIM_CATEGORY_BASE[claim_category]
     d_bonus = 0.10 if required_evidence_present else 0.0
     o_bonus = min(optional_signal_count * 0.05, 0.10)
@@ -52,6 +71,11 @@ def lifecycle_for_confidence(
     has_conflict: bool = False,
     missing_evidence_ref: bool = False,
 ) -> str:
+    """Map confidence and hard evidence conditions to a claim lifecycle state.
+
+    Missing evidence and explicit conflicts take precedence over confidence
+    thresholds so a high numeric score cannot mask an unresolved integrity issue.
+    """
     if missing_evidence_ref:
         return "REJECTED"
     if has_conflict:
@@ -61,4 +85,3 @@ def lifecycle_for_confidence(
     if confidence < 0.65:
         return "DETECTED"
     return "VALIDATED"
-

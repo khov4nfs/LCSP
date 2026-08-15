@@ -60,11 +60,14 @@ SOURCE_BODY_PATTERN = re.compile(
 
 @dataclass(frozen=True)
 class PrivacyFlags:
+    """Declares privacy guarantees attached to the persisted scan callback."""
+
     contains_source_code: bool
     secrets_redacted: bool
     source_stripped_from_findings: bool
 
     def to_callback_dict(self) -> dict[str, bool]:
+        """Convert internal snake-case flags to the callback contract shape."""
         return {
             "containsSourceCode": self.contains_source_code,
             "secretsRedacted": self.secrets_redacted,
@@ -74,6 +77,8 @@ class PrivacyFlags:
 
 @dataclass(frozen=True)
 class ToolFailureRecord:
+    """Business-safe execution metadata for a scanner tool that did not succeed."""
+
     tool_name: str
     tool_version: str
     outcome: str
@@ -81,12 +86,23 @@ class ToolFailureRecord:
 
 
 class PrivacyAssertionError(RuntimeError):
+    """Raised when evidence would violate the worker persistence privacy contract."""
+
     def __init__(self, message: str, error_code: str = PRIVACY_ASSERTION_FAILED) -> None:
+        """Create a privacy failure with the safe callback error code."""
         super().__init__(message)
         self.error_code = error_code
 
 
 class EvidenceAssembler:
+    """Build a redacted, provenance-bound scan callback from analyzer/tool outputs.
+
+    This is the final privacy boundary before scan evidence leaves the worker. It
+    strips source-bearing finding fields, rejects forbidden keys and recognizable
+    secrets/raw source, computes aggregate tool status, and hashes the canonical
+    report so downstream services can bind decisions to the exact evidence payload.
+    """
+
     def assemble(
         self,
         *,
@@ -104,6 +120,30 @@ class EvidenceAssembler:
         scan_coverage: list[LanguageClassification] | None = None,
         targeted_reanalysis: dict[str, object] | None = None,
     ) -> ScanCallbackPayload:
+        """Assemble the callback payload after enforcing evidence privacy invariants.
+
+        Args:
+            scan_job_id: Scan job that owns the generated evidence.
+            syft_result: Optional SBOM tool result.
+            semgrep_result: Optional Semgrep findings and execution metadata.
+            coverage_notes: Human-readable notes about scanner coverage limitations.
+            package_dependencies: Normalized dependency facts from supported manifests.
+            dependency_executions: Execution metadata from dependency extractors.
+            python_analysis: Optional Python structural/AI-usage analysis.
+            ts_js_analysis: Optional TypeScript/JavaScript bridge analysis.
+            technical_findings: Normalized AI invocation and technical findings.
+            structural_facts: Language-agnostic structural facts from parsers.
+            evidence_graph: Optional graph joining code/dependency/evidence relationships.
+            scan_coverage: Per-file language and support classifications.
+            targeted_reanalysis: Optional metadata describing constrained reanalysis scope.
+
+        Returns:
+            A callback payload containing only redacted evidence plus provenance metadata.
+
+        Raises:
+            PrivacyAssertionError: If any field/value can persist raw source, prompts,
+                credentials, or if privacy flags are internally inconsistent.
+        """
         executions = [
             *( [syft_result.execution] if syft_result is not None else [] ),
             *(semgrep_result.executions if semgrep_result is not None else []),
@@ -181,6 +221,7 @@ class EvidenceAssembler:
         privacy_flags: dict[str, bool],
         evidence_payload: dict,
     ) -> dict[str, str]:
+        """Hash a canonical report representation for downstream provenance checks."""
         canonical_report = {
             "schema_version": SCHEMA_VERSION,
             "scan_job_id": scan_job_id,
@@ -206,6 +247,7 @@ class EvidenceAssembler:
     def _scan_coverage(
         classifications: list[LanguageClassification],
     ) -> dict[str, object]:
+        """Summarize per-file scanner support without discarding detailed coverage."""
         files = [asdict(item) for item in classifications]
         return {
             "files": files,
@@ -221,14 +263,17 @@ class EvidenceAssembler:
     def _tools_version(
         self, executions: Iterable[ToolExecutionResult]
     ) -> dict[str, str]:
+        """Project tool execution metadata into the callback version map."""
         return {execution.tool_name: execution.tool_version for execution in executions}
 
     def _config_hash(self, executions: Iterable[ToolExecutionResult]) -> dict[str, str]:
+        """Project tool execution metadata into reproducibility config hashes."""
         return {execution.tool_name: execution.config_hash for execution in executions}
 
     def _tool_failures(
         self, executions: Iterable[ToolExecutionResult]
     ) -> list[ToolFailureRecord]:
+        """Return only non-success executions as safe failure records."""
         return [
             ToolFailureRecord(
                 tool_name=execution.tool_name,
@@ -243,6 +288,11 @@ class EvidenceAssembler:
     def _status_for(
         self, executions: Iterable[ToolExecutionResult]
     ) -> tuple[str, str | None]:
+        """Derive callback status from aggregate tool outcomes.
+
+        No executions or all-success executions are successful, mixed outcomes are
+        partial, and an all-tool failure produces the stable ``ALL_TOOLS_FAILED`` code.
+        """
         outcomes = [execution.outcome for execution in executions]
         if not outcomes:
             return SCAN_CALLBACK_STATUSES["success"], None
@@ -259,6 +309,7 @@ class EvidenceAssembler:
         original_findings: list[dict],
         redacted_findings: list[dict],
     ) -> None:
+        """Fail closed when declared privacy guarantees do not match evidence state."""
         if privacy_flags.contains_source_code:
             raise PrivacyAssertionError("evidence payload contains source code")
         if not privacy_flags.secrets_redacted:
@@ -267,6 +318,7 @@ class EvidenceAssembler:
             raise PrivacyAssertionError("raw source was stripped from findings")
 
     def _assert_safe_payload(self, value: object) -> None:
+        """Recursively reject source-like values, secrets, and forbidden persisted keys."""
         if isinstance(value, str):
             if any(pattern.search(value) for pattern in SECRET_VALUE_PATTERNS):
                 raise PrivacyAssertionError("evidence payload contains a secret")

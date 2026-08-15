@@ -29,11 +29,17 @@ SAFE_UNRESOLVED_SCOPE_CODE = "TARGETED_REANALYSIS_SCOPE_UNRESOLVED"
 
 
 class ScanRunner(Protocol):
-    def handle(self, message: dict, correlationId: str) -> object: ...
+    """Structural contract for executing a scan from a reanalysis request."""
+
+    def handle(self, message: dict, correlationId: str) -> object:
+        """Run a scan-compatible payload using the supplied correlation context."""
+        ...
 
 
 @dataclass(frozen=True)
 class TargetedReanalysisEnvelope:
+    """Normalized immutable fields carried by a targeted-reanalysis command."""
+
     request_id: str
     scan_job_id: str
     snapshot_id: str
@@ -46,7 +52,13 @@ class TargetedReanalysisEnvelope:
 
 
 class TargetedReanalysisConsumer(ConsumerBase):
-    """Consumes only immutable, API-authorized targeted-reanalysis commands."""
+    """Consumes only immutable, API-authorized targeted-reanalysis commands.
+
+    The queue event is treated as an untrusted delivery hint. Before running any
+    analyzer, the consumer reloads the authoritative request from the API and
+    requires the event identifiers and normalized scope to match exactly. This
+    prevents a stale or forged queue message from widening the approved scan scope.
+    """
 
     queue_name = TARGETED_REANALYSIS_QUEUE
     routing_key = TARGETED_REANALYSIS_COMMAND
@@ -60,6 +72,15 @@ class TargetedReanalysisConsumer(ConsumerBase):
         api_client: WorkerApiClient | None = None,
         scan_runner: ScanRunner | None = None,
     ):
+        """Initialize the consumer and its API/scan dependencies.
+
+        Args:
+            config: Worker runtime configuration, including API and retry settings.
+            pbac_client: Optional base-consumer dependency; PBAC is not performed here
+                because authorization is represented by the persisted API request.
+            api_client: Optional internal API client override for tests/composition.
+            scan_runner: Optional scan executor override; defaults to ``ScanConsumer``.
+        """
         super().__init__(config, pbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
@@ -71,6 +92,22 @@ class TargetedReanalysisConsumer(ConsumerBase):
         )
 
     def handle(self, message: dict, correlationId: str) -> None:
+        """Validate, claim, and execute one targeted-reanalysis command.
+
+        Execution is idempotency-aware: terminal requests and requests claimed by
+        another worker are ignored. Subject-reference scopes must already have been
+        resolved by the API to concrete path prefixes before repository code is read.
+
+        Args:
+            message: Queue payload describing the immutable reanalysis request.
+            correlationId: Delivery correlation identifier used as a fallback.
+
+        Raises:
+            NonRetryableWorkerError: For invalid scope, privacy failures, event/API
+                mismatches, or exhausted delivery retries.
+            Exception: Re-raises retryable execution failures after the API request
+                has been moved back to the requeueable state.
+        """
         envelope = self._read_envelope(message, correlationId)
         set_correlationId(envelope.correlationId)
         request = self._api_client.get_targeted_reanalysis_request(envelope.request_id)
@@ -123,6 +160,16 @@ class TargetedReanalysisConsumer(ConsumerBase):
         envelope: TargetedReanalysisEnvelope,
         error: Exception,
     ) -> None:
+        """Transition a failed execution to retry or terminal DLQ state.
+
+        Args:
+            envelope: Normalized request containing the current delivery attempt.
+            error: Original execution error used for logging and exception chaining.
+
+        Raises:
+            NonRetryableWorkerError: Once the configured retry budget is exhausted.
+            Exception: Re-raises the original error when another retry is allowed.
+        """
         if envelope.delivery_attempt >= self._config.max_retries:
             self._fail_terminal(
                 envelope.request_id,
@@ -146,6 +193,7 @@ class TargetedReanalysisConsumer(ConsumerBase):
         state: str,
         safe_failure_code: str,
     ) -> None:
+        """Persist a terminal request state using a business-safe failure code."""
         self._api_client.fail_targeted_reanalysis_request(
             request_id,
             state=state,
@@ -157,6 +205,19 @@ class TargetedReanalysisConsumer(ConsumerBase):
         message: dict,
         correlationId: str,
     ) -> TargetedReanalysisEnvelope:
+        """Validate queue payload shape and normalize aliases into one envelope.
+
+        Args:
+            message: Raw queue message.
+            correlationId: Delivery correlation identifier used when absent in payload.
+
+        Returns:
+            A validated immutable targeted-reanalysis envelope.
+
+        Raises:
+            NonRetryableWorkerError: If required identifiers, scope, or delivery-attempt
+                metadata are malformed.
+        """
         request_id = self._read_string(message, "requestId", "request_id")
         scan_job_id = self._read_string(message, "scanJobId", "scan_job_id")
         snapshot_id = self._read_string(message, "snapshotId", "snapshot_id")
@@ -204,6 +265,16 @@ class TargetedReanalysisConsumer(ConsumerBase):
         envelope: TargetedReanalysisEnvelope,
         request: dict,
     ) -> None:
+        """Require the queue envelope to equal the API-authorized immutable request.
+
+        Args:
+            envelope: Values received from the queue.
+            request: Authoritative request loaded from the API.
+
+        Raises:
+            NonRetryableWorkerError: If any identity, checkpoint, commit, analyzer,
+                snapshot, or normalized-scope value differs.
+        """
         expected = {
             "id": envelope.request_id,
             "scanJobId": envelope.scan_job_id,
@@ -225,6 +296,7 @@ class TargetedReanalysisConsumer(ConsumerBase):
 
     @staticmethod
     def _read_string(message: dict, *keys: str) -> str | None:
+        """Return the first non-empty string found under the supplied aliases."""
         for key in keys:
             value = message.get(key)
             if isinstance(value, str) and value.strip():
@@ -233,6 +305,7 @@ class TargetedReanalysisConsumer(ConsumerBase):
 
     @staticmethod
     def _is_scope(value: object) -> bool:
+        """Check that a normalized scope has exactly one supported list dimension."""
         if not isinstance(value, dict) or len(value) != 1:
             return False
         key, values = next(iter(value.items()))
@@ -242,6 +315,7 @@ class TargetedReanalysisConsumer(ConsumerBase):
 
     @staticmethod
     def _canonical_scope(value: object) -> str | None:
+        """Serialize a valid scope deterministically for exact equality comparison."""
         if not TargetedReanalysisConsumer._is_scope(value):
             return None
         return json.dumps(value, sort_keys=True, separators=(",", ":"))

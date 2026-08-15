@@ -23,8 +23,20 @@ import { GitHubAppStartCommand } from "./github-app-start.command.js";
 
 const INSTALL_STATE_TTL_MS = 10 * 60_000;
 
+/**
+ * Starts a GitHub App installation flow after validating redirect, tenant, assessment, and optional reconnect context.
+ */
 @CommandHandler(GitHubAppStartCommand)
 export class GitHubAppStartHandler implements ICommandHandler<GitHubAppStartCommand> {
+  /**
+   * Creates the handler with installation-state persistence, GitHub URL construction, audit, configuration, and tenant lookup dependencies.
+   *
+   * @param installStateRepository - Repository used to persist the short-lived opaque installation state.
+   * @param githubAppClient - GitHub App client used to construct the installation authorization URL.
+   * @param auditWriter - Audit writer used to record installation-flow initiation.
+   * @param configService - Configuration service used to validate allowed client redirect URIs.
+   * @param prisma - Prisma service used to validate existing connections and assessment ownership.
+   */
   constructor(
     @Inject(GITHUB_APP_INSTALL_STATE_REPOSITORY)
     private readonly installStateRepository: GitHubAppInstallStateRepository,
@@ -34,6 +46,13 @@ export class GitHubAppStartHandler implements ICommandHandler<GitHubAppStartComm
     private readonly prisma: PrismaService,
   ) {}
 
+  /**
+   * Validates the installation request, persists expiring state, builds the GitHub URL, and records the start audit event.
+   *
+   * @param command - Organization/user/session, redirect, optional assessment, reconnect installation, and correlation context.
+   * @returns GitHub installation URL and correlation identifier.
+   * @throws When the redirect URI is not allowlisted, reconnect installation is unavailable, or the assessment is outside the organization.
+   */
   async execute(command: GitHubAppStartCommand): Promise<GitHubAppStartDto> {
     const redirectUri = command.redirectUri?.trim();
     const allowedRedirectUris = this.configService.get<string[]>(

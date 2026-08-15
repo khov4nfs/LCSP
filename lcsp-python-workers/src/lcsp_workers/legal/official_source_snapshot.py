@@ -1,3 +1,5 @@
+"""Fetch immutable legal-source snapshots only from catalog-authorized official hosts."""
+
 from __future__ import annotations
 
 import importlib.util
@@ -35,11 +37,17 @@ AGENTIC_TOOL_COVERAGE_STATES = {
 
 
 class OfficialSourceSnapshotRegistry(Protocol):
-    def register_official_source_snapshot(self, payload: dict) -> dict: ...
+    """Minimal API contract required to register a validated source snapshot."""
+
+    def register_official_source_snapshot(self, payload: dict) -> dict:
+        """Persist snapshot provenance and immutable object metadata."""
+        ...
 
 
 @dataclass(frozen=True)
 class OfficialSourceSnapshotRequest:
+    """Bounded request describing one catalog-authorized official legal source."""
+
     document_id: str
     catalog_source_ref: str
     source_url: str
@@ -52,6 +60,8 @@ class OfficialSourceSnapshotRequest:
 
 @dataclass(frozen=True)
 class OfficialSourceSnapshotResult:
+    """Immutable snapshot artifact and provenance metadata returned by a crawler."""
+
     manifest_path: Path
     snapshot_path: Path
     snapshot_object_key: str
@@ -77,6 +87,7 @@ class OfficialSourceSnapshotResult:
         catalog_source_ref: str,
         expected_document_number: str | None,
     ) -> dict[str, object]:
+        """Project the snapshot into the bounded agentic-tool response contract."""
         return {
             "status": AGENTIC_TOOL_STATUSES["ready"],
             "toolName": OFFICIAL_SOURCE_SNAPSHOT_TOOL["name"],
@@ -112,6 +123,7 @@ class OfficialSourceSnapshotResult:
         catalog_source_ref: str,
         expected_document_number: str | None,
     ) -> dict[str, object]:
+        """Build the server-side snapshot registry payload with identity verification."""
         return {
             "snapshotRef": self.snapshot_ref,
             "catalogSourceRef": catalog_source_ref,
@@ -142,6 +154,7 @@ class OfficialSourceSnapshotResult:
         catalog_source_ref: str,
         expected_document_number: str | None,
     ) -> dict:
+        """Register the validated snapshot through the internal registry contract."""
         payload = self.to_registry_payload(
             admin_catalog_version=admin_catalog_version,
             catalog_source_ref=catalog_source_ref,
@@ -151,11 +164,31 @@ class OfficialSourceSnapshotResult:
 
 
 class OfficialSourceSnapshotFetcher:
+    """Dispatch official-source crawlers after strict catalog-host validation."""
+
     def __init__(self, *, vbpl_session=None, congbao_session=None) -> None:
+        """Create the fetcher with optional injected HTTP sessions for each source."""
         self._vbpl_session = vbpl_session
         self._congbao_session = congbao_session
 
     def fetch(self, request: OfficialSourceSnapshotRequest) -> OfficialSourceSnapshotResult:
+        """Fetch one bounded official snapshot and derive immutable provenance refs.
+
+        The source URL must use HTTPS and exactly match the host authorized by
+        ``catalog_source_ref``. Source-specific required identity/status fields
+        are checked before invoking the crawler, and the resulting manifest is
+        normalized into a content-addressed object key.
+
+        Args:
+            request: Validated snapshot request from the legal ingest consumer.
+
+        Returns:
+            Immutable snapshot metadata and local artifact paths.
+
+        Raises:
+            ValueError: If size, host, source-specific fields, or catalog source are invalid.
+            RuntimeError: If crawler output does not contain complete artifact metadata.
+        """
         if request.max_bytes < 1:
             raise ValueError("max_bytes must be positive")
 
@@ -210,6 +243,7 @@ class OfficialSourceSnapshotFetcher:
         )
 
     def _fetch_vbpl(self, request: OfficialSourceSnapshotRequest) -> Path:
+        """Invoke the VBPL crawler under the request-specific response-byte limit."""
         module = load_script_module("crawl_vbpl_document.py")
         crawler = module.VbplDocumentCrawler(self._vbpl_session)
         with temporary_response_limit(module, request.max_bytes):
@@ -221,6 +255,7 @@ class OfficialSourceSnapshotFetcher:
             )
 
     def _fetch_congbao(self, request: OfficialSourceSnapshotRequest) -> Path:
+        """Invoke the Công Báo crawler under the request-specific response-byte limit."""
         module = load_script_module("crawl_congbao_docx.py")
         crawler = module.CongBaoDocxCrawler(self._congbao_session)
         with temporary_response_limit(module, request.max_bytes):
@@ -233,6 +268,7 @@ class OfficialSourceSnapshotFetcher:
 
 
 def catalog_host_from_ref(catalog_source_ref: str) -> str:
+    """Extract the official catalog host from a ``catalog-source:<host>:...`` ref."""
     parts = catalog_source_ref.split(":")
     if len(parts) < 3 or parts[0] != "catalog-source":
         raise ValueError("catalog_source_ref is invalid")
@@ -240,6 +276,7 @@ def catalog_host_from_ref(catalog_source_ref: str) -> str:
 
 
 def resolved_source_host(catalog_host: str) -> str:
+    """Resolve the only download host authorized for a supported catalog host."""
     if catalog_host == VBPL_CATALOG_HOST:
         return VBPL_CATALOG_HOST
     if catalog_host == CONGBAO_CATALOG_HOST:
@@ -250,6 +287,7 @@ def resolved_source_host(catalog_host: str) -> str:
 def snapshot_artifact(
     output_dir: Path, metadata: dict[str, object]
 ) -> tuple[Path, str, str]:
+    """Resolve crawler manifest metadata to artifact path, MIME type, and SHA-256."""
     if isinstance(metadata.get("htmlFile"), str) and isinstance(metadata.get("htmlSha256"), str):
         return output_dir / str(metadata["htmlFile"]), "text/html", str(metadata["htmlSha256"])
     if isinstance(metadata.get("sourceFile"), str):
@@ -270,16 +308,19 @@ def snapshot_artifact(
 
 
 def snapshot_ref(document_id: str, content_sha256: str) -> str:
+    """Derive a stable short snapshot reference from document ID and content hash."""
     suffix = content_sha256.removeprefix("sha256:")[:12]
     return f"snapshot:{document_id}:{suffix}"
 
 
 def provenance_ref(document_id: str, content_sha256: str) -> str:
+    """Derive the fetch-provenance reference associated with a snapshot hash."""
     suffix = content_sha256.removeprefix("sha256:")[:12]
     return f"prov:fetch:{document_id}:{suffix}"
 
 
 def optional_string(value: object) -> str | None:
+    """Normalize a non-empty string value while preserving absence."""
     if isinstance(value, str) and value.strip():
         return value
     return None
@@ -289,6 +330,7 @@ def document_number_matches(
     expected_document_number: str | None,
     actual_document_number: str | None,
 ) -> bool:
+    """Compare expected/actual legal document numbers after punctuation normalization."""
     if not expected_document_number or not actual_document_number:
         return False
     return normalize_document_number(expected_document_number) == normalize_document_number(
@@ -297,10 +339,12 @@ def document_number_matches(
 
 
 def normalize_document_number(value: str) -> str:
+    """Normalize a legal document number to uppercase alphanumeric characters."""
     return "".join(ch for ch in value.upper() if ch.isalnum())
 
 
 def source_id_for_catalog_host(catalog_host: str) -> str:
+    """Map an authorized official catalog host to its storage source identifier."""
     source_id = CATALOG_SOURCE_IDS.get(catalog_host)
     if not source_id:
         raise ValueError("catalog_source_ref host is unsupported")
@@ -314,6 +358,7 @@ def snapshot_object_key(
     content_sha256: str,
     original_file_name: str,
 ) -> str:
+    """Build the content-addressed object-storage key for an official snapshot."""
     return "/".join(
         [
             "legal-source-snapshots",
@@ -327,6 +372,7 @@ def snapshot_object_key(
 
 @contextmanager
 def temporary_response_limit(module: ModuleType, max_bytes: int):
+    """Temporarily override a crawler module's maximum response size."""
     previous = getattr(module, "MAX_RESPONSE_BYTES", None)
     setattr(module, "MAX_RESPONSE_BYTES", max_bytes)
     try:
@@ -338,6 +384,7 @@ def temporary_response_limit(module: ModuleType, max_bytes: int):
 
 @lru_cache(maxsize=4)
 def load_script_module(script_name: str) -> ModuleType:
+    """Load and cache an approved crawler script from the worker scripts directory."""
     script_path = Path(__file__).resolve().parents[3] / "scripts" / script_name
     module_name = script_name.replace(".py", "")
     spec = importlib.util.spec_from_file_location(module_name, script_path)

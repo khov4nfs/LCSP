@@ -17,16 +17,36 @@ DEFAULT_MAX_TS_JS_FILES = 500
 
 
 class AnalyzerRouter:
+    """Route classified repository files to supported analyzers with bounded work."""
+
     def __init__(
         self,
         *,
         max_python_files: int = DEFAULT_MAX_PYTHON_FILES,
         max_ts_js_files: int = DEFAULT_MAX_TS_JS_FILES,
     ) -> None:
+        """Configure per-language full-analysis limits.
+
+        Args:
+            max_python_files: Maximum Python files sent to the full Python analyzer.
+            max_ts_js_files: Maximum TypeScript/JavaScript files sent to the bridge.
+        """
         self._max_python_files = max_python_files
         self._max_ts_js_files = max_ts_js_files
 
     def route(self, classifications: list[LanguageClassification]) -> AnalyzerDispatch:
+        """Build an analyzer dispatch plan and preserve explicit coverage limitations.
+
+        Files with full support are routed to language-specific analyzers. Basic or
+        manifest-only files remain visible to lightweight analysis, while unsupported
+        and over-limit files are recorded as skipped rather than silently discarded.
+
+        Args:
+            classifications: Per-file language/support classifications.
+
+        Returns:
+            A bounded analyzer dispatch containing routed files and limitation records.
+        """
         python_files: list[str] = []
         ts_js_files: list[str] = []
         basic_files: list[str] = []
@@ -93,6 +113,7 @@ class AnalyzerRouter:
         )
 
     def _truncate(self, items: list[str], limit: int) -> tuple[list[str], list[str]]:
+        """Split a deterministic file list into analyzable and overflow portions."""
         if len(items) <= limit:
             return items, []
         trimmed = items[:limit]

@@ -33,14 +33,37 @@ interface AuditExportBody {
   to_date: string;
 }
 
+/**
+ * Exposes organization-scoped audit browsing, export generation/status, and signed artifact download endpoints.
+ */
 @Controller("organizations/:orgId/audit-events")
 export class AuditController {
+  /**
+   * Creates the controller with CQRS dispatch and signed-download verification support.
+   *
+   * @param commandBus - CQRS command bus used to generate audit exports.
+   * @param queryBus - CQRS query bus used for audit listing and export reads.
+   * @param storage - Service used to verify signed audit-export download tokens.
+   */
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
     private readonly storage: AuditExportStorageService,
   ) {}
 
+  /**
+   * Lists redacted audit events for an organization using optional event, actor, date, and pagination filters.
+   *
+   * @param organizationId - Organization identifier from the route.
+   * @param eventType - Optional event-type filter.
+   * @param actorId - Optional actor identifier filter.
+   * @param fromDate - Optional inclusive date-range start.
+   * @param toDate - Optional inclusive date-range end.
+   * @param page - Optional page number query value.
+   * @param pageSize - Optional page-size query value.
+   * @param request - Authenticated request containing PBAC and correlation context.
+   * @returns The standard result envelope containing a paginated audit event list.
+   */
   @Get()
   @UseGuards(PbacGuard)
   @RequireAction(PBAC_ACTIONS.auditRead)
@@ -73,6 +96,14 @@ export class AuditController {
     );
   }
 
+  /**
+   * Generates a versioned audit export for the requested organization/date range.
+   *
+   * @param organizationId - Organization identifier from the route.
+   * @param body - Required export date range.
+   * @param request - Authenticated request containing organization/user and correlation context.
+   * @returns The standard result envelope containing generated export request metadata.
+   */
   @Post("export")
   @HttpCode(202)
   @UseGuards(PbacGuard)
@@ -101,6 +132,14 @@ export class AuditController {
     );
   }
 
+  /**
+   * Returns export lifecycle and signed-download metadata for one audit export request.
+   *
+   * @param organizationId - Organization identifier from the route.
+   * @param exportRequestId - Audit export request identifier.
+   * @param request - Authenticated request containing organization and correlation context.
+   * @returns The standard result envelope containing export status metadata.
+   */
   @Get("export/:exportRequestId")
   @UseGuards(PbacGuard)
   @RequireAction(PBAC_ACTIONS.auditExport)
@@ -121,6 +160,16 @@ export class AuditController {
     );
   }
 
+  /**
+   * Verifies a signed download token and streams the persisted audit artifact as a JSON attachment.
+   *
+   * @param organizationId - Organization identifier bound into the signed token.
+   * @param exportRequestId - Export request identifier bound into the signed token.
+   * @param token - Signed, expiring download token from the query string.
+   * @param response - Express response used to send the JSON attachment.
+   * @returns A promise that resolves after the attachment response is sent.
+   * @throws A download-url-invalid problem when the token is missing, forged, mismatched, or expired.
+   */
   @Get("export/:exportRequestId/download")
   async downloadAuditExport(
     @Param("orgId") organizationId: string,

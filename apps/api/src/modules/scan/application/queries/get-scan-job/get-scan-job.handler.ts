@@ -16,10 +16,25 @@ import { problemException } from "../../../../../platform/problems/problem-facto
 import type { ScanJobStatusDto } from "../../contracts/scan/scan-job-status.contract.js";
 import { GetScanJobQuery } from "./get-scan-job.query.js";
 
+/**
+ * Resolves one caller-visible scan job and projects business guidance for its current lifecycle state.
+ */
 @QueryHandler(GetScanJobQuery)
 export class GetScanJobHandler implements IQueryHandler<GetScanJobQuery> {
+  /**
+   * Creates the scan-job query handler with repository scan persistence access.
+   *
+   * @param prisma - Prisma service used to retrieve the organization/assessment-scoped scan job.
+   */
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Enforces developer scope, loads the scan job, and returns normalized status, blocked reason, and next-action guidance.
+   *
+   * @param query - Scan-job identity, tenant/role/scope, and correlation context.
+   * @returns Normalized scan-job status DTO.
+   * @throws A job-not-found problem when the job is missing or outside the caller's developer scope.
+   */
   async execute(query: GetScanJobQuery): Promise<ScanJobStatusDto> {
     if (
       query.subjectRole === SUBJECT_ROLES.developer &&
@@ -66,6 +81,12 @@ export class GetScanJobHandler implements IQueryHandler<GetScanJobQuery> {
     };
   }
 
+  /**
+   * Throws the scope-safe scan-job-not-found problem.
+   *
+   * @param correlationId - Correlation identifier attached to the problem response.
+   * @throws Always throws the scan-job-not-found problem.
+   */
   private notFound(correlationId: string): never {
     throw problemException(SCAN_ERROR_CODES.jobNotFound, correlationId, {
       status: HttpStatus.NOT_FOUND,
@@ -73,6 +94,12 @@ export class GetScanJobHandler implements IQueryHandler<GetScanJobQuery> {
   }
 }
 
+/**
+ * Maps scan lifecycle state to a stable business next-action message.
+ *
+ * @param status - Normalized repository scan job status.
+ * @returns Guidance string for non-terminal states, or null when completed.
+ */
 function nextActionFor(status: RepositoryScanJobStatus): string | null {
   switch (status) {
     case REPOSITORY_SCAN_JOB_STATUSES.queued:
@@ -96,6 +123,13 @@ function nextActionFor(status: RepositoryScanJobStatus): string | null {
   }
 }
 
+/**
+ * Maps scan lifecycle state to a business-safe blocked/waiting reason, preserving persisted reasons for other states.
+ *
+ * @param status - Normalized repository scan job status.
+ * @param blockedReason - Persisted blocked reason from the scan job, when available.
+ * @returns Contract guidance reason or the persisted reason for statuses without a fixed message.
+ */
 function blockedReasonFor(
   status: RepositoryScanJobStatus,
   blockedReason: string | null | undefined,

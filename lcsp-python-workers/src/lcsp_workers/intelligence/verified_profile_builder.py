@@ -1,3 +1,5 @@
+"""Finalize evidence-backed AI usage claims into a legal-match-ready profile."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
@@ -15,6 +17,8 @@ LEGAL_MATCH_MIN_CONFIDENCE = 0.75
 
 @dataclass(frozen=True)
 class VerifiedProfileData:
+    """Verified profile payload and evidence-chain metadata."""
+
     verified_claims: list[dict[str, Any]]
     merged_profile: dict[str, Any]
     fact_evidence_refs: dict[str, list[str]]
@@ -26,10 +30,13 @@ class VerifiedProfileData:
     evidence_chain_integrity: bool = False
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the verified-profile dataclass for persistence/callbacks."""
         return asdict(self)
 
 
 class VerifiedProfileBuilder:
+    """Merge eligible evidence-backed claims after conflict-resolution gates pass."""
+
     def build(
         self,
         *,
@@ -38,6 +45,19 @@ class VerifiedProfileBuilder:
         wizard_profile: dict[str, Any] | None,
         conflicts_resolved_at: str,
     ) -> VerifiedProfileData:
+        """Build the verified profile without inventing new AI usage claims.
+
+        Args:
+            ai_usage_flow: Canonical AIUsageFlow artifact containing candidate claims.
+            conflict_records: Conflict records whose structured resolutions prove
+                the reconciliation gate has been handled.
+            wizard_profile: Optional manager answer profile.
+            conflicts_resolved_at: Timestamp recorded for the reconciliation gate.
+
+        Returns:
+            ``VerifiedProfileData`` containing merged facts, evidence mapping,
+            verification source, and gate/integrity metadata.
+        """
         verification_source = self._verification_source(ai_usage_flow, wizard_profile)
         verified_claims = self._claims(ai_usage_flow)
         wizard_context = self._wizard_context(wizard_profile, verification_source)
@@ -69,6 +89,7 @@ class VerifiedProfileBuilder:
         return profile
 
     def _claims(self, ai_usage_flow: dict[str, Any]) -> list[dict[str, Any]]:
+        """Extract structured claims from compact or embedded AIUsageFlow payloads."""
         flow_data = ai_usage_flow.get("flow_data") or ai_usage_flow.get("flowData")
         raw_claims = ai_usage_flow.get("claims")
         if raw_claims is None and isinstance(flow_data, dict):
@@ -80,6 +101,7 @@ class VerifiedProfileBuilder:
         claims: list[dict[str, Any]],
         wizard_context: dict[str, Any] | None,
     ) -> dict[str, Any]:
+        """Merge wizard answers with claim facts, letting evidence-backed claims win."""
         merged: dict[str, Any] = {}
         if wizard_context:
             answers = wizard_context.get("answers")
@@ -99,6 +121,7 @@ class VerifiedProfileBuilder:
         self,
         claims: list[dict[str, Any]],
     ) -> dict[str, list[str]]:
+        """Map legal-match-eligible fact fields to their supporting evidence refs."""
         mapped: dict[str, set[str]] = {}
         for claim in claims:
             if not self._is_legal_match_eligible_claim(claim):
@@ -113,6 +136,7 @@ class VerifiedProfileBuilder:
         return {key: sorted(refs) for key, refs in sorted(mapped.items())}
 
     def _is_legal_match_eligible_claim(self, claim: dict[str, Any]) -> bool:
+        """Check lifecycle, confidence, evidence, conflict, and materiality gates."""
         state = str(
             claim.get("lifecycle_state")
             or claim.get("lifecycleState")
@@ -128,6 +152,7 @@ class VerifiedProfileBuilder:
         )
 
     def _numeric_confidence(self, claim: dict[str, Any]) -> float:
+        """Normalize supported confidence fields into a numeric value."""
         value = claim.get("claim_confidence")
         if value is None:
             value = claim.get("claimConfidence")
@@ -143,6 +168,7 @@ class VerifiedProfileBuilder:
         ai_usage_flow: dict[str, Any],
         wizard_profile: dict[str, Any] | None,
     ) -> str:
+        """Resolve technical-only versus technical-plus-wizard verification source."""
         flow_data = ai_usage_flow.get("flow_data") or ai_usage_flow.get("flowData")
         if isinstance(flow_data, dict):
             value = flow_data.get("verification_source") or flow_data.get(
@@ -164,6 +190,7 @@ class VerifiedProfileBuilder:
         wizard_profile: dict[str, Any] | None,
         verification_source: str,
     ) -> dict[str, Any] | None:
+        """Project only the wizard fields needed for verified-profile merging."""
         if verification_source == TECHNICAL_ONLY or wizard_profile is None:
             return None
         answers = wizard_profile.get("answers")
@@ -182,6 +209,7 @@ class VerifiedProfileBuilder:
         conflict_records: list[dict[str, Any]],
         verification_source: str,
     ) -> list[dict[str, Any]]:
+        """Project structured conflict-resolution proof when wizard data is in scope."""
         if verification_source == TECHNICAL_ONLY:
             return []
         return [
@@ -191,6 +219,7 @@ class VerifiedProfileBuilder:
         ]
 
     def _resolution_summary(self, record: dict[str, Any]) -> dict[str, Any]:
+        """Remove free-form manager text and retain only resolution audit metadata."""
         # Manager notes can be free-form sensitive text. Keep only structured
         # resolution metadata needed to prove the gate was passed.
         return {
@@ -207,10 +236,12 @@ class VerifiedProfileBuilder:
         }
 
     def _evidence_chain_integrity(self, claims: list[dict[str, Any]]) -> bool:
+        """Require every material claim to retain at least one evidence reference."""
         material_claims = [claim for claim in claims if self._is_material_claim(claim)]
         return all(bool(self._evidence_refs(claim)) for claim in material_claims)
 
     def _is_material_claim(self, claim: dict[str, Any]) -> bool:
+        """Return whether a claim participates in evidence-chain integrity checks."""
         if claim.get("is_material") is False:
             return False
         state = str(
@@ -221,6 +252,7 @@ class VerifiedProfileBuilder:
         return bool(state) and state not in NON_MATERIAL_STATES
 
     def _evidence_refs(self, item: dict[str, Any]) -> list[str]:
+        """Normalize evidence reference lists from snake_case/camelCase shapes."""
         refs = item.get("evidence_refs") or item.get("evidenceRefs") or []
         if not isinstance(refs, list):
             return []

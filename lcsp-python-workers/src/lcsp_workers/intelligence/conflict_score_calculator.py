@@ -1,3 +1,5 @@
+"""Score and explain wizard/evidence conflicts using deterministic weights."""
+
 from __future__ import annotations
 
 
@@ -18,6 +20,8 @@ DEFAULT_NORMALIZATION_FACTOR = 1.0
 
 
 class ConflictScoreCalculator:
+    """Calculate bounded conflict priority scores and human-readable reasons."""
+
     def calculate(
         self,
         *,
@@ -25,6 +29,20 @@ class ConflictScoreCalculator:
         contradiction_severity: str,
         normalization_factor: float = DEFAULT_NORMALIZATION_FACTOR,
     ) -> float:
+        """Calculate a normalized conflict score from evidence/severity weights.
+
+        Args:
+            evidence_confidence: Evidence confidence bucket; unknown values use
+                the conservative ``unknown`` weight.
+            contradiction_severity: Contradiction severity bucket.
+            normalization_factor: Positive factor used to normalize the score.
+
+        Returns:
+            Score clamped to the inclusive 0..1 range and rounded to 2 decimals.
+
+        Raises:
+            ValueError: If ``normalization_factor`` is not positive.
+        """
         if normalization_factor <= 0:
             raise ValueError("normalization_factor must be positive")
 
@@ -46,6 +64,17 @@ class ConflictScoreCalculator:
         evidence_confidence: str | None,
         contradiction_severity: str,
     ) -> str:
+        """Build a bounded explanation for a supported conflict type.
+
+        Args:
+            conflict_type: Detected conflict category.
+            evidence_confidence: Confidence bucket attached to technical evidence.
+            contradiction_severity: Severity used by scoring; retained in the
+                signature for consistent conflict-calculator inputs.
+
+        Returns:
+            Human-readable explanation that avoids asserting a final legal outcome.
+        """
         confidence = str(evidence_confidence or "unknown").lower()
         if conflict_type == "evidence_contradiction":
             return (

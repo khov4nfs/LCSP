@@ -16,6 +16,12 @@ export type ReAuthForSensitiveRouteOptions = {
   aliases?: readonly SensitiveRouteAlias[];
 };
 
+/**
+ * Registers a sensitive route and marks its controller or handler as requiring recent sensitive-action re-authentication.
+ *
+ * @param options - Canonical route ID, HTTP method, path template, and optional route aliases to register.
+ * @returns A Nest class/method decorator carrying the sensitive re-authentication metadata.
+ */
 export const ReAuthForSensitiveRoute = (
   options: ReAuthForSensitiveRouteOptions,
 ): MethodDecorator & ClassDecorator => {

@@ -13,7 +13,16 @@ const ALLOWED_ARCHIVE_HOSTS = new Set([
   "github.com",
 ]);
 
+/**
+ * Represents a sanitized GitHub App client failure and optional upstream HTTP status.
+ */
 export class GitHubAppClientError extends Error {
+  /**
+   * Creates a typed GitHub client error.
+   *
+   * @param message - Stable internal failure code/message safe for server diagnostics.
+   * @param status - Optional upstream GitHub HTTP status associated with the failure.
+   */
   constructor(
     message: string,
     readonly status: number | null = null,
@@ -61,10 +70,24 @@ export interface GitHubRepositoryArchiveDownload {
   resolvedUrl: string;
 }
 
+/**
+ * Encapsulates GitHub App OAuth, installation-token, repository metadata, commit resolution, and archive-download HTTP calls.
+ */
 @Injectable()
 export class GitHubAppClient {
+  /**
+   * Creates the GitHub client with application credentials and URL configuration access.
+   *
+   * @param configService - Configuration service used to resolve GitHub App slug, client credentials, app ID, and private key.
+   */
   constructor(private readonly configService: ConfigService) {}
 
+  /**
+   * Builds the GitHub App installation URL carrying the opaque state and validated redirect URI.
+   *
+   * @param input - Installation state and callback redirect URI.
+   * @returns Absolute GitHub App installation URL.
+   */
   buildInstallationUrl(input: { state: string; redirectUri: string }): string {
     const appSlug = this.configService.get<string>("github.appSlug", "");
     const url = new URL(
@@ -75,6 +98,13 @@ export class GitHubAppClient {
     return url.toString();
   }
 
+  /**
+   * Exchanges the GitHub callback authorization code for a user access token used to inspect installations.
+   *
+   * @param code - GitHub OAuth callback code.
+   * @returns Access token returned by GitHub.
+   * @throws When the token endpoint is unreachable, rejects the request, or returns no usable token.
+   */
   async exchangeCodeForAccessToken(code: string): Promise<string> {
     const clientId = this.configService.get<string>("github.clientId", "");
     const clientSecret = this.configService.get<string>(
@@ -115,6 +145,13 @@ export class GitHubAppClient {
     return body.access_token;
   }
 
+  /**
+   * Loads the selected installation's permissions and repository inventory using the user access token from the callback flow.
+   *
+   * @param input - Installation ID, user access token, and optional repository selection.
+   * @returns Normalized installation permissions, all visible repositories, and the selected/first repository.
+   * @throws When the installation or repository selection cannot be resolved.
+   */
   async fetchInstallationMetadata(input: {
     installationId: string;
     accessToken: string;
@@ -168,6 +205,13 @@ export class GitHubAppClient {
     };
   }
 
+  /**
+   * Resolves a branch/ref/SHA through an installation token and validates that GitHub returned a commit for the expected repository.
+   *
+   * @param input - Installation ID, owner-qualified repository name, and requested revision.
+   * @returns Exact commit SHA plus repository and commit metadata.
+   * @throws When installation authentication or commit resolution/shape validation fails.
+   */
   async resolveCommit(input: {
     installationId: string;
     repositoryFullName: string;
@@ -212,6 +256,13 @@ export class GitHubAppClient {
     };
   }
 
+  /**
+   * Downloads the tarball for an exact pinned commit and rejects redirects to hosts outside the GitHub archive allowlist.
+   *
+   * @param input - Installation ID, owner-qualified repository name, and immutable commit SHA.
+   * @returns Node-readable archive stream with response content type and final resolved URL.
+   * @throws When GitHub is unreachable, rejects the archive request, returns no body, or redirects to an untrusted host.
+   */
   async downloadRepositoryArchive(input: {
     installationId: string;
     repositoryFullName: string;
@@ -261,6 +312,13 @@ export class GitHubAppClient {
     };
   }
 
+  /**
+   * Creates a short-lived GitHub installation access token using an App JWT.
+   *
+   * @param installationId - GitHub App installation identifier to authenticate as.
+   * @returns Installation access token.
+   * @throws When the GitHub API call fails or returns no token.
+   */
   private async createInstallationAccessToken(
     installationId: string,
   ): Promise<string> {
@@ -276,6 +334,12 @@ export class GitHubAppClient {
     return body.token;
   }
 
+  /**
+   * Creates the RS256 GitHub App JWT used to request installation access tokens.
+   *
+   * @returns Signed GitHub App JWT with a short validity window.
+   * @throws When App credentials are missing or the configured private key cannot sign the token.
+   */
   private createAppJwt(): string {
     const appId = this.configService.get<string>("github.appId", "");
     const privateKey = this.configService
@@ -304,6 +368,14 @@ export class GitHubAppClient {
     }
   }
 
+  /**
+   * Performs an authenticated GitHub GET and parses the JSON response.
+   *
+   * @param url - Absolute GitHub API URL to request.
+   * @param accessToken - Bearer token authorizing the request.
+   * @returns Parsed JSON body, or null when the successful response body is not valid JSON.
+   * @throws When GitHub is unreachable or returns a non-success status.
+   */
   private async getJson<T>(
     url: string,
     accessToken: string,
@@ -332,6 +404,14 @@ export class GitHubAppClient {
     return (await response.json().catch(() => null)) as T | null;
   }
 
+  /**
+   * Performs an authenticated GitHub POST and parses the JSON response.
+   *
+   * @param url - Absolute GitHub API URL to request.
+   * @param bearerToken - App or installation bearer token authorizing the request.
+   * @returns Parsed JSON body, or null when the successful response body is not valid JSON.
+   * @throws When GitHub is unreachable or returns a non-success status.
+   */
   private async postJson<T>(
     url: string,
     bearerToken: string,
@@ -359,19 +439,43 @@ export class GitHubAppClient {
     return (await response.json().catch(() => null)) as T | null;
   }
 
+  /**
+   * Checks the final repository archive host against the explicit GitHub allowlist.
+   *
+   * @param hostname - Final response hostname after redirects.
+   * @returns True when archive content is hosted on an approved GitHub domain.
+   */
   private isArchiveHostAllowed(hostname: string): boolean {
     return ALLOWED_ARCHIVE_HOSTS.has(hostname);
   }
 }
 
+/**
+ * Encodes a JWT header or payload object as URL-safe Base64 JSON.
+ *
+ * @param value - JWT object to serialize.
+ * @returns Base64url-encoded JSON component.
+ */
 function encodeJwtPart(value: Record<string, string | number>): string {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
 
+/**
+ * Reads an optional string field without coercing other runtime types.
+ *
+ * @param value - Unknown value to inspect.
+ * @returns String value, or null for non-string input.
+ */
 function optionalString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
+/**
+ * Normalizes GitHub permission values to uppercase contract values while retaining permission keys.
+ *
+ * @param value - Raw permission object returned by GitHub.
+ * @returns Normalized permission record.
+ */
 function normalizePermissionRecord(value: object): Record<string, string> {
   return Object.fromEntries(
     Object.entries(value).map(([key, permission]) => [
@@ -381,6 +485,12 @@ function normalizePermissionRecord(value: object): Record<string, string> {
   );
 }
 
+/**
+ * Validates and converts a raw GitHub repository response into the minimal repository metadata used by the domain.
+ *
+ * @param repository - Raw repository object returned by the GitHub API.
+ * @returns Normalized repository metadata, or null when required fields have unexpected types.
+ */
 function toRepositoryMetadata(
   repository: GitHubRepositoryApiResponse,
 ): GitHubRepositoryMetadata | null {

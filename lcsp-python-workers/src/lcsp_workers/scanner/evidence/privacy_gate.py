@@ -1,13 +1,30 @@
 from typing import Any
 
+
 def _looks_like_source_code(text: str) -> bool:
+    """Heuristically flag long text that resembles a persisted source-code body."""
     if len(text) < 50:
         return False
     code_markers = ["def ", "function ", "import ", "class ", "const ", "var ", "let "]
     brace_density = (text.count("{") + text.count("}")) / max(len(text), 1)
     return any(m in text for m in code_markers) or brace_density > 0.05
 
+
 def assert_privacy_flags(payload: Any) -> None:
+    """Fail closed when terminal evidence violates declared privacy guarantees.
+
+    The gate accepts both object- and dictionary-shaped payloads because scanner
+    stages may validate dataclasses before serialization or callback dictionaries
+    afterward. In addition to the explicit flags, string finding fields are checked
+    for source-like content so an incorrect flag cannot silently authorize leakage.
+
+    Args:
+        payload: Evidence payload exposing privacy flags and findings.
+
+    Raises:
+        AssertionError: If source retention, missing secret redaction, or source-like
+            finding content violates the terminal persistence contract.
+    """
     # Handle dict or object
     if hasattr(payload, 'privacy_flags'):
         flags = payload.privacy_flags

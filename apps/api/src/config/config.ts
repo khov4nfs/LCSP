@@ -5,6 +5,12 @@ import type { AppConfig, NodeEnv } from "./config.types.js";
 const SMTP_MAILBOX_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 const SMTP_DISPLAY_NAME_PATTERN = /^([^<>]+)<\s*([^<>]+)\s*>$/;
 
+/**
+ * Validates the supported SMTP sender formats: an empty value, a mailbox, or a display-name mailbox.
+ *
+ * @param value - SMTP sender value to validate.
+ * @returns True when the sender is empty or matches a supported email-address format.
+ */
 function isValidSmtpFrom(value: string): boolean {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
@@ -84,6 +90,12 @@ export const configValidationSchema = Joi.object({
   ORCHESTRATION_DEBUG: Joi.boolean().default(false),
 }).unknown(true);
 
+/**
+ * Parses a comma-separated redirect URI environment value into trimmed non-empty entries.
+ *
+ * @param value - Comma-separated redirect URI string.
+ * @returns Ordered list of non-empty redirect URI values.
+ */
 function parseRedirectUris(value: string): string[] {
   return value
     .split(",")
@@ -91,6 +103,12 @@ function parseRedirectUris(value: string): string[] {
     .filter((uri) => uri.length > 0);
 }
 
+/**
+ * Converts configured redirect URLs into unique-origin-compatible URL origins while ignoring invalid entries.
+ *
+ * @param value - Comma-separated redirect URL string.
+ * @returns Origins extracted from valid URL entries.
+ */
 function parseRedirectOrigins(value: string): string[] {
   return parseRedirectUris(value).flatMap((entry) => {
     try {
@@ -101,6 +119,11 @@ function parseRedirectOrigins(value: string): string[] {
   });
 }
 
+/**
+ * Builds the typed application configuration object from validated process environment variables.
+ *
+ * @returns Runtime configuration grouped by infrastructure and application concern.
+ */
 export function config(): AppConfig {
   const env = process.env;
 

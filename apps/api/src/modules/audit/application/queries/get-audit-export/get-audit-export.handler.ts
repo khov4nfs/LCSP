@@ -15,13 +15,29 @@ import { GetAuditExportQuery } from "./get-audit-export.query.js";
 
 const DOWNLOAD_URL_TTL_MS = 5 * 60 * 1_000;
 
+/**
+ * Resolves audit-export lifecycle metadata and issues a short-lived signed download URL once the artifact is ready.
+ */
 @QueryHandler(GetAuditExportQuery)
 export class GetAuditExportHandler implements IQueryHandler<GetAuditExportQuery> {
+  /**
+   * Creates the status handler with export persistence and signed-download support.
+   *
+   * @param prisma - Prisma service used to retrieve export request state.
+   * @param storage - Storage/signing service used to create expiring download URLs.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: AuditExportStorageService,
   ) {}
 
+  /**
+   * Validates organization scope and returns current export status plus download metadata when ready.
+   *
+   * @param query - Organization boundary, export identifier, session scope, and correlation context.
+   * @returns Audit-export status DTO with an optional short-lived download URL.
+   * @throws When organization scope mismatches or the export request cannot be found.
+   */
   async execute(query: GetAuditExportQuery): Promise<AuditExportStatusDto> {
     if (query.organizationId !== query.sessionOrganizationId) {
       throw problemException(
@@ -84,6 +100,13 @@ export class GetAuditExportHandler implements IQueryHandler<GetAuditExportQuery>
     };
   }
 
+  /**
+   * Creates a five-minute signed download URL for a ready audit export.
+   *
+   * @param organizationId - Organization that owns the export.
+   * @param exportRequestId - Export request identifier embedded in the signed token.
+   * @returns Signed relative URL and its ISO expiration timestamp.
+   */
   private buildDownload(
     organizationId: string,
     exportRequestId: string,
@@ -100,6 +123,14 @@ export class GetAuditExportHandler implements IQueryHandler<GetAuditExportQuery>
   }
 }
 
+/**
+ * Narrows a persisted export status string to the supported audit-export lifecycle contract.
+ *
+ * @param value - Persisted export status value.
+ * @param correlationId - Correlation identifier attached to failures.
+ * @returns Supported audit-export status.
+ * @throws An export-not-found problem for unknown persistence states.
+ */
 function toAuditExportStatus(
   value: string,
   correlationId: string,

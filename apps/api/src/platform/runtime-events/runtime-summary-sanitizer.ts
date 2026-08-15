@@ -15,6 +15,12 @@ type SummaryOptions = {
   maxStringLength?: number;
 };
 
+/**
+ * Converts an arbitrary runtime summary into bounded, non-sensitive display text.
+ *
+ * @param value - Candidate summary value to validate and sanitize.
+ * @returns Sanitized summary text or the privacy-safe fallback when the value is empty or unsafe.
+ */
 export function sanitizeRuntimeSummaryText(value: unknown): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     return FALLBACK_SUMMARY;
@@ -25,6 +31,13 @@ export function sanitizeRuntimeSummaryText(value: unknown): string {
   return truncate(value.trim(), 240);
 }
 
+/**
+ * Recursively sanitizes structured runtime input/output summaries while enforcing depth, item, and string limits.
+ *
+ * @param value - Arbitrary runtime value to summarize safely.
+ * @param options - Optional traversal and output-size limits.
+ * @returns Privacy-safe summary value, or null when the value cannot be represented safely.
+ */
 export function sanitizeRuntimeSummaryValue(
   value: unknown,
   options: SummaryOptions = {},
@@ -45,6 +58,12 @@ export function sanitizeRuntimeSummaryValue(
   }
 }
 
+/**
+ * Produces a safe, bounded summary for an unknown runtime failure.
+ *
+ * @param error - Error object, string, or arbitrary thrown value.
+ * @returns Sanitized error message or the privacy-safe fallback.
+ */
 export function summarizeRuntimeError(error: unknown): string {
   if (error instanceof Error) {
     return sanitizeRuntimeSummaryText(error.message);
@@ -62,6 +81,13 @@ type InternalOptions = {
   maxStringLength: number;
 };
 
+/**
+ * Recursively converts one runtime value into the supported privacy-safe summary representation.
+ *
+ * @param value - Runtime value to inspect.
+ * @param options - Current traversal depth and configured summary limits.
+ * @returns Sanitized summary-compatible value, or null when the input should be omitted.
+ */
 function sanitizeValue(
   value: unknown,
   options: InternalOptions,
@@ -121,18 +147,43 @@ function sanitizeValue(
   return sanitized;
 }
 
+/**
+ * Detects summary strings that look like secrets or are too large to expose safely.
+ *
+ * @param value - String value to inspect.
+ * @returns True when the string matches a secret pattern or exceeds the safety threshold.
+ */
 function looksUnsafeValue(value: string): boolean {
   return SECRET_VALUE_PATTERN.test(value) || value.length > 1_000;
 }
 
+/**
+ * Replaces a sensitive value with a non-reversible, short hash marker useful for correlation.
+ *
+ * @param value - Sensitive string to mask.
+ * @returns Redacted marker containing the first 12 hexadecimal characters of its SHA-256 digest.
+ */
 function maskedValue(value: string): string {
   return `[REDACTED:${createHash("sha256").update(value).digest("hex").slice(0, 12)}]`;
 }
 
+/**
+ * Limits a string to the requested length and adds an ellipsis when truncation is required.
+ *
+ * @param value - String to limit.
+ * @param maxLength - Maximum output length.
+ * @returns Original or truncated string.
+ */
 function truncate(value: string, maxLength: number): string {
   return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
 }
 
+/**
+ * Determines whether a runtime value can be traversed as a non-array record.
+ *
+ * @param value - Value to inspect.
+ * @returns True for non-null object values that are not arrays.
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

@@ -1,3 +1,5 @@
+"""Produce bounded model-assisted classification proposals for later validation."""
+
 import json
 from typing import Any
 
@@ -9,7 +11,14 @@ ALLOWED_APPLICABILITY = {"applicable", "partially_applicable", "not_applicable"}
 
 
 class ModelAssistedClassificationProposer:
+    """Ask an LLM for a structured proposal without granting final authority."""
+
     def __init__(self, llm_client: LLMGatewayClient):
+        """Create the proposer with the gateway used for bounded LLM calls.
+
+        Args:
+            llm_client: Budget- and safety-aware LLM gateway client.
+        """
         self.llm_client = llm_client
 
     def generate_proposal(
@@ -22,6 +31,25 @@ class ModelAssistedClassificationProposer:
         node_name: str,
         correlationId: str | None = None,
     ) -> dict[str, Any] | None:
+        """Generate and schema-check a model-assisted classification proposal.
+
+        The deterministic baseline is included in the prompt and remains the
+        fallback whenever the provider fails, returns invalid JSON, or proposes
+        values outside the supported classification enums.
+
+        Args:
+            usage_claims: Sanitized AI-usage evidence supplied to the model.
+            applicable_rules: Applicable legal-rule metadata supplied as evidence.
+            baseline_risk_level: Deterministically computed risk level.
+            baseline_applicability_assessment: Deterministic applicability result.
+            workflow_run_id: Workflow identifier used for LLM usage tracking.
+            node_name: Orchestration node issuing the request.
+            correlationId: Optional end-to-end trace identifier.
+
+        Returns:
+            A validated proposal with the LLM request ID, or ``None`` when the
+            proposal cannot be safely used.
+        """
         prompt = f"""
         You are a classification proposal assistant.
         Return JSON only.

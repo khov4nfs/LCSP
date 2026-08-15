@@ -1,3 +1,5 @@
+"""Consume AIUsageFlow events and persist wizard/evidence conflict records."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -15,6 +17,8 @@ logger = get_logger(__name__)
 
 
 class ConflictDetectionConsumer(ConsumerBase):
+    """Compare accepted AI usage flow facts with the assessment wizard profile."""
+
     queue_name = "intelligence.ai-usage-flow-ready"
     routing_key = "event.ai-usage-flow.ready.v1"
     requires_pbac = False
@@ -26,6 +30,7 @@ class ConflictDetectionConsumer(ConsumerBase):
         api_client: WorkerApiClient | None = None,
         detector: ConflictDetector | None = None,
     ) -> None:
+        """Create the consumer with injectable API and conflict-detector adapters."""
         super().__init__(config, pbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
@@ -34,6 +39,16 @@ class ConflictDetectionConsumer(ConsumerBase):
         self._detector = detector or ConflictDetector()
 
     def handle(self, message: dict, correlationId: str) -> None:
+        """Fetch canonical artifacts, detect conflicts, and submit the callback.
+
+        Args:
+            message: AI-usage-flow-ready event containing the flow identifier.
+            correlationId: End-to-end trace identifier for the delivery.
+
+        Raises:
+            ValueError: If required identifiers are missing or the callback's
+                privacy assertion permits source code.
+        """
         ai_usage_flow_id = self._required_message_id(message, "aiUsageFlowId")
         ai_usage_flow = self._api_client.get_accepted_ai_usage_flow(ai_usage_flow_id)
         assessment_id = (
@@ -64,6 +79,7 @@ class ConflictDetectionConsumer(ConsumerBase):
         )
 
     def _required_message_id(self, message: dict[str, Any], key: str) -> str:
+        """Resolve a required camelCase event ID from camel/snake-case variants."""
         snake_key = key[0].lower() + "".join(
             f"_{char.lower()}" if char.isupper() else char for char in key[1:]
         )

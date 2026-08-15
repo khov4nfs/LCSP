@@ -1,3 +1,5 @@
+"""Provide secret-safe, retrying access to LCSP internal read/callback APIs."""
+
 import time
 from urllib.parse import urlencode
 import httpx
@@ -43,22 +45,32 @@ _PRIVACY_FLAG_KEYS = {
 
 
 class WorkerCallbackError(Exception):
-    """Raised when an API callback permanently fails (after retries or due to 4xx client errors)."""
+    """Raised when an internal API request permanently fails or violates its contract."""
 
     pass
 
 
 class WorkerApiClient:
+    """Internal API adapter used by workers for canonical reads and callbacks.
+
+    Requests propagate worker credentials and correlation IDs, retry only network
+    and server failures, fail fast for non-idempotent client errors, and redact
+    callback payloads before they cross the process boundary.
+    """
+
     def __init__(self, base_url: str, api_key: str) -> None:
+        """Create the client with the LCSP API base URL and worker credential."""
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._timeout = 30.0
         self._max_retries = 3
 
     def _post_with_retry(self, path: str, payload: dict) -> dict:
-        """
-        Executes a POST request with exponential backoff for network and 5xx errors.
-        Fails fast on non-idempotent 4xx errors.
+        """POST a redacted payload with exponential retry for network/5xx failures.
+
+        Known 409 duplicate codes are treated as idempotent success. Other 4xx
+        responses fail immediately; transport and 5xx failures retry up to the
+        configured attempt cap.
         """
         url = f"{self._base_url}{path}"
         cid = get_correlationId()
@@ -148,6 +160,7 @@ class WorkerApiClient:
         raise WorkerCallbackError(unexpected_error_message())
 
     def _response_error_code(self, response) -> str | None:
+        """Extract a typed error code from supported API/problem response shapes."""
         try:
             data = response.json()
         except ValueError:
@@ -166,6 +179,7 @@ class WorkerApiClient:
 
     @staticmethod
     def _unwrap_result_envelope(data):
+        """Unwrap the standard ``{ok: true, data: ...}`` API response envelope."""
         if isinstance(data, dict) and data.get("ok") is True:
             nested = data.get("data")
             if isinstance(nested, (dict, list)):
@@ -173,10 +187,7 @@ class WorkerApiClient:
         return data
 
     def _get_with_retry(self, path: str, params: dict = None) -> dict | list:
-        """
-        Executes a GET request with exponential backoff for network and 5xx errors.
-        Fails fast on 4xx errors.
-        """
+        """GET canonical internal data with exponential retry for network/5xx errors."""
         url = f"{self._base_url}{path}"
         cid = get_correlationId()
         headers = {
@@ -253,6 +264,7 @@ class WorkerApiClient:
         raise WorkerCallbackError(unexpected_error_message())
 
     def _redact_callback_payload(self, payload: dict) -> dict:
+        """Strip source-like findings and redact secrets while preserving privacy flags."""
         safe_payload = dict(payload)
         findings = safe_payload.get("findings")
         if isinstance(findings, list):
@@ -281,6 +293,7 @@ class WorkerApiClient:
     def post_scan_callback(
         self, scan_job_id: str, payload: ScanCallbackPayload
     ) -> CallbackResponse:
+        """Submit a scan terminal callback, omitting an empty findings array."""
         path = CallbackPath.SCAN.format(scan_job_id=scan_job_id)
         request_payload = payload.model_dump(exclude_none=True)
         if request_payload.get("findings") == []:
@@ -291,11 +304,13 @@ class WorkerApiClient:
     def post_technical_profile_callback(
         self, payload: TechnicalProfileCallbackPayload
     ) -> CallbackResponse:
+        """Persist a generated TechnicalProfile through the internal callback API."""
         path = CallbackPath.TECHNICAL_PROFILE
         resp_data = self._post_with_retry(path, payload.model_dump(exclude_none=True))
         return CallbackResponse(**resp_data)
 
     def get_accepted_technical_evidence_report(self, evidence_report_id: str) -> dict:
+        """Fetch a canonical TechnicalEvidenceReport and require accepted status."""
         path = InternalPath.TECHNICAL_EVIDENCE_REPORT.format(
             evidence_report_id=evidence_report_id
         )
@@ -308,6 +323,7 @@ class WorkerApiClient:
         return data
 
     def get_targeted_reanalysis_request(self, request_id: str) -> dict:
+        """Fetch one targeted-reanalysis lifecycle request by ID."""
         path = InternalPath.TARGETED_REANALYSIS_REQUEST.format(request_id=request_id)
         data = self._get_with_retry(path)
         if not isinstance(data, dict):
@@ -315,6 +331,7 @@ class WorkerApiClient:
         return data
 
     def claim_targeted_reanalysis_request(self, request_id: str) -> bool:
+        """Atomically claim a targeted-reanalysis request for worker execution."""
         path = CallbackPath.TARGETED_REANALYSIS_CLAIM.format(request_id=request_id)
         data = self._post_with_retry(path, {})
         return bool(data.get("claimed"))
@@ -325,6 +342,7 @@ class WorkerApiClient:
         *,
         output_evidence_report_id: str,
     ) -> dict:
+        """Mark targeted reanalysis COMPLETED and attach its output evidence artifact."""
         return self._post_targeted_reanalysis_terminal(
             request_id,
             {"state": "COMPLETED", "output_evidence_report_id": output_evidence_report_id},
@@ -337,6 +355,7 @@ class WorkerApiClient:
         state: str,
         safe_failure_code: str,
     ) -> dict:
+        """Mark targeted reanalysis FAILED/DLQ using a safe failure code only."""
         if state not in {"FAILED", "DLQ"}:
             raise ValueError("Targeted reanalysis terminal state must be FAILED or DLQ.")
         return self._post_targeted_reanalysis_terminal(
@@ -345,17 +364,20 @@ class WorkerApiClient:
         )
 
     def requeue_targeted_reanalysis_request(self, request_id: str) -> bool:
+        """Request requeue of a targeted-reanalysis lifecycle record."""
         path = CallbackPath.TARGETED_REANALYSIS_REQUEUE.format(request_id=request_id)
         data = self._post_with_retry(path, {})
         return bool(data.get("requeued"))
 
     def _post_targeted_reanalysis_terminal(self, request_id: str, payload: dict) -> dict:
+        """Submit a terminal targeted-reanalysis state transition."""
         path = CallbackPath.TARGETED_REANALYSIS_TERMINAL.format(request_id=request_id)
         return self._post_with_retry(path, payload)
 
     def post_ai_usage_flow_callback(
         self, payload: AIUsageFlowCallbackPayload
     ) -> CallbackResponse:
+        """Persist a governed AIUsageFlow callback."""
         path = CallbackPath.AI_USAGE_FLOW
         resp_data = self._post_with_retry(path, payload.model_dump(exclude_none=True))
         return CallbackResponse(**resp_data)
@@ -363,11 +385,13 @@ class WorkerApiClient:
     def post_reconciliation_conflict_callback(
         self, payload: ConflictDetectionCallbackPayload
     ) -> CallbackResponse:
+        """Persist deterministic reconciliation conflict candidates."""
         path = CallbackPath.RECONCILIATION_CONFLICT
         resp_data = self._post_with_retry(path, payload.model_dump(exclude_none=True))
         return CallbackResponse(**resp_data)
 
     def get_accepted_ai_usage_flow(self, ai_usage_flow_id: str) -> dict:
+        """Fetch an AIUsageFlow and require an accepted/ready status."""
         path = InternalPath.AI_USAGE_FLOW.format(ai_usage_flow_id=ai_usage_flow_id)
         data = self._get_with_retry(path)
         if not isinstance(data, dict):
@@ -378,6 +402,7 @@ class WorkerApiClient:
         return data
 
     def get_accepted_technical_profile(self, technical_profile_id: str) -> dict:
+        """Fetch a TechnicalProfile and require accepted status."""
         path = InternalPath.TECHNICAL_PROFILE.format(
             technical_profile_id=technical_profile_id
         )
@@ -390,6 +415,7 @@ class WorkerApiClient:
         return data
 
     def dispatch_agentic_tool(self, payload: dict) -> dict:
+        """Dispatch one already validated/authorized agentic tool to the trusted API."""
         path = InternalPath.AGENTIC_TOOL_DISPATCH
         data = self._post_with_retry(path, payload)
         if not isinstance(data, dict):
@@ -397,6 +423,7 @@ class WorkerApiClient:
         return data
 
     def create_targeted_reanalysis_request(self, payload: dict) -> dict:
+        """Create a targeted-reanalysis lifecycle request through the runtime bridge."""
         path = InternalPath.TARGETED_REANALYSIS_CREATE
         data = self._post_with_retry(path, payload)
         if not isinstance(data, dict):
@@ -406,6 +433,7 @@ class WorkerApiClient:
         return data
 
     def resume_waiting_runs(self, corpus_version_id: str, payload: dict) -> dict:
+        """Ask the API to resume workflows waiting on a legal corpus version."""
         path = (
             f"/internal/legal-rule-catalog/corpus/{corpus_version_id}"
             "/resume-waiting-runs"
@@ -416,6 +444,7 @@ class WorkerApiClient:
         return data
 
     def ingest_validated_legal_corpus_draft(self, payload: dict) -> dict:
+        """Submit a validated legal-corpus draft for server-side persistence."""
         data = self._post_with_retry(
             "/internal/legal-rule-catalog/corpus/validated-draft",
             payload,
@@ -427,6 +456,7 @@ class WorkerApiClient:
     def register_validated_retrieval_index(
         self, corpus_version_id: str, payload: dict
     ) -> dict:
+        """Register a validated retrieval index against its pinned corpus version."""
         data = self._post_with_retry(
             (
                 f"/internal/legal-rule-catalog/corpus/{corpus_version_id}"
@@ -441,6 +471,7 @@ class WorkerApiClient:
     def activate_validated_corpus_version(
         self, corpus_version_id: str, payload: dict
     ) -> dict:
+        """Activate a corpus version only after its validation/index pipeline succeeds."""
         data = self._post_with_retry(
             (
                 f"/internal/legal-rule-catalog/corpus/{corpus_version_id}"
@@ -453,6 +484,7 @@ class WorkerApiClient:
         return data
 
     def get_wizard_profile_for_assessment(self, assessment_id: str) -> dict | None:
+        """Fetch an assessment wizard profile, treating 404 as an optional absence."""
         path = InternalPath.WIZARD_PROFILE.format(assessment_id=assessment_id)
         try:
             data = self._get_with_retry(path)
@@ -471,6 +503,7 @@ class WorkerApiClient:
         assessment_id: str,
         ai_usage_flow_id: str | None = None,
     ) -> dict:
+        """Fetch canonical flow/wizard/conflict context used to finalize a verified profile."""
         path = InternalPath.VERIFIED_PROFILE_CONTEXT.format(
             assessment_id=assessment_id
         )
@@ -486,11 +519,13 @@ class WorkerApiClient:
     def post_verified_profile_callback(
         self, payload: VerifiedProfileCallbackPayload
     ) -> CallbackResponse:
+        """Persist a verified profile after reconciliation gates pass."""
         path = CallbackPath.VERIFIED_PROFILE
         resp_data = self._post_with_retry(path, payload.model_dump())
         return CallbackResponse(**resp_data)
 
     def get_verified_profile_by_id(self, verified_profile_id: str) -> dict:
+        """Fetch a persisted verified profile by ID."""
         path = f"/internal/reconciliation/verified-profiles/{verified_profile_id}"
         data = self._get_with_retry(path)
         if not isinstance(data, dict):
@@ -498,6 +533,7 @@ class WorkerApiClient:
         return data
 
     def get_legal_rule_match_by_id(self, legal_rule_match_id: str) -> dict:
+        """Fetch a legal-rule-match artifact and require accepted status."""
         path = InternalPath.LEGAL_RULE_MATCH.format(
             legal_rule_match_id=legal_rule_match_id
         )
@@ -510,6 +546,7 @@ class WorkerApiClient:
         return data
 
     def get_active_legal_rule_catalog(self) -> dict:
+        """Fetch the active legal rule catalog/version metadata."""
         path = "/internal/legal-rule-catalog/active"
         data = self._get_with_retry(path)
         if not isinstance(data, dict):
@@ -517,6 +554,7 @@ class WorkerApiClient:
         return data
 
     def get_active_legal_corpus(self) -> dict:
+        """Fetch metadata for the currently active legal corpus version."""
         path = "/internal/legal-rule-catalog/corpus/active"
         data = self._get_with_retry(path)
         if not isinstance(data, dict):
@@ -524,6 +562,7 @@ class WorkerApiClient:
         return data
 
     def get_legal_corpus_chunks(self, corpus_version_id: str) -> dict:
+        """Fetch persisted text chunks for a specific legal corpus version."""
         path = f"/internal/legal-rule-catalog/corpus/{corpus_version_id}/chunks"
         data = self._get_with_retry(path)
         if not isinstance(data, dict):
@@ -533,6 +572,7 @@ class WorkerApiClient:
     def get_official_source_snapshot(
         self, *, snapshot_ref: str | None = None, snapshot_id: str | None = None
     ) -> dict:
+        """Fetch an official legal-source snapshot by immutable ref or internal ID."""
         path = InternalPath.LEGAL_SOURCE_SNAPSHOTS
         params = {}
         if snapshot_ref:
@@ -547,6 +587,7 @@ class WorkerApiClient:
     def post_legal_rule_match_callback(
         self, payload: LegalRuleMatchCallbackPayload
     ) -> CallbackResponse:
+        """Persist a guarded legal-rule-match result."""
         path = CallbackPath.LEGAL_RULE_MATCH
         resp_data = self._post_with_retry(path, payload.model_dump())
         return CallbackResponse(**resp_data)
@@ -554,6 +595,7 @@ class WorkerApiClient:
     def post_classification_callback(
         self, payload: ClassificationCallbackPayload
     ) -> CallbackResponse:
+        """Persist the final classification callback result."""
         path = CallbackPath.CLASSIFICATION
         resp_data = self._post_with_retry(path, payload.model_dump())
         return CallbackResponse(**resp_data)
@@ -561,6 +603,7 @@ class WorkerApiClient:
     def get_audit_events(
         self, organization_id: str, from_date: str, to_date: str
     ) -> list[dict]:
+        """Fetch organization audit events for an inclusive export date range."""
         path = InternalPath.AUDIT_EVENTS.format(organization_id=organization_id)
         params = {"from_date": from_date, "to_date": to_date}
         data = self._get_with_retry(path, params=params)
@@ -571,6 +614,7 @@ class WorkerApiClient:
     def post_audit_export_callback(
         self, export_request_id: str, payload: AuditExportCallbackPayload
     ) -> CallbackResponse:
+        """Persist READY/FAILED state for an audit export request."""
         path = CallbackPath.AUDIT_EXPORT.format(export_request_id=export_request_id)
         resp_data = self._post_with_retry(path, payload.model_dump())
         return CallbackResponse(**resp_data)

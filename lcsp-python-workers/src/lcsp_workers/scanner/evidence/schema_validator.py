@@ -22,12 +22,31 @@ REQUIRED_PROVENANCE_FIELDS = [
     "outcome",
 ]
 
+
 class SchemaValidationError(Exception):
+    """Carries the terminal quality state associated with invalid evidence."""
+
     def __init__(self, message: str, quality_state: str):
+        """Create a validation failure with the state downstream should persist."""
         super().__init__(message)
         self.quality_state = quality_state
 
+
 def validate_schema(payload: Dict[str, Any], tool_provenance: List[Dict[str, Any]]) -> None:
+    """Require complete evidence and reproducibility metadata before persistence.
+
+    Missing ordinary contract fields fail the report, while missing configuration or
+    ruleset hashes block it because downstream reviewers could not reproduce which
+    scanner configuration produced the evidence.
+
+    Args:
+        payload: Evidence report being prepared for persistence.
+        tool_provenance: Per-tool execution provenance attached to the report.
+
+    Raises:
+        SchemaValidationError: With ``FAILED`` for incomplete contract data or
+            ``BLOCKED`` when required reproducibility hashes are absent.
+    """
     for field in REQUIRED_EVIDENCE_FIELDS:
         if field not in payload or payload[field] is None:
             raise SchemaValidationError(f"Missing required payload field: {field}", "FAILED")

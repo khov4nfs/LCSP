@@ -27,12 +27,24 @@ import { RabbitMqClient } from "./rabbitmq.client.js";
 import type { RabbitMqMessageHeaders } from "./rabbitmq.client.js";
 import { SnapshotCreatedAutoScanService } from "./snapshot-created-auto-scan.service.js";
 
+/**
+ * Polls transactional outbox messages, publishes them to RabbitMQ, and records retry or DLQ outcomes.
+ */
 @Injectable()
 export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OutboxPublisherService.name);
   private timer: NodeJS.Timeout | null = null;
   private polling = false;
 
+  /**
+   * Creates the publisher with outbox persistence, messaging, configuration, auditing, and local event handlers.
+   *
+   * @param outboxRepository - Repository used to lock, update, and retry outbox messages.
+   * @param rabbitMqClient - RabbitMQ client used to publish event payloads.
+   * @param configService - Runtime configuration source for polling and messaging settings.
+   * @param auditWriter - Audit writer used to record retry and DLQ transitions.
+   * @param snapshotCreatedAutoScanService - Local handler that triggers trusted scans for snapshot-created events.
+   */
   constructor(
     private readonly outboxRepository: OutboxRepository,
     private readonly rabbitMqClient: RabbitMqClient,
@@ -41,6 +53,9 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
     private readonly snapshotCreatedAutoScanService: SnapshotCreatedAutoScanService,
   ) {}
 
+  /**
+   * Starts the periodic outbox poller when publishing is enabled by configuration.
+   */
   onModuleInit(): void {
     const enabled = this.configService.get<boolean>("outbox.enabled", true);
     if (!enabled) {
@@ -58,6 +73,9 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
     }, pollIntervalMs);
   }
 
+  /**
+   * Stops the periodic outbox poller during module shutdown.
+   */
   onModuleDestroy(): void {
     if (this.timer) {
       clearInterval(this.timer);
@@ -65,6 +83,11 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Publishes one locked batch of eligible outbox messages and records delivery failures for retry or DLQ handling.
+   *
+   * @returns A promise that resolves after the current polling attempt finishes or is skipped.
+   */
   async poll(): Promise<void> {
     if (this.polling) {
       return;
@@ -187,6 +210,12 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Writes an audit event describing a scheduled retry or transition into the outbox DLQ.
+   *
+   * @param failure - Failed message plus retry count, limit, reason, and next-attempt timestamp.
+   * @returns A promise that resolves after the audit record is persisted.
+   */
   private async auditFailure(failure: {
     message: {
       id: string;
@@ -238,6 +267,13 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
   }
 }
 
+/**
+ * Resolves the maximum delivery attempts for an outbox message, including targeted-reanalysis policy overrides.
+ *
+ * @param message - Outbox message whose aggregate type determines retry policy.
+ * @param defaultMaxAttempts - General configured retry limit.
+ * @returns Maximum attempts allowed for the message.
+ */
 function maxAttemptsFor(
   message: OutboxMessageEntity,
   defaultMaxAttempts: number,
@@ -250,12 +286,25 @@ function maxAttemptsFor(
   return defaultMaxAttempts;
 }
 
+/**
+ * Calculates the next retry time using capped exponential backoff and a small random jitter.
+ *
+ * @param now - Timestamp from which the retry delay should be calculated.
+ * @param attempts - Number of delivery attempts already made after the current failure.
+ * @returns Timestamp for the next retry.
+ */
 function retryAt(now: Date, attempts: number): Date {
   const baseDelayMs = Math.min(30_000, 1_000 * 2 ** (attempts - 1));
   const jitterMs = Math.floor(Math.random() * 250);
   return new Date(now.getTime() + baseDelayMs + jitterMs);
 }
 
+/**
+ * Extracts authorization context from an outbox payload for propagation through RabbitMQ headers.
+ *
+ * @param payload - Event payload that may contain actor, organization, action, and correlation context.
+ * @returns RabbitMQ headers when all required authorization fields are present; otherwise undefined.
+ */
 function authorizationHeaders(
   payload: Record<string, unknown>,
 ): RabbitMqMessageHeaders | undefined {
@@ -280,10 +329,22 @@ function authorizationHeaders(
   };
 }
 
+/**
+ * Reads a non-empty string from an unknown payload value.
+ *
+ * @param value - Unknown value to validate.
+ * @returns The string value when non-empty; otherwise undefined.
+ */
 function readString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+/**
+ * Validates and normalizes an audit actor embedded in an outbox payload.
+ *
+ * @param value - Unknown actor payload to inspect.
+ * @returns A validated user or service actor, or undefined when invalid.
+ */
 function readActor(
   value: unknown,
 ): { id: string; type: "USER" | "SERVICE" } | undefined {
@@ -300,6 +361,12 @@ function readActor(
   return { id, type };
 }
 
+/**
+ * Converts an arbitrary publication error message into a bounded audit-safe reason code.
+ *
+ * @param reason - Raw delivery failure reason.
+ * @returns Upper/lowercase alphanumeric-and-underscore reason code limited to 120 characters.
+ */
 function safeReasonCode(reason: string): string {
   return (
     reason.replace(/[^A-Z0-9_]/gi, "_").slice(0, 120) || "OUTBOX_PUBLISH_FAILED"

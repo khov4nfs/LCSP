@@ -24,14 +24,31 @@ import { RequestFinalReportCommand } from "./request-final-report.command.js";
 
 const DOCUMENT_REQUEST_LOCK_PREFIX = "document-final-report";
 
+/**
+ * Queues final-report generation only after classification guardrails pass and prevents concurrent duplicate requests per assessment.
+ */
 @CommandHandler(RequestFinalReportCommand)
 export class RequestFinalReportHandler implements ICommandHandler<RequestFinalReportCommand> {
+  /**
+   * Creates the handler with persistence, outbox, and audit dependencies.
+   *
+   * @param prisma - Prisma service used for assessment/classification checks and transactional request creation.
+   * @param outboxRepository - Outbox used to dispatch the final-report generation event.
+   * @param auditWriter - Audit writer used to record the document and assessment-level request events.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly outboxRepository: OutboxRepository,
     private readonly auditWriter: AuditWriterService,
   ) {}
 
+  /**
+   * Validates assessment ownership and classification readiness, reserves one active request, and publishes generation work.
+   *
+   * @param command - Assessment, organization, requester, and correlation context for the report request.
+   * @returns Queued final-report request metadata.
+   * @throws When the assessment is unavailable, guardrails have not passed, or another active final-report request exists.
+   */
   async execute(
     command: RequestFinalReportCommand,
   ): Promise<FinalReportRequestDto> {
@@ -179,6 +196,12 @@ export class RequestFinalReportHandler implements ICommandHandler<RequestFinalRe
   }
 }
 
+/**
+ * Checks whether a persisted classification guardrail status resolves to the passed contract state.
+ *
+ * @param status - Prisma classification guardrail status to normalize.
+ * @returns True when document generation is permitted by the classification guardrail.
+ */
 function hasPassedGuardrail(
   status: Parameters<typeof fromPrismaClassificationGuardrailStatus>[0],
 ): boolean {

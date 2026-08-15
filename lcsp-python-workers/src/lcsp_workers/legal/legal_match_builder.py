@@ -1,10 +1,12 @@
+"""Build citation-aware callback payloads for legal rule matching."""
+
 from __future__ import annotations
 
 from typing import Any
 
 
 class LegalMatchBuilder:
-    """Build a callback-ready payload for the legal rule matching workflow."""
+    """Aggregate rule matches and derive overall citation coverage metadata."""
 
     def build_payload(
         self,
@@ -15,6 +17,19 @@ class LegalMatchBuilder:
         legal_corpus_version_id: str,
         matches: list[dict[str, Any]],
     ) -> dict[str, Any]:
+        """Build a callback-ready legal-rule-match payload.
+
+        Args:
+            verified_profile_id: Verified profile used as the legal matching input.
+            assessment_id: Assessment that owns the match result.
+            legal_rule_catalog_version_id: Pinned legal rule catalog version.
+            legal_corpus_version_id: Pinned source corpus version used for retrieval.
+            matches: Per-rule applicability/retrieval results.
+
+        Returns:
+            Payload containing flattened citation allowlist and COMPLETE/PARTIAL/NO
+            citation coverage status.
+        """
         citation_allowlist: list[str] = []
         for match in matches:
             chunk_ids = match.get("citation_chunk_ids") or []

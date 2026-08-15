@@ -1,3 +1,5 @@
+"""Match approved verified profiles against active legal rules and exact corpus citations."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -16,6 +18,8 @@ logger = get_logger(__name__)
 
 
 class LegalRetrievalConsumer(ConsumerBase):
+    """Evaluate active rules and attach only exact, non-repealed corpus citations."""
+
     queue_name = "legal.legal-matching-requested"
     routing_key = "command.legal-matching.requested.v1"
     requires_pbac = False
@@ -29,6 +33,16 @@ class LegalRetrievalConsumer(ConsumerBase):
         retriever: ChromaDbCitationRetriever | None = None,
         builder: LegalMatchBuilder | None = None,
     ) -> None:
+        """Create the consumer with injectable API, evaluator, retriever, and builder.
+
+        Args:
+            config: Worker runtime configuration.
+            pbac_client: Optional base-consumer PBAC dependency; unused for system events.
+            api_client: Optional internal API client override.
+            evaluator: Optional deterministic rule applicability evaluator.
+            retriever: Optional exact-citation corpus retriever.
+            builder: Optional legal-match callback payload builder.
+        """
         super().__init__(config, pbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
@@ -39,6 +53,24 @@ class LegalRetrievalConsumer(ConsumerBase):
         self._builder = builder or LegalMatchBuilder()
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
+        """Evaluate legal rules against an approved verified profile and persist matches.
+
+        The canonical verified profile, active rule catalog, and pinned corpus
+        chunks are fetched from the API. Only rules with deterministic ``MATCHED``
+        status are considered, and each match must resolve to an exact citation
+        allowlist. A repealed chunk escaping that allowlist is treated as a hard
+        integrity failure rather than a degraded match.
+
+        Args:
+            message: Legal-matching command containing profile, assessment, and
+                pinned corpus version identifiers.
+            correlationId: End-to-end trace identifier for the delivery.
+
+        Raises:
+            ValueError: If a required command identifier is missing.
+            WorkerCallbackError: If the verified profile is not approved or a
+                repealed citation escapes the legal retrieval guardrail.
+        """
         verified_profile_id = self._required_message_id(message, "verifiedProfileId")
         assessment_id = self._required_message_id(message, "assessmentId")
         corpus_version_id = self._required_message_id(message, "corpusVersionId")
@@ -121,6 +153,18 @@ class LegalRetrievalConsumer(ConsumerBase):
         )
 
     def _required_message_id(self, message: dict[str, Any], key: str) -> str:
+        """Read and stringify a required command identifier.
+
+        Args:
+            message: Command payload.
+            key: Required field name.
+
+        Returns:
+            Non-empty identifier string.
+
+        Raises:
+            ValueError: If the field is absent or empty.
+        """
         value = message.get(key)
         if not value:
             raise ValueError(f"missing {key}")

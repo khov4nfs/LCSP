@@ -1,3 +1,5 @@
+"""Provide orchestration debug controls and secret-safe payload projection."""
+
 from __future__ import annotations
 
 import os
@@ -16,10 +18,20 @@ ORCHESTRATION_LOG_EVENTS = {
 
 
 def orchestration_debug_enabled() -> bool:
+    """Return whether verbose orchestration diagnostics are explicitly enabled."""
     return os.getenv("ORCHESTRATION_DEBUG", "false").strip().lower() == "true"
 
 
 def sanitize_orchestration_payload(value: Any) -> Any:
+    """Recursively redact credential-like fields before orchestration logging.
+
+    Args:
+        value: Arbitrary structured diagnostic payload.
+
+    Returns:
+        Payload with nested API keys, secrets, tokens, and passwords replaced by
+        a redaction marker while preserving non-sensitive structure.
+    """
     if isinstance(value, list):
         return [sanitize_orchestration_payload(entry) for entry in value]
     if not isinstance(value, dict):

@@ -1,3 +1,5 @@
+"""Evaluate scan evidence quality from tool coverage, failures, and AI signals."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -14,12 +16,16 @@ CRITICAL_TOOL_NAMES = ("syft", "semgrep")
 
 @dataclass(frozen=True)
 class EvidenceQualityResult:
+    """Evidence quality classification and the coverage facts behind it."""
+
     evidence_quality: str
     coverage_notes: list[str]
     tool_coverage: dict[str, bool]
 
 
 class EvidenceQualityEvaluator:
+    """Derive evidence quality deterministically from scanner/tool availability."""
+
     def evaluate(
         self,
         *,
@@ -28,6 +34,21 @@ class EvidenceQualityEvaluator:
         ai_usage_signals: list[dict[str, Any]],
         coverage_notes: list[str],
     ) -> EvidenceQualityResult:
+        """Evaluate whether collected evidence is sufficient for downstream claims.
+
+        Critical tool loss degrades or blocks evidence quality regardless of the
+        presence of AI signals, preventing missing scanner coverage from being
+        interpreted as a confident negative/positive result.
+
+        Args:
+            tools_version: Tools reported as available for the scan and versions.
+            tool_failures: Structured records for tools that failed during the run.
+            ai_usage_signals: AI-related signals produced by usable scanners.
+            coverage_notes: Existing coverage limitations to preserve.
+
+        Returns:
+            Evidence quality, merged coverage notes, and per-tool coverage flags.
+        """
         tool_coverage = self._tool_coverage(tools_version, tool_failures)
         critical_tools_failed = [
             name for name in CRITICAL_TOOL_NAMES if tool_coverage.get(name) is False
@@ -71,6 +92,7 @@ class EvidenceQualityEvaluator:
         tools_version: dict[str, str],
         tool_failures: list[dict[str, Any]],
     ) -> dict[str, bool]:
+        """Build per-tool usable-coverage flags, normalizing Semgrep variants."""
         failed_tools = {
             str(record.get("tool_name", "")).strip()
             for record in tool_failures
@@ -98,6 +120,7 @@ class EvidenceQualityEvaluator:
         existing_notes: list[str],
         failed_tools: list[str],
     ) -> list[str]:
+        """Append a stable coverage limitation note for failed critical tools."""
         notes = list(existing_notes)
         if failed_tools:
             notes.append(
@@ -106,4 +129,3 @@ class EvidenceQualityEvaluator:
                 + " did not produce usable results."
             )
         return notes
-

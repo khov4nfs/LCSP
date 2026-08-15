@@ -62,10 +62,25 @@ const SECRET_PATTERNS = [
   /\bBearer\s+[A-Za-z0-9._~+/-]{12,}=*/i,
 ];
 
+/**
+ * Validates and atomically accepts worker-produced AI usage-flow artifacts, then emits the corresponding outbox and audit records.
+ */
 @CommandHandler(AcceptAIUsageFlowCommand)
 export class AcceptAIUsageFlowHandler implements ICommandHandler<AcceptAIUsageFlowCommand> {
+  /**
+   * Creates the command handler with access to AI usage-flow, outbox, and audit persistence.
+   *
+   * @param prisma - Prisma service used for validation lookups and the acceptance transaction.
+   */
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Accepts one AI usage-flow callback after schema, privacy, ownership, and uniqueness validation.
+   *
+   * @param command - Callback payload and correlation context to validate and persist.
+   * @returns Acceptance metadata containing the persisted AI usage-flow identifier and correlation ID.
+   * @throws When the callback is invalid, unsafe, references a missing technical profile, or duplicates an existing flow.
+   */
   async execute(
     command: AcceptAIUsageFlowCommand,
   ): Promise<AIUsageFlowCallbackDto> {
@@ -225,6 +240,13 @@ export class AcceptAIUsageFlowHandler implements ICommandHandler<AcceptAIUsageFl
     };
   }
 
+  /**
+   * Enforces callback schema, evidence-reference consistency, rich-claim parity, and privacy/sanitization requirements.
+   *
+   * @param command - AI usage-flow command whose payload should be validated.
+   * @returns Nothing when the callback satisfies every acceptance invariant.
+   * @throws When schema, material evidence, rich-claim consistency, or privacy checks fail.
+   */
   private validate(command: AcceptAIUsageFlowCommand): void {
     const payload = command.payload;
     if (
@@ -271,6 +293,13 @@ export class AcceptAIUsageFlowHandler implements ICommandHandler<AcceptAIUsageFl
     }
   }
 
+  /**
+   * Builds the standardized problem response used by callback validation and conflict errors.
+   *
+   * @param command - Command providing the request correlation identifier.
+   * @param errorCode - Stable scan-domain error code to expose.
+   * @returns Standard problem result for the callback failure.
+   */
   private errorBody(command: AcceptAIUsageFlowCommand, errorCode: string) {
     return problemResult(errorCode, command.correlationId, {
       status: HttpStatus.BAD_REQUEST,
@@ -278,6 +307,12 @@ export class AcceptAIUsageFlowHandler implements ICommandHandler<AcceptAIUsageFl
   }
 }
 
+/**
+ * Verifies that optional rich claims correspond one-to-one with compact public claims and carry valid deterministic fields.
+ *
+ * @param payload - Callback payload whose `flow_data.claims` should be checked against compact claims.
+ * @returns True when rich claims are absent or fully consistent with the compact claim set.
+ */
 function hasConsistentRichClaims(payload: unknown): boolean {
   if (!isRecord(payload)) return false;
   if (payload.flow_data === undefined) return true;
@@ -328,6 +363,13 @@ function hasConsistentRichClaims(payload: unknown): boolean {
   return seen.size === compactById.size;
 }
 
+/**
+ * Compares two evidence-reference collections as normalized sets, independent of order and duplicates.
+ *
+ * @param left - First evidence-reference collection.
+ * @param right - Second evidence-reference collection.
+ * @returns True when both collections contain the same non-empty normalized references.
+ */
 function sameEvidenceRefs(left: unknown, right: unknown): boolean {
   if (!Array.isArray(left) || !Array.isArray(right)) return false;
   if (left.some((ref) => !clean(ref)) || right.some((ref) => !clean(ref))) {
@@ -343,6 +385,12 @@ function sameEvidenceRefs(left: unknown, right: unknown): boolean {
   );
 }
 
+/**
+ * Enriches compact callback claims with sanitized deterministic fields from matching rich worker claims before persistence.
+ *
+ * @param payload - Callback payload containing compact claims and optional `flow_data.claims` details.
+ * @returns Persistable claim records enriched by matching `claim_id` when rich details are available.
+ */
 function enrichStoredClaims(payload: unknown): Record<string, unknown>[] {
   if (!isRecord(payload) || !Array.isArray(payload.claims)) return [];
 
@@ -373,11 +421,23 @@ function enrichStoredClaims(payload: unknown): Record<string, unknown>[] {
   });
 }
 
+/**
+ * Reads the structured `flow_data` object from a callback payload when present.
+ *
+ * @param value - Unknown callback value to inspect.
+ * @returns The flow-data record, or null when absent or malformed.
+ */
 function flowDataOf(value: unknown): Record<string, unknown> | null {
   if (!isRecord(value)) return null;
   return isRecord(value.flow_data) ? value.flow_data : null;
 }
 
+/**
+ * Validates the compact public representation of one AI usage-flow claim.
+ *
+ * @param value - Unknown claim value to validate.
+ * @returns True when the value satisfies the callback claim contract.
+ */
 function isClaim(value: unknown): value is AIUsageFlowClaimRequest {
   if (!isRecord(value)) return false;
   return (
@@ -393,20 +453,44 @@ function isClaim(value: unknown): value is AIUsageFlowClaimRequest {
   );
 }
 
+/**
+ * Determines whether a material claim violates the requirement to reference at least one evidence item.
+ *
+ * @param claim - Validated compact AI usage-flow claim.
+ * @returns True when the claim is material but has no evidence references.
+ */
 function isMaterialClaimMissingEvidence(
   claim: AIUsageFlowClaimRequest,
 ): boolean {
   return claim.is_material && claim.evidence_refs.length === 0;
 }
 
+/**
+ * Checks whether an unknown runtime value is a non-array object record.
+ *
+ * @param value - Unknown value to inspect.
+ * @returns True when the value is a record-like object.
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+/**
+ * Normalizes a non-empty string value without coercing other runtime types.
+ *
+ * @param value - Unknown value to normalize.
+ * @returns Trimmed string value, or null when the input is not a non-empty string.
+ */
 function clean(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+/**
+ * Recursively detects forbidden source-code/raw-content keys or recognizable secret patterns in a callback payload.
+ *
+ * @param value - Arbitrary callback subtree to inspect.
+ * @returns True when the subtree contains unsafe content that must not be persisted.
+ */
 function containsUnsafePayload(value: unknown): boolean {
   if (typeof value === "string") {
     return SECRET_PATTERNS.some((pattern) => pattern.test(value));

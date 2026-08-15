@@ -1,3 +1,5 @@
+"""Consume bounded OCR fallback commands for legal snapshots without canonical text."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -22,6 +24,8 @@ OCR_FALLBACK_QUEUE = "lcsp.legal-source-ocr-fallback.v1"
 
 @dataclass(frozen=True)
 class OcrFallbackEnvelope:
+    """Validated snapshot, fallback proof, bounded pages, and OCR profile."""
+
     snapshot_ref: str
     fallback_proof_ref: str
     page_numbers: list[int]
@@ -29,6 +33,8 @@ class OcrFallbackEnvelope:
 
 
 class OcrFallbackConsumer(ConsumerBase):
+    """Run OCR only for explicitly bounded pages backed by fallback proof."""
+
     queue_name = OCR_FALLBACK_QUEUE
     routing_key = OCR_FALLBACK_COMMAND
     requires_pbac = False
@@ -41,6 +47,7 @@ class OcrFallbackConsumer(ConsumerBase):
         api_client: WorkerApiClient | None = None,
         tool: OcrFallbackTool | None = None,
     ) -> None:
+        """Create the consumer with optional injected API/OCR tool adapters."""
         super().__init__(config, pbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
@@ -49,6 +56,16 @@ class OcrFallbackConsumer(ConsumerBase):
         self._tool = tool
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
+        """Validate fallback authorization, run bounded OCR, and persist its record.
+
+        Args:
+            message: OCR fallback command containing snapshot/proof/page/profile data.
+            correlationId: End-to-end trace identifier for the delivery.
+
+        Raises:
+            NonRetryableWorkerError: If command validation, snapshot resolution,
+                fallback proof, OCR execution, or artifact persistence fails.
+        """
         envelope = self._read_envelope(message)
         storage_root = self._storage_root()
         repository = OcrFallbackRepository(storage_root=storage_root)
@@ -86,12 +103,14 @@ class OcrFallbackConsumer(ConsumerBase):
         )
 
     def _storage_root(self) -> Path:
+        """Resolve the legal-source storage root or fail the command terminally."""
         root = getattr(self._config, "legal_source_storage_root", None)
         if not isinstance(root, str) or not root.strip():
             raise NonRetryableWorkerError("LEGAL_SOURCE_STORAGE_ROOT is not configured")
         return Path(root).resolve()
 
     def _output_dir(self, *, storage_root: Path, snapshot_ref: str) -> Path:
+        """Build the versioned OCR artifact directory for a snapshot reference."""
         return (
             storage_root
             / "official-ocr-fallbacks"
@@ -99,6 +118,7 @@ class OcrFallbackConsumer(ConsumerBase):
         )
 
     def _read_envelope(self, message: dict[str, Any]) -> OcrFallbackEnvelope:
+        """Validate required fields and require unique positive page numbers."""
         snapshot_ref = self._read_required_string(message, "snapshotRef", "snapshot_ref")
         fallback_proof_ref = self._read_required_string(
             message, "fallbackProofRef", "fallback_proof_ref"
@@ -123,6 +143,7 @@ class OcrFallbackConsumer(ConsumerBase):
 
     @staticmethod
     def _read_required_string(container: dict[str, Any], *keys: str) -> str:
+        """Read the first non-empty string alias or raise a terminal command error."""
         for key in keys:
             value = container.get(key)
             if isinstance(value, str) and value.strip():

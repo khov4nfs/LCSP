@@ -25,14 +25,35 @@ type AssessmentRecord = {
   updatedAt: Date;
 };
 
+/**
+ * Implements assessment persistence with Prisma and translates persistence enums/records to domain aggregates.
+ */
 @Injectable()
 export class PrismaAssessmentRepository implements AssessmentRepository {
+  /**
+   * Creates the repository with the application Prisma client.
+   *
+   * @param prisma - Prisma service used for assessment persistence and queries.
+   */
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Persists an assessment using the default Prisma client.
+   *
+   * @param assessment - Assessment aggregate to create or update.
+   * @returns A promise that resolves after persistence completes.
+   */
   async save(assessment: Assessment): Promise<void> {
     await this.saveWithClient(this.prisma, assessment);
   }
 
+  /**
+   * Persists an assessment within an existing transaction.
+   *
+   * @param assessment - Assessment aggregate to create or update.
+   * @param tx - Prisma transaction that must include the assessment write.
+   * @returns A promise that resolves after persistence completes.
+   */
   async saveInTx(
     assessment: Assessment,
     tx: Prisma.TransactionClient,
@@ -40,6 +61,13 @@ export class PrismaAssessmentRepository implements AssessmentRepository {
     await this.saveWithClient(tx, assessment);
   }
 
+  /**
+   * Upserts the assessment with the supplied Prisma-compatible client.
+   *
+   * @param client - Prisma service or active transaction client used for the write.
+   * @param assessment - Assessment aggregate to persist.
+   * @returns A promise that resolves after the upsert completes.
+   */
   private async saveWithClient(
     client: Prisma.TransactionClient,
     assessment: Assessment,
@@ -64,12 +92,24 @@ export class PrismaAssessmentRepository implements AssessmentRepository {
     });
   }
 
+  /**
+   * Finds one assessment aggregate by identifier.
+   *
+   * @param id - Assessment identifier to look up.
+   * @returns The rehydrated assessment aggregate, or null when no row exists.
+   */
   async findById(id: string): Promise<Assessment | null> {
     const record = await this.prisma.assessment.findUnique({ where: { id } });
 
     return record ? this.toDomain(record) : null;
   }
 
+  /**
+   * Retrieves a paginated assessment page using organization, owner/scope, and status criteria.
+   *
+   * @param criteria - Tenant, visibility, status, and pagination filters.
+   * @returns Rehydrated assessment items plus the total matching row count.
+   */
   async findMany(
     criteria: AssessmentListCriteria,
   ): Promise<AssessmentListResult> {
@@ -98,6 +138,12 @@ export class PrismaAssessmentRepository implements AssessmentRepository {
     };
   }
 
+  /**
+   * Converts a Prisma assessment record into the domain aggregate representation.
+   *
+   * @param record - Persisted assessment record with Prisma enum values.
+   * @returns A rehydrated assessment aggregate.
+   */
   private toDomain(record: AssessmentRecord): Assessment {
     return Assessment.rehydrate({
       id: record.id,

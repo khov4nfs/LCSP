@@ -1,3 +1,5 @@
+"""Detect prohibited certainty/compliance language in generated rationales."""
+
 import re
 
 OVERCLAIM_WORDS = [
@@ -10,19 +12,24 @@ OVERCLAIM_WORDS = [
     r"legally\s+approved"
 ]
 
+
 def check_overclaim(rationale_text: str) -> bool:
-    """
-    Check if the rationale text contains any overclaiming words.
-    
+    """Check whether rationale text makes a prohibited overclaim.
+
+    Args:
+        rationale_text: Human- or LLM-produced explanation to validate before
+            it is exposed as classification rationale.
+
     Returns:
-        bool: True if an overclaim word is detected, False otherwise.
+        ``True`` when a forbidden certainty/compliance phrase is detected;
+        otherwise ``False``.
     """
     if not rationale_text:
         return False
-        
+
     text_lower = rationale_text.lower()
     for pattern in OVERCLAIM_WORDS:
         if re.search(pattern, text_lower):
             return True
-            
+
     return False

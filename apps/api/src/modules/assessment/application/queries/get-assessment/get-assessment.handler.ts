@@ -43,14 +43,30 @@ import {
 } from "../../ports/persistence/assessment.repository.js";
 import { GetAssessmentQuery } from "./get-assessment.query.js";
 
+/**
+ * Builds the assessment detail read model, including wizard progress, pipeline readiness, classification, and review state.
+ */
 @QueryHandler(GetAssessmentQuery)
 export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
+  /**
+   * Creates the detail handler with assessment persistence and supporting pipeline read models.
+   *
+   * @param assessmentRepository - Repository used to resolve the assessment aggregate and ownership boundary.
+   * @param prisma - Prisma service used to assemble wizard, evidence, legal-readiness, classification, and review state.
+   */
   constructor(
     @Inject(ASSESSMENT_REPOSITORY)
     private readonly assessmentRepository: AssessmentRepository,
     private readonly prisma: PrismaService,
   ) {}
 
+  /**
+   * Resolves one assessment and derives the current readiness and next-action view for the caller.
+   *
+   * @param query - Assessment identifier, tenant/user visibility context, subject role, and correlation ID.
+   * @returns The assembled assessment detail DTO.
+   * @throws A not-found problem when the assessment is outside the organization boundary or hidden from the manager owner view.
+   */
   async execute(query: GetAssessmentQuery): Promise<AssessmentDetailDto> {
     const assessment = await this.assessmentRepository.findById(
       query.assessmentId,
@@ -207,12 +223,23 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
     };
   }
 
+  /**
+   * Throws the standardized assessment-not-found problem without exposing ownership or tenant mismatch details.
+   *
+   * @param correlationId - Correlation identifier attached to the problem response.
+   * @throws Always throws the assessment not-found problem.
+   */
   private throwNotFound(correlationId: string): never {
     throw problemException(ASSESSMENT_ERROR_CODES.notFound, correlationId, {
       status: HttpStatus.NOT_FOUND,
     });
   }
 
+  /**
+   * Determines which global legal-pipeline prerequisite is missing before classification may proceed.
+   *
+   * @returns Missing legal corpus, retrieval-index, or rule-catalog evidence codes; empty when the legal pipeline is ready.
+   */
   private async getLegalPipelineMissingEvidence(): Promise<
     ReadinessState["missing_evidence"]
   > {
@@ -247,6 +274,11 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
       : [ASSESSMENT_MISSING_EVIDENCE_CODES.legalRetrievalIndex];
   }
 
+  /**
+   * Checks whether an approved legal rule-catalog version is available after corpus/index readiness has been established.
+   *
+   * @returns An empty list when the catalog is ready, otherwise the missing rule-catalog evidence code.
+   */
   private async getLegalCatalogMissingEvidence(): Promise<
     ReadinessState["missing_evidence"]
   > {
@@ -267,6 +299,12 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
   }
 }
 
+/**
+ * Maps wizard lifecycle state to the next UI/application action key.
+ *
+ * @param wizardStatus - Current wizard status for the assessment.
+ * @returns Stable next-action key corresponding to the wizard state.
+ */
 function nextActionFor(wizardStatus: WizardStatus): AssessmentNextActionKey {
   switch (wizardStatus) {
     case WIZARD_STATUS_CODES.notStarted:
@@ -280,6 +318,12 @@ function nextActionFor(wizardStatus: WizardStatus): AssessmentNextActionKey {
   }
 }
 
+/**
+ * Safely projects untyped persisted classification JSON into the assessment summary contract.
+ *
+ * @param value - Persisted classification-data JSON.
+ * @returns Normalized classification summary with safe null/empty fallbacks.
+ */
 function toClassificationResultSummary(
   value: unknown,
 ): ClassificationResultSummaryDto {
@@ -300,6 +344,12 @@ function toClassificationResultSummary(
   };
 }
 
+/**
+ * Projects a persisted verified-profile record into the manager review contract while tolerating legacy JSON shapes.
+ *
+ * @param profile - Verified-profile persistence fields and untyped profile data.
+ * @returns Normalized manager-facing verified-profile review DTO.
+ */
 function toVerifiedProfileReview(profile: {
   id: string;
   status: Parameters<typeof fromPrismaVerifiedProfileStatus>[0];
@@ -334,20 +384,44 @@ function toVerifiedProfileReview(profile: {
   };
 }
 
+/**
+ * Checks whether a runtime value is a non-array object record.
+ *
+ * @param value - Unknown value to inspect.
+ * @returns True when the value is a record-like object.
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+/**
+ * Filters an untyped array down to record values suitable for safe response serialization.
+ *
+ * @param value - Unknown value that may contain an array of records.
+ * @returns Record entries, or an empty list when the input is not an array.
+ */
 function recordArray(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value) ? value.filter(isRecord) : [];
 }
 
+/**
+ * Normalizes a non-empty string without coercing other runtime types.
+ *
+ * @param value - Unknown value to normalize.
+ * @returns Trimmed string value, or null when absent/empty/non-string.
+ */
 function cleanString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : null;
 }
 
+/**
+ * Normalizes an unknown array into a list of non-empty trimmed strings.
+ *
+ * @param value - Unknown value to normalize.
+ * @returns Normalized string entries, or an empty list for non-arrays.
+ */
 function stringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value

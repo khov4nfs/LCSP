@@ -14,13 +14,28 @@ import {
 } from "../../ports/persistence/user.repository.js";
 import { CreateUserCommand } from "./create-user.command.js";
 
+/**
+ * Registers a new user after enforcing email uniqueness and domain invariants.
+ */
 @CommandHandler(CreateUserCommand)
 export class CreateUserHandler implements ICommandHandler<CreateUserCommand> {
+  /**
+   * Creates the registration handler with the user persistence port.
+   *
+   * @param userRepository - Repository used to detect duplicates and persist the new user aggregate.
+   */
   constructor(
     @Inject(USER_REPOSITORY)
     private readonly userRepository: UserRepository,
   ) {}
 
+  /**
+   * Registers and persists a user, then maps the aggregate to the external DTO.
+   *
+   * @param command - Registration input containing email and display name.
+   * @returns The newly registered user DTO.
+   * @throws When a user already exists for the requested email or the domain input is invalid.
+   */
   async execute(command: CreateUserCommand) {
     const existingUser = await this.userRepository.findByEmail(command.email);
 

@@ -1,3 +1,11 @@
+"""Derive AIUsageFlow claims deterministically from technical evidence and bounded wizard context.
+
+The rule engine is the authoritative claim-construction layer. It never uses an
+LLM, requires evidence references for material claims, degrades lifecycle/status
+when coverage is incomplete, and treats wizard data as business context rather
+than a substitute for technical evidence.
+"""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field, replace
@@ -65,6 +73,8 @@ class PrivacyAssertionError(RuntimeError):
 
 @dataclass(frozen=True)
 class AIUsageFlowClaim:
+    """One evidence-backed AI usage fact with confidence and lifecycle metadata."""
+
     claim_id: str
     ai_usage_flow_id: str
     claim_category: str
@@ -78,11 +88,14 @@ class AIUsageFlowClaim:
     conflict_refs: list[str] | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the claim for callbacks and persisted flow data."""
         return asdict(self)
 
 
 @dataclass(frozen=True)
 class AIUsageFlow:
+    """Governed AI usage artifact produced from technical evidence and optional wizard context."""
+
     ai_usage_flow_id: str
     assessment_id: str
     technical_profile_id: str
@@ -100,18 +113,22 @@ class AIUsageFlow:
     privacy_flags: dict[str, bool]
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize the flow while preserving explicit claim dictionaries."""
         data = asdict(self)
         data["claims"] = [claim.to_dict() for claim in self.claims]
         return data
 
 
 class AIUsageFlowRuleEngine:
+    """Build AI usage claims using deterministic evidence rules and fail-closed gates."""
+
     def __init__(
         self,
         *,
         provider_version: str = DEFAULT_PROVIDER_VERSION,
         conflict_builder: ConflictCandidateBuilder | None = None,
     ) -> None:
+        """Create the rule engine with provider version and conflict-candidate builder."""
         self._provider_version = provider_version
         self._conflict_builder = conflict_builder or ConflictCandidateBuilder()
 
@@ -122,6 +139,19 @@ class AIUsageFlowRuleEngine:
         evidence_report: dict[str, Any] | None,
         wizard_profile: dict[str, Any] | None,
     ) -> AIUsageFlow:
+        """Generate the authoritative AIUsageFlow from accepted technical evidence.
+
+        Args:
+            technical_profile: Accepted technical profile summarized from scanner evidence.
+            evidence_report: Accepted technical evidence report containing findings/signals.
+            wizard_profile: Optional manager profile used for business context/conflict checks.
+
+        Returns:
+            Deterministic AIUsageFlow with claims, confidence, status, and privacy flags.
+
+        Raises:
+            PrivacyAssertionError: If input/output contains source code or unredacted secrets.
+        """
         if not technical_profile:
             return self._blocked_flow("MISSING_TECHNICAL_PROFILE")
         if not evidence_report:
@@ -429,6 +459,7 @@ class AIUsageFlowRuleEngine:
         optional_signal_count: int,
         material_coverage_limitations: int,
     ) -> AIUsageFlowClaim:
+        """Build one scored claim and derive its lifecycle from evidence quality."""
         missing_refs = not evidence_refs
         confidence, breakdown = calculate_claim_confidence(
             claim_category,
@@ -466,6 +497,7 @@ class AIUsageFlowRuleEngine:
         reason: str,
         material_coverage_limitations: int,
     ) -> AIUsageFlowClaim:
+        """Force a claim to ABSTAINED while preserving its evidence/confidence trace."""
         claim = self._claim(
             flow_id=flow_id,
             claim_category=claim_category,
@@ -490,6 +522,7 @@ class AIUsageFlowRuleEngine:
         findings: list[dict[str, Any]],
         coverage_limitations: list[str],
     ) -> AIUsageFlowClaim | None:
+        """Classify the strongest detected downstream action from evidence signals."""
         refs = self._refs_for(findings, DOWNSTREAM_ACTION_SIGNALS)
         if not refs:
             return None
@@ -523,6 +556,7 @@ class AIUsageFlowRuleEngine:
         findings: list[dict[str, Any]],
         coverage_limitations: list[str],
     ) -> AIUsageFlowClaim | None:
+        """Create automated-decision claim, abstaining when output/action path is unresolved."""
         refs = self._refs_for(findings, {"AUTOMATED_DECISION_SIGNAL"})
         if not refs:
             return None
@@ -558,6 +592,7 @@ class AIUsageFlowRuleEngine:
         automated_claim: AIUsageFlowClaim | None,
         coverage_limitations: list[str],
     ) -> AIUsageFlowClaim | None:
+        """Represent observed review or bounded absence only when evidence supports it."""
         review_refs = self._refs_for(findings, {"HUMAN_REVIEW_SIGNAL"})
         if review_refs:
             return self._claim(
@@ -593,6 +628,7 @@ class AIUsageFlowRuleEngine:
         findings: list[dict[str, Any]],
         coverage_limitations: list[str],
     ) -> AIUsageFlowClaim | None:
+        """Create a personal-data-input claim from evidence signals or input categories."""
         refs = self._refs_for(findings, {"SENSITIVE_DATA_SIGNAL"})
         input_categories = self._list_field(technical_profile, "input_categories")
         sensitive_categories = sorted(
@@ -625,6 +661,7 @@ class AIUsageFlowRuleEngine:
         output_refs: list[str],
         coverage_limitations: list[str],
     ) -> AIUsageFlowClaim | None:
+        """Detect document generation from explicit signals or document output categories."""
         explicit_refs = self._refs_for(findings, DOCUMENT_GENERATION_SIGNALS)
         output_categories = {
             category.lower()
@@ -652,6 +689,7 @@ class AIUsageFlowRuleEngine:
         findings: list[dict[str, Any]],
         coverage_limitations: list[str],
     ) -> AIUsageFlowClaim | None:
+        """Evaluate labeling controls only when synthetic-media output is in scope."""
         output_categories = set(
             self._output_categories(technical_profile, findings)
         )
@@ -693,6 +731,7 @@ class AIUsageFlowRuleEngine:
         required_basis: AIUsageFlowClaim | None,
         coverage_limitations: list[str],
     ) -> AIUsageFlowClaim | None:
+        """Build present/absent control claims only when the relevant path is bounded."""
         refs = self._refs_for(findings, {signal_type})
         if refs:
             return self._claim(
@@ -721,6 +760,7 @@ class AIUsageFlowRuleEngine:
         claim: AIUsageFlowClaim,
         conflicts: list[dict[str, Any]],
     ) -> AIUsageFlowClaim:
+        """Penalize confidence and force CONFLICTED lifecycle for a disputed claim."""
         confidence, breakdown = calculate_claim_confidence(
             claim.claim_category,
             required_evidence_present=bool(claim.evidence_refs),
@@ -750,6 +790,7 @@ class AIUsageFlowRuleEngine:
         technical_profile: dict[str, Any] | None = None,
         evidence_report: dict[str, Any] | None = None,
     ) -> AIUsageFlow:
+        """Return a safe BLOCKED artifact when mandatory upstream inputs fail gates."""
         technical_profile = technical_profile or {}
         return AIUsageFlow(
             ai_usage_flow_id="blocked_ai_usage_flow",
@@ -780,6 +821,12 @@ class AIUsageFlowRuleEngine:
         findings: list[dict[str, Any]],
         uncertainty_reasons: list[str],
     ) -> dict[str, Any]:
+        """Build the business-facing summary from claims plus wizard-authoritative context.
+
+        Wizard answers provide business-process/purpose/affected-subject context;
+        technical facts such as automation, review, controls, and evidence-backed
+        material claim references remain derived from scanner claims.
+        """
         answers = wizard_profile.get("answers") if wizard_profile else {}
         answers = answers if isinstance(answers, dict) else {}
         material_claim_refs = [
@@ -850,6 +897,7 @@ class AIUsageFlowRuleEngine:
         }
 
     def _empty_summary(self, reasons: list[str]) -> dict[str, Any]:
+        """Return the conservative summary shape used for blocked flows."""
         return {
             "aiDetected": "unknown",
             "businessProcess": "UNKNOWN",
@@ -877,6 +925,7 @@ class AIUsageFlowRuleEngine:
         uncertainty_reasons: list[str],
         conflicts: list[dict[str, Any]],
     ) -> str:
+        """Derive flow readiness with conflicts/abstentions/uncertainty taking precedence."""
         if conflicts:
             return "CONFLICTED"
         if not claims or any(claim.lifecycle_state == "REJECTED" for claim in claims):
@@ -892,6 +941,7 @@ class AIUsageFlowRuleEngine:
         claims: list[AIUsageFlowClaim],
         uncertainty_reasons: list[str],
     ) -> float:
+        """Average material claim confidence and subtract bounded uncertainty penalty."""
         material = [
             claim.confidence
             for claim in claims
@@ -907,6 +957,7 @@ class AIUsageFlowRuleEngine:
         technical_profile: dict[str, Any],
         evidence_report: dict[str, Any],
     ) -> None:
+        """Validate upstream privacy flags and recursively inspect structured inputs."""
         for payload in (technical_profile, evidence_report):
             privacy_flags = payload.get("privacy_flags") or payload.get("privacyFlags")
             if isinstance(privacy_flags, dict):
@@ -922,6 +973,7 @@ class AIUsageFlowRuleEngine:
         )
 
     def _assert_output_safe(self, value: Any) -> None:
+        """Recursively reject raw source fields/text and strings that contain secrets."""
         if isinstance(value, dict):
             for key, nested_value in value.items():
                 if str(key) in {
@@ -946,6 +998,7 @@ class AIUsageFlowRuleEngine:
                 raise PrivacyAssertionError("AIUsageFlow contains unredacted secret")
 
     def _findings(self, evidence_report: dict[str, Any]) -> list[dict[str, Any]]:
+        """Merge and deduplicate supported finding collections from evidence payload."""
         payload = (
             evidence_report.get("evidence_payload")
             or evidence_report.get("evidencePayload")
@@ -983,6 +1036,7 @@ class AIUsageFlowRuleEngine:
     def _refs_for(
         self, findings: list[dict[str, Any]], signal_types: set[str]
     ) -> list[str]:
+        """Collect unique evidence references for a set of signal types."""
         refs: list[str] = []
         normalized = {signal.lower() for signal in signal_types}
         for finding in findings:
@@ -1001,11 +1055,13 @@ class AIUsageFlowRuleEngine:
     def _has_signal(
         self, findings: list[dict[str, Any]], signal_types: set[str]
     ) -> bool:
+        """Return whether any normalized finding matches the requested signal set."""
         normalized = {signal.lower() for signal in signal_types}
         return any(self._signal_type(finding) in normalized for finding in findings)
 
     @staticmethod
     def _signal_type(finding: dict[str, Any]) -> str:
+        """Normalize signal/finding/type aliases for deterministic rule matching."""
         return str(
             finding.get("signal_type")
             or finding.get("finding_type")
@@ -1014,6 +1070,7 @@ class AIUsageFlowRuleEngine:
         ).lower()
 
     def _path_resolved(self, findings: list[dict[str, Any]]) -> bool:
+        """Decide whether static evidence sufficiently resolves output-to-action flow."""
         if self._has_signal(findings, {"UNSUPPORTED_DYNAMIC_FLOW"}):
             return False
         if any(bool(finding.get("has_dynamic_call")) for finding in findings):
@@ -1041,6 +1098,7 @@ class AIUsageFlowRuleEngine:
         technical_profile: dict[str, Any],
         evidence_report: dict[str, Any],
     ) -> list[str]:
+        """Merge unique coverage limitations from profile and evidence artifacts."""
         limitations = self._list_field(technical_profile, "coverage_limitations")
         limitations.extend(self._list_field(technical_profile, "coverage_notes"))
         payload = (
@@ -1059,6 +1117,7 @@ class AIUsageFlowRuleEngine:
         technical_profile: dict[str, Any],
         findings: list[dict[str, Any]],
     ) -> list[str]:
+        """Merge output categories declared by profile and individual findings."""
         categories = set(self._list_field(technical_profile, "output_categories"))
         for finding in findings:
             category = finding.get("output_category") or finding.get("outputCategory")
@@ -1070,6 +1129,7 @@ class AIUsageFlowRuleEngine:
     def _claim_by_category(
         claims: list[AIUsageFlowClaim], category: str
     ) -> AIUsageFlowClaim | None:
+        """Return the first claim in a requested category."""
         return next((claim for claim in claims if claim.claim_category == category), None)
 
     @staticmethod
@@ -1079,6 +1139,7 @@ class AIUsageFlowRuleEngine:
         key: str,
         default: Any,
     ) -> Any:
+        """Read one value from a category claim or return the supplied default."""
         claim = next(
             (claim for claim in claims if claim.claim_category == category), None
         )
@@ -1087,9 +1148,11 @@ class AIUsageFlowRuleEngine:
         return default
 
     def _flow_id(self, technical_profile: dict[str, Any]) -> str:
+        """Derive a stable AIUsageFlow ID from the technical profile identifier."""
         return f"aiuf-{self._technical_profile_id(technical_profile) or 'unknown'}"
 
     def _technical_profile_id(self, technical_profile: dict[str, Any]) -> str:
+        """Resolve technical profile ID from explicit or generic artifact ID fields."""
         return self._str_field(
             technical_profile, "technical_profile_id"
         ) or self._str_field(technical_profile, "id")
@@ -1099,6 +1162,7 @@ class AIUsageFlowRuleEngine:
         technical_profile: dict[str, Any],
         evidence_report: dict[str, Any],
     ) -> str | None:
+        """Resolve the originating technical evidence report identifier."""
         return (
             self._str_field(technical_profile, "evidence_report_id")
             or self._str_field(evidence_report, "id")
@@ -1106,10 +1170,12 @@ class AIUsageFlowRuleEngine:
         )
 
     def _str_field(self, payload: dict[str, Any], key: str) -> str:
+        """Read a scalar field using snake_case or camelCase aliases."""
         value = payload.get(key) or payload.get(self._to_camel_case(key))
         return str(value) if value else ""
 
     def _list_field(self, payload: dict[str, Any], key: str) -> list[str]:
+        """Normalize a list field, projecting dictionary entries to stable IDs when possible."""
         value = payload.get(key) or payload.get(self._to_camel_case(key))
         if not isinstance(value, list):
             return []
@@ -1129,5 +1195,6 @@ class AIUsageFlowRuleEngine:
 
     @staticmethod
     def _to_camel_case(key: str) -> str:
+        """Convert an internal snake_case field name to its API camelCase alias."""
         parts = key.split("_")
         return parts[0] + "".join(part.title() for part in parts[1:])

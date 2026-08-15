@@ -1,3 +1,5 @@
+"""Load and validate worker, LLM, agentic, PBAC, and checkpoint configuration."""
+
 import os
 from dataclasses import dataclass
 
@@ -6,6 +8,8 @@ from dotenv import load_dotenv
 
 @dataclass(frozen=True)
 class LlmProviderConfig:
+    """Configuration for one ordered LLM provider candidate."""
+
     provider: str
     model: str
     api_key: str | None
@@ -14,6 +18,8 @@ class LlmProviderConfig:
 
 @dataclass(frozen=True)
 class LlmRuntimeConfig:
+    """Budget, timeout, and provider-fallback policy for LLM-assisted workers."""
+
     providers: tuple[LlmProviderConfig, ...] = ()
     max_tokens_per_call: int = 4096
     monthly_budget_usd: float = 100.0
@@ -30,11 +36,14 @@ class LlmRuntimeConfig:
 
     @property
     def enabled(self) -> bool:
+        """Return whether at least one LLM provider has been configured."""
         return len(self.providers) > 0
 
 
 @dataclass(frozen=True)
 class AgenticRuntimeConfig:
+    """Limits and dispatch settings for model-callable read-only agentic tools."""
+
     enabled: bool = False
     max_tool_calls: int = 8
     default_max_items: int = 25
@@ -46,11 +55,15 @@ class AgenticRuntimeConfig:
 
 @dataclass(frozen=True)
 class PbacPreflightConfig:
+    """Timeout settings for worker-side PBAC authorization preflight."""
+
     timeout_seconds: float = 5.0
 
 
 @dataclass(frozen=True)
 class WorkerConfig:
+    """Complete immutable runtime configuration shared by worker consumers."""
+
     rabbitmq_url: str
     rabbitmq_exchange: str
     nestjs_api_base_url: str
@@ -65,6 +78,14 @@ class WorkerConfig:
 
 
 def load_config() -> WorkerConfig:
+    """Load environment-backed worker configuration and validate required values.
+
+    Returns:
+        Fully parsed ``WorkerConfig`` including nested LLM/agentic/PBAC settings.
+
+    Raises:
+        RuntimeError: If required variables or typed optional settings are invalid.
+    """
     load_dotenv()
     missing = [
         v
@@ -111,6 +132,7 @@ def load_config() -> WorkerConfig:
 
 
 def _read_bool(name: str, default: bool) -> bool:
+    """Parse a conventional boolean environment variable or return its default."""
     value = os.getenv(name)
     if value is None:
         return default
@@ -123,6 +145,7 @@ def _read_bool(name: str, default: bool) -> bool:
 
 
 def _read_int(name: str, default: int) -> int:
+    """Parse an integer environment variable with a typed configuration error."""
     value = os.getenv(name)
     if value is None:
         return default
@@ -133,6 +156,7 @@ def _read_int(name: str, default: int) -> int:
 
 
 def _load_llm_runtime_config() -> LlmRuntimeConfig:
+    """Load ordered primary/fallback providers plus budget/fallback policy."""
     providers: list[LlmProviderConfig] = []
 
     primary_provider = _optional_text("LLM_PRIMARY_PROVIDER")
@@ -183,11 +207,13 @@ def _load_llm_runtime_config() -> LlmRuntimeConfig:
 
 
 def _provider_api_key(provider: str) -> str | None:
+    """Resolve a provider's credential from its supported environment variable."""
     env_name = _provider_api_key_env(provider)
     return _optional_text(env_name)
 
 
 def _provider_api_key_env(provider: str) -> str:
+    """Map a supported provider name to its credential environment variable."""
     normalized = provider.strip().lower()
     if normalized == "openai":
         return "OPENAI_API_KEY"
@@ -202,6 +228,7 @@ def _provider_api_key_env(provider: str) -> str:
 
 
 def _optional_text(name: str) -> str | None:
+    """Read and trim an optional text environment variable."""
     value = os.getenv(name)
     if value is None:
         return None
@@ -210,6 +237,7 @@ def _optional_text(name: str) -> str | None:
 
 
 def _read_float(name: str, default: float) -> float:
+    """Parse a float environment variable with a typed configuration error."""
     value = os.getenv(name)
     if value is None:
         return default
@@ -220,6 +248,7 @@ def _read_float(name: str, default: float) -> float:
 
 
 def _read_csv(name: str, default: tuple[str, ...]) -> tuple[str, ...]:
+    """Parse a comma-separated uppercase policy list, falling back when empty."""
     value = os.getenv(name)
     if value is None:
         return default

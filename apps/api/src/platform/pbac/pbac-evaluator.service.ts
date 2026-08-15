@@ -11,10 +11,19 @@ import type {
   PbacEvaluationContext,
 } from "./pbac.types.js";
 
+/**
+ * Evaluates a resolved PBAC context against policy organization, state gate, subject role, and granted actions.
+ */
 @Injectable()
 export class PbacEvaluatorService {
   private readonly logger = new Logger(PbacEvaluatorService.name);
 
+  /**
+   * Evaluates a PBAC request and fails closed when an unexpected evaluator error occurs.
+   *
+   * @param ctx - Authorization context containing subject, membership, policy, organization, and requested action.
+   * @returns Allow or deny decision with policy metadata and an optional denial reason.
+   */
   evaluate(ctx: PbacEvaluationContext): PbacDecisionResult {
     try {
       return this.doEvaluate(ctx);
@@ -31,6 +40,12 @@ export class PbacEvaluatorService {
     }
   }
 
+  /**
+   * Applies deterministic PBAC policy checks in fail-fast order.
+   *
+   * @param ctx - Fully resolved PBAC evaluation context.
+   * @returns The first applicable denial decision or a final allow decision.
+   */
   private doEvaluate(ctx: PbacEvaluationContext): PbacDecisionResult {
     const { policy } = ctx;
 

@@ -5,6 +5,9 @@ import { APP_GREETING_PROVIDER } from "./application/ports/app-greeting.provider
 import { StaticAppGreetingProvider } from "./infrastructure/providers/static-app-greeting.provider.js";
 import { AppController } from "./presentation/http/app.controller.js";
 
+/**
+ * Wires the root application greeting feature across presentation, application, and provider layers.
+ */
 @Module({
   controllers: [AppController],
   providers: [

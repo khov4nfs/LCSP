@@ -22,10 +22,19 @@ type HttpRequest = {
   headers?: Record<string, string | string[] | undefined>;
 };
 
+/**
+ * Converts uncaught HTTP/application exceptions into the API's standardized problem-result contract and logs failures by severity.
+ */
 @Catch()
 export class ProblemExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(ProblemExceptionFilter.name);
 
+  /**
+   * Handles an exception, derives HTTP/correlation metadata, and writes a normalized problem response.
+   *
+   * @param exception - Exception or arbitrary thrown value raised during request handling.
+   * @param host - Nest arguments host used to access the current HTTP request and response.
+   */
   catch(exception: unknown, host: ArgumentsHost) {
     const context = host.switchToHttp();
     const response = context.getResponse<HttpResponse>();
@@ -53,6 +62,12 @@ export class ProblemExceptionFilter implements ExceptionFilter {
   }
 }
 
+/**
+ * Converts an arbitrary exception body into a safe log string.
+ *
+ * @param body - Exception body or thrown value to format.
+ * @returns String representation suitable for logging.
+ */
 function formatExceptionBody(body: unknown): string {
   if (body === null || body === undefined) {
     return "null";
@@ -75,6 +90,14 @@ function formatExceptionBody(body: unknown): string {
   }
 }
 
+/**
+ * Preserves a valid problem result or wraps an unknown exception body in the default validation problem shape.
+ *
+ * @param body - Exception response body to normalize.
+ * @param correlationId - Correlation identifier attached to the normalized problem.
+ * @param status - HTTP status to expose in the response.
+ * @returns Standardized problem result.
+ */
 function toProblemResult(
   body: unknown,
   correlationId: string,
@@ -96,6 +119,12 @@ function toProblemResult(
   });
 }
 
+/**
+ * Extracts an HTTP status from supported exception shapes and defaults unknown errors to 500.
+ *
+ * @param exception - Thrown exception or arbitrary error value.
+ * @returns HTTP status code for the response.
+ */
 function getHttpStatus(exception: unknown): number {
   if (exception instanceof HttpException) {
     return exception.getStatus();
@@ -118,6 +147,12 @@ function getHttpStatus(exception: unknown): number {
   return HttpStatus.INTERNAL_SERVER_ERROR;
 }
 
+/**
+ * Reads the response body carried by a Nest HTTP exception.
+ *
+ * @param exception - Thrown value to inspect.
+ * @returns Nest exception response body, or null for non-HTTP exceptions.
+ */
 function getExceptionBody(exception: unknown): unknown {
   if (exception instanceof HttpException) {
     return exception.getResponse();
@@ -126,6 +161,13 @@ function getExceptionBody(exception: unknown): unknown {
   return null;
 }
 
+/**
+ * Resolves the correlation ID from an existing problem, the request header, or a generated UUID.
+ *
+ * @param body - Exception response body that may already contain problem correlation metadata.
+ * @param request - HTTP request whose correlation header may be reused.
+ * @returns Correlation identifier for logging and the response contract.
+ */
 function getCorrelationId(body: unknown, request: HttpRequest): string {
   if (isProblemResult(body) && body.problem.correlationId) {
     return body.problem.correlationId;
@@ -140,6 +182,12 @@ function getCorrelationId(body: unknown, request: HttpRequest): string {
   return randomUUID();
 }
 
+/**
+ * Checks whether a runtime value matches the minimal standardized problem-result shape.
+ *
+ * @param body - Value to inspect.
+ * @returns True when the value is a failed result containing a string problem code.
+ */
 function isProblemResult(body: unknown): body is ProblemResult<string> {
   return (
     typeof body === "object" &&

@@ -1,3 +1,5 @@
+"""Expose worker health and authenticated orchestration command endpoints over HTTP."""
+
 from __future__ import annotations
 
 import json
@@ -33,6 +35,8 @@ logger = get_logger(__name__)
 
 @dataclass(frozen=True)
 class RuntimeCommandResponse:
+    """HTTP status and JSON payload returned by a runtime command handler."""
+
     status_code: int
     payload: Mapping[str, object]
 
@@ -41,6 +45,8 @@ RuntimeCommandHandler = Callable[[dict[str, object], str | None], RuntimeCommand
 
 
 class _RuntimeHTTPServer(ThreadingHTTPServer):
+    """Threading HTTP server carrying worker health and command dependencies."""
+
     def __init__(
         self,
         server_address: tuple[str, int],
@@ -54,6 +60,7 @@ class _RuntimeHTTPServer(ThreadingHTTPServer):
         version: str,
         build_ref: str,
     ) -> None:
+        """Create the runtime server with immutable worker identity/config context."""
         super().__init__(server_address, handler)
         self.worker_name = worker_name
         self.rabbitmq_connected_provider = rabbitmq_connected_provider
@@ -65,9 +72,12 @@ class _RuntimeHTTPServer(ThreadingHTTPServer):
 
 
 class _RuntimeHandler(BaseHTTPRequestHandler):
+    """Serve health reads and authenticated runtime command POST requests."""
+
     server: _RuntimeHTTPServer
 
     def do_GET(self) -> None:  # noqa: N802
+        """Return health/capability metadata or 404 for unsupported GET paths."""
         if self.path != HEALTH_ENDPOINT:
             self.send_error(404)
             return
@@ -94,6 +104,7 @@ class _RuntimeHandler(BaseHTTPRequestHandler):
         self._write_json(HTTPStatus.OK if connected else HTTPStatus.SERVICE_UNAVAILABLE, payload)
 
     def do_POST(self) -> None:  # noqa: N802
+        """Authorize, parse, dispatch, and return a configured runtime command."""
         handler = self.server.command_handlers.get(self.path)
         if handler is None:
             self.send_error(404)
@@ -135,6 +146,7 @@ class _RuntimeHandler(BaseHTTPRequestHandler):
         self._write_json(response.status_code, dict(response.payload))
 
     def _read_json_body(self) -> dict[str, object] | None:
+        """Read an object-shaped JSON request body, returning ``None`` if invalid."""
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -147,6 +159,7 @@ class _RuntimeHandler(BaseHTTPRequestHandler):
         return parsed if isinstance(parsed, dict) else None
 
     def _is_authorized(self) -> bool:
+        """Validate the worker API key when the runtime server requires one."""
         expected = self.server.api_key
         if not expected:
             return True
@@ -154,6 +167,7 @@ class _RuntimeHandler(BaseHTTPRequestHandler):
         return isinstance(presented, str) and presented == expected
 
     def _write_json(self, status: int, payload: Mapping[str, object]) -> None:
+        """Write an HTTP JSON response with explicit content length/type headers."""
         body = json.dumps(payload).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
@@ -162,10 +176,13 @@ class _RuntimeHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def log_message(self, format: str, *args) -> None:  # noqa: A003
+        """Disable BaseHTTPRequestHandler's unstructured stderr access log."""
         return
 
 
 class HealthServer:
+    """Manage the background HTTP server used for worker health/orchestration."""
+
     def __init__(
         self,
         *,
@@ -178,6 +195,7 @@ class HealthServer:
         version: str = "dev",
         build_ref: str = "local",
     ) -> None:
+        """Configure server identity, health provider, commands, and build metadata."""
         self._worker_name = worker_name
         self._rabbitmq_connected_provider = rabbitmq_connected_provider
         self._requested_port = port
@@ -191,6 +209,7 @@ class HealthServer:
         self.port = port
 
     def start(self) -> None:
+        """Start the daemon HTTP server once and expose its actual bound port."""
         if self._server is not None:
             return
 
@@ -213,6 +232,7 @@ class HealthServer:
         self.port = int(server.server_address[1])
 
     def stop(self) -> None:
+        """Shutdown the HTTP server and join its daemon thread if running."""
         if self._server is None:
             return
 

@@ -75,13 +75,30 @@ interface InternalTargetedReanalysisCreateBody extends TargetedReanalysisRequest
   userId?: string;
 }
 
+/**
+ * Exposes PBAC-protected scan status, manual rerun, and targeted-reanalysis endpoints for assessments.
+ */
 @Controller("assessments/:assessmentId/scan-jobs")
 export class ScanController {
+  /**
+   * Creates the scan controller with CQRS read and mutation dispatchers.
+   *
+   * @param queryBus - CQRS query bus used to retrieve scan-job status.
+   * @param commandBus - CQRS command bus used to request reruns and targeted reanalysis.
+   */
   constructor(
     private readonly queryBus: QueryBus,
     private readonly commandBus: CommandBus,
   ) {}
 
+  /**
+   * Retrieves one scan-job status view under the caller's organization and PBAC scope.
+   *
+   * @param assessmentId - Assessment identifier from the route.
+   * @param scanJobId - Scan-job identifier from the route.
+   * @param request - Authenticated request containing PBAC and correlation context.
+   * @returns The standard result envelope containing normalized scan-job status and guidance.
+   */
   @Get(":scanJobId")
   @UseGuards(PbacGuard)
   @RequireAction(PBAC_ACTIONS.scanRead)
@@ -105,6 +122,14 @@ export class ScanController {
     );
   }
 
+  /**
+   * Requests a manual rerun for a pinned repository snapshot.
+   *
+   * @param assessmentId - Assessment identifier from the route.
+   * @param payload - Snapshot, idempotency key, and optional business reason for the rerun.
+   * @param request - Authenticated request containing PBAC and correlation context.
+   * @returns The standard result envelope containing the queued or deduplicated rerun job.
+   */
   @Post("rerun")
   @HttpCode(201)
   @UseGuards(PbacGuard)
@@ -128,6 +153,16 @@ export class ScanController {
     );
   }
 
+  /**
+   * Requests bounded targeted reanalysis against an accepted technical evidence report.
+   *
+   * @param assessmentId - Assessment identifier associated with the evidence artifact.
+   * @param evidenceReportId - Input technical evidence report that must match the request body artifact version.
+   * @param body - Unknown HTTP body validated into the bounded targeted-reanalysis contract.
+   * @param request - Authenticated request containing PBAC and correlation context.
+   * @returns The standard result envelope containing agentic-tool queue metadata.
+   * @throws When the request body violates the strict targeted-reanalysis contract.
+   */
   @Post(":assessmentId/evidence-reports/:evidenceReportId/targeted-reanalysis")
   @HttpCode(200)
   @UseGuards(PbacGuard)
@@ -159,12 +194,28 @@ export class ScanController {
   }
 }
 
+/**
+ * Exposes worker-authenticated scan callback and internal targeted-reanalysis creation endpoints.
+ */
 @Controller("internal/scan-jobs")
 export class InternalScanController {
   private readonly logger = new Logger(InternalScanController.name);
 
+  /**
+   * Creates the internal scan controller with command dispatch support.
+   *
+   * @param commandBus - CQRS command bus used to process worker callbacks and create reanalysis requests.
+   */
   constructor(private readonly commandBus: CommandBus) {}
 
+  /**
+   * Accepts a scanner-worker callback for one repository scan job.
+   *
+   * @param scanJobId - Scan-job identifier from the callback route.
+   * @param payload - Scanner callback payload containing terminal status and sanitized evidence.
+   * @param correlationId - Optional upstream correlation identifier; a UUID is generated when absent.
+   * @returns The standard result envelope containing callback acceptance metadata.
+   */
   @Post(":scanJobId/callback")
   @HttpCode(200)
   @UseGuards(WorkerApiKeyGuard)
@@ -184,6 +235,14 @@ export class InternalScanController {
     );
   }
 
+  /**
+   * Creates targeted reanalysis from the trusted worker/runtime path using a synthetic manager PBAC context.
+   *
+   * @param body - Internal assessment/organization identity and bounded targeted-reanalysis input.
+   * @param correlationId - Optional upstream correlation identifier; a UUID is generated when absent.
+   * @returns The standard result envelope containing queued reanalysis metadata.
+   * @throws When the bounded reanalysis input is invalid.
+   */
   @Post("targeted-reanalysis")
   @HttpCode(202)
   @UseGuards(WorkerApiKeyGuard)
@@ -265,6 +324,15 @@ const TARGETED_REANALYSIS_KEYS = new Set([
   "idempotencyKey",
 ]);
 
+/**
+ * Strictly validates and normalizes the public/internal targeted-reanalysis request body before it reaches the command handler.
+ *
+ * @param value - Unknown request body to validate.
+ * @param evidenceReportId - Evidence report identifier that the input artifact version must exactly match.
+ * @param correlationId - Correlation identifier attached to validation problems.
+ * @returns Normalized analyzer, exclusive scope, reason requirement, and idempotency input.
+ * @throws An invalid-scope problem when keys, formats, scope shape, duplicates, or configured limits are invalid.
+ */
 function parseTargetedReanalysisInput(
   value: unknown,
   evidenceReportId: string,
@@ -353,10 +421,22 @@ function parseTargetedReanalysisInput(
   };
 }
 
+/**
+ * Checks whether an unknown request value is a non-array object record.
+ *
+ * @param value - Unknown value to inspect.
+ * @returns True when the value is record-like.
+ */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+/**
+ * Reads an array only when every element is already a string, without coercion.
+ *
+ * @param value - Unknown scope field to inspect.
+ * @returns A copied string array, or null when the field is absent/non-array/contains non-strings.
+ */
 function readStringArray(value: unknown): string[] | null {
   if (!Array.isArray(value)) {
     return null;
@@ -364,6 +444,12 @@ function readStringArray(value: unknown): string[] | null {
   return value.every((item) => typeof item === "string") ? [...value] : null;
 }
 
+/**
+ * Throws the standardized targeted-reanalysis request validation problem.
+ *
+ * @param correlationId - Correlation identifier attached to the problem response.
+ * @throws Always throws the invalid-scope unprocessable-entity problem.
+ */
 function invalidTargetedReanalysisRequest(correlationId: string): never {
   throw problemException(
     SCAN_ERROR_CODES.targetedReanalysisInvalidScope,
@@ -380,13 +466,28 @@ interface TargetedReanalysisTerminalPayload {
   output_evidence_report_id?: string;
 }
 
+/**
+ * Exposes worker-authenticated targeted-reanalysis lifecycle operations used to fetch, claim, retry, and terminally transition queued work.
+ */
 @Controller("internal/targeted-reanalysis")
 export class InternalTargetedReanalysisController {
+  /**
+   * Creates the internal lifecycle controller with reanalysis persistence and transition-audit support.
+   *
+   * @param prisma - Prisma service used to coordinate request/checkpoint state transitions and capacity checks.
+   * @param auditWriter - Audit writer used to record worker lifecycle transitions.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditWriter: AuditWriterService,
   ) {}
 
+  /**
+   * Retrieves the worker-facing state and immutable execution inputs for one targeted-reanalysis request.
+   *
+   * @param requestId - Targeted-reanalysis request identifier.
+   * @returns The standard result envelope containing the request record or null when absent.
+   */
   @Get(":requestId")
   @UseGuards(WorkerApiKeyGuard)
   async getRequest(@Param("requestId") requestId: string) {
@@ -410,6 +511,12 @@ export class InternalTargetedReanalysisController {
     return resultEnvelope(request);
   }
 
+  /**
+   * Atomically claims a dispatched request for worker execution while enforcing the per-organization running limit.
+   *
+   * @param requestId - Dispatched targeted-reanalysis request to claim.
+   * @returns The standard result envelope indicating whether the request transitioned to running.
+   */
   @Post(":requestId/claim")
   @HttpCode(200)
   @UseGuards(WorkerApiKeyGuard)
@@ -484,6 +591,13 @@ export class InternalTargetedReanalysisController {
     return resultEnvelope({ claimed: claimed.claimed });
   }
 
+  /**
+   * Moves a dispatched/running request into a worker-reported terminal failure or DLQ state and synchronizes its checkpoint.
+   *
+   * @param requestId - Targeted-reanalysis request to transition.
+   * @param payload - Terminal state plus optional safe failure code and output evidence report identifier.
+   * @returns The standard result envelope indicating whether the transition was applied.
+   */
   @Post(":requestId/terminal")
   @HttpCode(200)
   @UseGuards(WorkerApiKeyGuard)
@@ -531,6 +645,12 @@ export class InternalTargetedReanalysisController {
     return resultEnvelope({ transitioned: request.count === 1 });
   }
 
+  /**
+   * Returns a running request to dispatched state for retry scheduling and updates its checkpoint accordingly.
+   *
+   * @param requestId - Running targeted-reanalysis request to requeue.
+   * @returns The standard result envelope indicating whether the request was requeued.
+   */
   @Post(":requestId/requeue")
   @HttpCode(200)
   @UseGuards(WorkerApiKeyGuard)
@@ -559,6 +679,12 @@ export class InternalTargetedReanalysisController {
     return resultEnvelope({ requeued: request.count === 1 });
   }
 
+  /**
+   * Retrieves the tenant/assessment/correlation fields required to audit an internal lifecycle transition.
+   *
+   * @param requestId - Targeted-reanalysis request whose audit context should be resolved.
+   * @returns Minimal audit context, or null when the request does not exist.
+   */
   private async findRequestAuditContext(requestId: string): Promise<{
     organizationId: string;
     assessmentId: string;
@@ -574,6 +700,14 @@ export class InternalTargetedReanalysisController {
     });
   }
 
+  /**
+   * Records a worker-driven targeted-reanalysis lifecycle transition without exposing sensitive payload details.
+   *
+   * @param requestId - Targeted-reanalysis request whose transition is being audited.
+   * @param request - Organization, assessment, and correlation context for the request.
+   * @param eventType - Stable scan event type describing the lifecycle transition.
+   * @returns A promise that resolves after the audit event is written.
+   */
   private async writeTransitionAudit(
     requestId: string,
     request: {

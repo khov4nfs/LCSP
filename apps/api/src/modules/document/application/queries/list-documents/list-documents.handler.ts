@@ -22,13 +22,29 @@ const DOWNLOAD_URL_TTL_MS = 5 * 60 * 1000;
 const GENERIC_BLOCKED_REASON =
   "Document generation is blocked until the required review items are resolved.";
 
+/**
+ * Lists assessment documents with full/redacted PBAC visibility, business-safe blocked reasons, and signed ready-artifact downloads.
+ */
 @QueryHandler(ListDocumentsQuery)
 export class ListDocumentsHandler implements IQueryHandler<ListDocumentsQuery> {
+  /**
+   * Creates the handler with document/classification persistence and signed-download support.
+   *
+   * @param prisma - Prisma service used to load document requests and their classification guardrails.
+   * @param storage - Service used to create short-lived signed download URLs.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: DocumentStorageService,
   ) {}
 
+  /**
+   * Applies PBAC read semantics, hides final reports from redacted readers, and projects visible document request status.
+   *
+   * @param query - Assessment, tenant, PBAC scope/action, and correlation context.
+   * @returns Visible document status records with optional signed download metadata.
+   * @throws When the selected read action is unauthorized or the redacted caller is outside the assessment scope.
+   */
   async execute(query: ListDocumentsQuery) {
     const allowRedactedRead =
       query.selectedAction === DOCUMENT_ACTIONS.readRedacted;
@@ -119,6 +135,14 @@ export class ListDocumentsHandler implements IQueryHandler<ListDocumentsQuery> {
     return results;
   }
 
+  /**
+   * Creates a signed download URL when a ready document has a persisted artifact URL.
+   *
+   * @param assessmentId - Assessment bound into the signed token.
+   * @param documentRequestId - Document request bound into the signed token.
+   * @param documentUrl - Persisted backing artifact URL.
+   * @returns Signed URL and expiration metadata, or null when no artifact URL exists.
+   */
   private buildDownload(
     assessmentId: string,
     documentRequestId: string,
@@ -140,6 +164,12 @@ export class ListDocumentsHandler implements IQueryHandler<ListDocumentsQuery> {
     };
   }
 
+  /**
+   * Converts a worker blocked reason into business-safe text.
+   *
+   * @param reason - Persisted worker blocked reason.
+   * @returns Safe business-facing blocked reason.
+   */
   private toBusinessBlockedReason(reason: string | null): string {
     if (!reason || !reason.trim()) {
       return GENERIC_BLOCKED_REASON;
@@ -148,12 +178,24 @@ export class ListDocumentsHandler implements IQueryHandler<ListDocumentsQuery> {
     return this.looksTechnical(reason) ? GENERIC_BLOCKED_REASON : reason.trim();
   }
 
+  /**
+   * Detects implementation details that should be hidden from document consumers.
+   *
+   * @param reason - Raw blocked reason to inspect.
+   * @returns True when the reason appears technical and should be replaced.
+   */
   private looksTechnical(reason: string): boolean {
     return /(exception|stack|trace|\/|\\|\.ts\b|\.js\b|sql\b|timeout|503|500)/i.test(
       reason,
     );
   }
 
+  /**
+   * Throws a tenant/scope-safe document-not-found problem.
+   *
+   * @param correlationId - Correlation identifier attached to the problem response.
+   * @throws Always throws the document-not-found problem.
+   */
   private notFound(correlationId: string): never {
     throw problemException(
       DOCUMENT_ERROR_CODES.documentNotFound,
@@ -164,6 +206,12 @@ export class ListDocumentsHandler implements IQueryHandler<ListDocumentsQuery> {
     );
   }
 
+  /**
+   * Throws a standardized PBAC-denied problem for unsupported document read actions.
+   *
+   * @param correlationId - Correlation identifier attached to the problem response.
+   * @throws Always throws the PBAC-denied problem.
+   */
   private forbidden(correlationId: string): never {
     throw problemException(AUTH_ERROR_CODES.pbacDenied, correlationId, {
       status: HttpStatus.FORBIDDEN,

@@ -15,13 +15,29 @@ interface PreflightRequestBody {
   correlationId?: string;
 }
 
+/**
+ * Exposes the internal worker preflight endpoint used to re-evaluate PBAC immediately before task execution.
+ */
 @Controller("internal/pbac")
 export class PbacPreflightController {
+  /**
+   * Creates the controller with PBAC evaluation and worker authentication dependencies.
+   *
+   * @param preflightService - Service that re-evaluates worker task authorization.
+   * @param configService - Configuration source for the expected worker API key.
+   */
   constructor(
     private readonly preflightService: PbacPreflightService,
     private readonly configService: ConfigService,
   ) {}
 
+  /**
+   * Authenticates the worker and performs PBAC preflight evaluation for one queued action.
+   *
+   * @param body - Worker-provided user, organization, action, and correlation context.
+   * @param apiKey - Worker API key supplied through the `x-worker-api-key` header.
+   * @returns Standardized result envelope containing the authorization decision and reason code.
+   */
   @Post("preflight")
   async preflight(
     @Body() body: PreflightRequestBody,
@@ -43,6 +59,12 @@ export class PbacPreflightController {
     });
   }
 
+  /**
+   * Validates the worker API key using a timing-safe comparison.
+   *
+   * @param provided - API key supplied by the calling worker.
+   * @throws A standardized unauthorized problem when the configured or supplied key is missing or invalid.
+   */
   private assertWorkerApiKey(provided?: string): void {
     const expected = this.configService.get<string>("worker.apiKey", "");
 
@@ -58,6 +80,13 @@ export class PbacPreflightController {
   }
 }
 
+/**
+ * Compares two UTF-8 secret values without exposing early length-dependent comparison timing.
+ *
+ * @param a - Supplied secret value.
+ * @param b - Expected secret value.
+ * @returns True when the two values have identical bytes.
+ */
 function timingSafeEqual(a: string, b: string): boolean {
   const bufA = Buffer.from(a, "utf8");
   const bufB = Buffer.from(b, "utf8");

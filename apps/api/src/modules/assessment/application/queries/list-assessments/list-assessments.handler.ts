@@ -27,14 +27,30 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
+/**
+ * Produces the caller-visible assessment list with fail-closed PBAC scope filtering and wizard-status enrichment.
+ */
 @QueryHandler(ListAssessmentsQuery)
 export class ListAssessmentsHandler implements IQueryHandler<ListAssessmentsQuery> {
+  /**
+   * Creates the list handler with assessment persistence and wizard-profile access.
+   *
+   * @param assessmentRepository - Repository used for paginated assessment filtering.
+   * @param prisma - Prisma service used to load wizard status for returned assessments.
+   */
   constructor(
     @Inject(ASSESSMENT_REPOSITORY)
     private readonly assessmentRepository: AssessmentRepository,
     private readonly prisma: PrismaService,
   ) {}
 
+  /**
+   * Validates pagination/status filters, applies role-aware visibility, and returns enriched assessment summaries.
+   *
+   * @param query - Organization, PBAC scope, pagination, status, and correlation context for the list request.
+   * @returns Paginated assessment summaries visible to the caller.
+   * @throws An invalid-request problem when an unknown assessment status is supplied.
+   */
   async execute(query: ListAssessmentsQuery): Promise<AssessmentListDto> {
     const page = Math.max(DEFAULT_PAGE, query.page ?? DEFAULT_PAGE);
     const pageSize = Math.min(
@@ -107,6 +123,12 @@ export class ListAssessmentsHandler implements IQueryHandler<ListAssessmentsQuer
     };
   }
 
+  /**
+   * Loads wizard status for a returned assessment page in one query.
+   *
+   * @param assessmentIds - Assessment identifiers whose wizard statuses should be resolved.
+   * @returns Map from assessment identifier to normalized wizard status.
+   */
   private async loadWizardStatuses(
     assessmentIds: string[],
   ): Promise<Map<string, WizardStatus>> {
@@ -121,6 +143,12 @@ export class ListAssessmentsHandler implements IQueryHandler<ListAssessmentsQuer
   }
 }
 
+/**
+ * Checks whether a requested assessment status is part of the supported contract enum.
+ *
+ * @param status - Raw status filter supplied by the caller.
+ * @returns True when the status matches a known assessment status code.
+ */
 function isKnownStatus(
   status: string,
 ): status is (typeof ASSESSMENT_STATUS_CODES)[keyof typeof ASSESSMENT_STATUS_CODES] {

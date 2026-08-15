@@ -1,3 +1,5 @@
+"""Map model-callable tools to PBAC actions and authorize every invocation."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -34,10 +36,14 @@ TOOL_PBAC_ACTIONS: dict[str, tuple[str, ...]] = {
 
 @dataclass(frozen=True)
 class AgenticAuthorizationResult:
+    """PBAC action that authorized a model-requested tool call."""
+
     action: str
 
 
 class AgenticToolAuthorizer(Protocol):
+    """Authorization contract applied before agentic tool dispatch."""
+
     def authorize(
         self,
         *,
@@ -45,11 +51,13 @@ class AgenticToolAuthorizer(Protocol):
         user_id: str,
         organization_id: str,
         correlationId: UUID,
-    ) -> AgenticAuthorizationResult: ...
+    ) -> AgenticAuthorizationResult:
+        """Authorize one tool request within a user/organization context."""
+        ...
 
 
 class ApiPbacToolAuthorizer:
-    """Re-evaluate user PBAC through the existing trusted worker preflight API."""
+    """Re-evaluate user PBAC through the trusted worker preflight API."""
 
     def __init__(
         self,
@@ -59,6 +67,17 @@ class ApiPbacToolAuthorizer:
         timeout_seconds: float = 5.0,
         client: httpx.Client | None = None,
     ) -> None:
+        """Create the API-backed authorizer.
+
+        Args:
+            base_url: Base URL for the NestJS API.
+            worker_api_key: Internal worker credential used for PBAC preflight.
+            timeout_seconds: Maximum preflight request duration.
+            client: Optional injected HTTP client for connection reuse/testing.
+
+        Raises:
+            ValueError: If the API URL or worker credential is empty.
+        """
         if not base_url.strip():
             raise ValueError("base_url is required")
         if not worker_api_key.strip():
@@ -76,6 +95,26 @@ class ApiPbacToolAuthorizer:
         organization_id: str,
         correlationId: UUID,
     ) -> AgenticAuthorizationResult:
+        """Authorize a cataloged model-callable tool through PBAC.
+
+        Multiple actions may be acceptable for a tool, such as full or redacted
+        evidence-read authority. The first explicit ALLOW wins; every other
+        outcome fails closed using typed validation errors safe for LLM-facing
+        orchestration.
+
+        Args:
+            tool_name: Registered agentic tool name.
+            user_id: User/principal requesting the tool call.
+            organization_id: Tenant boundary for the request.
+            correlationId: End-to-end trace identifier.
+
+        Returns:
+            The PBAC action that produced an ALLOW decision.
+
+        Raises:
+            AgenticToolValidationError: If the tool is unmapped, context is
+                incomplete, preflight fails, or all allowed actions are denied.
+        """
         actions = TOOL_PBAC_ACTIONS.get(tool_name)
         if not actions:
             raise AgenticToolValidationError("AGENTIC_TOOL_PBAC_ACTION_UNREGISTERED")
@@ -109,6 +148,15 @@ class ApiPbacToolAuthorizer:
         action: str,
         correlationId: UUID,
     ) -> tuple[str, str | None]:
+        """Call PBAC preflight and validate the response contract strictly.
+
+        Returns:
+            A ``(decision, reason_code)`` tuple with decision ALLOW or DENY.
+
+        Raises:
+            AgenticToolValidationError: On transport, HTTP, JSON, or response
+                contract failures.
+        """
         payload = {
             "user_id": user_id,
             "organization_id": organization_id,

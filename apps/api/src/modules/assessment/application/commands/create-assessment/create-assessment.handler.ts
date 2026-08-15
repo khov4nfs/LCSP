@@ -33,8 +33,19 @@ import {
 import type { CreateAssessmentDto } from "../../contracts/assessment/create-assessment.contract.js";
 import { CreateAssessmentCommand } from "./create-assessment.command.js";
 
+/**
+ * Creates manager-owned assessments and atomically persists the assessment, audit record, and outbox event.
+ */
 @CommandHandler(CreateAssessmentCommand)
 export class CreateAssessmentHandler implements ICommandHandler<CreateAssessmentCommand> {
+  /**
+   * Creates the handler with assessment persistence, audit, outbox, and transactional dependencies.
+   *
+   * @param assessmentRepository - Repository used to persist the assessment aggregate.
+   * @param auditWriter - Audit writer used for allow/deny assessment events.
+   * @param outboxRepository - Transactional outbox used to publish the assessment-created event.
+   * @param prisma - Prisma service used to coordinate the creation transaction.
+   */
   constructor(
     @Inject(ASSESSMENT_REPOSITORY)
     private readonly assessmentRepository: AssessmentRepository,
@@ -43,6 +54,13 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
     private readonly prisma: PrismaService,
   ) {}
 
+  /**
+   * Authorizes, validates, creates, and transactionally persists a new assessment.
+   *
+   * @param command - Assessment input plus manager-only PBAC and correlation context.
+   * @returns The external assessment-creation DTO.
+   * @throws When PBAC authorization fails or the requested name/description is invalid.
+   */
   async execute(
     command: CreateAssessmentCommand,
   ): Promise<CreateAssessmentDto> {
@@ -107,6 +125,13 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
     return AssessmentMapper.toCreateDto(assessment, command.correlationId);
   }
 
+  /**
+   * Enforces the manager-only assessment-create action and records a deny audit event before rejecting unauthorized requests.
+   *
+   * @param command - Creation command containing the evaluated PBAC context.
+   * @returns A promise that resolves only when the manager/action/policy requirements are satisfied.
+   * @throws A PBAC-denied problem when the authorization context is incomplete or not manager-approved.
+   */
   private async assertManagerOnlyAction(
     command: CreateAssessmentCommand,
   ): Promise<void> {
@@ -141,6 +166,13 @@ export class CreateAssessmentHandler implements ICommandHandler<CreateAssessment
     });
   }
 
+  /**
+   * Validates assessment name and optional description length constraints before domain creation.
+   *
+   * @param command - Creation command whose user-provided fields should be validated.
+   * @returns Nothing when all request fields are valid.
+   * @throws An invalid-request problem when the name is empty/too long or the description exceeds its limit.
+   */
   private assertValid(command: CreateAssessmentCommand): void {
     const isNameValid =
       typeof command.name === "string" &&

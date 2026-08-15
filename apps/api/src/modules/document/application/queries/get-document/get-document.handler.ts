@@ -24,13 +24,29 @@ const DOWNLOAD_URL_TTL_MS = 5 * 60 * 1000;
 const GENERIC_BLOCKED_REASON =
   "Document generation is blocked until the required review items are resolved.";
 
+/**
+ * Resolves one PBAC-filtered document status, hides restricted report types, and issues signed downloads for ready artifacts.
+ */
 @QueryHandler(GetDocumentQuery)
 export class GetDocumentHandler implements IQueryHandler<GetDocumentQuery> {
+  /**
+   * Creates the handler with document/classification persistence and signed-download support.
+   *
+   * @param prisma - Prisma service used to retrieve document request and classification state.
+   * @param storage - Service used to create short-lived signed download URLs.
+   */
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: DocumentStorageService,
   ) {}
 
+  /**
+   * Applies full/redacted read semantics, retrieves one document request, and projects safe status/download metadata.
+   *
+   * @param query - Assessment/document identity, tenant scope, PBAC scope/action, and correlation context.
+   * @returns Document status DTO with business-safe blocked reason and optional signed download.
+   * @throws When the read action is unauthorized or the document is outside the caller's permitted scope.
+   */
   async execute(query: GetDocumentQuery): Promise<DocumentStatusDto> {
     const allowRedactedRead =
       query.selectedAction === PBAC_ACTIONS.documentReadRedacted;
@@ -111,6 +127,14 @@ export class GetDocumentHandler implements IQueryHandler<GetDocumentQuery> {
     };
   }
 
+  /**
+   * Creates a signed download URL when a ready document has a persisted artifact URL.
+   *
+   * @param assessmentId - Assessment bound into the signed token.
+   * @param documentRequestId - Document request bound into the signed token.
+   * @param documentUrl - Persisted backing artifact URL.
+   * @returns Signed URL and expiration timestamp, or null when no artifact URL exists.
+   */
   private buildDownload(
     assessmentId: string,
     documentRequestId: string,
@@ -132,6 +156,12 @@ export class GetDocumentHandler implements IQueryHandler<GetDocumentQuery> {
     };
   }
 
+  /**
+   * Throws the tenant/scope-safe document-not-found problem.
+   *
+   * @param correlationId - Correlation identifier attached to the problem response.
+   * @throws Always throws the document-not-found problem.
+   */
   private notFound(correlationId: string): never {
     throw problemException(
       DOCUMENT_ERROR_CODES.documentNotFound,
@@ -142,6 +172,12 @@ export class GetDocumentHandler implements IQueryHandler<GetDocumentQuery> {
     );
   }
 
+  /**
+   * Throws the standardized PBAC-denied problem for unauthorized document read modes.
+   *
+   * @param correlationId - Correlation identifier attached to the problem response.
+   * @throws Always throws the PBAC-denied problem.
+   */
   private forbidden(correlationId: string): never {
     throw problemException(AUTH_ERROR_CODES.pbacDenied, correlationId, {
       status: HttpStatus.FORBIDDEN,
@@ -149,6 +185,12 @@ export class GetDocumentHandler implements IQueryHandler<GetDocumentQuery> {
   }
 }
 
+/**
+ * Converts a worker blocked reason into business-safe text by hiding empty or technical implementation details.
+ *
+ * @param reason - Persisted worker blocked reason.
+ * @returns Safe business-facing blocked reason.
+ */
 function toBusinessBlockedReason(reason: string | null): string {
   if (!reason || !reason.trim()) {
     return GENERIC_BLOCKED_REASON;
@@ -157,12 +199,24 @@ function toBusinessBlockedReason(reason: string | null): string {
   return looksTechnical(reason) ? GENERIC_BLOCKED_REASON : reason.trim();
 }
 
+/**
+ * Detects stack traces, file paths, status codes, and other implementation details that should not reach document consumers.
+ *
+ * @param reason - Raw blocked reason to inspect.
+ * @returns True when the reason appears technical and should be replaced.
+ */
 function looksTechnical(reason: string): boolean {
   return /(exception|stack|trace|\/|\\|\.ts\b|\.js\b|sql\b|timeout|503|500)/i.test(
     reason,
   );
 }
 
+/**
+ * Determines whether a document request status represents a terminal state with a completion timestamp.
+ *
+ * @param status - Normalized document request status.
+ * @returns True for ready, failed, and blocked statuses; false while queued or generating.
+ */
 function isCompletedStatus(status: DocumentRequestStatus): boolean {
   switch (status) {
     case DOCUMENT_REQUEST_STATUSES.ready:

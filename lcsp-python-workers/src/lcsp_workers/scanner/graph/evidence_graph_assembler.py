@@ -14,6 +14,7 @@ class EvidenceGraphAssembler:
 
     @staticmethod
     def _graph_safe_coverage_note(note: str) -> str:
+        """Collapse a coverage note to one bounded line before graph persistence."""
         first_line = str(note).splitlines()[0].strip()
         if len(first_line) > MAX_COVERAGE_REASON_LENGTH:
             return f"{first_line[:MAX_COVERAGE_REASON_LENGTH]}... [truncated]"
@@ -34,6 +35,26 @@ class EvidenceGraphAssembler:
         coverage_notes: Iterable[str],
         config_hash: str = "",
     ) -> ScanGraph:
+        """Join scan findings, code structure, packages, and coverage gaps into a graph.
+
+        The graph is intentionally evidence-oriented rather than a raw code graph: it
+        stores references, normalized labels, and bounded metadata so downstream legal
+        or reconciliation logic can traverse relationships without receiving source.
+
+        Args:
+            scan_job_id: Scan job that owns the graph.
+            snapshot_id: Immutable repository snapshot identifier.
+            commit_sha: Commit pinned by the snapshot.
+            workspace_path: Extracted workspace used only to normalize graph paths.
+            technical_findings: AI invocation and technical evidence records.
+            structural_facts: Parsed functions/classes/control structures linked to findings.
+            package_dependencies: Normalized dependency evidence.
+            coverage_notes: Explicit analysis limitations that become coverage-gap nodes.
+            config_hash: Optional scanner configuration hash for graph provenance.
+
+        Returns:
+            A sanitized ``ScanGraph`` with provenance and stable evidence references.
+        """
         builder = EvidenceGraphBuilder(
             str(workspace_path),
             scan_job_id=scan_job_id,
@@ -48,6 +69,7 @@ class EvidenceGraphAssembler:
         invocations: dict[str, str] = {}
 
         def file_node(path: str) -> str | None:
+            """Return one deduplicated FILE node and attach it to the repository."""
             if path not in files:
                 files[path] = builder.add_node("FILE", path, path)  # type: ignore[assignment]
                 if repo_id and files[path]:

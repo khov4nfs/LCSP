@@ -1,3 +1,5 @@
+"""Provide the shared RabbitMQ consumer lifecycle, retry policy, PBAC gate, and runtime command bridge."""
+
 import json
 import os
 import signal
@@ -32,12 +34,20 @@ class NonRetryableWorkerError(RuntimeError):
 
 
 class ConsumerBase:
+    """Base class for one-at-a-time RabbitMQ workers with fail-closed authorization.
+
+    Subclasses provide queue/routing identifiers and implement ``handle``. The
+    base owns process shutdown, health/runtime HTTP, PBAC preflight, ack/nack,
+    delayed retries, and runtime bridges used by orchestration commands.
+    """
+
     queue_name: str  # Override in subclass
     routing_key: str  # Override in subclass
     requires_pbac: bool = True  # Override to False for system-only workers
     retry_delays_seconds: tuple[int, ...] = ()
 
     def __init__(self, config, pbac_client=None):
+        """Create a consumer with runtime configuration and optional PBAC client."""
         self._config = config
         self._pbac = pbac_client
         self._shutdown = False
@@ -45,10 +55,11 @@ class ConsumerBase:
         self._health_server: HealthServer | None = None
 
     def handle(self, message: dict, correlationId: str) -> None:
-        """Override with domain logic."""
+        """Process one decoded message; subclasses must implement domain behavior."""
         raise NotImplementedError
 
     def run(self) -> None:
+        """Start health/runtime HTTP, connect RabbitMQ, consume, and shut down cleanly."""
         signal.signal(signal.SIGTERM, self._handle_sigterm)
         signal.signal(signal.SIGINT, self._handle_sigterm)
         conn = None
@@ -109,6 +120,7 @@ class ConsumerBase:
                 self._health_server = None
 
     def _on_message(self, ch, method, properties, body) -> None:
+        """Apply correlation/PBAC gates, decode a message, and choose ack/retry/DLQ."""
         headers = properties.headers or {}
         cid = extract_from_amqp_headers(headers)
         set_correlationId(cid)
@@ -163,6 +175,7 @@ class ConsumerBase:
         *,
         attempts: int,
     ) -> None:
+        """Republish a failed delivery with retry metadata or dead-letter at the cap."""
         if attempts >= self._config.max_retries:
             logger.error(
                 "HANDLER_RETRY_EXHAUSTED",
@@ -205,6 +218,7 @@ class ConsumerBase:
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
 
     def _declare_retry_queues(self, channel) -> None:
+        """Declare optional TTL queues that dead-letter deliveries back to the main queue."""
         for delay_seconds in self.retry_delays_seconds:
             channel.queue_declare(
                 queue=f"{self.queue_name}.retry.{delay_seconds}s",
@@ -217,15 +231,18 @@ class ConsumerBase:
             )
 
     def _retry_queue_name(self, attempts: int) -> str:
+        """Select the configured delayed retry queue or fall back to the main queue."""
         if attempts < len(self.retry_delays_seconds):
             return f"{self.queue_name}.retry.{self.retry_delays_seconds[attempts]}s"
         return self.queue_name
 
     def _handle_sigterm(self, signum, frame) -> None:
+        """Request graceful shutdown after the current broker event completes."""
         logger.info("SIGTERM_RECEIVED", msg="Finishing current message then stopping")
         self._shutdown = True
 
     def _get_attempt_count(self, headers: dict) -> int:
+        """Normalize retry attempts from LCSP or RabbitMQ dead-letter headers."""
         explicit = headers.get(_RETRY_HEADER)
         if explicit is not None:
             try:
@@ -242,16 +259,19 @@ class ConsumerBase:
 
     @staticmethod
     def _string_property(properties, name: str) -> str | None:
+        """Return a pika message property only when it is a string."""
         value = getattr(properties, name, None)
         return value if isinstance(value, str) else None
 
     def _is_rabbitmq_connected(self) -> bool:
+        """Report channel connectivity to the runtime health endpoint."""
         channel = self._channel
         if channel is None:
             return False
         return bool(getattr(channel, "is_open", False))
 
     def _read_health_port(self) -> int:
+        """Parse HEALTH_PORT and fall back when absent, invalid, or out of range."""
         raw = os.getenv("HEALTH_PORT")
         if raw is None:
             return DEFAULT_HEALTH_PORT
@@ -267,6 +287,7 @@ class ConsumerBase:
         return port
 
     def _build_runtime_command_handlers(self):
+        """Bind runtime HTTP command paths to trusted internal API bridges."""
         api_client = WorkerApiClient(
             self._config.nestjs_api_base_url,
             self._config.worker_api_key,
@@ -301,6 +322,7 @@ class ConsumerBase:
         payload: dict[str, object],
         correlationId: str | None,
     ) -> RuntimeCommandResponse:
+        """Bridge a runtime targeted-reanalysis command to the NestJS lifecycle API."""
         request_payload = dict(payload)
         if correlationId and "correlationId" not in request_payload:
             request_payload["correlationId"] = correlationId
@@ -328,6 +350,7 @@ class ConsumerBase:
         payload: dict[str, object],
         correlationId: str | None,
     ) -> RuntimeCommandResponse:
+        """Validate idempotency then invoke the legal-corpus recovery driver."""
         idempotency_key = payload.get("idempotencyKey")
         if not isinstance(idempotency_key, str) or not idempotency_key.strip():
             return RuntimeCommandResponse(
@@ -362,6 +385,7 @@ class ConsumerBase:
         payload: dict[str, object],
         correlationId: str | None,
     ) -> RuntimeCommandResponse:
+        """Validate corpus version and bridge resume-waiting-runs to the API."""
         corpus_version_id = payload.get("corpusVersionId")
         if not isinstance(corpus_version_id, str) or not corpus_version_id.strip():
             return RuntimeCommandResponse(
