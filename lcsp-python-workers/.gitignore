@@ -73,3 +73,6 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Local outputs and generated data
+output/
