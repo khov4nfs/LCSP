@@ -38,6 +38,31 @@ test("conflict list payload sanitizer accepts valid shape", () => {
         score_explanation: "Scope differs",
         status: "PENDING",
         evidence_refs: ["e1", "e2"],
+        explanation_basis: {
+          affected_field: "decision_role",
+          confidence: "medium",
+          materiality_reason:
+            "The manager answer and technical evidence differ on autonomous decisions.",
+          score_priority_explanation:
+            "This score prioritizes review effort and is not a legal risk, compliance status, or final classification.",
+          source_values: {
+            manager_answer: "No autonomous decisions",
+            technical_evidence: "Agent-like workflow detected",
+          },
+          source_refs: {
+            wizard_answer: "answers.decision_role",
+            ai_usage_flow_claim: "claim-agent",
+          },
+          evidence_context: [
+            {
+              evidence_ref: "e1",
+              redacted_context:
+                "Scanner found an agent-like workflow. Source details are redacted.",
+              coverage_limitations:
+                "Evidence covers workflow shape only, not legal classification.",
+            },
+          ],
+        },
         created_at: "2026-07-22T10:00:00Z",
       },
     ],

@@ -82,6 +82,12 @@ def test_t01_external_llm_mismatch_creates_evidence_contradiction() -> None:
     assert conflicts[0].conflicting_source_refs["wizard_answer"] == (
         "answers.external_llm_usage"
     )
+    assert conflicts[0].explanation_basis["affected_field"] == "model_invocation"
+    assert conflicts[0].explanation_basis["source_values"] == {
+        "manager_answer": "No external AI use",
+        "technical_evidence": "External model invocation detected",
+    }
+    assert "legal risk" in conflicts[0].explanation_basis["score_priority_explanation"]
 
 
 @pytest.mark.p0
@@ -128,6 +134,12 @@ def test_t03_high_confidence_low_coverage_claim_creates_unverifiable() -> None:
     assert [conflict.conflict_type for conflict in conflicts] == ["unverifiable"]
     assert 0.0 <= conflicts[0].conflict_score <= 1.0
     assert conflicts[0].contradiction_severity == "partial"
+    assert (
+        conflicts[0].explanation_basis["evidence_context"][0][
+            "coverage_limitations"
+        ]
+        == "Evidence coverage is limited and needs Manager review before the claim is treated as settled."
+    )
 
 
 @pytest.mark.p0

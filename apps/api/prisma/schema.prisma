@@ -669,6 +669,7 @@ model ConflictRecord {
   conflictScore    Float
   scoreExplanation String
   evidenceRefs     Json
+  explanationBasis Json?
   status           ConflictRecordStatus @default(PENDING)
   resolvedAt       DateTime?
   resolvedById     String?

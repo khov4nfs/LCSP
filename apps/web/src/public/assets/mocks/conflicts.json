@@ -5,6 +5,32 @@
       "conflict_type": "DATA_RETENTION",
       "conflict_score": 0.82,
       "score_explanation": "Retention period is absent from the submitted evidence.",
+      "explanation_basis": {
+        "affected_field": "data_retention",
+        "confidence": "high",
+        "materiality_reason": "Manager answers and technical evidence differ on the retention period used by the AI workflow.",
+        "score_priority_explanation": "This score prioritizes Manager review effort and is not a legal risk, compliance status, or final classification.",
+        "source_values": {
+          "manager_answer": "Retention period not provided",
+          "technical_evidence": "Retention behavior detected"
+        },
+        "source_refs": {
+          "wizard_answer": "answers.data_retention",
+          "ai_usage_flow_claim": "claim-retention"
+        },
+        "evidence_context": [
+          {
+            "evidence_ref": "EV-104",
+            "redacted_context": "A technical evidence reference supports this conflict. Raw source, secrets, and full prompts are redacted.",
+            "coverage_limitations": "Evidence supports this review point, but it does not provide legal risk, compliance status, or final classification."
+          },
+          {
+            "evidence_ref": "EV-119",
+            "redacted_context": "A technical evidence reference supports this conflict. Raw source, secrets, and full prompts are redacted.",
+            "coverage_limitations": "Coverage is not fully described; use this evidence as review context only."
+          }
+        ]
+      },
       "status": "PENDING",
       "evidence_refs": ["EV-104", "EV-119"],
       "created_at": "2026-07-29T09:30:00.000Z"
@@ -14,6 +40,27 @@
       "conflict_type": "HUMAN_OVERSIGHT",
       "conflict_score": 0.64,
       "score_explanation": "Escalation ownership requires a manager decision.",
+      "explanation_basis": {
+        "affected_field": "human_oversight",
+        "confidence": "medium",
+        "materiality_reason": "Manager answers and technical evidence differ on who reviews AI-supported decisions.",
+        "score_priority_explanation": "This score prioritizes Manager review effort and is not a legal risk, compliance status, or final classification.",
+        "source_values": {
+          "manager_answer": "Human support flow",
+          "technical_evidence": "Escalation ownership unclear"
+        },
+        "source_refs": {
+          "wizard_answer": "answers.human_oversight",
+          "ai_usage_flow_claim": "claim-oversight"
+        },
+        "evidence_context": [
+          {
+            "evidence_ref": "EV-108",
+            "redacted_context": "A technical evidence reference supports this conflict. Raw source, secrets, and full prompts are redacted.",
+            "coverage_limitations": "Coverage is not fully described; use this evidence as review context only."
+          }
+        ]
+      },
       "status": "PENDING",
       "evidence_refs": ["EV-108"],
       "created_at": "2026-07-29T09:45:00.000Z"

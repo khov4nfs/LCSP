@@ -27,6 +27,7 @@ class ConflictRecord:
     evidence_refs: list[str]
     conflict_score: float
     score_explanation: str
+    explanation_basis: dict[str, Any]
     confidence: str
     contradiction_severity: str
     source_versions: dict[str, Any]
@@ -161,6 +162,7 @@ class ConflictDetector:
         claim_id = self._claim_id(claim)
         flow_id = self._flow_id(ai_usage_flow)
         evidence_refs = self._evidence_refs(claim)
+        evidence_context = self._evidence_context(claim, evidence_refs)
         return ConflictRecord(
             conflict_id=f"{flow_id}:{conflict_type}:{claim_id}",
             conflict_type=conflict_type,
@@ -182,6 +184,35 @@ class ConflictDetector:
                 evidence_confidence=confidence,
                 contradiction_severity=severity,
             ),
+            explanation_basis={
+                "affected_field": str(
+                    claim.get("claim_field") or claim.get("claimField") or "unknown"
+                ),
+                "confidence": confidence,
+                "materiality_reason": self._materiality_reason(conflict_type),
+                "score_priority_explanation": (
+                    "This score prioritizes Manager review effort and is not a legal "
+                    "risk, compliance status, or final classification."
+                ),
+                "source_values": {
+                    "manager_answer": self._manager_answer_summary(
+                        wizard_profile, wizard_answer_ref
+                    ),
+                    "technical_evidence": self._technical_evidence_summary(
+                        conflict_type, claim
+                    ),
+                },
+                "source_refs": {
+                    "ai_usage_flow_claim": claim_id,
+                    "wizard_profile": str(
+                        wizard_profile.get("id")
+                        or wizard_profile.get("wizard_profile_id")
+                        or "wizard_profile"
+                    ),
+                    "wizard_answer": wizard_answer_ref,
+                },
+                "evidence_context": evidence_context,
+            },
             confidence=confidence,
             contradiction_severity=severity,
             source_versions={
@@ -358,6 +389,122 @@ class ConflictDetector:
         """Normalize a claim's evidence-reference list to strings."""
         refs = claim.get("evidence_refs") or claim.get("evidenceRefs") or []
         return [str(ref) for ref in refs]
+
+    def _materiality_reason(self, conflict_type: str) -> str:
+        """Return a business-language reason for why the conflict needs review."""
+        if conflict_type == "evidence_contradiction":
+            return (
+                "Manager answers and technical evidence differ on whether external "
+                "AI is used."
+            )
+        if conflict_type == "scope_mismatch":
+            return (
+                "Manager answers and technical evidence differ on whether the "
+                "system makes autonomous decisions."
+            )
+        if conflict_type == "unverifiable":
+            return (
+                "The claim has high confidence but the supporting evidence coverage "
+                "is limited."
+            )
+        return (
+            "The AI usage record and Manager answers differ on a material review "
+            "point."
+        )
+
+    def _manager_answer_summary(
+        self, wizard_profile: dict[str, Any], wizard_answer_ref: str
+    ) -> str | None:
+        """Summarize the relevant wizard answer without copying free-form content."""
+        answers = self._answers(wizard_profile)
+        if wizard_answer_ref == "answers.external_llm_usage":
+            value = (
+                answers["external_llm_usage"]
+                if "external_llm_usage" in answers
+                else answers.get("externalLlmUsage")
+            )
+            if self._is_false(value):
+                return "No external AI use"
+            if self._is_true(value):
+                return "External AI use"
+        if wizard_answer_ref == "answers.decision_role":
+            value = answers.get("decision_role") or answers.get("decisionRole")
+            if str(value or "").lower() == "no_autonomous_decision":
+                return "No autonomous decisions"
+            if value:
+                return "Decision role provided by Manager"
+        return None
+
+    def _technical_evidence_summary(
+        self, conflict_type: str, claim: dict[str, Any]
+    ) -> str:
+        """Summarize technical evidence in business terms."""
+        if conflict_type == "evidence_contradiction":
+            return "External model invocation detected"
+        if conflict_type == "scope_mismatch":
+            return "Agent-like workflow detected"
+        if conflict_type == "unverifiable":
+            return "High-confidence claim with limited evidence coverage"
+        field = str(claim.get("claim_field") or claim.get("claimField") or "claim")
+        return f"Technical evidence supports {field}"
+
+    def _evidence_context(
+        self, claim: dict[str, Any], evidence_refs: list[str]
+    ) -> list[dict[str, str]]:
+        """Build redacted evidence context and coverage limits for each ref."""
+        ref_details = claim.get("evidence_ref_details") or claim.get("evidenceRefDetails")
+        details_by_ref: dict[str, dict[str, Any]] = {}
+        if isinstance(ref_details, list):
+            for item in ref_details:
+                if isinstance(item, dict):
+                    ref = str(
+                        item.get("evidence_ref")
+                        or item.get("evidenceRef")
+                        or item.get("ref")
+                        or ""
+                    )
+                    if ref:
+                        details_by_ref[ref] = item
+
+        contexts: list[dict[str, str]] = []
+        for evidence_ref in evidence_refs:
+            detail = details_by_ref.get(evidence_ref, {})
+            coverage = str(
+                detail.get("coverage")
+                or detail.get("coverage_level")
+                or detail.get("coverageLevel")
+                or claim.get("evidence_coverage")
+                or claim.get("evidenceCoverage")
+                or "unknown"
+            ).lower()
+            contexts.append(
+                {
+                    "evidence_ref": evidence_ref,
+                    "redacted_context": (
+                        "A technical evidence reference supports this conflict. "
+                        "Raw source, secrets, and full prompts are redacted."
+                    ),
+                    "coverage_limitations": self._coverage_limitations(coverage),
+                }
+            )
+        return contexts
+
+    def _coverage_limitations(self, coverage: str) -> str:
+        """Explain coverage limits without upgrading the score to legal risk."""
+        if coverage in LOW_COVERAGE_MARKERS:
+            return (
+                "Evidence coverage is limited and needs Manager review before the "
+                "claim is treated as settled."
+            )
+        if coverage in {"high", "full", "broad"}:
+            return (
+                "Evidence supports this review point, but it does not provide legal "
+                "risk, compliance status, or final classification."
+            )
+        return (
+            "Coverage is not fully described; use this evidence as review context "
+            "only."
+        )
 
     def _is_false(self, value: Any) -> bool:
         """Normalize boolean/string representations of a negative answer."""

@@ -1,6 +1,10 @@
+---
+baseline_commit: c871b095244694d88bd4eb9c8b7f7b19ed83c37d
+---
+
 # Story 5.2: Explain Conflict Score and Evidence Basis
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -27,9 +31,9 @@ As a Manager, I want conflict score and conflict explanations, so that I underst
 
 ## Tasks / Subtasks
 
-- [ ] Compute conflict score with business-language explanation and evidence/materiality rationale. (AC: 1)
-- [ ] Expose redacted evidence context and coverage limitations in review view. (AC: 2)
-- [ ] Persist score explanation separately from legal risk or compliance labels. (AC: 3)
+- [x] Compute conflict score with business-language explanation and evidence/materiality rationale. (AC: 1)
+- [x] Expose redacted evidence context and coverage limitations in review view. (AC: 2)
+- [x] Persist score explanation separately from legal risk or compliance labels. (AC: 3)
 
 ## Dev Notes
 
@@ -160,7 +164,33 @@ GPT-5 Codex
 - Converted planning-derived developer packet into official execution artifact for dev cycle.
 - Status set to `ready-for-dev` in `docs/implementation-artifacts/sprint-status.yaml`.
 - Story retains planning authority references and scope guardrails for downstream `dev-story` work.
+- Added `ConflictRecord.explanationBasis` persistence so score explanation, materiality rationale, source summaries, confidence, and evidence coverage limits stay separate from legal risk/compliance/classification labels.
+- Extended the conflict callback/list contracts and Manager conflict card to surface affected field, source values, evidence refs, redacted evidence context, confidence, materiality reason, and review-priority score copy.
+- Added worker, API, web sanitizer, mock, and i18n coverage for the business-language explanation basis.
+- Validation passed: `pnpm --filter @lcsp/api build`, `pnpm run test:web`, and `lcsp-python-workers/.venv/bin/python -m pytest lcsp-python-workers/tests/test_conflict_detection_worker.py`.
+- Validation blocked by local environment: API e2e could not start because Docker daemon was unavailable; root typecheck is blocked by stale `.next` validator references to `mock-evidence`; `check:contracts` reports unrelated pre-existing literal violations outside this story.
 
 ### File List
 
 - docs/implementation-artifacts/5-2-explain-conflict-score-and-evidence-basis.md
+- docs/implementation-artifacts/sprint-status.yaml
+- apps/api/prisma/schema.prisma
+- apps/api/prisma/migrations/20260815090000_add_conflict_explanation_basis/migration.sql
+- apps/api/src/modules/reconciliation/application/commands/accept-conflict/accept-conflict.handler.ts
+- apps/api/src/modules/reconciliation/application/contracts/reconciliation/conflict-detection-callback.contract.ts
+- apps/api/src/modules/reconciliation/application/contracts/reconciliation/conflict-list.contract.ts
+- apps/api/src/modules/reconciliation/application/queries/list-conflicts/list-conflicts.handler.ts
+- apps/api/test/list-conflicts.e2e-spec.ts
+- apps/web/src/features/reconciliation/components/molecules/conflict-card.tsx
+- apps/web/src/lib/api/conflict-client.ts
+- apps/web/src/public/assets/mocks/conflicts.json
+- apps/web/tests/conflict-client.test.ts
+- lcsp-python-workers/src/lcsp_workers/intelligence/conflict_detector.py
+- lcsp-python-workers/tests/test_conflict_detection_worker.py
+- packages/i18n/src/locales/en/pages.ts
+- packages/i18n/src/locales/vi/pages.ts
+- packages/i18n/src/types.ts
+
+### Change Log
+
+- 2026-08-15: Implemented Story 5.2 conflict score explanation and evidence basis surface; story moved to review.

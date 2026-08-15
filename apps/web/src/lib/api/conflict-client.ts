@@ -15,9 +15,31 @@ export type ConflictSummary = {
   conflict_type: string;
   conflict_score: number;
   score_explanation: string;
+  explanation_basis: ConflictExplanationBasis;
   status: ConflictStatus;
   evidence_refs: string[];
   created_at: string;
+};
+
+export type ConflictExplanationBasis = {
+  affected_field: string;
+  confidence: string;
+  materiality_reason: string;
+  score_priority_explanation: string;
+  source_values: ConflictSourceValues;
+  source_refs: Record<string, string>;
+  evidence_context: ConflictEvidenceContext[];
+};
+
+export type ConflictSourceValues = {
+  manager_answer: string | null;
+  technical_evidence: string | null;
+};
+
+export type ConflictEvidenceContext = {
+  evidence_ref: string;
+  redacted_context: string;
+  coverage_limitations: string;
 };
 
 export type ConflictListResult = {
@@ -302,16 +324,21 @@ function projectConflictSummary(payload: unknown): ConflictSummary | null {
     conflict_type?: unknown;
     conflict_score?: unknown;
     score_explanation?: unknown;
+    explanation_basis?: unknown;
     status?: unknown;
     evidence_refs?: unknown;
     created_at?: unknown;
   };
+  const explanationBasis = projectConflictExplanationBasis(
+    candidate.explanation_basis,
+  );
 
   if (
     typeof candidate.conflict_id !== "string" ||
     typeof candidate.conflict_type !== "string" ||
     typeof candidate.conflict_score !== "number" ||
     typeof candidate.score_explanation !== "string" ||
+    explanationBasis === null ||
     typeof candidate.status !== "string" ||
     !Array.isArray(candidate.evidence_refs) ||
     !candidate.evidence_refs.every((item) => typeof item === "string") ||
@@ -325,8 +352,128 @@ function projectConflictSummary(payload: unknown): ConflictSummary | null {
     conflict_type: candidate.conflict_type,
     conflict_score: candidate.conflict_score,
     score_explanation: candidate.score_explanation,
+    explanation_basis: explanationBasis,
     status: candidate.status,
     evidence_refs: candidate.evidence_refs,
     created_at: candidate.created_at,
   };
+}
+
+function projectConflictExplanationBasis(
+  payload: unknown,
+): ConflictExplanationBasis | null {
+  if (typeof payload !== "object" || payload === null) {
+    return null;
+  }
+
+  const candidate = payload as {
+    affected_field?: unknown;
+    confidence?: unknown;
+    materiality_reason?: unknown;
+    score_priority_explanation?: unknown;
+    source_values?: unknown;
+    source_refs?: unknown;
+    evidence_context?: unknown;
+  };
+  const sourceValues = projectConflictSourceValues(candidate.source_values);
+  const sourceRefs = projectStringRecord(candidate.source_refs);
+  const evidenceContext = projectEvidenceContext(candidate.evidence_context);
+
+  if (
+    typeof candidate.affected_field !== "string" ||
+    typeof candidate.confidence !== "string" ||
+    typeof candidate.materiality_reason !== "string" ||
+    typeof candidate.score_priority_explanation !== "string" ||
+    sourceValues === null ||
+    sourceRefs === null ||
+    evidenceContext === null
+  ) {
+    return null;
+  }
+
+  return {
+    affected_field: candidate.affected_field,
+    confidence: candidate.confidence,
+    materiality_reason: candidate.materiality_reason,
+    score_priority_explanation: candidate.score_priority_explanation,
+    source_values: sourceValues,
+    source_refs: sourceRefs,
+    evidence_context: evidenceContext,
+  };
+}
+
+function projectConflictSourceValues(
+  payload: unknown,
+): ConflictSourceValues | null {
+  if (typeof payload !== "object" || payload === null) {
+    return null;
+  }
+  const candidate = payload as {
+    manager_answer?: unknown;
+    technical_evidence?: unknown;
+  };
+  if (
+    !isNullableString(candidate.manager_answer) ||
+    !isNullableString(candidate.technical_evidence)
+  ) {
+    return null;
+  }
+
+  return {
+    manager_answer: candidate.manager_answer ?? null,
+    technical_evidence: candidate.technical_evidence ?? null,
+  };
+}
+
+function projectEvidenceContext(
+  payload: unknown,
+): ConflictEvidenceContext[] | null {
+  if (!Array.isArray(payload)) {
+    return null;
+  }
+  const contexts = payload.map((item) => {
+    if (typeof item !== "object" || item === null) {
+      return null;
+    }
+    const candidate = item as {
+      evidence_ref?: unknown;
+      redacted_context?: unknown;
+      coverage_limitations?: unknown;
+    };
+    if (
+      typeof candidate.evidence_ref !== "string" ||
+      typeof candidate.redacted_context !== "string" ||
+      typeof candidate.coverage_limitations !== "string"
+    ) {
+      return null;
+    }
+    return {
+      evidence_ref: candidate.evidence_ref,
+      redacted_context: candidate.redacted_context,
+      coverage_limitations: candidate.coverage_limitations,
+    };
+  });
+
+  return contexts.every((item) => item !== null)
+    ? (contexts as ConflictEvidenceContext[])
+    : null;
+}
+
+function projectStringRecord(payload: unknown): Record<string, string> | null {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    Array.isArray(payload)
+  ) {
+    return null;
+  }
+  const entries = Object.entries(payload);
+  if (!entries.every((entry) => typeof entry[1] === "string")) {
+    return null;
+  }
+  return Object.fromEntries(entries) as Record<string, string>;
+}
+
+function isNullableString(value: unknown): value is string | null | undefined {
+  return value === null || value === undefined || typeof value === "string";
 }
