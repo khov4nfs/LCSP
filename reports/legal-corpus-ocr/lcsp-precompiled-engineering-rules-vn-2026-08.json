@@ -1,0 +1,6357 @@
+{
+  "bundleSchemaVersion": "1.0.0",
+  "bundleId": "VN-AI-ENGINEERING-RULES-2026-08-PRECOMPILED",
+  "generatedAt": "2026-08-16T12:30:15.374243+07:00",
+  "engineeringRuleSchemaVersion": "1.0.0",
+  "compilerVersion": "engineering-rule-compiler/1.0.0",
+  "promptVersion": "legal-to-engineering/v1",
+  "compilerModel": "precompiled:chatgpt-gpt-5.6-sol",
+  "legalCorpusVersionHint": "VN-LEGAL-2026-08",
+  "sources": [
+    {
+      "documentId": "LAW-134-2025-QH15",
+      "sourceSha256": "sha256:ced80bf1fd45a576a785994da3471d9a2fbdc54e799216e0c9dba5da62d45af7",
+      "sourceEffectStatus": "Còn hiệu lực"
+    },
+    {
+      "documentId": "LAW-71-2025-QH15",
+      "sourceSha256": "sha256:b3b40d0b88b9570038ab2a1e7f1674c81833a0406215ca4ee7cd62f1897842fd",
+      "sourceEffectStatus": "Hết hiệu lực một phần"
+    }
+  ],
+  "repealPolicy": {
+    "authorityChunkId": "LAW-134-2025-QH15::art-33",
+    "excludedLaw71Bases": [
+      "LAW-71-2025-QH15::art-3::cl-9",
+      "LAW-71-2025-QH15::art-4::cl-7",
+      "LAW-71-2025-QH15::art-12::cl-6",
+      "LAW-71-2025-QH15::art-34::cl-2::pt-đ",
+      "LAW-71-2025-QH15::chapter-4 (Articles 41-45)"
+    ]
+  },
+  "importPolicy": {
+    "approvedLegalRuleRequired": true,
+    "approvedCorpusRequired": true,
+    "exactFingerprintRequired": true,
+    "fullPrimaryCitationCoverageRequired": true,
+    "sourceHashMatchRequired": true,
+    "cacheTarget": "ChromaDB collection lcsp_engineering_rules_v1"
+  },
+  "templates": [
+    {
+      "templateId": "VN134_ART4_2_HUMAN_AUTHORITY",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-4::cl-2"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-4::cl-2": "sha256:71a4620cf14c7f1653b3e9ec36fb224b50033f4102aa64dad7f79773bc07bc1f",
+        "LAW-134-2025-QH15::art-4": "sha256:043aebd9323592db044fb868eccf826e5fb71ad0d799de741eb2c2b5c6da8b2f"
+      },
+      "concept": "HUMAN_AUTHORITY_AND_CONTROL",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "MAINTAIN_HUMAN_CONTROL_AND_INTERVENTION"
+      },
+      "investigationGoals": [
+        "Trace AI output to consequential actions.",
+        "Determine whether human review/intervention exists before final action.",
+        "Identify bypass or autonomous-final-action paths."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "HUMAN_REVIEW",
+        "HUMAN_OVERRIDE",
+        "BUSINESS_ACTION",
+        "APPROVAL",
+        "REJECTION"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_to_action",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY"
+          ],
+          "stopNodeTypes": [
+            "BUSINESS_ACTION",
+            "APPROVAL",
+            "REJECTION"
+          ],
+          "semanticTypes": []
+        },
+        {
+          "name": "find_human_control",
+          "startNodeTypes": [
+            "BUSINESS_ACTION",
+            "APPROVAL",
+            "REJECTION"
+          ],
+          "direction": "BACKWARD",
+          "followEdges": [
+            "CALLS",
+            "TRIGGERS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY",
+            "APPROVES",
+            "REJECTS"
+          ],
+          "stopNodeTypes": [
+            "HUMAN_REVIEW",
+            "HUMAN_OVERRIDE"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "review",
+        "approve",
+        "override",
+        "manual",
+        "human",
+        "intervention",
+        "autoApprove",
+        "autoReject"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_OUTPUT_PATH",
+        "DOWNSTREAM_ACTION_PATH",
+        "HUMAN_CONTROL_STATE"
+      ],
+      "supportingEvidence": [
+        "HUMAN_REVIEW_PATH",
+        "HUMAN_OVERRIDE_PATH"
+      ],
+      "negativeEvidence": [
+        "AI_OUTPUT_TO_FINAL_ACTION_WITHOUT_HUMAN_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "DYNAMIC_DISPATCH",
+        "RUNTIME_ONLY_APPROVAL",
+        "EXTERNAL_REVIEW_SYSTEM"
+      ]
+    },
+    {
+      "templateId": "VN134_ART4_3_FAIRNESS_ACCOUNTABILITY",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-4::cl-3"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-4::cl-3": "sha256:16f018db5d73ed88632a01ddfd4489abc56cf224d516dd69fa80fe0eb039fc38",
+        "LAW-134-2025-QH15::art-4": "sha256:043aebd9323592db044fb868eccf826e5fb71ad0d799de741eb2c2b5c6da8b2f"
+      },
+      "concept": "FAIRNESS_TRANSPARENCY_ACCOUNTABILITY",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "SUPPORT_FAIRNESS_NON_DISCRIMINATION_TRANSPARENCY_AND_ACCOUNTABILITY"
+      },
+      "investigationGoals": [
+        "Trace AI outputs into ranking, recommendation, approval, rejection or status change.",
+        "Identify affected business actions and subjects where evidenced.",
+        "Preserve limitations instead of inferring legal effect."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT",
+        "AI_MODEL_INVOCATION"
+      ],
+      "targetNodeTypes": [
+        "RANKING",
+        "RECOMMENDATION",
+        "REJECTION",
+        "APPROVAL",
+        "STATUS_CHANGE",
+        "BUSINESS_ACTION"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_decision_effect",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY"
+          ],
+          "stopNodeTypes": [
+            "RANKING",
+            "RECOMMENDATION",
+            "REJECTION",
+            "APPROVAL",
+            "STATUS_CHANGE",
+            "BUSINESS_ACTION"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "score",
+        "rank",
+        "recommend",
+        "approve",
+        "reject",
+        "eligibility",
+        "decision",
+        "status"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_EFFECT_PATH",
+        "CONSEQUENTIAL_ACTION"
+      ],
+      "supportingEvidence": [
+        "AFFECTED_DATA_CATEGORY",
+        "HUMAN_REVIEW_PATH"
+      ],
+      "negativeEvidence": [
+        "UNCONTROLLED_CONSEQUENTIAL_AI_ACTION"
+      ],
+      "unresolvedConditions": [
+        "LEGAL_SIGNIFICANCE_REQUIRES_VERIFIED_BUSINESS_CONTEXT"
+      ]
+    },
+    {
+      "templateId": "VN134_ART6_2A_HEALTH",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-6::cl-2::pt-a"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-6::cl-2::pt-a": "sha256:da74df59db02c2b00c0e0607b3131bdc70f9a78fa0ed63ea9b066f4f39fa50b2",
+        "LAW-134-2025-QH15::art-6::cl-2": "sha256:d4b781fbf8faf86e68ceb8ed5af2bc6989af429aa5bbb5f2ec14577dbb58d1eb"
+      },
+      "concept": "HEALTH_AI_SAFETY_DATA_PROTECTION",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "APPLY_STRICTER_RISK_CONTROL_FOR_HEALTH_AI"
+      },
+      "investigationGoals": [
+        "Trace data sources and transformations into AI.",
+        "Classify personal/sensitive-data paths.",
+        "Identify storage, external egress, validation and sanitization controls."
+      ],
+      "startingNodeTypes": [
+        "PERSONAL_DATA",
+        "SENSITIVE_DATA",
+        "AI_INPUT"
+      ],
+      "targetNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "AI_PROVIDER",
+        "EXTERNAL_API",
+        "DATABASE"
+      ],
+      "edgeStrategies": [
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_data_to_ai_or_external",
+          "startNodeTypes": [
+            "PERSONAL_DATA",
+            "SENSITIVE_DATA",
+            "AI_INPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "AI_PROVIDER",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "dataset",
+        "personal data",
+        "pii",
+        "sensitive",
+        "training",
+        "validation",
+        "sanitize",
+        "redact",
+        "retention"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "DATA_CATEGORY",
+        "DATA_LINEAGE"
+      ],
+      "supportingEvidence": [
+        "VALIDATION_CONTROL",
+        "SANITIZATION_CONTROL",
+        "STORAGE_OR_EGRESS_PATH"
+      ],
+      "negativeEvidence": [
+        "SENSITIVE_DATA_EGRESS_WITHOUT_EVIDENCED_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "LEGAL_BASIS_NOT_DETERMINABLE_FROM_CODE",
+        "CONTRACT_OR_CONSENT_REQUIRES_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART6_2B_EDUCATION",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-6::cl-2::pt-b"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-6::cl-2::pt-b": "sha256:89cb323c53988e5341bebf288c20d0cdf45faceeb74b3b024e984a8586697c3a",
+        "LAW-134-2025-QH15::art-6::cl-2": "sha256:d4b781fbf8faf86e68ceb8ed5af2bc6989af429aa5bbb5f2ec14577dbb58d1eb"
+      },
+      "concept": "EDUCATION_AI_RISK_CONTROL",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "APPLY_STRICTER_RISK_CONTROL_FOR_EDUCATION_AI"
+      },
+      "investigationGoals": [
+        "Trace AI outputs into ranking, recommendation, approval, rejection or status change.",
+        "Identify affected business actions and subjects where evidenced.",
+        "Preserve limitations instead of inferring legal effect."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT",
+        "AI_MODEL_INVOCATION"
+      ],
+      "targetNodeTypes": [
+        "RANKING",
+        "RECOMMENDATION",
+        "REJECTION",
+        "APPROVAL",
+        "STATUS_CHANGE",
+        "BUSINESS_ACTION"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_decision_effect",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY"
+          ],
+          "stopNodeTypes": [
+            "RANKING",
+            "RECOMMENDATION",
+            "REJECTION",
+            "APPROVAL",
+            "STATUS_CHANGE",
+            "BUSINESS_ACTION"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "score",
+        "rank",
+        "recommend",
+        "approve",
+        "reject",
+        "eligibility",
+        "decision",
+        "status"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_EFFECT_PATH",
+        "CONSEQUENTIAL_ACTION"
+      ],
+      "supportingEvidence": [
+        "AFFECTED_DATA_CATEGORY",
+        "HUMAN_REVIEW_PATH"
+      ],
+      "negativeEvidence": [
+        "UNCONTROLLED_CONSEQUENTIAL_AI_ACTION"
+      ],
+      "unresolvedConditions": [
+        "LEGAL_SIGNIFICANCE_REQUIRES_VERIFIED_BUSINESS_CONTEXT"
+      ]
+    },
+    {
+      "templateId": "VN134_ART7_2B_MANIPULATION",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-7::cl-2::pt-b"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-7::cl-2::pt-b": "sha256:3dc293ffe0eddd2353a4694a8c25eea8680817d294c8d264706add552a5d0dcc",
+        "LAW-134-2025-QH15::art-7::cl-2": "sha256:65028e5c9461b740bded6696c6c298d9cc24313ea3f96576d5b54c2164649b11"
+      },
+      "concept": "PROHIBITED_MANIPULATION",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "DETECT_PURPOSEFUL_SYSTEMATIC_DECEPTIVE_MANIPULATION_CAUSING_SERIOUS_HARM"
+      },
+      "investigationGoals": [
+        "Trace AI outputs into ranking, recommendation, approval, rejection or status change.",
+        "Identify affected business actions and subjects where evidenced.",
+        "Preserve limitations instead of inferring legal effect."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT",
+        "AI_MODEL_INVOCATION"
+      ],
+      "targetNodeTypes": [
+        "RANKING",
+        "RECOMMENDATION",
+        "REJECTION",
+        "APPROVAL",
+        "STATUS_CHANGE",
+        "BUSINESS_ACTION"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_decision_effect",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY"
+          ],
+          "stopNodeTypes": [
+            "RANKING",
+            "RECOMMENDATION",
+            "REJECTION",
+            "APPROVAL",
+            "STATUS_CHANGE",
+            "BUSINESS_ACTION"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "score",
+        "rank",
+        "recommend",
+        "approve",
+        "reject",
+        "eligibility",
+        "decision",
+        "status"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_EFFECT_PATH",
+        "CONSEQUENTIAL_ACTION"
+      ],
+      "supportingEvidence": [
+        "AFFECTED_DATA_CATEGORY",
+        "HUMAN_REVIEW_PATH"
+      ],
+      "negativeEvidence": [
+        "UNCONTROLLED_CONSEQUENTIAL_AI_ACTION"
+      ],
+      "unresolvedConditions": [
+        "LEGAL_SIGNIFICANCE_REQUIRES_VERIFIED_BUSINESS_CONTEXT"
+      ]
+    },
+    {
+      "templateId": "VN134_ART7_2C_VULNERABLE_EXPLOITATION",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-7::cl-2::pt-c"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-7::cl-2::pt-c": "sha256:9a1b994288a259025efc68d9481b0542ca2e24de5eef196afeb8c1ca96eec0d7",
+        "LAW-134-2025-QH15::art-7::cl-2": "sha256:65028e5c9461b740bded6696c6c298d9cc24313ea3f96576d5b54c2164649b11"
+      },
+      "concept": "PROHIBITED_VULNERABLE_GROUP_EXPLOITATION",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "DETECT_VULNERABILITY_ATTRIBUTES_USED_IN_HARMFUL_AI_TARGETING_OR_DECISIONS"
+      },
+      "investigationGoals": [
+        "Trace data sources and transformations into AI.",
+        "Classify personal/sensitive-data paths.",
+        "Identify storage, external egress, validation and sanitization controls."
+      ],
+      "startingNodeTypes": [
+        "PERSONAL_DATA",
+        "SENSITIVE_DATA",
+        "AI_INPUT"
+      ],
+      "targetNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "AI_PROVIDER",
+        "EXTERNAL_API",
+        "DATABASE"
+      ],
+      "edgeStrategies": [
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_data_to_ai_or_external",
+          "startNodeTypes": [
+            "PERSONAL_DATA",
+            "SENSITIVE_DATA",
+            "AI_INPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "AI_PROVIDER",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "dataset",
+        "personal data",
+        "pii",
+        "sensitive",
+        "training",
+        "validation",
+        "sanitize",
+        "redact",
+        "retention"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "DATA_CATEGORY",
+        "DATA_LINEAGE"
+      ],
+      "supportingEvidence": [
+        "VALIDATION_CONTROL",
+        "SANITIZATION_CONTROL",
+        "STORAGE_OR_EGRESS_PATH"
+      ],
+      "negativeEvidence": [
+        "SENSITIVE_DATA_EGRESS_WITHOUT_EVIDENCED_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "LEGAL_BASIS_NOT_DETERMINABLE_FROM_CODE",
+        "CONTRACT_OR_CONSENT_REQUIRES_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART7_2D_HARMFUL_FAKE_CONTENT",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-7::cl-2::pt-d"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-7::cl-2::pt-d": "sha256:1b18fa1087dae2897d4a3cd782ad24ea3000859e7295e5e77e5b7ae674fb4ef8",
+        "LAW-134-2025-QH15::art-7::cl-2": "sha256:65028e5c9461b740bded6696c6c298d9cc24313ea3f96576d5b54c2164649b11"
+      },
+      "concept": "PROHIBITED_HARMFUL_FAKE_CONTENT",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "DETECT_GENERATION_OR_DISTRIBUTION_OF_SERIOUSLY_HARMFUL_FAKE_CONTENT"
+      },
+      "investigationGoals": [
+        "Find user/public AI output surfaces.",
+        "Find disclosure, label, watermark or provenance controls.",
+        "Identify output paths that bypass transparency controls."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "HTTP_RESPONSE",
+        "NOTIFICATION",
+        "FILE_STORAGE",
+        "EXTERNAL_API"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_output_to_user_or_publication",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "HTTP_RESPONSE",
+            "NOTIFICATION",
+            "FILE_STORAGE",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "disclosure",
+        "label",
+        "watermark",
+        "ai-generated",
+        "synthetic",
+        "deepfake",
+        "provenance"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_OUTPUT_SURFACE"
+      ],
+      "supportingEvidence": [
+        "DISCLOSURE_OR_LABEL_CONTROL"
+      ],
+      "negativeEvidence": [
+        "AI_OUTPUT_WITHOUT_EVIDENCED_TRANSPARENCY_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "CONTENT_CONTEXT_OR_USER_CONFUSION_MAY_REQUIRE_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART7_3_UNLAWFUL_DATA",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-7::cl-3"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-7::cl-3": "sha256:3cf2726d8050521f63e70ef3cbca2845f68cc3c6e2fe0c126641dcc7daa9d478",
+        "LAW-134-2025-QH15::art-7": "sha256:77ce334e88351ebc9e37488b6b73361ed1de253b91ab27b0838a01537b6987e8"
+      },
+      "concept": "PROHIBITED_UNLAWFUL_AI_DATA_USE",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "TRACE_AI_DATA_COLLECTION_PROCESSING_AND_USE_FOR_LEGAL_REVIEW"
+      },
+      "investigationGoals": [
+        "Trace data sources and transformations into AI.",
+        "Classify personal/sensitive-data paths.",
+        "Identify storage, external egress, validation and sanitization controls."
+      ],
+      "startingNodeTypes": [
+        "PERSONAL_DATA",
+        "SENSITIVE_DATA",
+        "AI_INPUT"
+      ],
+      "targetNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "AI_PROVIDER",
+        "EXTERNAL_API",
+        "DATABASE"
+      ],
+      "edgeStrategies": [
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_data_to_ai_or_external",
+          "startNodeTypes": [
+            "PERSONAL_DATA",
+            "SENSITIVE_DATA",
+            "AI_INPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "AI_PROVIDER",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "dataset",
+        "personal data",
+        "pii",
+        "sensitive",
+        "training",
+        "validation",
+        "sanitize",
+        "redact",
+        "retention"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "DATA_CATEGORY",
+        "DATA_LINEAGE"
+      ],
+      "supportingEvidence": [
+        "VALIDATION_CONTROL",
+        "SANITIZATION_CONTROL",
+        "STORAGE_OR_EGRESS_PATH"
+      ],
+      "negativeEvidence": [
+        "SENSITIVE_DATA_EGRESS_WITHOUT_EVIDENCED_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "LEGAL_BASIS_NOT_DETERMINABLE_FROM_CODE",
+        "CONTRACT_OR_CONSENT_REQUIRES_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART7_4_DISABLE_HUMAN_CONTROL",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-7::cl-4"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-7::cl-4": "sha256:4d3c65796c9a4ed890d63fe7b5c9369f0dd0c21c0b2c92c8fd21a4581f551b53",
+        "LAW-134-2025-QH15::art-7": "sha256:77ce334e88351ebc9e37488b6b73361ed1de253b91ab27b0838a01537b6987e8"
+      },
+      "concept": "PROHIBITED_HUMAN_CONTROL_TAMPERING",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "DETECT_DISABLEMENT_DISTORTION_OR_BYPASS_OF_HUMAN_OVERSIGHT"
+      },
+      "investigationGoals": [
+        "Trace AI output to consequential actions.",
+        "Determine whether human review/intervention exists before final action.",
+        "Identify bypass or autonomous-final-action paths."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "HUMAN_REVIEW",
+        "HUMAN_OVERRIDE",
+        "BUSINESS_ACTION",
+        "APPROVAL",
+        "REJECTION"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_to_action",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY"
+          ],
+          "stopNodeTypes": [
+            "BUSINESS_ACTION",
+            "APPROVAL",
+            "REJECTION"
+          ],
+          "semanticTypes": []
+        },
+        {
+          "name": "find_human_control",
+          "startNodeTypes": [
+            "BUSINESS_ACTION",
+            "APPROVAL",
+            "REJECTION"
+          ],
+          "direction": "BACKWARD",
+          "followEdges": [
+            "CALLS",
+            "TRIGGERS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY",
+            "APPROVES",
+            "REJECTS"
+          ],
+          "stopNodeTypes": [
+            "HUMAN_REVIEW",
+            "HUMAN_OVERRIDE"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "review",
+        "approve",
+        "override",
+        "manual",
+        "human",
+        "intervention",
+        "autoApprove",
+        "autoReject"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_OUTPUT_PATH",
+        "DOWNSTREAM_ACTION_PATH",
+        "HUMAN_CONTROL_STATE"
+      ],
+      "supportingEvidence": [
+        "HUMAN_REVIEW_PATH",
+        "HUMAN_OVERRIDE_PATH"
+      ],
+      "negativeEvidence": [
+        "AI_OUTPUT_TO_FINAL_ACTION_WITHOUT_HUMAN_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "DYNAMIC_DISPATCH",
+        "RUNTIME_ONLY_APPROVAL",
+        "EXTERNAL_REVIEW_SYSTEM"
+      ]
+    },
+    {
+      "templateId": "VN134_ART7_5_HIDE_TRANSPARENCY",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-7::cl-5"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-7::cl-5": "sha256:14fd335265c6a36267482a243f26bd45e5c2f8c33c9557da591638d2ee55e6a9",
+        "LAW-134-2025-QH15::art-7": "sha256:77ce334e88351ebc9e37488b6b73361ed1de253b91ab27b0838a01537b6987e8"
+      },
+      "concept": "PROHIBITED_TRANSPARENCY_CONCEALMENT",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "DETECT_REMOVAL_SUPPRESSION_OR_DISTORTION_OF_REQUIRED_DISCLOSURE_LABEL_OR_WARNING"
+      },
+      "investigationGoals": [
+        "Find user/public AI output surfaces.",
+        "Find disclosure, label, watermark or provenance controls.",
+        "Identify output paths that bypass transparency controls."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "HTTP_RESPONSE",
+        "NOTIFICATION",
+        "FILE_STORAGE",
+        "EXTERNAL_API"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_output_to_user_or_publication",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "HTTP_RESPONSE",
+            "NOTIFICATION",
+            "FILE_STORAGE",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "disclosure",
+        "label",
+        "watermark",
+        "ai-generated",
+        "synthetic",
+        "deepfake",
+        "provenance"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_OUTPUT_SURFACE"
+      ],
+      "supportingEvidence": [
+        "DISCLOSURE_OR_LABEL_CONTROL"
+      ],
+      "negativeEvidence": [
+        "AI_OUTPUT_WITHOUT_EVIDENCED_TRANSPARENCY_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "CONTENT_CONTEXT_OR_USER_CONFUSION_MAY_REQUIRE_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART9_1A_HIGH_RISK_IMPACT",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-9::cl-1::pt-a"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-9::cl-1::pt-a": "sha256:bd146e4d37efe29e2c9ad3182226fca7183afad379538b89d7b816c9227ce8e6",
+        "LAW-134-2025-QH15::art-9::cl-1": "sha256:ff2153d7d47d01006f78b6e48c2526bae9935efaa23ae116f50cd249a97f41e5"
+      },
+      "concept": "HIGH_RISK_IMPACT_FACTS",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "ESTABLISH_FACTS_RELEVANT_TO_SIGNIFICANT_HARM"
+      },
+      "investigationGoals": [
+        "Trace AI outputs into ranking, recommendation, approval, rejection or status change.",
+        "Identify affected business actions and subjects where evidenced.",
+        "Preserve limitations instead of inferring legal effect."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT",
+        "AI_MODEL_INVOCATION"
+      ],
+      "targetNodeTypes": [
+        "RANKING",
+        "RECOMMENDATION",
+        "REJECTION",
+        "APPROVAL",
+        "STATUS_CHANGE",
+        "BUSINESS_ACTION"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_decision_effect",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY"
+          ],
+          "stopNodeTypes": [
+            "RANKING",
+            "RECOMMENDATION",
+            "REJECTION",
+            "APPROVAL",
+            "STATUS_CHANGE",
+            "BUSINESS_ACTION"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "score",
+        "rank",
+        "recommend",
+        "approve",
+        "reject",
+        "eligibility",
+        "decision",
+        "status"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_EFFECT_PATH",
+        "CONSEQUENTIAL_ACTION"
+      ],
+      "supportingEvidence": [
+        "AFFECTED_DATA_CATEGORY",
+        "HUMAN_REVIEW_PATH"
+      ],
+      "negativeEvidence": [
+        "UNCONTROLLED_CONSEQUENTIAL_AI_ACTION"
+      ],
+      "unresolvedConditions": [
+        "LEGAL_SIGNIFICANCE_REQUIRES_VERIFIED_BUSINESS_CONTEXT"
+      ]
+    },
+    {
+      "templateId": "VN134_ART9_1B_MEDIUM_DECEPTION",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-9::cl-1::pt-b"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-9::cl-1::pt-b": "sha256:5bbd8c7cb18056674abf46b806b2b142bd0457c4450f0506932faa07023e02d7",
+        "LAW-134-2025-QH15::art-9::cl-1": "sha256:ff2153d7d47d01006f78b6e48c2526bae9935efaa23ae116f50cd249a97f41e5"
+      },
+      "concept": "MEDIUM_RISK_DECEPTION_FACTS",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "ESTABLISH_FACTS_RELEVANT_TO_USER_CONFUSION_OR_MANIPULATION"
+      },
+      "investigationGoals": [
+        "Find user/public AI output surfaces.",
+        "Find disclosure, label, watermark or provenance controls.",
+        "Identify output paths that bypass transparency controls."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "HTTP_RESPONSE",
+        "NOTIFICATION",
+        "FILE_STORAGE",
+        "EXTERNAL_API"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_output_to_user_or_publication",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "HTTP_RESPONSE",
+            "NOTIFICATION",
+            "FILE_STORAGE",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "disclosure",
+        "label",
+        "watermark",
+        "ai-generated",
+        "synthetic",
+        "deepfake",
+        "provenance"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_OUTPUT_SURFACE"
+      ],
+      "supportingEvidence": [
+        "DISCLOSURE_OR_LABEL_CONTROL"
+      ],
+      "negativeEvidence": [
+        "AI_OUTPUT_WITHOUT_EVIDENCED_TRANSPARENCY_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "CONTENT_CONTEXT_OR_USER_CONFUSION_MAY_REQUIRE_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART9_2_CLASSIFICATION_FACTORS",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-9::cl-2"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-9::cl-2": "sha256:0018eb35c7a9b62957d04f6b2003316aba60e4f1a51f841babb1abca75e573f3",
+        "LAW-134-2025-QH15::art-9": "sha256:079c77c671ece28ddf438d0710c483505a6f52d002fca965040fad39e6521802"
+      },
+      "concept": "RISK_CLASSIFICATION_FACTORS",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "COLLECT_FACTS_FOR_RIGHTS_SAFETY_SECURITY_DOMAIN_USER_AND_SCALE_FACTORS"
+      },
+      "investigationGoals": [
+        "Collect technical facts relevant to risk classification without assigning the tier.",
+        "Identify impact surfaces, domains, provider/model and human-control evidence.",
+        "Preserve exact source provenance for dossier/classification."
+      ],
+      "startingNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "AI_OUTPUT",
+        "HTTP_ROUTE"
+      ],
+      "targetNodeTypes": [
+        "BUSINESS_ACTION",
+        "HTTP_RESPONSE",
+        "AI_PROVIDER",
+        "HUMAN_REVIEW"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "collect_risk_classification_facts",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "BUSINESS_ACTION",
+            "HTTP_RESPONSE",
+            "AI_PROVIDER",
+            "HUMAN_REVIEW"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "risk",
+        "classification",
+        "impact",
+        "domain",
+        "provider",
+        "deployment",
+        "user",
+        "public"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_SYSTEM_USAGE",
+        "IMPACT_SURFACE",
+        "SOURCE_PROVENANCE"
+      ],
+      "supportingEvidence": [
+        "DOMAIN_SIGNAL",
+        "HUMAN_CONTROL_STATE",
+        "PROVIDER_EVIDENCE"
+      ],
+      "negativeEvidence": [],
+      "unresolvedConditions": [
+        "RISK_TIER_IS_DECIDED_DOWNSTREAM_BY_LEGAL_CLASSIFICATION"
+      ]
+    },
+    {
+      "templateId": "VN134_ART10_2_RECLASSIFICATION_ON_CHANGE",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-10::cl-2"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-10::cl-2": "sha256:cdb3f2453d3153fa4522a7d558f3255873acc9bbcbc2e7196e82aad686c0116c",
+        "LAW-134-2025-QH15::art-10": "sha256:a92491115d5b3491717366c015f84d25fd3883bd76a30551f8560cc3c009f9d3"
+      },
+      "concept": "RISK_RECLASSIFICATION_TRIGGER",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "DETECT_TECHNICAL_CHANGES_THAT_CAN_CREATE_NEW_OR_HIGHER_RISK"
+      },
+      "investigationGoals": [
+        "Collect model/provider/data/function/deployment signals that can alter risk.",
+        "Preserve immutable snapshot/source identities.",
+        "Surface cross-snapshot differences for reclassification or transition review."
+      ],
+      "startingNodeTypes": [
+        "REPOSITORY",
+        "AI_MODEL_INVOCATION",
+        "EXTERNAL_SERVICE",
+        "DATA_CATEGORY"
+      ],
+      "targetNodeTypes": [
+        "AI_PROVIDER",
+        "BUSINESS_ACTION",
+        "SENSITIVE_DATA"
+      ],
+      "edgeStrategies": [
+        "CONTAINS",
+        "SUPPORTED_BY",
+        "CORROBORATES",
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "collect_current_change_sensitive_surface",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "EXTERNAL_SERVICE",
+            "DATA_CATEGORY"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "AI_PROVIDER",
+            "BUSINESS_ACTION",
+            "SENSITIVE_DATA"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "version",
+        "model",
+        "provider",
+        "feature",
+        "deployment",
+        "scope",
+        "change"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "CURRENT_TECHNICAL_SURFACE",
+        "SNAPSHOT_IDENTITY"
+      ],
+      "supportingEvidence": [
+        "CHANGE_SIGNAL"
+      ],
+      "negativeEvidence": [],
+      "unresolvedConditions": [
+        "CROSS_SNAPSHOT_OR_DEPLOYMENT_HISTORY_REQUIRED"
+      ]
+    },
+    {
+      "templateId": "VN134_ART10_1_3_CLASSIFICATION_DOSSIER_NOTIFICATION",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-10::cl-1",
+        "LAW-134-2025-QH15::art-10::cl-3"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-10::cl-1": "sha256:ef45261668d46e70a919b6ae9c6d507697af3674534765a6db187a0502347d85",
+        "LAW-134-2025-QH15::art-10": "sha256:a92491115d5b3491717366c015f84d25fd3883bd76a30551f8560cc3c009f9d3",
+        "LAW-134-2025-QH15::art-10::cl-3": "sha256:ce9d5824ab487a223f58a3614d5337786b08dac19e663d7cbecf7557005c4db4"
+      },
+      "concept": "CLASSIFICATION_DOSSIER_AND_NOTIFICATION",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "COLLECT_REPRODUCIBLE_EVIDENCE_FOR_MEDIUM_OR_HIGH_RISK_CLASSIFICATION_DOSSIER_AND_PRE_USE_NOTIFICATION"
+      },
+      "investigationGoals": [
+        "Collect technical facts relevant to risk classification without assigning the tier.",
+        "Identify impact surfaces, domains, provider/model and human-control evidence.",
+        "Preserve exact source provenance for dossier/classification."
+      ],
+      "startingNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "AI_OUTPUT",
+        "HTTP_ROUTE"
+      ],
+      "targetNodeTypes": [
+        "BUSINESS_ACTION",
+        "HTTP_RESPONSE",
+        "AI_PROVIDER",
+        "HUMAN_REVIEW"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "collect_risk_classification_facts",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "BUSINESS_ACTION",
+            "HTTP_RESPONSE",
+            "AI_PROVIDER",
+            "HUMAN_REVIEW"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "risk",
+        "classification",
+        "impact",
+        "domain",
+        "provider",
+        "deployment",
+        "user",
+        "public"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_SYSTEM_USAGE",
+        "IMPACT_SURFACE",
+        "SOURCE_PROVENANCE"
+      ],
+      "supportingEvidence": [
+        "DOMAIN_SIGNAL",
+        "HUMAN_CONTROL_STATE",
+        "PROVIDER_EVIDENCE"
+      ],
+      "negativeEvidence": [],
+      "unresolvedConditions": [
+        "RISK_TIER_IS_DECIDED_DOWNSTREAM_BY_LEGAL_CLASSIFICATION"
+      ]
+    },
+    {
+      "templateId": "VN134_ART11_1_DIRECT_INTERACTION_DISCLOSURE",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-11::cl-1"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-11::cl-1": "sha256:40a10ac3205401c9fd652b08a92b2780849034bc5f55b375f14a0b2145a6439d",
+        "LAW-134-2025-QH15::art-11": "sha256:9709b5b8f15dd719709ffc8728a381f3c61550d1db7e129dd725971101946986"
+      },
+      "concept": "DIRECT_AI_INTERACTION_DISCLOSURE",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "DISCLOSE_DIRECT_HUMAN_INTERACTION_WITH_AI"
+      },
+      "investigationGoals": [
+        "Find user/public AI output surfaces.",
+        "Find disclosure, label, watermark or provenance controls.",
+        "Identify output paths that bypass transparency controls."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "HTTP_RESPONSE",
+        "NOTIFICATION",
+        "FILE_STORAGE",
+        "EXTERNAL_API"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_output_to_user_or_publication",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "HTTP_RESPONSE",
+            "NOTIFICATION",
+            "FILE_STORAGE",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "disclosure",
+        "label",
+        "watermark",
+        "ai-generated",
+        "synthetic",
+        "deepfake",
+        "provenance"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_OUTPUT_SURFACE"
+      ],
+      "supportingEvidence": [
+        "DISCLOSURE_OR_LABEL_CONTROL"
+      ],
+      "negativeEvidence": [
+        "AI_OUTPUT_WITHOUT_EVIDENCED_TRANSPARENCY_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "CONTENT_CONTEXT_OR_USER_CONFUSION_MAY_REQUIRE_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART11_2_MACHINE_READABLE_MEDIA_MARK",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-11::cl-2"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-11::cl-2": "sha256:a1c978e4cbcca5cf6e787be51c3a7864f55e235b6580d134bf9a2a63866be58f",
+        "LAW-134-2025-QH15::art-11": "sha256:9709b5b8f15dd719709ffc8728a381f3c61550d1db7e129dd725971101946986"
+      },
+      "concept": "MACHINE_READABLE_AI_MEDIA_MARK",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "MARK_AI_GENERATED_AUDIO_IMAGE_VIDEO_IN_MACHINE_READABLE_FORM"
+      },
+      "investigationGoals": [
+        "Find user/public AI output surfaces.",
+        "Find disclosure, label, watermark or provenance controls.",
+        "Identify output paths that bypass transparency controls."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "HTTP_RESPONSE",
+        "NOTIFICATION",
+        "FILE_STORAGE",
+        "EXTERNAL_API"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_output_to_user_or_publication",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "HTTP_RESPONSE",
+            "NOTIFICATION",
+            "FILE_STORAGE",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "disclosure",
+        "label",
+        "watermark",
+        "ai-generated",
+        "synthetic",
+        "deepfake",
+        "provenance"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_OUTPUT_SURFACE"
+      ],
+      "supportingEvidence": [
+        "DISCLOSURE_OR_LABEL_CONTROL"
+      ],
+      "negativeEvidence": [
+        "AI_OUTPUT_WITHOUT_EVIDENCED_TRANSPARENCY_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "CONTENT_CONTEXT_OR_USER_CONFUSION_MAY_REQUIRE_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART11_3_PUBLIC_CONTENT_NOTICE",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-11::cl-3"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-11::cl-3": "sha256:e5d00fd1ffc7ff67ed2230b131e93974fc5df23999f1045adef8790bac893f56",
+        "LAW-134-2025-QH15::art-11": "sha256:9709b5b8f15dd719709ffc8728a381f3c61550d1db7e129dd725971101946986"
+      },
+      "concept": "PUBLIC_AI_CONTENT_NOTICE",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "DISCLOSE_PUBLIC_AI_GENERATED_OR_MODIFIED_CONTENT_WHEN_AUTHENTICITY_CONFUSION_IS_POSSIBLE"
+      },
+      "investigationGoals": [
+        "Find user/public AI output surfaces.",
+        "Find disclosure, label, watermark or provenance controls.",
+        "Identify output paths that bypass transparency controls."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "HTTP_RESPONSE",
+        "NOTIFICATION",
+        "FILE_STORAGE",
+        "EXTERNAL_API"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_output_to_user_or_publication",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "HTTP_RESPONSE",
+            "NOTIFICATION",
+            "FILE_STORAGE",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "disclosure",
+        "label",
+        "watermark",
+        "ai-generated",
+        "synthetic",
+        "deepfake",
+        "provenance"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_OUTPUT_SURFACE"
+      ],
+      "supportingEvidence": [
+        "DISCLOSURE_OR_LABEL_CONTROL"
+      ],
+      "negativeEvidence": [
+        "AI_OUTPUT_WITHOUT_EVIDENCED_TRANSPARENCY_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "CONTENT_CONTEXT_OR_USER_CONFUSION_MAY_REQUIRE_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART11_4_DEEPFAKE_LABEL",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-11::cl-4"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-11::cl-4": "sha256:18a7f16546b6c52205668111f88b86877bbdc3aab806ec929bf16690e517c79f",
+        "LAW-134-2025-QH15::art-11": "sha256:9709b5b8f15dd719709ffc8728a381f3c61550d1db7e129dd725971101946986"
+      },
+      "concept": "DEEPFAKE_VISIBLE_LABEL",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "LABEL_AI_MEDIA_SIMULATING_REAL_PERSON_OR_EVENT"
+      },
+      "investigationGoals": [
+        "Find user/public AI output surfaces.",
+        "Find disclosure, label, watermark or provenance controls.",
+        "Identify output paths that bypass transparency controls."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "HTTP_RESPONSE",
+        "NOTIFICATION",
+        "FILE_STORAGE",
+        "EXTERNAL_API"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_output_to_user_or_publication",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "HTTP_RESPONSE",
+            "NOTIFICATION",
+            "FILE_STORAGE",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "disclosure",
+        "label",
+        "watermark",
+        "ai-generated",
+        "synthetic",
+        "deepfake",
+        "provenance"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_OUTPUT_SURFACE"
+      ],
+      "supportingEvidence": [
+        "DISCLOSURE_OR_LABEL_CONTROL"
+      ],
+      "negativeEvidence": [
+        "AI_OUTPUT_WITHOUT_EVIDENCED_TRANSPARENCY_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "CONTENT_CONTEXT_OR_USER_CONFUSION_MAY_REQUIRE_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART11_5_MAINTAIN_TRANSPARENCY",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-11::cl-5"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-11::cl-5": "sha256:e5cabfef9dc3f8e6e44e4b8622bf10bcd3fde4721d3424333002bb99b32e5d6e",
+        "LAW-134-2025-QH15::art-11": "sha256:9709b5b8f15dd719709ffc8728a381f3c61550d1db7e129dd725971101946986"
+      },
+      "concept": "TRANSPARENCY_CONTINUITY",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "MAINTAIN_REQUIRED_TRANSPARENCY_THROUGHOUT_PROVISION_AND_DEPLOYMENT"
+      },
+      "investigationGoals": [
+        "Find user/public AI output surfaces.",
+        "Find disclosure, label, watermark or provenance controls.",
+        "Identify output paths that bypass transparency controls."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "HTTP_RESPONSE",
+        "NOTIFICATION",
+        "FILE_STORAGE",
+        "EXTERNAL_API"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_output_to_user_or_publication",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "HTTP_RESPONSE",
+            "NOTIFICATION",
+            "FILE_STORAGE",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "disclosure",
+        "label",
+        "watermark",
+        "ai-generated",
+        "synthetic",
+        "deepfake",
+        "provenance"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_OUTPUT_SURFACE"
+      ],
+      "supportingEvidence": [
+        "DISCLOSURE_OR_LABEL_CONTROL"
+      ],
+      "negativeEvidence": [
+        "AI_OUTPUT_WITHOUT_EVIDENCED_TRANSPARENCY_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "CONTENT_CONTEXT_OR_USER_CONFUSION_MAY_REQUIRE_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART12_1_INCIDENT_DETECTION_REMEDIATION",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-12::cl-1"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-12::cl-1": "sha256:e0171ac2231cd7724c67ef0cb612707e0eedbe17582358daf7452e96302f1fee",
+        "LAW-134-2025-QH15::art-12": "sha256:9da09dd8dfcd77123bc4acf145d316fd965858ba4316116d2902bcf904217f73"
+      },
+      "concept": "AI_INCIDENT_DETECTION_AND_REMEDIATION",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "DETECT_AND_REMEDIATE_AI_INCIDENTS_AFFECTING_PEOPLE_ASSETS_DATA_OR_PUBLIC_ORDER"
+      },
+      "investigationGoals": [
+        "Find AI error/incident detection.",
+        "Find logging, alerting, containment, rollback or suspension controls.",
+        "Trace incident records into reporting/remediation workflow."
+      ],
+      "startingNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "TRY_CATCH",
+        "EVENT"
+      ],
+      "targetNodeTypes": [
+        "DATABASE",
+        "NOTIFICATION",
+        "STATUS_CHANGE",
+        "HUMAN_REVIEW",
+        "QUEUE"
+      ],
+      "edgeStrategies": [
+        "CALLS",
+        "THROWS",
+        "CATCHES",
+        "TRIGGERS",
+        "PUBLISHES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "PERSISTS_TO",
+        "WRITES_TO",
+        "UPDATES_STATUS",
+        "REVIEWED_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_incident_handling",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "TRY_CATCH",
+            "EVENT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "CALLS",
+            "THROWS",
+            "CATCHES",
+            "TRIGGERS",
+            "PUBLISHES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "PERSISTS_TO",
+            "WRITES_TO",
+            "UPDATES_STATUS",
+            "REVIEWED_BY"
+          ],
+          "stopNodeTypes": [
+            "DATABASE",
+            "NOTIFICATION",
+            "STATUS_CHANGE",
+            "HUMAN_REVIEW",
+            "QUEUE"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "incident",
+        "error",
+        "exception",
+        "alert",
+        "rollback",
+        "suspend",
+        "kill switch",
+        "report"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_INCIDENT_HANDLING_STATE"
+      ],
+      "supportingEvidence": [
+        "INCIDENT_LOG_PATH",
+        "ALERT_OR_CONTAINMENT_PATH"
+      ],
+      "negativeEvidence": [
+        "AI_FAILURE_WITH_NO_EVIDENCED_HANDLING"
+      ],
+      "unresolvedConditions": [
+        "TIMELINESS_AND_ACTUAL_RESPONSE_REQUIRE_RUNTIME_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART12_2A_SERIOUS_INCIDENT_CONTAINMENT",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-12::cl-2::pt-a"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-12::cl-2::pt-a": "sha256:f180e558f700f3ba4199720a668ee147492ced31b23d7f2571ec3dab437ab9c5",
+        "LAW-134-2025-QH15::art-12::cl-2": "sha256:7e296b9ea922e136887f6a6a2bde05c2dd3d6ceabd0b6f620773337a5f8dd4a7"
+      },
+      "concept": "SERIOUS_AI_INCIDENT_CONTAINMENT",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "SUPPORT_FIX_SUSPEND_OR_WITHDRAW_AND_AUTHORITY_NOTIFICATION_FOR_SERIOUS_INCIDENT"
+      },
+      "investigationGoals": [
+        "Find AI error/incident detection.",
+        "Find logging, alerting, containment, rollback or suspension controls.",
+        "Trace incident records into reporting/remediation workflow."
+      ],
+      "startingNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "TRY_CATCH",
+        "EVENT"
+      ],
+      "targetNodeTypes": [
+        "DATABASE",
+        "NOTIFICATION",
+        "STATUS_CHANGE",
+        "HUMAN_REVIEW",
+        "QUEUE"
+      ],
+      "edgeStrategies": [
+        "CALLS",
+        "THROWS",
+        "CATCHES",
+        "TRIGGERS",
+        "PUBLISHES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "PERSISTS_TO",
+        "WRITES_TO",
+        "UPDATES_STATUS",
+        "REVIEWED_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_incident_handling",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "TRY_CATCH",
+            "EVENT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "CALLS",
+            "THROWS",
+            "CATCHES",
+            "TRIGGERS",
+            "PUBLISHES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "PERSISTS_TO",
+            "WRITES_TO",
+            "UPDATES_STATUS",
+            "REVIEWED_BY"
+          ],
+          "stopNodeTypes": [
+            "DATABASE",
+            "NOTIFICATION",
+            "STATUS_CHANGE",
+            "HUMAN_REVIEW",
+            "QUEUE"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "incident",
+        "error",
+        "exception",
+        "alert",
+        "rollback",
+        "suspend",
+        "kill switch",
+        "report"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_INCIDENT_HANDLING_STATE"
+      ],
+      "supportingEvidence": [
+        "INCIDENT_LOG_PATH",
+        "ALERT_OR_CONTAINMENT_PATH"
+      ],
+      "negativeEvidence": [
+        "AI_FAILURE_WITH_NO_EVIDENCED_HANDLING"
+      ],
+      "unresolvedConditions": [
+        "TIMELINESS_AND_ACTUAL_RESPONSE_REQUIRE_RUNTIME_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART12_2B_INCIDENT_LOG_AND_REPORT",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-12::cl-2::pt-b"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-12::cl-2::pt-b": "sha256:c59354515d683a2e146bcf6aaf1a2d3ec7da974fd6ccf2fdd6805c83b24873ec",
+        "LAW-134-2025-QH15::art-12::cl-2": "sha256:7e296b9ea922e136887f6a6a2bde05c2dd3d6ceabd0b6f620773337a5f8dd4a7"
+      },
+      "concept": "INCIDENT_RECORDING_AND_REPORTING",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "RECORD_REPORT_AND_COORDINATE_REMEDIATION_FOR_SERIOUS_AI_INCIDENT"
+      },
+      "investigationGoals": [
+        "Find AI error/incident detection.",
+        "Find logging, alerting, containment, rollback or suspension controls.",
+        "Trace incident records into reporting/remediation workflow."
+      ],
+      "startingNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "TRY_CATCH",
+        "EVENT"
+      ],
+      "targetNodeTypes": [
+        "DATABASE",
+        "NOTIFICATION",
+        "STATUS_CHANGE",
+        "HUMAN_REVIEW",
+        "QUEUE"
+      ],
+      "edgeStrategies": [
+        "CALLS",
+        "THROWS",
+        "CATCHES",
+        "TRIGGERS",
+        "PUBLISHES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "PERSISTS_TO",
+        "WRITES_TO",
+        "UPDATES_STATUS",
+        "REVIEWED_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_incident_handling",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "TRY_CATCH",
+            "EVENT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "CALLS",
+            "THROWS",
+            "CATCHES",
+            "TRIGGERS",
+            "PUBLISHES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "PERSISTS_TO",
+            "WRITES_TO",
+            "UPDATES_STATUS",
+            "REVIEWED_BY"
+          ],
+          "stopNodeTypes": [
+            "DATABASE",
+            "NOTIFICATION",
+            "STATUS_CHANGE",
+            "HUMAN_REVIEW",
+            "QUEUE"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "incident",
+        "error",
+        "exception",
+        "alert",
+        "rollback",
+        "suspend",
+        "kill switch",
+        "report"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_INCIDENT_HANDLING_STATE"
+      ],
+      "supportingEvidence": [
+        "INCIDENT_LOG_PATH",
+        "ALERT_OR_CONTAINMENT_PATH"
+      ],
+      "negativeEvidence": [
+        "AI_FAILURE_WITH_NO_EVIDENCED_HANDLING"
+      ],
+      "unresolvedConditions": [
+        "TIMELINESS_AND_ACTUAL_RESPONSE_REQUIRE_RUNTIME_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART13_1_CONFORMITY_TRIGGER",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-13::cl-1"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-13::cl-1": "sha256:8184b75f08c50c6a0a703ab43d315d2896f33ee4da19e2e68b8e9fbd56355552",
+        "LAW-134-2025-QH15::art-13": "sha256:fa37a921faea5b39e381ab22e123e0a27458a847773f1e8da5616dcd65ffcdd6"
+      },
+      "concept": "HIGH_RISK_CONFORMITY_TRIGGER",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "COLLECT_TECHNICAL_CONTROL_AND_CHANGE_EVIDENCE_RELEVANT_TO_HIGH_RISK_CONFORMITY_ASSESSMENT"
+      },
+      "investigationGoals": [
+        "Collect technical facts relevant to risk classification without assigning the tier.",
+        "Identify impact surfaces, domains, provider/model and human-control evidence.",
+        "Preserve exact source provenance for dossier/classification."
+      ],
+      "startingNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "AI_OUTPUT",
+        "HTTP_ROUTE"
+      ],
+      "targetNodeTypes": [
+        "BUSINESS_ACTION",
+        "HTTP_RESPONSE",
+        "AI_PROVIDER",
+        "HUMAN_REVIEW"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "collect_risk_classification_facts",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "BUSINESS_ACTION",
+            "HTTP_RESPONSE",
+            "AI_PROVIDER",
+            "HUMAN_REVIEW"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "risk",
+        "classification",
+        "impact",
+        "domain",
+        "provider",
+        "deployment",
+        "user",
+        "public"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_SYSTEM_USAGE",
+        "IMPACT_SURFACE",
+        "SOURCE_PROVENANCE"
+      ],
+      "supportingEvidence": [
+        "DOMAIN_SIGNAL",
+        "HUMAN_CONTROL_STATE",
+        "PROVIDER_EVIDENCE"
+      ],
+      "negativeEvidence": [],
+      "unresolvedConditions": [
+        "RISK_TIER_IS_DECIDED_DOWNSTREAM_BY_LEGAL_CLASSIFICATION"
+      ]
+    },
+    {
+      "templateId": "VN134_ART14_1A_RISK_MANAGEMENT",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-14::cl-1::pt-a"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-14::cl-1::pt-a": "sha256:2536807d0408bdd833315bf7553c8070d6a74e55ac61e0dbd65d26907af372e1",
+        "LAW-134-2025-QH15::art-14::cl-1": "sha256:fa287375073dd6469ac0158acdacb355aec7d2f43f92613a04252111dadb0bbb"
+      },
+      "concept": "HIGH_RISK_RISK_MANAGEMENT",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "ESTABLISH_AND_MAINTAIN_RISK_MANAGEMENT_WITH_REVIEW_ON_SIGNIFICANT_CHANGE_OR_NEW_RISK"
+      },
+      "investigationGoals": [
+        "Find risk/safety validation controls around AI.",
+        "Find monitoring, thresholds, review and fallback paths.",
+        "Surface uncovered or unresolved control boundaries."
+      ],
+      "startingNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "VALIDATOR",
+        "BRANCH",
+        "DATA_CATEGORY"
+      ],
+      "targetNodeTypes": [
+        "HUMAN_REVIEW",
+        "BUSINESS_ACTION",
+        "STATUS_CHANGE",
+        "COVERAGE_GAP"
+      ],
+      "edgeStrategies": [
+        "CALLS",
+        "VALIDATES",
+        "SANITIZES",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "REVIEWED_BY",
+        "UPDATES_STATUS",
+        "HAS_LIMITATION",
+        "SUPPORTED_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_governance_controls",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "VALIDATOR",
+            "BRANCH"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "CALLS",
+            "VALIDATES",
+            "SANITIZES",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "REVIEWED_BY",
+            "UPDATES_STATUS",
+            "HAS_LIMITATION",
+            "SUPPORTED_BY"
+          ],
+          "stopNodeTypes": [
+            "HUMAN_REVIEW",
+            "BUSINESS_ACTION",
+            "STATUS_CHANGE",
+            "COVERAGE_GAP"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "risk",
+        "guardrail",
+        "threshold",
+        "validation",
+        "monitor",
+        "fallback",
+        "control"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_GOVERNANCE_SURFACE"
+      ],
+      "supportingEvidence": [
+        "RISK_CONTROL_PATH",
+        "MONITORING_OR_REVIEW_CONTROL"
+      ],
+      "negativeEvidence": [
+        "CONSEQUENTIAL_AI_PATH_WITHOUT_EVIDENCED_GOVERNANCE_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "ORGANIZATIONAL_CONTROL_DOCUMENTATION_MAY_BE_REQUIRED"
+      ]
+    },
+    {
+      "templateId": "VN134_ART14_1B_DATA_GOVERNANCE",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-14::cl-1::pt-b"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-14::cl-1::pt-b": "sha256:ea6c29022de0c20bab45adf2c07c0ae7d2fc5f62787a2e55e20355953c1449c7",
+        "LAW-134-2025-QH15::art-14::cl-1": "sha256:fa287375073dd6469ac0158acdacb355aec7d2f43f92613a04252111dadb0bbb"
+      },
+      "concept": "HIGH_RISK_DATA_GOVERNANCE",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "GOVERN_TRAINING_TEST_AND_OPERATIONAL_DATA_FOR_QUALITY_AND_INTENDED_PURPOSE"
+      },
+      "investigationGoals": [
+        "Trace data sources and transformations into AI.",
+        "Classify personal/sensitive-data paths.",
+        "Identify storage, external egress, validation and sanitization controls."
+      ],
+      "startingNodeTypes": [
+        "PERSONAL_DATA",
+        "SENSITIVE_DATA",
+        "AI_INPUT"
+      ],
+      "targetNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "AI_PROVIDER",
+        "EXTERNAL_API",
+        "DATABASE"
+      ],
+      "edgeStrategies": [
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_data_to_ai_or_external",
+          "startNodeTypes": [
+            "PERSONAL_DATA",
+            "SENSITIVE_DATA",
+            "AI_INPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "AI_PROVIDER",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "dataset",
+        "personal data",
+        "pii",
+        "sensitive",
+        "training",
+        "validation",
+        "sanitize",
+        "redact",
+        "retention"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "DATA_CATEGORY",
+        "DATA_LINEAGE"
+      ],
+      "supportingEvidence": [
+        "VALIDATION_CONTROL",
+        "SANITIZATION_CONTROL",
+        "STORAGE_OR_EGRESS_PATH"
+      ],
+      "negativeEvidence": [
+        "SENSITIVE_DATA_EGRESS_WITHOUT_EVIDENCED_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "LEGAL_BASIS_NOT_DETERMINABLE_FROM_CODE",
+        "CONTRACT_OR_CONSENT_REQUIRES_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART14_1C_TECHNICAL_DOCS_LOGS",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-14::cl-1::pt-c"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-14::cl-1::pt-c": "sha256:6f27357be27414b892b25d195b926af347a31cce9d5123bf5d84893c4d2796ea",
+        "LAW-134-2025-QH15::art-14::cl-1": "sha256:fa287375073dd6469ac0158acdacb355aec7d2f43f92613a04252111dadb0bbb"
+      },
+      "concept": "HIGH_RISK_TECHNICAL_DOCUMENTATION_AND_LOGGING",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "MAINTAIN_TECHNICAL_DOCUMENTATION_AND_OPERATION_LOGS_FOR_ASSESSMENT_AND_POST_DEPLOYMENT_INSPECTION"
+      },
+      "investigationGoals": [
+        "Find operation/audit logging for AI and consequential actions.",
+        "Collect model/provider/config/source provenance.",
+        "Identify persistent evidence sinks and traceability gaps."
+      ],
+      "startingNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "EVENT",
+        "SOURCE_ANCHOR"
+      ],
+      "targetNodeTypes": [
+        "DATABASE",
+        "FILE_STORAGE",
+        "SOURCE_ANCHOR"
+      ],
+      "edgeStrategies": [
+        "CALLS",
+        "PUBLISHES_EVENT",
+        "PERSISTS_TO",
+        "WRITES_TO",
+        "SUPPORTED_BY",
+        "CORROBORATES"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_audit_evidence",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "EVENT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "CALLS",
+            "PUBLISHES_EVENT",
+            "PERSISTS_TO",
+            "WRITES_TO",
+            "SUPPORTED_BY",
+            "CORROBORATES"
+          ],
+          "stopNodeTypes": [
+            "DATABASE",
+            "FILE_STORAGE",
+            "SOURCE_ANCHOR"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "audit",
+        "log",
+        "trace",
+        "telemetry",
+        "correlation",
+        "model version",
+        "evidence",
+        "dossier"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "TECHNICAL_PROVENANCE",
+        "TRACEABILITY_EVIDENCE"
+      ],
+      "supportingEvidence": [
+        "PERSISTED_LOG_PATH",
+        "MODEL_PROVIDER_VERSION_EVIDENCE"
+      ],
+      "negativeEvidence": [
+        "NO_EVIDENCED_TRACEABILITY_FOR_AI_OPERATION"
+      ],
+      "unresolvedConditions": [
+        "LOG_RETENTION_AND_COMPLETENESS_REQUIRE_RUNTIME_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART14_1D_HUMAN_OVERSIGHT",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-14::cl-1::pt-d"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-14::cl-1::pt-d": "sha256:1779b96261b463102a95373bd947fb41fb3bd5a7b301f103542e699cec059705",
+        "LAW-134-2025-QH15::art-14::cl-1": "sha256:fa287375073dd6469ac0158acdacb355aec7d2f43f92613a04252111dadb0bbb"
+      },
+      "concept": "HIGH_RISK_HUMAN_OVERSIGHT",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "DESIGN_FOR_HUMAN_MONITORING_AND_INTERVENTION"
+      },
+      "investigationGoals": [
+        "Trace AI output to consequential actions.",
+        "Determine whether human review/intervention exists before final action.",
+        "Identify bypass or autonomous-final-action paths."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "HUMAN_REVIEW",
+        "HUMAN_OVERRIDE",
+        "BUSINESS_ACTION",
+        "APPROVAL",
+        "REJECTION"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_to_action",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY"
+          ],
+          "stopNodeTypes": [
+            "BUSINESS_ACTION",
+            "APPROVAL",
+            "REJECTION"
+          ],
+          "semanticTypes": []
+        },
+        {
+          "name": "find_human_control",
+          "startNodeTypes": [
+            "BUSINESS_ACTION",
+            "APPROVAL",
+            "REJECTION"
+          ],
+          "direction": "BACKWARD",
+          "followEdges": [
+            "CALLS",
+            "TRIGGERS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY",
+            "APPROVES",
+            "REJECTS"
+          ],
+          "stopNodeTypes": [
+            "HUMAN_REVIEW",
+            "HUMAN_OVERRIDE"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "review",
+        "approve",
+        "override",
+        "manual",
+        "human",
+        "intervention",
+        "autoApprove",
+        "autoReject"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_OUTPUT_PATH",
+        "DOWNSTREAM_ACTION_PATH",
+        "HUMAN_CONTROL_STATE"
+      ],
+      "supportingEvidence": [
+        "HUMAN_REVIEW_PATH",
+        "HUMAN_OVERRIDE_PATH"
+      ],
+      "negativeEvidence": [
+        "AI_OUTPUT_TO_FINAL_ACTION_WITHOUT_HUMAN_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "DYNAMIC_DISPATCH",
+        "RUNTIME_ONLY_APPROVAL",
+        "EXTERNAL_REVIEW_SYSTEM"
+      ]
+    },
+    {
+      "templateId": "VN134_ART14_1D_TRANSPARENCY_INCIDENT",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-14::cl-1::pt-đ"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-14::cl-1::pt-đ": "sha256:62f2adc9396819165a7adc8ba3d8a4708e62a81e5b1863f90348bfab44a3b081",
+        "LAW-134-2025-QH15::art-14::cl-1": "sha256:fa287375073dd6469ac0158acdacb355aec7d2f43f92613a04252111dadb0bbb",
+        "LAW-134-2025-QH15::art-11": "sha256:9709b5b8f15dd719709ffc8728a381f3c61550d1db7e129dd725971101946986",
+        "LAW-134-2025-QH15::art-12": "sha256:9da09dd8dfcd77123bc4acf145d316fd965858ba4316116d2902bcf904217f73"
+      },
+      "concept": "HIGH_RISK_TRANSPARENCY_AND_INCIDENT",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "SATISFY_TRANSPARENCY_AND_INCIDENT_HANDLING_REQUIREMENTS"
+      },
+      "investigationGoals": [
+        "Find AI error/incident detection.",
+        "Find logging, alerting, containment, rollback or suspension controls.",
+        "Trace incident records into reporting/remediation workflow."
+      ],
+      "startingNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "TRY_CATCH",
+        "EVENT"
+      ],
+      "targetNodeTypes": [
+        "DATABASE",
+        "NOTIFICATION",
+        "STATUS_CHANGE",
+        "HUMAN_REVIEW",
+        "QUEUE"
+      ],
+      "edgeStrategies": [
+        "CALLS",
+        "THROWS",
+        "CATCHES",
+        "TRIGGERS",
+        "PUBLISHES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "PERSISTS_TO",
+        "WRITES_TO",
+        "UPDATES_STATUS",
+        "REVIEWED_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_incident_handling",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "TRY_CATCH",
+            "EVENT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "CALLS",
+            "THROWS",
+            "CATCHES",
+            "TRIGGERS",
+            "PUBLISHES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "PERSISTS_TO",
+            "WRITES_TO",
+            "UPDATES_STATUS",
+            "REVIEWED_BY"
+          ],
+          "stopNodeTypes": [
+            "DATABASE",
+            "NOTIFICATION",
+            "STATUS_CHANGE",
+            "HUMAN_REVIEW",
+            "QUEUE"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "incident",
+        "error",
+        "exception",
+        "alert",
+        "rollback",
+        "suspend",
+        "kill switch",
+        "report"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_INCIDENT_HANDLING_STATE"
+      ],
+      "supportingEvidence": [
+        "INCIDENT_LOG_PATH",
+        "ALERT_OR_CONTAINMENT_PATH"
+      ],
+      "negativeEvidence": [
+        "AI_FAILURE_WITH_NO_EVIDENCED_HANDLING"
+      ],
+      "unresolvedConditions": [
+        "TIMELINESS_AND_ACTUAL_RESPONSE_REQUIRE_RUNTIME_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART14_1E_EXPLAINABILITY",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-14::cl-1::pt-e"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-14::cl-1::pt-e": "sha256:df04c326b1477f05ae65e8d253db507259aabc636ca7dc67528c6fe2c23dff11",
+        "LAW-134-2025-QH15::art-14::cl-1": "sha256:fa287375073dd6469ac0158acdacb355aec7d2f43f92613a04252111dadb0bbb"
+      },
+      "concept": "HIGH_RISK_EXPLAINABILITY",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "SUPPORT_FUNCTIONAL_EXPLANATION_OF_PURPOSE_OPERATION_INPUTS_RISK_CONTROLS_AND_USER_WARNINGS"
+      },
+      "investigationGoals": [
+        "Collect purpose/provider/model evidence.",
+        "Trace major input categories and transformations.",
+        "Trace output to actions, risk controls and user warnings."
+      ],
+      "startingNodeTypes": [
+        "AI_INPUT",
+        "AI_MODEL_INVOCATION",
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "AI_PROVIDER",
+        "BUSINESS_ACTION",
+        "HTTP_RESPONSE",
+        "HUMAN_REVIEW"
+      ],
+      "edgeStrategies": [
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "collect_functional_explanation_path",
+          "startNodeTypes": [
+            "AI_INPUT",
+            "AI_MODEL_INVOCATION"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "AI_PROVIDER",
+            "BUSINESS_ACTION",
+            "HTTP_RESPONSE",
+            "HUMAN_REVIEW"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "purpose",
+        "provider",
+        "model",
+        "explain",
+        "reason",
+        "warning",
+        "input",
+        "risk control"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_PROVIDER_OR_MODEL",
+        "MAJOR_INPUT_CATEGORIES",
+        "DOWNSTREAM_ACTION"
+      ],
+      "supportingEvidence": [
+        "USER_WARNING",
+        "HUMAN_CONTROL",
+        "RISK_CONTROL"
+      ],
+      "negativeEvidence": [],
+      "unresolvedConditions": [
+        "FORMAL_EXPLANATION_REQUIRES_VERIFIED_BUSINESS_OR_DOCUMENT_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART14_2A_DEPLOY_WITHIN_CLASSIFIED_SCOPE",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-14::cl-2::pt-a"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-14::cl-2::pt-a": "sha256:a03a2e1ead9289a72098b41d59973edbfaa9b4411326dbd1eaf3bb175d1fce6c",
+        "LAW-134-2025-QH15::art-14::cl-2": "sha256:f3260bf5340288feab0a8275d5deb2b86fb944976dd456b365a7175b6ddbc0de"
+      },
+      "concept": "HIGH_RISK_DEPLOYMENT_SCOPE_CONTROL",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "OPERATE_AND_MONITOR_WITHIN_CLASSIFIED_PURPOSE_SCOPE_AND_RISK"
+      },
+      "investigationGoals": [
+        "Collect model/provider/data/function/deployment signals that can alter risk.",
+        "Preserve immutable snapshot/source identities.",
+        "Surface cross-snapshot differences for reclassification or transition review."
+      ],
+      "startingNodeTypes": [
+        "REPOSITORY",
+        "AI_MODEL_INVOCATION",
+        "EXTERNAL_SERVICE",
+        "DATA_CATEGORY"
+      ],
+      "targetNodeTypes": [
+        "AI_PROVIDER",
+        "BUSINESS_ACTION",
+        "SENSITIVE_DATA"
+      ],
+      "edgeStrategies": [
+        "CONTAINS",
+        "SUPPORTED_BY",
+        "CORROBORATES",
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "collect_current_change_sensitive_surface",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "EXTERNAL_SERVICE",
+            "DATA_CATEGORY"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "AI_PROVIDER",
+            "BUSINESS_ACTION",
+            "SENSITIVE_DATA"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "version",
+        "model",
+        "provider",
+        "feature",
+        "deployment",
+        "scope",
+        "change"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "CURRENT_TECHNICAL_SURFACE",
+        "SNAPSHOT_IDENTITY"
+      ],
+      "supportingEvidence": [
+        "CHANGE_SIGNAL"
+      ],
+      "negativeEvidence": [],
+      "unresolvedConditions": [
+        "CROSS_SNAPSHOT_OR_DEPLOYMENT_HISTORY_REQUIRED"
+      ]
+    },
+    {
+      "templateId": "VN134_ART14_2B_DEPLOYER_DATA_SECURITY_HUMAN_INTERVENTION",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-14::cl-2::pt-b"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-14::cl-2::pt-b": "sha256:a34cd448a3dac683226e253b4f7eae0b92f9d950c9887ac82511ed6cc80a6994",
+        "LAW-134-2025-QH15::art-14::cl-2": "sha256:f3260bf5340288feab0a8275d5deb2b86fb944976dd456b365a7175b6ddbc0de"
+      },
+      "concept": "HIGH_RISK_DEPLOYER_DATA_SECURITY_AND_HUMAN_CONTROL",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "PROTECT_DATA_AND_PRESERVE_HUMAN_INTERVENTION_DURING_USE"
+      },
+      "investigationGoals": [
+        "Identify AI control and data-security boundaries.",
+        "Trace sensitive-data storage/egress and control mutations.",
+        "Find security-event, sanitization or containment controls represented in code."
+      ],
+      "startingNodeTypes": [
+        "HTTP_ROUTE",
+        "COMMAND",
+        "PERSONAL_DATA",
+        "SENSITIVE_DATA"
+      ],
+      "targetNodeTypes": [
+        "AI_PROVIDER",
+        "EXTERNAL_API",
+        "DATABASE",
+        "STATUS_CHANGE",
+        "NOTIFICATION"
+      ],
+      "edgeStrategies": [
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE",
+        "HANDLED_BY",
+        "UPDATES_STATUS",
+        "PUBLISHES_EVENT"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_security_surface",
+          "startNodeTypes": [
+            "HTTP_ROUTE",
+            "COMMAND",
+            "PERSONAL_DATA",
+            "SENSITIVE_DATA"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE",
+            "HANDLED_BY",
+            "UPDATES_STATUS",
+            "PUBLISHES_EVENT"
+          ],
+          "stopNodeTypes": [
+            "AI_PROVIDER",
+            "EXTERNAL_API",
+            "DATABASE",
+            "STATUS_CHANGE",
+            "NOTIFICATION"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "auth",
+        "permission",
+        "security",
+        "encrypt",
+        "redact",
+        "admin",
+        "intrusion",
+        "access"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_SECURITY_SURFACE"
+      ],
+      "supportingEvidence": [
+        "AUTHORIZATION_CONTROL",
+        "SANITIZATION_CONTROL",
+        "SECURITY_EVENT_LOG"
+      ],
+      "negativeEvidence": [
+        "SENSITIVE_OR_CONTROL_PATH_WITHOUT_EVIDENCED_SECURITY_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "NETWORK_IDENTITY_AND_INFRA_CONTROLS_MAY_REQUIRE_DEPLOYMENT_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART15_1A_MEDIUM_TRANSPARENCY",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-15::cl-1::pt-a"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-15::cl-1::pt-a": "sha256:0165f0c1358aa70f654333a2a85f6a7343f082e086969df6e8c0b5b0d5fdd335",
+        "LAW-134-2025-QH15::art-15::cl-1": "sha256:3541ac9c4c8f31f19aa2cbfda8ddde8d5f374b3c043a74e1132a5d569a86f792",
+        "LAW-134-2025-QH15::art-11": "sha256:9709b5b8f15dd719709ffc8728a381f3c61550d1db7e129dd725971101946986"
+      },
+      "concept": "MEDIUM_RISK_TRANSPARENCY",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "APPLY_ARTICLE_11_TRANSPARENCY_TO_MEDIUM_RISK_AI"
+      },
+      "investigationGoals": [
+        "Find user/public AI output surfaces.",
+        "Find disclosure, label, watermark or provenance controls.",
+        "Identify output paths that bypass transparency controls."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "HTTP_RESPONSE",
+        "NOTIFICATION",
+        "FILE_STORAGE",
+        "EXTERNAL_API"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_output_to_user_or_publication",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "HTTP_RESPONSE",
+            "NOTIFICATION",
+            "FILE_STORAGE",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "disclosure",
+        "label",
+        "watermark",
+        "ai-generated",
+        "synthetic",
+        "deepfake",
+        "provenance"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_OUTPUT_SURFACE"
+      ],
+      "supportingEvidence": [
+        "DISCLOSURE_OR_LABEL_CONTROL"
+      ],
+      "negativeEvidence": [
+        "AI_OUTPUT_WITHOUT_EVIDENCED_TRANSPARENCY_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "CONTENT_CONTEXT_OR_USER_CONFUSION_MAY_REQUIRE_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART15_1B_PROVIDER_EXPLANATION",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-15::cl-1::pt-b"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-15::cl-1::pt-b": "sha256:014878a12b9ec1a6c335b256fdd2ee682d5ccb670567f3fe8614f8a2e55eae3a",
+        "LAW-134-2025-QH15::art-15::cl-1": "sha256:3541ac9c4c8f31f19aa2cbfda8ddde8d5f374b3c043a74e1132a5d569a86f792"
+      },
+      "concept": "MEDIUM_RISK_PROVIDER_EXPLAINABILITY",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "SUPPORT_PROVIDER_EXPLANATION_OF_PURPOSE_FUNCTIONAL_OPERATION_INPUTS_AND_RISK_SAFETY_CONTROLS"
+      },
+      "investigationGoals": [
+        "Collect purpose/provider/model evidence.",
+        "Trace major input categories and transformations.",
+        "Trace output to actions, risk controls and user warnings."
+      ],
+      "startingNodeTypes": [
+        "AI_INPUT",
+        "AI_MODEL_INVOCATION",
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "AI_PROVIDER",
+        "BUSINESS_ACTION",
+        "HTTP_RESPONSE",
+        "HUMAN_REVIEW"
+      ],
+      "edgeStrategies": [
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "collect_functional_explanation_path",
+          "startNodeTypes": [
+            "AI_INPUT",
+            "AI_MODEL_INVOCATION"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "AI_PROVIDER",
+            "BUSINESS_ACTION",
+            "HTTP_RESPONSE",
+            "HUMAN_REVIEW"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "purpose",
+        "provider",
+        "model",
+        "explain",
+        "reason",
+        "warning",
+        "input",
+        "risk control"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_PROVIDER_OR_MODEL",
+        "MAJOR_INPUT_CATEGORIES",
+        "DOWNSTREAM_ACTION"
+      ],
+      "supportingEvidence": [
+        "USER_WARNING",
+        "HUMAN_CONTROL",
+        "RISK_CONTROL"
+      ],
+      "negativeEvidence": [],
+      "unresolvedConditions": [
+        "FORMAL_EXPLANATION_REQUIRES_VERIFIED_BUSINESS_OR_DOCUMENT_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART15_1C_DEPLOYER_EXPLANATION",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-15::cl-1::pt-c"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-15::cl-1::pt-c": "sha256:923f84f94b9b33960ce737383371856ad2da972835be013940dbfbb17f27e2bb",
+        "LAW-134-2025-QH15::art-15::cl-1": "sha256:3541ac9c4c8f31f19aa2cbfda8ddde8d5f374b3c043a74e1132a5d569a86f792"
+      },
+      "concept": "MEDIUM_RISK_DEPLOYER_EXPLAINABILITY",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "SUPPORT_DEPLOYER_EXPLANATION_OF_OPERATION_RISK_CONTROL_INCIDENT_HANDLING_AND_RIGHTS_PROTECTION"
+      },
+      "investigationGoals": [
+        "Collect purpose/provider/model evidence.",
+        "Trace major input categories and transformations.",
+        "Trace output to actions, risk controls and user warnings."
+      ],
+      "startingNodeTypes": [
+        "AI_INPUT",
+        "AI_MODEL_INVOCATION",
+        "AI_OUTPUT"
+      ],
+      "targetNodeTypes": [
+        "AI_PROVIDER",
+        "BUSINESS_ACTION",
+        "HTTP_RESPONSE",
+        "HUMAN_REVIEW"
+      ],
+      "edgeStrategies": [
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "collect_functional_explanation_path",
+          "startNodeTypes": [
+            "AI_INPUT",
+            "AI_MODEL_INVOCATION"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "AI_PROVIDER",
+            "BUSINESS_ACTION",
+            "HTTP_RESPONSE",
+            "HUMAN_REVIEW"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "purpose",
+        "provider",
+        "model",
+        "explain",
+        "reason",
+        "warning",
+        "input",
+        "risk control"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_PROVIDER_OR_MODEL",
+        "MAJOR_INPUT_CATEGORIES",
+        "DOWNSTREAM_ACTION"
+      ],
+      "supportingEvidence": [
+        "USER_WARNING",
+        "HUMAN_CONTROL",
+        "RISK_CONTROL"
+      ],
+      "negativeEvidence": [],
+      "unresolvedConditions": [
+        "FORMAL_EXPLANATION_REQUIRES_VERIFIED_BUSINESS_OR_DOCUMENT_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART17_1_AI_DATA_LEGAL_COMPLIANCE",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-17::cl-1"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-17::cl-1": "sha256:a9c5ca8fa6dea927bfd3262bb5c9fbe09a9331794c257de4362890d3fb43746e",
+        "LAW-134-2025-QH15::art-17": "sha256:903870238b29bb1e27f436673fe78d7f094571f76c8ff93053e8f6a2a2df85a7"
+      },
+      "concept": "AI_DATASET_GOVERNANCE",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "TRACE_DATASETS_USED_FOR_TRAINING_TESTING_EVALUATION_AND_AI_DEVELOPMENT"
+      },
+      "investigationGoals": [
+        "Trace data sources and transformations into AI.",
+        "Classify personal/sensitive-data paths.",
+        "Identify storage, external egress, validation and sanitization controls."
+      ],
+      "startingNodeTypes": [
+        "PERSONAL_DATA",
+        "SENSITIVE_DATA",
+        "AI_INPUT"
+      ],
+      "targetNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "AI_PROVIDER",
+        "EXTERNAL_API",
+        "DATABASE"
+      ],
+      "edgeStrategies": [
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_data_to_ai_or_external",
+          "startNodeTypes": [
+            "PERSONAL_DATA",
+            "SENSITIVE_DATA",
+            "AI_INPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "AI_PROVIDER",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "dataset",
+        "personal data",
+        "pii",
+        "sensitive",
+        "training",
+        "validation",
+        "sanitize",
+        "redact",
+        "retention"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "DATA_CATEGORY",
+        "DATA_LINEAGE"
+      ],
+      "supportingEvidence": [
+        "VALIDATION_CONTROL",
+        "SANITIZATION_CONTROL",
+        "STORAGE_OR_EGRESS_PATH"
+      ],
+      "negativeEvidence": [
+        "SENSITIVE_DATA_EGRESS_WITHOUT_EVIDENCED_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "LEGAL_BASIS_NOT_DETERMINABLE_FROM_CODE",
+        "CONTRACT_OR_CONSENT_REQUIRES_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART17_4_DATA_SHARING",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-17::cl-4"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-17::cl-4": "sha256:d0305355e55cce083ac7f8ebec25a859bd6ed04aaa3f09f94984242fc654daff",
+        "LAW-134-2025-QH15::art-17": "sha256:903870238b29bb1e27f436673fe78d7f094571f76c8ff93053e8f6a2a2df85a7"
+      },
+      "concept": "AI_DATA_SHARING_GOVERNANCE",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "TRACE_AI_DATA_SHARING_AND_PROTECT_DATA_PERSONAL_DATA_IP_AND_OTHER_RIGHTS"
+      },
+      "investigationGoals": [
+        "Trace data sources and transformations into AI.",
+        "Classify personal/sensitive-data paths.",
+        "Identify storage, external egress, validation and sanitization controls."
+      ],
+      "startingNodeTypes": [
+        "PERSONAL_DATA",
+        "SENSITIVE_DATA",
+        "AI_INPUT"
+      ],
+      "targetNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "AI_PROVIDER",
+        "EXTERNAL_API",
+        "DATABASE"
+      ],
+      "edgeStrategies": [
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_data_to_ai_or_external",
+          "startNodeTypes": [
+            "PERSONAL_DATA",
+            "SENSITIVE_DATA",
+            "AI_INPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "AI_PROVIDER",
+            "EXTERNAL_API"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "dataset",
+        "personal data",
+        "pii",
+        "sensitive",
+        "training",
+        "validation",
+        "sanitize",
+        "redact",
+        "retention"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "DATA_CATEGORY",
+        "DATA_LINEAGE"
+      ],
+      "supportingEvidence": [
+        "VALIDATION_CONTROL",
+        "SANITIZATION_CONTROL",
+        "STORAGE_OR_EGRESS_PATH"
+      ],
+      "negativeEvidence": [
+        "SENSITIVE_DATA_EGRESS_WITHOUT_EVIDENCED_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "LEGAL_BASIS_NOT_DETERMINABLE_FROM_CODE",
+        "CONTRACT_OR_CONSENT_REQUIRES_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART27_2_PUBLIC_SERVICE_HUMAN_DECISION_AUTHORITY",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-27::cl-2"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-27::cl-2": "sha256:cc527d09cd19af7d221ee89039e533aae11e5a6965cb9023367c8f523b259d49",
+        "LAW-134-2025-QH15::art-27": "sha256:07364206ea03a909d172623de395c6b53e4da8b6d3b37efdd319a00a280cb4ad"
+      },
+      "concept": "PUBLIC_SERVICE_HUMAN_DECISION_AUTHORITY",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "AI_MUST_NOT_REPLACE_HUMAN_DECISION_AUTHORITY_AND_RESPONSIBILITY_IN_PUBLIC_SERVICE"
+      },
+      "investigationGoals": [
+        "Trace AI influence on public-service actions.",
+        "Find human decision authority and intervention points.",
+        "Collect impact/data/control evidence for public-sector assessment."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT",
+        "AI_MODEL_INVOCATION",
+        "PERSONAL_DATA",
+        "SENSITIVE_DATA"
+      ],
+      "targetNodeTypes": [
+        "BUSINESS_ACTION",
+        "APPROVAL",
+        "REJECTION",
+        "HUMAN_REVIEW",
+        "HUMAN_OVERRIDE"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_public_sector_ai_effect",
+          "startNodeTypes": [
+            "AI_OUTPUT",
+            "AI_MODEL_INVOCATION"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY"
+          ],
+          "stopNodeTypes": [
+            "BUSINESS_ACTION",
+            "APPROVAL",
+            "REJECTION",
+            "HUMAN_REVIEW",
+            "HUMAN_OVERRIDE"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "public service",
+        "government",
+        "permit",
+        "benefit",
+        "decision",
+        "impact",
+        "review"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "PUBLIC_SECTOR_AI_EFFECT_PATH"
+      ],
+      "supportingEvidence": [
+        "HUMAN_DECISION_GATE",
+        "IMPACT_AND_DATA_EVIDENCE"
+      ],
+      "negativeEvidence": [
+        "AI_AUTONOMOUS_FINAL_PUBLIC_SERVICE_DECISION"
+      ],
+      "unresolvedConditions": [
+        "PUBLIC_SERVICE_CONTEXT_AND_FORMAL_IMPACT_ASSESSMENT_REQUIRE_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART27_3_IMPACT_ASSESSMENT",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-27::cl-3"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-27::cl-3": "sha256:7efeb753d18aaa72ce6772c56462daa6bd9d693c02c269e831916531492dc704",
+        "LAW-134-2025-QH15::art-27": "sha256:07364206ea03a909d172623de395c6b53e4da8b6d3b37efdd319a00a280cb4ad"
+      },
+      "concept": "PUBLIC_SECTOR_AI_IMPACT_ASSESSMENT",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "COLLECT_RISK_CONTROL_AND_HUMAN_OVERSIGHT_EVIDENCE_FOR_PUBLIC_SECTOR_AI_IMPACT_ASSESSMENT"
+      },
+      "investigationGoals": [
+        "Trace AI influence on public-service actions.",
+        "Find human decision authority and intervention points.",
+        "Collect impact/data/control evidence for public-sector assessment."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT",
+        "AI_MODEL_INVOCATION",
+        "PERSONAL_DATA",
+        "SENSITIVE_DATA"
+      ],
+      "targetNodeTypes": [
+        "BUSINESS_ACTION",
+        "APPROVAL",
+        "REJECTION",
+        "HUMAN_REVIEW",
+        "HUMAN_OVERRIDE"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_public_sector_ai_effect",
+          "startNodeTypes": [
+            "AI_OUTPUT",
+            "AI_MODEL_INVOCATION"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY"
+          ],
+          "stopNodeTypes": [
+            "BUSINESS_ACTION",
+            "APPROVAL",
+            "REJECTION",
+            "HUMAN_REVIEW",
+            "HUMAN_OVERRIDE"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "public service",
+        "government",
+        "permit",
+        "benefit",
+        "decision",
+        "impact",
+        "review"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "PUBLIC_SECTOR_AI_EFFECT_PATH"
+      ],
+      "supportingEvidence": [
+        "HUMAN_DECISION_GATE",
+        "IMPACT_AND_DATA_EVIDENCE"
+      ],
+      "negativeEvidence": [
+        "AI_AUTONOMOUS_FINAL_PUBLIC_SERVICE_DECISION"
+      ],
+      "unresolvedConditions": [
+        "PUBLIC_SERVICE_CONTEXT_AND_FORMAL_IMPACT_ASSESSMENT_REQUIRE_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART28_3_AUDIT_EVIDENCE_AVAILABILITY",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-28::cl-3"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-28::cl-3": "sha256:ca7becb466349bc78d54597206372a77d4889b9981cc44ad7be69b8885815d3e",
+        "LAW-134-2025-QH15::art-28": "sha256:fe04ffaa2e1f589c187a1db73c00bd41e631b49181c748ad74132429c3417293"
+      },
+      "concept": "INSPECTION_EVIDENCE_AVAILABILITY",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "PRESERVE_TECHNICAL_DOSSIER_TRACE_LOG_DATA_AND_NECESSARY_EVIDENCE_FOR_INSPECTION"
+      },
+      "investigationGoals": [
+        "Find operation/audit logging for AI and consequential actions.",
+        "Collect model/provider/config/source provenance.",
+        "Identify persistent evidence sinks and traceability gaps."
+      ],
+      "startingNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "EVENT",
+        "SOURCE_ANCHOR"
+      ],
+      "targetNodeTypes": [
+        "DATABASE",
+        "FILE_STORAGE",
+        "SOURCE_ANCHOR"
+      ],
+      "edgeStrategies": [
+        "CALLS",
+        "PUBLISHES_EVENT",
+        "PERSISTS_TO",
+        "WRITES_TO",
+        "SUPPORTED_BY",
+        "CORROBORATES"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_audit_evidence",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "EVENT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "CALLS",
+            "PUBLISHES_EVENT",
+            "PERSISTS_TO",
+            "WRITES_TO",
+            "SUPPORTED_BY",
+            "CORROBORATES"
+          ],
+          "stopNodeTypes": [
+            "DATABASE",
+            "FILE_STORAGE",
+            "SOURCE_ANCHOR"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "audit",
+        "log",
+        "trace",
+        "telemetry",
+        "correlation",
+        "model version",
+        "evidence",
+        "dossier"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "TECHNICAL_PROVENANCE",
+        "TRACEABILITY_EVIDENCE"
+      ],
+      "supportingEvidence": [
+        "PERSISTED_LOG_PATH",
+        "MODEL_PROVIDER_VERSION_EVIDENCE"
+      ],
+      "negativeEvidence": [
+        "NO_EVIDENCED_TRACEABILITY_FOR_AI_OPERATION"
+      ],
+      "unresolvedConditions": [
+        "LOG_RETENTION_AND_COMPLETENESS_REQUIRE_RUNTIME_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART29_4_INTRUSION_SECURITY_CONTROL",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-29::cl-4"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-29::cl-4": "sha256:7a46477da4aa3a7cdfeb349017df7ac3ae3ee5f44de11a152a7063b73ca62980",
+        "LAW-134-2025-QH15::art-29": "sha256:5500a553e8439639c17b1a3fbb868666d7f077b28af0e189dc31dbe176ee2262"
+      },
+      "concept": "AI_UNAUTHORIZED_CONTROL_SECURITY",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "IDENTIFY_CONTROLS_AND_FAILURE_PATHS_RELEVANT_TO_UNAUTHORIZED_INTRUSION_OR_CONTROL"
+      },
+      "investigationGoals": [
+        "Identify AI control and data-security boundaries.",
+        "Trace sensitive-data storage/egress and control mutations.",
+        "Find security-event, sanitization or containment controls represented in code."
+      ],
+      "startingNodeTypes": [
+        "HTTP_ROUTE",
+        "COMMAND",
+        "PERSONAL_DATA",
+        "SENSITIVE_DATA"
+      ],
+      "targetNodeTypes": [
+        "AI_PROVIDER",
+        "EXTERNAL_API",
+        "DATABASE",
+        "STATUS_CHANGE",
+        "NOTIFICATION"
+      ],
+      "edgeStrategies": [
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE",
+        "HANDLED_BY",
+        "UPDATES_STATUS",
+        "PUBLISHES_EVENT"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_security_surface",
+          "startNodeTypes": [
+            "HTTP_ROUTE",
+            "COMMAND",
+            "PERSONAL_DATA",
+            "SENSITIVE_DATA"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE",
+            "HANDLED_BY",
+            "UPDATES_STATUS",
+            "PUBLISHES_EVENT"
+          ],
+          "stopNodeTypes": [
+            "AI_PROVIDER",
+            "EXTERNAL_API",
+            "DATABASE",
+            "STATUS_CHANGE",
+            "NOTIFICATION"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "auth",
+        "permission",
+        "security",
+        "encrypt",
+        "redact",
+        "admin",
+        "intrusion",
+        "access"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_SECURITY_SURFACE"
+      ],
+      "supportingEvidence": [
+        "AUTHORIZATION_CONTROL",
+        "SANITIZATION_CONTROL",
+        "SECURITY_EVENT_LOG"
+      ],
+      "negativeEvidence": [
+        "SENSITIVE_OR_CONTROL_PATH_WITHOUT_EVIDENCED_SECURITY_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "NETWORK_IDENTITY_AND_INFRA_CONTROLS_MAY_REQUIRE_DEPLOYMENT_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART31_1_3_INFORMATION_CONFIDENTIALITY",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-31::cl-1",
+        "LAW-134-2025-QH15::art-31::cl-3"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-31::cl-1": "sha256:0774e05c304f698a2dc27d54054e6a810b011ae3d0546735bed94edb18f2e757",
+        "LAW-134-2025-QH15::art-31": "sha256:7a0e79eb0d4ee524a3bdc97d0f87de8ab8fe437f8059a76960ccd55a22da688b",
+        "LAW-134-2025-QH15::art-31::cl-3": "sha256:cd524761e7894b7d3737d28b449662f800322626607cb7777ec01c380c46244f"
+      },
+      "concept": "REGULATORY_INFORMATION_CONFIDENTIALITY",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "PROTECT_TECHNICAL_TRAINING_SOURCE_ALGORITHM_BUSINESS_SECRET_AND_PERSONAL_DATA_SHARED_FOR_REGULATORY_PURPOSES"
+      },
+      "investigationGoals": [
+        "Identify AI control and data-security boundaries.",
+        "Trace sensitive-data storage/egress and control mutations.",
+        "Find security-event, sanitization or containment controls represented in code."
+      ],
+      "startingNodeTypes": [
+        "HTTP_ROUTE",
+        "COMMAND",
+        "PERSONAL_DATA",
+        "SENSITIVE_DATA"
+      ],
+      "targetNodeTypes": [
+        "AI_PROVIDER",
+        "EXTERNAL_API",
+        "DATABASE",
+        "STATUS_CHANGE",
+        "NOTIFICATION"
+      ],
+      "edgeStrategies": [
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE",
+        "HANDLED_BY",
+        "UPDATES_STATUS",
+        "PUBLISHES_EVENT"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_security_surface",
+          "startNodeTypes": [
+            "HTTP_ROUTE",
+            "COMMAND",
+            "PERSONAL_DATA",
+            "SENSITIVE_DATA"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE",
+            "HANDLED_BY",
+            "UPDATES_STATUS",
+            "PUBLISHES_EVENT"
+          ],
+          "stopNodeTypes": [
+            "AI_PROVIDER",
+            "EXTERNAL_API",
+            "DATABASE",
+            "STATUS_CHANGE",
+            "NOTIFICATION"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "auth",
+        "permission",
+        "security",
+        "encrypt",
+        "redact",
+        "admin",
+        "intrusion",
+        "access"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_SECURITY_SURFACE"
+      ],
+      "supportingEvidence": [
+        "AUTHORIZATION_CONTROL",
+        "SANITIZATION_CONTROL",
+        "SECURITY_EVENT_LOG"
+      ],
+      "negativeEvidence": [
+        "SENSITIVE_OR_CONTROL_PATH_WITHOUT_EVIDENCED_SECURITY_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "NETWORK_IDENTITY_AND_INFRA_CONTROLS_MAY_REQUIRE_DEPLOYMENT_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART31_2_PROPORTIONAL_INFORMATION_REQUEST",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-31::cl-2"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-31::cl-2": "sha256:1c3c91c813252a0d4e83fa785d1411a340361d9a64a46913111d0069f25c1af5",
+        "LAW-134-2025-QH15::art-31": "sha256:7a0e79eb0d4ee524a3bdc97d0f87de8ab8fe437f8059a76960ccd55a22da688b"
+      },
+      "concept": "PROPORTIONAL_INFORMATION_DISCLOSURE",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "SUPPORT_MINIMUM_NECESSARY_AND_PROPORTIONATE_TECHNICAL_INFORMATION_DISCLOSURE"
+      },
+      "investigationGoals": [
+        "Find operation/audit logging for AI and consequential actions.",
+        "Collect model/provider/config/source provenance.",
+        "Identify persistent evidence sinks and traceability gaps."
+      ],
+      "startingNodeTypes": [
+        "AI_MODEL_INVOCATION",
+        "EVENT",
+        "SOURCE_ANCHOR"
+      ],
+      "targetNodeTypes": [
+        "DATABASE",
+        "FILE_STORAGE",
+        "SOURCE_ANCHOR"
+      ],
+      "edgeStrategies": [
+        "CALLS",
+        "PUBLISHES_EVENT",
+        "PERSISTS_TO",
+        "WRITES_TO",
+        "SUPPORTED_BY",
+        "CORROBORATES"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_audit_evidence",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "EVENT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "CALLS",
+            "PUBLISHES_EVENT",
+            "PERSISTS_TO",
+            "WRITES_TO",
+            "SUPPORTED_BY",
+            "CORROBORATES"
+          ],
+          "stopNodeTypes": [
+            "DATABASE",
+            "FILE_STORAGE",
+            "SOURCE_ANCHOR"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "audit",
+        "log",
+        "trace",
+        "telemetry",
+        "correlation",
+        "model version",
+        "evidence",
+        "dossier"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "TECHNICAL_PROVENANCE",
+        "TRACEABILITY_EVIDENCE"
+      ],
+      "supportingEvidence": [
+        "PERSISTED_LOG_PATH",
+        "MODEL_PROVIDER_VERSION_EVIDENCE"
+      ],
+      "negativeEvidence": [
+        "NO_EVIDENCED_TRACEABILITY_FOR_AI_OPERATION"
+      ],
+      "unresolvedConditions": [
+        "LOG_RETENTION_AND_COMPLETENESS_REQUIRE_RUNTIME_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN134_ART35_1_TRANSITION_DEADLINE",
+      "matchCitationChunkIds": [
+        "LAW-134-2025-QH15::art-35::cl-1"
+      ],
+      "groundingContextHashes": {
+        "LAW-134-2025-QH15::art-35::cl-1": "sha256:3544bbca090711d116c7ae648da2869861fcd9b18899dd9025dab5119f3b2683",
+        "LAW-134-2025-QH15::art-35": "sha256:9dcfabbbebf12ee5500387aec6abf5977a9aa9b7c789cf5bd9c6d60eb93ac828"
+      },
+      "concept": "AI_TRANSITION_READINESS",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "IDENTIFY_DEPLOYED_PRE_EFFECTIVE_DATE_AI_AND_DOMAIN_SIGNALS_FOR_TRANSITION_OBLIGATION_TRACKING"
+      },
+      "investigationGoals": [
+        "Collect model/provider/data/function/deployment signals that can alter risk.",
+        "Preserve immutable snapshot/source identities.",
+        "Surface cross-snapshot differences for reclassification or transition review."
+      ],
+      "startingNodeTypes": [
+        "REPOSITORY",
+        "AI_MODEL_INVOCATION",
+        "EXTERNAL_SERVICE",
+        "DATA_CATEGORY"
+      ],
+      "targetNodeTypes": [
+        "AI_PROVIDER",
+        "BUSINESS_ACTION",
+        "SENSITIVE_DATA"
+      ],
+      "edgeStrategies": [
+        "CONTAINS",
+        "SUPPORTED_BY",
+        "CORROBORATES",
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "collect_current_change_sensitive_surface",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "EXTERNAL_SERVICE",
+            "DATA_CATEGORY"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "AI_PROVIDER",
+            "BUSINESS_ACTION",
+            "SENSITIVE_DATA"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "version",
+        "model",
+        "provider",
+        "feature",
+        "deployment",
+        "scope",
+        "change"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "CURRENT_TECHNICAL_SURFACE",
+        "SNAPSHOT_IDENTITY"
+      ],
+      "supportingEvidence": [
+        "CHANGE_SIGNAL"
+      ],
+      "negativeEvidence": [],
+      "unresolvedConditions": [
+        "CROSS_SNAPSHOT_OR_DEPLOYMENT_HISTORY_REQUIRED"
+      ]
+    },
+    {
+      "templateId": "VN71_ART10_CYBER_DATA_COMPLIANCE",
+      "matchCitationChunkIds": [
+        "LAW-71-2025-QH15::art-10"
+      ],
+      "groundingContextHashes": {
+        "LAW-71-2025-QH15::art-10": "sha256:71d3dc259edab295f5da5e2cc9862b1393b9a10fecd095776d1afc9dbc3da6db"
+      },
+      "concept": "DIGITAL_INDUSTRY_CYBER_DATA_COMPLIANCE",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "IDENTIFY_CYBER_DATA_AND_PERSONAL_DATA_COMPLIANCE_SURFACES_IN_DIGITAL_TECHNOLOGY_OPERATIONS"
+      },
+      "investigationGoals": [
+        "Identify AI control and data-security boundaries.",
+        "Trace sensitive-data storage/egress and control mutations.",
+        "Find security-event, sanitization or containment controls represented in code."
+      ],
+      "startingNodeTypes": [
+        "HTTP_ROUTE",
+        "COMMAND",
+        "PERSONAL_DATA",
+        "SENSITIVE_DATA"
+      ],
+      "targetNodeTypes": [
+        "AI_PROVIDER",
+        "EXTERNAL_API",
+        "DATABASE",
+        "STATUS_CHANGE",
+        "NOTIFICATION"
+      ],
+      "edgeStrategies": [
+        "HAS_PARAMETER",
+        "PASSES_ARGUMENT",
+        "ASSIGNS",
+        "ALIASES",
+        "READS_PROPERTY",
+        "WRITES_PROPERTY",
+        "MAPS_TO",
+        "PARSES",
+        "SERIALIZES",
+        "DESERIALIZES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "SANITIZES",
+        "READS_FROM",
+        "WRITES_TO",
+        "PERSISTS_TO",
+        "LOADS_FROM",
+        "SENDS_TO_EXTERNAL",
+        "SENDS_TO_AI",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE",
+        "HANDLED_BY",
+        "UPDATES_STATUS",
+        "PUBLISHES_EVENT"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_security_surface",
+          "startNodeTypes": [
+            "HTTP_ROUTE",
+            "COMMAND",
+            "PERSONAL_DATA",
+            "SENSITIVE_DATA"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "HAS_PARAMETER",
+            "PASSES_ARGUMENT",
+            "ASSIGNS",
+            "ALIASES",
+            "READS_PROPERTY",
+            "WRITES_PROPERTY",
+            "MAPS_TO",
+            "PARSES",
+            "SERIALIZES",
+            "DESERIALIZES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "SANITIZES",
+            "READS_FROM",
+            "WRITES_TO",
+            "PERSISTS_TO",
+            "LOADS_FROM",
+            "SENDS_TO_EXTERNAL",
+            "SENDS_TO_AI",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE",
+            "HANDLED_BY",
+            "UPDATES_STATUS",
+            "PUBLISHES_EVENT"
+          ],
+          "stopNodeTypes": [
+            "AI_PROVIDER",
+            "EXTERNAL_API",
+            "DATABASE",
+            "STATUS_CHANGE",
+            "NOTIFICATION"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "auth",
+        "permission",
+        "security",
+        "encrypt",
+        "redact",
+        "admin",
+        "intrusion",
+        "access"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_SECURITY_SURFACE"
+      ],
+      "supportingEvidence": [
+        "AUTHORIZATION_CONTROL",
+        "SANITIZATION_CONTROL",
+        "SECURITY_EVENT_LOG"
+      ],
+      "negativeEvidence": [
+        "SENSITIVE_OR_CONTROL_PATH_WITHOUT_EVIDENCED_SECURITY_CONTROL"
+      ],
+      "unresolvedConditions": [
+        "NETWORK_IDENTITY_AND_INFRA_CONTROLS_MAY_REQUIRE_DEPLOYMENT_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN71_ART12_2_IP_COMPLIANCE",
+      "matchCitationChunkIds": [
+        "LAW-71-2025-QH15::art-12::cl-2"
+      ],
+      "groundingContextHashes": {
+        "LAW-71-2025-QH15::art-12::cl-2": "sha256:e0ef6faded72a373440154dc3eeae1b47175ea9452579e78ecaa1d52bde8b094",
+        "LAW-71-2025-QH15::art-12": "sha256:68b4dbf5903230903760a12b8dae3768f9c0347fe3442cf18d0ba9fb7df2f9bb"
+      },
+      "concept": "DIGITAL_INDUSTRY_IP_COMPLIANCE",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "IDENTIFY_SOFTWARE_DATA_MODEL_AND_DEPENDENCY_IP_EVIDENCE_RELEVANT_TO_DIGITAL_INDUSTRY_ACTIVITY"
+      },
+      "investigationGoals": [
+        "Inventory software/model/data dependencies and license metadata.",
+        "Connect declared dependencies to actual imports/usage.",
+        "Identify third-party assets requiring IP or contractual review."
+      ],
+      "startingNodeTypes": [
+        "PACKAGE_DEPENDENCY",
+        "PACKAGE",
+        "EXTERNAL_SERVICE",
+        "AI_PROVIDER"
+      ],
+      "targetNodeTypes": [
+        "MODULE",
+        "CALL_SITE",
+        "AI_MODEL_INVOCATION"
+      ],
+      "edgeStrategies": [
+        "DEPENDS_ON",
+        "IMPORTS",
+        "RESOLVES_TO",
+        "CALLS",
+        "CALLS_EXTERNAL",
+        "CALLS_API"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_dependency_and_external_asset_usage",
+          "startNodeTypes": [
+            "PACKAGE_DEPENDENCY"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "DEPENDS_ON",
+            "IMPORTS",
+            "RESOLVES_TO",
+            "CALLS",
+            "CALLS_EXTERNAL",
+            "CALLS_API"
+          ],
+          "stopNodeTypes": [
+            "MODULE",
+            "CALL_SITE",
+            "AI_MODEL_INVOCATION"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "license",
+        "SPDX",
+        "copyright",
+        "dependency",
+        "model license",
+        "dataset license"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "DEPENDENCY_OR_EXTERNAL_ASSET_INVENTORY"
+      ],
+      "supportingEvidence": [
+        "LICENSE_METADATA",
+        "ACTUAL_USAGE_PATH"
+      ],
+      "negativeEvidence": [],
+      "unresolvedConditions": [
+        "LICENSE_RIGHTS_AND_CONTRACT_TERMS_REQUIRE_NON_CODE_EVIDENCE"
+      ]
+    },
+    {
+      "templateId": "VN71_ART12_3_UNLAWFUL_DIGITAL_USE",
+      "matchCitationChunkIds": [
+        "LAW-71-2025-QH15::art-12::cl-3"
+      ],
+      "groundingContextHashes": {
+        "LAW-71-2025-QH15::art-12::cl-3": "sha256:54056bc19cfd98b4ce0f50933c84e991508af20800d647332d683203a3aca4c5",
+        "LAW-71-2025-QH15::art-12": "sha256:68b4dbf5903230903760a12b8dae3768f9c0347fe3442cf18d0ba9fb7df2f9bb"
+      },
+      "concept": "UNLAWFUL_DIGITAL_PRODUCT_SERVICE_USE",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "TRACE_DIGITAL_PRODUCT_OR_SERVICE_ACTION_PATHS_FOR_LEGAL_REVIEW_WITHOUT_INFERRING_ILLEGALITY"
+      },
+      "investigationGoals": [
+        "Trace AI outputs into ranking, recommendation, approval, rejection or status change.",
+        "Identify affected business actions and subjects where evidenced.",
+        "Preserve limitations instead of inferring legal effect."
+      ],
+      "startingNodeTypes": [
+        "AI_OUTPUT",
+        "AI_MODEL_INVOCATION"
+      ],
+      "targetNodeTypes": [
+        "RANKING",
+        "RECOMMENDATION",
+        "REJECTION",
+        "APPROVAL",
+        "STATUS_CHANGE",
+        "BUSINESS_ACTION"
+      ],
+      "edgeStrategies": [
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY"
+      ],
+      "graphQueries": [
+        {
+          "name": "trace_ai_decision_effect",
+          "startNodeTypes": [
+            "AI_OUTPUT"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY"
+          ],
+          "stopNodeTypes": [
+            "RANKING",
+            "RECOMMENDATION",
+            "REJECTION",
+            "APPROVAL",
+            "STATUS_CHANGE",
+            "BUSINESS_ACTION"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "score",
+        "rank",
+        "recommend",
+        "approve",
+        "reject",
+        "eligibility",
+        "decision",
+        "status"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "AI_EFFECT_PATH",
+        "CONSEQUENTIAL_ACTION"
+      ],
+      "supportingEvidence": [
+        "AFFECTED_DATA_CATEGORY",
+        "HUMAN_REVIEW_PATH"
+      ],
+      "negativeEvidence": [
+        "UNCONTROLLED_CONSEQUENTIAL_AI_ACTION"
+      ],
+      "unresolvedConditions": [
+        "LEGAL_SIGNIFICANCE_REQUIRES_VERIFIED_BUSINESS_CONTEXT"
+      ]
+    },
+    {
+      "templateId": "VN71_ART12_4_SANDBOX_FRAUD",
+      "matchCitationChunkIds": [
+        "LAW-71-2025-QH15::art-12::cl-4"
+      ],
+      "groundingContextHashes": {
+        "LAW-71-2025-QH15::art-12::cl-4": "sha256:fdf182d750528b9e008f53b649bbcec8c96c9703e456b5e209088b31070d8b0a",
+        "LAW-71-2025-QH15::art-12": "sha256:68b4dbf5903230903760a12b8dae3768f9c0347fe3442cf18d0ba9fb7df2f9bb"
+      },
+      "concept": "CONTROLLED_TESTING_SUPPORT_FRAUD",
+      "legalIntent": {
+        "subject": "AI_SYSTEM_OR_RELEVANT_DIGITAL_SYSTEM",
+        "actorRole": "APPLICABLE_ACTOR",
+        "requirement": "TRACE_SANDBOX_SUPPORT_OR_LIABILITY_EXCLUSION_STATE_AND_INCONSISTENCIES_WITHOUT_INFERRING_INTENT"
+      },
+      "investigationGoals": [
+        "Collect model/provider/data/function/deployment signals that can alter risk.",
+        "Preserve immutable snapshot/source identities.",
+        "Surface cross-snapshot differences for reclassification or transition review."
+      ],
+      "startingNodeTypes": [
+        "REPOSITORY",
+        "AI_MODEL_INVOCATION",
+        "EXTERNAL_SERVICE",
+        "DATA_CATEGORY"
+      ],
+      "targetNodeTypes": [
+        "AI_PROVIDER",
+        "BUSINESS_ACTION",
+        "SENSITIVE_DATA"
+      ],
+      "edgeStrategies": [
+        "CONTAINS",
+        "SUPPORTED_BY",
+        "CORROBORATES",
+        "RETURNS",
+        "RECEIVES_RETURN",
+        "ASSIGNS",
+        "ALIASES",
+        "PASSES_ARGUMENT",
+        "MAPS_TO",
+        "PARSES",
+        "TRANSFORMS",
+        "VALIDATES",
+        "CALLS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "BRANCHES_ON",
+        "TRIGGERS",
+        "AFFECTS",
+        "RANKS",
+        "RECOMMENDS",
+        "REJECTS",
+        "APPROVES",
+        "UPDATES_STATUS",
+        "REVIEWED_BY",
+        "OVERRIDDEN_BY",
+        "CALLS",
+        "CALLS_API",
+        "CALLS_EXTERNAL",
+        "SENDS_TO_EXTERNAL",
+        "RECEIVES_FROM_EXTERNAL",
+        "PUBLISHES_EVENT",
+        "CONSUMES_EVENT",
+        "PUBLISHES_TO_QUEUE",
+        "CONSUMES_FROM_QUEUE"
+      ],
+      "graphQueries": [
+        {
+          "name": "collect_current_change_sensitive_surface",
+          "startNodeTypes": [
+            "AI_MODEL_INVOCATION",
+            "EXTERNAL_SERVICE",
+            "DATA_CATEGORY"
+          ],
+          "direction": "FORWARD",
+          "followEdges": [
+            "RETURNS",
+            "RECEIVES_RETURN",
+            "ASSIGNS",
+            "ALIASES",
+            "PASSES_ARGUMENT",
+            "MAPS_TO",
+            "PARSES",
+            "TRANSFORMS",
+            "VALIDATES",
+            "CALLS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "BRANCHES_ON",
+            "TRIGGERS",
+            "AFFECTS",
+            "RANKS",
+            "RECOMMENDS",
+            "REJECTS",
+            "APPROVES",
+            "UPDATES_STATUS",
+            "REVIEWED_BY",
+            "OVERRIDDEN_BY",
+            "CALLS",
+            "CALLS_API",
+            "CALLS_EXTERNAL",
+            "SENDS_TO_EXTERNAL",
+            "RECEIVES_FROM_EXTERNAL",
+            "PUBLISHES_EVENT",
+            "CONSUMES_EVENT",
+            "PUBLISHES_TO_QUEUE",
+            "CONSUMES_FROM_QUEUE"
+          ],
+          "stopNodeTypes": [
+            "AI_PROVIDER",
+            "BUSINESS_ACTION",
+            "SENSITIVE_DATA"
+          ],
+          "semanticTypes": []
+        }
+      ],
+      "keywords": [
+        "version",
+        "model",
+        "provider",
+        "feature",
+        "deployment",
+        "scope",
+        "change"
+      ],
+      "commonApis": [],
+      "commonLibraries": [],
+      "patterns": [],
+      "requiredEvidence": [
+        "CURRENT_TECHNICAL_SURFACE",
+        "SNAPSHOT_IDENTITY"
+      ],
+      "supportingEvidence": [
+        "CHANGE_SIGNAL"
+      ],
+      "negativeEvidence": [],
+      "unresolvedConditions": [
+        "CROSS_SNAPSHOT_OR_DEPLOYMENT_HISTORY_REQUIRED"
+      ]
+    }
+  ]
+}

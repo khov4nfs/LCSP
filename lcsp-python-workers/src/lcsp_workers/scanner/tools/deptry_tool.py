@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,7 +27,7 @@ from .tool_base import (
 
 
 DEFAULT_TIMEOUT_SECONDS = 60
-DEFAULT_PINNED_VERSION = "0."
+DEFAULT_PINNED_VERSION = "0.25.1"
 DEFAULT_TOOL_NAME = "deptry"
 
 
@@ -39,11 +40,13 @@ class DeptryRunResult:
 class DeptryTool:
     def __init__(
         self,
-        deptry_binary: str = DEFAULT_TOOL_NAME,
+        deptry_binary: str | None = None,
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
         pinned_version: str = DEFAULT_PINNED_VERSION,
     ) -> None:
-        self._deptry_binary = deptry_binary
+        self._deptry_binary = deptry_binary or str(
+            Path(sys.executable).parent / DEFAULT_TOOL_NAME
+        )
         self._timeout_seconds = timeout_seconds
         self._pinned_version = pinned_version
 
@@ -217,7 +220,9 @@ class DeptryTool:
                 tool_version="unknown",
                 outcome=OUTCOME_TOOL_FAILURE,
                 config_hash=config_hash,
-                messages=[f"deptry not available: {error}"],
+                messages=[
+                    f"deptry not available in worker runtime at {self._deptry_binary}: {error}"
+                ],
             )
 
         raw_version = (completed.stdout or completed.stderr).strip()

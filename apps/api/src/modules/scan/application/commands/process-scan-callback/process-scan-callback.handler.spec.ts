@@ -60,13 +60,33 @@ function buildHandler() {
   const auditWriter = {
     write: jest.fn().mockImplementation(() => Promise.resolve()),
   };
+  const storageService = {
+    readAndReconstruct: jest.fn().mockImplementation(() =>
+      Promise.resolve(
+        JSON.stringify({
+          scan_job_id: "scan-job-1",
+          tools_version: { scanner: "1.0.0" },
+          config_hash: { scanner: "sha256:scanner" },
+          evidence_payload: { coverage_notes: [] },
+          privacy_flags: {
+            containsSourceCode: false,
+            secretsRedacted: true,
+          },
+          schema_version: "1.0.0",
+          status: SCAN_CALLBACK_STATUSES.success,
+        }),
+      ),
+    ),
+  };
   return {
     handler: new ProcessScanCallbackHandler(
       prisma as never,
       validator as never,
       auditWriter as never,
+      storageService as never,
     ),
     targetedReanalysisRequest,
+    storageService,
   };
 }
 
@@ -110,5 +130,30 @@ describe("ProcessScanCallbackHandler targeted reanalysis completion", () => {
         },
       }),
     );
+  });
+
+  it("reconstructs the payload from storage service when it is an artifact reference", async () => {
+    const { handler, storageService } = buildHandler();
+
+    const payload = {
+      scan_job_id: "scan-job-1",
+      privacy_flags: { containsSourceCode: false, secretsRedacted: true },
+      schema_version: "1.0.0",
+      status: SCAN_CALLBACK_STATUSES.success,
+      is_artifact_reference: true,
+      artifact_manifest: {
+        artifact_id: "art-1",
+        total_size: 100,
+        hash: "sha256-hex",
+        chunks: ["chunk_0.json"],
+      },
+    };
+
+    const response = await handler.execute(
+      new ProcessScanCallbackCommand("scan-job-1", payload, "correlation-1"),
+    );
+
+    expect(response.accepted).toBe(true);
+    expect(storageService.readAndReconstruct).toHaveBeenCalled();
   });
 });

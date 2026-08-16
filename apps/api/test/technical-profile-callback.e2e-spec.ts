@@ -203,6 +203,36 @@ describe("TechnicalProfile Callback Endpoint (e2e) [MW-evid-002]", () => {
     await assertNoProfileMutation(prisma);
   });
 
+  it("T08 accepts schema v2 profiles from the technical profile worker", async () => {
+    const response = await callback(
+      app,
+      validPayload({ schema_version: "2.0.0" }),
+    );
+    const body = successBody<TechnicalProfileCallbackDto>(response);
+
+    assert.equal(response.status, 200);
+    assert.equal(body.accepted, true);
+  });
+
+  it("T09 accepts inline fallback profile data when artifact chunks are unavailable", async () => {
+    const response = await callback(
+      app,
+      validPayload({
+        is_artifact_reference: true,
+        artifact_manifest: {
+          artifact_id: "missing-artifact",
+          total_size: 123,
+          hash: "sha256:missing",
+          chunks: ["missing-artifact_chunk_0.json"],
+        },
+      }),
+    );
+    const body = successBody<TechnicalProfileCallbackDto>(response);
+
+    assert.equal(response.status, 200);
+    assert.equal(body.accepted, true);
+  });
+
   it("T07 rejects invalid schema and does not expose an update path", async () => {
     const invalidSchema = await callback(
       app,

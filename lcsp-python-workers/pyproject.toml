@@ -21,6 +21,7 @@ dependencies = [
   "langgraph-checkpoint-postgres==3.1.0",
   "psycopg[binary]==3.3.4",
   "libcst==1.8.6",
+  "deptry==0.25.1",
   "google-genai==2.13.0",
   "chromadb==1.5.5",
 ]

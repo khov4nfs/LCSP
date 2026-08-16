@@ -206,7 +206,7 @@ def test_deptry_runs_each_independent_python_service(
 
     def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         if "--version" in command:
-            return _completed(command, 0, stdout="0.23.0\n")
+            return _completed(command, 0, stdout="0.25.1\n")
         invoked_roots.append(kwargs["cwd"])
         out_path = Path(command[command.index("--json-output") + 1])
         out_path.write_text("{}", encoding="utf-8")

@@ -1,6 +1,8 @@
 import * as amqp from "amqplib";
 import { Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
 
+import { emitDevUnsafeTrace } from "../logging/dev-unsafe-trace.js";
+
 export type RabbitMqMessageHeaders = Record<string, string>;
 
 /**
@@ -33,6 +35,10 @@ export class RabbitMqClient implements OnModuleDestroy {
   /**
    * Publishes a persistent JSON message to a topic exchange.
    *
+   * In unsafe development trace mode the exact broker URL, exchange, routing key,
+   * headers, payload, serialized body, and publish-buffer result are emitted before
+   * any downstream worker sees the message.
+   *
    * @param exchange - RabbitMQ exchange name.
    * @param routingKey - Topic routing key for the event.
    * @param payload - Structured event payload serialized as JSON.
@@ -48,10 +54,30 @@ export class RabbitMqClient implements OnModuleDestroy {
   ): Promise<void> {
     const channel = await this.getChannel();
     const content = Buffer.from(JSON.stringify(payload));
+
+    emitDevUnsafeTrace("DEV_API_AMQP_PUBLISH_REQUEST_RAW", {
+      brokerUrl: this.url,
+      exchange,
+      routingKey,
+      headers,
+      payload,
+      serializedBody: content.toString("utf8"),
+      byteLength: content.byteLength,
+    });
+
     const accepted = channel.publish(exchange, routingKey, content, {
       contentType: "application/json",
       persistent: true,
       ...(headers ? { headers } : {}),
+    });
+
+    emitDevUnsafeTrace("DEV_API_AMQP_PUBLISH_RESULT_RAW", {
+      brokerUrl: this.url,
+      exchange,
+      routingKey,
+      headers,
+      payload,
+      accepted,
     });
 
     if (!accepted) {
@@ -110,13 +136,25 @@ export class RabbitMqClient implements OnModuleDestroy {
    */
   private async connect(): Promise<amqp.Channel> {
     try {
+      emitDevUnsafeTrace("DEV_API_AMQP_CONNECT_RAW", {
+        brokerUrl: this.url,
+        exchange: this.resolveExchangeName(),
+        exchangeType: this.exchangeType,
+      });
       const connection = await amqp.connect(this.url);
 
       connection.on("error", (error: Error) => {
+        emitDevUnsafeTrace("DEV_API_AMQP_CONNECTION_ERROR_RAW", {
+          brokerUrl: this.url,
+          error,
+        });
         this.logger.error(`RabbitMQ connection error: ${error.message}`);
         this.resetConnectionState();
       });
       connection.on("close", () => {
+        emitDevUnsafeTrace("DEV_API_AMQP_CONNECTION_CLOSED_RAW", {
+          brokerUrl: this.url,
+        });
         this.resetConnectionState();
       });
 
@@ -131,8 +169,17 @@ export class RabbitMqClient implements OnModuleDestroy {
       this.connection = connection;
       this.channel = channel;
 
+      emitDevUnsafeTrace("DEV_API_AMQP_CONNECTED_RAW", {
+        brokerUrl: this.url,
+        exchange: this.resolveExchangeName(),
+        exchangeType: this.exchangeType,
+      });
       return channel;
     } catch (error) {
+      emitDevUnsafeTrace("DEV_API_AMQP_CONNECT_ERROR_RAW", {
+        brokerUrl: this.url,
+        error,
+      });
       this.resetConnectionState();
       throw error;
     }

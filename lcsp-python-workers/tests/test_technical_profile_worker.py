@@ -232,6 +232,46 @@ def test_consumer_fetches_accepted_evidence_and_posts_callback() -> None:
     payload = api_client.post_technical_profile_callback.call_args.args[0]
     assert payload.evidence_report_id == "ter-1"
     assert payload.privacy_flags["containsSourceCode"] is False
+    assert payload.profile_data["external_integrations"] == []
+    assert payload.profile_data["engineering_investigation"]["claims"] == []
+    assert payload.profile_data["profile_data_ref"]
+
+
+@pytest.mark.p0
+def test_get_accepted_technical_profile_resolves_file_ref() -> None:
+    import os
+    import json
+    from lcsp_workers.platform.api_client import WorkerApiClient
+    
+    ref_path = "/tmp/lcsp-technical-profile-data-mock-ter.json"
+    mock_full_data = {
+        "external_integrations": [{"nodeId": "node-1"}],
+        "business_actions": [{"nodeId": "node-2"}],
+        "dependency_licenses": [],
+        "engineering_investigation": {"claims": [{"claim_id": "claim-1"}]}
+    }
+    with open(ref_path, "w") as f:
+        json.dump(mock_full_data, f)
+        
+    client = WorkerApiClient("http://api.test", "test-key")
+    client._get_with_retry = MagicMock(return_value={
+        "status": "accepted",
+        "profile_data_ref": ref_path,
+        "external_integrations": [],
+        "business_actions": [],
+        "dependency_licenses": [],
+        "engineering_investigation": {"claims": []}
+    })
+    
+    resolved = client.get_accepted_technical_profile("profile-1")
+    assert resolved["external_integrations"] == [{"nodeId": "node-1"}]
+    assert resolved["business_actions"] == [{"nodeId": "node-2"}]
+    assert resolved["engineering_investigation"]["claims"] == [{"claim_id": "claim-1"}]
+    
+    try:
+        os.remove(ref_path)
+    except Exception:
+        pass
 
 
 @pytest.mark.p0

@@ -1,9 +1,11 @@
-"""Provide orchestration debug controls and secret-safe payload projection."""
+"""Provide orchestration debug controls and payload projection."""
 
 from __future__ import annotations
 
 import os
 from typing import Any
+
+from lcsp_workers.platform.dev_unsafe_trace import unsafe_dev_trace_enabled
 
 
 ORCHESTRATION_LOG_EVENTS = {
@@ -23,15 +25,17 @@ def orchestration_debug_enabled() -> bool:
 
 
 def sanitize_orchestration_payload(value: Any) -> Any:
-    """Recursively redact credential-like fields before orchestration logging.
+    """Project orchestration payloads for logs.
 
-    Args:
-        value: Arbitrary structured diagnostic payload.
-
-    Returns:
-        Payload with nested API keys, secrets, tokens, and passwords replaced by
-        a redaction marker while preserving non-sensitive structure.
+    Normal operation recursively redacts credential-like fields. When
+    ``LCSP_DEV_UNSAFE_TRACE=true`` is explicitly enabled outside production, the
+    exact payload is returned so development orchestration logs preserve API
+    keys, secrets, tokens, passwords, source fragments, idempotency keys, and
+    every other field verbatim.
     """
+    if unsafe_dev_trace_enabled():
+        return value
+
     if isinstance(value, list):
         return [sanitize_orchestration_payload(entry) for entry in value]
     if not isinstance(value, dict):

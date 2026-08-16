@@ -38,7 +38,6 @@ import { resultEnvelope } from "../../../../platform/problems/result-envelope.js
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import { AcceptConflictCommand } from "../../application/commands/accept-conflict/accept-conflict.command.js";
-import { AcceptVerifiedProfileCommand } from "../../application/commands/accept-verified-profile/accept-verified-profile.command.js";
 import { ApproveVerifiedProfileCommand } from "../../application/commands/approve-verified-profile/approve-verified-profile.command.js";
 import { ResolveConflictCommand } from "../../application/commands/resolve-conflict/resolve-conflict.command.js";
 import { ReconcileProfileToVerifiedProfileCommand } from "../../application/commands/reconcile-profile-to-verified-profile/reconcile-profile-to-verified-profile.command.js";
@@ -87,6 +86,11 @@ export class InternalReconciliationController {
     );
   }
 
+  /**
+   * Persist one verified profile through the single canonical reconciliation
+   * command. Legacy worker-computed profile payloads are intentionally not
+   * accepted: Nest re-validates the pinned artifact chain and conflict refs.
+   */
   @Post("verified-profile-callback")
   @HttpCode(200)
   @UseGuards(WorkerApiKeyGuard)
@@ -94,28 +98,20 @@ export class InternalReconciliationController {
     @Body() payload: VerifiedProfileCallbackRequest,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
-    const resolvedCorrelationId = correlationId?.trim() || randomUUID();
-    if (isAgenticReconciliationCallback(payload)) {
-      return resultEnvelope(
-        await this.commandBus.execute(
-          new ReconcileProfileToVerifiedProfileCommand(
-            {
-              assessmentId: payload.assessment_id,
-              wizardProfileId: payload.wizard_profile_id,
-              technicalEvidenceReportId: payload.technical_evidence_report_id,
-              aiUsageFlowId: payload.ai_usage_flow_id,
-              reconciliationDecisionRefs: payload.reconciliation_decision_refs,
-              idempotencyKey: payload.idempotency_key,
-            },
-            payload.organization_id,
-            resolvedCorrelationId,
-          ),
-        ),
-      );
-    }
     return resultEnvelope(
       await this.commandBus.execute(
-        new AcceptVerifiedProfileCommand(payload, resolvedCorrelationId),
+        new ReconcileProfileToVerifiedProfileCommand(
+          {
+            assessmentId: payload.assessment_id,
+            wizardProfileId: payload.wizard_profile_id,
+            technicalEvidenceReportId: payload.technical_evidence_report_id,
+            aiUsageFlowId: payload.ai_usage_flow_id,
+            reconciliationDecisionRefs: payload.reconciliation_decision_refs,
+            idempotencyKey: payload.idempotency_key,
+          },
+          payload.organization_id,
+          correlationId?.trim() || randomUUID(),
+        ),
       ),
     );
   }
@@ -223,24 +219,6 @@ export class InternalReconciliationController {
       technical_evidence_report_id: technicalProfile?.evidenceReportId ?? null,
     });
   }
-}
-
-function isAgenticReconciliationCallback(
-  payload: VerifiedProfileCallbackRequest,
-): payload is VerifiedProfileCallbackRequest & {
-  wizard_profile_id: string;
-  technical_evidence_report_id: string;
-  reconciliation_decision_refs: string[];
-  idempotency_key: string;
-  organization_id: string;
-} {
-  return (
-    typeof payload.wizard_profile_id === "string" &&
-    typeof payload.technical_evidence_report_id === "string" &&
-    Array.isArray(payload.reconciliation_decision_refs) &&
-    typeof payload.idempotency_key === "string" &&
-    typeof payload.organization_id === "string"
-  );
 }
 
 @Controller("assessments")

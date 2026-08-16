@@ -16,6 +16,7 @@ export const SCAN_ERROR_CODES = {
   evidenceReportNotFound: "EVIDENCE_REPORT_NOT_FOUND",
   profileAlreadyExists: "PROFILE_ALREADY_EXISTS",
   technicalProfileSchemaInvalid: "SCHEMA_INVALID",
+  technicalProfileArtifactInvalid: "TECHNICAL_PROFILE_ARTIFACT_INVALID",
   technicalProfileNotFound: "TECHNICAL_PROFILE_NOT_FOUND",
   aiUsageFlowAlreadyExists: "FLOW_ALREADY_EXISTS",
   aiUsageFlowSchemaInvalid: "SCHEMA_INVALID",

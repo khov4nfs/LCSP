@@ -360,3 +360,23 @@ def test_t07_secrets_redacted_from_logs(
     assert "[REDACTED]" in captured.out
     assert "super-secret-123" not in captured.out
     assert "secret-key" not in captured.out
+
+
+def test_retry_publish_on_closed_channel_does_not_crash(
+    config, pbac_mock, channel_mock, method_mock
+):
+    """If retry publish fails and channel is closed, it does not attempt basic_nack on closed channel."""
+    pbac_mock.check.return_value = "allow"
+    consumer = DummyConsumer(config, pbac_mock)
+    consumer.raise_in_handle = True
+
+    channel_mock.basic_publish.side_effect = Exception("Stream lost")
+    channel_mock.is_open = False
+
+    properties = MagicMock()
+    properties.headers = {"x-lcsp-retry-count": 1}
+
+    consumer._on_message(channel_mock, method_mock, properties, b"{}")
+
+    channel_mock.basic_ack.assert_not_called()
+    channel_mock.basic_nack.assert_not_called()

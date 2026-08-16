@@ -1,229 +1,97 @@
-import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
-const root = process.cwd();
+const ROOT = process.cwd();
+const read = (path) => readFileSync(join(ROOT, path), "utf8");
+const fail = (message) => {
+  console.error(`[agentic-runtime] ${message}`);
+  process.exitCode = 1;
+};
+const expectContains = (content, needle, label) => {
+  if (!content.includes(needle)) fail(`${label} missing ${JSON.stringify(needle)}`);
+};
+const expectMissing = (path, label) => {
+  if (existsSync(join(ROOT, path))) fail(`${label} must be removed: ${path}`);
+};
 
-const tools = [
-  {
-    name: "resume_waiting_runs",
-    handler:
-      "apps/api/src/modules/legal-rule-catalog/application/commands/resume-waiting-runs/resume-waiting-runs.handler.ts",
-    test: "apps/api/src/modules/legal-rule-catalog/application/commands/resume-waiting-runs/resume-waiting-runs.handler.spec.ts",
-    module:
-      "apps/api/src/modules/legal-rule-catalog/legal-rule-catalog.module.ts",
-    registration: "ResumeWaitingRunsHandler",
-    exposure:
-      "apps/api/src/modules/legal-rule-catalog/presentation/http/legal-rule-catalog.controller.ts",
-    exposureToken: "resumeWaitingRuns",
-  },
-  {
-    name: "propose_gap_remediation",
-    handler:
-      "apps/api/src/modules/classification/application/queries/propose-gap-remediation/propose-gap-remediation.handler.ts",
-    test: "apps/api/src/modules/classification/application/queries/propose-gap-remediation/propose-gap-remediation.handler.spec.ts",
-    module: "apps/api/src/modules/classification/classification.module.ts",
-    registration: "ProposeGapRemediationHandler",
-    exposure:
-      "apps/api/src/modules/classification/presentation/http/gap-remediation.controller.ts",
-    exposureToken: "proposeGapRemediation",
-  },
-  {
-    name: "get_gap_evidence_trace",
-    handler:
-      "apps/api/src/modules/classification/application/queries/get-gap-evidence-trace/get-gap-evidence-trace.handler.ts",
-    test: "apps/api/src/modules/classification/application/queries/get-gap-evidence-trace/get-gap-evidence-trace.handler.spec.ts",
-    module: "apps/api/src/modules/classification/classification.module.ts",
-    registration: "GetGapEvidenceTraceHandler",
-    exposure:
-      "apps/api/src/modules/classification/presentation/http/gap-evidence-trace.controller.ts",
-    exposureToken: "getGapEvidenceTrace",
-  },
-  {
-    name: "get_reconciliation_context",
-    handler:
-      "apps/api/src/modules/reconciliation/application/queries/get-reconciliation-context/get-reconciliation-context.handler.ts",
-    test: "apps/api/src/modules/reconciliation/application/queries/get-reconciliation-context/get-reconciliation-context.handler.spec.ts",
-    module: "apps/api/src/modules/reconciliation/reconciliation.module.ts",
-    registration: "GetReconciliationContextHandler",
-    exposure:
-      "apps/api/src/modules/reconciliation/presentation/http/reconciliation.controller.ts",
-    exposureToken: "getReconciliationContext",
-  },
-  {
-    name: "request_targeted_reanalysis",
-    handler:
-      "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.ts",
-    test: "apps/api/src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.spec.ts",
-    module: "apps/api/src/modules/scan/scan.module.ts",
-    registration: "RequestTargetedReanalysisHandler",
-    exposure: "apps/api/src/modules/scan/presentation/http/scan.controller.ts",
-    exposureToken: "requestTargetedReanalysis",
-  },
-  {
-    name: "propose_missing_targets",
-    handler:
-      "apps/api/src/modules/reconciliation/application/queries/propose-missing-targets/propose-missing-targets.handler.ts",
-    test: "apps/api/src/modules/reconciliation/application/queries/propose-missing-targets/propose-missing-targets.handler.spec.ts",
-    module: "apps/api/src/modules/reconciliation/reconciliation.module.ts",
-    registration: "ProposeMissingTargetsHandler",
-    exposure:
-      "apps/api/src/modules/reconciliation/presentation/http/reconciliation.controller.ts",
-    exposureToken: "proposeMissingTargets",
-  },
-  ...[
-    [
-      "inspect_deployment_context",
-      "inspect-deployment-context",
-      "InspectDeploymentContextHandler",
-      "inspectDeploymentContext",
-    ],
-    [
-      "inspect_decision_path",
-      "inspect-decision-path",
-      "InspectDecisionPathHandler",
-      "inspectDecisionPath",
-    ],
-    [
-      "find_similar_symbols",
-      "find-similar-symbols",
-      "FindSimilarSymbolsHandler",
-      "findSimilarSymbols",
-    ],
-    [
-      "inspect_human_review_path",
-      "inspect-human-review-path",
-      "InspectHumanReviewPathHandler",
-      "inspectHumanReviewPath",
-    ],
-    [
-      "inspect_data_path",
-      "inspect-data-path",
-      "InspectDataPathHandler",
-      "inspectDataPath",
-    ],
-    [
-      "find_provider_invocations",
-      "find-provider-invocations",
-      "FindProviderInvocationsHandler",
-      "findProviderInvocations",
-    ],
-    [
-      "get_finding_detail",
-      "get-finding-detail",
-      "GetFindingDetailHandler",
-      "getFindingDetail",
-    ],
-    [
-      "get_symbol_context",
-      "get-symbol-context",
-      "GetSymbolContextHandler",
-      "getSymbolContext",
-    ],
-    [
-      "get_scan_coverage",
-      "get-scan-coverage",
-      "GetScanCoverageHandler",
-      "getScanCoverage",
-    ],
-    [
-      "search_evidence",
-      "search-evidence",
-      "SearchEvidenceHandler",
-      "searchEvidence",
-    ],
-    [
-      "get_evidence_subgraph",
-      "get-evidence-subgraph",
-      "GetEvidenceSubgraphHandler",
-      "getEvidenceSubgraph",
-    ],
-    [
-      "trace_static_flow",
-      "trace-static-flow",
-      "TraceStaticFlowHandler",
-      "traceStaticFlow",
-    ],
-  ].map(([name, dir, registration, exposureToken]) => ({
-    name,
-    handler: `apps/api/src/modules/evidence/application/queries/${dir}/${dir}.handler.ts`,
-    test: `apps/api/src/modules/evidence/application/queries/${dir}/${dir}.handler.spec.ts`,
-    module: "apps/api/src/modules/evidence/evidence.module.ts",
-    registration,
-    exposure:
-      "apps/api/src/modules/evidence/presentation/http/evidence.controller.ts",
-    exposureToken,
-  })),
-  {
-    name: "get_artifact_chain",
-    handler:
-      "apps/api/src/modules/reconciliation/application/queries/get-artifact-chain/get-artifact-chain.handler.ts",
-    test: "apps/api/src/modules/reconciliation/application/queries/get-artifact-chain/get-artifact-chain.handler.spec.ts",
-    module: "apps/api/src/modules/reconciliation/reconciliation.module.ts",
-    registration: "GetArtifactChainHandler",
-    exposure:
-      "apps/api/src/modules/reconciliation/presentation/http/reconciliation.controller.ts",
-    exposureToken: "getArtifactChain",
-  },
+const pythonDispatcher = read("lcsp-python-workers/src/lcsp_workers/agentic_evidence/dispatcher.py");
+const programTools = read("lcsp-python-workers/src/lcsp_workers/agentic_evidence/program_graph_tool_entrypoints.py");
+const remediationTools = read("lcsp-python-workers/src/lcsp_workers/agentic_evidence/remediation_tool_entrypoints.py");
+const nestDispatcher = read("apps/api/src/modules/evidence/presentation/http/agentic-tool-query-dispatcher.ts");
+
+const technicalTools = [
+  "propose_missing_targets",
+  "inspect_deployment_context",
+  "inspect_decision_path",
+  "find_similar_symbols",
+  "inspect_human_review_path",
+  "inspect_data_path",
+  "find_provider_invocations",
+  "get_finding_detail",
+  "get_symbol_context",
+  "get_scan_coverage",
+  "search_evidence",
+  "get_evidence_subgraph",
+  "trace_static_flow",
 ];
 
-const contractPath = resolve(
-  root,
-  "packages/contracts/src/evidence/agentic-tool.ts",
-);
-const contract = readFileSync(contractPath, "utf8");
-const failures = [];
+for (const tool of technicalTools) {
+  expectContains(programTools, `def ${tool}(`, "Python ProgramGraph entrypoints");
+  expectContains(pythonDispatcher, `\"${tool}\", ToolRuntimeTarget.PYTHON_LOCAL`, "Python runtime binding");
+}
+expectContains(remediationTools, "def propose_gap_remediation(", "Python remediation entrypoints");
+expectContains(pythonDispatcher, `\"propose_gap_remediation\", ToolRuntimeTarget.PYTHON_LOCAL`, "Python remediation binding");
+expectContains(pythonDispatcher, "if self.entrypoint.__name__ != self.tool_name", "exact-name runtime invariant");
+expectContains(pythonDispatcher, "canonical tool runtime bindings must be globally unique", "global uniqueness invariant");
 
-function readRequired(path, owner) {
-  const absolute = resolve(root, path);
-  if (!existsSync(absolute)) {
-    failures.push(`${owner}: missing ${path}`);
-    return "";
-  }
-  return readFileSync(absolute, "utf8");
+const cqrsTools = [
+  "get_assessment_context",
+  "get_artifact_chain",
+  "get_reconciliation_context",
+  "get_verified_profile",
+  "compare_wizard_claim",
+  "get_classification_baseline",
+  "get_gap_requirements",
+  "get_gap_evidence_trace",
+  "validate_classification_proposal",
+  "evaluate_gap_matrix",
+  "get_admin_source_catalog",
+  "get_legal_corpus_readiness",
+  "retrieve_legal_basis",
+  "get_legal_rule_match",
+  "validate_citation_set",
+];
+for (const tool of cqrsTools) {
+  expectContains(nestDispatcher, `export function ${tool}(`, "Nest CQRS dispatcher");
+  expectContains(pythonDispatcher, `\"${tool}\", ToolRuntimeTarget.NEST_CQRS`, "Nest CQRS runtime binding");
 }
 
-for (const tool of tools) {
-  if (!contract.includes(`\"${tool.name}\"`)) {
-    failures.push(
-      `${tool.name}: not registered in canonical AGENTIC_TOOL_NAMES contract`,
-    );
-  }
-
-  const handler = readRequired(tool.handler, tool.name);
-  if (handler && !handler.includes(tool.registration)) {
-    failures.push(
-      `${tool.name}: handler file does not define ${tool.registration}`,
-    );
-  }
-
-  readRequired(tool.test, tool.name);
-
-  const module = readRequired(tool.module, tool.name);
-  if (module && !module.includes(tool.registration)) {
-    failures.push(
-      `${tool.name}: ${tool.registration} is not registered in ${tool.module}`,
-    );
-  }
-
-  const exposure = readRequired(tool.exposure, tool.name);
-  if (exposure && !exposure.includes(tool.exposureToken)) {
-    failures.push(
-      `${tool.name}: runtime exposure ${tool.exposureToken} missing from ${tool.exposure}`,
-    );
-  }
+const obsoleteNestQueries = [
+  "find-provider-invocations",
+  "find-similar-symbols",
+  "get-evidence-subgraph",
+  "get-finding-detail",
+  "get-scan-coverage",
+  "get-symbol-context",
+  "inspect-data-path",
+  "inspect-decision-path",
+  "inspect-deployment-context",
+  "inspect-human-review-path",
+  "search-evidence",
+  "trace-static-flow",
+];
+for (const directory of obsoleteNestQueries) {
+  expectMissing(`apps/api/src/modules/evidence/application/queries/${directory}`, "obsolete Nest technical query");
 }
 
-const uniqueNames = new Set(tools.map((tool) => tool.name));
-if (uniqueNames.size !== tools.length) {
-  failures.push("tool inventory contains duplicate names");
+for (const tool of technicalTools) {
+  if (nestDispatcher.includes(`export function ${tool}(`)) {
+    fail(`technical tool ${tool} still has a Nest processing entrypoint`);
+  }
+}
+if (nestDispatcher.includes("propose_gap_remediation")) {
+  fail("propose_gap_remediation must be processed in Python, not Nest");
 }
 
-if (failures.length > 0) {
-  console.error("Agentic tool runtime integrity check failed:\n");
-  for (const failure of failures) console.error(`- ${failure}`);
-  process.exit(1);
-}
-
-console.log(
-  `Agentic tool runtime integrity check passed for ${tools.length} tools.`,
-);
+if (process.exitCode) process.exit(process.exitCode);
+console.log(`[agentic-runtime] OK: ${technicalTools.length + 1} Python processing tools, ${cqrsTools.length} Nest CQRS tools`);

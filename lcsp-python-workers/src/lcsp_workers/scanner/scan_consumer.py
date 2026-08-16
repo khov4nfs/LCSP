@@ -28,7 +28,7 @@ from .inventory.analyzer_router import AnalyzerRouter
 from .inventory.language_classifier import LanguageClassifier
 from .parsers.structural_augmentor import StructuralAugmentor
 from .parsers.structural_types import StructuralFact
-from .graph.evidence_graph_assembler import EvidenceGraphAssembler
+from .program_graph.assembler import ProgramGraphAssembler
 from .evidence.terminal_state_handler import (
     CleanupBlockedError,
     verify_workspace_cleanup_sync,
@@ -158,7 +158,7 @@ class ScanConsumer(ConsumerBase):
         api_client: WorkerApiClient | None = None,
         evidence_assembler: EvidenceAssembler | None = None,
         structural_augmentor: StructuralAugmentor | None = None,
-        evidence_graph_assembler: EvidenceGraphAssembler | None = None,
+        evidence_graph_assembler: ProgramGraphAssembler | None = None,
         execution_planner: ToolchainExecutionPlanner | None = None,
     ):
         super().__init__(config, pbac_client)
@@ -184,7 +184,7 @@ class ScanConsumer(ConsumerBase):
         )
         self._evidence_assembler = evidence_assembler or EvidenceAssembler()
         self._structural_augmentor = structural_augmentor or StructuralAugmentor()
-        self._evidence_graph_assembler = evidence_graph_assembler or EvidenceGraphAssembler()
+        self._evidence_graph_assembler = evidence_graph_assembler or ProgramGraphAssembler()
         self._execution_planner = execution_planner or ToolchainExecutionPlanner()
         self._scanner_tool_dispatcher = ScannerToolDispatcher(
             ScannerToolExecutionContext(
