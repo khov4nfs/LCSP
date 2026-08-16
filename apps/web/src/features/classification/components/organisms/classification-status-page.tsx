@@ -279,6 +279,7 @@ export function ClassificationStatusPage({
           ) : null}
           {showFinalReport ? (
             <Button
+              nativeButton={false}
               render={<Link href={`/assessments/${assessmentId}/documents`} />}
             >
               {resolveMessage(appLocale, "pages.classification.generateFinalReport")}
@@ -286,6 +287,7 @@ export function ClassificationStatusPage({
           ) : null}
           {showGapAnalysis ? (
             <Button
+              nativeButton={false}
               render={<Link href={`/assessments/${assessmentId}/documents`} />}
               variant="outline"
             >

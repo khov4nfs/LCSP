@@ -147,7 +147,11 @@ class ConsumerBase:
 
             if decision == "deny":
                 logger.warning("WORKER_TASK_DENIED", decision=decision)
-                ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+                if ch.is_open:
+                    try:
+                        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+                    except Exception:
+                        pass
                 return
 
         try:
@@ -156,10 +160,18 @@ class ConsumerBase:
                 raise ValueError("worker message must be a JSON object")
             message.setdefault("_delivery_attempt", attempts)
             self.handle(message, cid)
-            ch.basic_ack(delivery_tag=method.delivery_tag)
+            if ch.is_open:
+                try:
+                    ch.basic_ack(delivery_tag=method.delivery_tag)
+                except Exception:
+                    pass
         except NonRetryableWorkerError as exc:
             logger.error("HANDLER_TERMINAL_ERROR", error=str(exc), attempts=attempts)
-            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+            if ch.is_open:
+                try:
+                    ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+                except Exception:
+                    pass
         except Exception as exc:
             logger.error("HANDLER_ERROR", error=str(exc), attempts=attempts)
             self._retry_or_dead_letter(
@@ -182,7 +194,11 @@ class ConsumerBase:
                 attempts=attempts,
                 max_retries=self._config.max_retries,
             )
-            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+            if ch.is_open:
+                try:
+                    ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+                except Exception:
+                    pass
             return
 
         retry_headers = dict(properties.headers or {})
@@ -204,7 +220,11 @@ class ConsumerBase:
                 body=body,
                 properties=retry_properties,
             )
-            ch.basic_ack(delivery_tag=method.delivery_tag)
+            if ch.is_open:
+                try:
+                    ch.basic_ack(delivery_tag=method.delivery_tag)
+                except Exception:
+                    pass
             logger.warning(
                 "HANDLER_RETRY_SCHEDULED",
                 attempt=attempts + 1,
@@ -215,7 +235,11 @@ class ConsumerBase:
                 "HANDLER_RETRY_PUBLISH_FAILED",
                 error=type(exc).__name__,
             )
-            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+            if ch.is_open:
+                try:
+                    ch.basic_nack(delivery_tag=method.delivery_tag, requeue=True)
+                except Exception:
+                    pass
 
     def _declare_retry_queues(self, channel) -> None:
         """Declare optional TTL queues that dead-letter deliveries back to the main queue."""

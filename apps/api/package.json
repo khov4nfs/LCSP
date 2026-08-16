@@ -13,7 +13,7 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",
-    "seed:google-admins": "tsx scripts/seed-google-admins.ts",
+    "seed:google-admins": "cross-env DOTENV_CONFIG_PATH=../../.env tsx scripts/seed-google-admins.ts",
     "author:law-134-baseline-catalog": "tsx scripts/author-law-134-baseline-catalog.ts",
     "sync:legal-corpus-manager-policy": "tsx scripts/sync-legal-corpus-manager-policy.ts",
     "demo:readiness-export-pdf": "pnpm run prisma:generate && cross-env DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public NODE_ENV=test node --loader ts-node/esm scripts/demo-readiness-export-pdf.ts",

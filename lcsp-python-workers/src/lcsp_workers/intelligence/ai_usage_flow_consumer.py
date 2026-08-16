@@ -14,6 +14,7 @@ from lcsp_workers.platform.queue_consumer import ConsumerBase
 from .ai_usage_flow_graph import AIUsageFlowGraph
 from .ai_usage_flow_rule_engine import AIUsageFlowRuleEngine
 from .ai_usage_flow_proposer import AIUsageFlowModelAssistedProposer
+from .engineering_claim_adapter import EngineeringAwareAIUsageFlowRuleEngine
 
 
 logger = get_logger(__name__)
@@ -51,7 +52,9 @@ class AIUsageFlowConsumer(ConsumerBase):
             config.nestjs_api_base_url,
             config.worker_api_key,
         )
-        self._rule_engine = rule_engine or AIUsageFlowRuleEngine()
+        self._rule_engine = EngineeringAwareAIUsageFlowRuleEngine(
+            rule_engine or AIUsageFlowRuleEngine()
+        )
         self._graph = AIUsageFlowGraph(
             api_client=self._api_client,
             rule_engine=self._rule_engine,

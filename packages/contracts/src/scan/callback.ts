@@ -111,7 +111,7 @@ export type LegalMatchType =
   (typeof LEGAL_MATCH_TYPES)[keyof typeof LEGAL_MATCH_TYPES];
 
 export const SCAN_EVIDENCE_SCHEMA_VERSIONS = ["1.0.0"] as const;
-export const TECHNICAL_PROFILE_SCHEMA_VERSIONS = ["1.0.0"] as const;
+export const TECHNICAL_PROFILE_SCHEMA_VERSIONS = ["1.0.0", "2.0.0"] as const;
 export const AI_USAGE_FLOW_SCHEMA_VERSIONS = ["1.0.0"] as const;
 export const CONFLICT_DETECTION_SCHEMA_VERSIONS = ["1.0.0"] as const;
 export const VERIFIED_PROFILE_SCHEMA_VERSIONS = ["1.0.0"] as const;

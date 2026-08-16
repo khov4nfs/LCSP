@@ -42,3 +42,4 @@ _bmad/
 .venv
 *.env.*
 fogewise-dev-launchers/
+**/__pycache__/

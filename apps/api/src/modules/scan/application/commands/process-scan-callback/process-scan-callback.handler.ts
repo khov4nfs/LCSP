@@ -44,6 +44,7 @@ import { AuditWriterService } from "../../../../../platform/audit/audit-writer.s
 import { problemResult } from "../../../../../platform/problems/problem-factory.js";
 import type { ScanCallbackDto } from "../../contracts/scan/scan-callback.contract.js";
 import { EvidenceSchemaValidatorService } from "../../services/scan/evidence-schema-validator.service.js";
+import { ArtifactStorageService } from "../../../../../platform/storage/artifact-storage.service.js";
 import { ProcessScanCallbackCommand } from "./process-scan-callback.command.js";
 
 const SCANNER_WORKER_ACTOR_ID = AUDIT_ACTOR_IDS.scannerWorker;
@@ -67,6 +68,7 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
     private readonly prisma: PrismaService,
     private readonly validator: EvidenceSchemaValidatorService,
     private readonly auditWriter: AuditWriterService,
+    private readonly storageService: ArtifactStorageService,
   ) {}
 
   /**
@@ -77,6 +79,18 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
    * @throws When the scan job is missing/inactive or evidence validation fails.
    */
   async execute(command: ProcessScanCallbackCommand): Promise<ScanCallbackDto> {
+    if (
+      command.payload.is_artifact_reference &&
+      command.payload.artifact_manifest
+    ) {
+      const reconstructed = await this.storageService.readAndReconstruct(
+        command.payload.artifact_manifest,
+      );
+      const fullPayload = JSON.parse(reconstructed) as Record<string, unknown>;
+      Object.assign(command.payload, fullPayload);
+      command.payload.is_artifact_reference = false;
+    }
+
     const job = await this.prisma.repositoryScanJob.findUnique({
       where: { id: command.scanJobId },
       select: {

@@ -294,19 +294,63 @@ class WorkerApiClient:
         self, scan_job_id: str, payload: ScanCallbackPayload
     ) -> CallbackResponse:
         """Submit a scan terminal callback, omitting an empty findings array."""
+        import os
+        import json
         path = CallbackPath.SCAN.format(scan_job_id=scan_job_id)
         request_payload = payload.model_dump(exclude_none=True)
         if request_payload.get("findings") == []:
             request_payload.pop("findings")
-        resp_data = self._post_with_retry(path, request_payload)
+
+        serialized = json.dumps(request_payload, ensure_ascii=False)
+        threshold = int(os.getenv("LCSP_SCAN_CALLBACK_THRESHOLD", str(40 * 1024 * 1024)))
+        if len(serialized.encode("utf-8")) > threshold:
+            from lcsp_workers.platform.artifact_storage import ArtifactStorage
+            storage = ArtifactStorage()
+            chunk_size = int(os.getenv("LCSP_SCAN_CALLBACK_CHUNK_SIZE", str(10 * 1024 * 1024)))
+            manifest = storage.write_payload_chunks(request_payload, chunk_size=chunk_size)
+            envelope = {
+                "status": payload.status,
+                "scan_job_id": scan_job_id,
+                "privacy_flags": payload.privacy_flags,
+                "schema_version": payload.schema_version,
+                "is_artifact_reference": True,
+                "artifact_manifest": manifest
+            }
+            resp_data = self._post_with_retry(path, envelope)
+        else:
+            resp_data = self._post_with_retry(path, request_payload)
         return CallbackResponse(**resp_data)
 
     def post_technical_profile_callback(
         self, payload: TechnicalProfileCallbackPayload
     ) -> CallbackResponse:
         """Persist a generated TechnicalProfile through the internal callback API."""
+        import os
+        import json
         path = CallbackPath.TECHNICAL_PROFILE
-        resp_data = self._post_with_retry(path, payload.model_dump(exclude_none=True))
+        request_payload = payload.model_dump(exclude_none=True)
+
+        serialized = json.dumps(request_payload, ensure_ascii=False)
+        threshold = int(os.getenv("LCSP_PROFILE_CALLBACK_THRESHOLD", str(800 * 1024)))
+        if len(serialized.encode("utf-8")) > threshold:
+            from lcsp_workers.platform.artifact_storage import ArtifactStorage
+            storage = ArtifactStorage()
+            chunk_size = int(os.getenv("LCSP_PROFILE_CALLBACK_CHUNK_SIZE", str(200 * 1024)))
+            manifest = storage.write_payload_chunks(request_payload, chunk_size=chunk_size)
+            envelope = {
+                "evidence_report_id": payload.evidence_report_id,
+                "assessment_id": payload.assessment_id,
+                "schema_version": payload.schema_version,
+                "provider_version": payload.provider_version,
+                "privacy_flags": payload.privacy_flags,
+                "scan_job_id": payload.scan_job_id,
+                "profile_data": request_payload.get("profile_data"),
+                "is_artifact_reference": True,
+                "artifact_manifest": manifest
+            }
+            resp_data = self._post_with_retry(path, envelope)
+        else:
+            resp_data = self._post_with_retry(path, request_payload)
         return CallbackResponse(**resp_data)
 
     def get_accepted_technical_evidence_report(self, evidence_report_id: str) -> dict:
@@ -412,6 +456,26 @@ class WorkerApiClient:
         status = str(data.get("status", "")).lower()
         if status and status != "accepted":
             raise WorkerCallbackError("Technical profile is not accepted.")
+
+        # Resolve reference file if present
+        ref = data.get("profile_data_ref")
+        if ref and isinstance(ref, str):
+            import os
+            import json
+            if os.path.exists(ref):
+                try:
+                    with open(ref, "r") as f:
+                        file_payload = json.load(f)
+                        if isinstance(file_payload, dict):
+                            def merge_dict(target: dict, source: dict) -> None:
+                                for k, v in source.items():
+                                    if k not in target or target[k] in ([], {}, None, ""):
+                                        target[k] = v
+                                    elif isinstance(target[k], dict) and isinstance(v, dict):
+                                        merge_dict(target[k], v)
+                            merge_dict(data, file_payload)
+                except Exception:
+                    pass
         return data
 
     def dispatch_agentic_tool(self, payload: dict) -> dict:

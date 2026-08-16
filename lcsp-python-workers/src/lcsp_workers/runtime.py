@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import importlib
 import inspect
+import os
 from typing import Type
 
 from lcsp_workers.agentic_evidence import (
@@ -27,6 +28,11 @@ from lcsp_workers.llm import (
 )
 from lcsp_workers.platform.api_client import WorkerApiClient
 from lcsp_workers.platform.config import load_config
+from lcsp_workers.platform.dev_unsafe_instrumentation import (
+    install_dev_unsafe_instrumentation,
+)
+from lcsp_workers.platform.dev_unsafe_trace import unsafe_dev_trace_enabled
+from lcsp_workers.platform.logging import configure_logging
 from lcsp_workers.platform.pbac_client import PbacClient
 from lcsp_workers.platform.queue_consumer import ConsumerBase
 
@@ -162,6 +168,19 @@ def _build_llm_client(config):
     )
 
 
+def _configure_development_trace() -> None:
+    """Enable exact raw runtime instrumentation only after an explicit dev opt-in.
+
+    The tracing layer observes existing runtime boundaries without changing
+    persistence, callback privacy, PBAC, prompt-safety, provider fallback, or
+    tool-dispatch behavior. Production + unsafe tracing fails immediately.
+    """
+    if not unsafe_dev_trace_enabled():
+        return
+    configure_logging(os.getenv("LOG_LEVEL", "DEBUG"))
+    install_dev_unsafe_instrumentation()
+
+
 def main() -> None:
     """Parse the worker target from the CLI and run the configured consumer."""
     parser = argparse.ArgumentParser(
@@ -173,6 +192,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    _configure_development_trace()
     consumer = _build_consumer(args.target)
     consumer.run()
 

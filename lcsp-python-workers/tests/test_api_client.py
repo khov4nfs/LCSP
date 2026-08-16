@@ -15,15 +15,18 @@ from lcsp_workers.platform.callback_schemas import (
 )
 from lcsp_workers.platform.correlation import set_correlationId
 
+
 @pytest.fixture
 def client():
     # Fast retry for tests by patching time.sleep
     with patch("lcsp_workers.platform.api_client.time.sleep"):
         yield WorkerApiClient(base_url="http://testserver", api_key="test-api-key")
 
+
 @pytest.fixture
 def dummy_payload():
     return ScanCallbackPayload(status="COMPLETED", findings=[])
+
 
 def test_t01_successful_callback(client, dummy_payload):
     """T01: Successful callback parses response."""
@@ -32,9 +35,9 @@ def test_t01_successful_callback(client, dummy_payload):
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"success": True, "message": "OK"}
         mock_post.return_value = mock_resp
-        
+
         response = client.post_scan_callback("job123", dummy_payload)
-        
+
         assert isinstance(response, CallbackResponse)
         assert response.success is True
         assert response.message == "OK"
@@ -43,18 +46,20 @@ def test_t01_successful_callback(client, dummy_payload):
             "http://testserver/internal/scan-jobs/job123/callback"
         )
 
+
 def test_t02_5xx_response(client, dummy_payload):
     """T02: 5xx response is retried 3 times then raises WorkerCallbackError."""
     with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 503
         mock_post.return_value = mock_resp
-        
+
         with pytest.raises(WorkerCallbackError) as exc_info:
             client.post_scan_callback("job123", dummy_payload)
-            
+
         assert "server error 503" in str(exc_info.value)
         assert mock_post.call_count == 3
+
 
 def test_t03_422_response(client, dummy_payload):
     """T03: 422 response is NOT retried, raises WorkerCallbackError immediately."""
@@ -62,23 +67,25 @@ def test_t03_422_response(client, dummy_payload):
         mock_resp = MagicMock()
         mock_resp.status_code = 422
         mock_post.return_value = mock_resp
-        
+
         with pytest.raises(WorkerCallbackError) as exc_info:
             client.post_scan_callback("job123", dummy_payload)
-            
+
         assert "client error 422" in str(exc_info.value)
         assert mock_post.call_count == 1
+
 
 def test_t04_network_timeout(client, dummy_payload):
     """T04: Network timeout is retried 3 times."""
     with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
         mock_post.side_effect = httpx.TimeoutException("Timeout")
-        
+
         with pytest.raises(WorkerCallbackError) as exc_info:
             client.post_scan_callback("job123", dummy_payload)
-            
+
         assert "network request failed" in str(exc_info.value)
         assert mock_post.call_count == 3
+
 
 def test_t05_t06_headers(client, dummy_payload):
     """T05 & T06: X-Worker-Api-Key and X-Correlation-Id are included in every request."""
@@ -88,13 +95,14 @@ def test_t05_t06_headers(client, dummy_payload):
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"success": True}
         mock_post.return_value = mock_resp
-        
+
         client.post_scan_callback("job123", dummy_payload)
-        
+
         _, kwargs = mock_post.call_args
         headers = kwargs.get("headers", {})
         assert headers.get("X-Worker-Api-Key") == "test-api-key"
         assert headers.get("X-Correlation-Id") == "test-cid-999"
+
 
 def test_t07_raw_source_code_rejected():
     """T07: Raw source code or extra fields are rejected by Pydantic 'forbid' config."""
@@ -207,6 +215,39 @@ def test_technical_profile_callback_uses_evidence_endpoint(client):
         assert url == "http://testserver/internal/evidence/technical-profile-callback"
         assert response.technical_profile_id == "technical-profile-1"
 
+
+
+
+def test_large_technical_profile_callback_uses_artifact_with_inline_fallback(
+    client, monkeypatch
+):
+    monkeypatch.setenv("LCSP_PROFILE_CALLBACK_THRESHOLD", "1")
+    monkeypatch.setenv("LCSP_PROFILE_CALLBACK_CHUNK_SIZE", "64")
+    payload = TechnicalProfileCallbackPayload(
+        evidence_report_id="ter-1",
+        assessment_id="assessment-1",
+        schema_version="2.0.0",
+        provider_version="lcsp.technical-profile-worker.v2",
+        profile_data={"evidence_quality": "high", "profile_data_ref": "/tmp/profile.json"},
+        privacy_flags={"containsSourceCode": False, "secretsRedacted": True},
+        scan_job_id="scan-job-1",
+    )
+
+    with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "accepted": True,
+            "technical_profile_id": "technical-profile-1",
+        }
+        mock_post.return_value = mock_resp
+
+        client.post_technical_profile_callback(payload)
+
+    sent_payload = mock_post.call_args.kwargs["json"]
+    assert sent_payload["is_artifact_reference"] is True
+    assert sent_payload["artifact_manifest"]["chunks"]
+    assert sent_payload["profile_data"] == payload.profile_data
 
 def test_dispatch_agentic_tool_uses_internal_runtime_endpoint(client):
     with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
@@ -395,15 +436,20 @@ def test_reconciliation_conflict_callback_uses_internal_endpoint(client):
         assert response.conflict_count == 0
 
 
-def test_verified_profile_callback_uses_reconciliation_endpoint(client):
-    payload = VerifiedProfileCallbackPayload(
+def _verified_profile_callback_payload() -> VerifiedProfileCallbackPayload:
+    return VerifiedProfileCallbackPayload(
         ai_usage_flow_id="auf-1",
         assessment_id="assessment-1",
-        schema_version="1.0.0",
-        provider_version="lcsp.verified-profile-worker.v1",
-        profile_data={"verified_claims": []},
-        gates_passed_at={"conflicts_resolved": "2026-07-25T09:30:00Z"},
+        wizard_profile_id="wizard-1",
+        technical_evidence_report_id="report-1",
+        reconciliation_decision_refs=["reconciliation:conflict-1"],
+        idempotency_key="verified-profile-idempotency-0001",
+        organization_id="org-1",
     )
+
+
+def test_verified_profile_callback_uses_reconciliation_endpoint(client):
+    payload = _verified_profile_callback_payload()
 
     with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
@@ -417,17 +463,13 @@ def test_verified_profile_callback_uses_reconciliation_endpoint(client):
         assert url == (
             "http://testserver/internal/reconciliation/verified-profile-callback"
         )
+        serialized = mock_post.call_args.kwargs["json"]
+        assert "profile_data" not in serialized
+        assert "gates_passed_at" not in serialized
 
 
 def test_verified_profile_pending_conflicts_error_preserves_error_code(client):
-    payload = VerifiedProfileCallbackPayload(
-        ai_usage_flow_id="auf-1",
-        assessment_id="assessment-1",
-        schema_version="1.0.0",
-        provider_version="lcsp.verified-profile-worker.v1",
-        profile_data={"verified_claims": []},
-        gates_passed_at={"conflicts_resolved": "2026-07-25T09:30:00Z"},
-    )
+    payload = _verified_profile_callback_payload()
 
     with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()

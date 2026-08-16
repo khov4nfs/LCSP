@@ -6,15 +6,20 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { LegalRetrievalIndexStatus, PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
-import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
+import {
+  ASSESSMENT_STATUS_CODES,
+  WIZARD_STATUS_CODES,
+} from "@lcsp/contracts/assessment";
 import {
   AUDIT_EVENT_SCHEMA_VERSION,
   AUDIT_REDACTION_STATUSES,
 } from "@lcsp/contracts/audit";
-import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
+import {
+  LEGAL_MATCHING_REQUEST_COMMAND,
+  LEGAL_RULE_LIFECYCLE_STATUSES,
+} from "@lcsp/contracts/legal-rule-catalog";
 import { OUTBOX_MESSAGE_SCHEMA_VERSION } from "@lcsp/contracts/outbox";
 import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
-import { LEGAL_MATCHING_REQUEST_COMMAND } from "@lcsp/contracts/legal-rule-catalog";
 import {
   AI_USAGE_FLOW_STATUSES,
   CONFLICT_RECORD_STATUSES,
@@ -22,7 +27,6 @@ import {
   SCAN_EVENT_TYPES,
   TECHNICAL_EVIDENCE_REPORT_STATUSES,
   TECHNICAL_PROFILE_STATUSES,
-  VERIFIED_PROFILE_SCHEMA_VERSIONS,
   VERIFIED_PROFILE_STATUSES,
   type ConflictRecordStatus,
 } from "@lcsp/contracts/scan";
@@ -41,6 +45,13 @@ import {
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
 const WORKER_KEY = "test-only-worker-api-key-at-least-32-chars";
+const ASSESSMENT_ID = "assessment-1";
+const ORGANIZATION_ID = "org-1";
+const AI_USAGE_FLOW_ID = "ai-flow-1";
+const WIZARD_PROFILE_ID = "wizard-assessment-1";
+const TECHNICAL_EVIDENCE_REPORT_ID = "evidence-assessment-1";
+const DEFAULT_IDEMPOTENCY_KEY = "verified-profile-idempotency-1";
+const EVIDENCE_REF = "evidence-assessment-1::finding-1";
 
 describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
   let app: INestApplication;
@@ -66,7 +77,7 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
     await seedAuthWorkspaceFixture(prisma);
     await grantVerifiedProfileApproval(prisma);
     await seedReadyLegalMatchingTarget(prisma);
-    await seedAssessmentChain(prisma, "assessment-1", "org-1");
+    await seedAssessmentChain(prisma, ASSESSMENT_ID, ORGANIZATION_ID);
   });
 
   afterAll(async () => {
@@ -74,41 +85,78 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
     if (prisma) await prisma.$disconnect();
   });
 
-  it("T01/T04 stores pending profile without emitting downstream ready event and audits safe refs", async () => {
+  it("T01/T04 stores the canonical pending profile without emitting legal matching and audits safe refs", async () => {
     await seedConflicts(prisma, [
       { id: "conflict-1", status: CONFLICT_RECORD_STATUSES.resolved },
     ]);
 
     const response = await callback(app, validPayload());
     const body = successBody<VerifiedProfileCallbackDto>(response);
+    const verifiedProfileId = body.result.verifiedProfileId;
 
     assert.equal(response.status, 200);
-    assert.equal(body.accepted, true);
-    assert.equal(body.status, VERIFIED_PROFILE_STATUSES.pendingApproval);
-    assert.ok(body.verified_profile_id);
+    assert.equal(
+      body.result.lifecycleStatus,
+      VERIFIED_PROFILE_STATUSES.pendingApproval,
+    );
+    assert.ok(verifiedProfileId);
+    assert.deepEqual(body.result.sourceArtifactRefs, [
+      `wizard:${WIZARD_PROFILE_ID}`,
+      `ter:${TECHNICAL_EVIDENCE_REPORT_ID}`,
+      `flow:${AI_USAGE_FLOW_ID}`,
+    ]);
+    assert.deepEqual(body.result.factEvidenceRefs, [EVIDENCE_REF]);
 
-    const [profile, outbox, audit] = await Promise.all([
-      prisma.verifiedProfile.findUnique({
-        where: { id: body.verified_profile_id },
-      }),
+    const [profile, legalMatchingOutbox, audit] = await Promise.all([
+      prisma.verifiedProfile.findUnique({ where: { id: verifiedProfileId } }),
       prisma.outboxMessage.findFirst({
         where: { eventType: LEGAL_MATCHING_REQUEST_COMMAND },
       }),
       prisma.authAuditEvent.findFirst({
-        where: { eventType: SCAN_EVENT_TYPES.verifiedProfileAcceptedAudit },
+        where: { eventType: SCAN_EVENT_TYPES.verifiedProfilePersistedAudit },
       }),
     ]);
 
-    assert.equal(profile?.aiUsageFlowId, "ai-flow-1");
-    assert.equal(profile?.assessmentId, "assessment-1");
-    assert.equal(profile?.organizationId, "org-1");
-    assert.deepEqual(profile?.profileData, validPayload().profile_data);
-    assert.deepEqual(profile?.gatesPassedAt, validPayload().gates_passed_at);
+    assert.equal(profile?.aiUsageFlowId, AI_USAGE_FLOW_ID);
+    assert.equal(profile?.assessmentId, ASSESSMENT_ID);
+    assert.equal(profile?.organizationId, ORGANIZATION_ID);
+    assert.equal(profile?.wizardProfileId, WIZARD_PROFILE_ID);
+    assert.equal(
+      profile?.technicalEvidenceReportId,
+      TECHNICAL_EVIDENCE_REPORT_ID,
+    );
+    assert.deepEqual(profile?.reconciliationDecisionRefs, [
+      "reconciliation:conflict-1",
+    ]);
+    assert.equal(profile?.idempotencyKey, DEFAULT_IDEMPOTENCY_KEY);
     assert.equal(profile?.status, VERIFIED_PROFILE_STATUSES.pendingApproval);
     assert.equal(profile?.approvedAt, null);
     assert.equal(profile?.approvedById, null);
-    assert.equal(outbox, null);
-    assert.equal(audit?.resourceId, body.verified_profile_id);
+
+    const profileData = profile?.profileData as {
+      verified_claims?: unknown;
+      fact_evidence_refs?: unknown;
+      verification_source?: unknown;
+      wizard_context?: unknown;
+      evidence_chain_integrity?: unknown;
+    };
+    assert.deepEqual(profileData.verified_claims, [
+      { claim_id: "claim-1", evidence_refs: [EVIDENCE_REF] },
+    ]);
+    assert.deepEqual(profileData.fact_evidence_refs, [EVIDENCE_REF]);
+    assert.equal(profileData.verification_source, "TECHNICAL_PLUS_WIZARD");
+    assert.deepEqual(profileData.wizard_context, {
+      wizard_profile_id: WIZARD_PROFILE_ID,
+      version: 1,
+    });
+    assert.equal(profileData.evidence_chain_integrity, true);
+    assert.ok(
+      (profile?.gatesPassedAt as { reconciliation_complete?: string } | null)
+        ?.reconciliation_complete,
+    );
+
+    assert.equal(legalMatchingOutbox, null);
+    assert.equal(audit?.resourceId, verifiedProfileId);
     assert.equal(
       (audit?.payload as { schemaVersion?: string }).schemaVersion,
       AUDIT_EVENT_SCHEMA_VERSION,
@@ -130,11 +178,12 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
 
     const generated = await callback(app, validPayload());
     const generatedBody = successBody<VerifiedProfileCallbackDto>(generated);
+    const verifiedProfileId = generatedBody.result.verifiedProfileId;
     const token = await signInManager(app);
 
     const approved = await httpRequest(app)
       .post(
-        `/assessments/assessment-1/verified-profiles/${generatedBody.verified_profile_id}/approve`,
+        `/assessments/${ASSESSMENT_ID}/verified-profiles/${verifiedProfileId}/approve`,
       )
       .set("Authorization", `Bearer ${token}`)
       .send({});
@@ -146,28 +195,23 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
     }>(approved);
 
     assert.equal(approved.status, 200);
-    assert.equal(
-      approvedBody.verified_profile_id,
-      generatedBody.verified_profile_id,
-    );
+    assert.equal(approvedBody.verified_profile_id, verifiedProfileId);
     assert.equal(approvedBody.status, VERIFIED_PROFILE_STATUSES.approved);
     assert.equal(approvedBody.approved_by_id, "user-1");
     assert.ok(approvedBody.approved_at);
 
     const [profile, outbox, audit] = await Promise.all([
-      prisma.verifiedProfile.findUnique({
-        where: { id: generatedBody.verified_profile_id },
-      }),
+      prisma.verifiedProfile.findUnique({ where: { id: verifiedProfileId } }),
       prisma.outboxMessage.findFirst({
         where: {
           eventType: LEGAL_MATCHING_REQUEST_COMMAND,
-          aggregateId: generatedBody.verified_profile_id,
+          aggregateId: verifiedProfileId,
         },
       }),
       prisma.authAuditEvent.findFirst({
         where: {
           eventType: SCAN_EVENT_TYPES.verifiedProfileApprovedAudit,
-          resourceId: generatedBody.verified_profile_id,
+          resourceId: verifiedProfileId,
         },
       }),
     ]);
@@ -175,7 +219,7 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
     assert.equal(profile?.status, VERIFIED_PROFILE_STATUSES.approved);
     assert.equal(profile?.approvedById, "user-1");
     assert.ok(profile?.approvedAt);
-    assert.equal(outbox?.aggregateId, generatedBody.verified_profile_id);
+    assert.equal(outbox?.aggregateId, verifiedProfileId);
     assert.equal(
       (outbox?.payload as { schemaVersion?: string }).schemaVersion,
       OUTBOX_MESSAGE_SCHEMA_VERSION,
@@ -200,8 +244,9 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
 
     const generated = await callback(app, validPayload());
     const generatedBody = successBody<VerifiedProfileCallbackDto>(generated);
+    const verifiedProfileId = generatedBody.result.verifiedProfileId;
     const token = await signInManager(app);
-    const path = `/assessments/assessment-1/verified-profiles/${generatedBody.verified_profile_id}/approve`;
+    const path = `/assessments/${ASSESSMENT_ID}/verified-profiles/${verifiedProfileId}/approve`;
 
     const first = await httpRequest(app)
       .post(path)
@@ -223,7 +268,7 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
       await prisma.outboxMessage.count({
         where: {
           eventType: LEGAL_MATCHING_REQUEST_COMMAND,
-          aggregateId: generatedBody.verified_profile_id,
+          aggregateId: verifiedProfileId,
         },
       }),
       1,
@@ -246,19 +291,28 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
     await assertNoVerifiedProfileMutation(prisma);
   });
 
-  it("T03 rejects duplicate profile for the same AIUsageFlow", async () => {
+  it("T03 replays the same pinned idempotency key without creating a second profile", async () => {
     await seedConflicts(prisma, [
       { id: "conflict-1", status: CONFLICT_RECORD_STATUSES.resolved },
     ]);
 
-    await callback(app, validPayload());
-    const duplicate = await callback(app, validPayload());
+    const first = await callback(app, validPayload());
+    const firstBody = successBody<VerifiedProfileCallbackDto>(first);
+    const replay = await callback(app, validPayload());
+    const replayBody = successBody<VerifiedProfileCallbackDto>(replay);
 
-    assertError(
-      duplicate.status,
-      duplicate.body,
-      409,
-      SCAN_ERROR_CODES.profileAlreadyExists,
+    assert.equal(first.status, 200);
+    assert.equal(replay.status, 200);
+    assert.equal(
+      replayBody.result.verifiedProfileId,
+      firstBody.result.verifiedProfileId,
+    );
+    assert.equal(await prisma.verifiedProfile.count(), 1);
+    assert.equal(
+      await prisma.outboxMessage.count({
+        where: { eventType: SCAN_EVENT_TYPES.verifiedProfilePersisted },
+      }),
+      1,
     );
   });
 
@@ -277,13 +331,13 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
       { id: "conflict-1", status: CONFLICT_RECORD_STATUSES.resolved },
     ]);
     await prisma.wizardProfile.deleteMany({
-      where: { assessmentId: "assessment-1" },
+      where: { assessmentId: ASSESSMENT_ID },
     });
     await prisma.wizardProfile.create({
       data: {
         id: "reconciliation-context-wizard-1",
-        assessmentId: "assessment-1",
-        organizationId: "org-1",
+        assessmentId: ASSESSMENT_ID,
+        organizationId: ORGANIZATION_ID,
         ownerId: "user-1",
         answers: { aiPurpose: "decision_support" },
       },
@@ -291,24 +345,31 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
 
     const response = await httpRequest(app)
       .get(
-        "/internal/reconciliation/verified-profile-context/assessment-1?ai_usage_flow_id=ai-flow-1",
+        `/internal/reconciliation/verified-profile-context/${ASSESSMENT_ID}?ai_usage_flow_id=${AI_USAGE_FLOW_ID}`,
       )
       .set("X-Worker-Api-Key", WORKER_KEY);
     const body = successBody<{
       ai_usage_flow: { id: string; claims: unknown };
       conflicts: Array<{ conflict_id: string; status: string }>;
       wizard_profile: { id: string; answers: unknown } | null;
+      technical_evidence_report_id: string | null;
     }>(response);
 
     assert.equal(response.status, 200);
-    assert.equal(body.ai_usage_flow.id, "ai-flow-1");
-    assert.deepEqual(body.ai_usage_flow.claims, [{ claim_id: "claim-1" }]);
+    assert.equal(body.ai_usage_flow.id, AI_USAGE_FLOW_ID);
+    assert.deepEqual(body.ai_usage_flow.claims, [
+      { claim_id: "claim-1", evidence_refs: [EVIDENCE_REF] },
+    ]);
     assert.equal(body.conflicts.length, 1);
     assert.equal(body.conflicts[0]?.conflict_id, "conflict-1");
     assert.equal(body.conflicts[0]?.status, CONFLICT_RECORD_STATUSES.resolved);
+    assert.equal(
+      body.technical_evidence_report_id,
+      TECHNICAL_EVIDENCE_REPORT_ID,
+    );
     assert.deepEqual(body.wizard_profile, {
       id: "reconciliation-context-wizard-1",
-      assessment_id: "assessment-1",
+      assessment_id: ASSESSMENT_ID,
       version: 1,
       answers: { aiPurpose: "decision_support" },
     });
@@ -324,13 +385,13 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
     const updateAttempt = await httpRequest(app)
       .patch("/internal/reconciliation/verified-profile-callback")
       .set("X-Worker-Api-Key", WORKER_KEY)
-      .send(validPayload({ profile_data: { verified_claims: [] } }));
+      .send(validPayload());
 
     assert.equal(updateAttempt.status, 404);
     assert.equal(await prisma.verifiedProfile.count(), 1);
   });
 
-  it("rejects missing AIUsageFlow and invalid schema version", async () => {
+  it("rejects a missing pinned artifact and malformed canonical input", async () => {
     const missingFlow = await callback(
       app,
       validPayload({ ai_usage_flow_id: "missing-flow" }),
@@ -339,16 +400,16 @@ describe("VerifiedProfile Callback Endpoint (e2e) [MW-rec-004]", () => {
       missingFlow.status,
       missingFlow.body,
       404,
-      SCAN_ERROR_CODES.aiUsageFlowNotFound,
+      SCAN_ERROR_CODES.evidenceReportNotFound,
     );
 
-    const invalidSchema = await callback(
+    const invalidInput = await callback(
       app,
-      validPayload({ schema_version: "0.0.0" }),
+      validPayload({ idempotency_key: "" }),
     );
     assertError(
-      invalidSchema.status,
-      invalidSchema.body,
+      invalidInput.status,
+      invalidInput.body,
       422,
       SCAN_ERROR_CODES.verifiedProfileSchemaInvalid,
     );
@@ -371,23 +432,13 @@ function validPayload(
   overrides: Partial<VerifiedProfileCallbackRequest> = {},
 ): VerifiedProfileCallbackRequest {
   return {
-    ai_usage_flow_id: "ai-flow-1",
-    assessment_id: "assessment-1",
-    schema_version: VERIFIED_PROFILE_SCHEMA_VERSIONS[0],
-    provider_version: "verified-profile-worker@1.0.0",
-    profile_data: {
-      verified_claims: [
-        {
-          claim_id: "claim-1",
-          claim_category: "MODEL_INVOCATION",
-          evidence_refs: ["evidence-assessment-1::finding-1"],
-        },
-      ],
-      evidence_chain_integrity: true,
-    },
-    gates_passed_at: {
-      conflicts_resolved: "2026-07-25T09:30:00.000Z",
-    },
+    ai_usage_flow_id: AI_USAGE_FLOW_ID,
+    assessment_id: ASSESSMENT_ID,
+    wizard_profile_id: WIZARD_PROFILE_ID,
+    technical_evidence_report_id: TECHNICAL_EVIDENCE_REPORT_ID,
+    reconciliation_decision_refs: ["reconciliation:conflict-1"],
+    idempotency_key: DEFAULT_IDEMPOTENCY_KEY,
+    organization_id: ORGANIZATION_ID,
     ...overrides,
   };
 }
@@ -399,6 +450,7 @@ async function resetDomainData(prisma: PrismaClient): Promise<void> {
   await prisma.technicalProfile.deleteMany();
   await prisma.technicalEvidenceReport.deleteMany();
   await prisma.repositoryScanJob.deleteMany();
+  await prisma.wizardProfile.deleteMany();
   await prisma.legalRetrievalIndex.deleteMany();
   await prisma.legalDocumentChunk.deleteMany();
   await prisma.legalSourceDocument.deleteMany();
@@ -458,6 +510,18 @@ async function seedAssessmentChain(
       status: ASSESSMENT_STATUS_CODES.scanInProgress,
     },
   });
+  await prisma.wizardProfile.create({
+    data: {
+      id: `wizard-${assessmentId}`,
+      assessmentId,
+      organizationId,
+      ownerId: "user-1",
+      status: WIZARD_STATUS_CODES.submitted,
+      answers: [],
+      version: 1,
+      submittedAt: new Date("2026-08-12T00:00:00.000Z"),
+    },
+  });
   await prisma.technicalEvidenceReport.create({
     data: {
       id: `evidence-${assessmentId}`,
@@ -490,13 +554,13 @@ async function seedAssessmentChain(
   });
   await prisma.aIUsageFlow.create({
     data: {
-      id: "ai-flow-1",
+      id: AI_USAGE_FLOW_ID,
       technicalProfileId: `technical-profile-${assessmentId}`,
       assessmentId,
       organizationId,
       schemaVersion: "1.0.0",
       providerVersion: "ai-usage-flow-worker@1.0.0",
-      claims: [{ claim_id: "claim-1" }],
+      claims: [{ claim_id: "claim-1", evidence_refs: [EVIDENCE_REF] }],
       unknownUsages: [],
       privacyFlags: { containsSourceCode: false, secretsRedacted: true },
       status: AI_USAGE_FLOW_STATUSES.accepted,
@@ -511,9 +575,9 @@ async function seedConflicts(
   await prisma.conflictRecord.createMany({
     data: conflicts.map((conflict, index) => ({
       id: conflict.id,
-      aiUsageFlowId: "ai-flow-1",
-      assessmentId: "assessment-1",
-      organizationId: "org-1",
+      aiUsageFlowId: AI_USAGE_FLOW_ID,
+      assessmentId: ASSESSMENT_ID,
+      organizationId: ORGANIZATION_ID,
       conflictType: index === 0 ? "evidence_contradiction" : "scope_mismatch",
       conflictScore: index === 0 ? 0.88 : 0.42,
       scoreExplanation: "Manager and technical evidence differ.",
@@ -551,7 +615,7 @@ async function signInManager(app: INestApplication): Promise<string> {
   const response = await httpRequest(app).post("/auth/sign-in").send({
     email: "manager@acme.test",
     password: "CorrectHorseBatteryStaple!",
-    organization_id: "org-1",
+    organization_id: ORGANIZATION_ID,
   });
   assert.equal(response.status, 200, JSON.stringify(response.body));
   return successBody<{ session_token: string }>(response).session_token;

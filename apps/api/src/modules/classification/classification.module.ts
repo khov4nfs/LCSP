@@ -10,7 +10,6 @@ import { SubmitClassificationReviewHandler } from "./application/commands/submit
 import { EvaluateGapMatrixHandler } from "./application/queries/evaluate-gap-matrix/evaluate-gap-matrix.handler.js";
 import { GetGapEvidenceTraceHandler } from "./application/queries/get-gap-evidence-trace/get-gap-evidence-trace.handler.js";
 import { GetClassificationBaselineHandler } from "./application/queries/get-classification-baseline/get-classification-baseline.handler.js";
-import { ProposeGapRemediationHandler } from "./application/queries/propose-gap-remediation/propose-gap-remediation.handler.js";
 import { ValidateClassificationProposalHandler } from "./application/queries/validate-classification-proposal/validate-classification-proposal.handler.js";
 import { CitationGuardrailService } from "./application/services/classification/citation-guardrail.service.js";
 import { OverclaimGuardrailService } from "./application/services/classification/overclaim-guardrail.service.js";
@@ -26,7 +25,6 @@ import { ClassificationReviewSubmissionController } from "./presentation/http/cl
 import { ClassificationRuntimeController } from "./presentation/http/classification-runtime.controller.js";
 import { GapMatrixEvaluationController } from "./presentation/http/gap-matrix-evaluation.controller.js";
 import { GapEvidenceTraceController } from "./presentation/http/gap-evidence-trace.controller.js";
-import { GapRemediationController } from "./presentation/http/gap-remediation.controller.js";
 import {
   GAP_REQUIREMENTS_CONTROLLERS,
   GAP_REQUIREMENTS_PROVIDERS,
@@ -45,7 +43,6 @@ import {
     ...GAP_REQUIREMENTS_CONTROLLERS,
     GapMatrixEvaluationController,
     GapEvidenceTraceController,
-    GapRemediationController,
   ],
   providers: [
     AcceptLegalRuleMatchHandler,
@@ -57,7 +54,6 @@ import {
     GetGapEvidenceTraceHandler,
     GetClassificationBaselineHandler,
     ...GAP_REQUIREMENTS_PROVIDERS,
-    ProposeGapRemediationHandler,
     ValidateClassificationProposalHandler,
     CitationGuardrailService,
     OverclaimGuardrailService,

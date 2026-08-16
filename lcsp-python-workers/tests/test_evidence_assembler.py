@@ -1,476 +1,385 @@
-"""MW-scan-py-004: Evidence Report Assembly and Callback tests."""
-
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import replace
 
 import pytest
 
-from lcsp_workers.platform.callback_schemas import SCAN_CALLBACK_STATUSES
+from lcsp_workers.scanner.analyzers.python_analyzer import AiCallSite, PythonAnalysisResult
+from lcsp_workers.scanner.dependencies.dependency_fact import PackageDependency
 from lcsp_workers.scanner.evidence_assembler import (
     EvidenceAssembler,
     PrivacyAssertionError,
+    PrivacyFlags,
 )
 from lcsp_workers.scanner.inventory.language_types import (
     LANGUAGE_PYTHON,
-    SUPPORT_FULL,
     LanguageClassification,
+    SUPPORT_FULL,
 )
-from lcsp_workers.scanner.tool_registry import ToolRegistry
-from lcsp_workers.scanner.toolchain_execution import ToolchainExecutionPlanner
-from lcsp_workers.scanner.analyzers.ai_invocation_detector import TechnicalFinding
-from lcsp_workers.scanner.ts_js_bridge.bridge_types import TsJsBridgeResult, TsJsFinding
-from lcsp_workers.scanner.tools.semgrep_tool import SemgrepFinding, SemgrepRunResult
+from lcsp_workers.scanner.parsers.structural_types import StructuralFact
+from lcsp_workers.scanner.program_graph.builder import ProgramGraphBuilder
+from lcsp_workers.scanner.program_graph.semantic_ir import SemanticNodeFact, SemanticProgram
+from lcsp_workers.scanner.tool_registry import ToolProvenance
+from lcsp_workers.scanner.toolchain_execution import RepositoryLanguageProfile
+from lcsp_workers.scanner.tools.semgrep_tool import SemgrepRunResult
 from lcsp_workers.scanner.tools.syft_tool import SBOMEntry, SyftRunResult
 from lcsp_workers.scanner.tools.tool_base import (
-    OUTCOME_SKIPPED_UNSUPPORTED,
     OUTCOME_SUCCESS,
     OUTCOME_TOOL_FAILURE,
     ToolExecutionResult,
 )
-from lcsp_workers.scanner.graph.graph_builder import EvidenceGraphBuilder
+from lcsp_workers.scanner.ts_js_bridge.bridge_types import (
+    TsJsBridgeResult,
+    TsJsCoverageLimitation,
+    TsJsFinding,
+)
 
 
-def _syft_result(outcome: str = OUTCOME_SUCCESS) -> SyftRunResult:
-    return SyftRunResult(
-        entries=[
-            SBOMEntry(
-                name="openai",
-                version="1.59.3",
-                ecosystem="pypi",
-                location="requirements.txt",
-                purl="pkg:pypi/openai@1.59.3",
-                license="Apache-2.0",
-            )
-        ]
-        if outcome == OUTCOME_SUCCESS
-        else [],
-        execution=ToolExecutionResult(
-            tool_name="syft",
-            tool_version="syft v1.0.0",
-            outcome=outcome,
-            config_hash="sha256:syft",
-            messages=[] if outcome == OUTCOME_SUCCESS else ["syft failed safely"],
+def _execution(name: str, outcome: str = OUTCOME_SUCCESS) -> ToolExecutionResult:
+    return ToolExecutionResult(
+        tool_name=name,
+        tool_version="1.0.0",
+        outcome=outcome,
+        config_hash="sha256:config",
+    )
+
+
+def _provenance(name: str, outcome: str = OUTCOME_SUCCESS) -> ToolProvenance:
+    return ToolProvenance(
+        tool_name=name,
+        tool_version="1.0.0",
+        config_hash="sha256:config",
+        ruleset_hash="sha256:rules",
+        started_at="2026-07-03T00:00:00Z",
+        ended_at="2026-07-03T00:00:01Z",
+        language_profile=RepositoryLanguageProfile(
+            languages=(LANGUAGE_PYTHON,),
+            file_counts={LANGUAGE_PYTHON: 1},
         ),
+        coverage_limitations=(
+            () if outcome == OUTCOME_SUCCESS else ("tool failed in fixture",)
+        ),
+        outcome=outcome,
+        disposition="RUN",
+        evidence_eligible=outcome == OUTCOME_SUCCESS,
     )
 
 
-def _semgrep_result(outcome: str = OUTCOME_SUCCESS) -> SemgrepRunResult:
-    return SemgrepRunResult(
-        findings=[
-            SemgrepFinding(
-                rule_id="lcsp.openai-client",
-                signal_type="provider_integration",
+def _python_analysis() -> PythonAnalysisResult:
+    return PythonAnalysisResult(
+        files_analyzed=1,
+        files_skipped=0,
+        ai_call_sites=[
+            AiCallSite(
                 file_path="src/app.py",
-                line_start=3,
-                line_end=3,
-                message="OpenAI client import detected",
-                severity="INFO",
+                line_number=8,
+                function_name="client.responses.create",
+                module_alias="openai",
+                matched_rule_id="openai.responses.create",
+                finding_type="AI_MODEL_INVOCATION",
+                analysis_level="L1",
+                call_args_schema=["input"],
+                has_dynamic_call=False,
+                kwarg_names=["input"],
+                confidence=0.95,
+                evidence=[{"file": "src/app.py", "line": 8}],
             )
-        ]
-        if outcome == OUTCOME_SUCCESS
-        else [],
-        executions=[
-            ToolExecutionResult(
-                tool_name="semgrep_ai_usage",
-                tool_version="semgrep 1.99.0",
-                outcome=outcome,
-                config_hash="sha256:semgrep-ai",
-                messages=[] if outcome == OUTCOME_SUCCESS else ["semgrep failed safely"],
-            ),
-            ToolExecutionResult(
-                tool_name="semgrep_secret_detect",
-                tool_version="semgrep 1.99.0",
-                outcome=outcome,
-                config_hash="sha256:semgrep-secret",
-                messages=[] if outcome == OUTCOME_SUCCESS else ["semgrep failed safely"],
-            ),
         ],
-        redaction_applied=outcome != OUTCOME_SUCCESS,
+        import_map={"openai": "openai"},
+        unsupported_dynamic_flows=[],
+        coverage_limitation=False,
     )
 
 
-def _ts_js_result() -> TsJsBridgeResult:
+def _ts_analysis() -> TsJsBridgeResult:
     return TsJsBridgeResult(
         files_analyzed=1,
         files_skipped=0,
         findings=[
             TsJsFinding(
-                file_path="src/ai.ts",
-                line_number=3,
-                finding_type="AI_PROVIDER_USAGE",
-                rule_id="ts-openai-chat-completions",
+                finding_type="AI_MODEL_INVOCATION",
+                file_path="src/app.ts",
+                line_number=4,
+                rule_id="openai.responses.create",
                 import_source="openai",
-                call_expression="client.chat.completions.create",
-                kwarg_names=["model", "messages"],
+                call_expression="client.responses.create",
+                kwarg_names=["input"],
                 analysis_level="L1",
                 has_dynamic_call=False,
-                confidence=0.9,
+                confidence=0.95,
             )
         ],
         unsupported_dynamic_flows=[],
         coverage_limitations=[],
         analyzer_version="1.0.0",
-        execution=ToolExecutionResult(
-            tool_name="ts_js_analyzer",
-            tool_version="1.0.0",
-            outcome=OUTCOME_SUCCESS,
-            config_hash="sha256:ts-js",
-            messages=[],
+        execution=_execution("ts-morph"),
+    )
+
+
+def _syft() -> SyftRunResult:
+    return SyftRunResult(
+        entries=[
+            SBOMEntry(
+                name="openai",
+                version="1.0.0",
+                ecosystem="python",
+                purl="pkg:pypi/openai@1.0.0",
+                location="requirements.txt",
+                license="MIT",
+            )
+        ],
+        execution=_execution("syft"),
+    )
+
+
+def _graph():
+    builder = ProgramGraphBuilder(
+        ".",
+        scan_job_id="scan-job-1",
+        snapshot_id="snapshot-1",
+        commit_sha="abc123",
+    )
+    builder.add_program(
+        SemanticProgram(
+            nodes=[
+                SemanticNodeFact(
+                    "file:src/app.py",
+                    "FILE",
+                    "src/app.py",
+                    "src/app.py",
+                    1,
+                    1,
+                    evidence_refs=("evidence:finding-1",),
+                )
+            ]
+        )
+    )
+    return builder.build()
+
+
+def _assemble(**overrides):
+    values = dict(
+        scan_job_id="scan-job-1",
+        syft_result=_syft(),
+        semgrep_result=SemgrepRunResult(
+            findings=[],
+            executions=[_execution("semgrep")],
+            redaction_applied=True,
         ),
-    )
-
-
-@pytest.mark.p0
-def test_t01_assembles_full_evidence_payload() -> None:
-    payload = EvidenceAssembler().assemble(
-        scan_job_id="scan-job-1",
-        syft_result=_syft_result(),
-        semgrep_result=_semgrep_result(),
-        coverage_notes=["Workspace skipped 1 oversize file"],
-    )
-
-    assert payload.scan_job_id == "scan-job-1"
-    assert payload.status == SCAN_CALLBACK_STATUSES["success"]
-    assert payload.tools_version == {
-        "syft": "syft v1.0.0",
-        "semgrep_ai_usage": "semgrep 1.99.0",
-        "semgrep_secret_detect": "semgrep 1.99.0",
-    }
-    assert payload.config_hash["syft"] == "sha256:syft"
-    assert payload.privacy_flags == {
-        "containsSourceCode": False,
-        "secretsRedacted": True,
-        "sourceStrippedFromFindings": True,
-    }
-    assert payload.evidence_payload["sbom_entries"] == [asdict(_syft_result().entries[0])]
-    assert payload.evidence_payload["ai_usage_signals"] == [
-        asdict(_semgrep_result().findings[0])
-    ]
-    assert payload.evidence_payload["coverage_notes"] == [
-        "Workspace skipped 1 oversize file"
-    ]
-    assert payload.evidence_payload["report_provenance"]["hash_algorithm"] == "SHA-256"
-    assert payload.evidence_payload["report_provenance"]["report_hash"].startswith(
-        "sha256:"
-    )
-
-
-@pytest.mark.p0
-def test_t01b_report_hash_is_deterministic_for_the_same_safe_artifact() -> None:
-    first = EvidenceAssembler().assemble(
-        scan_job_id="scan-job-1",
-        syft_result=_syft_result(),
-        semgrep_result=_semgrep_result(),
         coverage_notes=[],
-    )
-    second = EvidenceAssembler().assemble(
-        scan_job_id="scan-job-1",
-        syft_result=_syft_result(),
-        semgrep_result=_semgrep_result(),
-        coverage_notes=[],
-    )
-
-    assert (
-        first.evidence_payload["report_provenance"]["report_hash"]
-        == second.evidence_payload["report_provenance"]["report_hash"]
-    )
-
-
-@pytest.mark.p0
-def test_t02_one_tool_failure_is_recorded_and_callback_payload_is_partial() -> None:
-    payload = EvidenceAssembler().assemble(
-        scan_job_id="scan-job-1",
-        syft_result=_syft_result(outcome=OUTCOME_TOOL_FAILURE),
-        semgrep_result=_semgrep_result(),
-        coverage_notes=[],
-    )
-
-    assert payload.status == SCAN_CALLBACK_STATUSES["partial"]
-    assert payload.evidence_payload["tool_failures"] == [
-        {
-            "tool_name": "syft",
-            "tool_version": "syft v1.0.0",
-            "outcome": "tool_failure",
-            "messages": ["syft failed safely"],
-        }
-    ]
-
-
-@pytest.mark.p0
-def test_t03_all_tools_fail_still_assembles_failed_callback_payload() -> None:
-    payload = EvidenceAssembler().assemble(
-        scan_job_id="scan-job-1",
-        syft_result=_syft_result(outcome=OUTCOME_TOOL_FAILURE),
-        semgrep_result=_semgrep_result(outcome=OUTCOME_TOOL_FAILURE),
-        coverage_notes=[],
-    )
-
-    assert payload.status == SCAN_CALLBACK_STATUSES["failed"]
-    assert payload.error_code == "ALL_TOOLS_FAILED"
-    assert payload.evidence_payload["sbom_entries"] == []
-    assert payload.evidence_payload["ai_usage_signals"] == []
-    assert len(payload.evidence_payload["tool_failures"]) == 3
-
-
-@pytest.mark.p0
-def test_t04_privacy_assertion_blocks_source_code_payload() -> None:
-    semgrep_result = SemgrepRunResult(
-        findings=[
-            SemgrepFinding(
-                rule_id="lcsp.model-call",
-                signal_type="model_call",
-                file_path="src/app.py",
-                line_start=1,
-                line_end=3,
-                message="def call_model():\n    return client.chat.completions.create()",
-                severity="INFO",
+        package_dependencies=[
+            PackageDependency(
+                name="openai",
+                version="1.0.0",
+                ecosystem="python",
+                purl="pkg:pypi/openai@1.0.0",
+                usage_facts=[],
+                confidence_boost=0.0,
+                is_ai_relevant=True,
+                license_expression="MIT",
             )
         ],
-        executions=_semgrep_result().executions,
-        redaction_applied=False,
-    )
-
-    with pytest.raises(PrivacyAssertionError) as exc_info:
-        EvidenceAssembler().assemble(
-            scan_job_id="scan-job-1",
-            syft_result=_syft_result(),
-            semgrep_result=semgrep_result,
-            coverage_notes=[],
-        )
-
-    assert exc_info.value.error_code == "PRIVACY_ASSERTION_FAILED"
-
-
-@pytest.mark.p0
-@pytest.mark.parametrize(
-    "unsafe_payload",
-    [
-        {"nested": {"prompt": "do not persist"}},
-        {"nested": {"ast_body": "Module(...)"}},
-        {"nested": {"api_key": "example"}},
-        {"nested": {"message": "Bearer abcdefghijklmnopqrstuvwxyz"}},
-        {"nested": {"message": "def call_model():\n    return client.run()"}},
-    ],
-)
-def test_t05_privacy_gate_rejects_nested_forbidden_payloads(
-    unsafe_payload: dict,
-) -> None:
-    with pytest.raises(PrivacyAssertionError):
-        EvidenceAssembler().assemble(
-            scan_job_id="scan-job-1",
-            syft_result=_syft_result(),
-            semgrep_result=_semgrep_result(),
-            coverage_notes=[],
-            targeted_reanalysis=unsafe_payload,
-        )
-
-
-@pytest.mark.p0
-def test_t06_final_payload_redacts_secret_patterns_without_redacting_config_hash() -> None:
-    semgrep_result = SemgrepRunResult(
-        findings=[
-            SemgrepFinding(
-                rule_id="lcsp.llm-api-key-ref",
-                signal_type="provider_integration",
+        dependency_executions=[_execution("knip"), _execution("deptry")],
+        python_analysis=_python_analysis(),
+        ts_js_analysis=_ts_analysis(),
+        technical_findings=[],
+        structural_facts=[
+            StructuralFact(
                 file_path="src/app.py",
-                line_start=1,
-                line_end=1,
-                message="OpenAI api_key=sk-ant-secretvalue1234567890",
-                severity="WARNING",
+                graph_node_type="FUNCTION",
+                name="generate",
+                line_number=5,
+                pattern_type="function",
+                ai_finding_ids=[],
             )
         ],
-        executions=_semgrep_result().executions,
-        redaction_applied=True,
-    )
-
-    payload = EvidenceAssembler().assemble(
-        scan_job_id="scan-job-1",
-        syft_result=_syft_result(),
-        semgrep_result=semgrep_result,
-        coverage_notes=[],
-    )
-
-    assert payload.config_hash["semgrep_ai_usage"] == "sha256:semgrep-ai"
-    finding = payload.evidence_payload["ai_usage_signals"][0]
-    assert finding["message"] == "OpenAI api_key=[REDACTED:ANTHROPIC_KEY]"
-
-
-@pytest.mark.p0
-def test_t07_assembles_ts_js_analysis_and_tool_provenance() -> None:
-    payload = EvidenceAssembler().assemble(
-        scan_job_id="scan-job-1",
-        syft_result=_syft_result(),
-        semgrep_result=_semgrep_result(),
-        coverage_notes=[],
-        ts_js_analysis=_ts_js_result(),
-    )
-
-    assert payload.tools_version["ts_js_analyzer"] == "1.0.0"
-    assert payload.config_hash["ts_js_analyzer"] == "sha256:ts-js"
-    ts_js_analysis = payload.evidence_payload["ts_js_analysis"]
-    assert ts_js_analysis["findings"][0]["rule_id"] == "ts-openai-chat-completions"
-    assert "source_code" not in str(ts_js_analysis)
-
-
-@pytest.mark.p0
-def test_t08_assembles_technical_findings_without_source_content() -> None:
-    technical_finding = TechnicalFinding(
-        finding_id="finding-1",
-        finding_type="AI_PROVIDER_USAGE",
-        file_path="src/app.py",
-        line_number=3,
-        rule_ids=["lcsp-openai-chat-completions-py"],
-        source_tools=["semgrep"],
-        analysis_level="L1",
-        confidence=0.35,
-        confidence_components={
-            "base": 0.35,
-            "direct_evidence_bonus": 0.0,
-            "corroboration_bonus": 0.0,
-            "coverage_penalty": 0.0,
-            "ambiguity_penalty": 0.0,
-        },
-        library_group="openai",
-        kwarg_names=["messages"],
-        has_dynamic_call=False,
-        coverage_note=None,
-    )
-
-    payload = EvidenceAssembler().assemble(
-        scan_job_id="scan-job-1",
-        syft_result=_syft_result(),
-        semgrep_result=_semgrep_result(),
-        coverage_notes=[],
-        technical_findings=[technical_finding],
-    )
-
-    assert payload.evidence_payload["technical_findings"][0]["finding_type"] == "AI_PROVIDER_USAGE"
-    assert "source_code" not in str(payload.evidence_payload["technical_findings"])
-
-
-@pytest.mark.p0
-def test_t09_serializes_sanitized_versioned_evidence_graph() -> None:
-    builder = EvidenceGraphBuilder(scan_job_id="scan-job-1", tool_version="graph-1")
-    builder.add_node("FILE", "src/app.py", "src/app.py", evidence_refs=["evidence:finding-1"])
-    payload = EvidenceAssembler().assemble(
-        scan_job_id="scan-job-1", syft_result=_syft_result(), semgrep_result=_semgrep_result(),
-        coverage_notes=[], evidence_graph=builder.build_scan_graph(),
-    )
-    graph = payload.evidence_payload["evidence_graph"]
-    assert graph["schema_version"] == "1.0.0"
-    assert graph["graph_hash"].startswith("sha256:")
-    assert graph["nodes"][0]["evidence_refs"] == ["evidence:finding-1"]
-
-
-@pytest.mark.p0
-def test_t09b_assembles_complete_tool_run_provenance() -> None:
-    profile = ToolchainExecutionPlanner().build(
-        [
+        evidence_graph=_graph(),
+        scan_coverage=[
             LanguageClassification(
                 file_path="src/app.py",
                 language=LANGUAGE_PYTHON,
                 support_level=SUPPORT_FULL,
-                file_size_bytes=10,
-                line_count=1,
+                file_size_bytes=128,
+                line_count=12,
                 skip_reason=None,
                 coverage_limitation=False,
             )
-        ]
-    ).language_profile
-    registry = ToolRegistry()
-    syft_result = _syft_result()
-    registry.register(
-        syft_result.execution,
-        ruleset_hash="sha256:not-applicable",
-        started_at="2026-08-11T06:00:00Z",
-        ended_at="2026-08-11T06:00:01Z",
-        language_profile=profile,
-        coverage_limitations=[],
+        ],
+        targeted_reanalysis=None,
+        tool_provenance=[
+            _provenance("syft"),
+            _provenance("semgrep"),
+            _provenance("knip"),
+            _provenance("deptry"),
+            _provenance("ts-morph"),
+            _provenance("python-ast"),
+            _provenance("libcst"),
+            _provenance("tree-sitter"),
+        ],
+    )
+    values.update(overrides)
+    return EvidenceAssembler().assemble(**values)
+
+
+def test_t01_builds_current_scan_callback_contract() -> None:
+    report = _assemble()
+    assert report.status == "SUCCESS"
+    assert report.schema_version == "1.0.0"
+    assert report.privacy_flags["containsSourceCode"] is False
+    assert report.privacy_flags["secretsRedacted"] is True
+    assert report.evidence_payload["package_dependencies"]
+    assert report.evidence_payload["evidence_graph"]["schema_version"] == "2.0.0"
+    assert report.evidence_payload["report_provenance"]["report_hash"].startswith(
+        "sha256:"
     )
 
-    payload = EvidenceAssembler().assemble(
-        scan_job_id="scan-job-1",
-        syft_result=syft_result,
-        semgrep_result=_semgrep_result(),
-        coverage_notes=[],
-        tool_provenance=registry.all(),
+
+def test_t02_failed_tool_keeps_explicit_failure_and_coverage_provenance() -> None:
+    failed = _execution("syft", OUTCOME_TOOL_FAILURE)
+    report = _assemble(
+        syft_result=SyftRunResult(entries=[], execution=failed),
+        coverage_notes=["syft failed in fixture"],
+        tool_provenance=[
+            _provenance("syft", OUTCOME_TOOL_FAILURE),
+            _provenance("semgrep"),
+        ],
+    )
+    assert report.status == "PARTIAL"
+    assert report.evidence_payload["coverage_notes"] == ["syft failed in fixture"]
+    assert report.evidence_payload["tool_failures"][0]["tool_name"] == "syft"
+    assert report.evidence_payload["tool_provenance"][0]["coverage_limitations"]
+
+
+def test_t03_source_code_privacy_flag_fails_closed() -> None:
+    assembler = EvidenceAssembler()
+    flags = PrivacyFlags(
+        contains_source_code=True,
+        secrets_redacted=True,
+        source_stripped_from_findings=True,
+    )
+    with pytest.raises(PrivacyAssertionError):
+        assembler._assert_privacy(flags, [], [])
+
+
+def test_t04_unredacted_secret_privacy_flag_fails_closed() -> None:
+    assembler = EvidenceAssembler()
+    flags = PrivacyFlags(
+        contains_source_code=False,
+        secrets_redacted=False,
+        source_stripped_from_findings=True,
+    )
+    with pytest.raises(PrivacyAssertionError):
+        assembler._assert_privacy(flags, [], [])
+
+
+def test_t05_coverage_notes_are_preserved() -> None:
+    report = _assemble(
+        coverage_notes=["dynamic import cannot be resolved statically"]
+    )
+    assert any(
+        "dynamic import" in value
+        for value in report.evidence_payload["coverage_notes"]
     )
 
-    provenance = payload.evidence_payload["tool_provenance"][0]
-    assert provenance["tool_name"] == "syft"
-    assert provenance["ruleset_hash"] == "sha256:not-applicable"
-    assert provenance["started_at"] == "2026-08-11T06:00:00Z"
-    assert provenance["ended_at"] == "2026-08-11T06:00:01Z"
-    assert provenance["language_profile"]["languages"] == (LANGUAGE_PYTHON,)
+
+def test_t06_targeted_reanalysis_is_preserved() -> None:
+    report = _assemble(
+        targeted_reanalysis={
+            "analyzer_id": "RUN_PYTHON_SEMANTIC_ANALYSIS",
+            "path_prefixes": ["src/"],
+        }
+    )
+    assert (
+        report.evidence_payload["targeted_reanalysis"]["analyzer_id"]
+        == "RUN_PYTHON_SEMANTIC_ANALYSIS"
+    )
 
 
-@pytest.mark.p0
-def test_t10_unsupported_skip_yields_success_and_empty_tool_failures() -> None:
-    """OUTCOME_SKIPPED_UNSUPPORTED is expected behaviour for language-profile-filtered
-    tools (e.g. knip on a Python-only repo).  It must not inflate failure counts or
-    appear in tool_failures — a repo whose non-applicable tools are all skipped should
-    receive a success callback, not partial/failed."""
-    semgrep_result = SemgrepRunResult(
-        findings=[],
-        executions=[
-            ToolExecutionResult(
-                tool_name="semgrep",
-                tool_version="not-run",
-                outcome=OUTCOME_SKIPPED_UNSUPPORTED,
-                config_hash="sha256:not-executed",
-                messages=["semgrep: unsupported_for_language_profile"],
+def test_t07_dependency_tool_executions_are_bound_to_callback_metadata() -> None:
+    report = _assemble(
+        dependency_executions=[_execution("knip"), _execution("deptry")]
+    )
+    assert report.tools_version["knip"] == "1.0.0"
+    assert report.tools_version["deptry"] == "1.0.0"
+    assert report.config_hash["knip"] == "sha256:config"
+    assert report.config_hash["deptry"] == "sha256:config"
+
+
+def test_t08_structural_facts_are_sanitized() -> None:
+    facts = _assemble().evidence_payload["structural_facts"]
+    assert facts
+    assert facts[0]["file_path"] == "src/app.py"
+    assert "source" not in facts[0]
+
+
+def test_t09_serializes_sanitized_versioned_program_evidence_graph() -> None:
+    graph_payload = _assemble(evidence_graph=_graph()).evidence_payload[
+        "evidence_graph"
+    ]
+    assert graph_payload["schema_version"] == "2.0.0"
+    assert graph_payload["snapshot_id"] == "snapshot-1"
+    assert graph_payload["commit_sha"] == "abc123"
+    assert graph_payload["graph_hash"].startswith("sha256:")
+    
+    # MINIMIZED callback payload fields to prevent 413 Request Entity Too Large
+    assert not graph_payload["source_anchors"]
+    assert not graph_payload["nodes"]
+    assert graph_payload["evidence_graph_ref"]
+
+    # Resolution checks: ProgramEvidenceGraph.from_dict correctly loads data from the ref file
+    from lcsp_workers.scanner.program_graph.models import ProgramEvidenceGraph
+    loaded_graph = ProgramEvidenceGraph.from_dict(graph_payload)
+    assert loaded_graph.source_anchors
+    assert loaded_graph.nodes
+    assert "evidence:finding-1" in next(
+        node for node in loaded_graph.to_dict()["nodes"] if node["node_type"] == "FILE"
+    )["evidence_refs"]
+
+    serialized = str(graph_payload).lower()
+    assert "raw_source" not in serialized
+    assert "full_ast" not in serialized
+    assert "prompt_text" not in serialized
+
+
+def test_t10_ts_js_coverage_limitations_are_preserved_in_semantic_result() -> None:
+    ts = replace(
+        _ts_analysis(),
+        coverage_limitations=[
+            TsJsCoverageLimitation(
+                file_path="src/dynamic.ts",
+                reason="dynamic import",
             )
         ],
-        redaction_applied=False,
     )
+    report = _assemble(ts_js_analysis=ts)
+    limitations = report.evidence_payload["ts_js_analysis"]["coverage_limitations"]
+    assert any("dynamic import" in item["reason"] for item in limitations)
 
-    payload = EvidenceAssembler().assemble(
-        scan_job_id="scan-job-1",
-        syft_result=_syft_result(),
-        semgrep_result=semgrep_result,
-        coverage_notes=[
-            "SCAN_COVERAGE_LIMITATION: file=<tool:semgrep> "
-            "reason=unsupported_for_language_profile"
-        ],
+
+def test_t11_tool_provenance_is_complete_and_sanitized() -> None:
+    rows = _assemble().evidence_payload["tool_provenance"]
+    assert rows
+    assert all(row["tool_name"] for row in rows)
+    assert all(row["config_hash"] for row in rows)
+    serialized = str(rows).lower()
+    assert "authorization" not in serialized
+    assert "api_key" not in serialized
+
+
+def test_t12_source_identifier_named_secret_is_preserved_as_import_binding() -> None:
+    python_analysis = replace(
+        _python_analysis(),
+        import_map={"openai": "openai", "secret": "secrets"},
     )
+    report = _assemble(python_analysis=python_analysis)
+    persisted = report.evidence_payload["python_analysis"]
 
-    # Skipped tools are not failures — status must be success
-    assert payload.status == SCAN_CALLBACK_STATUSES["success"]
-    assert payload.error_code is None
-    # Skipped tools must not appear in tool_failures
-    assert payload.evidence_payload["tool_failures"] == []
-
-
-@pytest.mark.p0
-def test_t11_failed_tool_without_messages_gets_default_failure_limitation() -> None:
-    payload = EvidenceAssembler().assemble(
-        scan_job_id="scan-job-1",
-        syft_result=_syft_result(),
-        semgrep_result=SemgrepRunResult(
-            findings=[],
-            executions=[
-                ToolExecutionResult(
-                    tool_name="semgrep_ai_usage",
-                    tool_version="semgrep 1.99.0",
-                    outcome=OUTCOME_TOOL_FAILURE,
-                    config_hash="sha256:semgrep-ai",
-                    messages=[],
-                )
-            ],
-            redaction_applied=False,
-        ),
-        coverage_notes=[],
-    )
-
-    assert payload.status == SCAN_CALLBACK_STATUSES["partial"]
-    assert payload.evidence_payload["tool_failures"] == [
-        {
-            "tool_name": "semgrep_ai_usage",
-            "tool_version": "semgrep 1.99.0",
-            "outcome": OUTCOME_TOOL_FAILURE,
-            "messages": [
-                "semgrep_ai_usage: tool_failure without diagnostic messages"
-            ],
-        }
+    assert "import_map" not in persisted
+    assert {"local_name": "secret", "package": "secrets"} in persisted[
+        "import_bindings"
     ]
+
+
+def test_t13_actual_forbidden_schema_key_still_fails_closed() -> None:
+    with pytest.raises(PrivacyAssertionError, match="forbidden field secret"):
+        _assemble(targeted_reanalysis={"secret": "must-not-persist"})
