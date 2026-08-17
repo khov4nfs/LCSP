@@ -530,3 +530,36 @@ def test_get_accepted_ai_usage_flow_rejects_non_ready_status(client):
 
         with pytest.raises(WorkerCallbackError, match="not accepted"):
             client.get_accepted_ai_usage_flow("auf-1")
+
+
+def test_callback_response_accepts_nested_result_envelope():
+    # Test flat dictionary representation matching CallbackResponse
+    flat_data = {
+        "success": True,
+        "accepted": True,
+        "verifiedProfileId": "vp-123",
+        "status": "SUCCESS"
+    }
+    resp1 = CallbackResponse(**flat_data)
+    assert resp1.success is True
+    assert resp1.accepted is True
+    assert resp1.verified_profile_id == "vp-123"
+
+    # Test nested "result" shape
+    nested_data = {
+        "success": True,
+        "accepted": True,
+        "result": {
+            "verifiedProfileId": "vp-nested-999",
+            "lifecycleStatus": "VERIFIED",
+            "factEvidenceRefs": ["fact-1"],
+            "sourceArtifactRefs": ["source-1"],
+            "outboxEventRef": "outbox-1"
+        }
+    }
+    resp2 = CallbackResponse(**nested_data)
+    assert resp2.success is True
+    assert resp2.accepted is True
+    assert resp2.verified_profile_id == "vp-nested-999"
+    # Ensure extra items in result did not raise ValidationError under model_config extra ignore
+    assert resp2.model_dump().get("verified_profile_id") == "vp-nested-999"

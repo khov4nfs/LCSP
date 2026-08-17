@@ -11,12 +11,12 @@ SCAN_CALLBACK_STATUSES = {
 
 
 class CallbackResponse(BaseModel):
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
     success: Optional[bool] = None
     accepted: Optional[bool] = None
     evidence_report_id: Optional[str] = None
     technical_profile_id: Optional[str] = None
-    verified_profile_id: Optional[str] = None
+    verified_profile_id: Optional[str] = Field(default=None, alias="verifiedProfileId")
     ai_usage_flow_id: Optional[str] = None
     legal_rule_match_id: Optional[str] = None
     classification_result_id: Optional[str] = None
@@ -26,6 +26,20 @@ class CallbackResponse(BaseModel):
     correlationId: Optional[str] = Field(default=None, alias="correlationId")
     message: Optional[str] = None
     data: Optional[Dict[str, Any]] = None
+
+    def __init__(self, **data: Any) -> None:
+        # Handle API envelope shape { ok: True, data: { ... } } or legacy callback wrapper
+        # If result is nested or present inside data
+        result = data.get("result")
+        if isinstance(result, dict):
+            # Extract fields from result and overlay them to top level
+            for k, v in result.items():
+                if k not in data or data[k] is None:
+                    data[k] = v
+            # Specifically map verifiedProfileId if present in result
+            if "verifiedProfileId" in result and not data.get("verified_profile_id"):
+                data["verified_profile_id"] = result["verifiedProfileId"]
+        super().__init__(**data)
 
 
 class ScanCallbackPayload(BaseModel):
