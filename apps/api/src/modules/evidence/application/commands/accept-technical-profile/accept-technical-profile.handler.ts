@@ -37,8 +37,8 @@ import {
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemResult } from "../../../../../platform/problems/problem-factory.js";
-import type { TechnicalProfileCallbackDto } from "../../contracts/evidence/technical-profile-callback.contract.js";
 import { ArtifactStorageService } from "../../../../../platform/storage/artifact-storage.service.js";
+import type { TechnicalProfileCallbackDto } from "../../contracts/evidence/technical-profile-callback.contract.js";
 import { AcceptTechnicalProfileCommand } from "./accept-technical-profile.command.js";
 
 const TECHNICAL_PROFILE_WORKER_ACTOR_ID =
@@ -76,28 +76,51 @@ export class AcceptTechnicalProfileHandler implements ICommandHandler<AcceptTech
         const reconstructed = await this.storageService.readAndReconstruct(
           payload.artifact_manifest,
         );
-        const fullPayload = JSON.parse(reconstructed) as unknown;
-        if (!isRecord(fullPayload)) {
-          throw new Error(
-            "technical profile artifact payload must be an object",
-          );
-        }
+        const fullPayload = JSON.parse(reconstructed) as Record<
+          string,
+          unknown
+        >;
         Object.assign(payload, fullPayload);
         payload.is_artifact_reference = false;
       } catch {
-        if (!isRecord(payload.profile_data)) {
+        // If profile_data is already present inline in the callback payload,
+        // we can fallback to it instead of failing.
+        if (
+          !payload.profile_data ||
+          typeof payload.profile_data !== "object" ||
+          Object.keys(payload.profile_data).length === 0
+        ) {
           throw new UnprocessableEntityException(
             this.errorBody(
               command,
-              SCAN_ERROR_CODES.technicalProfileArtifactInvalid,
+              SCAN_ERROR_CODES.artifactStorageError,
               HttpStatus.UNPROCESSABLE_ENTITY,
             ),
           );
         }
+        payload.is_artifact_reference = false;
       }
     }
 
-    this.hydrateProfileDataRef(payload);
+    if (payload?.profile_data && typeof payload.profile_data === "object") {
+      const ref = payload.profile_data.profile_data_ref;
+      if (typeof ref === "string" && ref) {
+        try {
+          if (fs.existsSync(ref)) {
+            const fileContent = fs.readFileSync(ref, "utf8");
+            const fileData = JSON.parse(fileContent) as Record<string, unknown>;
+            if (fileData && typeof fileData === "object") {
+              payload.profile_data = {
+                ...fileData,
+                ...payload.profile_data,
+              };
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    }
 
     this.validate(command);
     const evidenceReport = await this.prisma.technicalEvidenceReport.findFirst({
@@ -116,7 +139,11 @@ export class AcceptTechnicalProfileHandler implements ICommandHandler<AcceptTech
     });
     if (!evidenceReport) {
       throw new NotFoundException(
-        this.errorBody(command, SCAN_ERROR_CODES.evidenceReportNotFound),
+        this.errorBody(
+          command,
+          SCAN_ERROR_CODES.evidenceReportNotFound,
+          HttpStatus.NOT_FOUND,
+        ),
       );
     }
 
@@ -126,7 +153,11 @@ export class AcceptTechnicalProfileHandler implements ICommandHandler<AcceptTech
     });
     if (existing) {
       throw new ConflictException(
-        this.errorBody(command, SCAN_ERROR_CODES.profileAlreadyExists),
+        this.errorBody(
+          command,
+          SCAN_ERROR_CODES.profileAlreadyExists,
+          HttpStatus.CONFLICT,
+        ),
       );
     }
 
@@ -281,34 +312,10 @@ export class AcceptTechnicalProfileHandler implements ICommandHandler<AcceptTech
     }
   }
 
-  private hydrateProfileDataRef(
-    payload: AcceptTechnicalProfileCommand["payload"],
-  ): void {
-    if (!isRecord(payload.profile_data)) return;
-
-    const ref = payload.profile_data.profile_data_ref;
-    if (typeof ref !== "string" || !ref) return;
-
-    try {
-      if (!fs.existsSync(ref)) return;
-      const fileContent = fs.readFileSync(ref, "utf8");
-      const fileData = JSON.parse(fileContent) as unknown;
-      if (isRecord(fileData)) {
-        payload.profile_data = {
-          ...fileData,
-          ...payload.profile_data,
-        };
-      }
-    } catch {
-      // Inline minimized profile_data remains the safe fallback when the local
-      // development ref file is unavailable or malformed.
-    }
-  }
-
   private errorBody(
     command: AcceptTechnicalProfileCommand,
     errorCode: string,
-    status: HttpStatus = HttpStatus.BAD_REQUEST,
+    status: number = HttpStatus.UNPROCESSABLE_ENTITY,
   ) {
     return problemResult(errorCode, command.correlationId, {
       status,

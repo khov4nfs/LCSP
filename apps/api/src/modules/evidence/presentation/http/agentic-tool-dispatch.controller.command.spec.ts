@@ -88,7 +88,7 @@ describe("InternalAgenticToolDispatchController protected commands", () => {
       correlationId: "correlation-1",
     });
     expect(commandExecute).toHaveBeenCalledTimes(1);
-    const command = commandExecute.mock.calls[0][0] as {
+    const command = (commandExecute.mock.calls as unknown[][])[0][0] as {
       policyId: string;
       policyVersion: string;
     };
