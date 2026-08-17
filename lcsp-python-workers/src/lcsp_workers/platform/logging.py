@@ -11,6 +11,9 @@ from lcsp_workers.platform.dev_unsafe_trace import unsafe_dev_trace_enabled
 from lcsp_workers.platform.redaction import redact_dict
 
 
+_original_open = open
+
+
 class _FailOpenTraceWriter:
     """Drop trace-mode stdout backpressure instead of crashing worker logic.
 
@@ -73,6 +76,82 @@ def _redact_secrets(logger, method_name, event_dict):
     return redact_dict(event_dict)
 
 
+class PartitionedLogWriter:
+    """Writes log output to fallback stream AND appends JSON logs to partitioned files under tmp/."""
+
+    def __init__(self, fallback_stream: TextIO) -> None:
+        self._fallback = fallback_stream
+        import sys
+        self._is_stdout = (fallback_stream is sys.stdout)
+
+    def write(self, value: str) -> int:
+        import os
+        import sys
+        
+        # Determine the target stream dynamically if it is stdout/stderr
+        if self._is_stdout:
+            stream = sys.stdout
+        elif isinstance(self._fallback, _FailOpenTraceWriter) and self._fallback._stream is sys.stdout:
+            stream = _FailOpenTraceWriter(sys.stdout)
+        else:
+            stream = self._fallback
+            
+        written = stream.write(value)
+        try:
+            trimmed = value.strip()
+            if trimmed.startswith("{") and trimmed.endswith("}"):
+                import json
+                data = json.loads(trimmed)
+
+                from lcsp_workers.platform.correlation import get_user_id, get_assessment_id
+                user_id = get_user_id()
+                assessment_id = get_assessment_id()
+
+                if "user_id" in data:
+                    user_id = str(data["user_id"])
+                elif "userId" in data:
+                    user_id = str(data["userId"])
+                elif "actor" in data and isinstance(data["actor"], dict) and "id" in data["actor"]:
+                    user_id = str(data["actor"]["id"])
+
+                if "assessment_id" in data:
+                    assessment_id = str(data["assessment_id"])
+                elif "assessmentId" in data:
+                    assessment_id = str(data["assessmentId"])
+
+                from lcsp_workers.platform.logging_path import get_partitioned_log_path
+
+                is_orch = False
+                event_name = data.get("event") or ""
+                logger_name = data.get("logger") or ""
+                if (
+                    "intelligence" in logger_name
+                    or "classification" in logger_name
+                    or "reporting" in logger_name
+                    or "agentic_evidence" in logger_name
+                    or "resolver" in logger_name
+                    or "tool_entrypoints" in logger_name
+                    or "remediation" in logger_name
+                    or "orchestration" in event_name.lower()
+                    or "llm" in event_name.lower()
+                    or "prompt" in event_name.lower()
+                    or "model" in event_name.lower()
+                    or "tool" in event_name.lower()
+                ):
+                    is_orch = True
+
+                log_file = get_partitioned_log_path(user_id, assessment_id, is_orchestration=is_orch)
+                os.makedirs(os.path.dirname(log_file), exist_ok=True)
+                with _original_open(log_file, "a", encoding="utf-8") as f:
+                    f.write(value)
+        except Exception:
+            pass
+        return len(value) if written is None else written
+
+    def flush(self) -> None:
+        self._fallback.flush()
+
+
 def configure_logging(level: str = "INFO") -> None:
     """Configure JSON logging for worker processes.
 
@@ -86,7 +165,8 @@ def configure_logging(level: str = "INFO") -> None:
         level: Minimum log level accepted by the bound logger.
     """
     unsafe_trace = unsafe_dev_trace_enabled()
-    output: TextIO = _FailOpenTraceWriter(sys.stdout) if unsafe_trace else sys.stdout
+    raw_output: TextIO = _FailOpenTraceWriter(sys.stdout) if unsafe_trace else sys.stdout
+    output = PartitionedLogWriter(raw_output)
     structlog.configure(
         processors=[
             _inject_correlationId,

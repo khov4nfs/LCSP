@@ -12,7 +12,8 @@ from .validator import validate_engineering_rule
 class EngineeringRuleCache:
     COLLECTION = "lcsp_engineering_rules_v1"
     def __init__(self, chroma_path: str | None = None) -> None:
-        self._chroma_path = chroma_path or os.getenv("LEGAL_CHROMA_PATH", "/tmp/lcsp-chroma")
+        from lcsp_workers.platform.logging_path import get_repo_root
+        self._chroma_path = chroma_path or os.getenv("LEGAL_CHROMA_PATH", os.path.join(get_repo_root(), "tmp", "lcsp-chroma"))
 
     def get(self, fingerprint: str) -> list[EngineeringRule]:
         result = self._collection().get(where={"source_fingerprint": fingerprint}, include=["documents", "metadatas"])

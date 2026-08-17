@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { BadRequestException, Injectable } from "@nestjs/common";
+import { getRepoRoot } from "../logging/logging-context.js";
 
 export interface ChunkedManifest {
   artifact_id: string;
@@ -17,7 +18,8 @@ export class ArtifactStorageService {
 
   constructor() {
     this.storagePath =
-      process.env.LCSP_ARTIFACT_STORAGE_PATH || "/tmp/lcsp-storage";
+      process.env.LCSP_ARTIFACT_STORAGE_PATH ||
+      path.join(getRepoRoot(), "tmp", "lcsp-storage");
     const chunksDir = path.join(this.storagePath, "chunks");
     if (!fs.existsSync(chunksDir)) {
       fs.mkdirSync(chunksDir, { recursive: true });

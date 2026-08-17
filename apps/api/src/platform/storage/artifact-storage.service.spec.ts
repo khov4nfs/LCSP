@@ -9,7 +9,7 @@ import { ArtifactStorageService } from "./artifact-storage.service.js";
 
 describe("ArtifactStorageService", () => {
   let service: ArtifactStorageService;
-  const testStoragePath = "/tmp/lcsp-storage-test";
+  const testStoragePath = path.join(process.cwd(), "tmp", "lcsp-storage-test");
 
   beforeAll(() => {
     process.env.LCSP_ARTIFACT_STORAGE_PATH = testStoragePath;

@@ -6,7 +6,8 @@ from typing import Any, Dict
 
 class ArtifactStorage:
     def __init__(self, storage_path: str | None = None) -> None:
-        self.storage_path = storage_path or os.getenv("LCSP_ARTIFACT_STORAGE_PATH", "/tmp/lcsp-storage")
+        from lcsp_workers.platform.logging_path import get_repo_root
+        self.storage_path = storage_path or os.getenv("LCSP_ARTIFACT_STORAGE_PATH", os.path.join(get_repo_root(), "tmp", "lcsp-storage"))
         self.chunks_path = os.path.join(self.storage_path, "chunks")
         os.makedirs(self.chunks_path, exist_ok=True)
 
