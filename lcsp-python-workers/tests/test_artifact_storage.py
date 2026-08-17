@@ -62,3 +62,55 @@ def test_api_client_callback_chunking(monkeypatch) -> None:
     assert posted_payload["artifact_manifest"]["total_size"] > 0
     
     shutil.rmtree("/tmp/lcsp-storage-test-python-client", ignore_errors=True)
+
+
+def test_budget_exceeded_fail_fast() -> None:
+    from unittest.mock import MagicMock
+    from lcsp_workers.investigation.pipeline import EngineeringInvestigationPipeline
+    from lcsp_workers.llm.budget_tracker import BudgetExceeded
+
+    llm_client = MagicMock()
+    rule_service = MagicMock()
+    rule_service.get_or_compile.side_effect = BudgetExceeded("Monthly token cap exceeded.")
+
+    api_client = MagicMock()
+    api_client.get_active_legal_rule_catalog.return_value = {
+        "versionId": "cat-1",
+        "rules": [
+            {"id": "rule-1", "legalRuleId": "L1", "status": "APPROVED"},
+            {"id": "rule-2", "legalRuleId": "L2", "status": "APPROVED"},
+            {"id": "rule-3", "legalRuleId": "L3", "status": "APPROVED"},
+        ]
+    }
+    api_client.get_active_legal_corpus.return_value = {
+        "versionId": "corp-1"
+    }
+    api_client.get_legal_corpus_chunks.return_value = {
+        "chunks": []
+    }
+
+    pipeline = EngineeringInvestigationPipeline(
+        api_client=api_client,
+        llm_client=llm_client,
+        rule_service=rule_service,
+    )
+
+    result = pipeline.run(
+        evidence_report={
+            "evidence_payload": {
+                "evidence_graph": {
+                    "graph_id": "graph-1",
+                    "graph_hash": "sha256-hash",
+                    "nodes": [],
+                    "edges": [],
+                }
+            }
+        },
+        workflow_run_id="workflow-1"
+    )
+
+    assert rule_service.get_or_compile.call_count == 1
+    assert result.status == "PARTIAL"
+    assert len(result.limitations) == 1
+    assert result.limitations[0] == "ENGINEERING_INVESTIGATION_BUDGET_EXHAUSTED:L1"
+

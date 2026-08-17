@@ -7,9 +7,7 @@ import {
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
-import {
-  ASSESSMENT_RUNTIME_STAGE_CODES,
-} from "@lcsp/contracts/evidence";
+import { ASSESSMENT_RUNTIME_STAGE_CODES } from "@lcsp/contracts/evidence";
 import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
 import {
   buildOutboxMessageInput,
@@ -181,7 +179,10 @@ export class AcceptLegalRuleMatchHandler implements ICommandHandler<AcceptLegalR
     await this.runtimeEvents.recordToolCompleted({
       organizationId: verifiedProfile.organizationId,
       assessmentId: verifiedProfile.assessmentId,
-      runId: classificationRunId(verifiedProfile.assessmentId, verifiedProfile.id),
+      runId: classificationRunId(
+        verifiedProfile.assessmentId,
+        verifiedProfile.id,
+      ),
       correlationId: command.correlationId,
       stage: ASSESSMENT_RUNTIME_STAGE_CODES.legalRetrieval,
       toolName: "legal_rule_match",
@@ -346,6 +347,9 @@ function clean(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function classificationRunId(assessmentId: string, verifiedProfileId: string): string {
+function classificationRunId(
+  assessmentId: string,
+  verifiedProfileId: string,
+): string {
   return `classification:${assessmentId}:${verifiedProfileId}`;
 }

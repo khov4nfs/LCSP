@@ -137,8 +137,7 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
     const guardrailStatus = payload.guardrail_status;
     const isBlocked =
       guardrailStatus === CLASSIFICATION_GUARDRAIL_STATUSES.blocked;
-    const blockedReason =
-      isBlocked ? "CITATION_BASIS_MISSING" : null;
+    const blockedReason = isBlocked ? "CITATION_BASIS_MISSING" : null;
 
     await this.prisma.$transaction(async (tx) => {
       await tx.classificationResult.create({
@@ -349,6 +348,9 @@ function clean(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function classificationRunId(assessmentId: string, verifiedProfileId: string): string {
+function classificationRunId(
+  assessmentId: string,
+  verifiedProfileId: string,
+): string {
   return `classification:${assessmentId}:${verifiedProfileId}`;
 }

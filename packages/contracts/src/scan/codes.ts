@@ -45,6 +45,7 @@ export const SCAN_ERROR_CODES = {
   classificationOverclaim: "CLASSIFICATION_OVERCLAIM",
   classificationSchemaInvalid: "SCHEMA_INVALID",
   classificationResultNotFound: "CLASSIFICATION_RESULT_NOT_FOUND",
+  artifactStorageError: "ARTIFACT_STORAGE_ERROR",
 } as const;
 
 export type ScanErrorCode =

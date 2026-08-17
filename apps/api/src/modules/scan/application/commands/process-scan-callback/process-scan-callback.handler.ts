@@ -27,6 +27,7 @@ import {
   HttpStatus,
   Logger,
   NotFoundException,
+  UnprocessableEntityException,
 } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import type { Prisma } from "@prisma/client";
@@ -83,12 +84,25 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
       command.payload.is_artifact_reference &&
       command.payload.artifact_manifest
     ) {
-      const reconstructed = await this.storageService.readAndReconstruct(
-        command.payload.artifact_manifest,
-      );
-      const fullPayload = JSON.parse(reconstructed) as Record<string, unknown>;
-      Object.assign(command.payload, fullPayload);
-      command.payload.is_artifact_reference = false;
+      try {
+        const reconstructed = await this.storageService.readAndReconstruct(
+          command.payload.artifact_manifest,
+        );
+        const fullPayload = JSON.parse(reconstructed) as Record<
+          string,
+          unknown
+        >;
+        Object.assign(command.payload, fullPayload);
+        command.payload.is_artifact_reference = false;
+      } catch {
+        throw new UnprocessableEntityException(
+          this.errorBody(
+            command,
+            SCAN_ERROR_CODES.artifactStorageError,
+            HttpStatus.UNPROCESSABLE_ENTITY,
+          ),
+        );
+      }
     }
 
     const job = await this.prisma.repositoryScanJob.findUnique({
