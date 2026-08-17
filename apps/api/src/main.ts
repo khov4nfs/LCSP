@@ -3,9 +3,13 @@ import type { Request, Response, NextFunction, RequestHandler } from "express";
 import { NestFactory } from "@nestjs/core";
 
 import { AppModule } from "./app.module.js";
+import { FilePartitionedLogger } from "./platform/logging/file-partitioned-logger.js";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: false,
+    logger: new FilePartitionedLogger(),
+  });
   app.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.match(/^\/internal\/scan-jobs\/[^/]+\/callback$/)) {
       (json({ limit: "50mb" }) as RequestHandler)(req, res, next);

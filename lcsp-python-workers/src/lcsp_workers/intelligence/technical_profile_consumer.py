@@ -75,7 +75,13 @@ class TechnicalProfileConsumer(ConsumerBase):
         profile_data = profile.to_profile_data()
         profile_data["engineering_investigation"] = investigation.to_profile_data()
 
-        ref_path = f"/tmp/lcsp-technical-profile-data-{profile.evidence_report_id}.json"
+        import os
+        from lcsp_workers.platform.correlation import get_user_id, get_assessment_id
+        from lcsp_workers.platform.logging_path import get_partitioned_graph_path
+        user_id = get_user_id()
+        assessment_id = profile.assessment_id or get_assessment_id()
+        ref_path = get_partitioned_graph_path(user_id, assessment_id, f"lcsp-technical-profile-data-{profile.evidence_report_id}.json")
+        os.makedirs(os.path.dirname(ref_path), exist_ok=True)
         self._write_profile_data_ref(ref_path, profile_data)
         minimized_profile_data = self._minimized_profile_data(
             profile_data=profile_data,

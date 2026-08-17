@@ -214,10 +214,15 @@ class EvidenceAssembler:
         if evidence_graph:
             full_graph_dict = evidence_graph.to_dict()
             graph_id = full_graph_dict.get("graph_id") or "unknown"
-            ref_path = f"/tmp/lcsp-evidence-graph-{graph_id}.json"
+            from lcsp_workers.platform.correlation import get_user_id, get_assessment_id
+            from lcsp_workers.platform.logging_path import get_partitioned_graph_path
+            user_id = get_user_id()
+            assessment_id = get_assessment_id()
+            ref_path = get_partitioned_graph_path(user_id, assessment_id, f"lcsp-evidence-graph-{graph_id}.json")
             
             import json
             try:
+                os.makedirs(os.path.dirname(ref_path), exist_ok=True)
                 with open(ref_path, "w") as f:
                     json.dump(full_graph_dict, f)
             except Exception:

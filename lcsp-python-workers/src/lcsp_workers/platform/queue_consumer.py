@@ -8,7 +8,7 @@ from http import HTTPStatus
 import pika
 
 from lcsp_workers.platform.api_client import WorkerApiClient
-from lcsp_workers.platform.correlation import extract_from_amqp_headers, set_correlationId
+from lcsp_workers.platform.correlation import extract_from_amqp_headers, set_correlationId, set_user_id, set_assessment_id
 from lcsp_workers.platform.health import (
     DEFAULT_HEALTH_PORT,
     RECOVER_LEGAL_CORPUS_ENDPOINT,
@@ -125,6 +125,23 @@ class ConsumerBase:
         cid = extract_from_amqp_headers(headers)
         set_correlationId(cid)
         attempts = self._get_attempt_count(headers)
+
+        user_id = headers.get("user_id") or ""
+        assessment_id = headers.get("assessment_id") or headers.get("assessmentId") or ""
+        try:
+            message_body = json.loads(body)
+            if isinstance(message_body, dict):
+                if not user_id:
+                    user_id = message_body.get("user_id") or message_body.get("userId") or ""
+                    if not user_id and isinstance(message_body.get("actor"), dict):
+                        user_id = message_body["actor"].get("id") or ""
+                if not assessment_id:
+                    assessment_id = message_body.get("assessment_id") or message_body.get("assessmentId") or ""
+        except Exception:
+            pass
+
+        set_user_id(str(user_id) if user_id else "unknown_user")
+        set_assessment_id(str(assessment_id) if assessment_id else "unknown_assessment")
 
         if self.requires_pbac:
             try:

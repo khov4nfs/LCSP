@@ -8,7 +8,8 @@ from lcsp_workers.platform.api_client import WorkerApiClient
 from lcsp_workers.platform.callback_schemas import TechnicalProfileCallbackPayload
 
 def test_artifact_storage_chunking() -> None:
-    storage_path = "/tmp/lcsp-storage-test-python"
+    from lcsp_workers.platform.logging_path import get_repo_root
+    storage_path = os.path.join(get_repo_root(), "tmp", "lcsp-storage-test-python")
     storage = ArtifactStorage(storage_path=storage_path)
     
     payload = {
@@ -34,6 +35,7 @@ def test_artifact_storage_chunking() -> None:
     shutil.rmtree(storage_path, ignore_errors=True)
 
 def test_api_client_callback_chunking(monkeypatch) -> None:
+    from lcsp_workers.platform.logging_path import get_repo_root
     client = WorkerApiClient("http://api.test", "key-123")
     
     mock_post = MagicMock(return_value={"success": True, "accepted": True})
@@ -41,7 +43,8 @@ def test_api_client_callback_chunking(monkeypatch) -> None:
     
     monkeypatch.setenv("LCSP_PROFILE_CALLBACK_THRESHOLD", "10")
     monkeypatch.setenv("LCSP_PROFILE_CALLBACK_CHUNK_SIZE", "5")
-    monkeypatch.setenv("LCSP_ARTIFACT_STORAGE_PATH", "/tmp/lcsp-storage-test-python-client")
+    client_storage_path = os.path.join(get_repo_root(), "tmp", "lcsp-storage-test-python-client")
+    monkeypatch.setenv("LCSP_ARTIFACT_STORAGE_PATH", client_storage_path)
     
     payload = TechnicalProfileCallbackPayload(
         evidence_report_id="rep-1",
@@ -61,7 +64,7 @@ def test_api_client_callback_chunking(monkeypatch) -> None:
     assert "artifact_manifest" in posted_payload
     assert posted_payload["artifact_manifest"]["total_size"] > 0
     
-    shutil.rmtree("/tmp/lcsp-storage-test-python-client", ignore_errors=True)
+    shutil.rmtree(client_storage_path, ignore_errors=True)
 
 
 def test_budget_exceeded_fail_fast() -> None:

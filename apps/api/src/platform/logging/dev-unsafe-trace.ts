@@ -1,3 +1,7 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { getLoggingContext, getRepoRoot } from "./logging-context.js";
+
 const TRUE_VALUES = new Set(["1", "true", "yes", "on"]);
 
 /**
@@ -80,7 +84,37 @@ export function emitDevUnsafeTrace(
   }
 
   try {
-    process.stderr.write(`${safeStringify(record)}\n`);
+    const stringified = `${safeStringify(record)}\n`;
+    process.stderr.write(stringified);
+
+    const { userId, assessmentId } = getLoggingContext();
+    let finalUserId = userId;
+    let finalAssessmentId = assessmentId;
+    if (fields) {
+      const fieldUserId = findIdRecursive(
+        fields,
+        new Set(["user_id", "userId", "actor_id", "actorId"]),
+      );
+      if (fieldUserId) finalUserId = String(fieldUserId);
+      const fieldAssessmentId = findIdRecursive(
+        fields,
+        new Set(["assessment_id", "assessmentId"]),
+      );
+      if (fieldAssessmentId) finalAssessmentId = String(fieldAssessmentId);
+    }
+    const repoRoot = getRepoRoot();
+    const logDir = path.join(
+      repoRoot,
+      "tmp",
+      `user_${finalUserId}`,
+      `assessment_${finalAssessmentId}`,
+    );
+    fs.mkdirSync(logDir, { recursive: true });
+    fs.appendFileSync(
+      path.join(logDir, "orchestration.log"),
+      stringified,
+      "utf8",
+    );
   } catch (error) {
     process.stderr.write(
       `${JSON.stringify({
