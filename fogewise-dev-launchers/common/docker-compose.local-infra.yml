@@ -1,0 +1,76 @@
+services:
+  fogewise-postgres:
+    image: postgres:17-alpine
+    container_name: fogewise-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fogewise
+      POSTGRES_PASSWORD: 6f9242d8c5d84112a7f8c7f11f6e6372b7f8b5b61a83b7a4
+      POSTGRES_DB: lcsp_dev
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U fogewise -d lcsp_dev",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - fogewise-postgres-data:/var/lib/postgresql/data
+    networks:
+      - fogewise-local-dev
+
+  fogewise-rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: fogewise-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: fogewise
+      RABBITMQ_DEFAULT_PASS: 10e0064b19b1dc9727458cdbb0e4f3998d8988628619d807
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - fogewise-local-dev
+
+  fogewise-redis:
+    image: redis:7.4-alpine
+    container_name: fogewise-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - 5b6e86e4792f020029955afa3409d8842a06e976beda806a
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli -a 5b6e86e4792f020029955afa3409d8842a06e976beda806a ping | grep PONG",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - fogewise-redis-data:/data
+    networks:
+      - fogewise-local-dev
+
+networks:
+  fogewise-local-dev:
+    name: fogewise-local-dev
+
+volumes:
+  fogewise-postgres-data:
+  fogewise-redis-data:

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Fogewise Production Preview
+Comment=Expose local Fogewise development through Cloudflare Tunnel
+Exec=bash -lc 'launcher="$(dirname "$1")/fogewise-production-fedora.sh"; chmod +x "$launcher"; exec "$launcher"' _ %k
+Terminal=true
+Icon=network-server
+Categories=Development;
+StartupNotify=true
