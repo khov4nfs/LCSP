@@ -7,8 +7,11 @@ import type { DocumentGenerationContextDto } from "../../contracts/document/docu
 import { GetDocumentGenerationContextQuery } from "./get-document-generation-context.query.js";
 
 /**
- * Resolves version-pinned document-generation inputs without performing report,
- * gap, remediation, or dossier processing in NestJS.
+ * Resolve direct EngineeringRule assessment inputs for document generation.
+ *
+ * The canonical chain is ClassificationResult -> TechnicalEvidenceReport ->
+ * RepositorySnapshot. Legacy TechnicalProfile, AIUsageFlow, VerifiedProfile and
+ * LegalRuleMatch artifacts are intentionally not read here.
  */
 @QueryHandler(GetDocumentGenerationContextQuery)
 export class GetDocumentGenerationContextHandler implements IQueryHandler<GetDocumentGenerationContextQuery> {
@@ -46,87 +49,22 @@ export class GetDocumentGenerationContextHandler implements IQueryHandler<GetDoc
         },
         select: {
           id: true,
-          verifiedProfileId: true,
-          legalRuleMatchId: true,
           classificationData: true,
           guardrailStatus: true,
         },
       }),
     ]);
     if (!assessment) this.notFound("Assessment");
-    if (
-      !classification?.verifiedProfileId ||
-      !classification.legalRuleMatchId
-    ) {
-      this.notFound("ClassificationResult");
-    }
+    if (!classification) this.notFound("ClassificationResult");
 
-    const [verifiedProfile, legalRuleMatch] = await Promise.all([
-      this.prisma.verifiedProfile.findFirst({
-        where: {
-          id: classification.verifiedProfileId,
-          assessmentId: documentRequest.assessmentId,
-          organizationId: documentRequest.organizationId,
-        },
-        select: {
-          id: true,
-          version: true,
-          aiUsageFlowId: true,
-          wizardProfileId: true,
-          technicalEvidenceReportId: true,
-          profileData: true,
-        },
-      }),
-      this.prisma.legalRuleMatch.findFirst({
-        where: {
-          id: classification.legalRuleMatchId,
-          assessmentId: documentRequest.assessmentId,
-          organizationId: documentRequest.organizationId,
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-        },
-        select: {
-          id: true,
-          corpusVersionId: true,
-          legalRuleCatalogVersionId: true,
-          matches: true,
-          citationAllowlist: true,
-          overallCoverageStatus: true,
-        },
-      }),
-    ]);
-    if (!verifiedProfile) this.notFound("VerifiedProfile");
-    if (!legalRuleMatch) this.notFound("LegalRuleMatch");
+    const classificationData = isRecord(classification.classificationData)
+      ? classification.classificationData
+      : {};
+    const evidenceReportId = cleanString(
+      classificationData.technical_evidence_report_id,
+    );
+    if (!evidenceReportId) this.notFound("TechnicalEvidenceReport");
 
-    const aiUsageFlow = await this.prisma.aIUsageFlow.findFirst({
-      where: {
-        id: verifiedProfile.aiUsageFlowId,
-        assessmentId: documentRequest.assessmentId,
-        organizationId: documentRequest.organizationId,
-        status: EvidenceAcceptanceStatus.ACCEPTED,
-      },
-      select: {
-        id: true,
-        technicalProfileId: true,
-        claims: true,
-        unknownUsages: true,
-      },
-    });
-    if (!aiUsageFlow) this.notFound("AIUsageFlow");
-
-    const technicalProfile = await this.prisma.technicalProfile.findFirst({
-      where: {
-        id: aiUsageFlow.technicalProfileId,
-        assessmentId: documentRequest.assessmentId,
-        organizationId: documentRequest.organizationId,
-        status: EvidenceAcceptanceStatus.ACCEPTED,
-      },
-      select: { id: true, evidenceReportId: true, profileData: true },
-    });
-    if (!technicalProfile) this.notFound("TechnicalProfile");
-
-    const evidenceReportId =
-      verifiedProfile.technicalEvidenceReportId ??
-      technicalProfile.evidenceReportId;
     const technicalEvidenceReport =
       await this.prisma.technicalEvidenceReport.findFirst({
         where: {
@@ -144,46 +82,21 @@ export class GetDocumentGenerationContextHandler implements IQueryHandler<GetDoc
       });
     if (!technicalEvidenceReport) this.notFound("TechnicalEvidenceReport");
 
-    const repositorySnapshot = await this.prisma.repositorySnapshot.findFirst({
-      where: {
-        id: technicalEvidenceReport.snapshotId,
-        assessmentId: documentRequest.assessmentId,
-        organizationId: documentRequest.organizationId,
-      },
-      select: { id: true, commitSha: true },
-    });
+    const [repositorySnapshot, wizardProfile] = await Promise.all([
+      this.prisma.repositorySnapshot.findFirst({
+        where: {
+          id: technicalEvidenceReport.snapshotId,
+          assessmentId: documentRequest.assessmentId,
+          organizationId: documentRequest.organizationId,
+        },
+        select: { id: true, commitSha: true },
+      }),
+      this.prisma.wizardProfile.findUnique({
+        where: { assessmentId: documentRequest.assessmentId },
+        select: { id: true, version: true, answers: true },
+      }),
+    ]);
     if (!repositorySnapshot) this.notFound("RepositorySnapshot");
-
-    const wizardProfile = verifiedProfile.wizardProfileId
-      ? await this.prisma.wizardProfile.findFirst({
-          where: {
-            id: verifiedProfile.wizardProfileId,
-            assessmentId: documentRequest.assessmentId,
-            organizationId: documentRequest.organizationId,
-          },
-          select: { id: true, version: true, answers: true },
-        })
-      : await this.prisma.wizardProfile.findUnique({
-          where: { assessmentId: documentRequest.assessmentId },
-          select: { id: true, version: true, answers: true },
-        });
-
-    const conflicts = await this.prisma.conflictRecord.findMany({
-      where: {
-        aiUsageFlowId: aiUsageFlow.id,
-        assessmentId: documentRequest.assessmentId,
-        organizationId: documentRequest.organizationId,
-      },
-      orderBy: { createdAt: "asc" },
-      select: {
-        id: true,
-        conflictType: true,
-        conflictScore: true,
-        evidenceRefs: true,
-        status: true,
-        resolvedAt: true,
-      },
-    });
 
     return {
       document_request: {
@@ -200,30 +113,9 @@ export class GetDocumentGenerationContextHandler implements IQueryHandler<GetDoc
       },
       classification_result: {
         id: classification.id,
-        verified_profile_id: classification.verifiedProfileId,
-        legal_rule_match_id: classification.legalRuleMatchId,
+        technical_evidence_report_id: technicalEvidenceReport.id,
         classification_data: classification.classificationData,
         guardrail_status: String(classification.guardrailStatus),
-      },
-      verified_profile: {
-        id: verifiedProfile.id,
-        version: verifiedProfile.version,
-        ai_usage_flow_id: verifiedProfile.aiUsageFlowId,
-        wizard_profile_id:
-          verifiedProfile.wizardProfileId ?? wizardProfile?.id ?? null,
-        technical_evidence_report_id: evidenceReportId,
-        profile_data: verifiedProfile.profileData,
-      },
-      ai_usage_flow: {
-        id: aiUsageFlow.id,
-        technical_profile_id: aiUsageFlow.technicalProfileId,
-        claims: aiUsageFlow.claims,
-        unknown_usages: aiUsageFlow.unknownUsages,
-      },
-      technical_profile: {
-        id: technicalProfile.id,
-        evidence_report_id: technicalProfile.evidenceReportId,
-        profile_data: technicalProfile.profileData,
       },
       technical_evidence_report: {
         id: technicalEvidenceReport.id,
@@ -242,27 +134,19 @@ export class GetDocumentGenerationContextHandler implements IQueryHandler<GetDoc
             answers: wizardProfile.answers,
           }
         : null,
-      legal_rule_match: {
-        id: legalRuleMatch.id,
-        corpus_version_id: legalRuleMatch.corpusVersionId,
-        legal_rule_catalog_version_id: legalRuleMatch.legalRuleCatalogVersionId,
-        matches: legalRuleMatch.matches,
-        citation_allowlist: legalRuleMatch.citationAllowlist,
-        overall_coverage_status: String(legalRuleMatch.overallCoverageStatus),
-      },
-      conflicts: conflicts.map((conflict) => ({
-        id: conflict.id,
-        conflict_type: conflict.conflictType,
-        conflict_score: conflict.conflictScore,
-        evidence_refs: conflict.evidenceRefs,
-        status: String(conflict.status),
-        resolved_at: conflict.resolvedAt?.toISOString() ?? null,
-      })),
-      matrix_ref: `matrix:${classification.id}`,
+      matrix_ref: `engineering-matrix:${classification.id}`,
     };
   }
 
   private notFound(artifact: string): never {
     throw new NotFoundException(`${artifact} generation context not found`);
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function cleanString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }

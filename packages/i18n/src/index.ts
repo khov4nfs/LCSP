@@ -1,3 +1,4 @@
+export * from "./classification-runtime.ts";
 export * from "./locales/en/index.ts";
 export * from "./locales/vi/index.ts";
 export * from "./resolver.ts";

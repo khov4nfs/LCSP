@@ -21,6 +21,7 @@ from .technical_profile_builder import TechnicalProfileBuilder
 
 
 logger = get_logger(__name__)
+MAX_ENGINEERING_CLAIMS = 100
 
 
 class TechnicalProfileConsumer(ConsumerBase):
@@ -133,6 +134,10 @@ class TechnicalProfileConsumer(ConsumerBase):
         investigation = profile_data.get("engineering_investigation")
         if not isinstance(investigation, dict):
             investigation = {}
+        investigation_claims = investigation.get("claims")
+        claim_count = (
+            len(investigation_claims) if isinstance(investigation_claims, list) else 0
+        )
 
         return {
             "schema_version": profile_data.get("schema_version"),
@@ -193,8 +198,16 @@ class TechnicalProfileConsumer(ConsumerBase):
                 "engineering_rule_cache_hits": investigation.get(
                     "engineering_rule_cache_hits", 0
                 ),
-                "limitations": investigation.get("limitations", []),
-                "claims": [],
+                "limitations": self._sample_strings(
+                    investigation.get("limitations", []),
+                    limit=100,
+                ),
+                "claim_count": claim_count,
+                "claims_truncated": claim_count > MAX_ENGINEERING_CLAIMS,
+                "claims": self._sample_records(
+                    investigation_claims,
+                    limit=MAX_ENGINEERING_CLAIMS,
+                ),
             },
             "profile_data_ref": profile_data_ref,
         }
@@ -203,6 +216,16 @@ class TechnicalProfileConsumer(ConsumerBase):
         if not isinstance(value, list):
             return []
         return [str(item) for item in value[:limit] if str(item)]
+
+    def _sample_records(
+        self,
+        value: Any,
+        *,
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        if not isinstance(value, list):
+            return []
+        return [dict(item) for item in value[:limit] if isinstance(item, dict)]
 
     def _engineering_investigation(
         self,
@@ -235,7 +258,7 @@ class TechnicalProfileConsumer(ConsumerBase):
         )
 
     def _evidence_report_id(self, message: dict[str, Any]) -> str:
-        """Resolve the evidence-report identifier from supported event aliases."""
+        """Resolve and validate the evidence-report identifier from supported event aliases."""
         value = (
             message.get("evidenceReportId")
             or message.get("evidence_report_id")

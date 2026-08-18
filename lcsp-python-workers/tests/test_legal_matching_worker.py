@@ -381,3 +381,33 @@ def test_legal_match_builder_builds_callback_payload_with_versions_and_empty_mat
     assert payload["matches"] == []
     assert payload["citation_allowlist"] == []
     assert payload["overall_coverage_status"] == "NO_CITATION"
+
+
+def test_rule_applicability_evaluator_supports_snake_case_merged_profile():
+    evaluator = RuleApplicabilityEvaluator()
+    profile = {
+        "merged_profile": {
+            "businessProcess": "AUTOMATED_DECISION",
+            "automationLevel": "FULLY_AUTOMATED",
+        },
+        "factEvidenceRefs": {
+            "businessProcess": ["ev-1"],
+            "automationLevel": ["ev-2"],
+        },
+        "evidenceRefs": ["ev-1", "ev-2"],
+    }
+    rule = {
+        "legalRuleId": "RULE-A",
+        "requiredFacts": [
+            {"field": "businessProcess", "expectedValue": "AUTOMATED_DECISION"},
+            {"field": "automationLevel", "expectedValue": "FULLY_AUTOMATED"},
+        ],
+        "optionalFacts": [],
+        "blockingFacts": [],
+        "unknownFactPolicy": "BLOCK_ON_UNKNOWN",
+        "citationLocatorRefs": [{"documentId": "doc-1", "locator": "art-1"}],
+    }
+
+    result = evaluator.evaluate_rule(rule=rule, verified_profile=profile)
+    assert result.status == "MATCHED"
+

@@ -4,6 +4,7 @@ import json
 import os
 import signal
 from http import HTTPStatus
+from threading import Event, Lock, Thread, current_thread
 
 import pika
 
@@ -27,10 +28,66 @@ from lcsp_workers.platform.orchestration_logging import (
 logger = get_logger(__name__)
 
 _RETRY_HEADER = "x-lcsp-retry-count"
+_THREADSAFE_CHANNEL_OPERATION_TIMEOUT_SECONDS = 30.0
 
 
 class NonRetryableWorkerError(RuntimeError):
     """Signals a terminal, already-recorded failure that must enter the broker DLQ."""
+
+
+class _ThreadsafeChannelProxy:
+    """Marshal channel mutations back onto the BlockingConnection I/O thread.
+
+    Long-running LLM/scanner handlers execute in a worker thread so the main Pika
+    thread can continue servicing AMQP heartbeats. Pika only permits
+    ``add_callback_threadsafe`` from another thread, therefore ack/nack/publish are
+    synchronously marshalled back to the connection thread through this proxy.
+    """
+
+    def __init__(self, connection, channel) -> None:
+        self._connection = connection
+        self._channel = channel
+
+    @property
+    def is_open(self) -> bool:
+        return bool(
+            getattr(self._connection, "is_open", False)
+            and getattr(self._channel, "is_open", False)
+        )
+
+    def basic_ack(self, **kwargs):
+        return self._invoke(lambda: self._channel.basic_ack(**kwargs))
+
+    def basic_nack(self, **kwargs):
+        return self._invoke(lambda: self._channel.basic_nack(**kwargs))
+
+    def basic_publish(self, **kwargs):
+        return self._invoke(lambda: self._channel.basic_publish(**kwargs))
+
+    def _invoke(self, operation):
+        if not getattr(self._connection, "is_open", False):
+            raise pika.exceptions.StreamLostError(
+                "RabbitMQ connection closed before broker operation"
+            )
+
+        done = Event()
+        result: list[object] = []
+        failures: list[BaseException] = []
+
+        def invoke_on_connection_thread() -> None:
+            try:
+                result.append(operation())
+            except BaseException as error:  # preserve Pika exception identity
+                failures.append(error)
+            finally:
+                done.set()
+
+        self._connection.add_callback_threadsafe(invoke_on_connection_thread)
+        if not done.wait(_THREADSAFE_CHANNEL_OPERATION_TIMEOUT_SECONDS):
+            raise TimeoutError("Timed out waiting for RabbitMQ channel operation")
+        if failures:
+            raise failures[0]
+        return result[0] if result else None
 
 
 class ConsumerBase:
@@ -53,13 +110,21 @@ class ConsumerBase:
         self._shutdown = False
         self._channel = None
         self._health_server: HealthServer | None = None
+        self._message_threads: set[Thread] = set()
+        self._message_threads_lock = Lock()
 
     def handle(self, message: dict, correlationId: str) -> None:
         """Process one decoded message; subclasses must implement domain behavior."""
         raise NotImplementedError
 
     def run(self) -> None:
-        """Start health/runtime HTTP, connect RabbitMQ, consume, and shut down cleanly."""
+        """Start health/runtime HTTP, connect RabbitMQ, consume, and shut down cleanly.
+
+        Broker deliveries are processed off the Pika I/O thread. The connection
+        thread therefore keeps pumping heartbeats even when one EngineeringRule
+        assessment spends many minutes in provider/tool calls. ``prefetch_count=1``
+        still guarantees at most one unacknowledged delivery per consumer channel.
+        """
         signal.signal(signal.SIGTERM, self._handle_sigterm)
         signal.signal(signal.SIGINT, self._handle_sigterm)
         conn = None
@@ -97,14 +162,24 @@ class ConsumerBase:
                 routing_key=self.routing_key,
             )
             channel.basic_qos(prefetch_count=1)
-            channel.basic_consume(self.queue_name, self._on_message)
+            channel.basic_consume(
+                self.queue_name,
+                lambda ch, method, properties, body: self._start_message_thread(
+                    conn,
+                    ch,
+                    method,
+                    properties,
+                    body,
+                ),
+            )
 
-            while not self._shutdown:
+            while not self._shutdown or self._has_active_message_threads():
                 try:
                     conn.process_data_events(time_limit=1)
                 except KeyboardInterrupt:
                     self._handle_sigterm(signal.SIGINT, None)
         finally:
+            self._join_message_threads()
             self._channel = None
             if conn is not None:
                 try:
@@ -118,6 +193,40 @@ class ConsumerBase:
             if self._health_server is not None:
                 self._health_server.stop()
                 self._health_server = None
+
+    def _start_message_thread(self, conn, ch, method, properties, body) -> None:
+        """Start one delivery handler while leaving the Pika I/O loop responsive."""
+        proxy = _ThreadsafeChannelProxy(conn, ch)
+        thread = Thread(
+            target=self._run_message_thread,
+            args=(proxy, method, properties, body),
+            name=f"{self.__class__.__name__}-delivery-{getattr(method, 'delivery_tag', 'unknown')}",
+            daemon=False,
+        )
+        with self._message_threads_lock:
+            self._message_threads.add(thread)
+        thread.start()
+
+    def _run_message_thread(self, ch, method, properties, body) -> None:
+        """Process one delivery and unregister the worker thread afterwards."""
+        try:
+            self._on_message(ch, method, properties, body)
+        finally:
+            with self._message_threads_lock:
+                self._message_threads.discard(current_thread())
+
+    def _has_active_message_threads(self) -> bool:
+        with self._message_threads_lock:
+            return any(thread.is_alive() for thread in self._message_threads)
+
+    def _join_message_threads(self) -> None:
+        """Wait briefly for already-finishing handlers before closing the broker."""
+        with self._message_threads_lock:
+            threads = list(self._message_threads)
+        for thread in threads:
+            if thread is current_thread():
+                continue
+            thread.join(timeout=_THREADSAFE_CHANNEL_OPERATION_TIMEOUT_SECONDS)
 
     def _on_message(self, ch, method, properties, body) -> None:
         """Apply correlation/PBAC gates, decode a message, and choose ack/retry/DLQ."""

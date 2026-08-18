@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock, patch
 
-from lcsp_workers.dossiers.models import Dossier, DossierSourceArtifacts
 from lcsp_workers.reporting.final_report_consumer import FinalReportConsumer
 from lcsp_workers.reporting.final_report_generator import FinalReportGenerator
 
@@ -18,54 +17,52 @@ def _context() -> dict:
         "classification_result": {
             "id": "classification-1",
             "guardrail_status": "PASSED",
+            "classification_data": {
+                "mode": "ENGINEERING_RULE_EVALUATION",
+                "summary": {
+                    "compliant": 1,
+                    "non_compliant": 0,
+                    "unknown": 1,
+                    "total": 2,
+                },
+                "legal_rule_catalog_version_id": "catalog-1",
+                "legal_corpus_version_id": "corpus-1",
+                "evaluations": [
+                    {
+                        "engineering_rule_id": "eng-pass",
+                        "legal_rule_id": "legal-pass",
+                        "concept": "INCIDENT_LOGGING",
+                        "status": "COMPLIANT",
+                        "reason": "Required engineering control is evidenced.",
+                        "evidence_refs": ["graph:path:1"],
+                        "source_chunk_ids": ["LAW:A1"],
+                        "source_locators": ["art-1::cl-1"],
+                        "limitations": [],
+                    },
+                    {
+                        "engineering_rule_id": "eng-unknown",
+                        "legal_rule_id": "legal-unknown",
+                        "concept": "DYNAMIC_PROVIDER",
+                        "status": "UNKNOWN",
+                        "reason": "Dynamic path cannot be resolved statically.",
+                        "evidence_refs": [],
+                        "source_chunk_ids": ["LAW:A2"],
+                        "source_locators": ["art-2::cl-1"],
+                        "limitations": ["DYNAMIC_PATH_UNRESOLVED"],
+                    },
+                ],
+                "limitations": ["SCAN_COVERAGE_PARTIAL"],
+            },
         },
-        "verified_profile": {
-            "id": "verified-1",
-            "profile_data": {"verified_claims": []},
+        "technical_evidence_report": {
+            "id": "evidence-1",
+            "snapshot_id": "snapshot-1",
         },
-        "legal_rule_match": {
-            "matches": [],
-            "citation_allowlist": ["chunk-1::art-2"],
+        "repository_snapshot": {
+            "id": "snapshot-1",
+            "commit_sha": "abc123",
         },
     }
-
-
-def _dossier() -> Dossier:
-    sources = DossierSourceArtifacts(
-        repository_snapshot_id="snapshot-1",
-        program_evidence_graph_id="graph-1",
-        technical_evidence_report_id="evidence-1",
-        wizard_profile_id="wizard-1",
-        verified_profile_id="verified-1",
-        legal_corpus_version_id="corpus-1",
-        legal_rule_catalog_version_id="catalog-1",
-        classification_result_id="classification-1",
-        gap_matrix_ref="matrix:classification-1",
-    )
-    return Dossier(
-        dossier_id="dossier:1",
-        dossier_type="AI_RISK_CLASSIFICATION",
-        assessment_id="assessment-1",
-        organization_id="org-1",
-        version=1,
-        status="INCOMPLETE",
-        source_artifacts=sources,
-        sections={
-            "systemIdentity": {"assessmentId": "assessment-1"},
-            "intendedUse": "assist staff",
-            "technicalAiProfile": {
-                "program_graph_ref": {"graphId": "graph-1"},
-                "data_categories": [],
-                "external_integrations": [],
-                "business_actions": [],
-                "human_control_evidence": {},
-                "dependency_licenses": [],
-            },
-            "unresolvedEvidence": [],
-        },
-        missing_requirements=("gaps", "remediation"),
-        provenance={"contentHash": "sha256:abc"},
-    )
 
 
 def _consumer(llm=None):
@@ -73,14 +70,11 @@ def _consumer(llm=None):
     llm.complete.return_value = MagicMock(content="Summary of system.")
     document_client = MagicMock()
     document_client.get_generation_context.return_value = _context()
-    dossier_builder = MagicMock()
-    dossier_builder.build.return_value = _dossier()
     return (
         FinalReportConsumer(
             config=MagicMock(),
             llm_client=llm,
             document_client=document_client,
-            dossier_builder=dossier_builder,
         ),
         document_client,
     )
@@ -143,11 +137,11 @@ def test_t05_citation_references():
         assessment_name="Test",
         assessment_context="Ctx",
         technical_evidence=[],
-        verified_ai_usage=[],
-        legal_rule_applicability=[],
+        rule_evaluations=["engineering-rule-result"],
         citations=["chunk-1::art-2", "chunk-5::art-9"],
         limitations="",
         evidence_provenance="",
     )
     assert "chunk-1::art-2" in content
     assert "chunk-5::art-9" in content
+    assert "engineering-rule-result" in content

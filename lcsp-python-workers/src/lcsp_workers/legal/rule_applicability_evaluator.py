@@ -41,7 +41,11 @@ class RuleApplicabilityEvaluator:
         unknown-fact behavior follows the rule's authored policy.
         """
         rule_id = str(rule.get("legalRuleId") or "unknown")
-        merged_profile = verified_profile.get("mergedProfile") or {}
+        merged_profile = (
+            verified_profile.get("mergedProfile")
+            or verified_profile.get("merged_profile")
+            or {}
+        )
         if not isinstance(merged_profile, dict):
             return blocked_invalid_rule(rule_id, "merged profile missing or invalid")
 

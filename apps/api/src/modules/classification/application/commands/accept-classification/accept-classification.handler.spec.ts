@@ -2,9 +2,10 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
 import {
+  ASSESSMENT_RESULT_MODES,
   CLASSIFICATION_GUARDRAIL_STATUSES,
   CLASSIFICATION_RESULT_STATUSES,
-  LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
+  ENGINEERING_LIMITATION_CODES,
   SCAN_ERROR_CODES,
   SCAN_EVENT_TYPES,
 } from "@lcsp/contracts/scan";
@@ -23,107 +24,66 @@ import { OverclaimGuardrailService } from "../../services/classification/overcla
 import { AcceptClassificationCommand } from "./accept-classification.command.js";
 import { AcceptClassificationHandler } from "./accept-classification.handler.js";
 
-type LegalRuleMatchRecord = {
-  id: string;
-  assessmentId: string;
-  guardrailStatus: string;
-};
-
-type VerifiedProfileRecord = {
-  id: string;
-  assessmentId: string;
-  organizationId: string;
-};
-
 describe("AcceptClassificationHandler", () => {
   let handler: AcceptClassificationHandler;
   let prisma: jest.Mocked<PrismaService>;
-  let overclaimGuardrail: OverclaimGuardrailService;
-  let mockFindFirstLegalRuleMatch: jest.Mock<
-    (args: unknown) => Promise<LegalRuleMatchRecord | null>
-  >;
-  let mockFindFirstVerifiedProfile: jest.Mock<
-    (args: unknown) => Promise<VerifiedProfileRecord | null>
-  >;
-  let mockFindUniqueClassificationResult: jest.Mock<
-    (args: unknown) => Promise<{ id: string } | null>
-  >;
-  let mockCreateClassificationResult: jest.Mock<
-    (args: { data: unknown }) => Promise<unknown>
-  >;
-  let mockEnqueueOutbox: jest.Mock<
-    (event: unknown, tx: unknown) => Promise<void>
-  >;
-  let mockWriteAuditInTx: jest.Mock<
-    (event: unknown, tx: unknown) => Promise<void>
-  >;
-  let mockRecordToolCompleted: jest.Mock<(event: unknown) => Promise<void>>;
-  let mockRecordRunCompleted: jest.Mock<(event: unknown) => Promise<void>>;
+  let mockFindEvidence: jest.Mock;
+  let mockFindResults: jest.Mock;
+  let mockCreateResult: jest.Mock;
+  let mockEnqueueOutbox: jest.Mock;
+  let mockWriteAuditInTx: jest.Mock;
+  let mockRecordToolCompleted: jest.Mock;
 
   const validPayload: AcceptClassificationDto = {
-    legal_rule_match_id: "lrm-123",
-    verified_profile_id: "vp-123",
+    technical_evidence_report_id: "ter-123",
     assessment_id: "asm-123",
-    schema_version: "1.0.0",
+    schema_version: "2.0.0",
     classification_data: {
-      system_type: "HIGH_IMPACT_AI",
-      risk_level: "HIGH",
-      citation_basis: ["chunk-1"],
+      mode: ASSESSMENT_RESULT_MODES.engineeringRuleEvaluation,
+      status: "COMPLETE",
+      summary: { compliant: 1, non_compliant: 1, unknown: 0, total: 2 },
+      evaluations: [
+        {
+          engineering_rule_id: "eng-1",
+          legal_rule_id: "legal-1",
+          concept: "HUMAN_REVIEW",
+          status: "NON_COMPLIANT",
+          reason:
+            "Repository evidence demonstrates that the engineering requirement is not met.",
+          evidence_refs: ["graph:path:1"],
+          source_chunk_ids: ["LAW:A1"],
+          source_locators: ["art-1::cl-1"],
+          confidence: 0.95,
+          limitations: [],
+        },
+      ],
+      limitations: [],
     },
     guardrail_status: CLASSIFICATION_GUARDRAIL_STATUSES.passed,
   };
 
   beforeEach(() => {
-    mockFindFirstLegalRuleMatch = jest
-      .fn<(args: unknown) => Promise<LegalRuleMatchRecord | null>>()
-      .mockResolvedValue({
-        id: "lrm-123",
-        assessmentId: "asm-123",
-        guardrailStatus: "passed",
-      });
-
-    mockFindFirstVerifiedProfile = jest
-      .fn<(args: unknown) => Promise<VerifiedProfileRecord | null>>()
-      .mockResolvedValue({
-        id: "vp-123",
-        assessmentId: "asm-123",
-        organizationId: "org-123",
-      });
-
-    mockFindUniqueClassificationResult = jest
-      .fn<(args: unknown) => Promise<{ id: string } | null>>()
-      .mockResolvedValue(null);
-
-    mockCreateClassificationResult = jest
-      .fn<(args: { data: unknown }) => Promise<unknown>>()
+    mockFindEvidence = jest.fn().mockResolvedValue({
+      id: "ter-123",
+      assessmentId: "asm-123",
+      organizationId: "org-123",
+      snapshotId: "snapshot-123",
+    });
+    mockFindResults = jest.fn().mockResolvedValue([]);
+    mockCreateResult = jest
+      .fn()
       .mockImplementation(({ data }: { data: unknown }) =>
         Promise.resolve(data),
       );
-
-    mockEnqueueOutbox = jest
-      .fn<(event: unknown, tx: unknown) => Promise<void>>()
-      .mockResolvedValue(undefined);
-
-    mockWriteAuditInTx = jest
-      .fn<(event: unknown, tx: unknown) => Promise<void>>()
-      .mockResolvedValue(undefined);
-    mockRecordToolCompleted = jest
-      .fn<(event: unknown) => Promise<void>>()
-      .mockResolvedValue(undefined);
-    mockRecordRunCompleted = jest
-      .fn<(event: unknown) => Promise<void>>()
-      .mockResolvedValue(undefined);
+    mockEnqueueOutbox = jest.fn().mockResolvedValue(undefined);
+    mockWriteAuditInTx = jest.fn().mockResolvedValue(undefined);
+    mockRecordToolCompleted = jest.fn().mockResolvedValue(undefined);
 
     prisma = {
-      legalRuleMatch: {
-        findFirst: mockFindFirstLegalRuleMatch,
-      },
-      verifiedProfile: {
-        findFirst: mockFindFirstVerifiedProfile,
-      },
+      technicalEvidenceReport: { findFirst: mockFindEvidence },
       classificationResult: {
-        findUnique: mockFindUniqueClassificationResult,
-        create: mockCreateClassificationResult,
+        findMany: mockFindResults,
+        create: mockCreateResult,
       },
       $transaction: jest
         .fn()
@@ -133,58 +93,44 @@ describe("AcceptClassificationHandler", () => {
         ),
     } as unknown as jest.Mocked<PrismaService>;
 
-    const auditWriter = {
-      writeInTx: mockWriteAuditInTx,
-    } as unknown as jest.Mocked<AuditWriterService>;
-
-    const outboxRepository = {
-      enqueue: mockEnqueueOutbox,
-    } as unknown as jest.Mocked<OutboxRepository>;
-    const runtimeEvents = {
-      recordToolCompleted: mockRecordToolCompleted,
-      recordRunCompleted: mockRecordRunCompleted,
-    } as unknown as jest.Mocked<AssessmentRuntimeEventService>;
-
-    overclaimGuardrail = new OverclaimGuardrailService();
-
     handler = new AcceptClassificationHandler(
       prisma,
-      auditWriter,
-      outboxRepository,
-      overclaimGuardrail,
-      runtimeEvents,
+      { writeInTx: mockWriteAuditInTx } as unknown as AuditWriterService,
+      { enqueue: mockEnqueueOutbox } as unknown as OutboxRepository,
+      new OverclaimGuardrailService(),
+      {
+        recordToolCompleted: mockRecordToolCompleted,
+        recordRunCompleted: jest.fn().mockResolvedValue(undefined),
+      } as unknown as AssessmentRuntimeEventService,
     );
   });
 
-  it("T01: accepts valid classification result with passed status", async () => {
-    const command = new AcceptClassificationCommand(validPayload, "corr-123");
-    const result = await handler.execute(command);
+  it("accepts direct EngineeringRule assessment result", async () => {
+    const result = await handler.execute(
+      new AcceptClassificationCommand(validPayload, "corr-123"),
+    );
 
     expect(result.accepted).toBe(true);
     expect(result.guardrail_status).toBe(
       CLASSIFICATION_GUARDRAIL_STATUSES.passed,
     );
-    expect(result.correlationId).toBe("corr-123");
-
-    expect(mockCreateClassificationResult).toHaveBeenCalledWith(
+    expect(mockCreateResult).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          legalRuleMatchId: "lrm-123",
-          verifiedProfileId: "vp-123",
+          legalRuleMatchId: null,
+          verifiedProfileId: null,
           assessmentId: "asm-123",
           organizationId: "org-123",
-          schemaVersion: "1.0.0",
+          schemaVersion: "2.0.0",
           classificationData: expect.objectContaining({
-            system_type: "HIGH_IMPACT_AI",
-            risk_level: "HIGH",
+            mode: ASSESSMENT_RESULT_MODES.engineeringRuleEvaluation,
+            technical_evidence_report_id: "ter-123",
+            snapshot_id: "snapshot-123",
           }),
-          guardrailStatus: CLASSIFICATION_GUARDRAIL_STATUSES.passed,
-          blockedReason: null,
           status: CLASSIFICATION_RESULT_STATUSES.accepted,
         }),
       }),
     );
-
     expect(mockEnqueueOutbox).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: SCAN_EVENT_TYPES.classificationResultReady,
@@ -192,7 +138,6 @@ describe("AcceptClassificationHandler", () => {
       }),
       prisma,
     );
-
     expect(mockWriteAuditInTx).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: SCAN_EVENT_TYPES.classificationAcceptedAudit,
@@ -203,49 +148,170 @@ describe("AcceptClassificationHandler", () => {
     expect(mockRecordToolCompleted).toHaveBeenCalledWith(
       expect.objectContaining({
         assessmentId: "asm-123",
-        stage: "CLASSIFICATION",
-        toolName: "classification_result",
-      }),
-    );
-    expect(mockRecordRunCompleted).toHaveBeenCalledWith(
-      expect.objectContaining({
-        assessmentId: "asm-123",
-        stage: "CLASSIFICATION",
+        toolName: "engineering_rule_evaluation",
       }),
     );
   });
 
-  it("T02: accepts degraded guardrail_status", async () => {
-    const degradedPayload: AcceptClassificationDto = {
+  it("accepts canonical COMPLIANT/NON_COMPLIANT machine status labels", async () => {
+    await expect(
+      handler.execute(
+        new AcceptClassificationCommand(validPayload, "corr-status"),
+      ),
+    ).resolves.toEqual(expect.objectContaining({ accepted: true }));
+  });
+
+  it("accepts canonical machine limitation codes", async () => {
+    const payload: AcceptClassificationDto = {
       ...validPayload,
-      guardrail_status: CLASSIFICATION_GUARDRAIL_STATUSES.degraded,
+      classification_data: {
+        ...validPayload.classification_data,
+        limitations: [ENGINEERING_LIMITATION_CODES.graphCoverageLimited],
+      },
     };
-    const command = new AcceptClassificationCommand(
-      degradedPayload,
-      "corr-degraded",
-    );
-    const result = await handler.execute(command);
 
-    expect(result.accepted).toBe(true);
-    expect(result.guardrail_status).toBe(
-      CLASSIFICATION_GUARDRAIL_STATUSES.degraded,
-    );
+    await expect(
+      handler.execute(
+        new AcceptClassificationCommand(payload, "corr-limit-code"),
+      ),
+    ).resolves.toEqual(expect.objectContaining({ accepted: true }));
   });
 
-  it("T03: accepts blocked guardrail_status with blocked audit decision", async () => {
-    const blockedPayload: AcceptClassificationDto = {
+  it("rejects narrative legal/compliance overclaim wording", async () => {
+    const payload: AcceptClassificationDto = {
+      ...validPayload,
+      classification_data: {
+        ...validPayload.classification_data,
+        notes: "This system is certified and legally compliant.",
+      },
+    };
+
+    await expect(
+      handler.execute(
+        new AcceptClassificationCommand(payload, "corr-overclaim"),
+      ),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
+
+  it("rejects free-form prose in machine limitation fields", async () => {
+    const evaluations = validPayload.classification_data.evaluations as Array<
+      Record<string, unknown>
+    >;
+    const payload: AcceptClassificationDto = {
+      ...validPayload,
+      classification_data: {
+        ...validPayload.classification_data,
+        evaluations: [
+          {
+            ...evaluations[0],
+            limitations: [
+              "System appears compliant based on external evidence.",
+            ],
+          },
+        ],
+      },
+    };
+
+    try {
+      await handler.execute(
+        new AcceptClassificationCommand(payload, "corr-prose-limit"),
+      );
+      throw new Error("expected rejection");
+    } catch (error) {
+      expect(error).toBeInstanceOf(UnprocessableEntityException);
+      const response = (
+        error as UnprocessableEntityException
+      ).getResponse() as {
+        problem: { code: string };
+      };
+      expect(response.problem.code).toBe(
+        SCAN_ERROR_CODES.classificationSchemaInvalid,
+      );
+    }
+  });
+
+  it("rejects textual claim values", async () => {
+    const payload: AcceptClassificationDto = {
+      ...validPayload,
+      classification_data: {
+        ...validPayload.classification_data,
+        claims: [
+          {
+            claim_id: "claim-1",
+            engineering_rule_id: "eng-1",
+            claim_type: "RULE_REQUIREMENT_MET",
+            value: "yes",
+            evidence_refs: ["graph:path:1"],
+            graph_path_refs: [],
+            source_anchor_refs: [],
+            confidence: 0.9,
+            limitations: [],
+          },
+        ],
+      },
+    };
+
+    await expect(
+      handler.execute(
+        new AcceptClassificationCommand(payload, "corr-text-claim-value"),
+      ),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
+
+  it("rejects invalid v2 callback shape", async () => {
+    const payload = {
+      ...validPayload,
+      classification_data: { status: "COMPLETE" },
+    } as AcceptClassificationDto;
+    await expect(
+      handler.execute(new AcceptClassificationCommand(payload, "corr-invalid")),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+  });
+
+  it("rejects duplicate assessment result for the same evidence report", async () => {
+    mockFindResults.mockResolvedValue([
+      {
+        id: "existing",
+        classificationData: {
+          mode: ASSESSMENT_RESULT_MODES.engineeringRuleEvaluation,
+          technical_evidence_report_id: "ter-123",
+        },
+      },
+    ]);
+
+    await expect(
+      handler.execute(
+        new AcceptClassificationCommand(validPayload, "corr-dup"),
+      ),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it("rejects callback when accepted TechnicalEvidenceReport does not exist", async () => {
+    mockFindEvidence.mockResolvedValue(null);
+
+    try {
+      await handler.execute(
+        new AcceptClassificationCommand(validPayload, "corr-missing"),
+      );
+      throw new Error("expected rejection");
+    } catch (error) {
+      expect(error).toBeInstanceOf(NotFoundException);
+      const response = (error as NotFoundException).getResponse() as {
+        problem: { code: string };
+      };
+      expect(response.problem.code).toBe(
+        SCAN_ERROR_CODES.evidenceReportNotFound,
+      );
+    }
+  });
+
+  it("records blocked guardrail as deny audit", async () => {
+    const payload: AcceptClassificationDto = {
       ...validPayload,
       guardrail_status: CLASSIFICATION_GUARDRAIL_STATUSES.blocked,
     };
-    const command = new AcceptClassificationCommand(
-      blockedPayload,
-      "corr-blocked",
-    );
-    const result = await handler.execute(command);
-
-    expect(result.accepted).toBe(true);
-    expect(result.guardrail_status).toBe(
-      CLASSIFICATION_GUARDRAIL_STATUSES.blocked,
+    await handler.execute(
+      new AcceptClassificationCommand(payload, "corr-blocked"),
     );
 
     expect(mockWriteAuditInTx).toHaveBeenCalledWith(
@@ -255,112 +321,5 @@ describe("AcceptClassificationHandler", () => {
       }),
       prisma,
     );
-  });
-
-  it("T04: rejects overclaim wording with CLASSIFICATION_OVERCLAIM", async () => {
-    const overclaimPayload: AcceptClassificationDto = {
-      ...validPayload,
-      classification_data: {
-        system_type: "HIGH_IMPACT_AI",
-        notes: "This AI solution is certified by regulatory body",
-      },
-    };
-    const command = new AcceptClassificationCommand(
-      overclaimPayload,
-      "corr-overclaim",
-    );
-
-    try {
-      await handler.execute(command);
-      expect(true).toBe(false);
-    } catch (err: unknown) {
-      expect(err).toBeInstanceOf(UnprocessableEntityException);
-      const res = (err as UnprocessableEntityException).getResponse() as {
-        problem: { code: string };
-      };
-      expect(res.problem.code).toBe(SCAN_ERROR_CODES.classificationOverclaim);
-    }
-  });
-
-  it("T05: rejects when LegalRuleMatch has guardrailStatus = blocked", async () => {
-    mockFindFirstLegalRuleMatch.mockResolvedValue({
-      id: "lrm-123",
-      assessmentId: "asm-123",
-      guardrailStatus: LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.blocked,
-    });
-
-    const command = new AcceptClassificationCommand(
-      validPayload,
-      "corr-blocked-match",
-    );
-
-    try {
-      await handler.execute(command);
-      expect(true).toBe(false);
-    } catch (err: unknown) {
-      expect(err).toBeInstanceOf(UnprocessableEntityException);
-    }
-  });
-
-  it("T06: throws ConflictException when result already exists", async () => {
-    mockFindUniqueClassificationResult.mockResolvedValue({
-      id: "existing-res-1",
-    });
-
-    const command = new AcceptClassificationCommand(
-      validPayload,
-      "corr-exists",
-    );
-
-    try {
-      await handler.execute(command);
-      expect(true).toBe(false);
-    } catch (err: unknown) {
-      expect(err).toBeInstanceOf(ConflictException);
-      const res = (err as ConflictException).getResponse() as {
-        problem: { code: string };
-      };
-      expect(res.problem.code).toBe(SCAN_ERROR_CODES.resultAlreadyExists);
-    }
-  });
-
-  it("T08: throws NotFoundException when LegalRuleMatch is missing", async () => {
-    mockFindFirstLegalRuleMatch.mockResolvedValue(null);
-
-    const command = new AcceptClassificationCommand(
-      validPayload,
-      "corr-missing-lrm",
-    );
-
-    try {
-      await handler.execute(command);
-      expect(true).toBe(false);
-    } catch (err: unknown) {
-      expect(err).toBeInstanceOf(NotFoundException);
-      const res = (err as NotFoundException).getResponse() as {
-        problem: { code: string };
-      };
-      expect(res.problem.code).toBe(SCAN_ERROR_CODES.legalRuleMatchNotFound);
-    }
-  });
-
-  it("throws NotFoundException when VerifiedProfile is missing", async () => {
-    mockFindFirstVerifiedProfile.mockResolvedValue(null);
-
-    const command = new AcceptClassificationCommand(
-      validPayload,
-      "corr-missing-vp",
-    );
-
-    try {
-      await handler.execute(command);
-      expect(true).toBe(false);
-    } catch (err: unknown) {
-      expect(err).toBeInstanceOf(NotFoundException);
-      const res = (err as NotFoundException).getResponse() as {
-        problem: { code: string };
-      };
-      expect(res.problem.code).toBe(SCAN_ERROR_CODES.verifiedProfileNotFound);
-    }
   });
 });

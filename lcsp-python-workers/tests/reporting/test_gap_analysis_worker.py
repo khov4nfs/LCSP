@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock, patch
 
-from lcsp_workers.dossiers.models import Dossier, DossierSourceArtifacts
 from lcsp_workers.reporting.gap_analysis_consumer import GapAnalysisConsumer
 from lcsp_workers.reporting.gap_analysis_generator import GapAnalysisGenerator
 from lcsp_workers.reporting.output_guardrail import OutputGuardrail
@@ -19,62 +18,61 @@ def _context() -> dict:
         "classification_result": {
             "id": "classification-1",
             "guardrail_status": "PASSED",
-        },
-        "verified_profile": {
-            "id": "verified-1",
-            "profile_data": {"verified_claims": []},
-        },
-        "legal_rule_match": {"matches": []},
-    }
-
-
-def _dossier() -> Dossier:
-    sources = DossierSourceArtifacts(
-        repository_snapshot_id="snapshot-1",
-        program_evidence_graph_id="graph-1",
-        technical_evidence_report_id="evidence-1",
-        wizard_profile_id="wizard-1",
-        verified_profile_id="verified-1",
-        legal_corpus_version_id="corpus-1",
-        legal_rule_catalog_version_id="catalog-1",
-        classification_result_id="classification-1",
-        gap_matrix_ref="matrix:classification-1",
-    )
-    return Dossier(
-        dossier_id="dossier:1",
-        dossier_type="AI_RISK_CLASSIFICATION",
-        assessment_id="assessment-1",
-        organization_id="org-1",
-        version=1,
-        status="INCOMPLETE",
-        source_artifacts=sources,
-        sections={
-            "systemIdentity": {"assessmentId": "assessment-1"},
-            "intendedUse": "assist staff",
-            "technicalAiProfile": {
-                "program_graph_ref": {"graphId": "graph-1"},
-                "data_categories": [],
-                "external_integrations": [],
-                "human_control_evidence": {},
+            "classification_data": {
+                "mode": "ENGINEERING_RULE_EVALUATION",
+                "summary": {
+                    "compliant": 0,
+                    "non_compliant": 1,
+                    "unknown": 1,
+                    "total": 2,
+                },
+                "legal_rule_catalog_version_id": "catalog-1",
+                "legal_corpus_version_id": "corpus-1",
+                "evaluations": [
+                    {
+                        "engineering_rule_id": "eng-fail",
+                        "legal_rule_id": "legal-fail",
+                        "concept": "HUMAN_REVIEW",
+                        "status": "NON_COMPLIANT",
+                        "reason": "Required engineering control is not evidenced.",
+                        "evidence_refs": ["graph:path:1"],
+                        "source_chunk_ids": ["LAW:A1"],
+                        "source_locators": ["art-1::cl-1"],
+                        "limitations": [],
+                    },
+                    {
+                        "engineering_rule_id": "eng-unknown",
+                        "legal_rule_id": "legal-unknown",
+                        "concept": "DYNAMIC_PROVIDER",
+                        "status": "UNKNOWN",
+                        "reason": "Dynamic path cannot be resolved statically.",
+                        "evidence_refs": [],
+                        "source_chunk_ids": ["LAW:A2"],
+                        "source_locators": ["art-2::cl-1"],
+                        "limitations": ["DYNAMIC_PATH_UNRESOLVED"],
+                    },
+                ],
+                "limitations": ["SCAN_COVERAGE_PARTIAL"],
             },
-            "unresolvedEvidence": ["dynamic provider target"],
-            "remediation": [],
         },
-        missing_requirements=("gaps", "remediation"),
-        provenance={"contentHash": "sha256:abc"},
-    )
+        "technical_evidence_report": {
+            "id": "evidence-1",
+            "snapshot_id": "snapshot-1",
+        },
+        "repository_snapshot": {
+            "id": "snapshot-1",
+            "commit_sha": "abc123",
+        },
+    }
 
 
 def _consumer():
     document_client = MagicMock()
     document_client.get_generation_context.return_value = _context()
-    dossier_builder = MagicMock()
-    dossier_builder.build.return_value = _dossier()
     return (
         GapAnalysisConsumer(
             config=MagicMock(),
             document_client=document_client,
-            dossier_builder=dossier_builder,
         ),
         document_client,
     )
@@ -107,7 +105,14 @@ def test_t02_content_contains_certified():
 
 
 def test_t03_no_raw_source_code():
-    content = GapAnalysisGenerator.generate("Name", "Ctx", ["ev1"], [], [], [], [])
+    content = GapAnalysisGenerator.generate(
+        "Name",
+        "Ctx",
+        ["ev1"],
+        ["engineering-rule-result"],
+        ["missing-evidence"],
+        ["recommendation"],
+    )
     assert "class " not in content
     assert "def " not in content
 
@@ -126,12 +131,12 @@ def test_t04_upload_fails_with_safe_reason():
 
 
 def test_t05_title_inspection():
-    content = GapAnalysisGenerator.generate("Name", "Ctx", [], [], [], [], [])
+    content = GapAnalysisGenerator.generate("Name", "Ctx", [], [], [], [])
     lines = content.split("\n")
-    assert "Title: Gap Analysis" in lines[0]
-    assert "Label: Wizard Readiness and Legal Gap Analysis" in lines[1]
+    assert lines[0] == "# Gap Analysis — Name"
+    assert lines[1] == "**Basis: Program Evidence Graph + EngineeringRule evaluation**"
     assert "certified" not in lines[0].lower()
-    assert "compliant" not in lines[1].lower()
+    assert "legally compliant" not in lines[1].lower()
 
 
 def test_t06_no_llm_calls():

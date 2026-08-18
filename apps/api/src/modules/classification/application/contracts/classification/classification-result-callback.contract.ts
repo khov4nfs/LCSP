@@ -1,12 +1,14 @@
 import type { ClassificationGuardrailStatus } from "@lcsp/contracts/scan";
 
 export interface AcceptClassificationDto {
-  legal_rule_match_id: string;
-  verified_profile_id: string;
+  technical_evidence_report_id: string;
   assessment_id: string;
   schema_version: string;
   classification_data: Record<string, unknown>;
   guardrail_status: ClassificationGuardrailStatus;
+  /** Historical v1 fields only; the direct EngineeringRule runtime does not use them. */
+  legal_rule_match_id?: string | null;
+  verified_profile_id?: string | null;
 }
 
 export interface ClassificationResultCallbackResponseDto {

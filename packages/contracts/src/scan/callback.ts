@@ -18,6 +18,8 @@ export const TECHNICAL_EVIDENCE_REPORT_STATUSES = {
 export type TechnicalEvidenceReportStatus =
   (typeof TECHNICAL_EVIDENCE_REPORT_STATUSES)[keyof typeof TECHNICAL_EVIDENCE_REPORT_STATUSES];
 
+// Legacy artifact constants are retained for persisted historical rows. They no
+// longer describe the canonical post-scan execution path.
 export const TECHNICAL_PROFILE_STATUSES = {
   accepted: "ACCEPTED",
   rejected: "REJECTED",
@@ -68,6 +70,53 @@ export const LEGAL_RULE_MATCH_GUARDRAIL_STATUSES = {
 export type LegalRuleMatchGuardrailStatus =
   (typeof LEGAL_RULE_MATCH_GUARDRAIL_STATUSES)[keyof typeof LEGAL_RULE_MATCH_GUARDRAIL_STATUSES];
 
+export const ENGINEERING_RULE_EVALUATION_STATUSES = {
+  compliant: "COMPLIANT",
+  nonCompliant: "NON_COMPLIANT",
+  unknown: "UNKNOWN",
+} as const;
+
+export type EngineeringRuleEvaluationStatus =
+  (typeof ENGINEERING_RULE_EVALUATION_STATUSES)[keyof typeof ENGINEERING_RULE_EVALUATION_STATUSES];
+
+export const ENGINEERING_EVIDENCE_CLAIM_TYPES = {
+  requirementMet: "RULE_REQUIREMENT_MET",
+  requirementNotMet: "RULE_REQUIREMENT_NOT_MET",
+  unresolved: "UNRESOLVED_ENGINEERING_FACT",
+} as const;
+
+export type EngineeringEvidenceClaimType =
+  (typeof ENGINEERING_EVIDENCE_CLAIM_TYPES)[keyof typeof ENGINEERING_EVIDENCE_CLAIM_TYPES];
+
+/**
+ * Machine-readable limitation codes permitted in the direct EngineeringRule artifact.
+ * Narrative explanation belongs in controlled fields such as `evaluations[].reason`;
+ * limitation arrays are intentionally closed so model prose cannot leak into them.
+ */
+export const ENGINEERING_LIMITATION_CODES = {
+  noEngineeringRuleSourceRules: "NO_ENGINEERING_RULE_SOURCE_RULES",
+  engineeringRuleCompilationFailed: "ENGINEERING_RULE_COMPILATION_FAILED",
+  engineeringInvestigationFailed: "ENGINEERING_INVESTIGATION_FAILED",
+  investigationReturnedNoValidClaims: "INVESTIGATION_RETURNED_NO_VALID_CLAIMS",
+  modelLimitationCodeInvalid: "MODEL_LIMITATION_CODE_INVALID",
+  engineeringEvidenceInsufficient: "ENGINEERING_EVIDENCE_INSUFFICIENT",
+  conflictingEngineeringEvidence: "CONFLICTING_ENGINEERING_EVIDENCE",
+  dynamicPathUnresolved: "DYNAMIC_PATH_UNRESOLVED",
+  externalBoundaryUnresolved: "EXTERNAL_BOUNDARY_UNRESOLVED",
+  graphCoverageLimited: "GRAPH_COVERAGE_LIMITED",
+  searchCoverageIncomplete: "SEARCH_COVERAGE_INCOMPLETE",
+} as const;
+
+export type EngineeringLimitationCode =
+  (typeof ENGINEERING_LIMITATION_CODES)[keyof typeof ENGINEERING_LIMITATION_CODES];
+
+export const ASSESSMENT_RESULT_MODES = {
+  engineeringRuleEvaluation: "ENGINEERING_RULE_EVALUATION",
+} as const;
+
+export type AssessmentResultMode =
+  (typeof ASSESSMENT_RESULT_MODES)[keyof typeof ASSESSMENT_RESULT_MODES];
+
 export const CLASSIFICATION_RESULT_STATUSES = {
   accepted: "ACCEPTED",
   rejected: "REJECTED",
@@ -116,10 +165,11 @@ export const AI_USAGE_FLOW_SCHEMA_VERSIONS = ["1.0.0"] as const;
 export const CONFLICT_DETECTION_SCHEMA_VERSIONS = ["1.0.0"] as const;
 export const VERIFIED_PROFILE_SCHEMA_VERSIONS = ["1.0.0"] as const;
 export const LEGAL_RULE_MATCH_SCHEMA_VERSIONS = ["1.0.0"] as const;
-export const CLASSIFICATION_RESULT_SCHEMA_VERSIONS = ["1.0.0"] as const;
+export const CLASSIFICATION_RESULT_SCHEMA_VERSIONS = ["1.0.0", "2.0.0"] as const;
 
 export const SCAN_EVENT_TYPES = {
   evidenceAccepted: "event.technical-evidence.accepted.v1",
+  // Legacy chain events remain stable for old persisted outbox rows only.
   technicalProfileReady: "event.technical-profile.ready.v1",
   aiUsageFlowReady: "event.ai-usage-flow.ready.v1",
   reconciliationConflictsDetected: "event.reconciliation.conflicts-detected.v1",

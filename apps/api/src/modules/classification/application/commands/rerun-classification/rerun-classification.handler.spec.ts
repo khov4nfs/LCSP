@@ -2,11 +2,9 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import {
   CLASSIFICATION_RERUN_STATUSES,
-  LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
-  LEGAL_RULE_MATCH_STATUSES,
   SCAN_EVENT_TYPES,
 } from "@lcsp/contracts/scan";
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { NotFoundException } from "@nestjs/common";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -28,32 +26,32 @@ describe("RerunClassificationHandler", () => {
   };
 
   function createHandler(options?: {
-    result?: { id: string; status: string } | null;
+    evidenceReport?: {
+      id: string;
+      snapshotId: string;
+      scanJobId: string;
+    } | null;
   }) {
+    const findEvidence = jest.fn().mockResolvedValue(
+      options?.evidenceReport === undefined
+        ? {
+            id: "ter-1",
+            snapshotId: "snapshot-1",
+            scanJobId: "scan-1",
+          }
+        : options.evidenceReport,
+    );
     const prisma = {
-      legalRuleMatch: {
-        findFirst: jest.fn().mockImplementation(() =>
-          Promise.resolve({
-            id: "match-1",
-            guardrailStatus: LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.passed,
-            status: LEGAL_RULE_MATCH_STATUSES.accepted,
-          }),
-        ),
-      },
-      classificationResult: {
-        findFirst: jest
-          .fn()
-          .mockImplementation(() => Promise.resolve(options?.result ?? null)),
+      technicalEvidenceReport: {
+        findFirst: findEvidence,
       },
       $transaction: jest.fn((callback: (tx: unknown) => Promise<unknown>) =>
         callback(prisma),
       ),
     } as unknown as jest.Mocked<PrismaService>;
-    const enqueue = jest.fn().mockImplementation(() => Promise.resolve());
-    const outbox = {
-      enqueue,
-    } as unknown as jest.Mocked<OutboxRepository>;
-    const writeInTx = jest.fn().mockImplementation(() => Promise.resolve());
+    const enqueue = jest.fn().mockResolvedValue(undefined);
+    const outbox = { enqueue } as unknown as jest.Mocked<OutboxRepository>;
+    const writeInTx = jest.fn().mockResolvedValue(undefined);
     const auditWriter = {
       writeInTx,
     } as unknown as jest.Mocked<AuditWriterService>;
@@ -62,12 +60,12 @@ describe("RerunClassificationHandler", () => {
       handler: new RerunClassificationHandler(prisma, outbox, auditWriter),
       enqueue,
       writeInTx,
-      prisma,
+      findEvidence,
     };
   }
 
-  it("queues the accepted legal rule match for classification without rescanning evidence", async () => {
-    const { handler, enqueue, writeInTx } = createHandler();
+  it("replays the latest accepted TechnicalEvidenceReport without rescanning", async () => {
+    const { handler, enqueue, writeInTx, findEvidence } = createHandler();
 
     const result = await handler.execute(
       new RerunClassificationCommand(
@@ -78,30 +76,44 @@ describe("RerunClassificationHandler", () => {
     );
 
     expect(result).toEqual({
-      legal_rule_match_id: "match-1",
+      technical_evidence_report_id: "ter-1",
       status: CLASSIFICATION_RERUN_STATUSES.queued,
       correlationId: "correlation-1",
     });
+    expect(findEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          assessmentId: "assessment-1",
+          organizationId: "org-1",
+        }),
+        orderBy: { createdAt: "desc" },
+      }),
+    );
     expect(enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
-        aggregateId: "match-1",
-        eventType: SCAN_EVENT_TYPES.legalRuleMatchReady,
+        aggregateId: "ter-1",
+        eventType: SCAN_EVENT_TYPES.evidenceAccepted,
+        payload: expect.objectContaining({
+          evidenceReportId: "ter-1",
+          technicalEvidenceReportId: "ter-1",
+          snapshotId: "snapshot-1",
+          scanJobId: "scan-1",
+          rerun: true,
+        }),
       }),
       expect.anything(),
     );
     expect(writeInTx).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: SCAN_EVENT_TYPES.classificationRerunTriggeredAudit,
+        resourceId: "ter-1",
       }),
       expect.anything(),
     );
   });
 
-  it("rejects a retry when no legal match exists", async () => {
-    const { handler, prisma } = createHandler();
-    (prisma.legalRuleMatch.findFirst as jest.Mock).mockImplementation(() =>
-      Promise.resolve(null),
-    );
+  it("rejects rerun when no accepted TechnicalEvidenceReport exists", async () => {
+    const { handler } = createHandler({ evidenceReport: null });
 
     await expect(
       handler.execute(
@@ -114,19 +126,34 @@ describe("RerunClassificationHandler", () => {
     ).rejects.toThrow(NotFoundException);
   });
 
-  it("rejects a retry after classification has been accepted", async () => {
-    const { handler } = createHandler({
-      result: { id: "result-1", status: LEGAL_RULE_MATCH_STATUSES.accepted },
-    });
+  it("allows a fresh rerun after prior assessment results because the pinned evidence is replayed", async () => {
+    const { handler, enqueue } = createHandler();
 
-    await expect(
-      handler.execute(
-        new RerunClassificationCommand(
-          "assessment-1",
-          pbacContext,
-          "correlation-1",
-        ),
+    const first = await handler.execute(
+      new RerunClassificationCommand(
+        "assessment-1",
+        pbacContext,
+        "correlation-1",
       ),
-    ).rejects.toThrow(ConflictException);
+    );
+    const second = await handler.execute(
+      new RerunClassificationCommand(
+        "assessment-1",
+        pbacContext,
+        "correlation-2",
+      ),
+    );
+
+    expect(first.technical_evidence_report_id).toBe("ter-1");
+    expect(second.technical_evidence_report_id).toBe("ter-1");
+    expect(enqueue).toHaveBeenCalledTimes(2);
+    expect(enqueue).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        eventType: SCAN_EVENT_TYPES.evidenceAccepted,
+        idempotencyKey: expect.stringContaining("correlation-2"),
+      }),
+      expect.anything(),
+    );
   });
 });

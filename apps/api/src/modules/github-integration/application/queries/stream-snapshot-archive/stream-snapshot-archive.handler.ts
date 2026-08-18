@@ -19,6 +19,7 @@ import {
   GitHubAppClient,
   GitHubAppClientError,
 } from "../../../infrastructure/github/github-app.client.js";
+import { SnapshotArchiveCache } from "../../../infrastructure/github/snapshot-archive-cache.js";
 
 export type SnapshotArchiveStreamResult = {
   snapshotId: string;
@@ -30,21 +31,23 @@ export type SnapshotArchiveStreamResult = {
 };
 
 /**
- * Claims an eligible scan job and streams the exact pinned GitHub repository archive associated with its snapshot.
+ * Claims an eligible scan job and streams the exact pinned repository archive associated with its snapshot.
  */
 @QueryHandler(StreamSnapshotArchiveQuery)
 export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapshotArchiveQuery> {
   private readonly logger = new Logger(StreamSnapshotArchiveHandler.name);
 
   /**
-   * Creates the archive-stream handler with persistence and GitHub App access.
+   * Creates the archive-stream handler with persistence, GitHub App access, and ephemeral pinned-source caching.
    *
    * @param prisma - Prisma service used to validate scan/snapshot/connection state and atomically claim queued jobs.
-   * @param githubAppClient - GitHub App client used to download the repository archive for the pinned commit.
+   * @param githubAppClient - GitHub App client used to download the repository archive for the pinned commit on cache miss.
+   * @param snapshotArchiveCache - Temporary TTL cache used to reuse the exact pinned archive across reruns.
    */
   constructor(
     private readonly prisma: PrismaService,
     private readonly githubAppClient: GitHubAppClient,
+    private readonly snapshotArchiveCache: SnapshotArchiveCache,
   ) {}
 
   /**
@@ -154,6 +157,22 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
       );
     }
 
+    const cacheHit = await this.readCachedArchive(
+      snapshot.id,
+      snapshot.commitSha,
+      query.correlationId,
+    );
+    if (cacheHit) {
+      return {
+        snapshotId: snapshot.id,
+        commitSha: snapshot.commitSha,
+        repositoryFullName: snapshot.repositoryFullName,
+        contentType: cacheHit.contentType,
+        resolvedUrl: cacheHit.resolvedUrl,
+        stream: cacheHit.stream,
+      };
+    }
+
     try {
       const archive = await this.githubAppClient.downloadRepositoryArchive({
         installationId: connection.installationId,
@@ -161,13 +180,24 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
         commitSha: snapshot.commitSha,
       });
 
+      const stream = await this.captureArchiveForRerun(
+        {
+          snapshotId: snapshot.id,
+          commitSha: snapshot.commitSha,
+          contentType: archive.contentType,
+          resolvedUrl: archive.resolvedUrl,
+          source: archive.stream,
+        },
+        query.correlationId,
+      );
+
       return {
         snapshotId: snapshot.id,
         commitSha: snapshot.commitSha,
         repositoryFullName: snapshot.repositoryFullName,
         contentType: archive.contentType,
         resolvedUrl: archive.resolvedUrl,
-        stream: archive.stream,
+        stream,
       };
     } catch (error: unknown) {
       this.logger.error(
@@ -185,8 +215,77 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
       throw problemException(
         GITHUB_INTEGRATION_ERROR_CODES.snapshotRetrievalFailed,
         query.correlationId,
-        { status: HttpStatus.BAD_GATEWAY },
+        {
+          status:
+            archiveFailureStatus(error) === HttpStatus.TOO_MANY_REQUESTS
+              ? HttpStatus.TOO_MANY_REQUESTS
+              : HttpStatus.BAD_GATEWAY,
+        },
       );
+    }
+  }
+
+  private async readCachedArchive(
+    snapshotId: string,
+    commitSha: string,
+    correlationId: string,
+  ) {
+    try {
+      const cacheHit = await this.snapshotArchiveCache.get({
+        snapshotId,
+        commitSha,
+      });
+      if (cacheHit) {
+        this.logger.debug("Repository snapshot archive cache hit", {
+          correlationId,
+          snapshotId,
+          commitSha,
+        });
+      }
+      return cacheHit;
+    } catch (error: unknown) {
+      this.logger.warn(
+        "Repository snapshot archive cache read failed; using GitHub",
+        {
+          correlationId,
+          snapshotId,
+          reason: cacheFailureReason(error),
+        },
+      );
+      return null;
+    }
+  }
+
+  private async captureArchiveForRerun(
+    input: {
+      snapshotId: string;
+      commitSha: string;
+      contentType: string;
+      resolvedUrl: string;
+      source: NodeJS.ReadableStream;
+    },
+    correlationId: string,
+  ): Promise<NodeJS.ReadableStream> {
+    try {
+      const cached = await this.snapshotArchiveCache.capture(input);
+      void cached.completion.catch((error: unknown) => {
+        this.logger.warn("Repository snapshot archive cache write failed", {
+          correlationId,
+          snapshotId: input.snapshotId,
+          reason: cacheFailureReason(error),
+        });
+      });
+      return cached.stream;
+    } catch (error: unknown) {
+      this.logger.warn(
+        "Repository snapshot archive cache unavailable; streaming directly",
+        {
+          correlationId,
+          snapshotId: input.snapshotId,
+          reason: cacheFailureReason(error),
+        },
+      );
+      return input.source;
     }
   }
 }
@@ -213,4 +312,9 @@ function archiveFailureReason(error: unknown): string {
  */
 function archiveFailureStatus(error: unknown): number | null {
   return error instanceof GitHubAppClientError ? error.status : null;
+}
+
+/** Returns a cache failure type without logging paths, raw source, or error payloads. */
+function cacheFailureReason(error: unknown): string {
+  return error instanceof Error ? error.name : "unknown_cache_failure";
 }

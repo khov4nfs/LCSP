@@ -5,6 +5,25 @@ readonly APP=/srv/apps/lcsp-pm2
 readonly ECOSYSTEM_FILE=ecosystem.config.cjs
 readonly API_HEALTH_URL=http://127.0.0.1:8080/health
 readonly WEB_HEALTH_URL=http://127.0.0.1:3001/
+readonly WORKER_HEALTH_PORTS=(8101 8102 8108 8109 8110 8111)
+readonly LEGACY_PM2_APPS=(
+  lcsp-technical-profile-worker
+  lcsp-ai-usage-flow-worker
+  lcsp-conflict-detection-worker
+  lcsp-verified-profile-worker
+  lcsp-legal-retrieval-worker
+  lcsp-classification-worker
+)
+readonly EXPECTED_PM2_APPS=(
+  lcsp-api
+  lcsp-web
+  lcsp-scanner-worker
+  lcsp-engineering-assessment-worker
+  lcsp-gap-analysis-worker
+  lcsp-legal-corpus-recovery-worker
+  lcsp-targeted-reanalysis-worker
+  lcsp-final-report-worker
+)
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -31,8 +50,39 @@ wait_for_health() {
   return 1
 }
 
+remove_legacy_pm2_apps() {
+  local app
+  echo "==> Remove legacy assessment workers"
+  for app in "${LEGACY_PM2_APPS[@]}"; do
+    if pm2 describe "$app" >/dev/null 2>&1; then
+      echo "Deleting stale PM2 app: $app"
+      pm2 delete "$app"
+    fi
+  done
+}
+
+assert_expected_pm2_apps() {
+  local app
+  for app in "${EXPECTED_PM2_APPS[@]}"; do
+    if ! pm2 describe "$app" >/dev/null 2>&1; then
+      echo "Expected PM2 app is missing: $app" >&2
+      return 1
+    fi
+  done
+
+  for app in "${LEGACY_PM2_APPS[@]}"; do
+    if pm2 describe "$app" >/dev/null 2>&1; then
+      echo "Legacy PM2 app is still registered after deploy: $app" >&2
+      return 1
+    fi
+  done
+}
+
 restart_pm2() {
+  remove_legacy_pm2_apps
+
   if pm2 startOrRestart "$ECOSYSTEM_FILE" --update-env; then
+    assert_expected_pm2_apps
     return 0
   fi
 
@@ -40,6 +90,7 @@ restart_pm2() {
   pm2 kill || true
   sleep 2
   pm2 start "$ECOSYSTEM_FILE" --update-env
+  assert_expected_pm2_apps
 }
 
 require_command curl
@@ -88,7 +139,7 @@ echo "==> Web"
 wait_for_health "Web" "$WEB_HEALTH_URL"
 
 echo "==> Workers"
-for port in {8101..8108}; do
+for port in "${WORKER_HEALTH_PORTS[@]}"; do
   wait_for_health "Worker ${port}" "http://127.0.0.1:${port}/health"
 done
 

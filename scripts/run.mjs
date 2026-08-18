@@ -26,9 +26,7 @@ const targets = {
     cwd: repoRoot,
     cmd: "bash",
     args: ["./fogewise-dev-launchers/fedora/fogewise-dev-fedora.sh"],
-    env: {
-      FOGEWISE_SUBDOMAIN: "lcsp",
-    },
+    env: { FOGEWISE_SUBDOMAIN: "lcsp" },
     description: "Start Fogewise Fedora local proxy (hosts override + Caddy)",
   },
   proxy_reset: {
@@ -49,9 +47,7 @@ const targets = {
   infra_reset: {
     cwd: repoRoot,
     cmd: "bash",
-    args: [
-      "./fogewise-dev-launchers/fedora/fogewise-local-infra-reset-fedora.sh",
-    ],
+    args: ["./fogewise-dev-launchers/fedora/fogewise-local-infra-reset-fedora.sh"],
     description: "Reset local RabbitMQ + Redis for Fedora",
     oneshot: true,
   },
@@ -77,63 +73,49 @@ const targets = {
     "Start scanner worker",
     18081,
   ),
-  technical_profile: workerTarget(
-    "lcsp_workers.intelligence.technical_profile_consumer:TechnicalProfileConsumer",
-    "Start technical profile worker",
+  engineering_assessment: workerTarget(
+    "lcsp_workers.investigation.engineering_assessment_consumer:EngineeringAssessmentConsumer",
+    "Start direct EngineeringRule assessment worker",
     18082,
-  ),
-  ai_usage_flow: workerTarget(
-    "lcsp_workers.intelligence.ai_usage_flow_consumer:AIUsageFlowConsumer",
-    "Start AI usage flow worker",
-    18083,
-  ),
-  conflict_detection: workerTarget(
-    "lcsp_workers.intelligence.conflict_detection_consumer:ConflictDetectionConsumer",
-    "Start conflict detection worker",
-    18084,
-  ),
-  verified_profile: workerTarget(
-    "lcsp_workers.intelligence.verified_profile_consumer:VerifiedProfileConsumer",
-    "Start verified profile worker",
-    18085,
-  ),
-  legal_retrieval: workerTarget(
-    "lcsp_workers.legal.legal_retrieval_consumer:LegalRetrievalConsumer",
-    "Start legal retrieval worker",
-    18086,
-  ),
-  classification: workerTarget(
-    "lcsp_workers.classification.classification_consumer:ClassificationConsumer",
-    "Start classification worker",
-    18087,
   ),
   gap_analysis: workerTarget(
     "lcsp_workers.reporting.gap_analysis_consumer:GapAnalysisConsumer",
     "Start gap analysis worker",
     18088,
   ),
+  legal_corpus_recovery: workerTarget(
+    "lcsp_workers.legal.legal_corpus_recovery_consumer:LegalCorpusRecoveryConsumer",
+    "Start legal corpus recovery worker",
+    18089,
+  ),
+  targeted_reanalysis: workerTarget(
+    "lcsp_workers.scanner.targeted_reanalysis_consumer:TargetedReanalysisConsumer",
+    "Start targeted reanalysis worker",
+    18090,
+  ),
+  final_report: workerTarget(
+    "lcsp_workers.reporting.final_report_consumer:FinalReportConsumer",
+    "Start final report worker",
+    18091,
+  ),
 };
 
 const groups = {
   fogewise: ["proxy", "infra"],
   fogewise_reset: ["proxy_reset", "infra_reset"],
-  dev_stop: ["dev_stop"],
   dev: [
     "api",
     "web",
     "scanner",
-    "technical_profile",
-    "ai_usage_flow",
-    "conflict_detection",
-    "verified_profile",
-    "legal_retrieval",
-    "classification",
+    "engineering_assessment",
     "gap_analysis",
+    "legal_corpus_recovery",
+    "targeted_reanalysis",
+    "final_report",
   ],
 };
 
 const selection = process.argv[2] ?? "help";
-
 await main();
 
 async function main() {
@@ -154,13 +136,17 @@ async function main() {
 
   if (selection in groups) {
     await runGroup(selection);
-  } else if (selection in targets) {
-    runTarget(selection);
-  } else {
-    console.error(`[run] Unknown target: ${selection}`);
-    printHelp();
-    process.exit(1);
+    return;
   }
+
+  if (selection in targets) {
+    runTarget(selection);
+    return;
+  }
+
+  console.error(`[run] Unknown target: ${selection}`);
+  printHelp();
+  process.exit(1);
 }
 
 function workerTarget(target, description, healthPort) {
@@ -169,6 +155,7 @@ function workerTarget(target, description, healthPort) {
     cmd: workerPython,
     args: ["-m", "lcsp_workers.runtime", target],
     env: {
+      ...rootEnv,
       PYTHONPATH: "src",
       HEALTH_PORT: String(healthPort),
       WORKER_RUNTIME_VERSION: defaultWorkerRuntimeVersion,
@@ -185,15 +172,8 @@ function detectGitBuildRef() {
     cwd: repoRoot,
     encoding: "utf8",
   });
-
-  if (result.status === 0) {
-    const value = result.stdout?.trim();
-    if (value) {
-      return `git:${value}`;
-    }
-  }
-
-  return "local";
+  const value = result.status === 0 ? result.stdout?.trim() : "";
+  return value ? `git:${value}` : "local";
 }
 
 function stopDevProcesses() {
@@ -211,24 +191,16 @@ function stopDevProcesses() {
   ]);
   const killed = [];
 
-  for (const pattern of patterns) {
-    for (const pid of findMatchingPids(pattern, protectedPids)) {
-      try {
-        process.kill(pid, "SIGTERM");
-        killed.push({ pid, signal: "SIGTERM", pattern });
-      } catch {}
+  for (const signal of ["SIGTERM", "SIGKILL"]) {
+    for (const pattern of patterns) {
+      for (const pid of findMatchingPids(pattern, protectedPids)) {
+        try {
+          process.kill(pid, signal);
+          killed.push({ pid, signal, pattern });
+        } catch {}
+      }
     }
-  }
-
-  sleepMs(750);
-
-  for (const pattern of patterns) {
-    for (const pid of findMatchingPids(pattern, protectedPids)) {
-      try {
-        process.kill(pid, "SIGKILL");
-        killed.push({ pid, signal: "SIGKILL", pattern });
-      } catch {}
-    }
+    if (signal === "SIGTERM") sleepMs(750);
   }
 
   if (killed.length === 0) {
@@ -248,26 +220,16 @@ function findMatchingPids(pattern, protectedPids) {
   const result = spawnSync(
     "bash",
     ["-lc", `ps -eo pid=,args= | grep -F ${shellQuote(pattern)} | grep -v grep`],
-    {
-      cwd: repoRoot,
-      encoding: "utf8",
-    },
+    { cwd: repoRoot, encoding: "utf8" },
   );
-
-  if (result.status !== 0 || !result.stdout.trim()) {
-    return [];
-  }
+  if (result.status !== 0 || !result.stdout.trim()) return [];
 
   const pids = [];
   for (const line of result.stdout.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    const pidText = trimmed.split(/\s+/, 1)[0];
-    const pid = Number.parseInt(pidText, 10);
-    if (!Number.isInteger(pid) || pid <= 0 || protectedPids.has(pid)) {
-      continue;
+    const pid = Number.parseInt(line.trim().split(/\s+/, 1)[0], 10);
+    if (Number.isInteger(pid) && pid > 0 && !protectedPids.has(pid)) {
+      pids.push(pid);
     }
-    pids.push(pid);
   }
   return [...new Set(pids)];
 }
@@ -275,16 +237,12 @@ function findMatchingPids(pattern, protectedPids) {
 function listParentPids(startPid) {
   const result = [];
   let currentPid = startPid;
-
   for (;;) {
     const parentPid = readParentPid(currentPid);
-    if (!parentPid || result.includes(parentPid)) {
-      break;
-    }
+    if (!parentPid || result.includes(parentPid)) break;
     result.push(parentPid);
     currentPid = parentPid;
   }
-
   return result;
 }
 
@@ -293,9 +251,7 @@ function readParentPid(pid) {
     cwd: repoRoot,
     encoding: "utf8",
   });
-  if (result.status !== 0) {
-    return null;
-  }
+  if (result.status !== 0) return null;
   const value = Number.parseInt(result.stdout.trim(), 10);
   return Number.isInteger(value) && value > 0 ? value : null;
 }
@@ -309,21 +265,14 @@ function sleepMs(durationMs) {
 }
 
 function loadDotEnv(filePath) {
-  if (!existsSync(filePath)) {
-    return {};
-  }
-
+  if (!existsSync(filePath)) return {};
   const env = {};
   const text = readFileSync(filePath, "utf8");
   for (const rawLine of text.split(/\r?\n/u)) {
     const line = rawLine.trim();
-    if (!line || line.startsWith("#")) {
-      continue;
-    }
+    if (!line || line.startsWith("#")) continue;
     const separatorIndex = line.indexOf("=");
-    if (separatorIndex <= 0) {
-      continue;
-    }
+    if (separatorIndex <= 0) continue;
     const key = line.slice(0, separatorIndex).trim();
     let value = line.slice(separatorIndex + 1).trim();
     if (
@@ -338,61 +287,31 @@ function loadDotEnv(filePath) {
 }
 
 function logWorkerRuntimeBanner(name, target) {
-  if (target.cmd !== workerPython) {
-    return;
-  }
-
-  const healthPort = target.env?.HEALTH_PORT ?? "unknown";
-  const runtimeVersion =
-    target.env?.WORKER_RUNTIME_VERSION ?? defaultWorkerRuntimeVersion;
-  const buildRef =
-    target.env?.WORKER_RUNTIME_BUILD_REF ?? defaultWorkerRuntimeBuildRef;
-
+  if (target.cmd !== workerPython) return;
   console.log(
-    `[run] Worker runtime -> name=${name} health_port=${healthPort} version=${runtimeVersion} build_ref=${buildRef}`,
+    `[run] Worker runtime -> name=${name} health_port=${target.env?.HEALTH_PORT ?? "unknown"} version=${target.env?.WORKER_RUNTIME_VERSION ?? defaultWorkerRuntimeVersion} build_ref=${target.env?.WORKER_RUNTIME_BUILD_REF ?? defaultWorkerRuntimeBuildRef}`,
   );
 }
 
 function runTarget(name) {
   const target = targets[name];
-  if (!target) {
-    throw new Error(`Unknown target: ${name}`);
-  }
-
-  if (target.cmd === workerPython && !existsSync(workerPython)) {
-    console.error(
-      `[run] Missing worker virtualenv python at ${workerPython}. Create/sync lcsp-python-workers/.venv first.`,
-    );
-    process.exit(1);
-  }
-
+  assertWorkerPython(target);
   logWorkerRuntimeBanner(name, target);
   console.log(`[run] Starting ${name}: ${target.description}`);
-  const child = spawn(target.cmd, target.args, {
-    cwd: target.cwd,
-    env: { ...process.env, ...target.env },
-    stdio: "inherit",
-  });
+  const child = spawnTarget(target);
 
   if (target.oneshot) {
     child.on("exit", (code, signal) => {
-      if (signal) {
-        process.kill(process.pid, signal);
-        return;
-      }
-      process.exit(code ?? 0);
+      if (signal) process.kill(process.pid, signal);
+      else process.exit(code ?? 0);
     });
     return;
   }
 
   forwardSignals([child]);
-
   child.on("exit", (code, signal) => {
-    if (signal) {
-      process.kill(process.pid, signal);
-      return;
-    }
-    process.exit(code ?? 0);
+    if (signal) process.kill(process.pid, signal);
+    else process.exit(code ?? 0);
   });
 }
 
@@ -403,32 +322,20 @@ async function runGroup(name) {
 
   for (const member of members) {
     const target = targets[member];
-    if (target.cmd === workerPython && !existsSync(workerPython)) {
-      console.error(
-        `[run] Missing worker virtualenv python at ${workerPython}. Create/sync lcsp-python-workers/.venv first.`,
-      );
-      shutdown(children);
-      process.exit(1);
-    }
-
+    assertWorkerPython(target);
     if (target.oneshot) {
       console.log(`[run] Running ${member}: ${target.description}`);
       const status = spawnSyncCompatible(target);
-      if (status !== 0) {
-        process.exit(status);
-      }
-      continue;
+      if (status !== 0) process.exit(status);
+    } else {
+      longRunningMembers.push(member);
     }
-
-    longRunningMembers.push(member);
   }
 
   assertPortsAvailable(longRunningMembers);
 
   if (members.includes("infra") && hasWorkerMember(longRunningMembers)) {
-    console.log(
-      "[run] Waiting for local RabbitMQ and Redis to accept connections...",
-    );
+    console.log("[run] Waiting for local RabbitMQ and Redis to accept connections...");
     await waitForPort("127.0.0.1", 5672, "RabbitMQ");
     await waitForPort("127.0.0.1", 6379, "Redis");
   }
@@ -437,69 +344,61 @@ async function runGroup(name) {
     const target = targets[member];
     logWorkerRuntimeBanner(member, target);
     console.log(`[run] Starting ${member}: ${target.description}`);
-    const child = spawn(target.cmd, target.args, {
-      cwd: target.cwd,
-      env: { ...process.env, ...target.env },
-      stdio: "inherit",
-    });
-    children.push(child);
+    children.push(spawnTarget(target));
   }
 
   forwardSignals(children);
-
   let exiting = false;
   for (const child of children) {
     child.on("exit", (code, signal) => {
       if (exiting) return;
       exiting = true;
-      if (signal) {
-        shutdown(children);
-        process.kill(process.pid, signal);
-        return;
-      }
       if ((code ?? 0) !== 0) {
         console.error(
           `[run] A process exited with code ${code}. Stopping remaining processes.`,
         );
       }
       shutdown(children);
-      process.exit(code ?? 0);
+      if (signal) process.kill(process.pid, signal);
+      else process.exit(code ?? 0);
     });
   }
 }
 
+function assertWorkerPython(target) {
+  if (target.cmd === workerPython && !existsSync(workerPython)) {
+    console.error(
+      `[run] Missing worker virtualenv python at ${workerPython}. Create/sync lcsp-python-workers/.venv first.`,
+    );
+    process.exit(1);
+  }
+}
+
+function spawnTarget(target) {
+  return spawn(target.cmd, target.args, {
+    cwd: target.cwd,
+    env: { ...process.env, ...target.env },
+    stdio: "inherit",
+  });
+}
+
 function assertPortsAvailable(members) {
   const conflicts = [];
-
   for (const member of members) {
     const target = targets[member];
-    const healthPort = target?.healthPort;
-    if (!healthPort) {
-      continue;
-    }
-    const owner = describeListeningPort(healthPort);
-    if (owner) {
-      conflicts.push({
-        member,
-        port: healthPort,
-        owner,
-      });
-    }
+    if (!target?.healthPort) continue;
+    const owner = describeListeningPort(target.healthPort);
+    if (owner) conflicts.push({ member, port: target.healthPort, owner });
   }
+  if (conflicts.length === 0) return;
 
-  if (conflicts.length === 0) {
-    return;
-  }
-
-  console.error(
-    "[run] Cannot start dev group because required ports are already in use:",
-  );
+  console.error("[run] Cannot start dev group because required ports are already in use:");
   for (const conflict of conflicts) {
     console.error(
-      `  - target=${conflict.member} health_port=${conflict.port}${conflict.owner ? ` owner=${conflict.owner}` : ""}`,
+      `  - target=${conflict.member} health_port=${conflict.port} owner=${conflict.owner}`,
     );
   }
-  console.error("[run] Stop the stale process first, then re-run `pnpm dev`.");
+  console.error("[run] Run `pnpm dev:stop`, then re-run `pnpm dev`.");
   process.exit(1);
 }
 
@@ -508,17 +407,11 @@ function describeListeningPort(port) {
     cwd: repoRoot,
     encoding: "utf8",
   });
-
-  if (result.status !== 0) {
-    return null;
-  }
-
-  const line = result.stdout
+  if (result.status !== 0) return null;
+  return result.stdout
     .split("\n")
     .map((value) => value.trim())
-    .find(Boolean);
-
-  return line || null;
+    .find(Boolean) ?? null;
 }
 
 function spawnSyncCompatible(target) {
@@ -536,9 +429,7 @@ function spawnSyncCompatible(target) {
 
 function shutdown(children) {
   for (const child of children) {
-    if (!child.killed) {
-      child.kill("SIGTERM");
-    }
+    if (!child.killed) child.kill("SIGTERM");
   }
 }
 
@@ -549,6 +440,18 @@ function hasWorkerMember(members) {
 function waitForPort(host, port, label, timeoutMs = 30_000) {
   const startedAt = Date.now();
   return new Promise((resolve, reject) => {
+    const retryOrFail = () => {
+      if (Date.now() - startedAt >= timeoutMs) {
+        reject(
+          new Error(
+            `${label} did not become ready on ${host}:${port} within ${timeoutMs}ms`,
+          ),
+        );
+        return;
+      }
+      setTimeout(tryConnect, 500);
+    };
+
     const tryConnect = () => {
       const socket = new net.Socket();
       socket.setTimeout(1_000);
@@ -567,27 +470,13 @@ function waitForPort(host, port, label, timeoutMs = 30_000) {
       socket.connect(port, host);
     };
 
-    const retryOrFail = () => {
-      if (Date.now() - startedAt >= timeoutMs) {
-        reject(
-          new Error(
-            `${label} did not become ready on ${host}:${port} within ${timeoutMs}ms`,
-          ),
-        );
-        return;
-      }
-      setTimeout(tryConnect, 500);
-    };
-
     tryConnect();
   });
 }
 
 function forwardSignals(children) {
   for (const signal of ["SIGINT", "SIGTERM"]) {
-    process.on(signal, () => {
-      shutdown(children);
-    });
+    process.on(signal, () => shutdown(children));
   }
 }
 
@@ -599,20 +488,5 @@ function printList() {
 }
 
 function printHelp() {
-  console.log(`Usage:
-
-  node scripts/run.mjs <target>
-
-Targets:
-  fogewise
-  fogewise_reset
-  dev_stop
-  dev
-
-Examples:
-  pnpm run dev:fogewise
-  pnpm run dev:fogewise:reset
-  pnpm run dev:stop
-  pnpm run dev
-`);
+  console.log(`Usage:\n\n  node scripts/run.mjs <target>\n\nTargets:\n  fogewise\n  fogewise_reset\n  dev_stop\n  dev\n\nExamples:\n  pnpm run dev:fogewise\n  pnpm run dev:fogewise:reset\n  pnpm run dev:stop\n  pnpm run dev\n`);
 }

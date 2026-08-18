@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import os
 import sys
 from typing import TextIO
 
@@ -12,6 +14,20 @@ from lcsp_workers.platform.redaction import redact_dict
 
 
 _original_open = open
+_SAFE_LLM_TOOL_FILE_EVENTS = frozenset(
+    {
+        "LLM_REQUEST",
+        "LLM_RESPONSE",
+        "LLM_REQUEST_FAILED",
+        "ENGINEERING_INVESTIGATION_TOOL_CALL",
+        "ENGINEERING_INVESTIGATION_TOOL_RESULT",
+        "ENGINEERING_INVESTIGATION_FINISHED",
+        "ENGINEERING_INVESTIGATION_CLAIM_REJECTED",
+        "ENGINEERING_INVESTIGATION_FAILED",
+        "ENGINEERING_INVESTIGATION_NO_NATIVE_TOOL_CALL",
+        "ENGINEERING_INVESTIGATION_FINISH_MISSING",
+    }
+)
 
 
 class _FailOpenTraceWriter:
@@ -40,113 +56,146 @@ class _FailOpenTraceWriter:
 
 
 def _inject_correlationId(logger, method_name, event_dict):
-    """Attach the active correlation identifier to a structured log event.
-
-    Args:
-        logger: Structlog logger invoking the processor.
-        method_name: Logging method name supplied by structlog.
-        event_dict: Mutable structured event payload.
-
-    Returns:
-        The event payload enriched with ``correlationId``.
-    """
+    """Attach the active correlation identifier to a structured log event."""
     event_dict["correlationId"] = get_correlationId()
     return event_dict
 
 
 def _redact_secrets(logger, method_name, event_dict):
-    """Remove configured secret values before a log event is rendered.
-
-    ``LCSP_DEV_UNSAFE_TRACE=true`` deliberately disables this log-rendering
-    redaction in non-production environments so local developers can inspect
-    exact payloads. Runtime persistence/callback privacy controls are separate
-    and remain active.
-
-    Args:
-        logger: Structlog logger invoking the processor.
-        method_name: Logging method name supplied by structlog.
-        event_dict: Structured event payload to sanitize.
-
-    Returns:
-        A redacted copy normally, or the original event in explicitly unsafe
-        development tracing mode.
-    """
+    """Remove configured secret values before a normal log event is rendered."""
     if unsafe_dev_trace_enabled():
         return event_dict
     return redact_dict(event_dict)
 
 
+def _is_orchestration_event(data: dict) -> bool:
+    """Return whether an event belongs in the partitioned orchestration log."""
+    event_name = str(data.get("event") or "")
+    logger_name = str(data.get("logger") or "")
+    return bool(
+        "intelligence" in logger_name
+        or "classification" in logger_name
+        or "reporting" in logger_name
+        or "agentic_evidence" in logger_name
+        or "resolver" in logger_name
+        or "tool_entrypoints" in logger_name
+        or "remediation" in logger_name
+        or "orchestration" in event_name.lower()
+        or "llm" in event_name.lower()
+        or "prompt" in event_name.lower()
+        or "model" in event_name.lower()
+        or "tool" in event_name.lower()
+    )
+
+
+def _is_safe_llm_tool_file_event(data: dict) -> bool:
+    """Select structured telemetry allowed in the repository-level LLM debug log.
+
+    Development raw-trace events are intentionally excluded. Native tool-result
+    events are allowed because the investigator already bounds the result to the
+    same observation supplied to the next LLM turn. The repository-level file is
+    always redacted again before persistence, even if unsafe dev tracing is enabled.
+    """
+    event_name = str(data.get("event") or "")
+    return event_name in _SAFE_LLM_TOOL_FILE_EVENTS
+
+
+def _render_safe_root_event(data: dict) -> str:
+    """Render an always-redacted JSON line for ``tmp/llm-tool-calls.log``."""
+    safe_data = redact_dict(data)
+    return json.dumps(safe_data, ensure_ascii=False, separators=(",", ":")) + "\n"
+
+
+def _ensure_llm_tool_log_file() -> None:
+    """Create the safe repository-level LLM/tool debug log eagerly.
+
+    The file used to be created lazily on the first matching telemetry event,
+    which made ``tail -f tmp/llm-tool-calls.log`` fail immediately after
+    ``pnpm dev`` startup. Logging is observability-only, so creation remains
+    fail-open and must never prevent a worker from starting.
+    """
+    try:
+        from lcsp_workers.platform.logging_path import get_llm_tool_log_path
+
+        log_path = get_llm_tool_log_path()
+        os.makedirs(os.path.dirname(log_path), exist_ok=True)
+        with _original_open(log_path, "a", encoding="utf-8"):
+            pass
+    except Exception:
+        return
+
+
 class PartitionedLogWriter:
-    """Writes log output to fallback stream AND appends JSON logs to partitioned files under tmp/."""
+    """Write stdout plus partitioned logs and safe root-level LLM tool telemetry."""
 
     def __init__(self, fallback_stream: TextIO) -> None:
         self._fallback = fallback_stream
-        import sys
-        self._is_stdout = (fallback_stream is sys.stdout)
+        self._is_stdout = fallback_stream is sys.stdout
 
     def write(self, value: str) -> int:
-        import os
-        import sys
-        
-        # Determine the target stream dynamically if it is stdout/stderr
         if self._is_stdout:
-            stream = sys.stdout
-        elif isinstance(self._fallback, _FailOpenTraceWriter) and self._fallback._stream is sys.stdout:
+            stream: TextIO = sys.stdout
+        elif (
+            isinstance(self._fallback, _FailOpenTraceWriter)
+            and self._fallback._stream is sys.stdout
+        ):
             stream = _FailOpenTraceWriter(sys.stdout)
         else:
             stream = self._fallback
-            
+
         written = stream.write(value)
         try:
             trimmed = value.strip()
             if trimmed.startswith("{") and trimmed.endswith("}"):
-                import json
                 data = json.loads(trimmed)
-
-                from lcsp_workers.platform.correlation import get_user_id, get_assessment_id
-                user_id = get_user_id()
-                assessment_id = get_assessment_id()
-
-                if "user_id" in data:
-                    user_id = str(data["user_id"])
-                elif "userId" in data:
-                    user_id = str(data["userId"])
-                elif "actor" in data and isinstance(data["actor"], dict) and "id" in data["actor"]:
-                    user_id = str(data["actor"]["id"])
-
-                if "assessment_id" in data:
-                    assessment_id = str(data["assessment_id"])
-                elif "assessmentId" in data:
-                    assessment_id = str(data["assessmentId"])
-
-                from lcsp_workers.platform.logging_path import get_partitioned_log_path
-
-                is_orch = False
-                event_name = data.get("event") or ""
-                logger_name = data.get("logger") or ""
-                if (
-                    "intelligence" in logger_name
-                    or "classification" in logger_name
-                    or "reporting" in logger_name
-                    or "agentic_evidence" in logger_name
-                    or "resolver" in logger_name
-                    or "tool_entrypoints" in logger_name
-                    or "remediation" in logger_name
-                    or "orchestration" in event_name.lower()
-                    or "llm" in event_name.lower()
-                    or "prompt" in event_name.lower()
-                    or "model" in event_name.lower()
-                    or "tool" in event_name.lower()
-                ):
-                    is_orch = True
-
-                log_file = get_partitioned_log_path(user_id, assessment_id, is_orchestration=is_orch)
-                os.makedirs(os.path.dirname(log_file), exist_ok=True)
-                with _original_open(log_file, "a", encoding="utf-8") as f:
-                    f.write(value)
+                if isinstance(data, dict):
+                    self._persist_structured_event(data, value)
         except Exception:
+            # Logging persistence is observability only and must never fail a worker.
             pass
         return len(value) if written is None else written
+
+    @staticmethod
+    def _persist_structured_event(data: dict, rendered_value: str) -> None:
+        from lcsp_workers.platform.correlation import get_assessment_id, get_user_id
+        from lcsp_workers.platform.logging_path import (
+            get_llm_tool_log_path,
+            get_partitioned_log_path,
+        )
+
+        user_id = get_user_id()
+        assessment_id = get_assessment_id()
+
+        if "user_id" in data:
+            user_id = str(data["user_id"])
+        elif "userId" in data:
+            user_id = str(data["userId"])
+        elif (
+            "actor" in data
+            and isinstance(data["actor"], dict)
+            and "id" in data["actor"]
+        ):
+            user_id = str(data["actor"]["id"])
+
+        if "assessment_id" in data:
+            assessment_id = str(data["assessment_id"])
+        elif "assessmentId" in data:
+            assessment_id = str(data["assessmentId"])
+
+        partitioned_path = get_partitioned_log_path(
+            user_id,
+            assessment_id,
+            is_orchestration=_is_orchestration_event(data),
+        )
+        os.makedirs(os.path.dirname(partitioned_path), exist_ok=True)
+        with _original_open(partitioned_path, "a", encoding="utf-8") as file_handle:
+            file_handle.write(rendered_value)
+
+        if _is_safe_llm_tool_file_event(data):
+            llm_tool_path = get_llm_tool_log_path()
+            os.makedirs(os.path.dirname(llm_tool_path), exist_ok=True)
+            with _original_open(llm_tool_path, "a", encoding="utf-8") as file_handle:
+                file_handle.write(_render_safe_root_event(data))
 
     def flush(self) -> None:
         self._fallback.flush()
@@ -155,15 +204,16 @@ class PartitionedLogWriter:
 def configure_logging(level: str = "INFO") -> None:
     """Configure JSON logging for worker processes.
 
-    Correlation enrichment and secret redaction run before log-level and
-    rendering processors. Raw development tracing can explicitly disable log
-    redaction but is rejected when ``NODE_ENV=production``. In that explicit
-    trace mode, stdout is fail-open against EAGAIN/BrokenPipe so observability
-    cannot terminate a worker while its domain handler is still healthy.
-
-    Args:
-        level: Minimum log level accepted by the bound logger.
+    Normal worker events continue to stdout and partitioned run/orchestration
+    files. Safe LLM request/response plus EngineeringRule native tool input/result
+    telemetry is additionally mirrored to ``<repo>/tmp/llm-tool-calls.log`` (or
+    ``LCSP_LLM_TOOL_LOG_PATH`` when configured). The file is created eagerly at
+    worker startup so developers can attach ``tail -f`` before the first LLM call.
+    Tool results are bounded by the investigator to the exact observation forwarded
+    into the next LLM turn and are always secret-redacted again before root-level
+    persistence. Raw development trace events are never mirrored into that file.
     """
+    _ensure_llm_tool_log_file()
     unsafe_trace = unsafe_dev_trace_enabled()
     raw_output: TextIO = _FailOpenTraceWriter(sys.stdout) if unsafe_trace else sys.stdout
     output = PartitionedLogWriter(raw_output)
@@ -176,7 +226,11 @@ def configure_logging(level: str = "INFO") -> None:
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
-            getattr(structlog.stdlib.logging, level.upper(), structlog.stdlib.logging.INFO)
+            getattr(
+                structlog.stdlib.logging,
+                level.upper(),
+                structlog.stdlib.logging.INFO,
+            )
         ),
         logger_factory=structlog.PrintLoggerFactory(file=output),
         cache_logger_on_first_use=True,
@@ -184,12 +238,5 @@ def configure_logging(level: str = "INFO") -> None:
 
 
 def get_logger(name: str):
-    """Return a named structlog logger.
-
-    Args:
-        name: Logical logger/component name.
-
-    Returns:
-        A structlog bound logger for the requested component.
-    """
+    """Return a named structlog logger for the requested component."""
     return structlog.get_logger(name)
