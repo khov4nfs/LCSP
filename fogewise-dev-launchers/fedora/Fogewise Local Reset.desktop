@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Fogewise Local Reset
+Comment=Stop local Caddy and restore Fogewise domains to public DNS
+Exec=bash -lc 'launcher="$(dirname "$1")/fogewise-local-reset-fedora.sh"; chmod +x "$launcher"; exec "$launcher"' _ %k
+Terminal=true
+Icon=network-workgroup
+Categories=Development;
+StartupNotify=true

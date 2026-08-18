@@ -1,0 +1,7 @@
+# Copy to .fogewise-production.local on the developer machine.
+# Never commit a real tunnel token.
+
+FOGEWISE_DEV_SLUG=developer
+FOGEWISE_SHARE_PORT=18080
+FOGEWISE_PREVIEW_HOST=project-developer.fogewise.io.vn
+FOGEWISE_TUNNEL_TOKEN=

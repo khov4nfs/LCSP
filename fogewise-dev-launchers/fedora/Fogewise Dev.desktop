@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Fogewise Dev
+Comment=Start Fogewise local Caddy development proxy
+Exec=bash -lc 'launcher="$(dirname "$1")/fogewise-dev-fedora.sh"; chmod +x "$launcher"; exec "$launcher"' _ %k
+Terminal=true
+Icon=utilities-terminal
+Categories=Development;
+StartupNotify=true

@@ -1,0 +1,17 @@
+{
+	admin 127.0.0.1:20192
+	auto_https off
+}
+
+http://127.0.0.1:{$FOGEWISE_SHARE_PORT} {
+	bind 127.0.0.1
+
+	@api path /api /api/*
+	handle @api {
+		reverse_proxy 127.0.0.1:{$FOGEWISE_API_PORT}
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:{$FOGEWISE_WEB_PORT}
+	}
+}
