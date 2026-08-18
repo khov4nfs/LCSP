@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from lcsp_workers.legal.chromadb_citation_retriever import ChromaDbCitationRetriever
+from lcsp_workers.platform.logging import get_logger
 
 from .cache import EngineeringRuleCache
 from .compiler import COMPILER_VERSION, PROMPT_VERSION, EngineeringRuleCompiler
@@ -13,6 +14,10 @@ from .models import (
     ENGINEERING_RULE_SCHEMA_VERSION,
     EngineeringRule,
 )
+from .precompiled_registry import PrecompiledEngineeringRuleRegistry
+
+
+logger = get_logger(__name__)
 
 
 class EngineeringRuleService:
@@ -22,10 +27,14 @@ class EngineeringRuleService:
         compiler: EngineeringRuleCompiler,
         retriever: ChromaDbCitationRetriever | None = None,
         cache: EngineeringRuleCache | None = None,
+        precompiled_registry: PrecompiledEngineeringRuleRegistry | None = None,
     ) -> None:
         self.compiler = compiler
         self.retriever = retriever or ChromaDbCitationRetriever()
         self.cache = cache or EngineeringRuleCache()
+        self.precompiled_registry = (
+            precompiled_registry or PrecompiledEngineeringRuleRegistry()
+        )
 
     def get_or_compile(
         self,
@@ -81,14 +90,30 @@ class EngineeringRuleService:
             or "unknown"
         )
 
-        # DEV bootstrap LegalRules are only governed identities for the already
-        # compiled legal-chunk -> EngineeringRule bundle. Compiling their sentinel
-        # applicability rule would create a meaningless technical rule and waste LLM
-        # budget. A missing precompiled mapping therefore fails closed.
+        # DEV bootstrap LegalRules are governed identities for the checked-in,
+        # precompiled legal-chunk -> EngineeringRule bundle. The Chroma collection is
+        # only a cache: a fresh/cleared local cache must not make every assessment
+        # BLOCKED. Recover deterministically from the governed bundle, validate exact
+        # current legal chunk hashes/versions, then repopulate the cache. The LLM is
+        # never used for this sentinel family.
         if rule_family == DEV_ENGINEERING_RULE_BOOTSTRAP_RULE_FAMILY:
-            raise ValueError(
-                f"PRECOMPILED_ENGINEERING_RULE_MISSING:{legal_rule_id}"
+            recovered = self.precompiled_registry.materialize(
+                legal_rule=legal_rule,
+                legal_rule_catalog_version_id=legal_rule_catalog_version_id,
+                legal_corpus_version_id=legal_corpus_version_id,
+                legal_context=context,
+                source_fingerprint=fingerprint,
             )
+            self.cache.put(fingerprint, recovered)
+            logger.info(
+                "ENGINEERING_RULE_PRECOMPILED_CACHE_RECOVERED",
+                legal_rule_id=legal_rule_id,
+                engineering_rule_count=len(recovered),
+                source_fingerprint=fingerprint,
+                workflow_run_id=workflow_run_id,
+                correlationId=correlation_id,
+            )
+            return recovered, False
 
         compiled = self.compiler.compile(
             legal_rule=legal_rule,
