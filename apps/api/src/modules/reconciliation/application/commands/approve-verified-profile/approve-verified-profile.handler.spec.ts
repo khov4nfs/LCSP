@@ -7,7 +7,10 @@ import {
   LEGAL_MATCHING_REQUEST_COMMAND,
 } from "@lcsp/contracts/legal-rule-catalog";
 import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
-import { VERIFIED_PROFILE_STATUSES } from "@lcsp/contracts/scan";
+import {
+  SCAN_ERROR_CODES,
+  VERIFIED_PROFILE_STATUSES,
+} from "@lcsp/contracts/scan";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -44,9 +47,17 @@ function buildHandler(input?: { owned?: boolean }) {
       assessmentId: "assessment-1",
       organizationId: "org-1",
       status: VERIFIED_PROFILE_STATUSES.pendingApproval,
+      approvedAt: null,
+      approvedById: null,
     }),
   );
   const countConflicts = jest.fn().mockImplementation(() => Promise.resolve(0));
+  const findExistingLegalRuleMatch = jest
+    .fn()
+    .mockImplementation(() => Promise.resolve(null));
+  const findInFlightOutbox = jest
+    .fn()
+    .mockImplementation(() => Promise.resolve(null));
   const findCorpus = jest.fn().mockImplementation(() =>
     Promise.resolve({
       id: "corpus-1",
@@ -65,6 +76,8 @@ function buildHandler(input?: { owned?: boolean }) {
       findFirst: findProfile,
       update: updateProfile,
     },
+    legalRuleMatch: { findFirst: findExistingLegalRuleMatch },
+    outboxMessage: { findFirst: findInFlightOutbox },
     legalCorpusVersion: { findFirst: findCorpus },
     legalRetrievalIndex: { findFirst: findIndex },
     legalRuleCatalogVersion: { findFirst: findCatalog },
@@ -94,8 +107,11 @@ function buildHandler(input?: { owned?: boolean }) {
   return {
     handler: new ApproveVerifiedProfileHandler(prisma, auditWriter, outbox),
     findAssessment,
+    findProfile,
     transaction,
     updateProfile,
+    findExistingLegalRuleMatch,
+    findInFlightOutbox,
     findCorpus,
     findIndex,
     findCatalog,
@@ -190,5 +206,40 @@ describe("ApproveVerifiedProfileHandler", () => {
     await handler.execute(command());
 
     expect(enqueue).not.toHaveBeenCalled();
+  });
+
+  it("rejects replay for an already approved legacy profile without mutating or enqueueing work", async () => {
+    const { handler, findProfile, updateProfile, enqueue, writeInTx } =
+      buildHandler();
+    findProfile.mockImplementation(() =>
+      Promise.resolve({
+        id: "vp-1",
+        assessmentId: "assessment-1",
+        organizationId: "org-1",
+        status: VERIFIED_PROFILE_STATUSES.approved,
+        approvedAt: new Date("2026-08-18T05:45:23.000Z"),
+        approvedById: "manager-original",
+      }),
+    );
+
+    try {
+      await handler.execute(command());
+      throw new Error("Expected approved profile rejection");
+    } catch (error) {
+      expect(error).toBeInstanceOf(HttpException);
+      const exception = error as HttpException;
+      expect(exception.getStatus()).toBe(409);
+      expect(exception.getResponse()).toMatchObject({
+        ok: false,
+        problem: {
+          code: SCAN_ERROR_CODES.verifiedProfileWrongState,
+          correlationId: "corr-1",
+        },
+      });
+    }
+
+    expect(updateProfile).not.toHaveBeenCalled();
+    expect(enqueue).not.toHaveBeenCalled();
+    expect(writeInTx).not.toHaveBeenCalled();
   });
 });

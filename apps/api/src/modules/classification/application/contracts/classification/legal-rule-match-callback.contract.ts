@@ -19,6 +19,28 @@ export interface LegalRuleMatchItemDto {
   legal_status?: string;
 }
 
+export interface LegalRuleEvaluationDiagnosticDto {
+  rule_id: string;
+  status: string;
+  rationale: string[];
+  matched_required_facts: string[];
+  blocking_facts: string[];
+}
+
+export interface LegalRuleMatchDiagnosticsDto {
+  no_match_reason?: string | null;
+  rule_count?: number;
+  candidate_rule_count?: number;
+  chunk_count?: number;
+  deterministic_match_count?: number;
+  matched_without_citation_count?: number;
+  match_count?: number;
+  profile_fact_fields?: string[];
+  profile_evidence_fields?: string[];
+  evaluations?: LegalRuleEvaluationDiagnosticDto[];
+  evaluations_truncated?: boolean;
+}
+
 export interface AcceptLegalRuleMatchDto {
   verified_profile_id: string;
   assessment_id: string;
@@ -28,6 +50,7 @@ export interface AcceptLegalRuleMatchDto {
   matches: LegalRuleMatchItemDto[];
   citation_allowlist: string[];
   overall_coverage_status: OverallCoverageStatus;
+  diagnostics?: LegalRuleMatchDiagnosticsDto;
 }
 
 export interface LegalRuleMatchCallbackResponseDto {

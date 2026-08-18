@@ -29,11 +29,18 @@ class LLMResponse:
 
 @dataclass(frozen=True)
 class LLMToolDefinition:
-    """Provider-neutral definition for one manually dispatched model tool."""
+    """Provider-neutral definition for one manually dispatched model tool.
+
+    ``tool_choice_required`` is a catalog-level hint: if any supplied tool sets it,
+    the provider must return at least one declared native function call instead of
+    falling back to plain text. With a single declared tool this also forces that
+    exact function, which is used by the EngineeringRule terminal ``finish`` round.
+    """
 
     name: str
     description: str
     input_schema: dict[str, Any]
+    tool_choice_required: bool = False
 
 
 @dataclass(frozen=True)
@@ -142,12 +149,14 @@ class LLMGatewayClient:
             api_key: Provider credential used only by the SDK client.
             model: Provider model identifier.
             budget_tracker: Shared/process-local budget enforcement adapter.
-            max_tokens_per_call: Default maximum output tokens for one call.
+            max_tokens_per_call: Hard maximum output tokens for one call.
             timeout_seconds: Provider request timeout.
 
         Raises:
-            ValueError: If the provider is unsupported.
+            ValueError: If the provider is unsupported or the token limit is invalid.
         """
+        if max_tokens_per_call < 1:
+            raise ValueError("max_tokens_per_call must be >= 1")
         self.provider = provider.lower()
         self.api_key = api_key
         self.model = model
@@ -190,7 +199,7 @@ class LLMGatewayClient:
             prompt: Structured prompt that must pass source-code safety checks.
             workflow_run_id: Workflow identifier propagated to provider metadata.
             node_name: Graph/orchestration node issuing the call.
-            max_tokens: Optional output-token override bounded by caller policy.
+            max_tokens: Optional output-token request bounded by max_tokens_per_call.
             correlationId: Optional end-to-end trace identifier.
 
         Returns:
@@ -281,9 +290,12 @@ class LLMGatewayClient:
 
         The caller must pass every returned call through the agentic registry before
         dispatch. Tool definitions are fail-closed validated and undeclared calls
-        returned by a provider are rejected.
+        returned by a provider are rejected. If any definition sets
+        ``tool_choice_required``, provider AUTO mode is disabled for that request so
+        a native function call is mandatory.
         """
         self._validate_tool_definitions(tools)
+        require_tool_call = any(tool.tool_choice_required for tool in tools)
         safe_prompt, max_tokens_to_use, extra_headers = self._prepare_request(
             prompt=prompt,
             workflow_run_id=workflow_run_id,
@@ -314,7 +326,7 @@ class LLMGatewayClient:
                     }
                     for tool in tools
                 ],
-                tool_choice="auto",
+                tool_choice="required" if require_tool_call else "auto",
                 extra_headers=extra_headers if extra_headers else None,
             )
             message = response.choices[0].message
@@ -345,6 +357,7 @@ class LLMGatewayClient:
                     }
                     for tool in tools
                 ],
+                tool_choice={"type": "any"} if require_tool_call else {"type": "auto"},
                 extra_headers=extra_headers if extra_headers else None,
             )
             text_blocks = []
@@ -379,6 +392,13 @@ class LLMGatewayClient:
                 )
                 for tool in tools
             ]
+            tool_config = (
+                types.ToolConfig(
+                    function_calling_config=types.FunctionCallingConfig(mode="ANY")
+                )
+                if require_tool_call
+                else None
+            )
             response = self._gemini_client.models.generate_content(
                 model=self.model,
                 contents=safe_prompt,
@@ -388,6 +408,7 @@ class LLMGatewayClient:
                     automatic_function_calling=types.AutomaticFunctionCallingConfig(
                         disable=True
                     ),
+                    tool_config=tool_config,
                     http_options=types.HttpOptions(headers=extra_headers),
                 ),
             )
@@ -412,6 +433,8 @@ class LLMGatewayClient:
         allowed_names = {tool.name for tool in tools}
         if any(call.name not in allowed_names for call in calls):
             raise ValueError("LLM returned an undeclared tool call")
+        if require_tool_call and not calls:
+            raise ValueError("LLM provider returned no tool call in required mode")
 
         self._record_actual_usage(input_tokens, output_tokens)
         return LLMToolResponse(
@@ -440,9 +463,12 @@ class LLMGatewayClient:
             raise ValueError("node_name is required")
 
         check_prompt_safety(prompt)
-        max_tokens_to_use = (
+        requested_max_tokens = (
             max_tokens if max_tokens is not None else self.max_tokens_per_call
         )
+        if requested_max_tokens < 1:
+            raise ValueError("max_tokens must be >= 1")
+        max_tokens_to_use = min(requested_max_tokens, self.max_tokens_per_call)
         safe_prompt = redact_string(prompt)
         est_input = estimate_tokens(safe_prompt)
         est_cost_pre = estimate_cost(self.model, est_input, max_tokens_to_use)

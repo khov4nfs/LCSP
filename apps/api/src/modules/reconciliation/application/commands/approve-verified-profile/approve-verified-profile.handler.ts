@@ -16,6 +16,7 @@ import {
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
+  OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
 import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import {
@@ -86,10 +87,8 @@ export class ApproveVerifiedProfileHandler implements ICommandHandler<ApproveVer
         );
       }
 
-      if (
-        fromPrismaVerifiedProfileStatus(profile.status) !==
-        VERIFIED_PROFILE_STATUSES.pendingApproval
-      ) {
+      const profileStatus = fromPrismaVerifiedProfileStatus(profile.status);
+      if (profileStatus !== VERIFIED_PROFILE_STATUSES.pendingApproval) {
         throw problemException(
           SCAN_ERROR_CODES.verifiedProfileWrongState,
           command.correlationId,
@@ -234,6 +233,35 @@ export class ApproveVerifiedProfileHandler implements ICommandHandler<ApproveVer
     tx: Prisma.TransactionClient,
     verifiedProfileId: string,
   ): Promise<void> {
+    const existingMatch = await tx.legalRuleMatch.findFirst({
+      where: { verifiedProfileId },
+      select: { id: true },
+    });
+    if (existingMatch) {
+      return;
+    }
+
+    const inFlightCommand = await tx.outboxMessage.findFirst({
+      where: {
+        aggregateType: OUTBOX_AGGREGATE_TYPES.verifiedProfile,
+        aggregateId: verifiedProfileId,
+        eventType: {
+          in: [
+            LEGAL_MATCHING_REQUEST_COMMAND,
+            LEGAL_CORPUS_RECOVERY_REQUEST_COMMAND,
+          ],
+        },
+        status: {
+          in: [OUTBOX_STATUSES.pending, OUTBOX_STATUSES.failed],
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    if (inFlightCommand) {
+      return;
+    }
+
     const corpus = await tx.legalCorpusVersion.findFirst({
       where: {
         status: toPrismaLegalRuleLifecycleStatus(

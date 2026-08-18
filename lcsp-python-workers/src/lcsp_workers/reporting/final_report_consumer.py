@@ -1,10 +1,9 @@
-"""Consume final-report requests and publish guarded terminal document status."""
+"""Generate final reports directly from EngineeringRule assessment artifacts."""
 from __future__ import annotations
 
 import json
 from typing import Any
 
-from lcsp_workers.dossiers.context_builder import ClassificationDossierBuilder
 from lcsp_workers.llm.gateway_client import LLMGatewayClient
 from lcsp_workers.platform.logging import get_logger
 from lcsp_workers.platform.queue_consumer import ConsumerBase
@@ -19,7 +18,7 @@ logger = get_logger(__name__)
 
 
 class FinalReportConsumer(ConsumerBase):
-    """Generate final reports from authoritative, source-pinned dossier inputs."""
+    """Generate final reports without TechnicalProfile/AIUsageFlow/VerifiedProfile/LegalMatch."""
 
     queue_name = "reporting.document-final-report-requested"
     routing_key = "document.final-report-requested"
@@ -30,7 +29,6 @@ class FinalReportConsumer(ConsumerBase):
         config,
         llm_client: LLMGatewayClient | None = None,
         document_client: DocumentRuntimeClient | None = None,
-        dossier_builder: ClassificationDossierBuilder | None = None,
     ) -> None:
         super().__init__(config)
         if llm_client is None:
@@ -41,11 +39,9 @@ class FinalReportConsumer(ConsumerBase):
             config.nestjs_api_base_url,
             config.worker_api_key,
         )
-        self._dossier_builder = dossier_builder or ClassificationDossierBuilder()
         self._generator = FinalReportGenerator(llm_client)
 
     def handle(self, message: dict, correlationId: str) -> None:
-        """Resolve pinned artifacts, build a dossier, generate, guard, upload, callback."""
         document_id = self._document_request_id(message)
         logger.info(
             "PROCESSING_FINAL_REPORT_REQUEST",
@@ -56,7 +52,12 @@ class FinalReportConsumer(ConsumerBase):
         try:
             context = self._document_client.get_generation_context(document_id)
             self._assert_final_report_context(context)
-            dossier = self._dossier_builder.build(context)
+            assessment = self._record(context.get("assessment"))
+            classification = self._record(context.get("classification_result"))
+            data = self._record(classification.get("classification_data"))
+            evidence_report = self._record(context.get("technical_evidence_report"))
+            snapshot = self._record(context.get("repository_snapshot"))
+            evaluations = self._list_of_records(data.get("evaluations"))
         except Exception as error:
             logger.error(
                 "FINAL_REPORT_CONTEXT_FAILED",
@@ -67,41 +68,65 @@ class FinalReportConsumer(ConsumerBase):
                 document_id,
                 status="FAILED",
                 error_code="DOCUMENT_GENERATION_CONTEXT_INVALID",
-                blocked_reason="Required assessment artifacts are unavailable for report generation.",
+                blocked_reason="Direct EngineeringRule assessment artifacts are unavailable for report generation.",
             )
             return
 
-        sections = dossier.sections
-        assessment = self._record(context.get("assessment"))
-        verified = self._record(context.get("verified_profile"))
-        verified_data = self._record(verified.get("profile_data"))
-        legal_match = self._record(context.get("legal_rule_match"))
+        citations = sorted(
+            {
+                str(ref)
+                for evaluation in evaluations
+                for key in ("source_chunk_ids", "source_locators", "evidence_refs")
+                for ref in evaluation.get(key) or []
+                if str(ref)
+            }
+        )
+        unknown = [
+            item for item in evaluations if str(item.get("status") or "") == "UNKNOWN"
+        ]
+        limitations = [str(item) for item in data.get("limitations") or [] if str(item)]
+        limitations.extend(
+            str(value)
+            for item in unknown
+            for value in item.get("limitations") or []
+            if str(value)
+        )
 
         try:
             content = self._generator.generate(
                 assessment_name=str(assessment.get("name") or "Assessment"),
                 assessment_context=self._json_text(
                     {
-                        "systemIdentity": sections.get("systemIdentity"),
-                        "intendedUse": sections.get("intendedUse"),
-                        "dossierStatus": dossier.status,
+                        "mode": data.get("mode"),
+                        "summary": data.get("summary") or {},
+                        "legalRuleCatalogVersionId": data.get(
+                            "legal_rule_catalog_version_id"
+                        ),
+                        "legalCorpusVersionId": data.get("legal_corpus_version_id"),
                     }
                 ),
-                technical_evidence=self._technical_evidence_items(sections),
-                verified_ai_usage=self._list_of_records(
-                    verified_data.get("verified_claims")
-                ),
-                legal_rule_applicability=self._list_of_records(
-                    legal_match.get("matches")
-                ),
-                citations=self._string_list(legal_match.get("citation_allowlist")),
-                limitations=self._limitations_text(dossier),
+                technical_evidence=[
+                    self._json_text(
+                        {
+                            "technicalEvidenceReportId": evidence_report.get("id"),
+                            "snapshotId": evidence_report.get("snapshot_id"),
+                            "commitSha": snapshot.get("commit_sha"),
+                        }
+                    )
+                ],
+                rule_evaluations=[self._json_text(item) for item in evaluations],
+                citations=citations,
+                limitations="\n".join(dict.fromkeys(limitations))
+                or "No known limitations recorded.",
                 evidence_provenance=self._json_text(
                     {
-                        "dossierId": dossier.dossier_id,
-                        "dossierStatus": dossier.status,
-                        "sourceArtifacts": dossier.source_artifacts.__dict__,
-                        "provenance": dossier.provenance,
+                        "technicalEvidenceReportId": evidence_report.get("id"),
+                        "snapshotId": evidence_report.get("snapshot_id"),
+                        "commitSha": snapshot.get("commit_sha"),
+                        "legalRuleCatalogVersionId": data.get(
+                            "legal_rule_catalog_version_id"
+                        ),
+                        "legalCorpusVersionId": data.get("legal_corpus_version_id"),
                     }
                 ),
             )
@@ -115,7 +140,7 @@ class FinalReportConsumer(ConsumerBase):
                 document_id,
                 status="FAILED",
                 error_code="FINAL_REPORT_GENERATION_FAILED",
-                blocked_reason="Report narration could not be generated within the configured safety and budget controls.",
+                blocked_reason="Report narration could not be generated within configured safety and budget controls.",
             )
             return
 
@@ -128,7 +153,7 @@ class FinalReportConsumer(ConsumerBase):
                 document_id,
                 status="BLOCKED",
                 error_code="FINAL_REPORT_OVERCLAIM_BLOCKED",
-                blocked_reason="Output guardrail blocked overclaiming terminology.",
+                blocked_reason="Output guardrail blocked narrative legal overclaiming.",
             )
             return
 
@@ -156,8 +181,7 @@ class FinalReportConsumer(ConsumerBase):
         logger.info(
             "FINAL_REPORT_READY",
             document_id=document_id,
-            dossier_id=dossier.dossier_id,
-            dossier_status=dossier.status,
+            evaluation_count=len(evaluations),
         )
 
     @staticmethod
@@ -179,38 +203,11 @@ class FinalReportConsumer(ConsumerBase):
         )
         if str(request.get("document_type") or "").upper() != "FINAL_REPORT":
             raise ValueError("document request is not a final report")
-        if str(classification.get("guardrail_status") or "").upper() != "PASSED":
-            raise ValueError("classification guardrail is not passed")
-
-    @staticmethod
-    def _technical_evidence_items(sections: dict[str, Any]) -> list[str]:
-        technical = FinalReportConsumer._record(sections.get("technicalAiProfile"))
-        summary = {
-            "programGraph": technical.get("program_graph_ref"),
-            "aiDetected": technical.get("ai_detected"),
-            "dataCategories": technical.get("data_categories") or [],
-            "externalIntegrations": technical.get("external_integrations") or [],
-            "businessActions": technical.get("business_actions") or [],
-            "humanControls": technical.get("human_control_evidence") or {},
-            "dependencyLicenses": technical.get("dependency_licenses") or [],
-        }
-        return [FinalReportConsumer._json_text(summary)]
-
-    @staticmethod
-    def _limitations_text(dossier) -> str:
-        parts: list[str] = []
-        if dossier.missing_requirements:
-            parts.append(
-                "Dossier requirements not yet available: "
-                + ", ".join(dossier.missing_requirements)
-            )
-        unresolved = dossier.sections.get("unresolvedEvidence") or []
-        if unresolved:
-            parts.append(
-                "Unresolved evidence: "
-                + FinalReportConsumer._json_text(unresolved)
-            )
-        return "\n".join(parts) or "No known limitations recorded."
+        if str(classification.get("guardrail_status") or "").upper() not in {
+            "PASSED",
+            "DEGRADED",
+        }:
+            raise ValueError("engineering assessment guardrail is blocked")
 
     @staticmethod
     def _record(value: object) -> dict[str, Any]:
@@ -221,12 +218,6 @@ class FinalReportConsumer(ConsumerBase):
         if not isinstance(value, list):
             return []
         return [dict(item) for item in value if isinstance(item, dict)]
-
-    @staticmethod
-    def _string_list(value: object) -> list[str]:
-        if not isinstance(value, list):
-            return []
-        return [str(item) for item in value if item]
 
     @staticmethod
     def _json_text(value: object) -> str:

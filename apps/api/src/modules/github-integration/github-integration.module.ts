@@ -13,6 +13,7 @@ import { REPOSITORY_CONNECTION_REPOSITORY } from "./application/ports/persistenc
 import { REPOSITORY_SNAPSHOT_REPOSITORY } from "./application/ports/persistence/repository-snapshot.repository.js";
 import { REPOSITORY_SCAN_JOB_REPOSITORY } from "./application/ports/persistence/repository-scan-job.repository.js";
 import { GitHubAppClient } from "./infrastructure/github/github-app.client.js";
+import { SnapshotArchiveCache } from "./infrastructure/github/snapshot-archive-cache.js";
 import { PrismaGitHubAppInstallStateRepository } from "./infrastructure/persistence/prisma-github-app-install-state.repository.js";
 import { PrismaRepositoryConnectionRepository } from "./infrastructure/persistence/prisma-github-integration.repository.js";
 import { PrismaRepositorySnapshotRepository } from "./infrastructure/persistence/prisma-repository-snapshot.repository.js";
@@ -34,6 +35,7 @@ import { ScanTriggerGuard } from "./presentation/http/scan-trigger.guard.js";
     TriggerScanHandler,
     StreamSnapshotArchiveHandler,
     GitHubAppClient,
+    SnapshotArchiveCache,
     WorkerApiKeyGuard,
     PrismaGitHubAppInstallStateRepository,
     PrismaRepositoryConnectionRepository,

@@ -38,23 +38,10 @@ from lcsp_workers.platform.queue_consumer import ConsumerBase
 
 
 def _load_consumer(target: str) -> Type[ConsumerBase]:
-    """Resolve and validate a worker consumer class from an import target.
-
-    Args:
-        target: Import target in ``module.path:ClassName`` format.
-
-    Returns:
-        The resolved ``ConsumerBase`` subclass.
-
-    Raises:
-        ValueError: If the target does not use the required module/class syntax.
-        TypeError: If the resolved object is not a ``ConsumerBase`` subclass.
-    """
+    """Resolve and validate a worker consumer class from an import target."""
     module_name, separator, class_name = target.partition(":")
     if not separator or not module_name or not class_name:
-        raise ValueError(
-            "worker target must use module.path:ClassName syntax"
-        )
+        raise ValueError("worker target must use module.path:ClassName syntax")
 
     module = importlib.import_module(module_name)
     consumer_type = getattr(module, class_name, None)
@@ -64,18 +51,7 @@ def _load_consumer(target: str) -> Type[ConsumerBase]:
 
 
 def _build_consumer(target: str) -> ConsumerBase:
-    """Construct a consumer and inject only the dependencies it declares.
-
-    Constructor inspection keeps worker implementations lightweight: PBAC,
-    agentic-tool resolution, and LLM clients are created only when the selected
-    consumer exposes matching constructor parameters.
-
-    Args:
-        target: Import target identifying the consumer class to instantiate.
-
-    Returns:
-        A configured worker consumer ready to run.
-    """
+    """Construct a consumer and inject only the dependencies it declares."""
     config = load_config()
     consumer_type = _load_consumer(target)
     constructor = inspect.signature(consumer_type)
@@ -118,19 +94,7 @@ def _build_consumer(target: str) -> ConsumerBase:
 
 
 def _build_llm_client(config):
-    """Build the budget-aware primary/fallback LLM client when enabled.
-
-    Providers without credentials are ignored. Returning ``None`` deliberately
-    preserves deterministic worker behavior when LLM runtime is disabled or no
-    usable provider has been configured.
-
-    Args:
-        config: Loaded worker configuration containing LLM runtime settings.
-
-    Returns:
-        A ``PrimaryThenFallbackLLMClient`` when at least one provider is
-        available; otherwise ``None``.
-    """
+    """Build the primary/fallback LLM client when enabled."""
     runtime = config.llm_runtime
     if not runtime.enabled:
         return None
@@ -168,17 +132,18 @@ def _build_llm_client(config):
     )
 
 
-def _configure_development_trace() -> None:
-    """Enable exact raw runtime instrumentation only after an explicit dev opt-in.
+def _configure_runtime_logging() -> None:
+    """Configure structured logging for every worker, including normal ``pnpm dev``.
 
-    The tracing layer observes existing runtime boundaries without changing
-    persistence, callback privacy, PBAC, prompt-safety, provider fallback, or
-    tool-dispatch behavior. Production + unsafe tracing fails immediately.
+    Previously ``configure_logging`` ran only when unsafe trace mode was enabled,
+    so normal workers never installed ``PartitionedLogWriter`` and therefore could
+    not create/write ``tmp/llm-tool-calls.log``. Raw instrumentation remains opt-in,
+    but safe structured logging is always enabled.
     """
-    if not unsafe_dev_trace_enabled():
-        return
-    configure_logging(os.getenv("LOG_LEVEL", "DEBUG"))
-    install_dev_unsafe_instrumentation()
+    level = os.getenv("LOG_LEVEL", "DEBUG" if unsafe_dev_trace_enabled() else "INFO")
+    configure_logging(level)
+    if unsafe_dev_trace_enabled():
+        install_dev_unsafe_instrumentation()
 
 
 def main() -> None:
@@ -192,7 +157,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    _configure_development_trace()
+    _configure_runtime_logging()
     consumer = _build_consumer(args.target)
     consumer.run()
 

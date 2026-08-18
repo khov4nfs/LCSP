@@ -28,15 +28,11 @@ class CallbackResponse(BaseModel):
     data: Optional[Dict[str, Any]] = None
 
     def __init__(self, **data: Any) -> None:
-        # Handle API envelope shape { ok: True, data: { ... } } or legacy callback wrapper
-        # If result is nested or present inside data
         result = data.get("result")
         if isinstance(result, dict):
-            # Extract fields from result and overlay them to top level
-            for k, v in result.items():
-                if k not in data or data[k] is None:
-                    data[k] = v
-            # Specifically map verifiedProfileId if present in result
+            for key, value in result.items():
+                if key not in data or data[key] is None:
+                    data[key] = value
             if "verifiedProfileId" in result and not data.get("verified_profile_id"):
                 data["verified_profile_id"] = result["verifiedProfileId"]
         super().__init__(**data)
@@ -57,6 +53,8 @@ class ScanCallbackPayload(BaseModel):
     artifact_manifest: Optional[Dict[str, Any]] = None
 
 
+# Legacy callback contracts remain readable for historical artifacts, but they are
+# not part of the canonical post-scan runtime anymore.
 class TechnicalProfileCallbackPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
     evidence_report_id: str
@@ -93,13 +91,6 @@ class ConflictDetectionCallbackPayload(BaseModel):
 
 
 class VerifiedProfileCallbackPayload(BaseModel):
-    """Pinned inputs for the canonical Nest reconciliation command.
-
-    Python no longer builds a competing VerifiedProfile payload. Nest validates
-    these source identities, conflict decision refs and idempotency key before
-    persisting the single immutable profile representation.
-    """
-
     model_config = ConfigDict(extra="forbid")
     ai_usage_flow_id: str
     assessment_id: str
@@ -120,16 +111,25 @@ class LegalRuleMatchCallbackPayload(BaseModel):
     matches: List[Dict[str, Any]]
     citation_allowlist: List[str] = Field(default_factory=list)
     overall_coverage_status: str = "NO_CITATION"
+    diagnostics: Dict[str, Any] = Field(default_factory=dict)
 
 
 class ClassificationCallbackPayload(BaseModel):
+    """Persist the direct EngineeringRule assessment artifact.
+
+    New v2 runtime messages always supply ``technical_evidence_report_id``. It is
+    optional only so historical v1 fixtures can still deserialize while old rows
+    and inactive worker modules are being removed safely.
+    """
+
     model_config = ConfigDict(extra="forbid")
-    legal_rule_match_id: str
-    verified_profile_id: str
+    technical_evidence_report_id: Optional[str] = None
     assessment_id: str
-    schema_version: str
+    schema_version: str = "2.0.0"
     classification_data: Dict[str, Any]
     guardrail_status: str
+    legal_rule_match_id: Optional[str] = None
+    verified_profile_id: Optional[str] = None
 
 
 class AuditExportCallbackPayload(BaseModel):

@@ -1,4 +1,4 @@
-/** MW-cls-002: Classification Result Callback Endpoint. */
+/** Direct EngineeringRule assessment callback endpoint. */
 
 import * as assert from "node:assert/strict";
 
@@ -13,19 +13,15 @@ import {
 } from "@lcsp/contracts/audit";
 import { OUTBOX_MESSAGE_SCHEMA_VERSION } from "@lcsp/contracts/outbox";
 import {
+  ASSESSMENT_RESULT_MODES,
   CLASSIFICATION_GUARDRAIL_STATUSES,
   CLASSIFICATION_RESULT_STATUSES,
-  CLASSIFICATION_RESULT_SCHEMA_VERSIONS,
-  LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
-  LEGAL_RULE_MATCH_STATUSES,
-  OVERALL_COVERAGE_STATUSES,
+  ENGINEERING_LIMITATION_CODES,
   SCAN_ERROR_CODES,
   SCAN_EVENT_TYPES,
-  VERIFIED_PROFILE_STATUSES,
 } from "@lcsp/contracts/scan";
 
 import { AppModule } from "../src/app.module.js";
-import { toPrismaOverallCoverageStatus } from "../src/infrastructure/prisma/prisma-enum-mappers.js";
 import type {
   AcceptClassificationDto,
   ClassificationResultCallbackResponseDto,
@@ -40,7 +36,7 @@ import { httpRequest, problemCode, successBody } from "./support/http.js";
 
 const WORKER_KEY = "test-only-worker-api-key-at-least-32-chars";
 
-describe("Classification Result Callback Endpoint (e2e) [MW-cls-002]", () => {
+describe("Direct EngineeringRule Result Callback (e2e)", () => {
   let app: INestApplication;
   let prisma: PrismaClient;
 
@@ -62,13 +58,7 @@ describe("Classification Result Callback Endpoint (e2e) [MW-cls-002]", () => {
     await resetDomainData(prisma);
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
-    await seedAssessmentVerifiedProfileAndMatch(
-      prisma,
-      "assessment-1",
-      "org-1",
-      "vp-1",
-      "lrm-1",
-    );
+    await seedAssessmentAndEvidence(prisma);
   });
 
   afterAll(async () => {
@@ -76,7 +66,7 @@ describe("Classification Result Callback Endpoint (e2e) [MW-cls-002]", () => {
     if (prisma) await prisma.$disconnect();
   });
 
-  it("T01/T07 accepts valid classification result, emits ready event and audit log", async () => {
+  it("accepts EngineeringRule evaluations directly from TechnicalEvidenceReport", async () => {
     const response = await callback(app, validPayload());
     const body = successBody<ClassificationResultCallbackResponseDto>(response);
 
@@ -88,7 +78,7 @@ describe("Classification Result Callback Endpoint (e2e) [MW-cls-002]", () => {
     );
     assert.ok(body.classification_result_id);
 
-    const [clsResult, outbox, audit] = await Promise.all([
+    const [result, outbox, audit] = await Promise.all([
       prisma.classificationResult.findUnique({
         where: { id: body.classification_result_id },
       }),
@@ -100,25 +90,22 @@ describe("Classification Result Callback Endpoint (e2e) [MW-cls-002]", () => {
       }),
     ]);
 
-    assert.equal(clsResult?.legalRuleMatchId, "lrm-1");
-    assert.equal(clsResult?.verifiedProfileId, "vp-1");
-    assert.equal(clsResult?.assessmentId, "assessment-1");
-    assert.equal(clsResult?.organizationId, "org-1");
+    assert.equal(result?.legalRuleMatchId, null);
+    assert.equal(result?.verifiedProfileId, null);
+    assert.equal(result?.assessmentId, "assessment-1");
+    assert.equal(result?.organizationId, "org-1");
+    assert.equal(result?.schemaVersion, "2.0.0");
+    assert.equal(result?.status, CLASSIFICATION_RESULT_STATUSES.accepted);
     assert.equal(
-      clsResult?.schemaVersion,
-      CLASSIFICATION_RESULT_SCHEMA_VERSIONS[0],
-    );
-    assert.deepEqual(clsResult?.classificationData, {
-      system_type: "HIGH_IMPACT_AI",
-      risk_level: "HIGH",
-      citation_basis: ["chunk-1"],
-    });
-    assert.equal(
-      clsResult?.guardrailStatus,
+      result?.guardrailStatus,
       CLASSIFICATION_GUARDRAIL_STATUSES.passed,
     );
-    assert.equal(clsResult?.blockedReason, null);
-    assert.equal(clsResult?.status, CLASSIFICATION_RESULT_STATUSES.accepted);
+
+    const data = result?.classificationData as Record<string, unknown>;
+    assert.equal(data.mode, ASSESSMENT_RESULT_MODES.engineeringRuleEvaluation);
+    assert.equal(data.technical_evidence_report_id, "ter-1");
+    assert.equal(data.snapshot_id, "snapshot-1");
+
     assert.equal(outbox?.aggregateId, body.classification_result_id);
     assert.equal(
       (outbox?.payload as { schemaVersion?: string }).schemaVersion,
@@ -135,52 +122,60 @@ describe("Classification Result Callback Endpoint (e2e) [MW-cls-002]", () => {
     );
   });
 
-  it("T02 accepts degraded guardrail_status", async () => {
-    const degradedPayload: AcceptClassificationDto = {
+  it("accepts degraded result when one or more EngineeringRules are UNKNOWN", async () => {
+    const payload: AcceptClassificationDto = {
       ...validPayload(),
       guardrail_status: CLASSIFICATION_GUARDRAIL_STATUSES.degraded,
+      classification_data: {
+        ...validPayload().classification_data,
+        status: "PARTIAL",
+        summary: { compliant: 0, non_compliant: 0, unknown: 1, total: 1 },
+        evaluations: [
+          {
+            engineering_rule_id: "eng-1",
+            legal_rule_id: "legal-1",
+            concept: "HUMAN_REVIEW",
+            status: "UNKNOWN",
+            reason: "Repository evidence is insufficient.",
+            evidence_refs: [],
+            source_chunk_ids: ["LAW:A1"],
+            source_locators: ["art-1::cl-1"],
+            confidence: 0,
+            limitations: [ENGINEERING_LIMITATION_CODES.dynamicPathUnresolved],
+          },
+        ],
+      },
     };
 
-    const response = await callback(app, degradedPayload);
-    const body = successBody<ClassificationResultCallbackResponseDto>(response);
-
+    const response = await callback(app, payload);
     assert.equal(response.status, 200);
-    assert.equal(body.accepted, true);
+    const body = successBody<ClassificationResultCallbackResponseDto>(response);
     assert.equal(
       body.guardrail_status,
-      CLASSIFICATION_GUARDRAIL_STATUSES.degraded,
-    );
-
-    const clsResult = await prisma.classificationResult.findUnique({
-      where: { id: body.classification_result_id },
-    });
-    assert.equal(
-      clsResult?.guardrailStatus,
       CLASSIFICATION_GUARDRAIL_STATUSES.degraded,
     );
   });
 
-  it("T03 accepts blocked guardrail_status with blocked audit decision", async () => {
-    const blockedPayload: AcceptClassificationDto = {
+  it("accepts blocked runtime result without fabricating compliance findings", async () => {
+    const payload: AcceptClassificationDto = {
       ...validPayload(),
       guardrail_status: CLASSIFICATION_GUARDRAIL_STATUSES.blocked,
+      classification_data: {
+        mode: ASSESSMENT_RESULT_MODES.engineeringRuleEvaluation,
+        status: "BLOCKED",
+        summary: { compliant: 0, non_compliant: 0, unknown: 0, total: 0 },
+        evaluations: [],
+        limitations: [
+          ENGINEERING_LIMITATION_CODES.noEngineeringRuleSourceRules,
+        ],
+      },
     };
 
-    const response = await callback(app, blockedPayload);
+    const response = await callback(app, payload);
     const body = successBody<ClassificationResultCallbackResponseDto>(response);
-
     assert.equal(response.status, 200);
-    assert.equal(body.accepted, true);
     assert.equal(
       body.guardrail_status,
-      CLASSIFICATION_GUARDRAIL_STATUSES.blocked,
-    );
-
-    const clsResult = await prisma.classificationResult.findUnique({
-      where: { id: body.classification_result_id },
-    });
-    assert.equal(
-      clsResult?.guardrailStatus,
       CLASSIFICATION_GUARDRAIL_STATUSES.blocked,
     );
 
@@ -190,17 +185,16 @@ describe("Classification Result Callback Endpoint (e2e) [MW-cls-002]", () => {
     assert.ok(audit);
   });
 
-  it("T04 rejects overclaim wording with 422 CLASSIFICATION_OVERCLAIM", async () => {
-    const overclaimPayload: AcceptClassificationDto = {
+  it("rejects narrative legal/compliance overclaim wording", async () => {
+    const payload: AcceptClassificationDto = {
       ...validPayload(),
       classification_data: {
-        system_type: "HIGH_RISK",
-        notes: "This model is certified compliant for production",
+        ...validPayload().classification_data,
+        notes: "This system is certified and legally compliant.",
       },
     };
 
-    const response = await callback(app, overclaimPayload);
-
+    const response = await callback(app, payload);
     assertError(
       response.status,
       response.body,
@@ -210,82 +204,58 @@ describe("Classification Result Callback Endpoint (e2e) [MW-cls-002]", () => {
     assert.equal(await prisma.classificationResult.count(), 0);
   });
 
-  it("T05 rejects when LegalRuleMatch has guardrailStatus = blocked", async () => {
-    await prisma.legalRuleMatch.update({
-      where: { id: "lrm-1" },
-      data: { guardrailStatus: LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.blocked },
-    });
+  it("rejects free-form prose in machine limitation fields", async () => {
+    const payload = validPayload();
+    const evaluations = payload.classification_data.evaluations as Array<
+      Record<string, unknown>
+    >;
+    payload.classification_data = {
+      ...payload.classification_data,
+      evaluations: [
+        {
+          ...evaluations[0],
+          limitations: ["System appears compliant based on external evidence."],
+        },
+      ],
+    };
 
-    const response = await callback(app, validPayload());
-
+    const response = await callback(app, payload);
     assertError(
       response.status,
       response.body,
       422,
-      SCAN_ERROR_CODES.legalRuleMatchNotFound,
+      SCAN_ERROR_CODES.classificationSchemaInvalid,
     );
+    assert.equal(await prisma.classificationResult.count(), 0);
   });
 
-  it("T05b rejects classification result for a pending VerifiedProfile", async () => {
-    await prisma.verifiedProfile.update({
-      where: { id: "vp-1" },
-      data: { status: VERIFIED_PROFILE_STATUSES.pendingApproval },
+  it("rejects a missing accepted TechnicalEvidenceReport", async () => {
+    const response = await callback(app, {
+      ...validPayload(),
+      technical_evidence_report_id: "missing-ter",
     });
-
-    const response = await callback(app, validPayload());
 
     assertError(
       response.status,
       response.body,
       404,
-      SCAN_ERROR_CODES.verifiedProfileNotFound,
+      SCAN_ERROR_CODES.evidenceReportNotFound,
     );
     assert.equal(await prisma.classificationResult.count(), 0);
   });
 
-  it("T06 rejects duplicate result for same match with 409 RESULT_ALREADY_EXISTS", async () => {
-    const firstRes = await callback(app, validPayload());
-    assert.equal(firstRes.status, 200);
-
-    const secondRes = await callback(app, validPayload());
-
+  it("rejects duplicate result for the same evidence report", async () => {
+    assert.equal((await callback(app, validPayload())).status, 200);
+    const second = await callback(app, validPayload());
     assertError(
-      secondRes.status,
-      secondRes.body,
+      second.status,
+      second.body,
       409,
       SCAN_ERROR_CODES.resultAlreadyExists,
     );
   });
 
-  it("rejects non-existent LegalRuleMatch with 404 LEGAL_RULE_MATCH_NOT_FOUND", async () => {
-    const response = await callback(
-      app,
-      validPayload({ legal_rule_match_id: "non-existent-lrm" }),
-    );
-
-    assertError(
-      response.status,
-      response.body,
-      404,
-      SCAN_ERROR_CODES.legalRuleMatchNotFound,
-    );
-  });
-
-  it("rejects non-existent VerifiedProfile with 404 VERIFIED_PROFILE_NOT_FOUND", async () => {
-    const response = await callback(
-      app,
-      validPayload({ verified_profile_id: "non-existent-vp" }),
-    );
-
-    assertError(
-      response.status,
-      response.body,
-      404,
-      SCAN_ERROR_CODES.verifiedProfileNotFound,
-    );
-  });
-
-  it("T08 rejects invalid worker API key with 401 Unauthorized", async () => {
+  it("rejects invalid worker API key", async () => {
     const response = await httpRequest(app)
       .post("/internal/classification/result-callback")
       .set("X-Worker-Api-Key", "invalid-key")
@@ -300,85 +270,85 @@ function callback(app: INestApplication, payload: AcceptClassificationDto) {
   return httpRequest(app)
     .post("/internal/classification/result-callback")
     .set("X-Worker-Api-Key", WORKER_KEY)
-    .set("X-Correlation-Id", "cls-corr-1")
+    .set("X-Correlation-Id", "engineering-corr-1")
     .send(payload);
 }
 
-function validPayload(
-  overrides: Partial<AcceptClassificationDto> = {},
-): AcceptClassificationDto {
+function validPayload(): AcceptClassificationDto {
   return {
-    legal_rule_match_id: "lrm-1",
-    verified_profile_id: "vp-1",
+    technical_evidence_report_id: "ter-1",
     assessment_id: "assessment-1",
-    schema_version: CLASSIFICATION_RESULT_SCHEMA_VERSIONS[0],
+    schema_version: "2.0.0",
     classification_data: {
-      system_type: "HIGH_IMPACT_AI",
-      risk_level: "HIGH",
-      citation_basis: ["chunk-1"],
+      mode: ASSESSMENT_RESULT_MODES.engineeringRuleEvaluation,
+      status: "COMPLETE",
+      legal_rule_catalog_version_id: "catalog-1",
+      legal_corpus_version_id: "corpus-1",
+      summary: { compliant: 1, non_compliant: 1, unknown: 0, total: 2 },
+      evaluations: [
+        {
+          engineering_rule_id: "eng-review",
+          legal_rule_id: "legal-review",
+          concept: "HUMAN_REVIEW",
+          status: "NON_COMPLIANT",
+          reason:
+            "Repository evidence demonstrates that the engineering requirement is not met.",
+          evidence_refs: ["graph:path:1"],
+          source_chunk_ids: ["LAW:A1"],
+          source_locators: ["art-1::cl-1"],
+          confidence: 0.95,
+          limitations: [],
+        },
+        {
+          engineering_rule_id: "eng-log",
+          legal_rule_id: "legal-log",
+          concept: "INCIDENT_LOGGING",
+          status: "COMPLIANT",
+          reason:
+            "Repository evidence demonstrates that the engineering requirement is met.",
+          evidence_refs: ["graph:path:2"],
+          source_chunk_ids: ["LAW:A2"],
+          source_locators: ["art-2::cl-1"],
+          confidence: 0.9,
+          limitations: [],
+        },
+      ],
+      limitations: [],
     },
     guardrail_status: CLASSIFICATION_GUARDRAIL_STATUSES.passed,
-    ...overrides,
   };
 }
 
 async function resetDomainData(prisma: PrismaClient): Promise<void> {
   await prisma.classificationResult.deleteMany();
-  await prisma.legalRuleMatch.deleteMany();
-  await prisma.verifiedProfile.deleteMany();
+  await prisma.technicalEvidenceReport.deleteMany();
   await prisma.outboxMessage.deleteMany();
   await prisma.assessment.deleteMany();
 }
 
-async function seedAssessmentVerifiedProfileAndMatch(
-  prisma: PrismaClient,
-  assessmentId: string,
-  organizationId: string,
-  verifiedProfileId: string,
-  legalRuleMatchId: string,
-): Promise<void> {
+async function seedAssessmentAndEvidence(prisma: PrismaClient): Promise<void> {
   await prisma.assessment.create({
     data: {
-      id: assessmentId,
-      organizationId,
+      id: "assessment-1",
+      organizationId: "org-1",
       ownerId: "user-1",
-      name: `Assessment ${assessmentId}`,
+      name: "Direct Engineering Assessment",
       status: ASSESSMENT_STATUS_CODES.scanInProgress,
     },
   });
-
-  await prisma.verifiedProfile.create({
+  await prisma.technicalEvidenceReport.create({
     data: {
-      id: verifiedProfileId,
-      aiUsageFlowId: `ai-flow-${assessmentId}`,
-      assessmentId,
-      organizationId,
+      id: "ter-1",
+      scanJobId: "scan-1",
+      assessmentId: "assessment-1",
+      organizationId: "org-1",
+      snapshotId: "snapshot-1",
+      toolsVersion: { scanner: "test" },
+      configHash: { scanner: "sha256:test" },
+      evidencePayload: { evidence_graph: { graph_id: "graph-1" } },
+      privacyFlags: {},
       schemaVersion: "1.0.0",
-      providerVersion: "verified-profile-worker@1.0.0",
-      profileData: { verified: true },
-      gatesPassedAt: { test: new Date().toISOString() },
-      status: VERIFIED_PROFILE_STATUSES.approved,
-      approvedAt: new Date(),
-      approvedById: "user-1",
-    },
-  });
-
-  await prisma.legalRuleMatch.create({
-    data: {
-      id: legalRuleMatchId,
-      verifiedProfileId,
-      assessmentId,
-      organizationId,
-      corpusVersionId: "LCSP-LEGAL-CORPUS-v0.1.0",
-      legalRuleCatalogVersionId: "LCSP-RULE-CATALOG-v0.1.0",
-      schemaVersion: "1.0.0",
-      matches: [],
-      citationAllowlist: ["chunk-1"],
-      overallCoverageStatus: toPrismaOverallCoverageStatus(
-        OVERALL_COVERAGE_STATUSES.completeCitation,
-      ),
-      guardrailStatus: LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.passed,
-      status: LEGAL_RULE_MATCH_STATUSES.accepted,
+      status: CLASSIFICATION_RESULT_STATUSES.accepted,
     },
   });
 }

@@ -1181,6 +1181,10 @@ export type PagesMessages = {
       blockedBadge: string;
       blockedDescription: string;
       blockedSummary: string;
+      legalMatchBlockedTitle: string;
+      legalMatchBlockedBadge: string;
+      legalMatchBlockedDescription: string;
+      legalMatchBlockedSummary: string;
     };
   };
 };

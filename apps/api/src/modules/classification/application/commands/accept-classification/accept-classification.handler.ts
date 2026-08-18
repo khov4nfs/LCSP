@@ -13,13 +13,16 @@ import {
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
 import {
+  ASSESSMENT_RESULT_MODES,
   CLASSIFICATION_GUARDRAIL_STATUSES,
   CLASSIFICATION_RESULT_SCHEMA_VERSIONS,
   CLASSIFICATION_RESULT_STATUSES,
-  LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
+  ENGINEERING_EVIDENCE_CLAIM_TYPES,
+  ENGINEERING_LIMITATION_CODES,
+  ENGINEERING_RULE_EVALUATION_STATUSES,
   SCAN_ERROR_CODES,
   SCAN_EVENT_TYPES,
-  VERIFIED_PROFILE_STATUSES,
+  TECHNICAL_EVIDENCE_REPORT_STATUSES,
   type ClassificationGuardrailStatus,
 } from "@lcsp/contracts/scan";
 import {
@@ -32,10 +35,8 @@ import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import type { Prisma } from "@prisma/client";
 
 import {
-  fromPrismaLegalRuleMatchGuardrailStatus,
   toPrismaClassificationGuardrailStatus,
   toPrismaEvidenceAcceptanceStatus,
-  toPrismaVerifiedProfileStatus,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -48,6 +49,15 @@ import { AcceptClassificationCommand } from "./accept-classification.command.js"
 
 const CLASSIFICATION_WORKER_ACTOR_ID =
   AUDIT_ACTOR_IDS.classificationResultWorker;
+const ENGINEERING_LIMITATION_CODE_SET = new Set<string>(
+  Object.values(ENGINEERING_LIMITATION_CODES),
+);
+const ENGINEERING_CLAIM_TYPE_SET = new Set<string>(
+  Object.values(ENGINEERING_EVIDENCE_CLAIM_TYPES),
+);
+const ENGINEERING_EVALUATION_STATUS_SET = new Set<string>(
+  Object.values(ENGINEERING_RULE_EVALUATION_STATUSES),
+);
 
 @CommandHandler(AcceptClassificationCommand)
 export class AcceptClassificationHandler implements ICommandHandler<AcceptClassificationCommand> {
@@ -66,65 +76,56 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
 
     const payload = command.payload;
     const correlationId = command.correlationId ?? payload.assessment_id;
-
+    const assessmentRunId = clean(payload.classification_data.run_id);
     this.overclaimGuardrail.validate(
       payload.classification_data,
       correlationId,
     );
 
-    const verifiedProfile = await this.prisma.verifiedProfile.findFirst({
+    const evidenceReport = await this.prisma.technicalEvidenceReport.findFirst({
       where: {
-        id: payload.verified_profile_id,
+        id: payload.technical_evidence_report_id,
         assessmentId: payload.assessment_id,
-        status: toPrismaVerifiedProfileStatus(
-          VERIFIED_PROFILE_STATUSES.approved,
+        status: toPrismaEvidenceAcceptanceStatus(
+          TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
         ),
       },
       select: {
         id: true,
         assessmentId: true,
         organizationId: true,
+        snapshotId: true,
       },
     });
 
-    if (!verifiedProfile) {
+    if (!evidenceReport) {
       throw new NotFoundException(
-        this.errorBody(command, SCAN_ERROR_CODES.verifiedProfileNotFound),
+        this.errorBody(command, SCAN_ERROR_CODES.evidenceReportNotFound),
       );
     }
 
-    const legalRuleMatch = await this.prisma.legalRuleMatch.findFirst({
+    const existingResults = await this.prisma.classificationResult.findMany({
       where: {
-        id: payload.legal_rule_match_id,
-        assessmentId: payload.assessment_id,
-        verifiedProfileId: payload.verified_profile_id,
+        assessmentId: evidenceReport.assessmentId,
+        organizationId: evidenceReport.organizationId,
+        status: toPrismaEvidenceAcceptanceStatus(
+          CLASSIFICATION_RESULT_STATUSES.accepted,
+        ),
       },
-      select: {
-        id: true,
-        assessmentId: true,
-        guardrailStatus: true,
-      },
+      select: { id: true, classificationData: true },
+      orderBy: { createdAt: "desc" },
+      take: 50,
     });
-
-    if (!legalRuleMatch) {
-      throw new NotFoundException(
-        this.errorBody(command, SCAN_ERROR_CODES.legalRuleMatchNotFound),
+    const existingResult = existingResults.find((item) => {
+      const data = isRecord(item.classificationData)
+        ? item.classificationData
+        : {};
+      return (
+        clean(data.technical_evidence_report_id) === evidenceReport.id &&
+        clean(data.mode) ===
+          ASSESSMENT_RESULT_MODES.engineeringRuleEvaluation &&
+        clean(data.run_id) === assessmentRunId
       );
-    }
-
-    if (
-      fromPrismaLegalRuleMatchGuardrailStatus(
-        legalRuleMatch.guardrailStatus,
-      ) === LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.blocked
-    ) {
-      throw new UnprocessableEntityException(
-        this.errorBody(command, SCAN_ERROR_CODES.legalRuleMatchNotFound),
-      );
-    }
-
-    const existingResult = await this.prisma.classificationResult.findUnique({
-      where: { legalRuleMatchId: payload.legal_rule_match_id },
-      select: { id: true },
     });
 
     if (existingResult) {
@@ -137,19 +138,27 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
     const guardrailStatus = payload.guardrail_status;
     const isBlocked =
       guardrailStatus === CLASSIFICATION_GUARDRAIL_STATUSES.blocked;
-    const blockedReason = isBlocked ? "CITATION_BASIS_MISSING" : null;
+    const blockedReason = isBlocked ? "ENGINEERING_ASSESSMENT_BLOCKED" : null;
+    const persistedData: Prisma.InputJsonValue = {
+      ...payload.classification_data,
+      mode: ASSESSMENT_RESULT_MODES.engineeringRuleEvaluation,
+      ...(assessmentRunId ? { run_id: assessmentRunId } : {}),
+      technical_evidence_report_id: evidenceReport.id,
+      snapshot_id:
+        clean(payload.classification_data.snapshot_id) ??
+        evidenceReport.snapshotId,
+    };
 
     await this.prisma.$transaction(async (tx) => {
       await tx.classificationResult.create({
         data: {
           id: classificationResultId,
-          legalRuleMatchId: payload.legal_rule_match_id,
-          verifiedProfileId: payload.verified_profile_id,
-          assessmentId: payload.assessment_id,
-          organizationId: verifiedProfile.organizationId,
+          legalRuleMatchId: null,
+          verifiedProfileId: null,
+          assessmentId: evidenceReport.assessmentId,
+          organizationId: evidenceReport.organizationId,
           schemaVersion: payload.schema_version,
-          classificationData:
-            payload.classification_data as Prisma.InputJsonValue,
+          classificationData: persistedData,
           guardrailStatus:
             toPrismaClassificationGuardrailStatus(guardrailStatus),
           blockedReason,
@@ -162,52 +171,55 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
       await this.enqueueReadyEvent(
         command,
         tx,
-        verifiedProfile,
+        evidenceReport,
         classificationResultId,
         guardrailStatus,
       );
-
       await this.writeAuditLog(
         command,
         tx,
-        verifiedProfile,
+        evidenceReport,
         classificationResultId,
         guardrailStatus,
         blockedReason,
       );
     });
 
-    const runId = classificationRunId(
-      verifiedProfile.assessmentId,
-      verifiedProfile.id,
-    );
+    const runId =
+      assessmentRunId ??
+      engineeringAssessmentRunId(
+        evidenceReport.assessmentId,
+        evidenceReport.id,
+      );
     await this.runtimeEvents.recordToolCompleted({
-      organizationId: verifiedProfile.organizationId,
-      assessmentId: verifiedProfile.assessmentId,
+      organizationId: evidenceReport.organizationId,
+      assessmentId: evidenceReport.assessmentId,
       runId,
       correlationId,
       stage: ASSESSMENT_RUNTIME_STAGE_CODES.classification,
-      toolName: "classification_result",
+      toolName: "engineering_rule_evaluation",
       summary: isBlocked
-        ? "Classification completed with guardrail block"
-        : "Classification completed",
+        ? "EngineeringRule assessment completed with guardrail block"
+        : "EngineeringRule assessment completed",
       outputSummary: {
         classificationResultId,
-        legalRuleMatchId: payload.legal_rule_match_id,
+        technicalEvidenceReportId: evidenceReport.id,
         guardrailStatus,
+        mode: ASSESSMENT_RESULT_MODES.engineeringRuleEvaluation,
       },
       completedAt: new Date(),
     });
     await this.runtimeEvents.recordRunCompleted({
-      organizationId: verifiedProfile.organizationId,
-      assessmentId: verifiedProfile.assessmentId,
+      organizationId: evidenceReport.organizationId,
+      assessmentId: evidenceReport.assessmentId,
       runId,
       correlationId,
       stage: ASSESSMENT_RUNTIME_STAGE_CODES.classification,
-      toolName: "classification_result",
-      summary: "Assessment classification orchestration completed",
+      toolName: "engineering_rule_evaluation",
+      summary: "Direct EngineeringRule assessment orchestration completed",
       outputSummary: {
         classificationResultId,
+        technicalEvidenceReportId: evidenceReport.id,
         guardrailStatus,
       },
       completedAt: new Date(),
@@ -217,7 +229,7 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
       accepted: true,
       classification_result_id: classificationResultId,
       guardrail_status: guardrailStatus,
-      correlationId: correlationId,
+      correlationId,
     };
   }
 
@@ -225,13 +237,15 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
     const payload = command.payload;
     if (
       !isRecord(payload) ||
-      !clean(payload.legal_rule_match_id) ||
-      !clean(payload.verified_profile_id) ||
+      !clean(payload.technical_evidence_report_id) ||
       !clean(payload.assessment_id) ||
       !CLASSIFICATION_RESULT_SCHEMA_VERSIONS.includes(
         payload.schema_version as (typeof CLASSIFICATION_RESULT_SCHEMA_VERSIONS)[number],
       ) ||
       !isRecord(payload.classification_data) ||
+      clean(payload.classification_data.mode) !==
+        ASSESSMENT_RESULT_MODES.engineeringRuleEvaluation ||
+      !isValidEngineeringAssessmentData(payload.classification_data) ||
       !Object.values(CLASSIFICATION_GUARDRAIL_STATUSES).includes(
         payload.guardrail_status,
       )
@@ -245,10 +259,11 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
   private async enqueueReadyEvent(
     command: AcceptClassificationCommand,
     tx: Prisma.TransactionClient,
-    verifiedProfile: {
+    evidenceReport: {
       id: string;
       assessmentId: string;
       organizationId: string;
+      snapshotId: string;
     },
     classificationResultId: string,
     guardrailStatus: ClassificationGuardrailStatus,
@@ -258,10 +273,10 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
       aggregateType: OUTBOX_AGGREGATE_TYPES.classificationResult,
       aggregateId: classificationResultId,
       eventType: SCAN_EVENT_TYPES.classificationResultReady,
-      organizationId: verifiedProfile.organizationId,
-      assessmentId: verifiedProfile.assessmentId,
+      organizationId: evidenceReport.organizationId,
+      assessmentId: evidenceReport.assessmentId,
       correlationId,
-      causationId: verifiedProfile.id,
+      causationId: evidenceReport.id,
       actor: {
         id: CLASSIFICATION_WORKER_ACTOR_ID,
         type: AUDIT_ACTOR_TYPES.service,
@@ -271,7 +286,8 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
       idempotencyKey: `${classificationResultId}:${SCAN_EVENT_TYPES.classificationResultReady}`,
       payload: {
         classificationResultId,
-        assessmentId: verifiedProfile.assessmentId,
+        assessmentId: evidenceReport.assessmentId,
+        technicalEvidenceReportId: evidenceReport.id,
         guardrailStatus,
         correlationId,
       },
@@ -283,10 +299,11 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
   private async writeAuditLog(
     command: AcceptClassificationCommand,
     tx: Prisma.TransactionClient,
-    verifiedProfile: {
+    evidenceReport: {
       id: string;
       assessmentId: string;
       organizationId: string;
+      snapshotId: string;
     },
     classificationResultId: string,
     guardrailStatus: ClassificationGuardrailStatus,
@@ -294,23 +311,21 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
   ): Promise<void> {
     const isBlocked =
       guardrailStatus === CLASSIFICATION_GUARDRAIL_STATUSES.blocked;
-
     const auditEventType = isBlocked
       ? SCAN_EVENT_TYPES.classificationBlockedAudit
       : SCAN_EVENT_TYPES.classificationAcceptedAudit;
-
     const correlationId = command.correlationId || classificationResultId;
 
     await this.auditWriter.writeInTx(
       {
         eventType: auditEventType,
         actorId: CLASSIFICATION_WORKER_ACTOR_ID,
-        organizationId: verifiedProfile.organizationId,
-        assessmentId: verifiedProfile.assessmentId,
+        organizationId: evidenceReport.organizationId,
+        assessmentId: evidenceReport.assessmentId,
         resourceType: AUDIT_RESOURCE_TYPES.classificationResult,
         resourceId: classificationResultId,
         correlationId,
-        causationId: verifiedProfile.id,
+        causationId: evidenceReport.id,
         decision: isBlocked ? AUDIT_DECISIONS.deny : AUDIT_DECISIONS.allow,
         result: auditEventType,
         redactionStatus: AUDIT_REDACTION_STATUSES.none,
@@ -319,9 +334,12 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
           type: AUDIT_ACTOR_TYPES.service,
         },
         payload: {
-          assessmentId: verifiedProfile.assessmentId,
+          assessmentId: evidenceReport.assessmentId,
+          technicalEvidenceReportId: evidenceReport.id,
+          snapshotId: evidenceReport.snapshotId,
           guardrailStatus,
           blockedReason,
+          mode: ASSESSMENT_RESULT_MODES.engineeringRuleEvaluation,
           correlationId,
         },
       },
@@ -333,11 +351,53 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
     return problemResult(
       String(errorCode),
       command.correlationId ?? command.payload.assessment_id,
-      {
-        status: HttpStatus.BAD_REQUEST,
-      },
+      { status: HttpStatus.BAD_REQUEST },
     );
   }
+}
+
+function isValidEngineeringAssessmentData(
+  data: Record<string, unknown>,
+): boolean {
+  if (!isMachineLimitationArray(data.limitations)) return false;
+
+  if (data.evaluations !== undefined) {
+    if (!Array.isArray(data.evaluations)) return false;
+    for (const evaluation of data.evaluations) {
+      if (!isRecord(evaluation)) return false;
+      const status = clean(evaluation.status);
+      if (status && !ENGINEERING_EVALUATION_STATUS_SET.has(status))
+        return false;
+      if (!isMachineLimitationArray(evaluation.limitations)) return false;
+    }
+  }
+
+  if (data.claims !== undefined) {
+    if (!Array.isArray(data.claims)) return false;
+    for (const claim of data.claims) {
+      if (!isRecord(claim)) return false;
+      const claimType = clean(claim.claim_type);
+      if (!claimType || !ENGINEERING_CLAIM_TYPE_SET.has(claimType))
+        return false;
+      if (!("value" in claim)) return false;
+      if (claim.value !== null && typeof claim.value !== "boolean")
+        return false;
+      if (!isMachineLimitationArray(claim.limitations)) return false;
+    }
+  }
+
+  return true;
+}
+
+function isMachineLimitationArray(value: unknown): boolean {
+  if (value === undefined) return true;
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        typeof item === "string" && ENGINEERING_LIMITATION_CODE_SET.has(item),
+    )
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -348,9 +408,9 @@ function clean(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function classificationRunId(
+function engineeringAssessmentRunId(
   assessmentId: string,
-  verifiedProfileId: string,
+  evidenceReportId: string,
 ): string {
-  return `classification:${assessmentId}:${verifiedProfileId}`;
+  return `engineering-assessment:${assessmentId}:${evidenceReportId}`;
 }

@@ -1,10 +1,11 @@
+import type { ClassificationRerunStatus } from "@lcsp/contracts/scan";
+
 export interface RerunClassificationRequestDto {
   reason?: string;
 }
 
 export interface RerunClassificationResponseDto {
-  legal_rule_match_id: string;
+  technical_evidence_report_id: string;
   status: ClassificationRerunStatus;
   correlationId: string;
 }
-import type { ClassificationRerunStatus } from "@lcsp/contracts/scan";

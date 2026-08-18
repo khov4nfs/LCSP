@@ -1,10 +1,9 @@
-"""Consume gap-analysis requests and publish guarded document callbacks."""
+"""Generate gap analysis directly from persisted EngineeringRule evaluations."""
 from __future__ import annotations
 
 import json
 from typing import Any
 
-from lcsp_workers.dossiers.context_builder import ClassificationDossierBuilder
 from lcsp_workers.platform.logging import get_logger
 from lcsp_workers.platform.queue_consumer import ConsumerBase
 
@@ -18,7 +17,7 @@ logger = get_logger(__name__)
 
 
 class GapAnalysisConsumer(ConsumerBase):
-    """Generate deterministic gap documents from authoritative pinned artifacts."""
+    """Generate deterministic gap documents without legacy profile/legal-match artifacts."""
 
     queue_name = "reporting.document-gap-analysis-requested"
     routing_key = "document.gap-analysis-requested"
@@ -29,14 +28,12 @@ class GapAnalysisConsumer(ConsumerBase):
         config,
         pbac_client=None,
         document_client: DocumentRuntimeClient | None = None,
-        dossier_builder: ClassificationDossierBuilder | None = None,
     ) -> None:
         super().__init__(config, pbac_client)
         self._document_client = document_client or DocumentRuntimeClient(
             config.nestjs_api_base_url,
             config.worker_api_key,
         )
-        self._dossier_builder = dossier_builder or ClassificationDossierBuilder()
 
     def handle(self, message: dict, correlationId: str) -> None:
         document_id = self._document_request_id(message)
@@ -48,7 +45,12 @@ class GapAnalysisConsumer(ConsumerBase):
         try:
             context = self._document_client.get_generation_context(document_id)
             self._assert_gap_context(context)
-            dossier = self._dossier_builder.build(context)
+            assessment = self._record(context.get("assessment"))
+            classification = self._record(context.get("classification_result"))
+            data = self._record(classification.get("classification_data"))
+            evidence_report = self._record(context.get("technical_evidence_report"))
+            snapshot = self._record(context.get("repository_snapshot"))
+            evaluations = self._list_of_records(data.get("evaluations"))
         except Exception as error:
             logger.error(
                 "GAP_ANALYSIS_CONTEXT_FAILED",
@@ -59,52 +61,64 @@ class GapAnalysisConsumer(ConsumerBase):
                 document_id,
                 status="FAILED",
                 error_code="DOCUMENT_GENERATION_CONTEXT_INVALID",
-                blocked_reason="Required assessment artifacts are unavailable for gap analysis.",
+                blocked_reason="Direct EngineeringRule assessment artifacts are unavailable for gap analysis.",
             )
             return
 
-        sections = dossier.sections
-        assessment = self._record(context.get("assessment"))
-        verified = self._record(context.get("verified_profile"))
-        verified_data = self._record(verified.get("profile_data"))
-        legal_match = self._record(context.get("legal_rule_match"))
-        technical = self._record(sections.get("technicalAiProfile"))
+        unknown = [
+            item for item in evaluations if str(item.get("status") or "") == "UNKNOWN"
+        ]
+        failed = [
+            item
+            for item in evaluations
+            if str(item.get("status") or "") == "NON_COMPLIANT"
+        ]
+        limitations = [str(item) for item in data.get("limitations") or [] if str(item)]
+        missing_evidence: list[str] = limitations + [
+            self._json_text(
+                {
+                    "engineeringRuleId": item.get("engineering_rule_id"),
+                    "concept": item.get("concept"),
+                    "reason": item.get("reason"),
+                    "limitations": item.get("limitations") or [],
+                }
+            )
+            for item in unknown
+        ]
+        recommendations = [
+            self._json_text(
+                {
+                    "engineeringRuleId": item.get("engineering_rule_id"),
+                    "concept": item.get("concept"),
+                    "action": "Review the referenced repository path and implement the missing engineering control, then re-scan the pinned repository.",
+                    "evidenceRefs": item.get("evidence_refs") or [],
+                }
+            )
+            for item in failed
+        ]
 
-        missing_evidence: list[object] = list(
-            sections.get("unresolvedEvidence") or []
-        )
-        missing_evidence.extend(
-            f"Dossier requirement unavailable: {key}"
-            for key in dossier.missing_requirements
-        )
-        recommendations = (
-            sections.get("remediation")
-            if isinstance(sections.get("remediation"), list)
-            else []
-        )
         content = GapAnalysisGenerator.generate(
             assessment_name=str(assessment.get("name") or "Assessment"),
             assessment_context=self._json_text(
                 {
-                    "systemIdentity": sections.get("systemIdentity"),
-                    "intendedUse": sections.get("intendedUse"),
-                    "dossierStatus": dossier.status,
+                    "mode": data.get("mode"),
+                    "summary": data.get("summary") or {},
+                    "legalRuleCatalogVersionId": data.get(
+                        "legal_rule_catalog_version_id"
+                    ),
+                    "legalCorpusVersionId": data.get("legal_corpus_version_id"),
                 }
             ),
             technical_evidence=[
                 self._json_text(
                     {
-                        "programGraph": technical.get("program_graph_ref"),
-                        "dataCategories": technical.get("data_categories") or [],
-                        "externalIntegrations": technical.get("external_integrations") or [],
-                        "humanControls": technical.get("human_control_evidence") or {},
+                        "technicalEvidenceReportId": evidence_report.get("id"),
+                        "snapshotId": evidence_report.get("snapshot_id"),
+                        "commitSha": snapshot.get("commit_sha"),
                     }
                 )
             ],
-            ai_usage_claims=self._list_of_records(
-                verified_data.get("verified_claims")
-            ),
-            applicable_rules=self._list_of_records(legal_match.get("matches")),
+            rule_evaluations=[self._json_text(item) for item in evaluations],
             missing_evidence=missing_evidence,
             recommendations=recommendations,
         )
@@ -118,7 +132,7 @@ class GapAnalysisConsumer(ConsumerBase):
                 document_id,
                 status="BLOCKED",
                 error_code="GAP_ANALYSIS_OVERCLAIM_BLOCKED",
-                blocked_reason="Output guardrail blocked overclaiming terminology.",
+                blocked_reason="Output guardrail blocked narrative legal overclaiming.",
             )
             return
 
@@ -146,8 +160,9 @@ class GapAnalysisConsumer(ConsumerBase):
         logger.info(
             "GAP_ANALYSIS_READY",
             document_id=document_id,
-            dossier_id=dossier.dossier_id,
-            dossier_status=dossier.status,
+            evaluation_count=len(evaluations),
+            non_compliant_count=len(failed),
+            unknown_count=len(unknown),
         )
 
     @staticmethod
@@ -169,8 +184,11 @@ class GapAnalysisConsumer(ConsumerBase):
         )
         if str(request.get("document_type") or "").upper() != "GAP_ANALYSIS":
             raise ValueError("document request is not a gap analysis")
-        if str(classification.get("guardrail_status") or "").upper() != "PASSED":
-            raise ValueError("classification guardrail is not passed")
+        if str(classification.get("guardrail_status") or "").upper() not in {
+            "PASSED",
+            "DEGRADED",
+        }:
+            raise ValueError("engineering assessment guardrail is blocked")
 
     @staticmethod
     def _record(value: object) -> dict[str, Any]:

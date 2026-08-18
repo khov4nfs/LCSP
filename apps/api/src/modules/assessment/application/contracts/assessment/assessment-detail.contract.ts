@@ -7,7 +7,10 @@ import {
   type AssessmentNextActionKey,
   type AssessmentStatusCode,
 } from "@lcsp/contracts/assessment";
-import type { ClassificationGuardrailStatus } from "@lcsp/contracts/scan";
+import type {
+  ClassificationGuardrailStatus,
+  EngineeringRuleEvaluationStatus,
+} from "@lcsp/contracts/scan";
 
 export type AssessmentDetailErrorCode =
   (typeof ASSESSMENT_DETAIL_ERROR_CODES)[keyof typeof ASSESSMENT_DETAIL_ERROR_CODES];
@@ -21,26 +24,39 @@ export interface ReadinessState {
   missing_evidence: AssessmentMissingEvidenceCode[];
 }
 
+export interface EngineeringRuleEvaluationDto {
+  engineering_rule_id: string;
+  legal_rule_id: string;
+  concept: string;
+  status: EngineeringRuleEvaluationStatus;
+  reason: string;
+  evidence_refs: string[];
+  source_chunk_ids: string[];
+  source_locators: string[];
+  confidence: number;
+  limitations: string[];
+}
+
 export interface ClassificationResultSummaryDto {
+  mode: string | null;
+  status: string | null;
+  engineering_summary: {
+    compliant: number;
+    non_compliant: number;
+    unknown: number;
+    total: number;
+  };
+  evaluations: EngineeringRuleEvaluationDto[];
+  limitations: string[];
+  legal_rule_catalog_version_id: string | null;
+  legal_corpus_version_id: string | null;
+  technical_evidence_report_id: string | null;
+  snapshot_id: string | null;
+  // Legacy display fields remain nullable while web consumers migrate.
   risk_level: string | null;
   applicability_assessment: string | null;
   citation_basis: string[];
   rationale: string | null;
-}
-
-export interface VerifiedProfileReviewDto {
-  verified_profile_id: string;
-  status: string;
-  provider_version: string;
-  verified_claims: Record<string, unknown>[];
-  verification_source: string | null;
-  wizard_context: Record<string, unknown> | null;
-  conflict_resolutions: Record<string, unknown>[];
-  gates_passed_at: Record<string, unknown>;
-  evidence_chain_integrity: boolean | null;
-  created_at: string;
-  approved_at: string | null;
-  approved_by_id: string | null;
 }
 
 export interface AssessmentDetailDto {
@@ -53,7 +69,10 @@ export interface AssessmentDetailDto {
   readiness_state: ReadinessState;
   guardrail_status: ClassificationGuardrailStatus | null;
   classification_result: ClassificationResultSummaryDto | null;
-  verified_profile_review: VerifiedProfileReviewDto | null;
+  /** Legacy display fields are empty in the canonical direct runtime. */
+  legal_rule_match_guardrail_status: null;
+  legal_rule_match_diagnostics: null;
+  verified_profile_review: null;
   can_rerun_classification: boolean;
   next_action: AssessmentNextActionKey;
   created_at: string;

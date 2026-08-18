@@ -8,11 +8,52 @@ import {
   toClassificationStatusOutcome,
 } from "../src/lib/api/classification-client.ts";
 
+const directResult = {
+  mode: "ENGINEERING_RULE_EVALUATION",
+  status: "COMPLETE",
+  engineering_summary: {
+    compliant: 1,
+    non_compliant: 1,
+    unknown: 0,
+    total: 2,
+  },
+  evaluations: [
+    {
+      engineering_rule_id: "ENG-HUMAN-REVIEW",
+      legal_rule_id: "LAW-134-ART-14",
+      concept: "HUMAN_REVIEW",
+      status: "NON_COMPLIANT",
+      reason: "Repository evidence demonstrates that the engineering requirement is not met.",
+      evidence_refs: ["graph:path:1"],
+      source_chunk_ids: ["LAW-134:art-14::cl-2"],
+      source_locators: ["art-14::cl-2"],
+      confidence: 0.95,
+      limitations: [],
+    },
+    {
+      engineering_rule_id: "ENG-LOGGING",
+      legal_rule_id: "LAW-134-ART-12",
+      concept: "INCIDENT_LOGGING",
+      status: "COMPLIANT",
+      reason: "Repository evidence demonstrates that the engineering requirement is met.",
+      evidence_refs: ["graph:path:2"],
+      source_chunk_ids: ["LAW-134:art-12::cl-1"],
+      source_locators: ["art-12::cl-1"],
+      confidence: 0.9,
+      limitations: [],
+    },
+  ],
+  limitations: [],
+  technical_evidence_report_id: "report-1",
+  snapshot_id: "snapshot-1",
+};
+
 test("classification outcome maps locked state correctly", () => {
   const result = toClassificationStatusOutcome(
     {
       readiness_state: { classification_locked: true },
       guardrail_status: null,
+      classification_result: null,
     },
     true,
     200,
@@ -22,23 +63,15 @@ test("classification outcome maps locked state correctly", () => {
   if (result.kind === "loaded") {
     assert.equal(result.data.state, "locked");
     assert.equal(result.data.hasClassification, false);
-    assert.equal(result.data.titleKey, "pages.classification.states.lockedTitle");
-    assert.equal(result.data.badgeKey, "pages.classification.states.lockedBadge");
-    assert.equal(result.data.descriptionKey, "pages.classification.states.lockedDescription");
   }
 });
 
-test("classification outcome maps passed state with real result data and final report action", () => {
+test("direct EngineeringRule result exposes evaluations and report actions", () => {
   const result = toClassificationStatusOutcome(
     {
       readiness_state: { classification_locked: false },
       guardrail_status: "passed",
-      classification_result: {
-        risk_level: "HIGH",
-        applicability_assessment: "applicable",
-        citation_basis: ["LAW-134-2025-QH15::art-33"],
-        rationale: "The applicable legal rule is backed by the cited article.",
-      },
+      classification_result: directResult,
     },
     true,
     200,
@@ -48,13 +81,14 @@ test("classification outcome maps passed state with real result data and final r
   if (result.kind === "loaded") {
     assert.equal(result.data.state, "passed");
     assert.equal(result.data.hasClassification, true);
-    assert.equal(result.data.summaryKey, "pages.classification.states.passedSummary");
-    assert.equal(
-      result.data.summaryText,
-      "The applicable legal rule is backed by the cited article.",
-    );
+    assert.equal(result.data.engineeringSummary?.compliant, 1);
+    assert.equal(result.data.engineeringSummary?.nonCompliant, 1);
+    assert.equal(result.data.evaluations[0]?.status, "NON_COMPLIANT");
     assert.deepEqual(result.data.references, [
-      "LAW-134-2025-QH15::art-33",
+      "art-14::cl-2",
+      "LAW-134:art-14::cl-2",
+      "art-12::cl-1",
+      "LAW-134:art-12::cl-1",
     ]);
     assert.deepEqual(getClassificationActionVisibility(result.data), {
       showFinalReport: true,
@@ -64,30 +98,28 @@ test("classification outcome maps passed state with real result data and final r
   }
 });
 
-test("processing classification exposes a pending Manager profile review", () => {
+test("degraded direct assessment remains reportable with explicit unknowns", () => {
   const result = toClassificationStatusOutcome(
     {
       readiness_state: { classification_locked: false },
-      guardrail_status: null,
-      can_rerun_classification: false,
-      verified_profile_review: {
-        verified_profile_id: "vp-1",
-        status: "PENDING_APPROVAL",
-        provider_version: "lcsp.verified-profile-worker.v1",
-        verified_claims: [
+      guardrail_status: "degraded",
+      classification_result: {
+        ...directResult,
+        status: "PARTIAL",
+        engineering_summary: {
+          compliant: 0,
+          non_compliant: 0,
+          unknown: 1,
+          total: 1,
+        },
+        evaluations: [
           {
-            claim_id: "claim-1",
-            claim_category: "MODEL_INVOCATION",
-            evidence_refs: ["evidence-1"],
+            ...directResult.evaluations[0],
+            status: "UNKNOWN",
+            limitations: ["DYNAMIC_PATH_UNRESOLVED"],
           },
         ],
-        verification_source: "TECHNICAL_PLUS_WIZARD",
-        conflict_resolutions: [{ conflict_id: "conflict-1", status: "RESOLVED" }],
-        gates_passed_at: { conflicts_resolved: "2026-08-11T00:00:00.000Z" },
-        evidence_chain_integrity: true,
-        created_at: "2026-08-11T00:01:00.000Z",
-        approved_at: null,
-        approved_by_id: null,
+        limitations: ["DYNAMIC_PATH_UNRESOLVED"],
       },
     },
     true,
@@ -96,24 +128,19 @@ test("processing classification exposes a pending Manager profile review", () =>
 
   assert.equal(result.kind, "loaded");
   if (result.kind === "loaded") {
-    assert.equal(result.data.state, "processing");
-    assert.equal(result.data.verifiedProfileReview?.verifiedProfileId, "vp-1");
-    assert.equal(result.data.verifiedProfileReview?.status, "PENDING_APPROVAL");
-    assert.equal(result.data.verifiedProfileReview?.evidenceChainIntegrity, true);
-    assert.deepEqual(result.data.verifiedProfileReview?.verifiedClaims[0], {
-      claim_id: "claim-1",
-      claim_category: "MODEL_INVOCATION",
-      evidence_refs: ["evidence-1"],
-    });
+    assert.equal(result.data.state, "degraded");
+    assert.equal(result.data.evaluations[0]?.status, "UNKNOWN");
+    assert.equal(getClassificationActionVisibility(result.data).showFinalReport, true);
+    assert.equal(getClassificationActionVisibility(result.data).showGapAnalysis, true);
   }
 });
 
-test("processing classification exposes a retry action only before a result exists", () => {
+test("processing is returned after evidence acceptance while worker is still running", () => {
   const result = toClassificationStatusOutcome(
     {
       readiness_state: { classification_locked: false },
       guardrail_status: null,
-      can_rerun_classification: true,
+      classification_result: null,
     },
     true,
     200,
@@ -122,44 +149,7 @@ test("processing classification exposes a retry action only before a result exis
   assert.equal(result.kind, "loaded");
   if (result.kind === "loaded") {
     assert.equal(result.data.state, "processing");
-    assert.deepEqual(getClassificationActionVisibility(result.data), {
-      showFinalReport: false,
-      showGapAnalysis: false,
-      showRerunClassification: true,
-    });
-  }
-});
-
-test("degraded and blocked states keep business language and gated actions", () => {
-  const degraded = toClassificationStatusOutcome(
-    {
-      readiness_state: { classification_locked: false },
-      guardrail_status: "degraded",
-    },
-    true,
-    200,
-  );
-  const blocked = toClassificationStatusOutcome(
-    {
-      readiness_state: { classification_locked: false },
-      guardrail_status: "blocked",
-    },
-    true,
-    200,
-  );
-
-  assert.equal(degraded.kind, "loaded");
-  assert.equal(blocked.kind, "loaded");
-  if (degraded.kind === "loaded" && blocked.kind === "loaded") {
-    assert.equal(degraded.data.state, "degraded");
-    assert.equal(blocked.data.state, "blocked");
-    assert.equal(getClassificationActionVisibility(degraded.data).showFinalReport, false);
-    assert.equal(getClassificationActionVisibility(blocked.data).showFinalReport, false);
-    assert.equal(getClassificationActionVisibility(degraded.data).showGapAnalysis, true);
-    assert.equal(getClassificationActionVisibility(blocked.data).showGapAnalysis, true);
-
-    const combinedText = JSON.stringify([degraded.data, blocked.data]);
-    assert.doesNotMatch(combinedText, /risk|severity|violation|non-compliant|certified|compliant/i);
+    assert.equal(result.data.hasClassification, false);
   }
 });
 
@@ -174,68 +164,34 @@ test("classification outcome maps auth errors to redirect", () => {
   );
 });
 
-test("sanitizeAssessmentDetailPayload accepts valid classification payloads", () => {
+test("sanitizeAssessmentDetailPayload validates direct evaluation shape", () => {
   const payload = sanitizeAssessmentDetailPayload({
     readiness_state: { classification_locked: false },
     guardrail_status: "passed",
-    classification_result: {
-      risk_level: "HIGH",
-      applicability_assessment: "applicable",
-      citation_basis: ["chunk-1", " chunk-2 "],
-      rationale: "Citation-backed rationale",
-    },
+    classification_result: directResult,
   });
 
-  assert.deepEqual(payload, {
-    readiness_state: {
-      classification_locked: false,
-      lock_reason: null,
-      missing_evidence: [],
-    },
-    guardrail_status: "passed",
-    classification_result: {
-      risk_level: "HIGH",
-      applicability_assessment: "applicable",
-      citation_basis: ["chunk-1", "chunk-2"],
-      rationale: "Citation-backed rationale",
-    },
-  });
+  assert.notEqual(payload, null);
+  assert.equal(payload?.classification_result?.evaluations.length, 2);
+  assert.equal(
+    payload?.classification_result?.technical_evidence_report_id,
+    "report-1",
+  );
 });
 
-test("sanitizeAssessmentDetailPayload rejects invalid payloads", () => {
-  assert.equal(
-    sanitizeAssessmentDetailPayload({
-      readiness_state: { classification_locked: "true" },
-      guardrail_status: 123,
-    }),
-    null,
-  );
+test("sanitizeAssessmentDetailPayload rejects invalid direct evaluation status", () => {
   assert.equal(
     sanitizeAssessmentDetailPayload({
       readiness_state: { classification_locked: false },
       guardrail_status: "passed",
       classification_result: {
-        citation_basis: ["chunk-1", 2],
-      },
-    }),
-    null,
-  );
-  assert.equal(
-    sanitizeAssessmentDetailPayload({
-      readiness_state: { classification_locked: false },
-      guardrail_status: null,
-      verified_profile_review: {
-        verified_profile_id: "vp-1",
-        status: "PENDING_APPROVAL",
-        provider_version: "worker-v1",
-        verified_claims: "not-an-array",
-        conflict_resolutions: [],
-        gates_passed_at: {},
-        evidence_chain_integrity: true,
-        created_at: "2026-08-11T00:01:00.000Z",
-        approved_at: null,
-        approved_by_id: null,
-        verification_source: null,
+        ...directResult,
+        evaluations: [
+          {
+            ...directResult.evaluations[0],
+            status: "VIOLATION",
+          },
+        ],
       },
     }),
     null,

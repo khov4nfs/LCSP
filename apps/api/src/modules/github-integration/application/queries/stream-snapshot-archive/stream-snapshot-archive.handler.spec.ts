@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals";
 import {
   BadGatewayException,
   ConflictException,
+  HttpException,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
@@ -18,6 +19,10 @@ import {
   GitHubAppClientError,
   type GitHubAppClient,
 } from "../../../infrastructure/github/github-app.client.js";
+import type {
+  SnapshotArchiveCache,
+  SnapshotArchiveCacheHit,
+} from "../../../infrastructure/github/snapshot-archive-cache.js";
 import { StreamSnapshotArchiveHandler } from "./stream-snapshot-archive.handler.js";
 import { StreamSnapshotArchiveQuery } from "./stream-snapshot-archive.query.js";
 
@@ -55,6 +60,7 @@ describe("StreamSnapshotArchiveHandler", () => {
       stream: NodeJS.ReadableStream;
     };
     archiveError?: Error;
+    cacheHit?: SnapshotArchiveCacheHit | null;
     claimCount?: number;
   }) {
     const hasOption = <K extends keyof NonNullable<typeof options>>(
@@ -86,24 +92,56 @@ describe("StreamSnapshotArchiveHandler", () => {
           ),
       },
     } as unknown as PrismaService;
+
+    const downloadRepositoryArchiveMock = jest.fn().mockImplementation(() => {
+      if (options?.archiveError) throw options.archiveError;
+      return (
+        options?.archive ?? {
+          contentType: "application/gzip",
+          resolvedUrl: "https://codeload.github.com/acme/example-repo/tar.gz/a",
+          stream: Readable.from([Buffer.from("archive")]),
+        }
+      );
+    });
     const githubAppClient = {
-      downloadRepositoryArchive: jest.fn().mockImplementation(() => {
-        if (options?.archiveError) throw options.archiveError;
-        return (
-          options?.archive ?? {
-            contentType: "application/gzip",
-            resolvedUrl:
-              "https://codeload.github.com/acme/example-repo/tar.gz/a",
-            stream: Readable.from([Buffer.from("archive")]),
-          }
-        );
-      }),
+      downloadRepositoryArchive: downloadRepositoryArchiveMock,
     } as unknown as GitHubAppClient;
-    return new StreamSnapshotArchiveHandler(prisma, githubAppClient);
+
+    const cacheGetMock = jest
+      .fn<() => Promise<SnapshotArchiveCacheHit | null>>()
+      .mockResolvedValue(options?.cacheHit ?? null);
+    const cacheCaptureMock = jest
+      .fn<
+        (input: { source: NodeJS.ReadableStream }) => Promise<{
+          stream: NodeJS.ReadableStream;
+          completion: Promise<void>;
+        }>
+      >()
+      .mockImplementation((input) =>
+        Promise.resolve({
+          stream: input.source,
+          completion: Promise.resolve(),
+        }),
+      );
+    const snapshotArchiveCache = {
+      get: cacheGetMock,
+      capture: cacheCaptureMock,
+    } as unknown as SnapshotArchiveCache;
+
+    return {
+      handler: new StreamSnapshotArchiveHandler(
+        prisma,
+        githubAppClient,
+        snapshotArchiveCache,
+      ),
+      downloadRepositoryArchiveMock,
+      cacheGetMock,
+      cacheCaptureMock,
+    };
   }
 
   it("streams the pinned repository archive when scope is valid", async () => {
-    const handler = buildHandler();
+    const { handler, cacheCaptureMock } = buildHandler();
 
     const result = await handler.execute(
       new StreamSnapshotArchiveQuery("snapshot-1", "scan-job-1", "corr-1"),
@@ -112,10 +150,39 @@ describe("StreamSnapshotArchiveHandler", () => {
     expect(result.snapshotId).toBe("snapshot-1");
     expect(result.commitSha).toBe("a".repeat(40));
     expect(result.contentType).toBe("application/gzip");
+    expect(cacheCaptureMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        snapshotId: "snapshot-1",
+        commitSha: "a".repeat(40),
+      }),
+    );
+  });
+
+  it("reuses a valid ephemeral archive for the same pinned snapshot", async () => {
+    const cacheHit: SnapshotArchiveCacheHit = {
+      contentType: "application/gzip",
+      resolvedUrl: "https://codeload.github.com/acme/example-repo/tar.gz/a",
+      stream: Readable.from([Buffer.from("cached-archive")]),
+    };
+    const { handler, downloadRepositoryArchiveMock, cacheGetMock } =
+      buildHandler({
+        cacheHit,
+      });
+
+    const result = await handler.execute(
+      new StreamSnapshotArchiveQuery("snapshot-1", "scan-job-1", "corr-cache"),
+    );
+
+    expect(result.stream).toBe(cacheHit.stream);
+    expect(cacheGetMock).toHaveBeenCalledWith({
+      snapshotId: "snapshot-1",
+      commitSha: "a".repeat(40),
+    });
+    expect(downloadRepositoryArchiveMock).not.toHaveBeenCalled();
   });
 
   it("rejects snapshot and scan job mismatch", async () => {
-    const handler = buildHandler({
+    const { handler } = buildHandler({
       scanJob: { ...scanJob, snapshotId: "snapshot-other" },
     });
 
@@ -127,7 +194,7 @@ describe("StreamSnapshotArchiveHandler", () => {
   });
 
   it("claims a queued scan job before streaming its archive", async () => {
-    const handler = buildHandler();
+    const { handler } = buildHandler();
 
     await expect(
       handler.execute(
@@ -137,7 +204,7 @@ describe("StreamSnapshotArchiveHandler", () => {
   });
 
   it("rejects a queued scan job claimed by another worker", async () => {
-    const handler = buildHandler({ claimCount: 0 });
+    const { handler } = buildHandler({ claimCount: 0 });
 
     await expect(
       handler.execute(
@@ -147,7 +214,7 @@ describe("StreamSnapshotArchiveHandler", () => {
   });
 
   it("rejects missing snapshot scope", async () => {
-    const handler = buildHandler({ snapshot: null });
+    const { handler } = buildHandler({ snapshot: null });
 
     await expect(
       handler.execute(
@@ -160,7 +227,7 @@ describe("StreamSnapshotArchiveHandler", () => {
     const loggerError = jest
       .spyOn(Logger.prototype, "error")
       .mockImplementation(() => undefined);
-    const handler = buildHandler({
+    const { handler } = buildHandler({
       archiveError: new GitHubAppClientError(
         "github_repository_archive_failed",
         404,
@@ -184,6 +251,31 @@ describe("StreamSnapshotArchiveHandler", () => {
         snapshotId: "snapshot-1",
       }),
     );
+    loggerError.mockRestore();
+  });
+
+  it("preserves GitHub 429 so the worker can apply rate-limit backoff", async () => {
+    const loggerError = jest
+      .spyOn(Logger.prototype, "error")
+      .mockImplementation(() => undefined);
+    const { handler } = buildHandler({
+      archiveError: new GitHubAppClientError(
+        "github_repository_archive_failed",
+        429,
+      ),
+    });
+
+    let thrown: unknown;
+    try {
+      await handler.execute(
+        new StreamSnapshotArchiveQuery("snapshot-1", "scan-job-1", "corr-429"),
+      );
+    } catch (error: unknown) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getStatus()).toBe(429);
     loggerError.mockRestore();
   });
 });

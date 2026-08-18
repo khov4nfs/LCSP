@@ -1,13 +1,10 @@
 import re
 from pathlib import Path
 
-from lcsp_workers.classification.classification_consumer import ClassificationConsumer
-from lcsp_workers.intelligence.ai_usage_flow_consumer import AIUsageFlowConsumer
-from lcsp_workers.intelligence.conflict_detection_consumer import ConflictDetectionConsumer
-from lcsp_workers.intelligence.technical_profile_consumer import TechnicalProfileConsumer
-from lcsp_workers.intelligence.verified_profile_consumer import VerifiedProfileConsumer
+from lcsp_workers.investigation.engineering_assessment_consumer import (
+    EngineeringAssessmentConsumer,
+)
 from lcsp_workers.legal.legal_corpus_recovery_consumer import LegalCorpusRecoveryConsumer
-from lcsp_workers.legal.legal_retrieval_consumer import LegalRetrievalConsumer
 from lcsp_workers.reporting.final_report_consumer import FinalReportConsumer
 from lcsp_workers.reporting.gap_analysis_consumer import GapAnalysisConsumer
 from lcsp_workers.scanner.scan_consumer import ScanConsumer
@@ -32,26 +29,55 @@ def test_worker_routing_keys_match_the_shared_contracts():
         TargetedReanalysisConsumer: event_value(
             github_contract, "targetedReanalysisRequested"
         ),
-        TechnicalProfileConsumer: event_value(scan_contract, "evidenceAccepted"),
-        AIUsageFlowConsumer: event_value(scan_contract, "technicalProfileReady"),
-        ConflictDetectionConsumer: event_value(scan_contract, "aiUsageFlowReady"),
-        VerifiedProfileConsumer: event_value(
-            scan_contract, "reconciliationAllConflictsResolved"
-        ),
-        LegalRetrievalConsumer: event_value(
-            legal_matching_contract, "LEGAL_MATCHING_REQUEST_COMMAND"
+        EngineeringAssessmentConsumer: event_value(
+            scan_contract, "evidenceAccepted"
         ),
         LegalCorpusRecoveryConsumer: event_value(
             legal_matching_contract, "LEGAL_CORPUS_RECOVERY_REQUEST_COMMAND"
         ),
-        ClassificationConsumer: event_value(scan_contract, "legalRuleMatchReady"),
         FinalReportConsumer: event_value(document_contract, "finalReportRequested"),
         GapAnalysisConsumer: event_value(document_contract, "gapAnalysisRequested"),
     }
 
-    assert {
-        consumer: consumer.routing_key for consumer in expected
-    } == expected
+    assert {consumer: consumer.routing_key for consumer in expected} == expected
+
+
+def test_production_pm2_starts_only_canonical_assessment_consumers():
+    ecosystem = read_contract("ecosystem.config.cjs")
+    expected_targets = {
+        "lcsp_workers.scanner.scan_consumer:ScanConsumer",
+        "lcsp_workers.scanner.targeted_reanalysis_consumer:TargetedReanalysisConsumer",
+        "lcsp_workers.investigation.engineering_assessment_consumer:EngineeringAssessmentConsumer",
+        "lcsp_workers.legal.legal_corpus_recovery_consumer:LegalCorpusRecoveryConsumer",
+        "lcsp_workers.reporting.gap_analysis_consumer:GapAnalysisConsumer",
+        "lcsp_workers.reporting.final_report_consumer:FinalReportConsumer",
+    }
+    removed_targets = {
+        "lcsp_workers.intelligence.technical_profile_consumer:TechnicalProfileConsumer",
+        "lcsp_workers.intelligence.ai_usage_flow_consumer:AIUsageFlowConsumer",
+        "lcsp_workers.intelligence.conflict_detection_consumer:ConflictDetectionConsumer",
+        "lcsp_workers.intelligence.verified_profile_consumer:VerifiedProfileConsumer",
+        "lcsp_workers.legal.legal_retrieval_consumer:LegalRetrievalConsumer",
+        "lcsp_workers.classification.classification_consumer:ClassificationConsumer",
+    }
+
+    missing_targets = sorted(
+        target for target in expected_targets if f'"{target}"' not in ecosystem
+    )
+    unexpected_targets = sorted(
+        target for target in removed_targets if f'"{target}"' in ecosystem
+    )
+    assert missing_targets == []
+    assert unexpected_targets == []
+
+
+def test_redeploy_health_gate_covers_only_production_worker_ports():
+    redeploy = read_contract("redeploy.sh")
+
+    assert "readonly WORKER_HEALTH_PORTS=(8101 8102 8108 8109 8110 8111)" in redeploy
+    assert 'for port in "${WORKER_HEALTH_PORTS[@]}"' in redeploy
+    assert "FIRST_WORKER_HEALTH_PORT" not in redeploy
+    assert "LAST_WORKER_HEALTH_PORT" not in redeploy
 
 
 def read_contract(relative_path: str) -> str:

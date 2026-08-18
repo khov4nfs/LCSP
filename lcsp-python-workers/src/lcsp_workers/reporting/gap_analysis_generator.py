@@ -1,83 +1,54 @@
-"""Render gap-analysis Markdown deterministically from structured assessment data."""
+"""Render EngineeringRule gap-analysis Markdown deterministically."""
 
 
 class GapAnalysisGenerator:
-    """Pure template renderer for gap-analysis documents; no LLM is used."""
+    """Pure template renderer for direct engineering-rule assessment results."""
 
     @staticmethod
     def generate(
         assessment_name: str,
         assessment_context: str,
         technical_evidence: list,
-        ai_usage_claims: list,
-        applicable_rules: list,
+        rule_evaluations: list,
         missing_evidence: list,
-        recommendations: list
+        recommendations: list,
     ) -> str:
-        """Generate a six-section gap-analysis Markdown document.
-
-        Args:
-            assessment_name: Display name of the assessment.
-            assessment_context: Business/system context summarized for the reader.
-            technical_evidence: Structured technical evidence entries to list.
-            ai_usage_claims: Identified AI usage claims.
-            applicable_rules: Legal rules considered applicable.
-            missing_evidence: Coverage gaps requiring follow-up.
-            recommendations: Recommended next actions.
-
-        Returns:
-            Deterministically rendered Markdown document.
-        """
-        # Section 1: Context
         content = [
-            f"# Title: Gap Analysis — {assessment_name}",
-            "**Label: Wizard Readiness and Legal Gap Analysis**\n",
+            f"# Gap Analysis — {assessment_name}",
+            "**Basis: Program Evidence Graph + EngineeringRule evaluation**\n",
             "## 1. Assessment Context",
             f"{assessment_context}\n",
-            "## 2. Technical Evidence Summary"
+            "## 2. Repository Evidence",
         ]
 
-        # Section 2: Technical
         if not technical_evidence:
-            content.append("No technical evidence provided.")
+            content.append("No repository evidence provided.")
         else:
-            for ev in technical_evidence:
-                content.append(f"- {ev}")
+            for evidence in technical_evidence:
+                content.append(f"- {evidence}")
         content.append("")
 
-        # Section 3: AI Usage Patterns
-        content.append("## 3. Identified AI Usage Patterns")
-        if not ai_usage_claims:
-            content.append("No AI usage claims identified.")
+        content.append("## 3. EngineeringRule Results")
+        if not rule_evaluations:
+            content.append("No EngineeringRule evaluation results.")
         else:
-            for claim in ai_usage_claims:
-                content.append(f"- {claim}")
+            for evaluation in rule_evaluations:
+                content.append(f"- {evaluation}")
         content.append("")
 
-        # Section 4: Legal Rules
-        content.append("## 4. Legal Rule Applicability")
-        if not applicable_rules:
-            content.append("No applicable legal rules.")
-        else:
-            for rule in applicable_rules:
-                content.append(f"- {rule}")
-        content.append("")
-
-        # Section 5: Missing Evidence
-        content.append("## 5. Missing Evidence / Coverage Gaps")
+        content.append("## 4. Missing Evidence / Unknown Results")
         if not missing_evidence:
-            content.append("No coverage gaps identified.")
+            content.append("No unresolved evidence recorded.")
         else:
             for gap in missing_evidence:
                 content.append(f"- {gap}")
         content.append("")
 
-        # Section 6: Next Steps
-        content.append("## 6. Recommended Next Steps")
+        content.append("## 5. Recommended Next Steps")
         if not recommendations:
-            content.append("No recommendations.")
+            content.append("No recommendations recorded.")
         else:
-            for rec in recommendations:
-                content.append(f"- {rec}")
+            for recommendation in recommendations:
+                content.append(f"- {recommendation}")
 
         return "\n".join(content)

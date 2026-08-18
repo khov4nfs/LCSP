@@ -11,19 +11,14 @@ import {
 import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import {
   CLASSIFICATION_RERUN_STATUSES,
-  CLASSIFICATION_RESULT_STATUSES,
-  LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
-  LEGAL_RULE_MATCH_STATUSES,
   SCAN_ERROR_CODES,
   SCAN_EVENT_TYPES,
+  TECHNICAL_EVIDENCE_REPORT_STATUSES,
 } from "@lcsp/contracts/scan";
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import {
-  fromPrismaEvidenceAcceptanceStatus,
-  fromPrismaLegalRuleMatchGuardrailStatus,
-} from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { toPrismaEvidenceAcceptanceStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
@@ -42,82 +37,54 @@ export class RerunClassificationHandler implements ICommandHandler<RerunClassifi
   async execute(
     command: RerunClassificationCommand,
   ): Promise<RerunClassificationResponseDto> {
-    const legalRuleMatch = await this.prisma.legalRuleMatch.findFirst({
+    const evidenceReport = await this.prisma.technicalEvidenceReport.findFirst({
       where: {
         assessmentId: command.assessmentId,
         organizationId: command.pbacContext.organizationId,
+        status: toPrismaEvidenceAcceptanceStatus(
+          TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+        ),
       },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
-        guardrailStatus: true,
-        status: true,
+        snapshotId: true,
+        scanJobId: true,
       },
     });
 
-    if (
-      !legalRuleMatch ||
-      fromPrismaEvidenceAcceptanceStatus(legalRuleMatch.status) !==
-        LEGAL_RULE_MATCH_STATUSES.accepted
-    ) {
+    if (!evidenceReport) {
       throw problemException(
-        SCAN_ERROR_CODES.legalRuleMatchNotFound,
+        SCAN_ERROR_CODES.evidenceReportNotFound,
         command.correlationId,
         { status: HttpStatus.NOT_FOUND },
       );
     }
 
-    if (
-      fromPrismaLegalRuleMatchGuardrailStatus(
-        legalRuleMatch.guardrailStatus,
-      ) !== LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.passed
-    ) {
-      throw problemException(
-        SCAN_ERROR_CODES.legalRuleMatchNotFound,
-        command.correlationId,
-        { status: HttpStatus.UNPROCESSABLE_ENTITY },
-      );
-    }
-
-    const existingResult = await this.prisma.classificationResult.findFirst({
-      where: {
-        legalRuleMatchId: legalRuleMatch.id,
-        assessmentId: command.assessmentId,
-        organizationId: command.pbacContext.organizationId,
-      },
-      select: { id: true, status: true },
-    });
-
-    if (
-      existingResult &&
-      fromPrismaEvidenceAcceptanceStatus(existingResult.status) ===
-        CLASSIFICATION_RESULT_STATUSES.accepted
-    ) {
-      throw problemException(
-        SCAN_ERROR_CODES.resultAlreadyExists,
-        command.correlationId,
-        { status: HttpStatus.CONFLICT },
-      );
-    }
-
     const event = buildOutboxMessageInput({
-      aggregateType: OUTBOX_AGGREGATE_TYPES.legalRuleMatch,
-      aggregateId: legalRuleMatch.id,
-      eventType: SCAN_EVENT_TYPES.legalRuleMatchReady,
+      aggregateType: OUTBOX_AGGREGATE_TYPES.technicalEvidenceReport,
+      aggregateId: evidenceReport.id,
+      eventType: SCAN_EVENT_TYPES.evidenceAccepted,
       organizationId: command.pbacContext.organizationId,
       assessmentId: command.assessmentId,
       correlationId: command.correlationId,
-      causationId: command.correlationId,
-      actor: { id: command.pbacContext.userId, type: AUDIT_ACTOR_TYPES.user },
+      causationId: evidenceReport.id,
+      actor: {
+        id: command.pbacContext.userId,
+        type: AUDIT_ACTOR_TYPES.user,
+      },
       result: SCAN_EVENT_TYPES.classificationRerunTriggeredAudit,
       redactionStatus: AUDIT_REDACTION_STATUSES.none,
       authorizationAction: PBAC_ACTIONS.classificationRun,
-      idempotencyKey: `${legalRuleMatch.id}:${command.correlationId}`,
+      idempotencyKey: `${evidenceReport.id}:${command.correlationId}:engineering-assessment-rerun`,
       payload: {
-        legalRuleMatchId: legalRuleMatch.id,
+        evidenceReportId: evidenceReport.id,
+        technicalEvidenceReportId: evidenceReport.id,
         assessmentId: command.assessmentId,
-        guardrailStatus: LEGAL_RULE_MATCH_GUARDRAIL_STATUSES.passed,
+        snapshotId: evidenceReport.snapshotId,
+        scanJobId: evidenceReport.scanJobId,
         correlationId: command.correlationId,
+        rerun: true,
       },
     });
 
@@ -129,21 +96,25 @@ export class RerunClassificationHandler implements ICommandHandler<RerunClassifi
           actorId: command.pbacContext.userId,
           organizationId: command.pbacContext.organizationId,
           assessmentId: command.assessmentId,
-          resourceType: AUDIT_RESOURCE_TYPES.legalRuleMatch,
-          resourceId: legalRuleMatch.id,
+          resourceType: AUDIT_RESOURCE_TYPES.technicalEvidenceReport,
+          resourceId: evidenceReport.id,
           correlationId: command.correlationId,
-          causationId: command.correlationId,
+          causationId: evidenceReport.id,
           decision: AUDIT_DECISIONS.allow,
           result: SCAN_EVENT_TYPES.classificationRerunTriggeredAudit,
           redactionStatus: AUDIT_REDACTION_STATUSES.none,
-          payload: { reason: command.reason },
+          payload: {
+            reason: command.reason,
+            technicalEvidenceReportId: evidenceReport.id,
+            snapshotId: evidenceReport.snapshotId,
+          },
         },
         tx,
       );
     });
 
     return {
-      legal_rule_match_id: legalRuleMatch.id,
+      technical_evidence_report_id: evidenceReport.id,
       status: CLASSIFICATION_RERUN_STATUSES.queued,
       correlationId: command.correlationId,
     };

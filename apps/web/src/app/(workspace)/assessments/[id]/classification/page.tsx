@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { resolveMessage } from "@lcsp/i18n";
 
 import { ClassificationStatusPage } from "@/features/classification/components/organisms/classification-status-page";
+import { LegalMatchDiagnosticsPanel } from "@/features/classification/components/organisms/legal-match-diagnostics-panel";
 import { appLocale } from "@/lib/locale";
 
 export const metadata: Metadata = {
@@ -18,5 +19,10 @@ export default async function AssessmentClassificationPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <ClassificationStatusPage assessmentId={id} />;
+  return (
+    <>
+      <ClassificationStatusPage assessmentId={id} />
+      <LegalMatchDiagnosticsPanel assessmentId={id} />
+    </>
+  );
 }

@@ -16,45 +16,10 @@ services:
     requires:
       - rabbitmq
 
-  technical-profile-worker:
+  engineering-assessment-worker:
     path: lcsp-python-workers
     command:
-      - lcsp_workers.intelligence.technical_profile_consumer:TechnicalProfileConsumer
-    requires:
-      - rabbitmq
-
-  ai-usage-flow-worker:
-    path: lcsp-python-workers
-    command:
-      - lcsp_workers.intelligence.ai_usage_flow_consumer:AIUsageFlowConsumer
-    requires:
-      - rabbitmq
-
-  conflict-detection-worker:
-    path: lcsp-python-workers
-    command:
-      - lcsp_workers.intelligence.conflict_detection_consumer:ConflictDetectionConsumer
-    requires:
-      - rabbitmq
-
-  verified-profile-worker:
-    path: lcsp-python-workers
-    command:
-      - lcsp_workers.intelligence.verified_profile_consumer:VerifiedProfileConsumer
-    requires:
-      - rabbitmq
-
-  legal-retrieval-worker:
-    path: lcsp-python-workers
-    command:
-      - lcsp_workers.legal.legal_retrieval_consumer:LegalRetrievalConsumer
-    requires:
-      - rabbitmq
-
-  classification-worker:
-    path: lcsp-python-workers
-    command:
-      - lcsp_workers.classification.classification_consumer:ClassificationConsumer
+      - lcsp_workers.investigation.engineering_assessment_consumer:EngineeringAssessmentConsumer
     requires:
       - rabbitmq
 
@@ -62,5 +27,26 @@ services:
     path: lcsp-python-workers
     command:
       - lcsp_workers.reporting.gap_analysis_consumer:GapAnalysisConsumer
+    requires:
+      - rabbitmq
+
+  legal-corpus-recovery-worker:
+    path: lcsp-python-workers
+    command:
+      - lcsp_workers.legal.legal_corpus_recovery_consumer:LegalCorpusRecoveryConsumer
+    requires:
+      - rabbitmq
+
+  targeted-reanalysis-worker:
+    path: lcsp-python-workers
+    command:
+      - lcsp_workers.scanner.targeted_reanalysis_consumer:TargetedReanalysisConsumer
+    requires:
+      - rabbitmq
+
+  final-report-worker:
+    path: lcsp-python-workers
+    command:
+      - lcsp_workers.reporting.final_report_consumer:FinalReportConsumer
     requires:
       - rabbitmq
