@@ -8,6 +8,7 @@ from typing import Any, Callable
 from lcsp_workers.llm import LLMToolDefinition
 from lcsp_workers.llm.fallback_client import LLMClientProtocol
 from lcsp_workers.platform.logging import get_logger
+from lcsp_workers.platform.tracing import traceable
 from lcsp_workers.scanner.program_graph.query_engine import ProgramGraphQueryEngine
 from lcsp_workers.scanner.program_graph.vocabulary import EDGE_TYPES, NODE_TYPES
 
@@ -63,6 +64,7 @@ class LawGuidedInvestigator:
         self.llm = llm_client
         self.validator = EvidenceClaimValidator()
 
+    @traceable(run_type="chain", name="LawGuidedInvestigator.investigate")
     def investigate(
         self,
         *,

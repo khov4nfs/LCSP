@@ -11,6 +11,7 @@ from typing import Any, Optional
 from lcsp_workers.llm.prompt_safety import check_prompt_safety
 from lcsp_workers.llm.budget_tracker import BudgetTracker
 from lcsp_workers.platform.redaction import redact_string
+from lcsp_workers.platform.tracing import get_current_run_tree, traceable
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +186,7 @@ class LLMGatewayClient:
         else:
             raise ValueError(f"Unsupported LLM_PROVIDER: {self.provider}")
 
+    @traceable(run_type="llm", name="LLMGatewayClient.complete")
     def complete(
         self,
         prompt: str,
@@ -267,6 +269,16 @@ class LLMGatewayClient:
 
         self._record_actual_usage(input_tokens, output_tokens)
 
+        run_tree = get_current_run_tree()
+        if run_tree:
+            run_tree.metadata["ls_provider"] = self.provider
+            run_tree.metadata["ls_model_name"] = self.model
+            run_tree.metadata["usage"] = {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+            }
+
         return LLMResponse(
             content=redact_string(content),
             input_tokens=input_tokens,
@@ -276,6 +288,7 @@ class LLMGatewayClient:
             request_id=request_id,
         )
 
+    @traceable(run_type="llm", name="LLMGatewayClient.complete_with_tools")
     def complete_with_tools(
         self,
         prompt: str,
@@ -331,18 +344,22 @@ class LLMGatewayClient:
             )
             message = response.choices[0].message
             content = message.content or ""
-            for call in message.tool_calls or []:
-                calls.append(
-                    LLMToolCall(
-                        name=call.function.name,
-                        arguments=self._parse_json_arguments(call.function.arguments),
-                        call_id=getattr(call, "id", None),
-                    )
-                )
             request_id = getattr(response, "id", None)
             if response.usage:
                 input_tokens = response.usage.prompt_tokens
                 output_tokens = response.usage.completion_tokens
+
+            if message.tool_calls:
+                for call in message.tool_calls:
+                    calls.append(
+                        LLMToolCall(
+                            call_id=call.id,
+                            name=call.function.name,
+                            arguments=self._parse_json_arguments(
+                                call.function.arguments
+                            ),
+                        )
+                    )
 
         elif self.provider == "anthropic":
             response = self._anthropic_client.messages.create(
@@ -357,61 +374,67 @@ class LLMGatewayClient:
                     }
                     for tool in tools
                 ],
-                tool_choice={"type": "any"} if require_tool_call else {"type": "auto"},
+                tool_choice=(
+                    {"type": "any"} if require_tool_call else {"type": "auto"}
+                ),
                 extra_headers=extra_headers if extra_headers else None,
             )
-            text_blocks = []
+            request_id = getattr(response, "id", None)
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
+
+            text_blocks: list[str] = []
             for block in response.content:
-                block_type = getattr(block, "type", None)
-                if block_type == "text" and hasattr(block, "text"):
+                if block.type == "text":
                     text_blocks.append(block.text)
-                elif block_type == "tool_use":
-                    raw_arguments = getattr(block, "input", {})
-                    if not isinstance(raw_arguments, dict):
-                        raise ValueError("LLM tool call arguments must be an object")
+                elif block.type == "tool_use":
                     calls.append(
                         LLMToolCall(
-                            name=str(block.name),
-                            arguments=dict(raw_arguments),
-                            call_id=getattr(block, "id", None),
+                            call_id=block.id,
+                            name=block.name,
+                            arguments=block.input
+                            if isinstance(block.input, dict)
+                            else self._parse_json_arguments(str(block.input)),
                         )
                     )
             content = "".join(text_blocks)
-            input_tokens = response.usage.input_tokens
-            output_tokens = response.usage.output_tokens
-            request_id = getattr(response, "id", None)
 
         elif self.provider in ("google", "google-genai", "gemini"):
             from google.genai import types
 
-            declarations = [
-                types.FunctionDeclaration(
-                    name=tool.name,
-                    description=tool.description,
-                    parameters_json_schema=tool.input_schema,
+            gemini_tools = [
+                types.Tool(
+                    function_declarations=[
+                        types.FunctionDeclaration(
+                            name=tool.name,
+                            description=tool.description,
+                            parameters=tool.input_schema,
+                        )
+                        for tool in tools
+                    ]
                 )
-                for tool in tools
             ]
-            tool_config = (
-                types.ToolConfig(
-                    function_calling_config=types.FunctionCallingConfig(mode="ANY")
+            config_kwargs: dict[str, Any] = {
+                "max_output_tokens": max_tokens_to_use,
+                "tools": gemini_tools,
+                "automatic_function_calling": types.AutomaticFunctionCallingConfig(
+                    disable=True
+                ),
+                "http_options": types.HttpOptions(headers=extra_headers),
+            }
+            if require_tool_call:
+                config_kwargs["tool_config"] = types.ToolConfig(
+                    function_calling_config=types.FunctionCallingConfig(
+                        mode=types.FunctionCallingConfigMode.ANY
+                    )
                 )
-                if require_tool_call
-                else None
-            )
+
             response = self._gemini_client.models.generate_content(
                 model=self.model,
                 contents=safe_prompt,
-                config=types.GenerateContentConfig(
-                    max_output_tokens=max_tokens_to_use,
-                    tools=[types.Tool(function_declarations=declarations)],
-                    automatic_function_calling=types.AutomaticFunctionCallingConfig(
-                        disable=True
-                    ),
-                    tool_config=tool_config,
-                    http_options=types.HttpOptions(headers=extra_headers),
-                ),
+                config=types.GenerateContentConfig(**config_kwargs),
             )
+            request_id = getattr(response, "response_id", None)
             content = getattr(response, "text", None) or ""
             for call in getattr(response, "function_calls", None) or []:
                 raw_arguments = getattr(call, "args", {}) or {}
@@ -424,7 +447,23 @@ class LLMGatewayClient:
                         call_id=getattr(call, "id", None),
                     )
                 )
-            request_id = getattr(response, "response_id", None)
+            if not calls and getattr(response, "candidates", None):
+                candidate = response.candidates[0]
+                if getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
+                    for part in candidate.content.parts:
+                        if getattr(part, "text", None):
+                            content += part.text
+                        if getattr(part, "function_call", None):
+                            calls.append(
+                                LLMToolCall(
+                                    name=part.function_call.name,
+                                    arguments=dict(part.function_call.args)
+                                    if part.function_call.args
+                                    else {},
+                                    call_id=getattr(part.function_call, "id", None),
+                                )
+                            )
+
             usage_metadata = getattr(response, "usage_metadata", None)
             if usage_metadata:
                 input_tokens = usage_metadata.prompt_token_count or 0
@@ -437,6 +476,17 @@ class LLMGatewayClient:
             raise ValueError("LLM provider returned no tool call in required mode")
 
         self._record_actual_usage(input_tokens, output_tokens)
+
+        run_tree = get_current_run_tree()
+        if run_tree:
+            run_tree.metadata["ls_provider"] = self.provider
+            run_tree.metadata["ls_model_name"] = self.model
+            run_tree.metadata["usage"] = {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
+            }
+
         return LLMToolResponse(
             content=redact_string(content),
             tool_calls=tuple(calls),

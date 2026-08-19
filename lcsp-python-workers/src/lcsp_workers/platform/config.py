@@ -87,6 +87,7 @@ def load_config() -> WorkerConfig:
         RuntimeError: If required variables or typed optional settings are invalid.
     """
     load_dotenv()
+
     missing = [
         v
         for v in ["RABBITMQ_URL", "NESTJS_API_BASE_URL", "WORKER_API_KEY"]
