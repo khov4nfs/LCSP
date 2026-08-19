@@ -4,7 +4,9 @@ import {
   formatClassificationRuntimeSummary,
   formatEngineeringConcept,
   formatEngineeringLimitation,
-  formatLegalReference,
+  formatEngineeringReason,
+  formatLegalProvisionCitation,
+  formatTechnicalEvidenceMore,
   resolveClassificationRuntimeMessage,
   resolveMessage,
 } from "@lcsp/i18n";
@@ -19,7 +21,10 @@ import { getClassificationActionVisibility } from "@/lib/api/classification-clie
 import { useClassificationStatusQuery } from "@/lib/api/assessment-queries";
 import { appLocale } from "@/lib/locale";
 import type { ClassificationStatusPageProps } from "../../types/component-props.types";
-import type { EngineeringRuleEvaluationViewModel } from "@/lib/api/classification-client";
+import type {
+  EngineeringRuleEvaluationViewModel,
+  TechnicalEvidenceViewModel,
+} from "@/lib/api/classification-client";
 
 export function ClassificationStatusPage({
   assessmentId,
@@ -146,7 +151,6 @@ export function ClassificationStatusPage({
                 <span
                   key={limitation}
                   className="rounded-md border bg-background px-2.5 py-1.5 text-xs text-muted-foreground"
-                  title={limitation}
                 >
                   {formatEngineeringLimitation(appLocale, limitation)}
                 </span>
@@ -193,10 +197,7 @@ export function ClassificationStatusPage({
               render={<Link href={`/assessments/${assessmentId}/documents`} />}
               variant="outline"
             >
-              {resolveMessage(
-                appLocale,
-                "pages.classification.generateGapAnalysis",
-              )}
+              {resolveMessage(appLocale, "pages.classification.generateGapAnalysis")}
             </Button>
           ) : null}
         </div>
@@ -210,19 +211,18 @@ function EngineeringRuleCard({
 }: {
   evaluation: EngineeringRuleEvaluationViewModel;
 }) {
-  const legalReferences = Array.from(
-    new Set([...evaluation.sourceLocators, ...evaluation.sourceChunkIds]),
+  const hiddenEvidenceCount = Math.max(
+    0,
+    evaluation.technicalEvidenceCount - evaluation.technicalEvidence.length,
   );
-  const evidenceReferences = Array.from(new Set(evaluation.evidenceRefs));
 
   return (
     <article className="rounded-lg border bg-card p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="text-base font-semibold">
-            {formatEngineeringConcept(evaluation.concept)}
+            {formatEngineeringConcept(appLocale, evaluation.concept)}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">{evaluation.concept}</p>
         </div>
         <span className={statusBadgeClassName(evaluation.status)}>
           {statusLabel(evaluation.status)}
@@ -230,7 +230,7 @@ function EngineeringRuleCard({
       </div>
 
       <p className="mt-3 text-sm leading-6 text-muted-foreground">
-        {evaluation.reason}
+        {formatEngineeringReason(appLocale, evaluation.reason)}
       </p>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -240,7 +240,7 @@ function EngineeringRuleCard({
         />
         <DetailMetric
           label={resolveClassificationRuntimeMessage(appLocale, "technicalEvidence")}
-          value={String(evidenceReferences.length)}
+          value={String(evaluation.technicalEvidenceCount)}
         />
         <DetailMetric
           label={resolveClassificationRuntimeMessage(appLocale, "limitations")}
@@ -259,26 +259,29 @@ function EngineeringRuleCard({
                 <span className="font-medium text-foreground/80">
                   {formatEngineeringLimitation(appLocale, limitation)}
                 </span>
-                <span className="ml-2 font-mono text-[11px]">{limitation}</span>
               </li>
             ))}
           </ul>
         </div>
       ) : null}
 
-      {legalReferences.length ? (
+      {evaluation.legalProvisions.length ? (
         <div className="mt-4">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {resolveMessage(appLocale, "pages.classification.referencesLabel")}
           </p>
-          <ul className="mt-2 grid gap-1.5 text-sm text-muted-foreground sm:grid-cols-2">
-            {legalReferences.map((reference) => (
+          <ul className="mt-2 grid gap-2">
+            {evaluation.legalProvisions.map((provision) => (
               <li
-                key={`${evaluation.engineeringRuleId}:legal:${reference}`}
-                className="rounded-md border bg-muted/10 px-3 py-2"
-                title={reference}
+                key={`${evaluation.engineeringRuleId}:legal:${provision.documentId}:${provision.locator}`}
+                className="rounded-md border bg-muted/10 px-3 py-3"
               >
-                {formatLegalReference(appLocale, reference)}
+                <p className="text-sm font-semibold text-foreground/90">
+                  {formatLegalProvisionCitation(appLocale, provision)}
+                </p>
+                <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">
+                  {provision.content}
+                </p>
               </li>
             ))}
           </ul>
@@ -289,17 +292,22 @@ function EngineeringRuleCard({
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {resolveClassificationRuntimeMessage(appLocale, "technicalEvidence")}
         </p>
-        {evidenceReferences.length ? (
-          <ul className="mt-2 grid gap-1.5 text-xs text-muted-foreground">
-            {evidenceReferences.slice(0, 12).map((reference) => (
-              <li
-                key={`${evaluation.engineeringRuleId}:evidence:${reference}`}
-                className="break-all rounded-md border bg-muted/10 px-3 py-2 font-mono"
-              >
-                {reference}
-              </li>
-            ))}
-          </ul>
+        {evaluation.technicalEvidence.length ? (
+          <>
+            <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+              {evaluation.technicalEvidence.map((evidence, index) => (
+                <TechnicalEvidenceItem
+                  key={`${evaluation.engineeringRuleId}:evidence:${index}`}
+                  evidence={evidence}
+                />
+              ))}
+            </ul>
+            {hiddenEvidenceCount > 0 ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {formatTechnicalEvidenceMore(appLocale, hiddenEvidenceCount)}
+              </p>
+            ) : null}
+          </>
         ) : (
           <p className="mt-2 text-sm text-muted-foreground">
             {resolveClassificationRuntimeMessage(
@@ -309,32 +317,62 @@ function EngineeringRuleCard({
           </p>
         )}
       </div>
-
-      <details className="mt-4 rounded-md border bg-muted/10 px-3 py-2">
-        <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-          {resolveClassificationRuntimeMessage(appLocale, "technicalDetails")}
-        </summary>
-        <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
-          <div>
-            <dt className="font-medium text-muted-foreground">
-              {resolveClassificationRuntimeMessage(appLocale, "engineeringRule")}
-            </dt>
-            <dd className="mt-1 break-all font-mono text-foreground/80">
-              {evaluation.engineeringRuleId}
-            </dd>
-          </div>
-          <div>
-            <dt className="font-medium text-muted-foreground">
-              {resolveClassificationRuntimeMessage(appLocale, "legalRule")}
-            </dt>
-            <dd className="mt-1 break-all font-mono text-foreground/80">
-              {evaluation.legalRuleId}
-            </dd>
-          </div>
-        </dl>
-      </details>
     </article>
   );
+}
+
+function TechnicalEvidenceItem({
+  evidence,
+}: {
+  evidence: TechnicalEvidenceViewModel;
+}) {
+  const location = sourceLocation(evidence);
+  return (
+    <li className="rounded-md border bg-muted/10 px-3 py-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs font-medium text-muted-foreground">
+          {resolveClassificationRuntimeMessage(appLocale, "evidenceType")}
+        </span>
+        <span className="rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+          {formatEngineeringConcept(appLocale, evidence.kind)}
+        </span>
+      </div>
+      <p className="mt-2 font-medium text-foreground/90">
+        {displayEvidenceLabel(evidence.label)}
+      </p>
+      {location ? (
+        <div className="mt-2 text-xs text-muted-foreground">
+          <span className="font-medium">
+            {resolveClassificationRuntimeMessage(appLocale, "sourceLocation")}:
+          </span>{" "}
+          <span className="break-all">{location}</span>
+        </div>
+      ) : null}
+      {evidence.symbolRef && evidence.symbolRef !== evidence.label ? (
+        <div className="mt-1 text-xs text-muted-foreground">
+          <span className="font-medium">
+            {resolveClassificationRuntimeMessage(appLocale, "sourceSymbol")}:
+          </span>{" "}
+          <span>{evidence.symbolRef}</span>
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+function displayEvidenceLabel(value: string): string {
+  return /^[A-Z0-9_\-\s]+$/.test(value)
+    ? formatEngineeringConcept(appLocale, value)
+    : value;
+}
+
+function sourceLocation(evidence: TechnicalEvidenceViewModel): string | null {
+  if (!evidence.filePath) return null;
+  if (evidence.startLine === null) return evidence.filePath;
+  if (evidence.endLine !== null && evidence.endLine !== evidence.startLine) {
+    return `${evidence.filePath}:${evidence.startLine}-${evidence.endLine}`;
+  }
+  return `${evidence.filePath}:${evidence.startLine}`;
 }
 
 function PageShell({

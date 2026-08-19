@@ -19,6 +19,7 @@ from lcsp_workers.scanner.inventory.language_types import (
     SUPPORT_FULL,
     SUPPORT_MANIFEST_ONLY,
     SUPPORT_SKIP,
+    LanguageClassification,
 )
 
 
@@ -113,6 +114,31 @@ def test_t06_router_enforces_python_quota_and_records_limitation(workspace_dir: 
     assert dispatch.skipped_files[0].endswith(".py")
     assert any(
         item["reason"].startswith("python_file_limit_exceeded")
+        for item in dispatch.coverage_limitations
+    )
+
+
+@pytest.mark.p0
+def test_router_default_full_scan_does_not_drop_ts_js_after_500_files() -> None:
+    classifications = [
+        LanguageClassification(
+            file_path=f"src/module_{index}.ts",
+            language=LANGUAGE_TYPESCRIPT,
+            support_level=SUPPORT_FULL,
+            file_size_bytes=1,
+            line_count=1,
+            skip_reason=None,
+            coverage_limitation=False,
+        )
+        for index in range(665)
+    ]
+
+    dispatch = AnalyzerRouter().route(classifications)
+
+    assert len(dispatch.ts_js_files) == 665
+    assert dispatch.skipped_files == []
+    assert not any(
+        item["reason"].startswith("ts_js_file_limit_exceeded")
         for item in dispatch.coverage_limitations
     )
 

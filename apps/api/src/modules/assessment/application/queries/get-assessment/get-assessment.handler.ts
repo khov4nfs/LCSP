@@ -34,6 +34,8 @@ import {
   ASSESSMENT_REPOSITORY,
   type AssessmentRepository,
 } from "../../ports/persistence/assessment.repository.js";
+import { resolveLegalProvisionDisplays } from "../../services/legal-provision-display.js";
+import { resolveTechnicalEvidenceDisplays } from "../../services/technical-evidence-display.js";
 import { GetAssessmentQuery } from "./get-assessment.query.js";
 
 /**
@@ -82,7 +84,7 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
             TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
           ),
         },
-        select: { id: true },
+        select: { id: true, evidencePayload: true },
         orderBy: { createdAt: "desc" },
       });
 
@@ -102,6 +104,10 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
           orderBy: { createdAt: "desc" },
         })
       : null;
+
+    const legalChunks = classificationResult
+      ? await this.loadLegalChunks(classificationResult.classificationData)
+      : [];
 
     const readinessState: ReadinessState = !acceptedEvidenceReport
       ? {
@@ -131,7 +137,11 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
           )
         : null,
       classification_result: classificationResult
-        ? toClassificationResultSummary(classificationResult.classificationData)
+        ? toClassificationResultSummary(
+            classificationResult.classificationData,
+            acceptedEvidenceReport?.evidencePayload,
+            legalChunks,
+          )
         : null,
       legal_rule_match_guardrail_status: null,
       legal_rule_match_diagnostics: null,
@@ -142,6 +152,27 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
       updated_at: assessment.updatedAt.toISOString(),
       correlationId: query.correlationId,
     };
+  }
+
+  private async loadLegalChunks(classificationData: unknown) {
+    const data = isRecord(classificationData) ? classificationData : {};
+    const corpusVersionId = cleanString(data.legal_corpus_version_id);
+    const sourceChunkIds = collectSourceChunkIds(data.evaluations);
+    if (!corpusVersionId || sourceChunkIds.length === 0) return [];
+
+    return this.prisma.legalDocumentChunk.findMany({
+      where: {
+        legalCorpusVersionId: corpusVersionId,
+        id: { in: sourceChunkIds },
+      },
+      select: {
+        id: true,
+        documentId: true,
+        locator: true,
+        content: true,
+        hierarchy: true,
+      },
+    });
   }
 
   private throwNotFound(correlationId: string): never {
@@ -164,8 +195,18 @@ function nextActionFor(wizardStatus: WizardStatus): AssessmentNextActionKey {
   }
 }
 
+type LegalChunkDisplaySource = {
+  id: string;
+  documentId: string;
+  locator: string;
+  content: string;
+  hierarchy: unknown;
+};
+
 function toClassificationResultSummary(
   value: unknown,
+  evidencePayload: unknown,
+  legalChunks: LegalChunkDisplaySource[],
 ): ClassificationResultSummaryDto {
   const data = isRecord(value) ? value : {};
   const summary = isRecord(data.summary) ? data.summary : {};
@@ -179,7 +220,9 @@ function toClassificationResultSummary(
       total: nonNegativeInteger(summary.total) ?? 0,
     },
     evaluations: recordArray(data.evaluations)
-      .map(toEngineeringRuleEvaluation)
+      .map((item) =>
+        toEngineeringRuleEvaluation(item, evidencePayload, legalChunks),
+      )
       .filter((item): item is EngineeringRuleEvaluationDto => item !== null),
     limitations: stringArray(data.limitations),
     legal_rule_catalog_version_id: cleanString(
@@ -199,6 +242,8 @@ function toClassificationResultSummary(
 
 function toEngineeringRuleEvaluation(
   value: Record<string, unknown>,
+  evidencePayload: unknown,
+  legalChunks: LegalChunkDisplaySource[],
 ): EngineeringRuleEvaluationDto | null {
   const status = cleanString(value.status)?.toUpperCase();
   if (
@@ -212,21 +257,40 @@ function toEngineeringRuleEvaluation(
   const engineeringRuleId = cleanString(value.engineering_rule_id);
   if (!engineeringRuleId) return null;
 
+  const evidenceRefs = stringArray(value.evidence_refs);
+  const sourceChunkIds = stringArray(value.source_chunk_ids);
   return {
     engineering_rule_id: engineeringRuleId,
     legal_rule_id: cleanString(value.legal_rule_id) ?? "",
     concept: cleanString(value.concept) ?? "UNKNOWN",
     status: status as EngineeringRuleEvaluationStatus,
     reason: cleanString(value.reason) ?? "",
-    evidence_refs: stringArray(value.evidence_refs),
-    source_chunk_ids: stringArray(value.source_chunk_ids),
+    evidence_refs: evidenceRefs,
+    technical_evidence: resolveTechnicalEvidenceDisplays(
+      evidencePayload,
+      evidenceRefs,
+      value.technical_evidence,
+    ),
+    source_chunk_ids: sourceChunkIds,
     source_locators: stringArray(value.source_locators),
+    legal_provisions: resolveLegalProvisionDisplays(
+      sourceChunkIds,
+      legalChunks,
+    ),
     confidence:
       typeof value.confidence === "number" && Number.isFinite(value.confidence)
         ? Math.max(0, Math.min(1, value.confidence))
         : 0,
     limitations: stringArray(value.limitations),
   };
+}
+
+function collectSourceChunkIds(value: unknown): string[] {
+  const ids = new Set<string>();
+  for (const evaluation of recordArray(value)) {
+    for (const id of stringArray(evaluation.source_chunk_ids)) ids.add(id);
+  }
+  return Array.from(ids);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

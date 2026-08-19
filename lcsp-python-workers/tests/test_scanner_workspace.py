@@ -677,7 +677,7 @@ def test_scan_consumer_emits_classifier_coverage_limitations_in_callback(
 
 @pytest.mark.p0
 @pytest.mark.integration
-def test_scan_consumer_limits_python_analysis_to_routed_quota(
+def test_scan_consumer_full_scan_routes_all_python_files_without_default_quota(
     workspace_dir: Path,
 ) -> None:
     workspace = ScannerWorkspace(root_path=workspace_dir / "scanner")
@@ -711,9 +711,11 @@ def test_scan_consumer_limits_python_analysis_to_routed_quota(
     def assert_python_analysis_is_routed(scan_job_id, payload) -> None:
         assert scan_job_id == "job-9"
         analysis = payload.evidence_payload.get("python_analysis") or {}
-        assert analysis.get("files_analyzed") == 500
+        assert analysis.get("files_analyzed") == 501
         coverage_notes = payload.evidence_payload.get("coverage_notes", [])
-        assert any("python_file_limit_exceeded" in note for note in coverage_notes)
+        assert not any(
+            "python_file_limit_exceeded" in note for note in coverage_notes
+        )
 
     api_client.post_scan_callback.side_effect = assert_python_analysis_is_routed
     consumer = ScanConsumer(

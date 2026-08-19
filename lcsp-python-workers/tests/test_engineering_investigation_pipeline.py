@@ -9,6 +9,7 @@ from lcsp_workers.investigation.models import (
     InvestigationPacket,
 )
 from lcsp_workers.investigation.pipeline import EngineeringInvestigationPipeline
+from lcsp_workers.scanner.program_graph.models import ProgramEvidenceGraph
 
 
 def _evidence_report() -> dict:
@@ -114,6 +115,53 @@ def test_pipeline_returns_direct_compliant_rule_evaluation() -> None:
     }
 
 
+def test_pipeline_treats_unknown_as_valid_complete_evaluation() -> None:
+    api_client = _api_client()
+    engineering_rule = _rule()
+    rule_service = MagicMock()
+    rule_service.get_or_compile.return_value = ([engineering_rule], True)
+    query_executor = MagicMock()
+    query_executor.execute.return_value = InvestigationPacket(
+        engineering_rule_id="eng-1",
+        concept="HUMAN_OVERSIGHT",
+        investigation_goals=("Find review controls",),
+        initial_results=(),
+    )
+    investigator = MagicMock()
+    investigator.investigate.return_value = [
+        EvidenceClaim(
+            claim_id="claim-unknown",
+            engineering_rule_id="eng-1",
+            claim_type="UNRESOLVED_ENGINEERING_FACT",
+            value=None,
+            evidence_refs=("evidence:finding-1",),
+            confidence=0.5,
+            limitations=(
+                ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"],
+            ),
+        )
+    ]
+
+    result = EngineeringInvestigationPipeline(
+        api_client=api_client,
+        llm_client=MagicMock(),
+        retriever=MagicMock(),
+        rule_service=rule_service,
+        query_executor=query_executor,
+        investigator=investigator,
+    ).run(evidence_report=_evidence_report(), workflow_run_id="workflow-1")
+
+    assert result.status == "COMPLETE"
+    assert result.evaluations[0].status == "UNKNOWN"
+    assert result.limitations == ()
+    assert result.to_assessment_data()["summary"] == {
+        "compliant": 0,
+        "non_compliant": 0,
+        "unknown": 1,
+        "total": 1,
+    }
+
+
 def test_pipeline_keeps_other_rules_when_one_compilation_fails() -> None:
     api_client = _api_client(
         [
@@ -209,3 +257,59 @@ def test_pipeline_deduplicates_compilation_failure_to_machine_code() -> None:
         ENGINEERING_LIMITATION_CODES["engineering_rule_compilation_failed"],
     )
     assert rule_service.get_or_compile.call_count == 2
+
+
+def test_safe_technical_evidence_projection_keeps_source_location_without_source_body() -> None:
+    graph = ProgramEvidenceGraph.from_dict(
+        {
+            "graph_id": "graph-1",
+            "snapshot_id": "snapshot-1",
+            "commit_sha": "abc123",
+            "node_count": 1,
+            "edge_count": 0,
+            "nodes": [
+                {
+                    "node_id": "node-1",
+                    "node_type": "HUMAN_REVIEW",
+                    "label": "approveRequest",
+                    "source": {
+                        "file_path": "repo-abc1234/apps/api/src/review.ts",
+                        "symbol_ref": "approveRequest",
+                        "start_line": 42,
+                        "end_line": 48,
+                        "source_hash": "sha256:source",
+                    },
+                    "semantic_types": ["HUMAN_OVERSIGHT"],
+                    "evidence_refs": ["evidence:review"],
+                }
+            ],
+            "edges": [],
+            "source_anchors": [],
+            "indexes": {},
+            "unresolved_frontiers": [],
+            "coverage_state": "SUFFICIENT",
+            "coverage_notes": [],
+            "provenance": {"scan_job_id": "scan-1"},
+            "evidence_refs": ["evidence:review"],
+            "graph_hash": "sha256:graph",
+            "schema_version": "2.0.0",
+        }
+    )
+
+    displays = EngineeringInvestigationPipeline._technical_evidence_displays(
+        graph,
+        ("evidence:review",),
+    )
+
+    assert displays == [
+        {
+            "kind": "HUMAN_REVIEW",
+            "label": "approveRequest",
+            "file_path": "repo-abc1234/apps/api/src/review.ts",
+            "symbol_ref": "approveRequest",
+            "start_line": 42,
+            "end_line": 48,
+        }
+    ]
+    assert "code" not in displays[0]
+    assert "source" not in displays[0]

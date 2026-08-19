@@ -151,6 +151,7 @@ describe("RerunScanHandler", () => {
       id: "snapshot-1",
       assessmentId: "assessment-1",
       organizationId: "org-1",
+      commitSha: "a".repeat(40),
     });
     (prisma.assessment.findUnique as jest.Mock<any>).mockResolvedValueOnce(
       null,
@@ -171,6 +172,7 @@ describe("RerunScanHandler", () => {
       id: "snapshot-1",
       assessmentId: "assessment-1",
       organizationId: "org-1",
+      commitSha: "a".repeat(40),
     });
     (prisma.assessment.findUnique as jest.Mock<any>).mockResolvedValueOnce({
       id: "assessment-1",
@@ -194,6 +196,7 @@ describe("RerunScanHandler", () => {
       id: "snapshot-1",
       assessmentId: "assessment-1",
       organizationId: "org-1",
+      commitSha: "a".repeat(40),
     });
     (prisma.assessment.findUnique as jest.Mock<any>).mockResolvedValueOnce({
       id: "assessment-1",
@@ -207,7 +210,7 @@ describe("RerunScanHandler", () => {
     );
   });
 
-  it("[T01] creates new scan job, enqueues event, and writes audit", async () => {
+  it("[T01] creates new scan job, enqueues commit-pinned event, and writes audit", async () => {
     (
       prisma.repositoryScanJob.findUnique as jest.Mock<any>
     ).mockResolvedValueOnce(null);
@@ -217,6 +220,7 @@ describe("RerunScanHandler", () => {
       id: "snapshot-1",
       assessmentId: "assessment-1",
       organizationId: "org-1",
+      commitSha: "a".repeat(40),
     });
     (prisma.assessment.findUnique as jest.Mock<any>).mockResolvedValueOnce({
       id: "assessment-1",
@@ -241,7 +245,15 @@ describe("RerunScanHandler", () => {
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(prisma.repositoryScanJob.create).toHaveBeenCalled();
     // eslint-disable-next-line @typescript-eslint/unbound-method
-    expect(outbox.enqueue).toHaveBeenCalled();
+    expect(outbox.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          snapshotId: "snapshot-1",
+          commitSha: "a".repeat(40),
+        }),
+      }),
+      expect.anything(),
+    );
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(auditWriter.write).toHaveBeenCalled();
   });

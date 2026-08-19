@@ -25,8 +25,28 @@ const directResult = {
       status: "NON_COMPLIANT",
       reason: "Repository evidence demonstrates that the engineering requirement is not met.",
       evidence_refs: ["graph:path:1"],
-      source_chunk_ids: ["LAW-134:art-14::cl-2"],
+      technical_evidence: [
+        {
+          kind: "HUMAN_REVIEW",
+          label: "Manual approval",
+          file_path: "src/review.ts",
+          symbol_ref: "approveRequest",
+          start_line: 42,
+          end_line: 48,
+        },
+      ],
+      source_chunk_ids: ["LAW-134-2025-QH15:art-14::cl-2"],
       source_locators: ["art-14::cl-2"],
+      legal_provisions: [
+        {
+          document_id: "LAW-134-2025-QH15",
+          locator: "art-14::cl-2",
+          article_number: "14",
+          clause_number: "2",
+          point_code: null,
+          content: "2. Yêu cầu phải có cơ chế xem xét của con người.",
+        },
+      ],
       confidence: 0.95,
       limitations: [],
     },
@@ -37,8 +57,28 @@ const directResult = {
       status: "COMPLIANT",
       reason: "Repository evidence demonstrates that the engineering requirement is met.",
       evidence_refs: ["graph:path:2"],
-      source_chunk_ids: ["LAW-134:art-12::cl-1"],
+      technical_evidence: [
+        {
+          kind: "LOG_SINK",
+          label: "Audit log",
+          file_path: "src/audit.ts",
+          symbol_ref: "writeAuditLog",
+          start_line: 15,
+          end_line: 15,
+        },
+      ],
+      source_chunk_ids: ["LAW-134-2025-QH15:art-12::cl-1"],
       source_locators: ["art-12::cl-1"],
+      legal_provisions: [
+        {
+          document_id: "LAW-134-2025-QH15",
+          locator: "art-12::cl-1",
+          article_number: "12",
+          clause_number: "1",
+          point_code: null,
+          content: "1. Hệ thống phải lưu nhật ký phục vụ kiểm tra.",
+        },
+      ],
       confidence: 0.9,
       limitations: [],
     },
@@ -66,7 +106,7 @@ test("classification outcome maps locked state correctly", () => {
   }
 });
 
-test("direct EngineeringRule result exposes evaluations and report actions", () => {
+test("direct EngineeringRule result exposes readable evidence and legal provisions", () => {
   const result = toClassificationStatusOutcome(
     {
       readiness_state: { classification_locked: false },
@@ -84,11 +124,26 @@ test("direct EngineeringRule result exposes evaluations and report actions", () 
     assert.equal(result.data.engineeringSummary?.compliant, 1);
     assert.equal(result.data.engineeringSummary?.nonCompliant, 1);
     assert.equal(result.data.evaluations[0]?.status, "NON_COMPLIANT");
-    assert.deepEqual(result.data.references, [
-      "art-14::cl-2",
-      "LAW-134:art-14::cl-2",
-      "art-12::cl-1",
-      "LAW-134:art-12::cl-1",
+    assert.equal(result.data.evaluations[0]?.technicalEvidenceCount, 1);
+    assert.deepEqual(result.data.evaluations[0]?.technicalEvidence, [
+      {
+        kind: "HUMAN_REVIEW",
+        label: "Manual approval",
+        filePath: "src/review.ts",
+        symbolRef: "approveRequest",
+        startLine: 42,
+        endLine: 48,
+      },
+    ]);
+    assert.deepEqual(result.data.evaluations[0]?.legalProvisions, [
+      {
+        documentId: "LAW-134-2025-QH15",
+        locator: "art-14::cl-2",
+        articleNumber: "14",
+        clauseNumber: "2",
+        pointCode: null,
+        content: "2. Yêu cầu phải có cơ chế xem xét của con người.",
+      },
     ]);
     assert.deepEqual(getClassificationActionVisibility(result.data), {
       showFinalReport: true,
@@ -98,14 +153,14 @@ test("direct EngineeringRule result exposes evaluations and report actions", () 
   }
 });
 
-test("degraded direct assessment remains reportable with explicit unknowns", () => {
+test("unknown EngineeringRule outcomes remain guardrail-passed when runtime completed", () => {
   const result = toClassificationStatusOutcome(
     {
       readiness_state: { classification_locked: false },
-      guardrail_status: "degraded",
+      guardrail_status: "passed",
       classification_result: {
         ...directResult,
-        status: "PARTIAL",
+        status: "COMPLETE",
         engineering_summary: {
           compliant: 0,
           non_compliant: 0,
@@ -119,7 +174,7 @@ test("degraded direct assessment remains reportable with explicit unknowns", () 
             limitations: ["DYNAMIC_PATH_UNRESOLVED"],
           },
         ],
-        limitations: ["DYNAMIC_PATH_UNRESOLVED"],
+        limitations: [],
       },
     },
     true,
@@ -128,11 +183,30 @@ test("degraded direct assessment remains reportable with explicit unknowns", () 
 
   assert.equal(result.kind, "loaded");
   if (result.kind === "loaded") {
-    assert.equal(result.data.state, "degraded");
+    assert.equal(result.data.state, "passed");
     assert.equal(result.data.evaluations[0]?.status, "UNKNOWN");
     assert.equal(getClassificationActionVisibility(result.data).showFinalReport, true);
     assert.equal(getClassificationActionVisibility(result.data).showGapAnalysis, true);
   }
+});
+
+test("degraded state remains reserved for partial runtime execution", () => {
+  const result = toClassificationStatusOutcome(
+    {
+      readiness_state: { classification_locked: false },
+      guardrail_status: "degraded",
+      classification_result: {
+        ...directResult,
+        status: "PARTIAL",
+        limitations: ["ENGINEERING_INVESTIGATION_FAILED"],
+      },
+    },
+    true,
+    200,
+  );
+
+  assert.equal(result.kind, "loaded");
+  if (result.kind === "loaded") assert.equal(result.data.state, "degraded");
 });
 
 test("processing is returned after evidence acceptance while worker is still running", () => {

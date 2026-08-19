@@ -103,6 +103,7 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
         id: true,
         assessmentId: true,
         organizationId: true,
+        commitSha: true,
       },
     });
 
@@ -184,6 +185,7 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
         scanJobId: newScanJobId,
         assessmentId: command.assessmentId,
         snapshotId: command.snapshotId,
+        commitSha: snapshot.commitSha,
         organizationId: pbac.organizationId,
         triggerSource,
         idempotencyKey: command.idempotencyKey,
@@ -254,7 +256,7 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
   }
 
   /**
-   * Maps scan-job identity/status into the rerun response contract.
+   * Maps scan-job identity/status into the external trigger response contract.
    *
    * @param scanJobId - Current scan-job identifier.
    * @param status - Normalized scan-job lifecycle status.

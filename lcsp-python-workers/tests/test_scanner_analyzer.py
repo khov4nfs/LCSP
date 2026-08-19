@@ -249,15 +249,19 @@ def test_t04_dynamic_system_prompt_reference(workspace_dir: Path) -> None:
 
 
 @pytest.mark.p0
-def test_t05_large_python_file_skipped(workspace_dir: Path) -> None:
+def test_t05_large_python_file_is_parsed_without_arbitrary_50kb_skip(workspace_dir: Path) -> None:
     from lcsp_workers.scanner.analyzers.python_analyzer import PythonAnalyzer
 
     (workspace_dir / "large.py").write_text("x = 1\n" * 40000, encoding="utf-8")
 
     result = PythonAnalyzer(workspace_dir).analyze()
 
-    assert result.files_skipped == 1
-    assert result.coverage_limitation is True
+    assert result.files_analyzed == 1
+    assert result.files_skipped == 0
+    assert all(
+        "file exceeds 50KB analysis limit" not in value
+        for value in result.coverage_limitations
+    )
 
 
 @pytest.mark.p0

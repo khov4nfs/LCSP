@@ -1,7 +1,8 @@
 """Direct LegalRule -> EngineeringRule -> graph investigation -> rule evaluation runtime."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from lcsp_workers.legal.chromadb_citation_retriever import ChromaDbCitationRetriever
@@ -12,6 +13,8 @@ from lcsp_workers.platform.api_client import WorkerApiClient
 from lcsp_workers.platform.logging import get_logger
 from lcsp_workers.scanner.program_graph.models import ProgramEvidenceGraph
 
+from .code_context import CodeContextSession
+from .code_context_investigator import CodeContextLawGuidedInvestigator
 from .initial_query_executor import InitialQueryExecutor
 from .investigator import LawGuidedInvestigator
 from .models import (
@@ -23,6 +26,7 @@ from .rule_evaluator import EngineeringRuleEvaluation, EngineeringRuleEvaluator
 
 
 logger = get_logger(__name__)
+MAX_TECHNICAL_EVIDENCE_DISPLAY_ITEMS = 12
 
 
 @dataclass(frozen=True)
@@ -38,9 +42,21 @@ class EngineeringInvestigationResult:
     claims: tuple[EvidenceClaim, ...] = ()
     evaluations: tuple[EngineeringRuleEvaluation, ...] = ()
     limitations: tuple[str, ...] = ()
+    technical_evidence_by_rule: dict[str, tuple[dict[str, Any], ...]] = field(
+        default_factory=dict
+    )
 
     def to_assessment_data(self) -> dict[str, Any]:
-        evaluations = [evaluation.to_dict() for evaluation in self.evaluations]
+        evaluations: list[dict[str, Any]] = []
+        for evaluation in self.evaluations:
+            payload = evaluation.to_dict()
+            payload["technical_evidence"] = list(
+                self.technical_evidence_by_rule.get(
+                    evaluation.engineering_rule_id,
+                    (),
+                )
+            )
+            evaluations.append(payload)
         return {
             "mode": "ENGINEERING_RULE_EVALUATION",
             "status": self.status,
@@ -79,6 +95,12 @@ class EngineeringInvestigationPipeline:
     EngineeringRules. EngineeringRules guide Program Evidence Graph investigation;
     deterministic evaluation then emits COMPLIANT/NON_COMPLIANT/UNKNOWN outcomes.
     No TechnicalProfile, AIUsageFlow, VerifiedProfile, or LegalRuleMatch is required.
+
+    Repository source, when available, is read only from the immutable snapshot's
+    temporary workspace by ``CodeContextSession``. It is never added to persisted
+    TechnicalEvidenceReport/ProgramEvidenceGraph payloads. Safe source-location
+    metadata needed by the assessment UI is projected from the in-memory graph into
+    the ClassificationResult so API readers never depend on worker-local graph files.
     """
 
     def __init__(
@@ -99,7 +121,7 @@ class EngineeringInvestigationPipeline:
             retriever=self._retriever,
         )
         self._query_executor = query_executor or InitialQueryExecutor()
-        self._investigator = investigator or LawGuidedInvestigator(llm_client)
+        self._investigator = investigator or CodeContextLawGuidedInvestigator(llm_client)
         self._evaluator = evaluator or EngineeringRuleEvaluator()
 
     def run(
@@ -109,8 +131,10 @@ class EngineeringInvestigationPipeline:
         workflow_run_id: str,
         correlation_id: str | None = None,
         wizard_context: dict[str, Any] | None = None,
+        workspace_path: str | Path | None = None,
     ) -> EngineeringInvestigationResult:
         graph = self._graph(evidence_report)
+        code_context = CodeContextSession(graph, workspace_path=workspace_path)
         catalog = self._api_client.get_active_legal_rule_catalog()
         corpus = self._api_client.get_active_legal_corpus()
         catalog_version_id = self._required_id(
@@ -145,6 +169,7 @@ class EngineeringInvestigationPipeline:
         ]
         claims: list[EvidenceClaim] = []
         evaluations: list[EngineeringRuleEvaluation] = []
+        technical_evidence_by_rule: dict[str, tuple[dict[str, Any], ...]] = {}
         limitations: list[str] = []
         executed = 0
         cache_hits = 0
@@ -203,12 +228,23 @@ class EngineeringInvestigationPipeline:
                     wizard_context=wizard_context,
                 )
                 try:
-                    rule_claims = self._investigator.investigate(
-                        packet=packet,
-                        graph=graph,
-                        workflow_run_id=workflow_run_id,
-                        correlation_id=correlation_id,
-                    )
+                    if isinstance(
+                        self._investigator, CodeContextLawGuidedInvestigator
+                    ):
+                        rule_claims = self._investigator.investigate(
+                            packet=packet,
+                            graph=graph,
+                            workflow_run_id=workflow_run_id,
+                            correlation_id=correlation_id,
+                            code_context=code_context,
+                        )
+                    else:
+                        rule_claims = self._investigator.investigate(
+                            packet=packet,
+                            graph=graph,
+                            workflow_run_id=workflow_run_id,
+                            correlation_id=correlation_id,
+                        )
                 except Exception as error:
                     logger.warning(
                         "ENGINEERING_INVESTIGATION_FAILED",
@@ -239,15 +275,21 @@ class EngineeringInvestigationPipeline:
                     )
 
                 claims.extend(rule_claims)
-                evaluations.append(
-                    self._evaluator.evaluate(engineering_rule, rule_claims)
+                evaluation = self._evaluator.evaluate(engineering_rule, rule_claims)
+                evaluations.append(evaluation)
+                technical_evidence_by_rule[evaluation.engineering_rule_id] = tuple(
+                    self._technical_evidence_displays(graph, evaluation.evidence_refs)
                 )
                 executed += 1
 
+        # Pipeline status describes execution integrity, not the compliance outcome
+        # distribution. UNKNOWN is a valid deterministic EngineeringRule result and
+        # must not degrade the guardrail by itself. PARTIAL is reserved for runtime
+        # defects/skipped rules captured in top-level limitations.
         status = "COMPLETE"
         if not evaluations:
             status = "BLOCKED"
-        elif limitations or any(item.status == "UNKNOWN" for item in evaluations):
+        elif limitations:
             status = "PARTIAL"
 
         return EngineeringInvestigationResult(
@@ -260,7 +302,131 @@ class EngineeringInvestigationPipeline:
             claims=tuple(claims),
             evaluations=tuple(evaluations),
             limitations=tuple(dict.fromkeys(limitations)),
+            technical_evidence_by_rule=technical_evidence_by_rule,
         )
+
+    @staticmethod
+    def _technical_evidence_displays(
+        graph: ProgramEvidenceGraph,
+        evidence_refs: tuple[str, ...],
+    ) -> list[dict[str, Any]]:
+        """Project immutable graph identities into safe source-location metadata.
+
+        TechnicalEvidenceReport persistence intentionally strips the full graph and
+        retains only a worker-local graph reference. The API process cannot dereference
+        that path. Classification therefore carries this bounded metadata projection;
+        it contains no source body, prompt, secret or model output.
+        """
+        nodes = [row for row in graph.nodes if isinstance(row, dict)]
+        edges = [row for row in graph.edges if isinstance(row, dict)]
+        anchors = [row for row in graph.source_anchors if isinstance(row, dict)]
+        node_by_id = {
+            str(row.get("node_id")): row
+            for row in nodes
+            if row.get("node_id")
+        }
+        edge_by_id = {
+            str(row.get("edge_id")): row
+            for row in edges
+            if row.get("edge_id")
+        }
+        anchor_by_id = {
+            str(row.get("anchor_id")): row
+            for row in anchors
+            if row.get("anchor_id")
+        }
+        nodes_by_evidence_ref: dict[str, list[dict[str, Any]]] = {}
+        for node in nodes:
+            for ref in node.get("evidence_refs") or []:
+                nodes_by_evidence_ref.setdefault(str(ref), []).append(node)
+
+        displays: list[dict[str, Any]] = []
+        seen: set[tuple[Any, ...]] = set()
+
+        def add(item: dict[str, Any] | None) -> None:
+            if item is None:
+                return
+            key = (
+                item.get("kind"),
+                item.get("label"),
+                item.get("file_path"),
+                item.get("symbol_ref"),
+                item.get("start_line"),
+                item.get("end_line"),
+            )
+            if key in seen:
+                return
+            seen.add(key)
+            displays.append(item)
+
+        def from_node(node: dict[str, Any]) -> dict[str, Any]:
+            source = node.get("source") if isinstance(node.get("source"), dict) else {}
+            return {
+                "kind": str(node.get("node_type") or "TECHNICAL_EVIDENCE"),
+                "label": str(
+                    node.get("label")
+                    or source.get("symbol_ref")
+                    or "Repository evidence"
+                ),
+                "file_path": source.get("file_path"),
+                "symbol_ref": source.get("symbol_ref"),
+                "start_line": source.get("start_line"),
+                "end_line": source.get("end_line"),
+            }
+
+        def from_anchor(anchor: dict[str, Any]) -> dict[str, Any]:
+            linked = node_by_id.get(str(anchor.get("graph_node_id") or ""))
+            base = from_node(linked) if linked else None
+            return {
+                "kind": (base or {}).get("kind") or "SOURCE_LOCATION",
+                "label": (
+                    (base or {}).get("label")
+                    or anchor.get("symbol_ref")
+                    or anchor.get("file_path")
+                    or "Repository source location"
+                ),
+                "file_path": anchor.get("file_path") or (base or {}).get("file_path"),
+                "symbol_ref": anchor.get("symbol_ref") or (base or {}).get("symbol_ref"),
+                "start_line": anchor.get("start_line")
+                if anchor.get("start_line") is not None
+                else (base or {}).get("start_line"),
+                "end_line": anchor.get("end_line")
+                if anchor.get("end_line") is not None
+                else (base or {}).get("end_line"),
+            }
+
+        def from_edge(edge: dict[str, Any]) -> dict[str, Any] | None:
+            source = node_by_id.get(str(edge.get("source_node_id") or ""))
+            target = node_by_id.get(str(edge.get("target_node_id") or ""))
+            location = source or target
+            if location is None:
+                return None
+            item = from_node(location)
+            item["kind"] = str(edge.get("edge_type") or item["kind"])
+            if source and target:
+                item["label"] = (
+                    f"{from_node(source)['label']} → {from_node(target)['label']}"
+                )
+            return item
+
+        for ref in evidence_refs:
+            if len(displays) >= MAX_TECHNICAL_EVIDENCE_DISPLAY_ITEMS:
+                break
+            if ref in node_by_id:
+                add(from_node(node_by_id[ref]))
+                continue
+            if ref in anchor_by_id:
+                add(from_anchor(anchor_by_id[ref]))
+                continue
+            if ref in edge_by_id:
+                add(from_edge(edge_by_id[ref]))
+                continue
+            for node in nodes_by_evidence_ref.get(ref, []):
+                add(from_node(node))
+                if len(displays) >= MAX_TECHNICAL_EVIDENCE_DISPLAY_ITEMS:
+                    break
+
+        return displays[:MAX_TECHNICAL_EVIDENCE_DISPLAY_ITEMS]
 
     @staticmethod
     def _graph(evidence_report: dict[str, Any]) -> ProgramEvidenceGraph:

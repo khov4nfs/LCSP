@@ -1,6 +1,7 @@
 """Consume accepted repository evidence and persist direct EngineeringRule evaluation results."""
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from lcsp_workers.llm.fallback_client import LLMClientProtocol
@@ -8,6 +9,11 @@ from lcsp_workers.platform.api_client import WorkerApiClient, WorkerCallbackErro
 from lcsp_workers.platform.callback_schemas import ClassificationCallbackPayload
 from lcsp_workers.platform.logging import get_logger
 from lcsp_workers.platform.queue_consumer import ConsumerBase, NonRetryableWorkerError
+from lcsp_workers.scanner.snapshot_service_client import (
+    SnapshotArchiveRequest,
+    SnapshotServiceClient,
+)
+from lcsp_workers.scanner.workspace import ScannerWorkspace
 
 from .pipeline import EngineeringInvestigationPipeline
 
@@ -29,12 +35,19 @@ class EngineeringAssessmentConsumer(ConsumerBase):
         api_client: WorkerApiClient | None = None,
         llm_client: LLMClientProtocol | None = None,
         investigation_pipeline: EngineeringInvestigationPipeline | None = None,
+        snapshot_client: SnapshotServiceClient | None = None,
+        code_workspace: ScannerWorkspace | None = None,
     ) -> None:
         super().__init__(config, pbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
             config.worker_api_key,
         )
+        self._snapshot_client = snapshot_client or SnapshotServiceClient(
+            config.nestjs_api_base_url,
+            config.worker_api_key,
+        )
+        self._code_workspace = code_workspace or ScannerWorkspace()
         if investigation_pipeline is not None:
             self._pipeline = investigation_pipeline
         elif llm_client is not None:
@@ -77,14 +90,25 @@ class EngineeringAssessmentConsumer(ConsumerBase):
             }
             guardrail_status = "BLOCKED"
         else:
-            result = self._pipeline.run(
+            workspace_job_id = f"investigation-{correlationId}"
+            workspace_path = self._materialize_code_workspace(
                 evidence_report=evidence_report,
-                workflow_run_id=self._workflow_run_id(
-                    message, evidence_report, evidence_report_id
-                ),
+                workspace_job_id=workspace_job_id,
                 correlation_id=correlationId,
-                wizard_context=wizard_context,
             )
+            try:
+                result = self._pipeline.run(
+                    evidence_report=evidence_report,
+                    workflow_run_id=self._workflow_run_id(
+                        message, evidence_report, evidence_report_id
+                    ),
+                    correlation_id=correlationId,
+                    wizard_context=wizard_context,
+                    workspace_path=workspace_path,
+                )
+            finally:
+                if workspace_path is not None:
+                    self._code_workspace.cleanup(workspace_job_id)
             result_data = result.to_assessment_data()
             guardrail_status = self._guardrail_status(result.status)
 
@@ -125,6 +149,71 @@ class EngineeringAssessmentConsumer(ConsumerBase):
             evaluation_count=(result_data.get("summary") or {}).get("total", 0),
             correlationId=correlationId,
         )
+
+    def _materialize_code_workspace(
+        self,
+        *,
+        evidence_report: dict[str, Any],
+        workspace_job_id: str,
+        correlation_id: str,
+    ) -> Path | None:
+        """Materialize pinned source only for the active assessment process.
+
+        Program Evidence Graph remains sufficient for graph-only investigation. If
+        source download/materialization is unavailable, the run continues without
+        raw-source tools rather than persisting source or weakening snapshot guards.
+        """
+        snapshot_id = str(
+            evidence_report.get("snapshot_id")
+            or evidence_report.get("snapshotId")
+            or ""
+        )
+        scan_job_id = str(
+            evidence_report.get("scan_job_id")
+            or evidence_report.get("scanJobId")
+            or ""
+        )
+        if not snapshot_id or not scan_job_id:
+            logger.info(
+                "CODE_CONTEXT_SNAPSHOT_UNAVAILABLE",
+                reason="snapshot_or_scan_job_id_missing",
+                correlationId=correlation_id,
+            )
+            return None
+        try:
+            archive = self._snapshot_client.download_snapshot_archive(
+                SnapshotArchiveRequest(
+                    snapshot_id=snapshot_id,
+                    scan_job_id=scan_job_id,
+                    correlationId=correlation_id,
+                )
+            )
+            materialized = self._code_workspace.materialize(
+                workspace_job_id,
+                archive,
+                snapshot_id=snapshot_id,
+            )
+            logger.info(
+                "CODE_CONTEXT_SNAPSHOT_MATERIALIZED",
+                snapshot_id=snapshot_id,
+                extracted_files=materialized.extracted_files,
+                skipped_files=materialized.skipped_files,
+                coverage_limited=materialized.coverage_limited,
+                correlationId=correlation_id,
+            )
+            return materialized.workspace_path
+        except Exception as error:
+            try:
+                self._code_workspace.cleanup(workspace_job_id)
+            except Exception:
+                pass
+            logger.warning(
+                "CODE_CONTEXT_SNAPSHOT_UNAVAILABLE",
+                snapshot_id=snapshot_id,
+                error_type=type(error).__name__,
+                correlationId=correlation_id,
+            )
+            return None
 
     def _wizard_context(
         self,
