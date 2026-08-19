@@ -49,6 +49,7 @@ export const VERIFIED_PROFILE_STATUSES = {
   pendingApproval: "PENDING_APPROVAL",
   approved: "APPROVED",
   autoApproved: "AUTO_APPROVED",
+  stale: "STALE",
 } as const;
 
 export type VerifiedProfileStatus =
@@ -190,6 +191,8 @@ export const SCAN_EVENT_TYPES = {
   noConflictsDetectedAudit: "NO_CONFLICTS_DETECTED",
   verifiedProfileAcceptedAudit: "VERIFIED_PROFILE_ACCEPTED",
   verifiedProfileApprovedAudit: "VERIFIED_PROFILE_APPROVED",
+  verifiedProfileStaleAudit: "VERIFIED_PROFILE_STALE",
+  verifiedProfileHistoryReadAudit: "VERIFIED_PROFILE_HISTORY_READ",
   verifiedProfilePersistedAudit: "VERIFIED_PROFILE_PERSISTED",
   legalRuleMatchAcceptedAudit: "LEGAL_RULE_MATCH_ACCEPTED",
   legalRuleMatchBlockedAudit: "LEGAL_RULE_MATCH_BLOCKED",

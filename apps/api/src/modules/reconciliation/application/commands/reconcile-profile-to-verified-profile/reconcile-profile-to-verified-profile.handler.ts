@@ -82,6 +82,13 @@ export class ReconcileProfileToVerifiedProfileHandler implements ICommandHandler
     this.assertInput(command);
     const input = command.input;
     const result = await this.prisma.$transaction(async (tx) => {
+      if (typeof tx.$executeRaw === "function") {
+        await tx.$executeRaw`
+          SELECT pg_advisory_xact_lock(
+            hashtext(${`${command.organizationId}:${input.assessmentId}:verified-profile-version`})
+          )
+        `;
+      }
       const [
         wizard,
         report,
@@ -132,6 +139,8 @@ export class ReconcileProfileToVerifiedProfileHandler implements ICommandHandler
             wizardProfileId: true,
             technicalEvidenceReportId: true,
             reconciliationDecisionRefs: true,
+            status: true,
+            version: true,
           },
         }),
         tx.verifiedProfile.findFirst({
@@ -145,40 +154,50 @@ export class ReconcileProfileToVerifiedProfileHandler implements ICommandHandler
             wizardProfileId: true,
             technicalEvidenceReportId: true,
             reconciliationDecisionRefs: true,
+            status: true,
+            version: true,
           },
-          orderBy: { createdAt: "desc" },
+          orderBy: [{ version: "desc" }, { createdAt: "desc" }],
         }),
       ]);
-      const existing = existingByIdempotencyKey ?? existingForAssessment;
       if (
         existingByIdempotencyKey &&
         existingByIdempotencyKey.assessmentId !== input.assessmentId
       ) {
         this.idempotencyConflict(command);
       }
+      const staleStatus = toPrismaVerifiedProfileStatus(
+        VERIFIED_PROFILE_STATUSES.stale,
+      );
+      const replayCandidate =
+        existingByIdempotencyKey?.status === staleStatus
+          ? existingForAssessment
+          : (existingByIdempotencyKey ?? existingForAssessment);
       if (
-        existing &&
-        existing.aiUsageFlowId === input.aiUsageFlowId &&
-        existing.wizardProfileId === input.wizardProfileId &&
-        existing.technicalEvidenceReportId ===
+        replayCandidate &&
+        replayCandidate.aiUsageFlowId === input.aiUsageFlowId &&
+        replayCandidate.wizardProfileId === input.wizardProfileId &&
+        replayCandidate.technicalEvidenceReportId ===
           input.technicalEvidenceReportId &&
         sameRefs(
-          refsFromJson(existing.reconciliationDecisionRefs),
+          refsFromJson(replayCandidate.reconciliationDecisionRefs),
           input.reconciliationDecisionRefs,
         )
       ) {
         return {
-          profileId: existing.id,
+          profileId: replayCandidate.id,
           factEvidenceRefs: [] as string[],
           replay: true,
         };
       }
       if (
         existingByIdempotencyKey &&
+        existingByIdempotencyKey.status !== staleStatus &&
         existingForAssessment?.id !== existingByIdempotencyKey.id
       ) {
         this.idempotencyConflict(command);
       }
+      const existing = existingForAssessment ?? existingByIdempotencyKey;
       if (existing) {
         if (!wizard || !report || !flow) this.missingInput(command);
         const profile = await tx.technicalProfile.findFirst({
@@ -223,14 +242,46 @@ export class ReconcileProfileToVerifiedProfileHandler implements ICommandHandler
           0,
           MAX_FACT_REFS,
         );
-        await tx.verifiedProfile.update({
-          where: { id: existing.id },
+        const newProfileId = randomUUID();
+        const newVersion = existing.version + 1;
+        const staleStatusForUpdate = staleStatus;
+        const approvedStatuses = new Set([
+          toPrismaVerifiedProfileStatus(VERIFIED_PROFILE_STATUSES.approved),
+          toPrismaVerifiedProfileStatus(VERIFIED_PROFILE_STATUSES.autoApproved),
+        ]);
+        if (approvedStatuses.has(existing.status)) {
+          throw problemException(
+            SCAN_ERROR_CODES.verifiedProfileWrongState,
+            command.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        const updateResult = await tx.verifiedProfile.updateMany({
+          where: {
+            id: existing.id,
+            status: { not: staleStatusForUpdate },
+          },
           data: {
+            status: staleStatusForUpdate,
+          },
+        });
+        if (updateResult.count === 0) {
+          throw problemException(
+            SCAN_ERROR_CODES.verifiedProfileWrongState,
+            command.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        await tx.verifiedProfile.create({
+          data: {
+            id: newProfileId,
             aiUsageFlowId: flow.id,
             wizardProfileId: wizard.id,
             technicalEvidenceReportId: report.id,
             reconciliationDecisionRefs: expectedRefs,
-            idempotencyKey: input.idempotencyKey,
+            idempotencyKey: `${input.idempotencyKey}:v${newVersion}`,
+            assessmentId: input.assessmentId,
+            organizationId: command.organizationId,
             schemaVersion: flow.schemaVersion,
             providerVersion: RECONCILE_VERIFIED_PROFILE_TOOL.providerVersion,
             profileData: safeProfile(
@@ -242,17 +293,15 @@ export class ReconcileProfileToVerifiedProfileHandler implements ICommandHandler
             gatesPassedAt: {
               reconciliation_complete: new Date().toISOString(),
             },
+            version: newVersion,
             status: toPrismaVerifiedProfileStatus(
               VERIFIED_PROFILE_STATUSES.pendingApproval,
             ),
-            approvedAt: null,
-            approvedById: null,
-            version: { increment: 1 },
           },
         });
         await this.auditWriter.writeInTx(
           {
-            eventType: SCAN_EVENT_TYPES.verifiedProfilePersistedAudit,
+            eventType: SCAN_EVENT_TYPES.verifiedProfileStaleAudit,
             actorId: SERVICE_ACTOR_ID,
             organizationId: command.organizationId,
             assessmentId: input.assessmentId,
@@ -266,11 +315,36 @@ export class ReconcileProfileToVerifiedProfileHandler implements ICommandHandler
             actor: { id: SERVICE_ACTOR_ID, type: AUDIT_ACTOR_TYPES.service },
             payload: {
               verifiedProfileId: existing.id,
+              supersededBy: newProfileId,
+              staleReason: "NEW_EVIDENCE_RERUN",
+            },
+          },
+          tx,
+        );
+        await this.auditWriter.writeInTx(
+          {
+            eventType: SCAN_EVENT_TYPES.verifiedProfilePersistedAudit,
+            actorId: SERVICE_ACTOR_ID,
+            organizationId: command.organizationId,
+            assessmentId: input.assessmentId,
+            resourceType: AUDIT_RESOURCE_TYPES.verifiedProfile,
+            resourceId: newProfileId,
+            correlationId: command.correlationId,
+            causationId: flow.id,
+            decision: AUDIT_DECISIONS.allow,
+            result: RECONCILE_VERIFIED_PROFILE_STATUSES.ready,
+            redactionStatus: AUDIT_REDACTION_STATUSES.none,
+            actor: { id: SERVICE_ACTOR_ID, type: AUDIT_ACTOR_TYPES.service },
+            payload: {
+              verifiedProfileId: newProfileId,
+              version: newVersion,
               wizardProfileId: wizard.id,
               technicalEvidenceReportId: report.id,
               aiUsageFlowId: flow.id,
               factEvidenceRefCount: factEvidenceRefs.length,
-              replacedExistingProfile: true,
+              supersededProfileId: existing.id,
+              supersededProfileVersion: existing.version,
+              reconciliationDecisionRefs: expectedRefs,
             },
           },
           tx,
@@ -278,7 +352,7 @@ export class ReconcileProfileToVerifiedProfileHandler implements ICommandHandler
         await this.outbox.enqueue(
           buildOutboxMessageInput({
             aggregateType: OUTBOX_AGGREGATE_TYPES.verifiedProfile,
-            aggregateId: existing.id,
+            aggregateId: newProfileId,
             eventType: SCAN_EVENT_TYPES.verifiedProfilePersisted,
             organizationId: command.organizationId,
             assessmentId: input.assessmentId,
@@ -287,18 +361,19 @@ export class ReconcileProfileToVerifiedProfileHandler implements ICommandHandler
             actor: { id: SERVICE_ACTOR_ID, type: AUDIT_ACTOR_TYPES.service },
             result: RECONCILE_VERIFIED_PROFILE_STATUSES.ready,
             redactionStatus: AUDIT_REDACTION_STATUSES.none,
-            idempotencyKey: `${existing.id}:${SCAN_EVENT_TYPES.verifiedProfilePersisted}:${flow.id}`,
+            idempotencyKey: `${newProfileId}:${SCAN_EVENT_TYPES.verifiedProfilePersisted}:${flow.id}`,
             payload: {
-              verifiedProfileId: existing.id,
+              verifiedProfileId: newProfileId,
+              version: newVersion,
               status: VERIFIED_PROFILE_STATUSES.pendingApproval,
               correlationId: command.correlationId,
-              replacedExistingProfile: true,
+              supersededProfileId: existing.id,
             },
           }),
           tx,
         );
         return {
-          profileId: existing.id,
+          profileId: newProfileId,
           factEvidenceRefs,
           replay: false,
         };
