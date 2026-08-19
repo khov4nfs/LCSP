@@ -709,7 +709,7 @@ model AssessmentRuntimeEvent {
 
 model VerifiedProfile {
   id              String                @id @default(uuid())
-  aiUsageFlowId   String                @unique
+  aiUsageFlowId   String
   version         Int                   @default(1)
   wizardProfileId String?
   technicalEvidenceReportId String?
@@ -726,8 +726,10 @@ model VerifiedProfile {
   approvedById    String?
   createdAt       DateTime              @default(now())
 
+  @@index([aiUsageFlowId])
   @@index([assessmentId])
   @@index([assessmentId, version])
+  @@unique([assessmentId, version])
   @@unique([organizationId, idempotencyKey])
 }
 
@@ -1044,6 +1046,7 @@ enum VerifiedProfileStatus {
   PENDING_APPROVAL
   APPROVED
   AUTO_APPROVED
+  STALE
 }
 
 enum ClassificationGuardrailStatus {

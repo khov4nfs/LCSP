@@ -12,6 +12,7 @@ import { GetVerifiedProfileByIdHandler } from "./application/queries/get-verifie
 import { GetVerifiedProfileHandler } from "./application/queries/get-verified-profile/get-verified-profile.handler.js";
 import { GetArtifactChainHandler } from "./application/queries/get-artifact-chain/get-artifact-chain.handler.js";
 import { GetAssessmentContextHandler } from "./application/queries/get-assessment-context/get-assessment-context.handler.js";
+import { ListVerifiedProfilesHandler } from "./application/queries/list-verified-profiles/list-verified-profiles.handler.js";
 import {
   COMPARE_WIZARD_CLAIM_CONTROLLERS,
   COMPARE_WIZARD_CLAIM_PROVIDERS,
@@ -41,6 +42,7 @@ import {
     GetReconciliationContextHandler,
     ProposeMissingTargetsHandler,
     ListConflictsHandler,
+    ListVerifiedProfilesHandler,
     ResolveConflictHandler,
     ReconcileProfileToVerifiedProfileHandler,
     WorkerApiKeyGuard,

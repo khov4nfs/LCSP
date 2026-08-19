@@ -50,6 +50,7 @@ import { GetArtifactChainQuery } from "../../application/queries/get-artifact-ch
 import { GetAssessmentContextQuery } from "../../application/queries/get-assessment-context/get-assessment-context.query.js";
 import { GetReconciliationContextQuery } from "../../application/queries/get-reconciliation-context/get-reconciliation-context.query.js";
 import { ProposeMissingTargetsQuery } from "../../application/queries/propose-missing-targets/propose-missing-targets.query.js";
+import { ListVerifiedProfilesQuery } from "../../application/queries/list-verified-profiles/list-verified-profiles.query.js";
 import {
   RECONCILIATION_CONTEXT_STATUSES,
   type ReconciliationContextStatus,
@@ -394,6 +395,24 @@ export class ReconciliationController {
           includes,
           answerFields,
           correlationId,
+        ),
+      ),
+    );
+  }
+
+  @Get(":assessmentId/verified-profiles")
+  @UseGuards(PbacGuard)
+  @RequireAction(PBAC_ACTIONS.verifiedProfileRead)
+  async listVerifiedProfiles(
+    @Param("assessmentId") assessmentId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new ListVerifiedProfilesQuery(
+          assessmentId,
+          request.pbacContext.organizationId,
+          request.correlationId as string,
         ),
       ),
     );

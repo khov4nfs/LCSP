@@ -749,6 +749,7 @@ const VERIFIED_PROFILE_STATUS_TO_PRISMA = {
   [VERIFIED_PROFILE_STATUSES.approved]: PrismaVerifiedProfileStatus.APPROVED,
   [VERIFIED_PROFILE_STATUSES.autoApproved]:
     PrismaVerifiedProfileStatus.AUTO_APPROVED,
+  [VERIFIED_PROFILE_STATUSES.stale]: PrismaVerifiedProfileStatus.STALE,
 } as const satisfies Record<VerifiedProfileStatus, PrismaVerifiedProfileStatus>;
 
 const PRISMA_VERIFIED_PROFILE_STATUS_TO_CONTRACT = {
@@ -757,6 +758,7 @@ const PRISMA_VERIFIED_PROFILE_STATUS_TO_CONTRACT = {
   [PrismaVerifiedProfileStatus.APPROVED]: VERIFIED_PROFILE_STATUSES.approved,
   [PrismaVerifiedProfileStatus.AUTO_APPROVED]:
     VERIFIED_PROFILE_STATUSES.autoApproved,
+  [PrismaVerifiedProfileStatus.STALE]: VERIFIED_PROFILE_STATUSES.stale,
 } as const satisfies Record<PrismaVerifiedProfileStatus, VerifiedProfileStatus>;
 
 const DOCUMENT_REQUEST_STATUS_TO_PRISMA = {

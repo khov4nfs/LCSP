@@ -21,6 +21,9 @@ function buildHandler(pending = false) {
   const update = jest
     .fn()
     .mockImplementation(() => Promise.resolve({ id: "verified-existing" }));
+  const updateMany = jest
+    .fn()
+    .mockImplementation(() => Promise.resolve({ count: 1 }));
   const writeInTx = jest.fn().mockImplementation(() => Promise.resolve());
   const enqueue = jest.fn().mockImplementation(() => Promise.resolve());
   const flow: {
@@ -33,6 +36,8 @@ function buildHandler(pending = false) {
     claims: [{ claim_id: "claim-1", evidence_refs: ["evidence:1"] }],
   };
   const tx = {
+    $executeRaw: jest.fn().mockImplementation(() => Promise.resolve(0)),
+    $queryRaw: jest.fn().mockImplementation(() => Promise.resolve([])),
     wizardProfile: {
       findFirst: jest
         .fn()
@@ -52,6 +57,7 @@ function buildHandler(pending = false) {
       findFirst: jest.fn().mockImplementation(() => Promise.resolve(null)),
       create,
       update,
+      updateMany,
     },
     technicalProfile: {
       findFirst: jest
@@ -92,7 +98,17 @@ function buildHandler(pending = false) {
     "org-1",
     "corr-1",
   );
-  return { handler, command, create, update, writeInTx, enqueue, tx, flow };
+  return {
+    handler,
+    command,
+    create,
+    update,
+    updateMany,
+    writeInTx,
+    enqueue,
+    tx,
+    flow,
+  };
 }
 
 describe("ReconcileProfileToVerifiedProfileHandler", () => {
@@ -181,8 +197,9 @@ describe("ReconcileProfileToVerifiedProfileHandler", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
-  it("replaces the existing assessment profile when rerun produces a new flow", async () => {
-    const { handler, command, create, update, tx } = buildHandler();
+  it("creates a new version and marks the old profile STALE when rerun produces a new flow", async () => {
+    const { handler, command, create, updateMany, writeInTx, enqueue, tx } =
+      buildHandler();
     tx.verifiedProfile.findFirst
       .mockImplementationOnce(() => Promise.resolve(null))
       .mockImplementationOnce(() =>
@@ -192,25 +209,81 @@ describe("ReconcileProfileToVerifiedProfileHandler", () => {
           wizardProfileId: "wizard-old",
           technicalEvidenceReportId: "report-old",
           reconciliationDecisionRefs: [],
+          version: 1,
         }),
       );
 
     const result = await handler.execute(command);
 
-    expect(result.result.verifiedProfileId).toBe("verified-existing");
-    expect(create).not.toHaveBeenCalled();
-    expect(update).toHaveBeenCalledWith(
+    // New row created with version 2
+    expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "verified-existing" },
         data: expect.objectContaining({
           aiUsageFlowId: "flow-1",
+          wizardProfileId: "wizard-1",
           technicalEvidenceReportId: "report-1",
-          status: expect.anything(),
-          approvedAt: null,
-          approvedById: null,
-          version: { increment: 1 },
+          version: 2,
         }),
       }),
     );
+    // Old row marked STALE (only status changed)
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "verified-existing" }),
+        data: expect.objectContaining({
+          status: expect.anything(),
+        }),
+      }),
+    );
+    expect(updateMany).toHaveBeenCalledTimes(1);
+    const updateCall = updateMany.mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect(updateCall.data).not.toHaveProperty("aiUsageFlowId");
+    expect(updateCall.data).not.toHaveProperty("approvedAt");
+    expect(updateCall.data).not.toHaveProperty("version");
+    // Two audit events: one STALE, one PERSISTED
+    expect(writeInTx).toHaveBeenCalledTimes(2);
+    expect(enqueue).toHaveBeenCalledTimes(1);
+    expect(result.result.verifiedProfileId).not.toBe("verified-existing");
+  });
+
+  it("emits a STALE audit event with supersededBy when marking old profile stale", async () => {
+    const { handler, command, writeInTx, tx } = buildHandler();
+    tx.verifiedProfile.findFirst
+      .mockImplementationOnce(() => Promise.resolve(null))
+      .mockImplementationOnce(() =>
+        Promise.resolve({
+          id: "verified-existing",
+          aiUsageFlowId: "flow-old",
+          wizardProfileId: "wizard-old",
+          technicalEvidenceReportId: "report-old",
+          reconciliationDecisionRefs: [],
+          version: 1,
+        }),
+      );
+
+    await handler.execute(command);
+
+    const auditCalls = writeInTx.mock.calls as Array<
+      [{ eventType: string; payload: Record<string, unknown> }]
+    >;
+    const staleCall = auditCalls.find(
+      ([arg]) => arg.eventType === "VERIFIED_PROFILE_STALE",
+    );
+    expect(staleCall).toBeDefined();
+    expect(staleCall![0].payload).toMatchObject({
+      verifiedProfileId: "verified-existing",
+      staleReason: "NEW_EVIDENCE_RERUN",
+    });
+    expect(staleCall![0].payload.supersededBy).toBeTruthy();
+    const persistedCall = auditCalls.find(
+      ([arg]) => arg.eventType === "VERIFIED_PROFILE_PERSISTED",
+    );
+    expect(persistedCall).toBeDefined();
+    expect(persistedCall![0].payload).toMatchObject({
+      supersededProfileId: "verified-existing",
+      supersededProfileVersion: 1,
+    });
   });
 });
