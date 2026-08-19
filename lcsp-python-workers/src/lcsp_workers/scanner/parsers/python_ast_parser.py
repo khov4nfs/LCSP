@@ -5,9 +5,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
-MAX_SOURCE_BYTES = 50 * 1024
-
-
 @dataclass(frozen=True)
 class ParsedPythonFile:
     path: Path
@@ -20,19 +17,19 @@ class ParsedPythonFile:
 
 
 class PythonAstParser:
+    """Parse complete Python files into AST without arbitrary character/byte chunking.
+
+    Repository/archive safety limits are enforced by ``ScannerWorkspace``. Once a
+    source file has been safely materialized, semantic chunking is derived from the
+    AST/symbol line ranges rather than skipping files merely because they exceed a
+    fixed source-size threshold.
+    """
+
     def parse_file(self, path: Path, workspace: Path) -> ParsedPythonFile:
         relative = self._relative_path(path, workspace)
         try:
-            if path.stat().st_size > MAX_SOURCE_BYTES:
-                return ParsedPythonFile(
-                    path=path,
-                    relative_path=relative,
-                    tree=None,
-                    coverage_limited=True,
-                    skip_reason="file exceeds 50KB analysis limit",
-                )
             source = path.read_text(encoding="utf-8")
-        except OSError as error:
+        except (OSError, UnicodeDecodeError) as error:
             return ParsedPythonFile(
                 path=path,
                 relative_path=relative,
@@ -43,13 +40,13 @@ class PythonAstParser:
 
         try:
             tree = ast.parse(source, filename=relative)
-        except SyntaxError:
+        except (SyntaxError, ValueError, MemoryError) as error:
             return ParsedPythonFile(
                 path=path,
                 relative_path=relative,
                 tree=None,
                 coverage_limited=True,
-                skip_reason="syntax error",
+                skip_reason=f"AST parse failed: {type(error).__name__}",
             )
 
         visitor = _ImportVisitor()
@@ -90,4 +87,3 @@ class _ImportVisitor(ast.NodeVisitor):
             if root_package:
                 self.import_map[local_name] = root_package
             self.imported_symbols[local_name] = (module, alias.name)
-

@@ -28,14 +28,23 @@ function makeAssessment(
   });
 }
 
+type LegalChunkFixture = {
+  id: string;
+  documentId: string;
+  locator: string;
+  content: string;
+  hierarchy: Record<string, unknown>;
+};
+
 function buildHandler(input: {
   assessment: Assessment | null;
   wizardProfile?: { status: string } | null;
-  acceptedEvidenceReport?: { id: string } | null;
+  acceptedEvidenceReport?: { id: string; evidencePayload?: unknown } | null;
   classificationResult?: {
     guardrailStatus: string;
     classificationData: unknown;
   } | null;
+  legalChunks?: LegalChunkFixture[];
 }) {
   const repository: AssessmentRepository = {
     findById: jest
@@ -62,6 +71,9 @@ function buildHandler(input: {
       findFirst: jest
         .fn()
         .mockResolvedValue(input.classificationResult ?? null),
+    },
+    legalDocumentChunk: {
+      findMany: jest.fn().mockResolvedValue(input.legalChunks ?? []),
     },
   } as unknown as PrismaService;
   return new GetAssessmentHandler(repository, prisma);
@@ -115,11 +127,66 @@ describe("GetAssessmentHandler direct EngineeringRule runtime", () => {
     expect(result.guardrail_status).toBeNull();
   });
 
-  it("projects EngineeringRule evaluations from ClassificationResult", async () => {
+  it("projects EngineeringRule evaluations with readable graph and legal evidence", async () => {
     const assessment = makeAssessment();
     const handler = buildHandler({
       assessment,
-      acceptedEvidenceReport: { id: "ter-1" },
+      acceptedEvidenceReport: {
+        id: "ter-1",
+        evidencePayload: {
+          evidence_graph: {
+            nodes: [
+              {
+                node_id: "node:review",
+                node_type: "HUMAN_REVIEW",
+                label: "Manual approval",
+                source: {
+                  file_path: "owner-repo-abcdef1/src/review.ts",
+                  symbol_ref: "approveRequest",
+                  start_line: 42,
+                  end_line: 48,
+                },
+                evidence_refs: ["evidence:review"],
+              },
+            ],
+            edges: [],
+            source_anchors: [
+              {
+                anchor_id: "source-anchor:review",
+                graph_node_id: "node:review",
+                file_path: "owner-repo-abcdef1/src/review.ts",
+                symbol_ref: "approveRequest",
+                start_line: 42,
+                end_line: 48,
+              },
+            ],
+          },
+        },
+      },
+      legalChunks: [
+        {
+          id: "LAW-134-2025-QH15:art-10",
+          documentId: "LAW-134-2025-QH15",
+          locator: "art-10",
+          content:
+            "Điều 10. Hồ sơ phân loại\n1. Nội dung khoản một.\n3. Nội dung khoản ba.",
+          hierarchy: { articleNumber: "10" },
+        },
+        {
+          id: "LAW-134-2025-QH15:art-10::cl-1",
+          documentId: "LAW-134-2025-QH15",
+          locator: "art-10::cl-1",
+          content: "1. Nội dung khoản một.",
+          hierarchy: { articleNumber: "10", clauseNumber: "1" },
+        },
+        {
+          id: "LAW-134-2025-QH15:art-10::cl-3",
+          documentId: "LAW-134-2025-QH15",
+          locator: "art-10::cl-3",
+          content: "3. Nội dung khoản ba.",
+          hierarchy: { articleNumber: "10", clauseNumber: "3" },
+        },
+      ],
       classificationResult: {
         guardrailStatus: CLASSIFICATION_GUARDRAIL_STATUSES.passed,
         classificationData: {
@@ -138,9 +205,17 @@ describe("GetAssessmentHandler direct EngineeringRule runtime", () => {
               concept: "HUMAN_REVIEW",
               status: "NON_COMPLIANT",
               reason: "Requirement not met from repository evidence.",
-              evidence_refs: ["graph:path:1"],
-              source_chunk_ids: ["LAW:A1"],
-              source_locators: ["art-1::cl-1"],
+              evidence_refs: [
+                "evidence:review",
+                "node:review",
+                "source-anchor:review",
+              ],
+              source_chunk_ids: [
+                "LAW-134-2025-QH15:art-10",
+                "LAW-134-2025-QH15:art-10::cl-1",
+                "LAW-134-2025-QH15:art-10::cl-3",
+              ],
+              source_locators: ["art-10", "art-10::cl-1", "art-10::cl-3"],
               confidence: 0.95,
               limitations: [],
             },
@@ -170,7 +245,34 @@ describe("GetAssessmentHandler direct EngineeringRule runtime", () => {
       engineering_rule_id: "eng-1",
       legal_rule_id: "legal-1",
       status: "NON_COMPLIANT",
-      source_locators: ["art-1::cl-1"],
+      technical_evidence: [
+        {
+          kind: "HUMAN_REVIEW",
+          label: "Manual approval",
+          file_path: "src/review.ts",
+          symbol_ref: "approveRequest",
+          start_line: 42,
+          end_line: 48,
+        },
+      ],
+      legal_provisions: [
+        {
+          document_id: "LAW-134-2025-QH15",
+          locator: "art-10::cl-1",
+          article_number: "10",
+          clause_number: "1",
+          point_code: null,
+          content: "1. Nội dung khoản một.",
+        },
+        {
+          document_id: "LAW-134-2025-QH15",
+          locator: "art-10::cl-3",
+          article_number: "10",
+          clause_number: "3",
+          point_code: null,
+          content: "3. Nội dung khoản ba.",
+        },
+      ],
     });
   });
 

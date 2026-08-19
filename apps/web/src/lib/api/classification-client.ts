@@ -26,15 +26,32 @@ const CLASSIFICATION_STATUS_OUTCOME_KINDS = {
 export type ClassificationStatusState =
   (typeof CLASSIFICATION_STATUS_STATES)[keyof typeof CLASSIFICATION_STATUS_STATES];
 
+export type TechnicalEvidenceViewModel = {
+  kind: string;
+  label: string;
+  filePath: string | null;
+  symbolRef: string | null;
+  startLine: number | null;
+  endLine: number | null;
+};
+
+export type LegalProvisionViewModel = {
+  documentId: string;
+  locator: string;
+  articleNumber: string | null;
+  clauseNumber: string | null;
+  pointCode: string | null;
+  content: string;
+};
+
 export type EngineeringRuleEvaluationViewModel = {
   engineeringRuleId: string;
-  legalRuleId: string;
   concept: string;
   status: "COMPLIANT" | "NON_COMPLIANT" | "UNKNOWN";
   reason: string;
-  evidenceRefs: string[];
-  sourceChunkIds: string[];
-  sourceLocators: string[];
+  technicalEvidenceCount: number;
+  technicalEvidence: TechnicalEvidenceViewModel[];
+  legalProvisions: LegalProvisionViewModel[];
   confidence: number;
   limitations: string[];
 };
@@ -46,7 +63,6 @@ export type ClassificationStatusViewModel = {
   descriptionKey: MessageKey;
   summaryKey?: MessageKey;
   summaryText?: string;
-  references?: string[];
   evaluations: EngineeringRuleEvaluationViewModel[];
   engineeringSummary: {
     compliant: number;
@@ -219,16 +235,6 @@ function toClassificationStatusViewModel(
   const locked = payload.readiness_state?.classification_locked === true;
   const guardrailStatus = normalizeGuardrailStatus(payload.guardrail_status);
   const result = payload.classification_result;
-  const references = result
-    ? Array.from(
-        new Set(
-          result.evaluations.flatMap((evaluation) => [
-            ...evaluation.source_locators,
-            ...evaluation.source_chunk_ids,
-          ]),
-        ),
-      )
-    : [];
   const evaluations = result?.evaluations.map(toEvaluationViewModel) ?? [];
   const engineeringSummary = result
     ? {
@@ -240,7 +246,6 @@ function toClassificationStatusViewModel(
     : null;
 
   const common = {
-    references,
     evaluations,
     engineeringSummary,
     limitations: result?.limitations ?? [],
@@ -308,6 +313,24 @@ function normalizeGuardrailStatus(value: string | null | undefined) {
     : null;
 }
 
+type TechnicalEvidencePayload = {
+  kind: string;
+  label: string;
+  file_path: string | null;
+  symbol_ref: string | null;
+  start_line: number | null;
+  end_line: number | null;
+};
+
+type LegalProvisionPayload = {
+  document_id: string;
+  locator: string;
+  article_number: string | null;
+  clause_number: string | null;
+  point_code: string | null;
+  content: string;
+};
+
 type EngineeringRuleEvaluationPayload = {
   engineering_rule_id: string;
   legal_rule_id: string;
@@ -315,8 +338,10 @@ type EngineeringRuleEvaluationPayload = {
   status: "COMPLIANT" | "NON_COMPLIANT" | "UNKNOWN";
   reason: string;
   evidence_refs: string[];
+  technical_evidence: TechnicalEvidencePayload[];
   source_chunk_ids: string[];
   source_locators: string[];
+  legal_provisions: LegalProvisionPayload[];
   confidence: number;
   limitations: string[];
 };
@@ -384,11 +409,19 @@ function sanitizeEvaluation(value: unknown): EngineeringRuleEvaluationPayload | 
   const concept = requiredString(value.concept);
   const reason = requiredString(value.reason);
   const status = requiredString(value.status)?.toUpperCase();
+  const technicalEvidence = Array.isArray(value.technical_evidence)
+    ? value.technical_evidence.map(sanitizeTechnicalEvidence)
+    : [];
+  const legalProvisions = Array.isArray(value.legal_provisions)
+    ? value.legal_provisions.map(sanitizeLegalProvision)
+    : [];
   if (
     !engineeringRuleId ||
     !legalRuleId ||
     !concept ||
     !reason ||
+    technicalEvidence.some((item) => item === null) ||
+    legalProvisions.some((item) => item === null) ||
     (status !== "COMPLIANT" &&
       status !== "NON_COMPLIANT" &&
       status !== "UNKNOWN")
@@ -402,8 +435,10 @@ function sanitizeEvaluation(value: unknown): EngineeringRuleEvaluationPayload | 
     status,
     reason,
     evidence_refs: stringArray(value.evidence_refs) ?? [],
+    technical_evidence: technicalEvidence as TechnicalEvidencePayload[],
     source_chunk_ids: stringArray(value.source_chunk_ids) ?? [],
     source_locators: stringArray(value.source_locators) ?? [],
+    legal_provisions: legalProvisions as LegalProvisionPayload[],
     confidence:
       typeof value.confidence === "number" && Number.isFinite(value.confidence)
         ? Math.max(0, Math.min(1, value.confidence))
@@ -412,18 +447,62 @@ function sanitizeEvaluation(value: unknown): EngineeringRuleEvaluationPayload | 
   };
 }
 
+function sanitizeTechnicalEvidence(value: unknown): TechnicalEvidencePayload | null {
+  if (!recordValue(value)) return null;
+  const kind = requiredString(value.kind);
+  const label = requiredString(value.label);
+  if (!kind || !label) return null;
+  return {
+    kind,
+    label,
+    file_path: nullableString(value.file_path) ?? null,
+    symbol_ref: nullableString(value.symbol_ref) ?? null,
+    start_line: nullableInteger(value.start_line),
+    end_line: nullableInteger(value.end_line),
+  };
+}
+
+function sanitizeLegalProvision(value: unknown): LegalProvisionPayload | null {
+  if (!recordValue(value)) return null;
+  const documentId = requiredString(value.document_id);
+  const locator = requiredString(value.locator);
+  const content = requiredString(value.content);
+  if (!documentId || !locator || !content) return null;
+  return {
+    document_id: documentId,
+    locator,
+    article_number: nullableString(value.article_number) ?? null,
+    clause_number: nullableString(value.clause_number) ?? null,
+    point_code: nullableString(value.point_code) ?? null,
+    content,
+  };
+}
+
 function toEvaluationViewModel(
   value: EngineeringRuleEvaluationPayload,
 ): EngineeringRuleEvaluationViewModel {
   return {
     engineeringRuleId: value.engineering_rule_id,
-    legalRuleId: value.legal_rule_id,
     concept: value.concept,
     status: value.status,
     reason: value.reason,
-    evidenceRefs: value.evidence_refs,
-    sourceChunkIds: value.source_chunk_ids,
-    sourceLocators: value.source_locators,
+    technicalEvidenceCount: value.evidence_refs.length,
+    technicalEvidence: value.technical_evidence.map((item) => ({
+      kind: item.kind,
+      label: item.label,
+      filePath: item.file_path,
+      symbolRef: item.symbol_ref,
+      startLine: item.start_line,
+      endLine: item.end_line,
+    })),
+    legalProvisions: value.legal_provisions.map((item) => ({
+      documentId: item.document_id,
+      locator: item.locator,
+      articleNumber: item.article_number,
+      clauseNumber: item.clause_number,
+      pointCode: item.point_code,
+      content: item.content,
+    })),
     confidence: value.confidence,
     limitations: value.limitations,
   };
@@ -454,4 +533,11 @@ function nonNegativeNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? value
     : 0;
+}
+
+function nullableInteger(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+    ? value
+    : null;
 }

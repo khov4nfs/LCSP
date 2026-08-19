@@ -48,6 +48,7 @@ class EvidenceClaim:
     source_anchor_refs: tuple[str, ...] = ()
     confidence: float = 0.0
     limitations: tuple[str, ...] = ()
+    criterion: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -59,6 +60,14 @@ class InvestigationPacket:
     concept: str
     investigation_goals: tuple[str, ...]
     initial_results: tuple[dict[str, Any], ...]
+    starting_node_types: tuple[str, ...] = ()
+    target_node_types: tuple[str, ...] = ()
+    edge_strategies: tuple[str, ...] = ()
+    graph_queries: tuple[dict[str, Any], ...] = ()
+    keywords: tuple[str, ...] = ()
+    common_apis: tuple[str, ...] = ()
+    common_libraries: tuple[str, ...] = ()
+    patterns: tuple[str, ...] = ()
     unresolved_frontiers: tuple[str, ...] = ()
     evidence_refs: tuple[str, ...] = ()
     wizard_context: dict[str, Any] = field(default_factory=dict)

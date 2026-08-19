@@ -51,7 +51,8 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
   ) {}
 
   /**
-   * Validates scan-to-snapshot binding, claims queued work, resolves the active GitHub installation, and returns the archive stream.
+   * Validates scan-to-snapshot binding, claims queued work when needed, and streams the immutable pinned archive.
+   * Completed scans remain valid read-only provenance for downstream EngineeringRule investigation; they are never re-claimed.
    *
    * @param query - Snapshot identifier, scan-job identifier, and correlation context.
    * @returns Repository archive stream metadata for the exact pinned commit.
@@ -79,10 +80,11 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
     }
 
     const scanJobStatus = fromPrismaRepositoryScanJobStatus(scanJob.status);
-    if (
-      scanJobStatus !== REPOSITORY_SCAN_JOB_STATUSES.queued &&
-      scanJobStatus !== REPOSITORY_SCAN_JOB_STATUSES.running
-    ) {
+    const canReadPinnedArchive =
+      scanJobStatus === REPOSITORY_SCAN_JOB_STATUSES.queued ||
+      scanJobStatus === REPOSITORY_SCAN_JOB_STATUSES.running ||
+      scanJobStatus === REPOSITORY_SCAN_JOB_STATUSES.completed;
+    if (!canReadPinnedArchive) {
       throw problemException(
         GITHUB_INTEGRATION_ERROR_CODES.snapshotScanMismatch,
         query.correlationId,
