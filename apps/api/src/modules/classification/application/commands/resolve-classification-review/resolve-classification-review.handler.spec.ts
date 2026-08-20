@@ -28,6 +28,11 @@ const INPUT = {
   idempotencyKey: "11111111-1111-4111-8111-111111111111",
 } as const;
 
+// Keep the default fixture intentionally unexpired regardless of wall-clock test date.
+// Expiry behavior belongs in an explicit expired-request case rather than leaking from
+// an absolute date into every unrelated review-resolution scenario.
+const ACTIVE_REVIEW_EXPIRES_AT = new Date("2099-12-31T23:59:59.000Z");
+
 function command(
   input: Partial<ResolveClassificationReviewCommand["input"]> = {},
 ) {
@@ -49,7 +54,7 @@ function reviewRequest(input?: Partial<Record<string, unknown>>) {
     requestedById: "requester-1",
     citationRefs: ["citation:chunk_allow_1"],
     status: "PENDING_INDEPENDENT_REVIEW",
-    expiresAt: new Date("2026-08-20T00:00:00.000Z"),
+    expiresAt: ACTIVE_REVIEW_EXPIRES_AT,
     ...input,
   };
 }

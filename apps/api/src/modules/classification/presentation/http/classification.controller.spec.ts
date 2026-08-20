@@ -45,6 +45,7 @@ describe("ClassificationController", () => {
   };
 
   const mockClassificationPayload: AcceptClassificationDto = {
+    technical_evidence_report_id: "ter-123",
     legal_rule_match_id: "lrm-123",
     verified_profile_id: "vp-123",
     assessment_id: "asm-123",

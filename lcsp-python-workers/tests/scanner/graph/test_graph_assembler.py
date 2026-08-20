@@ -16,16 +16,20 @@ def test_program_graph_scans_repository_before_ai_investigation(tmp_path: Path) 
     source = tmp_path / "app.py"
     source.write_text('''import json\nfrom openai import OpenAI\nclient = OpenAI()\n\ndef evaluate(cccd, threshold):\n    payload = cccd\n    response = client.responses.create(input=payload)\n    parsed = json.loads(response.output_text)\n    if parsed.score > threshold:\n        return reject(parsed)\n    return parsed\n''')
     graph = ProgramGraphAssembler().assemble(scan_job_id="scan-1", snapshot_id="snapshot-1", commit_sha="abc", workspace_path=tmp_path)
-    assert graph.schema_version == "2.0.0"
+    assert graph.schema_version == "3.0.0"
     assert _node(graph, "PARAMETER") is not None
     assert _node(graph, "VARIABLE") is not None
+    assert _node(graph, "DATA_OBJECT") is not None
     assert _node(graph, "AI_MODEL_INVOCATION") is not None
+    assert _node(graph, "AI_INPUT") is not None
+    assert _node(graph, "AI_OUTPUT") is not None
     assert _node(graph, "PARSER") is not None
     assert _node(graph, "REJECTION") is not None
     assert _edge(graph, "ALIASES") is not None
     assert _edge(graph, "PASSES_ARGUMENT") is not None
     assert _edge(graph, "RECEIVES_RETURN") is not None
     assert _edge(graph, "SENDS_TO_AI") is not None
+    assert _edge(graph, "FLOWS_TO") is not None
     assert graph.source_anchors
     assert all("source_code" not in str(n).lower() for n in graph.nodes)
 

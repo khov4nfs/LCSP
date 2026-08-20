@@ -1,17 +1,100 @@
-"""Fail closed when an LLM claim is not backed by immutable graph/source provenance."""
+"""Fail closed when an LLM claim is not backed by material immutable provenance."""
 from __future__ import annotations
 
-from lcsp_workers.scanner.program_graph.models import ProgramEvidenceGraph
+import json
+import re
+from dataclasses import replace
+from typing import Any
 
-from .models import EvidenceClaim
+from lcsp_workers.scanner.program_graph.models import ProgramEvidenceGraph
+from lcsp_workers.scanner.program_graph.source_roles import (
+    SOURCE_ROLE_PRODUCTION,
+    SOURCE_ROLE_TEST,
+    source_role,
+)
+
+from .claim_topology import (
+    ClaimTopologyValidationError,
+    topology_criterion_kind,
+    validate_claim_topology,
+)
+from .models import ENGINEERING_EVIDENCE_CLAIM_TYPES, EvidenceClaim
 
 
 class EvidenceClaimValidationError(ValueError):
     pass
 
 
+_MAX_CLAIM_PROVENANCE_REFS = 8
+_TOKEN = re.compile(r"[A-Za-zÀ-ỹ0-9]+", re.UNICODE)
+_GENERIC_CRITERION_TOKENS = frozenset(
+    {
+        "ai",
+        "system",
+        "systems",
+        "technical",
+        "engineering",
+        "requirement",
+        "requirements",
+        "evidence",
+        "control",
+        "controls",
+        "data",
+        "risk",
+        "risks",
+        "process",
+        "management",
+        "implementation",
+        "implemented",
+        "exists",
+        "exist",
+        "present",
+        "documented",
+        "ensure",
+        "ensures",
+        "must",
+        "shall",
+        "with",
+        "from",
+        "that",
+        "this",
+        "the",
+        "and",
+        "for",
+    }
+)
+_MATERIAL_RESOURCE_NODE_TYPES = frozenset(
+    {
+        "PACKAGE_DEPENDENCY",
+        "EXTERNAL_SERVICE",
+        "EXTERNAL_API",
+        "DATABASE",
+        "TABLE",
+        "QUEUE",
+        "AI_PROVIDER",
+        "DATA_CATEGORY",
+        "PERSONAL_DATA",
+        "SENSITIVE_DATA",
+    }
+)
+_CLOSED_CLAIM_TYPES = frozenset(
+    {
+        ENGINEERING_EVIDENCE_CLAIM_TYPES["requirement_met"],
+        ENGINEERING_EVIDENCE_CLAIM_TYPES["requirement_not_met"],
+    }
+)
+
+
 class EvidenceClaimValidator:
-    """Validate claim provenance against persisted graph identities."""
+    """Validate and minimize claim provenance against persisted graph identities.
+
+    LLM observations may contain broad search pages. A closed EngineeringRule claim is
+    allowed to retain only a small, criterion-ranked set of production/material refs.
+    Test/spec/script/example evidence cannot close MET/NOT_MET, and test-only refs from
+    older graph artifacts are removed even when the graph itself predates test filtering.
+    Path-oriented criteria additionally require their supplied graph refs to prove the
+    asserted topology rather than merely naming individually valid nodes.
+    """
 
     def validate(
         self,
@@ -46,9 +129,6 @@ class EvidenceClaimValidator:
                 f"source anchor does not resolve: {sorted(missing_anchors)}"
             )
 
-        # ProgramGraph v2 has no separate path registry. A graphPathRef therefore
-        # must currently resolve to a persisted node/edge/anchor/evidence identity;
-        # opaque invented path strings are rejected.
         unknown_paths = [ref for ref in claim.graph_path_refs if ref not in known]
         if unknown_paths:
             raise EvidenceClaimValidationError(
@@ -57,4 +137,205 @@ class EvidenceClaimValidator:
 
         if not 0 <= claim.confidence <= 1:
             raise EvidenceClaimValidationError("claim confidence out of range")
-        return claim
+        if claim.claim_type in _CLOSED_CLAIM_TYPES and not claim.criterion:
+            raise EvidenceClaimValidationError(
+                "closed engineering claim requires a requiredEvidence criterion"
+            )
+        if claim.claim_type in _CLOSED_CLAIM_TYPES and claim.confidence <= 0:
+            raise EvidenceClaimValidationError(
+                "zero-confidence engineering claim cannot close a criterion"
+            )
+
+        if claim.claim_type in _CLOSED_CLAIM_TYPES:
+            try:
+                validate_claim_topology(
+                    criterion=claim.criterion,
+                    graph_path_refs=claim.graph_path_refs,
+                    graph=value,
+                    claim_value=claim.value,
+                )
+            except ClaimTopologyValidationError as error:
+                raise EvidenceClaimValidationError(str(error)) from error
+
+        selected = self._criterion_scoped_material_refs(claim, value)
+        if claim.claim_type in _CLOSED_CLAIM_TYPES and not any(selected.values()):
+            raise EvidenceClaimValidationError(
+                "closed engineering claim requires criterion-aligned material production evidence"
+            )
+
+        return replace(
+            claim,
+            evidence_refs=selected["evidence"],
+            graph_path_refs=selected["graph"],
+            source_anchor_refs=selected["anchor"],
+        )
+
+    @classmethod
+    def _criterion_scoped_material_refs(
+        cls,
+        claim: EvidenceClaim,
+        graph: ProgramEvidenceGraph,
+    ) -> dict[str, tuple[str, ...]]:
+        node_by_id = {
+            str(node.get("node_id")): node
+            for node in graph.nodes
+            if node.get("node_id")
+        }
+        edge_by_id = {
+            str(edge.get("edge_id")): edge
+            for edge in graph.edges
+            if edge.get("edge_id")
+        }
+        anchor_by_id = {
+            str(anchor.get("anchor_id")): anchor
+            for anchor in graph.source_anchors
+            if anchor.get("anchor_id")
+        }
+        evidence_to_nodes: dict[str, list[dict[str, Any]]] = {}
+        evidence_to_edges: dict[str, list[dict[str, Any]]] = {}
+        for node in graph.nodes:
+            for ref in node.get("evidence_refs") or []:
+                evidence_to_nodes.setdefault(str(ref), []).append(node)
+        for edge in graph.edges:
+            for ref in edge.get("evidence_refs") or []:
+                evidence_to_edges.setdefault(str(ref), []).append(edge)
+
+        criterion_tokens = cls._tokens(claim.criterion or "") - _GENERIC_CRITERION_TOKENS
+        topology_kind = topology_criterion_kind(claim.criterion)
+        candidates: list[tuple[int, int, str, str]] = []
+
+        def add(kind: str, ref: str, rank: int) -> None:
+            material, text = cls._reference_materiality(
+                ref,
+                node_by_id=node_by_id,
+                edge_by_id=edge_by_id,
+                anchor_by_id=anchor_by_id,
+                evidence_to_nodes=evidence_to_nodes,
+                evidence_to_edges=evidence_to_edges,
+            )
+            if not material:
+                return
+            score = len(criterion_tokens.intersection(cls._tokens(text)))
+            candidates.append((score, rank, kind, ref))
+
+        for ref in claim.source_anchor_refs:
+            add("anchor", ref, 0)
+        for ref in claim.graph_path_refs:
+            add("graph", ref, 1)
+        for ref in claim.evidence_refs:
+            add("evidence", ref, 2)
+
+        candidates.sort(key=lambda row: (-row[0], row[1], row[3]))
+        positive = [row for row in candidates if row[0] > 0]
+        fallback = [row for row in candidates if row[0] == 0]
+
+        if topology_kind:
+            # Topology validation already proved the structural relation. Preserve the
+            # bounded material graph refs even when labels do not literally contain
+            # criterion words such as "downstream" or "path"; lexical scoring is only
+            # ranking here, not a second authority that can erase the proven path.
+            graph_candidates = [row for row in candidates if row[2] == "graph"]
+            chosen = graph_candidates[:_MAX_CLAIM_PROVENANCE_REFS]
+            if len(chosen) < _MAX_CLAIM_PROVENANCE_REFS:
+                chosen.extend(
+                    row
+                    for row in [*positive, *fallback]
+                    if row not in chosen
+                )
+                chosen = chosen[:_MAX_CLAIM_PROVENANCE_REFS]
+        elif criterion_tokens:
+            chosen = positive[:_MAX_CLAIM_PROVENANCE_REFS]
+        else:
+            chosen = fallback[:2]
+
+        result: dict[str, list[str]] = {"evidence": [], "graph": [], "anchor": []}
+        for _, _, kind, ref in chosen:
+            if ref not in result[kind]:
+                result[kind].append(ref)
+        return {key: tuple(value) for key, value in result.items()}
+
+    @classmethod
+    def _reference_materiality(
+        cls,
+        ref: str,
+        *,
+        node_by_id: dict[str, dict[str, Any]],
+        edge_by_id: dict[str, dict[str, Any]],
+        anchor_by_id: dict[str, dict[str, Any]],
+        evidence_to_nodes: dict[str, list[dict[str, Any]]],
+        evidence_to_edges: dict[str, list[dict[str, Any]]],
+    ) -> tuple[bool, str]:
+        nodes: list[dict[str, Any]] = []
+        anchors: list[dict[str, Any]] = []
+        edge = edge_by_id.get(ref)
+        if ref in node_by_id:
+            nodes.append(node_by_id[ref])
+        if ref in anchor_by_id:
+            anchor = anchor_by_id[ref]
+            anchors.append(anchor)
+            linked = node_by_id.get(str(anchor.get("graph_node_id") or ""))
+            if linked:
+                nodes.append(linked)
+        if edge:
+            for key in ("source_node_id", "target_node_id"):
+                linked = node_by_id.get(str(edge.get(key) or ""))
+                if linked:
+                    nodes.append(linked)
+        nodes.extend(evidence_to_nodes.get(ref, []))
+        for evidence_edge in evidence_to_edges.get(ref, []):
+            for key in ("source_node_id", "target_node_id"):
+                linked = node_by_id.get(str(evidence_edge.get(key) or ""))
+                if linked:
+                    nodes.append(linked)
+
+        paths = {
+            str((node.get("source") or {}).get("file_path") or "")
+            for node in nodes
+            if (node.get("source") or {}).get("file_path")
+        }
+        paths.update(
+            str(anchor.get("file_path") or "")
+            for anchor in anchors
+            if anchor.get("file_path")
+        )
+        roles = {source_role(path) for path in paths if path}
+        if SOURCE_ROLE_TEST in roles and roles == {SOURCE_ROLE_TEST}:
+            return False, ""
+        if paths and SOURCE_ROLE_PRODUCTION not in roles:
+            return False, ""
+
+        node_types = {str(node.get("node_type") or "") for node in nodes}
+        material = SOURCE_ROLE_PRODUCTION in roles or bool(
+            node_types.intersection(_MATERIAL_RESOURCE_NODE_TYPES)
+        )
+        if not material:
+            return False, ""
+
+        text = json.dumps(
+            {
+                "nodes": [
+                    {
+                        "type": node.get("node_type"),
+                        "label": node.get("label"),
+                        "attributes": node.get("attributes") or {},
+                        "semanticTypes": node.get("semantic_types") or [],
+                        "source": node.get("source") or {},
+                    }
+                    for node in nodes[:12]
+                ],
+                "anchors": anchors[:8],
+                "edge": edge or {},
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            default=str,
+        )
+        return True, text
+
+    @staticmethod
+    def _tokens(value: str) -> set[str]:
+        return {
+            token.lower()
+            for token in _TOKEN.findall(str(value).replace("_", " ").replace("-", " "))
+            if len(token) > 2
+        }

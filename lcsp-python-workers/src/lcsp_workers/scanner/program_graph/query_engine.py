@@ -10,7 +10,37 @@ from .vocabulary import (
     BUSINESS_ACTION_NODE_TYPES,
     DATA_FLOW_EDGES,
     DECISION_EDGE_TYPES,
+    FRAMEWORK_BOUNDARY_NODE_TYPES,
+    FRAMEWORK_CONTINUATION_EDGES,
     HUMAN_CONTROL_NODE_TYPES,
+)
+
+_AI_DECISION_NODE_TYPES = frozenset(
+    {
+        "BUSINESS_DECISION",
+        "BUSINESS_ACTION",
+        "APPROVAL",
+        "REJECTION",
+        "RANKING",
+        "RECOMMENDATION",
+        "STATUS_CHANGE",
+    }
+)
+_PERSISTENT_EFFECT_NODE_TYPES = frozenset(
+    {
+        "REPOSITORY_ACCESS",
+        "DATABASE",
+        "TABLE",
+        "EXTERNAL_SERVICE",
+        "EXTERNAL_API",
+        "BUSINESS_OUTCOME",
+    }
+)
+_HUMAN_RELATION_EDGES = frozenset(
+    {"REVIEWED_BY", "OVERRIDDEN_BY", "REQUIRES_HUMAN_REVIEW"}
+)
+_AI_START_NODE_TYPES = frozenset(
+    {"AI_MODEL_INVOCATION", "AI_OUTPUT", "MODEL_ENDPOINT", "AI_CAPABILITY", "MODEL"}
 )
 
 
@@ -23,9 +53,10 @@ class GraphQueryResult:
     continuation_frontiers: list[str]
     unresolved_frontiers: list[str]
     evidence_refs: list[str]
+    analysis: dict | None = None
 
     def to_dict(self) -> dict:
-        return {
+        result = {
             "nodes": self.nodes,
             "edges": self.edges,
             "paths": self.paths,
@@ -34,6 +65,9 @@ class GraphQueryResult:
             "unresolvedFrontiers": self.unresolved_frontiers,
             "evidenceRefs": self.evidence_refs,
         }
+        if self.analysis is not None:
+            result["aiDecisionInfluence"] = self.analysis
+        return result
 
 
 @dataclass(frozen=True)
@@ -170,21 +204,8 @@ class ProgramGraphQueryEngine:
         max_results: int = 100,
     ) -> GraphQueryResult:
         follow = set(edge_types) or (
-            {
-                "CALLS",
-                "RESOLVES_TO",
-                "TRIGGERS",
-                "AFFECTS",
-                "HANDLED_BY",
-                "PUBLISHES_EVENT",
-                "CONSUMES_EVENT",
-                "PUBLISHES_TO_QUEUE",
-                "CONSUMES_FROM_QUEUE",
-                "PUBLISHES_COMMAND",
-                "HANDLES_COMMAND",
-                "PUBLISHES_QUERY",
-                "HANDLES_QUERY",
-            }
+            {"CALLS", "TRIGGERS", "AFFECTS"}
+            | set(FRAMEWORK_CONTINUATION_EDGES)
             | set(DATA_FLOW_EDGES)
             | set(DECISION_EDGE_TYPES)
         )
@@ -214,7 +235,9 @@ class ProgramGraphQueryEngine:
             max_results,
             max_results * 5,
             set(),
-            set(DATA_FLOW_EDGES) | {"CALLS", "RESOLVES_TO"},
+            set(DATA_FLOW_EDGES)
+            | {"CALLS"}
+            | set(FRAMEWORK_CONTINUATION_EDGES),
             set(),
         )
 
@@ -234,10 +257,11 @@ class ProgramGraphQueryEngine:
             "STATUS_CHANGE": "STATUS_CHANGE",
         }
         selected = {mapping.get(value, value) for value in action_categories}
-        stops = set(BUSINESS_ACTION_NODE_TYPES)
-        if selected:
-            stops &= selected | {"BUSINESS_ACTION"}
-        return self._walk(
+        # Default decision inspection must continue beyond the first business action so
+        # LCSP can observe a downstream DB/external effect and a human-control relation.
+        # Explicit category requests retain the historical bounded-stop behavior.
+        stops = selected | ({"BUSINESS_ACTION"} if selected else set())
+        result = self._walk(
             start_ref,
             "FORWARD",
             max_hops,
@@ -246,17 +270,19 @@ class ProgramGraphQueryEngine:
             set(),
             set(DATA_FLOW_EDGES)
             | set(DECISION_EDGE_TYPES)
-            | {
-                "CALLS",
-                "RESOLVES_TO",
-                "TRIGGERS",
-                "HANDLED_BY",
-                "PUBLISHES_EVENT",
-                "CONSUMES_EVENT",
-                "PUBLISHES_TO_QUEUE",
-                "CONSUMES_FROM_QUEUE",
-            },
+            | {"CALLS", "TRIGGERS"}
+            | set(FRAMEWORK_CONTINUATION_EDGES),
             stops,
+        )
+        return GraphQueryResult(
+            nodes=result.nodes,
+            edges=result.edges,
+            paths=result.paths,
+            truncated=result.truncated,
+            continuation_frontiers=result.continuation_frontiers,
+            unresolved_frontiers=result.unresolved_frontiers,
+            evidence_refs=result.evidence_refs,
+            analysis=self._ai_decision_influence_summary(result),
         )
 
     def inspect_human_review_path(
@@ -395,6 +421,134 @@ class ProgramGraphQueryEngine:
             "evidenceRefs": self._refs([node, *neighbors], selected),
         }
 
+    def _ai_decision_influence_summary(self, result: GraphQueryResult) -> dict:
+        if not result.nodes:
+            return {
+                "state": "DECISION_PATH_UNRESOLVED",
+                "aiInfluencesDecision": False,
+                "aiPersistsDecision": False,
+                "humanInLoopPresent": False,
+                "automatedDecisionCandidate": False,
+                "decisionNodeRefs": [],
+                "effectNodeRefs": [],
+                "humanControlRefs": [],
+                "decisionEffectPaths": [],
+            }
+
+        nodes = {str(node["node_id"]): node for node in result.nodes}
+        start_id = str(result.nodes[0]["node_id"])
+        start_type = str(result.nodes[0].get("node_type") or "")
+        decision_ids = {
+            node_id
+            for node_id, node in nodes.items()
+            if node.get("node_type") in _AI_DECISION_NODE_TYPES
+        }
+        effect_ids = {
+            node_id
+            for node_id, node in nodes.items()
+            if node.get("node_type") in _PERSISTENT_EFFECT_NODE_TYPES
+        }
+        human_ids = {
+            node_id
+            for node_id, node in nodes.items()
+            if node.get("node_type") in HUMAN_CONTROL_NODE_TYPES
+        }
+        adjacency: dict[str, list[str]] = {}
+        for edge in result.edges:
+            adjacency.setdefault(str(edge["source_node_id"]), []).append(
+                str(edge["target_node_id"])
+            )
+
+        decision_effect_paths: list[list[str]] = []
+        for effect_id in sorted(effect_ids):
+            path = self._shortest_path_with_required_type(
+                start_id,
+                effect_id,
+                adjacency,
+                decision_ids,
+            )
+            if path:
+                decision_effect_paths.append(path)
+                if len(decision_effect_paths) >= 10:
+                    break
+
+        path_decision_ids = {
+            node_id
+            for path in decision_effect_paths
+            for node_id in path
+            if node_id in decision_ids
+        }
+        human_on_path = any(
+            node_id in human_ids
+            for path in decision_effect_paths
+            for node_id in path
+        )
+        human_attached = human_on_path or any(
+            edge.get("edge_type") in _HUMAN_RELATION_EDGES
+            and (
+                (
+                    str(edge.get("source_node_id")) in path_decision_ids
+                    and str(edge.get("target_node_id")) in human_ids
+                )
+                or (
+                    str(edge.get("target_node_id")) in path_decision_ids
+                    and str(edge.get("source_node_id")) in human_ids
+                )
+            )
+            for edge in result.edges
+        )
+        ai_influences = bool(decision_ids) and start_type in _AI_START_NODE_TYPES
+        ai_persists = bool(decision_effect_paths) and ai_influences
+        incomplete = bool(result.truncated or result.unresolved_frontiers)
+
+        if incomplete:
+            state = "DECISION_PATH_UNRESOLVED"
+        elif ai_persists and human_attached:
+            state = "HUMAN_IN_LOOP_PRESENT"
+        elif ai_persists:
+            state = "AUTOMATED_DECISION_CANDIDATE"
+        elif ai_influences:
+            state = "AI_INFLUENCES_DECISION"
+        else:
+            state = "NO_DECISION_EFFECT_EVIDENCED"
+
+        return {
+            "state": state,
+            "aiInfluencesDecision": ai_influences,
+            "aiPersistsDecision": ai_persists,
+            "humanInLoopPresent": bool(human_attached),
+            "automatedDecisionCandidate": bool(
+                state == "AUTOMATED_DECISION_CANDIDATE"
+            ),
+            "boundedComplete": not incomplete,
+            "decisionNodeRefs": sorted(decision_ids),
+            "effectNodeRefs": sorted(effect_ids),
+            "humanControlRefs": sorted(human_ids),
+            "decisionEffectPaths": decision_effect_paths,
+        }
+
+    @staticmethod
+    def _shortest_path_with_required_type(
+        start_id: str,
+        target_id: str,
+        adjacency: dict[str, list[str]],
+        required_ids: set[str],
+    ) -> list[str] | None:
+        queue = deque([(start_id, [start_id], start_id in required_ids)])
+        seen = {(start_id, start_id in required_ids)}
+        while queue:
+            node_id, path, has_required = queue.popleft()
+            if node_id == target_id and has_required:
+                return path
+            for next_id in sorted(adjacency.get(node_id, [])):
+                next_has_required = has_required or next_id in required_ids
+                state = (next_id, next_has_required)
+                if state in seen:
+                    continue
+                seen.add(state)
+                queue.append((next_id, [*path, next_id], next_has_required))
+        return None
+
     def _walk(
         self,
         seed_ref: str,
@@ -433,13 +587,28 @@ class ProgramGraphQueryEngine:
         while queue:
             node_id, depth, path = queue.popleft()
             node = self.nodes[node_id]
-            if node.get("node_type") == "UNRESOLVED_DYNAMIC_TARGET":
+            node_type = str(node.get("node_type") or "")
+            if node_type == "UNRESOLVED_DYNAMIC_TARGET":
                 unresolved.add(node_id)
-            if stop_types and node_id != seed and node.get("node_type") in stop_types:
+            if stop_types and node_id != seed and node_type in stop_types:
                 paths.append(path)
                 continue
 
             neighbors = self._neighbors(node_id, direction, edge_types)
+
+            # Backward compatibility for persisted ProgramGraph v2 artifacts created
+            # before method-level framework resolution existed. EVENT/QUEUE/COMMAND/
+            # QUERY are continuation boundaries; ending there (or at their legacy
+            # module-only handler target) is analysis uncertainty, not proof of absence.
+            if not neighbors and node_id != seed:
+                if node_type in FRAMEWORK_BOUNDARY_NODE_TYPES:
+                    unresolved.add(node_id)
+                elif node_type == "MODULE" and len(path) >= 2:
+                    previous_id = path[-2]
+                    previous = self.nodes.get(previous_id) or {}
+                    if previous.get("node_type") in FRAMEWORK_BOUNDARY_NODE_TYPES:
+                        unresolved.add(previous_id)
+
             if depth >= depth_limit:
                 if neighbors:
                     truncated = True
@@ -528,7 +697,10 @@ class ProgramGraphQueryEngine:
             {
                 str(ref)
                 for item in [*nodes, *edges]
-                for ref in item.get("evidence_refs") or []
+                for ref in [
+                    *(item.get("evidence_refs") or []),
+                    *(item.get("support_refs") or []),
+                ]
                 if str(ref)
             }
         )

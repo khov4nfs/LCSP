@@ -12,6 +12,12 @@ import type { OutboxRepository } from "../../../../../platform/outbox/outbox.rep
 import { RerunClassificationCommand } from "./rerun-classification.command.js";
 import { RerunClassificationHandler } from "./rerun-classification.handler.js";
 
+type EvidenceReportFixture = {
+  id: string;
+  snapshotId: string;
+  scanJobId: string;
+} | null;
+
 describe("RerunClassificationHandler", () => {
   const pbacContext = {
     userId: "user-1",
@@ -25,22 +31,18 @@ describe("RerunClassificationHandler", () => {
     policyVersion: "1",
   };
 
-  function createHandler(options?: {
-    evidenceReport?: {
-      id: string;
-      snapshotId: string;
-      scanJobId: string;
-    } | null;
-  }) {
-    const findEvidence = jest.fn().mockResolvedValue(
+  function createHandler(options?: { evidenceReport?: EvidenceReportFixture }) {
+    const evidenceReport: EvidenceReportFixture =
       options?.evidenceReport === undefined
         ? {
             id: "ter-1",
             snapshotId: "snapshot-1",
             scanJobId: "scan-1",
           }
-        : options.evidenceReport,
-    );
+        : options.evidenceReport;
+    const findEvidence = jest
+      .fn<(args: unknown) => Promise<EvidenceReportFixture>>()
+      .mockResolvedValue(evidenceReport);
     const prisma = {
       technicalEvidenceReport: {
         findFirst: findEvidence,
@@ -49,9 +51,13 @@ describe("RerunClassificationHandler", () => {
         callback(prisma),
       ),
     } as unknown as jest.Mocked<PrismaService>;
-    const enqueue = jest.fn().mockResolvedValue(undefined);
+    const enqueue = jest
+      .fn<(...args: unknown[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
     const outbox = { enqueue } as unknown as jest.Mocked<OutboxRepository>;
-    const writeInTx = jest.fn().mockResolvedValue(undefined);
+    const writeInTx = jest
+      .fn<(...args: unknown[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
     const auditWriter = {
       writeInTx,
     } as unknown as jest.Mocked<AuditWriterService>;

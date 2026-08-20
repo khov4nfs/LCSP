@@ -24,15 +24,29 @@ import { OverclaimGuardrailService } from "../../services/classification/overcla
 import { AcceptClassificationCommand } from "./accept-classification.command.js";
 import { AcceptClassificationHandler } from "./accept-classification.handler.js";
 
+type EvidenceFixture = {
+  id: string;
+  assessmentId: string;
+  organizationId: string;
+  snapshotId: string;
+} | null;
+
+type ClassificationResultFixture = {
+  id: string;
+  classificationData: unknown;
+};
+
 describe("AcceptClassificationHandler", () => {
   let handler: AcceptClassificationHandler;
   let prisma: jest.Mocked<PrismaService>;
-  let mockFindEvidence: jest.Mock;
-  let mockFindResults: jest.Mock;
-  let mockCreateResult: jest.Mock;
-  let mockEnqueueOutbox: jest.Mock;
-  let mockWriteAuditInTx: jest.Mock;
-  let mockRecordToolCompleted: jest.Mock;
+  let mockFindEvidence: jest.Mock<() => Promise<EvidenceFixture>>;
+  let mockFindResults: jest.Mock<() => Promise<ClassificationResultFixture[]>>;
+  let mockCreateResult: jest.Mock<
+    (args: { data: unknown }) => Promise<unknown>
+  >;
+  let mockEnqueueOutbox: jest.Mock<(...args: unknown[]) => Promise<void>>;
+  let mockWriteAuditInTx: jest.Mock<(...args: unknown[]) => Promise<void>>;
+  let mockRecordToolCompleted: jest.Mock<(...args: unknown[]) => Promise<void>>;
 
   const validPayload: AcceptClassificationDto = {
     technical_evidence_report_id: "ter-123",
@@ -63,21 +77,29 @@ describe("AcceptClassificationHandler", () => {
   };
 
   beforeEach(() => {
-    mockFindEvidence = jest.fn().mockResolvedValue({
-      id: "ter-123",
-      assessmentId: "asm-123",
-      organizationId: "org-123",
-      snapshotId: "snapshot-123",
-    });
-    mockFindResults = jest.fn().mockResolvedValue([]);
+    mockFindEvidence = jest
+      .fn<() => Promise<EvidenceFixture>>()
+      .mockResolvedValue({
+        id: "ter-123",
+        assessmentId: "asm-123",
+        organizationId: "org-123",
+        snapshotId: "snapshot-123",
+      });
+    mockFindResults = jest
+      .fn<() => Promise<ClassificationResultFixture[]>>()
+      .mockResolvedValue([]);
     mockCreateResult = jest
-      .fn()
-      .mockImplementation(({ data }: { data: unknown }) =>
-        Promise.resolve(data),
-      );
-    mockEnqueueOutbox = jest.fn().mockResolvedValue(undefined);
-    mockWriteAuditInTx = jest.fn().mockResolvedValue(undefined);
-    mockRecordToolCompleted = jest.fn().mockResolvedValue(undefined);
+      .fn<(args: { data: unknown }) => Promise<unknown>>()
+      .mockImplementation(({ data }) => Promise.resolve(data));
+    mockEnqueueOutbox = jest
+      .fn<(...args: unknown[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    mockWriteAuditInTx = jest
+      .fn<(...args: unknown[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    mockRecordToolCompleted = jest
+      .fn<(...args: unknown[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
 
     prisma = {
       technicalEvidenceReport: { findFirst: mockFindEvidence },
@@ -100,7 +122,9 @@ describe("AcceptClassificationHandler", () => {
       new OverclaimGuardrailService(),
       {
         recordToolCompleted: mockRecordToolCompleted,
-        recordRunCompleted: jest.fn().mockResolvedValue(undefined),
+        recordRunCompleted: jest
+          .fn<(...args: unknown[]) => Promise<void>>()
+          .mockResolvedValue(undefined),
       } as unknown as AssessmentRuntimeEventService,
     );
   });

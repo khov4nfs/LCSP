@@ -16,6 +16,7 @@ from lcsp_workers.scanner.snapshot_service_client import (
 from lcsp_workers.scanner.workspace import ScannerWorkspace
 
 from .pipeline import EngineeringInvestigationPipeline
+from .planned_pipeline import PlannedEngineeringInvestigationPipeline
 
 
 logger = get_logger(__name__)
@@ -51,7 +52,7 @@ class EngineeringAssessmentConsumer(ConsumerBase):
         if investigation_pipeline is not None:
             self._pipeline = investigation_pipeline
         elif llm_client is not None:
-            self._pipeline = EngineeringInvestigationPipeline(
+            self._pipeline = PlannedEngineeringInvestigationPipeline(
                 api_client=self._api_client,
                 llm_client=llm_client,
             )

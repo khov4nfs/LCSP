@@ -1,7 +1,9 @@
-"""Language-neutral semantic facts emitted before graph assembly."""
+"""Language-neutral semantic facts emitted before unified graph assembly."""
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any, Iterable
+
 
 @dataclass(frozen=True)
 class SemanticNodeFact:
@@ -16,6 +18,12 @@ class SemanticNodeFact:
     semantic_types: tuple[str, ...] = ()
     evidence_refs: tuple[str, ...] = ()
     coverage_state: str = "SUFFICIENT"
+    # v3 trust metadata. Kept after all v2 fields so existing positional emitters
+    # remain source-compatible while new enrichers can be explicit.
+    origin: str = "STATIC_ANALYSIS"
+    resolution_state: str = "OBSERVED"
+    support_refs: tuple[str, ...] = ()
+
 
 @dataclass(frozen=True)
 class SemanticEdgeFact:
@@ -26,6 +34,10 @@ class SemanticEdgeFact:
     attributes: dict[str, Any] = field(default_factory=dict)
     evidence_refs: tuple[str, ...] = ()
     coverage_state: str = "SUFFICIENT"
+    origin: str = "STATIC_ANALYSIS"
+    resolution_state: str = "OBSERVED"
+    support_refs: tuple[str, ...] = ()
+
 
 @dataclass
 class SemanticProgram:
@@ -34,11 +46,20 @@ class SemanticProgram:
     coverage_notes: list[str] = field(default_factory=list)
     unresolved_frontiers: list[str] = field(default_factory=list)
 
-    def add_node(self, value: SemanticNodeFact) -> None: self.nodes.append(value)
-    def add_edge(self, value: SemanticEdgeFact) -> None: self.edges.append(value)
-    def add_nodes(self, values: Iterable[SemanticNodeFact]) -> None: self.nodes.extend(values)
-    def add_edges(self, values: Iterable[SemanticEdgeFact]) -> None: self.edges.extend(values)
+    def add_node(self, value: SemanticNodeFact) -> None:
+        self.nodes.append(value)
+
+    def add_edge(self, value: SemanticEdgeFact) -> None:
+        self.edges.append(value)
+
+    def add_nodes(self, values: Iterable[SemanticNodeFact]) -> None:
+        self.nodes.extend(values)
+
+    def add_edges(self, values: Iterable[SemanticEdgeFact]) -> None:
+        self.edges.extend(values)
+
     def extend(self, other: "SemanticProgram") -> None:
-        self.nodes.extend(other.nodes); self.edges.extend(other.edges)
+        self.nodes.extend(other.nodes)
+        self.edges.extend(other.edges)
         self.coverage_notes.extend(other.coverage_notes)
         self.unresolved_frontiers.extend(other.unresolved_frontiers)

@@ -1,9 +1,9 @@
 """Bootstrap LCSP worker consumers and their runtime dependencies.
 
 This module resolves a consumer class from the CLI target, injects optional
-PBAC, agentic-tool, and LLM dependencies based on the consumer constructor,
-and starts the selected RabbitMQ consumer without coupling individual workers
-to process-level configuration code.
+PBAC, agentic-tool, LLM, and graph-enrichment dependencies based on the consumer
+constructor, and starts the selected RabbitMQ consumer without coupling individual
+workers to process-level configuration code.
 """
 
 from __future__ import annotations
@@ -85,10 +85,29 @@ def _build_consumer(target: str) -> ConsumerBase:
             max_tool_calls=config.agentic_runtime.max_tool_calls,
         )
 
-    if "llm_client" in constructor.parameters:
+    # Build one shared provider chain when either the consumer itself requires an LLM
+    # or its ProgramGraph assembler can persist provenance-gated business semantics.
+    llm_client = None
+    if (
+        "llm_client" in constructor.parameters
+        or "evidence_graph_assembler" in constructor.parameters
+    ):
         llm_client = _build_llm_client(config)
-        if llm_client is not None:
-            kwargs["llm_client"] = llm_client
+
+    if "llm_client" in constructor.parameters and llm_client is not None:
+        kwargs["llm_client"] = llm_client
+
+    if "evidence_graph_assembler" in constructor.parameters and llm_client is not None:
+        # Import lazily so non-scanner workers do not couple their startup path to the
+        # scanner package. The decorator always builds deterministic graph v3 first;
+        # provider/schema failure returns that base graph unchanged.
+        from lcsp_workers.scanner.program_graph.business_semantic_graph_assembler import (
+            BusinessSemanticProgramGraphAssembler,
+        )
+
+        kwargs["evidence_graph_assembler"] = BusinessSemanticProgramGraphAssembler(
+            llm_client
+        )
 
     return consumer_type(config, **kwargs)
 

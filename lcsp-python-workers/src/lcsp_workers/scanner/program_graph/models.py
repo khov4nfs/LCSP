@@ -1,8 +1,11 @@
 """Typed persisted contracts for Program Evidence Graph artifacts."""
 from __future__ import annotations
+
 from dataclasses import asdict, dataclass, field
 from typing import Any
+
 from .vocabulary import PROGRAM_GRAPH_SCHEMA_VERSION
+
 
 @dataclass(frozen=True)
 class SourceLocation:
@@ -11,6 +14,7 @@ class SourceLocation:
     end_line: int | None = None
     symbol_ref: str | None = None
     source_hash: str | None = None
+
 
 @dataclass
 class ProgramNode:
@@ -23,9 +27,14 @@ class ProgramNode:
     evidence_refs: list[str] = field(default_factory=list)
     coverage_state: str = "SUFFICIENT"
     source_anchor_ref: str | None = None
+    # v3 trust/provenance metadata. Defaults preserve v2 construction call sites.
+    origin: str = "STATIC_ANALYSIS"
+    resolution_state: str = "OBSERVED"
+    support_refs: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
 
 @dataclass
 class ProgramEdge:
@@ -37,9 +46,13 @@ class ProgramEdge:
     attributes: dict[str, Any] = field(default_factory=dict)
     evidence_refs: list[str] = field(default_factory=list)
     coverage_state: str = "SUFFICIENT"
+    origin: str = "STATIC_ANALYSIS"
+    resolution_state: str = "OBSERVED"
+    support_refs: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
 
 @dataclass(frozen=True)
 class SourceEvidenceAnchor:
@@ -52,6 +65,7 @@ class SourceEvidenceAnchor:
     end_line: int | None
     source_hash: str
     graph_node_id: str
+
 
 @dataclass
 class ProgramEvidenceGraph:
@@ -77,37 +91,57 @@ class ProgramEvidenceGraph:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "ProgramEvidenceGraph":
+        """Read v2/v3 payloads without rewriting historical graph semantics."""
         import json
         import os
+
         ref = payload.get("evidence_graph_ref") or payload.get("evidenceGraphRef")
         if ref and isinstance(ref, str) and os.path.exists(ref):
             try:
-                with open(ref, "r") as f:
-                    file_payload = json.load(f)
+                with open(ref, "r") as file:
+                    file_payload = json.load(file)
                     if isinstance(file_payload, dict):
-                        for k, v in file_payload.items():
-                            if k not in payload or payload[k] in ([], {}, None, ""):
-                                payload[k] = v
+                        for key, value in file_payload.items():
+                            if key not in payload or payload[key] in ([], {}, None, ""):
+                                payload[key] = value
             except Exception:
                 pass
 
         def pick(snake: str, camel: str, default=None):
             value = payload.get(snake)
             return payload.get(camel, default) if value is None else value
+
         return cls(
             graph_id=str(pick("graph_id", "graphId", "")),
             snapshot_id=str(pick("snapshot_id", "snapshotId", "")),
             commit_sha=str(pick("commit_sha", "commitSha", "")),
-            node_count=int(pick("node_count", "nodeCount", len(payload.get("nodes") or []))),
-            edge_count=int(pick("edge_count", "edgeCount", len(payload.get("edges") or []))),
-            nodes=list(payload.get("nodes") or []), edges=list(payload.get("edges") or []),
+            node_count=int(
+                pick("node_count", "nodeCount", len(payload.get("nodes") or []))
+            ),
+            edge_count=int(
+                pick("edge_count", "edgeCount", len(payload.get("edges") or []))
+            ),
+            nodes=list(payload.get("nodes") or []),
+            edges=list(payload.get("edges") or []),
             source_anchors=list(pick("source_anchors", "sourceAnchors", []) or []),
-            indexes={str(k): list(v) for k, v in dict(payload.get("indexes") or {}).items()},
-            unresolved_frontiers=list(pick("unresolved_frontiers", "unresolvedFrontiers", []) or []),
-            coverage_state=str(pick("coverage_state", "coverageState", "SUFFICIENT")),
+            indexes={
+                str(key): list(value)
+                for key, value in dict(payload.get("indexes") or {}).items()
+            },
+            unresolved_frontiers=list(
+                pick("unresolved_frontiers", "unresolvedFrontiers", []) or []
+            ),
+            coverage_state=str(
+                pick("coverage_state", "coverageState", "SUFFICIENT")
+            ),
             coverage_notes=list(pick("coverage_notes", "coverageNotes", []) or []),
-            provenance={str(k): str(v) for k, v in dict(payload.get("provenance") or {}).items()},
+            provenance={
+                str(key): str(value)
+                for key, value in dict(payload.get("provenance") or {}).items()
+            },
             evidence_refs=list(pick("evidence_refs", "evidenceRefs", []) or []),
             graph_hash=str(pick("graph_hash", "graphHash", "")),
-            schema_version=str(pick("schema_version", "schemaVersion", PROGRAM_GRAPH_SCHEMA_VERSION)),
+            schema_version=str(
+                pick("schema_version", "schemaVersion", PROGRAM_GRAPH_SCHEMA_VERSION)
+            ),
         )
