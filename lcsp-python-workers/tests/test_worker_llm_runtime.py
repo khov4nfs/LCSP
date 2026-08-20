@@ -11,13 +11,31 @@ from lcsp_workers.platform.config import (
     WorkerConfig,
     load_config,
 )
-from lcsp_workers.runtime import _build_llm_client
+from lcsp_workers.platform.queue_consumer import ConsumerBase
+from lcsp_workers.runtime import _build_consumer, _build_llm_client
+from lcsp_workers.scanner.program_graph.business_semantic_graph_assembler import (
+    BusinessSemanticProgramGraphAssembler,
+)
 
 
 def _base_env(monkeypatch) -> None:
     monkeypatch.setenv("RABBITMQ_URL", "amqp://guest:guest@localhost/")
     monkeypatch.setenv("NESTJS_API_BASE_URL", "http://api.test")
     monkeypatch.setenv("WORKER_API_KEY", "worker-test-key")
+
+
+def _worker_config(*, llm_runtime: LlmRuntimeConfig | None = None) -> WorkerConfig:
+    return WorkerConfig(
+        rabbitmq_url="amqp://guest:guest@localhost/",
+        rabbitmq_exchange="lcsp.events",
+        nestjs_api_base_url="http://api.test",
+        worker_api_key="worker-test-key",
+        log_level="INFO",
+        max_retries=3,
+        llm_runtime=llm_runtime or LlmRuntimeConfig(),
+        agentic_runtime=AgenticRuntimeConfig(),
+        pbac_preflight=PbacPreflightConfig(),
+    )
 
 
 def test_load_config_parses_llm_provider_chain(monkeypatch) -> None:
@@ -55,13 +73,7 @@ def test_load_config_parses_llm_provider_chain(monkeypatch) -> None:
 
 
 def test_build_llm_client_skips_provider_without_api_key() -> None:
-    config = WorkerConfig(
-        rabbitmq_url="amqp://guest:guest@localhost/",
-        rabbitmq_exchange="lcsp.events",
-        nestjs_api_base_url="http://api.test",
-        worker_api_key="worker-test-key",
-        log_level="INFO",
-        max_retries=3,
+    config = _worker_config(
         llm_runtime=LlmRuntimeConfig(
             providers=(
                 LlmProviderConfig(
@@ -78,9 +90,7 @@ def test_build_llm_client_skips_provider_without_api_key() -> None:
                 ),
             ),
             max_provider_attempts=2,
-        ),
-        agentic_runtime=AgenticRuntimeConfig(),
-        pbac_preflight=PbacPreflightConfig(),
+        )
     )
 
     with patch("lcsp_workers.runtime.LLMGatewayClient") as gateway_class:
@@ -95,13 +105,7 @@ def test_build_llm_client_skips_provider_without_api_key() -> None:
 
 
 def test_build_llm_client_returns_none_when_no_provider_has_key() -> None:
-    config = WorkerConfig(
-        rabbitmq_url="amqp://guest:guest@localhost/",
-        rabbitmq_exchange="lcsp.events",
-        nestjs_api_base_url="http://api.test",
-        worker_api_key="worker-test-key",
-        log_level="INFO",
-        max_retries=3,
+    config = _worker_config(
         llm_runtime=LlmRuntimeConfig(
             providers=(
                 LlmProviderConfig(
@@ -111,9 +115,58 @@ def test_build_llm_client_returns_none_when_no_provider_has_key() -> None:
                     api_key_env="OPENAI_API_KEY",
                 ),
             ),
-        ),
-        agentic_runtime=AgenticRuntimeConfig(),
-        pbac_preflight=PbacPreflightConfig(),
+        )
     )
 
     assert _build_llm_client(config) is None
+
+
+def test_build_consumer_injects_business_semantic_graph_assembler_when_llm_enabled() -> None:
+    class GraphConsumer(ConsumerBase):
+        queue_name = "test"
+        routing_key = "test"
+
+        def __init__(self, config, evidence_graph_assembler=None):
+            super().__init__(config)
+            self.evidence_graph_assembler = evidence_graph_assembler
+
+        def handle(self, message: dict, correlationId: str) -> None:
+            return None
+
+    config = _worker_config()
+    llm_client = MagicMock()
+
+    with (
+        patch("lcsp_workers.runtime.load_config", return_value=config),
+        patch("lcsp_workers.runtime._load_consumer", return_value=GraphConsumer),
+        patch("lcsp_workers.runtime._build_llm_client", return_value=llm_client),
+    ):
+        consumer = _build_consumer("ignored:GraphConsumer")
+
+    assert isinstance(
+        consumer.evidence_graph_assembler,
+        BusinessSemanticProgramGraphAssembler,
+    )
+
+
+def test_build_consumer_keeps_deterministic_default_when_llm_disabled() -> None:
+    class GraphConsumer(ConsumerBase):
+        queue_name = "test"
+        routing_key = "test"
+
+        def __init__(self, config, evidence_graph_assembler=None):
+            super().__init__(config)
+            self.evidence_graph_assembler = evidence_graph_assembler
+
+        def handle(self, message: dict, correlationId: str) -> None:
+            return None
+
+    config = _worker_config()
+    with (
+        patch("lcsp_workers.runtime.load_config", return_value=config),
+        patch("lcsp_workers.runtime._load_consumer", return_value=GraphConsumer),
+        patch("lcsp_workers.runtime._build_llm_client", return_value=None),
+    ):
+        consumer = _build_consumer("ignored:GraphConsumer")
+
+    assert consumer.evidence_graph_assembler is None

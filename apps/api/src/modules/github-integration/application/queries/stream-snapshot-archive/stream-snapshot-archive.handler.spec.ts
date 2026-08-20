@@ -21,10 +21,22 @@ import {
 } from "../../../infrastructure/github/github-app.client.js";
 import type {
   SnapshotArchiveCache,
+  SnapshotArchiveCacheCaptureInput,
   SnapshotArchiveCacheHit,
+  SnapshotArchiveCacheLookup,
 } from "../../../infrastructure/github/snapshot-archive-cache.js";
 import { StreamSnapshotArchiveHandler } from "./stream-snapshot-archive.handler.js";
 import { StreamSnapshotArchiveQuery } from "./stream-snapshot-archive.query.js";
+
+type RepositoryScanJobStatus =
+  (typeof REPOSITORY_SCAN_JOB_STATUSES)[keyof typeof REPOSITORY_SCAN_JOB_STATUSES];
+
+type ScanJobFixture = {
+  id: string;
+  snapshotId: string;
+  organizationId: string;
+  status: RepositoryScanJobStatus;
+};
 
 describe("StreamSnapshotArchiveHandler", () => {
   const snapshot = {
@@ -36,7 +48,7 @@ describe("StreamSnapshotArchiveHandler", () => {
     status: REPOSITORY_SNAPSHOT_STATUSES.ready,
   };
 
-  const scanJob = {
+  const scanJob: ScanJobFixture = {
     id: "scan-job-1",
     snapshotId: "snapshot-1",
     organizationId: "org-1",
@@ -51,7 +63,7 @@ describe("StreamSnapshotArchiveHandler", () => {
   };
 
   function buildHandler(options?: {
-    scanJob?: typeof scanJob | null;
+    scanJob?: ScanJobFixture | null;
     snapshot?: typeof snapshot | null;
     connection?: typeof connection | null;
     archive?: {
@@ -74,7 +86,7 @@ describe("StreamSnapshotArchiveHandler", () => {
     const prisma = {
       repositoryScanJob: {
         findUnique: jest
-          .fn<() => Promise<typeof scanJob | null | undefined>>()
+          .fn<() => Promise<ScanJobFixture | null | undefined>>()
           .mockResolvedValue(hasOption("scanJob") ? options?.scanJob : scanJob),
         updateMany: claimScanJobMock,
       },
@@ -109,11 +121,15 @@ describe("StreamSnapshotArchiveHandler", () => {
     } as unknown as GitHubAppClient;
 
     const cacheGetMock = jest
-      .fn<() => Promise<SnapshotArchiveCacheHit | null>>()
+      .fn<
+        (
+          lookup: SnapshotArchiveCacheLookup,
+        ) => Promise<SnapshotArchiveCacheHit | null>
+      >()
       .mockResolvedValue(options?.cacheHit ?? null);
     const cacheCaptureMock = jest
       .fn<
-        (input: { source: NodeJS.ReadableStream }) => Promise<{
+        (input: SnapshotArchiveCacheCaptureInput) => Promise<{
           stream: NodeJS.ReadableStream;
           completion: Promise<void>;
         }>

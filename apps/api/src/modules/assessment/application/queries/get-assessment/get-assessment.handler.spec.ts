@@ -14,6 +14,10 @@ import type { AssessmentRepository } from "../../ports/persistence/assessment.re
 import { GetAssessmentHandler } from "./get-assessment.handler.js";
 import { GetAssessmentQuery } from "./get-assessment.query.js";
 
+function resolvedMock<T>(value: T) {
+  return jest.fn<() => Promise<T>>().mockResolvedValue(value);
+}
+
 function makeAssessment(
   overrides: Partial<{
     organizationId: string;
@@ -60,20 +64,16 @@ function buildHandler(input: {
   };
   const prisma = {
     wizardProfile: {
-      findUnique: jest.fn().mockResolvedValue(input.wizardProfile ?? null),
+      findUnique: resolvedMock(input.wizardProfile ?? null),
     },
     technicalEvidenceReport: {
-      findFirst: jest
-        .fn()
-        .mockResolvedValue(input.acceptedEvidenceReport ?? null),
+      findFirst: resolvedMock(input.acceptedEvidenceReport ?? null),
     },
     classificationResult: {
-      findFirst: jest
-        .fn()
-        .mockResolvedValue(input.classificationResult ?? null),
+      findFirst: resolvedMock(input.classificationResult ?? null),
     },
     legalDocumentChunk: {
-      findMany: jest.fn().mockResolvedValue(input.legalChunks ?? []),
+      findMany: resolvedMock(input.legalChunks ?? []),
     },
   } as unknown as PrismaService;
   return new GetAssessmentHandler(repository, prisma);
@@ -81,7 +81,7 @@ function buildHandler(input: {
 
 function query(
   assessmentId: string,
-  role = SUBJECT_ROLES.manager,
+  role: GetAssessmentQuery["subjectRole"] = SUBJECT_ROLES.manager,
   userId = "user-1",
 ) {
   return new GetAssessmentQuery(assessmentId, "org-1", userId, role, "corr-1");

@@ -1,4 +1,4 @@
-"""Canonical Python-local technical investigation tools over Program Evidence Graph v2."""
+"""Canonical Python-local technical investigation tools over Unified System Evidence Graph."""
 from __future__ import annotations
 
 from typing import Any, Mapping
@@ -69,6 +69,7 @@ def get_scan_coverage(request: AgenticToolRequest, context) -> Mapping[str, Any]
         "unresolvedFrontiers": graph.unresolved_frontiers,
         "nodeCount": graph.node_count,
         "edgeCount": graph.edge_count,
+        "schemaVersion": graph.schema_version,
         "provenance": graph.provenance,
     }
 
@@ -244,7 +245,10 @@ def find_similar_symbols(request: AgenticToolRequest, context) -> Mapping[str, A
             {
                 ref
                 for row in rows
-                for ref in row["symbol"].get("evidence_refs") or []
+                for ref in [
+                    *(row["symbol"].get("evidence_refs") or []),
+                    *(row["symbol"].get("support_refs") or []),
+                ]
             }
         ),
     }
@@ -292,9 +296,26 @@ def inspect_deployment_context(
         ),
         "unresolvedFrontiers": search.unresolved_frontiers,
         "evidenceRefs": sorted(
-            {ref for node in rows for ref in node.get("evidence_refs") or []}
+            {
+                ref
+                for node in rows
+                for ref in [
+                    *(node.get("evidence_refs") or []),
+                    *(node.get("support_refs") or []),
+                ]
+            }
         ),
     }
+
+
+def _trusted_target(node: dict[str, Any]) -> bool:
+    """Do not propose weak/invented semantic nodes as investigation targets."""
+    state = str(node.get("resolution_state") or "OBSERVED")
+    if state in {"INFERRED", "UNRESOLVED"}:
+        return False
+    if str(node.get("origin") or "") == "LLM_SEMANTIC_ENRICHMENT":
+        return state == "CORROBORATED" and bool(node.get("support_refs"))
+    return True
 
 
 def propose_missing_targets(
@@ -304,9 +325,74 @@ def propose_missing_targets(
     engine, _ = _graph(request, context)
     kinds = set(_input(request, "candidateKinds", ()))
     mapping = {
-        "PROVIDER_USAGE": ("AI_MODEL_INVOCATION", "AI_PROVIDER"),
-        "DATA_FLOW": ("PERSONAL_DATA", "SENSITIVE_DATA", "EXTERNAL_API"),
+        "PROVIDER_USAGE": (
+            "AI_MODEL_INVOCATION",
+            "AI_PROVIDER",
+            "AI_CAPABILITY",
+            "MODEL_ENDPOINT",
+        ),
+        "DATA_FLOW": (
+            "DATA_OBJECT",
+            "DATA_ASSET",
+            "PERSONAL_DATA",
+            "SENSITIVE_DATA",
+            "EXTERNAL_API",
+        ),
+        "SENSITIVE_DATA_LINEAGE": (
+            "DATA_OBJECT",
+            "DATA_ASSET",
+            "PERSONAL_DATA",
+            "SENSITIVE_DATA",
+            "TABLE",
+            "REPOSITORY_ACCESS",
+        ),
+        "PROTOCOL_FLOW": (
+            "HTTP_ROUTE",
+            "HTTP_REQUEST",
+            "HTTP_RESPONSE",
+            "GRPC_METHOD",
+            "GRAPHQL_OPERATION",
+            "PROTOCOL_MESSAGE",
+            "EVENT",
+            "QUEUE",
+            "COMMAND",
+            "QUERY",
+        ),
+        "PERSISTENCE": (
+            "REPOSITORY_ACCESS",
+            "DATABASE",
+            "TABLE",
+            "ENTITY",
+            "CACHE",
+            "FILE_STORAGE",
+        ),
+        "AI_LIFECYCLE": (
+            "AI_SYSTEM",
+            "MODEL",
+            "MODEL_ARTIFACT",
+            "DATASET",
+            "TRAINING_JOB",
+            "FINE_TUNING_JOB",
+            "EVALUATION_JOB",
+            "MODEL_REGISTRY",
+            "MODEL_ENDPOINT",
+            "MODEL_DEPLOYMENT",
+            "MODEL_MONITORING",
+            "MODEL_DRIFT_SIGNAL",
+            "RETRAINING_JOB",
+        ),
+        "BUSINESS_PROCESS": (
+            "BUSINESS_PROCESS",
+            "PROCESS_STEP",
+            "BUSINESS_DECISION",
+            "BUSINESS_OUTCOME",
+            "BUSINESS_OBJECT",
+            "ACTOR",
+            "DATA_SUBJECT",
+        ),
         "DECISION_FLOW": (
+            "BUSINESS_DECISION",
+            "BUSINESS_OUTCOME",
             "BUSINESS_ACTION",
             "APPROVAL",
             "REJECTION",
@@ -315,19 +401,30 @@ def propose_missing_targets(
             "STATUS_CHANGE",
         ),
         "HUMAN_REVIEW": ("HUMAN_REVIEW", "HUMAN_OVERRIDE"),
-        "DEPLOYMENT": ("FILE",),
+        "DEPLOYMENT": ("FILE", "MODEL_DEPLOYMENT", "MODEL_ENDPOINT"),
     }
-    node_types = tuple({node_type for kind in kinds for node_type in mapping.get(kind, ())})
+    node_types = tuple(
+        sorted({node_type for kind in kinds for node_type in mapping.get(kind, ())})
+    )
     search = engine.search_nodes(
         node_types=node_types,
-        max_results=int(_input(request, "maxResults", request.budget.max_items)),
+        max_results=int(_input(request, "maxResults", request.budget.max_items)) * 3,
     )
     excluded = set(_input(request, "excludeTargetIds", ()) or ())
-    rows = [
+    limit = int(_input(request, "maxResults", request.budget.max_items))
+    trusted = [
         node
         for node in search
-        if f"target:{node['node_id']}" not in excluded
+        if _trusted_target(node)
+        and f"target:{node['node_id']}" not in excluded
     ]
+    rows = trusted[:limit]
+    local_truncated = len(trusted) > limit
+    local_frontier = (
+        [str(trusted[limit].get("node_id"))]
+        if local_truncated and limit < len(trusted)
+        else []
+    )
     return {
         "candidates": [
             {
@@ -337,10 +434,20 @@ def propose_missing_targets(
             }
             for node in rows
         ],
-        "truncated": search.truncated,
-        "continuationFrontiers": search.continuation_frontiers,
+        "truncated": search.truncated or local_truncated,
+        "continuationFrontiers": list(
+            dict.fromkeys([*search.continuation_frontiers, *local_frontier])
+        ),
         "unresolvedFrontiers": search.unresolved_frontiers,
         "evidenceRefs": sorted(
-            {ref for node in rows for ref in node.get("evidence_refs") or []}
+            {
+                str(ref)
+                for node in rows
+                for ref in [
+                    *(node.get("evidence_refs") or []),
+                    *(node.get("support_refs") or []),
+                ]
+                if str(ref)
+            }
         ),
     }

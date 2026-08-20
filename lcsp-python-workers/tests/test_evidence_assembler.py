@@ -228,7 +228,7 @@ def test_t01_builds_current_scan_callback_contract() -> None:
     assert report.privacy_flags["containsSourceCode"] is False
     assert report.privacy_flags["secretsRedacted"] is True
     assert report.evidence_payload["package_dependencies"]
-    assert report.evidence_payload["evidence_graph"]["schema_version"] == "2.0.0"
+    assert report.evidence_payload["evidence_graph"]["schema_version"] == "3.0.0"
     assert report.evidence_payload["report_provenance"]["report_hash"].startswith(
         "sha256:"
     )
@@ -316,11 +316,11 @@ def test_t09_serializes_sanitized_versioned_program_evidence_graph() -> None:
     graph_payload = _assemble(evidence_graph=_graph()).evidence_payload[
         "evidence_graph"
     ]
-    assert graph_payload["schema_version"] == "2.0.0"
+    assert graph_payload["schema_version"] == "3.0.0"
     assert graph_payload["snapshot_id"] == "snapshot-1"
     assert graph_payload["commit_sha"] == "abc123"
     assert graph_payload["graph_hash"].startswith("sha256:")
-    
+
     # MINIMIZED callback payload fields to prevent 413 Request Entity Too Large
     assert not graph_payload["source_anchors"]
     assert not graph_payload["nodes"]

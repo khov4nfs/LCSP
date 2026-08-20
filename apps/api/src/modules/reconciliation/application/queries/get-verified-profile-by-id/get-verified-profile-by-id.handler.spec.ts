@@ -4,11 +4,15 @@ import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.
 import { GetVerifiedProfileByIdHandler } from "./get-verified-profile-by-id.handler.js";
 import { GetVerifiedProfileByIdQuery } from "./get-verified-profile-by-id.query.js";
 
+function resolvedMock<T>(value: T) {
+  return jest.fn<() => Promise<T>>().mockResolvedValue(value);
+}
+
 describe("GetVerifiedProfileByIdHandler", () => {
   it("rebuilds merged legal facts and field evidence refs from persisted wizard answers and legacy verified claims", async () => {
     const prisma = {
       verifiedProfile: {
-        findUnique: jest.fn().mockResolvedValue({
+        findUnique: resolvedMock({
           id: "verified-1",
           aiUsageFlowId: "flow-1",
           assessmentId: "assessment-1",
@@ -39,7 +43,7 @@ describe("GetVerifiedProfileByIdHandler", () => {
         }),
       },
       wizardProfile: {
-        findUnique: jest.fn().mockResolvedValue({
+        findUnique: resolvedMock({
           answers: [
             {
               questionId: "businessProcess",
@@ -90,7 +94,7 @@ describe("GetVerifiedProfileByIdHandler", () => {
   it("keeps compatibility with legacy object-shaped wizard answers", async () => {
     const prisma = {
       verifiedProfile: {
-        findUnique: jest.fn().mockResolvedValue({
+        findUnique: resolvedMock({
           id: "verified-legacy-wizard",
           aiUsageFlowId: "flow-legacy",
           assessmentId: "assessment-legacy",
@@ -104,7 +108,7 @@ describe("GetVerifiedProfileByIdHandler", () => {
         }),
       },
       wizardProfile: {
-        findUnique: jest.fn().mockResolvedValue({
+        findUnique: resolvedMock({
           answers: {
             aiRole: "PROVIDER",
             jurisdiction: "EU",
@@ -129,7 +133,7 @@ describe("GetVerifiedProfileByIdHandler", () => {
   it("lets explicit canonical legal facts override reconstructed legacy values", async () => {
     const prisma = {
       verifiedProfile: {
-        findUnique: jest.fn().mockResolvedValue({
+        findUnique: resolvedMock({
           id: "verified-2",
           aiUsageFlowId: "flow-2",
           assessmentId: "assessment-2",
@@ -155,7 +159,7 @@ describe("GetVerifiedProfileByIdHandler", () => {
         }),
       },
       wizardProfile: {
-        findUnique: jest.fn().mockResolvedValue({ answers: [] }),
+        findUnique: resolvedMock({ answers: [] }),
       },
     } as unknown as PrismaService;
 
