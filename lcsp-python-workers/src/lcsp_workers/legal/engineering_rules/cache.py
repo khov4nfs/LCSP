@@ -35,7 +35,7 @@ class EngineeringRuleCache:
             ids.append(f"{fingerprint}:{rule.engineering_rule_id}")
             documents.append(json.dumps(rule.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")))
             metadatas.append({"source_fingerprint": fingerprint, "engineering_rule_id": rule.engineering_rule_id, "legal_rule_id": rule.legal_rule_id, "legal_rule_catalog_version_id": rule.legal_rule_catalog_version_id, "legal_corpus_version_id": rule.legal_corpus_version_id, "schema_version": rule.schema_version})
-        self._collection().upsert(ids=ids, documents=documents, metadatas=metadatas)
+        self._collection().upsert(ids=ids, documents=documents, metadatas=metadatas, embeddings=[[0.0] for _ in ids])
 
     def delete_fingerprint(self, fingerprint: str) -> None:
         self._collection().delete(where={"source_fingerprint": fingerprint})

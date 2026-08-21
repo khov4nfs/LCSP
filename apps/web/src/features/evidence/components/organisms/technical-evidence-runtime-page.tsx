@@ -1,28 +1,173 @@
 "use client";
 
-import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
-import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import {
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
 } from "@lcsp/contracts/evidence";
+import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
+import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import { resolveMessage } from "@lcsp/i18n";
-import { ActivityIcon, ClockIcon, RotateCcwIcon } from "lucide-react";
+import { ActivityIcon, BotIcon, RotateCcwIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { appLocale } from "@/lib/locale";
-import { useRerunRepositoryScanMutation } from "@/lib/api/assessment-queries";
+import {
+  buildRuntimeConsoleModel,
+  isActiveRuntimeStatus,
+  selectRuntimeConsoleActivity,
+  type RuntimeConsoleStep,
+} from "@/features/evidence/utils/runtime-console";
 import { useWorkspaceRuntime } from "@/features/workspace/components/organisms/workspace-runtime-provider";
 import {
   WORKSPACE_RUNTIME_CONNECTION_STATES,
   type WorkspaceRuntimeActivityItem,
-  type WorkspaceRuntimeActiveTool,
   type WorkspaceRuntimeConnectionState,
-  type WorkspaceRuntimeRun,
   type WorkspaceRuntimeSummaryValue,
 } from "@/features/workspace/types/workspace-runtime.types";
+import { useRerunRepositoryScanMutation } from "@/lib/api/assessment-queries";
+import { appLocale } from "@/lib/locale";
+
+type SummaryRecord = {
+  tool?: string;
+  operation?: string;
+  arguments?: { text?: string; limit?: number; [key: string]: unknown };
+  result?: { observationId?: string; error?: string; [key: string]: unknown };
+  output_tokens?: number;
+  request_id?: string;
+  model?: string;
+  model_chain?: string[];
+  node_name?: string;
+  tool_call_count?: number;
+  tool_names?: string[];
+  [key: string]: unknown;
+};
+
+function SemanticSummary({ item, expanded }: { item: WorkspaceRuntimeActivityItem; expanded: boolean }) {
+  const input = (item.inputSummary || {}) as SummaryRecord;
+  const output = (item.outputSummary || {}) as SummaryRecord;
+  const tool = input.tool || output.tool || item.toolName;
+  const isLlm = input.operation === "complete_with_tools" || output.operation === "complete_with_tools" || item.eventType === "LLM_REQUEST" || item.eventType === "LLM_RESPONSE";
+  
+  let summary = item.summary;
+  
+  if (isLlm) {
+    summary = "Agent reasoning with LLM";
+  } else if (tool === "search_nodes") {
+    const args = input.arguments || output.arguments || input;
+    const text = args?.text;
+    summary = text ? `Search graph for: ${text}` : "Search graph";
+  } else if (tool === "list_observations") {
+    summary = "List retrieved observations";
+  }
+
+  if (!summary) return null;
+
+  return (
+    <p
+      className={
+        expanded
+          ? "mt-0.5 font-mono text-xs leading-relaxed text-zinc-500"
+          : "mt-0.5 truncate font-mono text-xs text-zinc-400"
+      }
+    >
+      {summary}
+    </p>
+  );
+}
+
+function SemanticRuntimeDetails({ item }: { item: WorkspaceRuntimeActivityItem }) {
+  const input = (item.inputSummary || {}) as SummaryRecord;
+  const output = (item.outputSummary || {}) as SummaryRecord;
+  
+  const isLlm = input.operation === "complete_with_tools" || output.operation === "complete_with_tools" || item.eventType === "LLM_REQUEST" || item.eventType === "LLM_RESPONSE";
+  const tool = input.tool || output.tool || item.toolName;
+
+  if (isLlm) {
+    const isResponse = !!output.output_tokens || !!output.request_id || item.eventType === 'toolCompleted' || item.eventType === 'LLM_RESPONSE';
+    const model = output.model || input.model || (input.model_chain ? input.model_chain[0] : "unknown-model");
+    const nodeName = input.node_name || output.node_name;
+    const toolCount = output.tool_call_count;
+    const toolNames = input.tool_names || [];
+
+    return (
+      <div className="px-4 pb-3 md:pl-36">
+        <div className="rounded-md border border-indigo-200 bg-indigo-50/50 p-3 font-mono text-xs text-indigo-900 shadow-sm">
+          <div className="flex items-center gap-2 font-semibold">
+            <BotIcon className="size-4 text-indigo-600" />
+            <span>LLM Reasoning Workflow</span>
+          </div>
+          <div className="mt-2 space-y-1.5 opacity-90">
+            <p>
+              Model: <span className="font-semibold text-indigo-700">{model}</span>
+            </p>
+            {nodeName ? (
+              <p>
+                Analyzing Node: <span className="text-indigo-700">{nodeName}</span>
+              </p>
+            ) : null}
+            {!isResponse ? (
+              <p>
+                Available Tools: <span className="text-indigo-700">{toolNames.join(", ")}</span>
+              </p>
+            ) : (
+              <p>
+                Agent executed <span className="font-semibold text-indigo-700">{toolCount || 0}</span> tool call(s).
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (tool === "search_nodes" || tool === "list_observations") {
+    const args = input.arguments || output.arguments || input;
+    const result = output.result || output;
+    
+    let actionText: React.ReactNode = "";
+    let resultText: React.ReactNode = "";
+    
+    if (tool === "search_nodes") {
+      actionText = args?.text 
+        ? <>Searched graph for: <span className="font-semibold text-blue-700">&quot;{String(args.text)}&quot;</span></>
+        : <>Executed graph search</>;
+        
+      if (result?.observationId) {
+        resultText = <>Retrieved observation <span className="font-semibold text-emerald-700">{String(result.observationId)}</span>.</>;
+      } else if (result?.error) {
+        resultText = <span className="text-red-600">Error: {String(result.error)}</span>;
+      }
+    } else if (tool === "list_observations") {
+      actionText = args?.limit
+        ? <>Requested up to <span className="font-semibold text-blue-700">{String(args.limit)}</span> observations.</>
+        : <>Requested list of observations.</>;
+        
+      if (result?.total !== undefined) {
+        resultText = <>Found <span className="font-semibold text-emerald-700">{String(result.total)}</span> total observations.</>;
+      }
+    }
+
+    return (
+      <div className="px-4 pb-3 md:pl-36">
+        <div className="rounded-md border border-blue-200 bg-blue-50/50 p-3 font-mono text-xs text-blue-900 shadow-sm">
+          <div className="flex items-center gap-2 font-semibold">
+            <ActivityIcon className="size-4 text-blue-600" />
+            <span>{tool === "search_nodes" ? "Graph Search" : "List Observations"}</span>
+          </div>
+          <div className="mt-2 space-y-1.5 opacity-90">
+            <p>{actionText}</p>
+            {resultText ? <p>{resultText}</p> : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback
+  return <RuntimeDetailList item={item} />;
+}
 
 export function TechnicalEvidenceRuntimePage({
   assessmentId,
@@ -41,11 +186,16 @@ export function TechnicalEvidenceRuntimePage({
   const activeCurrentRun = isActiveRuntimeStatus(timeline.currentRun?.status)
     ? timeline.currentRun
     : null;
-  const activeActivity = timeline.recentActivity.filter((item) =>
-    isActiveRuntimeStatus(item.runStatus),
+  const consoleModel = buildRuntimeConsoleModel(
+    selectRuntimeConsoleActivity({
+      activity: timeline.recentActivity,
+      latestScanJobId: latestScan?.id ?? null,
+      activeRunId: activeCurrentRun?.runId ?? null,
+      latestRunId: timeline.latestRunId,
+    }),
   );
   const showOrchestration =
-    activeCurrentRun !== null || activeActivity.length > 0;
+    activeCurrentRun !== null || consoleModel.steps.length > 0;
   const rerunMutation = useRerunRepositoryScanMutation(assessmentId);
 
   return (
@@ -80,20 +230,12 @@ export function TechnicalEvidenceRuntimePage({
             </span>
           </div>
 
-          {activeCurrentRun !== null ? (
-            <CurrentRunPanel run={activeCurrentRun} />
-          ) : null}
-
-          {activeActivity.length === 0 ? (
+          {consoleModel.steps.length === 0 ? (
             <p className="px-4 py-6 text-sm text-muted-foreground">
               {t("pages.technicalEvidence.noOrchestrationActivity")}
             </p>
           ) : (
-            <ul className="divide-y">
-              {activeActivity.map((item) => (
-                <RuntimeActivityItem key={item.eventId} item={item} />
-              ))}
-            </ul>
+            <RuntimeConsole model={consoleModel} />
           )}
         </section>
       ) : null}
@@ -135,15 +277,15 @@ export function TechnicalEvidenceRuntimePage({
             {t("pages.technicalEvidence.noScanJobs")}
           </p>
         ) : (
-          <ul className="divide-y">
-            {scanJobs.map((scanJob) => (
+          <ul className="max-h-80 divide-y overflow-y-auto">
+            {scanJobs.map((scanJob, index) => (
               <li
                 className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                 key={scanJob.id}
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium">
-                    {t("pages.technicalEvidence.scanJobLabel")} {scanJob.id}
+                    {t("pages.technicalEvidence.scanJobLabel")} #{scanJobs.length - index}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {t("pages.technicalEvidence.updatedAt")}:{" "}
@@ -175,8 +317,8 @@ export function TechnicalEvidenceRuntimePage({
             {t("pages.technicalEvidence.noEvidenceReports")}
           </p>
         ) : (
-          <ul className="divide-y">
-            {reports.map((report) => (
+          <ul className="max-h-80 divide-y overflow-y-auto">
+            {reports.map((report, index) => (
               <li
                 className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
                 key={report.id}
@@ -184,7 +326,7 @@ export function TechnicalEvidenceRuntimePage({
                 <div className="min-w-0">
                   <p className="text-sm font-medium">
                     {t("pages.technicalEvidence.evidenceReportLabel")}{" "}
-                    {report.id}
+                    #{reports.length - index}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {t("pages.technicalEvidence.createdAt")}:{" "}
@@ -215,80 +357,198 @@ export function TechnicalEvidenceRuntimePage({
   );
 }
 
-function CurrentRunPanel({ run }: { run: WorkspaceRuntimeRun }) {
-  return (
-    <div className="border-b px-4 py-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={runtimeStatusBadgeVariant(run.status)}>
-          {runtimeStatusLabel(run.status)}
-        </Badge>
-        <span className="text-sm font-medium">{runtimeStageLabel(run.stage)}</span>
-        <span className="text-xs text-muted-foreground">
-          {t("pages.technicalEvidence.updatedAt")}: {formatDate(run.updatedAt)}
-        </span>
-      </div>
+function RuntimeConsole({
+  model,
+}: {
+  model: ReturnType<typeof buildRuntimeConsoleModel>;
+}) {
+  const activeTitle =
+    model.activeStep === null
+      ? t("pages.technicalEvidence.noActiveStep")
+      : runtimeStepTitle(model.activeStep.item);
+  const activeSummary =
+    model.activeStep === null ? null : model.activeStep.item.summary;
 
-      {run.activeTools.length > 0 ? (
-        <div className="mt-3 grid gap-2 md:grid-cols-2">
-          {run.activeTools.map((tool) => (
-            <ActiveToolItem
-              key={`${run.runId}-${tool.toolName}`}
-              tool={tool}
+  const logEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [model.steps.length]);
+
+  return (
+    <div className="bg-white text-zinc-800">
+      {/* Status bar */}
+      <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span
+              className={
+                model.activeStep === null
+                  ? "size-2 shrink-0 rounded-full bg-zinc-400"
+                  : "size-2 shrink-0 animate-pulse rounded-full bg-emerald-500"
+              }
             />
-          ))}
+            <div className="min-w-0">
+              <p className="truncate font-mono text-sm font-semibold text-zinc-800">
+                {activeTitle}
+                {model.activeStep !== null ? <AnimatedDots /> : null}
+              </p>
+              {activeSummary !== null ? (
+                <p className="mt-0.5 truncate font-mono text-xs text-zinc-500">
+                  {activeSummary}
+                </p>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-3 font-mono text-xs">
+            <span className="text-emerald-600">
+              {model.runningCount > 0 ? `${model.runningCount} running` : null}
+            </span>
+            <span className="text-zinc-400">
+              {model.completedCount} done
+            </span>
+            {model.failedCount > 0 ? (
+              <span className="text-amber-600">{model.failedCount} failed</span>
+            ) : null}
+            {model.skippedCount > 0 ? (
+              <span className="text-zinc-400">{model.skippedCount} skipped</span>
+            ) : null}
+          </div>
         </div>
-      ) : null}
+      </div>
+
+      {/* Fixed-height scrollable log area — new entries appear at bottom */}
+      <div className="relative">
+        {/* Fade-out at top to hint scrollability */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-white to-transparent" />
+        <div
+          className="h-96 overflow-y-auto scroll-smooth py-2"
+          style={{ scrollbarColor: "#d4d4d8 transparent", scrollbarWidth: "thin" }}
+        >
+          <ul className="flex flex-col">
+            {model.steps.map((step) => (
+              <RuntimeConsoleStepItem
+                key={`${step.id}:${step.isActive ? "active" : "idle"}`}
+                step={step}
+              />
+            ))}
+          </ul>
+          {/* Invisible anchor element — always scrolled into view */}
+          <div ref={logEndRef} />
+        </div>
+      </div>
     </div>
   );
 }
 
-function ActiveToolItem({ tool }: { tool: WorkspaceRuntimeActiveTool }) {
-  return (
-    <div className="rounded-md border bg-muted/20 px-3 py-2">
-      <div className="flex items-center justify-between gap-2">
-        <p className="truncate text-sm font-medium">{tool.toolName}</p>
-        <Badge variant={runtimeStatusBadgeVariant(tool.status)}>
-          {runtimeStatusLabel(tool.status)}
-        </Badge>
-      </div>
-      <p className="mt-1 text-xs text-muted-foreground">{tool.summary}</p>
-      {tool.startedAt !== null || tool.attempt !== null ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          {tool.startedAt !== null ? formatDate(tool.startedAt) : null}
-          {tool.startedAt !== null && tool.attempt !== null ? " / " : null}
-          {tool.attempt !== null
-            ? `${t("pages.technicalEvidence.attemptLabel")} ${tool.attempt}`
-            : null}
-        </p>
-      ) : null}
-    </div>
-  );
-}
 
-function RuntimeActivityItem({ item }: { item: WorkspaceRuntimeActivityItem }) {
+
+function RuntimeConsoleStepItem({ step }: { step: RuntimeConsoleStep }) {
+  const [expanded, setExpanded] = useState(step.defaultExpanded);
+  const item = step.item;
+  const durationLabel =
+    item.durationMs === null ? null : formatDuration(item.durationMs);
+  const detailCount = runtimeDetailCount(item);
+
+  const prefixColor = step.isActive
+    ? "text-emerald-600"
+    : step.isFailed
+      ? "text-amber-600"
+      : "text-zinc-400";
+
+  const titleColor = step.isActive
+    ? "text-zinc-900 font-semibold"
+    : step.isFailed
+      ? "text-amber-700"
+      : "text-zinc-500";
+
+  let badgeStatus: string;
+  if (item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped) {
+    badgeStatus = "skipped";
+  } else if (
+    item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed ||
+    item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runFailed ||
+    step.isFailed
+  ) {
+    badgeStatus = ASSESSMENT_RUNTIME_RUN_STATUSES.failed;
+  } else if (
+    item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput ||
+    (step.isActive && item.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting)
+  ) {
+    badgeStatus = ASSESSMENT_RUNTIME_RUN_STATUSES.waiting;
+  } else if (
+    item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted ||
+    item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted ||
+    item.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.completed ||
+    !step.isActive
+  ) {
+    badgeStatus = ASSESSMENT_RUNTIME_RUN_STATUSES.completed;
+  } else {
+    badgeStatus = ASSESSMENT_RUNTIME_RUN_STATUSES.running;
+  }
+
   return (
-    <li className="flex flex-col gap-3 px-4 py-3 md:flex-row md:items-start">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground md:w-40 md:shrink-0">
-        <ClockIcon className="size-3.5" />
-        <span>{formatDate(item.emittedAt)}</span>
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm font-medium">
-            {item.toolName ?? runtimeEventLabel(item.eventType)}
-          </p>
-          <span className="text-xs text-muted-foreground">
-            {runtimeStageLabel(item.stage)}
-          </span>
+    <li
+      className={
+        step.isActive
+          ? "border-l-2 border-emerald-500 bg-emerald-50"
+          : step.isFailed
+            ? "border-l-2 border-amber-400/60 bg-amber-50/40"
+            : "border-l-2 border-transparent bg-white"
+      }
+    >
+      <button
+        aria-expanded={expanded}
+        className="group flex w-full items-start gap-3 px-4 py-2 text-left transition-colors hover:bg-zinc-50"
+        onClick={() => setExpanded((current) => !current)}
+        type="button"
+      >
+        {/* Timestamp column */}
+        <span className="mt-0.5 shrink-0 font-mono text-xs tabular-nums text-zinc-400">
+          {formatTime(item.emittedAt)}
+        </span>
+
+        {/* Stage pill */}
+        <span className="mt-0.5 shrink-0 rounded bg-zinc-100 px-1.5 py-px font-mono text-xs text-zinc-500">
+          {runtimeStageLabel(item.stage)}
+        </span>
+
+        {/* Main content */}
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-2">
+            <span className={`font-mono text-xs ${prefixColor}`}>›</span>
+            <span className={`min-w-0 truncate font-mono text-sm ${titleColor}`}>
+              {runtimeStepTitle(item)}
+              {step.isActive ? <AnimatedDots /> : null}
+            </span>
+            {durationLabel !== null ? (
+              <span className="shrink-0 font-mono text-xs text-zinc-400">
+                [{durationLabel}]
+              </span>
+            ) : null}
+          </div>
+          <SemanticSummary item={item} expanded={expanded} />
+          {!expanded && detailCount > 0 ? (
+            <p className="mt-0.5 font-mono text-xs text-zinc-400">
+              {t("pages.technicalEvidence.logDetailsHint")}
+            </p>
+          ) : null}
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">{item.summary}</p>
-        <RuntimeDetailList item={item} />
-      </div>
-      <div className="md:shrink-0">
-        <Badge variant={runtimeStatusBadgeVariant(item.runStatus)}>
-          {runtimeStatusLabel(item.runStatus)}
-        </Badge>
-      </div>
+
+        {/* Status badges */}
+        <div className="flex shrink-0 items-center gap-1.5">
+          {step.isFailed &&
+          item.runStatus !== ASSESSMENT_RUNTIME_RUN_STATUSES.failed ? (
+            <Badge className="border-amber-500/40 bg-amber-50 text-amber-700 text-xs">
+              {t("pages.technicalEvidence.nonBlockingFailureLabel")}
+            </Badge>
+          ) : null}
+          <Badge variant={runtimeStatusBadgeVariant(badgeStatus)} className="text-xs">
+            {runtimeStatusLabel(badgeStatus)}
+          </Badge>
+        </div>
+      </button>
+      {expanded ? <SemanticRuntimeDetails item={item} /> : null}
     </li>
   );
 }
@@ -299,25 +559,35 @@ function RuntimeDetailList({ item }: { item: WorkspaceRuntimeActivityItem }) {
       ? null
       : {
           label: t("pages.technicalEvidence.inputSummaryLabel"),
-          value: formatSummaryValue(item.inputSummary),
+          values: formatSummaryEntries(item.inputSummary),
         },
     item.outputSummary === null
       ? null
       : {
           label: t("pages.technicalEvidence.outputSummaryLabel"),
-          value: formatSummaryValue(item.outputSummary),
+          values: formatSummaryEntries(item.outputSummary),
         },
     item.errorSummary === null
       ? null
       : {
           label: t("pages.technicalEvidence.errorSummaryLabel"),
-          value: item.errorSummary,
+          values: [
+            {
+              label: t("pages.technicalEvidence.messageLabel"),
+              value: item.errorSummary,
+            },
+          ],
         },
     item.waitingReason === null
       ? null
       : {
           label: t("pages.technicalEvidence.waitingReasonLabel"),
-          value: item.waitingReason,
+          values: [
+            {
+              label: t("pages.technicalEvidence.reasonLabel"),
+              value: item.waitingReason,
+            },
+          ],
         },
   ].filter(isDefined);
 
@@ -326,17 +596,116 @@ function RuntimeDetailList({ item }: { item: WorkspaceRuntimeActivityItem }) {
   }
 
   return (
-    <dl className="mt-2 grid gap-2 text-xs">
-      {details.map((detail) => (
-        <div className="grid gap-1" key={detail.label}>
-          <dt className="font-medium text-foreground">{detail.label}</dt>
-          <dd className="rounded-md bg-muted/40 px-2 py-1.5 font-mono text-muted-foreground">
-            {detail.value}
-          </dd>
-        </div>
-      ))}
-    </dl>
+    <div className="px-4 pb-3 md:pl-36">
+      <dl className="grid gap-2 border-l border-zinc-200 pl-4 font-mono text-xs">
+        {details.map((detail) => (
+          <div className="grid gap-1.5" key={detail.label}>
+            <dt className="text-zinc-400">{detail.label}</dt>
+            <dd className="grid gap-1">
+              {detail.values.map((entry) => (
+                <div
+                  className="grid gap-1 rounded bg-zinc-50 px-2 py-1.5 sm:flex sm:items-start"
+                  key={`${detail.label}-${entry.label}`}
+                >
+                  <span className="truncate text-zinc-400 sm:w-40 sm:shrink-0">
+                    {entry.label}
+                  </span>
+                  <span className="break-words text-zinc-700">
+                    {entry.value}
+                  </span>
+                </div>
+              ))}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
+}
+
+function AnimatedDots() {
+  return (
+    <span aria-hidden="true" className="inline-flex w-6 overflow-hidden">
+      <span className="animate-pulse">...</span>
+    </span>
+  );
+}
+
+function runtimeDetailCount(item: WorkspaceRuntimeActivityItem) {
+  return [
+    item.inputSummary,
+    item.outputSummary,
+    item.errorSummary,
+    item.waitingReason,
+  ].filter((value) => value !== null).length;
+}
+
+function runtimeStepTitle(item: WorkspaceRuntimeActivityItem) {
+  if (item.toolName) {
+    try {
+      const toolKey = `pages.technicalEvidence.runtimeToolLabels.${item.toolName}`;
+      const label = t(toolKey);
+      if (label && !label.includes("runtimeToolLabels")) {
+        return label;
+      }
+    } catch {
+      // Ignore
+    }
+    return item.toolName;
+  }
+  return runtimeEventLabel(item.eventType);
+}
+
+function formatSummaryEntries(value: WorkspaceRuntimeSummaryValue) {
+  const entries = flattenSummaryValue(value);
+  if (entries.length > 0) {
+    return entries;
+  }
+  return [
+    {
+      label: t("pages.technicalEvidence.valueLabel"),
+      value: formatSummaryValue(value),
+    },
+  ];
+}
+
+function flattenSummaryValue(
+  value: WorkspaceRuntimeSummaryValue,
+  prefix?: string,
+): Array<{ label: string; value: string }> {
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) =>
+      flattenSummaryValue(
+        item,
+        prefix === undefined ? String(index) : `${prefix}.${index}`,
+      ),
+    );
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.entries(value).flatMap(([key, child]) =>
+      flattenSummaryValue(
+        child,
+        prefix === undefined ? key : `${prefix}.${key}`,
+      ),
+    );
+  }
+  if (prefix === undefined) {
+    return [];
+  }
+  return [
+    {
+      label: humanizeRuntimeKey(prefix),
+      value: formatSummaryValue(value),
+    },
+  ];
+}
+
+function humanizeRuntimeKey(value: string) {
+  return value
+    .replaceAll(".", " / ")
+    .replaceAll("_", " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .trim();
 }
 
 function connectionBadgeVariant(state: WorkspaceRuntimeConnectionState) {
@@ -388,13 +757,6 @@ function runtimeStatusBadgeVariant(status: string) {
   return "secondary";
 }
 
-function isActiveRuntimeStatus(status: string | null | undefined): boolean {
-  return (
-    status === ASSESSMENT_RUNTIME_RUN_STATUSES.running ||
-    status === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting
-  );
-}
-
 function runtimeStatusLabel(status: string) {
   const statuses = ASSESSMENT_RUNTIME_RUN_STATUSES;
   if (status === statuses.running)
@@ -405,6 +767,8 @@ function runtimeStatusLabel(status: string) {
     return t("pages.technicalEvidence.runtimeStatuses.completed");
   if (status === statuses.failed)
     return t("pages.technicalEvidence.runtimeStatuses.failed");
+  if (status === "skipped")
+    return "Skipped";
   return status;
 }
 
@@ -412,7 +776,8 @@ function runtimeStageLabel(stage: string) {
   const stages = ASSESSMENT_RUNTIME_STAGE_CODES;
   if (stage === stages.snapshot)
     return t("pages.technicalEvidence.runtimeStages.snapshot");
-  if (stage === stages.scan) return t("pages.technicalEvidence.runtimeStages.scan");
+  if (stage === stages.scan)
+    return t("pages.technicalEvidence.runtimeStages.scan");
   if (stage === stages.technicalEvidence)
     return t("pages.technicalEvidence.runtimeStages.technicalEvidence");
   if (stage === stages.technicalProfile)
@@ -459,6 +824,9 @@ function formatSummaryValue(value: WorkspaceRuntimeSummaryValue) {
   if (typeof value === "string") {
     return value;
   }
+  if (value === null) {
+    return t("pages.technicalEvidence.emptyValueLabel");
+  }
   return JSON.stringify(value);
 }
 
@@ -471,6 +839,21 @@ function formatDate(value: string) {
     dateStyle: "medium",
     timeStyle: "medium",
   }).format(new Date(value));
+}
+
+function formatTime(value: string) {
+  return new Intl.DateTimeFormat(appLocale, {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date(value));
+}
+
+function formatDuration(durationMs: number) {
+  if (durationMs < 1000) {
+    return `${durationMs}ms`;
+  }
+  return `${(durationMs / 1000).toFixed(1)}s`;
 }
 
 function t(key: string) {

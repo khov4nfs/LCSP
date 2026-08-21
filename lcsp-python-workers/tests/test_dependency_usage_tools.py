@@ -281,6 +281,29 @@ def test_t06_knip_does_not_create_node_modules(
 
 
 @pytest.mark.p0
+def test_knip_can_use_direct_binary_for_container_runtime(
+    sample_ts_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    commands: list[list[str]] = []
+
+    def fake_run(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        commands.append(command)
+        if "--version" in command:
+            return _completed(command, 0, stdout="6.0.0\n")
+        return _completed(command, 0, stdout=json.dumps({}))
+
+    monkeypatch.setenv("KNIP_BINARY", "/usr/local/bin/knip")
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    KnipTool().run(sample_ts_repo)
+
+    assert commands[0][0] == "/usr/local/bin/knip"
+    assert commands[1][0] == "/usr/local/bin/knip"
+    assert all("--no-install" not in command for command in commands)
+
+
+@pytest.mark.p0
 def test_t07_file_refs_are_relative(
     sample_ts_repo: Path,
     monkeypatch: pytest.MonkeyPatch,

@@ -17,6 +17,15 @@ import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import {
+  ASSESSMENT_RUNTIME_EVENT_TYPES,
+  ASSESSMENT_RUNTIME_RUN_STATUSES,
+  ASSESSMENT_RUNTIME_STAGE_CODES,
+  type AssessmentRuntimeEventType,
+  type AssessmentRuntimeRunStatus,
+  type AssessmentRuntimeStageCode,
+  type AssessmentRuntimeSummaryValue,
+} from "@lcsp/contracts/evidence";
+import {
   AUDIT_ACTOR_IDS,
   AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
@@ -47,6 +56,7 @@ import { resultEnvelope } from "../../../../platform/problems/result-envelope.js
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import { ORCHESTRATION_RUNTIME_LOG_EVENTS } from "../../../../platform/logging/orchestration-runtime-log.js";
 import { formatOrchestrationRuntimeLog } from "../../../../platform/logging/orchestration-runtime-log.js";
 
@@ -73,6 +83,22 @@ interface InternalTargetedReanalysisCreateBody extends TargetedReanalysisRequest
   assessmentId: string;
   organizationId: string;
   userId?: string;
+}
+
+interface WorkerRuntimeEventRequest {
+  event_type?: unknown;
+  run_status?: unknown;
+  stage?: unknown;
+  tool_name?: unknown;
+  summary?: unknown;
+  input_summary?: unknown;
+  output_summary?: unknown;
+  error_summary?: unknown;
+  started_at?: unknown;
+  completed_at?: unknown;
+  duration_ms?: unknown;
+  attempt?: unknown;
+  waiting_reason?: unknown;
 }
 
 /**
@@ -206,7 +232,10 @@ export class InternalScanController {
    *
    * @param commandBus - CQRS command bus used to process worker callbacks and create reanalysis requests.
    */
-  constructor(private readonly commandBus: CommandBus) {}
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly runtimeEvents: AssessmentRuntimeEventService,
+  ) {}
 
   /**
    * Accepts a scanner-worker callback for one repository scan job.
@@ -233,6 +262,41 @@ export class InternalScanController {
         ),
       ),
     );
+  }
+
+  /**
+   * Accepts privacy-safe scanner-worker runtime progress metadata for one active scan job.
+   *
+   * @param scanJobId - Scan-job identifier whose tenant and assessment context is resolved server-side.
+   * @param payload - Sanitized runtime progress payload using shared runtime value sets.
+   * @returns The standard result envelope indicating whether the progress event was persisted.
+   */
+  @Post(":scanJobId/runtime-events")
+  @HttpCode(202)
+  @UseGuards(WorkerApiKeyGuard)
+  async recordRuntimeEvent(
+    @Param("scanJobId") scanJobId: string,
+    @Body() payload: WorkerRuntimeEventRequest,
+  ) {
+    const result = await this.runtimeEvents.recordScanWorkerEvent({
+      scanJobId,
+      ...parseWorkerRuntimeEventPayload(payload, "scan-runtime-event"),
+    });
+    if (!result.recorded) {
+      throw problemException(
+        result.reason === "inactive"
+          ? SCAN_ERROR_CODES.jobWrongState
+          : SCAN_ERROR_CODES.jobNotFound,
+        "scan-runtime-event",
+        {
+          status:
+            result.reason === "inactive"
+              ? HttpStatus.CONFLICT
+              : HttpStatus.NOT_FOUND,
+        },
+      );
+    }
+    return resultEnvelope({ recorded: true });
   }
 
   /**
@@ -453,6 +517,125 @@ function readStringArray(value: unknown): string[] | null {
 function invalidTargetedReanalysisRequest(correlationId: string): never {
   throw problemException(
     SCAN_ERROR_CODES.targetedReanalysisInvalidScope,
+    correlationId,
+    {
+      status: HttpStatus.UNPROCESSABLE_ENTITY,
+    },
+  );
+}
+
+function parseWorkerRuntimeEventPayload(
+  value: WorkerRuntimeEventRequest,
+  correlationId: string,
+) {
+  const eventType = readRuntimeValue(
+    value.event_type,
+    ASSESSMENT_RUNTIME_EVENT_TYPES,
+  ) as AssessmentRuntimeEventType | null;
+  const runStatus = readRuntimeValue(
+    value.run_status,
+    ASSESSMENT_RUNTIME_RUN_STATUSES,
+  ) as AssessmentRuntimeRunStatus | null;
+  const stage = readRuntimeValue(
+    value.stage,
+    ASSESSMENT_RUNTIME_STAGE_CODES,
+  ) as AssessmentRuntimeStageCode | null;
+  const summary = optionalRuntimeString(value.summary);
+  if (!eventType || !runStatus || !stage || !summary) {
+    invalidWorkerRuntimeEvent(correlationId);
+  }
+
+  return {
+    eventType,
+    runStatus,
+    stage,
+    toolName: optionalRuntimeString(value.tool_name),
+    summary,
+    inputSummary: parseRuntimeSummaryValue(value.input_summary),
+    outputSummary: parseRuntimeSummaryValue(value.output_summary),
+    errorSummary: optionalRuntimeString(value.error_summary),
+    startedAt: optionalDate(value.started_at, correlationId),
+    completedAt: optionalDate(value.completed_at, correlationId),
+    durationMs: optionalNonNegativeInteger(value.duration_ms, correlationId),
+    attempt: optionalNonNegativeInteger(value.attempt, correlationId),
+    waitingReason: optionalRuntimeString(value.waiting_reason),
+  };
+}
+
+function readRuntimeValue(
+  value: unknown,
+  values: Record<string, string>,
+): string | null {
+  return typeof value === "string" && Object.values(values).includes(value)
+    ? value
+    : null;
+}
+
+function optionalRuntimeString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function parseRuntimeSummaryValue(
+  value: unknown,
+): AssessmentRuntimeSummaryValue | null {
+  if (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    value === null ||
+    value === undefined
+  ) {
+    return value ?? null;
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => parseRuntimeSummaryValue(item))
+      .filter((item): item is AssessmentRuntimeSummaryValue => item !== null);
+  }
+  if (!isRecord(value)) {
+    return null;
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .map(([key, item]) => [key, parseRuntimeSummaryValue(item)])
+      .filter((entry): entry is [string, AssessmentRuntimeSummaryValue] => {
+        return entry[1] !== null;
+      }),
+  );
+}
+
+function optionalDate(value: unknown, correlationId: string): Date | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    invalidWorkerRuntimeEvent(correlationId);
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    invalidWorkerRuntimeEvent(correlationId);
+  }
+  return date;
+}
+
+function optionalNonNegativeInteger(
+  value: unknown,
+  correlationId: string,
+): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    invalidWorkerRuntimeEvent(correlationId);
+  }
+  return value;
+}
+
+function invalidWorkerRuntimeEvent(correlationId: string): never {
+  throw problemException(
+    SCAN_ERROR_CODES.evidenceSchemaInvalid,
     correlationId,
     {
       status: HttpStatus.UNPROCESSABLE_ENTITY,

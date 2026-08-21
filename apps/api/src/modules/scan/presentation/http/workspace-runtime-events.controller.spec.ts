@@ -5,6 +5,10 @@ import type { AssessmentRuntimeEventService } from "../../../../platform/runtime
 import { WorkspaceRuntimeEventsController } from "./workspace-runtime-events.controller.js";
 
 describe("WorkspaceRuntimeEventsController", () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it("publishes only organization-scoped runtime metadata", async () => {
     const buildWorkspaceSnapshot = jest
       .fn<(organizationId: string) => Promise<unknown>>()
@@ -117,5 +121,52 @@ describe("WorkspaceRuntimeEventsController", () => {
       ],
       evidence_reports: [],
     });
+  });
+
+  it("does not cancel an in-flight runtime snapshot when the polling interval ticks again", async () => {
+    jest.useFakeTimers();
+    let resolveSnapshot: (value: unknown) => void = () => {};
+    const buildWorkspaceSnapshot = jest
+      .fn<(organizationId: string) => Promise<unknown>>()
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSnapshot = resolve;
+          }),
+      );
+    const controller = new WorkspaceRuntimeEventsController({
+      buildWorkspaceSnapshot,
+    } as unknown as AssessmentRuntimeEventService);
+    const events: unknown[] = [];
+
+    const subscription = controller
+      .stream({ pbacContext: { organizationId: "org-1" } } as never)
+      .subscribe((event) => events.push(event));
+
+    expect(buildWorkspaceSnapshot).toHaveBeenCalledTimes(1);
+
+    await jest.advanceTimersByTimeAsync(2_000);
+
+    expect(buildWorkspaceSnapshot).toHaveBeenCalledTimes(1);
+
+    resolveSnapshot({
+      emittedAt: "2026-08-09T14:05:00.000Z",
+      runs: [],
+      recentActivity: [],
+      scanJobs: [],
+      evidenceReports: [],
+    });
+    await Promise.resolve();
+
+    expect(events).toEqual([
+      expect.objectContaining({
+        type: "workspace.runtime",
+        data: expect.objectContaining({
+          emitted_at: "2026-08-09T14:05:00.000Z",
+        }),
+      }),
+    ]);
+
+    subscription.unsubscribe();
   });
 });

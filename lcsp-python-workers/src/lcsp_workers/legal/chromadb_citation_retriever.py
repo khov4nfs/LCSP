@@ -25,7 +25,7 @@ class ChromaDbCitationRetriever:
             if not chunk_id or not content: raise ValueError("Legal index requires stable chunk IDs and content")
             hierarchy = chunk.get("hierarchy") or {}; ids.append(chunk_id); documents.append(content)
             metadatas.append({"corpus_version_id": corpus_version_id, "document_id": str(chunk.get("documentId") or ""), "locator": str(chunk.get("locator") or ""), "legal_status": str(chunk.get("legalStatus") or "ACTIVE"), "content_sha256": str(chunk.get("contentSha256") or chunk.get("content_sha256") or ""), "parent_chunk_id": str(hierarchy.get("parentChunkId") or hierarchy.get("parent_chunk_id") or ""), "related_chunk_ids": json.dumps(self._related_chunk_ids(hierarchy))})
-        if ids: collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
+        if ids: collection.upsert(ids=ids, documents=documents, metadatas=metadatas, embeddings=[[0.0] for _ in ids])
 
     def retrieve_exact(self, corpus_version_id: str, chunk_ids: list[str]) -> list[RetrievedChunk]:
         records = self._structural_records(corpus_version_id, chunk_ids)

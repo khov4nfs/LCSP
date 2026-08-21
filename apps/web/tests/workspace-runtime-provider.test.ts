@@ -1,7 +1,15 @@
 import * as assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { parseRuntimeEvent } from "../src/features/workspace/utils/workspace-runtime-parser.ts";
+import {
+  parseRuntimeEvent,
+  runtimeFingerprint,
+} from "../src/features/workspace/utils/workspace-runtime-parser.ts";
+import type { WorkspaceRuntimeActivityItem } from "../src/features/workspace/types/workspace-runtime.types.ts";
+import {
+  buildRuntimeConsoleModel,
+  selectRuntimeConsoleActivity,
+} from "../src/features/evidence/utils/runtime-console.ts";
 
 test("workspace runtime parser groups runs and activity by assessment", () => {
   const parsed = parseRuntimeEvent(
@@ -61,5 +69,185 @@ test("workspace runtime parser groups runs and activity by assessment", () => {
 
   const assessmentRuntime = parsed?.getAssessmentRuntime("assessment-1");
   assert.equal(assessmentRuntime?.currentRun?.runId, "run-1");
-  assert.equal(assessmentRuntime?.recentActivity[0]?.toolName, "get_scan_coverage");
+  assert.equal(
+    assessmentRuntime?.recentActivity[0]?.toolName,
+    "get_scan_coverage",
+  );
 });
+
+test("workspace runtime fingerprint ignores running scan heartbeat timestamps", () => {
+  const first = parseRuntimeEvent(
+    JSON.stringify({
+      emitted_at: "2026-08-13T11:00:00.000Z",
+      runs: [],
+      recent_activity: [
+        {
+          event_id: "scan-job:scan-1:RUNNING",
+          sequence: 0,
+          emitted_at: "2026-08-13T11:00:00.000Z",
+          organization_id: "org-1",
+          assessment_id: "assessment-1",
+          run_id: "scan-1",
+          correlation_id: "scan-1",
+          event_type: "TOOL_STARTED",
+          run_status: "RUNNING",
+          stage: "SCAN",
+          tool_name: "repository_scan",
+          summary: "Repository scan is running",
+          input_summary: { snapshotId: "snapshot-1" },
+          output_summary: {
+            status: "RUNNING",
+            observedAt: "2026-08-13T11:00:00.000Z",
+          },
+          error_summary: null,
+          started_at: null,
+          completed_at: null,
+          duration_ms: null,
+          attempt: 1,
+          waiting_reason: null,
+        },
+      ],
+      scan_jobs: [],
+      evidence_reports: [],
+    }),
+  );
+  const next = parseRuntimeEvent(
+    JSON.stringify({
+      emitted_at: "2026-08-13T11:00:02.000Z",
+      runs: [],
+      recent_activity: [
+        {
+          event_id: "scan-job:scan-1:RUNNING",
+          sequence: 0,
+          emitted_at: "2026-08-13T11:00:02.000Z",
+          organization_id: "org-1",
+          assessment_id: "assessment-1",
+          run_id: "scan-1",
+          correlation_id: "scan-1",
+          event_type: "TOOL_STARTED",
+          run_status: "RUNNING",
+          stage: "SCAN",
+          tool_name: "repository_scan",
+          summary: "Repository scan is running",
+          input_summary: { snapshotId: "snapshot-1" },
+          output_summary: {
+            status: "RUNNING",
+            observedAt: "2026-08-13T11:00:02.000Z",
+          },
+          error_summary: null,
+          started_at: null,
+          completed_at: null,
+          duration_ms: null,
+          attempt: 1,
+          waiting_reason: null,
+        },
+      ],
+      scan_jobs: [],
+      evidence_reports: [],
+    }),
+  );
+
+  assert.ok(first);
+  assert.ok(next);
+  assert.equal(runtimeFingerprint(first), runtimeFingerprint(next));
+});
+
+test("runtime console model sorts scan steps and expands active or failed steps", () => {
+  const model = buildRuntimeConsoleModel([
+    runtimeActivity({
+      eventId: "tool-completed",
+      eventType: "TOOL_COMPLETED",
+      runStatus: "RUNNING",
+      sequence: 2,
+      toolName: "syft",
+      summary: "Completed syft",
+    }),
+    runtimeActivity({
+      eventId: "tool-started",
+      eventType: "TOOL_STARTED",
+      runStatus: "RUNNING",
+      sequence: 1,
+      toolName: "materialize_snapshot",
+      summary: "Materializing snapshot",
+    }),
+    runtimeActivity({
+      eventId: "tool-failed",
+      eventType: "TOOL_FAILED",
+      runStatus: "RUNNING",
+      sequence: 3,
+      toolName: "deptry",
+      summary: "deptry completed with a non-blocking failure",
+    }),
+  ]);
+
+  assert.deepEqual(
+    model.steps.map((step) => step.id),
+    ["tool-started", "tool-completed", "tool-failed"],
+  );
+  assert.equal(model.runningCount, 1);
+  assert.equal(model.completedCount, 1);
+  assert.equal(model.failedCount, 1);
+  assert.equal(model.activeStep?.id, "tool-started");
+  assert.equal(model.steps[0]?.defaultExpanded, true);
+  assert.equal(model.steps[1]?.defaultExpanded, false);
+  assert.equal(model.steps[2]?.defaultExpanded, true);
+});
+
+test("runtime console activity keeps only the latest scan run", () => {
+  const selected = selectRuntimeConsoleActivity({
+    activity: [
+      runtimeActivity({
+        eventId: "old-scan",
+        runId: "scan-old",
+        emittedAt: "2026-08-13T10:00:00.000Z",
+      }),
+      runtimeActivity({
+        eventId: "new-scan",
+        runId: "scan-new",
+        emittedAt: "2026-08-13T11:00:00.000Z",
+      }),
+      runtimeActivity({
+        eventId: "old-report",
+        runId: "scan-old",
+        eventType: "RUN_COMPLETED",
+        runStatus: "COMPLETED",
+      }),
+    ],
+    latestScanJobId: "scan-new",
+    activeRunId: "scan-old",
+    latestRunId: "scan-old",
+  });
+
+  assert.deepEqual(
+    selected.map((item) => item.eventId),
+    ["new-scan"],
+  );
+});
+
+function runtimeActivity(
+  override: Partial<WorkspaceRuntimeActivityItem>,
+): WorkspaceRuntimeActivityItem {
+  return {
+    eventId: "event-1",
+    sequence: 1,
+    emittedAt: "2026-08-13T11:00:00.000Z",
+    organizationId: "org-1",
+    assessmentId: "assessment-1",
+    runId: "scan-1",
+    correlationId: "corr-1",
+    eventType: "TOOL_STARTED",
+    runStatus: "RUNNING",
+    stage: "SCAN",
+    toolName: "repository_scan",
+    summary: "Repository scan is running",
+    inputSummary: null,
+    outputSummary: null,
+    errorSummary: null,
+    startedAt: null,
+    completedAt: null,
+    durationMs: null,
+    attempt: 1,
+    waitingReason: null,
+    ...override,
+  };
+}

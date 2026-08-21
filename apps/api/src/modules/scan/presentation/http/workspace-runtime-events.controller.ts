@@ -1,7 +1,15 @@
-import { Controller, Req, Sse, UseGuards } from "@nestjs/common";
+import { Controller, Logger, Req, Sse, UseGuards } from "@nestjs/common";
 import type { MessageEvent } from "@nestjs/common";
 import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
-import { interval, map, startWith, switchMap } from "rxjs";
+import {
+  EMPTY,
+  catchError,
+  defer,
+  exhaustMap,
+  interval,
+  map,
+  startWith,
+} from "rxjs";
 
 import { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
@@ -17,6 +25,8 @@ interface WorkspaceRuntimeRequest {
  */
 @Controller("workspace/runtime-events")
 export class WorkspaceRuntimeEventsController {
+  private readonly logger = new Logger(WorkspaceRuntimeEventsController.name);
+
   /**
    * Creates the SSE controller with the runtime snapshot aggregation service.
    *
@@ -38,57 +48,72 @@ export class WorkspaceRuntimeEventsController {
 
     return interval(2_000).pipe(
       startWith(0),
-      switchMap(async () =>
-        this.runtimeEvents.buildWorkspaceSnapshot(organizationId),
+      exhaustMap(() =>
+        defer(() =>
+          this.runtimeEvents.buildWorkspaceSnapshot(organizationId),
+        ).pipe(
+          map((data): MessageEvent => ({
+            type: "workspace.runtime",
+            data: {
+              emitted_at: data.emittedAt,
+              runs: data.runs.map((run) => ({
+                assessment_id: run.assessmentId,
+                run_id: run.runId,
+                stage: run.stage,
+                status: run.status,
+                active_tools: run.activeTools.map((tool) => ({
+                  tool_name: tool.toolName,
+                  status: tool.status,
+                  summary: tool.summary,
+                  started_at: tool.startedAt,
+                  attempt: tool.attempt,
+                })),
+                updated_at: run.updatedAt,
+              })),
+              recent_activity: data.recentActivity.map((event) => ({
+                event_id: event.eventId,
+                sequence: event.sequence,
+                emitted_at: event.emittedAt,
+                organization_id: event.organizationId,
+                assessment_id: event.assessmentId,
+                run_id: event.runId,
+                correlation_id: event.correlationId,
+                event_type: event.eventType,
+                run_status: event.runStatus,
+                stage: event.stage,
+                tool_name: event.toolName,
+                summary: event.summary,
+                input_summary: event.inputSummary,
+                output_summary: event.outputSummary,
+                error_summary: event.errorSummary,
+                started_at: event.startedAt,
+                completed_at: event.completedAt,
+                duration_ms: event.durationMs,
+                attempt: event.attempt,
+                waiting_reason: event.waitingReason,
+              })),
+              scan_jobs: data.scanJobs.map(toLegacyScanJobPayload),
+              evidence_reports: data.evidenceReports.map(
+                toLegacyEvidenceReportPayload,
+              ),
+            },
+          })),
+          catchError((error) => {
+            this.logger.warn(
+              `Workspace runtime snapshot failed; keeping SSE stream open: ${snapshotFailureReason(error)}`,
+            );
+            return EMPTY;
+          }),
+        ),
       ),
-      map((data): MessageEvent => ({
-        type: "workspace.runtime",
-        data: {
-          emitted_at: data.emittedAt,
-          runs: data.runs.map((run) => ({
-            assessment_id: run.assessmentId,
-            run_id: run.runId,
-            stage: run.stage,
-            status: run.status,
-            active_tools: run.activeTools.map((tool) => ({
-              tool_name: tool.toolName,
-              status: tool.status,
-              summary: tool.summary,
-              started_at: tool.startedAt,
-              attempt: tool.attempt,
-            })),
-            updated_at: run.updatedAt,
-          })),
-          recent_activity: data.recentActivity.map((event) => ({
-            event_id: event.eventId,
-            sequence: event.sequence,
-            emitted_at: event.emittedAt,
-            organization_id: event.organizationId,
-            assessment_id: event.assessmentId,
-            run_id: event.runId,
-            correlation_id: event.correlationId,
-            event_type: event.eventType,
-            run_status: event.runStatus,
-            stage: event.stage,
-            tool_name: event.toolName,
-            summary: event.summary,
-            input_summary: event.inputSummary,
-            output_summary: event.outputSummary,
-            error_summary: event.errorSummary,
-            started_at: event.startedAt,
-            completed_at: event.completedAt,
-            duration_ms: event.durationMs,
-            attempt: event.attempt,
-            waiting_reason: event.waitingReason,
-          })),
-          scan_jobs: data.scanJobs.map(toLegacyScanJobPayload),
-          evidence_reports: data.evidenceReports.map(
-            toLegacyEvidenceReportPayload,
-          ),
-        },
-      })),
     );
   }
+}
+
+function snapshotFailureReason(error: unknown): string {
+  return error instanceof Error
+    ? error.message
+    : "unknown runtime snapshot error";
 }
 
 /**

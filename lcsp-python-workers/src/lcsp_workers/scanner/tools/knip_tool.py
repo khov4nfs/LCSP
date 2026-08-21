@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -39,10 +40,12 @@ class KnipTool:
     def __init__(
         self,
         npx_binary: str = "npx",
+        knip_binary: str | None = None,
         timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS,
         pinned_version: str = DEFAULT_PINNED_VERSION,
     ) -> None:
         self._npx_binary = npx_binary
+        self._knip_binary = knip_binary or os.getenv("KNIP_BINARY")
         self._timeout_seconds = timeout_seconds
         self._pinned_version = pinned_version
 
@@ -126,7 +129,7 @@ class KnipTool:
                 ),
             )
 
-        command = [self._npx_binary, "--no-install", "knip", "--reporter", "json"]
+        command = self._knip_command("--reporter", "json")
         try:
             completed = subprocess.run(
                 command,
@@ -197,7 +200,7 @@ class KnipTool:
         )
 
     def _read_version(self, config_hash: str) -> ToolExecutionResult:
-        command = [self._npx_binary, "--no-install", "knip", "--version"]
+        command = self._knip_command("--version")
         try:
             completed = subprocess.run(
                 command,
@@ -380,5 +383,11 @@ class KnipTool:
         return bool(payload.get("workspaces")) if isinstance(payload, dict) else False
 
     def _config_hash(self) -> str:
-        material = f"{DEFAULT_TOOL_NAME}:{self._pinned_version}:npx-no-install-json-all-manifest-roots"
+        runner = "direct-binary" if self._knip_binary else "npx-no-install"
+        material = f"{DEFAULT_TOOL_NAME}:{self._pinned_version}:{runner}:json-all-manifest-roots"
         return f"sha256:{hashlib.sha256(material.encode('utf-8')).hexdigest()}"
+
+    def _knip_command(self, *args: str) -> list[str]:
+        if self._knip_binary:
+            return [self._knip_binary, *args]
+        return [self._npx_binary, "--no-install", "knip", *args]
