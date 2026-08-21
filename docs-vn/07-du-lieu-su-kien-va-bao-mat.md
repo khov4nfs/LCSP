@@ -56,6 +56,7 @@ Các queue chính:
 - `lcsp.ai-usage-flow-worker.v1`;
 - `lcsp.reconciliation-worker.v1`;
 - `lcsp.legal-source-ingest.v1`;
+- `lcsp.legal-source-vbpl-effected-chunk-set.v1`;
 - `lcsp.legal-index-build.v1`;
 - `lcsp.legal-matching-worker.v1`;
 - `lcsp.classification-worker.v1`;

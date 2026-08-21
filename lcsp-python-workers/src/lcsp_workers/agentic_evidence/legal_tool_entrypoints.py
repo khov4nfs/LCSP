@@ -279,6 +279,52 @@ def build_legal_chunks(
     )
 
 
+def build_vbpl_effected_chunk_set(
+    request: LegalToolInput,
+    context: LegalToolExecutionContext,
+):
+    """Detect VBPL effect markup and export an effect-aware legal chunk set."""
+    from lcsp_workers.legal.vbpl_effect_applier import apply_effect_observations
+    from lcsp_workers.legal.vbpl_effect_detector import detect_effects
+    from lcsp_workers.legal.vbpl_effected_chunk_set_exporter import export_chunk_set
+
+    root = _storage_root(context)
+    output_dir = request.get("output_dir")
+    if output_dir is None:
+        output_dir = root / "vbpl-effect-runs"
+    output_path = output_dir if isinstance(output_dir, Path) else Path(str(output_dir))
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    source_manifest_path = _path(request, "source_manifest_path")
+    normalized_payload_path = _path(request, "normalized_payload_path")
+    run_id = _optional_str(request, "run_id") or source_manifest_path.stem.replace(
+        ".source", ""
+    )
+    effect_observations_path = output_path / f"{run_id}.effect-observations.json"
+    normalized_with_effects_path = output_path / f"{run_id}.normalized-with-effects.json"
+
+    detect_effects(
+        source_manifest_path=source_manifest_path,
+        output_path=effect_observations_path,
+    )
+    apply_effect_observations(
+        normalized_payload_path=normalized_payload_path,
+        effect_observations_path=effect_observations_path,
+        output_path=normalized_with_effects_path,
+        propagate_repealed_descendants=not bool(
+            request.get("no_propagate_repealed_descendants", False)
+        ),
+    )
+    return export_chunk_set(
+        normalized_payload_path=normalized_with_effects_path,
+        storage_root=root,
+        document_identity_ref=_required_str(request, "document_identity_ref"),
+        reviewed_input_ref=_required_str(request, "reviewed_input_ref"),
+        chunk_set_ref=_optional_str(request, "chunk_set_ref"),
+        relationship_manifest_ref=_optional_str(request, "relationship_manifest_ref"),
+    )
+
+
 def validate_chunk_integrity(
     request: LegalToolInput,
     context: LegalToolExecutionContext,

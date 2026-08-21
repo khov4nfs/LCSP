@@ -42,6 +42,10 @@ EXPECTED_AO6_LOCAL_TOOLS = {
         ToolRuntimeTarget.PYTHON_LOCAL,
         "ChunkIntegrityValidator.validate",
     ),
+    "build_vbpl_effected_chunk_set": (
+        ToolRuntimeTarget.PYTHON_LOCAL,
+        "VBPL effect detector + applier + chunk-set exporter",
+    ),
     "build_legal_retrieval_index": (
         ToolRuntimeTarget.PYTHON_LOCAL,
         "LegalRetrievalIndexBuilder.build",
@@ -81,11 +85,11 @@ def test_ao6_bindings_have_exact_named_static_entrypoints() -> None:
         assert f"def {binding.tool_name}(" in source
 
 
-def test_global_binding_index_covers_all_55_canonical_tools() -> None:
+def test_global_binding_index_covers_all_56_canonical_tools() -> None:
     names = [binding.tool_name for binding in ALL_TOOL_BINDINGS]
 
     assert len(names) == len(set(names))
-    assert len(names) == 55
+    assert len(names) == 56
     assert runtime_binding("build_legal_chunks").downstream_target == "LegalChunkBuilder.build"
     assert (
         runtime_binding("activate_validated_corpus_version").runtime_target

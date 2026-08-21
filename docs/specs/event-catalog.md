@@ -24,6 +24,7 @@ Canonical command and event names for the A-to-Z runnable MVP.
 | `command.ai-usage-flow.requested.v1` | `lcsp.ai-usage-flow-worker.v1` | profile projection | Python AI Usage Flow Worker |
 | `command.reconciliation.requested.v1` | `lcsp.reconciliation-worker.v1` | flow/resolution projection | Python Reconciliation Worker |
 | `command.legal-source.ingest.requested.v1` | `lcsp.legal-source-ingest.v1` | Internal Legal Operations API | Python Legal Ingestion Worker |
+| `command.legal-source.vbpl-effected-chunk-set.requested.v1` | `lcsp.legal-source-vbpl-effected-chunk-set.v1` | Internal Legal Operations API / corpus preparation outbox | Python VBPL Effected Chunk-Set Worker |
 | `command.legal-index-build.requested.v1` | `lcsp.legal-index-build.v1` | corpus approval outbox | Python ChromaDB Legal Index Worker |
 | `command.legal-matching.requested.v1` | `lcsp.legal-matching-worker.v1` | verified-profile projection | Python Legal Matching Worker |
 | `command.classification.requested.v1` | `lcsp.classification-worker.v1` | legal-matching projection | Python Classification Worker |
@@ -136,6 +137,8 @@ Internal legal preparation:
 ```text
 command.legal-source.ingest.requested.v1
 -> event.legal-source.ingest.completed.v1
+-> command.legal-source.vbpl-effected-chunk-set.requested.v1 when VBPL HTML effect markup is available
+-> legal chunk-set + relationship manifest READY
 -> internal approval
 -> command.legal-index-build.requested.v1
 -> event.legal-index-build.completed.v1

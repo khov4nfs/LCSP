@@ -147,6 +147,11 @@ const targets = {
     "Start final report worker",
     18091,
   ),
+  legal_change_detector: workerTarget(
+    "lcsp_workers.legal.legal_change_detector_consumer:LegalChangeDetectorConsumer",
+    "Start legal change detector worker",
+    18092,
+  ),
   docker_worker_build: {
     cwd: repoRoot,
     cmd: "docker",
@@ -198,6 +203,12 @@ const targets = {
     "Start final report worker in Docker",
     18091,
   ),
+  legal_change_detector_docker: dockerWorkerTarget(
+    "legal-change-detector",
+    "lcsp_workers.legal.legal_change_detector_consumer:LegalChangeDetectorConsumer",
+    "Start legal change detector worker in Docker",
+    18092,
+  ),
 };
 
 const groups = {
@@ -213,6 +224,7 @@ const groups = {
     "legal_corpus_recovery_docker",
     "targeted_reanalysis_docker",
     "final_report_docker",
+    "legal_change_detector_docker",
   ],
   dev: [
     "api",
@@ -223,6 +235,7 @@ const groups = {
     "legal_corpus_recovery",
     "targeted_reanalysis",
     "final_report",
+    "legal_change_detector",
   ],
 };
 

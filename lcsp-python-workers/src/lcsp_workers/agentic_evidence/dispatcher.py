@@ -29,10 +29,11 @@ from .scanner_tool_entrypoints import (
     run_syft_inventory, run_ts_js_semantic_analysis, validate_evidence_report,
 )
 from .legal_tool_entrypoints import (
-    LegalToolExecutionContext, activate_validated_corpus_version, build_legal_chunks,
-    build_legal_retrieval_index, build_reviewed_corpus_input, evaluate_ocr_quality,
-    extract_official_text, fetch_official_source_snapshot, run_ocr_fallback,
-    validate_chunk_integrity, validate_retrieval_index,
+    LegalToolExecutionContext, activate_validated_corpus_version,
+    build_legal_chunks, build_legal_retrieval_index, build_reviewed_corpus_input,
+    build_vbpl_effected_chunk_set, evaluate_ocr_quality, extract_official_text,
+    fetch_official_source_snapshot, run_ocr_fallback, validate_chunk_integrity,
+    validate_retrieval_index,
 )
 
 class ToolRuntimeTarget(str, Enum):
@@ -114,6 +115,7 @@ AO6_LEGAL_TOOL_BINDINGS = (
     _binding("evaluate_ocr_quality", ToolRuntimeTarget.PYTHON_LOCAL, evaluate_ocr_quality, "OcrQualityValidator.evaluate"),
     _binding("build_reviewed_corpus_input", ToolRuntimeTarget.PYTHON_LOCAL, build_reviewed_corpus_input, "ReviewedCorpusInputBuilder.build"),
     _binding("build_legal_chunks", ToolRuntimeTarget.PYTHON_LOCAL, build_legal_chunks, "LegalChunkBuilder.build"),
+    _binding("build_vbpl_effected_chunk_set", ToolRuntimeTarget.PYTHON_LOCAL, build_vbpl_effected_chunk_set, "VBPL effect detector + applier + chunk-set exporter"),
     _binding("validate_chunk_integrity", ToolRuntimeTarget.PYTHON_LOCAL, validate_chunk_integrity, "ChunkIntegrityValidator.validate"),
     _binding("build_legal_retrieval_index", ToolRuntimeTarget.PYTHON_LOCAL, build_legal_retrieval_index, "LegalRetrievalIndexBuilder.build"),
     _binding("validate_retrieval_index", ToolRuntimeTarget.PYTHON_LOCAL, validate_retrieval_index, "ChromaDbCitationRetriever.index_corpus + retrieve_exact"),

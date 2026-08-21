@@ -13,6 +13,9 @@ from lcsp_workers.legal.legal_retrieval_index_builder import (
     BuildLegalRetrievalIndexRequest,
     LegalRetrievalIndexBuilder,
 )
+from lcsp_workers.legal.legal_retrieval_index_repository import (
+    LegalRetrievalIndexRepository,
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -39,6 +42,10 @@ def main() -> None:
             index_profile=args.index_profile,
         )
     )
+    if result.status == "READY":
+        LegalRetrievalIndexRepository(storage_root=args.storage_root).save(
+            result.to_record()
+        )
     print(
         json.dumps(
             result.to_tool_response(correlationId=args.correlation_id),
