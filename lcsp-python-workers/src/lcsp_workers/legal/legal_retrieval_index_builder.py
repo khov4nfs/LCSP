@@ -410,6 +410,7 @@ class LegalRetrievalIndexBuilder:
         hierarchy = chunk.get("hierarchy", {})
         if not chunk_id or not content or not locator or not isinstance(hierarchy, dict):
             raise RuntimeError("invalid chunk metadata")
+        effect_metadata = _effect_metadata(hierarchy.get("legalEffectObservations"))
         metadata = {
             "corpus_version_id": "",
             "doc_id": chunk_id.split(":", 1)[0],
@@ -438,6 +439,7 @@ class LegalRetrievalIndexBuilder:
             "incoming_ref_ids": json.dumps(hierarchy.get("incomingRefIds", [])),
             "supersedes_chunk_id": str(hierarchy.get("supersedesChunkId", "")),
             "repealed_by_ref": json.dumps(hierarchy.get("repealedByRef", {})),
+            **effect_metadata,
         }
         return {"id": chunk_id, "document": content, "metadata": metadata}
 
@@ -510,6 +512,61 @@ def _index_id(
     return sha256(
         f"{chunk_set_ref}|{integrity_manifest_ref}|{index_profile}".encode("utf-8")
     ).hexdigest()[:24]
+
+
+def _effect_metadata(value: Any) -> dict[str, Any]:
+    observations = value if isinstance(value, list) else []
+    effect_kinds: list[str] = []
+    type_codes: list[str] = []
+    type_refs: list[str] = []
+    new_type_codes: list[str] = []
+    new_type_refs: list[str] = []
+    review_required = False
+    for observation in observations:
+        if not isinstance(observation, dict):
+            continue
+        effect_kind = str(observation.get("effectKind") or "").strip()
+        if effect_kind:
+            effect_kinds.append(effect_kind)
+        marker = observation.get("type")
+        if isinstance(marker, dict):
+            type_code = str(marker.get("typeCode") or "").strip()
+            type_ref = str(marker.get("typeRef") or "").strip()
+            if type_code:
+                type_codes.append(type_code)
+            if type_ref:
+                type_refs.append(type_ref)
+        new_marker = observation.get("newType")
+        if isinstance(new_marker, dict):
+            new_type_code = str(new_marker.get("typeCode") or "").strip()
+            new_type_ref = str(new_marker.get("typeRef") or "").strip()
+            if new_type_code:
+                new_type_codes.append(new_type_code)
+            if new_type_ref:
+                new_type_refs.append(new_type_ref)
+        review_required = review_required or bool(observation.get("reviewRequired"))
+    return {
+        "effect_kinds": json.dumps(_unique(effect_kinds)),
+        "effect_type_codes": json.dumps(_unique(type_codes)),
+        "effect_type_refs": json.dumps(_unique(type_refs)),
+        "effect_new_type_codes": json.dumps(_unique(new_type_codes)),
+        "effect_new_type_refs": json.dumps(_unique(new_type_refs)),
+        "effect_observation_count": len(
+            [item for item in observations if isinstance(item, dict)]
+        ),
+        "effect_review_required": "true" if review_required else "false",
+    }
+
+
+def _unique(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
 
 
 def _limitation(*, code: str, scope_ref: str | None, reason: str) -> dict[str, Any]:

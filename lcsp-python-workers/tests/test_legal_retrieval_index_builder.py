@@ -7,6 +7,7 @@ from lcsp_workers.legal.legal_chunk_repository import LegalChunkRepository
 from lcsp_workers.legal.legal_retrieval_index_builder import (
     BuildLegalRetrievalIndexRequest,
     LegalRetrievalIndexBuilder,
+    _effect_metadata,
 )
 from lcsp_workers.legal.reviewed_corpus_input_repository import (
     ReviewedCorpusInputRecord,
@@ -142,6 +143,32 @@ def test_builder_creates_deterministic_index_manifest_and_records(tmp_path: Path
     payload = json.loads(result.records_path.read_text(encoding="utf-8"))
     assert payload[0]["metadata"]["hierarchical_path"].startswith("art-")
     assert result.collection_name in store.collections
+
+
+def test_effect_observations_are_serialized_into_index_metadata():
+    metadata = _effect_metadata(
+        [
+            {
+                "effectKind": "AMENDED",
+                "type": {"typeCode": "10", "typeRef": "old-ref"},
+                "newType": {"typeCode": "13", "typeRef": "new-ref"},
+                "reviewRequired": True,
+            },
+            {
+                "effectKind": "AMENDED",
+                "type": {"typeCode": "10", "typeRef": "old-ref"},
+                "reviewRequired": True,
+            },
+        ]
+    )
+
+    assert json.loads(metadata["effect_kinds"]) == ["AMENDED"]
+    assert json.loads(metadata["effect_type_codes"]) == ["10"]
+    assert json.loads(metadata["effect_type_refs"]) == ["old-ref"]
+    assert json.loads(metadata["effect_new_type_codes"]) == ["13"]
+    assert json.loads(metadata["effect_new_type_refs"]) == ["new-ref"]
+    assert metadata["effect_observation_count"] == 2
+    assert metadata["effect_review_required"] == "true"
 
 
 def test_builder_blocks_when_integrity_gate_did_not_pass(tmp_path: Path):

@@ -146,6 +146,12 @@ module.exports = {
       "lcsp-final-report-worker",
       "lcsp_workers.reporting.final_report_consumer:FinalReportConsumer",
       8111
+    ),
+
+    worker(
+      "lcsp-legal-change-detector-worker",
+      "lcsp_workers.legal.legal_change_detector_consumer:LegalChangeDetectorConsumer",
+      8112
     )
   ]
 };

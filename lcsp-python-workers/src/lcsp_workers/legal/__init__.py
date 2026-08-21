@@ -22,6 +22,7 @@ from .ocr_quality_consumer import OcrQualityConsumer
 from .ocr_quality_repository import OcrQualityRecord, OcrQualityRepository
 from .ocr_quality_validator import EvaluateOcrQualityRequest, OcrQualityValidator
 from .official_text_extraction_consumer import OfficialTextExtractionConsumer
+from .vbpl_effected_chunk_set_consumer import VbplEffectedChunkSetConsumer
 
 __all__ = [
     "RuleApplicabilityEvaluator",
@@ -48,4 +49,5 @@ __all__ = [
     "OcrQualityRecord",
     "OcrQualityRepository",
     "OfficialTextExtractionConsumer",
+    "VbplEffectedChunkSetConsumer",
 ]

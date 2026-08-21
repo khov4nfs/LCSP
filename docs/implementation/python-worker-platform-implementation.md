@@ -26,6 +26,7 @@ This file is not the scanner runtime specification.
 | AI Usage Flow Worker | `lcsp.ai-usage-flow-worker.v1` | `command.ai-usage-flow.requested.v1` | `AIUsageFlow` |
 | Reconciliation Worker | `lcsp.reconciliation-worker.v1` | `command.reconciliation.requested.v1` | `ReconciliationConflict` or `VerifiedProfile` |
 | Legal Source Ingestion Worker | `lcsp.legal-source-ingest.v1` | `command.legal-source.ingest.requested.v1` | staged legal corpus artifacts |
+| VBPL Effected Chunk-Set Worker | `lcsp.legal-source-vbpl-effected-chunk-set.v1` | `command.legal-source.vbpl-effected-chunk-set.requested.v1` | effect-aware legal chunk-set and relationship manifest |
 | Legal Index Worker | `lcsp.legal-index-build.v1` | `command.legal-index-build.requested.v1` | ChromaDB vectorless legal index |
 | Legal Matching Worker | `lcsp.legal-matching-worker.v1` | `command.legal-matching.requested.v1` | `LegalRuleMatch[]` |
 | Classification Worker | `lcsp.classification-worker.v1` | `command.classification.requested.v1` | `RiskClassification` |

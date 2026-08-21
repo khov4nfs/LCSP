@@ -21,6 +21,9 @@ from lcsp_workers.legal.official_text_extraction_consumer import (
 from lcsp_workers.legal.reviewed_corpus_input_consumer import (
     ReviewedCorpusInputConsumer,
 )
+from lcsp_workers.legal.vbpl_effected_chunk_set_consumer import (
+    VbplEffectedChunkSetConsumer,
+)
 
 
 @pytest.mark.parametrize(
@@ -44,6 +47,11 @@ from lcsp_workers.legal.reviewed_corpus_input_consumer import (
             "builder.build(",
         ),
         (LegalChunkConsumer, "build_legal_chunks", "builder.build("),
+        (
+            VbplEffectedChunkSetConsumer,
+            "build_vbpl_effected_chunk_set",
+            "export_chunk_set(",
+        ),
         (
             ChunkIntegrityConsumer,
             "validate_chunk_integrity",
