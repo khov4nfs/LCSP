@@ -334,6 +334,19 @@ def test_scan_consumer_uses_internal_snapshot_service_and_cleans_up(
     knip_tool.run.assert_not_called()
     deptry_tool.run.assert_called_once()
     bridge_factory.assert_not_called()
+    runtime_events = [
+        call.args[1]
+        for call in api_client.post_scan_runtime_event.call_args_list
+    ]
+    assert runtime_events[0]["event_type"] == "RUN_STARTED"
+    assert runtime_events[0]["tool_name"] == "repository_scan"
+    assert [event["tool_name"] for event in runtime_events if "tool_name" in event][:4] == [
+        "repository_scan",
+        "download_snapshot_archive",
+        "download_snapshot_archive",
+        "materialize_snapshot",
+    ]
+    assert runtime_events[-1]["event_type"] == "RUN_COMPLETED"
     api_client.post_scan_callback.assert_called_once()
     posted_payload = api_client.post_scan_callback.call_args.args[1]
     assert posted_payload.privacy_flags["containsSourceCode"] is False

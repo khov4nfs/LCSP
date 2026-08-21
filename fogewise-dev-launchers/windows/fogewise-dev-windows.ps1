@@ -39,6 +39,20 @@ function Fail([string]$Message) {
     exit 1
 }
 
+function Test-Administrator {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Require-Administrator([string]$Action) {
+    if (Test-Administrator) {
+        return
+    }
+
+    Fail "$Action requires Administrator privileges. Open PowerShell as Administrator, then run: pnpm dev:fogewise"
+}
+
 function Add-LocalExclude([string]$Entry) {
     $exclude = Join-Path $ProjectRoot ".git\info\exclude"
 
@@ -187,38 +201,24 @@ function Remove-HostsOverride([string]$Domain) {
         return
     }
 
-    $helper = Join-Path $env:TEMP "fogewise-remove-hosts-$PID.ps1"
-
-    @'
-param(
-    [Parameter(Mandatory=$true)][string]$HostsPath,
-    [Parameter(Mandatory=$true)][string]$Domain
-)
-
-$ErrorActionPreference = "Stop"
-$escaped = [regex]::Escape($Domain)
-
-$lines = Get-Content $HostsPath | Where-Object {
-    -not (
-        $_ -match ("^\s*127\.0\.0\.1\s+" + $escaped + "(\s|$)") -and
-        $_ -match '#\s*fogewise-local-dev\s*$'
-    )
-}
-
-$lines | Set-Content -Path $HostsPath -Encoding ASCII
-ipconfig /flushdns | Out-Null
-'@ | Set-Content -Path $helper -Encoding UTF8
-
-    try {
-        $args = "-NoProfile -ExecutionPolicy Bypass -File `"$helper`" -HostsPath `"$HostsPath`" -Domain `"$Domain`""
-        $proc = Start-Process powershell.exe -Verb RunAs -Wait -PassThru -ArgumentList $args
-
-        if ($proc.ExitCode -ne 0) {
-            Write-Host "[Fogewise] Warning: could not remove hosts override." -ForegroundColor Yellow
-        }
+    if (-not (Test-Administrator)) {
+        Write-Host "[Fogewise] Warning: could not remove hosts override because PowerShell is not Administrator." -ForegroundColor Yellow
+        return
     }
-    finally {
-        Remove-Item $helper -Force -ErrorAction SilentlyContinue
+
+    $escaped = [regex]::Escape($Domain)
+    try {
+        $lines = Get-Content $HostsPath | Where-Object {
+            -not (
+                $_ -match ("^\s*127\.0\.0\.1\s+" + $escaped + "(\s|$)") -and
+                $_ -match '#\s*fogewise-local-dev\s*$'
+            )
+        }
+        $lines | Set-Content -Path $HostsPath -Encoding ASCII
+        ipconfig /flushdns | Out-Null
+    }
+    catch {
+        Write-Host "[Fogewise] Warning: could not remove hosts override: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 }
 
@@ -241,40 +241,23 @@ function Ensure-Hosts([string]$Domain) {
         Fail "hosts already contains $Domain without the Fogewise marker. Remove/fix that entry manually first."
     }
 
-    $helper = Join-Path $env:TEMP "fogewise-hosts-$PID.ps1"
-
-    @'
-param(
-    [Parameter(Mandatory=$true)][string]$HostsPath,
-    [Parameter(Mandatory=$true)][string]$Domain
-)
-
-$ErrorActionPreference = "Stop"
-$escaped = [regex]::Escape($Domain)
-
-# Repair stale managed entry first.
-$lines = Get-Content $HostsPath | Where-Object {
-    -not (
-        $_ -match ("^\s*127\.0\.0\.1\s+" + $escaped + "(\s|$)") -and
-        $_ -match '#\s*fogewise-local-dev\s*$'
-    )
-}
-
-$lines | Set-Content -Path $HostsPath -Encoding ASCII
-Add-Content -Path $HostsPath -Value "127.0.0.1 $Domain # fogewise-local-dev"
-ipconfig /flushdns | Out-Null
-'@ | Set-Content -Path $helper -Encoding UTF8
+    Require-Administrator "Updating Windows hosts file"
 
     try {
-        $args = "-NoProfile -ExecutionPolicy Bypass -File `"$helper`" -HostsPath `"$HostsPath`" -Domain `"$Domain`""
-        $proc = Start-Process powershell.exe -Verb RunAs -Wait -PassThru -ArgumentList $args
-
-        if ($proc.ExitCode -ne 0) {
-            Fail "Could not update Windows hosts file."
+        # Repair stale managed entry first.
+        $lines = Get-Content $HostsPath | Where-Object {
+            -not (
+                $_ -match ("^\s*127\.0\.0\.1\s+" + $escaped + "(\s|$)") -and
+                $_ -match '#\s*fogewise-local-dev\s*$'
+            )
         }
+
+        $lines | Set-Content -Path $HostsPath -Encoding ASCII
+        Add-Content -Path $HostsPath -Value "127.0.0.1 $Domain # fogewise-local-dev"
+        ipconfig /flushdns | Out-Null
     }
-    finally {
-        Remove-Item $helper -Force -ErrorAction SilentlyContinue
+    catch {
+        Fail "Could not update Windows hosts file: $($_.Exception.Message)"
     }
 }
 

@@ -55,6 +55,16 @@ type EnsureRunInput = {
   runStatus?: AssessmentRuntimeRunStatus;
 };
 
+export type RecordWorkerRuntimeEventInput = Omit<
+  RecordRuntimeEventInput,
+  "organizationId" | "assessmentId" | "runId" | "correlationId"
+> & {
+  scanJobId: string;
+};
+
+export type RecordWorkerRuntimeEventResult =
+  { recorded: true } | { recorded: false; reason: "not_found" | "inactive" };
+
 type PersistedAssessmentRuntimeEvent = {
   id: string;
   organizationId: string;
@@ -242,6 +252,54 @@ export class AssessmentRuntimeEventService {
   }
 
   /**
+   * Records a scanner-worker runtime progress event after resolving tenant and assessment identity from the scan job.
+   *
+   * @param input - Worker supplied runtime metadata plus the scan-job identifier.
+   * @returns A promise that resolves after the sanitized runtime event is persisted, or after the scan job is ignored because it is absent/inactive.
+   */
+  async recordScanWorkerEvent(
+    input: RecordWorkerRuntimeEventInput,
+  ): Promise<RecordWorkerRuntimeEventResult> {
+    const scanJob = await this.prisma.repositoryScanJob.findUnique({
+      where: { id: input.scanJobId },
+      select: {
+        id: true,
+        assessmentId: true,
+        organizationId: true,
+        correlationId: true,
+        status: true,
+      },
+    });
+    if (!scanJob) {
+      return { recorded: false, reason: "not_found" };
+    }
+    if (!isActiveScanRuntimeStatus(scanJob.status)) {
+      return { recorded: false, reason: "inactive" };
+    }
+
+    await this.recordEvent({
+      organizationId: scanJob.organizationId,
+      assessmentId: scanJob.assessmentId,
+      runId: scanJob.id,
+      correlationId: scanJob.correlationId,
+      eventType: input.eventType,
+      runStatus: input.runStatus,
+      stage: input.stage,
+      toolName: input.toolName ?? null,
+      summary: input.summary,
+      inputSummary: input.inputSummary,
+      outputSummary: input.outputSummary,
+      errorSummary: input.errorSummary,
+      startedAt: input.startedAt,
+      completedAt: input.completedAt,
+      durationMs: input.durationMs,
+      attempt: input.attempt,
+      waitingReason: input.waitingReason,
+    });
+    return { recorded: true };
+  }
+
+  /**
    * Builds the workspace runtime snapshot from persisted runtime events plus current scan-job and evidence-report state.
    *
    * @param organizationId - Organization whose assessment runtime state should be returned.
@@ -250,6 +308,7 @@ export class AssessmentRuntimeEventService {
   async buildWorkspaceSnapshot(
     organizationId: string,
   ): Promise<AssessmentRuntimeSnapshot> {
+    const emittedAt = new Date().toISOString();
     const [events, scanJobs, evidenceReports] = await Promise.all([
       this.safeFindMany({
         where: { organizationId },
@@ -294,6 +353,7 @@ export class AssessmentRuntimeEventService {
       scanJobs,
       evidenceReports,
       persistedActivity,
+      emittedAt,
     );
     const recentActivity = [...persistedActivity, ...syntheticActivity]
       .sort((left, right) => right.emittedAt.localeCompare(left.emittedAt))
@@ -301,7 +361,7 @@ export class AssessmentRuntimeEventService {
     const runs = deriveRuns(events).slice(0, 20);
 
     return {
-      emittedAt: new Date().toISOString(),
+      emittedAt,
       runs,
       recentActivity,
       scanJobs: scanJobs.map((scanJob) => ({
@@ -497,14 +557,24 @@ function buildSyntheticRuntimeActivity(
   scanJobs: RuntimeScanJobSnapshot[],
   evidenceReports: RuntimeEvidenceReportSnapshot[],
   existingActivity: AssessmentRuntimeActivityEvent[],
+  snapshotEmittedAt: string,
 ): AssessmentRuntimeActivityEvent[] {
   const existingEventIds = new Set(
     existingActivity.map((event) => event.eventId),
   );
+  const scanJobsWithPersistedActivity = new Set(
+    existingActivity.map((event) => event.runId),
+  );
   return [
-    ...scanJobs.map((scanJob) =>
-      scanJobToSyntheticRuntimeActivity(organizationId, scanJob),
-    ),
+    ...scanJobs
+      .filter((scanJob) => !scanJobsWithPersistedActivity.has(scanJob.id))
+      .map((scanJob) =>
+        scanJobToSyntheticRuntimeActivity(
+          organizationId,
+          scanJob,
+          snapshotEmittedAt,
+        ),
+      ),
     ...evidenceReports.map((report) =>
       evidenceReportToSyntheticRuntimeActivity(organizationId, report),
     ),
@@ -521,12 +591,17 @@ function buildSyntheticRuntimeActivity(
 function scanJobToSyntheticRuntimeActivity(
   organizationId: string,
   scanJob: RuntimeScanJobSnapshot,
+  snapshotEmittedAt: string,
 ): AssessmentRuntimeActivityEvent {
   const runStatus = runtimeStatusForScanJob(scanJob.status);
+  const isRunning = runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.running;
+  const emittedAt = isRunning
+    ? snapshotEmittedAt
+    : scanJob.updatedAt.toISOString();
   return {
     eventId: `scan-job:${scanJob.id}:${scanJob.status}`,
     sequence: 0,
-    emittedAt: scanJob.updatedAt.toISOString(),
+    emittedAt,
     organizationId,
     assessmentId: scanJob.assessmentId,
     runId: scanJob.id,
@@ -542,7 +617,9 @@ function scanJobToSyntheticRuntimeActivity(
     toolName: "repository_scan",
     summary: scanJobSummary(scanJob),
     inputSummary: { snapshotId: scanJob.snapshotId },
-    outputSummary: { status: scanJob.status },
+    outputSummary: isRunning
+      ? { status: scanJob.status, observedAt: snapshotEmittedAt }
+      : { status: scanJob.status },
     errorSummary: scanJob.blockedReason,
     startedAt: null,
     completedAt:
@@ -624,6 +701,13 @@ function runtimeStatusForScanJob(status: string): AssessmentRuntimeRunStatus {
     return ASSESSMENT_RUNTIME_RUN_STATUSES.failed;
   }
   return ASSESSMENT_RUNTIME_RUN_STATUSES.waiting;
+}
+
+function isActiveScanRuntimeStatus(status: string): boolean {
+  return (
+    status === REPOSITORY_SCAN_JOB_STATUSES.queued ||
+    status === REPOSITORY_SCAN_JOB_STATUSES.running
+  );
 }
 
 /**

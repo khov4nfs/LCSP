@@ -182,6 +182,7 @@ class ScanConsumer(ConsumerBase):
             config.nestjs_api_base_url,
             config.worker_api_key,
         )
+        self._runtime_scan_job_id: str | None = None
         self._evidence_assembler = evidence_assembler or EvidenceAssembler()
         self._structural_augmentor = structural_augmentor or StructuralAugmentor()
         self._evidence_graph_assembler = evidence_graph_assembler or ProgramGraphAssembler()
@@ -205,23 +206,99 @@ class ScanConsumer(ConsumerBase):
         envelope = self._read_envelope(message, correlationId)
         targeted_plan = TargetedReanalysisPlan.from_message(message)
         set_correlationId(envelope.correlationId)
-
-        archive = self._snapshot_client.download_snapshot_archive(
-            SnapshotArchiveRequest(
-                snapshot_id=envelope.snapshot_id,
-                scan_job_id=envelope.scan_job_id,
-                correlationId=envelope.correlationId,
-            )
+        self._runtime_scan_job_id = envelope.scan_job_id
+        self._emit_runtime_event(
+            envelope.scan_job_id,
+            event_type="RUN_STARTED",
+            run_status="RUNNING",
+            tool_name="repository_scan",
+            summary="Repository scan run started",
+            input_summary={"snapshotId": envelope.snapshot_id},
         )
+        archive_started_at = self._utc_timestamp()
+        self._emit_runtime_event(
+            envelope.scan_job_id,
+            event_type="TOOL_STARTED",
+            run_status="RUNNING",
+            tool_name="download_snapshot_archive",
+            summary="Downloading pinned repository archive",
+            input_summary={"snapshotId": envelope.snapshot_id},
+            started_at=archive_started_at,
+        )
+        try:
+            archive = self._snapshot_client.download_snapshot_archive(
+                SnapshotArchiveRequest(
+                    snapshot_id=envelope.snapshot_id,
+                    scan_job_id=envelope.scan_job_id,
+                    correlationId=envelope.correlationId,
+                )
+            )
+            archive_ended_at = self._utc_timestamp()
+            self._emit_runtime_event(
+                envelope.scan_job_id,
+                event_type="TOOL_COMPLETED",
+                run_status="RUNNING",
+                tool_name="download_snapshot_archive",
+                summary="Pinned repository archive downloaded",
+                output_summary={"snapshotId": envelope.snapshot_id},
+                started_at=archive_started_at,
+                completed_at=archive_ended_at,
+                duration_ms=self._duration_ms(archive_started_at, archive_ended_at),
+            )
+        except Exception as error:
+            archive_ended_at = self._utc_timestamp()
+            self._emit_runtime_event(
+                envelope.scan_job_id,
+                event_type="RUN_FAILED",
+                run_status="FAILED",
+                tool_name="download_snapshot_archive",
+                summary="Repository archive download failed",
+                error_summary=type(error).__name__,
+                started_at=archive_started_at,
+                completed_at=archive_ended_at,
+                duration_ms=self._duration_ms(archive_started_at, archive_ended_at),
+            )
+            self._runtime_scan_job_id = None
+            raise
 
         result = None
         tool_registry = ToolRegistry()
         try:
+            materialize_started_at = self._utc_timestamp()
+            self._emit_runtime_event(
+                envelope.scan_job_id,
+                event_type="TOOL_STARTED",
+                run_status="RUNNING",
+                tool_name="materialize_snapshot",
+                summary="Materializing repository workspace",
+                input_summary={"snapshotId": envelope.snapshot_id},
+                started_at=materialize_started_at,
+            )
             result = self._scanner_tool_dispatcher.dispatch(
                 "materialize_snapshot",
                 scan_job_id=envelope.scan_job_id,
                 archive=archive,
                 snapshot_id=envelope.snapshot_id,
+            )
+            materialize_ended_at = self._utc_timestamp()
+            self._emit_runtime_event(
+                envelope.scan_job_id,
+                event_type="TOOL_COMPLETED",
+                run_status="RUNNING",
+                tool_name="materialize_snapshot",
+                summary="Repository workspace materialized",
+                output_summary={
+                    "extractedFiles": result.extracted_files,
+                    "skippedFiles": result.skipped_files,
+                    "totalSizeBytes": result.total_size_bytes,
+                    "coverageLimited": result.coverage_limited,
+                },
+                started_at=materialize_started_at,
+                completed_at=materialize_ended_at,
+                duration_ms=self._duration_ms(
+                    materialize_started_at,
+                    materialize_ended_at,
+                ),
             )
             logger.info(
                 "SCAN_WORKSPACE_MATERIALIZED",
@@ -243,6 +320,15 @@ class ScanConsumer(ConsumerBase):
                 [], targeted=targeted_plan is not None
             )
             try:
+                classify_started_at = self._utc_timestamp()
+                self._emit_runtime_event(
+                    envelope.scan_job_id,
+                    event_type="TOOL_STARTED",
+                    run_status="RUNNING",
+                    tool_name="classify_workspace_languages",
+                    summary="Classifying repository languages",
+                    started_at=classify_started_at,
+                )
                 classifications = self._scanner_tool_dispatcher.dispatch(
                     "classify_workspace_languages",
                     workspace_path=result.workspace_path,
@@ -261,6 +347,28 @@ class ScanConsumer(ConsumerBase):
                 routed_ts_js_files = list(dispatch.ts_js_files)
                 routed_basic_files = list(dispatch.basic_files)
                 classification_limitations = list(dispatch.coverage_limitations)
+                classify_ended_at = self._utc_timestamp()
+                self._emit_runtime_event(
+                    envelope.scan_job_id,
+                    event_type="TOOL_COMPLETED",
+                    run_status="RUNNING",
+                    tool_name="classify_workspace_languages",
+                    summary="Repository languages classified",
+                    output_summary={
+                        "classifiedFiles": len(classifications),
+                        "pythonFiles": len(dispatch.python_files),
+                        "tsJsFiles": len(dispatch.ts_js_files),
+                        "basicFiles": len(dispatch.basic_files),
+                        "skippedFiles": len(dispatch.skipped_files),
+                        "coverageLimitations": len(dispatch.coverage_limitations),
+                    },
+                    started_at=classify_started_at,
+                    completed_at=classify_ended_at,
+                    duration_ms=self._duration_ms(
+                        classify_started_at,
+                        classify_ended_at,
+                    ),
+                )
                 logger.info(
                     "SCAN_LANGUAGE_CLASSIFIED",
                     classified_files=len(classifications),
@@ -271,6 +379,21 @@ class ScanConsumer(ConsumerBase):
                     coverage_limitations=len(dispatch.coverage_limitations),
                 )
             except Exception as error:
+                classify_ended_at = self._utc_timestamp()
+                self._emit_runtime_event(
+                    envelope.scan_job_id,
+                    event_type="TOOL_FAILED",
+                    run_status="RUNNING",
+                    tool_name="classify_workspace_languages",
+                    summary="Language classification failed safely",
+                    error_summary=type(error).__name__,
+                    started_at=classify_started_at,
+                    completed_at=classify_ended_at,
+                    duration_ms=self._duration_ms(
+                        classify_started_at,
+                        classify_ended_at,
+                    ),
+                )
                 classification_limitations = [
                     {
                         "file_path": "<workspace>",
@@ -286,6 +409,14 @@ class ScanConsumer(ConsumerBase):
 
             if execution_plan.should_run(APPROVED_TOOL_NAMES["syft"]):
                 syft_started_at = self._utc_timestamp()
+                self._emit_runtime_event(
+                    envelope.scan_job_id,
+                    event_type="TOOL_STARTED",
+                    run_status="RUNNING",
+                    tool_name=APPROVED_TOOL_NAMES["syft"],
+                    summary="Running syft inventory",
+                    started_at=syft_started_at,
+                )
                 syft_result = self._scanner_tool_dispatcher.dispatch(
                     "run_syft_inventory",
                     workspace_path=result.workspace_path,
@@ -319,6 +450,14 @@ class ScanConsumer(ConsumerBase):
 
             if execution_plan.should_run(APPROVED_TOOL_NAMES["semgrep"]):
                 semgrep_started_at = self._utc_timestamp()
+                self._emit_runtime_event(
+                    envelope.scan_job_id,
+                    event_type="TOOL_STARTED",
+                    run_status="RUNNING",
+                    tool_name=APPROVED_TOOL_NAMES["semgrep"],
+                    summary="Running semgrep analysis",
+                    started_at=semgrep_started_at,
+                )
                 semgrep_result = self._scanner_tool_dispatcher.dispatch(
                     "run_semgrep_rules",
                     workspace_path=result.workspace_path,
@@ -350,6 +489,14 @@ class ScanConsumer(ConsumerBase):
 
             if execution_plan.should_run(APPROVED_TOOL_NAMES["knip"]):
                 knip_started_at = self._utc_timestamp()
+                self._emit_runtime_event(
+                    envelope.scan_job_id,
+                    event_type="TOOL_STARTED",
+                    run_status="RUNNING",
+                    tool_name=APPROVED_TOOL_NAMES["knip"],
+                    summary="Running knip usage analysis",
+                    started_at=knip_started_at,
+                )
                 knip_result = self._scanner_tool_dispatcher.dispatch(
                     "run_knip_usage_analysis",
                     workspace_path=result.workspace_path,
@@ -383,6 +530,14 @@ class ScanConsumer(ConsumerBase):
 
             if execution_plan.should_run(APPROVED_TOOL_NAMES["deptry"]):
                 deptry_started_at = self._utc_timestamp()
+                self._emit_runtime_event(
+                    envelope.scan_job_id,
+                    event_type="TOOL_STARTED",
+                    run_status="RUNNING",
+                    tool_name=APPROVED_TOOL_NAMES["deptry"],
+                    summary="Running deptry dependency analysis",
+                    started_at=deptry_started_at,
+                )
                 deptry_result = self._scanner_tool_dispatcher.dispatch(
                     "run_deptry_usage_analysis",
                     workspace_path=result.workspace_path,
@@ -416,6 +571,15 @@ class ScanConsumer(ConsumerBase):
 
             if execution_plan.should_run(APPROVED_TOOL_NAMES["ts_morph"]):
                 ts_js_started_at = self._utc_timestamp()
+                self._emit_runtime_event(
+                    envelope.scan_job_id,
+                    event_type="TOOL_STARTED",
+                    run_status="RUNNING",
+                    tool_name=APPROVED_TOOL_NAMES["ts_morph"],
+                    summary="Running TypeScript and JavaScript analysis",
+                    input_summary={"filesQueued": len(routed_ts_js_files)},
+                    started_at=ts_js_started_at,
+                )
                 ts_js_analysis = self._scanner_tool_dispatcher.dispatch(
                     "run_ts_js_semantic_analysis",
                     workspace_path=result.workspace_path,
@@ -458,6 +622,15 @@ class ScanConsumer(ConsumerBase):
             )
             if execution_plan.should_run(APPROVED_TOOL_NAMES["python_ast"]):
                 python_started_at = self._utc_timestamp()
+                self._emit_runtime_event(
+                    envelope.scan_job_id,
+                    event_type="TOOL_STARTED",
+                    run_status="RUNNING",
+                    tool_name="python_semantic_analysis",
+                    summary="Running Python semantic analysis",
+                    input_summary={"filesQueued": len(routed_python_files)},
+                    started_at=python_started_at,
+                )
                 python_analysis = self._scanner_tool_dispatcher.dispatch(
                     "run_python_semantic_analysis",
                     workspace_path=result.workspace_path,
@@ -540,6 +713,20 @@ class ScanConsumer(ConsumerBase):
             structural_facts: list[StructuralFact] = []
             if execution_plan.should_run(APPROVED_TOOL_NAMES["tree_sitter"]):
                 structural_started_at = self._utc_timestamp()
+                self._emit_runtime_event(
+                    envelope.scan_job_id,
+                    event_type="TOOL_STARTED",
+                    run_status="RUNNING",
+                    tool_name=APPROVED_TOOL_NAMES["tree_sitter"],
+                    summary="Running structural augmentation",
+                    input_summary={
+                        "filesQueued": len(
+                            [*routed_python_files, *routed_ts_js_files, *routed_basic_files]
+                        ),
+                        "findingCount": len(technical_findings),
+                    },
+                    started_at=structural_started_at,
+                )
                 try:
                     candidate_files = [
                         *routed_python_files,
@@ -604,6 +791,20 @@ class ScanConsumer(ConsumerBase):
                 "SCAN_TOOL_PROVENANCE_RECORDED",
                 tool_provenance=[asdict(item) for item in tool_registry.all()],
             )
+            graph_started_at = self._utc_timestamp()
+            self._emit_runtime_event(
+                envelope.scan_job_id,
+                event_type="TOOL_STARTED",
+                run_status="RUNNING",
+                tool_name="build_evidence_graph",
+                summary="Building technical evidence graph",
+                input_summary={
+                    "technicalFindings": len(technical_findings),
+                    "structuralFacts": len(structural_facts),
+                    "packageDependencies": len(package_dependencies),
+                },
+                started_at=graph_started_at,
+            )
             evidence_graph = self._scanner_tool_dispatcher.dispatch(
                 "build_evidence_graph",
                 scan_job_id=envelope.scan_job_id,
@@ -614,6 +815,27 @@ class ScanConsumer(ConsumerBase):
                 structural_facts=structural_facts,
                 package_dependencies=package_dependencies,
                 coverage_notes=coverage_notes,
+            )
+            graph_ended_at = self._utc_timestamp()
+            self._emit_runtime_event(
+                envelope.scan_job_id,
+                event_type="TOOL_COMPLETED",
+                run_status="RUNNING",
+                tool_name="build_evidence_graph",
+                summary="Technical evidence graph built",
+                output_summary={"coverageNotes": len(coverage_notes)},
+                started_at=graph_started_at,
+                completed_at=graph_ended_at,
+                duration_ms=self._duration_ms(graph_started_at, graph_ended_at),
+            )
+            assemble_started_at = self._utc_timestamp()
+            self._emit_runtime_event(
+                envelope.scan_job_id,
+                event_type="TOOL_STARTED",
+                run_status="RUNNING",
+                tool_name="assemble_evidence_callback",
+                summary="Assembling sanitized evidence callback",
+                started_at=assemble_started_at,
             )
             callback_payload = self._evidence_assembler.assemble(
                 scan_job_id=envelope.scan_job_id,
@@ -638,10 +860,62 @@ class ScanConsumer(ConsumerBase):
                 ),
                 tool_provenance=tool_registry.all(),
             )
+            assemble_ended_at = self._utc_timestamp()
+            self._emit_runtime_event(
+                envelope.scan_job_id,
+                event_type="TOOL_COMPLETED",
+                run_status="RUNNING",
+                tool_name="assemble_evidence_callback",
+                summary="Sanitized evidence callback assembled",
+                output_summary={
+                    "status": callback_payload.status,
+                    "schemaVersion": callback_payload.schema_version,
+                },
+                started_at=assemble_started_at,
+                completed_at=assemble_ended_at,
+                duration_ms=self._duration_ms(assemble_started_at, assemble_ended_at),
+            )
             self._finalize_workspace_cleanup(envelope.scan_job_id)
+            callback_started_at = self._utc_timestamp()
+            self._emit_runtime_event(
+                envelope.scan_job_id,
+                event_type="TOOL_STARTED",
+                run_status="RUNNING",
+                tool_name="submit_scan_callback",
+                summary="Submitting technical evidence callback",
+                output_summary={"status": callback_payload.status},
+                started_at=callback_started_at,
+            )
             callback_response = self._api_client.post_scan_callback(
                 envelope.scan_job_id,
                 callback_payload,
+            )
+            callback_ended_at = self._utc_timestamp()
+            self._emit_runtime_event(
+                envelope.scan_job_id,
+                event_type="TOOL_COMPLETED",
+                run_status="RUNNING",
+                tool_name="submit_scan_callback",
+                summary="Technical evidence callback submitted",
+                output_summary={
+                    "status": callback_payload.status,
+                    "schemaVersion": callback_payload.schema_version,
+                },
+                started_at=callback_started_at,
+                completed_at=callback_ended_at,
+                duration_ms=self._duration_ms(callback_started_at, callback_ended_at),
+            )
+            self._emit_runtime_event(
+                envelope.scan_job_id,
+                event_type="RUN_COMPLETED",
+                run_status="COMPLETED",
+                tool_name="repository_scan",
+                summary="Repository scan run completed",
+                output_summary={
+                    "status": callback_payload.status,
+                    "schemaVersion": callback_payload.schema_version,
+                },
+                completed_at=callback_ended_at,
             )
             logger.info(
                 "SCAN_EVIDENCE_CALLBACK_SUBMITTED",
@@ -649,20 +923,44 @@ class ScanConsumer(ConsumerBase):
                 status=callback_payload.status,
                 schema_version=callback_payload.schema_version,
             )
+            self._runtime_scan_job_id = None
             return callback_response
         except PrivacyAssertionError as error:
+            failed_at = self._utc_timestamp()
+            self._emit_runtime_event(
+                envelope.scan_job_id,
+                event_type="RUN_FAILED",
+                run_status="FAILED",
+                tool_name="repository_scan",
+                summary="Repository scan privacy assertion failed",
+                error_summary=error.error_code,
+                completed_at=failed_at,
+            )
             logger.error(
                 "SCAN_EVIDENCE_PRIVACY_ASSERTION_FAILED",
                 scan_job_id=envelope.scan_job_id,
                 error_code=error.error_code,
             )
             self._finalize_workspace_cleanup(envelope.scan_job_id)
+            self._runtime_scan_job_id = None
             raise
         except Exception as error:
+            failed_at = self._utc_timestamp()
+            self._emit_runtime_event(
+                envelope.scan_job_id,
+                event_type="RUN_FAILED",
+                run_status="FAILED",
+                tool_name="repository_scan",
+                summary="Repository scan failed",
+                error_summary=type(error).__name__,
+                completed_at=failed_at,
+            )
             try:
                 self._finalize_workspace_cleanup(envelope.scan_job_id)
             except CleanupBlockedError as cleanup_error:
+                self._runtime_scan_job_id = None
                 raise cleanup_error from error
+            self._runtime_scan_job_id = None
             raise
 
     def _finalize_workspace_cleanup(self, job_id: str) -> None:
@@ -766,6 +1064,28 @@ class ScanConsumer(ConsumerBase):
             config_hash=execution.config_hash,
             **context,
         )
+        event_type = (
+            "TOOL_COMPLETED" if execution.outcome == OUTCOME_SUCCESS else "TOOL_FAILED"
+        )
+        self._emit_runtime_event(
+            getattr(self, "_runtime_scan_job_id", None),
+            event_type=event_type,
+            run_status="RUNNING",
+            tool_name=tool_name or execution.tool_name,
+            summary=self._runtime_summary_for_tool(execution.tool_name, execution.outcome),
+            output_summary={
+                "outcome": execution.outcome,
+                "toolVersion": execution.tool_version,
+                "configHash": execution.config_hash,
+                "rulesetHash": ruleset_hash,
+                "coverageLimitations": len(coverage_limitations),
+                **context,
+            },
+            error_summary="; ".join(execution.messages) if execution.messages else None,
+            started_at=started_at,
+            completed_at=ended_at,
+            duration_ms=self._duration_ms(started_at, ended_at),
+        )
 
         if execution.outcome != OUTCOME_SUCCESS:
             logger.warning(
@@ -797,6 +1117,18 @@ class ScanConsumer(ConsumerBase):
             entry,
             language_profile=execution_plan.language_profile,
             recorded_at=self._utc_timestamp(),
+        )
+        self._emit_runtime_event(
+            getattr(self, "_runtime_scan_job_id", None),
+            event_type="TOOL_SKIPPED",
+            run_status="RUNNING",
+            tool_name=tool_name,
+            summary=f"Skipped {tool_name}",
+            output_summary={
+                "outcome": execution.outcome,
+                "reason": entry.reason,
+            },
+            completed_at=self._utc_timestamp(),
         )
         logger.info(
             "SCAN_TOOL_SKIPPED_UNSUPPORTED",
@@ -845,3 +1177,57 @@ class ScanConsumer(ConsumerBase):
             }
             for limitation in limitations
         ]
+
+    def _emit_runtime_event(
+        self,
+        scan_job_id: str | None,
+        *,
+        event_type: str,
+        run_status: str,
+        tool_name: str | None,
+        summary: str,
+        input_summary: dict[str, object] | None = None,
+        output_summary: dict[str, object] | None = None,
+        error_summary: str | None = None,
+        started_at: str | None = None,
+        completed_at: str | None = None,
+        duration_ms: int | None = None,
+        attempt: int | None = None,
+        waiting_reason: str | None = None,
+    ) -> None:
+        if not scan_job_id:
+            return
+        payload: dict[str, object] = {
+            "event_type": event_type,
+            "run_status": run_status,
+            "stage": "SCAN",
+            "summary": summary,
+        }
+        optional_values: dict[str, object | None] = {
+            "tool_name": tool_name,
+            "input_summary": input_summary,
+            "output_summary": output_summary,
+            "error_summary": error_summary,
+            "started_at": started_at,
+            "completed_at": completed_at,
+            "duration_ms": duration_ms,
+            "attempt": attempt,
+            "waiting_reason": waiting_reason,
+        }
+        for key, value in optional_values.items():
+            if value is not None:
+                payload[key] = value
+        post_runtime_event = getattr(self._api_client, "post_scan_runtime_event", None)
+        if post_runtime_event is None:
+            return
+        post_runtime_event(scan_job_id, payload)
+
+    def _duration_ms(self, started_at: str, ended_at: str) -> int:
+        started = datetime.fromisoformat(started_at.replace("Z", "+00:00"))
+        ended = datetime.fromisoformat(ended_at.replace("Z", "+00:00"))
+        return max(0, int((ended - started).total_seconds() * 1000))
+
+    def _runtime_summary_for_tool(self, tool_name: str, outcome: str) -> str:
+        if outcome == OUTCOME_SUCCESS:
+            return f"Completed {tool_name}"
+        return f"{tool_name} completed with a non-blocking failure"

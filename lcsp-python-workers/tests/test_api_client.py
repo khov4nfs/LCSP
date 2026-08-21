@@ -104,6 +104,55 @@ def test_t05_t06_headers(client, dummy_payload):
         assert headers.get("X-Correlation-Id") == "test-cid-999"
 
 
+def test_scan_runtime_event_posts_best_effort_metadata(client):
+    """Runtime progress uses the worker-auth internal endpoint and sanitized payload."""
+    set_correlationId("runtime-cid-1")
+    with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 202
+        mock_post.return_value = mock_resp
+
+        client.post_scan_runtime_event(
+            "job123",
+            {
+                "event_type": "TOOL_STARTED",
+                "run_status": "RUNNING",
+                "stage": "SCAN",
+                "tool_name": "semgrep_secret_detect",
+                "summary": "Starting secret detection",
+                "input_summary": {"api_key": "secret-token"},
+            },
+        )
+
+        mock_post.assert_called_once()
+        assert mock_post.call_args.args[0] == (
+            "http://testserver/internal/scan-jobs/job123/runtime-events"
+        )
+        _, kwargs = mock_post.call_args
+        assert kwargs["headers"]["X-Worker-Api-Key"] == "test-api-key"
+        assert kwargs["headers"]["X-Correlation-Id"] == "runtime-cid-1"
+        assert kwargs["timeout"] == 3.0
+        assert kwargs["json"]["input_summary"]["api_key"] == "[REDACTED]"
+
+
+def test_scan_runtime_event_failure_does_not_fail_scan(client):
+    """Runtime progress is best-effort and never raises into scan execution."""
+    with patch("lcsp_workers.platform.api_client.httpx.post") as mock_post:
+        mock_post.side_effect = httpx.TimeoutException("runtime timeout")
+
+        client.post_scan_runtime_event(
+            "job123",
+            {
+                "event_type": "TOOL_STARTED",
+                "run_status": "RUNNING",
+                "stage": "SCAN",
+                "summary": "Starting",
+            },
+        )
+
+        mock_post.assert_called_once()
+
+
 def test_t07_raw_source_code_rejected():
     """T07: Raw source code or extra fields are rejected by Pydantic 'forbid' config."""
     with pytest.raises(ValidationError):

@@ -1,3 +1,5 @@
+import { ASSESSMENT_RUNTIME_RUN_STATUSES } from "@lcsp/contracts/evidence";
+
 import {
   WORKSPACE_RUNTIME_CONNECTION_STATES,
   type WorkspaceRuntimeActivityItem,
@@ -7,9 +9,11 @@ import {
   type WorkspaceRuntimeRun,
   type WorkspaceRuntimeScanJob,
   type WorkspaceRuntimeSummaryValue,
-} from "../types/workspace-runtime.types.ts";
+  } from "../types/workspace-runtime.types.ts";
 
-export function parseRuntimeEvent(data: string): WorkspaceRuntimeContextValue | null {
+export function parseRuntimeEvent(
+  data: string,
+): WorkspaceRuntimeContextValue | null {
   const payload = parseObject(data);
   if (payload === null || typeof payload.emitted_at !== "string") {
     return null;
@@ -29,7 +33,8 @@ export function parseRuntimeEvent(data: string): WorkspaceRuntimeContextValue | 
     : [];
 
   const runsByAssessmentId = groupRunsByAssessmentId(runs);
-  const recentActivityByAssessmentId = groupActivityByAssessmentId(recentActivity);
+  const recentActivityByAssessmentId =
+    groupActivityByAssessmentId(recentActivity);
   const latestRunIdByAssessmentId = deriveLatestRunIds(runsByAssessmentId);
 
   return {
@@ -99,7 +104,9 @@ function parseActiveTool(value: unknown): WorkspaceRuntimeActiveTool | null {
   };
 }
 
-function parseActivityItem(value: unknown): WorkspaceRuntimeActivityItem | null {
+function parseActivityItem(
+  value: unknown,
+): WorkspaceRuntimeActivityItem | null {
   const item = parseObject(value);
   if (
     item === null ||
@@ -218,7 +225,10 @@ function parseSummaryValue(
   return Object.fromEntries(
     Object.entries(item)
       .map(([key, itemValue]) => [key, parseSummaryValue(itemValue)])
-      .filter((entry): entry is [string, WorkspaceRuntimeSummaryValue] => entry[1] !== null),
+      .filter(
+        (entry): entry is [string, WorkspaceRuntimeSummaryValue] =>
+          entry[1] !== null,
+      ),
   );
 }
 
@@ -263,7 +273,9 @@ function groupActivityByAssessmentId(activity: WorkspaceRuntimeActivityItem[]) {
   return groups;
 }
 
-function deriveLatestRunIds(runsByAssessmentId: Record<string, WorkspaceRuntimeRun[]>) {
+function deriveLatestRunIds(
+  runsByAssessmentId: Record<string, WorkspaceRuntimeRun[]>,
+) {
   return Object.fromEntries(
     Object.entries(runsByAssessmentId)
       .map(([assessmentId, runs]) =>
@@ -305,7 +317,7 @@ export function runtimeFingerprint(runtime: {
       item.eventType,
       item.runStatus,
       item.summary,
-      item.emittedAt,
+      shouldFingerprintActivityEmittedAt(item) ? item.emittedAt : null,
       item.durationMs,
     ]),
     scanJobs: runtime.scanJobs.map((scanJob) => [
@@ -324,6 +336,15 @@ export function runtimeFingerprint(runtime: {
   });
 }
 
+function shouldFingerprintActivityEmittedAt(
+  item: WorkspaceRuntimeActivityItem,
+): boolean {
+  return !(
+    item.eventId.startsWith("scan-job:") &&
+    item.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.running
+  );
+}
+
 export function affectedAssessmentIds(runtime: {
   runs: WorkspaceRuntimeRun[];
   recentActivity: WorkspaceRuntimeActivityItem[];
@@ -337,4 +358,3 @@ export function affectedAssessmentIds(runtime: {
     ...runtime.evidenceReports.map((report) => report.assessmentId),
   ]);
 }
-

@@ -7,6 +7,11 @@ import {
 } from "@lcsp/contracts/pbac";
 import { SCAN_CALLBACK_STATUSES, SCAN_EVENT_TYPES } from "@lcsp/contracts/scan";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
+import {
+  ASSESSMENT_RUNTIME_EVENT_TYPES,
+  ASSESSMENT_RUNTIME_RUN_STATUSES,
+  ASSESSMENT_RUNTIME_STAGE_CODES,
+} from "@lcsp/contracts/evidence";
 
 import { PBAC_METADATA_KEY } from "../../../../platform/pbac/decorators/pbac-metadata.js";
 import { GetScanJobQuery } from "../../application/queries/get-scan-job/get-scan-job.query.js";
@@ -202,9 +207,12 @@ describe("InternalScanController", () => {
   it("dispatches the worker callback command", async () => {
     const execute = jest.fn<(command: unknown) => Promise<unknown>>();
     execute.mockResolvedValue({ accepted: true });
-    const controller = new InternalScanController({
-      execute,
-    } as unknown as CommandBus);
+    const controller = new InternalScanController(
+      {
+        execute,
+      } as unknown as CommandBus,
+      {} as never,
+    );
     const payload = {
       scan_job_id: "scan-job-1",
       tools_version: { semgrep: "1.0.0" },
@@ -233,9 +241,12 @@ describe("InternalScanController", () => {
   it("creates targeted reanalysis through the internal worker-auth endpoint", async () => {
     const execute = jest.fn<(command: unknown) => Promise<unknown>>();
     execute.mockResolvedValue({ status: "READY" });
-    const controller = new InternalScanController({
-      execute,
-    } as unknown as CommandBus);
+    const controller = new InternalScanController(
+      {
+        execute,
+      } as unknown as CommandBus,
+      {} as never,
+    );
 
     await controller.createTargetedReanalysis(
       {
@@ -270,6 +281,78 @@ describe("InternalScanController", () => {
         selectedAction: PBAC_ACTIONS.technicalEvidenceReanalyze,
       }),
       correlationId: "corr-1",
+    });
+  });
+
+  it("records worker runtime progress through the internal worker-auth endpoint", async () => {
+    const runtimeEvents = {
+      recordScanWorkerEvent: jest
+        .fn()
+        .mockImplementation(() => Promise.resolve({ recorded: true })),
+    };
+    const controller = new InternalScanController(
+      {} as unknown as CommandBus,
+      runtimeEvents as never,
+    );
+
+    await expect(
+      controller.recordRuntimeEvent("scan-job-1", {
+        event_type: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
+        run_status: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+        stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
+        tool_name: "syft",
+        summary: "syft completed with a non-blocking failure",
+        input_summary: { snapshotId: "snapshot-1" },
+        output_summary: { outcome: "tool_failure" },
+        error_summary: "syft not available",
+        started_at: "2026-08-17T11:38:23.000Z",
+        completed_at: "2026-08-17T11:38:24.000Z",
+        duration_ms: 1000,
+        attempt: 1,
+      }),
+    ).resolves.toEqual({ ok: true, data: { recorded: true } });
+
+    expect(runtimeEvents.recordScanWorkerEvent).toHaveBeenCalledWith({
+      scanJobId: "scan-job-1",
+      eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
+      runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+      stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
+      toolName: "syft",
+      summary: "syft completed with a non-blocking failure",
+      inputSummary: { snapshotId: "snapshot-1" },
+      outputSummary: { outcome: "tool_failure" },
+      errorSummary: "syft not available",
+      startedAt: new Date("2026-08-17T11:38:23.000Z"),
+      completedAt: new Date("2026-08-17T11:38:24.000Z"),
+      durationMs: 1000,
+      attempt: 1,
+      waitingReason: null,
+    });
+  });
+
+  it("rejects worker runtime progress for inactive scan jobs", async () => {
+    const runtimeEvents = {
+      recordScanWorkerEvent: jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          recorded: false,
+          reason: "inactive",
+        }),
+      ),
+    };
+    const controller = new InternalScanController(
+      {} as unknown as CommandBus,
+      runtimeEvents as never,
+    );
+
+    await expect(
+      controller.recordRuntimeEvent("scan-job-1", {
+        event_type: ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
+        run_status: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+        stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
+        summary: "Starting syft",
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
     });
   });
 });

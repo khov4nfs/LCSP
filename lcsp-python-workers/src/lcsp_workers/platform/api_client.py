@@ -321,6 +321,35 @@ class WorkerApiClient:
             resp_data = self._post_with_retry(path, request_payload)
         return CallbackResponse(**resp_data)
 
+    def post_scan_runtime_event(self, scan_job_id: str, payload: dict) -> None:
+        """Submit best-effort privacy-safe runtime progress for an active scan job."""
+        path = CallbackPath.SCAN_RUNTIME_EVENT.format(scan_job_id=scan_job_id)
+        url = f"{self._base_url}{path}"
+        headers = {
+            WORKER_API_KEY_HEADER: self._api_key,
+            correlationId_HEADER: get_correlationId(),
+        }
+        try:
+            response = httpx.post(
+                url,
+                json=redact_dict(payload),
+                headers=headers,
+                timeout=3.0,
+            )
+            if response.status_code >= 400:
+                logger.warning(
+                    "SCAN_RUNTIME_EVENT_REJECTED",
+                    scan_job_id=scan_job_id,
+                    status_code=response.status_code,
+                    error_code=self._response_error_code(response),
+                )
+        except Exception as exc:
+            logger.warning(
+                "SCAN_RUNTIME_EVENT_POST_FAILED",
+                scan_job_id=scan_job_id,
+                error=type(exc).__name__,
+            )
+
     def post_technical_profile_callback(
         self, payload: TechnicalProfileCallbackPayload
     ) -> CallbackResponse:

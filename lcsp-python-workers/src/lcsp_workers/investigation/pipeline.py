@@ -211,6 +211,7 @@ class EngineeringInvestigationPipeline:
                     "ENGINEERING_RULE_COMPILATION_FAILED",
                     legal_rule_id=legal_rule_id,
                     error_type=type(error).__name__,
+                    error_message=str(error)[:500],
                     workflow_run_id=workflow_run_id,
                     correlationId=correlation_id,
                 )
