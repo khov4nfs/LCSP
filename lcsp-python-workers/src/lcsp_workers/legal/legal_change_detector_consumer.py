@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Any
 
 from structlog import get_logger
@@ -65,89 +64,83 @@ class LegalChangeDetectorConsumer(ConsumerBase):
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
         envelope = self._read_envelope(message)
-
-        with TemporaryDirectory(prefix="lcsp-legal-update-") as temp_dir:
-            temp_root = Path(temp_dir)
-            dispatcher = LegalToolDispatcher(
-                LegalToolExecutionContext(
-                    api_client=self._api_client,
-                    storage_root=temp_root,
-                    snapshot_fetcher=self._snapshot_fetcher,
-                )
+        storage_root = self._storage_root()
+        output_dir = self._source_output_dir(storage_root=storage_root, envelope=envelope)
+        dispatcher = LegalToolDispatcher(
+            LegalToolExecutionContext(
+                api_client=self._api_client,
+                storage_root=storage_root,
+                snapshot_fetcher=self._snapshot_fetcher,
             )
+        )
 
-            # 1. Fetch new snapshot (similar to ingestion)
-            logger.info("FETCHING_NEW_SNAPSHOT_FOR_UPDATE_CHECK", document_id=envelope.document_id)
-            result = dispatcher.dispatch(
-                "fetch_official_source_snapshot",
-                document_id=envelope.document_id,
+        # 1. Fetch new snapshot (similar to ingestion)
+        logger.info(
+            "FETCHING_NEW_SNAPSHOT_FOR_UPDATE_CHECK",
+            document_id=envelope.document_id,
+            output_dir=str(output_dir),
+        )
+        result = dispatcher.dispatch(
+            "fetch_official_source_snapshot",
+            document_id=envelope.document_id,
+            catalog_source_ref=envelope.catalog_source_ref,
+            source_url=envelope.source_url,
+            output_dir=output_dir,
+            max_bytes=envelope.max_bytes,
+            gateway_document_id=envelope.gateway_document_id,
+            source_effect_status=None,
+            expected_document_number=envelope.expected_document_number,
+        )
+        old_html = self._read_base_snapshot_html(
+            storage_root=storage_root,
+            snapshot_ref=envelope.base_snapshot_ref,
+        )
+
+        html_path = next(output_dir.glob("*.html"), None)
+        if not html_path:
+            raise NonRetryableWorkerError("Failed to fetch new HTML for comparison")
+        new_html = html_path.read_text(encoding="utf-8")
+
+        context = build_partial_update_context(
+            document_id=envelope.document_id,
+            source_url=envelope.source_url,
+            base_snapshot_ref=envelope.base_snapshot_ref,
+            new_snapshot_ref="PENDING_NEW_SNAPSHOT_REF",
+            old_html=old_html,
+            new_html=new_html,
+        )
+
+        if context:
+            registered = result.register_with_api(
+                api_client=self._api_client,
+                admin_catalog_version=envelope.admin_catalog_version,
                 catalog_source_ref=envelope.catalog_source_ref,
-                source_url=envelope.source_url,
-                output_dir=temp_root,
-                max_bytes=envelope.max_bytes,
-                gateway_document_id=envelope.gateway_document_id,
-                source_effect_status=None,
                 expected_document_number=envelope.expected_document_number,
             )
-            
-            # Note: result contains paths to the downloaded artifacts in temp_root.
-            # We assume it provides access to the HTML path.
-            # We would also need to fetch the old HTML.
-            
-            # Fetch old HTML content (Placeholder logic, adapt to actual API client capabilities)
-            # old_html = self._api_client.get_snapshot_content(envelope.base_snapshot_ref)
-            old_html = "<html>...OLD HTML PLACEHOLDER...</html>" 
-            
-            # Get new HTML content from fetched result
-            html_path = next(temp_root.glob("*.html"), None)
-            if not html_path:
-                raise NonRetryableWorkerError("Failed to fetch new HTML for comparison")
-            new_html = html_path.read_text(encoding="utf-8")
-            
-            # 2. Build Partial Update Context
-            context = build_partial_update_context(
+
+            final_context = build_partial_update_context(
                 document_id=envelope.document_id,
                 source_url=envelope.source_url,
                 base_snapshot_ref=envelope.base_snapshot_ref,
-                new_snapshot_ref="PENDING_NEW_SNAPSHOT_REF", # Would be assigned upon registration
+                new_snapshot_ref=registered.get("snapshotRef", "UNKNOWN"),
                 old_html=old_html,
                 new_html=new_html,
             )
 
-            if context:
-                # 3. Register new snapshot if there are changes
-                registered = result.register_with_api(
-                    api_client=self._api_client,
-                    admin_catalog_version=envelope.admin_catalog_version,
-                    catalog_source_ref=envelope.catalog_source_ref,
-                    expected_document_number=envelope.expected_document_number,
-                )
-                
-                # Replace pending ref with actual registered ref
-                final_context = build_partial_update_context(
-                    document_id=envelope.document_id,
-                    source_url=envelope.source_url,
-                    base_snapshot_ref=envelope.base_snapshot_ref,
-                    new_snapshot_ref=registered.get("snapshotRef", "UNKNOWN"),
-                    old_html=old_html,
-                    new_html=new_html,
-                )
+            if final_context:
+                self._publish_partial_update(final_context.to_dict(), correlationId)
 
-                if final_context:
-                    # 4. Publish partial update context to next queue for Engineer AI
-                    self._publish_partial_update(final_context.to_dict(), correlationId)
-
-                logger.info(
-                    "LEGAL_CHANGE_DETECTED",
-                    document_id=envelope.document_id,
-                    correlationId=correlationId,
-                )
-            else:
-                logger.info(
-                    "NO_LEGAL_CHANGE_DETECTED",
-                    document_id=envelope.document_id,
-                    correlationId=correlationId,
-                )
+            logger.info(
+                "LEGAL_CHANGE_DETECTED",
+                document_id=envelope.document_id,
+                correlationId=correlationId,
+            )
+        else:
+            logger.info(
+                "NO_LEGAL_CHANGE_DETECTED",
+                document_id=envelope.document_id,
+                correlationId=correlationId,
+            )
 
     def _publish_partial_update(self, payload: dict[str, Any], correlationId: str) -> None:
         """Publish the partial update context to the exchange."""
@@ -182,3 +175,48 @@ class LegalChangeDetectorConsumer(ConsumerBase):
             gateway_document_id=message.get("gatewayDocumentId"),
             max_bytes=int(message.get("maxBytes") or 50_000_000),
         )
+
+    def _storage_root(self) -> Path:
+        """Resolve the runtime legal corpus artifact root or fail terminally."""
+        root = getattr(self._config, "legal_source_storage_root", None)
+        if not isinstance(root, str) or not root.strip():
+            raise NonRetryableWorkerError("LEGAL_SOURCE_STORAGE_ROOT is not configured")
+        return Path(root).resolve()
+
+    def _source_output_dir(
+        self,
+        *,
+        storage_root: Path,
+        envelope: CheckUpdatesEnvelope,
+    ) -> Path:
+        """Build the cron crawl artifact directory under .corpus."""
+        return (
+            storage_root
+            / "source-crawl"
+            / "cron"
+            / _safe_path_segment(envelope.document_id)
+        )
+
+    def _read_base_snapshot_html(self, *, storage_root: Path, snapshot_ref: str) -> str:
+        """Read the prior source snapshot object from the runtime corpus store."""
+        if not snapshot_ref.strip():
+            raise NonRetryableWorkerError("missing baseSnapshotRef")
+        record = self._api_client.get_official_source_snapshot(snapshot_ref=snapshot_ref)
+        object_key = record.get("snapshotObjectKey") or record.get("snapshot_object_key")
+        if not isinstance(object_key, str) or not object_key.strip():
+            raise NonRetryableWorkerError("base snapshot object key is unavailable")
+        object_path = (storage_root / object_key).resolve()
+        try:
+            object_path.relative_to(storage_root.resolve())
+        except ValueError as exc:
+            raise NonRetryableWorkerError("base snapshot object key escapes storage root") from exc
+        if not object_path.is_file():
+            raise NonRetryableWorkerError(
+                f"base snapshot object is missing from corpus store: {object_key}"
+            )
+        return object_path.read_text(encoding="utf-8")
+
+
+def _safe_path_segment(value: str) -> str:
+    """Normalize a runtime identifier for a bounded artifact directory segment."""
+    return "".join(ch if ch.isalnum() or ch in "._:-" else "-" for ch in value)[:160]

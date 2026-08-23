@@ -91,6 +91,7 @@ export type AssessmentRuntimeSnapshot = {
   emittedAt: string;
   runs: AssessmentRuntimeRun[];
   recentActivity: AssessmentRuntimeActivityEvent[];
+  repositorySnapshots: unknown[];
   scanJobs: unknown[];
   evidenceReports: unknown[];
 };

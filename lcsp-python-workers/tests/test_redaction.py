@@ -1,37 +1,36 @@
 from lcsp_workers.platform.redaction import (
-    REDACTED_VALUE,
     redact_dict,
     redact_source_code,
     redact_string,
 )
 
 
-def test_t01_dict_with_password_key_is_redacted() -> None:
+def test_t01_dict_with_password_key_is_stripped() -> None:
     payload = {"username": "alice", "password": "super-secret"}
 
-    assert redact_dict(payload) == {"username": "alice", "password": REDACTED_VALUE}
+    assert redact_dict(payload) == {"username": "alice", "password": ""}
 
 
-def test_t02_nested_api_key_is_redacted_at_all_levels() -> None:
+def test_t02_nested_api_key_is_stripped_at_all_levels() -> None:
     payload = {"a": {"b": {"c": {"api_key": "key-1234567890abcd"}}}}
 
-    redacted = redact_dict(payload)
+    copied = redact_dict(payload)
 
-    assert redacted["a"]["b"]["c"]["api_key"] == REDACTED_VALUE
+    assert copied["a"]["b"]["c"]["api_key"] == ""
 
 
-def test_t03_github_token_in_string_is_redacted() -> None:
+def test_t03_github_token_in_string_is_stripped() -> None:
     token = "ghp_1234567890abcdefABCDEF1234567890abcd"
 
-    assert redact_string(f"token={token}") == "token=[REDACTED:GITHUB_TOKEN]"
+    assert redact_string(f"token={token}") == "token="
 
 
-def test_t04_bearer_token_in_dict_value_is_redacted() -> None:
+def test_t04_bearer_token_in_dict_value_is_stripped() -> None:
     payload = {"message": "Authorization failed for Bearer abc.def-ghi_123"}
 
-    redacted = redact_dict(payload)
+    copied = redact_dict(payload)
 
-    assert redacted["message"] == "Authorization failed for Bearer [REDACTED]"
+    assert copied["message"] == "Authorization failed for Bearer"
 
 
 def test_t05_deeply_nested_dict_stops_at_max_depth() -> None:
@@ -41,12 +40,12 @@ def test_t05_deeply_nested_dict_stops_at_max_depth() -> None:
         cursor["child"] = {"level": level}
         cursor = cursor["child"]
 
-    redacted = redact_dict(payload, depth=10)
+    copied = redact_dict(payload, depth=10)
 
-    cursor = redacted
+    cursor = copied
     for _ in range(9):
         cursor = cursor["child"]
-    assert cursor["child"] == "[REDACTED:MAX_DEPTH]"
+    assert cursor["child"] == {"truncated": "max_depth"}
 
 
 def test_t06_source_code_finding_is_removed() -> None:

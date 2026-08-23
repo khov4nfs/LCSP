@@ -47,6 +47,11 @@ SOURCE_EFFECT_STATUS = {
     "HET_HIEU_LUC_TOAN_BO": "HET_HIEU_LUC_TOAN_BO",
     "KHONG_CON_PHU_HOP": "KHONG_CON_PHU_HOP",
 }
+MANIFEST_SOURCE_ARTIFACTS = (
+    ("sourceFile", "sourceSha256"),
+    ("htmlFile", "htmlSha256"),
+    ("textFile", "textSha256"),
+)
 
 
 def sha256(value: str) -> str:
@@ -62,6 +67,15 @@ def file_sha256(path: Path) -> str:
 
 
 def resolve_snapshot_path(review_path: Path, snapshot_ref: str) -> Path:
+    snapshot_path = find_snapshot_path(review_path, snapshot_ref)
+    if snapshot_path is not None:
+        return snapshot_path
+    raise RuntimeError(
+        f"{review_path.name}: reviewed source snapshot does not exist: {snapshot_ref}"
+    )
+
+
+def find_snapshot_path(review_path: Path, snapshot_ref: str) -> Path | None:
     raw = Path(snapshot_ref)
     if raw.is_absolute():
         candidates = [raw]
@@ -71,9 +85,65 @@ def resolve_snapshot_path(review_path: Path, snapshot_ref: str) -> Path:
     for candidate in candidates:
         if candidate.is_file():
             return candidate.resolve()
+    return None
+
+
+def resolve_manifest_source_artifact(
+    manifest_path: Path,
+    manifest: dict[str, Any],
+) -> tuple[Path, str, str]:
+    document_id = required(manifest, "documentId")
+    for file_key, hash_key in MANIFEST_SOURCE_ARTIFACTS:
+        declared = manifest.get(file_key)
+        if not isinstance(declared, str) or not declared.strip():
+            continue
+        artifact_path = (manifest_path.parent / declared).resolve()
+        if not artifact_path.is_file():
+            continue
+        artifact_sha = file_sha256(artifact_path)
+        expected_sha = manifest.get(hash_key)
+        if isinstance(expected_sha, str) and expected_sha and artifact_sha != expected_sha:
+            raise RuntimeError(
+                f"{document_id}: {file_key} hash does not match {hash_key}"
+            )
+        return artifact_path, declared, artifact_sha
     raise RuntimeError(
-        f"{review_path.name}: reviewed source snapshot does not exist: {snapshot_ref}"
+        f"{document_id}: no verified source artifact found in source manifest"
     )
+
+
+def bind_reviewed_source_snapshot(
+    manifest_path: Path,
+    manifest: dict[str, Any],
+    review_path: Path,
+    review: dict[str, Any],
+) -> tuple[str, str]:
+    document_id = required(manifest, "documentId")
+    reviewed_source_sha = required(review, "reviewedSourceSha256")
+    source_review = review.get("sourceReview")
+    if not isinstance(source_review, dict):
+        raise RuntimeError(f"{document_id}: hierarchy review is missing sourceReview")
+    snapshot_ref = required(source_review, "sourceSnapshotReviewed")
+    snapshot_path = find_snapshot_path(review_path, snapshot_ref)
+    if snapshot_path is not None:
+        if file_sha256(snapshot_path) != reviewed_source_sha:
+            raise RuntimeError(
+                f"{document_id}: reports source snapshot hash does not match reviewedSourceSha256"
+            )
+        return reviewed_source_sha, snapshot_ref
+
+    artifact_path, artifact_ref, artifact_sha = resolve_manifest_source_artifact(
+        manifest_path,
+        manifest,
+    )
+    review["_resolvedSourceSha256"] = artifact_sha
+    review["_resolvedSourceSnapshotPath"] = str(artifact_path)
+    review["_sourceSnapshotFallback"] = {
+        "reason": "REVIEWED_SOURCE_SNAPSHOT_NOT_PRESENT",
+        "declaredSnapshotPath": snapshot_ref,
+        "manifestArtifactPath": artifact_ref,
+    }
+    return artifact_sha, artifact_ref
 
 
 def resolve_review_artifact(
@@ -125,16 +195,7 @@ def load_reviewed_document(
     if review.get("reviewedTextSha256") != sha256(text):
         raise RuntimeError(f"{document_id}: reviewed text hash does not match review")
 
-    reviewed_source_sha = required(review, "reviewedSourceSha256")
-    source_review = review.get("sourceReview")
-    if not isinstance(source_review, dict):
-        raise RuntimeError(f"{document_id}: hierarchy review is missing sourceReview")
-    snapshot_ref = required(source_review, "sourceSnapshotReviewed")
-    snapshot_path = resolve_snapshot_path(review_path, snapshot_ref)
-    if file_sha256(snapshot_path) != reviewed_source_sha:
-        raise RuntimeError(
-            f"{document_id}: reports source snapshot hash does not match reviewedSourceSha256"
-        )
+    bind_reviewed_source_snapshot(manifest_path, manifest, review_path, review)
 
     return manifest, review, parse_chunks(document_id, text, review)
 
@@ -531,7 +592,13 @@ def build_payload(
             document_id,
             required(manifest, "sourceEffectStatus"),
         )
-        reviewed_source_sha = required(review, "reviewedSourceSha256")
+        reviewed_source_sha = str(
+            review.get("_resolvedSourceSha256") or required(review, "reviewedSourceSha256")
+        )
+        snapshot_path = str(
+            review.get("_resolvedSourceSnapshotPath")
+            or required(source_review, "sourceSnapshotReviewed")
+        )
         effective_date = manifest.get("effectiveFrom") or manifest.get("effectiveDate")
 
         documents.append(
@@ -542,7 +609,7 @@ def build_payload(
                 "sourceSha256": reviewed_source_sha,
                 "sourceEffectStatus": source_effect_status,
                 "effectiveDate": effective_date,
-                "snapshotPath": required(source_review, "sourceSnapshotReviewed"),
+                "snapshotPath": snapshot_path,
                 "chunks": chunks,
             }
         )
@@ -552,6 +619,8 @@ def build_payload(
                 "sourceManifest": str(path),
                 "sourceManifestSha256": file_sha256(path),
                 "reviewedSourceSha256": reviewed_source_sha,
+                "declaredReviewedSourceSha256": required(review, "reviewedSourceSha256"),
+                "sourceSnapshotFallback": review.get("_sourceSnapshotFallback"),
                 "reviewedTextSha256": required(review, "reviewedTextSha256"),
                 "publishedChunkCount": len(chunks),
                 "parsedChunkCount": len(all_chunks),

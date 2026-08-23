@@ -3,7 +3,6 @@ import { z } from "zod";
 const textField = z.string().optional();
 const arrayField = z.array(z.string()).optional();
 
-
 const requiredText = (message: string) =>
   z.string({ message }).trim().min(1, { message });
 
@@ -16,7 +15,12 @@ export const wizardDraftSchema = z.object({
   ps_003_personal_or_sensitive_data: textField,
   ps_004_decision_importance: textField,
   businessProcess: textField,
+  useCase: textField,
+  primaryActors: textField,
+  businessTrigger: textField,
+  expectedOutcome: textField,
   aiPurpose: textField,
+  autonomyLevel: textField,
   sector: textField,
   dataTypes: arrayField,
   affectedSubjects: arrayField,
@@ -30,6 +34,9 @@ export const wizardDraftSchema = z.object({
   transparencyIndicators: arrayField,
   prohibitedRiskSignals: arrayField,
   deploymentContext: arrayField,
+  postGraphContext: textField,
+  postGraphRuleScope: textField,
+  postGraphHumanReviewBoundary: textField,
 });
 
 export const wizardPreScreenSchema = z.object({
@@ -47,13 +54,26 @@ export const wizardPreScreenSchema = z.object({
 
 export const wizardStepSchemas = [
   z.object({
-    businessProcess: requiredText("pages.wizard.errors.businessProcessRequired"),
+    businessProcess: requiredText(
+      "pages.wizard.errors.businessProcessRequired",
+    ),
+    useCase: requiredText("pages.wizard.errors.useCaseRequired"),
+    primaryActors: requiredText("pages.wizard.errors.primaryActorsRequired"),
+    businessTrigger: requiredText(
+      "pages.wizard.errors.businessTriggerRequired",
+    ),
+    expectedOutcome: requiredText(
+      "pages.wizard.errors.expectedOutcomeRequired",
+    ),
     aiPurpose: requiredText("pages.wizard.errors.aiPurposeRequired"),
+    autonomyLevel: requiredText("pages.wizard.errors.autonomyLevelRequired"),
     sector: requiredText("pages.wizard.errors.sectorRequired"),
   }),
   z.object({
     dataTypes: requiredArray("pages.wizard.errors.dataTypesRequired"),
-    affectedSubjects: requiredArray("pages.wizard.errors.affectedSubjectsRequired"),
+    affectedSubjects: requiredArray(
+      "pages.wizard.errors.affectedSubjectsRequired",
+    ),
     userImpact: requiredText("pages.wizard.errors.userImpactRequired"),
   }),
   z
@@ -74,17 +94,27 @@ export const wizardStepSchemas = [
       }
     }),
   z.object({
-    externalLlmUsage: requiredText("pages.wizard.errors.externalLlmUsageRequired"),
+    externalLlmUsage: requiredText(
+      "pages.wizard.errors.externalLlmUsageRequired",
+    ),
   }),
   z.object({
-    deploymentContext: requiredArray("pages.wizard.errors.deploymentContextRequired"),
+    deploymentContext: requiredArray(
+      "pages.wizard.errors.deploymentContextRequired",
+    ),
   }),
   z.object({
-    specialCategoryData: requiredText("pages.wizard.errors.specialCategoryDataRequired"),
+    specialCategoryData: requiredText(
+      "pages.wizard.errors.specialCategoryDataRequired",
+    ),
     biometricData: requiredText("pages.wizard.errors.biometricDataRequired"),
-    highImpactIndicators: requiredArray("pages.wizard.errors.highImpactIndicatorsRequired"),
+    highImpactIndicators: requiredArray(
+      "pages.wizard.errors.highImpactIndicatorsRequired",
+    ),
     transparencyIndicators: arrayField,
-    prohibitedRiskSignals: requiredArray("pages.wizard.errors.prohibitedRiskSignalsRequired"),
+    prohibitedRiskSignals: requiredArray(
+      "pages.wizard.errors.prohibitedRiskSignalsRequired",
+    ),
   }),
 ] as const;
 

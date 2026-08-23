@@ -313,7 +313,7 @@ def main() -> int:
             if not corpus:
                 raise SystemExit(
                     f"APPROVED LegalCorpusVersion not found: {args.corpus_version}. "
-                    "Run pnpm seed:legal-corpus:dev first."
+                    "Run pnpm seed:legal:dev first."
                 )
             corpus_id = str(corpus["id"])
 

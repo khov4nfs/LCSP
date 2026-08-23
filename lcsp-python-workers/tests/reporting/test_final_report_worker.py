@@ -145,3 +145,40 @@ def test_t05_citation_references():
     assert "chunk-1::art-2" in content
     assert "chunk-5::art-9" in content
     assert "engineering-rule-result" in content
+
+
+def test_t06_planner_audit_metadata_is_not_sent_to_final_report_prompt():
+    consumer, document_client = _consumer()
+    context = _context()
+    data = context["classification_result"]["classification_data"]
+    data["planner"] = {"authority": "TECHNICAL_INVESTIGATION_SCOPE_ONLY"}
+    data["planner_decisions"] = [
+        {
+            "engineering_rule_id": "eng-skipped",
+            "final_decision": "SKIP",
+            "reason_code": "NO_SCOPE_SIGNAL",
+        }
+    ]
+    data["evaluations"][0]["planner_decision"] = {"final_decision": "SELECT"}
+    document_client.get_generation_context.return_value = context
+
+    with (
+        patch(
+            "lcsp_workers.reporting.final_report_consumer.FinalReportGenerator.generate",
+            return_value="Final report.",
+        ) as generate,
+        patch(
+            "lcsp_workers.reporting.final_report_consumer.StorageUploader.upload_document",
+            return_value="https://url",
+        ),
+    ):
+        consumer.handle({"documentRequestId": "doc123"}, "corr-id")
+
+    serialized_prompt_inputs = "\n".join(
+        str(value)
+        for value in generate.call_args.kwargs.values()
+    )
+    assert "planner_decisions" not in serialized_prompt_inputs
+    assert "TECHNICAL_INVESTIGATION_SCOPE_ONLY" not in serialized_prompt_inputs
+    assert "eng-skipped" not in serialized_prompt_inputs
+    assert "planner_decision" not in serialized_prompt_inputs

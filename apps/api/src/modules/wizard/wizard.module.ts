@@ -12,6 +12,7 @@ import { GenerateReadinessExportHandler } from "./application/commands/generate-
 import { GetReadinessHandler } from "./application/queries/get-readiness/get-readiness.handler.js";
 import { DownloadReadinessExportHandler } from "./application/queries/download-readiness-export/download-readiness-export.handler.js";
 import { WizardValidatorService } from "./application/services/wizard/wizard-validator.service.js";
+import { WizardClarificationQuestionService } from "./application/services/wizard/wizard-clarification-question.service.js";
 import { ReadinessEvaluatorService } from "./application/services/wizard/readiness-evaluator.service.js";
 import { ReadinessExportGuardrailService } from "./application/services/wizard/readiness-export-guardrail.service.js";
 import { ReadinessExportPdfService } from "./application/services/wizard/readiness-export-pdf.service.js";
@@ -34,6 +35,7 @@ import { ReadinessExportDocumentController } from "./presentation/http/readiness
     GetReadinessHandler,
     DownloadReadinessExportHandler,
     WizardValidatorService,
+    WizardClarificationQuestionService,
     ReadinessEvaluatorService,
     ReadinessExportGuardrailService,
     ReadinessExportPdfService,

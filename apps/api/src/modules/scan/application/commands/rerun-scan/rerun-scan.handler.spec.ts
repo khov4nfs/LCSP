@@ -51,16 +51,69 @@ describe("RerunScanHandler", () => {
         {
           provide: PrismaService,
           useValue: {
+            aIUsageFlow: {
+              findMany: jest.fn(),
+              deleteMany: jest.fn(),
+            },
+            assessmentRuntimeEvent: {
+              findFirst: jest.fn(),
+              deleteMany: jest.fn(),
+            },
             repositoryScanJob: {
               findUnique: jest.fn(),
               findFirst: jest.fn(),
+              findMany: jest.fn(),
+              updateMany: jest.fn(),
               create: jest.fn(),
+              deleteMany: jest.fn(),
             },
             repositorySnapshot: {
               findUnique: jest.fn(),
             },
             assessment: {
               findUnique: jest.fn(),
+            },
+            classificationResult: {
+              findMany: jest.fn(),
+              deleteMany: jest.fn(),
+            },
+            classificationReviewRequest: {
+              deleteMany: jest.fn(),
+            },
+            conflictRecord: {
+              deleteMany: jest.fn(),
+            },
+            documentRequest: {
+              deleteMany: jest.fn(),
+            },
+            legalRuleMatch: {
+              findMany: jest.fn(),
+              deleteMany: jest.fn(),
+            },
+            outboxMessage: {
+              deleteMany: jest.fn(),
+            },
+            readinessExport: {
+              deleteMany: jest.fn(),
+            },
+            targetedReanalysisCheckpoint: {
+              deleteMany: jest.fn(),
+            },
+            targetedReanalysisRequest: {
+              findMany: jest.fn(),
+              deleteMany: jest.fn(),
+            },
+            technicalEvidenceReport: {
+              findMany: jest.fn(),
+              deleteMany: jest.fn(),
+            },
+            technicalProfile: {
+              findMany: jest.fn(),
+              deleteMany: jest.fn(),
+            },
+            verifiedProfile: {
+              findMany: jest.fn(),
+              deleteMany: jest.fn(),
             },
             $transaction: jest.fn((cb: (tx: PrismaService) => unknown) =>
               cb(prisma),
@@ -86,6 +139,72 @@ describe("RerunScanHandler", () => {
     prisma = module.get(PrismaService);
     auditWriter = module.get(AuditWriterService);
     outbox = module.get(OutboxRepository);
+
+    (
+      prisma.assessmentRuntimeEvent.findFirst as jest.Mock<any>
+    ).mockResolvedValue(null);
+    (prisma.repositoryScanJob.findMany as jest.Mock<any>).mockResolvedValue([]);
+    (prisma.repositoryScanJob.updateMany as jest.Mock<any>).mockResolvedValue({
+      count: 0,
+    });
+    (
+      prisma.technicalEvidenceReport.findMany as jest.Mock<any>
+    ).mockResolvedValue([]);
+    (prisma.technicalProfile.findMany as jest.Mock<any>).mockResolvedValue([]);
+    (prisma.aIUsageFlow.findMany as jest.Mock<any>).mockResolvedValue([]);
+    (prisma.verifiedProfile.findMany as jest.Mock<any>).mockResolvedValue([]);
+    (prisma.legalRuleMatch.findMany as jest.Mock<any>).mockResolvedValue([]);
+    (prisma.classificationResult.findMany as jest.Mock<any>).mockResolvedValue(
+      [],
+    );
+    (
+      prisma.targetedReanalysisRequest.findMany as jest.Mock<any>
+    ).mockResolvedValue([]);
+    (prisma.repositoryScanJob.deleteMany as jest.Mock<any>).mockResolvedValue({
+      count: 0,
+    });
+    (
+      prisma.technicalEvidenceReport.deleteMany as jest.Mock<any>
+    ).mockResolvedValue({ count: 0 });
+    (prisma.technicalProfile.deleteMany as jest.Mock<any>).mockResolvedValue({
+      count: 0,
+    });
+    (prisma.aIUsageFlow.deleteMany as jest.Mock<any>).mockResolvedValue({
+      count: 0,
+    });
+    (prisma.conflictRecord.deleteMany as jest.Mock<any>).mockResolvedValue({
+      count: 0,
+    });
+    (prisma.verifiedProfile.deleteMany as jest.Mock<any>).mockResolvedValue({
+      count: 0,
+    });
+    (prisma.legalRuleMatch.deleteMany as jest.Mock<any>).mockResolvedValue({
+      count: 0,
+    });
+    (
+      prisma.classificationResult.deleteMany as jest.Mock<any>
+    ).mockResolvedValue({ count: 0 });
+    (
+      prisma.classificationReviewRequest.deleteMany as jest.Mock<any>
+    ).mockResolvedValue({ count: 0 });
+    (prisma.documentRequest.deleteMany as jest.Mock<any>).mockResolvedValue({
+      count: 0,
+    });
+    (
+      prisma.targetedReanalysisCheckpoint.deleteMany as jest.Mock<any>
+    ).mockResolvedValue({ count: 0 });
+    (
+      prisma.targetedReanalysisRequest.deleteMany as jest.Mock<any>
+    ).mockResolvedValue({ count: 0 });
+    (prisma.outboxMessage.deleteMany as jest.Mock<any>).mockResolvedValue({
+      count: 0,
+    });
+    (
+      prisma.assessmentRuntimeEvent.deleteMany as jest.Mock<any>
+    ).mockResolvedValue({ count: 0 });
+    (prisma.readinessExport.deleteMany as jest.Mock<any>).mockResolvedValue({
+      count: 0,
+    });
   });
 
   it("throws BadRequestException if idempotencyKey is missing", async () => {
@@ -231,6 +350,9 @@ describe("RerunScanHandler", () => {
 
     (
       prisma.repositoryScanJob.findFirst as jest.Mock<any>
+    ).mockResolvedValueOnce(null);
+    (
+      prisma.repositoryScanJob.findFirst as jest.Mock<any>
     ).mockResolvedValueOnce({
       id: "prior-job",
     });
@@ -256,5 +378,133 @@ describe("RerunScanHandler", () => {
     );
     // eslint-disable-next-line @typescript-eslint/unbound-method
     expect(auditWriter.write).toHaveBeenCalled();
+  });
+
+  it("throws ConflictException when a scan is already active", async () => {
+    (
+      prisma.repositoryScanJob.findUnique as jest.Mock<any>
+    ).mockResolvedValueOnce(null);
+    (
+      prisma.repositorySnapshot.findUnique as jest.Mock<any>
+    ).mockResolvedValueOnce({
+      id: "snapshot-1",
+      assessmentId: "assessment-1",
+      organizationId: "org-1",
+      commitSha: "a".repeat(40),
+    });
+    (prisma.assessment.findUnique as jest.Mock<any>).mockResolvedValueOnce({
+      id: "assessment-1",
+      organizationId: "org-1",
+      ownerId: "user-1",
+      status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
+    });
+    (
+      prisma.repositoryScanJob.findFirst as jest.Mock<any>
+    ).mockResolvedValueOnce({ id: "active-job" });
+
+    await expect(handler.execute(defaultCommand)).rejects.toThrow(
+      ConflictException,
+    );
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(prisma.repositoryScanJob.create).not.toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(outbox.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("fails stale active scans before creating a rerun", async () => {
+    (
+      prisma.repositoryScanJob.findUnique as jest.Mock<any>
+    ).mockResolvedValueOnce(null);
+    (
+      prisma.repositorySnapshot.findUnique as jest.Mock<any>
+    ).mockResolvedValueOnce({
+      id: "snapshot-1",
+      assessmentId: "assessment-1",
+      organizationId: "org-1",
+      commitSha: "a".repeat(40),
+    });
+    (prisma.assessment.findUnique as jest.Mock<any>).mockResolvedValueOnce({
+      id: "assessment-1",
+      organizationId: "org-1",
+      ownerId: "user-1",
+      status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
+    });
+    (prisma.repositoryScanJob.findMany as jest.Mock<any>)
+      .mockResolvedValueOnce([
+        {
+          id: "stale-job",
+          updatedAt: new Date(Date.now() - 10 * 60 * 1000),
+        },
+      ])
+      .mockResolvedValueOnce([{ id: "stale-job" }]);
+    (
+      prisma.assessmentRuntimeEvent.findFirst as jest.Mock<any>
+    ).mockResolvedValueOnce(null);
+    (
+      prisma.repositoryScanJob.findFirst as jest.Mock<any>
+    ).mockResolvedValueOnce(null);
+    (
+      prisma.repositoryScanJob.findFirst as jest.Mock<any>
+    ).mockResolvedValueOnce({ id: "stale-job" });
+
+    const result = await handler.execute(defaultCommand);
+
+    expect(result.status).toBe(REPOSITORY_SCAN_JOB_STATUSES.queued);
+    expect(result.replaces_scan_job_id).toBe("stale-job");
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(prisma.repositoryScanJob.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["stale-job"] } },
+      data: expect.objectContaining({
+        status: REPOSITORY_SCAN_JOB_STATUSES.failed,
+      }),
+    });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(prisma.repositoryScanJob.create).toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(outbox.enqueue).toHaveBeenCalled();
+  });
+
+  it("deletes prior scan and evidence artifacts for the same snapshot before rerun", async () => {
+    (
+      prisma.repositoryScanJob.findUnique as jest.Mock<any>
+    ).mockResolvedValueOnce(null);
+    (
+      prisma.repositorySnapshot.findUnique as jest.Mock<any>
+    ).mockResolvedValueOnce({
+      id: "snapshot-1",
+      assessmentId: "assessment-1",
+      organizationId: "org-1",
+      commitSha: "a".repeat(40),
+    });
+    (prisma.assessment.findUnique as jest.Mock<any>).mockResolvedValueOnce({
+      id: "assessment-1",
+      organizationId: "org-1",
+      ownerId: "user-1",
+      status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
+    });
+    (
+      prisma.repositoryScanJob.findFirst as jest.Mock<any>
+    ).mockResolvedValueOnce(null);
+    (
+      prisma.repositoryScanJob.findFirst as jest.Mock<any>
+    ).mockResolvedValueOnce({ id: "old-job" });
+    (prisma.repositoryScanJob.findMany as jest.Mock<any>)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: "old-job" }]);
+    (
+      prisma.technicalEvidenceReport.findMany as jest.Mock<any>
+    ).mockResolvedValueOnce([{ id: "report-1" }]);
+
+    const result = await handler.execute(defaultCommand);
+
+    expect(result.replaces_scan_job_id).toBe("old-job");
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(prisma.technicalEvidenceReport.deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ["report-1"] } },
+    });
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(prisma.repositoryScanJob.deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: ["old-job"] } },
+    });
   });
 });

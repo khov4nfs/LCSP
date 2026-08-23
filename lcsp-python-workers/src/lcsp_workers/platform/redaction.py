@@ -4,10 +4,6 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-REDACTED_VALUE = "[REDACTED]"
-REDACTED_GITHUB_TOKEN = "[REDACTED:GITHUB_TOKEN]"
-REDACTED_MAX_DEPTH = "[REDACTED:MAX_DEPTH]"
-
 SENSITIVE_KEY_PATTERN = re.compile(
     r"password|token|secret|key|nonce|code|credential|auth|api_key",
     re.IGNORECASE,
@@ -35,25 +31,25 @@ def redact_dict(obj: dict, depth: int = 10) -> dict:
         depth: Maximum recursive depth inspected before failing closed.
 
     Returns:
-        A redacted mapping that preserves non-sensitive structure where safe.
+        A bounded copy that preserves values while guarding against recursion.
     """
     return _redact_mapping(obj, max(depth, 0), set())
 
 
 def redact_string(text: str) -> str:
-    """Replace known credential patterns in free-form text.
+    """Strip known credential values in free-form text.
 
     Args:
         text: Text that may contain tokens, API keys, or credential assignments.
 
     Returns:
-        Sanitized text with supported secret patterns replaced by markers.
+        Text with supported secret values removed without adding replacement markers.
     """
-    redacted = GITHUB_TOKEN_PATTERN.sub(REDACTED_GITHUB_TOKEN, text)
-    redacted = BEARER_TOKEN_PATTERN.sub("Bearer [REDACTED]", redacted)
-    redacted = AWS_ACCESS_KEY_PATTERN.sub("[REDACTED:AWS_ACCESS_KEY]", redacted)
-    redacted = ANTHROPIC_KEY_PATTERN.sub("[REDACTED:ANTHROPIC_KEY]", redacted)
-    return GENERIC_ASSIGNMENT_PATTERN.sub(_redact_assignment, redacted)
+    stripped = GITHUB_TOKEN_PATTERN.sub("", text)
+    stripped = BEARER_TOKEN_PATTERN.sub("Bearer", stripped)
+    stripped = AWS_ACCESS_KEY_PATTERN.sub("", stripped)
+    stripped = ANTHROPIC_KEY_PATTERN.sub("", stripped)
+    return GENERIC_ASSIGNMENT_PATTERN.sub(_redact_assignment, stripped)
 
 
 def redact_source_code(findings: list[dict]) -> list[dict]:
@@ -78,27 +74,28 @@ def redact_source_code(findings: list[dict]) -> list[dict]:
 
 
 def _redact_mapping(obj: Mapping[Any, Any], depth: int, seen: set[int]) -> Any:
-    """Redact a mapping while guarding against cycles and excessive depth."""
+    """Copy a mapping while guarding against cycles and excessive depth."""
     if depth <= 0:
-        return REDACTED_MAX_DEPTH
+        return {"truncated": "max_depth"}
 
     obj_id = id(obj)
     if obj_id in seen:
-        return REDACTED_MAX_DEPTH
+        return {"truncated": "cycle"}
 
     seen.add(obj_id)
-    redacted: dict[Any, Any] = {}
+    copied: dict[Any, Any] = {}
     try:
         for key, value in obj.items():
             key_text = str(key)
-            if SENSITIVE_KEY_PATTERN.search(key_text):
-                redacted[key] = REDACTED_VALUE
-            else:
-                redacted[key] = _redact_value(value, depth - 1, seen)
+            copied[key] = (
+                ""
+                if SENSITIVE_KEY_PATTERN.search(key_text)
+                else _redact_value(value, depth - 1, seen)
+            )
     finally:
         seen.remove(obj_id)
 
-    return redacted
+    return copied
 
 
 def _redact_value(value: Any, depth: int, seen: set[int]) -> Any:
@@ -114,20 +111,20 @@ def _redact_value(value: Any, depth: int, seen: set[int]) -> Any:
 
     if isinstance(value, list):
         if depth <= 0:
-            return REDACTED_MAX_DEPTH
+            return {"truncated": "max_depth"}
         return [_redact_value(item, depth - 1, seen) for item in value]
 
     if isinstance(value, Sequence) and not isinstance(value, (bytes, bytearray)):
         if depth <= 0:
-            return REDACTED_MAX_DEPTH
+            return {"truncated": "max_depth"}
         return [_redact_value(item, depth - 1, seen) for item in value]
 
     return value
 
 
 def _redact_assignment(match: re.Match[str]) -> str:
-    """Render a matched secret assignment while preserving its key/separator."""
-    return f"{match.group('key')}{match.group('sep')}{REDACTED_VALUE}"
+    """Render a matched secret assignment while removing its value."""
+    return f"{match.group('key')}{match.group('sep')}"
 
 
 def _contains_source_code(value: Any) -> bool:

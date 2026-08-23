@@ -1,8 +1,11 @@
 """Index and retrieve approved legal chunks by exact structural identifiers in ChromaDB."""
 from __future__ import annotations
-import json, os
+import json
 from dataclasses import dataclass
 from typing import Any
+
+from .chroma_path import resolve_legal_chroma_path
+from .chroma_vectorless import zero_embeddings
 
 @dataclass(slots=True)
 class RetrievedChunk:
@@ -15,8 +18,7 @@ class RetrievedChunk:
 class ChromaDbCitationRetriever:
     """Vectorless structure-first retrieval; embeddings/similarity are deliberately disabled."""
     def __init__(self, chroma_path: str | None = None) -> None:
-        from lcsp_workers.platform.logging_path import get_repo_root
-        self._chroma_path = chroma_path or os.getenv("LEGAL_CHROMA_PATH", os.path.join(get_repo_root(), "tmp", "lcsp-chroma"))
+        self._chroma_path = resolve_legal_chroma_path(chroma_path)
 
     def index_corpus(self, corpus_version_id: str, chunks: list[dict[str, Any]]) -> None:
         collection = self._collection(corpus_version_id); ids = []; documents = []; metadatas = []
@@ -25,7 +27,7 @@ class ChromaDbCitationRetriever:
             if not chunk_id or not content: raise ValueError("Legal index requires stable chunk IDs and content")
             hierarchy = chunk.get("hierarchy") or {}; ids.append(chunk_id); documents.append(content)
             metadatas.append({"corpus_version_id": corpus_version_id, "document_id": str(chunk.get("documentId") or ""), "locator": str(chunk.get("locator") or ""), "legal_status": str(chunk.get("legalStatus") or "ACTIVE"), "content_sha256": str(chunk.get("contentSha256") or chunk.get("content_sha256") or ""), "parent_chunk_id": str(hierarchy.get("parentChunkId") or hierarchy.get("parent_chunk_id") or ""), "related_chunk_ids": json.dumps(self._related_chunk_ids(hierarchy))})
-        if ids: collection.upsert(ids=ids, documents=documents, metadatas=metadatas, embeddings=[[0.0] for _ in ids])
+        if ids: collection.upsert(ids=ids, documents=documents, metadatas=metadatas, embeddings=zero_embeddings(len(ids)))
 
     def retrieve_exact(self, corpus_version_id: str, chunk_ids: list[str]) -> list[RetrievedChunk]:
         records = self._structural_records(corpus_version_id, chunk_ids)

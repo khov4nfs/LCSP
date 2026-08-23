@@ -35,17 +35,16 @@ import {
   summarizeFailure,
 } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
-import { PythonWorkerRuntimeClient } from "../../application/services/evidence/python-worker-runtime.client.js";
 import {
   agenticToolCommandPbacAction,
   buildAgenticToolCommand,
   isAgenticToolCommand,
 } from "./agentic-tool-command-dispatcher.js";
-import { buildAgenticToolQuery } from "./agentic-tool-query-dispatcher.js";
 import {
-  dispatchAgenticToolWorkerBridge,
-  isAgenticToolWorkerBridge,
-} from "./agentic-tool-worker-bridge-dispatcher.js";
+  dispatchAgenticToolInternalCommand,
+  isAgenticToolInternalCommand,
+} from "./agentic-tool-internal-dispatcher.js";
+import { buildAgenticToolQuery } from "./agentic-tool-query-dispatcher.js";
 
 type DispatchRequest = {
   tool_name?: unknown;
@@ -80,7 +79,6 @@ export class InternalAgenticToolDispatchController {
 
   constructor(
     private readonly queryBus: QueryBus,
-    private readonly pythonWorkerRuntime: PythonWorkerRuntimeClient,
     private readonly configService: ConfigService<AppConfig, true>,
     private readonly runtimeEvents: AssessmentRuntimeEventService,
     @Optional() private readonly commandBus?: CommandBus,
@@ -220,8 +218,11 @@ export class InternalAgenticToolDispatchController {
   }
 
   private async executeTool(args: ToolExecutionArgs): Promise<unknown> {
-    if (isAgenticToolWorkerBridge(args.toolName)) {
-      return dispatchAgenticToolWorkerBridge(args, this.pythonWorkerRuntime);
+    if (isAgenticToolInternalCommand(args.toolName)) {
+      return dispatchAgenticToolInternalCommand(
+        args,
+        this.requireCommandBus(args.correlationId),
+      );
     }
 
     if (isAgenticToolCommand(args.toolName)) {

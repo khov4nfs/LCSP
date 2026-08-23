@@ -26,6 +26,11 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from dotenv import find_dotenv, load_dotenv
 
+from lcsp_workers.legal.normative_chunk_filter import (
+    legal_chunk_normative_class,
+    is_legal_database_chunk,
+)
+
 
 SEED_VERSION = "legal-corpus-dev-seed/1.0.0"
 DEFAULT_CORPUS_VERSION = "VN-LEGAL-2026-08"
@@ -139,6 +144,7 @@ def merge_and_validate_payloads(
                 raise SystemExit(f"No chunks for {document_id}")
 
             normalized_chunks: list[dict[str, Any]] = []
+            excluded_chunk_count = 0
             for raw_chunk in chunks:
                 if not isinstance(raw_chunk, dict):
                     raise SystemExit(f"Invalid chunk in {document_id}")
@@ -162,8 +168,24 @@ def merge_and_validate_payloads(
 
                 # Chroma exact-context metadata requires the owning document ID.
                 chunk["documentId"] = document_id
+                chunk["normativeClass"] = legal_chunk_normative_class(chunk)
+                if not is_legal_database_chunk(chunk):
+                    excluded_chunk_count += 1
+                    continue
+                hierarchy = (
+                    dict(chunk.get("hierarchy") or {})
+                    if isinstance(chunk.get("hierarchy"), dict)
+                    else {}
+                )
+                hierarchy["normativeClass"] = chunk["normativeClass"]
+                chunk["hierarchy"] = hierarchy
                 normalized_chunks.append(chunk)
 
+            if not normalized_chunks:
+                raise SystemExit(
+                    f"No database-eligible legal chunks remain for {document_id}"
+                )
+            document["excludedChunkCount"] = excluded_chunk_count
             document["chunks"] = normalized_chunks
             documents.append(document)
 
@@ -176,6 +198,11 @@ def merge_and_validate_payloads(
             "corpusVersion": corpus_version,
             "sourceFiles": [str(path) for path in payload_paths],
             "governance": "DEVELOPMENT_ONLY_DIRECT_SEED_NOT_PRODUCTION_APPROVAL",
+            "chunkSelectionPolicy": (
+                "Persist only hierarchy-addressable legal chunks; exclude formal "
+                "headers/preamble. Mark context-only chunks separately from "
+                "EngineeringRule source candidates."
+            ),
         },
     }
 

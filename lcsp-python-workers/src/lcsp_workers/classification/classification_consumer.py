@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from lcsp_workers.llm.gateway_client import LLMGatewayClient
+from lcsp_workers.llm import LLMClientProtocol
 from lcsp_workers.platform.api_client import WorkerApiClient
 from lcsp_workers.platform.callback_schemas import ClassificationCallbackPayload
 from lcsp_workers.platform.logging import get_logger
@@ -30,7 +30,7 @@ class ClassificationConsumer(ConsumerBase):
     def __init__(
         self,
         config,
-        llm_client: LLMGatewayClient | None = None,
+        llm_client: LLMClientProtocol | None = None,
         api_client: WorkerApiClient | None = None,
     ) -> None:
         """Create the classification consumer and optional LLM assistants.

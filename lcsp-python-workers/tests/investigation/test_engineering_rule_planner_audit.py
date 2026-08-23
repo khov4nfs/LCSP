@@ -7,12 +7,15 @@ from lcsp_workers.investigation.engineering_rule_planner import (
 
 
 def _candidate(rule_id: str, *, source_hits: int = 0) -> EngineeringRulePlanningCandidate:
+    # Keep this fixture aligned with the full planner candidate contract, including
+    # deterministic legal-reasoning metadata carried alongside technical scope.
     return EngineeringRulePlanningCandidate(
         engineering_rule_id=rule_id,
         concept=rule_id,
         legal_intent={},
         investigation_goals=(),
         required_evidence=(),
+        legal_reasoning_contract={},
         starting_node_types=(),
         target_node_types=(),
         source_hit_count=source_hits,

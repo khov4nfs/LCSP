@@ -7,6 +7,10 @@ from typing import Any
 from lcsp_workers.platform.logging import get_logger
 from lcsp_workers.platform.queue_consumer import ConsumerBase
 
+from .classification_data_projection import (
+    document_classification_context,
+    document_evaluations,
+)
 from .document_runtime_client import DocumentRuntimeClient
 from .gap_analysis_generator import GapAnalysisGenerator
 from .output_guardrail import OutputGuardrail
@@ -48,9 +52,10 @@ class GapAnalysisConsumer(ConsumerBase):
             assessment = self._record(context.get("assessment"))
             classification = self._record(context.get("classification_result"))
             data = self._record(classification.get("classification_data"))
+            document_data = document_classification_context(data)
             evidence_report = self._record(context.get("technical_evidence_report"))
             snapshot = self._record(context.get("repository_snapshot"))
-            evaluations = self._list_of_records(data.get("evaluations"))
+            evaluations = document_evaluations(data)
         except Exception as error:
             logger.error(
                 "GAP_ANALYSIS_CONTEXT_FAILED",
@@ -73,7 +78,9 @@ class GapAnalysisConsumer(ConsumerBase):
             for item in evaluations
             if str(item.get("status") or "") == "NON_COMPLIANT"
         ]
-        limitations = [str(item) for item in data.get("limitations") or [] if str(item)]
+        limitations = [
+            str(item) for item in document_data.get("limitations") or [] if str(item)
+        ]
         missing_evidence: list[str] = limitations + [
             self._json_text(
                 {
@@ -101,12 +108,14 @@ class GapAnalysisConsumer(ConsumerBase):
             assessment_name=str(assessment.get("name") or "Assessment"),
             assessment_context=self._json_text(
                 {
-                    "mode": data.get("mode"),
-                    "summary": data.get("summary") or {},
-                    "legalRuleCatalogVersionId": data.get(
+                    "mode": document_data.get("mode"),
+                    "summary": document_data.get("summary") or {},
+                    "legalRuleCatalogVersionId": document_data.get(
                         "legal_rule_catalog_version_id"
                     ),
-                    "legalCorpusVersionId": data.get("legal_corpus_version_id"),
+                    "legalCorpusVersionId": document_data.get(
+                        "legal_corpus_version_id"
+                    ),
                 }
             ),
             technical_evidence=[
@@ -193,12 +202,6 @@ class GapAnalysisConsumer(ConsumerBase):
     @staticmethod
     def _record(value: object) -> dict[str, Any]:
         return value if isinstance(value, dict) else {}
-
-    @staticmethod
-    def _list_of_records(value: object) -> list[dict[str, Any]]:
-        if not isinstance(value, list):
-            return []
-        return [dict(item) for item in value if isinstance(item, dict)]
 
     @staticmethod
     def _json_text(value: object) -> str:

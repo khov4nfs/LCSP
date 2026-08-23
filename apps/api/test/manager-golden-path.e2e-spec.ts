@@ -251,8 +251,38 @@ const validWizardAnswers = [
     updatedAt: "2026-07-31T00:00:00.000Z",
   },
   {
+    questionId: "useCase",
+    value: "Manager assesses an internal AI workflow before classification",
+    answerState: "ANSWERED",
+    updatedAt: "2026-07-31T00:00:00.000Z",
+  },
+  {
+    questionId: "primaryActors",
+    value: "Manager, internal user, AI system",
+    answerState: "ANSWERED",
+    updatedAt: "2026-07-31T00:00:00.000Z",
+  },
+  {
+    questionId: "businessTrigger",
+    value: "Manager submits the assessment intake",
+    answerState: "ANSWERED",
+    updatedAt: "2026-07-31T00:00:00.000Z",
+  },
+  {
+    questionId: "expectedOutcome",
+    value: "Assessment is ready for evidence-based classification",
+    answerState: "ANSWERED",
+    updatedAt: "2026-07-31T00:00:00.000Z",
+  },
+  {
     questionId: "aiPurpose",
     value: "Finance",
+    answerState: "ANSWERED",
+    updatedAt: "2026-07-31T00:00:00.000Z",
+  },
+  {
+    questionId: "autonomyLevel",
+    value: "HUMAN_APPROVAL_REQUIRED",
     answerState: "ANSWERED",
     updatedAt: "2026-07-31T00:00:00.000Z",
   },

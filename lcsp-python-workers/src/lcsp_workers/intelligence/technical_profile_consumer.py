@@ -16,12 +16,16 @@ from lcsp_workers.llm.fallback_client import LLMClientProtocol
 from lcsp_workers.platform.api_client import WorkerApiClient
 from lcsp_workers.platform.callback_schemas import TechnicalProfileCallbackPayload
 from lcsp_workers.platform.queue_consumer import ConsumerBase
+from lcsp_workers.platform.wizard_clarification import (
+    engineering_rule_source_clarification_summary,
+)
 
 from .technical_profile_builder import TechnicalProfileBuilder
 
 
 logger = get_logger(__name__)
 MAX_ENGINEERING_CLAIMS = 100
+WAITING_ENGINEERING_INVESTIGATION_STATUSES = {"WAITING"}
 
 
 class TechnicalProfileConsumer(ConsumerBase):
@@ -36,6 +40,7 @@ class TechnicalProfileConsumer(ConsumerBase):
     queue_name = "intelligence.evidence-accepted"
     routing_key = "event.technical-evidence.accepted.v1"
     requires_pbac = False
+    retry_delays_seconds = (30, 120, 600)
 
     def __init__(
         self,
@@ -73,6 +78,15 @@ class TechnicalProfileConsumer(ConsumerBase):
             evidence_report_id=evidence_report_id,
             correlation_id=correlationId,
         )
+        if investigation.status in WAITING_ENGINEERING_INVESTIGATION_STATUSES:
+            self._emit_investigation_waiting_runtime_event(
+                scan_job_id=self._scan_job_id(evidence_report),
+                investigation=investigation,
+                correlation_id=correlationId,
+            )
+            raise RuntimeError(
+                "engineering investigation is waiting for legal rule source rebuild"
+            )
         profile_data = profile.to_profile_data()
         profile_data["engineering_investigation"] = investigation.to_profile_data()
 
@@ -255,6 +269,44 @@ class TechnicalProfileConsumer(ConsumerBase):
             evidence_report=evidence_report,
             workflow_run_id=workflow_run_id,
             correlation_id=correlation_id,
+        )
+
+    def _emit_investigation_waiting_runtime_event(
+        self,
+        *,
+        scan_job_id: str | None,
+        investigation: EngineeringInvestigationResult,
+        correlation_id: str,
+    ) -> None:
+        if not scan_job_id:
+            return
+        post_runtime_event = getattr(self._api_client, "post_scan_runtime_event", None)
+        if post_runtime_event is None:
+            return
+        post_runtime_event(
+            scan_job_id,
+            {
+                "event_type": "TOOL_WAITING_INPUT",
+                "run_status": "WAITING",
+                "stage": "SCAN",
+                "tool_name": "engineering_rule_planner",
+                "summary": (
+                    "Engineering rule source catalog is empty; waiting for "
+                    "corpus chunk triage and EngineeringRule rebuild"
+                ),
+                "waiting_reason": "NO_ENGINEERING_RULE_SOURCE_RULES",
+                "output_summary": engineering_rule_source_clarification_summary(
+                    base_summary={
+                        "status": investigation.status,
+                        "legalRuleCatalogVersionId": (
+                            investigation.legal_rule_catalog_version_id
+                        ),
+                        "legalCorpusVersionId": investigation.legal_corpus_version_id,
+                        "limitations": list(investigation.limitations),
+                        "correlationId": correlation_id,
+                    },
+                ),
+            },
         )
 
     def _evidence_report_id(self, message: dict[str, Any]) -> str:

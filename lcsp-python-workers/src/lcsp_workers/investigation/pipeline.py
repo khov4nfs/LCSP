@@ -8,6 +8,7 @@ from typing import Any
 from lcsp_workers.legal.chromadb_citation_retriever import ChromaDbCitationRetriever
 from lcsp_workers.legal.engineering_rules.compiler import EngineeringRuleCompiler
 from lcsp_workers.legal.engineering_rules.service import EngineeringRuleService
+from lcsp_workers.llm.deep_agent_client import deep_agent_runtime_context
 from lcsp_workers.llm.fallback_client import LLMClientProtocol
 from lcsp_workers.platform.api_client import WorkerApiClient
 from lcsp_workers.platform.logging import get_logger
@@ -189,99 +190,108 @@ class EngineeringInvestigationPipeline:
                 ),
             )
 
-        for rule in rules:
-            legal_rule_id = str(
-                rule.get("legalRuleId")
-                or rule.get("legal_rule_id")
-                or rule.get("id")
-                or "unknown"
-            )
-            try:
-                engineering_rules, cache_hit = self._rule_service.get_or_compile(
-                    legal_rule=rule,
-                    legal_rule_catalog_version_id=catalog_version_id,
-                    legal_corpus_version_id=corpus_version_id,
-                    workflow_run_id=workflow_run_id,
-                    correlation_id=correlation_id,
-                )
-                if cache_hit:
-                    cache_hits += 1
-            except Exception as error:
-                logger.warning(
-                    "ENGINEERING_RULE_COMPILATION_FAILED",
-                    legal_rule_id=legal_rule_id,
-                    error_type=type(error).__name__,
-                    error_message=str(error)[:500],
-                    workflow_run_id=workflow_run_id,
-                    correlationId=correlation_id,
-                )
-                limitations.append(
-                    ENGINEERING_LIMITATION_CODES[
-                        "engineering_rule_compilation_failed"
-                    ]
-                )
-                continue
-
-            for engineering_rule in engineering_rules:
-                packet = self._query_executor.execute(
-                    engineering_rule,
-                    graph,
-                    wizard_context=wizard_context,
+        with deep_agent_runtime_context(
+            source_root=workspace_path,
+            legal_chunks=[item for item in chunks if isinstance(item, dict)],
+            legal_rules=rules,
+        ):
+            for rule in rules:
+                legal_rule_id = str(
+                    rule.get("legalRuleId")
+                    or rule.get("legal_rule_id")
+                    or rule.get("id")
+                    or "unknown"
                 )
                 try:
-                    if isinstance(
-                        self._investigator, CodeContextLawGuidedInvestigator
-                    ):
-                        rule_claims = self._investigator.investigate(
-                            packet=packet,
-                            graph=graph,
-                            workflow_run_id=workflow_run_id,
-                            correlation_id=correlation_id,
-                            code_context=code_context,
-                        )
-                    else:
-                        rule_claims = self._investigator.investigate(
-                            packet=packet,
-                            graph=graph,
-                            workflow_run_id=workflow_run_id,
-                            correlation_id=correlation_id,
-                        )
+                    engineering_rules, cache_hit = self._rule_service.get_or_compile(
+                        legal_rule=rule,
+                        legal_rule_catalog_version_id=catalog_version_id,
+                        legal_corpus_version_id=corpus_version_id,
+                        workflow_run_id=workflow_run_id,
+                        correlation_id=correlation_id,
+                    )
+                    if cache_hit:
+                        cache_hits += 1
                 except Exception as error:
                     logger.warning(
-                        "ENGINEERING_INVESTIGATION_FAILED",
-                        engineering_rule_id=engineering_rule.engineering_rule_id,
+                        "ENGINEERING_RULE_COMPILATION_FAILED",
+                        legal_rule_id=legal_rule_id,
                         error_type=type(error).__name__,
+                        error_message=str(error)[:500],
                         workflow_run_id=workflow_run_id,
                         correlationId=correlation_id,
                     )
-                    rule_claims = [
-                        EvidenceClaim(
-                            claim_id=f"claim:failed:{engineering_rule.engineering_rule_id}",
-                            engineering_rule_id=engineering_rule.engineering_rule_id,
-                            claim_type=ENGINEERING_EVIDENCE_CLAIM_TYPES["unresolved"],
-                            value=None,
-                            evidence_refs=tuple(packet.evidence_refs),
-                            confidence=0.0,
-                            limitations=(
-                                ENGINEERING_LIMITATION_CODES[
-                                    "engineering_investigation_failed"
-                                ],
-                            ),
-                        )
-                    ]
                     limitations.append(
                         ENGINEERING_LIMITATION_CODES[
-                            "engineering_investigation_failed"
+                            "engineering_rule_compilation_failed"
                         ]
                     )
+                    continue
 
-                claims.extend(rule_claims)
-                evaluation = self._evaluator.evaluate(engineering_rule, rule_claims)
-                evaluations.append(evaluation)
-                technical_evidence_by_rule[evaluation.engineering_rule_id] = tuple(
-                    self._technical_evidence_displays(graph, evaluation.evidence_refs)
-                )
-                executed += 1
+                for engineering_rule in engineering_rules:
+                    packet = self._query_executor.execute(
+                        engineering_rule,
+                        graph,
+                        wizard_context=wizard_context,
+                    )
+                    try:
+                        if isinstance(
+                            self._investigator, CodeContextLawGuidedInvestigator
+                        ):
+                            rule_claims = self._investigator.investigate(
+                                packet=packet,
+                                graph=graph,
+                                workflow_run_id=workflow_run_id,
+                                correlation_id=correlation_id,
+                                code_context=code_context,
+                            )
+                        else:
+                            rule_claims = self._investigator.investigate(
+                                packet=packet,
+                                graph=graph,
+                                workflow_run_id=workflow_run_id,
+                                correlation_id=correlation_id,
+                            )
+                    except Exception as error:
+                        logger.warning(
+                            "ENGINEERING_INVESTIGATION_FAILED",
+                            engineering_rule_id=engineering_rule.engineering_rule_id,
+                            error_type=type(error).__name__,
+                            workflow_run_id=workflow_run_id,
+                            correlationId=correlation_id,
+                        )
+                        rule_claims = [
+                            EvidenceClaim(
+                                claim_id=(
+                                    f"claim:failed:{engineering_rule.engineering_rule_id}"
+                                ),
+                                engineering_rule_id=engineering_rule.engineering_rule_id,
+                                claim_type=ENGINEERING_EVIDENCE_CLAIM_TYPES[
+                                    "unresolved"
+                                ],
+                                value=None,
+                                evidence_refs=tuple(packet.evidence_refs),
+                                confidence=0.0,
+                                limitations=(
+                                    ENGINEERING_LIMITATION_CODES[
+                                        "engineering_investigation_failed"
+                                    ],
+                                ),
+                            )
+                        ]
+                        limitations.append(
+                            ENGINEERING_LIMITATION_CODES[
+                                "engineering_investigation_failed"
+                            ]
+                        )
+
+                    claims.extend(rule_claims)
+                    evaluation = self._evaluator.evaluate(engineering_rule, rule_claims)
+                    evaluations.append(evaluation)
+                    technical_evidence_by_rule[evaluation.engineering_rule_id] = tuple(
+                        self._technical_evidence_displays(graph, evaluation.evidence_refs)
+                    )
+                    executed += 1
 
         # Pipeline status describes execution integrity, not the compliance outcome
         # distribution. UNKNOWN is a valid deterministic EngineeringRule result and

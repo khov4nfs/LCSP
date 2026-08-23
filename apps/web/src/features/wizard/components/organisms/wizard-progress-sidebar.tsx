@@ -11,7 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { WizardDraftStatusBadge } from "@/features/wizard/components/molecules/wizard-draft-status-badge";
 import { WizardStatusRow } from "@/features/wizard/components/molecules/wizard-status-row";
-import { wizardSteps } from "@/features/wizard/config/wizard-config";
+import {
+  WIZARD_DEEP_RESEARCH_STEP_NUMBER,
+  wizardDeepResearchStep,
+  wizardSteps,
+} from "@/features/wizard/config/wizard-config";
 import {
   isDetailedPhaseReady,
   isStepComplete,
@@ -19,6 +23,14 @@ import {
 } from "@/features/wizard/lib/wizard-form";
 import { t } from "@/features/wizard/lib/wizard-i18n";
 import type { WizardProgressSidebarProps } from "@/features/wizard/types/component-props.types";
+
+function hasDeepResearchAnswer(answers: WizardProgressSidebarProps["answers"]) {
+  return (
+    Boolean(answers.postGraphContext?.trim()) ||
+    Boolean(answers.postGraphRuleScope?.trim()) ||
+    Boolean(answers.postGraphHumanReviewBoundary?.trim())
+  );
+}
 
 export function WizardProgressSidebar({
   assessmentName,
@@ -73,6 +85,12 @@ export function WizardProgressSidebar({
               />
             );
           })}
+          <WizardStatusRow
+            label={t(wizardDeepResearchStep.titleKey)}
+            active={currentStep === WIZARD_DEEP_RESEARCH_STEP_NUMBER}
+            complete={isDraftComplete && hasDeepResearchAnswer(answers)}
+            onClick={() => onSetCurrentStep(WIZARD_DEEP_RESEARCH_STEP_NUMBER)}
+          />
           {effectiveStatusKey ? (
             <WizardDraftStatusBadge
               statusKey={effectiveStatusKey}

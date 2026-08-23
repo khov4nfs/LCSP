@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
+import { WizardAgentClarificationCard } from "@/features/wizard/components/molecules/wizard-agent-clarification-card";
 import {
   Card,
   CardContent,
@@ -15,11 +16,11 @@ import { WizardTextareaField } from "@/features/wizard/components/molecules/wiza
 import {
   checkboxOptions,
   selectOptions,
+  WIZARD_DEEP_RESEARCH_STEP_NUMBER,
+  wizardDeepResearchStep,
   wizardSteps,
 } from "@/features/wizard/config/wizard-config";
-import {
-  sectionCardClassName,
-} from "@/features/wizard/lib/wizard-form";
+import { sectionCardClassName } from "@/features/wizard/lib/wizard-form";
 import { t } from "@/features/wizard/lib/wizard-i18n";
 import type { WizardActiveStepCardProps } from "@/features/wizard/types/component-props.types";
 
@@ -27,9 +28,14 @@ export function WizardActiveStepCard({
   currentStep,
   effectiveIsReadOnly,
   answers,
+  agentClarificationPrompts = [],
+  isAskingClarification = false,
+  canApproveAgentClarifications = false,
+  canAskDeepResearch = false,
   onFieldBlur,
   onFieldChange,
   onHelperOpen,
+  onApproveAgentClarifications,
 }: WizardActiveStepCardProps) {
   if (currentStep === 0) {
     return (
@@ -90,6 +96,62 @@ export function WizardActiveStepCard({
     );
   }
 
+  if (currentStep === WIZARD_DEEP_RESEARCH_STEP_NUMBER) {
+    return (
+      <Card className={sectionCardClassName}>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-3">
+            <Badge variant="secondary">
+              {t("pages.wizard.deepResearch.badge")}
+            </Badge>
+            {effectiveIsReadOnly ? (
+              <Badge variant="secondary">
+                {t("pages.wizard.readOnlyBadge")}
+              </Badge>
+            ) : null}
+          </div>
+          <CardTitle>{t(wizardDeepResearchStep.titleKey)}</CardTitle>
+          <CardDescription>
+            {t("pages.wizard.deepResearch.description")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-6">
+          {!canAskDeepResearch ? (
+            <div className="rounded-md border bg-muted/40 p-4 text-sm text-muted-foreground">
+              {t("pages.wizard.deepResearch.lockedDescription")}
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/40 p-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {t("pages.wizard.deepResearch.agentTitle")}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {t("pages.wizard.deepResearch.agentDescription")}
+                </p>
+              </div>
+              {isAskingClarification ? (
+                <Badge variant="outline">
+                  {t("pages.wizard.clarification.askRunning")}
+                </Badge>
+              ) : null}
+            </div>
+          )}
+          {canAskDeepResearch ? (
+            <WizardAgentClarificationCard
+              prompts={agentClarificationPrompts}
+              disabled={effectiveIsReadOnly}
+              canApprove={canApproveAgentClarifications}
+              onBlur={onFieldBlur}
+              onValueChange={onFieldChange}
+              onApprove={onApproveAgentClarifications}
+            />
+          ) : null}
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className={sectionCardClassName}>
       <CardHeader>
@@ -122,6 +184,42 @@ export function WizardActiveStepCard({
               onValueChange={onFieldChange}
             />
             <WizardTextareaField
+              name="useCase"
+              disabled={effectiveIsReadOnly}
+              labelKey="pages.wizard.fields.useCaseLabel"
+              descriptionKey="pages.wizard.fields.useCaseDescription"
+              placeholderKey="pages.wizard.fields.useCasePlaceholder"
+              onBlur={onFieldBlur}
+              onValueChange={onFieldChange}
+            />
+            <WizardTextareaField
+              name="primaryActors"
+              disabled={effectiveIsReadOnly}
+              labelKey="pages.wizard.fields.primaryActorsLabel"
+              descriptionKey="pages.wizard.fields.primaryActorsDescription"
+              placeholderKey="pages.wizard.fields.primaryActorsPlaceholder"
+              onBlur={onFieldBlur}
+              onValueChange={onFieldChange}
+            />
+            <WizardTextareaField
+              name="businessTrigger"
+              disabled={effectiveIsReadOnly}
+              labelKey="pages.wizard.fields.businessTriggerLabel"
+              descriptionKey="pages.wizard.fields.businessTriggerDescription"
+              placeholderKey="pages.wizard.fields.businessTriggerPlaceholder"
+              onBlur={onFieldBlur}
+              onValueChange={onFieldChange}
+            />
+            <WizardTextareaField
+              name="expectedOutcome"
+              disabled={effectiveIsReadOnly}
+              labelKey="pages.wizard.fields.expectedOutcomeLabel"
+              descriptionKey="pages.wizard.fields.expectedOutcomeDescription"
+              placeholderKey="pages.wizard.fields.expectedOutcomePlaceholder"
+              onBlur={onFieldBlur}
+              onValueChange={onFieldChange}
+            />
+            <WizardTextareaField
               name="aiPurpose"
               disabled={effectiveIsReadOnly}
               labelKey="pages.wizard.fields.aiPurposeLabel"
@@ -129,6 +227,15 @@ export function WizardActiveStepCard({
               placeholderKey="pages.wizard.fields.aiPurposePlaceholder"
               onBlur={onFieldBlur}
               onValueChange={onFieldChange}
+            />
+            <WizardSelectField
+              name="autonomyLevel"
+              disabled={effectiveIsReadOnly}
+              labelKey="pages.wizard.fields.autonomyLevelLabel"
+              descriptionKey="pages.wizard.fields.autonomyLevelDescription"
+              onBlur={onFieldBlur}
+              onValueChange={onFieldChange}
+              options={selectOptions.autonomyLevel}
             />
             <WizardSelectField
               name="sector"
@@ -209,9 +316,7 @@ export function WizardActiveStepCard({
         ) : null}
 
         {currentStep === 4 ? (
-          <WizardFieldWithHelper
-            onHelperClick={() => onHelperOpen("provider")}
-          >
+          <WizardFieldWithHelper onHelperClick={() => onHelperOpen("provider")}>
             <WizardSelectField
               name="externalLlmUsage"
               disabled={effectiveIsReadOnly}

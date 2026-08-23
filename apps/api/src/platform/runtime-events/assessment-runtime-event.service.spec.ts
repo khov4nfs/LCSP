@@ -7,6 +7,13 @@ import {
 
 import { AssessmentRuntimeEventService } from "./assessment-runtime-event.service.js";
 
+const freshRuntimeEvent = () =>
+  Promise.resolve({ createdAt: new Date("2099-01-01T00:00:00.000Z") });
+
+const emptyRepositorySnapshots = () => ({
+  findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
+});
+
 describe("AssessmentRuntimeEventService", () => {
   afterEach(() => {
     jest.useRealTimers();
@@ -16,7 +23,9 @@ describe("AssessmentRuntimeEventService", () => {
     const prisma = {
       assessmentRuntimeEvent: {
         findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
+        findFirst: jest.fn().mockImplementation(freshRuntimeEvent),
       },
+      repositorySnapshot: emptyRepositorySnapshots(),
       repositoryScanJob: {
         findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([
           {
@@ -78,7 +87,9 @@ describe("AssessmentRuntimeEventService", () => {
     const prisma = {
       assessmentRuntimeEvent: {
         findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
+        findFirst: jest.fn().mockImplementation(freshRuntimeEvent),
       },
+      repositorySnapshot: emptyRepositorySnapshots(),
       repositoryScanJob: {
         findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([
           {
@@ -173,6 +184,168 @@ describe("AssessmentRuntimeEventService", () => {
     });
   });
 
+  it("retries scanner-worker runtime event sequence collisions", async () => {
+    const sequenceCollision = Object.assign(
+      new Error(
+        'Unique constraint failed on the fields: ("runId", "sequence")',
+      ),
+      {
+        code: "P2002",
+        meta: { target: ["runId", "sequence"] },
+      },
+    );
+    const assessmentRuntimeEvent = {
+      findFirst: jest
+        .fn<() => Promise<{ sequence: number } | null>>()
+        .mockResolvedValueOnce({ sequence: 4 })
+        .mockResolvedValueOnce({ sequence: 5 }),
+      create: jest
+        .fn<(args: unknown) => Promise<unknown>>()
+        .mockRejectedValueOnce(sequenceCollision)
+        .mockResolvedValueOnce({}),
+    };
+    const prisma = {
+      repositoryScanJob: {
+        findUnique: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "scan-1",
+            assessmentId: "assessment-1",
+            organizationId: "org-1",
+            correlationId: "corr-1",
+            status: "RUNNING",
+          }),
+        ),
+      },
+      $transaction: jest.fn(
+        (
+          handler: (tx: {
+            assessmentRuntimeEvent: typeof assessmentRuntimeEvent;
+          }) => unknown,
+        ) => Promise.resolve(handler({ assessmentRuntimeEvent })),
+      ),
+    };
+    const service = new AssessmentRuntimeEventService(prisma as never);
+
+    await expect(
+      service.recordScanWorkerEvent({
+        scanJobId: "scan-1",
+        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
+        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+        stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
+        toolName: "semgrep",
+        summary: "Running semgrep analysis",
+      }),
+    ).resolves.toEqual({ recorded: true });
+
+    expect(prisma.$transaction).toHaveBeenCalledTimes(2);
+    expect(assessmentRuntimeEvent.create).toHaveBeenNthCalledWith(1, {
+      data: expect.objectContaining({
+        runId: "scan-1",
+        sequence: 5,
+      }),
+    });
+    expect(assessmentRuntimeEvent.create).toHaveBeenNthCalledWith(2, {
+      data: expect.objectContaining({
+        runId: "scan-1",
+        sequence: 6,
+      }),
+    });
+  });
+
+  it("skips late scanner-worker start events after the scan job is terminal", async () => {
+    const assessmentRuntimeEvent = {
+      findFirst: jest.fn().mockImplementation(() => Promise.resolve(null)),
+      create: jest.fn().mockImplementation(() => Promise.resolve({})),
+    };
+    const prisma = {
+      repositoryScanJob: {
+        findUnique: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "scan-1",
+            assessmentId: "assessment-1",
+            organizationId: "org-1",
+            correlationId: "corr-1",
+            status: "COMPLETED",
+          }),
+        ),
+      },
+      $transaction: jest.fn(
+        (
+          handler: (tx: {
+            assessmentRuntimeEvent: typeof assessmentRuntimeEvent;
+          }) => unknown,
+        ) => Promise.resolve(handler({ assessmentRuntimeEvent })),
+      ),
+    };
+    const service = new AssessmentRuntimeEventService(prisma as never);
+
+    await expect(
+      service.recordScanWorkerEvent({
+        scanJobId: "scan-1",
+        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
+        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+        stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
+        toolName: "late_tool",
+        summary: "Late tool started",
+      }),
+    ).resolves.toEqual({ recorded: false, reason: "terminal" });
+
+    expect(assessmentRuntimeEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("records scanner-worker terminal close events after the scan job is terminal", async () => {
+    const assessmentRuntimeEvent = {
+      findFirst: jest.fn().mockImplementation(() => Promise.resolve(null)),
+      create: jest.fn().mockImplementation(() => Promise.resolve({})),
+    };
+    const prisma = {
+      repositoryScanJob: {
+        findUnique: jest.fn().mockImplementation(() =>
+          Promise.resolve({
+            id: "scan-1",
+            assessmentId: "assessment-1",
+            organizationId: "org-1",
+            correlationId: "corr-1",
+            status: "COMPLETED",
+          }),
+        ),
+      },
+      $transaction: jest.fn(
+        (
+          handler: (tx: {
+            assessmentRuntimeEvent: typeof assessmentRuntimeEvent;
+          }) => unknown,
+        ) => Promise.resolve(handler({ assessmentRuntimeEvent })),
+      ),
+    };
+    const service = new AssessmentRuntimeEventService(prisma as never);
+
+    await expect(
+      service.recordScanWorkerEvent({
+        scanJobId: "scan-1",
+        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted,
+        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
+        stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
+        toolName: "repository_scan",
+        summary: "Repository scan completed",
+      }),
+    ).resolves.toEqual({ recorded: true });
+
+    expect(assessmentRuntimeEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        organizationId: "org-1",
+        assessmentId: "assessment-1",
+        runId: "scan-1",
+        correlationId: "corr-1",
+        sequence: 1,
+        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted,
+        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
+        stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
+        toolName: "repository_scan",
+      }),
+    });
+  });
+
   it("does not build synthetic scan activity when persisted worker activity exists", async () => {
     const prisma = {
       assessmentRuntimeEvent: {
@@ -200,7 +373,9 @@ describe("AssessmentRuntimeEventService", () => {
             createdAt: new Date("2026-08-14T08:00:00.000Z"),
           },
         ]),
+        findFirst: jest.fn().mockImplementation(freshRuntimeEvent),
       },
+      repositorySnapshot: emptyRepositorySnapshots(),
       repositoryScanJob: {
         findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([
           {

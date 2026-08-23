@@ -9,24 +9,38 @@ const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const workerRoot = path.join(repoRoot, "lcsp-python-workers");
 const isWindows = process.platform === "win32";
-const workerPython = process.platform === "win32"
-  ? path.join(workerRoot, ".venv", "Scripts", "python.exe")
-  : path.join(workerRoot, ".venv", "bin", "python");
+const workerPython =
+  process.platform === "win32"
+    ? path.join(workerRoot, ".venv", "Scripts", "python.exe")
+    : path.join(workerRoot, ".venv", "bin", "python");
+const openWikiRuntimeScript = path.join(
+  repoRoot,
+  "scripts",
+  "openwiki_runtime.py",
+);
 const rootEnv = loadDotEnv(path.join(repoRoot, ".env"));
-const defaultWorkerRuntimeVersion =
-  process.env.WORKER_RUNTIME_VERSION ??
-  rootEnv.WORKER_RUNTIME_VERSION ??
-  "2026.08.13";
-const defaultWorkerRuntimeBuildRef =
-  process.env.WORKER_RUNTIME_BUILD_REF ??
-  rootEnv.WORKER_RUNTIME_BUILD_REF ??
-  detectGitBuildRef();
 const defaultOrchestrationDebug =
   process.env.ORCHESTRATION_DEBUG ?? rootEnv.ORCHESTRATION_DEBUG ?? "false";
+const defaultPhoenixTracing =
+  process.env.PHOENIX_TRACING ?? rootEnv.PHOENIX_TRACING ?? "true";
+const defaultPhoenixCollectorEndpoint =
+  process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006/v1/traces";
+const defaultPhoenixProject =
+  process.env.PHOENIX_PROJECT ??
+  rootEnv.PHOENIX_PROJECT ??
+  "lcsp-python-workers";
 const defaultDockerWorkerImage =
   process.env.LCSP_WORKER_DOCKER_IMAGE ??
   rootEnv.LCSP_WORKER_DOCKER_IMAGE ??
   "lcsp-python-workers:scanner-tools";
+const defaultOpenWikiRuntimeCommand =
+  process.env.OPENWIKI_RUNTIME_COMMAND ??
+  rootEnv.OPENWIKI_RUNTIME_COMMAND ??
+  `${shellQuote(workerPython)} ${shellQuote(openWikiRuntimeScript)}`;
+const defaultOpenWikiRuntimeTimeoutSeconds =
+  process.env.OPENWIKI_RUNTIME_TIMEOUT_SECONDS ??
+  rootEnv.OPENWIKI_RUNTIME_TIMEOUT_SECONDS ??
+  "180";
 
 const targets = {
   proxy: {
@@ -86,7 +100,9 @@ const targets = {
           "-File",
           "fogewise-dev-launchers/windows/fogewise-local-infra-reset-windows.ps1",
         ]
-      : ["./fogewise-dev-launchers/fedora/fogewise-local-infra-reset-fedora.sh"],
+      : [
+          "./fogewise-dev-launchers/fedora/fogewise-local-infra-reset-fedora.sh",
+        ],
     description: "Reset local PostgreSQL + RabbitMQ + Redis",
     oneshot: true,
   },
@@ -101,11 +117,8 @@ const targets = {
     cwd: repoRoot,
     cmd: "pnpm",
     args: ["--dir", "apps/api", "start:dev"],
-    env: {
-      ...rootEnv,
-      PYTHON_WORKER_BASE_URL: rootEnv.PYTHON_WORKER_BASE_URL_DOCKER ?? "http://127.0.0.1:18081",
-    },
-    description: "Start NestJS API in watch mode for Docker-hosted workers",
+    env: rootEnv,
+    description: "Start NestJS API in watch mode for Docker-hosted agent tools",
   },
   web: {
     cwd: repoRoot,
@@ -117,41 +130,30 @@ const targets = {
     },
     description: "Start Next.js web app in dev mode",
   },
-  scanner: workerTarget(
-    "lcsp_workers.scanner.scan_consumer:ScanConsumer",
-    "Start scanner worker",
-    18081,
-  ),
-  engineering_assessment: workerTarget(
-    "lcsp_workers.investigation.engineering_assessment_consumer:EngineeringAssessmentConsumer",
-    "Start direct EngineeringRule assessment worker",
-    18082,
-  ),
-  gap_analysis: workerTarget(
-    "lcsp_workers.reporting.gap_analysis_consumer:GapAnalysisConsumer",
-    "Start gap analysis worker",
-    18088,
-  ),
-  legal_corpus_recovery: workerTarget(
-    "lcsp_workers.legal.legal_corpus_recovery_consumer:LegalCorpusRecoveryConsumer",
-    "Start legal corpus recovery worker",
-    18089,
-  ),
-  targeted_reanalysis: workerTarget(
-    "lcsp_workers.scanner.targeted_reanalysis_consumer:TargetedReanalysisConsumer",
-    "Start targeted reanalysis worker",
-    18090,
-  ),
-  final_report: workerTarget(
-    "lcsp_workers.reporting.final_report_consumer:FinalReportConsumer",
-    "Start final report worker",
-    18091,
-  ),
-  legal_change_detector: workerTarget(
-    "lcsp_workers.legal.legal_change_detector_consumer:LegalChangeDetectorConsumer",
-    "Start legal change detector worker",
-    18092,
-  ),
+  phoenix: {
+    cwd: repoRoot,
+    cmd: "uvx",
+    args: ["arize-phoenix", "serve", "--port", "6006"],
+    env: rootEnv,
+    description: "Start Arize Phoenix trace UI",
+    healthPort: 6006,
+  },
+  managed_agent: {
+    cwd: workerRoot,
+    cmd: "uv",
+    args: ["run", "mda", "dev", "."],
+    env: {
+      ...rootEnv,
+      PYTHONPATH: "src:.",
+      ORCHESTRATION_DEBUG: defaultOrchestrationDebug,
+      PHOENIX_TRACING: defaultPhoenixTracing,
+      PHOENIX_COLLECTOR_ENDPOINT: defaultPhoenixCollectorEndpoint,
+      PHOENIX_PROJECT: defaultPhoenixProject,
+      OPENWIKI_RUNTIME_COMMAND: defaultOpenWikiRuntimeCommand,
+      OPENWIKI_RUNTIME_TIMEOUT_SECONDS: defaultOpenWikiRuntimeTimeoutSeconds,
+    },
+    description: "Start LCSP Managed Deep Agent in local dev mode",
+  },
   docker_worker_build: {
     cwd: repoRoot,
     cmd: "docker",
@@ -163,52 +165,11 @@ const targets = {
       defaultDockerWorkerImage,
       ".",
     ],
-    description: `Build Python worker Docker image (${defaultDockerWorkerImage})`,
+    description: `Build Managed Deep Agent Docker image (${defaultDockerWorkerImage})`,
     oneshot: true,
     shell: false,
   },
-  scanner_docker: dockerWorkerTarget(
-    "scanner",
-    "lcsp_workers.scanner.scan_consumer:ScanConsumer",
-    "Start scanner worker in Docker",
-    18081,
-  ),
-  engineering_assessment_docker: dockerWorkerTarget(
-    "engineering-assessment",
-    "lcsp_workers.investigation.engineering_assessment_consumer:EngineeringAssessmentConsumer",
-    "Start direct EngineeringRule assessment worker in Docker",
-    18082,
-  ),
-  gap_analysis_docker: dockerWorkerTarget(
-    "gap-analysis",
-    "lcsp_workers.reporting.gap_analysis_consumer:GapAnalysisConsumer",
-    "Start gap analysis worker in Docker",
-    18088,
-  ),
-  legal_corpus_recovery_docker: dockerWorkerTarget(
-    "legal-corpus-recovery",
-    "lcsp_workers.legal.legal_corpus_recovery_consumer:LegalCorpusRecoveryConsumer",
-    "Start legal corpus recovery worker in Docker",
-    18089,
-  ),
-  targeted_reanalysis_docker: dockerWorkerTarget(
-    "targeted-reanalysis",
-    "lcsp_workers.scanner.targeted_reanalysis_consumer:TargetedReanalysisConsumer",
-    "Start targeted reanalysis worker in Docker",
-    18090,
-  ),
-  final_report_docker: dockerWorkerTarget(
-    "final-report",
-    "lcsp_workers.reporting.final_report_consumer:FinalReportConsumer",
-    "Start final report worker in Docker",
-    18091,
-  ),
-  legal_change_detector_docker: dockerWorkerTarget(
-    "legal-change-detector",
-    "lcsp_workers.legal.legal_change_detector_consumer:LegalChangeDetectorConsumer",
-    "Start legal change detector worker in Docker",
-    18092,
-  ),
+  managed_agent_docker: dockerManagedAgentTarget(),
 };
 
 const groups = {
@@ -218,24 +179,13 @@ const groups = {
   dev_docker: [
     "api_docker_workers",
     "web",
-    "scanner_docker",
-    "engineering_assessment_docker",
-    "gap_analysis_docker",
-    "legal_corpus_recovery_docker",
-    "targeted_reanalysis_docker",
-    "final_report_docker",
-    "legal_change_detector_docker",
+    "managed_agent_docker",
   ],
   dev: [
     "api",
     "web",
-    "scanner",
-    "engineering_assessment",
-    "gap_analysis",
-    "legal_corpus_recovery",
-    "targeted_reanalysis",
-    "final_report",
-    "legal_change_detector",
+    "managed_agent",
+    "phoenix",
   ],
 };
 
@@ -273,54 +223,60 @@ async function main() {
   process.exit(1);
 }
 
-function workerTarget(target, description, healthPort) {
-  return {
-    cwd: workerRoot,
-    cmd: workerPython,
-    args: ["-m", "lcsp_workers.runtime", target],
-    env: {
-      ...rootEnv,
-      PYTHONPATH: "src",
-      HEALTH_PORT: String(healthPort),
-      WORKER_RUNTIME_VERSION: defaultWorkerRuntimeVersion,
-      WORKER_RUNTIME_BUILD_REF: defaultWorkerRuntimeBuildRef,
-      ORCHESTRATION_DEBUG: defaultOrchestrationDebug,
-    },
-    description,
-    healthPort,
-  };
-}
-
-function detectGitBuildRef() {
-  const result = spawnSync("git", ["rev-parse", "--short", "HEAD"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-  });
-  const value = result.status === 0 ? result.stdout?.trim() : "";
-  return value ? `git:${value}` : "local";
-}
-
 function stopDevProcesses() {
   const patterns = [
-    "lcsp_workers.runtime",
+    "pnpm dev:fogewise",
+    "node scripts/run.mjs fogewise",
+    "node scripts/run.mjs dev",
+    "node scripts/run.mjs dev_app",
+    "mda dev .",
     "pnpm --dir apps/api start:dev",
     "nest start --watch",
+    "apps/api/dist/src/main",
     "pnpm --dir apps/web dev",
     "next dev",
+    "uvx arize-phoenix serve --port 6006",
+    "arize-phoenix serve --port 6006",
   ];
   const protectedPids = new Set([
     process.pid,
     process.ppid,
     ...listParentPids(process.pid),
   ]);
+  const protectedProcessGroups = new Set(
+    [...protectedPids]
+      .map((pid) => readProcessGroupId(pid))
+      .filter((pid) => Number.isInteger(pid) && pid > 0),
+  );
   const killed = [];
 
   for (const signal of ["SIGTERM", "SIGKILL"]) {
     for (const pattern of patterns) {
-      for (const pid of findMatchingPids(pattern, protectedPids)) {
+      for (const entry of findMatchingProcesses(pattern, protectedPids)) {
+        const groupKilled = killProcessGroup(
+          entry,
+          signal,
+          protectedProcessGroups,
+        );
+        if (groupKilled) {
+          killed.push({
+            pid: entry.pid,
+            pgid: entry.pgid,
+            signal,
+            pattern,
+            scope: "process-group",
+          });
+          continue;
+        }
         try {
-          process.kill(pid, signal);
-          killed.push({ pid, signal, pattern });
+          process.kill(entry.pid, signal);
+          killed.push({
+            pid: entry.pid,
+            pgid: entry.pgid,
+            signal,
+            pattern,
+            scope: "process",
+          });
         } catch {}
       }
     }
@@ -335,27 +291,54 @@ function stopDevProcesses() {
   console.log("[run] Stopped local LCSP dev processes:");
   for (const entry of killed) {
     console.log(
-      `  - pid=${entry.pid} signal=${entry.signal} pattern=${entry.pattern}`,
+      `  - ${entry.scope} pid=${entry.pid} pgid=${entry.pgid ?? "unknown"} signal=${entry.signal} pattern=${entry.pattern}`,
     );
   }
 }
 
-function findMatchingPids(pattern, protectedPids) {
+function findMatchingProcesses(pattern, protectedPids) {
   const result = spawnSync(
     "bash",
-    ["-lc", `ps -eo pid=,args= | grep -F ${shellQuote(pattern)} | grep -v grep`],
+    [
+      "-lc",
+      `ps -eo pid=,pgid=,args= | grep -F ${shellQuote(pattern)} | grep -v grep`,
+    ],
     { cwd: repoRoot, encoding: "utf8" },
   );
   if (result.status !== 0 || !result.stdout.trim()) return [];
 
-  const pids = [];
+  const processes = [];
+  const seen = new Set();
   for (const line of result.stdout.split("\n")) {
-    const pid = Number.parseInt(line.trim().split(/\s+/, 1)[0], 10);
-    if (Number.isInteger(pid) && pid > 0 && !protectedPids.has(pid)) {
-      pids.push(pid);
+    const [rawPid, rawPgid] = line.trim().split(/\s+/, 2);
+    const pid = Number.parseInt(rawPid, 10);
+    const pgid = Number.parseInt(rawPgid, 10);
+    if (
+      Number.isInteger(pid) &&
+      pid > 0 &&
+      !protectedPids.has(pid) &&
+      !seen.has(pid)
+    ) {
+      processes.push({
+        pid,
+        pgid: Number.isInteger(pgid) && pgid > 0 ? pgid : null,
+      });
+      seen.add(pid);
     }
   }
-  return [...new Set(pids)];
+  return processes;
+}
+
+function killProcessGroup(entry, signal, protectedProcessGroups) {
+  if (isWindows || !entry.pgid || protectedProcessGroups.has(entry.pgid)) {
+    return false;
+  }
+  try {
+    process.kill(-entry.pgid, signal);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function listParentPids(startPid) {
@@ -372,6 +355,16 @@ function listParentPids(startPid) {
 
 function readParentPid(pid) {
   const result = spawnSync("ps", ["-o", "ppid=", "-p", String(pid)], {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  if (result.status !== 0) return null;
+  const value = Number.parseInt(result.stdout.trim(), 10);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function readProcessGroupId(pid) {
+  const result = spawnSync("ps", ["-o", "pgid=", "-p", String(pid)], {
     cwd: repoRoot,
     encoding: "utf8",
   });
@@ -410,17 +403,8 @@ function loadDotEnv(filePath) {
   return env;
 }
 
-function logWorkerRuntimeBanner(name, target) {
-  if (target.cmd !== workerPython) return;
-  console.log(
-    `[run] Worker runtime -> name=${name} health_port=${target.env?.HEALTH_PORT ?? "unknown"} version=${target.env?.WORKER_RUNTIME_VERSION ?? defaultWorkerRuntimeVersion} build_ref=${target.env?.WORKER_RUNTIME_BUILD_REF ?? defaultWorkerRuntimeBuildRef}`,
-  );
-}
-
 function runTarget(name) {
   const target = targets[name];
-  assertWorkerPython(target);
-  logWorkerRuntimeBanner(name, target);
   cleanupDockerWorkerContainer(target);
   console.log(`[run] Starting ${name}: ${target.description}`);
   const child = spawnTarget(target);
@@ -447,7 +431,6 @@ async function runGroup(name) {
 
   for (const member of members) {
     const target = targets[member];
-    assertWorkerPython(target);
     if (target.oneshot) {
       console.log(`[run] Running ${member}: ${target.description}`);
       const status = spawnSyncCompatible(target);
@@ -459,15 +442,8 @@ async function runGroup(name) {
 
   assertPortsAvailable(longRunningMembers);
 
-  if (members.includes("infra") && hasWorkerMember(longRunningMembers)) {
-    console.log("[run] Waiting for local RabbitMQ and Redis to accept connections...");
-    await waitForPort("127.0.0.1", 5672, "RabbitMQ");
-    await waitForPort("127.0.0.1", 6379, "Redis");
-  }
-
   for (const member of longRunningMembers) {
     const target = targets[member];
-    logWorkerRuntimeBanner(member, target);
     cleanupDockerWorkerContainer(target);
     console.log(`[run] Starting ${member}: ${target.description}`);
     children.push(spawnTarget(target));
@@ -491,21 +467,13 @@ async function runGroup(name) {
   }
 }
 
-function assertWorkerPython(target) {
-  if (target.cmd === workerPython && !existsSync(workerPython)) {
-    console.error(
-      `[run] Missing worker virtualenv python at ${workerPython}. Create/sync lcsp-python-workers/.venv first.`,
-    );
-    process.exit(1);
-  }
-}
-
 function spawnTarget(target) {
   return spawn(target.cmd, target.args, {
     cwd: target.cwd,
     env: { ...process.env, ...target.env },
     stdio: "inherit",
-    shell: target.shell ?? (process.platform === "win32" && target.cmd === "pnpm"),
+    shell:
+      target.shell ?? (process.platform === "win32" && target.cmd === "pnpm"),
   });
 }
 
@@ -524,7 +492,9 @@ function cleanupDockerWorkerContainer(target) {
   const containerId = existing.status === 0 ? existing.stdout.trim() : "";
   if (!containerId) return;
 
-  console.log(`[run] Removing existing Docker worker container: ${target.containerName}`);
+  console.log(
+    `[run] Removing existing Docker worker container: ${target.containerName}`,
+  );
   const removed = spawnSync("docker", ["rm", "-f", target.containerName], {
     cwd: repoRoot,
     stdio: "inherit",
@@ -535,8 +505,8 @@ function cleanupDockerWorkerContainer(target) {
   }
 }
 
-function dockerWorkerTarget(name, target, description, healthPort) {
-  const containerName = `lcsp-worker-${name}`;
+function dockerManagedAgentTarget() {
+  const containerName = "lcsp-managed-agent";
   return {
     cwd: repoRoot,
     cmd: "docker",
@@ -547,20 +517,12 @@ function dockerWorkerTarget(name, target, description, healthPort) {
       containerName,
       "--add-host",
       "host.docker.internal:host-gateway",
-      "-p",
-      `${healthPort}:8080`,
-      "--entrypoint",
-      "python",
       ...dockerEnvArgs(dockerWorkerEnv()),
       defaultDockerWorkerImage,
-      "-m",
-      "lcsp_workers.runtime",
-      target,
     ],
     kind: "docker_worker",
     containerName,
-    description,
-    healthPort,
+    description: "Start LCSP Managed Deep Agent in Docker",
     shell: false,
   };
 }
@@ -604,6 +566,11 @@ function dockerWorkerEnv() {
     "LLM_BUDGET_REDIS_URL",
     "WORKER_RUNTIME_VERSION",
     "WORKER_RUNTIME_BUILD_REF",
+    "PHOENIX_TRACING",
+    "PHOENIX_COLLECTOR_ENDPOINT",
+    "PHOENIX_PROJECT",
+    "OPENWIKI_RUNTIME_COMMAND",
+    "OPENWIKI_RUNTIME_TIMEOUT_SECONDS",
     "LEGAL_CHROMA_PATH",
   ];
   const env = Object.fromEntries(
@@ -618,11 +585,17 @@ function dockerWorkerEnv() {
       process.env.RABBITMQ_URL ?? rootEnv.RABBITMQ_URL ?? "",
     ),
     RABBITMQ_EXCHANGE:
-      process.env.RABBITMQ_EXCHANGE ?? rootEnv.RABBITMQ_EXCHANGE ?? "lcsp.events",
+      process.env.RABBITMQ_EXCHANGE ??
+      rootEnv.RABBITMQ_EXCHANGE ??
+      "lcsp.events",
     NESTJS_API_BASE_URL: apiBaseUrl,
     LCSP_API_BASE_URL: apiBaseUrl,
-    WORKER_API_KEY:
-      process.env.WORKER_API_KEY ?? rootEnv.WORKER_API_KEY ?? "",
+    WORKER_API_KEY: process.env.WORKER_API_KEY ?? rootEnv.WORKER_API_KEY ?? "",
+    PHOENIX_TRACING: defaultPhoenixTracing,
+    PHOENIX_COLLECTOR_ENDPOINT: dockerizeLocalhost(
+      defaultPhoenixCollectorEndpoint,
+    ),
+    PHOENIX_PROJECT: defaultPhoenixProject,
     HEALTH_PORT: "8080",
     PYTHONPATH: "/app/lcsp-python-workers/src",
     KNIP_BINARY: "/usr/local/bin/knip",
@@ -631,7 +604,9 @@ function dockerWorkerEnv() {
 
 function dockerEnvArgs(env) {
   return Object.entries(env)
-    .filter(([, value]) => value !== undefined && value !== null && value !== "")
+    .filter(
+      ([, value]) => value !== undefined && value !== null && value !== "",
+    )
     .flatMap(([key, value]) => ["-e", `${key}=${value}`]);
 }
 
@@ -651,7 +626,9 @@ function assertPortsAvailable(members) {
   }
   if (conflicts.length === 0) return;
 
-  console.error("[run] Cannot start dev group because required ports are already in use:");
+  console.error(
+    "[run] Cannot start dev group because required ports are already in use:",
+  );
   for (const conflict of conflicts) {
     console.error(
       `  - target=${conflict.member} health_port=${conflict.port} owner=${conflict.owner}`,
@@ -667,10 +644,12 @@ function describeListeningPort(port) {
     encoding: "utf8",
   });
   if (result.status !== 0) return null;
-  return result.stdout
-    .split("\n")
-    .map((value) => value.trim())
-    .find(Boolean) ?? null;
+  return (
+    result.stdout
+      .split("\n")
+      .map((value) => value.trim())
+      .find(Boolean) ?? null
+  );
 }
 
 function spawnSyncCompatible(target) {
@@ -678,7 +657,8 @@ function spawnSyncCompatible(target) {
     cwd: target.cwd,
     env: { ...process.env, ...target.env },
     stdio: "inherit",
-    shell: target.shell ?? (process.platform === "win32" && target.cmd === "pnpm"),
+    shell:
+      target.shell ?? (process.platform === "win32" && target.cmd === "pnpm"),
   });
   if (result.signal) {
     process.kill(process.pid, result.signal);
@@ -691,10 +671,6 @@ function shutdown(children) {
   for (const child of children) {
     if (!child.killed) child.kill("SIGTERM");
   }
-}
-
-function hasWorkerMember(members) {
-  return members.some((member) => targets[member]?.cmd === workerPython);
 }
 
 function waitForPort(host, port, label, timeoutMs = 30_000) {
@@ -748,5 +724,7 @@ function printList() {
 }
 
 function printHelp() {
-  console.log(`Usage:\n\n  node scripts/run.mjs <target>\n\nTargets:\n  fogewise\n  fogewise_reset\n  dev_stop\n  dev_app\n  dev_docker\n  dev\n  docker_worker_build\n  scanner_docker\n\nExamples:\n  pnpm run dev:fogewise\n  pnpm run dev:fogewise:reset\n  pnpm run dev:stop\n  pnpm run dev:app\n  pnpm run dev:docker\n  pnpm run dev:worker:docker:build\n  pnpm run dev:worker:docker\n  pnpm run dev\n`);
+  console.log(
+    `Usage:\n\n  node scripts/run.mjs <target>\n\nTargets:\n  fogewise\n  fogewise_reset\n  dev_stop\n  dev_app\n  dev_docker\n  dev\n  docker_worker_build\n  managed_agent\n  managed_agent_docker\n\nExamples:\n  pnpm run dev:fogewise\n  pnpm run dev:fogewise:reset\n  pnpm run dev:stop\n  pnpm run dev:app\n  pnpm run dev:docker\n  pnpm run dev:agent:docker:build\n  pnpm run dev:agent:docker\n  pnpm run dev\n`,
+  );
 }

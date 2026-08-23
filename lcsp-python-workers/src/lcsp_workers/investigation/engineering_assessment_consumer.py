@@ -9,6 +9,9 @@ from lcsp_workers.platform.api_client import WorkerApiClient, WorkerCallbackErro
 from lcsp_workers.platform.callback_schemas import ClassificationCallbackPayload
 from lcsp_workers.platform.logging import get_logger
 from lcsp_workers.platform.queue_consumer import ConsumerBase, NonRetryableWorkerError
+from lcsp_workers.platform.wizard_clarification import (
+    engineering_rule_source_clarification_summary,
+)
 from lcsp_workers.scanner.snapshot_service_client import (
     SnapshotArchiveRequest,
     SnapshotServiceClient,
@@ -20,6 +23,7 @@ from .planned_pipeline import PlannedEngineeringInvestigationPipeline
 
 
 logger = get_logger(__name__)
+WAITING_ENGINEERING_INVESTIGATION_STATUSES = {"WAITING"}
 
 
 class EngineeringAssessmentConsumer(ConsumerBase):
@@ -28,6 +32,7 @@ class EngineeringAssessmentConsumer(ConsumerBase):
     queue_name = "investigation.evidence-accepted"
     routing_key = "event.technical-evidence.accepted.v1"
     requires_pbac = False
+    retry_delays_seconds = (30, 120, 600)
 
     def __init__(
         self,
@@ -110,6 +115,17 @@ class EngineeringAssessmentConsumer(ConsumerBase):
             finally:
                 if workspace_path is not None:
                     self._code_workspace.cleanup(workspace_job_id)
+            if result.status in WAITING_ENGINEERING_INVESTIGATION_STATUSES:
+                self._emit_investigation_waiting_runtime_event(
+                    scan_job_id=str(
+                        evidence_report.get("scan_job_id")
+                        or evidence_report.get("scanJobId")
+                        or ""
+                    )
+                    or None,
+                    result=result,
+                    correlation_id=correlationId,
+                )
             result_data = result.to_assessment_data()
             guardrail_status = self._guardrail_status(result.status)
 
@@ -256,6 +272,46 @@ class EngineeringAssessmentConsumer(ConsumerBase):
         if normalized == "PARTIAL":
             return "DEGRADED"
         return "BLOCKED"
+
+    def _emit_investigation_waiting_runtime_event(
+        self,
+        *,
+        scan_job_id: str | None,
+        result,
+        correlation_id: str,
+    ) -> None:
+        if not scan_job_id:
+            return
+        post_runtime_event = getattr(self._api_client, "post_scan_runtime_event", None)
+        if post_runtime_event is None:
+            return
+        post_runtime_event(
+            scan_job_id,
+            {
+                "event_type": "TOOL_WAITING_INPUT",
+                "run_status": "WAITING",
+                "stage": "SCAN",
+                "tool_name": "engineering_rule_planner",
+                "summary": (
+                    "Engineering rule source catalog is empty; waiting for "
+                    "corpus chunk triage and EngineeringRule rebuild"
+                ),
+                "waiting_reason": "NO_ENGINEERING_RULE_SOURCE_RULES",
+                "output_summary": engineering_rule_source_clarification_summary(
+                    base_summary={
+                        "status": str(getattr(result, "status", "WAITING")),
+                        "legalRuleCatalogVersionId": str(
+                            getattr(result, "legal_rule_catalog_version_id", "")
+                        ),
+                        "legalCorpusVersionId": str(
+                            getattr(result, "legal_corpus_version_id", "")
+                        ),
+                        "limitations": list(getattr(result, "limitations", ())),
+                        "correlationId": correlation_id,
+                    },
+                ),
+            },
+        )
 
     @staticmethod
     def _evidence_report_id(message: dict[str, Any]) -> str:

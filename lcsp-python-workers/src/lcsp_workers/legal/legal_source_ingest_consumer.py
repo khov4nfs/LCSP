@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Any, Protocol
 
 from structlog import get_logger
@@ -48,7 +47,7 @@ class LegalSourceIngestEnvelope:
 
 
 class LegalSourceIngestConsumer(ConsumerBase):
-    """Fetch an official source into a temporary snapshot and register its provenance."""
+    """Fetch an official source into the runtime corpus store and register provenance."""
 
     queue_name = LEGAL_SOURCE_INGEST_QUEUE
     routing_key = LEGAL_SOURCE_INGEST_COMMAND
@@ -73,39 +72,41 @@ class LegalSourceIngestConsumer(ConsumerBase):
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
         """Validate the command, dispatch snapshot fetch, and register the result.
 
-        Downloaded bytes live only in a temporary directory during validation and
-        registration. The fetch operation is forced through the canonical
-        ``fetch_official_source_snapshot`` boundary before provenance registration.
-        Fetch/runtime failures remain retryable exactly as before this refactor;
-        only deterministic envelope validation is terminal.
+        Downloaded bytes are stored under the configured runtime corpus store so
+        downstream extraction, review, chunking, and recovery steps consume the
+        crawl artifacts from one pipeline-owned workspace. The fetch operation is
+        forced through the canonical ``fetch_official_source_snapshot`` boundary
+        before provenance registration. Fetch/runtime failures remain retryable
+        exactly as before this refactor; only deterministic envelope validation
+        is terminal.
         """
         envelope = self._read_envelope(message)
-        with TemporaryDirectory(prefix="lcsp-legal-source-") as temp_dir:
-            temp_root = Path(temp_dir)
-            dispatcher = LegalToolDispatcher(
-                LegalToolExecutionContext(
-                    api_client=self._api_client,
-                    storage_root=temp_root,
-                    snapshot_fetcher=self._snapshot_fetcher,
-                )
-            )
-            result = dispatcher.dispatch(
-                "fetch_official_source_snapshot",
-                document_id=envelope.document_id,
-                catalog_source_ref=envelope.catalog_source_ref,
-                source_url=envelope.source_url,
-                output_dir=temp_root,
-                max_bytes=envelope.max_bytes,
-                gateway_document_id=envelope.gateway_document_id,
-                source_effect_status=envelope.source_effect_status,
-                expected_document_number=envelope.expected_document_number,
-            )
-            registered = result.register_with_api(
+        storage_root = self._storage_root()
+        output_dir = self._source_output_dir(storage_root=storage_root, envelope=envelope)
+        dispatcher = LegalToolDispatcher(
+            LegalToolExecutionContext(
                 api_client=self._api_client,
-                admin_catalog_version=envelope.admin_catalog_version,
-                catalog_source_ref=envelope.catalog_source_ref,
-                expected_document_number=envelope.expected_document_number,
+                storage_root=storage_root,
+                snapshot_fetcher=self._snapshot_fetcher,
             )
+        )
+        result = dispatcher.dispatch(
+            "fetch_official_source_snapshot",
+            document_id=envelope.document_id,
+            catalog_source_ref=envelope.catalog_source_ref,
+            source_url=envelope.source_url,
+            output_dir=output_dir,
+            max_bytes=envelope.max_bytes,
+            gateway_document_id=envelope.gateway_document_id,
+            source_effect_status=envelope.source_effect_status,
+            expected_document_number=envelope.expected_document_number,
+        )
+        registered = result.register_with_api(
+            api_client=self._api_client,
+            admin_catalog_version=envelope.admin_catalog_version,
+            catalog_source_ref=envelope.catalog_source_ref,
+            expected_document_number=envelope.expected_document_number,
+        )
 
         logger.info(
             "LEGAL_SOURCE_SNAPSHOT_REGISTERED",
@@ -115,7 +116,30 @@ class LegalSourceIngestConsumer(ConsumerBase):
             idempotency_key=envelope.idempotency_key,
             actor_ref=envelope.actor_ref,
             snapshot_ref=registered.get("snapshotRef"),
+            manifest_path=str(result.manifest_path),
+            storage_root=str(storage_root),
             correlationId=correlationId,
+        )
+
+    def _storage_root(self) -> Path:
+        """Resolve the runtime legal corpus artifact root or fail terminally."""
+        root = getattr(self._config, "legal_source_storage_root", None)
+        if not isinstance(root, str) or not root.strip():
+            raise NonRetryableWorkerError("LEGAL_SOURCE_STORAGE_ROOT is not configured")
+        return Path(root).resolve()
+
+    def _source_output_dir(
+        self,
+        *,
+        storage_root: Path,
+        envelope: LegalSourceIngestEnvelope,
+    ) -> Path:
+        """Build the per-document crawl artifact directory under .corpus."""
+        return (
+            storage_root
+            / "source-crawl"
+            / _safe_path_segment(envelope.corpus_version_id)
+            / _safe_path_segment(envelope.document_id)
         )
 
     def _read_envelope(self, message: dict[str, Any]) -> LegalSourceIngestEnvelope:
@@ -185,3 +209,8 @@ class LegalSourceIngestConsumer(ConsumerBase):
             if isinstance(value, str) and value.strip():
                 return value.strip()
         return None
+
+
+def _safe_path_segment(value: str) -> str:
+    """Normalize a runtime identifier for a bounded artifact directory segment."""
+    return "".join(ch if ch.isalnum() or ch in "._:-" else "-" for ch in value)[:160]

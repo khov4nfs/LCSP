@@ -201,7 +201,7 @@ def test_summarize_http_callback_request(monkeypatch: pytest.MonkeyPatch) -> Non
     assert rec["path"] == "/api/callback"
     assert rec["url"] == "http://api.internal/api/callback"
     assert rec["scan_job_id"] == "job-abc"
-    assert rec["worker_api_key"] == "[REDACTED]"
+    assert rec["worker_api_key"] == "api-key-12345"
     assert "payload" not in rec
     assert rec["payload_size"] > 0
     assert rec["payload_limit"] == 52428800
@@ -271,4 +271,3 @@ def test_unfiltered_opt_in_toggle(monkeypatch: pytest.MonkeyPatch) -> None:
     assert rec["event"] == "DEV_WORKER_HTTP_REQUEST_RAW"
     assert rec["payload"] == {"scan_job_id": "job-abc"}
     assert rec["worker_api_key"] == "keep-me"
-

@@ -57,6 +57,14 @@ test("workspace runtime parser groups runs and activity by assessment", () => {
           waiting_reason: null,
         },
       ],
+      repository_snapshots: [
+        {
+          id: "snapshot-1",
+          assessment_id: "assessment-1",
+          commit_sha: "abc123",
+          created_at: "2026-08-13T10:58:00.000Z",
+        },
+      ],
       scan_jobs: [],
       evidence_reports: [],
     }),
@@ -65,6 +73,7 @@ test("workspace runtime parser groups runs and activity by assessment", () => {
   assert.ok(parsed);
   assert.equal(parsed?.runs.length, 1);
   assert.equal(parsed?.recentActivity.length, 1);
+  assert.equal(parsed?.repositorySnapshots[0]?.id, "snapshot-1");
   assert.equal(parsed?.latestRunIdByAssessmentId["assessment-1"], "run-1");
 
   const assessmentRuntime = parsed?.getAssessmentRuntime("assessment-1");
@@ -107,6 +116,7 @@ test("workspace runtime fingerprint ignores running scan heartbeat timestamps", 
           waiting_reason: null,
         },
       ],
+      repository_snapshots: [],
       scan_jobs: [],
       evidence_reports: [],
     }),
@@ -142,6 +152,7 @@ test("workspace runtime fingerprint ignores running scan heartbeat timestamps", 
           waiting_reason: null,
         },
       ],
+      repository_snapshots: [],
       scan_jobs: [],
       evidence_reports: [],
     }),
@@ -185,12 +196,33 @@ test("runtime console model sorts scan steps and expands active or failed steps"
     ["tool-started", "tool-completed", "tool-failed"],
   );
   assert.equal(model.runningCount, 1);
+  assert.equal(model.waitingCount, 0);
   assert.equal(model.completedCount, 1);
   assert.equal(model.failedCount, 1);
   assert.equal(model.activeStep?.id, "tool-started");
   assert.equal(model.steps[0]?.defaultExpanded, true);
   assert.equal(model.steps[1]?.defaultExpanded, false);
   assert.equal(model.steps[2]?.defaultExpanded, true);
+});
+
+test("runtime console model keeps waiting steps out of completed fallback", () => {
+  const model = buildRuntimeConsoleModel([
+    runtimeActivity({
+      eventId: "scan-waiting",
+      eventType: "TOOL_COMPLETED",
+      runStatus: "WAITING",
+      sequence: 1,
+      toolName: "repository_scan",
+      summary: "Repository scan is waiting",
+      waitingReason: "Nhấn để xem chi tiết",
+    }),
+  ]);
+
+  assert.equal(model.runningCount, 0);
+  assert.equal(model.waitingCount, 1);
+  assert.equal(model.completedCount, 0);
+  assert.equal(model.activeStep?.id, "scan-waiting");
+  assert.equal(model.steps[0]?.defaultExpanded, true);
 });
 
 test("runtime console activity keeps only the latest scan run", () => {

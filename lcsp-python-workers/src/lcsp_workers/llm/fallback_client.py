@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 import httpx
 
@@ -11,9 +11,10 @@ from lcsp_workers.platform.logging import get_logger
 from lcsp_workers.platform.redaction import redact_string
 
 from .budget_tracker import BudgetExceeded
-from .gateway_client import (
-    LLMGatewayClient,
+from .deep_agent_client import (
+    LLMToolSchemaInvalidError,
     LLMResponse,
+    LLMStructuredResponse,
     LLMToolDefinition,
     LLMToolResponse,
 )
@@ -59,6 +60,19 @@ class LLMClientProtocol(Protocol):
         """Execute a completion request that may return structured tool calls."""
         ...
 
+    def complete_structured(
+        self,
+        prompt: str,
+        *,
+        response_format: dict[str, Any] | type[Any],
+        workflow_run_id: str,
+        node_name: str,
+        max_tokens: int | None = None,
+        correlationId: str | None = None,
+    ) -> LLMStructuredResponse:
+        """Execute a Deep Agent request with LangChain structured output."""
+        ...
+
 
 class LlmProviderAuthError(Exception):
     """Raised for provider authentication failures."""
@@ -70,6 +84,10 @@ class LlmProviderRateLimitError(Exception):
 
 class LlmProviderQuotaError(Exception):
     """Raised when a provider account has exhausted its quota."""
+
+
+class LlmProviderTokenLimitError(Exception):
+    """Raised when a provider rejects a request because an LLM token limit was exceeded."""
 
 
 class LlmProviderTimeoutError(Exception):
@@ -105,10 +123,10 @@ class LlmProviderUnavailableError(Exception):
 
 @dataclass(frozen=True)
 class LlmProviderCandidate:
-    """Named LLM gateway client considered during provider dispatch."""
+    """Named Deep Agents client considered during provider dispatch."""
 
     name: str
-    client: LLMGatewayClient
+    client: LLMClientProtocol
 
 
 class PrimaryThenFallbackLLMClient:
@@ -172,6 +190,7 @@ class PrimaryThenFallbackLLMClient:
                 workflow_run_id=workflow_run_id,
                 node_name=node_name,
                 correlation_id=correlationId,
+                tool_names=[],
                 error=exc,
             )
             raise
@@ -204,6 +223,7 @@ class PrimaryThenFallbackLLMClient:
             correlation_id=correlationId,
             tool_names=[tool.name for tool in tools],
         )
+        tool_names = [tool.name for tool in tools]
         try:
             result = self._dispatch(
                 lambda client: client.complete_with_tools(
@@ -221,11 +241,61 @@ class PrimaryThenFallbackLLMClient:
                 workflow_run_id=workflow_run_id,
                 node_name=node_name,
                 correlation_id=correlationId,
+                tool_names=tool_names,
                 error=exc,
             )
             raise
         self._log_response(
             operation="complete_with_tools",
+            workflow_run_id=workflow_run_id,
+            node_name=node_name,
+            correlation_id=correlationId,
+            response=result,
+        )
+        return result
+
+    def complete_structured(
+        self,
+        prompt: str,
+        *,
+        response_format: dict[str, Any] | type[Any],
+        workflow_run_id: str,
+        node_name: str,
+        max_tokens: int | None = None,
+        correlationId: str | None = None,
+    ) -> LLMStructuredResponse:
+        """Dispatch a structured completion and emit safe request telemetry."""
+        self._log_request(
+            operation="complete_structured",
+            prompt=prompt,
+            workflow_run_id=workflow_run_id,
+            node_name=node_name,
+            max_tokens=max_tokens,
+            correlation_id=correlationId,
+        )
+        try:
+            result = self._dispatch(
+                lambda client: client.complete_structured(
+                    prompt=prompt,
+                    response_format=response_format,
+                    workflow_run_id=workflow_run_id,
+                    node_name=node_name,
+                    max_tokens=max_tokens,
+                    correlationId=correlationId,
+                )
+            )
+        except Exception as exc:
+            self._log_failure(
+                operation="complete_structured",
+                workflow_run_id=workflow_run_id,
+                node_name=node_name,
+                correlation_id=correlationId,
+                tool_names=[],
+                error=exc,
+            )
+            raise
+        self._log_response(
+            operation="complete_structured",
             workflow_run_id=workflow_run_id,
             node_name=node_name,
             correlation_id=correlationId,
@@ -276,14 +346,8 @@ class PrimaryThenFallbackLLMClient:
         logger.info(
             "LLM_REQUEST",
             operation=operation,
-            provider_chain=[provider.name for provider in self._providers],
-            model_chain=[
-                getattr(provider.client, "model", None) for provider in self._providers
-            ],
             workflow_run_id=workflow_run_id,
             node_name=node_name,
-            max_tokens=max_tokens,
-            prompt_chars=len(prompt),
             tool_names=tool_names or [],
             correlationId=correlation_id,
         )
@@ -298,17 +362,15 @@ class PrimaryThenFallbackLLMClient:
         response: LLMResponse,
     ) -> None:
         """Log normalized provider usage after a successful LLM request."""
+        tool_call_names = [
+            call.name for call in (getattr(response, "tool_calls", None) or [])
+        ]
         logger.info(
             "LLM_RESPONSE",
             operation=operation,
-            provider=getattr(response, "provider", None),
-            model=getattr(response, "model", None),
             workflow_run_id=workflow_run_id,
             node_name=node_name,
-            request_id=getattr(response, "request_id", None),
-            input_tokens=getattr(response, "input_tokens", None),
-            output_tokens=getattr(response, "output_tokens", None),
-            tool_call_count=len(getattr(response, "tool_calls", ()) or ()),
+            tool_call_names=tool_call_names,
             correlationId=correlation_id,
         )
 
@@ -319,6 +381,7 @@ class PrimaryThenFallbackLLMClient:
         workflow_run_id: str,
         node_name: str,
         correlation_id: str | None,
+        tool_names: list[str],
         error: Exception,
     ) -> None:
         """Log redacted provider failure details while preserving the original exception."""
@@ -327,33 +390,43 @@ class PrimaryThenFallbackLLMClient:
             if isinstance(error, LlmProviderUnavailableError) and error.last_error is not None
             else error
         )
-        provider = (
-            error.last_provider if isinstance(error, LlmProviderUnavailableError) else None
-        )
-        details = _safe_provider_error_details(
-            diagnostic_error,
-            api_keys=tuple(
-                str(key)
-                for key in (
-                    getattr(candidate.client, "api_key", None)
-                    for candidate in self._providers
-                )
-                if key
-            ),
-        )
+        details = _safe_provider_error_details(diagnostic_error)
         logger.error(
             "LLM_REQUEST_FAILED",
             operation=operation,
             workflow_run_id=workflow_run_id,
             node_name=node_name,
-            provider=provider,
-            error_type=type(diagnostic_error).__name__,
-            error_code=_classify_provider_error(diagnostic_error),
-            error_message=details["error_message"],
-            status_code=details["status_code"],
-            request_id=details["request_id"],
+            tool_names=tool_names,
+            failure_reason=_classify_provider_error(diagnostic_error),
+            provider_status=details["status_code"],
+            provider_request_id=details["request_id"],
+            provider_message=details["error_message"],
             correlationId=correlation_id,
         )
+
+
+def classify_provider_error(exc: Exception) -> str:
+    """Return the public provider-failure classification code for orchestration policy."""
+    return _classify_provider_error(exc)
+
+
+def llm_limit_wait_reason(exc: Exception) -> str | None:
+    """Return an SSE-safe waiting reason when an LLM provider limit can be retried later."""
+    diagnostic_error = (
+        exc.last_error
+        if isinstance(exc, LlmProviderUnavailableError) and exc.last_error is not None
+        else exc
+    )
+    code = _classify_provider_error(diagnostic_error)
+    if isinstance(diagnostic_error, BudgetExceeded):
+        code = "TOKEN_LIMIT"
+    if code == "RATE_LIMIT":
+        return "LLM rate limit exceeded; waiting to resume."
+    if code == "QUOTA":
+        return "LLM token quota exceeded; waiting to resume."
+    if code == "TOKEN_LIMIT":
+        return "LLM token limit exceeded; waiting to resume."
+    return None
 
 
 def _safe_provider_error_details(
@@ -363,9 +436,9 @@ def _safe_provider_error_details(
 ) -> dict[str, str | int | None]:
     """Extract bounded provider diagnostics without exposing configured credentials."""
     response = getattr(error, "response", None)
-    status_code = getattr(error, "status_code", None)
+    status_code = _provider_status_code(error)
     if status_code is None and response is not None:
-        status_code = getattr(response, "status_code", None)
+        status_code = _provider_status_code(response)
 
     request_id = (
         getattr(error, "request_id", None)
@@ -376,7 +449,7 @@ def _safe_provider_error_details(
     message = redact_string(str(error)).strip() or type(error).__name__
     for api_key in api_keys:
         if api_key:
-            message = message.replace(api_key, "[REDACTED:API_KEY]")
+            message = message.replace(api_key, "")
     if len(message) > _MAX_PROVIDER_ERROR_MESSAGE_CHARS:
         message = message[:_MAX_PROVIDER_ERROR_MESSAGE_CHARS] + "…"
 
@@ -428,28 +501,52 @@ def _classify_provider_error(exc: Exception) -> str:
         return "RATE_LIMIT"
     if isinstance(exc, LlmProviderQuotaError):
         return "QUOTA"
+    if isinstance(exc, LlmProviderTokenLimitError):
+        return "TOKEN_LIMIT"
     if isinstance(exc, LlmProviderTimeoutError):
         return "TIMEOUT"
     if isinstance(exc, LlmProviderNetworkError):
         return "NETWORK"
+    if isinstance(exc, LLMToolSchemaInvalidError):
+        return "TOOL_SCHEMA_INVALID"
+    if "schema-invalid tool arguments" in str(exc).lower():
+        return "TOOL_SCHEMA_INVALID"
 
-    status_code = getattr(exc, "status_code", None)
+    status_code = _provider_status_code(exc)
     if status_code == 401 or status_code == 403:
         return "AUTH"
     if status_code == 408:
         return "TIMEOUT"
     if status_code == 429:
         return "RATE_LIMIT"
+    if status_code == 400:
+        message = str(exc).lower()
+        if "api key" in message or "apikey" in message or "credential" in message:
+            return "AUTH"
+        if "quota" in message:
+            return "QUOTA"
+        if _is_token_limit_message(message):
+            return "TOKEN_LIMIT"
+        return "INVALID_REQUEST"
 
     response = getattr(exc, "response", None)
     if response is not None:
-        response_status = getattr(response, "status_code", None)
+        response_status = _provider_status_code(response)
         if response_status == 401 or response_status == 403:
             return "AUTH"
         if response_status == 408:
             return "TIMEOUT"
         if response_status == 429:
             return "RATE_LIMIT"
+        if response_status == 400:
+            message = str(exc).lower()
+            if "api key" in message or "apikey" in message or "credential" in message:
+                return "AUTH"
+            if "quota" in message:
+                return "QUOTA"
+            if _is_token_limit_message(message):
+                return "TOKEN_LIMIT"
+            return "INVALID_REQUEST"
 
     if isinstance(exc, httpx.TimeoutException):
         return "TIMEOUT"
@@ -459,6 +556,8 @@ def _classify_provider_error(exc: Exception) -> str:
     message = str(exc).lower()
     if "quota" in message or "insufficient_quota" in message:
         return "QUOTA"
+    if _is_token_limit_message(message):
+        return "TOKEN_LIMIT"
     if "rate limit" in message or "too many requests" in message:
         return "RATE_LIMIT"
     if "timeout" in message or "timed out" in message:
@@ -468,3 +567,28 @@ def _classify_provider_error(exc: Exception) -> str:
     if "auth" in message or "invalid api key" in message or "unauthorized" in message:
         return "AUTH"
     return "UNKNOWN"
+
+
+def _is_token_limit_message(message: str) -> bool:
+    if "context_length_exceeded" in message:
+        return False
+    token_markers = ("token limit", "tokens per", "max tokens", "maximum tokens")
+    exceeded_markers = ("exceed", "exceeded", "too many")
+    return any(marker in message for marker in token_markers) and any(
+        marker in message for marker in exceeded_markers
+    )
+
+
+def _provider_status_code(value) -> int | str | None:
+    """Read common provider status attributes, including google-genai ClientError."""
+    for attr in ("status_code", "code", "status"):
+        raw = getattr(value, attr, None)
+        if raw is None:
+            continue
+        if isinstance(raw, int):
+            return raw
+        try:
+            return int(raw)
+        except (TypeError, ValueError):
+            return str(raw)[:64]
+    return None

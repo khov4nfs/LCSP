@@ -82,7 +82,7 @@ def test_corroborated_sensitive_lineage_is_material() -> None:
     assert projected.initial_results[0]["nodes"][0]["node_id"] == "node:corroborated"
 
 
-def test_llm_business_semantic_requires_corroborated_support_refs() -> None:
+def test_llm_semantic_node_requires_corroborated_support_refs() -> None:
     unsupported = {
         "node_id": "node:business-unsupported",
         "node_type": "BUSINESS_PROCESS",

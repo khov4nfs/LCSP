@@ -41,12 +41,9 @@ fail() {
 remove_hosts_override() {
   [ -n "${FOGEWISE_DOMAIN:-}" ] || return 0
 
-  local escaped
-  escaped="${FOGEWISE_DOMAIN//./\\.}"
-
-  if grep -Eq "^[[:space:]]*127\.0\.0\.1[[:space:]]+${escaped}([[:space:]]+.*)?#[[:space:]]*fogewise-local-dev[[:space:]]*$" "$HOSTS_FILE" 2>/dev/null; then
+  if grep -Eq "#[[:space:]]*fogewise-local-dev[[:space:]]*$" "$HOSTS_FILE" 2>/dev/null; then
     sudo sed -i '' \
-      "\|^[[:space:]]*127\.0\.0\.1[[:space:]]\+${escaped}\([[:space:]].*\)\?#[[:space:]]*fogewise-local-dev[[:space:]]*$|d" \
+      "\|#[[:space:]]*fogewise-local-dev[[:space:]]*$|d" \
       "$HOSTS_FILE"
 
     sudo dscacheutil -flushcache 2>/dev/null || true
@@ -146,7 +143,9 @@ EOF
   export FOGEWISE_API_PORT
 
   FOGEWISE_DOMAIN="${FOGEWISE_SUBDOMAIN}.fogewise.io.vn"
+  FOGEWISE_PHOENIX_DOMAIN="phoenix.${FOGEWISE_DOMAIN}"
   export FOGEWISE_DOMAIN
+  export FOGEWISE_PHOENIX_DOMAIN
 }
 
 ensure_caddyfile() {
@@ -162,6 +161,11 @@ ensure_caddyfile() {
     bind 127.0.0.1
     tls internal
 
+    @phoenix_traces path /v1/traces /v1/traces/*
+    handle @phoenix_traces {
+        reverse_proxy 127.0.0.1:6006
+    }
+
     @api path /api /api/*
     handle @api {
         reverse_proxy 127.0.0.1:{$FOGEWISE_API_PORT}
@@ -171,23 +175,35 @@ ensure_caddyfile() {
         reverse_proxy 127.0.0.1:{$FOGEWISE_WEB_PORT}
     }
 }
+
+phoenix.{$FOGEWISE_SUBDOMAIN}.fogewise.io.vn {
+    bind 127.0.0.1
+    tls internal
+
+    handle {
+        reverse_proxy 127.0.0.1:6006
+    }
+}
 EOF
 }
 
 ensure_hosts() {
-  local existing escaped
+  local existing escaped escaped_phoenix
   escaped="${FOGEWISE_DOMAIN//./\\.}"
+  escaped_phoenix="${FOGEWISE_PHOENIX_DOMAIN//./\\.}"
 
   # Repair stale Fogewise entry from an earlier interrupted launcher.
   remove_hosts_override
 
   # Never overwrite a hosts entry that Fogewise does not own.
-  existing="$(grep -E "(^|[[:space:]])${escaped}([[:space:]]|$)" "$HOSTS_FILE" 2>/dev/null || true)"
+  existing="$(grep -E "(^|[[:space:]])(${escaped}|${escaped_phoenix})([[:space:]]|$)" "$HOSTS_FILE" 2>/dev/null || true)"
   if [ -n "$existing" ]; then
-    fail "$FOGEWISE_DOMAIN already exists in /etc/hosts without the Fogewise marker. Remove/fix that entry manually first."
+    fail "$FOGEWISE_DOMAIN or $FOGEWISE_PHOENIX_DOMAIN already exists in /etc/hosts without the Fogewise marker. Remove/fix that entry manually first."
   fi
 
   printf '127.0.0.1 %s # fogewise-local-dev\n' "$FOGEWISE_DOMAIN" |
+    sudo tee -a "$HOSTS_FILE" >/dev/null
+  printf '127.0.0.1 %s # fogewise-local-dev\n' "$FOGEWISE_PHOENIX_DOMAIN" |
     sudo tee -a "$HOSTS_FILE" >/dev/null
 
   sudo dscacheutil -flushcache 2>/dev/null || true
@@ -198,6 +214,9 @@ verify_resolution() {
   ping -c 1 "$FOGEWISE_DOMAIN"
   ping -c 1 "$FOGEWISE_DOMAIN" | grep -q '127\.0\.0\.1' ||
     fail "$FOGEWISE_DOMAIN does not resolve to 127.0.0.1."
+  ping -c 1 "$FOGEWISE_PHOENIX_DOMAIN"
+  ping -c 1 "$FOGEWISE_PHOENIX_DOMAIN" | grep -q '127\.0\.0\.1' ||
+    fail "$FOGEWISE_PHOENIX_DOMAIN does not resolve to 127.0.0.1."
 }
 
 print_header() {
@@ -205,6 +224,7 @@ print_header() {
   printf 'Launcher: %s\n' "$LAUNCHER_DIR"
   printf 'Project : %s\n' "$PROJECT_ROOT"
   printf 'Domain  : https://%s\n' "$FOGEWISE_DOMAIN"
+  printf 'Phoenix : https://%s\n' "$FOGEWISE_PHOENIX_DOMAIN"
   printf 'Web     : 127.0.0.1:%s\n' "$FOGEWISE_WEB_PORT"
   printf 'API     : 127.0.0.1:%s\n' "$FOGEWISE_API_PORT"
 }

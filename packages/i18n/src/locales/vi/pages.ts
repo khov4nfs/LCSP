@@ -684,6 +684,7 @@ export const viPages = {
       backToWorkspace: "Quay lại workspace",
       previous: "Quay lại",
       saveAndContinue: "Lưu và tiếp tục",
+      continueToDeepResearch: "Sang Nghiên cứu sâu",
       continueToDetailed: "Sang phần khai báo chi tiết",
       submit: "Gửi Wizard",
       openClassification: "Mở bước tiếp theo",
@@ -695,6 +696,7 @@ export const viPages = {
       provider: "Sử dụng AI bên ngoài",
       deployment: "Môi trường triển khai",
       risk: "Tín hiệu cần lưu ý thêm",
+      deepResearch: "Nghiên cứu sâu",
     },
     fields: {
       preAiScopeLabel:
@@ -715,16 +717,40 @@ export const viPages = {
         "Ví dụ: tuyển dụng, tiếp cận dịch vụ, đủ điều kiện, định giá hoặc kết quả phục vụ.",
       businessProcessLabel: "Hệ thống này đang hỗ trợ quy trình nghiệp vụ nào?",
       businessProcessDescription:
-        "Mô tả quy trình nghiệp vụ chính bằng ngôn ngữ công việc hằng ngày.",
+        "Mô tả quy trình nghiệp vụ chính, mục tiêu tuân thủ/rủi ro và người dùng nghiệp vụ hưởng lợi.",
       businessProcessPlaceholder:
-        "Ví dụ: Hỗ trợ nhóm chăm sóc khách hàng soạn phản hồi cho yêu cầu hỗ trợ.",
+        "Ví dụ: Hỗ trợ tổ chức đánh giá mức độ tuân thủ và rủi ro của hệ thống AI trước khi đưa vào vận hành.",
+      useCaseLabel: "Use case chính là gì?",
+      useCaseDescription:
+        "Mô tả mục tiêu của actor, luồng chính và phạm vi use case, không liệt kê chi tiết triển khai.",
+      useCasePlaceholder:
+        "Ví dụ: Nhân viên hỗ trợ mở yêu cầu của khách hàng, xem ngữ cảnh được gợi ý, chỉnh sửa bản nháp và gửi phản hồi.",
+      primaryActorsLabel: "Ai tham gia use case này?",
+      primaryActorsDescription:
+        "Nêu actor con người, actor hệ thống và nhóm người bị ảnh hưởng trong luồng.",
+      primaryActorsPlaceholder:
+        "Ví dụ: Nhân viên hỗ trợ, khách hàng, hệ thống chăm sóc khách hàng, dịch vụ AI soạn nháp.",
+      businessTriggerLabel: "Điều gì bắt đầu luồng này?",
+      businessTriggerDescription:
+        "Mô tả sự kiện, hành động người dùng hoặc điều kiện theo lịch khởi động use case.",
+      businessTriggerPlaceholder:
+        "Ví dụ: Khách hàng gửi yêu cầu hỗ trợ mới hoặc mở lại một case hiện có.",
+      expectedOutcomeLabel: "Luồng này cần tạo ra kết quả gì?",
+      expectedOutcomeDescription:
+        "Mô tả kết quả nghiệp vụ sau khi luồng hoàn tất, bao gồm điều AI không được tự quyết.",
+      expectedOutcomePlaceholder:
+        "Ví dụ: Khách hàng nhận phản hồi đã được nhân viên phê duyệt; AI không tự đóng case.",
       aiPurposeLabel: "AI đóng vai trò gì trong quy trình này?",
       aiPurposeDescription:
-        "Mô tả vai trò cụ thể của hệ thống AI trong quy trình được nêu ở trên.",
+        "Mô tả AI được dùng để làm gì và quyết định nào AI không được tự phê duyệt.",
       aiPurposePlaceholder:
-        "Ví dụ: Tóm tắt lịch sử hội thoại và đề xuất 3 câu trả lời dự kiến.",
+        "Ví dụ: AI hỗ trợ lập kế hoạch điều tra, diễn giải bằng chứng theo rule đã phê duyệt và đề xuất kết luận có trích dẫn.",
+      autonomyLevelLabel: "Hệ thống tự động tới mức nào trong use case này?",
+      autonomyLevelDescription:
+        "Chọn phương án mạnh nhất nhưng vẫn đúng với luồng thực tế.",
       sectorLabel: "Bối cảnh nghiệp vụ nào phù hợp nhất với hệ thống này?",
-      sectorDescription: "Chọn bối cảnh chính gần nhất cho assessment này.",
+      sectorDescription:
+        "Chọn lĩnh vực gần nhất; với LCSP thường là governance, risk and compliance.",
       dataTypeLabel: "Hệ thống dùng hoặc phân tích những loại dữ liệu nào?",
       dataTypeDescription:
         "Chọn tất cả nhóm dữ liệu có liên quan tới luồng AI này.",
@@ -782,6 +808,8 @@ export const viPages = {
       sectorEducation: "Giáo dục hoặc đào tạo",
       sectorHealthcare: "Y tế hoặc chăm sóc sức khỏe",
       sectorPublicServices: "Dịch vụ công hoặc quyền truy cập có điều kiện",
+      sectorGovernanceRiskCompliance:
+        "Governance, Risk and Compliance / Legal-tech",
       dataTypePersonal: "Dữ liệu hồ sơ cá nhân",
       dataTypeSensitive: "Dữ liệu nhạy cảm hoặc đặc biệt",
       dataTypeBiometric: "Dữ liệu sinh trắc học",
@@ -813,6 +841,14 @@ export const viPages = {
         "Kết quả thường có hiệu lực mà không có bước kiểm tra thực chất",
       humanOversightNotApplicable:
         "Không áp dụng vì AI không ảnh hưởng tới quyết định cuối cùng",
+      autonomyHumanAssisted:
+        "Chỉ hỗ trợ con người; con người quyết định và thực hiện kết quả",
+      autonomyHumanApprovalRequired:
+        "Tự động chuẩn bị kết quả nhưng phải có người phê duyệt",
+      autonomyConditionalAutomation:
+        "Có thể tự động hành động trong điều kiện đã định nghĩa hoặc ca rủi ro thấp",
+      autonomyFullAutomation:
+        "Hệ thống có thể hoàn tất kết quả mà không cần người phê duyệt",
       externalNone: "Không gọi dịch vụ ngoài",
       externalPossible: "Có khả năng gọi dịch vụ ngoài",
       externalConfirmed: "Xác nhận có dùng AI bên ngoài",
@@ -829,6 +865,101 @@ export const viPages = {
       prohibitedScoring: "Chấm điểm xã hội",
       prohibitedSensitiveInference: "Suy diễn các đặc điểm nhạy cảm",
     },
+    clarification: {
+      title: "Thông tin cần có trước khi scan",
+      description:
+        "Trả lời các câu hỏi có giới hạn này để các agent sau dùng dữ kiện bạn cung cấp thay vì suy diễn ý nghĩa nghiệp vụ từ tên code.",
+      badge: "Ask mode",
+      askAction: "Hỏi thêm",
+      askRunning: "Đang hỏi",
+      askReady: "Đã tạo câu hỏi làm rõ",
+      approveAction: "Approve",
+      approveDescription:
+        "Approve đợt câu hỏi này sau khi đã trả lời đủ để Deep Agents tiếp tục phân tích.",
+      approveIncomplete:
+        "Vui lòng trả lời đủ các câu hỏi trong đợt hiện tại trước khi approve.",
+      approveReady:
+        "Đã approve đợt câu hỏi, Deep Agents sẽ tiếp tục phân tích.",
+      noMoreQuestions: "Deep Agents không còn câu hỏi nghiên cứu sâu mới.",
+      agentTitle: "Câu hỏi làm rõ từ agent",
+      agentDescription:
+        "Các câu hỏi này được tạo từ ngữ cảnh assessment hiện tại và được route vào đúng field của Wizard.",
+      agentBadge: "Agent ask",
+      agentReasonLabel: "Lý do",
+      agentAnswerLabel: "Câu trả lời",
+      agentAnswerDescription:
+        "Chỉ trả lời bằng ngữ cảnh nghiệp vụ. Không dán source code hoặc prompt.",
+      agentAnswerPlaceholder:
+        "Bổ sung ngữ cảnh còn thiếu để tiếp tục planner hoặc investigation.",
+      rules: {
+        businessProcess:
+          "Chỉ thu thập quy trình nghiệp vụ bằng ngôn ngữ công việc hằng ngày, không thu cấu trúc code.",
+        useCase:
+          "Chỉ thu thập một mục tiêu actor chính, luồng chính và ranh giới cho assessment này.",
+        primaryActors:
+          "Chỉ thu thập các vai trò tham gia hoặc bị ảnh hưởng bởi use case.",
+        businessTrigger:
+          "Thu thập sự kiện nghiệp vụ bắt đầu luồng; không suy diễn chỉ từ tên route.",
+        expectedOutcome:
+          "Thu thập kết quả nghiệp vụ mong muốn và quyết định nào cần thẩm quyền con người.",
+        autonomyLevel:
+          "Chỉ chọn một mức tự động hóa từ bộ option đã phê duyệt.",
+        aiPurpose:
+          "Thu thập AI được dùng để làm gì và không được tự quyết định điều gì.",
+        sector: "Chỉ chọn lĩnh vực gần nhất từ bộ option đã phê duyệt.",
+        postGraphContext:
+          "Chỉ hỏi ngữ cảnh nghiệp vụ mà code graph không chứng minh được.",
+        postGraphRuleScope:
+          "Chỉ hỏi phạm vi nghiệp vụ hoặc nhóm rule cần đánh giá tiếp.",
+        postGraphHumanReview:
+          "Chỉ hỏi vị trí review hoặc phê duyệt của con người trong luồng nghiệp vụ.",
+      },
+      useCaseQuestion: "Use case chính là gì?",
+      useCaseDetail:
+        "Bao gồm mục tiêu của actor, luồng chính và ranh giới. Không đưa source code hoặc chi tiết triển khai.",
+      primaryActorsQuestion: "Ai tham gia use case này?",
+      primaryActorsDetail:
+        "Bao gồm actor con người, actor hệ thống và người bị ảnh hưởng. Dùng tên vai trò rõ ràng.",
+      businessTriggerQuestion: "Điều gì bắt đầu luồng này?",
+      businessTriggerDetail:
+        "Nêu hành động người dùng, event, queue message, lịch chạy hoặc điều kiện bên ngoài khởi động use case.",
+      expectedOutcomeQuestion: "Luồng này cần tạo ra kết quả gì?",
+      expectedOutcomeDetail:
+        "Nêu kết quả nghiệp vụ và chỉ rõ quyết định nào AI không được tự làm một mình.",
+      autonomyLevelQuestion: "Hệ thống tự động tới mức nào trong use case này?",
+      autonomyLevelDetail:
+        "Chọn AI chỉ hỗ trợ, cần phê duyệt, được hành động có điều kiện hoặc tự động hoàn toàn.",
+      postGraphContextQuestion: "Code graph đang thiếu ngữ cảnh nghiệp vụ nào?",
+      postGraphContextDetail:
+        "Chỉ bổ sung dữ kiện nghiệp vụ cần thiết để diễn giải bằng chứng kỹ thuật đã scan.",
+      postGraphContextPlaceholder:
+        "Ví dụ: Route này chỉ dùng bởi compliance operator trong bước review bằng chứng.",
+      postGraphRuleScopeQuestion:
+        "Planner nên đánh giá nhóm rule nào tiếp theo?",
+      postGraphRuleScopeDetail:
+        "Nêu nghĩa vụ nghiệp vụ, nhóm kiểm soát hoặc phạm vi corpus đã phê duyệt cần dùng cho investigation tiếp theo.",
+      postGraphRuleScopePlaceholder:
+        "Ví dụ: Human oversight và auditability cho phân loại được AI hỗ trợ.",
+      postGraphHumanReviewQuestion:
+        "Review của con người nằm ở đâu trong luồng này?",
+      postGraphHumanReviewDetail:
+        "Nêu ai review, review xảy ra khi nào và người review có quyền gì.",
+      postGraphHumanReviewPlaceholder:
+        "Ví dụ: Legal Operator review các phân loại bị blocked trước khi phê duyệt cuối.",
+    },
+    deepResearch: {
+      badge: "Deep Agents",
+      description:
+        "Deep Agents tự tạo câu hỏi sau khi các phần khai báo phía trên đã hoàn tất, dựa trên câu trả lời đã có và không route lại vào field Wizard có sẵn.",
+      lockedDescription:
+        "Hoàn tất toàn bộ các phần khai báo phía trên để Deep Agents tự bắt đầu nghiên cứu sâu.",
+      lockedError:
+        "Vui lòng hoàn tất các phần khai báo phía trên trước khi yêu cầu Deep Agents nghiên cứu sâu.",
+      agentTitle: "Nghiên cứu sâu tự động",
+      agentDescription:
+        "Deep Agents đọc context Wizard hiện có và tự bổ sung câu hỏi hậu-scan khi không còn câu hỏi đang chờ trả lời.",
+      askAction: "Tạo câu hỏi",
+    },
     helpers: {
       decisionTitle: "Cách trả lời câu hỏi về vai trò trong quyết định",
       decisionBody:
@@ -843,6 +974,7 @@ export const viPages = {
     errors: {
       loadTitle: "Không thể tải Wizard này",
       loadDetail: "Hiện chưa thể tải trạng thái assessment.",
+      clarificationFailed: "Không thể tạo câu hỏi làm rõ. Vui lòng thử lại.",
       saveFailed: "Không thể lưu bản nháp. Vui lòng thử lại.",
       submitFailed:
         "Không thể gửi Wizard. Hãy kiểm tra lại các câu trả lời đang được đánh dấu rồi thử lại.",
@@ -857,8 +989,15 @@ export const viPages = {
         "Vui lòng cho biết kết quả AI có ảnh hưởng tới quyết định quan trọng không trước khi tiếp tục.",
       businessProcessRequired:
         "Hãy mô tả quy trình nghiệp vụ chính trước khi tiếp tục.",
+      useCaseRequired: "Hãy mô tả use case chính trước khi tiếp tục.",
+      primaryActorsRequired: "Hãy mô tả các actor tham gia trước khi tiếp tục.",
+      businessTriggerRequired:
+        "Hãy mô tả điều khởi động workflow trước khi tiếp tục.",
+      expectedOutcomeRequired: "Hãy mô tả kết quả mong đợi trước khi tiếp tục.",
       aiPurposeRequired:
         "Hãy mô tả mục đích của hệ thống AI trước khi tiếp tục.",
+      autonomyLevelRequired:
+        "Hãy chọn ranh giới tự động hóa trước khi tiếp tục.",
       sectorRequired: "Hãy chọn bối cảnh nghiệp vụ chính trước khi tiếp tục.",
       dataTypesRequired:
         "Hãy chọn ít nhất một nhóm dữ liệu trước khi tiếp tục.",
@@ -974,6 +1113,7 @@ export const viPages = {
     waitingReasonLabel: "Lý do chờ",
     activeStepLabel: "Bước đang chạy",
     runningStepsLabel: "Đang chạy",
+    waitingStepsLabel: "Đang chờ",
     completedStepsLabel: "Hoàn tất",
     failedStepsLabel: "Cảnh báo",
     skippedStepsLabel: "Bỏ qua",
@@ -984,9 +1124,17 @@ export const viPages = {
     reasonLabel: "Lý do",
     valueLabel: "Giá trị",
     emptyValueLabel: "Trống",
+    notApplicableValueLabel: "Không áp dụng",
     rerunScan: "Chạy lại scan",
     rerunningScan: "Đang tạo scan mới",
     rerunError: "Không thể tạo scan mới. Hãy thử lại sau.",
+    clarificationRequestTitle: "Cần bổ sung ngữ cảnh",
+    clarificationRequestDescription:
+      "Pipeline đang chờ các câu hỏi có giới hạn. Trả lời trong Wizard để agent sau dùng dữ kiện đã cung cấp.",
+    clarificationRequestScopeLabel: "Phạm vi",
+    clarificationRequestReasonLabel: "Lý do",
+    clarificationRequestOpenWizard: "Mở Wizard",
+    clarificationCollectionRuleLabel: "Quy tắc thu thập",
     scanStatuses: {
       queued: "Đang chờ chạy",
       running: "Đang phân tích",
@@ -1004,6 +1152,7 @@ export const viPages = {
       waiting: "Đang chờ",
       completed: "Đã hoàn tất",
       failed: "Thất bại",
+      skipped: "Bỏ qua",
     },
     runtimeStages: {
       snapshot: "Snapshot",
@@ -1060,7 +1209,8 @@ export const viPages = {
       getGapEvidenceTrace: "Đọc dấu vết bằng chứng gap",
       proposeGapRemediation: "Đề xuất khắc phục gap",
       submitClassificationForIndependentReview: "Gửi để xem xét độc lập",
-      resolveIndependentClassificationReview: "Giải quyết xem xét phân loại độc lập",
+      resolveIndependentClassificationReview:
+        "Giải quyết xem xét phân loại độc lập",
       getLegalCorpusReadiness: "Kiểm tra sẵn sàng corpus pháp lý",
       retrieveLegalBasis: "Truy xuất căn cứ pháp lý",
       getLegalRuleMatch: "Đối chiếu quy tắc pháp lý",
@@ -1312,7 +1462,6 @@ export const viPages = {
         "Bước đối chiếu pháp lý đã hoàn tất nhưng không tìm thấy quy tắc nào phù hợp với hồ sơ bằng chứng đã xác minh. Phân loại không thể tiến hành khi thiếu căn cứ pháp lý áp dụng.",
       legalMatchBlockedSummary:
         "Liên hệ quản trị viên tuân thủ để rà soát rule catalog hoặc hồ sơ bằng chứng trước khi thử lại.",
-
     },
     finalReportRequestedTitle: "Yêu cầu báo cáo cuối cùng đã được gửi",
     finalReportRequestedDetail:

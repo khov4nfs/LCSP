@@ -4,6 +4,7 @@ import {
   unsafeDevTraceEnabled,
   unsafeDevUnfilteredEnabled,
 } from "./dev-unsafe-trace.js";
+import { sanitizeOrchestrationLogValue } from "./orchestration-runtime-log.js";
 
 interface TraceRecord {
   event?: string;
@@ -47,7 +48,7 @@ describe("dev-unsafe-trace", () => {
     expect(unsafeDevUnfilteredEnabled()).toBe(false);
   });
 
-  it("redacts credentials and summarizes payloads by default", () => {
+  it("preserves credentials and summarizes payloads by default", () => {
     process.env.LCSP_DEV_UNSAFE_TRACE = "true";
     process.env.LCSP_DEV_UNSAFE_UNFILTERED = "false";
     process.env.NODE_ENV = "development";
@@ -70,8 +71,8 @@ describe("dev-unsafe-trace", () => {
     const record = JSON.parse(logCall.trim()) as TraceRecord;
 
     expect(record.event).toBe("TEST_EVENT");
-    expect(record.api_key).toBe("[REDACTED]");
-    expect(record.authorization).toBe("[REDACTED]");
+    expect(record.api_key).toBe("secret-key-123");
+    expect(record.authorization).toBe("Bearer some-token");
     expect(record.body_size).toBe(100);
     expect(record.body_itemCount).toBeUndefined();
     expect(record.node_count).toBe(3);
@@ -104,6 +105,22 @@ describe("dev-unsafe-trace", () => {
     expect(record.body).toBe("hello");
 
     writeSpy.mockRestore();
+  });
+
+  it("does not redact orchestration log values when unfiltered is enabled", () => {
+    process.env.LCSP_DEV_UNSAFE_TRACE = "true";
+    process.env.LCSP_DEV_UNSAFE_UNFILTERED = "true";
+    process.env.NODE_ENV = "development";
+
+    expect(
+      sanitizeOrchestrationLogValue({
+        apiKey: "secret-key-123",
+        response: { authorization: "Bearer token-123" },
+      }),
+    ).toEqual({
+      apiKey: "secret-key-123",
+      response: { authorization: "Bearer token-123" },
+    });
   });
 
   it("logs actual body size from content-length header and dynamic limit for technical profile callback", () => {

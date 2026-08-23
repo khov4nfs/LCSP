@@ -81,8 +81,7 @@ describe("Re-Run Scan Endpoint (e2e) [MW-scan-003]", () => {
     await prisma.$disconnect();
   });
 
-  it("T01/T03: Valid re-run creates 201 new scan job, prior job/evidence intact", async () => {
-    // Create a prior scan job
+  it("T01/T03: Valid re-run creates 201 replacement scan job and removes prior same-snapshot scan", async () => {
     const priorUpdatedAt = new Date("2026-07-17T00:00:00.000Z");
     await prisma.repositoryScanJob.create({
       data: {
@@ -114,14 +113,11 @@ describe("Re-Run Scan Endpoint (e2e) [MW-scan-003]", () => {
     assert.equal(job.snapshotId, "snapshot-1");
     assert.equal(job.triggerSource, REPOSITORY_SCAN_TRIGGER_SOURCES.manual);
 
-    // Verify prior job is intact (T03)
-    const prior = await prisma.repositoryScanJob.findUniqueOrThrow({
+    const prior = await prisma.repositoryScanJob.findUnique({
       where: { id: "prior-scan-job" },
     });
-    assert.equal(prior.status, REPOSITORY_SCAN_JOB_STATUSES.completed);
-    assert.equal(prior.updatedAt.toISOString(), priorUpdatedAt.toISOString());
+    assert.equal(prior, null);
 
-    // Verify Outbox
     const event = await prisma.outboxMessage.findFirst({
       where: { aggregateId: body.scan_job_id },
     });
@@ -131,7 +127,6 @@ describe("Re-Run Scan Endpoint (e2e) [MW-scan-003]", () => {
       "prior-scan-job",
     );
 
-    // Verify Audit
     const audit = await prisma.authAuditEvent.findFirst({
       where: {
         eventType: SCAN_EVENT_TYPES.scanRerunTriggeredAudit,

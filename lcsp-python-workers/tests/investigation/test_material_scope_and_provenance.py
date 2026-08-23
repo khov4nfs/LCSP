@@ -98,7 +98,9 @@ def test_test_source_path_policy_covers_common_python_and_js_specs() -> None:
     assert is_test_source_path("apps/web/__tests__/route.test.tsx")
     assert is_test_source_path("lcsp-python-workers/fixtures/sample.py")
     assert not is_test_source_path("apps/api/src/foo.handler.ts")
-    assert not is_test_source_path("lcsp-python-workers/src/lcsp_workers/runtime.py")
+    assert not is_test_source_path(
+        "lcsp-python-workers/src/lcsp_workers/managed/invocation.py"
+    )
 
 
 def test_runtime_graph_filter_removes_test_nodes_anchors_and_refs() -> None:
@@ -128,8 +130,8 @@ def test_runtime_graph_filter_removes_test_nodes_anchors_and_refs() -> None:
 def test_material_scope_ignores_generic_ai_seed_and_test_health_seed() -> None:
     generic = _node(
         "node:generic",
-        label="gateway complete",
-        path="src/gateway.py",
+        label="internal model runtime complete",
+        path="src/model_runtime.py",
         evidence_ref="evidence:generic",
     )
     health = _node(
@@ -170,6 +172,63 @@ def test_material_scope_ignores_generic_ai_seed_and_test_health_seed() -> None:
     assert row["rawHitCount"] == 3
     assert row["materialHitCount"] == 1
     assert material.evidence_refs == ("evidence:health",)
+
+
+def test_material_scope_ignores_internal_deep_agent_runtime_seed() -> None:
+    deep_agent_output = _node(
+        "node:deep-agent-output",
+        label="output from DeepAgentClient.complete",
+        path="khovan123-LCSP-68bba10/lcsp-python-workers/src/lcsp_workers/llm/deep_agent_client.py",
+        evidence_ref="evidence:deep-agent-output",
+        node_type="AI_OUTPUT",
+    )
+    product_surface = _node(
+        "node:product-chat",
+        label="chat disclosure control",
+        path="apps/web/src/features/chat/components/chat-panel.tsx",
+        evidence_ref="evidence:product-chat",
+        node_type="AI_OUTPUT",
+    )
+    packet = InvestigationPacket(
+        engineering_rule_id="eng-transparency",
+        concept="AI_TRANSPARENCY_DISCLOSURE",
+        investigation_goals=("verify chat disclosure control",),
+        initial_results=(
+            {
+                "query": "transparency-seed",
+                "nodes": [deep_agent_output, product_surface],
+                "evidenceRefs": [
+                    "evidence:deep-agent-output",
+                    "evidence:product-chat",
+                ],
+            },
+        ),
+        starting_node_types=("AI_OUTPUT",),
+        keywords=("chat", "disclosure", "transparency"),
+        required_evidence=("AI_OUTPUT_SURFACE", "AI_INTERACTION_DISCLOSURE_CONTROL"),
+    )
+
+    material = material_planning_packet(
+        _rule(
+            engineeringRuleId="eng-transparency",
+            concept="AI_TRANSPARENCY_DISCLOSURE",
+            investigationGoals=["verify chat disclosure control"],
+            startingNodeTypes=["AI_OUTPUT"],
+            targetNodeTypes=["AI_OUTPUT"],
+            keywords=["chat", "disclosure", "transparency"],
+            requiredEvidence=[
+                "AI_OUTPUT_SURFACE",
+                "AI_INTERACTION_DISCLOSURE_CONTROL",
+            ],
+        ),
+        packet,
+    )
+
+    row = material.initial_results[0]
+    assert [node["node_id"] for node in row["nodes"]] == ["node:product-chat"]
+    assert row["rawHitCount"] == 2
+    assert row["materialHitCount"] == 1
+    assert material.evidence_refs == ("evidence:product-chat",)
 
 
 def test_claim_validator_drops_test_evidence_and_minimizes_to_criterion() -> None:

@@ -18,8 +18,38 @@ describe("WizardValidatorService", () => {
         updatedAt: "2026-07-31T00:00:00.000Z",
       },
       {
+        questionId: "useCase",
+        value: "Support agent drafts a customer reply",
+        answerState: ANSWER_STATES.answered,
+        updatedAt: "2026-07-31T00:00:00.000Z",
+      },
+      {
+        questionId: "primaryActors",
+        value: "Support agent, customer, AI drafting service",
+        answerState: ANSWER_STATES.answered,
+        updatedAt: "2026-07-31T00:00:00.000Z",
+      },
+      {
+        questionId: "businessTrigger",
+        value: "Customer submits a support request",
+        answerState: ANSWER_STATES.answered,
+        updatedAt: "2026-07-31T00:00:00.000Z",
+      },
+      {
+        questionId: "expectedOutcome",
+        value: "Customer receives a staff-approved response",
+        answerState: ANSWER_STATES.answered,
+        updatedAt: "2026-07-31T00:00:00.000Z",
+      },
+      {
         questionId: "aiPurpose",
         value: "technology",
+        answerState: ANSWER_STATES.answered,
+        updatedAt: "2026-07-31T00:00:00.000Z",
+      },
+      {
+        questionId: "autonomyLevel",
+        value: "HUMAN_APPROVAL_REQUIRED",
         answerState: ANSWER_STATES.answered,
         updatedAt: "2026-07-31T00:00:00.000Z",
       },
@@ -136,6 +166,6 @@ describe("WizardValidatorService", () => {
 
   it("T09: should return all errors when everything is missing", () => {
     const errors = service.validate([]);
-    expect(errors).toHaveLength(7);
+    expect(errors).toHaveLength(12);
   });
 });

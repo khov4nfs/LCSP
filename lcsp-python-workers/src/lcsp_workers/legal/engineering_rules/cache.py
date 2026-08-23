@@ -4,16 +4,17 @@ The cache intentionally reuses the Chroma persistence already operated for legal
 retrieval, but stores no embeddings and performs only exact fingerprint/ID lookups.
 """
 from __future__ import annotations
-import json, os
+import json
 from typing import Iterable
+from ..chroma_path import resolve_legal_chroma_path
+from ..chroma_vectorless import zero_embeddings
 from .models import EngineeringRule
 from .validator import validate_engineering_rule
 
 class EngineeringRuleCache:
     COLLECTION = "lcsp_engineering_rules_v1"
     def __init__(self, chroma_path: str | None = None) -> None:
-        from lcsp_workers.platform.logging_path import get_repo_root
-        self._chroma_path = chroma_path or os.getenv("LEGAL_CHROMA_PATH", os.path.join(get_repo_root(), "tmp", "lcsp-chroma"))
+        self._chroma_path = resolve_legal_chroma_path(chroma_path)
 
     def get(self, fingerprint: str) -> list[EngineeringRule]:
         result = self._collection().get(where={"source_fingerprint": fingerprint}, include=["documents", "metadatas"])
@@ -35,7 +36,7 @@ class EngineeringRuleCache:
             ids.append(f"{fingerprint}:{rule.engineering_rule_id}")
             documents.append(json.dumps(rule.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")))
             metadatas.append({"source_fingerprint": fingerprint, "engineering_rule_id": rule.engineering_rule_id, "legal_rule_id": rule.legal_rule_id, "legal_rule_catalog_version_id": rule.legal_rule_catalog_version_id, "legal_corpus_version_id": rule.legal_corpus_version_id, "schema_version": rule.schema_version})
-        self._collection().upsert(ids=ids, documents=documents, metadatas=metadatas, embeddings=[[0.0] for _ in ids])
+        self._collection().upsert(ids=ids, documents=documents, metadatas=metadatas, embeddings=zero_embeddings(len(ids)))
 
     def delete_fingerprint(self, fingerprint: str) -> None:
         self._collection().delete(where={"source_fingerprint": fingerprint})

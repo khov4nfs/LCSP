@@ -324,7 +324,7 @@ async def test_t08_absolute_finding_path_is_stripped_to_workspace_relative(
 
 
 @pytest.mark.p0
-async def test_t09_secret_in_stderr_is_redacted_before_result_message(
+async def test_t09_secret_in_stderr_is_stripped_before_result_message(
     sample_ts_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -346,7 +346,6 @@ async def test_t09_secret_in_stderr_is_redacted_before_result_message(
 
     message = result.execution.messages[0]
     assert "ghp_" not in message
-    assert "[REDACTED" in message
 
 
 @pytest.mark.p0

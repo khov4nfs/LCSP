@@ -351,12 +351,16 @@ def test_consumer_accepts_summary_proposal_that_matches_wizard_authority() -> No
     )
     llm_client = MagicMock()
     response = MagicMock()
-    response.content = (
-        '{"summary_updates":{"businessProcess":"loan_approval","aiPurpose":"credit_scoring_decision_support",'
-        '"affectedSubjects":["loan_applicant"],"humanReview":"present"}}'
-    )
+    response.structured_response = {
+        "summary_updates": {
+            "businessProcess": "loan_approval",
+            "aiPurpose": "credit_scoring_decision_support",
+            "affectedSubjects": ["loan_applicant"],
+            "humanReview": "present",
+        }
+    }
     response.request_id = "req-1"
-    llm_client.complete.return_value = response
+    llm_client.complete_structured.return_value = response
     consumer = AIUsageFlowConsumer(_config(), api_client=api_client, llm_client=llm_client)
 
     consumer.handle(
@@ -371,7 +375,7 @@ def test_consumer_accepts_summary_proposal_that_matches_wizard_authority() -> No
     payload = api_client.post_ai_usage_flow_callback.call_args.args[0]
     assert payload.flow_data["summary"]["businessProcess"] == "loan_approval"
     assert payload.flow_data["summary"]["aiPurpose"] == "credit_scoring_decision_support"
-    kwargs = llm_client.complete.call_args.kwargs
+    kwargs = llm_client.complete_structured.call_args.kwargs
     assert kwargs["workflow_run_id"] == "ai-usage-flow:tp-1:corr-2"
     assert kwargs["node_name"] == "ai_usage_flow.summary_proposal"
 
@@ -389,9 +393,11 @@ def test_consumer_rejects_summary_proposal_that_conflicts_with_wizard_authority(
     )
     llm_client = MagicMock()
     response = MagicMock()
-    response.content = '{"summary_updates":{"businessProcess":"fraud_detection"}}'
+    response.structured_response = {
+        "summary_updates": {"businessProcess": "fraud_detection"}
+    }
     response.request_id = "req-2"
-    llm_client.complete.return_value = response
+    llm_client.complete_structured.return_value = response
     consumer = AIUsageFlowConsumer(_config(), api_client=api_client, llm_client=llm_client)
 
     consumer.handle(
@@ -430,12 +436,15 @@ def test_consumer_routes_summary_proposal_through_agentic_tool_resolver() -> Non
     first_response.tool_calls = (tool_call,)
     first_response.request_id = "req-tool-1"
     second_response = MagicMock()
-    second_response.content = (
-        '{"summary_updates":{"businessProcess":"loan_approval","aiPurpose":"credit_scoring_decision_support"}}'
-    )
+    second_response.structured_response = {
+        "summary_updates": {
+            "businessProcess": "loan_approval",
+            "aiPurpose": "credit_scoring_decision_support",
+        }
+    }
     second_response.request_id = "req-final-1"
     llm_client.complete_with_tools.return_value = first_response
-    llm_client.complete.return_value = second_response
+    llm_client.complete_structured.return_value = second_response
 
     resolver = MagicMock()
     resolver.tool_definitions.return_value = [
@@ -481,8 +490,8 @@ def test_consumer_routes_summary_proposal_through_agentic_tool_resolver() -> Non
     assert context.user_id == "worker-runtime"
     assert context.organization_id == "org-1"
     assert context.artifact_versions == {"technicalEvidenceReportId": "ter-1"}
-    llm_client.complete.assert_called_once()
-    final_prompt = llm_client.complete.call_args.kwargs["prompt"]
+    llm_client.complete_structured.assert_called_once()
+    final_prompt = llm_client.complete_structured.call_args.kwargs["prompt"]
     assert "TOOL_RESULTS" in final_prompt
     assert "get_scan_coverage" in final_prompt
     payload = api_client.post_ai_usage_flow_callback.call_args.args[0]

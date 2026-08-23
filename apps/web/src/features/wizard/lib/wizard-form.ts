@@ -163,11 +163,21 @@ export function normalizeAnswers(answers: WizardAnswers): WizardAnswers {
   return {
     ...answers,
     dataTypes: Array.isArray(answers.dataTypes) ? answers.dataTypes : [],
-    affectedSubjects: Array.isArray(answers.affectedSubjects) ? answers.affectedSubjects : [],
-    highImpactIndicators: Array.isArray(answers.highImpactIndicators) ? answers.highImpactIndicators : [],
-    transparencyIndicators: Array.isArray(answers.transparencyIndicators) ? answers.transparencyIndicators : [],
-    prohibitedRiskSignals: Array.isArray(answers.prohibitedRiskSignals) ? answers.prohibitedRiskSignals : [],
-    deploymentContext: Array.isArray(answers.deploymentContext) ? answers.deploymentContext : [],
+    affectedSubjects: Array.isArray(answers.affectedSubjects)
+      ? answers.affectedSubjects
+      : [],
+    highImpactIndicators: Array.isArray(answers.highImpactIndicators)
+      ? answers.highImpactIndicators
+      : [],
+    transparencyIndicators: Array.isArray(answers.transparencyIndicators)
+      ? answers.transparencyIndicators
+      : [],
+    prohibitedRiskSignals: Array.isArray(answers.prohibitedRiskSignals)
+      ? answers.prohibitedRiskSignals
+      : [],
+    deploymentContext: Array.isArray(answers.deploymentContext)
+      ? answers.deploymentContext
+      : [],
     ps_002_affected_people: Array.isArray(answers.ps_002_affected_people)
       ? answers.ps_002_affected_people
       : [],
@@ -195,17 +205,16 @@ export function serializeAnswers(answers: WizardAnswers): WizardAnswer[] {
         answerState: ANSWER_STATES.answered,
         updatedAt: now,
       });
-    } else if (key === "humanReview" && answers.decisionRole === "NO_DECISION_SUPPORT") {
+    } else if (
+      key === "humanReview" &&
+      answers.decisionRole === "NO_DECISION_SUPPORT"
+    ) {
       // Handled above
       return;
     } else {
       let state: AnswerState = ANSWER_STATES.answered;
       const finalValue = value;
-      if (
-        value === "unknown" ||
-        value === "UNKNOWN" ||
-        value === "UNCLEAR"
-      ) {
+      if (value === "unknown" || value === "UNKNOWN" || value === "UNCLEAR") {
         state = ANSWER_STATES.explicitUnknown;
       } else if (Array.isArray(value) && value.includes("unknown")) {
         // if array includes unknown, the whole array might just be unknown, but the contract says value is unknown.
@@ -244,6 +253,39 @@ export function getSummaryItems(answers: WizardAnswers) {
     items.push({
       label: t("pages.wizard.fields.businessProcessLabel"),
       value: answers.businessProcess,
+    });
+  }
+  if (answers.useCase) {
+    items.push({
+      label: t("pages.wizard.fields.useCaseLabel"),
+      value: answers.useCase,
+    });
+  }
+  if (answers.primaryActors) {
+    items.push({
+      label: t("pages.wizard.fields.primaryActorsLabel"),
+      value: answers.primaryActors,
+    });
+  }
+  if (answers.businessTrigger) {
+    items.push({
+      label: t("pages.wizard.fields.businessTriggerLabel"),
+      value: answers.businessTrigger,
+    });
+  }
+  if (answers.expectedOutcome) {
+    items.push({
+      label: t("pages.wizard.fields.expectedOutcomeLabel"),
+      value: answers.expectedOutcome,
+    });
+  }
+  if (answers.autonomyLevel) {
+    items.push({
+      label: t("pages.wizard.fields.autonomyLevelLabel"),
+      value: getOptionDisplayLabel(
+        selectOptions.autonomyLevel,
+        answers.autonomyLevel,
+      ),
     });
   }
   if (answers.sector) {

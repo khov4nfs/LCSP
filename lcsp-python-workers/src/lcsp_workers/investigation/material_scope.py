@@ -105,6 +105,18 @@ _MATERIAL_RESOURCE_NODE_TYPES = frozenset(
     }
 )
 _STRONG_RESOLUTION_STATES = frozenset({"OBSERVED", "CORROBORATED"})
+_INTERNAL_LLM_RUNTIME_PATH_MARKERS = (
+    "lcsp-python-workers/src/lcsp_workers/llm/",
+)
+_INTERNAL_LLM_RUNTIME_NODE_TYPES = frozenset(
+    {
+        "AI_INPUT",
+        "AI_OUTPUT",
+        "AI_MODEL_INVOCATION",
+        "AI_PROVIDER",
+        "DATA_OBJECT",
+    }
+)
 
 
 def _tokens(value: Any) -> set[str]:
@@ -143,6 +155,24 @@ def _semantic_query_terms(packet: InvestigationPacket) -> set[str]:
     }
 
 
+def _is_internal_llm_runtime_node(
+    node: dict[str, Any],
+    path: str,
+) -> bool:
+    """Identify LCSP's own LLM gateway plumbing, not product-facing AI evidence."""
+    if not path or node.get("node_type") not in _INTERNAL_LLM_RUNTIME_NODE_TYPES:
+        return False
+    normalized = path.replace("\\", "/")
+    return any(marker in normalized for marker in _INTERNAL_LLM_RUNTIME_PATH_MARKERS)
+
+
+def is_internal_llm_runtime_node(node: dict[str, Any]) -> bool:
+    """Return whether a graph node belongs to LCSP's own LLM runtime plumbing."""
+    source = node.get("source") if isinstance(node.get("source"), dict) else {}
+    path = str(source.get("file_path") or source.get("filePath") or "")
+    return _is_internal_llm_runtime_node(node, path)
+
+
 def _trustworthy_semantic_node(node: dict[str, Any]) -> bool:
     """Return whether graph semantics are strong enough to affect Planner scope."""
     state = str(node.get("resolution_state") or "OBSERVED")
@@ -175,16 +205,6 @@ def _is_material_node(
         return False
 
     node_semantics = {str(value) for value in node.get("semantic_types") or [] if value}
-    if semantic_terms and node_semantics.intersection(semantic_terms):
-        # Identifier taxonomy is intentionally retained as INFERRED graph context. It
-        # cannot by itself make a sensitive/domain rule source-backed.
-        return trustworthy
-
-    # A reached target is stronger than a generic start-node seed, but inferred/LLM
-    # semantics still require the v3 trust gate before affecting plan scope.
-    if node_type in set(rule.target_node_types or ()):
-        return trustworthy
-
     node_terms = _tokens(
         {
             "label": node.get("label"),
@@ -195,6 +215,19 @@ def _is_material_node(
             "path": path,
         }
     )
+    if _is_internal_llm_runtime_node(node, path):
+        return False
+
+    if semantic_terms and node_semantics.intersection(semantic_terms):
+        # Identifier taxonomy is intentionally retained as INFERRED graph context. It
+        # cannot by itself make a sensitive/domain rule source-backed.
+        return trustworthy
+
+    # A reached target is stronger than a generic start-node seed, but inferred/LLM
+    # semantics still require the v3 trust gate before affecting plan scope.
+    if node_type in set(rule.target_node_types or ()):
+        return trustworthy
+
     if specific_terms and node_terms.intersection(specific_terms):
         return trustworthy
 
@@ -268,6 +301,7 @@ class MaterialEngineeringRulePlanner(EngineeringRulePlanner):
         candidates: tuple[EngineeringRulePlanningCandidate, ...],
         wizard_context: dict[str, Any] | None,
         graph: ProgramEvidenceGraph,
+        openwiki_context: dict[str, Any] | None = None,
     ) -> str:
         rules = []
         for candidate in candidates:
@@ -287,6 +321,17 @@ class MaterialEngineeringRulePlanner(EngineeringRulePlanner):
         payload = {
             "wizardContext": wizard_context or {},
             "repositoryEvidenceSummary": cls._graph_summary(graph),
+            "openWikiArchitectureHints": openwiki_context or {
+                "source": "openwiki",
+                "available": False,
+                "authority": "UNVERIFIED_ARCHITECTURE_HINT",
+                "policy": (
+                    "May prioritize planner investigation only. Must not satisfy "
+                    "legal citations, source evidence, compliance, or gap classification."
+                ),
+                "hintCount": 0,
+                "hints": [],
+            },
             "engineeringRules": rules,
         }
         return (
@@ -300,7 +345,9 @@ class MaterialEngineeringRulePlanner(EngineeringRulePlanner):
             "concrete unresolved scope fact requires investigation. SKIP healthcare, education, "
             "public-sector, high-risk, medium-risk, prohibited-practice, or other domain-specific "
             "controls when Wizard excludes/does not indicate that scope and materialSourceSignal.hitCount "
-            "is zero. Never invent rule IDs. Return exactly one decision per rule using only the "
+            "is zero. OpenWiki architecture hints are unverified documentation hints for "
+            "prioritizing search only; they are not SOURCE basis, citation evidence, "
+            "source anchors, and not proof of compliance. Never invent rule IDs. Return exactly one decision per rule using only the "
             "declared reason codes and basis values.\n\n"
             + json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
         )

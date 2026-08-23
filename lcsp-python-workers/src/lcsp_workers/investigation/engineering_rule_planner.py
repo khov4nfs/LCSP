@@ -8,7 +8,7 @@ from typing import Any, Iterable
 
 from lcsp_workers.legal.engineering_rules.models import EngineeringRule
 from lcsp_workers.llm.fallback_client import LLMClientProtocol
-from lcsp_workers.llm.gateway_client import LLMToolDefinition
+from lcsp_workers.llm import LLMToolDefinition
 from lcsp_workers.platform.logging import get_logger
 from lcsp_workers.scanner.program_graph.models import ProgramEvidenceGraph
 
@@ -64,6 +64,7 @@ class EngineeringRulePlanningCandidate:
     legal_intent: dict[str, Any]
     investigation_goals: tuple[str, ...]
     required_evidence: tuple[str, ...]
+    legal_reasoning_contract: dict[str, Any]
     starting_node_types: tuple[str, ...]
     target_node_types: tuple[str, ...]
     source_hit_count: int
@@ -96,12 +97,25 @@ class EngineeringRulePlanningCandidate:
                 }
             )
         )
+        legal_reasoning_contract = getattr(rule, "legal_reasoning_contract", None)
         return cls(
             engineering_rule_id=rule.engineering_rule_id,
             concept=rule.concept,
             legal_intent=dict(rule.legal_intent),
             investigation_goals=tuple(rule.investigation_goals),
             required_evidence=tuple(rule.required_evidence),
+            legal_reasoning_contract=(
+                legal_reasoning_contract.to_prompt_dict()
+                if hasattr(legal_reasoning_contract, "to_prompt_dict")
+                else
+                legal_reasoning_contract.to_dict()
+                if hasattr(legal_reasoning_contract, "to_dict")
+                else (
+                    legal_reasoning_contract
+                    if isinstance(legal_reasoning_contract, dict)
+                    else {}
+                )
+            ),
             starting_node_types=tuple(rule.starting_node_types),
             target_node_types=tuple(rule.target_node_types),
             source_hit_count=len(nodes),
@@ -116,6 +130,7 @@ class EngineeringRulePlanningCandidate:
             "legalIntent": self.legal_intent,
             "investigationGoals": list(self.investigation_goals),
             "requiredEvidence": list(self.required_evidence),
+            "legalReasoningContract": self.legal_reasoning_contract,
             "startingNodeTypes": list(self.starting_node_types),
             "targetNodeTypes": list(self.target_node_types),
             "sourceSeed": {
@@ -167,6 +182,7 @@ class EngineeringRulePlanner:
         graph: ProgramEvidenceGraph,
         workflow_run_id: str,
         correlation_id: str | None = None,
+        openwiki_context: dict[str, Any] | None = None,
     ) -> EngineeringRulePlan:
         rows = tuple(candidates)
         if not rows:
@@ -189,7 +205,7 @@ class EngineeringRulePlanner:
 
         try:
             response = self._llm.complete_with_tools(
-                self._prompt(rows, wizard_context, graph),
+                self._prompt(rows, wizard_context, graph, openwiki_context),
                 tools=[self._plan_tool()],
                 workflow_run_id=workflow_run_id,
                 node_name="plan_engineering_rules",
@@ -468,10 +484,22 @@ class EngineeringRulePlanner:
         candidates: tuple[EngineeringRulePlanningCandidate, ...],
         wizard_context: dict[str, Any] | None,
         graph: ProgramEvidenceGraph,
+        openwiki_context: dict[str, Any] | None = None,
     ) -> str:
         payload = {
             "wizardContext": wizard_context or {},
             "repositoryEvidenceSummary": cls._graph_summary(graph),
+            "openWikiArchitectureHints": openwiki_context or {
+                "source": "openwiki",
+                "available": False,
+                "authority": "UNVERIFIED_ARCHITECTURE_HINT",
+                "policy": (
+                    "May prioritize planner investigation only. Must not satisfy "
+                    "legal citations, source evidence, compliance, or gap classification."
+                ),
+                "hintCount": 0,
+                "hints": [],
+            },
             "engineeringRules": [row.to_prompt_dict() for row in candidates],
         }
         return (
@@ -481,7 +509,14 @@ class EngineeringRulePlanner:
             "investigation-scope plan, not a legal applicability or legal risk-tier "
             "decision. Never invent rule IDs. Never treat a Wizard answer as stronger "
             "than contradictory repository evidence. If scope is uncertain, SELECT "
-            "the rule so the investigator can prove or disprove it. Domain-specific "
+            "the rule. Treat LegalReasoningContract as the only legal authority: "
+            "citationSet, version IDs, jurisdiction, applicabilityCriteria, "
+            "requiredEvidence, acceptedEvidenceTypes, negativeEvidenceTypes, and "
+            "validationPolicy bound what may be investigated. Do not create legal "
+            "claims or compliance conclusions. OpenWiki architecture hints, when "
+            "present, are unverified documentation hints for prioritizing search "
+            "only; they are not SOURCE basis, citation evidence, source anchors, "
+            "and not proof of compliance. Domain-specific "
             "rules such as healthcare, education, public-sector, high-risk, or "
             "medium-risk should be SKIP only when neither Wizard context nor source "
             "signals make their technical requirement materially relevant. For every "

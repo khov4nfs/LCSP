@@ -4,20 +4,24 @@ import hashlib
 import json
 import platform
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
+
+import httpx
 
 from lcsp_workers.agentic_evidence.dispatcher import ScannerToolDispatcher
 from lcsp_workers.agentic_evidence.scanner_tool_entrypoints import (
     ScannerToolExecutionContext,
 )
-from lcsp_workers.platform.api_client import WorkerApiClient
+from lcsp_workers.llm import llm_limit_wait_reason
+
+from lcsp_workers.platform.api_client import WorkerApiClient, WorkerCallbackError
 from lcsp_workers.platform.callback_schemas import CallbackResponse
 from lcsp_workers.platform.correlation import set_correlationId
 from lcsp_workers.platform.logging import get_logger
-from lcsp_workers.platform.queue_consumer import ConsumerBase
+from lcsp_workers.platform.queue_consumer import ConsumerBase, NonRetryableWorkerError
 
 from .analyzers.ai_invocation_detector import AIInvocationDetector
 from .analyzers.ai_pattern_rules import AI_RULE_TABLE
@@ -59,6 +63,12 @@ from .workspace import ArchiveMaterializationError, ScannerWorkspace
 logger = get_logger(__name__)
 
 NOT_APPLICABLE_RULESET_HASH = "sha256:not-applicable"
+_TERMINAL_SCAN_CLIENT_ERROR_CODES = frozenset(
+    {
+        "SCAN_JOB_WRONG_STATE",
+        "SNAPSHOT_SCAN_MISMATCH",
+    }
+)
 PYTHON_ANALYZER_CONFIG_HASH = "sha256:" + hashlib.sha256(
     b"lcsp-python-analyzer:max-l3-hops=1"
 ).hexdigest()
@@ -259,6 +269,8 @@ class ScanConsumer(ConsumerBase):
                 duration_ms=self._duration_ms(archive_started_at, archive_ended_at),
             )
             self._runtime_scan_job_id = None
+            if self._is_terminal_scan_client_error(error):
+                raise NonRetryableWorkerError(str(error)) from error
             raise
 
         result = None
@@ -274,7 +286,7 @@ class ScanConsumer(ConsumerBase):
                 input_summary={"snapshotId": envelope.snapshot_id},
                 started_at=materialize_started_at,
             )
-            result = self._scanner_tool_dispatcher.dispatch(
+            result = self._run_scanner_tool(
                 "materialize_snapshot",
                 scan_job_id=envelope.scan_job_id,
                 archive=archive,
@@ -329,7 +341,7 @@ class ScanConsumer(ConsumerBase):
                     summary="Classifying repository languages",
                     started_at=classify_started_at,
                 )
-                classifications = self._scanner_tool_dispatcher.dispatch(
+                classifications = self._run_scanner_tool(
                     "classify_workspace_languages",
                     workspace_path=result.workspace_path,
                 )
@@ -417,7 +429,7 @@ class ScanConsumer(ConsumerBase):
                     summary="Running syft inventory",
                     started_at=syft_started_at,
                 )
-                syft_result = self._scanner_tool_dispatcher.dispatch(
+                syft_result = self._run_scanner_tool(
                     "run_syft_inventory",
                     workspace_path=result.workspace_path,
                 )
@@ -458,7 +470,7 @@ class ScanConsumer(ConsumerBase):
                     summary="Running semgrep analysis",
                     started_at=semgrep_started_at,
                 )
-                semgrep_result = self._scanner_tool_dispatcher.dispatch(
+                semgrep_result = self._run_scanner_tool(
                     "run_semgrep_rules",
                     workspace_path=result.workspace_path,
                 )
@@ -497,7 +509,7 @@ class ScanConsumer(ConsumerBase):
                     summary="Running knip usage analysis",
                     started_at=knip_started_at,
                 )
-                knip_result = self._scanner_tool_dispatcher.dispatch(
+                knip_result = self._run_scanner_tool(
                     "run_knip_usage_analysis",
                     workspace_path=result.workspace_path,
                 )
@@ -538,7 +550,7 @@ class ScanConsumer(ConsumerBase):
                     summary="Running deptry dependency analysis",
                     started_at=deptry_started_at,
                 )
-                deptry_result = self._scanner_tool_dispatcher.dispatch(
+                deptry_result = self._run_scanner_tool(
                     "run_deptry_usage_analysis",
                     workspace_path=result.workspace_path,
                 )
@@ -580,7 +592,7 @@ class ScanConsumer(ConsumerBase):
                     input_summary={"filesQueued": len(routed_ts_js_files)},
                     started_at=ts_js_started_at,
                 )
-                ts_js_analysis = self._scanner_tool_dispatcher.dispatch(
+                ts_js_analysis = self._run_scanner_tool(
                     "run_ts_js_semantic_analysis",
                     workspace_path=result.workspace_path,
                     include_files=routed_ts_js_files,
@@ -631,7 +643,7 @@ class ScanConsumer(ConsumerBase):
                     input_summary={"filesQueued": len(routed_python_files)},
                     started_at=python_started_at,
                 )
-                python_analysis = self._scanner_tool_dispatcher.dispatch(
+                python_analysis = self._run_scanner_tool(
                     "run_python_semantic_analysis",
                     workspace_path=result.workspace_path,
                     include_files=routed_python_files,
@@ -733,7 +745,7 @@ class ScanConsumer(ConsumerBase):
                         *routed_ts_js_files,
                         *routed_basic_files,
                     ]
-                    structural_facts = self._scanner_tool_dispatcher.dispatch(
+                    structural_facts = self._run_scanner_tool(
                         "run_structural_augmentation",
                         workspace_path=result.workspace_path,
                         files=candidate_files,
@@ -789,7 +801,7 @@ class ScanConsumer(ConsumerBase):
                 )
             logger.info(
                 "SCAN_TOOL_PROVENANCE_RECORDED",
-                tool_provenance=[asdict(item) for item in tool_registry.all()],
+                tool_count=len(tool_registry.all()),
             )
             graph_started_at = self._utc_timestamp()
             self._emit_runtime_event(
@@ -805,7 +817,7 @@ class ScanConsumer(ConsumerBase):
                 },
                 started_at=graph_started_at,
             )
-            evidence_graph = self._scanner_tool_dispatcher.dispatch(
+            evidence_graph = self._run_scanner_tool(
                 "build_evidence_graph",
                 scan_job_id=envelope.scan_job_id,
                 snapshot_id=envelope.snapshot_id,
@@ -886,10 +898,15 @@ class ScanConsumer(ConsumerBase):
                 output_summary={"status": callback_payload.status},
                 started_at=callback_started_at,
             )
-            callback_response = self._api_client.post_scan_callback(
-                envelope.scan_job_id,
-                callback_payload,
-            )
+            try:
+                callback_response = self._api_client.post_scan_callback(
+                    envelope.scan_job_id,
+                    callback_payload,
+                )
+            except WorkerCallbackError as error:
+                if self._is_terminal_scan_client_error(error):
+                    raise NonRetryableWorkerError(str(error)) from error
+                raise
             callback_ended_at = self._utc_timestamp()
             self._emit_runtime_event(
                 envelope.scan_job_id,
@@ -945,6 +962,16 @@ class ScanConsumer(ConsumerBase):
             self._runtime_scan_job_id = None
             raise
         except Exception as error:
+            wait_reason = llm_limit_wait_reason(error)
+            if wait_reason is not None:
+                self._emit_llm_limit_waiting(envelope.scan_job_id, error, wait_reason)
+                try:
+                    self._finalize_workspace_cleanup(envelope.scan_job_id)
+                except CleanupBlockedError as cleanup_error:
+                    self._runtime_scan_job_id = None
+                    raise cleanup_error from error
+                self._runtime_scan_job_id = None
+                raise
             failed_at = self._utc_timestamp()
             self._emit_runtime_event(
                 envelope.scan_job_id,
@@ -962,6 +989,33 @@ class ScanConsumer(ConsumerBase):
                 raise cleanup_error from error
             self._runtime_scan_job_id = None
             raise
+
+    @classmethod
+    def _is_terminal_scan_client_error(cls, error: Exception) -> bool:
+        code = cls._scan_client_error_code(error)
+        return code in _TERMINAL_SCAN_CLIENT_ERROR_CODES
+
+    @staticmethod
+    def _scan_client_error_code(error: Exception) -> str | None:
+        if isinstance(error, WorkerCallbackError):
+            message = str(error)
+            if ":" in message:
+                return message.split(":", 1)[0].strip() or None
+            return None
+        if isinstance(error, httpx.HTTPStatusError):
+            try:
+                data = error.response.json()
+            except ValueError:
+                return None
+            if not isinstance(data, dict):
+                return None
+            problem = data.get("problem")
+            if isinstance(problem, dict):
+                value = problem.get("code") or problem.get("error_code")
+                return str(value) if value else None
+            value = data.get("error_code") or data.get("errorCode")
+            return str(value) if value else None
+        return None
 
     def _finalize_workspace_cleanup(self, job_id: str) -> None:
         workspace_path = self._workspace.workspace_path(job_id)
@@ -1003,6 +1057,59 @@ class ScanConsumer(ConsumerBase):
             if isinstance(value, str) and value.strip():
                 return value.strip()
         return None
+
+    def _run_scanner_tool(self, tool_name: str, **tool_input):
+        logger.info("SCAN_TOOL_STARTED", tool_name=tool_name)
+        result = self._scanner_tool_dispatcher.dispatch(tool_name, **tool_input)
+        logger.info(
+            "SCAN_TOOL_COMPLETED",
+            tool_name=tool_name,
+            **self._scanner_tool_result_summary(result),
+        )
+        return result
+
+    @staticmethod
+    def _scanner_tool_result_summary(result) -> dict[str, object]:
+        summary: dict[str, object] = {}
+
+        field_counters = {
+            "entries": "dependency_count",
+            "facts": "dependency_fact_count",
+            "findings": "finding_count",
+            "executions": "execution_count",
+            "structural_facts": "structural_fact_count",
+            "coverage_limitations": "coverage_limitation_count",
+            "unsupported_dynamic_flows": "dynamic_flow_limitation_count",
+            "ai_call_sites": "ai_call_site_count",
+            "import_map": "import_count",
+            "nodes": "node_count",
+            "edges": "edge_count",
+        }
+        for field_name, counter_name in field_counters.items():
+            value = getattr(result, field_name, None)
+            if isinstance(value, (list, tuple, set, dict)):
+                summary[counter_name] = len(value)
+
+        for field_name, counter_name in (
+            ("files_analyzed", "file_count"),
+            ("files_skipped", "skipped_file_count"),
+            ("extracted_files", "file_count"),
+            ("skipped_files", "skipped_file_count"),
+            ("total_size_bytes", "total_size_bytes"),
+        ):
+            value = getattr(result, field_name, None)
+            if isinstance(value, int):
+                summary[counter_name] = value
+
+        if isinstance(result, list):
+            summary["item_count"] = len(result)
+
+        execution = getattr(result, "execution", None)
+        outcome = getattr(execution, "outcome", None)
+        if isinstance(outcome, str):
+            summary["outcome"] = outcome
+
+        return summary
 
     def _record_semgrep_executions(
         self,
@@ -1092,7 +1199,7 @@ class ScanConsumer(ConsumerBase):
                 "SCAN_TOOL_NON_BLOCKING_FAILURE",
                 tool_name=execution.tool_name,
                 outcome=execution.outcome,
-                messages=execution.messages,
+                message_count=len(execution.messages),
             )
 
     def _utc_timestamp(self) -> str:
@@ -1134,7 +1241,6 @@ class ScanConsumer(ConsumerBase):
             "SCAN_TOOL_SKIPPED_UNSUPPORTED",
             tool_name=tool_name,
             reason=entry.reason,
-            language_profile=asdict(execution_plan.language_profile),
         )
         return execution
 
@@ -1221,6 +1327,33 @@ class ScanConsumer(ConsumerBase):
         if post_runtime_event is None:
             return
         post_runtime_event(scan_job_id, payload)
+
+    def _emit_llm_limit_waiting(
+        self,
+        scan_job_id: str,
+        error: Exception,
+        wait_reason: str,
+    ) -> None:
+        waiting_at = self._utc_timestamp()
+        self._emit_runtime_event(
+            scan_job_id,
+            event_type="TOOL_WAITING_INPUT",
+            run_status="WAITING",
+            tool_name="build_evidence_graph",
+            summary="LLM token limit exceeded; repository scan is waiting to resume",
+            error_summary=type(error).__name__,
+            completed_at=waiting_at,
+            waiting_reason=wait_reason,
+        )
+        self._emit_runtime_event(
+            scan_job_id,
+            event_type="RUN_STAGE_CHANGED",
+            run_status="WAITING",
+            tool_name="repository_scan",
+            summary="Repository scan is waiting for LLM capacity",
+            error_summary=type(error).__name__,
+            waiting_reason=wait_reason,
+        )
 
     def _duration_ms(self, started_at: str, ended_at: str) -> int:
         started = datetime.fromisoformat(started_at.replace("Z", "+00:00"))

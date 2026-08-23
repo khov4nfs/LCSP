@@ -21,6 +21,7 @@ import {
   TARGETED_REANALYSIS_REQUEST_STATES,
   TECHNICAL_EVIDENCE_REPORT_STATUSES,
 } from "@lcsp/contracts/scan";
+import { ASSESSMENT_RUNTIME_STAGE_CODES } from "@lcsp/contracts/evidence";
 import {
   ConflictException,
   HttpException,
@@ -34,6 +35,7 @@ import type { Prisma } from "@prisma/client";
 
 import {
   fromPrismaRepositoryScanJobStatus,
+  fromPrismaEvidenceAcceptanceStatus,
   toPrismaAuditResourceType,
   toPrismaAuthDecision,
   toPrismaEvidenceAcceptanceStatus,
@@ -43,6 +45,7 @@ import {
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemResult } from "../../../../../platform/problems/problem-factory.js";
+import { AssessmentRuntimeEventService } from "../../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import type { ScanCallbackDto } from "../../contracts/scan/scan-callback.contract.js";
 import { EvidenceSchemaValidatorService } from "../../services/scan/evidence-schema-validator.service.js";
 import { ArtifactStorageService } from "../../../../../platform/storage/artifact-storage.service.js";
@@ -70,6 +73,7 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
     private readonly validator: EvidenceSchemaValidatorService,
     private readonly auditWriter: AuditWriterService,
     private readonly storageService: ArtifactStorageService,
+    private readonly runtimeEvents: AssessmentRuntimeEventService,
   ) {}
 
   /**
@@ -129,6 +133,11 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
       currentJobStatus !== REPOSITORY_SCAN_JOB_STATUSES.queued &&
       currentJobStatus !== REPOSITORY_SCAN_JOB_STATUSES.running
     ) {
+      const duplicateResponse =
+        await this.acknowledgeDuplicateTerminalCallback(command);
+      if (duplicateResponse) {
+        return duplicateResponse;
+      }
       this.logger.warn(
         `Scan callback rejected because job is not active: ${currentJobStatus}`,
       );
@@ -324,11 +333,105 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
       { timeout: SCAN_CALLBACK_TRANSACTION_TIMEOUT_MS },
     );
 
+    await this.recordAcceptedCallbackRuntimeClose(command, job, isRejected);
+
     return {
       accepted: !isRejected,
       evidence_report_id: reportId,
       correlationId: command.correlationId,
     };
+  }
+
+  private async acknowledgeDuplicateTerminalCallback(
+    command: ProcessScanCallbackCommand,
+  ): Promise<ScanCallbackDto | null> {
+    const existingReport = await this.prisma.technicalEvidenceReport.findFirst({
+      where: { scanJobId: command.scanJobId },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, status: true },
+    });
+    if (!existingReport) {
+      return null;
+    }
+    const existingStatus = fromPrismaEvidenceAcceptanceStatus(
+      existingReport.status,
+    );
+    const callbackStatus =
+      command.payload.status === SCAN_CALLBACK_STATUSES.failed
+        ? TECHNICAL_EVIDENCE_REPORT_STATUSES.rejected
+        : TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted;
+    if (existingStatus !== callbackStatus) {
+      return null;
+    }
+    return {
+      accepted: existingStatus === TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+      evidence_report_id: existingReport.id,
+      correlationId: command.correlationId,
+    };
+  }
+
+  /**
+   * Closes scan runtime parent steps when the callback has been accepted by the API.
+   *
+   * @param command - Callback command providing scan-job and correlation identity.
+   * @param job - Resolved scan job carrying tenant and assessment identity.
+   * @param isRejected - Whether the callback represented a failed scan result.
+   */
+  private async recordAcceptedCallbackRuntimeClose(
+    command: ProcessScanCallbackCommand,
+    job: {
+      id: string;
+      assessmentId: string;
+      organizationId: string;
+    },
+    isRejected: boolean,
+  ): Promise<void> {
+    const baseEvent = {
+      organizationId: job.organizationId,
+      assessmentId: job.assessmentId,
+      runId: job.id,
+      correlationId: command.correlationId,
+      stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
+      completedAt: new Date(),
+    };
+
+    if (isRejected) {
+      const errorSummary = `Callback rejected with status ${command.payload.status}${
+        command.payload.error_code ? ` (${command.payload.error_code})` : ""
+      }`;
+      await this.runtimeEvents.recordToolFailed({
+        ...baseEvent,
+        toolName: "submit_scan_callback",
+        summary: "Technical evidence callback was rejected",
+        errorSummary,
+      });
+      await this.runtimeEvents.recordRunFailed({
+        ...baseEvent,
+        toolName: "repository_scan",
+        summary: "Repository scan callback was rejected",
+        errorSummary,
+      });
+      return;
+    }
+
+    await this.runtimeEvents.recordToolCompleted({
+      ...baseEvent,
+      toolName: "submit_scan_callback",
+      summary: "Technical evidence callback was accepted",
+      outputSummary: {
+        status: command.payload.status,
+        schemaVersion: command.payload.schema_version,
+      },
+    });
+    await this.runtimeEvents.recordRunCompleted({
+      ...baseEvent,
+      toolName: "repository_scan",
+      summary: "Repository scan completed",
+      outputSummary: {
+        status: command.payload.status,
+        schemaVersion: command.payload.schema_version,
+      },
+    });
   }
 
   /**

@@ -15,7 +15,10 @@ ENGINEERING_EVIDENCE_CLAIM_TYPES = {
 # Limitation arrays are machine-readable codes only; narrative explanation belongs
 # in controlled evaluation reason/notes fields rather than model-authored free text.
 ENGINEERING_LIMITATION_CODES = {
+    "no_legal_corpus_source": "NO_LEGAL_CORPUS_SOURCE",
+    "no_legal_rule_catalog": "NO_LEGAL_RULE_CATALOG",
     "no_engineering_rule_source_rules": "NO_ENGINEERING_RULE_SOURCE_RULES",
+    "no_engineering_rule_candidates": "NO_ENGINEERING_RULE_CANDIDATES",
     "engineering_rule_compilation_failed": "ENGINEERING_RULE_COMPILATION_FAILED",
     "engineering_investigation_failed": "ENGINEERING_INVESTIGATION_FAILED",
     "investigation_returned_no_valid_claims": "INVESTIGATION_RETURNED_NO_VALID_CLAIMS",

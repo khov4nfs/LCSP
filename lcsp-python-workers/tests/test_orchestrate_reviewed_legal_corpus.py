@@ -80,6 +80,47 @@ def test_build_review_signoff_requires_approved_review(tmp_path: Path) -> None:
     assert signoff["documents"][0]["reviewState"] == "APPROVED"
 
 
+def test_build_review_signoff_accepts_verified_source_snapshot_fallback(
+    tmp_path: Path,
+) -> None:
+    _write_review_files(tmp_path)
+    payload = _payload()
+    document = payload["documents"][0]
+    document["sourceSha256"] = "sha256:" + "c" * 64
+    payload["sourceManifest"]["sourceArtifacts"] = [
+        {
+            "documentId": "LAW-TEST",
+            "reviewedSourceSha256": document["sourceSha256"],
+            "declaredReviewedSourceSha256": "sha256:" + "a" * 64,
+            "sourceSnapshotFallback": {
+                "reason": "REVIEWED_SOURCE_SNAPSHOT_NOT_PRESENT",
+                "declaredSnapshotPath": "LAW-TEST.pdf",
+                "manifestArtifactPath": "LAW-TEST.source.html",
+            },
+        }
+    ]
+
+    signoff = build_review_signoff(payload, reviewed_dir=tmp_path)
+
+    document_signoff = signoff["documents"][0]
+    assert document_signoff["reviewedSourceSha256"] == document["sourceSha256"]
+    assert document_signoff["declaredReviewedSourceSha256"] == "sha256:" + "a" * 64
+    assert document_signoff["sourceSnapshotFallback"]["declaredSnapshotPath"] == (
+        "LAW-TEST.pdf"
+    )
+
+
+def test_build_review_signoff_rejects_unproven_source_hash_drift(
+    tmp_path: Path,
+) -> None:
+    _write_review_files(tmp_path)
+    payload = _payload()
+    payload["documents"][0]["sourceSha256"] = "sha256:" + "c" * 64
+
+    with pytest.raises(ReviewGateError, match="Reviewed source hash mismatch"):
+        build_review_signoff(payload, reviewed_dir=tmp_path)
+
+
 def test_build_review_signoff_fails_closed_when_review_not_approved(
     tmp_path: Path,
 ) -> None:

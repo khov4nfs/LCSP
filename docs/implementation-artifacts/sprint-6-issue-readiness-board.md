@@ -180,7 +180,7 @@ There are also targeted-reanalysis branch-ownership anomalies that must be corre
   - checkpoint persistence: `feat/LCSP-187-targeted-reanalysis-checkpoint`
   - execution consumer: `feat/LCSP-187-targeted-reanalysis-execution-consumer`
   - scheduler/outbox behavior: `feat/LCSP-187-targeted-reanalysis-scheduler`
-  - worker bridge/api client: `feat/LCSP-187-targeted-reanalysis-worker-bridge`
+  - Managed Agent internal command/api client: `feat/LCSP-187-targeted-reanalysis-worker-bridge`
 - Because of that fragmentation, the local git refs do not currently prove one clean issue-owned branch for the full tool. The verified ownership boundary for delivery remains Candidate 1's extraction manifest until a single issue branch is reconstructed and revalidated.
 
 ## Recommended next sequence

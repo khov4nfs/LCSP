@@ -777,6 +777,7 @@ export type PagesMessages = {
       backToWorkspace: string;
       previous: string;
       saveAndContinue: string;
+      continueToDeepResearch: string;
       continueToDetailed: string;
       submit: string;
       openClassification: string;
@@ -788,6 +789,7 @@ export type PagesMessages = {
       provider: string;
       deployment: string;
       risk: string;
+      deepResearch: string;
     };
     fields: {
       preAiScopeLabel: string;
@@ -801,9 +803,23 @@ export type PagesMessages = {
       businessProcessLabel: string;
       businessProcessDescription: string;
       businessProcessPlaceholder: string;
+      useCaseLabel: string;
+      useCaseDescription: string;
+      useCasePlaceholder: string;
+      primaryActorsLabel: string;
+      primaryActorsDescription: string;
+      primaryActorsPlaceholder: string;
+      businessTriggerLabel: string;
+      businessTriggerDescription: string;
+      businessTriggerPlaceholder: string;
+      expectedOutcomeLabel: string;
+      expectedOutcomeDescription: string;
+      expectedOutcomePlaceholder: string;
       aiPurposeLabel: string;
       aiPurposeDescription: string;
       aiPurposePlaceholder: string;
+      autonomyLevelLabel: string;
+      autonomyLevelDescription: string;
       sectorLabel: string;
       sectorDescription: string;
       dataTypeLabel: string;
@@ -842,6 +858,7 @@ export type PagesMessages = {
       sectorEducation: string;
       sectorHealthcare: string;
       sectorPublicServices: string;
+      sectorGovernanceRiskCompliance: string;
       externalNone: string;
       externalPossible: string;
       externalConfirmed: string;
@@ -879,6 +896,71 @@ export type PagesMessages = {
       humanOversightLimited: string;
       humanOversightAbsent: string;
       humanOversightNotApplicable: string;
+      autonomyHumanAssisted: string;
+      autonomyHumanApprovalRequired: string;
+      autonomyConditionalAutomation: string;
+      autonomyFullAutomation: string;
+    };
+    clarification: {
+      title: string;
+      description: string;
+      badge: string;
+      askAction: string;
+      askRunning: string;
+      askReady: string;
+      approveAction: string;
+      approveDescription: string;
+      approveIncomplete: string;
+      approveReady: string;
+      noMoreQuestions: string;
+      agentTitle: string;
+      agentDescription: string;
+      agentBadge: string;
+      agentReasonLabel: string;
+      agentAnswerLabel: string;
+      agentAnswerDescription: string;
+      agentAnswerPlaceholder: string;
+      rules: {
+        businessProcess: string;
+        useCase: string;
+        primaryActors: string;
+        businessTrigger: string;
+        expectedOutcome: string;
+        autonomyLevel: string;
+        aiPurpose: string;
+        sector: string;
+        postGraphContext: string;
+        postGraphRuleScope: string;
+        postGraphHumanReview: string;
+      };
+      useCaseQuestion: string;
+      useCaseDetail: string;
+      primaryActorsQuestion: string;
+      primaryActorsDetail: string;
+      businessTriggerQuestion: string;
+      businessTriggerDetail: string;
+      expectedOutcomeQuestion: string;
+      expectedOutcomeDetail: string;
+      autonomyLevelQuestion: string;
+      autonomyLevelDetail: string;
+      postGraphContextQuestion: string;
+      postGraphContextDetail: string;
+      postGraphContextPlaceholder: string;
+      postGraphRuleScopeQuestion: string;
+      postGraphRuleScopeDetail: string;
+      postGraphRuleScopePlaceholder: string;
+      postGraphHumanReviewQuestion: string;
+      postGraphHumanReviewDetail: string;
+      postGraphHumanReviewPlaceholder: string;
+    };
+    deepResearch: {
+      badge: string;
+      description: string;
+      lockedDescription: string;
+      lockedError: string;
+      agentTitle: string;
+      agentDescription: string;
+      askAction: string;
     };
     helpers: {
       decisionTitle: string;
@@ -891,6 +973,7 @@ export type PagesMessages = {
     errors: {
       loadTitle: string;
       loadDetail: string;
+      clarificationFailed: string;
       saveFailed: string;
       submitFailed: string;
       alreadySubmitted: string;
@@ -899,7 +982,12 @@ export type PagesMessages = {
       prePersonalDataRequired: string;
       preDecisionImportanceRequired: string;
       businessProcessRequired: string;
+      useCaseRequired: string;
+      primaryActorsRequired: string;
+      businessTriggerRequired: string;
+      expectedOutcomeRequired: string;
       aiPurposeRequired: string;
+      autonomyLevelRequired: string;
       sectorRequired: string;
       dataTypesRequired: string;
       affectedSubjectsRequired: string;
@@ -995,6 +1083,7 @@ export type PagesMessages = {
     waitingReasonLabel: string;
     activeStepLabel: string;
     runningStepsLabel: string;
+    waitingStepsLabel: string;
     completedStepsLabel: string;
     failedStepsLabel: string;
     skippedStepsLabel: string;
@@ -1005,9 +1094,16 @@ export type PagesMessages = {
     reasonLabel: string;
     valueLabel: string;
     emptyValueLabel: string;
+    notApplicableValueLabel: string;
     rerunScan: string;
     rerunningScan: string;
     rerunError: string;
+    clarificationRequestTitle: string;
+    clarificationRequestDescription: string;
+    clarificationRequestScopeLabel: string;
+    clarificationRequestReasonLabel: string;
+    clarificationRequestOpenWizard: string;
+    clarificationCollectionRuleLabel: string;
     scanStatuses: {
       queued: string;
       running: string;
@@ -1025,6 +1121,7 @@ export type PagesMessages = {
       waiting: string;
       completed: string;
       failed: string;
+      skipped: string;
     };
     runtimeStages: {
       snapshot: string;

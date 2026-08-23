@@ -76,6 +76,10 @@ export const WIZARD_SELECT_OPTIONS = {
       value: "PUBLIC_SERVICES",
       labelKey: "pages.wizard.options.sectorPublicServices",
     },
+    {
+      value: "GOVERNANCE_RISK_COMPLIANCE",
+      labelKey: "pages.wizard.options.sectorGovernanceRiskCompliance",
+    },
   ],
   userGroup: [
     {
@@ -164,13 +168,41 @@ export const WIZARD_SELECT_OPTIONS = {
     },
     { value: "UNKNOWN", labelKey: "pages.wizard.options.unknown" },
   ],
+  autonomyLevel: [
+    {
+      value: "HUMAN_ASSISTED",
+      labelKey: "pages.wizard.options.autonomyHumanAssisted",
+    },
+    {
+      value: "HUMAN_APPROVAL_REQUIRED",
+      labelKey: "pages.wizard.options.autonomyHumanApprovalRequired",
+    },
+    {
+      value: "CONDITIONAL_AUTOMATION",
+      labelKey: "pages.wizard.options.autonomyConditionalAutomation",
+    },
+    {
+      value: "FULL_AUTOMATION",
+      labelKey: "pages.wizard.options.autonomyFullAutomation",
+    },
+    { value: "UNKNOWN", labelKey: "pages.wizard.options.unknown" },
+  ],
 } as const;
 
 export const WIZARD_STEPS = [
   {
     id: "purpose",
     titleKey: "pages.wizard.sections.purpose",
-    fields: ["businessProcess", "aiPurpose", "sector"],
+    fields: [
+      "businessProcess",
+      "useCase",
+      "primaryActors",
+      "businessTrigger",
+      "expectedOutcome",
+      "aiPurpose",
+      "autonomyLevel",
+      "sector",
+    ],
   },
   {
     id: "data-users",
@@ -259,9 +291,35 @@ export const WIZARD_EXPORT_SECTIONS = [
         control: WIZARD_FIELD_CONTROLS.textarea,
       },
       {
+        questionId: "useCase",
+        labelKey: "pages.wizard.fields.useCaseLabel",
+        control: WIZARD_FIELD_CONTROLS.textarea,
+      },
+      {
+        questionId: "primaryActors",
+        labelKey: "pages.wizard.fields.primaryActorsLabel",
+        control: WIZARD_FIELD_CONTROLS.textarea,
+      },
+      {
+        questionId: "businessTrigger",
+        labelKey: "pages.wizard.fields.businessTriggerLabel",
+        control: WIZARD_FIELD_CONTROLS.textarea,
+      },
+      {
+        questionId: "expectedOutcome",
+        labelKey: "pages.wizard.fields.expectedOutcomeLabel",
+        control: WIZARD_FIELD_CONTROLS.textarea,
+      },
+      {
         questionId: "aiPurpose",
         labelKey: "pages.wizard.fields.aiPurposeLabel",
         control: WIZARD_FIELD_CONTROLS.textarea,
+      },
+      {
+        questionId: "autonomyLevel",
+        labelKey: "pages.wizard.fields.autonomyLevelLabel",
+        control: WIZARD_FIELD_CONTROLS.select,
+        optionSet: "autonomyLevel",
       },
       {
         questionId: "sector",

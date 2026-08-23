@@ -87,6 +87,7 @@ def fetch_official_source_snapshot(
             source_url=_required_str(request, "source_url"),
             output_dir=output_path,
             max_bytes=max_bytes,
+            storage_root=_storage_root(context),
             gateway_document_id=_optional_str(request, "gateway_document_id"),
             source_effect_status=_optional_str(request, "source_effect_status"),
             expected_document_number=_optional_str(

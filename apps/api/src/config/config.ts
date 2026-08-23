@@ -85,7 +85,6 @@ export const configValidationSchema = Joi.object({
       "string.smtpFrom":
         '"SMTP_FROM" must be a valid email or display-name address like "LCSP <noreply@lcsp.com>"',
     }),
-  PYTHON_WORKER_BASE_URL: Joi.string().required(),
   WORKER_API_KEY: Joi.string().min(32).required(),
   ORCHESTRATION_DEBUG: Joi.boolean().default(false),
 }).unknown(true);
@@ -173,9 +172,6 @@ export function config(): AppConfig {
     },
     crypto: {
       mfaSecretEncryptionKey: env.MFA_SECRET_ENCRYPTION_KEY ?? "",
-    },
-    pythonWorker: {
-      baseUrl: env.PYTHON_WORKER_BASE_URL ?? "",
     },
     worker: {
       apiKey: env.WORKER_API_KEY ?? "",

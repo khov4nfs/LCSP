@@ -50,7 +50,7 @@ export function unsafeDevUnfilteredEnabled(): boolean {
 
 /**
  * Emits one JSON-line diagnostic record to stderr in dev mode.
- * Summarized and redacted by default, or fully raw if LCSP_DEV_UNSAFE_UNFILTERED is active.
+ * Summarized by default, or fully raw if LCSP_DEV_UNSAFE_UNFILTERED is active.
  *
  * @param event - Stable diagnostic event name.
  * @param fields - Exact diagnostic values to serialize.
@@ -237,16 +237,6 @@ function summarizeTraceFields(
   if (nodeCount !== undefined) summary["node_count"] = nodeCount;
   if (edgeCount !== undefined) summary["edge_count"] = edgeCount;
 
-  const sensitiveKeys = [
-    "api_key",
-    "secret",
-    "token",
-    "password",
-    "authorization",
-    "x-worker-api-key",
-    "cookie",
-    "set-cookie",
-  ];
   const payloadKeys = [
     "payload",
     "body",
@@ -265,11 +255,6 @@ function summarizeTraceFields(
 
   for (const k of Object.keys(fields)) {
     const v = fields[k];
-
-    if (sensitiveKeys.some((secKey) => k.toLowerCase().includes(secKey))) {
-      summary[k] = "[REDACTED]";
-      continue;
-    }
 
     if (payloadKeys.includes(k)) {
       let size = 0;

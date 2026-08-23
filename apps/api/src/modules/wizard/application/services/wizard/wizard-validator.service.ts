@@ -24,11 +24,55 @@ export class WizardValidatorService {
       });
     }
 
+    const useCase = getAnswer("useCase");
+    if (!this.isValidStringOrUnknown(useCase)) {
+      errors.push({
+        field: "useCase",
+        message: "Please describe the primary use case for this AI system.",
+      });
+    }
+
+    const primaryActors = getAnswer("primaryActors");
+    if (!this.isValidStringOrUnknown(primaryActors)) {
+      errors.push({
+        field: "primaryActors",
+        message:
+          "Please describe the primary actors involved in this use case.",
+      });
+    }
+
+    const businessTrigger = getAnswer("businessTrigger");
+    if (!this.isValidStringOrUnknown(businessTrigger)) {
+      errors.push({
+        field: "businessTrigger",
+        message:
+          "Please describe what starts this use case or business workflow.",
+      });
+    }
+
+    const expectedOutcome = getAnswer("expectedOutcome");
+    if (!this.isValidStringOrUnknown(expectedOutcome)) {
+      errors.push({
+        field: "expectedOutcome",
+        message:
+          "Please describe the expected outcome after the workflow completes.",
+      });
+    }
+
     const aiPurpose = getAnswer("aiPurpose");
     if (!this.isValidStringOrUnknown(aiPurpose)) {
       errors.push({
         field: "aiPurpose",
         message: "Please describe the primary purpose of your AI system.",
+      });
+    }
+
+    const autonomyLevel = getAnswer("autonomyLevel");
+    if (!this.isValidStringOrUnknown(autonomyLevel)) {
+      errors.push({
+        field: "autonomyLevel",
+        message:
+          "Please indicate how autonomous the system is in this use case.",
       });
     }
 

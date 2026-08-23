@@ -17,6 +17,7 @@ from .investigator import (
     MAX_WORKING_RESULTS,
     STATE_TOOL_NAMES,
     LawGuidedInvestigator,
+    summarize_investigation_tool_result,
 )
 from .models import EvidenceClaim, InvestigationPacket
 
@@ -181,11 +182,6 @@ class CodeContextLawGuidedInvestigator(LawGuidedInvestigator):
                     engineering_rule_id=packet.engineering_rule_id,
                     step=step + 1,
                     tool=call.name,
-                    call_id=call.call_id,
-                    arguments=self._bounded_debug(call.arguments),
-                    graph_tool_calls_used=graph_tool_calls_used,
-                    code_tool_calls_used=code_tool_calls_used,
-                    ledger_observation_count=ledger.total,
                     workflow_run_id=workflow_run_id,
                     correlationId=correlation_id,
                 )
@@ -352,8 +348,7 @@ class CodeContextLawGuidedInvestigator(LawGuidedInvestigator):
                     engineering_rule_id=packet.engineering_rule_id,
                     step=step + 1,
                     tool=call.name,
-                    call_id=call.call_id,
-                    result=working_result,
+                    result_summary=summarize_investigation_tool_result(working_result),
                     graph_tool_calls_used=graph_tool_calls_used,
                     code_tool_calls_used=code_tool_calls_used,
                     ledger_observation_count=ledger.total,

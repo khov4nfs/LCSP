@@ -1,15 +1,20 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from lcsp_workers.legal.legal_corpus_recovery_driver import LegalCorpusRecoveryDriver
 
 
 class FakeApiClient:
-    def __init__(self) -> None:
+    def __init__(self, *, ingest_response: dict | None = None) -> None:
         self.calls: list[tuple[str, object]] = []
+        self.ingest_response = ingest_response
 
     def ingest_validated_legal_corpus_draft(self, payload: dict) -> dict:
         self.calls.append(("ingest", payload))
+        if self.ingest_response is not None:
+            return self.ingest_response
         return {"id": "corpus-1", "status": "DRAFT"}
 
     def register_validated_retrieval_index(
@@ -33,6 +38,15 @@ class FakeApiClient:
     def resume_waiting_runs(self, corpus_version_id: str, payload: dict) -> dict:
         self.calls.append(("resume", (corpus_version_id, payload)))
         return {"result": {"resumedRunCount": 1}}
+
+    def recover_legal_rules_from_active_corpus(self, payload: dict) -> dict:
+        self.calls.append(("recover_rules", payload))
+        return {
+            "id": "catalog-1",
+            "status": "APPROVED",
+            "ruleCount": 3,
+            "corpusVersionId": "corpus-1",
+        }
 
 
 def test_recovery_driver_ingests_indexes_activates_and_resumes(
@@ -62,8 +76,148 @@ def test_recovery_driver_ingests_indexes_activates_and_resumes(
         "ingest",
         "register_index",
         "activate",
+        "recover_rules",
         "resume",
     ]
+
+
+def test_recovery_driver_skips_validation_activation_when_corpus_unchanged(
+    tmp_path: Path,
+    monkeypatch,
+):
+    manifest = reviewed_manifest(tmp_path, "LAW-TEST", "Điều 1. Test\n")
+    api_client = FakeApiClient(
+        ingest_response={
+            "id": "corpus-active",
+            "version": "VN-LEGAL-AO6-existing",
+            "status": "APPROVED",
+            "noChanges": True,
+            "changeSet": {
+                "mode": "NO_CHANGES",
+                "changedChunkIds": [],
+            },
+        }
+    )
+    driver = LegalCorpusRecoveryDriver(
+        api_client=api_client,
+        source_manifest_paths=[manifest],
+        reviewed_dir=tmp_path,
+    )
+    monkeypatch.setattr(driver, "_validate_retrieval_index", lambda *_args: None)
+
+    result = driver.run(
+        {
+            "idempotencyKey": "vp-1:command.legal-corpus.recovery.requested.v1",
+            "maxRuns": 25,
+        },
+        "corr-1",
+    )
+
+    assert result["noChanges"] is True
+    assert result["corpusVersionId"] == "corpus-active"
+    assert result["legalRuleCatalogVersionId"] == "catalog-1"
+    assert result["legalRuleCount"] == 3
+    assert result["resumedRunCount"] == 1
+    assert [name for name, _payload in api_client.calls] == [
+        "ingest",
+        "recover_rules",
+        "resume",
+    ]
+
+
+def test_recovery_driver_uses_runtime_crawl_artifacts_from_message(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    manifest = reviewed_manifest(tmp_path, "LAW-TEST", "Điều 1. Test\n")
+    api_client = FakeApiClient()
+    driver = LegalCorpusRecoveryDriver(api_client=api_client)
+    monkeypatch.setattr(driver, "_validate_retrieval_index", lambda *_args: None)
+
+    result = driver.run(
+        {
+            "idempotencyKey": "vp-1:command.legal-corpus.recovery.requested.v1",
+            "sourceManifestPaths": [str(manifest)],
+            "reviewedDir": str(tmp_path),
+        },
+        "corr-1",
+    )
+
+    assert result["status"] == "READY"
+    assert [name for name, _payload in api_client.calls] == [
+        "ingest",
+        "register_index",
+        "activate",
+        "recover_rules",
+        "resume",
+    ]
+
+
+def test_recovery_driver_discovers_runtime_crawl_artifacts_from_corpus_store(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    storage_root = tmp_path / ".corpus"
+    artifact_dir = storage_root / "source-crawl" / "corpus-draft" / "LAW-TEST"
+    artifact_dir.mkdir(parents=True)
+    reviewed_manifest(artifact_dir, "LAW-TEST", "Điều 1. Test\n")
+    api_client = FakeApiClient()
+    driver = LegalCorpusRecoveryDriver(api_client=api_client)
+    monkeypatch.setattr(driver, "_validate_retrieval_index", lambda *_args: None)
+
+    result = driver.run(
+        {
+            "idempotencyKey": "vp-1:command.legal-corpus.recovery.requested.v1",
+            "storageRoot": str(storage_root),
+        },
+        "corr-1",
+    )
+
+    assert result["status"] == "READY"
+    assert (storage_root / "locks" / "legal-corpus-recovery.lock").is_file()
+    assert [name for name, _payload in api_client.calls] == [
+        "ingest",
+        "register_index",
+        "activate",
+        "recover_rules",
+        "resume",
+    ]
+
+
+def test_recovery_driver_does_not_fallback_to_repository_reports(tmp_path: Path) -> None:
+    driver = LegalCorpusRecoveryDriver(api_client=FakeApiClient())
+
+    with pytest.raises(RuntimeError, match="source manifests from the crawl pipeline"):
+        driver.run(
+            {
+                "idempotencyKey": "vp-1:command.legal-corpus.recovery.requested.v1",
+                "storageRoot": str(tmp_path / ".corpus"),
+            },
+            "corr-1",
+        )
+
+
+def test_recovery_driver_can_recover_rules_from_active_corpus_without_artifacts(
+    tmp_path: Path,
+) -> None:
+    api_client = FakeApiClient()
+    driver = LegalCorpusRecoveryDriver(api_client=api_client)
+
+    result = driver.run(
+        {
+            "idempotencyKey": "vp-1:command.legal-corpus.recovery.requested.v1",
+            "storageRoot": str(tmp_path / ".corpus"),
+            "recoverLegalRulesOnly": True,
+            "maxRuns": 0,
+        },
+        "corr-1",
+    )
+
+    assert result["status"] == "READY"
+    assert result["legalRuleOnly"] is True
+    assert result["legalRuleCatalogVersionId"] == "catalog-1"
+    assert result["legalRuleCount"] == 3
+    assert [name for name, _payload in api_client.calls] == ["recover_rules"]
 
 
 def reviewed_manifest(tmp_path: Path, document_id: str, text: str) -> Path:

@@ -11,12 +11,15 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from dotenv import find_dotenv, load_dotenv
+
+from lcsp_workers.legal.normative_chunk_filter import (
+    is_engineering_rule_source_chunk,
+)
 
 
 def args_parser():
@@ -36,12 +39,6 @@ def j(value: Any) -> Any:
     if isinstance(value, (bytes, bytearray)):
         value = value.decode("utf-8")
     return json.loads(value) if isinstance(value, str) else value
-
-
-def heading_only(content: str) -> bool:
-    lines = [x.strip() for x in str(content).splitlines() if x.strip()]
-    return len(lines) == 1 and bool(re.fullmatch(r"Điều\s+\d+\..+", lines[0], re.I))
-
 
 
 def psycopg_connection_info(database_url: str) -> tuple[str, str | None]:
@@ -100,7 +97,8 @@ def main() -> int:
     from lcsp_workers.legal.engineering_rules.cache import EngineeringRuleCache
     from lcsp_workers.legal.engineering_rules.compiler import COMPILER_VERSION, PROMPT_VERSION
     from lcsp_workers.legal.engineering_rules.fingerprint import engineering_rule_fingerprint
-    from lcsp_workers.legal.engineering_rules.models import ENGINEERING_RULE_SCHEMA_VERSION, EngineeringRule
+    from lcsp_workers.legal.engineering_rules.models import ENGINEERING_RULE_SCHEMA_VERSION, EngineeringRule, build_legal_reasoning_contract
+    from lcsp_workers.legal.engineering_rules.precompiled_registry import PrecompiledEngineeringRuleRegistry
     from lcsp_workers.legal.engineering_rules.validator import validate_engineering_rule
 
     expected = (
@@ -111,6 +109,14 @@ def main() -> int:
     current = (ENGINEERING_RULE_SCHEMA_VERSION, COMPILER_VERSION, PROMPT_VERSION)
     if expected != current:
         raise SystemExit(f"Bundle/runtime contract mismatch: bundle={expected}, runtime={current}")
+
+    contract_registry = PrecompiledEngineeringRuleRegistry(bundle_path=args.bundle)
+    templates, contract_version = contract_registry.templates_for_bundle(bundle)
+    fingerprint_compiler_version = (
+        COMPILER_VERSION
+        if contract_version == "base"
+        else f"{COMPILER_VERSION}|precompiled-contract:{contract_version}"
+    )
 
     corpus_version = args.corpus_version or bundle.get("legalCorpusVersionHint")
     if not corpus_version:
@@ -183,7 +189,6 @@ def main() -> int:
 
     retriever = ChromaDbCitationRetriever()
     cache = EngineeringRuleCache()
-    templates = list(bundle.get("templates") or [])
     matched_templates_global: set[str] = set()
 
     stats = {
@@ -237,10 +242,19 @@ def main() -> int:
             continue
 
         covered = {str(x) for t in matched for x in t.get("matchCitationChunkIds") or []}
-        substantive = {str(x["id"]) for x in primary_rows if not heading_only(str(x["content"]))}
+        substantive = {
+            str(x["id"]) for x in primary_rows if is_engineering_rule_source_chunk(x)
+        }
         uncovered = sorted(substantive - covered)
         if uncovered and not args.allow_uncovered_primary:
             print(f"SKIP {row['legalRuleId']}: uncovered substantive primary citations={uncovered}")
+            stats["skippedUncoveredRules"] += 1
+            continue
+        if primary_rows and not substantive:
+            print(
+                f"SKIP {row['legalRuleId']}: primary citations are context-only, "
+                "not EngineeringRule sources"
+            )
             stats["skippedUncoveredRules"] += 1
             continue
 
@@ -282,7 +296,7 @@ def main() -> int:
             expected_hash = str(expected_hashes.get(cid) or "")
             actual_hash = str(x.get("contentSha256") or "")
             if expected_hash != actual_hash:
-                mismatches.append({"id":cid,"expected":expected_hash,"actual":actual_hash})
+                mismatches.append({"id": cid, "expected": expected_hash, "actual": actual_hash})
         if mismatches:
             print(f"SKIP {row['legalRuleId']}: source hash mismatch={mismatches}")
             stats["skippedHashMismatchRules"] += 1
@@ -295,7 +309,7 @@ def main() -> int:
             chunk_hashes=hashes,
             schema_version=ENGINEERING_RULE_SCHEMA_VERSION,
             prompt_version=PROMPT_VERSION,
-            compiler_version=COMPILER_VERSION,
+            compiler_version=fingerprint_compiler_version,
         )
 
         source_ids = [str(x["id"]) for x in context]
@@ -325,6 +339,15 @@ def main() -> int:
                 "unresolvedConditions": t.get("unresolvedConditions") or [],
                 "sourceChunkIds": source_ids,
                 "sourceLocators": source_locators,
+                "legalReasoningContract": build_legal_reasoning_contract(
+                    legal_rule=active_rule,
+                    legal_rule_catalog_version_id=str(catalog["id"]),
+                    legal_corpus_version_id=str(corpus["id"]),
+                    legal_context=context,
+                    required_evidence=tuple(str(v) for v in t.get("requiredEvidence") or [] if str(v)),
+                    supporting_evidence=tuple(str(v) for v in t.get("supportingEvidence") or [] if str(v)),
+                    negative_evidence=tuple(str(v) for v in t.get("negativeEvidence") or [] if str(v)),
+                ),
                 "sourceFingerprint": fingerprint,
                 "compilerModel": str(bundle.get("compilerModel") or "precompiled"),
                 "compilerVersion": COMPILER_VERSION,
@@ -347,6 +370,7 @@ def main() -> int:
     print("\n=== IMPORT SUMMARY ===")
     print(f"Corpus:  {corpus['version']} ({corpus['id']})")
     print(f"Catalog: {catalog['version']} ({catalog['id']})")
+    print(f"EngineeringRule contract: {contract_version}")
     print(f"Chroma:  {os.getenv('LEGAL_CHROMA_PATH', '/tmp/lcsp-chroma')}")
     for k, v in stats.items():
         print(f"{k}: {v}")

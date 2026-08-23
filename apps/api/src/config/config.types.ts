@@ -42,10 +42,6 @@ export interface CryptoConfig {
   mfaSecretEncryptionKey: string;
 }
 
-export interface PythonWorkerConfig {
-  baseUrl: string;
-}
-
 export interface WorkerConfig {
   apiKey: string;
 }
@@ -78,7 +74,6 @@ export interface AppConfig {
   rabbitmq: RabbitMqConfig;
   outbox: OutboxConfig;
   crypto: CryptoConfig;
-  pythonWorker: PythonWorkerConfig;
   worker: WorkerConfig;
   internal: InternalConfig;
   email: EmailConfig;
