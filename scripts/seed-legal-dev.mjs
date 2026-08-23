@@ -7,52 +7,18 @@ import { spawnSync } from "node:child_process";
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workerSourcePath = join(rootDir, "lcsp-python-workers", "src");
 const defaultChromaPath = join(rootDir, "tmp", "lcsp-legal-chroma");
-const defaultBundlePath = join(
-  rootDir,
-  "reports",
-  "legal-corpus-ocr",
-  "lcsp-precompiled-engineering-rules-vn-2026-08.json",
-);
-const defaultCorpusVersion = "VN-LEGAL-2026-08";
-const defaultCatalogVersion = "VN-LEGAL-RULES-2026-08-DEV";
 
 const commands = {
   corpus: {
     script: join(rootDir, "scripts", "seed_legal_corpus_dev.py"),
     defaultArgs: [],
   },
-  "legal-rules": {
-    script: join(rootDir, "scripts", "seed_legal_rules_dev.py"),
-    defaultArgs: [
-      "--bundle",
-      defaultBundlePath,
-      "--corpus-version",
-      defaultCorpusVersion,
-      "--catalog-version",
-      defaultCatalogVersion,
-    ],
-  },
-  "engineering-rules": {
-    script: join(
-      rootDir,
-      "scripts",
-      "import_lcsp_precompiled_engineering_rules.py",
-    ),
-    defaultArgs: [
-      "--bundle",
-      defaultBundlePath,
-      "--corpus-version",
-      defaultCorpusVersion,
-      "--catalog-version",
-      defaultCatalogVersion,
-    ],
-  },
 };
 
 function usage() {
   console.error(
     [
-      "Usage: node scripts/seed-legal-dev.mjs <corpus|legal-rules|engineering-rules|all> [--dry-run] [-- ...extra args]",
+      "Usage: node scripts/seed-legal-dev.mjs <corpus|all> [--dry-run] [-- ...extra args]",
       "",
       "Environment:",
       "  PYTHON or PYTHON_BIN can override the Python executable.",
@@ -159,8 +125,6 @@ const options = [...optionArgs, ...extraArgs];
 
 if (target === "all") {
   runSeed("corpus", options);
-  runSeed("legal-rules", options);
-  runSeed("engineering-rules", options);
 } else {
   runSeed(target, options);
 }

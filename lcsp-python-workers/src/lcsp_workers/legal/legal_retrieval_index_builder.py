@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from .chunk_integrity_repository import ChunkIntegrityRepository
+from .chroma_path import default_legal_chroma_path
+from .chroma_vectorless import zero_embeddings
 from .legal_chunk_repository import LegalChunkRepository, LegalChunkSetRecord
 from .legal_retrieval_index_repository import LegalRetrievalIndexRecord
 from .official_text_extraction import _sha256_bytes
@@ -78,7 +80,7 @@ class ChromaLegalIndexStore:
                 ids=[str(record["id"]) for record in records],
                 documents=[str(record["document"]) for record in records],
                 metadatas=[record["metadata"] for record in records],
-                embeddings=[[0.0] for _ in records],
+                embeddings=zero_embeddings(len(records)),
             )
         return collection.count()
 
@@ -168,7 +170,7 @@ class LegalRetrievalIndexBuilder:
             storage_root=storage_root
         )
         self._index_store = index_store or ChromaLegalIndexStore(
-            chroma_path=storage_root / "chroma"
+            chroma_path=default_legal_chroma_path()
         )
 
     def build(self, request: BuildLegalRetrievalIndexRequest) -> LegalRetrievalIndexResult:

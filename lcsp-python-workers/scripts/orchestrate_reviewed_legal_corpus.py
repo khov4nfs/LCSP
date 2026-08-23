@@ -60,7 +60,18 @@ def build_review_signoff(
     if not isinstance(documents, list) or not documents:
         raise ReviewGateError("Corpus payload has no documents")
 
-    signoffs: list[dict[str, str]] = []
+    source_manifest = payload.get("sourceManifest")
+    source_artifacts = (
+        source_manifest.get("sourceArtifacts")
+        if isinstance(source_manifest, dict)
+        else None
+    )
+    source_artifacts_by_document = {
+        str(item.get("documentId")): item
+        for item in source_artifacts or []
+        if isinstance(item, dict) and isinstance(item.get("documentId"), str)
+    }
+    signoffs: list[dict[str, Any]] = []
     reviewers: set[str] = set()
 
     for document in documents:
@@ -120,23 +131,35 @@ def build_review_signoff(
             document, "sourceSha256", source=f"payload document {document_id}"
         )
         if reviewed_source_sha != payload_source_sha:
-            raise ReviewGateError(
-                f"Reviewed source hash mismatch for {document_id}"
-            )
+            artifact = source_artifacts_by_document.get(document_id)
+            fallback = artifact.get("sourceSnapshotFallback") if artifact else None
+            if (
+                not isinstance(artifact, dict)
+                or not isinstance(fallback, dict)
+                or artifact.get("declaredReviewedSourceSha256") != reviewed_source_sha
+                or artifact.get("reviewedSourceSha256") != payload_source_sha
+            ):
+                raise ReviewGateError(
+                    f"Reviewed source hash mismatch for {document_id}"
+                )
 
-        signoffs.append(
-            {
-                "documentId": document_id,
-                "reviewState": review_state,
-                "reviewedBy": reviewed_by,
-                "reviewedAt": _required_string(
-                    review, "reviewedAt", source=hierarchy_review.name
-                ),
-                "reviewedSourceSha256": reviewed_source_sha,
-                "reviewedTextSha256": actual_reviewed_text_sha,
-                "hierarchyReviewSha256": sha256_file(hierarchy_review),
-            }
-        )
+        signoff_document: dict[str, Any] = {
+            "documentId": document_id,
+            "reviewState": review_state,
+            "reviewedBy": reviewed_by,
+            "reviewedAt": _required_string(
+                review, "reviewedAt", source=hierarchy_review.name
+            ),
+            "reviewedSourceSha256": payload_source_sha,
+            "reviewedTextSha256": actual_reviewed_text_sha,
+            "hierarchyReviewSha256": sha256_file(hierarchy_review),
+        }
+        if reviewed_source_sha != payload_source_sha:
+            signoff_document["declaredReviewedSourceSha256"] = reviewed_source_sha
+            signoff_document["sourceSnapshotFallback"] = source_artifacts_by_document[
+                document_id
+            ]["sourceSnapshotFallback"]
+        signoffs.append(signoff_document)
 
     if len(reviewers) != 1:
         raise ReviewGateError(

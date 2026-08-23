@@ -11,7 +11,7 @@ Examples:
 - `run_syft_inventory` → `run_syft_inventory(...)` → `SyftTool.run(...)`
 - `search_evidence` → `search_evidence(...)` → `SearchEvidenceQuery` → `SearchEvidenceHandler.execute(...)`
 - `submit_classification_for_independent_review` → `submit_classification_for_independent_review(...)` → `SubmitClassificationReviewCommand`
-- `request_targeted_reanalysis` → `request_targeted_reanalysis(...)` → `PythonWorkerRuntimeClient.requestTargetedReanalysis(...)`
+- `request_targeted_reanalysis` → `request_targeted_reanalysis(...)` → `RequestTargetedReanalysisCommand`
 
 Internal domain classes and methods may keep their existing names. They MUST be reached through the canonical same-name execution boundary.
 
@@ -35,7 +35,7 @@ Runtime targets are explicit:
 - `PYTHON_LOCAL`
 - `NEST_CQRS`
 - `NEST_COMMAND`
-- `PYTHON_WORKER_BRIDGE`
+- `MANAGED_AGENT_COMMAND`
 - `PROTECTED_API`
 
 ## Runtime ownership
@@ -64,18 +64,18 @@ Canonical functions and the protected command switch live in:
 
 Before `CommandBus.execute`, the internal dispatcher re-evaluates PBAC using the current membership and policy. Policy ID/version used by review commands come from the trusted PBAC lookup, not the worker payload.
 
-### Python worker bridge tools
+### Managed Agent command tools
 
 Canonical functions live in:
 
-`apps/api/src/modules/evidence/presentation/http/agentic-tool-worker-bridge-dispatcher.ts`
+`apps/api/src/modules/evidence/presentation/http/agentic-tool-internal-dispatcher.ts`
 
 This currently owns:
 
 - `request_targeted_reanalysis`
 - `resume_waiting_runs`
 
-`resume_waiting_runs` remains a system-only worker bridge. AO-6 recovery must not route it back through `LegalToolDispatcher`, because doing so would create a Python → Nest → Python worker recursion path. The recovery driver therefore invokes the existing internal API client at the terminal resume seam after corpus activation.
+`resume_waiting_runs` remains system-only. AO-6 recovery must not route it back through `LegalToolDispatcher`, because doing so would create a recursive tool path. The recovery driver therefore invokes the existing internal API client at the terminal resume seam after corpus activation.
 
 ### AO-6 legal corpus tools
 
@@ -150,7 +150,7 @@ canonical tool name
   -> central ToolBinding
   -> exact same-name function
   -> runtime target
-  -> CQRS / Python implementation / worker bridge / protected API
+  -> CQRS / Python implementation / Managed Agent command / protected API
 ```
 
 A developer should not need to infer implementation ownership from a workflow consumer or search for unrelated generic method names such as `run()` or `execute()` first.

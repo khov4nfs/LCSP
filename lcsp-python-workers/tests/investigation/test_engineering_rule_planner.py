@@ -11,7 +11,11 @@ from lcsp_workers.investigation.engineering_rule_planner import (
     EngineeringRulePlanner,
     EngineeringRulePlanningCandidate,
 )
-from lcsp_workers.investigation.models import EvidenceClaim, InvestigationPacket
+from lcsp_workers.investigation.models import (
+    ENGINEERING_LIMITATION_CODES,
+    EvidenceClaim,
+    InvestigationPacket,
+)
 from lcsp_workers.investigation.planned_pipeline import PlannedEngineeringInvestigationPipeline
 from lcsp_workers.scanner.program_graph.models import ProgramEvidenceGraph
 
@@ -45,6 +49,30 @@ def _candidate(rule_id: str, *, source_hits: int) -> EngineeringRulePlanningCand
         legal_intent={},
         investigation_goals=("inspect",),
         required_evidence=("CONTROL",),
+        legal_reasoning_contract={
+            "legalRuleId": f"legal-{rule_id}",
+            "legalCorpusVersionId": "corpus-v1",
+            "legalRuleCatalogVersionId": "catalog-v1",
+            "jurisdiction": "VN",
+            "effectiveDate": "UNSPECIFIED",
+            "applicabilityCriteria": {
+                "requiredFacts": [],
+                "blockingFacts": [],
+                "unknownFactPolicy": "BLOCK_ON_UNKNOWN",
+            },
+            "requiredEvidence": ["CONTROL"],
+            "acceptedEvidenceTypes": ["CONTROL"],
+            "negativeEvidenceTypes": [],
+            "citationSet": [{"chunkId": f"chunk-{rule_id}", "locator": "art-1"}],
+            "validationPolicy": {
+                "noCitationNoLegalClaim": True,
+                "noSourceAnchorNoRepoClaim": True,
+                "failClosedOnMissingEvidence": True,
+                "separateApplicabilityFromCompliance": True,
+                "deterministicValidatorsBeforeLlmTrust": True,
+                "humanLegalSignoffRequired": True,
+            },
+        },
         starting_node_types=("AI_MODEL_INVOCATION",),
         target_node_types=(),
         source_hit_count=source_hits,
@@ -171,6 +199,49 @@ def test_invalid_plan_falls_back_to_all_candidates() -> None:
     assert result.fallback_used is True
 
 
+def test_planner_prompt_contains_legal_reasoning_contract() -> None:
+    prompt = EngineeringRulePlanner._prompt(
+        (_candidate("eng-contract", source_hits=0),),
+        wizard_context={"sector": "GENERAL_BUSINESS"},
+        graph=_graph(),
+    )
+
+    assert "LegalReasoningContract" in prompt
+    assert "citationSet" in prompt
+    assert '"legalCorpusVersionId":"corpus-v1"' in prompt
+    assert "Do not create legal claims or compliance conclusions" in prompt
+
+
+def test_planner_prompt_treats_openwiki_as_unverified_hint_only() -> None:
+    prompt = EngineeringRulePlanner._prompt(
+        (_candidate("eng-contract", source_hits=0),),
+        wizard_context={"sector": "GENERAL_BUSINESS"},
+        graph=_graph(),
+        openwiki_context={
+            "source": "openwiki",
+            "available": True,
+            "authority": "UNVERIFIED_ARCHITECTURE_HINT",
+            "policy": "May prioritize planner investigation only.",
+            "hintCount": 1,
+            "hints": [
+                {
+                    "path": "openwiki/architecture/overview.md",
+                    "title": "Architecture",
+                    "snippet": "AI review workflow uses human oversight.",
+                    "matchedTerms": ["AI", "review"],
+                    "authority": "UNVERIFIED_ARCHITECTURE_HINT",
+                    "policy": "May prioritize planner investigation only.",
+                }
+            ],
+        },
+    )
+
+    assert "openWikiArchitectureHints" in prompt
+    assert "UNVERIFIED_ARCHITECTURE_HINT" in prompt
+    assert "not SOURCE basis" in prompt
+    assert "not proof of compliance" in prompt
+
+
 def _engineering_rule(rule_id: str):
     return SimpleNamespace(
         engineering_rule_id=rule_id,
@@ -205,7 +276,14 @@ def _packet(rule_id: str) -> InvestigationPacket:
     )
 
 
-def test_planned_pipeline_investigates_only_selected_rule() -> None:
+def test_planned_pipeline_investigates_only_selected_rule(tmp_path) -> None:
+    wiki = tmp_path / "openwiki" / "architecture"
+    wiki.mkdir(parents=True)
+    (wiki / "overview.md").write_text(
+        "# Architecture\n\nAI model invocation flows through a review surface.",
+        encoding="utf-8",
+    )
+
     api_client = MagicMock()
     api_client.get_active_legal_rule_catalog.return_value = {
         "versionId": "catalog-v1",
@@ -215,7 +293,9 @@ def test_planned_pipeline_investigates_only_selected_rule() -> None:
         ],
     }
     api_client.get_active_legal_corpus.return_value = {"versionId": "corpus-v1"}
-    api_client.get_legal_corpus_chunks.return_value = {"chunks": []}
+    api_client.get_legal_corpus_chunks.return_value = {
+        "chunks": [{"id": "LAW:A1", "content": "approved legal text"}]
+    }
 
     rule_one = _engineering_rule("eng-1")
     rule_two = _engineering_rule("eng-2")
@@ -269,6 +349,7 @@ def test_planned_pipeline_investigates_only_selected_rule() -> None:
         evidence_report=evidence_report,
         workflow_run_id="workflow-1",
         wizard_context={"sector": "GENERAL_BUSINESS"},
+        workspace_path=tmp_path,
     )
 
     assert result.engineering_rules_executed == 1
@@ -276,3 +357,325 @@ def test_planned_pipeline_investigates_only_selected_rule() -> None:
     assert result.evaluations[0].engineering_rule_id == "eng-1"
     investigator.investigate.assert_called_once()
     planner.plan.assert_called_once()
+    assert planner.plan.call_args.kwargs["openwiki_context"]["available"] is True
+    assert (
+        planner.plan.call_args.kwargs["openwiki_context"]["authority"]
+        == "UNVERIFIED_ARCHITECTURE_HINT"
+    )
+
+
+def test_planned_pipeline_falls_back_all_when_openwiki_runtime_context_missing(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("OPENWIKI_RUNTIME_COMMAND", "missing-openwiki-runtime-command")
+
+    api_client = MagicMock()
+    api_client.get_active_legal_rule_catalog.return_value = {
+        "versionId": "catalog-v1",
+        "rules": [
+            {"legalRuleId": "legal-1", "status": "APPROVED"},
+            {"legalRuleId": "legal-2", "status": "APPROVED"},
+        ],
+    }
+    api_client.get_active_legal_corpus.return_value = {"versionId": "corpus-v1"}
+    api_client.get_legal_corpus_chunks.return_value = {
+        "chunks": [{"id": "LAW:A1", "content": "approved legal text"}]
+    }
+
+    rule_service = MagicMock()
+    rule_service.get_or_compile.side_effect = [
+        ([_engineering_rule("eng-1")], True),
+        ([_engineering_rule("eng-2")], True),
+    ]
+    query_executor = MagicMock()
+    query_executor.execute.side_effect = [_packet("eng-1"), _packet("eng-2")]
+    planner = MagicMock()
+
+    investigator = MagicMock()
+    investigator.investigate.side_effect = [
+        [
+            EvidenceClaim(
+                claim_id="claim-1",
+                engineering_rule_id="eng-1",
+                claim_type="RULE_REQUIREMENT_MET",
+                value=True,
+                evidence_refs=("evidence:ai:1",),
+                confidence=0.9,
+            )
+        ],
+        [
+            EvidenceClaim(
+                claim_id="claim-2",
+                engineering_rule_id="eng-2",
+                claim_type="RULE_REQUIREMENT_MET",
+                value=True,
+                evidence_refs=("evidence:ai:1",),
+                confidence=0.9,
+            )
+        ],
+    ]
+    evaluator = MagicMock()
+    evaluator.evaluate.side_effect = [
+        SimpleNamespace(
+            engineering_rule_id="eng-1",
+            status="COMPLIANT",
+            evidence_refs=("evidence:ai:1",),
+        ),
+        SimpleNamespace(
+            engineering_rule_id="eng-2",
+            status="COMPLIANT",
+            evidence_refs=("evidence:ai:1",),
+        ),
+    ]
+
+    pipeline = PlannedEngineeringInvestigationPipeline(
+        api_client=api_client,
+        llm_client=MagicMock(),
+        retriever=MagicMock(),
+        rule_service=rule_service,
+        query_executor=query_executor,
+        investigator=investigator,
+        evaluator=evaluator,
+        planner=planner,
+    )
+
+    result = pipeline.run(
+        evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
+        workflow_run_id="workflow-1",
+        wizard_context={"sector": "GENERAL_BUSINESS"},
+        workspace_path=tmp_path,
+    )
+
+    planner.plan.assert_not_called()
+    assert result.engineering_rules_executed == 2
+    assert [item.engineering_rule_id for item in result.evaluations] == [
+        "eng-1",
+        "eng-2",
+    ]
+
+
+def test_planned_pipeline_recovers_corpus_sources_and_retries_when_no_rules_prepare(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("OPENWIKI_RUNTIME_COMMAND", "missing-openwiki-runtime-command")
+
+    api_client = MagicMock()
+    api_client.get_active_legal_rule_catalog.return_value = {
+        "versionId": "catalog-v1",
+        "rules": [{"legalRuleId": "legal-1", "status": "APPROVED"}],
+    }
+    api_client.get_active_legal_corpus.side_effect = [
+        {"versionId": "corpus-stale"},
+        {"versionId": "corpus-rebuilt"},
+    ]
+    api_client.get_legal_corpus_chunks.side_effect = [
+        {"chunks": []},
+        {"chunks": [{"id": "LAW:A1", "content": "rebuilt legal chunk"}]},
+    ]
+
+    recovery_driver = MagicMock()
+    recovery_driver.run.return_value = {
+        "status": "READY",
+        "corpusVersionId": "corpus-rebuilt",
+    }
+
+    rule_service = MagicMock()
+    rule_service.get_or_compile.return_value = ([_engineering_rule("eng-1")], False)
+    query_executor = MagicMock()
+    query_executor.execute.return_value = _packet("eng-1")
+    investigator = MagicMock()
+    investigator.investigate.return_value = [
+        EvidenceClaim(
+            claim_id="claim-1",
+            engineering_rule_id="eng-1",
+            claim_type="RULE_REQUIREMENT_MET",
+            value=True,
+            evidence_refs=("evidence:ai:1",),
+            confidence=0.9,
+        )
+    ]
+    evaluator = MagicMock()
+    evaluator.evaluate.return_value = SimpleNamespace(
+        engineering_rule_id="eng-1",
+        status="COMPLIANT",
+        evidence_refs=("evidence:ai:1",),
+    )
+
+    pipeline = PlannedEngineeringInvestigationPipeline(
+        api_client=api_client,
+        llm_client=MagicMock(),
+        retriever=MagicMock(),
+        rule_service=rule_service,
+        query_executor=query_executor,
+        investigator=investigator,
+        evaluator=evaluator,
+        planner=MagicMock(),
+        corpus_recovery_driver=recovery_driver,
+    )
+
+    result = pipeline.run(
+        evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
+        workflow_run_id="workflow-1",
+        correlation_id="corr-1",
+        workspace_path=tmp_path,
+    )
+
+    assert result.status == "COMPLETE"
+    assert result.legal_corpus_version_id == "corpus-rebuilt"
+    assert result.engineering_rules_executed == 1
+    recovery_driver.run.assert_called_once()
+    rule_service.get_or_compile.assert_called_once()
+
+
+def test_planned_pipeline_stops_before_planner_when_corpus_triage_still_missing(
+    tmp_path,
+) -> None:
+    api_client = MagicMock()
+    api_client.get_active_legal_rule_catalog.return_value = {
+        "versionId": "catalog-v1",
+        "rules": [{"legalRuleId": "legal-1", "status": "APPROVED"}],
+    }
+    api_client.get_active_legal_corpus.return_value = {"versionId": "corpus-v1"}
+    api_client.get_legal_corpus_chunks.return_value = {"chunks": []}
+
+    recovery_driver = MagicMock()
+    recovery_driver.run.return_value = {
+        "status": "READY",
+        "corpusVersionId": "corpus-v1",
+    }
+    rule_service = MagicMock()
+    planner = MagicMock()
+    investigator = MagicMock()
+
+    pipeline = PlannedEngineeringInvestigationPipeline(
+        api_client=api_client,
+        llm_client=MagicMock(),
+        retriever=MagicMock(),
+        rule_service=rule_service,
+        query_executor=MagicMock(),
+        investigator=investigator,
+        evaluator=MagicMock(),
+        planner=planner,
+        corpus_recovery_driver=recovery_driver,
+    )
+
+    result = pipeline.run(
+        evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
+        workflow_run_id="workflow-1",
+        correlation_id="corr-1",
+        workspace_path=tmp_path,
+    )
+
+    assert result.status == "BLOCKED"
+    assert result.limitations == (
+        ENGINEERING_LIMITATION_CODES["no_legal_corpus_source"],
+    )
+    recovery_driver.run.assert_called_once()
+    rule_service.get_or_compile.assert_not_called()
+    planner.plan.assert_not_called()
+    investigator.investigate.assert_not_called()
+
+
+def test_planned_pipeline_waits_when_catalog_has_no_source_rules_after_recovery(
+    tmp_path,
+) -> None:
+    api_client = MagicMock()
+    api_client.get_active_legal_rule_catalog.return_value = {
+        "versionId": "catalog-v1",
+        "rules": [],
+    }
+    api_client.get_active_legal_corpus.return_value = {"versionId": "corpus-v1"}
+    api_client.get_legal_corpus_chunks.return_value = {
+        "chunks": [{"id": "LAW:A1", "content": "approved legal text"}]
+    }
+
+    recovery_driver = MagicMock()
+    recovery_driver.run.return_value = {
+        "status": "READY",
+        "corpusVersionId": "corpus-v1",
+    }
+    rule_service = MagicMock()
+    planner = MagicMock()
+    investigator = MagicMock()
+
+    pipeline = PlannedEngineeringInvestigationPipeline(
+        api_client=api_client,
+        llm_client=MagicMock(),
+        retriever=MagicMock(),
+        rule_service=rule_service,
+        query_executor=MagicMock(),
+        investigator=investigator,
+        evaluator=MagicMock(),
+        planner=planner,
+        corpus_recovery_driver=recovery_driver,
+    )
+
+    result = pipeline.run(
+        evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
+        workflow_run_id="workflow-1",
+        correlation_id="corr-1",
+        workspace_path=tmp_path,
+    )
+
+    assert result.status == "WAITING"
+    assert result.limitations == (
+        ENGINEERING_LIMITATION_CODES["no_engineering_rule_source_rules"],
+    )
+    recovery_driver.run.assert_called_once()
+    rule_service.get_or_compile.assert_not_called()
+    planner.plan.assert_not_called()
+    investigator.investigate.assert_not_called()
+
+
+def test_planned_pipeline_stops_before_planner_when_engineering_rule_triage_finds_none(
+    tmp_path,
+) -> None:
+    api_client = MagicMock()
+    api_client.get_active_legal_rule_catalog.return_value = {
+        "versionId": "catalog-v1",
+        "rules": [{"legalRuleId": "legal-1", "status": "APPROVED"}],
+    }
+    api_client.get_active_legal_corpus.return_value = {"versionId": "corpus-v1"}
+    api_client.get_legal_corpus_chunks.return_value = {
+        "chunks": [{"id": "LAW:A1", "content": "approved legal text"}]
+    }
+
+    recovery_driver = MagicMock()
+    recovery_driver.run.return_value = {
+        "status": "READY",
+        "corpusVersionId": "corpus-v1",
+    }
+    rule_service = MagicMock()
+    rule_service.get_or_compile.return_value = ([], False)
+    planner = MagicMock()
+    investigator = MagicMock()
+
+    pipeline = PlannedEngineeringInvestigationPipeline(
+        api_client=api_client,
+        llm_client=MagicMock(),
+        retriever=MagicMock(),
+        rule_service=rule_service,
+        query_executor=MagicMock(),
+        investigator=investigator,
+        evaluator=MagicMock(),
+        planner=planner,
+        corpus_recovery_driver=recovery_driver,
+    )
+
+    result = pipeline.run(
+        evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
+        workflow_run_id="workflow-1",
+        correlation_id="corr-1",
+        workspace_path=tmp_path,
+    )
+
+    assert result.status == "BLOCKED"
+    assert result.limitations == (
+        ENGINEERING_LIMITATION_CODES["no_engineering_rule_candidates"],
+    )
+    recovery_driver.run.assert_called_once()
+    assert rule_service.get_or_compile.call_count == 2
+    planner.plan.assert_not_called()
+    investigator.investigate.assert_not_called()

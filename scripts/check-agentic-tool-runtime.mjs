@@ -18,6 +18,7 @@ const pythonDispatcher = read("lcsp-python-workers/src/lcsp_workers/agentic_evid
 const programTools = read("lcsp-python-workers/src/lcsp_workers/agentic_evidence/program_graph_tool_entrypoints.py");
 const remediationTools = read("lcsp-python-workers/src/lcsp_workers/agentic_evidence/remediation_tool_entrypoints.py");
 const nestDispatcher = read("apps/api/src/modules/evidence/presentation/http/agentic-tool-query-dispatcher.ts");
+const internalCommandDispatcher = read("apps/api/src/modules/evidence/presentation/http/agentic-tool-internal-dispatcher.ts");
 
 const technicalTools = [
   "propose_missing_targets",
@@ -64,6 +65,15 @@ const cqrsTools = [
 for (const tool of cqrsTools) {
   expectContains(nestDispatcher, `export function ${tool}(`, "Nest CQRS dispatcher");
   expectContains(pythonDispatcher, `\"${tool}\", ToolRuntimeTarget.NEST_CQRS`, "Nest CQRS runtime binding");
+}
+
+const managedAgentCommandTools = [
+  "request_targeted_reanalysis",
+  "resume_waiting_runs",
+];
+for (const tool of managedAgentCommandTools) {
+  expectContains(internalCommandDispatcher, `export function ${tool}(`, "Managed Agent command dispatcher");
+  expectContains(pythonDispatcher, `\"${tool}\", ToolRuntimeTarget.MANAGED_AGENT_COMMAND`, "Managed Agent command binding");
 }
 
 const obsoleteNestQueries = [

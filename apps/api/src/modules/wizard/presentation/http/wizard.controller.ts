@@ -15,11 +15,17 @@ import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 
 import type { SaveWizardDraftRequest } from "../../application/contracts/wizard/wizard-draft.contract.js";
 import type { SubmitWizardRequest } from "../../application/contracts/wizard/wizard-submit.contract.js";
+import {
+  WIZARD_CLARIFICATION_ASK_MODES,
+  type WizardClarificationAskMode,
+  type WizardClarificationQuestionRequest,
+} from "@lcsp/contracts/wizard";
 import { SaveWizardDraftCommand } from "../../application/commands/save-wizard-draft/save-wizard-draft.command.js";
 import { SubmitWizardCommand } from "../../application/commands/submit-wizard/submit-wizard.command.js";
 import { GenerateReadinessExportCommand } from "../../application/commands/generate-readiness-export/generate-readiness-export.command.js";
 import { GetReadinessQuery } from "../../application/queries/get-readiness/get-readiness.query.js";
 import { DownloadReadinessExportQuery } from "../../application/queries/download-readiness-export/download-readiness-export.query.js";
+import { WizardClarificationQuestionService } from "../../application/services/wizard/wizard-clarification-question.service.js";
 import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
 import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
@@ -33,6 +39,7 @@ export class WizardController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
+    private readonly clarificationQuestions: WizardClarificationQuestionService,
   ) {}
 
   @Put(":assessmentId/wizard/draft")
@@ -95,6 +102,23 @@ export class WizardController {
           },
         ),
       ),
+    );
+  }
+
+  @Post(":assessmentId/wizard/clarification-questions")
+  @HttpCode(200)
+  @UseGuards(PbacGuard)
+  @RequireAction(PBAC_ACTIONS.wizardWrite)
+  async generateClarificationQuestions(
+    @Body() body: Partial<WizardClarificationQuestionRequest> | undefined,
+  ) {
+    const answers = Array.isArray(body?.answers) ? body.answers : [];
+    const mode = isWizardClarificationAskMode(body?.mode)
+      ? body.mode
+      : WIZARD_CLARIFICATION_ASK_MODES.wizardDraft;
+
+    return resultEnvelope(
+      this.clarificationQuestions.generate(answers, mode, body?.maxQuestions),
     );
   }
 
@@ -183,4 +207,12 @@ export class WizardController {
     response.setHeader("Cache-Control", "private, no-store");
     response.end(download.pdf);
   }
+}
+
+function isWizardClarificationAskMode(
+  value: unknown,
+): value is WizardClarificationAskMode {
+  return Object.values(WIZARD_CLARIFICATION_ASK_MODES).includes(
+    value as WizardClarificationAskMode,
+  );
 }

@@ -159,3 +159,40 @@ def test_t07_context_guardrail_failure_stops_generation():
     kwargs = document_client.post_document_callback.call_args.kwargs
     assert kwargs["status"] == "FAILED"
     assert kwargs["error_code"] == "DOCUMENT_GENERATION_CONTEXT_INVALID"
+
+
+def test_t08_planner_audit_metadata_is_not_sent_to_gap_prompt():
+    consumer, document_client = _consumer()
+    context = _context()
+    data = context["classification_result"]["classification_data"]
+    data["planner"] = {"authority": "TECHNICAL_INVESTIGATION_SCOPE_ONLY"}
+    data["planner_decisions"] = [
+        {
+            "engineering_rule_id": "eng-skipped",
+            "final_decision": "SKIP",
+            "reason_code": "NO_SCOPE_SIGNAL",
+        }
+    ]
+    data["evaluations"][0]["planner_decision"] = {"final_decision": "SELECT"}
+    document_client.get_generation_context.return_value = context
+
+    with (
+        patch(
+            "lcsp_workers.reporting.gap_analysis_consumer.GapAnalysisGenerator.generate",
+            return_value="Gap content.",
+        ) as generate,
+        patch(
+            "lcsp_workers.reporting.gap_analysis_consumer.StorageUploader.upload_document",
+            return_value="https://url",
+        ),
+    ):
+        consumer.handle({"documentRequestId": "doc123"}, "corr-id")
+
+    serialized_prompt_inputs = "\n".join(
+        str(value)
+        for value in generate.call_args.kwargs.values()
+    )
+    assert "planner_decisions" not in serialized_prompt_inputs
+    assert "TECHNICAL_INVESTIGATION_SCOPE_ONLY" not in serialized_prompt_inputs
+    assert "eng-skipped" not in serialized_prompt_inputs
+    assert "planner_decision" not in serialized_prompt_inputs

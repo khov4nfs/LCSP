@@ -39,17 +39,17 @@ def install_dev_unsafe_instrumentation() -> None:
     emit_dev_unsafe_trace(
         "DEV_UNSAFE_TRACE_INSTALLED",
         warning=(
-            "UNREDACTED development tracing is active; logs may contain credentials, "
+            "Raw development tracing is active; logs may contain credentials, "
             "source code, prompts, model responses, idempotency keys, PII, and tokens."
         ),
     )
 
 
 def _install_llm_trace() -> None:
-    """Trace gateway/fallback calls without changing gateway provider behavior."""
-    from lcsp_workers.llm import fallback_client, gateway_client
+    """Trace Deep Agents/fallback calls without changing provider behavior."""
+    from lcsp_workers.llm import deep_agent_client, fallback_client
 
-    original_redact_string = gateway_client.redact_string
+    original_redact_string = deep_agent_client.redact_string
 
     @functools.wraps(original_redact_string)
     def traced_redact_string(text: str) -> str:
@@ -68,9 +68,9 @@ def _install_llm_trace() -> None:
         )
         return rendered
 
-    gateway_client.redact_string = traced_redact_string
+    deep_agent_client.redact_string = traced_redact_string
 
-    original_complete = gateway_client.LLMGatewayClient.complete
+    original_complete = deep_agent_client.DeepAgentClient.complete
 
     @functools.wraps(original_complete)
     def traced_complete(self, prompt: str, workflow_run_id: str, node_name: str, max_tokens=None, correlationId=None):
@@ -115,9 +115,9 @@ def _install_llm_trace() -> None:
         )
         return response
 
-    gateway_client.LLMGatewayClient.complete = traced_complete
+    deep_agent_client.DeepAgentClient.complete = traced_complete
 
-    original_complete_with_tools = gateway_client.LLMGatewayClient.complete_with_tools
+    original_complete_with_tools = deep_agent_client.DeepAgentClient.complete_with_tools
 
     @functools.wraps(original_complete_with_tools)
     def traced_complete_with_tools(
@@ -174,7 +174,66 @@ def _install_llm_trace() -> None:
         )
         return response
 
-    gateway_client.LLMGatewayClient.complete_with_tools = traced_complete_with_tools
+    deep_agent_client.DeepAgentClient.complete_with_tools = traced_complete_with_tools
+
+    original_complete_structured = deep_agent_client.DeepAgentClient.complete_structured
+
+    @functools.wraps(original_complete_structured)
+    def traced_complete_structured(
+        self,
+        prompt: str,
+        *,
+        response_format,
+        workflow_run_id: str,
+        node_name: str,
+        max_tokens=None,
+        correlationId=None,
+    ):
+        emit_dev_unsafe_trace(
+            "DEV_LLM_REQUEST_RAW",
+            operation="complete_structured",
+            provider=self.provider,
+            model=self.model,
+            api_key=self.api_key,
+            workflow_run_id=workflow_run_id,
+            node_name=node_name,
+            max_tokens=max_tokens,
+            correlationId=correlationId,
+            prompt=prompt,
+            response_format=response_format,
+        )
+        try:
+            response = original_complete_structured(
+                self,
+                prompt,
+                response_format=response_format,
+                workflow_run_id=workflow_run_id,
+                node_name=node_name,
+                max_tokens=max_tokens,
+                correlationId=correlationId,
+            )
+        except Exception as exc:
+            emit_dev_unsafe_trace(
+                "DEV_LLM_ERROR_RAW",
+                operation="complete_structured",
+                provider=self.provider,
+                model=self.model,
+                error_type=type(exc).__name__,
+                error=str(exc),
+                exception=exc,
+            )
+            raise
+        emit_dev_unsafe_trace(
+            "DEV_LLM_RESPONSE_NORMALIZED",
+            operation="complete_structured",
+            provider=self.provider,
+            model=self.model,
+            response=response,
+            structured_response=getattr(response, "structured_response", None),
+        )
+        return response
+
+    deep_agent_client.DeepAgentClient.complete_structured = traced_complete_structured
 
     original_fallback_dispatch = fallback_client.PrimaryThenFallbackLLMClient._dispatch
 

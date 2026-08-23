@@ -67,13 +67,12 @@ def test_t02_all_event_payloads_redacted(generator, mock_api_client, mock_s3_cli
         with patch("os.remove"):
             generator.generate_export("req_123", "org_1", "2023-01-01", "2023-01-31")
 
-    # Verify write was called with redacted data
+    # Verify write was called with stripped secret values
     write_call_args = file_handle.write.call_args_list
     assert len(write_call_args) == 1
     written_data = json.loads(write_call_args[0][0][0])
     
-    # "ghp_..." should be replaced by "[REDACTED]" because the key is "token"
-    assert written_data["payload"]["token"] == "[REDACTED]"
+    assert written_data["payload"]["token"] == ""
 
 def test_t03_json_lines_format(generator, mock_api_client, mock_s3_client):
     """T03: JSON Lines format -> One event per line, valid JSON"""

@@ -38,35 +38,16 @@ HEALTH_PORT=8080
 
 Keep credentials only in the VPS env/secret store. Do not commit production credentials.
 
-## Python workers
+## Managed Deep Agent
 
-All enabled Python worker services reuse the same `lcsp-python-workers/Dockerfile` image build. Each container supplies a different consumer target through `command`, for example:
+`lcsp-python-workers` is now a Managed Deep Agents project. It uses root
+`agent.py`, project `tools/`, `skills/`, `schedules/`, and `evals/` instead of
+long-running consumer commands. Local/dev images run `mda dev .`; production
+schedules and agent execution are managed by the deployed agent runtime.
 
-```yaml
-classification-worker:
-  path: lcsp-python-workers
-  command:
-    - lcsp_workers.classification.classification_consumer:ClassificationConsumer
-  requires:
-    - rabbitmq
-```
-
-The image entrypoint runs `python -m lcsp_workers.runtime <module:Class>`.
-
-For VBPL effect-aware legal chunk-set generation, run the same worker image with:
-
-```yaml
-legal-vbpl-effected-chunk-set-worker:
-  path: lcsp-python-workers
-  command:
-    - lcsp_workers.legal.vbpl_effected_chunk_set_consumer:VbplEffectedChunkSetConsumer
-  requires:
-    - rabbitmq
-```
-
-Each `ConsumerBase` process exposes `/health` on port `8080` inside the container. Docker health checks use this endpoint; the port is not published publicly.
-
-`final-report-worker` is intentionally not enabled in the Fogewise manifest yet because its current constructor creates `LLMGatewayClient` without the provider/model/budget arguments required by the gateway implementation. `audit-export` also remains out of the deployment manifest because the authoritative MVP platform document defines audit export as a synchronous Backend API operation rather than an active worker.
+Former queue consumers are exposed through the Managed Agent invocation manifest
+in `lcsp_workers.managed.invocation`. Do not deploy separate `ConsumerBase`
+processes for scanner, assessment, reporting, or legal corpus jobs.
 
 ## Fogewise deployer compatibility
 

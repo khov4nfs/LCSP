@@ -189,6 +189,24 @@ export class LegalRuleCatalogController {
     );
   }
 
+  @Post("rules/recover-from-active-corpus")
+  @HttpCode(200)
+  @UseGuards(WorkerApiKeyGuard)
+  async recoverRulesFromActiveCorpus(
+    @Body() body: { idempotencyKey?: string },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const correlationId = req.correlationId || randomUUID();
+    return resultEnvelope(
+      await this.catalogVersions.recoverApprovedRulesFromActiveCorpus({
+        idempotencyKey:
+          body.idempotencyKey?.trim() ||
+          `legal-rule-source-recovery:${correlationId}`,
+        correlationId,
+      }),
+    );
+  }
+
   @Get("active")
   @HttpCode(200)
   @UseGuards(WorkerApiKeyGuard)

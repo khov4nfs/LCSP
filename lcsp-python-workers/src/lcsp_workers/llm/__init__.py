@@ -1,6 +1,7 @@
-from .gateway_client import (
-    LLMGatewayClient,
+from .deep_agent_client import (
+    DeepAgentClient,
     LLMResponse,
+    LLMStructuredResponse,
     LLMToolCall,
     LLMToolDefinition,
     LLMToolResponse,
@@ -10,13 +11,16 @@ from .fallback_client import (
     LlmProviderCandidate,
     LlmProviderUnavailableError,
     PrimaryThenFallbackLLMClient,
+    classify_provider_error,
+    llm_limit_wait_reason,
 )
 from .prompt_safety import PromptSafetyViolation, check_prompt_safety
 from .budget_tracker import BudgetTracker, BudgetExceeded
 
 __all__ = [
-    "LLMGatewayClient",
+    "DeepAgentClient",
     "LLMResponse",
+    "LLMStructuredResponse",
     "LLMToolCall",
     "LLMToolDefinition",
     "LLMToolResponse",
@@ -24,6 +28,8 @@ __all__ = [
     "LlmProviderCandidate",
     "LlmProviderUnavailableError",
     "PrimaryThenFallbackLLMClient",
+    "classify_provider_error",
+    "llm_limit_wait_reason",
     "PromptSafetyViolation",
     "check_prompt_safety",
     "BudgetTracker",

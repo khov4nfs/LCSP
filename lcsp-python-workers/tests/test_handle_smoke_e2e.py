@@ -89,12 +89,16 @@ def test_ai_usage_flow_handle_smoke_e2e_runs_graph_and_submits_callback() -> Non
 
     llm_client = MagicMock()
     llm_response = MagicMock()
-    llm_response.content = (
-        '{"summary_updates":{"businessProcess":"loan_approval","aiPurpose":"credit_scoring_decision_support",'
-        '"affectedSubjects":["loan_applicant"],"humanReview":"present"}}'
-    )
+    llm_response.structured_response = {
+        "summary_updates": {
+            "businessProcess": "loan_approval",
+            "aiPurpose": "credit_scoring_decision_support",
+            "affectedSubjects": ["loan_applicant"],
+            "humanReview": "present",
+        }
+    }
     llm_response.request_id = "req-smoke-ai-1"
-    llm_client.complete.return_value = llm_response
+    llm_client.complete_structured.return_value = llm_response
 
     consumer = AIUsageFlowConsumer(
         _config(),
@@ -118,7 +122,7 @@ def test_ai_usage_flow_handle_smoke_e2e_runs_graph_and_submits_callback() -> Non
     assert callback_payload.flow_data["summary"]["businessProcess"] == "loan_approval"
     assert callback_payload.privacy_flags["containsSourceCode"] is False
 
-    llm_kwargs = llm_client.complete.call_args.kwargs
+    llm_kwargs = llm_client.complete_structured.call_args.kwargs
     assert llm_kwargs["workflow_run_id"] == "ai-usage-flow:tp-smoke-1:corr-smoke-ai-1"
     assert llm_kwargs["node_name"] == "ai_usage_flow.summary_proposal"
 
@@ -128,12 +132,13 @@ def test_ai_usage_flow_handle_smoke_e2e_runs_graph_and_submits_callback() -> Non
 def test_classification_handle_smoke_e2e_runs_graph_and_submits_callback() -> None:
     llm_client = MagicMock()
     proposal_response = MagicMock()
-    proposal_response.content = (
-        '{"risk_level":"HIGH","applicability_assessment":"applicable",'
-        '"rationale":"This assessment is high risk based on the cited evidence."}'
-    )
+    proposal_response.structured_response = {
+        "risk_level": "HIGH",
+        "applicability_assessment": "applicable",
+        "rationale": "This assessment is high risk based on the cited evidence.",
+    }
     proposal_response.request_id = "req-smoke-classification-1"
-    llm_client.complete.return_value = proposal_response
+    llm_client.complete_structured.return_value = proposal_response
 
     consumer = ClassificationConsumer(config=MagicMock(), llm_client=llm_client)
 
@@ -165,7 +170,7 @@ def test_classification_handle_smoke_e2e_runs_graph_and_submits_callback() -> No
         == "This assessment is high risk based on the cited evidence."
     )
 
-    llm_calls = llm_client.complete.call_args_list
+    llm_calls = llm_client.complete_structured.call_args_list
     assert len(llm_calls) == 1
     llm_kwargs = llm_calls[0].kwargs
     assert (

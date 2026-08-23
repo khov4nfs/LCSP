@@ -70,8 +70,8 @@ const SECRET_PATTERNS = [
 ];
 const SCORE_PRIORITY_EXPLANATION =
   "This score prioritizes Manager review effort and is not a legal risk, compliance status, or final classification.";
-const DEFAULT_REDACTED_CONTEXT =
-  "Only redacted evidence context is available for this conflict.";
+const DEFAULT_LIMITED_CONTEXT =
+  "Only limited evidence context is available for this conflict.";
 const DEFAULT_COVERAGE_LIMITATIONS =
   "Evidence references identify the supporting findings only and do not provide legal risk, compliance status, or final classification.";
 
@@ -412,7 +412,7 @@ function normalizeEvidenceContext(
       contexts.push({
         evidence_ref: evidenceRef,
         redacted_context:
-          clean(item.redacted_context) ?? DEFAULT_REDACTED_CONTEXT,
+          clean(item.redacted_context) ?? DEFAULT_LIMITED_CONTEXT,
         coverage_limitations:
           clean(item.coverage_limitations) ?? DEFAULT_COVERAGE_LIMITATIONS,
       });
@@ -424,7 +424,7 @@ function normalizeEvidenceContext(
 
   return evidenceRefs.map((evidenceRef) => ({
     evidence_ref: evidenceRef,
-    redacted_context: DEFAULT_REDACTED_CONTEXT,
+    redacted_context: DEFAULT_LIMITED_CONTEXT,
     coverage_limitations: DEFAULT_COVERAGE_LIMITATIONS,
   }));
 }

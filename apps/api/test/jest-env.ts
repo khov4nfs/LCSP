@@ -21,7 +21,6 @@ process.env.GITHUB_APP_CLIENT_ID ??= "test-github-app-client-id";
 process.env.GITHUB_APP_CLIENT_SECRET ??= "test-github-app-client-secret";
 process.env.MFA_SECRET_ENCRYPTION_KEY ??=
   "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-process.env.PYTHON_WORKER_BASE_URL ??= "http://localhost:8000";
 process.env.WORKER_API_KEY ??= "test-only-worker-api-key-at-least-32-chars";
 process.env.DATABASE_URL ??=
   "postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public";

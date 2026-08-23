@@ -98,6 +98,8 @@ def test_fetcher_routes_vbpl_and_returns_snapshot_metadata(tmp_path: Path):
     assert result.snapshot_object_key.startswith(
         "legal-source-snapshots/catalog_vbpl_vn/LAW-71-2025-QH15/"
     )
+    assert result.snapshot_path == tmp_path / result.snapshot_object_key
+    assert result.snapshot_path.is_file()
     assert result.snapshot_ref.startswith("snapshot:LAW-71-2025-QH15:")
     assert result.provenance_ref.startswith("prov:fetch:LAW-71-2025-QH15:")
     assert result.source_url == "https://vbpl.vn/TW/Pages/vbpq-toanvan.aspx?ItemID=179989"
@@ -141,6 +143,8 @@ def test_fetcher_routes_congbao_and_returns_docx_snapshot(tmp_path: Path):
     assert result.snapshot_object_key.startswith(
         "legal-source-snapshots/catalog_vanban_chinhphu_vn/LAW-134-2025-QH15/"
     )
+    assert result.snapshot_path == tmp_path / result.snapshot_object_key
+    assert result.snapshot_path.is_file()
 
 
 def test_result_registers_snapshot_with_api_client(tmp_path: Path):

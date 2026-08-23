@@ -125,6 +125,78 @@ def test_structural_augmentor_records_controller_and_route_for_nestjs(tmp_path: 
     assert any(fact.pattern_type == "route_handler" and fact.graph_node_type == "ROUTE" for fact in facts)
 
 
+def test_structural_parser_records_nestjs_decorators_without_parentheses(tmp_path: Path) -> None:
+    target = tmp_path / "auth.controller.ts"
+    target.write_text(
+        "@Controller\n"
+        "export class AuthController {\n"
+        "  @Delete\n"
+        "  async removeSession() {\n"
+        "    return true;\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    facts = StructuralParser().parse_file(target)
+
+    assert any(
+        fact.pattern_type == "controller" and fact.name == "AuthController"
+        for fact in facts
+    )
+    assert any(
+        fact.pattern_type == "route_handler" and fact.name == "removeSession"
+        for fact in facts
+    )
+    assert any(
+        fact.pattern_type == "async_ai_function" and fact.name == "removeSession"
+        for fact in facts
+    )
+
+
+def test_structural_parser_records_express_routes(tmp_path: Path) -> None:
+    target = tmp_path / "routes.ts"
+    target.write_text(
+        "router.post('/scan', async (req, res) => {\n"
+        "  res.json({ ok: true });\n"
+        "});\n",
+        encoding="utf-8",
+    )
+
+    facts = StructuralParser().parse_file(target)
+
+    assert any(
+        fact.pattern_type == "route_handler" and fact.graph_node_type == "ROUTE"
+        for fact in facts
+    )
+
+
+def test_structural_parser_records_cqrs_handlers(tmp_path: Path) -> None:
+    target = tmp_path / "accept-classification.handler.ts"
+    target.write_text(
+        "@CommandHandler(AcceptClassificationCommand)\n"
+        "export class AcceptClassificationHandler {\n"
+        "  async execute() {\n"
+        "    return true;\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    facts = StructuralParser().parse_file(target)
+
+    assert any(
+        fact.pattern_type == "cqrs_handler"
+        and fact.name == "AcceptClassificationHandler"
+        and fact.graph_node_type == "HANDLER"
+        for fact in facts
+    )
+    assert any(
+        fact.pattern_type == "async_ai_function" and fact.name == "execute"
+        for fact in facts
+    )
+
+
 def test_structural_augmentor_tracks_parser_failures_as_coverage_limitations(tmp_path: Path) -> None:
     workspace = tmp_path / "workspace"
     workspace.mkdir(parents=True, exist_ok=True)

@@ -9,7 +9,10 @@ from typing import TextIO
 
 import structlog
 from lcsp_workers.platform.correlation import get_correlationId
-from lcsp_workers.platform.dev_unsafe_trace import unsafe_dev_trace_enabled
+from lcsp_workers.platform.dev_unsafe_trace import (
+    unsafe_dev_trace_enabled,
+    unsafe_dev_unfiltered_enabled,
+)
 from lcsp_workers.platform.redaction import redact_dict
 
 
@@ -101,8 +104,8 @@ def _is_safe_llm_tool_file_event(data: dict) -> bool:
 
 
 def _render_safe_root_event(data: dict) -> str:
-    """Render an always-redacted JSON line for ``tmp/llm-tool-calls.log``."""
-    safe_data = redact_dict(data)
+    """Render a JSON line for ``tmp/llm-tool-calls.log``."""
+    safe_data = data if unsafe_dev_unfiltered_enabled() else redact_dict(data)
     return json.dumps(safe_data, ensure_ascii=False, separators=(",", ":")) + "\n"
 
 
@@ -210,8 +213,9 @@ def configure_logging(level: str = "INFO") -> None:
     ``LCSP_LLM_TOOL_LOG_PATH`` when configured). The file is created eagerly at
     worker startup so developers can attach ``tail -f`` before the first LLM call.
     Tool results are bounded by the investigator to the exact observation forwarded
-    into the next LLM turn and are always secret-redacted again before root-level
-    persistence. Raw development trace events are never mirrored into that file.
+    into the next LLM turn and are secret-redacted again before root-level persistence
+    unless explicitly running with ``LCSP_DEV_UNSAFE_UNFILTERED=true``. Raw development
+    trace events are never mirrored into that file.
     """
     _ensure_llm_tool_log_file()
     unsafe_trace = unsafe_dev_trace_enabled()

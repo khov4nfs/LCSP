@@ -27,6 +27,13 @@ export type WorkspaceRuntimeEvidenceReport = {
   createdAt: string;
 };
 
+export type WorkspaceRuntimeRepositorySnapshot = {
+  id: string;
+  assessmentId: string;
+  commitSha: string;
+  createdAt: string;
+};
+
 export type WorkspaceRuntimeSummaryValue =
   | string
   | number
@@ -87,6 +94,7 @@ export type WorkspaceRuntimeSnapshot = {
   emittedAt: string | null;
   runs: WorkspaceRuntimeRun[];
   recentActivity: WorkspaceRuntimeActivityItem[];
+  repositorySnapshots: WorkspaceRuntimeRepositorySnapshot[];
   scanJobs: WorkspaceRuntimeScanJob[];
   evidenceReports: WorkspaceRuntimeEvidenceReport[];
 };

@@ -165,7 +165,7 @@ def test_investigator_uses_lossless_observation_ref_for_native_finish() -> None:
     assert payload["evidenceLedger"]["observations"][0]["observationId"] == "obs:0001"
 
 
-def test_tool_result_log_contains_observation_id_summary_and_preview() -> None:
+def test_tool_result_log_contains_terminal_safe_observation_summary() -> None:
     client = _native_search_then_finish_client()
 
     with patch("lcsp_workers.investigation.investigator.logger") as logger:
@@ -182,9 +182,8 @@ def test_tool_result_log_contains_observation_id_summary_and_preview() -> None:
         if call.args[0] == "ENGINEERING_INVESTIGATION_TOOL_RESULT"
         and call.kwargs["tool"] == "search_nodes"
     )
-    assert tool_result.kwargs["result"]["observationId"] == "obs:0001"
-    assert tool_result.kwargs["result"]["summary"]["evidenceRefCount"] == 1
-    assert tool_result.kwargs["result"]["preview"]["items"][0]["node_id"] == "node-1"
+    assert tool_result.kwargs["result_summary"]["observationId"] == "obs:0001"
+    assert "result" not in tool_result.kwargs
 
 
 def test_evidence_ledger_keeps_full_seed_results_while_prompt_uses_index() -> None:

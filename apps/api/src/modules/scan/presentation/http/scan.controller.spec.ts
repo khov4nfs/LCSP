@@ -355,6 +355,33 @@ describe("InternalScanController", () => {
       status: 409,
     });
   });
+
+  it("accepts and skips late worker runtime progress for terminal scan jobs", async () => {
+    const runtimeEvents = {
+      recordScanWorkerEvent: jest.fn().mockImplementation(() =>
+        Promise.resolve({
+          recorded: false,
+          reason: "terminal",
+        }),
+      ),
+    };
+    const controller = new InternalScanController(
+      {} as unknown as CommandBus,
+      runtimeEvents as never,
+    );
+
+    await expect(
+      controller.recordRuntimeEvent("scan-job-1", {
+        event_type: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
+        run_status: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
+        stage: ASSESSMENT_RUNTIME_STAGE_CODES.scan,
+        summary: "Repository scan completed",
+      }),
+    ).resolves.toEqual({
+      ok: true,
+      data: { recorded: false, reason: "terminal" },
+    });
+  });
 });
 
 describe("InternalTargetedReanalysisController", () => {

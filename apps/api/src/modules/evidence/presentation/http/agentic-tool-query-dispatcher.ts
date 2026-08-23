@@ -45,7 +45,7 @@ export type AgenticToolQueryDispatchArgs = {
 
 /**
  * Nest owns CQRS reads only. Technical graph traversal/remediation is intentionally
- * absent and executes in the Python worker runtime.
+ * absent and executes through Managed Deep Agent tools.
  */
 export function buildAgenticToolQuery(args: AgenticToolQueryDispatchArgs) {
   switch (args.toolName) {

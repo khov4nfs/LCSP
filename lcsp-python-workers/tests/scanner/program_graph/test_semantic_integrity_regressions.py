@@ -23,7 +23,7 @@ import re
 ANTHROPIC_KEY_PATTERN = re.compile(r"sk-ant-[A-Za-z0-9]+")
 
 def redact(value):
-    return ANTHROPIC_KEY_PATTERN.sub("[REDACTED]", value)
+    return ANTHROPIC_KEY_PATTERN.sub("[MASKED]", value)
 ''',
         encoding="utf-8",
     )

@@ -2,6 +2,7 @@
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -26,6 +27,7 @@ class LlmRuntimeConfig:
     monthly_token_cap: int = 1_000_000
     provider_timeout_seconds: float = 30.0
     fallback_on_codes: tuple[str, ...] = (
+        "AUTH",
         "RATE_LIMIT",
         "QUOTA",
         "NETWORK",
@@ -61,6 +63,15 @@ class PbacPreflightConfig:
 
 
 @dataclass(frozen=True)
+class TracingConfig:
+    """Phoenix/OpenTelemetry tracing settings for worker instrumentation."""
+
+    enabled: bool = False
+    project_name: str = "lcsp-python-workers"
+    collector_endpoint: str = "http://localhost:6006/v1/traces"
+
+
+@dataclass(frozen=True)
 class WorkerConfig:
     """Complete immutable runtime configuration shared by worker consumers."""
 
@@ -75,6 +86,12 @@ class WorkerConfig:
     llm_runtime: LlmRuntimeConfig = LlmRuntimeConfig()
     agentic_runtime: AgenticRuntimeConfig = AgenticRuntimeConfig()
     pbac_preflight: PbacPreflightConfig = PbacPreflightConfig()
+    tracing: TracingConfig = TracingConfig()
+
+
+def default_legal_source_storage_root() -> str:
+    """Return the repo-local runtime corpus artifact root."""
+    return str(Path(__file__).resolve().parents[4] / ".corpus")
 
 
 def load_config() -> WorkerConfig:
@@ -103,7 +120,10 @@ def load_config() -> WorkerConfig:
         worker_api_key=os.getenv("WORKER_API_KEY"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
         max_retries=int(os.getenv("MAX_RETRIES", "3")),
-        legal_source_storage_root=os.getenv("LEGAL_SOURCE_STORAGE_ROOT"),
+        legal_source_storage_root=os.getenv(
+            "LEGAL_SOURCE_STORAGE_ROOT",
+            default_legal_source_storage_root(),
+        ),
         langgraph_checkpoint_database_url=os.getenv(
             "LANGGRAPH_CHECKPOINT_DATABASE_URL"
         ),
@@ -129,6 +149,25 @@ def load_config() -> WorkerConfig:
                 os.getenv("PBAC_PREFLIGHT_TIMEOUT_SECONDS", "5.0")
             )
         ),
+        tracing=_load_tracing_config(),
+    )
+
+
+def load_tracing_config() -> TracingConfig:
+    """Load tracing-only config without requiring the full worker environment."""
+    load_dotenv()
+    return _load_tracing_config()
+
+
+def _load_tracing_config() -> TracingConfig:
+    """Load optional Phoenix tracing settings from the environment."""
+    return TracingConfig(
+        enabled=_read_bool("PHOENIX_TRACING", False)
+        or _read_bool("LOCAL_TRACING", False),
+        project_name=_optional_text("PHOENIX_PROJECT")
+        or "lcsp-python-workers",
+        collector_endpoint=_optional_text("PHOENIX_COLLECTOR_ENDPOINT")
+        or "http://localhost:6006/v1/traces",
     )
 
 
@@ -192,16 +231,18 @@ def _load_llm_runtime_config() -> LlmRuntimeConfig:
         )
         index += 1
 
+    fallback_on_codes = _read_csv(
+        "LLM_FALLBACK_ON_CODES",
+        ("AUTH", "RATE_LIMIT", "QUOTA", "NETWORK", "TIMEOUT"),
+    )
+
     return LlmRuntimeConfig(
         providers=tuple(providers),
         max_tokens_per_call=_read_int("LLM_MAX_TOKENS_PER_CALL", 4096),
         monthly_budget_usd=_read_float("LLM_MONTHLY_BUDGET_USD", 100.0),
         monthly_token_cap=_read_int("LLM_MONTHLY_TOKEN_CAP", 1_000_000),
         provider_timeout_seconds=_read_float("LLM_PROVIDER_TIMEOUT_SECONDS", 30.0),
-        fallback_on_codes=_read_csv(
-            "LLM_FALLBACK_ON_CODES",
-            ("RATE_LIMIT", "QUOTA", "NETWORK", "TIMEOUT"),
-        ),
+        fallback_on_codes=tuple(dict.fromkeys(("AUTH", *fallback_on_codes))),
         max_provider_attempts=_read_int("LLM_MAX_PROVIDER_ATTEMPTS", 3),
         redis_url=_optional_text("LLM_BUDGET_REDIS_URL"),
     )

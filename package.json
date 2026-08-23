@@ -11,11 +11,9 @@
     "dev": "node scripts/run.mjs dev",
     "dev:app": "node scripts/run.mjs dev_app",
     "dev:docker": "node scripts/run.mjs dev_docker",
-    "dev:worker:docker": "node scripts/run.mjs scanner_docker",
-    "dev:worker:docker:build": "node scripts/run.mjs docker_worker_build",
+    "dev:agent:docker": "node scripts/run.mjs managed_agent_docker",
+    "dev:agent:docker:build": "node scripts/run.mjs docker_worker_build",
     "dev:trace": "LCSP_DEV_UNSAFE_TRACE=true ORCHESTRATION_DEBUG=true LOG_LEVEL=DEBUG NODE_ENV=development node scripts/run.mjs dev",
-    "phoenix:start": "uvx arize-phoenix serve --port 6006",
-    "phoenix:stop": "lsof -ti:6006 | xargs kill -9 2>/dev/null || true",
     "check:imports": "node scripts/check-import-policy.mjs",
     "check:contracts": "node scripts/check-contract-literals.mjs",
     "check:agentic-tools": "node scripts/check-agentic-tool-runtime.mjs",
@@ -32,11 +30,8 @@
     "typecheck": "pnpm --filter @lcsp/api prisma:generate && pnpm exec tsc -b",
     "seed:legal-corpus:dev:dry": "node scripts/seed-legal-dev.mjs corpus --dry-run",
     "seed:legal-corpus:dev": "node scripts/seed-legal-dev.mjs corpus",
-    "seed:legal-rules:dev:dry": "node scripts/seed-legal-dev.mjs legal-rules --dry-run",
-    "seed:legal-rules:dev": "node scripts/seed-legal-dev.mjs legal-rules",
-    "seed:rules:dry": "node scripts/seed-legal-dev.mjs engineering-rules --dry-run",
-    "seed:rules": "node scripts/seed-legal-dev.mjs engineering-rules",
-    "seed:legal:dev": "pnpm seed:legal-corpus:dev && pnpm seed:legal-rules:dev && pnpm seed:rules"
+    "seed:legal:dev": "node scripts/seed-legal-dev.mjs all",
+    "delete:assessment": "node scripts/delete-assessment.mjs"
   },
   "devDependencies": {
     "@lcsp/contracts": "workspace:*",

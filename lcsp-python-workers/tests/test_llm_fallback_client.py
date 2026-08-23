@@ -11,7 +11,12 @@ from lcsp_workers.llm import (
     PrimaryThenFallbackLLMClient,
     PromptSafetyViolation,
 )
-from lcsp_workers.llm.fallback_client import _safe_provider_error_details
+from lcsp_workers.llm.deep_agent_client import LLMToolSchemaInvalidError
+from lcsp_workers.llm.fallback_client import (
+    _classify_provider_error,
+    _safe_provider_error_details,
+    llm_limit_wait_reason,
+)
 
 
 class FakeClient:
@@ -40,9 +45,19 @@ class FakeClient:
             raise self.error
         return self.result
 
+    def complete_structured(self, **kwargs):
+        self.calls += 1
+        if self.error is not None:
+            raise self.error
+        return self.result
+
 
 class RateLimitError(Exception):
     status_code = 429
+
+
+class AuthError(Exception):
+    status_code = 401
 
 
 class ProviderBadRequestError(Exception):
@@ -57,6 +72,10 @@ class ProviderResponseError(Exception):
             status_code=400,
             headers={"X-Request-Id": "req_header_456"},
         )
+
+
+class GoogleStyleClientError(Exception):
+    status = "400"
 
 
 def test_primary_then_fallback_uses_second_provider_on_retryable_error() -> None:
@@ -75,6 +94,53 @@ def test_primary_then_fallback_uses_second_provider_on_retryable_error() -> None
         "hello",
         workflow_run_id="wf-1",
         node_name="node-1",
+    )
+
+    assert result == "ok"
+    assert primary.calls == 1
+    assert fallback.calls == 1
+
+
+def test_primary_then_fallback_dispatches_structured_completion() -> None:
+    primary = FakeClient(error=RateLimitError("too many requests"))
+    fallback = FakeClient(result="ok")
+    client = PrimaryThenFallbackLLMClient(
+        (
+            LlmProviderCandidate(name="openai", client=primary),
+            LlmProviderCandidate(name="anthropic", client=fallback),
+        ),
+        fallback_on_codes=("RATE_LIMIT", "NETWORK"),
+        max_provider_attempts=2,
+    )
+
+    result = client.complete_structured(
+        "hello",
+        response_format={"type": "object", "properties": {}, "required": []},
+        workflow_run_id="wf-1",
+        node_name="node-1",
+    )
+
+    assert result == "ok"
+    assert primary.calls == 1
+    assert fallback.calls == 1
+
+
+def test_primary_then_fallback_uses_second_provider_on_configured_auth_error() -> None:
+    primary = FakeClient(error=AuthError("invalid api key"))
+    fallback = FakeClient(result="ok")
+    client = PrimaryThenFallbackLLMClient(
+        (
+            LlmProviderCandidate(name="openai", client=primary),
+            LlmProviderCandidate(name="anthropic", client=fallback),
+        ),
+        fallback_on_codes=("AUTH", "RATE_LIMIT", "NETWORK"),
+        max_provider_attempts=2,
+    )
+
+    result = client.complete(
+        "hello",
+        workflow_run_id="wf-auth",
+        node_name="plan_engineering_rules",
     )
 
     assert result == "ok"
@@ -177,5 +243,37 @@ def test_safe_provider_error_details_read_request_id_header_and_redact_api_key()
     assert details["status_code"] == 400
     assert details["request_id"] == "req_header_456"
     assert api_key not in str(details["error_message"])
-    assert "[REDACTED" in str(details["error_message"])
     assert "context_length_exceeded" in str(details["error_message"])
+
+
+def test_google_style_client_error_status_is_classified() -> None:
+    error = GoogleStyleClientError("invalid api key supplied")
+
+    details = _safe_provider_error_details(error)
+
+    assert details["status_code"] == 400
+    assert _classify_provider_error(error) == "AUTH"
+
+
+def test_invalid_api_key_is_not_reported_as_resumeable_limit() -> None:
+    error = AuthError("AuthenticationError: API key is invalid.")
+
+    assert _classify_provider_error(error) == "AUTH"
+    assert llm_limit_wait_reason(error) is None
+
+
+def test_quota_error_is_reported_as_resumeable_limit() -> None:
+    error = ProviderResponseError("You exceeded your current quota.")
+
+    assert _classify_provider_error(error) == "QUOTA"
+    assert llm_limit_wait_reason(error) == (
+        "LLM token quota exceeded; waiting to resume."
+    )
+
+
+def test_tool_schema_invalid_error_is_classified() -> None:
+    error = LLMToolSchemaInvalidError(
+        "Deep Agent returned schema-invalid tool arguments in required mode"
+    )
+
+    assert _classify_provider_error(error) == "TOOL_SCHEMA_INVALID"

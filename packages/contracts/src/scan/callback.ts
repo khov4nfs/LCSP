@@ -95,7 +95,10 @@ export type EngineeringEvidenceClaimType =
  * limitation arrays are intentionally closed so model prose cannot leak into them.
  */
 export const ENGINEERING_LIMITATION_CODES = {
+  noLegalCorpusSource: "NO_LEGAL_CORPUS_SOURCE",
+  noLegalRuleCatalog: "NO_LEGAL_RULE_CATALOG",
   noEngineeringRuleSourceRules: "NO_ENGINEERING_RULE_SOURCE_RULES",
+  noEngineeringRuleCandidates: "NO_ENGINEERING_RULE_CANDIDATES",
   engineeringRuleCompilationFailed: "ENGINEERING_RULE_COMPILATION_FAILED",
   engineeringInvestigationFailed: "ENGINEERING_INVESTIGATION_FAILED",
   investigationReturnedNoValidClaims: "INVESTIGATION_RETURNED_NO_VALID_CLAIMS",
@@ -166,7 +169,10 @@ export const AI_USAGE_FLOW_SCHEMA_VERSIONS = ["1.0.0"] as const;
 export const CONFLICT_DETECTION_SCHEMA_VERSIONS = ["1.0.0"] as const;
 export const VERIFIED_PROFILE_SCHEMA_VERSIONS = ["1.0.0"] as const;
 export const LEGAL_RULE_MATCH_SCHEMA_VERSIONS = ["1.0.0"] as const;
-export const CLASSIFICATION_RESULT_SCHEMA_VERSIONS = ["1.0.0", "2.0.0"] as const;
+export const CLASSIFICATION_RESULT_SCHEMA_VERSIONS = [
+  "1.0.0",
+  "2.0.0",
+] as const;
 
 export const SCAN_EVENT_TYPES = {
   evidenceAccepted: "event.technical-evidence.accepted.v1",

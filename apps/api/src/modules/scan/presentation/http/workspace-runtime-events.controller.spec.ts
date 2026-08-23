@@ -56,6 +56,14 @@ describe("WorkspaceRuntimeEventsController", () => {
             waitingReason: null,
           },
         ],
+        repositorySnapshots: [
+          {
+            id: "snapshot-1",
+            assessmentId: "assessment-1",
+            commitSha: "abc123",
+            createdAt: "2026-08-09T13:58:00.000Z",
+          },
+        ],
         scanJobs: [
           {
             id: "scan-job-1",
@@ -108,6 +116,14 @@ describe("WorkspaceRuntimeEventsController", () => {
           summary: "Starting get_scan_coverage",
         },
       ],
+      repository_snapshots: [
+        {
+          id: "snapshot-1",
+          assessment_id: "assessment-1",
+          commit_sha: "abc123",
+          created_at: "2026-08-09T13:58:00.000Z",
+        },
+      ],
       scan_jobs: [
         {
           id: "scan-job-1",
@@ -153,6 +169,7 @@ describe("WorkspaceRuntimeEventsController", () => {
       emittedAt: "2026-08-09T14:05:00.000Z",
       runs: [],
       recentActivity: [],
+      repositorySnapshots: [],
       scanJobs: [],
       evidenceReports: [],
     });

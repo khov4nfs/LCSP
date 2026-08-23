@@ -282,6 +282,9 @@ export class InternalScanController {
       scanJobId,
       ...parseWorkerRuntimeEventPayload(payload, "scan-runtime-event"),
     });
+    if (!result.recorded && result.reason === "terminal") {
+      return resultEnvelope({ recorded: false, reason: result.reason });
+    }
     if (!result.recorded) {
       throw problemException(
         result.reason === "inactive"

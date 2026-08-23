@@ -51,10 +51,6 @@ function buildAgenticController() {
   };
   const controller = new InternalAgenticToolDispatchController(
     { execute } as never,
-    {
-      requestTargetedReanalysis: jest.fn(),
-      resumeWaitingRuns: jest.fn(),
-    } as never,
     { get: jest.fn().mockReturnValue(false) } as never,
     runtimeEvents as never,
   );

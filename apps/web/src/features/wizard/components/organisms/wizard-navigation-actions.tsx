@@ -3,7 +3,10 @@
 import { LoaderCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { wizardSteps } from "@/features/wizard/config/wizard-config";
+import {
+  WIZARD_DEEP_RESEARCH_STEP_NUMBER,
+  wizardSteps,
+} from "@/features/wizard/config/wizard-config";
 import { t } from "@/features/wizard/lib/wizard-i18n";
 
 type WizardNavigationActionsProps = {
@@ -52,9 +55,11 @@ export function WizardNavigationActions({
           <Button onClick={onContinueToDetailed}>
             {t("pages.wizard.actions.continueToDetailed")}
           </Button>
-        ) : currentStep < wizardSteps.length ? (
+        ) : currentStep < WIZARD_DEEP_RESEARCH_STEP_NUMBER ? (
           <Button onClick={onSaveAndContinue}>
-            {t("pages.wizard.actions.saveAndContinue")}
+            {currentStep === wizardSteps.length
+              ? t("pages.wizard.actions.continueToDeepResearch")
+              : t("pages.wizard.actions.saveAndContinue")}
           </Button>
         ) : (
           <Button onClick={onSubmit} disabled={isSubmitting}>

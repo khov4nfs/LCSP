@@ -180,6 +180,9 @@ export function sanitizeAssessmentDetailPayload(
   }
 
   return {
+    assessment_id: optionalString(payload.assessment_id),
+    name: optionalString(payload.name),
+    wizard_status: optionalString(payload.wizard_status),
     readiness_state: recordValue(readiness)
       ? {
           classification_locked: classificationLocked as boolean | undefined,
@@ -362,6 +365,9 @@ type ClassificationResultPayload = {
 };
 
 type AssessmentDetailPayload = {
+  assessment_id?: string;
+  name?: string;
+  wizard_status?: string;
   readiness_state?: {
     classification_locked?: boolean;
     lock_reason?: string | null;
@@ -518,6 +524,10 @@ function requiredString(value: unknown): string | null {
 
 function nullableString(value: unknown): string | null | undefined {
   if (value === null || value === undefined) return value as null | undefined;
+  return typeof value === "string" ? value.trim() : undefined;
+}
+
+function optionalString(value: unknown): string | undefined {
   return typeof value === "string" ? value.trim() : undefined;
 }
 

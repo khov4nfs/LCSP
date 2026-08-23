@@ -7,8 +7,10 @@ import tarfile
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
 
+from lcsp_workers.platform.api_client import WorkerCallbackError
 from lcsp_workers.platform.config import WorkerConfig
 from lcsp_workers.scanner import scan_consumer as scan_consumer_module
 from lcsp_workers.scanner.evidence_assembler import PrivacyAssertionError
@@ -66,6 +68,91 @@ def _mock_semgrep_result() -> SemgrepRunResult:
             ),
         ],
         redaction_applied=False,
+    )
+
+
+def test_scanner_tool_result_summary_uses_tool_specific_counters() -> None:
+    syft_result = SyftRunResult(
+        entries=[MagicMock(), MagicMock()],
+        execution=ToolExecutionResult(
+            tool_name="syft",
+            tool_version="syft v1.0.0",
+            outcome=OUTCOME_SUCCESS,
+            config_hash="sha256:test",
+            messages=[],
+        ),
+    )
+    ts_js_result = TsJsBridgeResult(
+        files_analyzed=3,
+        files_skipped=1,
+        findings=[MagicMock()],
+        unsupported_dynamic_flows=[MagicMock(), MagicMock()],
+        coverage_limitations=[],
+        analyzer_version="test",
+        execution=ToolExecutionResult(
+            tool_name="ts_morph",
+            tool_version="test",
+            outcome=OUTCOME_SUCCESS,
+            config_hash="sha256:test",
+            messages=[],
+        ),
+    )
+
+    assert ScanConsumer._scanner_tool_result_summary(syft_result) == {
+        "dependency_count": 2,
+        "outcome": OUTCOME_SUCCESS,
+    }
+    assert ScanConsumer._scanner_tool_result_summary(ts_js_result) == {
+        "finding_count": 1,
+        "coverage_limitation_count": 0,
+        "dynamic_flow_limitation_count": 2,
+        "file_count": 3,
+        "skipped_file_count": 1,
+        "outcome": OUTCOME_SUCCESS,
+    }
+    assert ScanConsumer._scanner_tool_result_summary([MagicMock(), MagicMock()]) == {
+        "item_count": 2,
+    }
+
+
+def test_scan_terminal_client_errors_are_non_retryable() -> None:
+    wrong_state = WorkerCallbackError(
+        "SCAN_JOB_WRONG_STATE: Callback failed with client error 409."
+    )
+    mismatch_response = httpx.Response(
+        409,
+        json={
+            "ok": False,
+            "problem": {
+                "code": "SNAPSHOT_SCAN_MISMATCH",
+                "status": 409,
+            },
+        },
+        request=httpx.Request(
+            "GET",
+            "http://test/internal/repository-snapshots/snapshot/archive",
+        ),
+    )
+    mismatch = httpx.HTTPStatusError(
+        "snapshot mismatch",
+        request=mismatch_response.request,
+        response=mismatch_response,
+    )
+    server_response = httpx.Response(
+        500,
+        request=httpx.Request("GET", "http://test/internal/error"),
+    )
+    server_error = httpx.HTTPStatusError(
+        "server error",
+        request=server_response.request,
+        response=server_response,
+    )
+
+    assert ScanConsumer._is_terminal_scan_client_error(wrong_state)
+    assert ScanConsumer._is_terminal_scan_client_error(mismatch)
+    assert not ScanConsumer._is_terminal_scan_client_error(server_error)
+    assert not ScanConsumer._is_terminal_scan_client_error(
+        WorkerCallbackError("Callback failed with client error 422.")
     )
 
 
@@ -567,6 +654,57 @@ def test_scan_consumer_cleanup_runs_on_timeout(
         )
 
     assert not workspace.workspace_path("job-5").exists()
+
+
+def test_scan_consumer_emits_llm_limit_waiting_runtime_events(
+    workspace_dir: Path,
+) -> None:
+    api_client = MagicMock()
+    consumer = ScanConsumer(
+        WorkerConfig(
+            rabbitmq_url="amqp://guest:guest@localhost/",
+            rabbitmq_exchange="test.events",
+            nestjs_api_base_url="http://api.test",
+            worker_api_key="worker-test-key",
+            log_level="INFO",
+            max_retries=3,
+        ),
+        snapshot_client=MagicMock(spec=SnapshotServiceClient),
+        workspace=ScannerWorkspace(root_path=workspace_dir / "scanner"),
+        api_client=api_client,
+    )
+
+    consumer._emit_llm_limit_waiting(
+        "job-limit",
+        RuntimeError("quota exceeded"),
+        "LLM token quota exceeded; waiting to resume.",
+    )
+
+    runtime_events = [
+        call.args[1]
+        for call in api_client.post_scan_runtime_event.call_args_list
+    ]
+    assert runtime_events == [
+        {
+            "event_type": "TOOL_WAITING_INPUT",
+            "run_status": "WAITING",
+            "stage": "SCAN",
+            "summary": "LLM token limit exceeded; repository scan is waiting to resume",
+            "tool_name": "build_evidence_graph",
+            "error_summary": "RuntimeError",
+            "completed_at": runtime_events[0]["completed_at"],
+            "waiting_reason": "LLM token quota exceeded; waiting to resume.",
+        },
+        {
+            "event_type": "RUN_STAGE_CHANGED",
+            "run_status": "WAITING",
+            "stage": "SCAN",
+            "summary": "Repository scan is waiting for LLM capacity",
+            "tool_name": "repository_scan",
+            "error_summary": "RuntimeError",
+            "waiting_reason": "LLM token quota exceeded; waiting to resume.",
+        },
+    ]
 
 
 @pytest.mark.p0

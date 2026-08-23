@@ -120,8 +120,12 @@ def test_t07_budget_exceeded():
 def test_t10_consumer_derives_workflow_context_for_rationale_node():
     mock_llm = MagicMock()
     mock_response = MagicMock()
-    mock_response.content = '{"risk_level":"HIGH","applicability_assessment":"applicable","rationale":"The risk is HIGH based on the verified evidence."}'
-    mock_llm.complete.return_value = mock_response
+    mock_response.structured_response = {
+        "risk_level": "HIGH",
+        "applicability_assessment": "applicable",
+        "rationale": "The risk is HIGH based on the verified evidence.",
+    }
+    mock_llm.complete_structured.return_value = mock_response
 
     consumer = ClassificationConsumer(config=MagicMock(), llm_client=mock_llm)
 
@@ -136,8 +140,8 @@ def test_t10_consumer_derives_workflow_context_for_rationale_node():
                 "corr-123",
             )
 
-    mock_llm.complete.assert_called_once()
-    kwargs = mock_llm.complete.call_args.kwargs
+    mock_llm.complete_structured.assert_called_once()
+    kwargs = mock_llm.complete_structured.call_args.kwargs
     assert kwargs["workflow_run_id"] == "classification:asmt-1:2.0:corr-123"
     assert kwargs["node_name"] == "classification.proposal"
     assert kwargs["correlationId"] == "corr-123"
@@ -146,10 +150,15 @@ def test_t10_consumer_derives_workflow_context_for_rationale_node():
 def test_t11_consumer_rejects_mismatched_model_assisted_proposal():
     mock_llm = MagicMock()
     proposal_response = MagicMock()
-    proposal_response.content = '{"risk_level":"LOW","applicability_assessment":"not_applicable","rationale":"The risk is LOW."}'
+    proposal_response.structured_response = {
+        "risk_level": "LOW",
+        "applicability_assessment": "not_applicable",
+        "rationale": "The risk is LOW.",
+    }
     fallback_response = MagicMock()
     fallback_response.content = "This assessment remains high risk based on the verified evidence."
-    mock_llm.complete.side_effect = [proposal_response, fallback_response]
+    mock_llm.complete_structured.return_value = proposal_response
+    mock_llm.complete.return_value = fallback_response
 
     consumer = ClassificationConsumer(config=MagicMock(), llm_client=mock_llm)
 
@@ -172,8 +181,12 @@ def test_t11_consumer_rejects_mismatched_model_assisted_proposal():
 def test_t12_consumer_accepts_matching_model_assisted_proposal():
     mock_llm = MagicMock()
     proposal_response = MagicMock()
-    proposal_response.content = '{"risk_level":"HIGH","applicability_assessment":"applicable","rationale":"This assessment is high risk based on the cited evidence."}'
-    mock_llm.complete.return_value = proposal_response
+    proposal_response.structured_response = {
+        "risk_level": "HIGH",
+        "applicability_assessment": "applicable",
+        "rationale": "This assessment is high risk based on the cited evidence.",
+    }
+    mock_llm.complete_structured.return_value = proposal_response
 
     consumer = ClassificationConsumer(config=MagicMock(), llm_client=mock_llm)
 

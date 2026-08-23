@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 from lcsp_workers.agentic_evidence import AgenticInvocationContext, AgenticToolResolver
-from lcsp_workers.llm.gateway_client import LLMGatewayClient
+from lcsp_workers.llm import LLMClientProtocol
 
 
 ALLOWED_SUMMARY_FIELDS = {
@@ -23,7 +22,7 @@ class AIUsageFlowModelAssistedProposer:
 
     def __init__(
         self,
-        llm_client: LLMGatewayClient,
+        llm_client: LLMClientProtocol,
         agentic_tool_resolver: AgenticToolResolver | None = None,
     ):
         """Create the proposer with optional read-only agentic evidence tools."""
@@ -91,7 +90,7 @@ class AIUsageFlowModelAssistedProposer:
         """Build the first prompt from bounded structured context only."""
         return f"""
         You are an AIUsageFlow summary proposal assistant.
-        Return JSON only.
+        Use the configured structured response format only.
 
         BASELINE_SUMMARY:
         {baseline_summary}
@@ -117,7 +116,6 @@ class AIUsageFlowModelAssistedProposer:
         - Do not propose values outside the wizard-authoritative business context.
         - Do not invent claims, evidence refs, confidence, or privacy flags.
         - If you need more evidence, call only the provided read-only tools.
-        - Do not output markdown fences.
         """
 
     def _build_final_prompt(
@@ -131,7 +129,7 @@ class AIUsageFlowModelAssistedProposer:
         """Build the second prompt after authorized bounded tool results return."""
         return f"""
         You are an AIUsageFlow summary proposal assistant.
-        Return JSON only.
+        Use the configured structured response format only.
 
         BASELINE_SUMMARY:
         {baseline_summary}
@@ -160,7 +158,6 @@ class AIUsageFlowModelAssistedProposer:
         - Use TOOL_RESULTS only as bounded supporting evidence.
         - Do not propose values outside the wizard-authoritative business context.
         - Do not invent claims, evidence refs, confidence, or privacy flags.
-        - Do not output markdown fences.
         """
 
     def _complete(
@@ -184,8 +181,9 @@ class AIUsageFlowModelAssistedProposer:
         """
         if self.agentic_tool_resolver is None:
             try:
-                return self.llm_client.complete(
+                return self.llm_client.complete_structured(
                     prompt=prompt,
+                    response_format=_summary_proposal_response_schema(),
                     workflow_run_id=workflow_run_id,
                     node_name=node_name,
                     max_tokens=256,
@@ -207,7 +205,17 @@ class AIUsageFlowModelAssistedProposer:
             return None
 
         if not tool_response.tool_calls:
-            return tool_response
+            try:
+                return self.llm_client.complete_structured(
+                    prompt=prompt,
+                    response_format=_summary_proposal_response_schema(),
+                    workflow_run_id=workflow_run_id,
+                    node_name=node_name,
+                    max_tokens=256,
+                    correlationId=correlationId,
+                )
+            except Exception:
+                return None
 
         try:
             tool_results = self.agentic_tool_resolver.invoke_tool_calls(
@@ -220,7 +228,7 @@ class AIUsageFlowModelAssistedProposer:
                     correlationId=correlationId,
                 ),
             )
-            return self.llm_client.complete(
+            return self.llm_client.complete_structured(
                 prompt=self._build_final_prompt(
                     baseline_summary=baseline_summary,
                     wizard_profile=wizard_profile,
@@ -234,6 +242,7 @@ class AIUsageFlowModelAssistedProposer:
                         for result in tool_results
                     ],
                 ),
+                response_format=_summary_proposal_response_schema(),
                 workflow_run_id=workflow_run_id,
                 node_name=node_name,
                 max_tokens=256,
@@ -244,10 +253,9 @@ class AIUsageFlowModelAssistedProposer:
 
     @staticmethod
     def _parse_summary_proposal(response: Any) -> dict[str, Any] | None:
-        """Parse JSON and reject updates outside the summary-field allowlist."""
-        try:
-            proposal = json.loads(response.content)
-        except json.JSONDecodeError:
+        """Validate structured output and reject updates outside the allowlist."""
+        proposal = getattr(response, "structured_response", None)
+        if not isinstance(proposal, dict):
             return None
 
         summary_updates = proposal.get("summary_updates")
@@ -286,3 +294,28 @@ class AIUsageFlowModelAssistedProposer:
 def _stable_uuid(value: str) -> UUID:
     """Derive a deterministic UUID for string identifiers used by agentic tools."""
     return uuid5(NAMESPACE_URL, value)
+
+
+def _summary_proposal_response_schema() -> dict[str, Any]:
+    return {
+        "title": "AIUsageFlowSummaryProposalResponse",
+        "description": "Bounded proposal for AIUsageFlow summary fields only.",
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "summary_updates": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "businessProcess": {"type": "string"},
+                    "aiPurpose": {"type": "string"},
+                    "affectedSubjects": {
+                        "type": ["array", "string"],
+                        "items": {"type": "string"},
+                    },
+                    "humanReview": {"type": "string"},
+                },
+            }
+        },
+        "required": ["summary_updates"],
+    }

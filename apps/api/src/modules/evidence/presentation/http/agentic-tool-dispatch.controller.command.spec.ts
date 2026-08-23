@@ -11,7 +11,6 @@ import type { CommandBus, QueryBus } from "@nestjs/cqrs";
 import type { AppConfig } from "../../../../config/config.types.js";
 import type { PbacPreflightService } from "../../../../platform/pbac/pbac-preflight.service.js";
 import type { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
-import type { PythonWorkerRuntimeClient } from "../../application/services/evidence/python-worker-runtime.client.js";
 import { InternalAgenticToolDispatchController } from "./agentic-tool-dispatch.controller.js";
 
 function runtimeEventsMock() {
@@ -54,7 +53,6 @@ describe("InternalAgenticToolDispatchController protected commands", () => {
   it("re-evaluates PBAC and passes trusted policy metadata to CommandBus", async () => {
     const queryExecute = jest.fn();
     const queryBus = { execute: queryExecute } as unknown as QueryBus;
-    const pythonWorkerRuntime = {} as PythonWorkerRuntimeClient;
     const commandExecute = jest.fn(() => Promise.resolve({ status: "READY" }));
     const commandBus = { execute: commandExecute } as unknown as CommandBus;
     const evaluateWithPolicy = jest.fn(() =>
@@ -72,7 +70,6 @@ describe("InternalAgenticToolDispatchController protected commands", () => {
 
     const controller = new InternalAgenticToolDispatchController(
       queryBus,
-      pythonWorkerRuntime,
       configMock(),
       runtimeEventsMock(),
       commandBus,
@@ -117,7 +114,6 @@ describe("InternalAgenticToolDispatchController protected commands", () => {
 
     const controller = new InternalAgenticToolDispatchController(
       queryBus,
-      {} as PythonWorkerRuntimeClient,
       configMock(),
       runtimeEventsMock(),
       commandBus,

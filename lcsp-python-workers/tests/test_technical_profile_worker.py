@@ -18,6 +18,7 @@ from lcsp_workers.intelligence.technical_profile_builder import (
 from lcsp_workers.intelligence.technical_profile_consumer import (
     TechnicalProfileConsumer,
 )
+from lcsp_workers.investigation.pipeline import EngineeringInvestigationResult
 from lcsp_workers.platform.config import WorkerConfig
 from lcsp_workers.platform.callback_schemas import TechnicalProfileCallbackPayload
 
@@ -235,6 +236,53 @@ def test_consumer_fetches_accepted_evidence_and_posts_callback() -> None:
     assert payload.profile_data["external_integrations"] == []
     assert payload.profile_data["engineering_investigation"]["claims"] == []
     assert payload.profile_data["profile_data_ref"]
+
+
+@pytest.mark.p0
+def test_consumer_waits_without_callback_when_engineering_rules_are_rebuilding() -> None:
+    api_client = MagicMock()
+    api_client.get_accepted_technical_evidence_report.return_value = _evidence_report()
+    investigation_pipeline = MagicMock()
+    investigation_pipeline.run.return_value = EngineeringInvestigationResult(
+        status="WAITING",
+        legal_rule_catalog_version_id="catalog-v1",
+        legal_corpus_version_id="corpus-v1",
+        rules_considered=0,
+        engineering_rules_executed=0,
+        engineering_rule_cache_hits=0,
+        limitations=("NO_ENGINEERING_RULE_SOURCE_RULES",),
+    )
+    consumer = TechnicalProfileConsumer(
+        _config(),
+        api_client=api_client,
+        investigation_pipeline=investigation_pipeline,
+    )
+
+    with pytest.raises(RuntimeError, match="waiting for legal rule source rebuild"):
+        consumer.handle({"evidenceReportId": "ter-1"}, correlationId="corr-1")
+
+    api_client.post_scan_runtime_event.assert_called_once()
+    runtime_payload = api_client.post_scan_runtime_event.call_args.args[1]
+    assert runtime_payload["output_summary"]["kind"] == "WIZARD_CONTEXT_REQUEST"
+    assert runtime_payload["output_summary"]["scope"] == "POST_GRAPH"
+    assert runtime_payload["output_summary"]["requestedBy"] == "PLANNER"
+    assert runtime_payload["output_summary"]["reasonCode"] == (
+        "NO_ENGINEERING_RULE_SOURCE_RULES"
+    )
+    assert runtime_payload["output_summary"]["questionIds"] == [
+        "MISSING_RULE_SCOPE",
+        "MISSING_GRAPH_CONTEXT",
+        "MISSING_HUMAN_REVIEW_BOUNDARY",
+    ]
+    assert [
+        question["targetFieldName"]
+        for question in runtime_payload["output_summary"]["questions"]
+    ] == [
+        "postGraphRuleScope",
+        "postGraphContext",
+        "postGraphHumanReviewBoundary",
+    ]
+    api_client.post_technical_profile_callback.assert_not_called()
 
 
 @pytest.mark.p0

@@ -170,7 +170,7 @@ Limited TS semantic coverage routes allowed resolver; command queues one analyze
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Implement command contracts/registry, resolver gateway, idempotency/capacity admission/outbox/checkpoint/worker bridge and tests in contracts/API/workers. The capacity policy above resolves OQ-01; changes require an ADR revision backed by queue wait-time, timeout and DLQ metrics. Deliver exact command schema, outbox/audit and test suite.
+Implement command contracts/registry, resolver gateway, idempotency/capacity admission/outbox/checkpoint/Managed Agent command dispatch and tests in contracts/API/agent runtime. The capacity policy above resolves OQ-01; changes require an ADR revision backed by queue wait-time, timeout and DLQ metrics. Deliver exact command schema, outbox/audit and test suite.
 
 ## Source Authority
 

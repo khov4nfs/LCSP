@@ -369,6 +369,33 @@ def test_source_manifest_can_use_external_reviewed_dir(tmp_path: Path):
     assert document["sourceSha256"] == review["reviewedSourceSha256"]
 
 
+def test_missing_reviewed_pdf_falls_back_to_verified_manifest_source_file(
+    tmp_path: Path,
+) -> None:
+    manifest = reviewed_manifest(tmp_path, "LAW-TEST", "Điều 1. Test\n1. Nội dung\n")
+    source_path = tmp_path / "LAW-TEST.source.html"
+    source_path.write_text("<html>official source</html>", encoding="utf-8")
+    manifest_data = json.loads(manifest.read_text(encoding="utf-8"))
+    manifest_data.pop("sourceSha256")
+    manifest_data["htmlFile"] = source_path.name
+    manifest_data["htmlSha256"] = module.file_sha256(source_path)
+    manifest.write_text(json.dumps(manifest_data), encoding="utf-8")
+    (tmp_path / "LAW-TEST.pdf").unlink()
+
+    payload = module.build_payload([manifest], "DRAFT-1")
+
+    document = payload["documents"][0]
+    artifact = payload["sourceManifest"]["sourceArtifacts"][0]
+    assert document["sourceSha256"] == module.file_sha256(source_path)
+    assert document["snapshotPath"] == str(source_path.resolve())
+    assert artifact["declaredReviewedSourceSha256"].startswith("sha256:")
+    assert artifact["sourceSnapshotFallback"] == {
+        "reason": "REVIEWED_SOURCE_SNAPSHOT_NOT_PRESENT",
+        "declaredSnapshotPath": "LAW-TEST.pdf",
+        "manifestArtifactPath": source_path.name,
+    }
+
+
 def test_duplicate_real_locator_fails_closed():
     text = "Điều 9. First\n1. A\nĐiều 9. Duplicate\n1. B\n"
     with pytest.raises(RuntimeError, match="duplicate legal locator art-9"):

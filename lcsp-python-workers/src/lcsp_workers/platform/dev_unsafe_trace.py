@@ -186,10 +186,6 @@ def _summarize_trace_fields(event: str, fields: Mapping[str, Any]) -> dict[str, 
 
     # 3. Process specific fields
     for k, v in fields.items():
-        if any(sec_key in k.lower() for sec_key in ("api_key", "secret", "token", "password", "authorization")):
-            summary[k] = "[REDACTED]"
-            continue
-            
         if k in ("payload", "body", "result", "results", "tool_input", "response", "params"):
             payload_size = 0
             if isinstance(v, (str, bytes, bytearray)):

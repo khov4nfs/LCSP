@@ -15,7 +15,16 @@ from typing import Any
 from lcsp_workers.platform.logging_path import get_repo_root
 
 from .compiler import COMPILER_VERSION, PROMPT_VERSION
-from .models import ENGINEERING_RULE_SCHEMA_VERSION, EngineeringRule
+from .models import (
+    ENGINEERING_RULE_SCHEMA_VERSION,
+    EngineeringRule,
+    build_legal_reasoning_contract,
+)
+from .precompiled_contract_overrides import (
+    DEFAULT_PRECOMPILED_CONTRACT_OVERRIDES_PATH,
+    apply_precompiled_contract_overrides,
+    load_precompiled_contract_overrides,
+)
 from .validator import validate_engineering_rule
 
 DEFAULT_PRECOMPILED_BUNDLE_PATH = os.path.join(
@@ -29,10 +38,45 @@ DEFAULT_PRECOMPILED_BUNDLE_PATH = os.path.join(
 class PrecompiledEngineeringRuleRegistry:
     """Materialize precompiled rules against exact current legal provenance."""
 
-    def __init__(self, bundle_path: str | None = None) -> None:
+    def __init__(
+        self,
+        bundle_path: str | None = None,
+        contract_overrides_path: str | None = None,
+    ) -> None:
         configured = os.getenv("ENGINEERING_RULE_PRECOMPILED_BUNDLE_PATH", "").strip()
         self.bundle_path = bundle_path or configured or DEFAULT_PRECOMPILED_BUNDLE_PATH
+        configured_overrides = os.getenv(
+            "ENGINEERING_RULE_PRECOMPILED_CONTRACT_OVERRIDES_PATH",
+            "",
+        ).strip()
+        self.contract_overrides_path = (
+            contract_overrides_path
+            or configured_overrides
+            or DEFAULT_PRECOMPILED_CONTRACT_OVERRIDES_PATH
+        )
         self._bundle: dict[str, Any] | None = None
+        self._contract_overrides: dict[str, Any] | None = None
+
+    @property
+    def contract_version(self) -> str:
+        """Return the active technical-contract version used for cache invalidation."""
+        bundle = self._load_bundle("contract-version")
+        _, version = self.templates_for_bundle(bundle)
+        return version
+
+    def templates_for_bundle(
+        self,
+        bundle: dict[str, Any],
+    ) -> tuple[list[dict[str, Any]], str]:
+        """Apply the governed technical overlay without changing legal grounding fields."""
+        if self._contract_overrides is None:
+            self._contract_overrides = load_precompiled_contract_overrides(
+                self.contract_overrides_path
+            )
+        return apply_precompiled_contract_overrides(
+            bundle,
+            self._contract_overrides,
+        )
 
     def materialize(
         self,
@@ -48,6 +92,8 @@ class PrecompiledEngineeringRuleRegistry:
         Recovery is fail-closed. The bundle's schema/compiler/prompt versions must
         equal the running worker contract, every active legal-context chunk must be
         grounded by the selected templates, and every chunk hash must match exactly.
+        A governed technical overlay may tighten investigation criteria/retrieval hints,
+        but it cannot alter LegalRule identity, legal intent, citations, or source hashes.
         """
         legal_rule_id = str(
             legal_rule.get("legalRuleId")
@@ -64,11 +110,7 @@ class PrecompiledEngineeringRuleRegistry:
             if isinstance(item, dict) and item.get("id")
         }
         context_ids = set(context_by_id)
-        templates = [
-            item
-            for item in (bundle.get("templates") or [])
-            if isinstance(item, dict)
-        ]
+        templates, _ = self.templates_for_bundle(bundle)
         matched = []
         for template in templates:
             required_ids = {
@@ -147,6 +189,27 @@ class PrecompiledEngineeringRuleRegistry:
                 "unresolvedConditions": template.get("unresolvedConditions") or [],
                 "sourceChunkIds": list(source_chunk_ids),
                 "sourceLocators": list(source_locators),
+                "legalReasoningContract": build_legal_reasoning_contract(
+                    legal_rule=legal_rule,
+                    legal_rule_catalog_version_id=legal_rule_catalog_version_id,
+                    legal_corpus_version_id=legal_corpus_version_id,
+                    legal_context=legal_context,
+                    required_evidence=tuple(
+                        str(value)
+                        for value in template.get("requiredEvidence") or []
+                        if str(value)
+                    ),
+                    supporting_evidence=tuple(
+                        str(value)
+                        for value in template.get("supportingEvidence") or []
+                        if str(value)
+                    ),
+                    negative_evidence=tuple(
+                        str(value)
+                        for value in template.get("negativeEvidence") or []
+                        if str(value)
+                    ),
+                ),
                 "sourceFingerprint": source_fingerprint,
                 "compilerModel": str(bundle.get("compilerModel") or "precompiled"),
                 "compilerVersion": COMPILER_VERSION,

@@ -18,11 +18,18 @@ import { Injectable, Logger } from "@nestjs/common";
 
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import {
+  failStaleRepositoryScanJobs,
+  STALE_REPOSITORY_SCAN_BLOCKED_REASON,
+} from "../scan/repository-scan-staleness.js";
+import {
   FALLBACK_SUMMARY,
   sanitizeRuntimeSummaryText,
   sanitizeRuntimeSummaryValue,
   summarizeRuntimeError,
 } from "./runtime-summary-sanitizer.js";
+
+const RUNTIME_EVENT_SEQUENCE_RETRY_ATTEMPTS = 8;
+const RUNTIME_EVENT_SEQUENCE_RETRY_DELAY_MS = 5;
 
 type RecordRuntimeEventInput = {
   organizationId: string;
@@ -63,7 +70,8 @@ export type RecordWorkerRuntimeEventInput = Omit<
 };
 
 export type RecordWorkerRuntimeEventResult =
-  { recorded: true } | { recorded: false; reason: "not_found" | "inactive" };
+  | { recorded: true }
+  | { recorded: false; reason: "not_found" | "inactive" | "terminal" };
 
 type PersistedAssessmentRuntimeEvent = {
   id: string;
@@ -96,6 +104,13 @@ type RuntimeScanJobSnapshot = {
   attemptCount: number;
   blockedReason: string | null;
   updatedAt: Date;
+};
+
+type RuntimeRepositorySnapshot = {
+  id: string;
+  assessmentId: string;
+  commitSha: string;
+  createdAt: Date;
 };
 
 type RuntimeEvidenceReportSnapshot = {
@@ -252,6 +267,22 @@ export class AssessmentRuntimeEventService {
   }
 
   /**
+   * Records failed completion of an assessment runtime run.
+   *
+   * @param input - Runtime event data excluding the event type and run status supplied by this method.
+   * @returns A promise that resolves after the run-failed event is persisted.
+   */
+  async recordRunFailed(
+    input: Omit<RecordRuntimeEventInput, "eventType" | "runStatus">,
+  ): Promise<void> {
+    await this.recordEvent({
+      ...input,
+      eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.runFailed,
+      runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
+    });
+  }
+
+  /**
    * Records a scanner-worker runtime progress event after resolving tenant and assessment identity from the scan job.
    *
    * @param input - Worker supplied runtime metadata plus the scan-job identifier.
@@ -273,7 +304,11 @@ export class AssessmentRuntimeEventService {
     if (!scanJob) {
       return { recorded: false, reason: "not_found" };
     }
-    if (!isActiveScanRuntimeStatus(scanJob.status)) {
+    const isTerminalWorkerEvent = isTerminalWorkerRuntimeEvent(input.eventType);
+    if (isTerminalScanRuntimeStatus(scanJob.status) && !isTerminalWorkerEvent) {
+      return { recorded: false, reason: "terminal" };
+    }
+    if (!isActiveScanRuntimeStatus(scanJob.status) && !isTerminalWorkerEvent) {
       return { recorded: false, reason: "inactive" };
     }
 
@@ -309,41 +344,57 @@ export class AssessmentRuntimeEventService {
     organizationId: string,
   ): Promise<AssessmentRuntimeSnapshot> {
     const emittedAt = new Date().toISOString();
-    const [events, scanJobs, evidenceReports] = await Promise.all([
-      this.safeFindMany({
-        where: { organizationId },
-        orderBy: [{ createdAt: "desc" }, { sequence: "desc" }],
-        take: 200,
-      }),
-      this.prisma.repositoryScanJob.findMany({
-        where: { organizationId },
-        orderBy: { updatedAt: "desc" },
-        take: 50,
-        select: {
-          id: true,
-          assessmentId: true,
-          snapshotId: true,
-          status: true,
-          attemptCount: true,
-          blockedReason: true,
-          updatedAt: true,
-        },
-      }),
-      this.prisma.technicalEvidenceReport.findMany({
-        where: { organizationId },
-        orderBy: { createdAt: "desc" },
-        take: 50,
-        select: {
-          id: true,
-          assessmentId: true,
-          scanJobId: true,
-          snapshotId: true,
-          status: true,
-          rejectionReason: true,
-          createdAt: true,
-        },
-      }),
-    ]);
+    await failStaleRepositoryScanJobs(this.prisma, {
+      organizationId,
+      now: new Date(emittedAt),
+    });
+    const [events, repositorySnapshots, scanJobs, evidenceReports] =
+      await Promise.all([
+        this.safeFindMany({
+          where: { organizationId },
+          orderBy: [{ createdAt: "desc" }, { sequence: "desc" }],
+          take: 200,
+        }),
+        this.prisma.repositorySnapshot.findMany({
+          where: { organizationId },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+          select: {
+            id: true,
+            assessmentId: true,
+            commitSha: true,
+            createdAt: true,
+          },
+        }),
+        this.prisma.repositoryScanJob.findMany({
+          where: { organizationId },
+          orderBy: { updatedAt: "desc" },
+          take: 50,
+          select: {
+            id: true,
+            assessmentId: true,
+            snapshotId: true,
+            status: true,
+            attemptCount: true,
+            blockedReason: true,
+            updatedAt: true,
+          },
+        }),
+        this.prisma.technicalEvidenceReport.findMany({
+          where: { organizationId },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+          select: {
+            id: true,
+            assessmentId: true,
+            scanJobId: true,
+            snapshotId: true,
+            status: true,
+            rejectionReason: true,
+            createdAt: true,
+          },
+        }),
+      ]);
 
     const persistedActivity = events.map((event) =>
       this.toActivityEvent(event),
@@ -358,12 +409,20 @@ export class AssessmentRuntimeEventService {
     const recentActivity = [...persistedActivity, ...syntheticActivity]
       .sort((left, right) => right.emittedAt.localeCompare(left.emittedAt))
       .slice(0, 50);
-    const runs = deriveRuns(events).slice(0, 20);
+    const runs = deriveRuns(recentActivity).slice(0, 20);
 
     return {
       emittedAt,
       runs,
       recentActivity,
+      repositorySnapshots: repositorySnapshots.map(
+        (snapshot: RuntimeRepositorySnapshot) => ({
+          id: snapshot.id,
+          assessmentId: snapshot.assessmentId,
+          commitSha: snapshot.commitSha,
+          createdAt: snapshot.createdAt.toISOString(),
+        }),
+      ),
       scanJobs: scanJobs.map((scanJob) => ({
         id: scanJob.id,
         assessmentId: scanJob.assessmentId,
@@ -386,7 +445,7 @@ export class AssessmentRuntimeEventService {
   }
 
   /**
-   * Sanitizes and persists one runtime event with a per-run sequence number, retrying sequence collisions up to three times.
+   * Sanitizes and persists one runtime event with a per-run sequence number, retrying sequence collisions from concurrent writers.
    *
    * @param input - Complete runtime event data to sanitize and persist.
    * @returns A promise that resolves after persistence, or silently degrades when the runtime-event table has not been migrated yet.
@@ -402,7 +461,11 @@ export class AssessmentRuntimeEventService {
         ? null
         : sanitizeRuntimeSummaryText(input.errorSummary);
 
-    for (let index = 0; index < 3; index += 1) {
+    for (
+      let index = 0;
+      index < RUNTIME_EVENT_SEQUENCE_RETRY_ATTEMPTS;
+      index += 1
+    ) {
       try {
         await this.prisma.$transaction(async (tx) => {
           const latest = (await runtimeEventDelegate(tx).findFirst({
@@ -443,9 +506,13 @@ export class AssessmentRuntimeEventService {
           this.logRuntimeEventTableMissing("recordEvent", error);
           return;
         }
-        if (!isUniqueSequenceViolation(error) || index === 2) {
+        if (
+          !isUniqueSequenceViolation(error) ||
+          index === RUNTIME_EVENT_SEQUENCE_RETRY_ATTEMPTS - 1
+        ) {
           throw error;
         }
+        await delayRuntimeEventSequenceRetry(index);
       }
     }
   }
@@ -567,7 +634,11 @@ function buildSyntheticRuntimeActivity(
   );
   return [
     ...scanJobs
-      .filter((scanJob) => !scanJobsWithPersistedActivity.has(scanJob.id))
+      .filter(
+        (scanJob) =>
+          !scanJobsWithPersistedActivity.has(scanJob.id) ||
+          isStaleFailedScanJob(scanJob),
+      )
       .map((scanJob) =>
         scanJobToSyntheticRuntimeActivity(
           organizationId,
@@ -579,6 +650,13 @@ function buildSyntheticRuntimeActivity(
       evidenceReportToSyntheticRuntimeActivity(organizationId, report),
     ),
   ].filter((event) => !existingEventIds.has(event.eventId));
+}
+
+function isStaleFailedScanJob(scanJob: RuntimeScanJobSnapshot): boolean {
+  return (
+    scanJob.status === REPOSITORY_SCAN_JOB_STATUSES.failed &&
+    scanJob.blockedReason === STALE_REPOSITORY_SCAN_BLOCKED_REASON
+  );
 }
 
 /**
@@ -710,6 +788,28 @@ function isActiveScanRuntimeStatus(status: string): boolean {
   );
 }
 
+function isTerminalScanRuntimeStatus(status: string): boolean {
+  return (
+    status === REPOSITORY_SCAN_JOB_STATUSES.completed ||
+    status === REPOSITORY_SCAN_JOB_STATUSES.failed ||
+    status === REPOSITORY_SCAN_JOB_STATUSES.blocked ||
+    status === REPOSITORY_SCAN_JOB_STATUSES.blockedMapping
+  );
+}
+
+function isTerminalWorkerRuntimeEvent(
+  eventType: AssessmentRuntimeEventType,
+): boolean {
+  return (
+    eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted ||
+    eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runFailed ||
+    eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted ||
+    eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed ||
+    eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped ||
+    eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput
+  );
+}
+
 /**
  * Builds a concise human-readable summary for a repository scan job.
  *
@@ -737,9 +837,9 @@ function scanJobSummary(scanJob: RuntimeScanJobSnapshot): string {
  * @returns Derived runs sorted by most recent update first.
  */
 function deriveRuns(
-  events: PersistedAssessmentRuntimeEvent[],
+  events: AssessmentRuntimeActivityEvent[],
 ): AssessmentRuntimeRun[] {
-  const byRunId = new Map<string, PersistedAssessmentRuntimeEvent[]>();
+  const byRunId = new Map<string, AssessmentRuntimeActivityEvent[]>();
   for (const event of [...events].reverse()) {
     const group = byRunId.get(event.runId) ?? [];
     group.push(event);
@@ -755,10 +855,10 @@ function deriveRuns(
     runs.push({
       assessmentId: latest.assessmentId,
       runId: latest.runId,
-      stage: latest.stage as AssessmentRuntimeStageCode,
-      status: latest.runStatus as AssessmentRuntimeRunStatus,
+      stage: latest.stage,
+      status: latest.runStatus,
       activeTools: deriveActiveTools(group),
-      updatedAt: latest.createdAt.toISOString(),
+      updatedAt: latest.emittedAt,
     });
   }
 
@@ -774,7 +874,7 @@ function deriveRuns(
  * @returns Tool descriptors that have started but have not completed, failed, skipped, or begun waiting for input.
  */
 function deriveActiveTools(
-  events: PersistedAssessmentRuntimeEvent[],
+  events: AssessmentRuntimeActivityEvent[],
 ): AssessmentRuntimeActiveTool[] {
   const active = new Map<string, AssessmentRuntimeActiveTool>();
   for (const event of events) {
@@ -786,7 +886,7 @@ function deriveActiveTools(
         toolName: event.toolName,
         status: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
         summary: event.summary,
-        startedAt: event.startedAt?.toISOString() ?? null,
+        startedAt: event.startedAt,
         attempt: event.attempt,
       });
       continue;
@@ -825,7 +925,46 @@ function toJsonOrNull(
  * @returns True when the error identifies the `runId_sequence_key` constraint.
  */
 function isUniqueSequenceViolation(error: unknown): boolean {
-  return error instanceof Error && error.message.includes("runId_sequence_key");
+  if (!isObject(error)) {
+    return false;
+  }
+  if (error.code === "P2002" && isUniqueSequenceTarget(error.meta)) {
+    return true;
+  }
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  return (
+    error.message.includes("runId_sequence_key") ||
+    (error.message.includes("Unique constraint failed") &&
+      error.message.includes("runId") &&
+      error.message.includes("sequence"))
+  );
+}
+
+function isUniqueSequenceTarget(meta: unknown): boolean {
+  if (!isObject(meta)) {
+    return false;
+  }
+  const target = meta.target;
+  if (Array.isArray(target)) {
+    return target.includes("runId") && target.includes("sequence");
+  }
+  return (
+    typeof target === "string" &&
+    target.includes("runId") &&
+    target.includes("sequence")
+  );
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+async function delayRuntimeEventSequenceRetry(index: number): Promise<void> {
+  await new Promise((resolve) => {
+    setTimeout(resolve, RUNTIME_EVENT_SEQUENCE_RETRY_DELAY_MS * (index + 1));
+  });
 }
 
 /**

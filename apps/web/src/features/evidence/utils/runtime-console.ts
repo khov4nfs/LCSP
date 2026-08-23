@@ -18,6 +18,7 @@ export type RuntimeConsoleStep = {
 export type RuntimeConsoleModel = {
   steps: RuntimeConsoleStep[];
   runningCount: number;
+  waitingCount: number;
   completedCount: number;
   failedCount: number;
   skippedCount: number;
@@ -46,9 +47,9 @@ export function buildRuntimeConsoleModel(
   activity: WorkspaceRuntimeActivityItem[],
 ): RuntimeConsoleModel {
   const latestByCorrelation = new Map<string, WorkspaceRuntimeActivityItem>();
-  
+
   for (const item of activity) {
-    const key = `${item.correlationId}:${item.stage}:${item.toolName || ""}`;
+    const key = `${item.runId}:${item.stage}:${item.toolName || ""}`;
     const existing = latestByCorrelation.get(key);
     if (!existing || compareRuntimeActivity(item, existing) > 0) {
       latestByCorrelation.set(key, item);
@@ -82,12 +83,23 @@ export function buildRuntimeConsoleModel(
 
   return {
     steps,
-    runningCount: steps.filter((step) => step.isActive).length,
+    runningCount: steps.filter(
+      (step) =>
+        step.isActive &&
+        step.item.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+    ).length,
+    waitingCount: steps.filter(
+      (step) =>
+        step.isActive &&
+        step.item.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
+    ).length,
     completedCount: steps.filter(
       (step) =>
-        step.item.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.completed ||
-        step.item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted ||
-        step.item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted,
+        !isWaitingRuntimeStep(step.item) &&
+        (step.item.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.completed ||
+          step.item.eventType ===
+            ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted ||
+          step.item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted),
     ).length,
     failedCount: steps.filter((step) => step.isFailed).length,
     skippedCount: steps.filter((step) => step.isSkipped).length,
@@ -105,6 +117,9 @@ export function isActiveRuntimeStatus(
 }
 
 function isActiveRuntimeStep(item: WorkspaceRuntimeActivityItem) {
+  if (isWaitingRuntimeStep(item)) {
+    return true;
+  }
   if (!isActiveRuntimeStatus(item.runStatus)) {
     return false;
   }
@@ -114,6 +129,14 @@ function isActiveRuntimeStep(item: WorkspaceRuntimeActivityItem) {
     item.eventType === events.runStageChanged ||
     item.eventType === events.toolStarted ||
     item.eventType === events.toolWaitingInput
+  );
+}
+
+function isWaitingRuntimeStep(item: WorkspaceRuntimeActivityItem) {
+  return (
+    item.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting ||
+    item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput ||
+    item.waitingReason !== null
   );
 }
 

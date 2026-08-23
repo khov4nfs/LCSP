@@ -1,13 +1,13 @@
 """Narrate an already-computed classification decision without changing it."""
 
-from lcsp_workers.llm.gateway_client import LLMGatewayClient
+from lcsp_workers.llm import LLMClientProtocol
 
 
 class RationaleNarrator:
     """Use an LLM only to explain deterministic classification results."""
 
-    def __init__(self, llm_client: LLMGatewayClient):
-        """Create a narrator backed by the worker LLM gateway.
+    def __init__(self, llm_client: LLMClientProtocol):
+        """Create a narrator backed by the worker Deep Agents runtime.
 
         Args:
             llm_client: Safety- and budget-aware client used for narration.

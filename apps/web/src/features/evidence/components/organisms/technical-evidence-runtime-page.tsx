@@ -7,12 +7,28 @@ import {
 } from "@lcsp/contracts/evidence";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
+import {
+  WIZARD_CLARIFICATION_QUESTION_IDS,
+  WIZARD_CLARIFICATION_QUESTIONS,
+  WIZARD_CLARIFICATION_REQUEST_KIND,
+  WIZARD_CLARIFICATION_REQUESTERS,
+  WIZARD_CLARIFICATION_SCOPES,
+} from "@lcsp/contracts/wizard";
+import type {
+  WizardClarificationAgentQuestion,
+  WizardClarificationQuestion,
+  WizardClarificationQuestionId,
+  WizardClarificationRequester,
+  WizardClarificationRequest,
+  WizardClarificationScope,
+} from "@lcsp/contracts/wizard";
 import { resolveMessage } from "@lcsp/i18n";
 import { ActivityIcon, BotIcon, RotateCcwIcon } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   buildRuntimeConsoleModel,
   isActiveRuntimeStatus,
@@ -44,14 +60,36 @@ type SummaryRecord = {
   [key: string]: unknown;
 };
 
-function SemanticSummary({ item, expanded }: { item: WorkspaceRuntimeActivityItem; expanded: boolean }) {
+type RuntimeClarificationRequest = Omit<
+  WizardClarificationRequest,
+  "questionIds"
+> & {
+  questionIds: WizardClarificationQuestionId[];
+  questions: WizardClarificationAgentQuestion[];
+};
+
+const RUNTIME_STEP_STATUS_SKIPPED = "skipped";
+const NOT_APPLICABLE_PROVENANCE_HASH = "sha256:not-applicable";
+const REPOSITORY_SCAN_STALE_AFTER_MS = 5 * 60 * 1000;
+
+function SemanticSummary({
+  item,
+  expanded,
+}: {
+  item: WorkspaceRuntimeActivityItem;
+  expanded: boolean;
+}) {
   const input = (item.inputSummary || {}) as SummaryRecord;
   const output = (item.outputSummary || {}) as SummaryRecord;
   const tool = input.tool || output.tool || item.toolName;
-  const isLlm = input.operation === "complete_with_tools" || output.operation === "complete_with_tools" || item.eventType === "LLM_REQUEST" || item.eventType === "LLM_RESPONSE";
-  
+  const isLlm =
+    input.operation === "complete_with_tools" ||
+    output.operation === "complete_with_tools" ||
+    item.eventType === "LLM_REQUEST" ||
+    item.eventType === "LLM_RESPONSE";
+
   let summary = item.summary;
-  
+
   if (isLlm) {
     summary = "Agent reasoning with LLM";
   } else if (tool === "search_nodes") {
@@ -77,16 +115,41 @@ function SemanticSummary({ item, expanded }: { item: WorkspaceRuntimeActivityIte
   );
 }
 
-function SemanticRuntimeDetails({ item }: { item: WorkspaceRuntimeActivityItem }) {
+function SemanticRuntimeDetails({
+  item,
+}: {
+  item: WorkspaceRuntimeActivityItem;
+}) {
   const input = (item.inputSummary || {}) as SummaryRecord;
   const output = (item.outputSummary || {}) as SummaryRecord;
-  
-  const isLlm = input.operation === "complete_with_tools" || output.operation === "complete_with_tools" || item.eventType === "LLM_REQUEST" || item.eventType === "LLM_RESPONSE";
+  const clarificationRequest = parseClarificationRequest(item);
+
+  if (clarificationRequest !== null) {
+    return (
+      <RuntimeClarificationRequestCard
+        item={item}
+        request={clarificationRequest}
+      />
+    );
+  }
+
+  const isLlm =
+    input.operation === "complete_with_tools" ||
+    output.operation === "complete_with_tools" ||
+    item.eventType === "LLM_REQUEST" ||
+    item.eventType === "LLM_RESPONSE";
   const tool = input.tool || output.tool || item.toolName;
 
   if (isLlm) {
-    const isResponse = !!output.output_tokens || !!output.request_id || item.eventType === 'toolCompleted' || item.eventType === 'LLM_RESPONSE';
-    const model = output.model || input.model || (input.model_chain ? input.model_chain[0] : "unknown-model");
+    const isResponse =
+      !!output.output_tokens ||
+      !!output.request_id ||
+      item.eventType === "toolCompleted" ||
+      item.eventType === "LLM_RESPONSE";
+    const model =
+      output.model ||
+      input.model ||
+      (input.model_chain ? input.model_chain[0] : "unknown-model");
     const nodeName = input.node_name || output.node_name;
     const toolCount = output.tool_call_count;
     const toolNames = input.tool_names || [];
@@ -100,20 +163,27 @@ function SemanticRuntimeDetails({ item }: { item: WorkspaceRuntimeActivityItem }
           </div>
           <div className="mt-2 space-y-1.5 opacity-90">
             <p>
-              Model: <span className="font-semibold text-indigo-700">{model}</span>
+              Model:{" "}
+              <span className="font-semibold text-indigo-700">{model}</span>
             </p>
             {nodeName ? (
               <p>
-                Analyzing Node: <span className="text-indigo-700">{nodeName}</span>
+                Analyzing Node:{" "}
+                <span className="text-indigo-700">{nodeName}</span>
               </p>
             ) : null}
             {!isResponse ? (
               <p>
-                Available Tools: <span className="text-indigo-700">{toolNames.join(", ")}</span>
+                Available Tools:{" "}
+                <span className="text-indigo-700">{toolNames.join(", ")}</span>
               </p>
             ) : (
               <p>
-                Agent executed <span className="font-semibold text-indigo-700">{toolCount || 0}</span> tool call(s).
+                Agent executed{" "}
+                <span className="font-semibold text-indigo-700">
+                  {toolCount || 0}
+                </span>{" "}
+                tool call(s).
               </p>
             )}
           </div>
@@ -125,27 +195,60 @@ function SemanticRuntimeDetails({ item }: { item: WorkspaceRuntimeActivityItem }
   if (tool === "search_nodes" || tool === "list_observations") {
     const args = input.arguments || output.arguments || input;
     const result = output.result || output;
-    
+
     let actionText: React.ReactNode = "";
     let resultText: React.ReactNode = "";
-    
+
     if (tool === "search_nodes") {
-      actionText = args?.text 
-        ? <>Searched graph for: <span className="font-semibold text-blue-700">&quot;{String(args.text)}&quot;</span></>
-        : <>Executed graph search</>;
-        
+      actionText = args?.text ? (
+        <>
+          Searched graph for:{" "}
+          <span className="font-semibold text-blue-700">
+            &quot;{String(args.text)}&quot;
+          </span>
+        </>
+      ) : (
+        <>Executed graph search</>
+      );
+
       if (result?.observationId) {
-        resultText = <>Retrieved observation <span className="font-semibold text-emerald-700">{String(result.observationId)}</span>.</>;
+        resultText = (
+          <>
+            Retrieved observation{" "}
+            <span className="font-semibold text-emerald-700">
+              {String(result.observationId)}
+            </span>
+            .
+          </>
+        );
       } else if (result?.error) {
-        resultText = <span className="text-red-600">Error: {String(result.error)}</span>;
+        resultText = (
+          <span className="text-red-600">Error: {String(result.error)}</span>
+        );
       }
     } else if (tool === "list_observations") {
-      actionText = args?.limit
-        ? <>Requested up to <span className="font-semibold text-blue-700">{String(args.limit)}</span> observations.</>
-        : <>Requested list of observations.</>;
-        
+      actionText = args?.limit ? (
+        <>
+          Requested up to{" "}
+          <span className="font-semibold text-blue-700">
+            {String(args.limit)}
+          </span>{" "}
+          observations.
+        </>
+      ) : (
+        <>Requested list of observations.</>
+      );
+
       if (result?.total !== undefined) {
-        resultText = <>Found <span className="font-semibold text-emerald-700">{String(result.total)}</span> total observations.</>;
+        resultText = (
+          <>
+            Found{" "}
+            <span className="font-semibold text-emerald-700">
+              {String(result.total)}
+            </span>{" "}
+            total observations.
+          </>
+        );
       }
     }
 
@@ -154,7 +257,9 @@ function SemanticRuntimeDetails({ item }: { item: WorkspaceRuntimeActivityItem }
         <div className="rounded-md border border-blue-200 bg-blue-50/50 p-3 font-mono text-xs text-blue-900 shadow-sm">
           <div className="flex items-center gap-2 font-semibold">
             <ActivityIcon className="size-4 text-blue-600" />
-            <span>{tool === "search_nodes" ? "Graph Search" : "List Observations"}</span>
+            <span>
+              {tool === "search_nodes" ? "Graph Search" : "List Observations"}
+            </span>
           </div>
           <div className="mt-2 space-y-1.5 opacity-90">
             <p>{actionText}</p>
@@ -169,6 +274,100 @@ function SemanticRuntimeDetails({ item }: { item: WorkspaceRuntimeActivityItem }
   return <RuntimeDetailList item={item} />;
 }
 
+function RuntimeClarificationRequestCard({
+  item,
+  request,
+}: {
+  item: WorkspaceRuntimeActivityItem;
+  request: RuntimeClarificationRequest;
+}) {
+  const questions = request.questionIds
+    .map(findClarificationQuestion)
+    .filter(isClarificationQuestion);
+  const agentQuestions = request.questions;
+
+  return (
+    <div className="px-4 pb-3 md:pl-36">
+      <div className="rounded-md border border-sky-200 bg-sky-50/70 p-3 font-mono text-xs text-sky-950 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 font-semibold">
+              <ActivityIcon className="size-4 text-sky-600" />
+              <span>
+                {t("pages.technicalEvidence.clarificationRequestTitle")}
+              </span>
+            </div>
+            <p className="mt-1 max-w-3xl text-sky-900/80">
+              {t("pages.technicalEvidence.clarificationRequestDescription")}
+            </p>
+          </div>
+          <Link
+            className={buttonVariants({ size: "sm", variant: "outline" })}
+            href={`/assessments/${encodeURIComponent(item.assessmentId)}/wizard`}
+          >
+            {t("pages.technicalEvidence.clarificationRequestOpenWizard")}
+          </Link>
+        </div>
+        <dl className="mt-3 grid gap-1.5 text-sky-900/90 sm:grid-cols-2">
+          <div className="grid gap-0.5">
+            <dt className="text-sky-700/80">
+              {t("pages.technicalEvidence.clarificationRequestScopeLabel")}
+            </dt>
+            <dd>{request.scope}</dd>
+          </div>
+          <div className="grid gap-0.5">
+            <dt className="text-sky-700/80">
+              {t("pages.technicalEvidence.clarificationRequestReasonLabel")}
+            </dt>
+            <dd>{request.reasonCode}</dd>
+          </div>
+        </dl>
+        {questions.length > 0 ? (
+          <ul className="mt-3 grid gap-2">
+            {questions.map((question) => (
+              <li
+                className="rounded border border-sky-200 bg-white/80 px-3 py-2"
+                key={question.id}
+              >
+                <p className="font-semibold text-sky-950">
+                  {t(question.labelKey)}
+                </p>
+                <p className="mt-1 text-sky-900/80">{t(question.detailKey)}</p>
+                <p className="mt-2 text-sky-700/80">
+                  {t(
+                    "pages.technicalEvidence.clarificationCollectionRuleLabel",
+                  )}
+                  : {t(question.collectionRuleKey)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {agentQuestions.length > 0 ? (
+          <ul className="mt-3 grid gap-2">
+            {agentQuestions.map((question) => (
+              <li
+                className="rounded border border-sky-200 bg-white/80 px-3 py-2"
+                key={question.id}
+              >
+                <p className="font-semibold text-sky-950">{question.text}</p>
+                <p className="mt-1 text-sky-900/80">
+                  {t("pages.technicalEvidence.clarificationRequestReasonLabel")}
+                  : {question.reasonCode}
+                </p>
+                <p className="mt-1 text-sky-700/80">
+                  {question.targetFieldName ?? question.targetKind} ·{" "}
+                  {Math.round(question.routingConfidence * 100)}%
+                </p>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export function TechnicalEvidenceRuntimePage({
   assessmentId,
 }: {
@@ -177,6 +376,9 @@ export function TechnicalEvidenceRuntimePage({
   const runtime = useWorkspaceRuntime();
   const scanJobs = runtime.scanJobs.filter(
     (scanJob) => scanJob.assessmentId === assessmentId,
+  );
+  const repositorySnapshots = runtime.repositorySnapshots.filter(
+    (snapshot) => snapshot.assessmentId === assessmentId,
   );
   const reports = runtime.evidenceReports.filter(
     (report) => report.assessmentId === assessmentId,
@@ -197,21 +399,45 @@ export function TechnicalEvidenceRuntimePage({
   const showOrchestration =
     activeCurrentRun !== null || consoleModel.steps.length > 0;
   const rerunMutation = useRerunRepositoryScanMutation(assessmentId);
+  const rerunSnapshotId = latestScan?.snapshotId ?? repositorySnapshots[0]?.id;
+  const hasActiveScan = scanJobs.some(isFreshActiveScanJob);
+  const rerunDisabled =
+    hasActiveScan || rerunSnapshotId === undefined || rerunMutation.isPending;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-6 lg:px-6">
-      <header className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-heading text-3xl font-semibold tracking-tight">
-            {t("pages.technicalEvidence.pageTitle")}
-          </h1>
-          <Badge variant={connectionBadgeVariant(runtime.connectionState)}>
-            {connectionLabel(runtime.connectionState)}
-          </Badge>
+      <header className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="font-heading text-3xl font-semibold tracking-tight">
+                {t("pages.technicalEvidence.pageTitle")}
+              </h1>
+              <Badge variant={connectionBadgeVariant(runtime.connectionState)}>
+                {connectionLabel(runtime.connectionState)}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {t("pages.technicalEvidence.pageDescription")}
+            </p>
+          </div>
+          <Button
+            disabled={rerunDisabled}
+            onClick={() => {
+              if (!rerunDisabled && rerunSnapshotId !== undefined) {
+                rerunMutation.mutate({ snapshotId: rerunSnapshotId });
+              }
+            }}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <RotateCcwIcon />
+            {rerunMutation.isPending
+              ? t("pages.technicalEvidence.rerunningScan")
+              : t("pages.technicalEvidence.rerunScan")}
+          </Button>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {t("pages.technicalEvidence.pageDescription")}
-        </p>
       </header>
 
       {showOrchestration ? (
@@ -250,22 +476,6 @@ export function TechnicalEvidenceRuntimePage({
               ? t("pages.technicalEvidence.awaitingEvent")
               : `${t("pages.technicalEvidence.lastUpdated")}: ${formatDate(runtime.emittedAt)}`}
           </span>
-          <Button
-            disabled={latestScan === undefined || rerunMutation.isPending}
-            onClick={() => {
-              if (latestScan !== undefined) {
-                rerunMutation.mutate({ snapshotId: latestScan.snapshotId });
-              }
-            }}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <RotateCcwIcon />
-            {rerunMutation.isPending
-              ? t("pages.technicalEvidence.rerunningScan")
-              : t("pages.technicalEvidence.rerunScan")}
-          </Button>
         </div>
         {rerunMutation.isError && (
           <p className="border-b px-4 py-3 text-sm text-destructive">
@@ -278,30 +488,36 @@ export function TechnicalEvidenceRuntimePage({
           </p>
         ) : (
           <ul className="max-h-80 divide-y overflow-y-auto">
-            {scanJobs.map((scanJob, index) => (
-              <li
-                className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
-                key={scanJob.id}
-              >
-                <div className="min-w-0">
-                  <p className="text-sm font-medium">
-                    {t("pages.technicalEvidence.scanJobLabel")} #{scanJobs.length - index}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t("pages.technicalEvidence.updatedAt")}:{" "}
-                    {formatDate(scanJob.updatedAt)}
-                  </p>
-                  {scanJob.blockedReason !== null && (
-                    <p className="mt-1 text-xs text-destructive">
-                      {scanJob.blockedReason}
+            {scanJobs.map((scanJob, index) => {
+              const displayStatus = isStaleActiveScanJob(scanJob)
+                ? REPOSITORY_SCAN_JOB_STATUSES.failed
+                : scanJob.status;
+              return (
+                <li
+                  className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+                  key={scanJob.id}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">
+                      {t("pages.technicalEvidence.scanJobLabel")} #
+                      {scanJobs.length - index}
                     </p>
-                  )}
-                </div>
-                <Badge variant={scanBadgeVariant(scanJob.status)}>
-                  {scanStatusLabel(scanJob.status)}
-                </Badge>
-              </li>
-            ))}
+                    <p className="text-xs text-muted-foreground">
+                      {t("pages.technicalEvidence.updatedAt")}:{" "}
+                      {formatDate(scanJob.updatedAt)}
+                    </p>
+                    {scanJob.blockedReason !== null && (
+                      <p className="mt-1 text-xs text-destructive">
+                        {scanJob.blockedReason}
+                      </p>
+                    )}
+                  </div>
+                  <Badge variant={scanBadgeVariant(displayStatus)}>
+                    {scanStatusLabel(displayStatus)}
+                  </Badge>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -325,8 +541,8 @@ export function TechnicalEvidenceRuntimePage({
               >
                 <div className="min-w-0">
                   <p className="text-sm font-medium">
-                    {t("pages.technicalEvidence.evidenceReportLabel")}{" "}
-                    #{reports.length - index}
+                    {t("pages.technicalEvidence.evidenceReportLabel")} #
+                    {reports.length - index}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {t("pages.technicalEvidence.createdAt")}:{" "}
@@ -401,17 +617,33 @@ function RuntimeConsole({
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-3 font-mono text-xs">
-            <span className="text-emerald-600">
-              {model.runningCount > 0 ? `${model.runningCount} running` : null}
-            </span>
+            {model.runningCount > 0 ? (
+              <span className="text-emerald-600">
+                {model.runningCount}{" "}
+                {t("pages.technicalEvidence.runningStepsLabel")}
+              </span>
+            ) : null}
+            {model.waitingCount > 0 ? (
+              <span className="text-sky-600">
+                {model.waitingCount}{" "}
+                {t("pages.technicalEvidence.waitingStepsLabel")}
+              </span>
+            ) : null}
             <span className="text-zinc-400">
-              {model.completedCount} done
+              {model.completedCount}{" "}
+              {t("pages.technicalEvidence.completedStepsLabel")}
             </span>
             {model.failedCount > 0 ? (
-              <span className="text-amber-600">{model.failedCount} failed</span>
+              <span className="text-amber-600">
+                {model.failedCount}{" "}
+                {t("pages.technicalEvidence.failedStepsLabel")}
+              </span>
             ) : null}
             {model.skippedCount > 0 ? (
-              <span className="text-zinc-400">{model.skippedCount} skipped</span>
+              <span className="text-zinc-400">
+                {model.skippedCount}{" "}
+                {t("pages.technicalEvidence.skippedStepsLabel")}
+              </span>
             ) : null}
           </div>
         </div>
@@ -423,7 +655,10 @@ function RuntimeConsole({
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-white to-transparent" />
         <div
           className="h-96 overflow-y-auto scroll-smooth py-2"
-          style={{ scrollbarColor: "#d4d4d8 transparent", scrollbarWidth: "thin" }}
+          style={{
+            scrollbarColor: "#d4d4d8 transparent",
+            scrollbarWidth: "thin",
+          }}
         >
           <ul className="flex flex-col">
             {model.steps.map((step) => (
@@ -440,8 +675,6 @@ function RuntimeConsole({
     </div>
   );
 }
-
-
 
 function RuntimeConsoleStepItem({ step }: { step: RuntimeConsoleStep }) {
   const [expanded, setExpanded] = useState(step.defaultExpanded);
@@ -464,7 +697,7 @@ function RuntimeConsoleStepItem({ step }: { step: RuntimeConsoleStep }) {
 
   let badgeStatus: string;
   if (item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped) {
-    badgeStatus = "skipped";
+    badgeStatus = RUNTIME_STEP_STATUS_SKIPPED;
   } else if (
     item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed ||
     item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runFailed ||
@@ -473,7 +706,8 @@ function RuntimeConsoleStepItem({ step }: { step: RuntimeConsoleStep }) {
     badgeStatus = ASSESSMENT_RUNTIME_RUN_STATUSES.failed;
   } else if (
     item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput ||
-    (step.isActive && item.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting)
+    item.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting ||
+    item.waitingReason !== null
   ) {
     badgeStatus = ASSESSMENT_RUNTIME_RUN_STATUSES.waiting;
   } else if (
@@ -517,7 +751,9 @@ function RuntimeConsoleStepItem({ step }: { step: RuntimeConsoleStep }) {
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 flex-wrap items-baseline gap-2">
             <span className={`font-mono text-xs ${prefixColor}`}>›</span>
-            <span className={`min-w-0 truncate font-mono text-sm ${titleColor}`}>
+            <span
+              className={`min-w-0 truncate font-mono text-sm ${titleColor}`}
+            >
               {runtimeStepTitle(item)}
               {step.isActive ? <AnimatedDots /> : null}
             </span>
@@ -543,7 +779,10 @@ function RuntimeConsoleStepItem({ step }: { step: RuntimeConsoleStep }) {
               {t("pages.technicalEvidence.nonBlockingFailureLabel")}
             </Badge>
           ) : null}
-          <Badge variant={runtimeStatusBadgeVariant(badgeStatus)} className="text-xs">
+          <Badge
+            variant={runtimeStatusBadgeVariant(badgeStatus)}
+            className="text-xs"
+          >
             {runtimeStatusLabel(badgeStatus)}
           </Badge>
         </div>
@@ -621,6 +860,125 @@ function RuntimeDetailList({ item }: { item: WorkspaceRuntimeActivityItem }) {
       </dl>
     </div>
   );
+}
+
+function parseClarificationRequest(
+  item: WorkspaceRuntimeActivityItem,
+): RuntimeClarificationRequest | null {
+  const candidates = [item.outputSummary, item.inputSummary];
+  for (const candidate of candidates) {
+    if (!isSummaryRecord(candidate)) {
+      continue;
+    }
+    if (candidate.kind !== WIZARD_CLARIFICATION_REQUEST_KIND) {
+      continue;
+    }
+    if (!isClarificationScope(candidate.scope)) {
+      continue;
+    }
+    if (!isClarificationRequester(candidate.requestedBy)) {
+      continue;
+    }
+    if (typeof candidate.reasonCode !== "string") {
+      continue;
+    }
+    const questionIds = Array.isArray(candidate.questionIds)
+      ? candidate.questionIds.filter(isClarificationQuestionId)
+      : [];
+    const questions = Array.isArray(candidate.questions)
+      ? candidate.questions.filter(isAgentQuestion)
+      : [];
+
+    if (questionIds.length === 0 && questions.length === 0) {
+      continue;
+    }
+
+    return {
+      kind: WIZARD_CLARIFICATION_REQUEST_KIND,
+      scope: candidate.scope,
+      requestedBy: candidate.requestedBy,
+      reasonCode: candidate.reasonCode,
+      questionIds,
+      questions,
+    };
+  }
+
+  return null;
+}
+
+function isSummaryRecord(
+  value: WorkspaceRuntimeSummaryValue | null,
+): value is Record<string, WorkspaceRuntimeSummaryValue> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isClarificationQuestionId(
+  value: WorkspaceRuntimeSummaryValue,
+): value is WizardClarificationQuestionId {
+  return (
+    typeof value === "string" &&
+    Object.values(WIZARD_CLARIFICATION_QUESTION_IDS).includes(
+      value as WizardClarificationQuestionId,
+    )
+  );
+}
+
+function isClarificationScope(
+  value: WorkspaceRuntimeSummaryValue,
+): value is WizardClarificationScope {
+  return (
+    typeof value === "string" &&
+    Object.values(WIZARD_CLARIFICATION_SCOPES).includes(
+      value as WizardClarificationScope,
+    )
+  );
+}
+
+function isClarificationRequester(
+  value: WorkspaceRuntimeSummaryValue,
+): value is WizardClarificationRequester {
+  return (
+    typeof value === "string" &&
+    Object.values(WIZARD_CLARIFICATION_REQUESTERS).includes(
+      value as WizardClarificationRequester,
+    )
+  );
+}
+
+function isAgentQuestion(
+  value: WorkspaceRuntimeSummaryValue,
+): value is WizardClarificationAgentQuestion {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  return (
+    typeof value.id === "string" &&
+    typeof value.text === "string" &&
+    typeof value.language === "string" &&
+    typeof value.targetKind === "string" &&
+    typeof value.severity === "string" &&
+    typeof value.reasonCode === "string" &&
+    Array.isArray(value.evidenceRefs) &&
+    value.evidenceRefs.every((item) => typeof item === "string") &&
+    typeof value.status === "string" &&
+    typeof value.routingMethod === "string" &&
+    typeof value.routingConfidence === "number" &&
+    typeof value.answerControl === "string"
+  );
+}
+
+function findClarificationQuestion(
+  questionId: WizardClarificationQuestionId,
+): WizardClarificationQuestion | undefined {
+  return WIZARD_CLARIFICATION_QUESTIONS.find(
+    (question) => question.id === questionId,
+  );
+}
+
+function isClarificationQuestion(
+  value: WizardClarificationQuestion | undefined,
+): value is WizardClarificationQuestion {
+  return value !== undefined;
 }
 
 function AnimatedDots() {
@@ -725,9 +1083,15 @@ function connectionLabel(state: WorkspaceRuntimeConnectionState) {
 }
 
 function scanBadgeVariant(status: string) {
-  return status === REPOSITORY_SCAN_JOB_STATUSES.completed
-    ? "default"
-    : "secondary";
+  if (status === REPOSITORY_SCAN_JOB_STATUSES.completed) return "default";
+  if (
+    status === REPOSITORY_SCAN_JOB_STATUSES.failed ||
+    status === REPOSITORY_SCAN_JOB_STATUSES.blocked ||
+    status === REPOSITORY_SCAN_JOB_STATUSES.blockedMapping
+  ) {
+    return "destructive";
+  }
+  return "secondary";
 }
 
 function scanStatusLabel(status: string) {
@@ -743,6 +1107,30 @@ function scanStatusLabel(status: string) {
   if (status === statuses.blocked)
     return t("pages.technicalEvidence.scanStatuses.blocked");
   return t("pages.technicalEvidence.scanStatuses.pending");
+}
+
+function isFreshActiveScanJob(scanJob: { status: string; updatedAt: string }) {
+  return (
+    isActiveScanJobStatus(scanJob.status) && !isStaleActiveScanJob(scanJob)
+  );
+}
+
+function isStaleActiveScanJob(scanJob: { status: string; updatedAt: string }) {
+  if (!isActiveScanJobStatus(scanJob.status)) {
+    return false;
+  }
+  const updatedAt = new Date(scanJob.updatedAt).getTime();
+  return (
+    Number.isFinite(updatedAt) &&
+    Date.now() - updatedAt > REPOSITORY_SCAN_STALE_AFTER_MS
+  );
+}
+
+function isActiveScanJobStatus(status: string) {
+  return (
+    status === REPOSITORY_SCAN_JOB_STATUSES.queued ||
+    status === REPOSITORY_SCAN_JOB_STATUSES.running
+  );
 }
 
 function reportStatusLabel(status: string) {
@@ -767,8 +1155,8 @@ function runtimeStatusLabel(status: string) {
     return t("pages.technicalEvidence.runtimeStatuses.completed");
   if (status === statuses.failed)
     return t("pages.technicalEvidence.runtimeStatuses.failed");
-  if (status === "skipped")
-    return "Skipped";
+  if (status === RUNTIME_STEP_STATUS_SKIPPED)
+    return t("pages.technicalEvidence.runtimeStatuses.skipped");
   return status;
 }
 
@@ -822,6 +1210,9 @@ function runtimeEventLabel(eventType: string) {
 
 function formatSummaryValue(value: WorkspaceRuntimeSummaryValue) {
   if (typeof value === "string") {
+    if (value === NOT_APPLICABLE_PROVENANCE_HASH) {
+      return t("pages.technicalEvidence.notApplicableValueLabel");
+    }
     return value;
   }
   if (value === null) {

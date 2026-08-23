@@ -51,6 +51,45 @@ CLAIM_VALUE_BY_TYPE: dict[str, bool | None] = {
 }
 
 
+def summarize_investigation_tool_result(result: Any) -> dict[str, object]:
+    """Return bounded counters for terminal-safe investigation tool telemetry."""
+    if not isinstance(result, dict):
+        return {"result_type": type(result).__name__}
+
+    summary: dict[str, object] = {}
+    for key in (
+        "error",
+        "observationId",
+        "truncated",
+        "total",
+        "nextOffset",
+        "requestedOffset",
+        "autoAdvanced",
+    ):
+        if key in result:
+            summary[key] = result[key]
+
+    preview = result.get("preview")
+    if isinstance(preview, list):
+        summary["preview_count"] = len(preview)
+
+    items = result.get("items")
+    if isinstance(items, list):
+        summary["item_count"] = len(items)
+
+    results = result.get("results")
+    if isinstance(results, list):
+        summary["result_count"] = len(results)
+
+    summary_data = result.get("summary")
+    if isinstance(summary_data, dict):
+        available_sections = summary_data.get("availableSections")
+        if isinstance(available_sections, list):
+            summary["available_sections"] = available_sections
+
+    return summary or {"keys": sorted(str(key) for key in result.keys())}
+
+
 class LawGuidedInvestigator:
     """Let the LLM investigate graph evidence through orchestrator-owned state.
 
@@ -105,16 +144,11 @@ class LawGuidedInvestigator:
                 continue
 
             for call in response.tool_calls:
-                arguments = self._bounded_debug(call.arguments)
                 logger.info(
                     "ENGINEERING_INVESTIGATION_TOOL_CALL",
                     engineering_rule_id=packet.engineering_rule_id,
                     step=step + 1,
                     tool=call.name,
-                    call_id=call.call_id,
-                    arguments=arguments,
-                    graph_tool_calls_used=graph_tool_calls_used,
-                    ledger_observation_count=ledger.total,
                     workflow_run_id=workflow_run_id,
                     correlationId=correlation_id,
                 )
@@ -201,8 +235,7 @@ class LawGuidedInvestigator:
                     engineering_rule_id=packet.engineering_rule_id,
                     step=step + 1,
                     tool=call.name,
-                    call_id=call.call_id,
-                    result=working_result,
+                    result_summary=summarize_investigation_tool_result(working_result),
                     graph_tool_calls_used=graph_tool_calls_used,
                     ledger_observation_count=ledger.total,
                     workflow_run_id=workflow_run_id,

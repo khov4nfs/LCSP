@@ -30,6 +30,7 @@ import {
   type StartRepositoryAnalysisInput,
 } from "./repository-analysis-client";
 import {
+  generateWizardClarificationQuestions,
   getWizardAssessment,
   saveWizardDraft,
   submitWizard,
@@ -143,6 +144,15 @@ export function useSubmitWizardMutation(assessmentId: string) {
   return useMutation({
     mutationFn: (answers: WizardAnswer[]) =>
       submitWizard(assessmentId, answers),
+  });
+}
+
+export function useGenerateWizardClarificationQuestionsMutation(
+  assessmentId: string,
+) {
+  return useMutation({
+    mutationFn: (answers: WizardAnswer[]) =>
+      generateWizardClarificationQuestions(assessmentId, answers),
   });
 }
 

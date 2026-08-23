@@ -129,7 +129,7 @@ export class AcceptAIUsageFlowHandler implements ICommandHandler<AcceptAIUsageFl
             schemaVersion: payload.schema_version,
             providerVersion: payload.provider_version,
             // The public callback claim contract is intentionally compact, but the
-            // Python worker also sends sanitized `flow_data.claims` containing the
+            // Managed Agent callback also sends sanitized `flow_data.claims` containing the
             // deterministic claim field/value/lifecycle/numeric confidence. Join
             // those details by claim_id before persistence so reconciliation/legal
             // matching does not have to guess values from descriptions later.

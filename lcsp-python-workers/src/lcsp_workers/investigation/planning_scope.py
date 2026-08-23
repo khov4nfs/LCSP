@@ -9,7 +9,10 @@ from lcsp_workers.legal.engineering_rules.models import EngineeringRule
 from lcsp_workers.scanner.program_graph.models import ProgramEvidenceGraph
 
 from .engineering_rule_planner import EngineeringRulePlanningCandidate
-from .material_scope import MaterialEngineeringRulePlanner
+from .material_scope import (
+    MaterialEngineeringRulePlanner,
+    is_internal_llm_runtime_node,
+)
 from .models import InvestigationPacket
 
 
@@ -72,6 +75,7 @@ class ScopedEngineeringRulePlanningCandidate(EngineeringRulePlanningCandidate):
             legal_intent=base.legal_intent,
             investigation_goals=base.investigation_goals,
             required_evidence=base.required_evidence,
+            legal_reasoning_contract=base.legal_reasoning_contract,
             starting_node_types=base.starting_node_types,
             target_node_types=base.target_node_types,
             source_hit_count=base.source_hit_count,
@@ -106,12 +110,15 @@ class ScopedMaterialEngineeringRulePlanner(MaterialEngineeringRulePlanner):
         node_types = Counter(
             str(node.get("node_type"))
             for node in graph.nodes
-            if isinstance(node, dict) and node.get("node_type")
+            if isinstance(node, dict)
+            and node.get("node_type")
+            and not is_internal_llm_runtime_node(node)
         )
         semantic_types = Counter(
             str(value)
             for node in graph.nodes
             if isinstance(node, dict)
+            and not is_internal_llm_runtime_node(node)
             for value in (node.get("semantic_types") or [])
             if value
         )
@@ -125,6 +132,10 @@ class ScopedMaterialEngineeringRulePlanner(MaterialEngineeringRulePlanner):
             "nodeTypes": dict(node_types.most_common(40)),
             "semanticTypes": dict(semantic_types.most_common(40)),
             "coverageAuthority": "PER_RULE_SCOPE_COVERAGE_ONLY",
+            "internalRuntimePolicy": (
+                "LCSP worker LLM gateway/runtime nodes are excluded from Planner "
+                "repositoryEvidenceSummary."
+            ),
         }
 
     @classmethod
@@ -133,11 +144,12 @@ class ScopedMaterialEngineeringRulePlanner(MaterialEngineeringRulePlanner):
         candidates: tuple[EngineeringRulePlanningCandidate, ...],
         wizard_context: dict[str, Any] | None,
         graph: ProgramEvidenceGraph,
+        openwiki_context: dict[str, Any] | None = None,
     ) -> str:
         return (
             "Coverage rule: use each engineering rule's scopeCoverage only. Repository-wide "
             "scanner limitations, unrelated unresolved framework boundaries, and global LIMITED "
             "state are diagnostics and MUST NOT justify SELECT/UNCERTAIN_SCOPE_INVESTIGATE for "
             "another rule. A scopeCoverage.state of UNRESOLVED is relevant only for that rule.\n\n"
-            + super()._prompt(candidates, wizard_context, graph)
+            + super()._prompt(candidates, wizard_context, graph, openwiki_context)
         )

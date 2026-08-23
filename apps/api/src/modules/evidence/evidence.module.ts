@@ -7,7 +7,6 @@ import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guar
 import { AcceptTechnicalProfileHandler } from "./application/commands/accept-technical-profile/accept-technical-profile.handler.js";
 import { GetEvidenceHandler } from "./application/queries/get-evidence/get-evidence.handler.js";
 import { EvidenceRedactorService } from "./application/services/evidence/evidence-redactor.service.js";
-import { PythonWorkerRuntimeClient } from "./application/services/evidence/python-worker-runtime.client.js";
 import { InternalAgenticToolDispatchController } from "./presentation/http/agentic-tool-dispatch.controller.js";
 import {
   EvidenceController,
@@ -16,8 +15,8 @@ import {
 
 /**
  * Nest evidence module owns persistence/read boundaries only. Program graph traversal,
- * data/decision analysis, provider discovery and remediation processing execute in the
- * Python worker and therefore are intentionally not registered as Nest CQRS handlers.
+ * data/decision analysis, provider discovery and remediation processing execute through
+ * Managed Deep Agent tools and therefore are intentionally not registered as Nest CQRS handlers.
  */
 @Module({
   imports: [CqrsModule, PbacModule],
@@ -30,7 +29,6 @@ import {
     GetEvidenceHandler,
     AcceptTechnicalProfileHandler,
     EvidenceRedactorService,
-    PythonWorkerRuntimeClient,
     WorkerApiKeyGuard,
     AssessmentRuntimeEventService,
   ],

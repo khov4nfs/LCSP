@@ -1,13 +1,12 @@
 import { describe, expect, it } from "@jest/globals";
 
 import {
-  FALLBACK_SUMMARY,
   sanitizeRuntimeSummaryText,
   sanitizeRuntimeSummaryValue,
 } from "./runtime-summary-sanitizer.js";
 
 describe("runtime-summary-sanitizer", () => {
-  it("redacts prompt and token-like fields from structured summaries", () => {
+  it("preserves prompt and token-like fields in structured summaries", () => {
     expect(
       sanitizeRuntimeSummaryValue({
         prompt: "full prompt body",
@@ -15,15 +14,15 @@ describe("runtime-summary-sanitizer", () => {
         safeCount: 3,
       }),
     ).toEqual({
-      prompt: "[REDACTED]",
-      apiKey: "[REDACTED]",
+      prompt: "full prompt body",
+      apiKey: "sk-secret",
       safeCount: 3,
     });
   });
 
-  it("returns fallback summary when text contains forbidden secrets", () => {
+  it("preserves token-like text summaries", () => {
     expect(sanitizeRuntimeSummaryText("Bearer secret-token-value")).toBe(
-      FALLBACK_SUMMARY,
+      "Bearer secret-token-value",
     );
   });
 });

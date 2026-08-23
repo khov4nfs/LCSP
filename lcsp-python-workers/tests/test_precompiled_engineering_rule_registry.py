@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -56,10 +57,22 @@ def _legal_rule() -> dict:
     }
 
 
-def test_registry_recovers_exact_grounded_rule_from_bundle(tmp_path) -> None:
+def _registry(tmp_path: Path, bundle: dict) -> PrecompiledEngineeringRuleRegistry:
     bundle_path = tmp_path / "engineering-rules.json"
-    bundle_path.write_text(json.dumps(_bundle()), encoding="utf-8")
-    registry = PrecompiledEngineeringRuleRegistry(str(bundle_path))
+    bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
+    # Custom unit-test bundles do not depend on the generated governed production
+    # overlay. An empty, explicit overlay keeps production's missing-file fail-closed
+    # behavior intact while allowing this registry test to own all of its inputs.
+    overrides_path = tmp_path / "contract-overrides.json"
+    overrides_path.write_text("{}", encoding="utf-8")
+    return PrecompiledEngineeringRuleRegistry(
+        str(bundle_path),
+        contract_overrides_path=str(overrides_path),
+    )
+
+
+def test_registry_recovers_exact_grounded_rule_from_bundle(tmp_path: Path) -> None:
+    registry = _registry(tmp_path, _bundle())
 
     rules = registry.materialize(
         legal_rule=_legal_rule(),
@@ -79,10 +92,8 @@ def test_registry_recovers_exact_grounded_rule_from_bundle(tmp_path) -> None:
     assert rule.compiler_model == "precompiled:test"
 
 
-def test_registry_fails_closed_when_active_chunk_hash_differs(tmp_path) -> None:
-    bundle_path = tmp_path / "engineering-rules.json"
-    bundle_path.write_text(json.dumps(_bundle()), encoding="utf-8")
-    registry = PrecompiledEngineeringRuleRegistry(str(bundle_path))
+def test_registry_fails_closed_when_active_chunk_hash_differs(tmp_path: Path) -> None:
+    registry = _registry(tmp_path, _bundle())
 
     with pytest.raises(
         ValueError,
@@ -97,12 +108,10 @@ def test_registry_fails_closed_when_active_chunk_hash_differs(tmp_path) -> None:
         )
 
 
-def test_registry_fails_closed_when_runtime_contract_differs(tmp_path) -> None:
+def test_registry_fails_closed_when_runtime_contract_differs(tmp_path: Path) -> None:
     bundle = _bundle()
     bundle["promptVersion"] = "different-prompt-contract"
-    bundle_path = tmp_path / "engineering-rules.json"
-    bundle_path.write_text(json.dumps(bundle), encoding="utf-8")
-    registry = PrecompiledEngineeringRuleRegistry(str(bundle_path))
+    registry = _registry(tmp_path, bundle)
 
     with pytest.raises(
         ValueError,

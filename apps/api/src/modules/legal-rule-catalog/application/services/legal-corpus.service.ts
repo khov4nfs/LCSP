@@ -46,11 +46,51 @@ const INDEPENDENT_AUDIT_PRINCIPAL_POLICY =
   "TECHNICAL_AUDIT_PRINCIPALS_INDEPENDENT";
 const SAFE_MANIFEST_REF = /^[a-z][a-z0-9-]{0,63}:[A-Za-z0-9._:-]{1,180}$/;
 const LEGAL_CORPUS_ACTIVATION_SERVICE = "legal-corpus-activation-service";
+const LEGAL_CHUNK_NORMATIVE_CLASSES = {
+  engineeringRuleCandidate: "ENGINEERING_RULE_CANDIDATE",
+  contextOnly: "CONTEXT_ONLY",
+  excludeFromDatabase: "EXCLUDE_FROM_DATABASE",
+} as const;
+const LEGAL_CONTEXT_ONLY_ARTICLE_TITLE_TERMS = [
+  "phạm vi điều chỉnh",
+  "đối tượng áp dụng",
+  "giải thích từ ngữ",
+  "nguyên tắc cơ bản",
+  "chính sách của nhà nước",
+] as const;
+const LEGAL_ENGINEERING_OBLIGATION_TERMS = [
+  "phải",
+  "không được",
+  "bị nghiêm cấm",
+  "nghiêm cấm",
+  "có trách nhiệm",
+  "nghĩa vụ",
+  "bảo đảm",
+  "duy trì",
+  "thiết lập",
+  "kiểm tra",
+  "giám sát",
+  "đánh giá",
+  "quản lý rủi ro",
+  "thông báo",
+  "công bố",
+  "báo cáo",
+  "lưu trữ",
+  "ghi nhận",
+  "kiểm soát",
+  "can thiệp",
+  "tuân thủ",
+] as const;
 const OUTBOX_VISIBLE_STATUSES = [
   OUTBOX_STATUSES.pending,
   OUTBOX_STATUSES.published,
   OUTBOX_STATUSES.failed,
 ] as const;
+const LEGAL_CORPUS_CHANGE_MODES = {
+  fullBuild: "FULL_BUILD",
+  partialUpdate: "PARTIAL_UPDATE",
+  noChanges: "NO_CHANGES",
+} as const;
 
 interface LegalReviewDocumentSignoff {
   documentId: string;
@@ -84,38 +124,58 @@ export class LegalCorpusService {
   ) {}
 
   async ingestDraft(input: IngestLegalCorpusRequest) {
-    this.validateIngest(input);
+    const selectedInput = this.selectDatabaseLegalChunks(input);
+    this.validateIngest(selectedInput);
+    const changeSet = await this.detectCorpusChanges(selectedInput);
+    if (changeSet.mode === LEGAL_CORPUS_CHANGE_MODES.noChanges) {
+      return {
+        id: changeSet.baseCorpusVersionId,
+        version: changeSet.baseCorpusVersion,
+        status: LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+        documentCount: selectedInput.documents.length,
+        chunkCount: selectedInput.documents.reduce(
+          (count, document) => count + document.chunks.length,
+          0,
+        ),
+        noChanges: true,
+        changeSet,
+      };
+    }
 
     const existing = await this.prisma.legalCorpusVersion.findUnique({
-      where: { version: input.version },
+      where: { version: selectedInput.version },
       select: { id: true },
     });
     if (existing) {
       throw problemException(
         LEGAL_RULE_ERROR_CODES.corpusIngestInvalid,
         "legal-corpus-ingest",
-        { status: HttpStatus.CONFLICT, meta: { version: input.version } },
+        {
+          status: HttpStatus.CONFLICT,
+          meta: { version: selectedInput.version },
+        },
       );
     }
 
     // Capture ingestion provenance metadata
-    const ingestionRunId = input.ingestionRunId || randomUUID();
-    const retrievedAt = input.retrievedAt
-      ? new Date(input.retrievedAt)
+    const ingestionRunId = selectedInput.ingestionRunId || randomUUID();
+    const retrievedAt = selectedInput.retrievedAt
+      ? new Date(selectedInput.retrievedAt)
       : new Date();
     const enrichedManifest = {
-      ...input.sourceManifest,
+      ...selectedInput.sourceManifest,
       ingestionMetadata: {
         ingestionRunId,
         retrievedAt: retrievedAt.toISOString(),
         importedAt: new Date().toISOString(),
       },
+      changeSet,
     };
 
     return this.prisma.$transaction(async (tx) => {
       const corpus = await tx.legalCorpusVersion.create({
         data: {
-          version: input.version,
+          version: selectedInput.version,
           sourceManifest: enrichedManifest,
           status: toPrismaLegalRuleLifecycleStatus(
             LEGAL_RULE_LIFECYCLE_STATUSES.draft,
@@ -123,7 +183,7 @@ export class LegalCorpusService {
         },
       });
 
-      for (const document of input.documents) {
+      for (const document of selectedInput.documents) {
         await this.createDocument(tx, corpus.id, document);
       }
 
@@ -131,11 +191,13 @@ export class LegalCorpusService {
         id: corpus.id,
         version: corpus.version,
         status: LEGAL_RULE_LIFECYCLE_STATUSES.draft,
-        documentCount: input.documents.length,
-        chunkCount: input.documents.reduce(
+        documentCount: selectedInput.documents.length,
+        chunkCount: selectedInput.documents.reduce(
           (count, document) => count + document.chunks.length,
           0,
         ),
+        noChanges: false,
+        changeSet,
       };
     });
   }
@@ -688,6 +750,130 @@ export class LegalCorpusService {
     };
   }
 
+  private async detectCorpusChanges(input: IngestLegalCorpusRequest) {
+    const base = await this.prisma.legalCorpusVersion.findFirst({
+      where: {
+        status: toPrismaLegalRuleLifecycleStatus(
+          LEGAL_RULE_LIFECYCLE_STATUSES.approved,
+        ),
+        approvedAt: { not: null },
+      },
+      orderBy: [{ approvedAt: "desc" }, { createdAt: "desc" }],
+      include: {
+        documents: true,
+        chunks: true,
+      },
+    });
+    const currentDocuments = new Map(
+      input.documents.map((document) => [document.documentId, document]),
+    );
+    const currentChunks = new Map(
+      input.documents.flatMap((document) =>
+        document.chunks.map((chunk) => [chunk.id, chunk] as const),
+      ),
+    );
+    const currentChunkDocumentIds = new Map(
+      input.documents.flatMap((document) =>
+        document.chunks.map(
+          (chunk) => [chunk.id, document.documentId] as const,
+        ),
+      ),
+    );
+    if (!base) {
+      return {
+        mode: LEGAL_CORPUS_CHANGE_MODES.fullBuild,
+        baseCorpusVersionId: null,
+        baseCorpusVersion: null,
+        changedDocumentIds: [...currentDocuments.keys()].sort(),
+        addedDocumentIds: [...currentDocuments.keys()].sort(),
+        removedDocumentIds: [],
+        unchangedDocumentIds: [],
+        changedChunkIds: [...currentChunks.keys()].sort(),
+        addedChunkIds: [...currentChunks.keys()].sort(),
+        removedChunkIds: [],
+        unchangedChunkIds: [],
+      };
+    }
+
+    const baseDocuments = new Map(
+      base.documents.map((document) => [document.documentId, document]),
+    );
+    const baseChunks = new Map(base.chunks.map((chunk) => [chunk.id, chunk]));
+    const addedDocumentIds: string[] = [];
+    const changedDocumentIds: string[] = [];
+    const unchangedDocumentIds: string[] = [];
+    for (const [documentId, document] of currentDocuments) {
+      const previous = baseDocuments.get(documentId);
+      if (!previous) {
+        addedDocumentIds.push(documentId);
+      } else if (previous.sourceSha256 !== document.sourceSha256) {
+        changedDocumentIds.push(documentId);
+      } else {
+        unchangedDocumentIds.push(documentId);
+      }
+    }
+    const removedDocumentIds = [...baseDocuments.keys()].filter(
+      (documentId) => !currentDocuments.has(documentId),
+    );
+
+    const addedChunkIds: string[] = [];
+    const changedChunkIds: string[] = [];
+    const unchangedChunkIds: string[] = [];
+    const chunkAffectedDocumentIds = new Set<string>();
+    for (const [chunkId, chunk] of currentChunks) {
+      const previous = baseChunks.get(chunkId);
+      if (!previous) {
+        addedChunkIds.push(chunkId);
+        chunkAffectedDocumentIds.add(
+          currentChunkDocumentIds.get(chunkId) ?? "",
+        );
+      } else if (previous.contentSha256 !== chunk.contentSha256) {
+        changedChunkIds.push(chunkId);
+        chunkAffectedDocumentIds.add(
+          currentChunkDocumentIds.get(chunkId) ?? "",
+        );
+      } else {
+        unchangedChunkIds.push(chunkId);
+      }
+    }
+    const removedChunkIds = [...baseChunks.keys()].filter(
+      (chunkId) => !currentChunks.has(chunkId),
+    );
+    for (const chunkId of removedChunkIds) {
+      const previous = baseChunks.get(chunkId);
+      if (previous) {
+        chunkAffectedDocumentIds.add(previous.documentId);
+      }
+    }
+    const affectedChunkIds = [
+      ...new Set([...addedChunkIds, ...changedChunkIds, ...removedChunkIds]),
+    ].sort();
+    const affectedDocumentIds = [
+      ...new Set([
+        ...addedDocumentIds,
+        ...changedDocumentIds,
+        ...removedDocumentIds,
+        ...[...chunkAffectedDocumentIds].filter(Boolean),
+      ]),
+    ].sort();
+    return {
+      mode:
+        affectedChunkIds.length === 0 && affectedDocumentIds.length === 0
+          ? LEGAL_CORPUS_CHANGE_MODES.noChanges
+          : LEGAL_CORPUS_CHANGE_MODES.partialUpdate,
+      baseCorpusVersionId: base.id,
+      baseCorpusVersion: base.version,
+      changedDocumentIds: affectedDocumentIds,
+      addedDocumentIds: addedDocumentIds.sort(),
+      removedDocumentIds: removedDocumentIds.sort(),
+      unchangedDocumentIds: unchangedDocumentIds.sort(),
+      changedChunkIds: affectedChunkIds,
+      addedChunkIds: addedChunkIds.sort(),
+      removedChunkIds: removedChunkIds.sort(),
+      unchangedChunkIds: unchangedChunkIds.sort(),
+    };
+  }
+
   private async createDocument(
     tx: Prisma.TransactionClient,
     legalCorpusVersionId: string,
@@ -722,6 +908,67 @@ export class LegalCorpusService {
         pageEnd: chunk.pageEnd ?? null,
       })),
     });
+  }
+
+  private selectDatabaseLegalChunks(
+    input: IngestLegalCorpusRequest,
+  ): IngestLegalCorpusRequest {
+    return {
+      ...input,
+      sourceManifest: {
+        ...input.sourceManifest,
+        chunkSelectionPolicy:
+          "Persist only hierarchy-addressable legal chunks; exclude formal headers/preamble. Context-only chunks are retained but not EngineeringRule source candidates.",
+      },
+      documents: input.documents.map((document) => ({
+        ...document,
+        chunks: (Array.isArray(document.chunks) ? document.chunks : [])
+          .map((chunk) => {
+            const normativeClass = this.legalChunkNormativeClass(chunk);
+            return {
+              ...chunk,
+              hierarchy: {
+                ...chunk.hierarchy,
+                normativeClass,
+              },
+            };
+          })
+          .filter(
+            (chunk) =>
+              chunk.hierarchy.normativeClass !==
+              LEGAL_CHUNK_NORMATIVE_CLASSES.excludeFromDatabase,
+          ),
+      })),
+    };
+  }
+
+  private legalChunkNormativeClass(
+    chunk: LegalCorpusDocumentInput["chunks"][number],
+  ) {
+    const rawContent = chunk.content;
+    const content = normalizeLegalText(rawContent);
+    if (!content) return LEGAL_CHUNK_NORMATIVE_CLASSES.excludeFromDatabase;
+    if (isLegalHeadingOnly(rawContent) || isLegalPreambleOnly(rawContent)) {
+      return LEGAL_CHUNK_NORMATIVE_CLASSES.excludeFromDatabase;
+    }
+    const articleTitle = normalizeLegalText(
+      typeof chunk.hierarchy.articleTitle === "string"
+        ? chunk.hierarchy.articleTitle
+        : "",
+    );
+    if (
+      LEGAL_CONTEXT_ONLY_ARTICLE_TITLE_TERMS.some((term) =>
+        articleTitle.includes(term),
+      )
+    ) {
+      return LEGAL_CHUNK_NORMATIVE_CLASSES.contextOnly;
+    }
+    if (
+      LEGAL_ENGINEERING_OBLIGATION_TERMS.some((term) => content.includes(term))
+    ) {
+      return LEGAL_CHUNK_NORMATIVE_CLASSES.engineeringRuleCandidate;
+    }
+    return LEGAL_CHUNK_NORMATIVE_CLASSES.contextOnly;
   }
 
   private validateIngest(input: IngestLegalCorpusRequest): void {
@@ -878,6 +1125,34 @@ function hash(content: string): string {
 
 function isSha256(value: unknown): value is string {
   return typeof value === "string" && /^sha256:[a-f0-9]{64}$/i.test(value);
+}
+
+function normalizeLegalText(value: string): string {
+  return value.toLocaleLowerCase("vi-VN").split(/\s+/u).join(" ").trim();
+}
+
+function isLegalHeadingOnly(content: string): boolean {
+  const lines = content
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return lines.length === 1 && /^chương\s+[ivxlc0-9]+\b.*$/iu.test(lines[0]);
+}
+
+function isLegalPreambleOnly(content: string): boolean {
+  const lines = content
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return true;
+  if (
+    lines.some((line) => line.toLocaleLowerCase("vi-VN").startsWith("điều "))
+  ) {
+    return false;
+  }
+  return /quốc hội|cộng hòa xã hội chủ nghĩa việt nam|độc lập\s*-\s*tự do|luật số|căn cứ hiến pháp|quốc hội ban hành|chủ tịch quốc hội/iu.test(
+    lines.join(" "),
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

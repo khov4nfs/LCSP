@@ -104,8 +104,38 @@ describe("SubmitWizardHandler", () => {
       updatedAt: "2026-07-31T00:00:00.000Z",
     },
     {
+      questionId: "useCase",
+      value: "Use case",
+      answerState: "ANSWERED",
+      updatedAt: "2026-07-31T00:00:00.000Z",
+    },
+    {
+      questionId: "primaryActors",
+      value: "Manager, user, AI service",
+      answerState: "ANSWERED",
+      updatedAt: "2026-07-31T00:00:00.000Z",
+    },
+    {
+      questionId: "businessTrigger",
+      value: "User request starts the flow",
+      answerState: "ANSWERED",
+      updatedAt: "2026-07-31T00:00:00.000Z",
+    },
+    {
+      questionId: "expectedOutcome",
+      value: "Human-approved output",
+      answerState: "ANSWERED",
+      updatedAt: "2026-07-31T00:00:00.000Z",
+    },
+    {
       questionId: "aiPurpose",
       value: "Purpose",
+      answerState: "ANSWERED",
+      updatedAt: "2026-07-31T00:00:00.000Z",
+    },
+    {
+      questionId: "autonomyLevel",
+      value: "HUMAN_APPROVAL_REQUIRED",
       answerState: "ANSWERED",
       updatedAt: "2026-07-31T00:00:00.000Z",
     },

@@ -175,6 +175,11 @@ function Ensure-Caddyfile {
     bind 127.0.0.1
     tls internal
 
+    @phoenix_traces path /v1/traces /v1/traces/*
+    handle @phoenix_traces {
+        reverse_proxy 127.0.0.1:6006
+    }
+
     @api path /api /api/*
     handle @api {
         reverse_proxy 127.0.0.1:{$FOGEWISE_API_PORT}
@@ -182,6 +187,15 @@ function Ensure-Caddyfile {
 
     handle {
         reverse_proxy 127.0.0.1:{$FOGEWISE_WEB_PORT}
+    }
+}
+
+phoenix.{$FOGEWISE_SUBDOMAIN}.fogewise.io.vn {
+    bind 127.0.0.1
+    tls internal
+
+    handle {
+        reverse_proxy 127.0.0.1:6006
     }
 }
 '@ | Set-Content -Path $CaddyFile -Encoding UTF8
@@ -267,6 +281,7 @@ $env:FOGEWISE_WEB_PORT = $config.WebPort
 $env:FOGEWISE_API_PORT = $config.ApiPort
 
 $domain = "$($config.Subdomain).fogewise.io.vn"
+$phoenixDomain = "phoenix.$domain"
 $caddyProcess = $null
 
 Write-Host ""
@@ -274,6 +289,7 @@ Write-Host "Fogewise Local Development" -ForegroundColor Green
 Write-Host "Launcher: $LauncherDir"
 Write-Host "Project : $ProjectRoot"
 Write-Host "Domain  : https://$domain"
+Write-Host "Phoenix : https://$phoenixDomain"
 Write-Host "Web     : 127.0.0.1:$($config.WebPort)"
 Write-Host "API     : 127.0.0.1:$($config.ApiPort)"
 
@@ -283,6 +299,7 @@ Ensure-Caddyfile
 try {
     Step "Configuring local DNS override"
     Ensure-Hosts $domain
+    Ensure-Hosts $phoenixDomain
 
     Step "Verifying local resolution"
     $pingOutput = ping.exe -n 1 $domain | Out-String
@@ -290,6 +307,12 @@ try {
 
     if ($pingOutput -notmatch '127\.0\.0\.1') {
         Fail "$domain does not resolve to 127.0.0.1."
+    }
+    $phoenixPingOutput = ping.exe -n 1 $phoenixDomain | Out-String
+    Write-Host $phoenixPingOutput
+
+    if ($phoenixPingOutput -notmatch '127\.0\.0\.1') {
+        Fail "$phoenixDomain does not resolve to 127.0.0.1."
     }
 
     Step "Checking Caddyfile"
@@ -326,6 +349,7 @@ try {
 
     Write-Host ""
     Write-Host "[Fogewise] CADDY READY: https://$domain" -ForegroundColor Green
+    Write-Host "[Fogewise] PHOENIX READY: https://$phoenixDomain" -ForegroundColor Green
     Write-Host "[Fogewise] Launcher does NOT run the project."
     Write-Host "[Fogewise] Dev tự mở terminal khác tại: $ProjectRoot"
     Write-Host "[Fogewise] Sau đó tự chạy command dev của project."
@@ -354,6 +378,7 @@ finally {
     }
 
     Remove-HostsOverride $domain
+    Remove-HostsOverride $phoenixDomain
 
     Write-Host "[Fogewise] Local hosts override removed."
     Write-Host "[Fogewise] https://$domain now resolves through public DNS again."

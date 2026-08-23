@@ -92,6 +92,9 @@ export class WorkspaceRuntimeEventsController {
                 attempt: event.attempt,
                 waiting_reason: event.waitingReason,
               })),
+              repository_snapshots: data.repositorySnapshots.map(
+                toLegacyRepositorySnapshotPayload,
+              ),
               scan_jobs: data.scanJobs.map(toLegacyScanJobPayload),
               evidence_reports: data.evidenceReports.map(
                 toLegacyEvidenceReportPayload,
@@ -114,6 +117,25 @@ function snapshotFailureReason(error: unknown): string {
   return error instanceof Error
     ? error.message
     : "unknown runtime snapshot error";
+}
+
+/**
+ * Projects a repository snapshot into the legacy SSE payload shape retained for workspace clients.
+ *
+ * @param snapshot - Runtime repository-snapshot record to serialize.
+ * @returns Legacy snake_case repository-snapshot payload.
+ */
+function toLegacyRepositorySnapshotPayload(snapshot: unknown) {
+  const item = snapshot as Record<string, unknown>;
+  return {
+    id: item.id,
+    assessment_id: item.assessmentId,
+    commit_sha: item.commitSha,
+    created_at:
+      item.createdAt instanceof Date
+        ? item.createdAt.toISOString()
+        : item.createdAt,
+  };
 }
 
 /**

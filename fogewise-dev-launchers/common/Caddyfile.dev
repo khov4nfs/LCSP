@@ -7,6 +7,11 @@
 	bind 127.0.0.1
 	tls internal
 
+	@phoenix_traces path /v1/traces /v1/traces/*
+	handle @phoenix_traces {
+		reverse_proxy 127.0.0.1:6006
+	}
+
 	@backend path /backend /backend/*
 	handle @backend {
 		reverse_proxy 127.0.0.1:{$FOGEWISE_API_PORT}
@@ -14,5 +19,14 @@
 
 	handle {
 		reverse_proxy 127.0.0.1:{$FOGEWISE_WEB_PORT}
+	}
+}
+
+phoenix.{$FOGEWISE_SUBDOMAIN}.fogewise.io.vn {
+	bind 127.0.0.1
+	tls internal
+
+	handle {
+		reverse_proxy 127.0.0.1:6006
 	}
 }

@@ -7,7 +7,7 @@ from typing import Any
 from lcsp_workers.agentic_evidence import AgenticToolResolver
 from structlog import get_logger
 
-from lcsp_workers.llm.gateway_client import LLMGatewayClient
+from lcsp_workers.llm import LLMClientProtocol
 from lcsp_workers.platform.api_client import WorkerApiClient
 from lcsp_workers.platform.queue_consumer import ConsumerBase
 
@@ -33,7 +33,7 @@ class AIUsageFlowConsumer(ConsumerBase):
         pbac_client=None,
         api_client: WorkerApiClient | None = None,
         rule_engine: AIUsageFlowRuleEngine | None = None,
-        llm_client: LLMGatewayClient | None = None,
+        llm_client: LLMClientProtocol | None = None,
         agentic_tool_resolver: AgenticToolResolver | None = None,
     ) -> None:
         """Create the consumer with deterministic rules and optional model assistance.

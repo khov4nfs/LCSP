@@ -51,7 +51,6 @@ interface PythonWorkerConfig { baseUrl: string }
 | `RABBITMQ_URL` | string | Yes | — | |
 | `RABBITMQ_EXCHANGE` | string | No | `lcsp.events` | |
 | `MFA_SECRET_ENCRYPTION_KEY` | string | Yes | — | AES-256-GCM: 32-byte hex |
-| `PYTHON_WORKER_BASE_URL` | string | Yes | — | |
 | `NODE_ENV` | string | No | `development` | `development` \| `production` \| `test` |
 
 ## Business Rules

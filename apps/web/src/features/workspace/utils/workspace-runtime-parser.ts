@@ -6,10 +6,11 @@ import {
   type WorkspaceRuntimeActiveTool,
   type WorkspaceRuntimeContextValue,
   type WorkspaceRuntimeEvidenceReport,
+  type WorkspaceRuntimeRepositorySnapshot,
   type WorkspaceRuntimeRun,
   type WorkspaceRuntimeScanJob,
   type WorkspaceRuntimeSummaryValue,
-  } from "../types/workspace-runtime.types.ts";
+} from "../types/workspace-runtime.types.ts";
 
 export function parseRuntimeEvent(
   data: string,
@@ -24,6 +25,11 @@ export function parseRuntimeEvent(
     : [];
   const recentActivity = Array.isArray(payload.recent_activity)
     ? payload.recent_activity.map(parseActivityItem).filter(isDefined)
+    : [];
+  const repositorySnapshots = Array.isArray(payload.repository_snapshots)
+    ? payload.repository_snapshots
+        .map(parseRepositorySnapshot)
+        .filter(isDefined)
     : [];
   const scanJobs = Array.isArray(payload.scan_jobs)
     ? payload.scan_jobs.map(parseScanJob).filter(isDefined)
@@ -42,6 +48,7 @@ export function parseRuntimeEvent(
     emittedAt: payload.emitted_at as string,
     runs,
     recentActivity,
+    repositorySnapshots,
     scanJobs,
     evidenceReports,
     runsByAssessmentId,
@@ -149,6 +156,27 @@ function parseActivityItem(
     attempt: typeof item.attempt === "number" ? item.attempt : null,
     waitingReason:
       typeof item.waiting_reason === "string" ? item.waiting_reason : null,
+  };
+}
+
+function parseRepositorySnapshot(
+  value: unknown,
+): WorkspaceRuntimeRepositorySnapshot | null {
+  const item = parseObject(value);
+  if (
+    item === null ||
+    typeof item.id !== "string" ||
+    typeof item.assessment_id !== "string" ||
+    typeof item.commit_sha !== "string" ||
+    typeof item.created_at !== "string"
+  ) {
+    return null;
+  }
+  return {
+    id: item.id,
+    assessmentId: item.assessment_id,
+    commitSha: item.commit_sha,
+    createdAt: item.created_at,
   };
 }
 
@@ -292,6 +320,7 @@ function isDefined<T>(value: T | null): value is T {
 export function runtimeFingerprint(runtime: {
   runs: WorkspaceRuntimeRun[];
   recentActivity: WorkspaceRuntimeActivityItem[];
+  repositorySnapshots: WorkspaceRuntimeRepositorySnapshot[];
   scanJobs: WorkspaceRuntimeScanJob[];
   evidenceReports: WorkspaceRuntimeEvidenceReport[];
 }) {
@@ -319,6 +348,12 @@ export function runtimeFingerprint(runtime: {
       item.summary,
       shouldFingerprintActivityEmittedAt(item) ? item.emittedAt : null,
       item.durationMs,
+    ]),
+    repositorySnapshots: runtime.repositorySnapshots.map((snapshot) => [
+      snapshot.id,
+      snapshot.assessmentId,
+      snapshot.commitSha,
+      snapshot.createdAt,
     ]),
     scanJobs: runtime.scanJobs.map((scanJob) => [
       scanJob.id,
@@ -348,12 +383,14 @@ function shouldFingerprintActivityEmittedAt(
 export function affectedAssessmentIds(runtime: {
   runs: WorkspaceRuntimeRun[];
   recentActivity: WorkspaceRuntimeActivityItem[];
+  repositorySnapshots: WorkspaceRuntimeRepositorySnapshot[];
   scanJobs: WorkspaceRuntimeScanJob[];
   evidenceReports: WorkspaceRuntimeEvidenceReport[];
 }) {
   return new Set([
     ...runtime.runs.map((run) => run.assessmentId),
     ...runtime.recentActivity.map((item) => item.assessmentId),
+    ...runtime.repositorySnapshots.map((snapshot) => snapshot.assessmentId),
     ...runtime.scanJobs.map((scanJob) => scanJob.assessmentId),
     ...runtime.evidenceReports.map((report) => report.assessmentId),
   ]);

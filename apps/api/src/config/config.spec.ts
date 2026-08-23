@@ -32,7 +32,6 @@ const VALID_ENV = {
   SMTP_USER: "smtp-user",
   SMTP_PASS: "smtp-pass",
   SMTP_FROM: "lcsp@example.com",
-  PYTHON_WORKER_BASE_URL: "http://localhost:8000",
   WORKER_API_KEY: "w".repeat(32),
 };
 
@@ -220,7 +219,6 @@ describe("config()", () => {
         smtpPass: VALID_ENV.SMTP_PASS,
         smtpFrom: VALID_ENV.SMTP_FROM,
       },
-      pythonWorker: { baseUrl: VALID_ENV.PYTHON_WORKER_BASE_URL },
       worker: { apiKey: VALID_ENV.WORKER_API_KEY },
       internal: { apiToken: "test-internal-token" },
       orchestration: { debug: false },

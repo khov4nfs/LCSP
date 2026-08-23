@@ -3,7 +3,13 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from typing import Any
 
-ENGINEERING_RULE_SCHEMA_VERSION = "1.0.0"
+from .legal_reasoning_contract import (
+    LegalReasoningContract,
+    build_legal_reasoning_contract,
+    legal_reasoning_contract_from_dict,
+)
+
+ENGINEERING_RULE_SCHEMA_VERSION = "1.1.0"
 DEV_ENGINEERING_RULE_BOOTSTRAP_RULE_FAMILY = "DEV_ENGINEERING_RULE_BOOTSTRAP"
 
 
@@ -40,6 +46,7 @@ class EngineeringRule:
     unresolved_conditions: tuple[str, ...] = ()
     source_chunk_ids: tuple[str, ...] = ()
     source_locators: tuple[str, ...] = ()
+    legal_reasoning_contract: LegalReasoningContract | None = None
     source_fingerprint: str = ""
     compiler_model: str = ""
     compiler_version: str = ""
@@ -100,6 +107,10 @@ class EngineeringRule:
             tup("unresolved_conditions", "unresolvedConditions"),
             tup("source_chunk_ids", "sourceChunkIds"),
             tup("source_locators", "sourceLocators"),
+            legal_reasoning_contract_from_dict(
+                payload.get("legal_reasoning_contract")
+                or payload.get("legalReasoningContract")
+            ),
             str(payload.get("source_fingerprint") or payload.get("sourceFingerprint") or ""),
             str(payload.get("compiler_model") or payload.get("compilerModel") or ""),
             str(payload.get("compiler_version") or payload.get("compilerVersion") or ""),

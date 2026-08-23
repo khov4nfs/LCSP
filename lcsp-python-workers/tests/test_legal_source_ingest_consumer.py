@@ -11,11 +11,12 @@ from lcsp_workers.platform.queue_consumer import NonRetryableWorkerError
 
 
 @pytest.fixture
-def config():
+def config(tmp_path):
     return MagicMock(
         nestjs_api_base_url="http://api.test",
         worker_api_key="worker-key",
         max_retries=3,
+        legal_source_storage_root=str(tmp_path / ".corpus"),
     )
 
 
@@ -56,6 +57,9 @@ def test_consumer_fetches_and_registers_official_snapshot(config):
     assert fetch_request.document_id == "LAW-71-2025-QH15"
     assert fetch_request.catalog_source_ref == "catalog-source:vbpl.vn:law:71-2025-qh15"
     assert fetch_request.expected_document_number == "71/2025/QH15"
+    assert str(fetch_request.output_dir).endswith(
+        ".corpus/source-crawl/corpus_draft_01/LAW-71-2025-QH15"
+    )
     result.register_with_api.assert_called_once_with(
         api_client=api_client,
         admin_catalog_version="catalog_v2026_08",

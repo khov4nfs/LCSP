@@ -27,6 +27,7 @@ const initialRuntime: WorkspaceRuntimeContextValue = {
   emittedAt: null,
   runs: [],
   recentActivity: [],
+  repositorySnapshots: [],
   scanJobs: [],
   evidenceReports: [],
   runsByAssessmentId: {},

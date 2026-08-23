@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
 import sys
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -53,6 +54,7 @@ class OfficialSourceSnapshotRequest:
     source_url: str
     output_dir: Path
     max_bytes: int
+    storage_root: Path | None = None
     gateway_document_id: str | None = None
     source_effect_status: str | None = None
     expected_document_number: str | None = None
@@ -221,9 +223,14 @@ class OfficialSourceSnapshotFetcher:
             content_sha256=content_sha256,
             original_file_name=snapshot_path.name,
         )
+        object_root = request.storage_root or request.output_dir
+        object_path = (object_root / object_key).resolve()
+        if snapshot_path.resolve() != object_path:
+            object_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(snapshot_path, object_path)
         return OfficialSourceSnapshotResult(
             manifest_path=manifest_path,
-            snapshot_path=snapshot_path,
+            snapshot_path=object_path,
             snapshot_object_key=object_key,
             snapshot_ref=snapshot_ref(document_id, content_sha256),
             provenance_ref=provenance_ref(document_id, content_sha256),

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -78,12 +79,13 @@ def test_ao6_consumer_executes_through_canonical_dispatcher(
     assert forbidden_direct_call not in source
 
 
-def test_source_fetch_runtime_failure_stays_retryable() -> None:
+def test_source_fetch_runtime_failure_stays_retryable(tmp_path: Path) -> None:
     """Dispatcher migration must not turn transient fetch failures into terminal DLQ errors."""
     config = SimpleNamespace(
         nestjs_api_base_url="http://api.test",
         worker_api_key="worker-key",
         max_retries=3,
+        legal_source_storage_root=str(tmp_path),
     )
     fetcher = MagicMock()
     fetcher.fetch.side_effect = RuntimeError("temporary source outage")
@@ -122,7 +124,7 @@ def test_recovery_validation_crosses_canonical_dispatcher() -> None:
 
 def test_recovery_activation_crosses_canonical_dispatcher() -> None:
     """Corpus activation must remain behind the canonical protected API entrypoint."""
-    source = inspect.getsource(LegalCorpusRecoveryDriver.run)
+    source = inspect.getsource(LegalCorpusRecoveryDriver._run_locked)
 
     assert "_legal_dispatcher.dispatch(" in source
     assert '"activate_validated_corpus_version"' in source

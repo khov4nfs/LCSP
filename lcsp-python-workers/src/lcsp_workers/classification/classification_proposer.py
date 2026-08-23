@@ -1,9 +1,8 @@
 """Produce bounded model-assisted classification proposals for later validation."""
 
-import json
 from typing import Any
 
-from lcsp_workers.llm.gateway_client import LLMGatewayClient
+from lcsp_workers.llm import LLMClientProtocol
 
 
 ALLOWED_RISK_LEVELS = {"LOW", "MEDIUM", "HIGH", "BLOCKED"}
@@ -13,11 +12,11 @@ ALLOWED_APPLICABILITY = {"applicable", "partially_applicable", "not_applicable"}
 class ModelAssistedClassificationProposer:
     """Ask an LLM for a structured proposal without granting final authority."""
 
-    def __init__(self, llm_client: LLMGatewayClient):
-        """Create the proposer with the gateway used for bounded LLM calls.
+    def __init__(self, llm_client: LLMClientProtocol):
+        """Create the proposer with the bounded Deep Agents client.
 
         Args:
-            llm_client: Budget- and safety-aware LLM gateway client.
+            llm_client: Budget- and safety-aware model client.
         """
         self.llm_client = llm_client
 
@@ -52,7 +51,7 @@ class ModelAssistedClassificationProposer:
         """
         prompt = f"""
         You are a classification proposal assistant.
-        Return JSON only.
+        Use the configured structured response format only.
 
         BASELINE_DECISION:
         risk_level={baseline_risk_level}
@@ -70,15 +69,15 @@ class ModelAssistedClassificationProposer:
         }}
 
         RULES:
-        - Do not output markdown fences.
         - Do not invent citations or evidence.
         - Do not use overclaiming words such as certified, approved, compliant.
         - If the evidence is insufficient, keep the baseline blocked/degraded outcome.
         """
 
         try:
-            response = self.llm_client.complete(
+            response = self.llm_client.complete_structured(
                 prompt=prompt,
+                response_format=_classification_proposal_response_schema(),
                 workflow_run_id=workflow_run_id,
                 node_name=node_name,
                 max_tokens=256,
@@ -87,9 +86,8 @@ class ModelAssistedClassificationProposer:
         except Exception:
             return None
 
-        try:
-            proposal = json.loads(response.content)
-        except json.JSONDecodeError:
+        proposal = response.structured_response
+        if not isinstance(proposal, dict):
             return None
 
         risk_level = proposal.get("risk_level")
@@ -109,3 +107,31 @@ class ModelAssistedClassificationProposer:
             "rationale": rationale,
             "request_id": response.request_id,
         }
+
+
+def _classification_proposal_response_schema() -> dict[str, Any]:
+    return {
+        "title": "ClassificationProposalResponse",
+        "description": "Bounded model-assisted classification proposal.",
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {
+            "risk_level": {
+                "type": "string",
+                "enum": sorted(ALLOWED_RISK_LEVELS),
+            },
+            "applicability_assessment": {
+                "type": "string",
+                "enum": sorted(ALLOWED_APPLICABILITY),
+            },
+            "rationale": {
+                "type": "string",
+                "description": "Two to three sentence explanation without overclaiming.",
+            },
+        },
+        "required": [
+            "risk_level",
+            "applicability_assessment",
+            "rationale",
+        ],
+    }

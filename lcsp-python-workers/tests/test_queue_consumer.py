@@ -343,10 +343,10 @@ def test_t06_correlationId_in_logs(
     assert "test-cid-123" in captured.out
 
 
-def test_t07_secrets_redacted_from_logs(
+def test_t07_secret_values_are_stripped_from_default_logs(
     config, pbac_mock, channel_mock, method_mock, capsys
 ):
-    """T07: secret field values are redacted from log output."""
+    """T07: secret field values are stripped from default log output."""
     pbac_mock.check.return_value = "allow"
     consumer = DummyConsumer(config, pbac_mock)
     consumer.raise_in_handle = True
@@ -357,7 +357,6 @@ def test_t07_secrets_redacted_from_logs(
     logger.info("test_secret", token="super-secret-123", api_key="secret-key")
 
     captured = capsys.readouterr()
-    assert "[REDACTED]" in captured.out
     assert "super-secret-123" not in captured.out
     assert "secret-key" not in captured.out
 

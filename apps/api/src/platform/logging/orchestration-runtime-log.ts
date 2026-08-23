@@ -46,35 +46,11 @@ export function formatOrchestrationRuntimeLog(
 }
 
 /**
- * Recursively redacts credential-like fields before orchestration values are logged.
+ * Returns orchestration values unchanged before logging.
  *
  * @param value - Arbitrary value that may contain sensitive nested fields.
- * @returns A sanitized copy with credential-like values replaced by `[REDACTED]`.
+ * @returns The original value.
  */
 export function sanitizeOrchestrationLogValue(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map((entry) => sanitizeOrchestrationLogValue(entry));
-  }
-  if (!isRecord(value)) {
-    return value;
-  }
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value)) {
-    if (/api[_-]?key|secret|token|password/i.test(key)) {
-      sanitized[key] = "[REDACTED]";
-      continue;
-    }
-    sanitized[key] = sanitizeOrchestrationLogValue(entry);
-  }
-  return sanitized;
-}
-
-/**
- * Determines whether a value can be traversed as a plain record.
- *
- * @param value - Value to inspect.
- * @returns True for non-null, non-array objects.
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  return value;
 }
