@@ -25,19 +25,20 @@ IMPLEMENTATION_NOT_AUTHORIZED
 
 1. [product/system-context.md](./product/system-context.md)
 2. [product/product-brief.md](./product/product-brief.md)
-3. [product/prd.md](./product/prd.md)
-4. [product/business-rules.md](./product/business-rules.md)
-5. [specs/use-cases.md](./specs/use-cases.md)
-6. [specs/functional-requirements.md](./specs/functional-requirements.md)
-7. [specs/non-functional-requirements.md](./specs/non-functional-requirements.md)
-8. [specs/acceptance-criteria-catalog.md](./specs/acceptance-criteria-catalog.md)
-9. [architecture/architecture.md](./architecture/architecture.md)
-10. [architecture/adr/architecture-decision-records.md](./architecture/adr/architecture-decision-records.md)
-11. [implementation/README.md](./implementation/README.md)
-12. [implementation/phase-5-2l-ux-to-readiness-execution-plan.md](./implementation/phase-5-2l-ux-to-readiness-execution-plan.md)
-13. [implementation/phase-5-2l-ux-to-readiness-task-list.md](./implementation/phase-5-2l-ux-to-readiness-task-list.md)
-14. [implementation/phase-5-2l-ux-to-readiness-implementation-guide.md](./implementation/phase-5-2l-ux-to-readiness-implementation-guide.md)
-15. [docs-vn/README.md](../docs-vn/README.md)
+3. [product/version-history.md](./product/version-history.md)
+4. [product/prd.md](./product/prd.md)
+5. [product/business-rules.md](./product/business-rules.md)
+6. [specs/use-cases.md](./specs/use-cases.md)
+7. [specs/functional-requirements.md](./specs/functional-requirements.md)
+8. [specs/non-functional-requirements.md](./specs/non-functional-requirements.md)
+9. [specs/acceptance-criteria-catalog.md](./specs/acceptance-criteria-catalog.md)
+10. [architecture/architecture.md](./architecture/architecture.md)
+11. [architecture/adr/architecture-decision-records.md](./architecture/adr/architecture-decision-records.md)
+12. [implementation/README.md](./implementation/README.md)
+13. [implementation/phase-5-2l-ux-to-readiness-execution-plan.md](./implementation/phase-5-2l-ux-to-readiness-execution-plan.md)
+14. [implementation/phase-5-2l-ux-to-readiness-task-list.md](./implementation/phase-5-2l-ux-to-readiness-task-list.md)
+15. [implementation/phase-5-2l-ux-to-readiness-implementation-guide.md](./implementation/phase-5-2l-ux-to-readiness-implementation-guide.md)
+16. [docs-vn/README.md](../docs-vn/README.md)
 
 UX review should focus on product, use cases, FR/NFR, acceptance criteria, domain specs and ADR constraints. Engineering work additionally reads architecture and implementation docs after implementation readiness is certified.
 
@@ -46,6 +47,7 @@ UX review should focus on product, use cases, FR/NFR, acceptance criteria, domai
 | Concern | Authoritative Document |
 |---|---|
 | Product scope and actors | `product/system-context.md`, `product/product-brief.md`, `product/prd.md` |
+| Product / architecture evolution history | `product/version-history.md` |
 | Business rules | `product/business-rules.md` |
 | Canonical requirements | `specs/functional-requirements.md`, `specs/non-functional-requirements.md` |
 | Use cases and user flows | `specs/use-cases.md`, `specs/user-task-flows.md` |
@@ -64,14 +66,14 @@ UX review should focus on product, use cases, FR/NFR, acceptance criteria, domai
 ## Documentation Layers
 
 ```text
-product/                        product purpose, actors, business rules
+product/                        product purpose, actors, business rules, version history
 specs/                          canonical behavior and requirements
 architecture/                   components and decisions
 implementation/                 build/configuration specifications
 docs-vn/                        Vietnamese summary and review notes
 ```
 
-Historical material remains available through git history, not as active documentation authority.
+Historical material remains available through git history, not as active documentation authority, except for the curated architectural evolution summary in `product/version-history.md`.
 
 ## Active MVP Runtime Shape
 
