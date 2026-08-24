@@ -32,7 +32,7 @@ As a Manager, I want to download generated reports and artifacts with version me
 - Story key: `8-5-download-versioned-artifacts`
 - Official execution artifact: `docs/implementation-artifacts/8-5-download-versioned-artifacts.md`
 - Epic: `Epic 8 - Gap Analysis, Guarded Documents, and Audit Trail`
-- Runtime ownership: `apps/web`, `apps/api`, `lcsp-python-workers`, `packages/*`
+- Runtime ownership: `apps/web`, `apps/api`, `deepagents`, `packages/*`
 
 ### Current State and Scope Guardrails
 
@@ -101,7 +101,7 @@ As a Manager, I want to download generated reports and artifacts with version me
 
 ### File Structure Notes
 
-- `lcsp-python-workers` cho gap-analysis worker và document-generation worker.
+- `deepagents` cho gap-analysis worker và document-generation worker.
 - `apps/api` cho download/export authorization, audit query surfaces, artifact status/read model.
 - `apps/web` cho gap analysis display, artifact download UI, redacted audit trail views.
 

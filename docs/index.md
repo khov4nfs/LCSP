@@ -7,7 +7,7 @@
 
 ## Tổng quan
 
-Repository này hiện là workspace tài liệu brownfield cho LCSP, không phải codebase ứng dụng đã bootstrap hoàn chỉnh. Phần có authority nghiệp vụ và kiến trúc nằm trong `docs/`; phần tóm lược tiếng Việt nằm trong `docs-vn/`; phần automation hỗ trợ tạo context, resolve config và scaffold WDS nằm trong `_bmad/` và `.github/`. Runtime sản phẩm được mô tả chi tiết trong tài liệu, nhưng mã nguồn thực thi cho `apps/web`, `apps/api`, `lcsp-python-workers` và `tools/ts-js-analyzer` chưa hiện diện trong repo này.
+Repository này hiện là workspace tài liệu brownfield cho LCSP, không phải codebase ứng dụng đã bootstrap hoàn chỉnh. Phần có authority nghiệp vụ và kiến trúc nằm trong `docs/`; phần tóm lược tiếng Việt nằm trong `docs-vn/`; phần automation hỗ trợ tạo context, resolve config và scaffold WDS nằm trong `_bmad/` và `.github/`. Runtime sản phẩm được mô tả chi tiết trong tài liệu, nhưng mã nguồn thực thi cho `apps/web`, `apps/api`, `deepagents` và `tools/ts-js-analyzer` chưa hiện diện trong repo này.
 
 ## Quick Reference
 
@@ -71,6 +71,6 @@ Repository này hiện là workspace tài liệu brownfield cho LCSP, không ph�
 
 ## Khoảng trống hiện tại
 
-- Repo chưa chứa bootstrap code cho `apps/web`, `apps/api`, `lcsp-python-workers`, hoặc `tools/ts-js-analyzer`.
+- Repo chưa chứa bootstrap code cho `apps/web`, `apps/api`, `deepagents`, hoặc `tools/ts-js-analyzer`.
 - Không có API contracts, data models, component inventory hay deployment guide ở mức codebase thực thi, vì implementation chưa hiện diện trong workspace này.
 - Mọi lệnh phát triển trong tài liệu implementation hiện là planned contracts, không phải bằng chứng runtime đã tồn tại.

@@ -33,7 +33,7 @@ Scan Failure Severity and Evidence Acceptance Policy
 - Story key: `3-6-scan-failure-severity-and-evidence-acceptance-policy`
 - Official execution artifact: `docs/implementation-artifacts/3-6-scan-failure-severity-and-evidence-acceptance-policy.md`
 - Epic: `Epic 3 - Trusted Repository Evidence and TechnicalProfile`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`
 
 ### Current State and Scope Guardrails
 
@@ -103,7 +103,7 @@ Scan Failure Severity and Evidence Acceptance Policy
 ### File Structure Notes
 
 - `apps/api` cho repository selection, scan request/status API và outbox command creation.
-- `lcsp-python-workers` cho queue consumer, scanner runtime, evidence gates, TechnicalProfile worker.
+- `deepagents` cho queue consumer, scanner runtime, evidence gates, TechnicalProfile worker.
 - `packages/*` cho command/event schemas, status projection contracts, evidence/profile DTOs.
 
 ### Implementation Guidance for the Dev Agent
@@ -166,7 +166,7 @@ Gemini 3.5 Flash
 
 ### File List
 
-- lcsp-python-workers/src/lcsp_workers/scanner/evidence/privacy_gate.py
-- lcsp-python-workers/src/lcsp_workers/scanner/evidence/severity_mapper.py
-- lcsp-python-workers/src/lcsp_workers/scanner/evidence/schema_validator.py
+- deepagents/tools/graph/scanner/evidence/privacy_gate.py
+- deepagents/tools/graph/scanner/evidence/severity_mapper.py
+- deepagents/tools/graph/scanner/evidence/schema_validator.py
 - docs/implementation-artifacts/3-6-scan-failure-severity-and-evidence-acceptance-policy.md

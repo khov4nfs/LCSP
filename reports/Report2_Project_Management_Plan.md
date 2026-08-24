@@ -215,7 +215,7 @@ All specification and product documents live under version control in `docs/` (`
 
 ### 6.2 Source Code Management
 
-Source code is managed in a single Git monorepo (`apps/api`, `apps/web`, `packages/contracts`, `packages/i18n`, `lcsp-python-workers`) hosted on GitHub. Changes are made on feature branches and merged via reviewed pull requests; `main` is the deployable branch. Commit messages and PR descriptions reference the relevant FR/UC/AC or Jira issue key for traceability.
+Source code is managed in a single Git monorepo (`apps/api`, `apps/web`, `packages/contracts`, `packages/i18n`, `deepagents`) hosted on GitHub. Changes are made on feature branches and merged via reviewed pull requests; `main` is the deployable branch. Commit messages and PR descriptions reference the relevant FR/UC/AC or Jira issue key for traceability.
 
 ### 6.3 Tools & Infrastructures
 

@@ -40,13 +40,13 @@ Keep credentials only in the VPS env/secret store. Do not commit production cred
 
 ## Managed Deep Agent
 
-`lcsp-python-workers` is now a Managed Deep Agents project. It uses root
+`deepagents` is now a Managed Deep Agents project. It uses root
 `agent.py`, project `tools/`, `skills/`, `schedules/`, and `evals/` instead of
 long-running consumer commands. Local/dev images run `mda dev .`; production
 schedules and agent execution are managed by the deployed agent runtime.
 
 Former queue consumers are exposed through the Managed Agent invocation manifest
-in `lcsp_workers.managed.invocation`. Do not deploy separate `ConsumerBase`
+in `tools.common.managed.invocation`. Do not deploy separate `ConsumerBase`
 processes for scanner, assessment, reporting, or legal corpus jobs.
 
 ## Fogewise deployer compatibility
@@ -66,6 +66,6 @@ The generic VPS program at `/usr/local/sbin/fogewise-deploy` is infrastructure o
 
 ## CI image builds
 
-The reusable workflow groups services by `path`. Services sharing `lcsp-python-workers` are built once and the resulting image is tagged for every worker service, avoiding one identical Python build per consumer.
+The reusable workflow groups services by `path`. Services sharing `deepagents` are built once and the resulting image is tagged for every worker service, avoiding one identical Python build per consumer.
 
 The final deployment health check runs from the VPS against Caddy on loopback with the production Host/SNI, so Cloudflare edge policy is not part of the deployment success criterion.

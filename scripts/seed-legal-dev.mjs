@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const workerSourcePath = join(rootDir, "lcsp-python-workers", "src");
+const workerAgentPath = join(rootDir, "deepagents");
 const defaultChromaPath = join(rootDir, "tmp", "lcsp-legal-chroma");
 
 const commands = {
@@ -34,8 +34,8 @@ function resolvePythonExecutable() {
 
   const platformCandidate =
     process.platform === "win32"
-      ? join(rootDir, "lcsp-python-workers", ".venv", "Scripts", "python.exe")
-      : join(rootDir, "lcsp-python-workers", ".venv", "bin", "python");
+      ? join(rootDir, "deepagents", ".venv", "Scripts", "python.exe")
+      : join(rootDir, "deepagents", ".venv", "bin", "python");
 
   if (existsSync(platformCandidate)) {
     return platformCandidate;
@@ -43,8 +43,8 @@ function resolvePythonExecutable() {
 
   const alternateCandidate =
     process.platform === "win32"
-      ? join(rootDir, "lcsp-python-workers", ".venv", "bin", "python")
-      : join(rootDir, "lcsp-python-workers", ".venv", "Scripts", "python.exe");
+      ? join(rootDir, "deepagents", ".venv", "bin", "python")
+      : join(rootDir, "deepagents", ".venv", "Scripts", "python.exe");
 
   if (existsSync(alternateCandidate)) {
     return alternateCandidate;
@@ -70,8 +70,8 @@ function envWithPythonPath() {
     ...process.env,
     LEGAL_CHROMA_PATH: legalChromaPath,
     PYTHONPATH: existing
-      ? `${workerSourcePath}${process.platform === "win32" ? ";" : ":"}${existing}`
-      : workerSourcePath,
+      ? `${workerAgentPath}${process.platform === "win32" ? ";" : ":"}${existing}`
+      : workerAgentPath,
   };
 }
 

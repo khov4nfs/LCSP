@@ -5,8 +5,13 @@ readonly APP=/srv/apps/lcsp-pm2
 readonly ECOSYSTEM_FILE=ecosystem.config.cjs
 readonly API_HEALTH_URL=http://127.0.0.1:8080/health
 readonly WEB_HEALTH_URL=http://127.0.0.1:3001/
-readonly WORKER_HEALTH_PORTS=(8101 8102 8108 8109 8110 8111)
 readonly LEGACY_PM2_APPS=(
+  lcsp-scanner-worker
+  lcsp-engineering-assessment-worker
+  lcsp-gap-analysis-worker
+  lcsp-legal-corpus-recovery-worker
+  lcsp-targeted-reanalysis-worker
+  lcsp-final-report-worker
   lcsp-technical-profile-worker
   lcsp-ai-usage-flow-worker
   lcsp-conflict-detection-worker
@@ -17,12 +22,7 @@ readonly LEGACY_PM2_APPS=(
 readonly EXPECTED_PM2_APPS=(
   lcsp-api
   lcsp-web
-  lcsp-scanner-worker
-  lcsp-engineering-assessment-worker
-  lcsp-gap-analysis-worker
-  lcsp-legal-corpus-recovery-worker
-  lcsp-targeted-reanalysis-worker
-  lcsp-final-report-worker
+  lcsp-managed-deep-agent
 )
 
 require_command() {
@@ -108,11 +108,11 @@ git pull --ff-only
 echo "==> Install Node dependencies"
 pnpm install --frozen-lockfile
 
-echo "==> Install Python workers"
-.venv/bin/python -m pip install ./lcsp-python-workers
+echo "==> Install Managed Deep Agent"
+.venv/bin/python -m pip install ./deepagents
 
 echo "==> Build scanner TS/JS analyzer"
-cd "$APP/lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/ts-js-analyzer"
+cd "$APP/deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer"
 npm ci
 npm run build
 npm prune --omit=dev
@@ -137,10 +137,5 @@ wait_for_health "API" "$API_HEALTH_URL"
 
 echo "==> Web"
 wait_for_health "Web" "$WEB_HEALTH_URL"
-
-echo "==> Workers"
-for port in "${WORKER_HEALTH_PORTS[@]}"; do
-  wait_for_health "Worker ${port}" "http://127.0.0.1:${port}/health"
-done
 
 echo "==> LCSP redeploy completed"

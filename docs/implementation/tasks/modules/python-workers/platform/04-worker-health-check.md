@@ -1,7 +1,7 @@
 ---
 task_id: MW-pyp-004
 module: python-workers/platform
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P1
 status: READY_FOR_DEV
 epic_story: 1.1
@@ -19,8 +19,8 @@ Expose a minimal HTTP health check endpoint on each Python worker (`GET /health`
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/platform/health.py` | Create | Minimal HTTP server (stdlib `http.server`) |
-| `lcsp-python-workers/src/lcsp_workers/platform/consumer_base.py` | Modify | Start health server thread on `run()` |
+| `deepagents/tools/common/platform/health.py` | Create | Minimal HTTP server (stdlib `http.server`) |
+| `deepagents/tools/common/platform/consumer_base.py` | Modify | Start health server thread on `run()` |
 
 ## API Contract
 

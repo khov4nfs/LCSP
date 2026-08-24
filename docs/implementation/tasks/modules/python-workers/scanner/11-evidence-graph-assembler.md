@@ -1,7 +1,7 @@
 ---
 task_id: MW-scan-py-011
 module: python-workers/scanner
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: READY_FOR_DEV
 epic_story: 3.5
@@ -20,10 +20,10 @@ Build a scan-local normalized graph from `TechnicalFinding` records and AST/CST/
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/scanner/graph/node_types.py` | Create | Node type constants + `GraphNode` dataclass |
-| `lcsp-python-workers/src/lcsp_workers/scanner/graph/edge_types.py` | Create | Edge type constants + `GraphEdge` dataclass |
-| `lcsp-python-workers/src/lcsp_workers/scanner/graph/graph_builder.py` | Create | Build graph from findings + analysis results |
-| `lcsp-python-workers/src/lcsp_workers/scanner/graph/graph_serializer.py` | Create | Serialize graph to `ScanGraph` dict for evidence payload |
+| `deepagents/tools/graph/scanner/graph/node_types.py` | Create | Node type constants + `GraphNode` dataclass |
+| `deepagents/tools/graph/scanner/graph/edge_types.py` | Create | Edge type constants + `GraphEdge` dataclass |
+| `deepagents/tools/graph/scanner/graph/graph_builder.py` | Create | Build graph from findings + analysis results |
+| `deepagents/tools/graph/scanner/graph/graph_serializer.py` | Create | Serialize graph to `ScanGraph` dict for evidence payload |
 
 ## Node Types
 

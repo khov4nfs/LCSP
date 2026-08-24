@@ -44,7 +44,7 @@ As a Manager, I want to see classification result or clear blocked/degraded stat
 - Story key: `7-6-present-classification-blocked-or-degraded-state`
 - Official execution artifact: `docs/implementation-artifacts/7-6-present-classification-blocked-or-degraded-state.md`
 - Epic: `Epic 7 - Citation-Backed Classification`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`, `LLM Gateway`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`, `LLM Gateway`
 
 ### Current State and Scope Guardrails
 
@@ -120,7 +120,7 @@ As a Manager, I want to see classification result or clear blocked/degraded stat
 
 ### File Structure Notes
 
-- `lcsp-python-workers` cho classification orchestration/runtime.
+- `deepagents` cho classification orchestration/runtime.
 - `packages/*` cho classification schema, citation coverage enums, blocking reason contract.
 - `apps/api` cho status projection và presentation contract cho blocked/degraded/final states.
 

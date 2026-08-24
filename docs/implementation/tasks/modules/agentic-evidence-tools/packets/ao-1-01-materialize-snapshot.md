@@ -12,7 +12,7 @@ status: DONE
 | Item | Value |
 |---|---|
 | Related story / priority | AO-1 / P0 |
-| Runtime | `lcsp-python-workers` scanner workspace setup |
+| Runtime | `deepagents` scanner workspace setup |
 | Exposure / mutation | `SYSTEM_ONLY` / `SYSTEM_MUTATION` (ephemeral workspace only) |
 | Caller | Scan consumer after trusted scan-job dispatch |
 

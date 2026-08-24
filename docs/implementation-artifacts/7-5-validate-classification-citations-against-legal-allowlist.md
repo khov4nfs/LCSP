@@ -32,7 +32,7 @@ Validate Classification Citations Against Legal Allowlist
 - Story key: `7-5-validate-classification-citations-against-legal-allowlist`
 - Official execution artifact: `docs/implementation-artifacts/7-5-validate-classification-citations-against-legal-allowlist.md`
 - Epic: `Epic 7 - Citation-Backed Classification`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`, `LLM Gateway`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`, `LLM Gateway`
 
 ### Current State and Scope Guardrails
 
@@ -101,7 +101,7 @@ Validate Classification Citations Against Legal Allowlist
 
 ### File Structure Notes
 
-- `lcsp-python-workers` cho classification orchestration/runtime.
+- `deepagents` cho classification orchestration/runtime.
 - `packages/*` cho classification schema, citation coverage enums, blocking reason contract.
 - `apps/api` cho status projection và presentation contract cho blocked/degraded/final states.
 

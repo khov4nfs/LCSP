@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
-const workerRoot = path.join(repoRoot, "lcsp-python-workers");
+const workerRoot = path.join(repoRoot, "deepagents");
 const isWindows = process.platform === "win32";
 const workerPython =
   process.platform === "win32"
@@ -28,11 +28,11 @@ const defaultPhoenixCollectorEndpoint =
 const defaultPhoenixProject =
   process.env.PHOENIX_PROJECT ??
   rootEnv.PHOENIX_PROJECT ??
-  "lcsp-python-workers";
+  "deepagents";
 const defaultDockerWorkerImage =
   process.env.LCSP_WORKER_DOCKER_IMAGE ??
   rootEnv.LCSP_WORKER_DOCKER_IMAGE ??
-  "lcsp-python-workers:scanner-tools";
+  "deepagents:scanner-tools";
 const defaultOpenWikiRuntimeCommand =
   process.env.OPENWIKI_RUNTIME_COMMAND ??
   rootEnv.OPENWIKI_RUNTIME_COMMAND ??
@@ -41,6 +41,8 @@ const defaultOpenWikiRuntimeTimeoutSeconds =
   process.env.OPENWIKI_RUNTIME_TIMEOUT_SECONDS ??
   rootEnv.OPENWIKI_RUNTIME_TIMEOUT_SECONDS ??
   "180";
+const managedAgentPythonPath = ".";
+const dockerManagedAgentPythonPath = "/app/deepagents";
 
 const targets = {
   proxy: {
@@ -144,7 +146,7 @@ const targets = {
     args: ["run", "mda", "dev", "."],
     env: {
       ...rootEnv,
-      PYTHONPATH: "src:.",
+      PYTHONPATH: managedAgentPythonPath,
       ORCHESTRATION_DEBUG: defaultOrchestrationDebug,
       PHOENIX_TRACING: defaultPhoenixTracing,
       PHOENIX_COLLECTOR_ENDPOINT: defaultPhoenixCollectorEndpoint,
@@ -160,7 +162,7 @@ const targets = {
     args: [
       "build",
       "-f",
-      "lcsp-python-workers/Dockerfile",
+      "deepagents/Dockerfile",
       "-t",
       defaultDockerWorkerImage,
       ".",
@@ -597,7 +599,7 @@ function dockerWorkerEnv() {
     ),
     PHOENIX_PROJECT: defaultPhoenixProject,
     HEALTH_PORT: "8080",
-    PYTHONPATH: "/app/lcsp-python-workers/src",
+    PYTHONPATH: dockerManagedAgentPythonPath,
     KNIP_BINARY: "/usr/local/bin/knip",
   };
 }

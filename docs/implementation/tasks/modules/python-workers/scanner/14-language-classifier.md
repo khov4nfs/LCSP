@@ -1,7 +1,7 @@
 ---
 task_id: MW-scan-py-014
 module: python-workers/scanner
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: READY_FOR_DEV
 epic_story: 3.5
@@ -20,9 +20,9 @@ Classify each file in the workspace by language and support level, then route to
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/scanner/inventory/language_classifier.py` | Create | Classify files → `LanguageClassification` list |
-| `lcsp-python-workers/src/lcsp_workers/scanner/inventory/analyzer_router.py` | Create | Route `LanguageClassification` → analyzer dispatch list |
-| `lcsp-python-workers/src/lcsp_workers/scanner/inventory/language_types.py` | Create | `LanguageClassification` dataclass, support level constants |
+| `deepagents/tools/graph/scanner/inventory/language_classifier.py` | Create | Classify files → `LanguageClassification` list |
+| `deepagents/tools/graph/scanner/inventory/analyzer_router.py` | Create | Route `LanguageClassification` → analyzer dispatch list |
+| `deepagents/tools/graph/scanner/inventory/language_types.py` | Create | `LanguageClassification` dataclass, support level constants |
 
 ## Support Levels (from scanner-spec.md)
 

@@ -28,7 +28,7 @@ Conflict Candidate Detection for Reconciliation
 - Story key: `4-5-conflict-candidate-detection-for-reconciliation`
 - Official execution artifact: `docs/implementation-artifacts/4-5-conflict-candidate-detection-for-reconciliation.md`
 - Epic: `Epic 4 - AIUsageFlow Claims and Uncertainty`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`
 
 ### Current State and Scope Guardrails
 
@@ -97,7 +97,7 @@ Conflict Candidate Detection for Reconciliation
 
 ### File Structure Notes
 
-- `lcsp-python-workers` cho AIUsageFlow worker, claim assembly và persistence.
+- `deepagents` cho AIUsageFlow worker, claim assembly và persistence.
 - `apps/api` cho status projection, review surface orchestration và Manager-safe read model.
 - `packages/*` cho claim schema, evidence-ref contract, uncertainty/conflict enums.
 

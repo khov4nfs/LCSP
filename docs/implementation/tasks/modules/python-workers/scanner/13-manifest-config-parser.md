@@ -1,7 +1,7 @@
 ---
 task_id: MW-scan-py-013
 module: python-workers/scanner
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: READY_FOR_DEV
 epic_story: 3.5
@@ -19,9 +19,9 @@ Parse all manifest, configuration, schema, and migration files in the workspace 
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/scanner/inventory/manifest_parser.py` | Create | Main parser orchestrator |
-| `lcsp-python-workers/src/lcsp_workers/scanner/inventory/manifest_types.py` | Create | `ManifestFact` dataclass |
-| `lcsp-python-workers/src/lcsp_workers/scanner/inventory/manifest_rules.py` | Create | Manifest file type registry + extraction rules |
+| `deepagents/tools/graph/scanner/inventory/manifest_parser.py` | Create | Main parser orchestrator |
+| `deepagents/tools/graph/scanner/inventory/manifest_types.py` | Create | `ManifestFact` dataclass |
+| `deepagents/tools/graph/scanner/inventory/manifest_rules.py` | Create | Manifest file type registry + extraction rules |
 
 ## Manifest Types Handled
 

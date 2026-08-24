@@ -73,7 +73,7 @@ The 12-Factor App methodology is relevant to LCSP task handoffs because it expli
 
 For task templates, every task should therefore declare:
 
-- runtime owner: `nestjs-api`, `lcsp-python-workers`, `scanner-subprocess`, `migration`, `documentation`;
+- runtime owner: `nestjs-api`, `deepagents`, `scanner-subprocess`, `migration`, `documentation`;
 - language/toolchain: TypeScript/NestJS/Prisma or Python worker module;
 - config and secret refs, never inline secrets;
 - build/release/run expectations;

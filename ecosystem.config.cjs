@@ -76,6 +76,33 @@ module.exports = {
       autorestart: true,
       restart_delay: 3000,
       kill_timeout: 15000
+    },
+
+    {
+      name: "lcsp-managed-deep-agent",
+      cwd: `${APP}/deepagents`,
+
+      script: "dotenv",
+      interpreter: "none",
+
+      args: [
+        "-e", ENV_FILE,
+        "--",
+        `${APP}/.venv/bin/mda`,
+        "dev",
+        "."
+      ],
+
+      env: {
+        ...commonEnv,
+        PYTHONPATH: "."
+      },
+
+      instances: 1,
+      exec_mode: "fork",
+      autorestart: true,
+      restart_delay: 3000,
+      kill_timeout: 15000
     }
   ]
 };

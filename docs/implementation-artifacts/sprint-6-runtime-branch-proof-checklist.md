@@ -84,9 +84,9 @@ Common branch shape:
 
 Additional care needed because it also changes scanner worker files:
 
-- `lcsp-python-workers/src/lcsp_workers/scanner/evidence_assembler.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/inventory/analyzer_router.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/scan_consumer.py`
+- `deepagents/tools/graph/scanner/evidence_assembler.py`
+- `deepagents/tools/graph/scanner/inventory/analyzer_router.py`
+- `deepagents/tools/graph/scanner/scan_consumer.py`
 
 ### Class C — AO-4 focused read branches with shared reconciliation seams
 

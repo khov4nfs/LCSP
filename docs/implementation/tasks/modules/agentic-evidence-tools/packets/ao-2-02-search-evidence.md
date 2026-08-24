@@ -99,7 +99,7 @@ For a claim “OpenAI is invoked in API”, AO-3 searches provider `OPENAI`; onl
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Add strict contracts/registry under `packages/contracts/src/agentic-evidence`; `FindingProjection`, handler and normalizer under `lcsp-python-workers/src/lcsp_workers/agentic_evidence`; PBAC/audit gateway and tests under `apps/api/src/modules/evidence`. OQ-01: Tech Lead must ratify the 100-item/2s ceiling before `READY_FOR_SPRINT` (blocks: yes). Deliver schema, definition, projection query, mapper, audit and unit/contract/integration/privacy tests.
+Add strict contracts/registry under `packages/contracts/src/agentic-evidence`; `FindingProjection`, handler and normalizer under `deepagents/tools/common/agentic_evidence`; PBAC/audit gateway and tests under `apps/api/src/modules/evidence`. OQ-01: Tech Lead must ratify the 100-item/2s ceiling before `READY_FOR_SPRINT` (blocks: yes). Deliver schema, definition, projection query, mapper, audit and unit/contract/integration/privacy tests.
 
 ## Source Authority
 

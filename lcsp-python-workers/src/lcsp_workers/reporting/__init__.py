@@ -1,3 +1,0 @@
-"""
-Reporting worker module.
-"""

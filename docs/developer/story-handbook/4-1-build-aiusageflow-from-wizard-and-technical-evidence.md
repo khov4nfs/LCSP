@@ -25,7 +25,7 @@ Build AIUsageFlow From Wizard and Technical Evidence
 - Story key: `4-1-build-aiusageflow-from-wizard-and-technical-evidence`
 - Official execution artifact: `docs/implementation-artifacts/4-1-build-aiusageflow-from-wizard-and-technical-evidence.md`
 - Epic: `Epic 4 - AIUsageFlow Claims and Uncertainty`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`
 
 ### Current State and Scope Guardrails
 
@@ -94,7 +94,7 @@ Build AIUsageFlow From Wizard and Technical Evidence
 
 ### File Structure Notes
 
-- `lcsp-python-workers` cho AIUsageFlow worker, claim assembly và persistence.
+- `deepagents` cho AIUsageFlow worker, claim assembly và persistence.
 - `apps/api` cho status projection, review surface orchestration và Manager-safe read model.
 - `packages/*` cho claim schema, evidence-ref contract, uncertainty/conflict enums.
 

@@ -36,7 +36,7 @@ TechnicalEvidenceReport Gates
 - Story key: `3-7-technicalevidencereport-gates`
 - Official execution artifact: `docs/implementation-artifacts/3-7-technicalevidencereport-gates.md`
 - Epic: `Epic 3 - Trusted Repository Evidence and TechnicalProfile`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`
 
 ### Current State and Scope Guardrails
 
@@ -106,7 +106,7 @@ TechnicalEvidenceReport Gates
 ### File Structure Notes
 
 - `apps/api` cho repository selection, scan request/status API và outbox command creation.
-- `lcsp-python-workers` cho queue consumer, scanner runtime, evidence gates, TechnicalProfile worker.
+- `deepagents` cho queue consumer, scanner runtime, evidence gates, TechnicalProfile worker.
 - `packages/*` cho command/event schemas, status projection contracts, evidence/profile DTOs.
 
 ### Implementation Guidance for the Dev Agent

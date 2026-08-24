@@ -47,7 +47,7 @@ jobs:
               - 'tsconfig*.json'
             python:
               - '.github/workflows/test.yml'
-              - 'lcsp-python-workers/**'
+              - 'deepagents/**'
 
   api-unit:
     name: API unit tests
@@ -124,7 +124,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: lcsp-python-workers
+        working-directory: deepagents
     steps:
       - uses: actions/checkout@v4
 
@@ -132,7 +132,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-          cache-dependency-path: lcsp-python-workers/pyproject.toml
+          cache-dependency-path: deepagents/pyproject.toml
 
       - name: Install dependencies
         run: python -m pip install -e ".[dev]"

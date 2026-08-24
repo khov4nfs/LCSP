@@ -1,7 +1,7 @@
 ---
 task_id: MW-cls-py-001
 module: python-workers/classification
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: READY_FOR_DEV
 epic_story: 6.2
@@ -20,13 +20,13 @@ Consume `legal-rule-match-ready` events and generate classification output using
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/classification/__init__.py` | Create | Package init |
-| `lcsp-python-workers/src/lcsp_workers/classification/classification_consumer.py` | Create | `ConsumerBase` for `legal-rule-match-ready` |
-| `lcsp-python-workers/src/lcsp_workers/classification/classification_graph.py` | Create | LangGraph workflow for classification orchestration |
-| `lcsp-python-workers/src/lcsp_workers/classification/risk_tier_calculator.py` | Create | Deterministic precedence and support calculators used before/after model-assisted nodes |
-| `lcsp-python-workers/src/lcsp_workers/classification/rationale_narrator.py` | Create | Optional gateway-backed rationale drafting for an already-validated classification result |
-| `lcsp-python-workers/src/lcsp_workers/classification/citation_guardrail.py` | Create | Guardrail: passed \| degraded \| blocked |
-| `lcsp-python-workers/src/lcsp_workers/classification/overclaim_detector.py` | Create | Output guardrail against overclaim wording |
+| `deepagents/tools/classification/classification/__init__.py` | Create | Package init |
+| `deepagents/tools/classification/classification/classification_consumer.py` | Create | `ConsumerBase` for `legal-rule-match-ready` |
+| `deepagents/tools/classification/classification/classification_graph.py` | Create | LangGraph workflow for classification orchestration |
+| `deepagents/tools/classification/classification/risk_tier_calculator.py` | Create | Deterministic precedence and support calculators used before/after model-assisted nodes |
+| `deepagents/tools/classification/classification/rationale_narrator.py` | Create | Optional gateway-backed rationale drafting for an already-validated classification result |
+| `deepagents/tools/classification/classification/citation_guardrail.py` | Create | Guardrail: passed \| degraded \| blocked |
+| `deepagents/tools/classification/classification/overclaim_detector.py` | Create | Output guardrail against overclaim wording |
 
 ## RabbitMQ
 

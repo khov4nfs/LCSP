@@ -18,7 +18,7 @@ Tài liệu này không thay thế authority gốc. Khi có mâu thuẫn, luôn 
 ## Executive Summary
 
 - Task catalog vẫn giữ nhãn `IMPLEMENTATION_NOT_AUTHORIZED` ở lớp planning artifact, nhưng story-level execution artifacts hiện đã mở execution surface cho toàn bộ MVP.
-- Runtime shape đã khóa: `apps/web` là Next.js, `apps/api` là NestJS synchronous control plane, mọi async domain workload thuộc monorepo `lcsp-python-workers`.
+- Runtime shape đã khóa: `apps/web` là Next.js, `apps/api` là NestJS synchronous control plane, mọi async domain workload thuộc monorepo `deepagents`.
 - PBAC là authorization source of truth. Role label như `Manager` và `Developer` chỉ là attribute hoặc policy template.
 - Scanner lifecycle do Python Scanner Worker sở hữu; Node.js chỉ còn là bounded TS/JS analyzer subprocess.
 - Legal retrieval dùng ChromaDB structure-first vectorless retrieval; không dùng dense embedding hoặc pgvector cho legal MVP.
@@ -47,7 +47,7 @@ PLANNING_GATE_AND_EXECUTION_GATE_ARE_SEPARATE
 |---|---|---|
 | Web UX | `apps/web` | Next.js frontend, chỉ gọi API |
 | Sync control plane | `apps/api` | NestJS API, auth, PBAC boundary, state validation, audit, outbox creation |
-| Async domain workloads | `lcsp-python-workers` | toàn bộ scanner, profile, legal, classification, document pipeline |
+| Async domain workloads | `deepagents` | toàn bộ scanner, profile, legal, classification, document pipeline |
 | Queue choreography | RabbitMQ + outbox | không publish trực tiếp trong domain transaction |
 | Relational metadata | PostgreSQL | domain state, audit, outbox, workflow metadata |
 | Legal retrieval store | ChromaDB | structure-first vectorless retrieval |
@@ -60,7 +60,7 @@ flowchart LR
     A --> P[(PostgreSQL)]
     A --> O[OutboxEvent]
     O --> R[RabbitMQ]
-    R --> PW[lcsp-python-workers]
+    R --> PW[deepagents]
     PW --> P
     PW --> C[(ChromaDB)]
     PW --> S[(S3-compatible storage)]

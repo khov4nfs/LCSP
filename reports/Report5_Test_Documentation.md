@@ -78,7 +78,7 @@ Testing covers all 17 canonical use cases (UC-001..UC-017), the full functional 
 | Purpose | Tool | Vendor/In-house | Version |
 | --- | --- | --- | --- |
 | Backend unit/integration testing | Jest | Vendor (OpenJS Foundation) | Per `apps/api/package.json` |
-| Python worker unit/integration testing | pytest | Vendor (open source) | Per `lcsp-python-workers` |
+| Python worker unit/integration testing | pytest | Vendor (open source) | Per `deepagents` |
 | API contract testing | Supertest / NestJS testing utilities | Vendor (open source) | Per `apps/api` |
 | Static-analysis toolchain validation (fixtures) | Syft, Knip, deptry, Semgrep | Vendor (open source) | Pinned per `scannerVersion`/`rulesetVersion` |
 | Traceability & gate decisioning | Custom traceability matrix + gate-decision scripts | In-house | `docs/test-artifacts/traceability/` |
@@ -101,7 +101,7 @@ Testing covers all 17 canonical use cases (UC-001..UC-017), the full functional 
 | **Purpose** | **Tool** | **Provider** | **Version** |
 | --- | --- | --- | --- |
 | Backend runtime | NestJS | Vendor (open source) | Per `apps/api/package.json` |
-| Worker runtime | Python | Vendor (open source) | Per `lcsp-python-workers` |
+| Worker runtime | Python | Vendor (open source) | Per `deepagents` |
 | Database | PostgreSQL | Vendor (open source) | Per deployment config |
 | Legal retrieval index | ChromaDB | Vendor (open source) | Per deployment config |
 | CI environment | GitHub Actions runners | Vendor | Ubuntu LTS |

@@ -6,7 +6,7 @@ AUTHORITATIVE — A-to-Z RUNNABLE MVP
 
 ## Purpose
 
-Define the Python Scanner Worker build and runtime contract. The canonical package topology is the `lcsp-python-workers` monorepo, with scanner runtime under `lcsp_workers.scanner`. It replaces the Node.js scanner lifecycle worker and is the sole consumer of `command.scan.requested.v1`.
+Define the Python Scanner Worker build and runtime contract. The canonical package topology is the `deepagents` monorepo, with scanner runtime under `tools.graph.scanner`. It replaces the Node.js scanner lifecycle worker and is the sole consumer of `command.scan.requested.v1`.
 
 Python Worker Platform-wide behavior lives in `docs/implementation/python-worker-platform-implementation.md`.
 
@@ -43,9 +43,9 @@ The physical schema and migrations remain owned by `persistence-implementation.m
 ## Package Layout
 
 ```text
-lcsp-python-workers/
+deepagents/
   pyproject.toml
-  src/lcsp_workers/
+  tools/
     platform/
     scanner/
       main.py
@@ -68,9 +68,9 @@ lcsp-python-workers/
 ## Run Contract
 
 ```bash
-cd lcsp-python-workers
+cd deepagents
 poetry install
-poetry run python -m lcsp_workers.scanner.main
+poetry run python -m tools.graph.scanner.main
 ```
 
 Startup validates required environment, PostgreSQL connectivity, RabbitMQ connectivity, fixed TS/JS analyzer executable, workspace root, and scanner/ruleset versions. Startup failure is explicit and redacted.
@@ -180,7 +180,7 @@ Retryable job failures use the canonical 30s, 120s, and 600s backoff budget befo
 
 ## Acceptance
 
-- Process starts through `poetry run python -m lcsp_workers.scanner.main`.
+- Process starts through `poetry run python -m tools.graph.scanner.main`.
 - Python analysis and scanner toolchain produce bounded evidence for dependencies, imports, calls, model I/O, decision and review paths.
 - TS/JS analyzer protocol is validated and normalized.
 - Syft/Knip/deptry/Semgrep/tree-sitter outputs are pinned, bounded, redacted, normalized and provenance-recorded.

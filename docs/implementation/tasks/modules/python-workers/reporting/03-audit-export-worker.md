@@ -1,7 +1,7 @@
 ---
 task_id: MW-rep-003
 module: python-workers/reporting
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P1
 status: READY_FOR_DEV
 epic_story: 8.7
@@ -19,8 +19,8 @@ Consume `audit.export-requested` events and generate a pre-redacted audit trail 
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/reporting/audit_export_consumer.py` | Create | `ConsumerBase` for `audit.export-requested` |
-| `lcsp-python-workers/src/lcsp_workers/reporting/audit_export_generator.py` | Create | Audit fetch + redaction + export |
+| `deepagents/tools/reports/reporting/audit_export_consumer.py` | Create | `ConsumerBase` for `audit.export-requested` |
+| `deepagents/tools/reports/reporting/audit_export_generator.py` | Create | Audit fetch + redaction + export |
 
 ## RabbitMQ
 

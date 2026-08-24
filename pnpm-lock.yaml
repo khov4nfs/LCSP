@@ -287,7 +287,7 @@ importers:
         specifier: ^4.3.2
         version: 4.3.2
 
-  lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/ts-js-analyzer:
+  deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer:
     dependencies:
       ts-morph:
         specifier: 26.0.0

@@ -21,7 +21,7 @@ Use this template for **one catalog tool**. It adapts the approved LLM Tool Call
 | Priority | `P0` / `P1` / `P2` |
 | Assignee / reviewer | |
 | Status | `TODO` / `READY_FOR_PLANNING` / `READY_FOR_SPRINT` / `IN_PROGRESS` / `DONE` / `BLOCKED` |
-| Runtime / related service | `lcsp-python-workers`; API PBAC/audit/persistence seam; exact module |
+| Runtime / related service | `deepagents`; API PBAC/audit/persistence seam; exact module |
 | Tool exposure | `LLM_CALLABLE` / `ORCHESTRATOR_ONLY` / `SYSTEM_ONLY` |
 | Mutation class | `READ` / `REANALYZE` / `SYSTEM_MUTATION` |
 

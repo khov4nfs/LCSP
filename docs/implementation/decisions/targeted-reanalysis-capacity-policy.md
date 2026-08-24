@@ -34,7 +34,7 @@ This is an intentionally modest baseline: a worst-case tenant may wait roughly 5
 
 ## Source evidence
 
-- `lcsp-python-workers/src/lcsp_workers/scanner/scan_consumer.py` — `scan_timeout_seconds = 600`.
-- `lcsp-python-workers/src/lcsp_workers/platform/queue_consumer.py` — `basic_qos(prefetch_count=1)` and `MAX_RETRIES` requeue behavior.
-- `lcsp-python-workers/src/lcsp_workers/platform/config.py` — worker default `MAX_RETRIES=3`.
+- `deepagents/tools/graph/scanner/scan_consumer.py` — `scan_timeout_seconds = 600`.
+- `deepagents/tools/common/platform/queue_consumer.py` — `basic_qos(prefetch_count=1)` and `MAX_RETRIES` requeue behavior.
+- `deepagents/tools/common/platform/config.py` — worker default `MAX_RETRIES=3`.
 - `apps/api/src/platform/outbox/outbox.repository.ts` and `outbox-publisher.service.ts` — transactional `SKIP LOCKED`, retry and DLQ pattern.

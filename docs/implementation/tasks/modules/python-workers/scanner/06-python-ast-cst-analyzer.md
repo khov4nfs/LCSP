@@ -1,7 +1,7 @@
 ---
 task_id: MW-scan-py-006
 module: python-workers/scanner
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: DONE
 epic_story: 3.5
@@ -20,11 +20,11 @@ Analyze Python source files in the scanner workspace using stdlib `ast` and `lib
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/scanner/parsers/python_ast_parser.py` | Create | stdlib `ast` module parser: imports, function defs, call graph |
-| `lcsp-python-workers/src/lcsp_workers/scanner/parsers/python_cst_parser.py` | Create | `libcst` CST parser: precise API pattern detection (argument names, kwargs, chained calls) |
-| `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/python_analyzer.py` | Create | Orchestrate AST + CST → produce `PythonAnalysisResult` |
-| `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/ai_pattern_rules.py` | Create | All AI library pattern rules (AI_RULE_TABLE) |
-| `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/level_guard.py` | Create | L0–L3 boundary enforcement; emits UNSUPPORTED_DYNAMIC_FLOW at L4 |
+| `deepagents/tools/graph/scanner/parsers/python_ast_parser.py` | Create | stdlib `ast` module parser: imports, function defs, call graph |
+| `deepagents/tools/graph/scanner/parsers/python_cst_parser.py` | Create | `libcst` CST parser: precise API pattern detection (argument names, kwargs, chained calls) |
+| `deepagents/tools/graph/scanner/analyzers/python_analyzer.py` | Create | Orchestrate AST + CST → produce `PythonAnalysisResult` |
+| `deepagents/tools/graph/scanner/analyzers/ai_pattern_rules.py` | Create | All AI library pattern rules (AI_RULE_TABLE) |
+| `deepagents/tools/graph/scanner/analyzers/level_guard.py` | Create | L0–L3 boundary enforcement; emits UNSUPPORTED_DYNAMIC_FLOW at L4 |
 
 ## Analysis Levels Enforced
 
@@ -236,4 +236,4 @@ AI_RULE_TABLE = [
 - Implemented AI rule matching for OpenAI, Anthropic, Google/Vertex, Hugging Face, LangChain, LlamaIndex, sklearn, TensorFlow/Keras, PyTorch, local HTTP inference, generic predict/generate patterns, prompt references, and sensitive parameter names.
 - Enforced bounded behavior: 50 KB file cap, syntax-error skip, excluded runtime/build/cache directories, dynamic dispatch/`**kwargs` as `UNSUPPORTED_DYNAMIC_FLOW`, L1 direct calls, same-module parsing, and one-hop direct-import L3 propagation.
 - Wired `ScanConsumer` to run the Python analyzer and include `python_analysis` in `TechnicalEvidenceReport` callback evidence payload.
-- Validation: Python compile checks passed for changed analyzer/parser/evidence/consumer files and tests. Targeted pytest passed: `test_scanner_analyzer.py`, `test_evidence_assembler.py`, `test_scanner_workspace.py` — 30 passed, 1 skipped, 1 warning. Full `lcsp-python-workers/tests` collection is blocked in the temporary Python 3.14 validation environment by missing `tiktoken`; installing full worker deps remains blocked because `tiktoken==0.8.0` has no compatible wheel here and requires a Rust compiler.
+- Validation: Python compile checks passed for changed analyzer/parser/evidence/consumer files and tests. Targeted pytest passed: `test_scanner_analyzer.py`, `test_evidence_assembler.py`, `test_scanner_workspace.py` — 30 passed, 1 skipped, 1 warning. Full `deepagents/tests` collection is blocked in the temporary Python 3.14 validation environment by missing `tiktoken`; installing full worker deps remains blocked because `tiktoken==0.8.0` has no compatible wheel here and requires a Rust compiler.

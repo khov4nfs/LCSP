@@ -143,7 +143,7 @@ For “verify AI use in `apps/api`”, the orchestrator calls with `pathPrefixes
 
 ## 19–22. DoD, Files, Open Questions, Deliverables
 
-Implement contracts under `packages/contracts/src/agentic-evidence`, safe projection/handler under `lcsp-python-workers/src/lcsp_workers/agentic_evidence`, and API PBAC/audit gateway under `apps/api/src/modules/evidence`. Open decision OQ-01: ratify `maxResults=100` and 2-second timeout with Tech Lead before `READY_FOR_SPRINT`. Deliver registry entry, schemas, handler, projection, audit, and unit/contract/integration/privacy tests.
+Implement contracts under `packages/contracts/src/agentic-evidence`, safe projection/handler under `deepagents/tools/common/agentic_evidence`, and API PBAC/audit gateway under `apps/api/src/modules/evidence`. Open decision OQ-01: ratify `maxResults=100` and 2-second timeout with Tech Lead before `READY_FOR_SPRINT`. Deliver registry entry, schemas, handler, projection, audit, and unit/contract/integration/privacy tests.
 
 ## Source Authority
 

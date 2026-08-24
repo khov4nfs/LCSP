@@ -1,7 +1,7 @@
 ---
 task_id: MW-scan-py-003
 module: python-workers/scanner
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: READY_FOR_DEV
 epic_story: 3.5
@@ -19,9 +19,9 @@ Run Semgrep with LCSP-custom rulesets to detect AI provider API usage, LLM frame
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/scanner/tools/semgrep_tool.py` | Create | Semgrep runner + output parser |
-| `lcsp-python-workers/src/lcsp_workers/scanner/rulesets/lcsp-ai-usage.yaml` | Create | Custom Semgrep rules for AI usage detection |
-| `lcsp-python-workers/src/lcsp_workers/scanner/rulesets/lcsp-secret-detect.yaml` | Create | Custom rules for secret leak detection (for redaction, not reporting) |
+| `deepagents/tools/graph/scanner/tools/semgrep_tool.py` | Create | Semgrep runner + output parser |
+| `deepagents/tools/graph/scanner/rulesets/lcsp-ai-usage.yaml` | Create | Custom Semgrep rules for AI usage detection |
+| `deepagents/tools/graph/scanner/rulesets/lcsp-secret-detect.yaml` | Create | Custom rules for secret leak detection (for redaction, not reporting) |
 
 ## Semgrep Rulesets
 

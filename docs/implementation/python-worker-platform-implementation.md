@@ -37,9 +37,9 @@ This file is not the scanner runtime specification.
 ## Platform Package Shape
 
 ```text
-lcsp-python-workers/
+deepagents/
   pyproject.toml
-  src/lcsp_workers/
+  tools/
     platform/
       config.py
       logging.py
@@ -65,7 +65,7 @@ lcsp-python-workers/
     document/
 ```
 
-Canonical MVP package topology is the `lcsp-python-workers` monorepo. Separating workers into independently deployable Python packages is a post-MVP packaging decision and must not be presented as concurrent canonical structure.
+Canonical MVP package topology is the `deepagents` monorepo. Separating workers into independently deployable Python packages is a post-MVP packaging decision and must not be presented as concurrent canonical structure.
 
 ## Runtime Contract
 

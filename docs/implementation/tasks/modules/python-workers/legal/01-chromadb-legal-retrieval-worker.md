@@ -1,7 +1,7 @@
 ---
 task_id: MW-legal-001
 module: python-workers/legal
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: READY_FOR_DEV
 epic_story: 6.1
@@ -25,12 +25,12 @@ No dense embeddings anywhere in this worker.
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/legal/__init__.py` | Create | Package init |
-| `lcsp-python-workers/src/lcsp_workers/legal/legal_retrieval_consumer.py` | Create | `ConsumerBase` subclass for `verified-profile-ready` |
-| `lcsp-python-workers/src/lcsp_workers/legal/rule_applicability_evaluator.py` | Create | Deterministic `LegalRule` catalog evaluation against `VerifiedProfile.mergedProfile` — no ChromaDB call |
-| `lcsp-python-workers/src/lcsp_workers/legal/chromadb_citation_retriever.py` | Create | Citation-only ChromaDB structure-first retrieval for matched rules |
-| `lcsp-python-workers/src/lcsp_workers/legal/citation_allowlist_validator.py` | Create | Citation allowlist validation |
-| `lcsp-python-workers/src/lcsp_workers/legal/legal_match_builder.py` | Create | Applicability result + citation → `LegalRuleMatch` candidates |
+| `deepagents/tools/legal/legal/__init__.py` | Create | Package init |
+| `deepagents/tools/legal/legal/legal_retrieval_consumer.py` | Create | `ConsumerBase` subclass for `verified-profile-ready` |
+| `deepagents/tools/legal/legal/rule_applicability_evaluator.py` | Create | Deterministic `LegalRule` catalog evaluation against `VerifiedProfile.mergedProfile` — no ChromaDB call |
+| `deepagents/tools/legal/legal/chromadb_citation_retriever.py` | Create | Citation-only ChromaDB structure-first retrieval for matched rules |
+| `deepagents/tools/legal/legal/citation_allowlist_validator.py` | Create | Citation allowlist validation |
+| `deepagents/tools/legal/legal/legal_match_builder.py` | Create | Applicability result + citation → `LegalRuleMatch` candidates |
 
 ## RabbitMQ
 

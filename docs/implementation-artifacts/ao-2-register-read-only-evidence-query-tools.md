@@ -41,7 +41,7 @@ so that I receive bounded technical evidence without receiving raw source.
 ### Expected Files
 
 - `packages/contracts/src/agentic-evidence/*` or the existing contract module
-- `lcsp-python-workers/src/lcsp_workers/*` for worker-owned registry/capability implementations and read-model support, never source re-execution
+- `deepagents/tools/*` for worker-owned registry/capability implementations and read-model support, never source re-execution
 - `apps/api/src/modules/*/application/services/*` only for the PBAC, audit, and persistence gateway boundary
 - focused API/worker contract and privacy tests
 

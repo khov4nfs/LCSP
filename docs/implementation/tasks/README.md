@@ -42,14 +42,14 @@ Recounted 2026-07-05 directly from `docs/implementation/tasks/modules/**` frontm
 | `platform/config` | nestjs-api | 1 | 0 | 0 | 1 | 1 |
 | `platform/outbox` | nestjs-api | 2 | 1 | 0 | 3 | 3 |
 | `platform/pbac` | nestjs-api<br>nestjs-api + python-workers | 3 | 1 | 0 | 4 | 4 |
-| `python-workers/classification` | lcsp-python-workers | 1 | 0 | 0 | 1 | 1 |
-| `python-workers/intelligence` | lcsp-python-workers | 4 | 0 | 0 | 4 | 4 |
-| `python-workers/legal` | lcsp-python-workers | 1 | 0 | 0 | 1 | 1 |
-| `python-workers/llm` | lcsp-python-workers | 1 | 0 | 0 | 1 | 1 |
-| `python-workers/platform` | lcsp-python-workers | 3 | 1 | 0 | 4 | 4 |
-| `python-workers/reporting` | lcsp-python-workers | 0 | 3 | 0 | 3 | 3 |
-| `python-workers/scanner` | lcsp-python-workers | 14 | 1 | 0 | 15 | 15 |
-| `qa` | nestjs-api<br>lcsp-python-workers<br>all | 2 | 1 | 0 | 3 | 3 |
+| `python-workers/classification` | deepagents | 1 | 0 | 0 | 1 | 1 |
+| `python-workers/intelligence` | deepagents | 4 | 0 | 0 | 4 | 4 |
+| `python-workers/legal` | deepagents | 1 | 0 | 0 | 1 | 1 |
+| `python-workers/llm` | deepagents | 1 | 0 | 0 | 1 | 1 |
+| `python-workers/platform` | deepagents | 3 | 1 | 0 | 4 | 4 |
+| `python-workers/reporting` | deepagents | 0 | 3 | 0 | 3 | 3 |
+| `python-workers/scanner` | deepagents | 14 | 1 | 0 | 15 | 15 |
+| `qa` | nestjs-api<br>deepagents<br>all | 2 | 1 | 0 | 3 | 3 |
 | `reconciliation` | nestjs-api | 4 | 0 | 0 | 4 | 4 |
 | `scan` | nestjs-api | 2 | 1 | 0 | 3 | 3 |
 | `web` | nextjs | 4 | 2 | 0 | 6 | 6 |

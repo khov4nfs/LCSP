@@ -19,7 +19,7 @@ Internal domain classes and methods may keep their existing names. They MUST be 
 
 The Python orchestration runtime keeps one discoverable index in:
 
-`lcsp-python-workers/src/lcsp_workers/agentic_evidence/dispatcher.py`
+`deepagents/tools/common/agentic_evidence/dispatcher.py`
 
 Each `ToolBinding` declares:
 
@@ -44,7 +44,7 @@ Runtime targets are explicit:
 
 Canonical functions live in:
 
-`lcsp-python-workers/src/lcsp_workers/agentic_evidence/scanner_tool_entrypoints.py`
+`deepagents/tools/common/agentic_evidence/scanner_tool_entrypoints.py`
 
 `ScanConsumer` dispatches through `ScannerToolDispatcher` instead of knowing individual implementations such as `SyftTool.run` or `SemgrepTool.run` directly.
 
@@ -81,7 +81,7 @@ This currently owns:
 
 Canonical functions live in:
 
-`lcsp-python-workers/src/lcsp_workers/agentic_evidence/legal_tool_entrypoints.py`
+`deepagents/tools/common/agentic_evidence/legal_tool_entrypoints.py`
 
 Authoritative AO-6 queue consumers are no longer allowed to instantiate the corresponding builder/validator/tool and call `run()`, `build()`, `evaluate()`, `validate()`, or `extract_*()` directly. Runtime execution is now:
 
@@ -119,13 +119,13 @@ Source-fetch retry semantics are preserved: deterministic command-envelope error
 
 Architecture regression coverage lives in:
 
-`lcsp-python-workers/tests/agentic_evidence/test_legal_consumer_dispatch_boundaries.py`
+`deepagents/tests/agentic_evidence/test_legal_consumer_dispatch_boundaries.py`
 
 It fails if an authoritative AO-6 consumer bypasses `LegalToolDispatcher`, if recovery owns Chroma validation directly again, or if recovery calls the activation API directly.
 
 ## Debugging
 
-From `lcsp-python-workers`:
+From `deepagents`:
 
 ```bash
 python scripts/list_agentic_tool_bindings.py

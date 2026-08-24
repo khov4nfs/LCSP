@@ -52,7 +52,7 @@ Trusted Scan Trigger and Scan Job Orchestration
 - Story key: `3-3-trusted-scan-trigger-and-scan-job-orchestration`
 - Official execution artifact: `docs/implementation-artifacts/3-3-trusted-scan-trigger-and-scan-job-orchestration.md`
 - Epic: `Epic 3 - Trusted Repository Evidence and TechnicalProfile`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`
 
 ### Current State and Scope Guardrails
 
@@ -145,7 +145,7 @@ Trusted Scan Trigger and Scan Job Orchestration
 ### File Structure Notes
 
 - `apps/api` cho repository selection, scan request/status API và outbox command creation.
-- `lcsp-python-workers` cho queue consumer, scanner runtime, evidence gates, TechnicalProfile worker.
+- `deepagents` cho queue consumer, scanner runtime, evidence gates, TechnicalProfile worker.
 - `packages/*` cho command/event schemas, status projection contracts, evidence/profile DTOs.
 
 ### Implementation Guidance for the Dev Agent

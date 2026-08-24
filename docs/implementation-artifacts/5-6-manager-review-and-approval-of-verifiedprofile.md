@@ -37,7 +37,7 @@ As a Manager, I want to review and approve VerifiedProfile before downstream cla
 - Story key: `5-6-manager-review-and-approval-of-verifiedprofile`
 - Official execution artifact: `docs/implementation-artifacts/5-6-manager-review-and-approval-of-verifiedprofile.md`
 - Epic: `Epic 5 - Reconciliation and VerifiedProfile`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`
 
 ### Current State and Scope Guardrails
 
@@ -106,7 +106,7 @@ As a Manager, I want to review and approve VerifiedProfile before downstream cla
 
 ### File Structure Notes
 
-- `lcsp-python-workers` cho reconciliation worker, score calculation, VerifiedProfile generation.
+- `deepagents` cho reconciliation worker, score calculation, VerifiedProfile generation.
 - `apps/api` cho Manager resolution/approval command surface và status projection.
 - `packages/*` cho conflict schema, score explanation contract, verified profile DTOs.
 

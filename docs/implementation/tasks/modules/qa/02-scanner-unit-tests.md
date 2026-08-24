@@ -1,7 +1,7 @@
 ---
 task_id: MW-qa-002
 module: qa
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: DONE
 epic_story: 3.5
@@ -41,11 +41,11 @@ Unit tests for all scanner tool wrappers, workspace setup, evidence assembly, an
 
 ## Implementation Evidence
 
-- Added callback-level unit coverage in `lcsp-python-workers/tests/test_scanner_workspace.py` asserting `privacy_flags["containsSourceCode"] is False` before callback handoff.
+- Added callback-level unit coverage in `deepagents/tests/test_scanner_workspace.py` asserting `privacy_flags["containsSourceCode"] is False` before callback handoff.
 - Added privacy assertion abort-path coverage proving `PrivacyAssertionError` prevents callback submission and still cleans up scanner workspace state.
 - Reused fixture-backed Syft/Semgrep, workspace, evidence assembly, and redaction tests; no unit test invokes real Syft/Semgrep binaries.
 
 ## Validation
 
-- `python -m pytest lcsp-python-workers/tests/test_syft_tool.py lcsp-python-workers/tests/test_semgrep_tool.py lcsp-python-workers/tests/test_evidence_assembler.py lcsp-python-workers/tests/test_redaction.py lcsp-python-workers/tests/test_scanner_workspace.py -q`
+- `python -m pytest deepagents/tests/test_syft_tool.py deepagents/tests/test_semgrep_tool.py deepagents/tests/test_evidence_assembler.py deepagents/tests/test_redaction.py deepagents/tests/test_scanner_workspace.py -q`
   - Result: 37 passed, 1 warning (`asyncio_mode` pytest config warning in minimal targeted environment).

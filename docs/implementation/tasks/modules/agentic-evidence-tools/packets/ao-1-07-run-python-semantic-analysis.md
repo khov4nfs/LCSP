@@ -9,7 +9,7 @@ status: DONE
 
 ## 1–4. Task information and objective
 
-AO-1 P0; Python analyzer/CST resolver in `lcsp-python-workers`; `SYSTEM_ONLY`, `READ`. Deterministically extract sanitized Python import, call, parameter-name and bounded L1–L3 flow facts from the complete routed Python inventory. Caller `ScanConsumer`; no source text accepted. Timeout 180/240 s per scan, 50 KB per-file parser threshold, `maxDepth<=3`; no retry for syntax/oversize/dynamic edges, one retry for transient worker I/O.
+AO-1 P0; Python analyzer/CST resolver in `deepagents`; `SYSTEM_ONLY`, `READ`. Deterministically extract sanitized Python import, call, parameter-name and bounded L1–L3 flow facts from the complete routed Python inventory. Caller `ScanConsumer`; no source text accepted. Timeout 180/240 s per scan, 50 KB per-file parser threshold, `maxDepth<=3`; no retry for syntax/oversize/dynamic edges, one retry for transient worker I/O.
 
 ## 5. Input schema
 

@@ -23,7 +23,7 @@ This template is for implementation planning and engineering handoff. It does no
 | Priority | `P0` / `P1` / `P2` |
 | Primary owner | |
 | Supporting owners | |
-| Runtime | `nestjs-api` / `lcsp-python-workers` / `scanner-subprocess` / `migration` / `documentation` |
+| Runtime | `nestjs-api` / `deepagents` / `scanner-subprocess` / `migration` / `documentation` |
 | Target wave | |
 | Source authority | Active docs only; never `docs/archive/**` or redirect-only files |
 

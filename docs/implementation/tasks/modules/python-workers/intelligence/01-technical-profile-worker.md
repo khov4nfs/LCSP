@@ -1,7 +1,7 @@
 ---
 task_id: MW-intel-001
 module: python-workers/intelligence
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: DONE
 epic_story: 3.6
@@ -20,10 +20,10 @@ Consume `scan.evidence-accepted` events and produce a `TechnicalProfile` from th
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/intelligence/__init__.py` | Create | Package init |
-| `lcsp-python-workers/src/lcsp_workers/intelligence/technical_profile_consumer.py` | Create | `ConsumerBase` subclass for `scan.evidence-accepted` |
-| `lcsp-python-workers/src/lcsp_workers/intelligence/technical_profile_builder.py` | Create | Evidence → TechnicalProfile logic |
-| `lcsp-python-workers/src/lcsp_workers/intelligence/evidence_quality_evaluator.py` | Create | Evidence quality and actionability assessment |
+| `deepagents/tools/engineer_rule/intelligence/__init__.py` | Create | Package init |
+| `deepagents/tools/engineer_rule/intelligence/technical_profile_consumer.py` | Create | `ConsumerBase` subclass for `scan.evidence-accepted` |
+| `deepagents/tools/engineer_rule/intelligence/technical_profile_builder.py` | Create | Evidence → TechnicalProfile logic |
+| `deepagents/tools/engineer_rule/intelligence/evidence_quality_evaluator.py` | Create | Evidence quality and actionability assessment |
 
 ## RabbitMQ
 
@@ -90,15 +90,15 @@ class TechnicalProfile:
 
 ## Implementation Evidence
 
-- Added deterministic intelligence package under `lcsp-python-workers/src/lcsp_workers/intelligence/`.
+- Added deterministic intelligence package under `deepagents/tools/engineer_rule/intelligence/`.
 - Added `TechnicalProfileConsumer` as a `ConsumerBase` subclass for queue `intelligence.evidence-accepted`, routing key `scan.evidence-accepted`, with `requires_pbac = False` for system event processing.
 - Added `TechnicalProfileBuilder` and `EvidenceQualityEvaluator` for evidence-only profile derivation; no LLM gateway/provider calls are used.
 - Updated worker callback schema/API client to submit `TechnicalProfile` payloads to `POST /internal/evidence/technical-profile-callback`.
-- Added unit coverage in `lcsp-python-workers/tests/test_technical_profile_worker.py` for T01–T07 and consumer callback behavior.
+- Added unit coverage in `deepagents/tests/test_technical_profile_worker.py` for T01–T07 and consumer callback behavior.
 
 ## Validation
 
-- `python -m py_compile lcsp-python-workers/src/lcsp_workers/intelligence/__init__.py lcsp-python-workers/src/lcsp_workers/intelligence/evidence_quality_evaluator.py lcsp-python-workers/src/lcsp_workers/intelligence/technical_profile_builder.py lcsp-python-workers/src/lcsp_workers/intelligence/technical_profile_consumer.py lcsp-python-workers/src/lcsp_workers/platform/api_client.py lcsp-python-workers/src/lcsp_workers/platform/callback_schemas.py lcsp-python-workers/src/package/contract/api_client_contracts.py`
+- `python -m py_compile deepagents/tools/engineer_rule/intelligence/__init__.py deepagents/tools/engineer_rule/intelligence/evidence_quality_evaluator.py deepagents/tools/engineer_rule/intelligence/technical_profile_builder.py deepagents/tools/engineer_rule/intelligence/technical_profile_consumer.py deepagents/tools/common/platform/api_client.py deepagents/tools/common/platform/callback_schemas.py deepagents/tools/common/package/contract/api_client_contracts.py`
   - Result: passed.
-- `python -m pytest lcsp-python-workers/tests/test_technical_profile_worker.py lcsp-python-workers/tests/test_api_client.py lcsp-python-workers/tests/test_queue_consumer.py lcsp-python-workers/tests/test_evidence_assembler.py -q`
+- `python -m pytest deepagents/tests/test_technical_profile_worker.py deepagents/tests/test_api_client.py deepagents/tests/test_queue_consumer.py deepagents/tests/test_evidence_assembler.py -q`
   - Result: 32 passed, 1 warning (`asyncio_mode` pytest config warning in minimal targeted environment).

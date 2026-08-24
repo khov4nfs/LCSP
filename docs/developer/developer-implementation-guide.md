@@ -8,7 +8,7 @@ Tài liệu này gom entrypoint thực dụng cho developer: runtime shape, read
 
 - `apps/web`: Next.js frontend cho Manager/Developer workspace.
 - `apps/api`: NestJS synchronous control plane cho auth, PBAC, state validation, audit, durable async work creation.
-- `lcsp-python-workers`: mọi workload async cho scanner, profile, legal, classification, documents.
+- `deepagents`: mọi workload async cho scanner, profile, legal, classification, documents.
 - `packages/*`: shared contracts, DTOs, helpers, policies, schema fragments.
 - `RabbitMQ + outbox`: choreography async.
 - `PostgreSQL`, `ChromaDB`, `S3-compatible storage`: persistence lanes chính.
