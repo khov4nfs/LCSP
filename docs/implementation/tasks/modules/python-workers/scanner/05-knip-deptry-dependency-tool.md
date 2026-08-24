@@ -1,7 +1,7 @@
 ---
 task_id: MW-scan-py-005
 module: python-workers/scanner
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: DONE
 epic_story: 3.5
@@ -19,10 +19,10 @@ Run Knip (JS/TS unused/used dependency analysis) and deptry (Python missing/unus
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/scanner/tools/knip_tool.py` | Create | Knip runner + JSON output parser |
-| `lcsp-python-workers/src/lcsp_workers/scanner/tools/deptry_tool.py` | Create | deptry runner + JSON output parser |
-| `lcsp-python-workers/src/lcsp_workers/scanner/dependencies/dependency_fact.py` | Create | `DependencyUsageFact` dataclass |
-| `lcsp-python-workers/src/lcsp_workers/scanner/dependencies/dependency_normalizer.py` | Create | Merge Syft + Knip + deptry into unified `PackageDependency` list |
+| `deepagents/tools/graph/scanner/tools/knip_tool.py` | Create | Knip runner + JSON output parser |
+| `deepagents/tools/graph/scanner/tools/deptry_tool.py` | Create | deptry runner + JSON output parser |
+| `deepagents/tools/graph/scanner/dependencies/dependency_fact.py` | Create | `DependencyUsageFact` dataclass |
+| `deepagents/tools/graph/scanner/dependencies/dependency_normalizer.py` | Create | Merge Syft + Knip + deptry into unified `PackageDependency` list |
 
 ## Tool Configuration
 
@@ -135,10 +135,10 @@ AI_PACKAGE_REGISTRY = {
 
 ## Implementation Evidence
 
-- Added `lcsp-python-workers/src/lcsp_workers/scanner/dependencies/dependency_fact.py` with `DependencyUsageFact`, `PackageDependency`, all 6 usage states, and the AI package registry from this task brief.
-- Added `lcsp-python-workers/src/lcsp_workers/scanner/dependencies/dependency_normalizer.py` to merge Syft SBOM entries with Knip/deptry usage facts, distinguish declared/transitive/used/unused/missing states, and calculate capped confidence boost per confirming tool.
-- Added `lcsp-python-workers/src/lcsp_workers/scanner/tools/knip_tool.py` with JS/TS run-condition detection, `npx --no-install knip --reporter json`, pinned version check, config hash, timeout/failure handling, relative file refs, and no `node_modules` creation.
-- Added `lcsp-python-workers/src/lcsp_workers/scanner/tools/deptry_tool.py` with Python+manifest run-condition detection, `deptry . --json-output <tmp>`, pinned version check, config hash, timeout/failure handling, missing/unused parsing, and relative file refs.
+- Added `deepagents/tools/graph/scanner/dependencies/dependency_fact.py` with `DependencyUsageFact`, `PackageDependency`, all 6 usage states, and the AI package registry from this task brief.
+- Added `deepagents/tools/graph/scanner/dependencies/dependency_normalizer.py` to merge Syft SBOM entries with Knip/deptry usage facts, distinguish declared/transitive/used/unused/missing states, and calculate capped confidence boost per confirming tool.
+- Added `deepagents/tools/graph/scanner/tools/knip_tool.py` with JS/TS run-condition detection, `npx --no-install knip --reporter json`, pinned version check, config hash, timeout/failure handling, relative file refs, and no `node_modules` creation.
+- Added `deepagents/tools/graph/scanner/tools/deptry_tool.py` with Python+manifest run-condition detection, `deptry . --json-output <tmp>`, pinned version check, config hash, timeout/failure handling, missing/unused parsing, and relative file refs.
 - Updated `ScanConsumer` to run Syft → Semgrep → Knip → deptry, record all tool provenance, normalize package dependencies, and include them in the scan callback evidence payload.
 - Updated `EvidenceAssembler` to include `package_dependencies` and dependency tool executions in the final redacted callback payload/tool failure records.
-- Validation: Python compile checks passed for changed worker files and tests. Targeted pytest passed: `test_dependency_usage_tools.py`, `test_evidence_assembler.py`, `test_scanner_workspace.py`, `test_api_client.py` — 30 passed, 1 warning. Full `lcsp-python-workers/tests` collection is blocked in the temporary Python 3.14 validation environment by missing `tiktoken`; installing full worker deps is blocked because `tiktoken==0.8.0` has no compatible wheel here and requires a Rust compiler.
+- Validation: Python compile checks passed for changed worker files and tests. Targeted pytest passed: `test_dependency_usage_tools.py`, `test_evidence_assembler.py`, `test_scanner_workspace.py`, `test_api_client.py` — 30 passed, 1 warning. Full `deepagents/tests` collection is blocked in the temporary Python 3.14 validation environment by missing `tiktoken`; installing full worker deps is blocked because `tiktoken==0.8.0` has no compatible wheel here and requires a Rust compiler.

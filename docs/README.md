@@ -80,7 +80,7 @@ Historical material remains available through git history, not as active documen
 ```text
 apps/api                 NestJS API synchronous control plane
 apps/web                 Manager and optional Developer web UX
-lcsp-python-workers      bounded Python Worker Platform for all async domain workloads
+deepagents      bounded Python Worker Platform for all async domain workloads
 tools/ts-js-analyzer     bounded Node.js CLI used only by Python Scanner Worker
 PostgreSQL + ChromaDB legal index
 RabbitMQ
@@ -133,10 +133,10 @@ npm run dev:api
 npm run dev:web
 
 # Python Worker Platform
-cd lcsp-python-workers
+cd deepagents
 poetry install
 poetry run pytest
-poetry run python -m lcsp_workers.scanner.main
+poetry run python -m tools.graph.scanner.main
 
 # TS/JS analyzer
 cd ../tools/ts-js-analyzer

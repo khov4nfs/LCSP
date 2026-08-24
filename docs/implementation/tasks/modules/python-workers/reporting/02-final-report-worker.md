@@ -1,7 +1,7 @@
 ---
 task_id: MW-rep-002
 module: python-workers/reporting
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P1
 status: READY_FOR_DEV
 epic_story: 8.3
@@ -20,8 +20,8 @@ Consume `document.final-report-requested` events and generate a final report usi
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/reporting/final_report_consumer.py` | Create | `ConsumerBase` for `document.final-report-requested` |
-| `lcsp-python-workers/src/lcsp_workers/reporting/final_report_generator.py` | Create | Final report with LLM narration |
+| `deepagents/tools/reports/reporting/final_report_consumer.py` | Create | `ConsumerBase` for `document.final-report-requested` |
+| `deepagents/tools/reports/reporting/final_report_generator.py` | Create | Final report with LLM narration |
 
 ## RabbitMQ
 

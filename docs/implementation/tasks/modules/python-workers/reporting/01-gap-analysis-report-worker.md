@@ -1,7 +1,7 @@
 ---
 task_id: MW-rep-001
 module: python-workers/reporting
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P1
 status: READY_FOR_DEV
 epic_story: 8.1
@@ -20,11 +20,11 @@ Consume `document.gap-analysis-requested` events and generate a GapAnalysis docu
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/reporting/__init__.py` | Create | Package init |
-| `lcsp-python-workers/src/lcsp_workers/reporting/gap_analysis_consumer.py` | Create | `ConsumerBase` for `document.gap-analysis-requested` |
-| `lcsp-python-workers/src/lcsp_workers/reporting/gap_analysis_generator.py` | Create | GapAnalysis document generation |
-| `lcsp-python-workers/src/lcsp_workers/reporting/output_guardrail.py` | Create | Overclaim detector shared by all report workers |
-| `lcsp-python-workers/src/lcsp_workers/reporting/storage_uploader.py` | Create | Object storage upload + pre-signed URL generation |
+| `deepagents/tools/reports/reporting/__init__.py` | Create | Package init |
+| `deepagents/tools/reports/reporting/gap_analysis_consumer.py` | Create | `ConsumerBase` for `document.gap-analysis-requested` |
+| `deepagents/tools/reports/reporting/gap_analysis_generator.py` | Create | GapAnalysis document generation |
+| `deepagents/tools/reports/reporting/output_guardrail.py` | Create | Overclaim detector shared by all report workers |
+| `deepagents/tools/reports/reporting/storage_uploader.py` | Create | Object storage upload + pre-signed URL generation |
 
 ## RabbitMQ
 

@@ -95,10 +95,10 @@ npm run db:migrate
 npm run dev:api
 npm run dev:web
 
-cd lcsp-python-workers
+cd deepagents
 poetry install
 poetry run pytest
-poetry run python -m lcsp_workers.scanner.main
+poetry run python -m tools.graph.scanner.main
 
 cd ../tools/ts-js-analyzer
 npm install

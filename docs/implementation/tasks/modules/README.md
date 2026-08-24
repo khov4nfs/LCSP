@@ -17,7 +17,7 @@ A large task like "Organization and Assessment APIs" is ambiguous—a developer 
 ---
 task_id: MW-<module>-<NNN>
 module: <module>
-runtime: nestjs-api | lcsp-python-workers | web | cross-runtime
+runtime: nestjs-api | deepagents | web | cross-runtime
 priority: P0 | P1
 status: READY_FOR_DEV | IN_PROGRESS | DONE
 epic_story: <story-id>
@@ -56,13 +56,13 @@ Every task file contains:
 | `platform/audit-writer/` | nestjs-api | 1.8 | 2 (01–02) |
 | `platform/outbox/` | nestjs-api | 2.1 | 3 (01–03) |
 | `platform/pbac/` | nestjs-api | 1.6–1.7 | 4 (01–04) |
-| `python-workers/platform/` | lcsp-python-workers | cross-worker | 4 (01–04) |
-| `python-workers/scanner/` | lcsp-python-workers | 3.4–3.5 | 15 (01–15) |
-| `python-workers/intelligence/` | lcsp-python-workers | 3.6, 4.2, 5.1, 5.4 | 4 (01–04) |
-| `python-workers/legal/` | lcsp-python-workers | 6.1 | 1 (01) |
-| `python-workers/llm/` | lcsp-python-workers | 4.1 | 1 (01) |
-| `python-workers/classification/` | lcsp-python-workers | 6.2 | 1 (01) |
-| `python-workers/reporting/` | lcsp-python-workers | 7.1–7.2, 8.2 | 3 (01–03) |
+| `python-workers/platform/` | deepagents | cross-worker | 4 (01–04) |
+| `python-workers/scanner/` | deepagents | 3.4–3.5 | 15 (01–15) |
+| `python-workers/intelligence/` | deepagents | 3.6, 4.2, 5.1, 5.4 | 4 (01–04) |
+| `python-workers/legal/` | deepagents | 6.1 | 1 (01) |
+| `python-workers/llm/` | deepagents | 4.1 | 1 (01) |
+| `python-workers/classification/` | deepagents | 6.2 | 1 (01) |
+| `python-workers/reporting/` | deepagents | 7.1–7.2, 8.2 | 3 (01–03) |
 | `web/` | nextjs | 1.2, 1.4, 2.2, 5.3, 7.3 | 6 (01–06) |
 | `qa/` | all | cross-module | 3 (01–03) |
 

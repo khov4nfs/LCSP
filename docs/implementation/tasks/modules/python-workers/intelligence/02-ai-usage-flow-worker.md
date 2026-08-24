@@ -1,7 +1,7 @@
 ---
 task_id: MW-intel-002
 module: python-workers/intelligence
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: DONE
 epic_story: 4.2
@@ -19,12 +19,12 @@ Consume `technical-profile-ready` events and generate `AIUsageFlow` claims throu
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/intelligence/ai_usage_flow_consumer.py` | Create | `ConsumerBase` subclass for `technical-profile-ready` |
-| `lcsp-python-workers/src/lcsp_workers/intelligence/ai_usage_flow_graph.py` | Create | LangGraph workflow for stateful AIUsageFlow orchestration |
-| `lcsp-python-workers/src/lcsp_workers/intelligence/ai_usage_flow_rule_engine.py` | Create | Deterministic claim-generation rule table + evaluator |
-| `lcsp-python-workers/src/lcsp_workers/intelligence/confidence_calculator.py` | Create | Deterministic confidence formula per `ai-usage-flow-domain-spec.md` |
-| `lcsp-python-workers/src/lcsp_workers/intelligence/conflict_candidate_builder.py` | Create | WizardProfile vs. TechnicalProfile conflict candidate detection |
-| `lcsp-python-workers/src/lcsp_workers/intelligence/ai_usage_flow_claim_drafter.py` | Create | Optional gateway-backed claim drafting/narration helpers from sanitized metadata |
+| `deepagents/tools/engineer_rule/intelligence/ai_usage_flow_consumer.py` | Create | `ConsumerBase` subclass for `technical-profile-ready` |
+| `deepagents/tools/engineer_rule/intelligence/ai_usage_flow_graph.py` | Create | LangGraph workflow for stateful AIUsageFlow orchestration |
+| `deepagents/tools/engineer_rule/intelligence/ai_usage_flow_rule_engine.py` | Create | Deterministic claim-generation rule table + evaluator |
+| `deepagents/tools/engineer_rule/intelligence/confidence_calculator.py` | Create | Deterministic confidence formula per `ai-usage-flow-domain-spec.md` |
+| `deepagents/tools/engineer_rule/intelligence/conflict_candidate_builder.py` | Create | WizardProfile vs. TechnicalProfile conflict candidate detection |
+| `deepagents/tools/engineer_rule/intelligence/ai_usage_flow_claim_drafter.py` | Create | Optional gateway-backed claim drafting/narration helpers from sanitized metadata |
 
 ## RabbitMQ
 
@@ -171,7 +171,7 @@ Thresholds: `< 0.40` → `ABSTAINED`; `0.40..0.64` → `DETECTED` (not material-
 
 ## Implementation Evidence
 
-- Added AIUsageFlow worker modules under `lcsp-python-workers/src/lcsp_workers/intelligence/`:
+- Added AIUsageFlow worker modules under `deepagents/tools/engineer_rule/intelligence/`:
   - `ai_usage_flow_consumer.py`
   - `ai_usage_flow_graph.py`
   - `ai_usage_flow_rule_engine.py`
@@ -184,11 +184,11 @@ Thresholds: `< 0.40` → `ABSTAINED`; `0.40..0.64` → `DETECTED` (not material-
 - Implemented deterministic claim generation for provider usage, model invocation, generated output, content labeling, provider-only abstention, missing-evidence rejection, coverage limitation preservation, and `WIZARD_NO_AI_BUT_INVOCATION_EXISTS` conflict candidate generation.
 - If model-assisted claim drafting is enabled, it runs as a bounded graph node through `LLM Gateway` with sanitized structured inputs and post-node deterministic guardrails.
 - Updated `AIUsageFlowCallbackPayload` and `WorkerApiClient` to submit to `POST /internal/ai-usage-flow/callback` and fetch required TechnicalProfile/TechnicalEvidenceReport/WizardProfile inputs.
-- Added unit coverage in `lcsp-python-workers/tests/test_ai_usage_flow_worker.py` for T01–T12, consumer callback behavior, deterministic rule preservation, and guarded model-assisted node behavior.
+- Added unit coverage in `deepagents/tests/test_ai_usage_flow_worker.py` for T01–T12, consumer callback behavior, deterministic rule preservation, and guarded model-assisted node behavior.
 
 ## Validation
 
-- `python -m py_compile lcsp-python-workers/src/lcsp_workers/intelligence/ai_usage_flow_consumer.py lcsp-python-workers/src/lcsp_workers/intelligence/ai_usage_flow_rule_engine.py lcsp-python-workers/src/lcsp_workers/intelligence/confidence_calculator.py lcsp-python-workers/src/lcsp_workers/intelligence/conflict_candidate_builder.py lcsp-python-workers/src/lcsp_workers/intelligence/technical_profile_consumer.py lcsp-python-workers/src/lcsp_workers/intelligence/technical_profile_builder.py lcsp-python-workers/src/lcsp_workers/platform/api_client.py lcsp-python-workers/src/lcsp_workers/platform/callback_schemas.py lcsp-python-workers/src/package/contract/api_client_contracts.py`
+- `python -m py_compile deepagents/tools/engineer_rule/intelligence/ai_usage_flow_consumer.py deepagents/tools/engineer_rule/intelligence/ai_usage_flow_rule_engine.py deepagents/tools/engineer_rule/intelligence/confidence_calculator.py deepagents/tools/engineer_rule/intelligence/conflict_candidate_builder.py deepagents/tools/engineer_rule/intelligence/technical_profile_consumer.py deepagents/tools/engineer_rule/intelligence/technical_profile_builder.py deepagents/tools/common/platform/api_client.py deepagents/tools/common/platform/callback_schemas.py deepagents/tools/common/package/contract/api_client_contracts.py`
   - Result: passed.
-- `python -m pytest lcsp-python-workers/tests/test_ai_usage_flow_worker.py lcsp-python-workers/tests/test_technical_profile_worker.py lcsp-python-workers/tests/test_api_client.py lcsp-python-workers/tests/test_queue_consumer.py lcsp-python-workers/tests/test_evidence_assembler.py -q`
+- `python -m pytest deepagents/tests/test_ai_usage_flow_worker.py deepagents/tests/test_technical_profile_worker.py deepagents/tests/test_api_client.py deepagents/tests/test_queue_consumer.py deepagents/tests/test_evidence_assembler.py -q`
   - Result: 47 passed, 1 warning (`asyncio_mode` pytest config warning in minimal targeted environment).

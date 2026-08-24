@@ -1,7 +1,7 @@
 ---
 task_id: MW-pyp-001
 module: python-workers/platform
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: READY_FOR_DEV
 epic_story: 1.1
@@ -19,13 +19,13 @@ Bootstrap the LCSP Python Worker Platform: RabbitMQ consumer base class, structu
 
 | File                                                              | Action | Notes                                                    |
 | ----------------------------------------------------------------- | ------ | -------------------------------------------------------- |
-| `lcsp-python-workers/src/lcsp_workers/__init__.py`                | Create | Package init                                             |
-| `lcsp-python-workers/src/lcsp_workers/platform/consumer_base.py`  | Create | Base RabbitMQ consumer with retry/DLQ and PBAC preflight |
-| `lcsp-python-workers/src/lcsp_workers/platform/logging_config.py` | Create | Structured JSON logging — no secrets in output           |
-| `lcsp-python-workers/src/lcsp_workers/platform/pbac_client.py`    | Create | HTTP client for `/internal/pbac/preflight`               |
-| `lcsp-python-workers/src/lcsp_workers/platform/api_client.py`     | Create | HTTP client for NestJS API callbacks                     |
-| `lcsp-python-workers/src/lcsp_workers/platform/correlation.py`    | Create | Correlation ID propagation utilities                     |
-| `lcsp-python-workers/src/lcsp_workers/platform/config.py`         | Create | Worker config from env vars                              |
+| `deepagents/tools/__init__.py`                | Create | Package init                                             |
+| `deepagents/tools/common/platform/consumer_base.py`  | Create | Base RabbitMQ consumer with retry/DLQ and PBAC preflight |
+| `deepagents/tools/common/platform/logging_config.py` | Create | Structured JSON logging — no secrets in output           |
+| `deepagents/tools/common/platform/pbac_client.py`    | Create | HTTP client for `/internal/pbac/preflight`               |
+| `deepagents/tools/common/platform/api_client.py`     | Create | HTTP client for NestJS API callbacks                     |
+| `deepagents/tools/common/platform/correlation.py`    | Create | Correlation ID propagation utilities                     |
+| `deepagents/tools/common/platform/config.py`         | Create | Worker config from env vars                              |
 | `apps/workers/pyproject.toml`                                     | Create | Python project with pinned dependencies                  |
 
 ## Configuration (env vars)

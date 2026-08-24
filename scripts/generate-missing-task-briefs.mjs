@@ -364,7 +364,7 @@ const tasks = [
     status: "READY_FOR_PLANNING_REVIEW",
     priority: "P0",
     owner: "Scanner",
-    runtime: "lcsp-python-workers",
+    runtime: "deepagents",
     outcome:
       "Execute the locked scanner toolchain inside the restricted Python worker runtime and normalize bounded tool output for downstream evidence generation.",
     sourceAuthority: [
@@ -408,7 +408,7 @@ const tasks = [
     status: "READY_FOR_PLANNING_REVIEW",
     priority: "P0",
     owner: "Scanner",
-    runtime: "lcsp-python-workers",
+    runtime: "deepagents",
     outcome:
       "Define and implement the fixed TS/JS analyzer subprocess protocol so Python scanner lifecycle ownership can safely consume bounded TypeScript/JavaScript semantic output.",
     sourceAuthority: [
@@ -496,7 +496,7 @@ const tasks = [
     status: "READY_FOR_PLANNING_REVIEW",
     priority: "P0",
     owner: "Legal",
-    runtime: "lcsp-python-workers",
+    runtime: "deepagents",
     outcome:
       "Implement the legal source validation and ingestion worker that fetches only approved official sources, stores immutable snapshots, and stages normalized legal corpus artifacts.",
     sourceAuthority: [
@@ -585,7 +585,7 @@ const tasks = [
     status: "READY_FOR_PLANNING_REVIEW",
     priority: "P0",
     owner: "Legal",
-    runtime: "lcsp-python-workers",
+    runtime: "deepagents",
     outcome:
       "Build the worker that turns approved legal corpus versions into ChromaDB structure-first vectorless indexes with stable IDs, hierarchy metadata, and cross-reference integrity.",
     sourceAuthority: [
@@ -629,7 +629,7 @@ const tasks = [
     status: "READY_FOR_PLANNING_REVIEW",
     priority: "P0",
     owner: "Legal",
-    runtime: "lcsp-python-workers",
+    runtime: "deepagents",
     outcome:
       "Implement the legal retriever that queries approved ChromaDB corpus versions with structure-first rules and persists sanitized retrieval audit evidence.",
     sourceAuthority: [
@@ -673,7 +673,7 @@ const tasks = [
     status: "READY_FOR_PLANNING_REVIEW",
     priority: "P0",
     owner: "Legal",
-    runtime: "lcsp-python-workers",
+    runtime: "deepagents",
     outcome:
       "Build the worker that turns approved `VerifiedProfile` facts plus approved legal retrieval output into `LegalMatchingResult` and `LegalRuleMatch` evidence.",
     sourceAuthority: [
@@ -760,7 +760,7 @@ const tasks = [
     status: "READY_FOR_PLANNING_REVIEW",
     priority: "P0",
     owner: "Legal",
-    runtime: "lcsp-python-workers",
+    runtime: "deepagents",
     outcome:
       "Generate citation-backed `RiskClassification` only from approved `VerifiedProfile`, approved legal matching evidence, and the LLM gateway under deterministic guardrails.",
     sourceAuthority: [
@@ -804,7 +804,7 @@ const tasks = [
     status: "READY_FOR_PLANNING_REVIEW",
     priority: "P0",
     owner: "Reporting",
-    runtime: "lcsp-python-workers",
+    runtime: "deepagents",
     outcome:
       "Generate `GapAnalysis` from approved classification state and upstream evidence chain so reporting surfaces can explain obligations, missing controls, and next actions without overclaiming.",
     sourceAuthority: [

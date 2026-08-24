@@ -20,10 +20,10 @@ Materialize a pinned `RepositorySnapshot` into a restricted temporary workspace 
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/scanner/__init__.py` | Create | Package init |
-| `lcsp-python-workers/src/lcsp_workers/scanner/workspace.py` | Create | Workspace lifecycle: create, materialize, cleanup |
-| `lcsp-python-workers/src/lcsp_workers/scanner/snapshot_service_client.py` | Create | Authenticated client for the internal snapshot archive endpoint; no GitHub dependency |
-| `lcsp-python-workers/src/lcsp_workers/scanner/scan_consumer.py` | Create | `ConsumerBase` subclass for `scan.triggered` events |
+| `deepagents/tools/graph/scanner/__init__.py` | Create | Package init |
+| `deepagents/tools/graph/scanner/workspace.py` | Create | Workspace lifecycle: create, materialize, cleanup |
+| `deepagents/tools/graph/scanner/snapshot_service_client.py` | Create | Authenticated client for the internal snapshot archive endpoint; no GitHub dependency |
+| `deepagents/tools/graph/scanner/scan_consumer.py` | Create | `ConsumerBase` subclass for `scan.triggered` events |
 | `apps/api/src/modules/github-integration/presentation/http/internal-snapshot.controller.ts` | Create | Worker-only archive streaming endpoint |
 | `apps/api/src/modules/github-integration/application/queries/stream-snapshot-archive/stream-snapshot-archive.handler.ts` | Create | Validate job/snapshot scope and stream the pinned archive |
 

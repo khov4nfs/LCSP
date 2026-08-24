@@ -36,7 +36,7 @@ Python scanner process runtime, package layout, run command, tool invocation, wo
 | Concern | MVP Decision |
 |---|---|
 | Service | Python Scanner Worker |
-| Canonical package topology | `lcsp-python-workers` monorepo; scanner module `lcsp_workers.scanner` |
+| Canonical package topology | `deepagents` monorepo; scanner module `tools.graph.scanner` |
 | Queue consumer | `command.scan.requested.v1` sole consumer |
 | SBOM/dependency inventory | Syft |
 | JS/TS dependency usage | Knip |
@@ -143,10 +143,10 @@ Dependency/SBOM facts persist as normalized metadata: `PackageDependency`, `SBOM
 ## Verification Commands
 
 ```text
-cd lcsp-python-workers
+cd deepagents
 poetry install
 poetry run pytest
-poetry run python -m lcsp_workers.scanner.smoke_scan --fixture golden-path-python
+poetry run python -m tools.graph.scanner.smoke_scan --fixture golden-path-python
 
 cd ../tools/ts-js-analyzer
 npm install

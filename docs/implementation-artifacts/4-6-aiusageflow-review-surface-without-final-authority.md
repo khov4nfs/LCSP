@@ -42,7 +42,7 @@ As a Manager, I want to review AIUsageFlow claims and uncertainty, so that I can
 - Story key: `4-6-aiusageflow-review-surface-without-final-authority`
 - Official execution artifact: `docs/implementation-artifacts/4-6-aiusageflow-review-surface-without-final-authority.md`
 - Epic: `Epic 4 - AIUsageFlow Claims and Uncertainty`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`
 
 ### Current State and Scope Guardrails
 
@@ -118,7 +118,7 @@ As a Manager, I want to review AIUsageFlow claims and uncertainty, so that I can
 
 ### File Structure Notes
 
-- `lcsp-python-workers` cho AIUsageFlow worker, claim assembly và persistence.
+- `deepagents` cho AIUsageFlow worker, claim assembly và persistence.
 - `apps/api` cho status projection, review surface orchestration và Manager-safe read model.
 - `packages/*` cho claim schema, evidence-ref contract, uncertainty/conflict enums.
 

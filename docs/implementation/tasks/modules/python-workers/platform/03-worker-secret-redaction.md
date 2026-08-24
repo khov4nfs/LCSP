@@ -1,7 +1,7 @@
 ---
 task_id: MW-pyp-003
 module: python-workers/platform
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: READY_FOR_DEV
 epic_story: 1.1
@@ -19,8 +19,8 @@ Provide a Python utility that redacts secrets and sensitive values from any dict
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/platform/redaction.py` | Create | Redaction utilities |
-| `lcsp-python-workers/src/lcsp_workers/platform/logging_config.py` | Modify | Integrate redaction filter into log handler |
+| `deepagents/tools/common/platform/redaction.py` | Create | Redaction utilities |
+| `deepagents/tools/common/platform/logging_config.py` | Modify | Integrate redaction filter into log handler |
 
 ## Redaction Interface
 

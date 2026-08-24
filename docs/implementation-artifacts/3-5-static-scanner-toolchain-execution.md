@@ -36,7 +36,7 @@ Static Scanner Toolchain Execution
 - Story key: `3-5-static-scanner-toolchain-execution`
 - Official execution artifact: `docs/implementation-artifacts/3-5-static-scanner-toolchain-execution.md`
 - Epic: `Epic 3 - Trusted Repository Evidence and TechnicalProfile`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`
 
 ### Current State and Scope Guardrails
 
@@ -106,7 +106,7 @@ Static Scanner Toolchain Execution
 ### File Structure Notes
 
 - `apps/api` cho repository selection, scan request/status API và outbox command creation.
-- `lcsp-python-workers` cho queue consumer, scanner runtime, evidence gates, TechnicalProfile worker.
+- `deepagents` cho queue consumer, scanner runtime, evidence gates, TechnicalProfile worker.
 - `packages/*` cho command/event schemas, status projection contracts, evidence/profile DTOs.
 
 ### Implementation Guidance for the Dev Agent
@@ -180,20 +180,20 @@ GPT-5 Codex
 
 - docs/implementation-artifacts/3-5-static-scanner-toolchain-execution.md
 - docs/implementation-artifacts/sprint-status.yaml
-- lcsp-python-workers/src/lcsp_workers/scanner/inventory/language_classifier.py
-- lcsp-python-workers/src/lcsp_workers/scanner/inventory/language_types.py
-- lcsp-python-workers/src/lcsp_workers/scanner/evidence_assembler.py
-- lcsp-python-workers/src/lcsp_workers/scanner/parsers/python_cst_parser.py
-- lcsp-python-workers/src/lcsp_workers/scanner/scan_consumer.py
-- lcsp-python-workers/src/lcsp_workers/scanner/tool_registry.py
-- lcsp-python-workers/src/lcsp_workers/scanner/toolchain_execution.py
-- lcsp-python-workers/src/lcsp_workers/scanner/tools/tool_base.py
-- lcsp-python-workers/pyproject.toml
-- lcsp-python-workers/tests/scanner/test_toolchain_execution_plan.py
-- lcsp-python-workers/tests/test_evidence_assembler.py
-- lcsp-python-workers/tests/test_language_classifier.py
-- lcsp-python-workers/tests/test_scanner_analyzer.py
-- lcsp-python-workers/tests/test_scanner_workspace.py
+- deepagents/tools/graph/scanner/inventory/language_classifier.py
+- deepagents/tools/graph/scanner/inventory/language_types.py
+- deepagents/tools/graph/scanner/evidence_assembler.py
+- deepagents/tools/graph/scanner/parsers/python_cst_parser.py
+- deepagents/tools/graph/scanner/scan_consumer.py
+- deepagents/tools/graph/scanner/tool_registry.py
+- deepagents/tools/graph/scanner/toolchain_execution.py
+- deepagents/tools/graph/scanner/tools/tool_base.py
+- deepagents/pyproject.toml
+- deepagents/tests/scanner/test_toolchain_execution_plan.py
+- deepagents/tests/test_evidence_assembler.py
+- deepagents/tests/test_language_classifier.py
+- deepagents/tests/test_scanner_analyzer.py
+- deepagents/tests/test_scanner_workspace.py
 
 ## Change Log
 

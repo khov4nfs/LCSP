@@ -85,7 +85,7 @@ _File này chứa các rule ngắn, có tính thực thi cao, dành cho AI agent
   - `apps/api`
   - `packages/*`
 - Không tạo top-level thư mục ad hoc như `backend/`, `frontend/`, `service/`, `scanner/` nếu chưa được authority layout cho phép.
-- Python worker workstream theo monorepo `lcsp-python-workers`; không nhét worker code vào runtime web/api. [Source: docs/architecture/adr/adr-022-typescript-first-npm-only-controlled-prototype.md] [Source: docs/implementation/scanner-worker-implementation.md]
+- Python worker workstream theo monorepo `deepagents`; không nhét worker code vào runtime web/api. [Source: docs/architecture/adr/adr-022-typescript-first-npm-only-controlled-prototype.md] [Source: docs/implementation/scanner-worker-implementation.md]
 
 ### 11. Testing and Validation Expectations
 

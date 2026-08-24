@@ -1,1 +1,0 @@
-"""LCSP Workers Package."""

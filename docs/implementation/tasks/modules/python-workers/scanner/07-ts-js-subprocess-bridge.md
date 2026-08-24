@@ -1,7 +1,7 @@
 ---
 task_id: MW-scan-py-007
 module: python-workers/scanner
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: DONE
 epic_story: 3.5
@@ -20,12 +20,12 @@ Invoke the TS/JS analyzer subprocess from the Python scanner worker. The subproc
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/bridge.py` | Create | `asyncio.create_subprocess_exec` runner, stdout capture, stderr redaction |
-| `lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/schema_validator.py` | Create | JSON schema validation for subprocess output |
-| `lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/bridge_types.py` | Create | `TsJsBridgeResult` dataclass, `TsJsFinding` dataclass |
-| `lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/ts-js-analyzer/cli.ts` | Create | ts-morph TS/JS analyzer CLI entry point (compiled to `dist/tools/ts-js-analyzer/cli.js`) |
-| `lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/ts-js-analyzer/package.json` | Create | Pinned `ts-morph` version |
-| `lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/ts-js-analyzer/tsconfig.json` | Create | Strict TypeScript config |
+| `deepagents/tools/graph/scanner/ts_js_bridge/bridge.py` | Create | `asyncio.create_subprocess_exec` runner, stdout capture, stderr redaction |
+| `deepagents/tools/graph/scanner/ts_js_bridge/schema_validator.py` | Create | JSON schema validation for subprocess output |
+| `deepagents/tools/graph/scanner/ts_js_bridge/bridge_types.py` | Create | `TsJsBridgeResult` dataclass, `TsJsFinding` dataclass |
+| `deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer/cli.ts` | Create | ts-morph TS/JS analyzer CLI entry point (compiled to `dist/tools/ts-js-analyzer/cli.js`) |
+| `deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer/package.json` | Create | Pinned `ts-morph` version |
+| `deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer/tsconfig.json` | Create | Strict TypeScript config |
 
 ## Subprocess Contract
 
@@ -180,19 +180,19 @@ proc = await asyncio.create_subprocess_exec(
 
 ## File List
 
-- `lcsp-python-workers/src/lcsp_workers/scanner/evidence_assembler.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/scan_consumer.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/__init__.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/bridge.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/bridge_types.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/schema_validator.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/ts-js-analyzer/analyzer.ts`
-- `lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/ts-js-analyzer/cli.ts`
-- `lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/ts-js-analyzer/package.json`
-- `lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/ts-js-analyzer/tsconfig.json`
-- `lcsp-python-workers/tests/test_evidence_assembler.py`
-- `lcsp-python-workers/tests/test_scanner_workspace.py`
-- `lcsp-python-workers/tests/test_ts_js_bridge.py`
+- `deepagents/tools/graph/scanner/evidence_assembler.py`
+- `deepagents/tools/graph/scanner/scan_consumer.py`
+- `deepagents/tools/graph/scanner/ts_js_bridge/__init__.py`
+- `deepagents/tools/graph/scanner/ts_js_bridge/bridge.py`
+- `deepagents/tools/graph/scanner/ts_js_bridge/bridge_types.py`
+- `deepagents/tools/graph/scanner/ts_js_bridge/schema_validator.py`
+- `deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer/analyzer.ts`
+- `deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer/cli.ts`
+- `deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer/package.json`
+- `deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer/tsconfig.json`
+- `deepagents/tests/test_evidence_assembler.py`
+- `deepagents/tests/test_scanner_workspace.py`
+- `deepagents/tests/test_ts_js_bridge.py`
 
 ## Validation
 
@@ -206,7 +206,7 @@ proc = await asyncio.create_subprocess_exec(
   - Result: passed.
 - `./.venv/bin/python -m compileall src tests`
   - Result: passed.
-- `pnpm --dir lcsp-python-workers/src/lcsp_workers/scanner/ts_js_bridge/ts-js-analyzer exec tsc -p tsconfig.json`
+- `pnpm --dir deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer exec tsc -p tsconfig.json`
   - Result: blocked by local dependency install state: nested package pins `ts-morph@26.0.0`, but `ts-morph` is not installed/resolvable from that package directory.
 - `./.venv/bin/pytest`
   - Result: blocked by local venv dependency state: `tiktoken` missing during `tests/test_llm_gateway.py` collection.

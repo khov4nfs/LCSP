@@ -14,7 +14,7 @@ portal URL. Obtain that ID from an approved source lookup; do not bulk-crawl or
 probe the gateway.
 
 ```bash
-lcsp-python-workers/.venv/bin/python lcsp-python-workers/scripts/crawl_vbpl_document.py \
+deepagents/.venv/bin/python deepagents/scripts/crawl_vbpl_document.py \
   --document-id LAW-71-2025-QH15 \
   --gateway-document-id <validated-vbpl-gateway-id> \
   --source-url 'https://vbpl.vn/TW/Pages/vbpq-toanvan.aspx?ItemID=179989&Keyword=' \
@@ -28,7 +28,7 @@ manifest's `sourceEffectStatus` before corpus ingestion.
 ## Normalize To A Draft Corpus Payload
 
 ```bash
-lcsp-python-workers/.venv/bin/python lcsp-python-workers/scripts/normalize_vbpl_document.py \
+deepagents/.venv/bin/python deepagents/scripts/normalize_vbpl_document.py \
   --source-manifest reports/legal-corpus-source/LAW-71-2025-QH15.source.json \
   --corpus-version VN-LEGAL-2026-08 \
   --output reports/legal-corpus-source/LAW-71-2025-QH15.ingest.json
@@ -39,7 +39,7 @@ provide the proxy CA without disabling verification:
 
 ```bash
 REQUESTS_CA_BUNDLE=/etc/ssl/certs/enterprise-proxy-ca.pem \
-  lcsp-python-workers/.venv/bin/python lcsp-python-workers/scripts/crawl_congbao_docx.py ...
+  deepagents/.venv/bin/python deepagents/scripts/crawl_congbao_docx.py ...
 ```
 
 The generated payload contains stable `art-N`, `art-N::cl-M`, and
@@ -54,13 +54,13 @@ of OCR whenever the official DOCX can be retrieved and its provenance can be
 validated against the official publication metadata.
 
 ```bash
-lcsp-python-workers/.venv/bin/python lcsp-python-workers/scripts/crawl_congbao_docx.py \
+deepagents/.venv/bin/python deepagents/scripts/crawl_congbao_docx.py \
   --document-id LAW-134-2025-QH15 \
   --source-url 'https://congbao.chinhphu.vn/van-ban/luat-so-134-2025-qh15-468694.htm' \
   --source-effect-status 'Còn hiệu lực' \
   --output-dir reports/legal-corpus-source
 
-lcsp-python-workers/.venv/bin/python lcsp-python-workers/scripts/normalize_vbpl_document.py \
+deepagents/.venv/bin/python deepagents/scripts/normalize_vbpl_document.py \
   --source-manifest reports/legal-corpus-source/LAW-134-2025-QH15.source.json \
   --corpus-version VN-LEGAL-2026-08 \
   --output reports/legal-corpus-source/LAW-134-2025-QH15.ingest.json
@@ -83,13 +83,13 @@ by `tesseract-ocr-vie`.
 From the repository root:
 
 ```bash
-lcsp-python-workers/.venv/bin/python lcsp-python-workers/scripts/ocr_legal_pdf.py \
+deepagents/.venv/bin/python deepagents/scripts/ocr_legal_pdf.py \
   --pdf reports/Luat_134_2025_QH15.pdf \
   --document-id LAW-134-2025-QH15 \
   --source-url https://vanban.chinhphu.vn/?docid=216334\&pageid=27160 \
   --output-dir reports/legal-corpus-ocr
 
-lcsp-python-workers/.venv/bin/python lcsp-python-workers/scripts/ocr_legal_pdf.py \
+deepagents/.venv/bin/python deepagents/scripts/ocr_legal_pdf.py \
   --pdf reports/Luat-71-2025-qh15_0710195033.pdf \
   --document-id LAW-71-2025-QH15 \
   --source-url https://vbpl.vn/TW/Pages/vbpq-toanvan.aspx?ItemID=179989\&Keyword= \
@@ -196,8 +196,8 @@ Run the orchestration only after the builder has produced the corpus payload:
 ```bash
 LEGAL_OPERATOR_BEARER_TOKEN='<authenticated corpus approval principal token>' \
 LEGAL_CHROMA_PATH='/var/lib/lcsp/chroma' \
-lcsp-python-workers/.venv/bin/python \
-  lcsp-python-workers/scripts/orchestrate_reviewed_legal_corpus.py \
+deepagents/.venv/bin/python \
+  deepagents/scripts/orchestrate_reviewed_legal_corpus.py \
   --payload reports/legal-corpus-source/VN-LEGAL-2026-08.ingest.json \
   --reviewed-dir reports/legal-corpus-reviewed \
   --api-base-url http://127.0.0.1:4000

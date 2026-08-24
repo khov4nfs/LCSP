@@ -1,7 +1,7 @@
 ---
 task_id: MW-pyp-002
 module: python-workers/platform
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: READY_FOR_DEV
 epic_story: 1.1
@@ -19,8 +19,8 @@ Provide a typed HTTP client for Python workers to call NestJS API callback endpo
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/platform/api_client.py` | Modify | Expand with typed callback methods |
-| `lcsp-python-workers/src/lcsp_workers/platform/callback_schemas.py` | Create | Pydantic models for callback request/response |
+| `deepagents/tools/common/platform/api_client.py` | Modify | Expand with typed callback methods |
+| `deepagents/tools/common/platform/callback_schemas.py` | Create | Pydantic models for callback request/response |
 
 ## Client Interface
 

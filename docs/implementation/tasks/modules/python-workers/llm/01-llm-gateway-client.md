@@ -1,7 +1,7 @@
 ---
 task_id: MW-llm-001
 module: python-workers/llm
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: READY_FOR_DEV
 epic_story: 4.1
@@ -19,10 +19,10 @@ Provide a single Python LLM Gateway client used by all workers that require LLM 
 
 | File                                                         | Action | Notes                              |
 | ------------------------------------------------------------ | ------ | ---------------------------------- |
-| `lcsp-python-workers/src/lcsp_workers/llm/__init__.py`       | Create | Package init                       |
-| `lcsp-python-workers/src/lcsp_workers/llm/gateway_client.py` | Create | LLM Gateway client                 |
-| `lcsp-python-workers/src/lcsp_workers/llm/prompt_safety.py`  | Create | Prompt pre-flight safety check     |
-| `lcsp-python-workers/src/lcsp_workers/llm/budget_tracker.py` | Create | Monthly token/cost budget tracking |
+| `deepagents/tools/common/llm/__init__.py`       | Create | Package init                       |
+| `deepagents/tools/common/llm/gateway_client.py` | Create | LLM Gateway client                 |
+| `deepagents/tools/common/llm/prompt_safety.py`  | Create | Prompt pre-flight safety check     |
+| `deepagents/tools/common/llm/budget_tracker.py` | Create | Monthly token/cost budget tracking |
 
 ## LLM Gateway Configuration
 

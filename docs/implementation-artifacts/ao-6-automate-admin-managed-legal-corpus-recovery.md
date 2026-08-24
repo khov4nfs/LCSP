@@ -42,7 +42,7 @@ so that retrieval remains authoritative and resumable without individual approva
 ### Expected Files
 
 - `apps/api/src/modules/legal-corpus/*`
-- `lcsp-python-workers/src/lcsp_workers/legal_corpus/*` or the existing ingestion worker modules
+- `deepagents/tools/legal/legal/*` or the existing ingestion worker modules
 - `packages/contracts/src/*` for source, extraction, corpus-version, and recovery events
 - legal corpus integration fixtures/tests including OCR fallback
 

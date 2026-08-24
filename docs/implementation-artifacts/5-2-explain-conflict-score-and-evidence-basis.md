@@ -41,7 +41,7 @@ As a Manager, I want conflict score and conflict explanations, so that I underst
 - Story key: `5-2-explain-conflict-score-and-evidence-basis`
 - Official execution artifact: `docs/implementation-artifacts/5-2-explain-conflict-score-and-evidence-basis.md`
 - Epic: `Epic 5 - Reconciliation and VerifiedProfile`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`
 
 ### Current State and Scope Guardrails
 
@@ -110,7 +110,7 @@ As a Manager, I want conflict score and conflict explanations, so that I underst
 
 ### File Structure Notes
 
-- `lcsp-python-workers` cho reconciliation worker, score calculation, VerifiedProfile generation.
+- `deepagents` cho reconciliation worker, score calculation, VerifiedProfile generation.
 - `apps/api` cho Manager resolution/approval command surface và status projection.
 - `packages/*` cho conflict schema, score explanation contract, verified profile DTOs.
 
@@ -167,7 +167,7 @@ GPT-5 Codex
 - Added `ConflictRecord.explanationBasis` persistence so score explanation, materiality rationale, source summaries, confidence, and evidence coverage limits stay separate from legal risk/compliance/classification labels.
 - Extended the conflict callback/list contracts and Manager conflict card to surface affected field, source values, evidence refs, redacted evidence context, confidence, materiality reason, and review-priority score copy.
 - Added worker, API, web sanitizer, mock, and i18n coverage for the business-language explanation basis.
-- Validation passed: `pnpm --filter @lcsp/api build`, `pnpm run test:web`, and `lcsp-python-workers/.venv/bin/python -m pytest lcsp-python-workers/tests/test_conflict_detection_worker.py`.
+- Validation passed: `pnpm --filter @lcsp/api build`, `pnpm run test:web`, and `deepagents/.venv/bin/python -m pytest deepagents/tests/test_conflict_detection_worker.py`.
 - Validation blocked by local environment: API e2e could not start because Docker daemon was unavailable; root typecheck is blocked by stale `.next` validator references to `mock-evidence`; `check:contracts` reports unrelated pre-existing literal violations outside this story.
 
 ### File List
@@ -185,8 +185,8 @@ GPT-5 Codex
 - apps/web/src/lib/api/conflict-client.ts
 - apps/web/src/public/assets/mocks/conflicts.json
 - apps/web/tests/conflict-client.test.ts
-- lcsp-python-workers/src/lcsp_workers/intelligence/conflict_detector.py
-- lcsp-python-workers/tests/test_conflict_detection_worker.py
+- deepagents/tools/engineer_rule/intelligence/conflict_detector.py
+- deepagents/tests/test_conflict_detection_worker.py
 - packages/i18n/src/locales/en/pages.ts
 - packages/i18n/src/locales/vi/pages.ts
 - packages/i18n/src/types.ts

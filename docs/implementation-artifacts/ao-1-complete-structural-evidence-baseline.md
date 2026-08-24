@@ -26,7 +26,7 @@ so that later agents can reason from traceable facts and explicit coverage limit
 ## Dev Notes
 
 - Official execution artifact: `docs/implementation-artifacts/ao-1-complete-structural-evidence-baseline.md`.
-- Runtime owner: `lcsp-python-workers` builds normalized facts/graph and emits the scan callback; `apps/api` validates and persists the immutable TechnicalEvidenceReport boundary.
+- Runtime owner: `deepagents` builds normalized facts/graph and emits the scan callback; `apps/api` validates and persists the immutable TechnicalEvidenceReport boundary.
 - Reuse `StructuralAugmentor`, `EvidenceGraphBuilder`, `EvidenceAssembler`, `ScanConsumer`, and the existing scan callback handler. Do not create a parallel scanner or source-storage path.
 - Scanner remains static-analysis only. It must not execute repository code, install dependencies, or expose raw source to an LLM.
 
@@ -47,19 +47,19 @@ so that later agents can reason from traceable facts and explicit coverage limit
 
 ### Expected Files
 
-- `lcsp-python-workers/src/lcsp_workers/scanner/parsers/structural_augmentor.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/scan_consumer.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/graph/graph_builder.py` and graph contracts as needed
-- `lcsp-python-workers/src/lcsp_workers/scanner/evidence_assembler.py`
-- `lcsp-python-workers/tests/test_structural_augmentation.py`
-- `lcsp-python-workers/tests/test_scanner_workspace.py` or focused scan callback integration tests
+- `deepagents/tools/graph/scanner/parsers/structural_augmentor.py`
+- `deepagents/tools/graph/scanner/scan_consumer.py`
+- `deepagents/tools/graph/scanner/graph/graph_builder.py` and graph contracts as needed
+- `deepagents/tools/graph/scanner/evidence_assembler.py`
+- `deepagents/tests/test_structural_augmentation.py`
+- `deepagents/tests/test_scanner_workspace.py` or focused scan callback integration tests
 - `apps/api/src/modules/scan/application/commands/process-scan-callback/*` and API tests only if the existing callback schema requires extension.
 
 ### Verification Requirements
 
 - Red: prove >100 eligible files are all processed; prove graph payload is absent before implementation; prove unsafe source-derived payload is rejected.
 - Green: targeted unit/integration tests for all four ACs.
-- Regression: `lcsp-python-workers/.venv/bin/python -m pytest -q`; run relevant API callback tests if its contract changes.
+- Regression: `deepagents/.venv/bin/python -m pytest -q`; run relevant API callback tests if its contract changes.
 
 ### References
 

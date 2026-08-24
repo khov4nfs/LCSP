@@ -57,7 +57,7 @@ LCSP trong repository này là một workspace tập trung vào tài liệu auth
 
 ## Điều repo chưa cung cấp
 
-- Không có bootstrap source cho `apps/web`, `apps/api`, `lcsp-python-workers`.
+- Không có bootstrap source cho `apps/web`, `apps/api`, `deepagents`.
 - Không có manifest package/runtime chuẩn như `package.json`, `pyproject.toml`, `requirements.txt` ở root application parts.
 - Không có database schema thực thi, HTTP controllers, UI components hay deployment config để quét như một codebase production.
 - Không có bằng chứng code implementation cho các lệnh phát triển được mô tả trong implementation docs.

@@ -36,7 +36,7 @@ Strict parse → tenant/PBAC/catalog-version check → exact identity lookup →
 
 ## Errors, tests, files, and open questions
 
-Unknown identity returns `NEEDS_INPUT`; ambiguous identity `CONFLICT`; cross-tenant/PBAC denial `BLOCKED`; store failure `FAILED`. Tests: exact lookup, unknown/ambiguous, URL/extra-field rejection, PBAC, audit redaction. Build contracts in `packages/contracts/src/legal-corpus`, catalog projection/handler in `lcsp-python-workers/src/lcsp_workers/legal_corpus`, and API PBAC/audit adapter in `apps/api/src/modules/legal-corpus`. OQ-01: ratify catalog refresh/cache TTL; it must not allow stale catalog use after revocation.
+Unknown identity returns `NEEDS_INPUT`; ambiguous identity `CONFLICT`; cross-tenant/PBAC denial `BLOCKED`; store failure `FAILED`. Tests: exact lookup, unknown/ambiguous, URL/extra-field rejection, PBAC, audit redaction. Build contracts in `packages/contracts/src/legal-corpus`, catalog projection/handler in `deepagents/tools/legal/legal`, and API PBAC/audit adapter in `apps/api/src/modules/legal-corpus`. OQ-01: ratify catalog refresh/cache TTL; it must not allow stale catalog use after revocation.
 
 ## Acceptance criteria
 

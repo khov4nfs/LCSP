@@ -9,7 +9,7 @@ status: DONE
 
 ## 1–4. Task information and objective
 
-AO-1 P0; `lcsp-python-workers/scanner/tools`; `SYSTEM_ONLY`, `READ`. Execute the allow-listed, pinned Semgrep AI ruleset against a trusted workspace and return redacted normalized findings. Caller: `ScanConsumer`; it must not accept arbitrary rules, flags, source, or CLI. Default/max timeout 120/180 s; retry only container/runtime transient twice (1 s, 4 s); ruleset/version/non-zero validation failures never retry.
+AO-1 P0; `deepagents/scanner/tools`; `SYSTEM_ONLY`, `READ`. Execute the allow-listed, pinned Semgrep AI ruleset against a trusted workspace and return redacted normalized findings. Caller: `ScanConsumer`; it must not accept arbitrary rules, flags, source, or CLI. Default/max timeout 120/180 s; retry only container/runtime transient twice (1 s, 4 s); ruleset/version/non-zero validation failures never retry.
 
 ## 5. Input schema
 

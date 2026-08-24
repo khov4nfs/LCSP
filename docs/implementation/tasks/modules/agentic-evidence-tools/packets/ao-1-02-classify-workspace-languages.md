@@ -9,7 +9,7 @@ status: DONE
 
 ## 1–4. Task information and objective
 
-AO-1 P0; runtime `lcsp-python-workers/scanner/inventory`; `SYSTEM_ONLY`, `READ`. Classify every materialized manifest entry into supported, skipped, or limited disposition and dispatch language routes. It is called by `ScanConsumer` after `materialize_snapshot`, never by a model. It reads the restricted workspace manifest; it does not parse source semantically. Default/maximum timeout: 30/60 s; no retry for deterministic classification, one retry for transient I/O.
+AO-1 P0; runtime `deepagents/scanner/inventory`; `SYSTEM_ONLY`, `READ`. Classify every materialized manifest entry into supported, skipped, or limited disposition and dispatch language routes. It is called by `ScanConsumer` after `materialize_snapshot`, never by a model. It reads the restricted workspace manifest; it does not parse source semantically. Default/maximum timeout: 30/60 s; no retry for deterministic classification, one retry for transient I/O.
 
 ## 5. Input schema
 

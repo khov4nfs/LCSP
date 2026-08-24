@@ -1,7 +1,7 @@
 ---
 task_id: MW-scan-py-002
 module: python-workers/scanner
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: READY_FOR_DEV
 epic_story: 3.5
@@ -19,9 +19,9 @@ Run Syft SBOM analysis on the scanner workspace. Produce a structured dependency
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/scanner/tools/syft_tool.py` | Create | Syft runner + output parser |
-| `lcsp-python-workers/src/lcsp_workers/scanner/tools/tool_base.py` | Create | Base class for all scanner tools |
-| `lcsp-python-workers/src/lcsp_workers/scanner/tool_registry.py` | Create | Tool version + config hash registry |
+| `deepagents/tools/graph/scanner/tools/syft_tool.py` | Create | Syft runner + output parser |
+| `deepagents/tools/graph/scanner/tools/tool_base.py` | Create | Base class for all scanner tools |
+| `deepagents/tools/graph/scanner/tool_registry.py` | Create | Tool version + config hash registry |
 
 ## Tool Configuration
 

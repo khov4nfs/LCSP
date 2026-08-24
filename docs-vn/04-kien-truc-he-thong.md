@@ -24,7 +24,7 @@ Giao diện cho Manager và Developer tùy chọn. UX phải thể hiện đầy
 
 NestJS API chịu trách nhiệm HTTP, authentication, PBAC enforcement boundary, tenant scope, tạo trusted trigger/job, kiểm tra state guard, query result, download và audit export. API không trực tiếp thực hiện repository scan hoặc tác vụ dài.
 
-### `lcsp-python-workers/scanner`
+### `deepagents/scanner`
 
 Python Scanner Worker là consumer duy nhất của scan command và sở hữu toàn bộ scan lifecycle. Worker chạy Syft, Knip, deptry, Python `ast`/`libcst`, bounded Node `ts-morph`, tree-sitter/custom parser và Semgrep custom rules.
 

@@ -1,7 +1,7 @@
 ---
 task_id: MW-scan-py-015
 module: python-workers/scanner
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P1
 status: READY_FOR_DEV
 epic_story: 3.5
@@ -21,9 +21,9 @@ Run tree-sitter (or custom structural parser) on files where the primary analyze
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/scanner/parsers/tree_sitter_parser.py` | Create | tree-sitter runner + structural extraction |
-| `lcsp-python-workers/src/lcsp_workers/scanner/parsers/structural_augmentor.py` | Create | Merge tree-sitter output into existing findings/graph nodes |
-| `lcsp-python-workers/src/lcsp_workers/scanner/parsers/structural_types.py` | Create | `StructuralFact` dataclass |
+| `deepagents/tools/graph/scanner/parsers/tree_sitter_parser.py` | Create | tree-sitter runner + structural extraction |
+| `deepagents/tools/graph/scanner/parsers/structural_augmentor.py` | Create | Merge tree-sitter output into existing findings/graph nodes |
+| `deepagents/tools/graph/scanner/parsers/structural_types.py` | Create | `StructuralFact` dataclass |
 
 ## Structural Patterns Extracted
 

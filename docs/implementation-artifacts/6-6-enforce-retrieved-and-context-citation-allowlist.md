@@ -43,7 +43,7 @@ Enforce Retrieved and Context Citation Allowlist
 - Story key: `6-6-enforce-retrieved-and-context-citation-allowlist`
 - Official execution artifact: `docs/implementation-artifacts/6-6-enforce-retrieved-and-context-citation-allowlist.md`
 - Epic: `Epic 6 - Legal Corpus Retrieval and LegalRuleMatch Evidence`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`, `ChromaDB`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`, `ChromaDB`
 
 ### Current State and Scope Guardrails
 
@@ -112,7 +112,7 @@ Enforce Retrieved and Context Citation Allowlist
 
 ### File Structure Notes
 
-- `lcsp-python-workers` cho source ingestion, parsing, indexing, retrieval, legal matching worker.
+- `deepagents` cho source ingestion, parsing, indexing, retrieval, legal matching worker.
 - `packages/*` cho legal chunk IDs, citation refs, retrieval audit contracts, match result schemas.
 - `apps/api` cho internal operator approval/status surfaces hoặc read models nếu project mở chúng sau này.
 

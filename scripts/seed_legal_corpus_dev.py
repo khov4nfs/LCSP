@@ -26,7 +26,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from dotenv import find_dotenv, load_dotenv
 
-from lcsp_workers.legal.normative_chunk_filter import (
+from tools.legal.legal.normative_chunk_filter import (
     legal_chunk_normative_class,
     is_legal_database_chunk,
 )
@@ -288,7 +288,7 @@ def seed_database_and_index(
     from psycopg import sql
     from psycopg.rows import dict_row
 
-    from lcsp_workers.legal.chromadb_citation_retriever import ChromaDbCitationRetriever
+    from tools.legal.legal.chromadb_citation_retriever import ChromaDbCitationRetriever
 
     corpus_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)

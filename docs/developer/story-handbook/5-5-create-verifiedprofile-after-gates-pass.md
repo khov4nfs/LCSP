@@ -33,7 +33,7 @@ Create VerifiedProfile After Gates Pass
 - Story key: `5-5-create-verifiedprofile-after-gates-pass`
 - Official execution artifact: `docs/implementation-artifacts/5-5-create-verifiedprofile-after-gates-pass.md`
 - Epic: `Epic 5 - Reconciliation and VerifiedProfile`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`
 
 ### Current State and Scope Guardrails
 
@@ -139,7 +139,7 @@ Create VerifiedProfile After Gates Pass
 
 ### File Structure Notes
 
-- `lcsp-python-workers` cho reconciliation worker, score calculation, VerifiedProfile generation.
+- `deepagents` cho reconciliation worker, score calculation, VerifiedProfile generation.
 - `apps/api` cho Manager resolution/approval command surface và status projection.
 - `packages/*` cho conflict schema, score explanation contract, verified profile DTOs.
 

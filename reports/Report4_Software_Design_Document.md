@@ -60,7 +60,7 @@ LCSP is a modular, evidence-first compliance platform, intentionally **gate-driv
 
 ### 1.2 Package Diagram
 
-The codebase is organized as a monorepo (`apps/`, `packages/`) plus a separately deployable Python worker codebase (`lcsp-python-workers`). Each `apps/api` module follows a consistent presentation/application/domain/infrastructure layering (DDD-style).
+The codebase is organized as a monorepo (`apps/`, `packages/`) plus a separately deployable Python worker codebase (`deepagents`). Each `apps/api` module follows a consistent presentation/application/domain/infrastructure layering (DDD-style).
 
 ![LCSP Package Diagram](diagrams/package-diagram.png)
 
@@ -73,7 +73,7 @@ The codebase is organized as a monorepo (`apps/`, `packages/`) plus a separately
 | 02 | `apps/api` | NestJS backend; modular DDD. Implemented: `app` (bootstrap), `auth-workspace`, `users`. Planned (per domain model, not yet implemented): `assessment`, `repository-scanner`, `reconciliation`, `legal-matching`, `classification`, `gap-analysis-document`, `audit`. |
 | 03 | `packages/contracts` | Shared DTOs and auth/shared TypeScript types imported by both `apps/web` and `apps/api`. |
 | 04 | `packages/i18n` | Shared translation keys imported by both `apps/web` and `apps/api`, ensuring stable-key blocked/error copy stays consistent across the boundary. |
-| 05 | `lcsp-python-workers` | Separate deployable Python codebase: `scanner`, `aiusageflow`, `reconciliation`, `legal_ingestion`, `legal_matching`, `classification`, `gap_analysis`, `document` modules. Communicates with `apps/api` only asynchronously via the Queue Boundary — no direct code import across the language boundary. |
+| 05 | `deepagents` | Separate deployable Python codebase: `scanner`, `aiusageflow`, `reconciliation`, `legal_ingestion`, `legal_matching`, `classification`, `gap_analysis`, `document` modules. Communicates with `apps/api` only asynchronously via the Queue Boundary — no direct code import across the language boundary. |
 
 ## 2. Database Design
 

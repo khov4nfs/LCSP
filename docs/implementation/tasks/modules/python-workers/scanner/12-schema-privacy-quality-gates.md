@@ -1,7 +1,7 @@
 ---
 task_id: MW-scan-py-012
 module: python-workers/scanner
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: READY_FOR_DEV
 epic_story: 3.5
@@ -21,11 +21,11 @@ Final gate layer before the scanner worker submits the `TechnicalEvidenceReport`
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/scanner/evidence/schema_validator.py` | Create | Schema completeness + required fields check |
-| `lcsp-python-workers/src/lcsp_workers/scanner/evidence/privacy_gate.py` | Create | Privacy flags verification before callback |
-| `lcsp-python-workers/src/lcsp_workers/scanner/evidence/quality_gate.py` | Create | Evidence quality classification |
-| `lcsp-python-workers/src/lcsp_workers/scanner/evidence/terminal_state_handler.py` | Create | Mark `RepositoryScanJob` terminal + verify cleanup |
-| `lcsp-python-workers/src/lcsp_workers/scanner/evidence/severity_mapper.py` | Create | Map failure types to severity per decision doc |
+| `deepagents/tools/graph/scanner/evidence/schema_validator.py` | Create | Schema completeness + required fields check |
+| `deepagents/tools/graph/scanner/evidence/privacy_gate.py` | Create | Privacy flags verification before callback |
+| `deepagents/tools/graph/scanner/evidence/quality_gate.py` | Create | Evidence quality classification |
+| `deepagents/tools/graph/scanner/evidence/terminal_state_handler.py` | Create | Mark `RepositoryScanJob` terminal + verify cleanup |
+| `deepagents/tools/graph/scanner/evidence/severity_mapper.py` | Create | Map failure types to severity per decision doc |
 
 ## Evidence Quality States (TechnicalEvidenceReport)
 

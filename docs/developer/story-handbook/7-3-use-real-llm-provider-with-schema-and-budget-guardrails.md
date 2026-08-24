@@ -24,7 +24,7 @@ Use Real LLM Provider With Schema and Budget Guardrails
 - Story key: `7-3-use-real-llm-provider-with-schema-and-budget-guardrails`
 - Official execution artifact: `docs/implementation-artifacts/7-3-use-real-llm-provider-with-schema-and-budget-guardrails.md`
 - Epic: `Epic 7 - Citation-Backed Classification`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`, `LLM Gateway`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`, `LLM Gateway`
 
 ### Current State and Scope Guardrails
 
@@ -93,7 +93,7 @@ Use Real LLM Provider With Schema and Budget Guardrails
 
 ### File Structure Notes
 
-- `lcsp-python-workers` cho classification orchestration/runtime.
+- `deepagents` cho classification orchestration/runtime.
 - `packages/*` cho classification schema, citation coverage enums, blocking reason contract.
 - `apps/api` cho status projection và presentation contract cho blocked/degraded/final states.
 

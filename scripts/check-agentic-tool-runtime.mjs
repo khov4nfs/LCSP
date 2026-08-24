@@ -14,9 +14,9 @@ const expectMissing = (path, label) => {
   if (existsSync(join(ROOT, path))) fail(`${label} must be removed: ${path}`);
 };
 
-const pythonDispatcher = read("lcsp-python-workers/src/lcsp_workers/agentic_evidence/dispatcher.py");
-const programTools = read("lcsp-python-workers/src/lcsp_workers/agentic_evidence/program_graph_tool_entrypoints.py");
-const remediationTools = read("lcsp-python-workers/src/lcsp_workers/agentic_evidence/remediation_tool_entrypoints.py");
+const pythonDispatcher = read("deepagents/runtime/evidence/provenance/dispatch/dispatcher.py");
+const programTools = read("deepagents/runtime/evidence/provenance/entrypoints/program_graph_tool_entrypoints.py");
+const remediationTools = read("deepagents/runtime/evidence/provenance/entrypoints/remediation_tool_entrypoints.py");
 const nestDispatcher = read("apps/api/src/modules/evidence/presentation/http/agentic-tool-query-dispatcher.ts");
 const internalCommandDispatcher = read("apps/api/src/modules/evidence/presentation/http/agentic-tool-internal-dispatcher.ts");
 

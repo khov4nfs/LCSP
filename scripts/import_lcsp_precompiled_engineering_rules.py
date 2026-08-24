@@ -17,7 +17,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from dotenv import find_dotenv, load_dotenv
 
-from lcsp_workers.legal.normative_chunk_filter import (
+from tools.legal.legal.normative_chunk_filter import (
     is_engineering_rule_source_chunk,
 )
 
@@ -93,13 +93,13 @@ def main() -> int:
 
     bundle = json.loads(Path(args.bundle).read_text(encoding="utf-8"))
 
-    from lcsp_workers.legal.chromadb_citation_retriever import ChromaDbCitationRetriever
-    from lcsp_workers.legal.engineering_rules.cache import EngineeringRuleCache
-    from lcsp_workers.legal.engineering_rules.compiler import COMPILER_VERSION, PROMPT_VERSION
-    from lcsp_workers.legal.engineering_rules.fingerprint import engineering_rule_fingerprint
-    from lcsp_workers.legal.engineering_rules.models import ENGINEERING_RULE_SCHEMA_VERSION, EngineeringRule, build_legal_reasoning_contract
-    from lcsp_workers.legal.engineering_rules.precompiled_registry import PrecompiledEngineeringRuleRegistry
-    from lcsp_workers.legal.engineering_rules.validator import validate_engineering_rule
+    from tools.legal.legal.chromadb_citation_retriever import ChromaDbCitationRetriever
+    from tools.legal.legal.engineering_rules.cache import EngineeringRuleCache
+    from tools.legal.legal.engineering_rules.compiler import COMPILER_VERSION, PROMPT_VERSION
+    from tools.legal.legal.engineering_rules.fingerprint import engineering_rule_fingerprint
+    from tools.legal.legal.engineering_rules.models import ENGINEERING_RULE_SCHEMA_VERSION, EngineeringRule, build_legal_reasoning_contract
+    from tools.legal.legal.engineering_rules.precompiled_registry import PrecompiledEngineeringRuleRegistry
+    from tools.legal.legal.engineering_rules.validator import validate_engineering_rule
 
     expected = (
         bundle.get("engineeringRuleSchemaVersion"),

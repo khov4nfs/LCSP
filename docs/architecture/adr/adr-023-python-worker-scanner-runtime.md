@@ -50,7 +50,7 @@ Phase 5.2M widens the scanner's role toward primary technical evidence source (s
 
 | Concern | Decision |
 |---|---|
-| Package | `lcsp-python-workers` monorepo, scanner module `lcsp_workers.scanner` |
+| Package | `deepagents` monorepo, scanner module `tools.graph.scanner` |
 | Runtime | Python 3.11+ |
 | Packaging/dependencies | `pyproject.toml` managed by Poetry |
 | Queue consumer | `command.scan.requested.v1` / `lcsp.scan-worker.v1` |

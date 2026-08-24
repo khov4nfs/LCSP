@@ -29,7 +29,7 @@ As a Manager, I want conflict score and conflict explanations, so that I underst
 - Story key: `5-2-explain-conflict-score-and-evidence-basis`
 - Official execution artifact: `docs/implementation-artifacts/5-2-explain-conflict-score-and-evidence-basis.md`
 - Epic: `Epic 5 - Reconciliation and VerifiedProfile`
-- Runtime ownership: `apps/api`, `lcsp-python-workers`, `packages/*`
+- Runtime ownership: `apps/api`, `deepagents`, `packages/*`
 
 ### Current State and Scope Guardrails
 
@@ -98,7 +98,7 @@ As a Manager, I want conflict score and conflict explanations, so that I underst
 
 ### File Structure Notes
 
-- `lcsp-python-workers` cho reconciliation worker, score calculation, VerifiedProfile generation.
+- `deepagents` cho reconciliation worker, score calculation, VerifiedProfile generation.
 - `apps/api` cho Manager resolution/approval command surface và status projection.
 - `packages/*` cho conflict schema, score explanation contract, verified profile DTOs.
 

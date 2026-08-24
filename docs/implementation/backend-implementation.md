@@ -697,7 +697,7 @@ Local runs should still emit redacted audit events so developers can verify trac
 
 Local development execution may utilize local mocks for OIDC, the local filesystem for object storage, and deterministic mock LLM modes for offline unit/CI tests. However, the authoritative controlled MVP happy path requires:
 
-1. Python Worker Platform scanner module (`lcsp-python-workers/src/lcsp_workers/scanner`) executing repository scans.
+1. Python Worker Platform scanner module (`deepagents/tools/graph/scanner`) executing repository scans.
 2. A real configured LLM provider mandatory for the A-to-Z happy path (mock LLM is restricted to test/offline only).
 3. A provenance-preserving legal corpus derived from approved legal source URLs (with metadata, hashes, hierarchy, xref edges and approval records) built into a ChromaDB vectorless legal retrieval index.
 4. Real S3-compatible object storage for document artifact storage (with local filesystem adapter restricted to local dev only).
@@ -754,7 +754,7 @@ No service may publish directly to RabbitMQ inside the same transaction.
 | `npm run db:migrate`                             | Local PostgreSQL schema migrated for relational metadata without pgvector requirement.                                                                                  |
 | `npm run dev:api`                                | API starts and reports ready state without logging secrets.                                                                                                             |
 | `npm run dev:worker`                             | NestJS background orchestration workers start and initialize queue bindings.                                                                                            |
-| `poetry run python -m lcsp_workers.scanner.main` | Python Scanner Worker starts, connects to RabbitMQ and PostgreSQL, and logs ready status.                                                                               |
+| `poetry run python -m tools.graph.scanner.main` | Python Scanner Worker starts, connects to RabbitMQ and PostgreSQL, and logs ready status.                                                                               |
 | `npm run dev:web`                                | Web app starts and can reach API health endpoint.                                                                                                                       |
 | `npm run test`                                   | Unit and contract test suite passes.                                                                                                                                    |
 | `npm run test:scanner`                           | Python AST/static-analysis stack and extraction parser tests pass.                                                                                                      |

@@ -9,7 +9,7 @@ status: DONE
 
 ## 1–4. Task information and objective
 
-AO-1 P0; `lcsp-python-workers/scanner/tools`; `SYSTEM_ONLY`, `READ`. Run the pinned Syft binary over one trusted workspace and normalize safe SBOM/package facts. It is supporting dependency evidence, never proof of an invocation. Caller `ScanConsumer`; timeout 120 s; retry only `SYFT_TRANSIENT` twice with 1 s/4 s backoff; non-zero/version/config mismatch does not retry.
+AO-1 P0; `deepagents/scanner/tools`; `SYSTEM_ONLY`, `READ`. Run the pinned Syft binary over one trusted workspace and normalize safe SBOM/package facts. It is supporting dependency evidence, never proof of an invocation. Caller `ScanConsumer`; timeout 120 s; retry only `SYFT_TRANSIENT` twice with 1 s/4 s backoff; non-zero/version/config mismatch does not retry.
 
 ## 5. Input schema
 

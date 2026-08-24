@@ -1,7 +1,7 @@
 ---
 task_id: MW-llm-002
 module: python-workers/llm
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: READY_FOR_DEV
 epic_story: 7.3
@@ -20,11 +20,11 @@ Extend the Python LLM Gateway contract so every model-assisted worker node sends
 
 | File                                                                             | Action | Notes                                                          |
 | -------------------------------------------------------------------------------- | ------ | -------------------------------------------------------------- |
-| `lcsp-python-workers/src/lcsp_workers/llm/gateway_client.py`                     | Modify | Require workflow/node context and surface request metadata     |
-| `lcsp-python-workers/src/lcsp_workers/classification/classification_consumer.py` | Modify | Derive graph-safe workflow context for optional rationale node |
-| `lcsp-python-workers/src/lcsp_workers/classification/rationale_narrator.py`      | Modify | Pass workflow/node context into gateway calls                  |
-| `lcsp-python-workers/tests/test_llm_gateway.py`                                  | Modify | Cover required workflow/node context and request metadata      |
-| `lcsp-python-workers/tests/classification/test_classification_worker.py`         | Modify | Cover classification fallback with node context                |
+| `deepagents/tools/common/llm/gateway_client.py`                     | Modify | Require workflow/node context and surface request metadata     |
+| `deepagents/tools/classification/classification/classification_consumer.py` | Modify | Derive graph-safe workflow context for optional rationale node |
+| `deepagents/tools/classification/classification/rationale_narrator.py`      | Modify | Pass workflow/node context into gateway calls                  |
+| `deepagents/tests/test_llm_gateway.py`                                  | Modify | Cover required workflow/node context and request metadata      |
+| `deepagents/tests/classification/test_classification_worker.py`         | Modify | Cover classification fallback with node context                |
 
 ## Business Rules
 

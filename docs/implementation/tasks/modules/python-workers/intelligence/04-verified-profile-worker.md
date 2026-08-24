@@ -1,7 +1,7 @@
 ---
 task_id: MW-intel-004
 module: python-workers/intelligence
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: DONE
 epic_story: 5.4
@@ -19,8 +19,8 @@ Consume `reconciliation.all-conflicts-resolved` events and assemble the `Verifie
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/intelligence/verified_profile_consumer.py` | Create | `ConsumerBase` subclass for `reconciliation.all-conflicts-resolved` |
-| `lcsp-python-workers/src/lcsp_workers/intelligence/verified_profile_builder.py` | Create | Final profile assembly |
+| `deepagents/tools/engineer_rule/intelligence/verified_profile_consumer.py` | Create | `ConsumerBase` subclass for `reconciliation.all-conflicts-resolved` |
+| `deepagents/tools/engineer_rule/intelligence/verified_profile_builder.py` | Create | Final profile assembly |
 
 ## RabbitMQ
 
@@ -89,14 +89,14 @@ class VerifiedProfileData:
 
 ## File List
 
-- `lcsp-python-workers/src/lcsp_workers/intelligence/__init__.py`
-- `lcsp-python-workers/src/lcsp_workers/intelligence/verified_profile_builder.py`
-- `lcsp-python-workers/src/lcsp_workers/intelligence/verified_profile_consumer.py`
-- `lcsp-python-workers/src/lcsp_workers/platform/api_client.py`
-- `lcsp-python-workers/src/lcsp_workers/platform/callback_schemas.py`
-- `lcsp-python-workers/src/package/contract/api_client_contracts.py`
-- `lcsp-python-workers/tests/test_api_client.py`
-- `lcsp-python-workers/tests/test_verified_profile_worker.py`
+- `deepagents/tools/engineer_rule/intelligence/__init__.py`
+- `deepagents/tools/engineer_rule/intelligence/verified_profile_builder.py`
+- `deepagents/tools/engineer_rule/intelligence/verified_profile_consumer.py`
+- `deepagents/tools/common/platform/api_client.py`
+- `deepagents/tools/common/platform/callback_schemas.py`
+- `deepagents/tools/common/package/contract/api_client_contracts.py`
+- `deepagents/tests/test_api_client.py`
+- `deepagents/tests/test_verified_profile_worker.py`
 - `docs/implementation/tasks/modules/python-workers/intelligence/04-verified-profile-worker.md`
 
 ## Validation
@@ -109,7 +109,7 @@ Baseline commit before task work: `3b63ab925765f8f3598f3de44e049fc16646e073`.
   - Result: passed, 44 tests.
 - `./.venv/bin/pytest tests/test_api_client.py tests/test_technical_profile_worker.py tests/test_ai_usage_flow_worker.py tests/test_conflict_detection_worker.py tests/test_verified_profile_worker.py tests/test_queue_consumer.py`
   - Result: passed, 62 tests.
-- `./.venv/bin/python -m compileall src/lcsp_workers/intelligence src/lcsp_workers/platform src/package/contract tests/test_verified_profile_worker.py tests/test_api_client.py`
+- `./.venv/bin/python -m compileall tools/engineer_rule/intelligence tools/common/platform tools/common/package/contract tests/test_verified_profile_worker.py tests/test_api_client.py`
   - Result: passed.
 - `git diff --check`
   - Result: passed.

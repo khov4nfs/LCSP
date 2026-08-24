@@ -1,7 +1,7 @@
 ---
 task_id: MW-scan-py-008
 module: python-workers/scanner
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: DONE
 epic_story: 3.5
@@ -20,8 +20,8 @@ Complete Semgrep YAML ruleset (`lcsp-ai-usage.yaml`) covering all 10+ AI library
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/scanner/tools/semgrep_rules/lcsp-ai-usage.yaml` | Create | Complete ruleset (replaces partial) |
-| `lcsp-python-workers/src/lcsp_workers/scanner/tools/semgrep_tool.py` | Modify | Add `extra.lines` strip, timeout 180s, full path sanitization |
+| `deepagents/tools/graph/scanner/tools/semgrep_rules/lcsp-ai-usage.yaml` | Create | Complete ruleset (replaces partial) |
+| `deepagents/tools/graph/scanner/tools/semgrep_tool.py` | Modify | Add `extra.lines` strip, timeout 180s, full path sanitization |
 
 ## Ruleset Structure
 
@@ -399,9 +399,9 @@ Applied to EVERY Semgrep finding before storage. No exceptions.
 
 ## File List
 
-- `lcsp-python-workers/src/lcsp_workers/scanner/rulesets/lcsp-ai-usage.yaml`
-- `lcsp-python-workers/src/lcsp_workers/scanner/tools/semgrep_tool.py`
-- `lcsp-python-workers/tests/test_semgrep_tool.py`
+- `deepagents/tools/graph/scanner/rulesets/lcsp-ai-usage.yaml`
+- `deepagents/tools/graph/scanner/tools/semgrep_tool.py`
+- `deepagents/tests/test_semgrep_tool.py`
 - `docs/implementation/tasks/modules/python-workers/scanner/08-semgrep-full-ai-ruleset.md`
 
 ## Validation
@@ -410,7 +410,7 @@ Applied to EVERY Semgrep finding before storage. No exceptions.
   - Result: passed, 9 tests.
 - `./.venv/bin/pytest tests/test_evidence_assembler.py tests/test_scanner_workspace.py`
   - Result: passed, 20 tests.
-- `./.venv/bin/python -m compileall src/lcsp_workers/scanner/tools tests/test_semgrep_tool.py`
+- `./.venv/bin/python -m compileall tools/graph/scanner/tools tests/test_semgrep_tool.py`
   - Result: passed.
 - Python YAML structural validation using the host Python environment
   - Result: passed, 34 Semgrep rules validated for required metadata.

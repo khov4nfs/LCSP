@@ -1,7 +1,7 @@
 ---
 task_id: MW-intel-003
 module: python-workers/intelligence
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: DONE
 epic_story: 5.1
@@ -19,9 +19,9 @@ Consume `ai-usage-flow-ready` events and detect reconciliation conflicts between
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/intelligence/conflict_detection_consumer.py` | Create | `ConsumerBase` subclass for `ai-usage-flow-ready` |
-| `lcsp-python-workers/src/lcsp_workers/intelligence/conflict_detector.py` | Create | Conflict detection logic |
-| `lcsp-python-workers/src/lcsp_workers/intelligence/conflict_score_calculator.py` | Create | Explanatory Conflict Score calculation |
+| `deepagents/tools/engineer_rule/intelligence/conflict_detection_consumer.py` | Create | `ConsumerBase` subclass for `ai-usage-flow-ready` |
+| `deepagents/tools/engineer_rule/intelligence/conflict_detector.py` | Create | Conflict detection logic |
+| `deepagents/tools/engineer_rule/intelligence/conflict_score_calculator.py` | Create | Explanatory Conflict Score calculation |
 
 ## RabbitMQ
 
@@ -99,6 +99,6 @@ conflict_score = (evidence_confidence_weight * contradiction_severity) / normali
 
 ## Validation
 
-- `python3 -m compileall -q lcsp-python-workers/src/lcsp_workers/intelligence lcsp-python-workers/src/lcsp_workers/platform lcsp-python-workers/src/package/contract lcsp-python-workers/tests/test_conflict_detection_worker.py`
-- `/tmp/lcsp-workers-venv/bin/python -m pytest lcsp-python-workers/tests/test_conflict_detection_worker.py lcsp-python-workers/tests/test_api_client.py -q`
+- `python3 -m compileall -q deepagents/tools/engineer_rule/intelligence deepagents/tools/common/platform deepagents/tools/common/package/contract deepagents/tests/test_conflict_detection_worker.py`
+- `/tmp/lcsp-managed-deepagents-venv/bin/python -m pytest deepagents/tests/test_conflict_detection_worker.py deepagents/tests/test_api_client.py -q`
   - Result: 22 passed, 1 warning (`asyncio_mode` config warning)

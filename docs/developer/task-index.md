@@ -9,7 +9,7 @@ Muc luc nhanh cho developer de tim task brief va handbook theo `domain`, `owner`
 - Xem **Master Catalog** khi can tra nhanh dependency, runtime, va link brief.
 - Xem **By Domain** khi duoc giao mot module/dong nghiep vu cu the.
 - Xem **By Owner** khi can phan task theo nhom phu trach.
-- Xem **By Runtime** khi can biet task nao thuoc `nestjs-api`, `lcsp-python-workers`, `apps-web`, hay `cross-runtime`.
+- Xem **By Runtime** khi can biet task nao thuoc `nestjs-api`, `deepagents`, `apps-web`, hay `cross-runtime`.
 - Mo `handbook` truoc de lay task boundary nhanh; mo `brief` khi can contract day du.
 
 ## Source Of Truth

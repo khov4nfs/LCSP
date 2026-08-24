@@ -1,7 +1,7 @@
 ---
 task_id: MW-scan-py-009
 module: python-workers/scanner
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: DONE
 epic_story: 3.5
@@ -22,11 +22,11 @@ Fuse signals from all prior tool stages (SBOM, Knip/deptry, Python AST/CST, TS/J
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/signal_fuser.py` | Create | Merge signals from all tools into finding candidates |
-| `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/confidence_calculator.py` | Create | Confidence formula per scanner-spec.md |
-| `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/finding_deduplicator.py` | Create | Dedup by file+line+rule_id; merge corroborating signals |
-| `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/ai_invocation_detector.py` | Create | Orchestrate fuser → dedup → confidence → `TechnicalFinding` list |
-| `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/finding_types.py` | Create | 20 canonical finding type constants + base confidence table |
+| `deepagents/tools/graph/scanner/analyzers/signal_fuser.py` | Create | Merge signals from all tools into finding candidates |
+| `deepagents/tools/graph/scanner/analyzers/confidence_calculator.py` | Create | Confidence formula per scanner-spec.md |
+| `deepagents/tools/graph/scanner/analyzers/finding_deduplicator.py` | Create | Dedup by file+line+rule_id; merge corroborating signals |
+| `deepagents/tools/graph/scanner/analyzers/ai_invocation_detector.py` | Create | Orchestrate fuser → dedup → confidence → `TechnicalFinding` list |
+| `deepagents/tools/graph/scanner/analyzers/finding_types.py` | Create | 20 canonical finding type constants + base confidence table |
 
 ## 20 Canonical Finding Types
 
@@ -374,17 +374,17 @@ None of these require L3+ analysis — they are L0-L2 signals.
 
 ## File List
 
-- `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/__init__.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/ai_invocation_detector.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/confidence_calculator.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/finding_deduplicator.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/finding_types.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/signal_fuser.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/evidence_assembler.py`
-- `lcsp-python-workers/src/lcsp_workers/scanner/scan_consumer.py`
-- `lcsp-python-workers/tests/test_ai_invocation_detector.py`
-- `lcsp-python-workers/tests/test_evidence_assembler.py`
-- `lcsp-python-workers/tests/test_scanner_workspace.py`
+- `deepagents/tools/graph/scanner/analyzers/__init__.py`
+- `deepagents/tools/graph/scanner/analyzers/ai_invocation_detector.py`
+- `deepagents/tools/graph/scanner/analyzers/confidence_calculator.py`
+- `deepagents/tools/graph/scanner/analyzers/finding_deduplicator.py`
+- `deepagents/tools/graph/scanner/analyzers/finding_types.py`
+- `deepagents/tools/graph/scanner/analyzers/signal_fuser.py`
+- `deepagents/tools/graph/scanner/evidence_assembler.py`
+- `deepagents/tools/graph/scanner/scan_consumer.py`
+- `deepagents/tests/test_ai_invocation_detector.py`
+- `deepagents/tests/test_evidence_assembler.py`
+- `deepagents/tests/test_scanner_workspace.py`
 - `docs/implementation/tasks/modules/python-workers/scanner/09-ai-invocation-detector.md`
 
 ## Validation
@@ -395,7 +395,7 @@ Baseline commit before task work: `8455adaea47aeccb6ba20f81805afc1a8e91573f`.
   - Result: passed, 30 tests.
 - `./.venv/bin/pytest tests/test_ai_invocation_detector.py tests/test_semgrep_tool.py tests/test_ts_js_bridge.py tests/test_scanner_analyzer.py tests/test_dependency_usage_tools.py tests/test_evidence_assembler.py tests/test_scanner_workspace.py tests/test_technical_profile_worker.py tests/test_ai_usage_flow_worker.py`
   - Result: passed, 97 tests.
-- `./.venv/bin/python -m compileall src/lcsp_workers/scanner/analyzers src/lcsp_workers/scanner/evidence_assembler.py src/lcsp_workers/scanner/scan_consumer.py tests/test_ai_invocation_detector.py tests/test_evidence_assembler.py tests/test_scanner_workspace.py`
+- `./.venv/bin/python -m compileall tools/graph/scanner/analyzers tools/graph/scanner/evidence_assembler.py tools/graph/scanner/scan_consumer.py tests/test_ai_invocation_detector.py tests/test_evidence_assembler.py tests/test_scanner_workspace.py`
   - Result: passed.
 - `git diff --check`
   - Result: passed.

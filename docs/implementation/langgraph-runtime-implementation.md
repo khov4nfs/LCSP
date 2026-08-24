@@ -16,7 +16,7 @@ In MVP, the primary candidate flows are:
 
 ## Runtime Ownership
 
-- Graph runtime lives in `lcsp-python-workers`.
+- Graph runtime lives in `deepagents`.
 - Each graph is owned by a bounded worker module, not by the API layer.
 - Queue events remain the entry point.
 - Persisted domain artifacts remain the handoff contract between stages.

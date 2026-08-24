@@ -1,7 +1,7 @@
 ---
 task_id: MW-scan-py-010
 module: python-workers/scanner
-runtime: lcsp-python-workers
+runtime: deepagents
 priority: P0
 status: READY_FOR_DEV
 epic_story: 3.5
@@ -21,9 +21,9 @@ All five signal types feed `docs/specs/ai-usage-flow-domain-spec.md` claim categ
 
 | File | Action | Notes |
 |---|---|---|
-| `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/decision_flow_tracer.py` | Create | Trace AI output → condition → action flows |
-| `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/human_review_detector.py` | Create | Detect positive human-review evidence patterns |
-| `lcsp-python-workers/src/lcsp_workers/scanner/analyzers/decision_patterns.py` | Create | Rule tables for automated-decision and human-review patterns |
+| `deepagents/tools/graph/scanner/analyzers/decision_flow_tracer.py` | Create | Trace AI output → condition → action flows |
+| `deepagents/tools/graph/scanner/analyzers/human_review_detector.py` | Create | Detect positive human-review evidence patterns |
+| `deepagents/tools/graph/scanner/analyzers/decision_patterns.py` | Create | Rule tables for automated-decision and human-review patterns |
 
 ## AUTOMATED_DECISION_SIGNAL — Detection Criteria
 

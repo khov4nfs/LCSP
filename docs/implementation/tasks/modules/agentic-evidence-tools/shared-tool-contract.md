@@ -1,8 +1,8 @@
 # Shared Agentic Tool Contract
 
-Status: DELIVERED  
-Applies to: every capability in `docs/specs/spec-agentic-evidence-orchestration/tool-catalog.md`  
-Primary runtime owner: `lcsp-python-workers`  
+Status: DELIVERED
+Applies to: every capability in `docs/specs/spec-agentic-evidence-orchestration/tool-catalog.md`
+Primary runtime owner: `deepagents`
 Supporting boundary owner: `apps/api` for trusted trigger, PBAC, audit, and immutable artifact persistence
 
 ## Purpose

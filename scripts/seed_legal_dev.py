@@ -37,7 +37,7 @@ def main() -> int:
     args = parse_args()
     repo_root = Path(__file__).resolve().parents[1]
     env = os.environ.copy()
-    python_path = str(repo_root / "lcsp-python-workers" / "src")
+    python_path = str(repo_root / "deepagents")
     env["PYTHONPATH"] = (
         python_path
         if not env.get("PYTHONPATH")
