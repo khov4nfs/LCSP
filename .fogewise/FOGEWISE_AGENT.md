@@ -60,16 +60,16 @@ Internet -> Caddy -> web:8080
                     |
                     +-> api:8080
 
-api/workers <-> fogewise-rabbitmq
-api         <-> fogewise-redis
-workers      -> api:8080
+api/managed-deep-agent <-> fogewise-rabbitmq
+api                    <-> fogewise-redis
+managed-deep-agent      -> api:8080
 ```
 
 The NestJS `api` service intentionally has no public `/api` Fogewise route because Next.js owns the public `/api/*` BFF routes and calls NestJS internally through Docker DNS.
 
-Current worker services share `path: lcsp-python-workers` and use different `command` values. They must remain internal and must not publish host ports.
+The Managed Deep Agent service uses `path: deepagents` and the image `ENTRYPOINT` (`mda dev .`). It remains internal and must not publish host ports. Do not reintroduce separate `ConsumerBase` worker services for scanner, assessment, reporting, targeted reanalysis, or legal-corpus jobs.
 
-`final-report-worker` is intentionally not enabled until its current LLM gateway construction is production-runnable. `audit-export` is not an active Fogewise worker in the current MVP topology.
+`audit-export` is not an active Fogewise worker in the current MVP topology.
 
 ## Build and image rules
 

@@ -65,10 +65,8 @@
     "typescriptreact"
   ],
   "git.ignoreLimitWarning": true,
-  "python-envs.defaultEnvManager": "ms-python.python:system",
-  "python.analysis.extraPaths": [
-    "${workspaceFolder}/deepagents"
-  ],
+  "python-envs.defaultEnvManager": "ms-python.python:venv",
+  "python.analysis.extraPaths": ["${workspaceFolder}/deepagents"],
   "python.terminal.activateEnvironment": true,
   "js/ts.tsserver.maxMemory": 2048,
   "search.exclude": {
