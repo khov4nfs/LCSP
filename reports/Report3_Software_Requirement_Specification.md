@@ -1,318 +1,365 @@
-**Capstone Project Report**
+**CAPSTONE PROJECT REPORT**
 
-**Report 3 – Software Requirement Specification**
+# Report 3 – Software Requirement Specification
 
-– [Institution / Organization Logo] –
+**Hanoi, August 2026**
 
-**Table of Contents**
+## I. Record of Changes
 
-[I. Project Report 3](#_Toc72138553)
+| Date | A* / M / D | In charge | Change Description |
+| --- | --- | --- | --- |
+| 19/8/26 | A* | Phan N.Q. Minh | Initial Software Requirement Specification. |
+| 24/8/26 | M | Phan N.Q. Minh | Updated Report 3 to align with the current LCSP scope and expanded the Use Case catalog into distinct user goals and interactions. |
 
-[1. Status Report 3](#_Toc72138554)
-
-[2. Team Involvements 3](#_Toc72138555)
-
-[3. Issues/Suggestions 3](#_Toc72138556)
-
-[II. Software Requirement Specification 4](#_Toc72138557)
-
-[1. Overall Description 4](#_Toc72138558)
-
-[1.1 Product Overview 4](#_Toc72138559)
-
-[1.2 Business Rules 5](#_Toc72138560)
-
-[2. User Requirements 6](#_Toc72138561)
-
-[2.1 System Actors 6](#_Toc72138562)
-
-[2.2 Use Cases 6](#_Toc72138563)
-
-[3. Functional Requirements 8](#_Toc72138564)
-
-[3.1 System Functional Overview 8](#_Toc72138565)
-
-[3.2 <<Feature Name 1>> 10](#_Toc72138566)
-
-[3.3 <<Feature Name 2>> 10](#_Toc72138567)
-
-[4. Non-Functional Requirements 11](#_Toc72138568)
-
-[4.1 External Interfaces 11](#_Toc72138569)
-
-[4.2 Quality Attributes 12](#_Toc72138570)
-
-[5. Other Requirements 14](#_Toc72138571)
-
-[5.1 Appendix1 - Messages List 14](#_Toc72138572)
-
-[5.2 Appendix2 - … 14](#_Toc72138573)
-
-[5.3 … 14](#_Toc72138574)
-
-# I. Project Report
-
-## 1. Status Report
-
-As of 2026-07-06, LCSP is in the **specification-complete, implementation-starting** stage: the full canonical baseline (56 Functional Requirements, 35 Non-Functional Requirements, 17 Use Cases, 95 Business Rules, and the corresponding domain model, architecture, and state-machine specs) is authored and internally consistent under Phase 5.2L/5.2M. `apps/api` (auth-workspace module) and a minimal `apps/web` scaffold exist; the remaining modules in Report 2's 7-phase schedule are not yet implemented (`IMPLEMENTATION_NOT_AUTHORIZED` had gated code work until specs were finalized).
-
-## 2. Team Involvements
-
-See Report 1 §1.2 (Project Team) and Report 2 §4 (Responsibility Assignments) for the current team roster and responsibility matrix. Specification authoring, architecture decisions, and this report set were produced collaboratively with AI-assisted tooling under direct team review and approval, per the project's documentation-first working method.
-
-## 3. Issues/Suggestions
-
-* The ChromaDB structure-first vectorless legal retrieval approach (ADR-026) is a deliberate departure from common dense-embedding RAG patterns; it requires the team to validate retrieval quality empirically once the legal corpus ingestion worker is implemented (Phase 5, Report 2).
-* WizardProfile was downgraded from a mandatory gate to optional corroborating input mid-specification (Scanner-Primary/Wizard-Optional pivot); any legacy references to "Wizard is required before classification" found during implementation should be treated as stale and corrected against `docs/specs/ai-usage-flow-domain-spec.md`.
+*A - Added; M - Modified; D - Deleted*
 
 # II. Software Requirement Specification
 
-## 1. Overall Description
+## 1. Product Overview
 
-### 1.1 Product Overview
+LCSP is a web-based platform that supports businesses using artificial intelligence in Vietnam in preparing and reviewing information for legal compliance assessments. The platform brings together business information, relevant software-project information, applicable legal requirements, supporting evidence, assessment findings, and reports in one controlled workspace.
 
-LCSP (Legal Compliance Support Platform) replaces two weak existing approaches — self-declared compliance questionnaires and slow manual legal review — with a Manager-led, evidence-first pipeline: a Manager connects a read-only repository, the system runs an automatic trusted static scan, reconciles the resulting technical evidence with optional business context, and produces a citation-backed risk classification and guarded compliance document mapped to Vietnamese AI/data-protection law (Luật AI 134/2025 and related instruments). The system is expected to evolve in later releases to cover additional legal instruments and a broader scanner language surface; release 1.0 (this MVP) covers the full Manager golden path described below.
+A typical assessment begins when a Manager creates an assessment and provides information about how AI is used in the business. The Manager can then select a connected software repository from Settings and choose the project version to be reviewed. LCSP analyzes the selected project, collects relevant supporting evidence, compares the available information with assessment criteria derived from reviewed legal sources, identifies possible gaps, and prepares results for human review.
 
-The context diagram below illustrates the external entities and system interfaces for release 1.0: the Manager and optional Developer as primary actors, the Internal Legal Operator as an internal-only actor, and five external systems (OAuth/OIDC Provider, GitHub App, Official Legal Sources, LLM Provider, Object Storage).
-
-![LCSP Context Diagram](diagrams/context-diagram.png)
-
-### 1.2 Business Rules
-
-The full canonical business rule catalog (`BR-001`..`BR-095`) is maintained in `docs/product/business-rules.md`, organized into 17 categories (Account & Authentication, MFA, Organization & Membership, PBAC, Assessment Lifecycle, Wizard, Evidence Collection, Evidence Gates, Reconciliation, Scoring, Risk Classification, Legal Rule & Citation, Superseded Attestation Register, Security & Privacy, Report & Document, Audit Trail, Notification/Task). A representative subset is reproduced here; see §5.1 for the appendix excerpt and the source file for the complete, traceable set.
-
-Key rules that most directly shape this SRS's functional requirements:
-
-| ID | Rule Name | Rule Statement |
-| --- | --- | --- |
-| BR-018 | Manager assessment ownership | Manager is the accountable subject for business/legal truth; PBAC policy evaluation remains the authorization authority. |
-| BR-023 | Assessment initial state | New assessment starts in `WIZARD_IN_PROGRESS`; Manager may proceed directly to repository connection without completing Wizard. |
-| BR-032 | GitHub repository scan evidence path | MVP technical evidence must come from a read-only selected GitHub repository scan. |
-| BR-041 | Conflict creation | When WizardProfile is linked, conflict is created on a mismatch; when not linked, no comparison runs (BR-095). |
-| BR-049 | Classification after VerifiedProfile | Risk Classification may run only after VerifiedProfile exists and prerequisite gates pass. |
-| BR-050 | Legal rule trace required | Critical classification outputs must trace to `rule_id`, legal source, citation, version, and effective date. |
-| BR-051 | Unsupported legal conclusion blocked | Missing critical citation blocks final classification; no hallucinated legal basis is permitted. |
-| BR-057 | No raw source to LLM | Raw source code must never be sent to the LLM Provider. |
-| BR-095 | Technical-only verified profile path | Without a linked WizardProfile, VerifiedProfile is produced from technical evidence alone (`TECHNICAL_ONLY`), with business-dependent fields resolving `UNKNOWN` rather than blocking.
+LCSP is designed as a compliance-support system. It does not provide legal certification or replace professional legal judgment. When important information is missing or the available evidence is not sufficient, the system must clearly indicate that further clarification or review is required rather than making unsupported assumptions.
 
 ## 2. User Requirements
 
 ### 2.1 Actors
 
-| **#** | **Actor** | **Description** |
+The system supports a primary business user, optional technical collaboration, internal legal-content maintenance, and external services required for authentication, repository access, and AI-assisted analysis.
+
+| # | Actor | Description |
 | --- | --- | --- |
-| 1 | Manager | Required, primary product actor. Owns the Assessment, resolves reconciliation conflicts, approves VerifiedProfile, and is the accountable subject for business/legal truth (BR-018). Can complete the entire golden path without Developer participation. |
-| 2 | Developer | Optional, scoped collaborator. May be invited by the Manager for independently valuable technical tasks (e.g., reviewing redacted technical findings) under a PBAC policy scope; cannot approve VerifiedProfile, run final classification, or generate the final report. |
-| 3 | Internal Legal Operator | Internal-only actor (API/CLI, not customer-facing UX). Validates legal sources, ingests and approves `LegalCorpusVersion`, and authors/approves `LegalRule`/`LegalRuleCatalogVersion`. |
-| 4 | LCSP System (Backend API + Python Worker Platform) | Automated actor. Executes scans, generates TechnicalProfile/AIUsageFlow, performs legal matching, classification, gap analysis, and document generation asynchronously. |
+| 1 | Manager | Primary business user who creates assessments, provides business context, selects the project to review, resolves important questions, reviews results, and generates reports. |
+| 2 | Developer | Optional technical collaborator who can review assigned technical findings and provide scoped technical input when permitted. |
+| 3 | Internal Legal Operator | Internal role responsible for maintaining reviewed legal sources and assessment criteria used by LCSP. |
+| 4 | Identity Provider | External authentication service used for approved sign-in flows. |
+| 5 | GitHub | External source-code hosting service used to provide read-only access to selected repositories and project versions. |
+| 6 | AI Service Provider | External AI service used only for approved assisted-analysis tasks; it must not receive raw source code. |
+| 7 | Reviewed Legal Sources | Official or reviewed legal materials used to maintain the legal requirements and citations used in assessments. |
 
 ### 2.2 Use Cases
 
-#### 2.2.1 Diagram(s)
+#### 2.2.1 Functional Grouping
 
-![LCSP Use Case Diagram](diagrams/usecase-diagram.png)
+The current product scope contains **48 detailed Use Cases**. They are grouped by functional area so the same structure can be used consistently in the SRS, the Project Management WBS, Jira mapping, testing, and project documentation.
+
+| Functional Area | Use Cases |
+| --- | --- |
+| Account & Authentication | UC-001 to UC-007 |
+| Organization & Collaboration | UC-008 to UC-013 |
+| Assessment Management | UC-014 to UC-018 |
+| Business Context | UC-019 to UC-024 |
+| Repository & Project Version | UC-025 to UC-029 |
+| Project Analysis & Evidence | UC-030 to UC-035 |
+| Conflict & Clarification | UC-036 to UC-038 |
+| Legal Requirements | UC-039 to UC-042 |
+| Assessment Results | UC-043 to UC-044 |
+| Gaps, Reporting & History | UC-045 to UC-048 |
+
+The use cases below describe the current product scope as distinct user goals and interactions. Implementation details remain outside this report.
 
 #### 2.2.2 Descriptions
 
-| **ID** | **Use Case** | **Actors** | **Use Case Description** |
+| ID | Use Case | Actors | Use Case Description |
 | --- | --- | --- | --- |
-| UC-001 | Authenticate and Manage Account | Manager / Developer | Establish a safe organization-scoped session through approved password/MFA or OAuth/OIDC paths; invalid identity/session state is denied safely and audited. |
-| UC-002 | Manage Organization and PBAC Policy Scope | Manager | Maintain tenant membership, PBAC policy scope, and optional scoped Developer collaboration. |
-| UC-003 | Create Assessment | Manager | Create a Manager-owned Assessment in the organization. |
-| UC-004 | Complete WizardProfile and Readiness | Manager | Optionally capture business/legal context in business language; shows readiness gaps, never a risk level. |
-| UC-005 | Connect Repository | Manager (optional delegated Developer) | Connect a selected read-only GitHub repository through GitHub App, separate from login. |
-| UC-006 | Create Repository Snapshot | Manager / System | Pin repository evidence to an immutable branch/commit snapshot. |
-| UC-007 | Execute Repository Scan | Manager / System | Convert the snapshot into static technical evidence via the Python Scanner Worker. |
-| UC-008 | Generate TechnicalProfile | System | Aggregate accepted evidence into evidence-backed technical dimensions or explicit unknowns. |
-| UC-009 | Generate AIUsageFlow | System | Combine WizardProfile (if any), TechnicalProfile, and findings into claim-level usage facts with confidence. |
-| UC-010 | Resolve Conflict | Manager | Resolve material mismatch between declared and detected facts while preserving scanner evidence. |
-| UC-011 | Create and Approve VerifiedProfile | Manager / System | Produce the reconciled basis for legal matching once conflicts are absent or resolved. |
-| UC-012 | Operate Legal Corpus and Perform Legal Matching | Internal Legal Operator / System | Prepare an approved immutable legal corpus and match VerifiedProfile facts to citation-backed rules. |
-| UC-013 | Run Risk Classification | Manager / System | Create a cited risk result or explicit blocked state after VerifiedProfile and LegalRuleMatch. |
-| UC-014 | Generate Gap Analysis and Documents | Manager / System | Derive compliance gaps and create a guarded final document (or an earlier readiness-only export). |
-| UC-015 | Review and Export Audit Trail | Manager | Inspect and export redacted actor/action/object/version/correlation records. |
-| UC-016 | Automatic Trusted Scan Initiation and Re-run Evidence | Manager / System | Create or resume a scan/evidence chain from a trusted integration context without mutating history. |
-| UC-017 | Enforce Security and Privacy Controls | System | Enforce source non-execution, restricted workspace, cleanup, redaction, and fail-closed behavior. |
+| UC-001 | Sign in with email | Manager / Developer / Internal Legal Operator | Sign in to LCSP with an approved work account and establish an authenticated session. |
+| UC-002 | Sign in with identity provider | Manager / Developer / Internal Legal Operator / Identity Provider | Sign in through an approved external identity provider and return to LCSP with a validated identity. |
+| UC-003 | Complete MFA verification | Manager / Developer / Internal Legal Operator | Complete the required multi-factor verification step before accessing protected LCSP functions. |
+| UC-004 | Manage MFA settings | Manager / Developer / Internal Legal Operator | Set up, update, disable, or recover multi-factor authentication when permitted by account policy. |
+| UC-005 | Request password recovery | Manager / Developer / Internal Legal Operator | Request account recovery when the user cannot sign in with the current password. |
+| UC-006 | Reset password | Manager / Developer / Internal Legal Operator | Set a new password through an approved recovery process. |
+| UC-007 | Sign out | Manager / Developer / Internal Legal Operator | End the current authenticated session and return to the sign-in state. |
+| UC-008 | View workspace | Manager / Developer / Internal Legal Operator | View the organization workspace, available navigation, recent work, and items that require attention within the granted scope. |
+| UC-009 | View organization members | Manager | Review people who currently have access to the organization and their assigned access. |
+| UC-010 | Invite Developer | Manager | Invite a Developer to collaborate on technical review work for the organization. |
+| UC-011 | Assign Developer access | Manager | Grant a Developer access to an assessment or technical review task within an approved scope. |
+| UC-012 | Update Developer access | Manager | Change the scope of a Developer's existing assessment or technical-review access. |
+| UC-013 | Revoke Developer access | Manager | Remove a Developer's access when collaboration is no longer required. |
+| UC-014 | View assessment list | Manager / Developer | View assessments available within the user's organization and granted access scope. |
+| UC-015 | Search assessments | Manager / Developer | Find an assessment from the assessment list using available search or filtering information. |
+| UC-016 | Create assessment | Manager | Create a new compliance assessment under the current organization and record its initial information. |
+| UC-017 | Open or continue assessment | Manager / Developer | Open an assessment that the user is allowed to access and continue work from its current state. |
+| UC-018 | Update assessment information | Manager | Update the assessment's editable business or project information before later review steps depend on it. |
+| UC-019 | Open business-context intake | Manager | Open the guided intake for an assessment and review the information that must be provided. |
+| UC-020 | Provide AI use-case information | Manager | Describe the purpose of the AI use case, its business context, and how AI is used in the product or operation. |
+| UC-021 | Provide affected-people and data context | Manager | Describe affected people, relevant data, and other business circumstances needed for the assessment. |
+| UC-022 | Provide decision-role and human-oversight information | Manager | Describe the role of AI in decisions, the available human oversight, and relevant external AI-service use. |
+| UC-023 | Save intake progress | Manager | Save partially completed business-context information and continue the intake later. |
+| UC-024 | Review readiness and missing business information | Manager | Review incomplete or uncertain business-context items and understand what must be clarified before later assessment steps. |
+| UC-025 | Select connected repository | Manager / Delegated Developer / GitHub | Select a repository already available to the organization as the software project relevant to the assessment. |
+| UC-026 | Validate repository access | Manager / Delegated Developer / GitHub | Confirm that LCSP can read the selected repository with the approved read-only access before analysis begins. |
+| UC-027 | Select project version | Manager / Delegated Developer / GitHub | Select and record the branch or commit version that will be reviewed for the assessment. |
+| UC-028 | Change repository or project version | Manager / Delegated Developer / GitHub | Change the selected repository or reviewed project version when the assessment context requires it. |
+| UC-029 | Re-run analysis for a new project version | Manager / GitHub | Start a new analysis for a changed project version while preserving earlier assessment history. |
+| UC-030 | Start project analysis | Manager / GitHub / AI Service Provider | Start analysis of the selected project version to collect information relevant to AI use and compliance review. |
+| UC-031 | Track analysis progress | Manager / Developer | View the current progress, completion, failure, or retry state of project analysis without blocking the user interface. |
+| UC-032 | Review AI-use findings | Manager / Developer | Review identified AI-use information together with supporting evidence, uncertainty, and stated limitations. |
+| UC-033 | Review technical evidence | Manager / Developer | Review technical evidence collected from the selected project and understand how it supports an assessment finding. |
+| UC-034 | Review missing or insufficient evidence | Manager / Developer | Review items that cannot be confirmed because relevant project information is missing, unclear, or insufficient. |
+| UC-035 | Review assigned technical findings | Developer | Review only the technical findings and evidence that have been assigned or made available to the Developer. |
+| UC-036 | Review conflicting information | Manager / Developer | Review differences between business-provided information and project evidence without silently replacing either source. |
+| UC-037 | Provide requested clarification | Manager / Developer | Provide additional business or technical clarification when an important assessment item cannot yet be confirmed. |
+| UC-038 | Confirm assessment profile | Manager | Confirm the reviewed business and project information that will be used as the basis for legal assessment. |
+| UC-039 | Review applicable legal requirements | Manager | Review the legal requirements and assessment criteria considered relevant to the confirmed assessment profile. |
+| UC-040 | View legal source and citation | Manager / Internal Legal Operator | View the legal source and citation information supporting an assessment criterion or legal conclusion. |
+| UC-041 | Maintain reviewed legal sources | Internal Legal Operator | Add, update, review, or retire legal sources used by LCSP while retaining appropriate source and version information. |
+| UC-042 | Maintain assessment criteria | Internal Legal Operator | Maintain assessment criteria derived from reviewed legal sources so they can be applied consistently in assessments. |
+| UC-043 | Run compliance assessment | Manager | Start evaluation of the available reviewed information against the applicable assessment criteria. |
+| UC-044 | Review assessment results | Manager | Review criterion-level findings, supporting evidence, legal basis, possible gaps, and cases where information remains insufficient. |
+| UC-045 | Review compliance gaps | Manager | Review requirements that may not yet be satisfied together with the related evidence, criterion, and unresolved information. |
+| UC-046 | Generate assessment report | Manager | Generate an assessment report containing assessment context, reviewed evidence, legal requirements, gaps, limitations, and review items. |
+| UC-047 | View or download generated report | Manager | Open an available assessment report and download it when the supported report format is available. |
+| UC-048 | Review assessment activity and prior versions | Manager | Review important assessment actions, project versions, analysis runs, review decisions, and previously generated reports. |
 
 ## 3. Functional Requirements
 
 ### 3.1 System Functional Overview
 
+LCSP organizes the assessment process around a workspace, individual assessments, business-context collection, repository selection, technical evidence review, assessment results, reporting, and traceability. The system must keep the user informed about missing information, unavailable evidence, access limitations, and the next action required to continue an assessment.
+
 #### 3.1.1 Screens Flow
 
-![LCSP Manager Screens Flow](diagrams/screens-flow-diagram.png)
+The main user flow covers authentication, workspace access, assessment creation, business-context collection, repository and project-version selection, project analysis, evidence review, conflict clarification, assessment results, gap review, reporting, and activity history. Developer participation remains limited to granted technical-review scope.
+
+> The previous repository use-case diagram was based on the superseded 17-use-case catalog. The current canonical use-case grouping is defined in §2.2 and in `likec4/usecases.c4` on the same documentation branch.
 
 #### 3.1.2 Screen Descriptions
 
-| **#** | **Feature** | **Screen** | **Description** |
+| # | Feature | Screen | Description |
 | --- | --- | --- | --- |
-| 1 | Account | Authenticate & Enter Workspace | Register/sign in, complete MFA if required, select organization, enter dashboard. |
-| 2 | Assessment Setup | Create Assessment | Create a Manager-owned assessment with name/context. |
-| 3 | Assessment Setup | Complete WizardProfile | Optional business-context questionnaire; shows readiness/gaps, never a risk level. |
-| 4 | Assessment Setup | Connect GitHub Repository | Authorize and select a read-only repository/branch via GitHub App. |
-| 5 | Assessment Setup | Select Commit & Create Snapshot | Pin the evidence source before scanning. |
-| 6 | Technical Evidence | Run Repository Scan | Monitor automatic trusted scan status (queued/running/completed/failed) with safe reason codes. |
-| 7 | Technical Evidence | Review Evidence & AIUsageFlow | Review detected AI usage, confidence, evidence refs, and limitations (redacted, no raw source). |
-| 8 | Reconciliation | Resolve Reconciliation Conflict | Compare declared vs. detected values, inspect evidence, select resolution, enter rationale. |
-| 9 | Reconciliation | Review VerifiedProfile Readiness | Confirm the reconciled basis is ready for legal matching. |
-| 10 | Legal & Classification | Run & Review Risk Classification | Request/observe classification; review risk level, confidence, triggered rules, and citations, or a blocked/degraded reason. |
-| 11 | Reporting | Review Gap Analysis | Review compliance gap items, priority, and obligation/citation refs. |
-| 12 | Reporting | Generate & Download Document | Request generation, monitor status, preview metadata, download the guarded final report (or earlier readiness-only export). |
-| 13 | Audit | Review & Export Audit Trail | Filter events, inspect actor/action/object/version/correlation/evidence refs, export allowed metadata. |
+| 1 | Account | Sign In / MFA | Authenticate users and complete required account verification before workspace access. |
+| 2 | Workspace | Workspace Overview | Show organization context, recent assessments, work requiring attention, and main navigation. |
+| 3 | Assessment | Assessments | List assessments, support search, and open an assessment for continued review. |
+| 4 | Assessment | Create Assessment | Create a new assessment and record its basic context. |
+| 5 | Business Context | Intake Wizard | Collect and save business-language information about AI use and affected context. |
+| 6 | Business Context | Readiness | Show missing or incomplete information and the next actions required before later review steps. |
+| 7 | Repository | Settings / Repository Selection | Select the repository and project version used by an assessment from repositories already available to the organization. |
+| 8 | Evidence | Technical Evidence | Show project-analysis progress, technical findings, supporting evidence, and limitations. |
+| 9 | Review | Conflict Review | Present conflicting or unclear information that requires Manager review. |
+| 10 | Assessment | Classification / Assessment Result | Present assessment findings, supporting criteria, citations, and unresolved limitations. |
+| 11 | Reporting | Documents | Show generated reports and available downloads for the assessment. |
+| 12 | Collaboration | Developers | Manage optional Developer participation and scoped access. |
+| 13 | Collaboration | Technical Findings | Allow an authorized Developer to review only the technical findings assigned or permitted to them. |
 
 #### 3.1.3 Screen Authorization
 
-| **Screen** | **Manager** | **Developer (scoped)** | **Internal Legal Operator** | **System** |
-| --- | --- | --- | --- | --- |
-| Authenticate & Enter Workspace | X | X |  |  |
-| Manage Organization & PBAC Policy Scope | X |  |  |  |
-| Create Assessment | X |  |  |  |
-| Complete WizardProfile | X |  |  |  |
-| Connect GitHub Repository | X | X (if delegated) |  |  |
-| Run Repository Scan (view status) | X | X (if granted) |  | X (executes) |
-| Review Evidence & AIUsageFlow | X | X (redacted, if granted) |  |  |
-| Resolve Reconciliation Conflict | X |  |  |  |
-| Review/Approve VerifiedProfile | X |  |  |  |
-| Run & Review Risk Classification | X |  |  | X (executes) |
-| Review Gap Analysis / Download Document | X |  |  | X (executes) |
-| Review & Export Audit Trail | X |  |  |  |
-| Legal Corpus Review / Approval (internal API/CLI) |  |  | X |  |
+Access is controlled by organization scope and assigned permissions. The table below shows intended user-level access; detailed authorization rules remain enforced by the system.
+
+| Screen | Manager | Developer | Internal Legal Operator |
+| --- | --- | --- | --- |
+| Sign In / MFA | X | X | X |
+| Workspace Overview | X | Limited | Limited |
+| Assessments | X | Assigned only | — |
+| Create Assessment | X | — | — |
+| Intake Wizard | X | — | — |
+| Readiness | X | — | — |
+| Settings / Repository Selection | X | Delegated only | — |
+| Technical Evidence | X | Redacted / assigned | — |
+| Conflict Review | X | Limited input | — |
+| Classification / Assessment Result | X | — | — |
+| Documents | X | — | — |
+| Developers | X | — | — |
+| Technical Findings | X | X | — |
 
 #### 3.1.4 Non-Screen Functions
 
-| **#** | **Feature** | **System Function** | **Description** |
+The following functions run in the background or provide supporting services without requiring a dedicated user screen.
+
+| # | Feature | System Function | Description |
 | --- | --- | --- | --- |
-| 1 | Trusted Scan | `command.scan.requested.v1` / `event.scan.completed.v1` | Automatic trusted scan initiation and completion events (FR-050); no manual upload API exists. |
-| 2 | Evidence Pipeline | Scanner toolchain job (Syft, Knip, deptry, `ast`/`libcst`, `ts-morph`, tree-sitter, Semgrep) | Async Python Scanner Worker job producing `TechnicalEvidenceReport` with verified workspace cleanup. |
-| 3 | Legal Retrieval | ChromaDB structure-first retrieval (`retrieve(query, corpusVersion)`) | Structure-first, vectorless legal chunk retrieval with cross-reference expansion and citation allowlist. |
-| 4 | Audit Writer | `AuditEvent` append-oriented writer | Persists material workflow/PBAC/evidence/classification/document events with correlation ID. |
-| 5 | Outbox Publisher | `OutboxEvent` transactional messaging | Guarantees at-least-once delivery of domain events across the Queue Boundary. |
+| 1 | Project Analysis | Analyze selected project | Review the selected project version and identify information relevant to AI use and assessment. |
+| 2 | Evidence | Prepare supporting evidence | Organize relevant project information into reviewable evidence while protecting sensitive source information. |
+| 3 | Assessment Support | Identify missing information | Detect important information that cannot be confirmed and request additional clarification when needed. |
+| 4 | Legal Review | Match assessment criteria | Compare confirmed assessment information with applicable criteria derived from reviewed legal sources. |
+| 5 | Assessment | Evaluate criteria | Determine whether available information supports a requirement, indicates a possible gap, or remains insufficient. |
+| 6 | Reporting | Prepare gaps and report | Summarize assessment findings, gaps, evidence, limitations, and report content. |
+| 7 | Traceability & Security | Maintain history and safeguards | Record important actions and versions while applying access, privacy, and security controls. |
 
-#### 3.1.5 Entity Relationship Diagram
+#### 3.1.5 Entity Relationship Overview
 
-![LCSP Entity Relationship Diagram](diagrams/erd-diagram.png)
+The following list presents the main business entities at SRS level. Detailed database design belongs to Report 4.
 
-**Entities Description**
-
-| **#** | **Entity** | **Description** |
+| # | Entity | Description |
 | --- | --- | --- |
-| 1 | Organization | Tenant identity; owns memberships, assessments, and audit events. |
-| 2 | Assessment | Manager-owned unit of work; carries the canonical lifecycle state. |
-| 3 | WizardProfile | Optional Manager-declared business context (purpose, sector, data, oversight, external LLM usage). |
-| 4 | RepositoryConnection / RepositorySnapshot | Read-only repository authorization and immutable commit-pinned snapshot. |
-| 5 | RepositoryScanJob / TechnicalEvidenceReport | Scan execution record and its resulting metadata-only technical evidence. |
-| 6 | TechnicalProfile | Evidence-backed technical summary derived from an accepted evidence report. |
-| 7 | AIUsageFlow / AIUsageFlowClaim | Claim-level business usage facts with confidence and evidence references. |
-| 8 | ReconciliationConflict | Material mismatch between declared and detected facts, pending Manager resolution. |
-| 9 | VerifiedProfile | Immutable reconciled basis for legal matching (`TECHNICAL_ONLY` or `TECHNICAL_PLUS_WIZARD`). |
-| 10 | LegalCorpusVersion / LegalRule / LegalRuleMatch | Approved legal corpus, hand-authored legal rules, and their citation-backed matches to a VerifiedProfile. |
-| 11 | RiskClassification / GapAnalysis / GeneratedDocument | Citation-backed classification, derived compliance gaps, and the guarded final document. |
-| 12 | AuditEvent | Append-oriented record of material actions across the whole pipeline. |
+| 1 | Organization | Represents the business workspace that owns users, assessments, and access boundaries. |
+| 2 | User / Membership | Represents a user and their organization membership or permitted access. |
+| 3 | Assessment | Represents one compliance assessment and its overall review context and history. |
+| 4 | Business Context | Stores information provided by the Manager about AI use and business circumstances. |
+| 5 | Repository Connection | Represents approved read-only access to a software repository. |
+| 6 | Project Snapshot | Records the exact project version reviewed by an assessment. |
+| 7 | Evidence | Stores supporting information gathered or accepted for assessment review without retaining unnecessary raw source content. |
+| 8 | AI-Use Finding | Represents identified information about how AI appears to be used in the reviewed project and business context. |
+| 9 | Assessment Profile | Represents the reviewed set of information used as the basis for legal assessment. |
+| 10 | Legal Source | Represents a reviewed legal document or source used by LCSP. |
+| 11 | Assessment Criterion | Represents a requirement derived from a reviewed legal source for consistent assessment. |
+| 12 | Assessment Result | Represents the finding for an assessment criterion together with supporting information and limitations. |
+| 13 | Gap Finding | Represents a possible compliance gap or unresolved issue identified from assessment results. |
+| 14 | Report | Represents a generated assessment report and the assessment/project version used to create it. |
+| 15 | Audit Record | Represents an important recorded action or change used for later review and traceability. |
 
-### 3.2 WizardProfile & Reconciliation
+### 3.2 Assessment Setup & Business Context
 
-#### 3.2.1 Complete WizardProfile
+#### 3.2.1 Create and Manage Assessment
 
-* **Function trigger:** Manager opens the WizardProfile screen from the Assessment dashboard at any point in the assessment lifecycle (not gated before repository connection).
-* **Function description:** Manager answers business-language questions covering purpose, sector, data categories, affected people, decision role, human oversight, and external LLM usage (BR-026, BR-027). Progress can be saved as a draft (BR-028); submission maps answers to structured fields (BR-029).
-* **Function Details:** Wizard-only output shows a self-declared readiness state and gap checklist — it must never display a HIGH/MEDIUM/LOW risk label (BR-030). If the Manager skips the Wizard entirely, the assessment proceeds on the `TECHNICAL_ONLY` path (BR-095) with no penalty beyond lower confidence on business-declaration-dependent fields.
+- **Function trigger:** A Manager selects Create Assessment from the workspace or assessment list.
+- **Function description:** The system creates an assessment under the current organization and records its basic information, owner, creation time, and review context.
+- **Function details:** The assessment must remain within the current organization boundary. Required information must be validated before the assessment is created. The Manager can reopen an existing assessment to continue incomplete work.
 
-#### 3.2.2 Resolve Reconciliation Conflict
+#### 3.2.2 Provide Business and AI-Use Information
 
-* **Function trigger:** Automatically presented to the Manager when the Reconciliation Worker detects a material mismatch between a linked WizardProfile and the technical evidence-derived AIUsageFlow (BR-041, BR-083).
-* **Function description:** Manager compares declared vs. detected values side by side, inspects the underlying evidence references, selects a resolution, and enters a rationale. Manager is the sole required resolver (BR-042, BR-093); scanner evidence itself is immutable and cannot be overwritten by assertion (BR-047).
-* **Function Details:** Submitting a resolution re-runs reconciliation; if no further conflicts exist, a `VerifiedProfile` is created (BR-045). If no WizardProfile was ever linked, this function does not apply — there is nothing to reconcile (BR-095), and the assessment proceeds directly once TechnicalProfile/AIUsageFlow confidence clears the required bar.
+- **Function trigger:** A Manager opens the Intake Wizard for an assessment.
+- **Function description:** The system collects business-language information about the AI use case, affected users, data involved, decision role, human oversight, and other context needed for assessment.
+- **Function details:** The Manager can save progress and continue later. Questions must use understandable business language. If the Manager is unsure about an item, the system should allow the uncertainty to be recorded and show what information is still needed. Business-context information alone must not be presented as a final legal conclusion.
 
-### 3.3 Legal Matching & Risk Classification
+### 3.3 Repository & Project Analysis
 
-#### 3.3.1 Run & Review Risk Classification
+#### 3.3.1 Select Repository and Project Version
 
-* **Function trigger:** Automatically eligible once a `VerifiedProfile` exists and applicable `LegalRuleMatch` records are available (BR-049); Manager may also explicitly request a run from the Classification screen.
-* **Function description:** The Classification Worker calls the LLM Gateway with the VerifiedProfile and matched legal rules (never raw source code, per BR-057) and requires every critical conclusion to carry a `rule_id`, citation, corpus version, and effective date (BR-050).
-* **Function Details:** If a required citation is missing, the corpus version is unapproved, or usage is unknown/critical, the run is blocked or degraded with an explicit reason rather than guessed (BR-051, BR-082) — the UI must show the blocked/degraded state and next action, never an unsupported legal conclusion.
+- **Function trigger:** A Manager opens Settings for the assessment and selects a repository that has already been connected to LCSP.
+- **Function description:** The system lists repositories available to the organization, allows the Manager to select the repository relevant to the assessment, and records the project version that will be reviewed.
+- **Function details:** Repository access must be read-only. The selected project version must be recorded so that later findings and reports can be traced to the correct source. If access is unavailable, the system must explain the problem and prevent analysis from starting until it is resolved.
 
-#### 3.3.2 Generate Gap Analysis and Document
+#### 3.3.2 Run Project Analysis
 
-* **Function trigger:** Automatically eligible once classification completes (or is explicitly degraded-eligible); Manager requests generation from the Reporting screen.
-* **Function description:** Gap analysis derives structured compliance gaps, obligation references, and priorities from the classification and legal basis (BR-062). The final document additionally requires a resolved conflict state and full evidence/citation basis (BR-063, BR-064); a readiness-only export may be produced earlier but must never contain a risk level (BR-065).
-* **Function Details:** Document status (pending/ready/blocked/failed) is always visible with a reason (BR-066); blocked states route back to the specific missing prerequisite (missing citation, unresolved conflict, insufficient evidence).
+- **Function trigger:** The Manager starts analysis after a valid repository and project version have been selected, or the system starts the approved analysis process when the assessment is ready.
+- **Function description:** LCSP reviews the selected software project to identify information related to AI usage and collect supporting evidence relevant to the assessment.
+- **Function details:** The system must not execute the customer application during analysis. Sensitive information must be protected, and raw source code must not be sent to an external AI service. Long-running analysis must provide visible progress or status information instead of blocking the user interface.
+
+#### 3.3.3 Review Evidence and Missing Information
+
+- **Function trigger:** Analysis has produced findings or identified information that cannot be confirmed.
+- **Function description:** The Manager reviews the technical evidence, AI-use findings, limitations, and items that require additional information.
+- **Function details:** Each important finding should be connected to its supporting project information where appropriate. Missing or unclear information must remain explicit. The system must not convert insufficient evidence into a confirmed conclusion.
+
+### 3.4 Legal Review & Assessment
+
+#### 3.4.1 Review Applicable Legal Requirements
+
+- **Function trigger:** Sufficient assessment information is available for legal review.
+- **Function description:** The system identifies relevant assessment criteria from reviewed legal sources and presents the legal basis used for the assessment.
+- **Function details:** Important assessment conclusions must be traceable to the relevant legal source and criterion. If a required legal source or citation is unavailable, the affected conclusion must be withheld or marked as requiring further review.
+
+#### 3.4.2 Resolve Conflicting or Missing Information
+
+- **Function trigger:** Business information and project evidence conflict, or an important assessment item remains unclear.
+- **Function description:** The Manager reviews the conflicting information, supporting evidence, and requested clarification before confirming how the assessment should proceed.
+- **Function details:** Existing evidence must remain visible and must not be silently replaced. Important unresolved conflicts can prevent a final assessment result until a Manager reviews them.
+
+#### 3.4.3 Run Assessment and Review Results
+
+- **Function trigger:** Required business information, project evidence, and legal criteria are available for the assessment step.
+- **Function description:** LCSP evaluates the available information against the applicable assessment criteria and presents the resulting findings for human review.
+- **Function details:** Results must distinguish between supported findings, possible gaps, and cases where the available information is insufficient. The system must not present its output as legal certification or a substitute for professional legal advice.
+
+### 3.5 Gap Analysis, Reporting & Traceability
+
+#### 3.5.1 Review Compliance Gaps
+
+- **Function trigger:** Assessment results are available.
+- **Function description:** The system summarizes requirements that may not yet be satisfied, the evidence considered, and unresolved items that need attention.
+- **Function details:** Gap items should be understandable to a business user and should reference the related assessment criterion and supporting information where available.
+
+#### 3.5.2 Generate Assessment Report
+
+- **Function trigger:** The Manager requests a report after the required assessment steps have been completed.
+- **Function description:** LCSP prepares a report containing assessment context, reviewed evidence, relevant legal requirements, identified gaps, limitations, and items requiring human review.
+- **Function details:** Reports must preserve the project version and assessment information used to produce them. The report must clearly state the product boundary and must not claim legal certification.
+
+#### 3.5.3 Review Activity History
+
+- **Function trigger:** The Manager opens the assessment history or review history.
+- **Function description:** The system shows important actions and changes related to the assessment, including project-version changes, analysis runs, review actions, and generated reports.
+- **Function details:** The history should support later review without exposing unnecessary sensitive information. New analysis runs must not silently overwrite the history of earlier runs.
 
 ## 4. Non-Functional Requirements
 
 ### 4.1 External Interfaces
 
-| Interface | Direction | Description |
+| # | External Interface | Requirement |
 | --- | --- | --- |
-| OAuth / OIDC Provider | Inbound (login only) | Authenticates Manager/Developer identity; never grants repository access (NFR-005, NFR-006). |
-| GitHub App | Outbound (read-only) | Repository selection, commit metadata, and read-only source access for scanning (NFR-007). |
-| Official Legal Sources (vbpl.vn, chinhphu.vn) | Inbound (Internal Legal Operator only) | Source snapshot ingestion for the legal corpus (NFR-034). |
-| LLM Provider | Outbound | Structured, sanitized prompts only for AIUsageFlow/classification/document generation; never raw source (NFR-012, NFR-033). |
-| Object Storage (S3-compatible) | Outbound | Legal source snapshots and generated document artifacts. |
-
-The full canonical Functional Requirement catalog (`FR-001`..`FR-056`) and Non-Functional Requirement catalog (`NFR-001`..`NFR-030`, `NFR-033`..`NFR-035`) are maintained in `docs/specs/functional-requirements.md` and `docs/specs/non-functional-requirements.md` respectively; every requirement referenced in this report traces to those canonical IDs.
+| 1 | Web Browser | LCSP must provide a responsive web interface for supported assessment and review workflows. |
+| 2 | Identity Provider | Authentication integration must validate approved sign-in flows without granting repository access automatically. |
+| 3 | GitHub | Repository integration must be read-only, limited to selected repositories, and able to identify the project version reviewed. |
+| 4 | AI Service Provider | AI-assisted analysis may receive only approved, minimized assessment information and must not receive raw source code. |
+| 5 | Reviewed Legal Sources | Legal content used in assessment must come from reviewed sources and preserve enough citation/version information for traceability. |
 
 ### 4.2 Quality Attributes
 
 #### 4.2.1 Usability
 
-Wizard and blocked/locked states must use plain business language, not implementation terminology (NFR-028); a Manager with no code knowledge must be able to understand every readiness, blocked, or degraded state without training. Web forms and status messages meet common accessibility expectations, including keyboard navigation and labeled status messages (NFR-027).
+Manager-facing content must use clear business language and avoid unexplained implementation terminology. Forms should provide understandable validation messages, and blocked or incomplete steps should explain the reason and the next action available to the user. Common accessibility expectations for keyboard navigation, labels, and status messages should be followed.
 
 #### 4.2.2 Reliability
 
-Long-running scan, legal matching, classification, and document work must not depend on the web request lifecycle — job status and failure reason persist after the request completes (NFR-021). Re-runs preserve the historical evidence/profile/classification chain rather than mutating prior records (NFR-030); scanner workspace cleanup failure blocks downstream processing rather than silently continuing (NFR-035).
+Long-running analysis and report-generation work must retain its progress and failure information independently of a single browser request. When critical evidence, legal support, or required review information is missing, LCSP must not produce an unsupported final conclusion. Re-running an assessment must preserve prior review history rather than silently replacing it.
 
 #### 4.2.3 Performance
 
-MVP scan and worker operations are bounded by explicit file-size, timeout, CPU, memory, output, and retry policies (NFR-023); oversized or unsupported inputs produce explicit coverage-limitation or failed-job reasons rather than indefinite hangs. LLM API calls are protected by monthly cost budget boundaries and token usage caps (NFR-033).
+Interactive screens should provide prompt feedback for normal user actions. Operations that require extended processing must run without freezing the user interface and must expose progress, completion, failure, or retry information. Analysis work must operate within defined resource and time limits.
 
 #### 4.2.4 Security & Privacy
 
-PBAC (policy-based access control) is the sole authorization source of truth and must be enforced at every UI/API/internal-API/worker command boundary, deny-by-default and fully auditable with policy ID/version (NFR-008). Raw source code, secrets, and full prompts must never reach an LLM provider or long-term persistence (NFR-012, NFR-013, NFR-015); every authorization decision and material workflow transition is audited (NFR-010, NFR-011).
+Workspace access must be restricted to the correct organization and granted scope. Repository access must be read-only and limited to repositories selected for LCSP. Raw source code must not be sent to an external AI provider or stored as long-term assessment data. Secrets and other sensitive information must be removed from logs, evidence summaries, reports, and AI-assisted processing where applicable.
+
+#### 4.2.5 Traceability & Auditability
+
+Important assessment findings must remain traceable to the relevant assessment, project version, supporting evidence, legal criterion, and report version. Material actions must be recorded so that the assessment can be reviewed later without relying on memory or an AI-generated explanation alone.
+
+#### 4.2.6 Maintainability
+
+Requirements, implementation, tests, and project documents should remain aligned through agreed identifiers and review practices. Major changes to assessment behavior, legal criteria, evidence handling, or security controls should be documented before release.
 
 ## 5. Requirement Appendix
 
-### 5.1 Appendix1 - Business Rules Excerpt
+### 5.1 Business Rules
+
+The following rules summarize the business constraints that most directly affect the current assessment workflow. The detailed rule catalog remains maintained with the project requirements.
 
 | ID | Rule Definition |
 | --- | --- |
-| BR-001 | Password-auth accounts must meet configured password strength policy. |
-| BR-008 | MFA-enabled accounts must provide a valid Authenticator App OTP before session creation. |
-| BR-018 | Manager is the accountable subject for business/legal truth; PBAC remains the authorization authority. |
-| BR-023 | New assessment starts in `WIZARD_IN_PROGRESS`; Manager may connect a repository without completing Wizard. |
-| BR-032 | MVP technical evidence must come from a read-only selected GitHub repository scan. |
-| BR-041 | When WizardProfile is linked, a conflict is created on mismatch with technical evidence. |
-| BR-045 | VerifiedProfile is created only after evidence is ready and conflicts are Manager-resolved. |
-| BR-049 | Risk Classification may run only after VerifiedProfile exists and prerequisite gates pass. |
-| BR-050 | Critical classification outputs must trace to rule ID, legal source, citation, version, and effective date. |
-| BR-051 | Missing critical citation blocks final classification; no unsupported legal conclusion is permitted. |
-| BR-057 | Raw source code must never be sent to the LLM Provider. |
-| BR-063 | Final compliance report requires valid classification, gap analysis, evidence/rule trace, and no unresolved conflict. |
-| BR-065 | Readiness-only export may be generated without technical evidence but must never include a risk level. |
-| BR-082 | LCSP must not classify risk based only on AI model/provider/framework presence. |
-| BR-095 | Without a linked WizardProfile, VerifiedProfile is produced from technical evidence alone (`TECHNICAL_ONLY`). |
-
-The complete set (`BR-001`..`BR-095`) is in `docs/product/business-rules.md`.
+| BR-018 | A Manager is accountable for an assessment's business and review decisions within the access granted by the organization. |
+| BR-023 | After an assessment is created, the Manager may continue with business-context collection or repository selection; the assessment does not depend on one mandatory path. |
+| BR-026 | When business context is collected, it must cover the AI purpose, sector, data involved, affected people, decision role, human oversight, and external AI-service use where relevant. |
+| BR-027 | Business-context questions must use business-readable language rather than source-code terminology. |
+| BR-032 | The current technical-evidence path uses read-only analysis of a selected GitHub repository and recorded project version. |
+| BR-041 | When business information conflicts with project evidence, the difference must remain visible and be reviewed instead of silently choosing one source. |
+| BR-049 | A final assessment result may be produced only after the required reviewed information and legal assessment inputs are available. |
+| BR-050 | Important legal conclusions must be traceable to the related legal source and citation information. |
+| BR-051 | If critical legal support is missing, LCSP must not invent or present an unsupported final conclusion. |
+| BR-057 | Raw source code must not be sent to an external AI service. |
 
 ### 5.2 Common Requirements
 
-* Every authorization decision is tenant-scoped, deny-by-default, server-side enforced, versioned, auditable, and traceable to a policy ID/version plus correlation ID (NFR-008).
-* Every material domain transition writes an `AuditEvent`; asynchronous transitions additionally use `OutboxEvent` for at-least-once delivery.
-* No screen, API, or data model may reintroduce `FR-045`/`FR-046` (structured attestation), `FR-051` (manual evidence upload), or `FR-052` (delegated free-form clarification) without a separate, explicit Project Owner approval.
+| ID | Common Requirement |
+| --- | --- |
+| CR-01 | All user-facing assessment content should use clear business language and explain technical terms when they are necessary. |
+| CR-02 | Each assessment must remain within the correct organization and access scope. |
+| CR-03 | Missing or uncertain information must be shown explicitly rather than guessed. |
+| CR-04 | Repository analysis must be read-only and related findings must remain linked to the reviewed project version. |
+| CR-05 | Sensitive source information, credentials, and secrets must not be exposed unnecessarily in screens, logs, reports, or AI-assisted processing. |
+| CR-06 | Assessment findings must remain reviewable together with supporting evidence and applicable legal criteria. |
+| CR-07 | Generated reports must state important limitations and must not claim legal certification. |
+| CR-08 | Important actions, assessment versions, and generated reports must be recorded so later review can reconstruct what was assessed. |
 
 ### 5.3 Application Messages List
 
-| **#** | **Message code** | **Message Type** | **Context** | **Content** |
+The following list contains representative messages already used or required by the current user flows. Final wording may be refined together with UI review while preserving the same meaning.
+
+| # | Message Code | Message Type | Context | Content |
 | --- | --- | --- | --- | --- |
-| 1 | MSG01 | Toast message | Assessment created successfully | *Assessment created successfully.* |
-| 2 | MSG02 | In red, under the field | Required Wizard field missing | *This field is required to continue.* |
-| 3 | MSG03 | Inline banner | Repository scan queued | *Scan queued — this may take a few minutes.* |
-| 4 | MSG04 | Inline banner (blocked) | Scan failed | *Scan failed: {safe\_reason\_code}. You can retry or re-scan.* |
-| 5 | MSG05 | Inline banner (blocked) | Classification blocked | *Classification is blocked: {reason}. Resolve the listed item and try again.* |
-| 6 | MSG06 | Toast message | Conflict resolved | *Conflict resolved — reconciliation will re-run.* |
-| 7 | MSG07 | Inline banner | Document generation in progress | *Preparing your document — you'll be notified when it's ready.* |
-| 8 | MSG08 | Toast message | Document ready | *Your document is ready to download.* |
-| 9 | MSG09 | In red, under the field | Repository not selected | *Select a repository and branch to continue.* |
+| 1 | MSG-001 | Inline | Assessment search has no matches | No matching assessments found. |
+| 2 | MSG-002 | Inline validation | Sign-in email is empty | Enter your work email. |
+| 3 | MSG-003 | Inline validation | Sign-in email format is invalid | Enter a valid work email. |
+| 4 | MSG-004 | Alert / toast | Sign-in request fails | Unable to sign in. Please try again. |
+| 5 | MSG-005 | Inline | No assessment is selected | Please select your assessment first. |
+| 6 | MSG-006 | Empty state | Technical findings are not available yet | No technical findings available yet for this assessment. |
+| 7 | MSG-007 | Alert | Developer task access has been revoked | Your access to this task was revoked. |
+| 8 | MSG-008 | Loading state | Assessment list is being retrieved | Loading assessments. |
+| 9 | MSG-009 | Alert / toast | Security settings cannot be saved | Security settings could not be updated right now. Please try again. |
+| 10 | MSG-010 | Confirmation | Password recovery request is accepted | Request received. If the email exists in the system, recovery instructions will be sent through the appropriate channel. |
 
 ### 5.4 Other Requirements
 
-None beyond the canonical `docs/specs/` baseline referenced throughout this report.
+Detailed screen mockups, final field-level validation specifications, and complete requirement-to-test traceability will continue to be updated in later Capstone milestones together with implementation and testing evidence.

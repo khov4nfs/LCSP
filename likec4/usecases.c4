@@ -1,241 +1,114 @@
 views {
-  // ==========================================
-  // MASTER USE CASES BY ACTOR
-  // ==========================================
+  // Current Capstone Use Case catalog.
+  // Canonical names and IDs are aligned with reports/Report3_Software_Requirement_Specification.md.
+  // The previous UC-001..UC-017 implementation-oriented catalog is superseded.
 
-  dynamic view uc_actor_compliance_manager {
-    title 'Compliance Manager Master Journey (UC-001..UC-005, UC-010, UC-015)'
-    description 'Complete end-to-end user workflow for Compliance Manager actor from authentication to report export.'
+  dynamic view uc_account_authentication {
+    title 'Account & Authentication (UC-001..UC-007)'
+    description 'Current authentication and account-access use cases.'
 
-    complianceManager -> lcsp.web '1. Authenticate & sign in to workspace (UC-001)'
-    lcsp.web -> lcsp.api '2. Check PBAC organization policy & permissions (UC-002)'
-    complianceManager -> lcsp.web '3. Create new compliance assessment (UC-003)'
-    lcsp.web -> lcsp.api '4. Save assessment in DRAFT state'
-    complianceManager -> lcsp.web '5. Complete business declarations in WizardProfile (UC-004)'
-    lcsp.web -> lcsp.api '6. Save WizardProfile & calculate readiness gaps'
-    complianceManager -> lcsp.web '7. Connect GitHub repository via GitHub App (UC-005)'
-    lcsp.web -> githubApp '8. Authorize read-only repository access'
-    complianceManager -> lcsp.web '9. Inspect conflict workspace & resolve material mismatches (UC-010)'
-    lcsp.web -> lcsp.api '10. Submit conflict resolution decisions'
-    complianceManager -> lcsp.web '11. Export audit trail & download compliance report PDF (UC-015)'
-    lcsp.web -> lcsp.api '12. Fetch sanitized audit trail & document download URL'
+    complianceManager -> lcsp.web 'UC-001: Sign in with email'
+    complianceManager -> lcsp.web 'UC-002: Sign in with identity provider'
+    complianceManager -> lcsp.web 'UC-003: Complete MFA verification'
+    complianceManager -> lcsp.web 'UC-004: Manage MFA settings'
+    complianceManager -> lcsp.web 'UC-005: Request password recovery'
+    complianceManager -> lcsp.web 'UC-006: Reset password'
+    complianceManager -> lcsp.web 'UC-007: Sign out'
   }
 
-  dynamic view uc_actor_legal_operator {
-    title 'Legal Operator Master Journey (UC-012)'
-    description 'Internal Legal Operator workflow for ingestion, review, approval, and vectorless ChromaDB indexing.'
+  dynamic view uc_organization_collaboration {
+    title 'Organization & Collaboration (UC-008..UC-013)'
+    description 'Workspace, organization membership, and scoped Developer collaboration.'
 
-    officialLegalPortals -> lcsp.pythonWorkers.legalIngestionWorker '1. Crawl official legal sources & regulatory PDFs'
-    lcsp.pythonWorkers.legalIngestionWorker -> lcsp.objectStore '2. Save raw PDF/HTML snapshots in immutable storage'
-    lcsp.pythonWorkers.legalIngestionWorker -> lcsp.database '3. Persist normalized legal structure metadata'
-    legalOperator -> lcsp.web '4. Review legal corpus version & structure graph'
-    lcsp.web -> lcsp.api '5. Approve LegalCorpusVersion (Approval Gate)'
-    lcsp.api -> lcsp.pythonWorkers.chromaIndexer '6. Dispatch ChromaDB vectorless index build'
-    lcsp.pythonWorkers.chromaIndexer -> lcsp.chromaDB '7. Store Clause/Article hierarchical chunks & cross-reference graph'
+    complianceManager -> lcsp.web 'UC-008: View workspace'
+    complianceManager -> lcsp.web 'UC-009: View organization members'
+    complianceManager -> lcsp.web 'UC-010: Invite Developer'
+    complianceManager -> lcsp.web 'UC-011: Assign Developer access'
+    complianceManager -> lcsp.web 'UC-012: Update Developer access'
+    complianceManager -> lcsp.web 'UC-013: Revoke Developer access'
   }
 
-  dynamic view uc_actor_developer {
-    title 'Developer Master Journey (UC-001, UC-002, UC-005)'
-    description 'Optional Developer workflow for authenticated collaboration and repository access authorization.'
+  dynamic view uc_assessment_management {
+    title 'Assessment Management (UC-014..UC-018)'
+    description 'Assessment discovery, creation, continuation, and update.'
 
-    developer -> lcsp.web '1. Authenticate & sign in with scoped Developer role (UC-001)'
-    lcsp.web -> lcsp.api '2. Validate Developer PBAC policy scope (UC-002)'
-    developer -> lcsp.web '3. Assist with GitHub App repository connection authorization (UC-005)'
-    lcsp.web -> githubApp '4. Grant repository read permissions'
+    complianceManager -> lcsp.web 'UC-014: View assessment list'
+    complianceManager -> lcsp.web 'UC-015: Search assessments'
+    complianceManager -> lcsp.web 'UC-016: Create assessment'
+    complianceManager -> lcsp.web 'UC-017: Open or continue assessment'
+    complianceManager -> lcsp.web 'UC-018: Update assessment information'
   }
 
-  // ==========================================
-  // CANONICAL INDIVIDUAL USE CASES (UC-001..UC-017)
-  // ==========================================
+  dynamic view uc_business_context {
+    title 'Business Context (UC-019..UC-024)'
+    description 'Guided business-context collection and readiness review.'
 
-  dynamic view uc001_authenticate {
-    title 'UC-001: Authenticate and Manage Account'
-    description 'Manager/Developer sign-in through approved credentials or OAuth/OIDC paths with audit logging.'
-
-    complianceManager -> lcsp.web '1. Enter email/password or click OAuth sign-in'
-    lcsp.web -> lcsp.api '2. Proxy POST /api/auth/sign-in via BFF proxy'
-    lcsp.api -> lcsp.database '3. Validate password hash / OAuth token & session'
-    lcsp.api -> lcsp.database '4. Persist AuthAuditEvent with redacted metadata'
-    lcsp.api -> lcsp.web '5. Return HTTP 200 { ok: true, data: session } envelope'
+    complianceManager -> lcsp.web 'UC-019: Open business-context intake'
+    complianceManager -> lcsp.web 'UC-020: Provide AI use-case information'
+    complianceManager -> lcsp.web 'UC-021: Provide affected-people and data context'
+    complianceManager -> lcsp.web 'UC-022: Provide decision-role and human-oversight information'
+    complianceManager -> lcsp.web 'UC-023: Save intake progress'
+    complianceManager -> lcsp.web 'UC-024: Review readiness and missing business information'
   }
 
-  dynamic view uc002_manage_pbac {
-    title 'UC-002: Manage Organization and PBAC Policy Scope'
-    description 'Tenant membership, PBAC policy scope management, and role permission enforcement.'
+  dynamic view uc_repository_project_version {
+    title 'Repository & Project Version (UC-025..UC-029)'
+    description 'Repository selection, access validation, project-version selection, and re-analysis.'
 
-    complianceManager -> lcsp.web '1. Manage organization team members & roles'
-    lcsp.web -> lcsp.api '2. Request GET /api/organization/members & PBAC policy'
-    lcsp.api -> lcsp.database '3. Query tenant policy assignments & subject attributes'
-    lcsp.api -> lcsp.contracts '4. Enforce SCREAMING_SNAKE_CASE PBAC permission constants'
-    lcsp.api -> lcsp.web '5. Return organization PBAC policy scope payload'
+    complianceManager -> lcsp.web 'UC-025: Select connected repository'
+    complianceManager -> lcsp.web 'UC-026: Validate repository access'
+    complianceManager -> lcsp.web 'UC-027: Select project version'
+    complianceManager -> lcsp.web 'UC-028: Change repository or project version'
+    complianceManager -> lcsp.web 'UC-029: Re-run analysis for a new project version'
   }
 
-  dynamic view uc003_create_assessment {
-    title 'UC-003: Create Assessment'
-    description 'Manager creates a new compliance assessment in the organization workspace.'
+  dynamic view uc_project_analysis_evidence {
+    title 'Project Analysis & Evidence (UC-030..UC-035)'
+    description 'Project analysis progress, AI-use findings, evidence review, and Developer technical review.'
 
-    complianceManager -> lcsp.web '1. Click Create Assessment button'
-    lcsp.web -> lcsp.api '2. Send POST /api/assessments'
-    lcsp.api -> lcsp.database '3. Create new Assessment record in DRAFT state'
-    lcsp.api -> lcsp.web '4. Return created Assessment entity envelope'
+    complianceManager -> lcsp.web 'UC-030: Start project analysis'
+    complianceManager -> lcsp.web 'UC-031: Track analysis progress'
+    complianceManager -> lcsp.web 'UC-032: Review AI-use findings'
+    complianceManager -> lcsp.web 'UC-033: Review technical evidence'
+    complianceManager -> lcsp.web 'UC-034: Review missing or insufficient evidence'
+    developer -> lcsp.web 'UC-035: Review assigned technical findings'
   }
 
-  dynamic view uc004_complete_wizard {
-    title 'UC-004: Complete WizardProfile and Readiness'
-    description 'Capture purpose, sector, data types, affected people, oversight, and external AI usage declarations.'
+  dynamic view uc_conflict_clarification {
+    title 'Conflict & Clarification (UC-036..UC-038)'
+    description 'Review conflicting information, provide clarification, and confirm the assessment profile.'
 
-    complianceManager -> lcsp.web '1. Fill business declarations in Wizard form'
-    lcsp.web -> lcsp.api '2. Send PUT /api/assessments/:id/wizard'
-    lcsp.api -> lcsp.database '3. Save WizardProfile and compute readiness gap status'
-    lcsp.api -> lcsp.web '4. Return readiness status & readiness gap payload'
+    complianceManager -> lcsp.web 'UC-036: Review conflicting information'
+    complianceManager -> lcsp.web 'UC-037: Provide requested clarification'
+    developer -> lcsp.web 'UC-037: Provide requested clarification (scoped technical input)'
+    complianceManager -> lcsp.web 'UC-038: Confirm assessment profile'
   }
 
-  dynamic view uc005_connect_repository {
-    title 'UC-005: Connect Repository'
-    description 'Authorize read-only GitHub repository access through GitHub App installation.'
+  dynamic view uc_legal_requirements {
+    title 'Legal Requirements (UC-039..UC-042)'
+    description 'Legal requirement review, citations, reviewed legal sources, and assessment criteria.'
 
-    complianceManager -> lcsp.web '1. Initiate GitHub App repository connection'
-    lcsp.web -> githubApp '2. Authorize read-only repository access'
-    githubApp -> lcsp.api '3. Receive installation callback with installation_id'
-    lcsp.api -> lcsp.database '4. Persist repository integration link'
-    lcsp.api -> lcsp.web '5. Return connected repository status'
+    complianceManager -> lcsp.web 'UC-039: Review applicable legal requirements'
+    complianceManager -> lcsp.web 'UC-040: View legal source and citation'
+    legalOperator -> lcsp.api 'UC-041: Maintain reviewed legal sources'
+    legalOperator -> lcsp.api 'UC-042: Maintain assessment criteria'
   }
 
-  dynamic view uc006_create_snapshot {
-    title 'UC-006: Create Repository Snapshot'
-    description 'Pin repository evidence to an immutable branch/commit SHA snapshot.'
+  dynamic view uc_assessment_results {
+    title 'Assessment Results (UC-043..UC-044)'
+    description 'Run the compliance assessment and review criterion-level results.'
 
-    lcsp.api -> githubApp '1. Fetch default branch commit SHA & tree digest'
-    githubApp -> lcsp.api '2. Return commit SHA & tree metadata'
-    lcsp.api -> lcsp.database '3. Pin immutable RepositorySnapshot record'
+    complianceManager -> lcsp.web 'UC-043: Run compliance assessment'
+    complianceManager -> lcsp.web 'UC-044: Review assessment results'
   }
 
-  dynamic view uc007_execute_scan {
-    title 'UC-007: Execute Repository Scan'
-    description 'Convert commit snapshot into static technical evidence via Python Scanner Worker.'
+  dynamic view uc_gaps_reporting_history {
+    title 'Gaps, Reporting & History (UC-045..UC-048)'
+    description 'Compliance gap review, report generation/download, and assessment history.'
 
-    lcsp.api -> lcsp.queue '1. Dispatch REPOSITORY_SCAN_JOB event'
-    lcsp.queue -> lcsp.pythonWorkers.scannerWorker '2. Consume scan job'
-    githubApp -> lcsp.pythonWorkers.scannerWorker '3. Read commit-pinned repository snapshot code'
-    lcsp.pythonWorkers.scannerWorker -> lcsp.database '4. Run Syft, Knip, Semgrep & save metadata-only evidence'
-  }
-
-  dynamic view uc008_generate_technical_profile {
-    title 'UC-008: Generate TechnicalProfile'
-    description 'Aggregate static analysis TechnicalEvidenceReport into evidence-backed technical dimensions.'
-
-    lcsp.pythonWorkers.scannerWorker -> lcsp.database '1. Read metadata-only technical evidence'
-    lcsp.pythonWorkers.scannerWorker -> lcsp.database '2. Aggregate evidence into TechnicalProfile record'
-  }
-
-  dynamic view uc009_generate_ai_usage_flow {
-    title 'UC-009: Generate AIUsageFlow'
-    description 'Combine WizardProfile and TechnicalProfile into claim-level usage facts with confidence ratings.'
-
-    lcsp.pythonWorkers.aiUsageWorker -> lcsp.database '1. Read WizardProfile and TechnicalProfile'
-    lcsp.pythonWorkers.aiUsageWorker -> lcsp.database '2. Infer AIUsageFlow business claims with confidence & uncertainty'
-  }
-
-  dynamic view uc010_resolve_conflict {
-    title 'UC-010: Resolve Conflict'
-    description 'Manager inspects material mismatches between declarations and evidence and submits resolution decisions.'
-
-    complianceManager -> lcsp.web '1. Open conflict resolution workspace'
-    lcsp.web -> lcsp.api '2. Request GET /api/assessments/:id/conflicts'
-    lcsp.api -> lcsp.database '3. Fetch detected evidence vs declaration conflicts'
-    complianceManager -> lcsp.web '4. Select resolution decision for material mismatch'
-    lcsp.web -> lcsp.api '5. POST /api/assessments/:id/conflicts/resolve'
-    lcsp.api -> lcsp.database '6. Save conflict resolution record'
-  }
-
-  dynamic view uc011_approve_verified_profile {
-    title 'UC-011: Create and Approve VerifiedProfile'
-    description 'Produce the reconciled basis for legal matching after all material conflicts are resolved.'
-
-    lcsp.pythonWorkers.reconciliationWorker -> lcsp.database '1. Verify zero unresolved conflicts remain'
-    lcsp.pythonWorkers.reconciliationWorker -> lcsp.database '2. Produce & approve immutable VerifiedProfile record'
-  }
-
-  dynamic view uc012_operate_legal_corpus {
-    title 'UC-012: Operate Legal Corpus and Perform Legal Matching'
-    description 'Fetch official legal sources, Legal Operator approval gate, ChromaDB vectorless indexing & rule retrieval.'
-
-    officialLegalPortals -> lcsp.pythonWorkers.legalIngestionWorker '1. Ingest official legal sources & PDFs'
-    lcsp.pythonWorkers.legalIngestionWorker -> lcsp.objectStore '2. Save raw PDF/HTML snapshots'
-    legalOperator -> lcsp.web '3. Review and approve LegalCorpusVersion'
-    lcsp.web -> lcsp.api '4. POST /api/legal-corpus/approve'
-    lcsp.api -> lcsp.pythonWorkers.chromaIndexer '5. Trigger vectorless index build'
-    lcsp.pythonWorkers.chromaIndexer -> lcsp.chromaDB '6. Store Clause/Article hierarchical chunks'
-    lcsp.pythonWorkers.legalMatchingWorker -> lcsp.pythonWorkers.chromaRetriever '7. Request citation-backed legal rule candidates'
-    lcsp.pythonWorkers.chromaRetriever -> lcsp.chromaDB '8. Direct lookup & 1-hop context expansion'
-  }
-
-  dynamic view uc013_run_risk_classification {
-    title 'UC-013: Run Risk Classification'
-    description 'Classify regulatory risk based strictly on VerifiedProfile and citation-backed legal rule matches.'
-
-    lcsp.pythonWorkers.classificationWorker -> lcsp.database '1. Read VerifiedProfile and legal rule matches'
-    lcsp.pythonWorkers.classificationWorker -> lcsp.pythonWorkers.llmGateway '2. Send verified claims + citation allowlist'
-    lcsp.pythonWorkers.llmGateway -> llmProviders '3. Invoke LLM provider with privacy & token controls'
-    lcsp.pythonWorkers.classificationWorker -> lcsp.database '4. Persist RiskClassification with legal citations'
-  }
-
-  dynamic view uc014_generate_gap_analysis_documents {
-    title 'UC-014: Generate Gap Analysis and Documents'
-    description 'Derive compliance gaps, verify output citation guardrail, and generate regulatory compliance report PDF.'
-
-    lcsp.pythonWorkers.classificationWorker -> lcsp.pythonWorkers.gapAnalysisWorker '1. Derive compliance gaps & remediation priorities'
-    lcsp.pythonWorkers.gapAnalysisWorker -> lcsp.pythonWorkers.documentWorker '2. Trigger document generation (Citation Guardrail check)'
-    lcsp.pythonWorkers.documentWorker -> lcsp.objectStore '3. Generate & save regulatory PDF compliance report'
-    lcsp.pythonWorkers.documentWorker -> lcsp.database '4. Save document metadata & set status COMPLETED'
-  }
-
-  dynamic view uc015_review_export_audit {
-    title 'UC-015: Review and Export Audit Trail'
-    description 'Manager inspects and exports redacted audit trail events across the assessment lifecycle.'
-
-    complianceManager -> lcsp.web '1. Click Export Audit Trail button'
-    lcsp.web -> lcsp.api '2. Send GET /api/assessments/:id/audit'
-    lcsp.api -> lcsp.database '3. Fetch redacted audit events (actor, action, object, timestamp)'
-    lcsp.api -> lcsp.web '4. Return sanitized audit trail log'
-  }
-
-  dynamic view uc016_automatic_trusted_scan {
-    title 'UC-016: Automatic Trusted Scan Initiation and Re-run Evidence'
-    description 'Trigger automatic repository scan upon commit webhook without mutating historical audit records.'
-
-    githubApp -> lcsp.api '1. Receive repository push webhook event'
-    lcsp.api -> lcsp.database '2. Verify trusted repository integration scope'
-    lcsp.api -> lcsp.queue '3. Auto-dispatch REPOSITORY_SCAN_JOB'
-    lcsp.queue -> lcsp.pythonWorkers.scannerWorker '4. Re-run scanner toolchain'
-  }
-
-  dynamic view uc017_enforce_security_privacy {
-    title 'UC-017: Enforce Security and Privacy Controls'
-    description 'Enforce non-execution, metadata-only storage, redaction, and no raw source to LLMs.'
-
-    lcsp.pythonWorkers.scannerWorker -> lcsp.database '1. Enforce non-execution & metadata-only evidence persistence'
-    lcsp.pythonWorkers.llmGateway -> llmProviders '2. Redact raw source code, full prompts & secrets before LLM call'
-    lcsp.api -> lcsp.database '3. Log security enforcement events'
-  }
-
-  dynamic view uc_e2e_golden_path {
-    title 'Connected E2E Golden Path Workflow (UC-001..UC-017)'
-    description 'Complete connected A-to-Z execution flow across all modules from sign-in to regulatory report export.'
-
-    complianceManager -> lcsp.web '1. Manager signs in & opens workspace'
-    lcsp.web -> lcsp.api '2. Authenticate & check PBAC policy scope'
-    complianceManager -> lcsp.web '3. Create assessment & fill WizardProfile'
-    lcsp.web -> lcsp.api '4. Save assessment & connect GitHub App repository'
-    lcsp.api -> lcsp.queue '5. Trigger automatic repository scan'
-    lcsp.queue -> lcsp.pythonWorkers.scannerWorker '6. Scanner Worker collects static-analysis evidence'
-    lcsp.pythonWorkers.scannerWorker -> lcsp.pythonWorkers.reconciliationWorker '7. Reconcile evidence vs wizard declarations -> VerifiedProfile'
-    lcsp.pythonWorkers.reconciliationWorker -> lcsp.pythonWorkers.legalMatchingWorker '8. Initiate citation-backed legal matching'
-    lcsp.pythonWorkers.legalMatchingWorker -> lcsp.pythonWorkers.chromaRetriever '9. Query ChromaDB vectorless retriever for approved rules'
-    lcsp.pythonWorkers.legalMatchingWorker -> lcsp.pythonWorkers.classificationWorker '10. Pass legal matches to Risk Classification'
-    lcsp.pythonWorkers.classificationWorker -> lcsp.pythonWorkers.gapAnalysisWorker '11. Derive compliance gaps & remediation priorities'
-    lcsp.pythonWorkers.gapAnalysisWorker -> lcsp.pythonWorkers.documentWorker '12. Generate guarded PDF compliance report'
-    lcsp.pythonWorkers.documentWorker -> lcsp.objectStore '13. Save report PDF'
-    complianceManager -> lcsp.web '14. Manager downloads final regulatory report & exports audit trail'
+    complianceManager -> lcsp.web 'UC-045: Review compliance gaps'
+    complianceManager -> lcsp.web 'UC-046: Generate assessment report'
+    complianceManager -> lcsp.web 'UC-047: View or download generated report'
+    complianceManager -> lcsp.web 'UC-048: Review assessment activity and prior versions'
   }
 }

@@ -1,55 +1,17 @@
-**Capstone Project Report**
+**CAPSTONE PROJECT REPORT**
 
-**Report 2 – Project Management Plan**
+# Report 2 – Project Management Plan
 
-– [Institution / Organization Logo] –
+**Hanoi, August 2026**
 
-**Table of Contents**
+## I. Record of Changes
 
-[I. Record of Changes 3](#_Toc83330363)
-
-[II. Project Management Plan 4](#_Toc83330364)
-
-[1. Overview 4](#_Toc83330365)
-
-[1.1 Scope & Estimation 4](#_Toc83330366)
-
-[1.2 Project Objectives 4](#_Toc83330367)
-
-[1.3 Project Risks 4](#_Toc83330368)
-
-[2. Management Approach 5](#_Toc83330369)
-
-[2.1 Project Process 5](#_Toc83330370)
-
-[2.2 Quality Management 5](#_Toc83330371)
-
-[2.3 Training Plan 5](#_Toc83330372)
-
-[3. Project Deliverables 5](#_Toc83330373)
-
-[4. Responsibility Assignments 5](#_Toc83330374)
-
-[5. Project Communications 6](#_Toc83330375)
-
-[6. Configuration Management 6](#_Toc83330376)
-
-[6.1 Document Management 6](#_Toc83330377)
-
-[6.2 Source Code Management 6](#_Toc83330378)
-
-[6.3 Tools & Infrastructures 6](#_Toc83330379)
-
-# I. Record of Changes
-
-|  |  |  |  |
+| Date | A* / M / D | In charge | Change Description |
 | --- | --- | --- | --- |
-| Date | A\* M, D | In charge | Change Description |
-| 2026-07-06 | A | Project Team | Initial authored version of Report 2, grounded in the live Jira schedule (project `LCSP`, board 71) and `docs/` specifications. |
-|  |  |  |  |
-|  |  |  |  |
+| 19/8/26 | A* | Phan N.Q. Minh | Initial Project Management Plan. |
+| 24/8/26 | M | Phan N.Q. Minh | Updated the Scope & Estimation WBS so functional areas and child work items align with Report 3 Use Cases and the current Jira backlog, while retaining the six-week calibrated effort baseline. |
 
-\*A - Added M - Modified D - Deleted
+*A - Added; M - Modified; D - Deleted*
 
 # II. Project Management Plan
 
@@ -57,180 +19,206 @@
 
 ### 1.1 Scope & Estimation
 
-The Work Breakdown Structure below reflects the 26 Jira Epics actually scheduled on the `LCSP` board (board 71), organized into 7 weekly delivery phases spanning **2026-07-06 to 2026-08-20**. Each Epic decomposes into implementation-ready Tasks (91 Tasks total across all Epics); effort is estimated at the Epic level in man-days.
+The WBS is organized by the functional areas defined in Report 3, and each child work item uses the corresponding Use Case name so scope can be traced consistently across project documents. Completed Jira work items and merged GitHub pull requests are used to confirm implementation scope and calibrate relative effort. Jira modules may group several use cases for engineering purposes, so module names are not used as WBS titles when they do not match the SRS structure.
 
-|  |  |  |  |
-| --- | --- | --- | --- |
-| **#** | **WBS Item** | **Complexity** | **Est. Effort (man-days)** |
-| ***1*** | ***Phase 1 — Platform Foundations (Jul 6–12)*** |  | ***14*** |
-| 1.1 | platform/pbac — PBAC policy engine scaffolding | Complex | 5 |
-| 1.2 | platform/audit-writer — Append-oriented AuditEvent writer | Medium | 3 |
-| 1.3 | platform/config — Configuration & environment loading | Simple | 2 |
-| 1.4 | platform/outbox — OutboxEvent transactional messaging | Medium | 4 |
-| ***2*** | ***Phase 2 — Auth, Assessment & Worker Skeleton (Jul 13–19)*** |  | ***18*** |
-| 2.1 | auth-workspace — Auth, MFA, OAuth/OIDC, sessions | Complex | 6 |
-| 2.2 | assessment — Assessment lifecycle & state machine | Complex | 5 |
-| 2.3 | python-workers/platform — Bounded consumer/module scaffolding | Medium | 4 |
-| 2.4 | legal-rule-catalog — LegalRule/LegalRuleCatalogVersion scaffolding | Medium | 3 |
-| ***3*** | ***Phase 3 — Repository, Wizard & Web Shell (Jul 20–26)*** |  | ***16*** |
-| 3.1 | web — Next.js app shell, routing, shared components | Complex | 6 |
-| 3.2 | github-integration — GitHub App read-only repository auth | Medium | 4 |
-| 3.3 | wizard — WizardProfile capture & readiness | Medium | 4 |
-| 3.4 | python-workers/llm — LLM Gateway client scaffolding | Simple | 2 |
-| ***4*** | ***Phase 4 — Scanner & Evidence Pipeline (Jul 27–Aug 2)*** |  | ***10*** |
-| 4.1 | python-workers/scanner — Syft/Knip/deptry/ast/ts-morph/tree-sitter/Semgrep | Complex | 8 |
-| 4.2 | scan — Scan job orchestration & trusted trigger mapping | Medium | 2 |
-| ***5*** | ***Phase 5 — Technical Profile, Legal Corpus & Classification (Aug 3–9)*** |  | ***17*** |
-| 5.1 | evidence — TechnicalEvidenceReport / TechnicalProfile | Complex | 5 |
-| 5.2 | python-workers/legal — Legal source ingestion & ChromaDB indexing | Complex | 6 |
-| 5.3 | python-workers/classification / classification — Risk classification worker | Complex | 4 |
-| 5.4 | python-workers/intelligence — Cross-cutting intelligence utilities | Medium | 2 |
-| ***6*** | ***Phase 6 — AIUsageFlow & Reconciliation (Aug 10–16)*** |  | ***9*** |
-| 6.1 | ai-usage-flow — Claim-level AIUsageFlow generation | Complex | 4 |
-| 6.2 | reconciliation — Conflict detection & VerifiedProfile | Complex | 5 |
-| ***7*** | ***Phase 7 — Gap Analysis, Documents, Audit & Hardening (Aug 17–20)*** |  | ***7*** |
-| 7.1 | document — Gap analysis & guarded document generation | Medium | 3 |
-| 7.2 | audit / qa / reporting / web (final hardening pass) | Medium | 4 |
-| ***Total Estimated Effort (man-days)*** | | | ***91*** |
+The effort values remain calibrated to the six-week period from **10 July to 24 August 2026** and are planning estimates rather than recorded actual effort because detailed worklogs and original estimates are not available in Jira.
+
+| # | WBS Item | Complexity | Est. Effort (man-days) |
+| --- | --- | --- | ---: |
+| **1** | **Account & Authentication** |  | **13** |
+| 1.1 | Sign in with email | Medium | 2 |
+| 1.2 | Sign in with identity provider | Medium | 2 |
+| 1.3 | Complete MFA verification | Medium | 2 |
+| 1.4 | Manage MFA settings | Medium | 3 |
+| 1.5 | Request password recovery | Simple | 1 |
+| 1.6 | Reset password | Medium | 2 |
+| 1.7 | Sign out | Simple | 1 |
+| **2** | **Organization & Collaboration** |  | **10** |
+| 2.1 | View workspace | Medium | 2 |
+| 2.2 | View organization members | Simple | 1 |
+| 2.3 | Invite Developer | Medium | 2 |
+| 2.4 | Assign Developer access | Medium | 2 |
+| 2.5 | Update Developer access | Medium | 2 |
+| 2.6 | Revoke Developer access | Simple | 1 |
+| **3** | **Assessment Management** |  | **10** |
+| 3.1 | View assessment list | Simple | 1 |
+| 3.2 | Search assessments | Simple | 1 |
+| 3.3 | Create assessment | Medium | 3 |
+| 3.4 | Open or continue assessment | Medium | 2 |
+| 3.5 | Update assessment information | Medium | 3 |
+| **4** | **Business Context** |  | **12** |
+| 4.1 | Open business-context intake | Simple | 1 |
+| 4.2 | Provide AI use-case information | Medium | 2 |
+| 4.3 | Provide affected-people and data context | Medium | 2 |
+| 4.4 | Provide decision-role and human-oversight information | Complex | 3 |
+| 4.5 | Save intake progress | Simple | 1 |
+| 4.6 | Review readiness and missing business information | Medium | 3 |
+| **5** | **Repository & Project Version** |  | **10** |
+| 5.1 | Select connected repository | Medium | 2 |
+| 5.2 | Validate repository access | Medium | 2 |
+| 5.3 | Select project version | Medium | 2 |
+| 5.4 | Change repository or project version | Medium | 2 |
+| 5.5 | Re-run analysis for a new project version | Medium | 2 |
+| **6** | **Project Analysis & Evidence** |  | **18** |
+| 6.1 | Start project analysis | Complex | 5 |
+| 6.2 | Track analysis progress | Simple | 2 |
+| 6.3 | Review AI-use findings | Medium | 3 |
+| 6.4 | Review technical evidence | Medium | 3 |
+| 6.5 | Review missing or insufficient evidence | Medium | 3 |
+| 6.6 | Review assigned technical findings | Medium | 2 |
+| **7** | **Conflict & Clarification** |  | **7** |
+| 7.1 | Review conflicting information | Medium | 3 |
+| 7.2 | Provide requested clarification | Medium | 2 |
+| 7.3 | Confirm assessment profile | Medium | 2 |
+| **8** | **Legal Requirements** |  | **8** |
+| 8.1 | Review applicable legal requirements | Medium | 2 |
+| 8.2 | View legal source and citation | Simple | 1 |
+| 8.3 | Maintain reviewed legal sources | Medium | 2 |
+| 8.4 | Maintain assessment criteria | Complex | 3 |
+| **9** | **Assessment Results** |  | **6** |
+| 9.1 | Run compliance assessment | Complex | 3 |
+| 9.2 | Review assessment results | Medium | 3 |
+| **10** | **Gaps, Reporting & History** |  | **6** |
+| 10.1 | Review compliance gaps | Medium | 2 |
+| 10.2 | Generate assessment report | Complex | 2 |
+| 10.3 | View or download generated report | Simple | 1 |
+| 10.4 | Review assessment activity and prior versions | Simple | 1 |
+|  | **Total Calibrated Effort (man-days)** |  | **100** |
 
 ### 1.2 Project Objectives
 
-The project's overall objective is to deliver an **A-to-Z runnable MVP** of LCSP: a Manager can create an assessment, connect a repository, receive an automatic trusted scan, review evidence-backed AIUsageFlow, resolve any reconciliation conflict, and obtain a citation-backed risk classification and guarded compliance document — without needing Developer participation and without the system ever asserting a conclusion it cannot evidence or cite.
+The project objective is to deliver a usable web-based platform that supports businesses using AI in Vietnam in preparing and reviewing information for legal compliance assessments. The team aims to deliver the agreed scope within the Capstone semester, maintain traceability between requirements, implementation, tests, and project documents, and keep important assessment findings reviewable by human stakeholders. The following values are planning targets used to manage quality, schedule, and effort.
 
-*Quality*
+#### Quality Targets
 
-|  |  |  |  |  |  |
+| # | Testing Stage | Test Coverage | No. of Defects | % of Defect | Notes |
 | --- | --- | --- | --- | --- | --- |
-| **#** | **Testing Stage** | **Test Coverage** | **No. of Defects** | **% of Defect** | **Notes** |
-| 1 | Reviewing (spec/code review) | 100% of merged PRs | — | — | Mandatory review gate before merge |
-| 2 | Unit Test | ≥ 80% of domain/application layers | — | — | NestJS Jest / Python pytest |
-| 3 | Integration Test | 100% of API contract endpoints | — | — | Contract tests, PBAC decision tests |
-| 4 | System Test | 100% of canonical UC-001..UC-017 | — | — | End-to-end golden path + blocked states |
-| 5 | Acceptance Test | 100% of AC-001..AC-041 (+AC-050A..F) | — | — | Traceability matrix gate |
+| 1 | Reviewing | 100% pull requests | N/A | N/A | All implementation changes reviewed before merge |
+| 2 | Unit Test | At least 80% for applicable core logic | 0 Critical | 0% Critical | Automated tests for applicable core business logic |
+| 3 | Integration Test | 100% critical integration scenarios | 0 Critical | 0% Critical | Critical internal and external integration scenarios |
+| 4 | System Test | 100% major user workflows | 0 Critical | 0% Critical | End-to-end verification of major user workflows |
+| 5 | Acceptance Test | 100% agreed core acceptance criteria | 0 Blocking | 0% Blocking | Major acceptance issues resolved or formally accepted |
 
-*Milestone Timeliness (%):* Target ≥ 90% of the 7 weekly phase milestones met on or before their scheduled due date, tracked weekly against the Jira board.
-
-*Allocated Effort (man-days):* 91 man-days total — approximately 14 (Platform), 18 (Auth/Assessment), 16 (Repository/Web), 10 (Scanner), 17 (Profile/Legal/Classification), 9 (AIUsageFlow/Reconciliation), 7 (Gap/Document/Hardening), as detailed in §1.1.
+- **Milestone Timeliness Target:** at least 90%
+- **Calibrated Effort Baseline:** 100 man-days for 10 July–24 August 2026
 
 ### 1.3 Project Risks
 
-|  |  |  |  |  |
+The team tracks risks that may affect project scope, schedule, quality, security, or the reliability of assessment results. Risks are reviewed during project planning and when significant changes occur.
+
+| # | Risk Description | Impact | Possibility | Response Plans |
 | --- | --- | --- | --- | --- |
-| **#** | **Risk Description** | **Impact** | **Possibility** | **Response Plans** |
-| 1 | ChromaDB structure-first vectorless legal retrieval is a non-standard RAG pattern with limited prior art; retrieval quality may miss valid citations. | High | Medium | ADR-026 locks the approach; add cross-reference expansion and citation allowlist validation; keep a fallback path of direct ID/locator lookup so retrieval never depends solely on full-text ranking. |
-| 2 | Vietnamese legal corpus (Luật AI 134/2025 and related instruments) changes or gets amended during development, invalidating pinned `LegalCorpusVersion`/`LegalRuleCatalogVersion`. | High | Medium | Corpus and rule-catalog versions are immutable and independently pinned per assessment; new versions are additive, never destructive; Internal Legal Operator review gate catches drift before approval. |
-| 3 | Static scanner (tree-sitter/`ast`/`libcst`/`ts-morph`) produces false positives/negatives on unusual code patterns, undermining evidence trust. | Medium | High | Evidence is confidence-scored, never asserted as certain; coverage limitations are surfaced explicitly; Manager reconciliation step exists precisely to catch evidence/business-context mismatches. |
-| 4 | LLM provider cost or availability risk during classification/document generation (real-provider requirement, no mock-mode acceptance evidence). | Medium | Medium | NFR-033 token/cost budget caps enforced at the LLM Gateway; classification fails closed (blocked, not silently degraded to guesswork) on provider outage. |
-| 5 | PBAC (policy-based access control) is more complex to implement correctly than simple RBAC, risking authorization bugs across many resource types. | High | Medium | PBAC runtime decision is resolved up front (`docs/implementation/decisions/pbac-runtime-decision.md`); authorization is contract-tested per resource/action pair, deny-by-default. |
-| 6 | Scope/documentation drift between `docs/specs/` and delivery tasks, given the size of the canonical baseline (56 FRs, 35 NFRs, 17 UCs). | Medium | Medium | Task/spec sync audits performed periodically (see `docs/implementation/tasks/`); traceability matrix maintained as the single cross-check artifact. |
-| 7 | Solo/small-team capacity constraint against a 91-man-day, 7-phase schedule compressed into ~7 weeks. | Medium | High | Phases are ordered so each unblocks the next (platform → auth/assessment → repo/web → scanner → profile/legal → reconciliation → document); non-MVP polish is deferred first under schedule pressure. |
+| 1 | Legal or regulatory interpretation is unclear or changes during the project | High | Medium | Maintain traceable legal sources, record assumptions, and seek supervisor or domain review for unclear cases. |
+| 2 | Incomplete business or project information | High | High | Identify missing information early, request clarification, and avoid unsupported assumptions. |
+| 3 | AI-assisted analysis produces inaccurate or inconsistent suggestions | High | Medium | Keep supporting evidence visible, require review for important conclusions, and test representative cases. |
+| 4 | Repository access or integration becomes unavailable | Medium | Medium | Validate access early, track connection issues, and define a fallback handling process when a connection is unavailable. |
+| 5 | Large repositories or processing constraints affect assessment time | Medium | Medium | Review processing scope, monitor execution, and optimize high-cost analysis paths. |
+| 6 | Scope growth or frequent backlog changes | High | High | Prioritize core scope, review changes against milestones, and defer lower-priority work when necessary. |
+| 7 | Knowledge gaps across legal, AI, and web-development areas | Medium | Medium | Use targeted training, peer review, and shared technical or domain notes. |
+| 8 | Exposure of source code, credentials, or confidential information | High | Medium | Apply least-privilege access, avoid storing secrets, and review handling of sensitive project data. |
 
 ## 2. Management Approach
 
-The project is managed as a **specification-first, phase-gated delivery**: no implementation work is authorized ahead of an approved spec (`IMPLEMENTATION_NOT_AUTHORIZED` gate lifted phase-by-phase), and every Epic/Task in Jira traces back to a canonical FR/NFR/UC/BR/AC identifier in `docs/specs/` and `docs/product/`.
+The team uses an iterative delivery approach. Work is organized in Jira, implementation changes are managed in GitHub, and formal project documents are maintained in Google Drive. At the beginning of each iteration, the team reviews priorities and expected outcomes. During implementation, members update their work, raise blockers early, and use pull requests for review. Completed work is tested and demonstrated before related documents and backlog items are updated.
 
 ### 2.1 Project Process
 
-The team follows a **weekly, phase-gated iteration model** aligned to the 7 phases in §1.1 (rather than fixed-length Scrum sprints), because each phase has a hard technical dependency on the previous one completing (e.g., the scanner pipeline cannot be built before the worker platform skeleton exists; classification cannot be built before legal corpus ingestion exists). Within each phase:
+The project follows an iterative delivery process with six recurring activities:
 
-1. **Spec confirmation** — verify the relevant `docs/specs/*.md` section is current and unambiguous for the Epics in scope.
-2. **Task breakdown** — decompose each Epic into Jira Tasks with explicit FR/UC/AC references.
-3. **Implementation** — build against the spec, with PBAC/audit/privacy invariants treated as non-negotiable per module (see `docs/architecture/architecture.md` Mandatory Architectural Invariants).
-4. **Review & test** — code review plus the applicable test level from §1.2.
-5. **Phase exit check** — confirm the phase's Epics are Done and downstream phases are unblocked before advancing.
-
-This is effectively a lightweight Kanban-on-rails: continuous flow of Tasks per Epic, but with phase boundaries acting as hard dependency gates rather than time-boxed sprint ceremonies.
+1. **Planning and prioritization:** review the backlog, milestone goals, and current risks.
+2. **Requirement clarification and design:** confirm expected behavior and identify information needed before implementation.
+3. **Implementation:** complete assigned work in small, reviewable changes.
+4. **Review and testing:** review code, verify functionality, and record defects or follow-up work.
+5. **Demonstration and feedback:** present completed work and collect feedback from the team and supervisor when applicable.
+6. **Documentation and backlog update:** update project documents, Jira tasks, and supporting information to reflect the delivered work.
 
 ### 2.2 Quality Management
 
-* **Defect Prevention:** every Epic/Task references canonical `FR-*`/`NFR-*`/`UC-*`/`BR-*`/`AC-*` IDs so ambiguity is resolved against a single source of truth before code is written, not after a defect is found.
-* **Reviewing:** all merged changes pass code review; spec changes pass a documentation consistency check (no contradicting "BLOCKED" language left over from superseded rules, consistent terminology across specs).
-* **Unit Testing:** NestJS modules (Jest) and Python workers (pytest) unit-test domain and application layers in isolation from infrastructure.
-* **Integration Testing:** PBAC authorization decisions, queue/event contracts, and ChromaDB retrieval are contract-tested against real (not mocked) infrastructure per NFR-021/NFR-024.
-* **System Testing:** each canonical Use Case (UC-001..UC-017) is exercised end-to-end, including blocked/degraded/failed states, not only the happy path.
+Project quality is managed throughout each iteration rather than only at the final testing stage.
+
+- **Defect prevention:** clarify requirements and acceptance expectations before implementation, keep changes small enough to review, and follow agreed coding practices.
+- **Code review:** implementation changes are reviewed through pull requests before they are merged.
+- **Automated checks:** linting, type checking, and automated tests are used where applicable to detect issues early.
+- **Functional testing:** important user workflows and system integrations are tested before milestone demonstrations and releases.
+- **Defect management:** defects are recorded and prioritized according to their impact, with critical issues addressed before release readiness.
+- **Release readiness:** required tests, reviews, project documents, and backlog updates are checked before each major milestone.
 
 ### 2.3 Training Plan
 
-|  |  |  |  |
-| --- | --- | --- | --- |
+Training is planned only where the project requires additional knowledge or a common working practice across the team. The focus is on project domain knowledge, the current development stack, testing, collaboration, and secure handling of project information.
+
 | Training Area | Participants | When, Duration | Waiver Criteria |
-| NestJS modular DDD (presentation/application/domain/infrastructure layering) | Backend contributors | Phase 1, 2–3 days | Mandatory unless prior NestJS DDD experience |
-| Python static-analysis toolchain (`ast`, `libcst`, `ts-morph`, tree-sitter, Semgrep custom rules) | Python Worker Platform contributors | Phase 4 (before scanner work begins), 3–4 days | Mandatory unless prior static-analysis tooling experience |
-| ChromaDB structure-first vectorless retrieval design (ADR-026) | Legal Matching / Retrieval contributors | Phase 5 (before legal corpus work begins), 2 days | Mandatory — this is a non-standard RAG pattern with no prior team experience assumed |
-| PBAC policy model (vs. RBAC) | All contributors touching authorization-checked endpoints | Phase 1–2, 1 day | Mandatory |
-| Next.js App Router + shared `packages/contracts`/`packages/i18n` conventions | Frontend contributors | Phase 3, 2 days | Waived with prior Next.js App Router experience |
+| --- | --- | --- | --- |
+| Project domain and Vietnam AI compliance context | All team members | At project start; refresh when scope changes | Waived only with demonstrated project-domain understanding |
+| Git and GitHub pull-request workflow | All team members | Onboarding; one session plus practice | Waived for members already contributing through the project workflow |
+| Web application stack | Members working on web or API tasks | Early development; targeted sessions as needed | Waived based on demonstrated contribution |
+| Python analysis services | Members working on analysis tasks | Before related implementation; targeted sessions | Waived based on demonstrated contribution |
+| Testing and quality practices | All team members | Before first implementation milestone; refresh before system testing | Waived with demonstrated testing and review skills |
+| Security and privacy handling | All team members | Before handling connected repositories or sensitive project data | Mandatory |
 
 ## 3. Project Deliverables
 
-|  |  |  |  |
+The project deliverables follow the Capstone milestone structure. Each milestone includes the required report or software package together with updated supporting documents and project tracking.
+
+| # | Deliverable | Due Date | Notes |
 | --- | --- | --- | --- |
-| **#** | **Deliverable** | **Due Date** | **Notes** |
-| 1 | Platform foundations (PBAC, audit writer, config, outbox) | 2026-07-12 | Phase 1 exit |
-| 2 | Auth-workspace, assessment lifecycle, worker platform skeleton, legal-rule-catalog scaffolding | 2026-07-19 | Phase 2 exit |
-| 3 | Web app shell, GitHub read-only integration, WizardProfile, LLM Gateway client | 2026-07-26 | Phase 3 exit |
-| 4 | Repository scan pipeline (Scanner Worker + trusted trigger mapping) | 2026-08-02 | Phase 4 exit |
-| 5 | TechnicalProfile, legal corpus ingestion + ChromaDB index, classification worker | 2026-08-09 | Phase 5 exit |
-| 6 | AIUsageFlow generation, reconciliation & VerifiedProfile | 2026-08-16 | Phase 6 exit |
-| 7 | Gap analysis, guarded document generation, audit/QA/reporting hardening | 2026-08-20 | Phase 7 exit — MVP feature-complete |
-| 8 | Report 1 – Project Introduction | 2026-07-06 | Documentation deliverable |
-| 9 | Report 2 – Project Management Plan | 2026-07-06 | Documentation deliverable |
-| 10 | Report 3 – Software Requirement Specification | 2026-07-06 | Documentation deliverable |
-| 11 | Report 4 – Software Design Document | 2026-07-06 | Documentation deliverable |
-| 12 | Report 5 – Test Documentation | 2026-07-06 | Documentation deliverable |
+| 1 | Project Introduction Document | End of Week 1 | Report 1 |
+| 2 | Project Management Plan | End of Week 2 | Report 2 |
+| 3 | Overall Requirement Description | End of Week 3 | Report 3 and updated Reports 1–2 |
+| 4 | Overall Software Design Description | End of Week 5 | Report 4, initial testing documentation, and demo code package |
+| 5 | Software Package 1 | End of Week 7 | Working implementation and updated requirements, design, and test documents |
+| 6 | Software Package 2 | End of Week 9 | Second implementation iteration and updated documentation |
+| 7 | Software Package 3 | End of Week 11 | Third implementation iteration and updated documentation |
+| 8 | Full Software Package | End of Week 13 | Full implementation for system testing and updated project documents |
+| 9 | User Guides | End of Week 14 | Report 6 and updated project tracking |
+| 10 | Final Package | End of Week 15 | Final report, project products, and defense slides |
 
 ## 4. Responsibility Assignments
 
-*D~Do; R~Review; S~Support; I~Informed; <blank>- Omitted*
+The following matrix assigns shared project responsibilities without assuming fixed technical specializations. Individual task ownership is maintained in Jira and may change during the project as workload and priorities change.
 
-|  |  |  |  |  |  |
+*D = Do; R = Review; S = Support; I = Informed; blank = Omitted*
+
+| Responsibility | Phan N.Q. Minh | Le Bao Nhi | Nguyen Anh Tu | Nguyen Tuan Anh | Tran N.D. Thuy |
 | --- | --- | --- | --- | --- | --- |
-| **Responsibility** | **[Project Owner]** | **[Technical Lead]** | **[Backend Eng.]** | **[Python Eng.]** | **[Frontend Eng.]** |
-| Project planning & Jira tracking | D | R | S | S | S |
-| Spec authoring & traceability (`docs/specs/`) | R | D | S | S | I |
-| Platform foundations (PBAC, audit, outbox) | I | R | D | S | I |
-| Auth-workspace & assessment lifecycle | I | R | D | S | I |
-| Web app (Next.js) & shared contracts/i18n | I | R | S | I | D |
-| GitHub integration & repository snapshot | I | R | D | S | I |
-| Python Scanner Worker (Syft/Knip/deptry/ast/ts-morph/tree-sitter/Semgrep) | I | R | S | D | I |
-| Legal corpus ingestion & ChromaDB indexing | I | R | S | D | I |
-| AIUsageFlow / Reconciliation workers | I | R | S | D | I |
-| Legal matching / Classification / Gap analysis / Document workers | I | R | S | D | I |
-| Report 1–5 authoring | D | R | S | S | S |
+| Project planning & tracking | D | S | S | S | S |
+| Backlog & requirement review | R | D | D | D | D |
+| Implementation & integration | D | D | D | D | D |
+| Pull request review | R | R | R | R | R |
+| Testing & defect handling | R | D | D | D | D |
+| Project documentation | R | D | D | D | D |
+| Milestone preparation & submission | D | S | S | S | S |
 
 ## 5. Project Communications
 
-|  |  |  |  |  |
+| Communication Item | Who / Target | Purpose | When, Frequency | Type, Tool, Method(s) |
 | --- | --- | --- | --- | --- |
-| **Communication Item** | **Who/ Target** | **Purpose** | **When, Frequency** | **Type, Tool, Method(s)** |
-| Phase exit review | Whole team | Confirm phase Epics Done, unblock next phase | End of each weekly phase (7 total) | Jira board 71 review + written phase-exit note |
-| Spec/task sync check | Project Owner, Technical Lead | Catch drift between `docs/specs/` and Jira Tasks | Ad hoc, at least once per phase | Documentation audit (see `docs/implementation/tasks/`) |
-| Blocked-item escalation | Task owner → Technical Lead | Unblock a Task/Epic dependency quickly | As needed, same-day | Jira comment + direct message |
-| Risk register review | Whole team | Re-assess §1.3 risks against current status | Bi-weekly | Jira + shared risk log |
+| Weekly team meeting | Project team | Review progress, blockers, and priorities | Weekly | Discord; Jira |
+| Supervisor progress meeting | Supervisor and project team | Report progress, receive feedback, resolve major issues | As scheduled | Direct or online meeting; Google Docs; Jira |
+| Backlog and task updates | Project team | Keep task ownership, progress, and priorities current | Whenever work changes; reviewed weekly | Jira |
+| Code review | Members involved in the change | Review implementation quality and change impact | For each pull request | GitHub Pull Request |
+| Document review | Project team; supervisor when required | Review formal deliverables before submission | Before each report milestone | Google Docs; Google Drive |
+| Urgent issue coordination | Affected team members | Resolve blocking or high-impact issues | As needed | Team communication; Jira update |
 
 ## 6. Configuration Management
 
 ### 6.1 Document Management
 
-All specification and product documents live under version control in `docs/` (`docs/product/`, `docs/architecture/`, `docs/specs/`, `docs/implementation/`) in the same Git repository as source code, so documentation changes are reviewed with the same pull-request process as code changes and remain permanently traceable via `git log`/`git blame`. The five capstone reports live under `reports/` with their supporting diagrams under `reports/diagrams/`.
+Formal Capstone documents are maintained in Google Drive and edited collaboratively in Google Docs. Major report changes are recorded in the Record of Changes section. Technical supporting documents that belong closely to the source code are maintained as Markdown files in the GitHub repository. Before each milestone submission, the team reviews document completeness and consistency with the current project scope, backlog, and implemented features.
 
 ### 6.2 Source Code Management
 
-Source code is managed in a single Git monorepo (`apps/api`, `apps/web`, `packages/contracts`, `packages/i18n`, `deepagents`) hosted on GitHub. Changes are made on feature branches and merged via reviewed pull requests; `main` is the deployable branch. Commit messages and PR descriptions reference the relevant FR/UC/AC or Jira issue key for traceability.
+Source code is managed in GitHub using Git. Changes are developed on separate branches and merged through pull requests after review and required project checks. Pull requests should reference related Jira work when practical and contain a clear description of the change. The main branch is treated as the integration baseline. Before each milestone release, the team verifies that required checks and tests pass and that related tasks and documentation are updated.
 
 ### 6.3 Tools & Infrastructures
 
-|  |  |
+| Category | Tools / Infrastructure |
 | --- | --- |
-| **Category** | **Tools / Infrastructure** |
-| **Technology (Web)** | Next.js (App Router), TypeScript |
-| **Technology (Backend)** | NestJS (modular DDD: presentation/application/domain/infrastructure), Prisma ORM |
-| **Technology (Workers)** | Python (Python Worker Platform): `ast`, `libcst`, `ts-morph` (bounded), tree-sitter/custom parser, Semgrep custom rules, Syft, Knip, deptry |
-| **Legal Retrieval** | ChromaDB (structure-first, vectorless legal index per ADR-026) |
-| **Database** | PostgreSQL |
-| **Messaging** | Queue boundary for async commands/events between Backend API and Python Worker Platform |
-| **Object Storage** | S3-compatible storage (legal source snapshots, generated documents) |
-| **IDEs/Editors** | Visual Studio Code |
-| **Diagramming** | Excalidraw (`.claude/skills/excalidraw-diagram-skill`) |
-| **Documentation** | Markdown in-repo (`docs/`, `reports/`) |
-| **Version Control** | Git / GitHub (monorepo) |
-| **Project Management** | Jira (project `LCSP`, board 71) |
+| Application development | Next.js, React, TypeScript; NestJS, Node.js, TypeScript; Python |
+| Database & data access | PostgreSQL, Prisma |
+| Package & build | pnpm, Turborepo |
+| Testing & quality | Project test suites, linting, type checking |
+| Documentation | Google Docs, Google Drive, Markdown documentation |
+| Version control | Git |
+| Repository hosting & code review | GitHub, Pull Requests |
+| Project management | Jira |
