@@ -9,44 +9,8 @@ services:
     path: apps/web
     route: /
 
-  scanner-worker:
-    path: lcsp-python-workers
-    command:
-      - lcsp_workers.scanner.scan_consumer:ScanConsumer
+  managed-deep-agent:
+    path: deepagents
     requires:
-      - rabbitmq
-
-  engineering-assessment-worker:
-    path: lcsp-python-workers
-    command:
-      - lcsp_workers.investigation.engineering_assessment_consumer:EngineeringAssessmentConsumer
-    requires:
-      - rabbitmq
-
-  gap-analysis-worker:
-    path: lcsp-python-workers
-    command:
-      - lcsp_workers.reporting.gap_analysis_consumer:GapAnalysisConsumer
-    requires:
-      - rabbitmq
-
-  legal-corpus-recovery-worker:
-    path: lcsp-python-workers
-    command:
-      - lcsp_workers.legal.legal_corpus_recovery_consumer:LegalCorpusRecoveryConsumer
-    requires:
-      - rabbitmq
-
-  targeted-reanalysis-worker:
-    path: lcsp-python-workers
-    command:
-      - lcsp_workers.scanner.targeted_reanalysis_consumer:TargetedReanalysisConsumer
-    requires:
-      - rabbitmq
-
-  final-report-worker:
-    path: lcsp-python-workers
-    command:
-      - lcsp_workers.reporting.final_report_consumer:FinalReportConsumer
-    requires:
+      - redis
       - rabbitmq

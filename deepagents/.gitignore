@@ -76,3 +76,4 @@ dmypy.json
 
 # Local outputs and generated data
 output/
+.mda/
