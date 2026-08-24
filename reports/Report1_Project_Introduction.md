@@ -1,49 +1,19 @@
-**Capstone Project Report**
+**CAPSTONE PROJECT REPORT**
 
-**Report 1 – Project Introduction**
+# Report 1 – Project Introduction
 
-– [Institution / Organization Logo] –
+**Hanoi, August 2026**
 
-**Table of Contents**
+> This repository copy mirrors the current Capstone content at product/business level. Personal email addresses and phone numbers are intentionally omitted because this repository is public.
 
-[I. Record of Changes 3](#_Toc83330272)
+## I. Record of Changes
 
-[II. Project Introduction 4](#_Toc83330273)
-
-[1. Overview 4](#_Toc83330274)
-
-[1.1 Project Information 4](#_Toc83330275)
-
-[1.2 Project Team 4](#_Toc83330276)
-
-[2. Product Background 4](#_Toc83330277)
-
-[3. Existing Systems 4](#_Toc83330278)
-
-[3.1 System name1 4](#_Toc83330279)
-
-[3.2 System name2 4](#_Toc83330280)
-
-[4. Business Opportunity 4](#_Toc83330281)
-
-[5. Software Product Vision 5](#_Toc83330282)
-
-[6. Project Scope & Limitations 5](#_Toc83330283)
-
-[6.1 Major Features 5](#_Toc83330284)
-
-[6.2 Limitations & Exclusions 6](#_Toc83330285)
-
-# I. Record of Changes
-
-|  |  |  |  |
+| Date | A* / M / D | In charge | Change Description |
 | --- | --- | --- | --- |
-| Date | A\* M, D | In charge | Change Description |
-| 2026-07-06 | A | Project Team | Initial authored version of Report 1 grounded in `docs/product/`, `docs/architecture/`, and `docs/specs/` (Phase 5.2L/5.2M canonical baseline). |
-|  |  |  |  |
-|  |  |  |  |
+| 19/8/26 | A* | Phan N.Q. Minh | Initial Project Introduction. |
+| 24/8/26 | M | Phan N.Q. Minh | Updated product background, benchmark systems, vision, scope, major features, and product limitations to reflect the current LCSP scope. |
 
-\*A - Added M - Modified D - Deleted
+*A - Added; M - Modified; D - Deleted*
 
 # II. Project Introduction
 
@@ -51,104 +21,84 @@
 
 ### 1.1 Project Information
 
-* Project name: **LCSP – Legal Compliance Support Platform**
-* Project code: **LCSP**
-* Group name: **[Group / Class Name]**
-* Software type: Web application (Manager-facing workspace) with an asynchronous Python worker platform and a Vietnamese legal-corpus retrieval subsystem (ChromaDB, structure-first/vectorless)
+- **Project name:** A Legal Compliance Support Platform for Businesses Using Artificial Intelligence in Vietnam
+- **Project code:** SEP490
+- **Group name:** SE_30
+- **Software type:** Web App
 
 ### 1.2 Project Team
 
-|  |  |  |  |
-| --- | --- | --- | --- |
-| **Full Name** | **Role** | **Email** | **Mobile** |
-| [Team Member Name] | Project Owner / Product | [email] | [mobile] |
-| [Team Member Name] | Technical Lead | [email] | [mobile] |
-| [Team Member Name] | Backend (NestJS / API) | [email] | [mobile] |
-| [Team Member Name] | Python Worker Platform | [email] | [mobile] |
-| [Team Member Name] | Frontend (Next.js) | [email] | [mobile] |
-| [Supervisor / Mentor Name] | Supervisor | [email] | [mobile] |
+| Full Name | Role |
+| --- | --- |
+| Nguyen Phuong Tam | Lecturer |
+| Phan Nguyen Quoc Minh | Leader |
+| Le Bao Nhi | Member |
+| Nguyen Anh Tu | Member |
+| Nguyen Tuan Anh | Member |
+| Tran Nguyen Dang Thuy | Member |
+
+Contact details are maintained in the formal submission copy and are not published in this public repository.
 
 ## 2. Product Background
 
-Vietnamese organizations that build, integrate, or operate AI-driven features are increasingly subject to a fast-moving legal framework — most notably **Luật AI 134/2025** together with related data-protection and cybersecurity instruments such as **Luật Bảo vệ dữ liệu cá nhân 91/2025** and its predecessor decree, and cross-referencing amendments under **Luật 71/2025**. These instruments impose obligations that vary by AI risk tier, use case, and the categories of data and subjects involved.
+Artificial intelligence is increasingly used in business products and internal operations. As its use grows, organizations need a clearer way to understand how AI is being used, what information supports that understanding, and which legal requirements may apply. LCSP was initiated to bring these areas together in a structured assessment process for businesses using AI in Vietnam.
 
-In practice, the organizations responsible for this compliance burden — typically a non-technical **Manager** (compliance officer, legal counsel, or product owner) — do not have a reliable way to answer a simple question: *"What does our system actually do with AI, and what does the law require as a result?"* Two weak approaches are common today:
+LCSP is developed to help organizations collect and review the information needed for a compliance assessment in one place. The platform combines information provided by the business, relevant information from the connected software project, and legal requirements so that the assessment can be reviewed more consistently and with clearer supporting evidence.
 
-1. **Self-declared questionnaires** capture what a Manager believes the system does, but the declaration can silently drift from what the codebase actually implements (undeclared providers, forgotten integrations, decommissioned features left partially active).
-2. **Manual legal review** of a codebase by outside counsel or consultants is accurate but slow, expensive, and not repeatable each time the code changes.
-
-LCSP (Legal Compliance Support Platform) was initiated to close this gap: to let a Manager get a **citation-backed compliance risk classification** that is grounded in **technical evidence extracted directly from source code**, reconciled against business context, and never disconnected from an approved, versioned legal text.
+A key principle of the project is that conclusions should be supported by available evidence. When important information is missing, the system should indicate that further clarification is needed instead of making assumptions. Human review remains an important part of the assessment, especially when legal interpretation or business judgment is required.
 
 ## 3. Existing Systems
 
-### 3.1 Generic GRC / compliance questionnaire platforms
+The following products are relevant references because they address enterprise AI governance and compliance workflows. They are used as benchmarks for product positioning, not as evidence that their implementation is identical to LCSP.
 
-Commercial Governance-Risk-Compliance (GRC) tools (e.g., enterprise trust/compliance-management platforms) let an organization answer structured questionnaires and track evidence documents against a control framework (SOC 2, ISO 27001, GDPR, etc.). They are mature at workflow, evidence storage, and audit-trail management.
+### 3.1 IBM watsonx.governance
 
-* **Actors:** Compliance officer, auditor, control owner.
-* **Strengths:** Broad framework coverage, strong document/evidence management, mature audit export.
-* **Gaps relevant to LCSP:** Evidence is uploaded and self-attested by humans; there is no static analysis of the organization's own source code, and none of these platforms map findings to **Vietnamese** AI-specific statutes at the article/clause level.
+IBM watsonx.governance is an enterprise AI governance platform that helps organizations manage AI-related risks, policies, regulatory obligations, monitoring, and accountability across the AI lifecycle. It provides a useful reference for how large organizations can organize governance activities and maintain evidence for review.
 
-### 3.2 Static code analysis / SAST tooling
+- **Website:** https://www.ibm.com/products/watsonx-governance
+- **Reference value for LCSP:** mature governance workflows, lifecycle visibility, policy enforcement, and audit/compliance management.
+- **LCSP differentiation:** LCSP has a narrower focus on helping businesses using AI in Vietnam prepare and review evidence for legal compliance assessments. Instead of serving as a broad enterprise governance platform, LCSP connects business information, relevant project information, legal requirements, and assessment results in one review process.
 
-Static analysis and SAST tools (e.g., Semgrep, SonarQube, dependency/SBOM scanners such as Syft) detect code patterns, vulnerable dependencies, and rule violations directly from source code.
+### 3.2 Credo AI
 
-* **Actors:** Developer, security engineer.
-* **Strengths:** Direct, reproducible, evidence-grade technical findings; no reliance on human self-report.
-* **Gaps relevant to LCSP:** Findings are technical signals (an LLM SDK import, an HTTP call pattern) with **no legal interpretation layer** — they do not know what "Điều 12, Luật AI 134/2025" requires, and they cannot reconcile a technical finding against a Manager's declared business purpose.
+Credo AI provides an AI governance platform that helps organizations keep track of AI systems, manage risks, support compliance work, monitor governance activities, and connect regulatory requirements with business context. It also demonstrates how automation can support governance work while important decisions remain under human oversight.
 
-LCSP's approach is to combine both worlds: it reuses the same class of static-analysis technique used by SAST tools (Syft, Knip, deptry, `ast`/`libcst`, `ts-morph`, tree-sitter, Semgrep custom rules) as its **primary evidence source**, and adds a citation-backed legal-matching layer over a structure-first, vectorless Vietnamese legal corpus (ChromaDB) — something neither category of existing system provides today.
+- **Website:** https://www.credo.ai/product
+- **Reference value for LCSP:** centralized governance context, regulation-to-control mapping, integrations, evidence workflows, and human-governed automation.
+- **LCSP differentiation:** LCSP focuses on a practical assessment process for AI-related legal compliance in Vietnam. It helps users gather supporting information, compare that information with relevant legal requirements, identify gaps, and prepare results for human review.
 
 ## 4. Business Opportunity
 
-The enactment of Luật AI 134/2025 and the surrounding data-protection framework creates a compliance obligation for any Vietnamese organization operating AI-driven systems, but there is no existing product that connects **what the code actually does** to **what the applicable law requires**, with a defensible citation trail. This leaves organizations with two unattractive options: pay for slow, expensive, non-repeatable manual legal review, or rely on self-declared questionnaires that can be wrong the moment the codebase changes and nobody updates the declaration.
+Organizations adopting AI need to understand three things clearly: how AI is used in the business, what the software actually does, and what legal requirements may apply. In practice, this information is often handled by different people and stored in different places, making assessments time-consuming and difficult to review consistently.
 
-LCSP is attractive because it removes the weakest link in that chain — the assumption that declared business context matches actual system behavior — by making static technical evidence the **primary** input, and treating Manager-declared business context (the WizardProfile) as optional, corroborating information rather than a blocking gate. Classification is never produced without a citation to an approved, versioned legal source, and the platform fails closed (blocks or degrades output with a clear reason) whenever evidence, reconciliation, or legal citation is insufficient, rather than guessing.
+LCSP addresses this problem by bringing business information, project evidence, legal requirements, assessment findings, and reports into one process. This can help businesses using AI in Vietnam reduce manual review effort, keep supporting information organized, and explain more clearly how an assessment result was reached.
 
 ## 5. Software Product Vision
 
-For Managers accountable for AI compliance at organizations operating in Vietnam, **LCSP** is a Manager-led, evidence-first compliance assessment platform that connects a read-only snapshot of an organization's codebase to a static-analysis pipeline, reconciles the resulting technical findings with optional business context, and produces a **citation-backed risk classification and gap analysis** mapped to the applicable Vietnamese legal corpus (Luật AI 134/2025 and related instruments).
-
-Unlike generic GRC questionnaires or unaided manual legal review, LCSP never reports a risk conclusion without either (a) a technical evidence reference from its scanner pipeline, or (b) a citation to an approved, immutable legal corpus version — and it explicitly shows a blocked or degraded state, with a plain-language reason, whenever either basis is missing, rather than overclaiming certainty it does not have.
+For businesses using or building AI-enabled software in Vietnam, LCSP aims to provide a practical platform for preparing and reviewing information related to legal compliance. The system helps users describe how AI is used, connect relevant project information, review applicable legal requirements, identify compliance gaps, and generate reports for further review. LCSP is intended to support human decision-making rather than replace legal professionals or provide compliance certification.
 
 ## 6. Project Scope & Limitations
 
+LCSP covers the main activities needed to support an AI compliance assessment: creating an assessment, collecting business and product information, connecting relevant project information, reviewing legal requirements, identifying potential compliance gaps, and preparing reports for review. The system is designed as a compliance-support product and does not replace professional legal advice, provide certification, or submit information directly to regulators.
+
 ### 6.1 Major Features
 
-FE-01: Manager account authentication (password/MFA/OAuth-OIDC), organization membership, and PBAC (policy-based access control) policy-scope management for optional Developer collaborators. *(UC-001, UC-002)*
-
-FE-02: Assessment creation and optional WizardProfile business-context capture (purpose, sector, data categories, affected people, oversight, external LLM usage) — readiness state only, never a risk level on its own. *(UC-003, UC-004)*
-
-FE-03: Read-only GitHub repository connection (separate from login) and commit-pinned, immutable repository snapshot creation. *(UC-005, UC-006)*
-
-FE-04: Automatic trusted static repository scan (no manual upload) through a sandboxed Python Scanner Worker using Syft, Knip, deptry, `ast`/`libcst`, bounded `ts-morph`, tree-sitter/custom parsers, and Semgrep custom rules, with verified workspace cleanup. *(UC-007, UC-016, UC-017)*
-
-FE-05: Evidence-backed TechnicalProfile and claim-level AIUsageFlow generation, each claim carrying confidence and evidence references — no claim is asserted without a traceable evidence pointer. *(UC-008, UC-009)*
-
-FE-06: Manager reconciliation of conflicts between declared business context and technical evidence, producing an immutable VerifiedProfile (`TECHNICAL_ONLY` or `TECHNICAL_PLUS_WIZARD`). *(UC-010, UC-011)*
-
-FE-07: Citation-backed legal rule matching against an approved, versioned Vietnamese legal corpus using a structure-first, vectorless ChromaDB retrieval index (no dense embeddings required for MVP). *(UC-012)*
-
-FE-08: Risk classification that is blocked or degraded — never guessed — whenever a required legal citation, evidence basis, or unresolved conflict is missing. *(UC-013)*
-
-FE-09: Gap analysis and guarded final compliance-support document generation (and an earlier readiness-only export containing no risk level). *(UC-014)*
-
-FE-10: Full, redacted audit trail review and export across authentication, PBAC decisions, evidence, conflicts, legal matching, classification, and document events. *(UC-015)*
+- **FE-01:** Create and manage compliance assessments, then collect the business and product information needed for each assessment through a guided process.
+- **FE-02:** Connect a software project repository and select the project version to be reviewed so that assessment findings can be linked to the correct source information.
+- **FE-03:** Review the connected software project to identify information related to AI usage and collect supporting evidence that may be relevant to the assessment.
+- **FE-04:** Maintain relevant legal sources and organize legal requirements into assessment criteria that can be reviewed consistently against the collected information.
+- **FE-05:** Use AI-assisted analysis to help review collected information, find relevant supporting evidence, and ask users for additional information when important details are missing. The AI supports the assessment process but does not make legal decisions on its own.
+- **FE-06:** Check the collected evidence against each assessment criterion and clearly show whether the available information supports the requirement, indicates a possible gap, or is not yet sufficient for a conclusion.
+- **FE-07:** Summarize identified compliance gaps, supporting evidence, and assessment findings in reports that help users understand what was reviewed and what may require further attention.
+- **FE-08:** Protect assessment information through appropriate access control, privacy safeguards, activity records, and review history so that important evidence and results can be traced and reviewed when needed.
 
 ### 6.2 Limitations & Exclusions
 
-LI-1: The Python Scanner Worker performs **static analysis only** — it never executes customer application code, and cross-module tracing stops hard at dynamic imports, reflection, and runtime configuration boundaries.
-
-LI-2: There is **no manual technical evidence JSON upload** path (`FR-051`, removed from product scope) and **no local/CI scanner report upload** — the only supported evidence path is the automatic trusted scan (`FR-050`).
-
-LI-3: Historical **structured technical attestation** (`FR-045`/`FR-046`) is superseded for the active MVP and is not an available input, screen, or API.
-
-LI-4: **Delegated free-form clarification** (`FR-052`) is deferred post-MVP; Developer collaboration is limited to independently scoped, valuable technical tasks.
-
-LI-5: Legal corpus ingestion, review, and approval, and legal-rule-catalog authoring/approval, are **internal Internal-Legal-Operator API/CLI operations only** for MVP — there is no customer-facing legal corpus administration console.
-
-LI-6: Legal retrieval for MVP uses a **structure-first, vectorless ChromaDB index**; dense embedding / semantic nearest-neighbor retrieval is explicitly out of scope unless separately approved in a future phase.
-
-LI-7: LCSP produces a **compliance-support report**, not a formal legal opinion, compliance certification, or direct regulator submission — all such framings are guarded against in generated output.
-
-LI-8: Raw source code, secrets, full prompts, and full AST bodies are never sent to an LLM provider or persisted long-term; only redacted metadata, evidence references, and hashes are retained.
+- **LI-01:** LCSP does not provide formal legal advice, compliance certification, or direct submission to government authorities. Its outputs are intended to support review and should be checked by appropriate human or legal reviewers when necessary.
+- **LI-02:** AI-assisted analysis is used only to support the assessment process. Important conclusions should not rely solely on an AI-generated response, especially when legal interpretation or business judgment is required.
+- **LI-03:** Some planned improvements, such as collecting broader business context, accepting more supporting documents, and supporting more flexible connections to software repositories, are still under development and are not part of the completed project scope yet.
+- **LI-04:** The current project scope does not include a complete view across multiple repositories, broad integration with external knowledge sources, or a general knowledge base for every connected software project.
+- **LI-05:** LCSP cannot fully observe every behavior of an AI-enabled system from project information alone. Some behaviors may depend on external services, runtime conditions, or information that is not available during the assessment.
+- **LI-06:** When important evidence is missing or the available project information is not sufficient, the system may be unable to reach a clear assessment result and additional review or clarification may be required.
+- **LI-07:** Privacy and security requirements limit how sensitive source code, credentials, and other confidential information can be used during analysis. The system should only access and retain information that is necessary for the assessment.
+- **LI-08:** The project is focused on supporting legal compliance assessments for AI use in Vietnam. Compliance workflows for multiple countries and broad enterprise-wide user administration are outside the current project scope.
