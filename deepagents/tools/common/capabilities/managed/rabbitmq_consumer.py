@@ -17,6 +17,7 @@ import httpx
 import pika
 
 from tools.common.capabilities.platform.env import load_runtime_env
+from tools.common.capabilities.platform.logging import suppress_langgraph_heartbeat_logs
 from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
 from tools.common.capabilities.managed.invocation import (
     invocation_boundary_manifest,
@@ -73,6 +74,7 @@ def run_consumer() -> None:
         level=os.getenv("LOG_LEVEL", "INFO").upper(),
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    suppress_langgraph_heartbeat_logs()
 
     rabbitmq_url = os.getenv("RABBITMQ_URL")
     if not rabbitmq_url:

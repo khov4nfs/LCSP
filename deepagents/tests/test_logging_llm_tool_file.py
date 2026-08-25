@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import json
+import logging
 from io import StringIO
 
-from tools.common.capabilities.platform.logging import PartitionedLogWriter, configure_logging
+from tools.common.capabilities.platform.logging import (
+    PartitionedLogWriter,
+    configure_logging,
+    suppress_langgraph_heartbeat_logs,
+)
 
 
 def test_configure_logging_creates_root_llm_tool_log_eagerly(monkeypatch, tmp_path) -> None:
@@ -16,6 +21,19 @@ def test_configure_logging_creates_root_llm_tool_log_eagerly(monkeypatch, tmp_pa
     log_path = tmp_path / "tmp" / "llm-tool-calls.log"
     assert log_path.exists()
     assert log_path.read_text() == ""
+
+
+def test_langgraph_heartbeat_loggers_are_suppressed() -> None:
+    suppress_langgraph_heartbeat_logs()
+
+    assert (
+        logging.getLogger("langgraph_api.metrics_collector").level
+        == logging.WARNING
+    )
+    assert (
+        logging.getLogger("langgraph_runtime_inmem.queue").level
+        == logging.WARNING
+    )
 
 
 def test_safe_llm_and_tool_events_are_mirrored_to_root_tmp(monkeypatch, tmp_path) -> None:
