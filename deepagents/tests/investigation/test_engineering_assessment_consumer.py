@@ -21,6 +21,14 @@ def _config():
     )
 
 
+def _snapshot_client_unavailable() -> MagicMock:
+    snapshot_client = MagicMock()
+    snapshot_client.download_snapshot_archive.side_effect = RuntimeError(
+        "snapshot unavailable in unit test"
+    )
+    return snapshot_client
+
+
 def test_classification_callback_4xx_is_terminal_and_not_outer_retryable() -> None:
     api_client = MagicMock()
     api_client.get_accepted_technical_evidence_report.return_value = {
@@ -53,6 +61,7 @@ def test_classification_callback_4xx_is_terminal_and_not_outer_retryable() -> No
         _config(),
         api_client=api_client,
         investigation_pipeline=pipeline,
+        snapshot_client=_snapshot_client_unavailable(),
     )
 
     with pytest.raises(NonRetryableAgentBoundaryError) as exc_info:
@@ -95,6 +104,7 @@ def test_retryable_callback_failure_is_preserved_for_outer_retry_policy() -> Non
         _config(),
         api_client=api_client,
         investigation_pipeline=pipeline,
+        snapshot_client=_snapshot_client_unavailable(),
     )
 
     with pytest.raises(WorkerCallbackError):
@@ -129,6 +139,7 @@ def test_waiting_investigation_submits_blocked_classification_callback() -> None
         _config(),
         api_client=api_client,
         investigation_pipeline=pipeline,
+        snapshot_client=_snapshot_client_unavailable(),
     )
 
     boundary.handle(

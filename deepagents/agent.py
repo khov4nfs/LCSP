@@ -15,6 +15,7 @@ from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.runtime_context import inject_lcsp_runtime_context
 from orchestration.context import LCSPRunContext
 from subagents import FLOW_SUBAGENTS
+from tools.common.capabilities.platform.logging import suppress_langgraph_heartbeat_logs
 from tools.orchestration.request_targeted_reanalysis.code import (
     request_targeted_reanalysis,
 )
@@ -25,6 +26,7 @@ ROOT_TOOLS = [request_targeted_reanalysis]
 
 # Register the same restricted harness profile for the root and every child model.
 configure_lcsp_harness()
+suppress_langgraph_heartbeat_logs()
 
 if os.environ.get("MDA_LOCAL_DEV") == "1":
     # LangGraph dev's blocking-call detector rejects deepagents' editable-version

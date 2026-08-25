@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 from typing import TextIO
@@ -30,6 +31,10 @@ _SAFE_LLM_TOOL_FILE_EVENTS = frozenset(
         "ENGINEERING_INVESTIGATION_NO_NATIVE_TOOL_CALL",
         "ENGINEERING_INVESTIGATION_FINISH_MISSING",
     }
+)
+_NOISY_LANGGRAPH_INFO_LOGGERS = (
+    "langgraph_api.metrics_collector",
+    "langgraph_runtime_inmem.queue",
 )
 
 
@@ -218,6 +223,7 @@ def configure_logging(level: str = "INFO") -> None:
     trace events are never mirrored into that file.
     """
     _ensure_llm_tool_log_file()
+    suppress_langgraph_heartbeat_logs()
     unsafe_trace = unsafe_dev_trace_enabled()
     raw_output: TextIO = _FailOpenTraceWriter(sys.stdout) if unsafe_trace else sys.stdout
     output = PartitionedLogWriter(raw_output)
@@ -244,3 +250,14 @@ def configure_logging(level: str = "INFO") -> None:
 def get_logger(name: str):
     """Return a named structlog logger for the requested component."""
     return structlog.get_logger(name)
+
+
+def suppress_langgraph_heartbeat_logs() -> None:
+    """Hide periodic LangGraph local-dev queue heartbeat logs from LCSP consoles.
+
+    Warnings and errors from these components still surface. The suppressed INFO
+    records only report idle queue/worker counters such as ``Worker stats`` and
+    ``Queue stats``.
+    """
+    for logger_name in _NOISY_LANGGRAPH_INFO_LOGGERS:
+        logging.getLogger(logger_name).setLevel(logging.WARNING)
