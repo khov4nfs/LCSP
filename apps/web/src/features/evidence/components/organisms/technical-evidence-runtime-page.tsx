@@ -35,6 +35,7 @@ import {
   selectRuntimeConsoleActivity,
   type RuntimeConsoleStep,
 } from "@/features/evidence/utils/runtime-console";
+import { isRepositoryScanJobActive } from "@/features/evidence/utils/repository-scan-state";
 import { useWorkspaceRuntime } from "@/features/workspace/components/organisms/workspace-runtime-provider";
 import {
   WORKSPACE_RUNTIME_CONNECTION_STATES,
@@ -70,7 +71,6 @@ type RuntimeClarificationRequest = Omit<
 
 const RUNTIME_STEP_STATUS_SKIPPED = "skipped";
 const NOT_APPLICABLE_PROVENANCE_HASH = "sha256:not-applicable";
-const REPOSITORY_SCAN_STALE_AFTER_MS = 5 * 60 * 1000;
 
 function SemanticSummary({
   item,
@@ -395,12 +395,15 @@ export function TechnicalEvidenceRuntimePage({
       activeRunId: activeCurrentRun?.runId ?? null,
       latestRunId: timeline.latestRunId,
     }),
+    { runStatusOverride: latestScan?.status },
   );
   const showOrchestration =
     activeCurrentRun !== null || consoleModel.steps.length > 0;
   const rerunMutation = useRerunRepositoryScanMutation(assessmentId);
   const rerunSnapshotId = latestScan?.snapshotId ?? repositorySnapshots[0]?.id;
-  const hasActiveScan = scanJobs.some(isFreshActiveScanJob);
+  const hasActiveScan = scanJobs.some((scanJob) =>
+    isRepositoryScanJobActive(scanJob.status),
+  );
   const rerunDisabled =
     hasActiveScan || rerunSnapshotId === undefined || rerunMutation.isPending;
 
@@ -489,9 +492,6 @@ export function TechnicalEvidenceRuntimePage({
         ) : (
           <ul className="max-h-80 divide-y overflow-y-auto">
             {scanJobs.map((scanJob, index) => {
-              const displayStatus = isStaleActiveScanJob(scanJob)
-                ? REPOSITORY_SCAN_JOB_STATUSES.failed
-                : scanJob.status;
               return (
                 <li
                   className="grid gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
@@ -512,8 +512,8 @@ export function TechnicalEvidenceRuntimePage({
                       </p>
                     )}
                   </div>
-                  <Badge variant={scanBadgeVariant(displayStatus)}>
-                    {scanStatusLabel(displayStatus)}
+                  <Badge variant={scanBadgeVariant(scanJob.status)}>
+                    {scanStatusLabel(scanJob.status)}
                   </Badge>
                 </li>
               );
@@ -1107,30 +1107,6 @@ function scanStatusLabel(status: string) {
   if (status === statuses.blocked)
     return t("pages.technicalEvidence.scanStatuses.blocked");
   return t("pages.technicalEvidence.scanStatuses.pending");
-}
-
-function isFreshActiveScanJob(scanJob: { status: string; updatedAt: string }) {
-  return (
-    isActiveScanJobStatus(scanJob.status) && !isStaleActiveScanJob(scanJob)
-  );
-}
-
-function isStaleActiveScanJob(scanJob: { status: string; updatedAt: string }) {
-  if (!isActiveScanJobStatus(scanJob.status)) {
-    return false;
-  }
-  const updatedAt = new Date(scanJob.updatedAt).getTime();
-  return (
-    Number.isFinite(updatedAt) &&
-    Date.now() - updatedAt > REPOSITORY_SCAN_STALE_AFTER_MS
-  );
-}
-
-function isActiveScanJobStatus(status: string) {
-  return (
-    status === REPOSITORY_SCAN_JOB_STATUSES.queued ||
-    status === REPOSITORY_SCAN_JOB_STATUSES.running
-  );
 }
 
 function reportStatusLabel(status: string) {

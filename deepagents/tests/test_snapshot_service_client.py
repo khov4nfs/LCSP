@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-from tools.graph.scanner.snapshot_service_client import (
+from tools.common.capabilities.evidence.scanner.snapshot.snapshot_service_client import (
     SnapshotArchiveRequest,
     SnapshotServiceClient,
 )
@@ -17,7 +17,7 @@ def test_download_snapshot_archive_uses_worker_api_key_header():
     )
 
     with patch(
-        "tools.graph.scanner.snapshot_service_client.httpx.get",
+        "tools.common.capabilities.evidence.scanner.snapshot.snapshot_service_client.httpx.get",
         return_value=response,
     ) as http_get:
         archive = SnapshotServiceClient("http://api", "worker-key").download_snapshot_archive(
@@ -61,7 +61,7 @@ def test_download_snapshot_archive_retries_429_with_bounded_backoff():
     )
 
     with patch(
-        "tools.graph.scanner.snapshot_service_client.httpx.get",
+        "tools.common.capabilities.evidence.scanner.snapshot.snapshot_service_client.httpx.get",
         side_effect=[rate_limited, success],
     ) as http_get:
         archive = client.download_snapshot_archive(request)
@@ -95,7 +95,7 @@ def test_download_snapshot_archive_raises_after_rate_limit_retry_budget():
     )
 
     with patch(
-        "tools.graph.scanner.snapshot_service_client.httpx.get",
+        "tools.common.capabilities.evidence.scanner.snapshot.snapshot_service_client.httpx.get",
         side_effect=responses,
     ):
         try:

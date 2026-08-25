@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from tools.planner.investigation.material_scope import material_planning_packet
-from tools.planner.investigation.models import InvestigationPacket
-from tools.legal.legal.engineering_rules.models import EngineeringRule
+from tools.common.capabilities.assessment.planning.engineering_rule.material_scope import material_planning_packet
+from tools.common.capabilities.assessment.claims.evidence_claim.models import InvestigationPacket
+from tools.legal.corpus.engineering_rules.contract.models import EngineeringRule
 
 
 def _rule(*, target_node_types=("SENSITIVE_DATA",), concept="biometric identity verification"):

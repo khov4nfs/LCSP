@@ -60,14 +60,17 @@ Internet -> Caddy -> web:8080
                     |
                     +-> api:8080
 
-api/managed-deep-agent <-> fogewise-rabbitmq
+api                    <-> fogewise-rabbitmq
 api                    <-> fogewise-redis
+api                    -> managed-deep-agent:8080
 managed-deep-agent      -> api:8080
 ```
 
 The NestJS `api` service intentionally has no public `/api` Fogewise route because Next.js owns the public `/api/*` BFF routes and calls NestJS internally through Docker DNS.
 
-The Managed Deep Agent service uses `path: deepagents` and the image `ENTRYPOINT` (`mda dev .`). It remains internal and must not publish host ports. Do not reintroduce separate `ConsumerBase` worker services for scanner, assessment, reporting, targeted reanalysis, or legal-corpus jobs.
+The Managed Deep Agent service uses `path: deepagents` and the image `ENTRYPOINT` (`python entrypoint.py`). It remains internal and must not publish host ports. Do not reintroduce separate `ConsumerBase` worker services for scanner, assessment, reporting, targeted reanalysis, or legal-corpus jobs.
+
+Repository scan outbox commands are still published by NestJS through RabbitMQ. The Managed Deep Agent service runs a single generic RabbitMQ bridge that derives queue bindings from the invocation boundary manifest and dispatches each message to the matching boundary. Do not add API-side hardcoded MDA routing predicates for individual event types.
 
 `audit-export` is not an active Fogewise worker in the current MVP topology.
 
@@ -117,6 +120,10 @@ Expected permissions:
 /srv/apps/<repo>/.fogewise            root:root 0755
 /srv/apps/<repo>/.fogewise/deploy.yml root:root 0644
 ```
+
+Managed Deep Agents load the nearest `.env` file at startup with
+`override=False`, so any process environment injected by the deployer or process
+manager still takes precedence.
 
 Generated state:
 

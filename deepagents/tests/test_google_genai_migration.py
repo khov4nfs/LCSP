@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from tools.graph.scanner.analyzers.python_analyzer import PythonAnalyzer
-from tools.graph.scanner.dependencies.dependency_fact import is_ai_package
+from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import PythonAnalyzer
+from tools.common.capabilities.evidence.scanner.dependencies.dependency_fact import is_ai_package
 
 
 def test_google_genai_dependency_is_ai_relevant() -> None:

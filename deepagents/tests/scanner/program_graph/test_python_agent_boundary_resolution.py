@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from tools.graph.scanner.program_graph.python_agent_boundary_resolution import (
+from tools.common.capabilities.evidence.graph.resolution.boundary.python_agent_boundary_resolution import (
     PythonAgentBoundaryResolver,
 )
-from tools.graph.scanner.program_graph.semantic_ir import SemanticProgram
+from tools.common.capabilities.evidence.graph.construction.assembly.builder import ProgramGraphBuilder
+from tools.common.capabilities.evidence.graph.schema.semantic_ir import SemanticProgram
 
 
 def _edges(program: SemanticProgram) -> set[tuple[str, str, str]]:
@@ -17,7 +18,7 @@ def test_agent_boundary_source_and_routing_continue_to_handle(tmp_path) -> None:
     source = tmp_path / "boundary.py"
     source.write_text(
         """
-from tools.common.managed.boundary import AgentBoundaryBase
+from tools.common.capabilities.managed.boundary import AgentBoundaryBase
 
 class EvidenceBoundary(AgentBoundaryBase):
     boundary_source = "investigation.evidence-accepted"
@@ -47,12 +48,25 @@ class EvidenceBoundary(AgentBoundaryBase):
     ) in _edges(program)
     assert not program.unresolved_frontiers
 
+    builder = ProgramGraphBuilder(
+        tmp_path,
+        scan_job_id="scan-agent-boundary",
+        snapshot_id="snapshot-agent-boundary",
+        commit_sha="commit-agent-boundary",
+    )
+    builder.add_program(program)
+    graph = builder.build()
+
+    assert any(
+        node["node_type"] == "AGENT_BOUNDARY_SOURCE" for node in graph.nodes
+    )
+
 
 def test_agent_boundary_without_concrete_handle_is_unresolved(tmp_path) -> None:
     source = tmp_path / "boundary.py"
     source.write_text(
         """
-from tools.common.managed.boundary import AgentBoundaryBase
+from tools.common.capabilities.managed.boundary import AgentBoundaryBase
 
 class BrokenBoundary(AgentBoundaryBase):
     boundary_source = "broken.queue"

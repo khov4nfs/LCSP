@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tools.legal.legal.vbpl_effected_chunk_set_exporter import export_chunk_set
+from tools.legal.sources.vbpl_effects.vbpl_effected_chunk_set_exporter import export_chunk_set
 
 
 def test_exports_chunk_set_and_relationship_manifest_registries(tmp_path: Path) -> None:

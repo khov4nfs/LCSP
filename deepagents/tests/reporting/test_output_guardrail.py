@@ -1,4 +1,4 @@
-from tools.reports.reporting.output_guardrail import OutputGuardrail
+from tools.common.capabilities.reporting.report.final_report.output_guardrail import OutputGuardrail
 
 
 def test_guardrail_allows_canonical_engineering_statuses_and_summary_keys():

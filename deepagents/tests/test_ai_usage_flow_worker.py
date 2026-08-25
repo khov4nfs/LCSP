@@ -4,19 +4,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tools.common.agentic_evidence import AgenticToolCallResult
-from tools.engineer_rule.intelligence.ai_usage_flow_boundary import AIUsageFlowBoundary
-from tools.engineer_rule.intelligence.ai_usage_flow_graph import AIUsageFlowGraph
-from tools.engineer_rule.intelligence.ai_usage_flow_rule_engine import (
+from tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_boundary import AIUsageFlowBoundary
+from tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_graph import AIUsageFlowGraph
+from tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_rule_engine import (
     AIUsageFlowRuleEngine,
     PrivacyAssertionError,
 )
-from tools.engineer_rule.intelligence.confidence_calculator import (
+from tools.common.capabilities.assessment.claims.ai_usage_flow.confidence_calculator import (
     CLAIM_CATEGORY_BASE,
     calculate_claim_confidence,
 )
-from tools.common.platform.callback_schemas import AIUsageFlowCallbackPayload
-from tools.common.platform.config import WorkerConfig
+from tools.common.capabilities.platform.callback_schemas import AIUsageFlowCallbackPayload
+from tools.common.capabilities.platform.config import WorkerConfig
 
 
 def _config() -> WorkerConfig:
@@ -347,21 +346,18 @@ def test_consumer_accepts_summary_proposal_that_matches_wizard_authority() -> No
         affectedSubjects=["loan_applicant"],
         humanReview="present",
     )
-    llm_client = MagicMock()
-    response = MagicMock()
-    response.structured_response = {
+    agent = MagicMock()
+    agent.invoke.return_value = {"structured_response": {
         "summary_updates": {
             "businessProcess": "loan_approval",
             "aiPurpose": "credit_scoring_decision_support",
             "affectedSubjects": ["loan_applicant"],
             "humanReview": "present",
         }
-    }
-    response.request_id = "req-1"
-    llm_client.complete_structured.return_value = response
-    boundary = AIUsageFlowBoundary(_config(), api_client=api_client, llm_client=llm_client)
+    }}
+    boundary = AIUsageFlowBoundary(_config(), api_client=api_client)
 
-    boundary.handle(
+    with patch("tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_proposer.create_agent", return_value=agent): boundary.handle(
         {
             "technicalProfileId": "tp-1",
             "assessmentId": "assessment-1",
@@ -373,9 +369,8 @@ def test_consumer_accepts_summary_proposal_that_matches_wizard_authority() -> No
     payload = api_client.post_ai_usage_flow_callback.call_args.args[0]
     assert payload.flow_data["summary"]["businessProcess"] == "loan_approval"
     assert payload.flow_data["summary"]["aiPurpose"] == "credit_scoring_decision_support"
-    kwargs = llm_client.complete_structured.call_args.kwargs
-    assert kwargs["workflow_run_id"] == "ai-usage-flow:tp-1:corr-2"
-    assert kwargs["node_name"] == "ai_usage_flow.summary_proposal"
+    assert agent.invoke.call_args.kwargs["config"]["metadata"]["workflow_run_id"] == "ai-usage-flow:tp-1:corr-2"
+    assert agent.invoke.call_args.kwargs["config"]["metadata"]["node_name"] == "ai_usage_flow.summary_proposal"
 
 
 @pytest.mark.p0
@@ -389,16 +384,13 @@ def test_consumer_rejects_summary_proposal_that_conflicts_with_wizard_authority(
         affectedSubjects=["loan_applicant"],
         humanReview="present",
     )
-    llm_client = MagicMock()
-    response = MagicMock()
-    response.structured_response = {
+    agent = MagicMock()
+    agent.invoke.return_value = {"structured_response": {
         "summary_updates": {"businessProcess": "fraud_detection"}
-    }
-    response.request_id = "req-2"
-    llm_client.complete_structured.return_value = response
-    boundary = AIUsageFlowBoundary(_config(), api_client=api_client, llm_client=llm_client)
+    }}
+    boundary = AIUsageFlowBoundary(_config(), api_client=api_client)
 
-    boundary.handle(
+    with patch("tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_proposer.create_agent", return_value=agent): boundary.handle(
         {
             "technicalProfileId": "tp-1",
             "assessmentId": "assessment-1",
@@ -424,55 +416,25 @@ def test_consumer_routes_summary_proposal_through_agentic_tool_resolver() -> Non
         affectedSubjects=["loan_applicant"],
         humanReview="present",
     )
-    llm_client = MagicMock()
-    tool_call = MagicMock()
-    tool_call.name = "get_scan_coverage"
-    tool_call.arguments = {"maxResults": 10}
-    tool_call.call_id = "call-1"
-    first_response = MagicMock()
-    first_response.content = ""
-    first_response.tool_calls = (tool_call,)
-    first_response.request_id = "req-tool-1"
-    second_response = MagicMock()
-    second_response.structured_response = {
+    agent = MagicMock()
+    agent.invoke.return_value = {"structured_response": {
         "summary_updates": {
             "businessProcess": "loan_approval",
             "aiPurpose": "credit_scoring_decision_support",
         }
-    }
-    second_response.request_id = "req-final-1"
-    llm_client.complete_with_tools.return_value = first_response
-    llm_client.complete_structured.return_value = second_response
+    }}
 
     resolver = MagicMock()
-    resolver.tool_definitions.return_value = [
-        MagicMock(
-            name="get_scan_coverage",
-            description="Coverage",
-            input_schema={
-                "type": "object",
-                "additionalProperties": False,
-                "properties": {"maxResults": {"type": "integer"}},
-            },
-        )
-    ]
-    resolver.invoke_tool_calls.return_value = (
-        AgenticToolCallResult(
-            call_id="call-1",
-            tool_name="get_scan_coverage",
-            authorized_action="evidence:read",
-            response={"status": "READY", "result": {"counts": {"analyzed": 3}}},
-        ),
-    )
+    resolver.as_langchain_tools.return_value = [MagicMock(name="get_scan_coverage")]
+    resolver.max_tool_calls = 4
 
     boundary = AIUsageFlowBoundary(
         _config(),
         api_client=api_client,
-        llm_client=llm_client,
         agentic_tool_resolver=resolver,
     )
 
-    boundary.handle(
+    with patch("tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_proposer.create_agent", return_value=agent): boundary.handle(
         {
             "technicalProfileId": "tp-1",
             "assessmentId": "assessment-1",
@@ -481,17 +443,10 @@ def test_consumer_routes_summary_proposal_through_agentic_tool_resolver() -> Non
         correlationId="corr-tools",
     )
 
-    resolver.tool_definitions.assert_called_once()
-    llm_client.complete_with_tools.assert_called_once()
-    resolver.invoke_tool_calls.assert_called_once()
-    context = resolver.invoke_tool_calls.call_args.kwargs["context"]
-    assert context.user_id == "worker-runtime"
+    resolver.as_langchain_tools.assert_called_once()
+    context = resolver.as_langchain_tools.call_args.kwargs["context"]
     assert context.organization_id == "org-1"
     assert context.artifact_versions == {"technicalEvidenceReportId": "ter-1"}
-    llm_client.complete_structured.assert_called_once()
-    final_prompt = llm_client.complete_structured.call_args.kwargs["prompt"]
-    assert "TOOL_RESULTS" in final_prompt
-    assert "get_scan_coverage" in final_prompt
     payload = api_client.post_ai_usage_flow_callback.call_args.args[0]
     assert payload.flow_data["summary"]["businessProcess"] == "loan_approval"
 

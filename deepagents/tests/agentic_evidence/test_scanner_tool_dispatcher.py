@@ -3,11 +3,11 @@ import inspect
 from pathlib import Path
 from unittest.mock import MagicMock
 import pytest
-from tools.common.agentic_evidence import scanner_tool_entrypoints
-from tools.common.agentic_evidence.dispatcher import ALL_TOOL_BINDINGS, AO1_SCANNER_TOOL_BINDINGS, ScannerToolDispatcher, ToolRuntimeTarget, runtime_binding, tool_runtime_manifest
-from tools.common.agentic_evidence.registry import AgenticToolValidationError
-from tools.common.agentic_evidence.scanner_tool_entrypoints import ScannerToolExecutionContext
-from tools.graph.scanner.scan_boundary import ScanBoundary
+from tools.common.capabilities.agentic_evidence.entrypoints import scanner_tool_entrypoints
+from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import ALL_TOOL_BINDINGS, AO1_SCANNER_TOOL_BINDINGS, ScannerToolDispatcher, ToolRuntimeTarget, runtime_binding, tool_runtime_manifest
+from tools.common.capabilities.agentic_evidence.governance.registry import AgenticToolValidationError
+from tools.common.capabilities.agentic_evidence.entrypoints.scanner_tool_entrypoints import ScannerToolExecutionContext
+from tools.common.capabilities.evidence.scanner.scanning.scan_boundary import ScanBoundary
 EXPECTED = {"materialize_snapshot", "classify_workspace_languages", "run_syft_inventory", "run_semgrep_rules", "run_knip_usage_analysis", "run_deptry_usage_analysis", "run_ts_js_semantic_analysis", "run_python_semantic_analysis", "run_structural_augmentation", "build_evidence_graph", "validate_evidence_report"}
 
 def _context(): return ScannerToolExecutionContext(workspace=MagicMock(), language_classifier=MagicMock(), syft_tool=MagicMock(), semgrep_tool=MagicMock(), knip_tool=MagicMock(), deptry_tool=MagicMock(), ts_js_bridge_factory=MagicMock(), structural_augmentor=MagicMock(), evidence_graph_assembler=MagicMock())

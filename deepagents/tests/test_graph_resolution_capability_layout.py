@@ -4,6 +4,8 @@ import importlib
 import sys
 from pathlib import Path
 
+import pytest
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -26,7 +28,15 @@ def _py(path: Path) -> set[str]:
 
 
 def test_graph_resolution_is_grouped_by_capability() -> None:
-    resolution = PROJECT_ROOT / "runtime" / "evidence" / "graph" / "resolution"
+    resolution = (
+        PROJECT_ROOT
+        / "tools"
+        / "common"
+        / "capabilities"
+        / "evidence"
+        / "graph"
+        / "resolution"
+    )
 
     assert _dirs(resolution) == {"boundary", "framework", "architecture", "dispatch"}
     assert _py(resolution) == set()
@@ -53,38 +63,29 @@ def test_graph_resolution_is_grouped_by_capability() -> None:
     }
 
 
-def _assert_alias(legacy: str, canonical: str) -> None:
-    legacy_module = importlib.import_module(legacy)
-    canonical_module = importlib.import_module(canonical)
-    assert Path(str(legacy_module.__file__)).resolve() == Path(
-        str(canonical_module.__file__)
-    ).resolve()
+def _assert_importable(module_name: str) -> None:
+    assert importlib.import_module(module_name).__file__
 
 
-def test_flat_graph_resolution_imports_route_to_owner_packages() -> None:
-    _assert_alias(
-        "runtime.evidence.graph.resolution.api_boundary_resolution",
-        "runtime.evidence.graph.resolution.boundary.api_boundary_resolution",
-    )
-    _assert_alias(
-        "runtime.evidence.graph.resolution.framework_links",
-        "runtime.evidence.graph.resolution.framework.framework_links",
-    )
-    _assert_alias(
-        "runtime.evidence.graph.resolution.python_architecture_resolution",
-        "runtime.evidence.graph.resolution.architecture.python_architecture_resolution",
-    )
-    _assert_alias(
-        "runtime.evidence.graph.resolution.generic_dispatch_resolution",
-        "runtime.evidence.graph.resolution.dispatch.generic_dispatch_resolution",
-    )
+def _assert_removed(module_name: str) -> None:
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module(module_name)
 
 
-def test_resolution_relative_graph_schema_import_routes_to_graph_owner() -> None:
-    legacy = importlib.import_module(
-        "runtime.evidence.graph.resolution.architecture.models"
+def test_flat_graph_resolution_imports_are_removed() -> None:
+    _assert_removed("tools.common.capabilities.evidence.graph.resolution.api_boundary_resolution")
+    _assert_removed("tools.common.capabilities.evidence.graph.resolution.framework_links")
+    _assert_removed("tools.common.capabilities.evidence.graph.resolution.python_architecture_resolution")
+    _assert_removed("tools.common.capabilities.evidence.graph.resolution.generic_dispatch_resolution")
+
+    _assert_importable("tools.common.capabilities.evidence.graph.resolution.boundary.api_boundary_resolution")
+    _assert_importable("tools.common.capabilities.evidence.graph.resolution.framework.framework_links")
+    _assert_importable(
+        "tools.common.capabilities.evidence.graph.resolution.architecture.python_architecture_resolution"
     )
-    canonical = importlib.import_module("runtime.evidence.graph.schema.models")
-    assert Path(str(legacy.__file__)).resolve() == Path(
-        str(canonical.__file__)
-    ).resolve()
+    _assert_importable("tools.common.capabilities.evidence.graph.resolution.dispatch.generic_dispatch_resolution")
+
+
+def test_resolution_relative_graph_schema_import_alias_is_removed() -> None:
+    _assert_removed("tools.common.capabilities.evidence.graph.resolution.architecture.models")
+    _assert_importable("tools.common.capabilities.evidence.graph.schema.models")

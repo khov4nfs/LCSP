@@ -1,11 +1,4 @@
 import {
-  Injectable,
-  Logger,
-  type OnModuleDestroy,
-  type OnModuleInit,
-} from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import {
   AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
@@ -19,12 +12,19 @@ import {
   SCAN_ERROR_CODES,
   TARGETED_REANALYSIS_CAPACITY_POLICY,
 } from "@lcsp/contracts/scan";
+import {
+  Injectable,
+  Logger,
+  type OnModuleDestroy,
+  type OnModuleInit,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 
 import { AuditWriterService } from "../audit/audit-writer.service.js";
-import { OutboxRepository } from "./outbox.repository.js";
 import { OutboxMessageEntity } from "./outbox-message.entity.js";
-import { RabbitMqClient } from "./rabbitmq.client.js";
+import { OutboxRepository } from "./outbox.repository.js";
 import type { RabbitMqMessageHeaders } from "./rabbitmq.client.js";
+import { RabbitMqClient } from "./rabbitmq.client.js";
 import { SnapshotCreatedAutoScanService } from "./snapshot-created-auto-scan.service.js";
 
 /**
@@ -94,16 +94,6 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
     }
     this.polling = true;
 
-    try {
-      await this.rabbitMqClient.ensureConnected();
-    } catch (error) {
-      this.logger.error(
-        `Outbox poll skipped — RabbitMQ unavailable: ${(error as Error).message}`,
-      );
-      this.polling = false;
-      return;
-    }
-
     const batchSize = this.configService.get<number>("outbox.batchSize", 50);
     const maxAttempts = this.configService.get<number>("outbox.maxAttempts", 5);
     const exchange = this.configService.get<string>(
@@ -120,6 +110,7 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
     }> = [];
 
     try {
+      await this.rabbitMqClient.ensureConnected();
       await this.outboxRepository.withPendingBatch(
         batchSize,
         async (messages, tx) => {

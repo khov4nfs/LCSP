@@ -25,8 +25,8 @@ def _py(path: Path) -> set[str]:
     }
 
 
-def test_reporting_runtime_is_grouped_by_capability() -> None:
-    report = PROJECT_ROOT / "runtime" / "reporting" / "report"
+def test_reporting_tools_are_grouped_by_capability() -> None:
+    report = PROJECT_ROOT / "tools" / "common" / "capabilities" / "reporting" / "report"
 
     assert _dirs(report) == {
         "audit_export",
@@ -52,28 +52,19 @@ def test_reporting_runtime_is_grouped_by_capability() -> None:
     }
 
 
-def _assert_alias(legacy: str, canonical: str) -> None:
-    legacy_module = importlib.import_module(legacy)
-    canonical_module = importlib.import_module(canonical)
-    assert Path(str(legacy_module.__file__)).resolve() == Path(
-        str(canonical_module.__file__)
-    ).resolve()
+def _assert_import_blocked(module_name: str) -> None:
+    try:
+        importlib.import_module(module_name)
+    except ModuleNotFoundError:
+        return
+    raise AssertionError(f"legacy import unexpectedly resolved: {module_name}")
 
 
-def test_flat_reporting_imports_route_to_owner_packages() -> None:
-    _assert_alias(
-        "runtime.reporting.report.final_report_boundary",
-        "runtime.reporting.report.final_report.final_report_boundary",
-    )
-    _assert_alias(
-        "runtime.reporting.report.audit_export_boundary",
-        "runtime.reporting.report.audit_export.audit_export_boundary",
-    )
-    _assert_alias(
-        "runtime.reporting.report.classification_data_projection",
-        "runtime.reporting.report.projection.classification_data_projection",
-    )
-    _assert_alias(
-        "runtime.reporting.report.storage_uploader",
-        "runtime.reporting.report.delivery.storage_uploader",
-    )
+def test_flat_reporting_imports_are_not_supported() -> None:
+    for module_name in (
+        "tools.common.capabilities.reporting.report.final_report_boundary",
+        "tools.common.capabilities.reporting.report.audit_export_boundary",
+        "tools.common.capabilities.reporting.report.classification_data_projection",
+        "tools.common.capabilities.reporting.report.storage_uploader",
+    ):
+        _assert_import_blocked(module_name)

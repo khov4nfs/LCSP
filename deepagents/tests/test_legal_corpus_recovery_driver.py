@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.legal.legal.legal_corpus_recovery_driver import LegalCorpusRecoveryDriver
+from tools.legal.sources.recovery.legal_corpus_recovery_driver import LegalCorpusRecoveryDriver
 
 
 class FakeApiClient:

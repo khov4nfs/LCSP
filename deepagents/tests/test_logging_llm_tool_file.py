@@ -3,11 +3,11 @@ from __future__ import annotations
 import json
 from io import StringIO
 
-from tools.common.platform.logging import PartitionedLogWriter, configure_logging
+from tools.common.capabilities.platform.logging import PartitionedLogWriter, configure_logging
 
 
 def test_configure_logging_creates_root_llm_tool_log_eagerly(monkeypatch, tmp_path) -> None:
-    from tools.common.platform import logging_path
+    from tools.common.capabilities.platform import logging_path
 
     monkeypatch.setattr(logging_path, "get_repo_root", lambda: str(tmp_path))
 
@@ -19,7 +19,7 @@ def test_configure_logging_creates_root_llm_tool_log_eagerly(monkeypatch, tmp_pa
 
 
 def test_safe_llm_and_tool_events_are_mirrored_to_root_tmp(monkeypatch, tmp_path) -> None:
-    from tools.common.platform import logging_path
+    from tools.common.capabilities.platform import logging_path
 
     monkeypatch.setattr(logging_path, "get_repo_root", lambda: str(tmp_path))
     writer = PartitionedLogWriter(StringIO())
@@ -27,7 +27,7 @@ def test_safe_llm_and_tool_events_are_mirrored_to_root_tmp(monkeypatch, tmp_path
     events = [
         {
             "event": "LLM_REQUEST",
-            "operation": "complete_with_tools",
+            "operation": "native_agent_invoke",
             "tool_names": ["search_nodes", "finish"],
         },
         {"event": "LLM_RESPONSE", "tool_call_names": ["search_nodes"]},
@@ -73,7 +73,7 @@ def test_root_llm_tool_log_strips_secret_values_without_markers(
     monkeypatch,
     tmp_path,
 ) -> None:
-    from tools.common.platform import logging_path
+    from tools.common.capabilities.platform import logging_path
 
     monkeypatch.setattr(logging_path, "get_repo_root", lambda: str(tmp_path))
     writer = PartitionedLogWriter(StringIO())
@@ -104,7 +104,7 @@ def test_root_llm_tool_log_keeps_raw_data_when_unfiltered_trace_is_enabled(
     monkeypatch,
     tmp_path,
 ) -> None:
-    from tools.common.platform import logging_path
+    from tools.common.capabilities.platform import logging_path
 
     monkeypatch.setattr(logging_path, "get_repo_root", lambda: str(tmp_path))
     monkeypatch.setenv("LCSP_DEV_UNSAFE_TRACE", "true")
@@ -137,7 +137,7 @@ def test_raw_dev_llm_trace_is_never_mirrored_to_safe_root_log(
     monkeypatch,
     tmp_path,
 ) -> None:
-    from tools.common.platform import logging_path
+    from tools.common.capabilities.platform import logging_path
 
     monkeypatch.setattr(logging_path, "get_repo_root", lambda: str(tmp_path))
     configure_logging()
@@ -160,7 +160,7 @@ def test_raw_dev_llm_trace_is_never_mirrored_to_safe_root_log(
 
 
 def test_llm_tool_log_path_can_be_overridden(monkeypatch, tmp_path) -> None:
-    from tools.common.platform import logging_path
+    from tools.common.capabilities.platform import logging_path
 
     monkeypatch.setattr(logging_path, "get_repo_root", lambda: str(tmp_path))
     monkeypatch.setenv("LCSP_LLM_TOOL_LOG_PATH", "tmp/custom-llm.log")

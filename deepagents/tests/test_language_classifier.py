@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from tools.graph.scanner.inventory.analyzer_router import AnalyzerRouter
-from tools.graph.scanner.inventory.language_classifier import LanguageClassifier
-from tools.graph.scanner.inventory.language_types import (
+from tools.common.capabilities.evidence.scanner.inventory.language.analyzer_router import AnalyzerRouter
+from tools.common.capabilities.evidence.scanner.inventory.language.language_classifier import LanguageClassifier
+from tools.common.capabilities.evidence.scanner.inventory.language.language_types import (
     LANGUAGE_BINARY,
     LANGUAGE_CSHARP,
     LANGUAGE_GO,

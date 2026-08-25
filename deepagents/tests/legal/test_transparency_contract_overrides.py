@@ -5,17 +5,17 @@ from pathlib import Path
 
 import pytest
 
-from tools.planner.investigation.evidence_claim_validator import (
+from tools.common.capabilities.assessment.claims.evidence_claim.evidence_claim_validator import (
     EvidenceClaimValidationError,
     EvidenceClaimValidator,
 )
-from tools.planner.investigation.models import EvidenceClaim
-from tools.legal.legal.engineering_rules.precompiled_contract_overrides import (
+from tools.common.capabilities.assessment.claims.evidence_claim.models import EvidenceClaim
+from tools.legal.corpus.engineering_rules.registry.precompiled_contract_overrides import (
     PrecompiledContractOverrideError,
     apply_precompiled_contract_overrides,
     load_precompiled_contract_overrides,
 )
-from tools.graph.scanner.program_graph.models import ProgramEvidenceGraph
+from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
 
 
 _EXPECTED_REQUIRED = {

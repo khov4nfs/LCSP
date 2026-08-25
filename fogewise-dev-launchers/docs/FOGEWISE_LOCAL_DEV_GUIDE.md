@@ -1351,7 +1351,6 @@ LCSP host development currently uses these local connection strings:
 
 ```env
 RABBITMQ_URL=amqp://fogewise:10e0064b19b1dc9727458cdbb0e4f3998d8988628619d807@127.0.0.1:5672
-LLM_BUDGET_REDIS_URL=redis://:5b6e86e4792f020029955afa3409d8842a06e976beda806a@fogewise-redis:6379
 ```
 
 The RabbitMQ URL already uses `127.0.0.1`, but the Redis URL uses hostname `fogewise-redis` from the host OS. For that reason the Fedora local infra launcher does two things:
@@ -1405,5 +1404,4 @@ Expected host-side env values:
 
 ```env
 RABBITMQ_URL=amqp://fogewise:10e0064b19b1dc9727458cdbb0e4f3998d8988628619d807@127.0.0.1:5672
-LLM_BUDGET_REDIS_URL=redis://:5b6e86e4792f020029955afa3409d8842a06e976beda806a@fogewise-redis:6379
 ```

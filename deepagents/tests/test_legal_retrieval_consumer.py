@@ -1,8 +1,8 @@
 import pytest
 
-from tools.legal.legal.chromadb_citation_retriever import RetrievedChunk
-from tools.legal.legal.legal_retrieval_boundary import LegalRetrievalBoundary
-from tools.common.platform.api_client import WorkerCallbackError
+from tools.legal.retrieval.legal_basis.chromadb_citation_retriever import RetrievedChunk
+from tools.legal.retrieval.legal_basis.legal_retrieval_boundary import LegalRetrievalBoundary
+from tools.common.capabilities.platform.api_client import WorkerCallbackError
 
 
 class DummyConfig:
@@ -302,7 +302,7 @@ def test_consumer_includes_rich_diagnostic_fields_in_callback_log(monkeypatch):
             log_events.append({"event": event, **fields})
 
     monkeypatch.setattr(
-        "tools.legal.legal.legal_retrieval_boundary.logger",
+        "tools.legal.retrieval.legal_basis.legal_retrieval_boundary.logger",
         RecordingLogger(),
     )
 

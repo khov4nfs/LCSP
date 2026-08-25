@@ -28,52 +28,46 @@ def _implementation_files(path: Path) -> set[str]:
 def test_dispatch_runtime_groups_support_capabilities() -> None:
     root = PROJECT_ROOT / "runtime" / "infrastructure" / "dispatch"
 
-    assert _directories(root) == {
-        "contract",
-        "scripts",
-        "observability",
-        "clarification",
-    }
-    assert _implementation_files(root) == {"tool_dispatch.py", "graph_runtime.py"}
-    assert _implementation_files(root / "observability") == {
+    assert not root.exists()
+
+    platform = PROJECT_ROOT / "tools" / "common" / "capabilities" / "platform"
+    assert _implementation_files(platform) == {
+        "api_client.py",
+        "artifact_storage.py",
+        "callback_schemas.py",
+        "config.py",
         "correlation.py",
-        "dev_unsafe_instrumentation.py",
         "dev_unsafe_trace.py",
+        "env.py",
+        "graph_runtime.py",
         "logging.py",
         "logging_config.py",
         "logging_path.py",
         "orchestration_logging.py",
+        "pbac_client.py",
         "tracing.py",
-    }
-    assert _implementation_files(root / "clarification") == {
         "wizard_clarification.py",
     }
 
 
-def test_flat_dispatch_observability_import_routes_to_owner_package() -> None:
-    legacy = importlib.import_module("runtime.infrastructure.dispatch.correlation")
-    canonical = importlib.import_module(
-        "runtime.infrastructure.dispatch.observability.correlation"
-    )
-    assert Path(str(legacy.__file__)).resolve() == Path(
-        str(canonical.__file__)
-    ).resolve()
+def _assert_import_blocked(module_name: str) -> None:
+    try:
+        importlib.import_module(module_name)
+    except ModuleNotFoundError:
+        return
+    raise AssertionError(f"legacy import unexpectedly resolved: {module_name}")
 
 
-def test_flat_dispatch_clarification_import_routes_to_owner_package() -> None:
-    legacy = importlib.import_module(
-        "runtime.infrastructure.dispatch.wizard_clarification"
-    )
-    canonical = importlib.import_module(
-        "runtime.infrastructure.dispatch.clarification.wizard_clarification"
-    )
-    assert Path(str(legacy.__file__)).resolve() == Path(
-        str(canonical.__file__)
-    ).resolve()
+def test_flat_dispatch_observability_import_is_not_supported() -> None:
+    _assert_import_blocked("runtime.infrastructure.dispatch.correlation")
+
+
+def test_flat_dispatch_clarification_import_is_not_supported() -> None:
+    _assert_import_blocked("runtime.infrastructure.dispatch.wizard_clarification")
 
 
 def test_program_graph_runtime_groups_owned_capabilities() -> None:
-    root = PROJECT_ROOT / "runtime" / "evidence" / "graph"
+    root = PROJECT_ROOT / "tools" / "common" / "capabilities" / "evidence" / "graph"
 
     assert _directories(root) == {
         "schema",
@@ -154,16 +148,14 @@ def test_program_graph_runtime_groups_owned_capabilities() -> None:
     assert _implementation_files(root / "query") == {"query_engine.py"}
 
 
-def test_flat_program_graph_import_routes_to_owner_package() -> None:
-    legacy = importlib.import_module("runtime.evidence.graph.models")
-    canonical = importlib.import_module("runtime.evidence.graph.schema.models")
-    assert Path(str(legacy.__file__)).resolve() == Path(
-        str(canonical.__file__)
-    ).resolve()
+def test_flat_program_graph_import_is_not_supported() -> None:
+    _assert_import_blocked("tools.common.capabilities.evidence.graph.models")
 
 
 def test_graph_cross_capability_relative_imports_resolve_without_shims() -> None:
-    builder = importlib.import_module("runtime.evidence.graph.construction.builder")
-    query_engine = importlib.import_module("runtime.evidence.graph.query.query_engine")
+    builder = importlib.import_module(
+        "tools.common.capabilities.evidence.graph.construction.assembly.builder"
+    )
+    query_engine = importlib.import_module("tools.common.capabilities.evidence.graph.query.query_engine")
     assert builder is not None
     assert query_engine is not None

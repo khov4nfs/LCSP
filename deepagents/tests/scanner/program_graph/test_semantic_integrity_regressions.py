@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tools.graph.scanner.program_graph.assembler import ProgramGraphAssembler
+from tools.common.capabilities.evidence.graph.construction.assembly.assembler import ProgramGraphAssembler
 
 # LCSP-220 P0 regressions: semantic trust must follow bounded structural evidence.
 

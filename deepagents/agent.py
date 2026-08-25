@@ -7,13 +7,13 @@ per-run context, TodoList planning and the bounded LCSP subagent pipeline.
 
 import os
 
+from langchain.agents.middleware import TodoListMiddleware
 from managed_deepagents import define_deep_agent
 
 from harness import LCSP_FILESYSTEM_PERMISSIONS, LCSP_MODEL_SPEC, configure_lcsp_harness
+from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.runtime_context import inject_lcsp_runtime_context
 from orchestration.context import LCSPRunContext
-from orchestration.pipeline import ORCHESTRATION_TOOL_NAMES
-from orchestration.todos import ROOT_TODO_MIDDLEWARE
 from subagents import FLOW_SUBAGENTS
 from tools.orchestration.request_targeted_reanalysis.code import (
     request_targeted_reanalysis,
@@ -21,9 +21,6 @@ from tools.orchestration.request_targeted_reanalysis.code import (
 
 
 ROOT_TOOLS = [request_targeted_reanalysis]
-
-if tuple(tool.name for tool in ROOT_TOOLS) != ORCHESTRATION_TOOL_NAMES:
-    raise RuntimeError("root orchestration tools drifted from the canonical pipeline manifest")
 
 
 # Register the same restricted harness profile for the root and every child model.
@@ -45,7 +42,8 @@ agent = define_deep_agent(
     tools=ROOT_TOOLS,
     middleware=[
         inject_lcsp_runtime_context,
-        ROOT_TODO_MIDDLEWARE,
+        *MODEL_GOVERNANCE_MIDDLEWARE,
+        TodoListMiddleware(),
     ],
     context_schema=LCSPRunContext,
     subagents=FLOW_SUBAGENTS,

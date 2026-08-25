@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from tools.classification.classification.classification_boundary import ClassificationBoundary
-from tools.engineer_rule.intelligence.ai_usage_flow_graph import AIUsageFlowGraph
-from tools.engineer_rule.intelligence.ai_usage_flow_rule_engine import AIUsageFlowRuleEngine
-from tools.common.platform.callback_schemas import ClassificationCallbackPayload
-from tools.common.platform.config import WorkerConfig
+from tools.common.capabilities.assessment.evaluation.classification.classification_boundary import ClassificationBoundary
+from tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_graph import AIUsageFlowGraph
+from tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_rule_engine import AIUsageFlowRuleEngine
+from tools.common.capabilities.platform.callback_schemas import ClassificationCallbackPayload
+from tools.common.capabilities.platform.config import WorkerConfig
 
 
 def _config() -> WorkerConfig:

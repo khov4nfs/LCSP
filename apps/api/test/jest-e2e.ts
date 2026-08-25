@@ -20,6 +20,7 @@ const config: Config = {
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   maxWorkers: 1,
+  testTimeout: 30000,
 };
 
 export default config;

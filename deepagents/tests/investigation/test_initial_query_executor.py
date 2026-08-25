@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from tools.planner.investigation.initial_query_executor import InitialQueryExecutor
-from tools.legal.legal.engineering_rules.models import EngineeringRule, GraphQueryTemplate
+from tools.common.capabilities.assessment.investigation.engineering_rule.initial_query_executor import InitialQueryExecutor
+from tools.legal.corpus.engineering_rules.contract.models import EngineeringRule, GraphQueryTemplate
 
 
 class _Starts:
@@ -67,7 +67,7 @@ def _rule() -> EngineeringRule:
 def test_seed_query_records_candidate_search_once_and_defers_path_traversal() -> None:
     engine = _Engine()
     with patch(
-        "tools.planner.investigation.initial_query_executor.ProgramGraphQueryEngine",
+        "tools.common.capabilities.assessment.investigation.engineering_rule.initial_query_executor.ProgramGraphQueryEngine",
         return_value=engine,
     ):
         packet = InitialQueryExecutor().execute(_rule(), graph={})

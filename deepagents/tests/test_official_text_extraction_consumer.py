@@ -6,15 +6,15 @@ import io
 import pytest
 import zipfile
 
-from tools.legal.legal.official_text_extraction_boundary import (
+from tools.legal.sources.extraction.official_text_extraction_boundary import (
     OFFICIAL_TEXT_EXTRACTION_COMMAND,
     OFFICIAL_TEXT_EXTRACTION_BOUNDARY_SOURCE,
     OfficialTextExtractionBoundary,
 )
-from tools.legal.legal.official_text_extraction_repository import (
+from tools.legal.sources.extraction.official_text_extraction_repository import (
     OfficialTextExtractionRepository,
 )
-from tools.common.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
 
 
 def _docx_fixture() -> bytes:
@@ -74,7 +74,7 @@ def test_consumer_extracts_from_snapshot_ref(tmp_path: Path):
         encoding="utf-8",
     )
 
-    from tools.legal.legal.official_text_extraction import _sha256_bytes
+    from tools.legal.sources.extraction.official_text_extraction import _sha256_bytes
 
     config = SimpleNamespace(
         nestjs_api_base_url="http://api.test",
@@ -146,7 +146,7 @@ def test_consumer_treats_profile_content_mismatch_as_terminal(tmp_path: Path):
         encoding="utf-8",
     )
 
-    from tools.legal.legal.official_text_extraction import _sha256_bytes
+    from tools.legal.sources.extraction.official_text_extraction import _sha256_bytes
 
     config = SimpleNamespace(
         nestjs_api_base_url="http://api.test",

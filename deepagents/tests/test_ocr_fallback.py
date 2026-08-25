@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from tools.legal.legal.official_text_extraction import OfficialSourceSnapshotResolver
-from tools.legal.legal.official_text_extraction_repository import (
+from tools.legal.sources.extraction.official_text_extraction import OfficialSourceSnapshotResolver
+from tools.legal.sources.extraction.official_text_extraction_repository import (
     OfficialTextExtractionRepository,
 )
-from tools.legal.legal.ocr_fallback import OcrFallbackRequest, OcrFallbackTool
-from tools.legal.legal.ocr_fallback_repository import (
+from tools.legal.sources.ocr_fallback.ocr_fallback import OcrFallbackRequest, OcrFallbackTool
+from tools.legal.sources.ocr_fallback.ocr_fallback_repository import (
     OcrFallbackConflictError,
     OcrFallbackRecord,
     OcrFallbackRepository,
@@ -94,7 +94,7 @@ def test_run_ocr_fallback_blocks_when_proof_missing(tmp_path: Path):
     manifest_path = snapshot_path.with_name("law.source.json")
     manifest_path.write_text(json.dumps({"documentId": "LAW-OCR"}), encoding="utf-8")
 
-    from tools.legal.legal.official_text_extraction import _sha256_bytes
+    from tools.legal.sources.extraction.official_text_extraction import _sha256_bytes
 
     tool = OcrFallbackTool(
         snapshot_resolver=OfficialSourceSnapshotResolver(
@@ -140,7 +140,7 @@ def test_run_ocr_fallback_blocks_when_canonical_extraction_is_available(tmp_path
         canonical_extraction_available=True,
     )
 
-    from tools.legal.legal.official_text_extraction import _sha256_bytes
+    from tools.legal.sources.extraction.official_text_extraction import _sha256_bytes
 
     tool = OcrFallbackTool(
         snapshot_resolver=OfficialSourceSnapshotResolver(
@@ -187,7 +187,7 @@ def test_run_ocr_fallback_supports_single_image_and_persists_record(tmp_path: Pa
         canonical_extraction_available=False,
     )
 
-    from tools.legal.legal.official_text_extraction import _sha256_bytes
+    from tools.legal.sources.extraction.official_text_extraction import _sha256_bytes
 
     monkeypatch.setattr("shutil.which", lambda _: "/usr/bin/tool")
 
@@ -257,7 +257,7 @@ def test_run_ocr_fallback_returns_needs_input_for_missing_image_page(tmp_path: P
         canonical_extraction_available=False,
     )
 
-    from tools.legal.legal.official_text_extraction import _sha256_bytes
+    from tools.legal.sources.extraction.official_text_extraction import _sha256_bytes
 
     monkeypatch.setattr("shutil.which", lambda _: "/usr/bin/tool")
 
@@ -310,7 +310,7 @@ def test_run_ocr_fallback_supports_selected_pdf_pages_in_order(tmp_path: Path, m
         canonical_extraction_available=False,
     )
 
-    from tools.legal.legal.official_text_extraction import _sha256_bytes
+    from tools.legal.sources.extraction.official_text_extraction import _sha256_bytes
 
     monkeypatch.setattr("shutil.which", lambda _: "/usr/bin/tool")
 
@@ -384,7 +384,7 @@ def test_run_ocr_fallback_returns_failed_when_ocr_times_out(tmp_path: Path, monk
         canonical_extraction_available=False,
     )
 
-    from tools.legal.legal.official_text_extraction import _sha256_bytes
+    from tools.legal.sources.extraction.official_text_extraction import _sha256_bytes
 
     monkeypatch.setattr("shutil.which", lambda _: "/usr/bin/tool")
 

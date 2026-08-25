@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from tools.graph.scanner.program_graph.generic_dispatch_resolution import (
+from tools.common.capabilities.evidence.graph.resolution.dispatch.generic_dispatch_resolution import (
     GenericDispatchResolver,
 )
-from tools.graph.scanner.program_graph.semantic_ir import SemanticProgram
+from tools.common.capabilities.evidence.graph.schema.semantic_ir import SemanticProgram
 
 
 def _edges(program: SemanticProgram) -> set[tuple[str, str, str]]:

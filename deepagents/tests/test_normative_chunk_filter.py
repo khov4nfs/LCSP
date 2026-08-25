@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tools.legal.legal.normative_chunk_filter import (
+from tools.legal.retrieval.legal_basis.normative_chunk_filter import (
     CHUNK_NORMATIVE_CLASSES,
     is_engineering_rule_source_chunk,
     is_legal_database_chunk,

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tools.legal.legal.vbpl_effect_applier import apply_effect_observations
+from tools.legal.sources.vbpl_effects.vbpl_effect_applier import apply_effect_observations
 
 
 def test_applies_effect_observations_and_propagates_repealed_descendants(

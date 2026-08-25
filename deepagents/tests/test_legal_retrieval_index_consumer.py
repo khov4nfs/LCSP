@@ -4,16 +4,16 @@ from unittest.mock import patch
 
 import pytest
 
-from tools.legal.legal.legal_retrieval_index_boundary import (
+from tools.legal.retrieval.index.legal_retrieval_index_boundary import (
     LEGAL_RETRIEVAL_INDEX_COMMAND,
     LEGAL_RETRIEVAL_INDEX_BOUNDARY_SOURCE,
     LegalRetrievalIndexBoundary,
 )
-from tools.legal.legal.legal_retrieval_index_repository import (
+from tools.legal.retrieval.index.legal_retrieval_index_repository import (
     LegalRetrievalIndexRecord,
     LegalRetrievalIndexRepository,
 )
-from tools.common.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
 
 
 def test_consumer_persists_legal_retrieval_index(tmp_path: Path):
@@ -49,7 +49,7 @@ def test_consumer_persists_legal_retrieval_index(tmp_path: Path):
     )
 
     with patch(
-        "tools.legal.legal.legal_retrieval_index_boundary.LegalToolDispatcher.dispatch",
+        "tools.legal.retrieval.index.legal_retrieval_index_boundary.LegalToolDispatcher.dispatch",
         return_value=result,
     ) as dispatch:
         boundary.handle(

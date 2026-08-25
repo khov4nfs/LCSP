@@ -2,12 +2,12 @@ import pytest
 import asyncio
 from unittest.mock import AsyncMock, patch
 
-from tools.graph.scanner.evidence.models import EvidencePayload, PrivacyFlags, TechnicalFinding
-from tools.graph.scanner.evidence.severity_mapper import map_severity
-from tools.graph.scanner.evidence.privacy_gate import assert_privacy_flags, _looks_like_source_code
-from tools.graph.scanner.evidence.schema_validator import validate_schema, SchemaValidationError
-from tools.graph.scanner.evidence.quality_gate import classify_quality
-from tools.graph.scanner.evidence.terminal_state_handler import mark_terminal_state, verify_workspace_cleanup, CleanupBlockedError
+from tools.common.capabilities.evidence.scanner.evidence.contract.models import EvidencePayload, PrivacyFlags, TechnicalFinding
+from tools.common.capabilities.evidence.scanner.evidence.quality.severity_mapper import map_severity
+from tools.common.capabilities.evidence.scanner.evidence.quality.privacy_gate import assert_privacy_flags, _looks_like_source_code
+from tools.common.capabilities.evidence.scanner.evidence.contract.schema_validator import validate_schema, SchemaValidationError
+from tools.common.capabilities.evidence.scanner.evidence.quality.quality_gate import classify_quality
+from tools.common.capabilities.evidence.scanner.evidence.finalization.terminal_state_handler import mark_terminal_state, verify_workspace_cleanup, CleanupBlockedError
 
 def test_t01_quality_valid():
     findings = [{"finding_type": "AI_INVOCATION"}]

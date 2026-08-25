@@ -1,10 +1,10 @@
 from __future__ import annotations
 from unittest.mock import MagicMock
 from uuid import uuid4
-from tools.common.agentic_evidence.catalog import AGENTIC_TOOL_SPECS
-from tools.common.agentic_evidence.dispatcher import AgenticToolDispatcher, PROGRAM_GRAPH_TOOL_BINDINGS, SPRINT6_AGENTIC_TOOL_BINDINGS, ToolRuntimeTarget
-from tools.common.agentic_evidence.registry import AgenticToolRequest
-from tools.common.agentic_evidence.tool_entrypoints import AgenticToolExecutionContext
+from tools.common.capabilities.agentic_evidence.governance.catalog import AGENTIC_TOOL_SPECS
+from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import AgenticToolDispatcher, PROGRAM_GRAPH_TOOL_BINDINGS, SPRINT6_AGENTIC_TOOL_BINDINGS, ToolRuntimeTarget
+from tools.common.capabilities.agentic_evidence.governance.registry import AgenticToolRequest
+from tools.common.capabilities.agentic_evidence.entrypoints.tool_entrypoints import AgenticToolExecutionContext
 
 
 def _graph():

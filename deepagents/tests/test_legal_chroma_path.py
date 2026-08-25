@@ -1,11 +1,11 @@
 from pathlib import Path
 
-from runtime.legal.retrieval import chroma_path
-from runtime.legal.retrieval.chromadb_citation_retriever import ChromaDbCitationRetriever
-from runtime.legal.corpus.chunk_integrity_repository import ChunkIntegrityRepository
-from runtime.legal.corpus.engineering_rules.cache import EngineeringRuleCache
-from runtime.legal.corpus.legal_chunk_repository import LegalChunkRepository
-from runtime.legal.retrieval.legal_retrieval_index_builder import (
+from tools.legal.retrieval.index import chroma_path
+from tools.legal.retrieval.legal_basis.chromadb_citation_retriever import ChromaDbCitationRetriever
+from tools.legal.corpus.chunk_integrity.chunk_integrity_repository import ChunkIntegrityRepository
+from tools.legal.corpus.engineering_rules.registry.cache import EngineeringRuleCache
+from tools.legal.corpus.legal_chunks.legal_chunk_repository import LegalChunkRepository
+from tools.legal.retrieval.index.legal_retrieval_index_builder import (
     ChromaLegalIndexStore,
     LegalRetrievalIndexBuilder,
 )

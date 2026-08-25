@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from tools.planner.investigation.models import (
+from tools.common.capabilities.assessment.claims.evidence_claim.models import (
     ENGINEERING_EVIDENCE_CLAIM_TYPES,
     ENGINEERING_LIMITATION_CODES,
     EvidenceClaim,
 )
-from tools.engineer_rule.investigation.rule_evaluator import (
+from tools.common.capabilities.assessment.evaluation.engineering_rule.rule_evaluator import (
     ENGINEERING_RULE_EVALUATION_STATUSES,
     EngineeringRuleEvaluator,
 )
-from tools.legal.legal.engineering_rules.models import EngineeringRule
+from tools.legal.corpus.engineering_rules.contract.models import EngineeringRule
 
 
 def _rule(*criteria: str) -> EngineeringRule:

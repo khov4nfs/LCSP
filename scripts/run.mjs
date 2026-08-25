@@ -1,8 +1,10 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { parse } from "dotenv";
+import { expand } from "dotenv-expand";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,6 +15,27 @@ const workerPython =
   process.platform === "win32"
     ? path.join(workerRoot, ".venv", "Scripts", "python.exe")
     : path.join(workerRoot, ".venv", "bin", "python");
+const workerMda =
+  process.platform === "win32"
+    ? path.join(workerRoot, ".venv", "Scripts", "mda.exe")
+    : path.join(workerRoot, ".venv", "bin", "mda");
+const tsJsAnalyzerRoot = path.join(
+  workerRoot,
+  "tools",
+  "common",
+  "capabilities",
+  "evidence",
+  "scanner",
+  "ts_js_bridge",
+  "ts-js-analyzer",
+);
+const tsJsAnalyzerCli = path.join(
+  tsJsAnalyzerRoot,
+  "dist",
+  "tools",
+  "ts-js-analyzer",
+  "cli.js",
+);
 const openWikiRuntimeScript = path.join(
   repoRoot,
   "scripts",
@@ -26,9 +49,7 @@ const defaultPhoenixTracing =
 const defaultPhoenixCollectorEndpoint =
   process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006/v1/traces";
 const defaultPhoenixProject =
-  process.env.PHOENIX_PROJECT ??
-  rootEnv.PHOENIX_PROJECT ??
-  "deepagents";
+  process.env.PHOENIX_PROJECT ?? rootEnv.PHOENIX_PROJECT ?? "deepagents";
 const defaultDockerWorkerImage =
   process.env.LCSP_WORKER_DOCKER_IMAGE ??
   rootEnv.LCSP_WORKER_DOCKER_IMAGE ??
@@ -43,6 +64,7 @@ const defaultOpenWikiRuntimeTimeoutSeconds =
   "180";
 const managedAgentPythonPath = ".";
 const dockerManagedAgentPythonPath = "/app/deepagents";
+const managedAgentEventsModule = "tools.common.capabilities.managed.rabbitmq_consumer";
 
 const targets = {
   proxy: {
@@ -135,18 +157,22 @@ const targets = {
   phoenix: {
     cwd: repoRoot,
     cmd: "uvx",
-    args: ["arize-phoenix", "serve", "--port", "6006"],
+    args: ["--python", "3.13", "arize-phoenix", "serve", "--port", "6006"],
     env: rootEnv,
     description: "Start Arize Phoenix trace UI",
     healthPort: 6006,
   },
   managed_agent: {
     cwd: workerRoot,
-    cmd: "uv",
-    args: ["run", "mda", "dev", "."],
+    cmd: existsSync(workerMda) ? workerMda : "uv",
+    args: existsSync(workerMda)
+      ? ["dev", "--no-reload", "."]
+      : ["run", "mda", "dev", "--no-reload", "."],
     env: {
       ...rootEnv,
       PYTHONPATH: managedAgentPythonPath,
+      UV_CACHE_DIR: rootEnv.UV_CACHE_DIR ?? "/tmp/uv-cache",
+      UV_LINK_MODE: rootEnv.UV_LINK_MODE ?? "copy",
       ORCHESTRATION_DEBUG: defaultOrchestrationDebug,
       PHOENIX_TRACING: defaultPhoenixTracing,
       PHOENIX_COLLECTOR_ENDPOINT: defaultPhoenixCollectorEndpoint,
@@ -154,7 +180,29 @@ const targets = {
       OPENWIKI_RUNTIME_COMMAND: defaultOpenWikiRuntimeCommand,
       OPENWIKI_RUNTIME_TIMEOUT_SECONDS: defaultOpenWikiRuntimeTimeoutSeconds,
     },
+    scrubVirtualEnv: true,
     description: "Start LCSP Managed Deep Agent in local dev mode",
+  },
+  managed_agent_events: {
+    cwd: workerRoot,
+    cmd: existsSync(workerPython) ? workerPython : "uv",
+    args: existsSync(workerPython)
+      ? ["-m", managedAgentEventsModule]
+      : ["run", "python", "-m", managedAgentEventsModule],
+    env: {
+      ...rootEnv,
+      PYTHONPATH: managedAgentPythonPath,
+      UV_CACHE_DIR: rootEnv.UV_CACHE_DIR ?? "/tmp/uv-cache",
+      UV_LINK_MODE: rootEnv.UV_LINK_MODE ?? "copy",
+      ORCHESTRATION_DEBUG: defaultOrchestrationDebug,
+      PHOENIX_TRACING: defaultPhoenixTracing,
+      PHOENIX_COLLECTOR_ENDPOINT: defaultPhoenixCollectorEndpoint,
+      PHOENIX_PROJECT: defaultPhoenixProject,
+      OPENWIKI_RUNTIME_COMMAND: defaultOpenWikiRuntimeCommand,
+      OPENWIKI_RUNTIME_TIMEOUT_SECONDS: defaultOpenWikiRuntimeTimeoutSeconds,
+    },
+    scrubVirtualEnv: true,
+    description: "Start LCSP Managed Deep Agent RabbitMQ event bridge",
   },
   docker_worker_build: {
     cwd: repoRoot,
@@ -178,17 +226,8 @@ const groups = {
   fogewise: ["proxy", "infra"],
   fogewise_reset: ["proxy_reset", "infra_reset"],
   dev_app: ["api", "web"],
-  dev_docker: [
-    "api_docker_workers",
-    "web",
-    "managed_agent_docker",
-  ],
-  dev: [
-    "api",
-    "web",
-    "managed_agent",
-    "phoenix",
-  ],
+  dev_docker: ["api_docker_workers", "web", "managed_agent_docker"],
+  dev: ["api", "web", "managed_agent", "managed_agent_events", "phoenix"],
 };
 
 const selection = process.argv[2] ?? "help";
@@ -210,6 +249,14 @@ async function main() {
     process.exit(0);
   }
 
+  if (
+    selection === "dev" ||
+    selection === "managed_agent" ||
+    selection === "managed_agent_events"
+  ) {
+    prepareTsJsAnalyzer();
+  }
+
   if (selection in groups) {
     await runGroup(selection);
     return;
@@ -225,14 +272,61 @@ async function main() {
   process.exit(1);
 }
 
+function prepareTsJsAnalyzer() {
+  const inputs = [
+    "analyzer.ts",
+    "cli.ts",
+    "package-lock.json",
+    "package.json",
+    "tsconfig.json",
+  ].map((file) => path.join(tsJsAnalyzerRoot, file));
+  const outputMtime = existsSync(tsJsAnalyzerCli)
+    ? statSync(tsJsAnalyzerCli).mtimeMs
+    : 0;
+  if (
+    outputMtime > 0 &&
+    inputs.every((input) => statSync(input).mtimeMs <= outputMtime)
+  ) {
+    return;
+  }
+
+  console.log("[run] Building TypeScript/JavaScript analyzer...");
+  const npm = isWindows ? "npm.cmd" : "npm";
+  for (const args of [
+    ["ci", "--include=dev"],
+    ["run", "build"],
+  ]) {
+    const result = spawnSync(npm, args, {
+      cwd: tsJsAnalyzerRoot,
+      env: process.env,
+      stdio: "inherit",
+      shell: false,
+    });
+    if (result.status !== 0) {
+      process.exit(result.status ?? 1);
+    }
+  }
+  if (!existsSync(tsJsAnalyzerCli)) {
+    console.error(`[run] Analyzer build did not create ${tsJsAnalyzerCli}`);
+    process.exit(1);
+  }
+}
+
 function stopDevProcesses() {
   const patterns = [
     "pnpm dev:fogewise",
     "node scripts/run.mjs fogewise",
     "node scripts/run.mjs dev",
     "node scripts/run.mjs dev_app",
+    ".venv/bin/mda dev --no-reload .",
+    ".venv/Scripts/mda.exe dev --no-reload .",
+    "uv run mda dev --no-reload .",
     "uv run mda dev .",
+    `python -m ${managedAgentEventsModule}`,
+    `uv run python -m ${managedAgentEventsModule}`,
+    "mda dev --no-reload .",
     "mda dev .",
+    "python entrypoint.py",
     "uv run --with langgraph-cli[inmem]",
     ".mda/build/.venv/bin/langgraph dev",
     "pnpm --dir apps/api start:dev",
@@ -240,7 +334,7 @@ function stopDevProcesses() {
     "apps/api/dist/src/main",
     "pnpm --dir apps/web dev",
     "next dev",
-    "uvx arize-phoenix serve --port 6006",
+    "uvx --python 3.13 arize-phoenix serve --port 6006",
     "arize-phoenix serve --port 6006",
   ];
   const protectedPids = new Set([
@@ -388,24 +482,8 @@ function sleepMs(durationMs) {
 
 function loadDotEnv(filePath) {
   if (!existsSync(filePath)) return {};
-  const env = {};
-  const text = readFileSync(filePath, "utf8");
-  for (const rawLine of text.split(/\r?\n/u)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-    const separatorIndex = line.indexOf("=");
-    if (separatorIndex <= 0) continue;
-    const key = line.slice(0, separatorIndex).trim();
-    let value = line.slice(separatorIndex + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    env[key] = value;
-  }
-  return env;
+  const parsed = parse(readFileSync(filePath));
+  return expand({ parsed, processEnv: { ...process.env } }).parsed ?? {};
 }
 
 function runTarget(name) {
@@ -475,11 +553,36 @@ async function runGroup(name) {
 function spawnTarget(target) {
   return spawn(target.cmd, target.args, {
     cwd: target.cwd,
-    env: { ...process.env, ...target.env },
+    env: buildSpawnEnv(target),
     stdio: "inherit",
     shell:
       target.shell ?? (process.platform === "win32" && target.cmd === "pnpm"),
   });
+}
+
+function buildSpawnEnv(target) {
+  const env = Object.fromEntries(
+    Object.entries({ ...process.env, ...target.env }).filter(
+      ([, value]) => value !== undefined && value !== null,
+    ),
+  );
+
+  if (target.scrubVirtualEnv) {
+    const virtualEnv = env.VIRTUAL_ENV;
+    delete env.VIRTUAL_ENV;
+
+    if (virtualEnv && env.PATH) {
+      const virtualEnvBin = path.resolve(
+        virtualEnv,
+        process.platform === "win32" ? "Scripts" : "bin",
+      );
+      env.PATH = env.PATH.split(path.delimiter)
+        .filter((entry) => path.resolve(entry) !== virtualEnvBin)
+        .join(path.delimiter);
+    }
+  }
+
+  return env;
 }
 
 function cleanupDockerWorkerContainer(target) {
@@ -552,23 +655,16 @@ function dockerWorkerEnv() {
     "AGENTIC_RUNTIME_DEFAULT_TIMEOUT_MS",
     "AGENTIC_RUNTIME_DISPATCH_PATH",
     "PBAC_PREFLIGHT_TIMEOUT_SECONDS",
-    "LLM_PRIMARY_PROVIDER",
-    "LLM_PRIMARY_MODEL",
     "OPENAI_API_KEY",
-    "LLM_FALLBACK_PROVIDER_1",
-    "LLM_FALLBACK_MODEL_1",
     "ANTHROPIC_API_KEY",
-    "LLM_FALLBACK_PROVIDER_2",
-    "LLM_FALLBACK_MODEL_2",
     "GEMINI_API_KEY",
-    "LLM_MODEL_PRICING",
-    "LLM_MAX_TOKENS_PER_CALL",
-    "LLM_MONTHLY_BUDGET_USD",
-    "LLM_MONTHLY_TOKEN_CAP",
-    "LLM_PROVIDER_TIMEOUT_SECONDS",
-    "LLM_FALLBACK_ON_CODES",
-    "LLM_MAX_PROVIDER_ATTEMPTS",
-    "LLM_BUDGET_REDIS_URL",
+    "GOOGLE_API_KEY",
+    "LCSP_ROOT_AGENT_MODEL",
+    "LCSP_TRIAGE_MODEL",
+    "LCSP_CONTEXT_WIZARD_MODEL",
+    "LCSP_PLANNER_MODEL",
+    "LCSP_INVESTIGATOR_MODEL",
+    "LCSP_RESOLVER_MODEL",
     "WORKER_RUNTIME_VERSION",
     "WORKER_RUNTIME_BUILD_REF",
     "PHOENIX_TRACING",

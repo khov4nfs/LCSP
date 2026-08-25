@@ -1,5 +1,5 @@
 import pytest
-from tools.graph.scanner.analyzers.finding_types import (
+from tools.common.capabilities.evidence.scanner.analyzers.findings.finding_types import (
     AUTOMATED_DECISION_SIGNAL,
     HUMAN_REVIEW_SIGNAL,
     HUMAN_OVERSIGHT_CONTROL_SIGNAL,
@@ -7,7 +7,7 @@ from tools.graph.scanner.analyzers.finding_types import (
     INCIDENT_HANDLING_SIGNAL,
     UNSUPPORTED_DYNAMIC_FLOW
 )
-from tools.graph.scanner.analyzers.decision_flow_tracer import DecisionFlowTracer
+from tools.common.capabilities.evidence.scanner.analyzers.decision_flow.decision_flow_tracer import DecisionFlowTracer
 
 def get_signal(traces, finding_type):
     for t in traces:

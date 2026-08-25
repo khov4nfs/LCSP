@@ -1,10 +1,19 @@
-import pytest
-from unittest.mock import MagicMock
-from tools.classification.classification.risk_tier_calculator import calculate_risk_tier
-from tools.classification.classification.citation_guardrail import check_citations
-from tools.classification.classification.classification_graph import ClassificationGraph
-from tools.classification.classification.overclaim_detector import check_overclaim
-from tools.classification.classification.rationale_narrator import RationaleNarrator
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+from langchain.messages import AIMessage
+from tools.common.capabilities.assessment.evaluation.classification.risk_tier_calculator import calculate_risk_tier
+from tools.common.capabilities.assessment.evaluation.classification.citation_guardrail import check_citations
+from tools.common.capabilities.assessment.evaluation.classification.classification_graph import ClassificationGraph
+from tools.common.capabilities.assessment.evaluation.classification.overclaim_detector import check_overclaim
+from tools.common.capabilities.assessment.evaluation.classification.rationale_narrator import RationaleNarrator
+
+
+def _agent_result(*, structured_response=None, content: str = ""):
+    result = {"messages": [AIMessage(content=content)]}
+    if structured_response is not None:
+        result["structured_response"] = structured_response
+    return SimpleNamespace(invoke=MagicMock(return_value=result))
 
 def test_t01_valid_match_and_citations():
     """T01: Valid match + valid citations"""
@@ -36,15 +45,13 @@ def test_t04_rationale_overclaim():
 
 def test_t08_rationale_contradicts():
     """T08: Rationale draft contradicts decision -> rejected"""
-    mock_llm = MagicMock()
-    mock_response = MagicMock()
-    mock_response.content = "The risk is definitely LOW."
-    mock_llm.complete.return_value = mock_response
-    
-    narrator = RationaleNarrator(mock_llm)
-    rationale = narrator.generate_rationale(
-        [], [], "HIGH", "applicable", "wf-123", "classification.rationale_narrator"
-    )
+    with patch(
+        "tools.common.capabilities.assessment.evaluation.classification.rationale_narrator.create_agent",
+        return_value=_agent_result(content="The risk is definitely LOW."),
+    ):
+        rationale = RationaleNarrator().generate_rationale(
+            [], [], "HIGH", "applicable", "wf-123", "classification.rationale_narrator"
+        )
     # Because it mentions LOW but risk_level is HIGH
     assert rationale is None
 
@@ -54,12 +61,11 @@ def test_t09_no_llm_for_risk_tier():
     risk, _, _ = calculate_risk_tier([{"confidence": 0.6, "coverage_status": "COMPLETE_CITATION"}])
     assert risk == "MEDIUM"
 
-from unittest.mock import patch
-from tools.classification.classification.classification_boundary import ClassificationBoundary
+from tools.common.capabilities.assessment.evaluation.classification.classification_boundary import ClassificationBoundary
 
 def test_t05_classification_not_started_when_blocked():
     """T05: LegalRuleMatch.guardrailStatus = blocked -> Classification not started"""
-    boundary = ClassificationBoundary(config=MagicMock(), llm_client=None)
+    boundary = ClassificationBoundary(config=MagicMock())
     
     with patch.object(boundary, '_submit_callback') as mock_submit:
         # Provide refs not in allowlist to trigger "blocked"
@@ -74,18 +80,18 @@ def test_t05_classification_not_started_when_blocked():
         assert payload["guardrail_status"] == "blocked"
         assert payload["risk_level"] == "BLOCKED"
 
-def test_t06_raw_source_in_llm_prompt():
-    """T06: Raw source in LLM prompt -> PromptSafetyViolation raised"""
-    class PromptSafetyViolation(Exception):
+def test_t06_agent_failure_omits_optional_rationale():
+    """T06: Native agent failure does not block deterministic classification."""
+    class AgentFailure(Exception):
         pass
         
-    mock_llm = MagicMock()
-    mock_llm.complete.side_effect = PromptSafetyViolation("Raw source detected")
-    
-    narrator = RationaleNarrator(mock_llm)
-    rationale = narrator.generate_rationale(
-        [], [], "HIGH", "applicable", "wf-123", "classification.rationale_narrator"
-    )
+    with patch(
+        "tools.common.capabilities.assessment.evaluation.classification.rationale_narrator.create_agent",
+        side_effect=AgentFailure("model call failed"),
+    ):
+        rationale = RationaleNarrator().generate_rationale(
+            [], [], "HIGH", "applicable", "wf-123", "classification.rationale_narrator"
+        )
     
     # Narrator should catch exception and return None
     assert rationale is None
@@ -95,10 +101,7 @@ def test_t07_budget_exceeded():
     class BudgetExceeded(Exception):
         pass
         
-    mock_llm = MagicMock()
-    mock_llm.complete.side_effect = BudgetExceeded("Monthly cap reached")
-    
-    boundary = ClassificationBoundary(config=MagicMock(), llm_client=mock_llm)
+    boundary = ClassificationBoundary(config=MagicMock())
     
     with patch.object(boundary, '_submit_callback') as mock_submit:
         message = {
@@ -106,7 +109,17 @@ def test_t07_budget_exceeded():
         }
         
         # Mock check_citations so it passes and allows the flow to reach the LLM part
-        with patch('tools.classification.classification.classification_graph.check_citations', return_value=("passed", "")):
+        with (
+            patch('tools.common.capabilities.assessment.evaluation.classification.classification_graph.check_citations', return_value=("passed", "")),
+            patch(
+                "tools.common.capabilities.assessment.evaluation.classification.classification_proposer.create_agent",
+                side_effect=BudgetExceeded("Monthly cap reached"),
+            ),
+            patch(
+                "tools.common.capabilities.assessment.evaluation.classification.rationale_narrator.create_agent",
+                side_effect=BudgetExceeded("Monthly cap reached"),
+            ),
+        ):
             boundary.handle(message, "test-corr-id")
             
             mock_submit.assert_called_once()
@@ -117,20 +130,23 @@ def test_t07_budget_exceeded():
             # Rationale must be gracefully omitted
             assert payload["rationale"] is None
 
-def test_t10_consumer_derives_workflow_context_for_rationale_node():
-    mock_llm = MagicMock()
-    mock_response = MagicMock()
-    mock_response.structured_response = {
+def test_t10_consumer_derives_workflow_context_for_proposal_node():
+    agent = _agent_result(structured_response={
         "risk_level": "HIGH",
         "applicability_assessment": "applicable",
         "rationale": "The risk is HIGH based on the verified evidence.",
-    }
-    mock_llm.complete_structured.return_value = mock_response
+    })
 
-    boundary = ClassificationBoundary(config=MagicMock(), llm_client=mock_llm)
+    boundary = ClassificationBoundary(config=MagicMock())
 
-    with patch.object(boundary, "_submit_callback") as mock_submit:
-        with patch("tools.classification.classification.classification_graph.check_citations", return_value=("passed", "")):
+    with (
+        patch.object(boundary, "_submit_callback") as mock_submit,
+        patch("tools.common.capabilities.assessment.evaluation.classification.classification_graph.check_citations", return_value=("passed", "")),
+        patch(
+            "tools.common.capabilities.assessment.evaluation.classification.classification_proposer.create_agent",
+            return_value=agent,
+        ),
+    ):
             boundary.handle(
                 {
                     "assessment_id": "asmt-1",
@@ -140,30 +156,30 @@ def test_t10_consumer_derives_workflow_context_for_rationale_node():
                 "corr-123",
             )
 
-    mock_llm.complete_structured.assert_called_once()
-    kwargs = mock_llm.complete_structured.call_args.kwargs
-    assert kwargs["workflow_run_id"] == "classification:asmt-1:2.0:corr-123"
-    assert kwargs["node_name"] == "classification.proposal"
-    assert kwargs["correlationId"] == "corr-123"
+    kwargs = agent.invoke.call_args.kwargs["config"]
+    assert kwargs["metadata"]["workflow_run_id"] == "classification:asmt-1:2.0:corr-123"
+    assert kwargs["metadata"]["node_name"] == "classification.proposal"
+    assert kwargs["metadata"]["correlationId"] == "corr-123"
     assert mock_submit.called
 
 def test_t11_consumer_rejects_mismatched_model_assisted_proposal():
-    mock_llm = MagicMock()
-    proposal_response = MagicMock()
-    proposal_response.structured_response = {
+    proposal_agent = _agent_result(structured_response={
         "risk_level": "LOW",
         "applicability_assessment": "not_applicable",
         "rationale": "The risk is LOW.",
-    }
-    fallback_response = MagicMock()
-    fallback_response.content = "This assessment remains high risk based on the verified evidence."
-    mock_llm.complete_structured.return_value = proposal_response
-    mock_llm.complete.return_value = fallback_response
+    })
+    narrator_agent = _agent_result(
+        content="This assessment remains high risk based on the verified evidence."
+    )
 
-    boundary = ClassificationBoundary(config=MagicMock(), llm_client=mock_llm)
+    boundary = ClassificationBoundary(config=MagicMock())
 
-    with patch.object(boundary, "_submit_callback") as mock_submit:
-        with patch("tools.classification.classification.classification_graph.check_citations", return_value=("passed", "")):
+    with (
+        patch.object(boundary, "_submit_callback") as mock_submit,
+        patch("tools.common.capabilities.assessment.evaluation.classification.classification_graph.check_citations", return_value=("passed", "")),
+        patch("tools.common.capabilities.assessment.evaluation.classification.classification_proposer.create_agent", return_value=proposal_agent),
+        patch("tools.common.capabilities.assessment.evaluation.classification.rationale_narrator.create_agent", return_value=narrator_agent),
+    ):
             boundary.handle(
                 {
                     "assessment_id": "asmt-2",
@@ -179,19 +195,19 @@ def test_t11_consumer_rejects_mismatched_model_assisted_proposal():
     assert payload["rationale"] == "This assessment remains high risk based on the verified evidence."
 
 def test_t12_consumer_accepts_matching_model_assisted_proposal():
-    mock_llm = MagicMock()
-    proposal_response = MagicMock()
-    proposal_response.structured_response = {
+    proposal_agent = _agent_result(structured_response={
         "risk_level": "HIGH",
         "applicability_assessment": "applicable",
         "rationale": "This assessment is high risk based on the cited evidence.",
-    }
-    mock_llm.complete_structured.return_value = proposal_response
+    })
 
-    boundary = ClassificationBoundary(config=MagicMock(), llm_client=mock_llm)
+    boundary = ClassificationBoundary(config=MagicMock())
 
-    with patch.object(boundary, "_submit_callback") as mock_submit:
-        with patch("tools.classification.classification.classification_graph.check_citations", return_value=("passed", "")):
+    with (
+        patch.object(boundary, "_submit_callback") as mock_submit,
+        patch("tools.common.capabilities.assessment.evaluation.classification.classification_graph.check_citations", return_value=("passed", "")),
+        patch("tools.common.capabilities.assessment.evaluation.classification.classification_proposer.create_agent", return_value=proposal_agent),
+    ):
             boundary.handle(
                 {
                     "assessment_id": "asmt-3",

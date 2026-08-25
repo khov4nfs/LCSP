@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from tools.planner.investigation.models import InvestigationPacket
-from tools.planner.investigation.planning_business_scope import (
+from tools.common.capabilities.assessment.claims.evidence_claim.models import InvestigationPacket
+from tools.common.capabilities.assessment.planning.engineering_rule.planning_business_scope import (
     BusinessAwareScopedEngineeringRulePlanningCandidate,
     BusinessAwareScopedMaterialEngineeringRulePlanner,
     RulePlanningBusinessScopeProjector,
 )
-from tools.graph.scanner.program_graph.models import ProgramEvidenceGraph
+from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
 
 
 def _node(
@@ -258,9 +258,10 @@ def test_planner_prompt_excludes_internal_llm_runtime_from_graph_summary() -> No
             "label": "OpenAI provider used by LCSP worker",
             "source": {
                 "file_path": (
-                    "deepagents/tools/common/llm/deep_agent_client.py"
+                    "deepagents/tools/common/capabilities/assessment/investigation/"
+                    "engineering_rule/investigator.py"
                 ),
-                "symbol_ref": "DeepAgentClient",
+                "symbol_ref": "LangChainAgent",
             },
             "attributes": {},
             "semantic_types": [],

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tools.planner.investigation.engineering_rule_planner import (
+from tools.common.capabilities.assessment.planning.engineering_rule.engineering_rule_planner import (
     EngineeringRulePlanner,
     EngineeringRulePlanningCandidate,
 )

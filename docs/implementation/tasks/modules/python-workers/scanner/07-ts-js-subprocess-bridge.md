@@ -20,12 +20,12 @@ Invoke the TS/JS analyzer subprocess from the Python scanner worker. The subproc
 
 | File | Action | Notes |
 |---|---|---|
-| `deepagents/tools/graph/scanner/ts_js_bridge/bridge.py` | Create | `asyncio.create_subprocess_exec` runner, stdout capture, stderr redaction |
-| `deepagents/tools/graph/scanner/ts_js_bridge/schema_validator.py` | Create | JSON schema validation for subprocess output |
-| `deepagents/tools/graph/scanner/ts_js_bridge/bridge_types.py` | Create | `TsJsBridgeResult` dataclass, `TsJsFinding` dataclass |
-| `deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer/cli.ts` | Create | ts-morph TS/JS analyzer CLI entry point (compiled to `dist/tools/ts-js-analyzer/cli.js`) |
-| `deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer/package.json` | Create | Pinned `ts-morph` version |
-| `deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer/tsconfig.json` | Create | Strict TypeScript config |
+| `deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/bridge.py` | Create | `asyncio.create_subprocess_exec` runner, stdout capture, stderr redaction |
+| `deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/schema_validator.py` | Create | JSON schema validation for subprocess output |
+| `deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/bridge_types.py` | Create | `TsJsBridgeResult` dataclass, `TsJsFinding` dataclass |
+| `deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/ts-js-analyzer/cli.ts` | Create | ts-morph TS/JS analyzer CLI entry point (compiled to `dist/tools/ts-js-analyzer/cli.js`) |
+| `deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/ts-js-analyzer/package.json` | Create | Pinned `ts-morph` version |
+| `deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/ts-js-analyzer/tsconfig.json` | Create | Strict TypeScript config |
 
 ## Subprocess Contract
 
@@ -182,14 +182,14 @@ proc = await asyncio.create_subprocess_exec(
 
 - `deepagents/tools/graph/scanner/evidence_assembler.py`
 - `deepagents/tools/graph/scanner/scan_consumer.py`
-- `deepagents/tools/graph/scanner/ts_js_bridge/__init__.py`
-- `deepagents/tools/graph/scanner/ts_js_bridge/bridge.py`
-- `deepagents/tools/graph/scanner/ts_js_bridge/bridge_types.py`
-- `deepagents/tools/graph/scanner/ts_js_bridge/schema_validator.py`
-- `deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer/analyzer.ts`
-- `deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer/cli.ts`
-- `deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer/package.json`
-- `deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer/tsconfig.json`
+- `deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/__init__.py`
+- `deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/bridge.py`
+- `deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/bridge_types.py`
+- `deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/schema_validator.py`
+- `deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/ts-js-analyzer/analyzer.ts`
+- `deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/ts-js-analyzer/cli.ts`
+- `deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/ts-js-analyzer/package.json`
+- `deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/ts-js-analyzer/tsconfig.json`
 - `deepagents/tests/test_evidence_assembler.py`
 - `deepagents/tests/test_scanner_workspace.py`
 - `deepagents/tests/test_ts_js_bridge.py`
@@ -206,7 +206,7 @@ proc = await asyncio.create_subprocess_exec(
   - Result: passed.
 - `./.venv/bin/python -m compileall src tests`
   - Result: passed.
-- `pnpm --dir deepagents/tools/graph/scanner/ts_js_bridge/ts-js-analyzer exec tsc -p tsconfig.json`
+- `pnpm --dir deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/ts-js-analyzer exec tsc -p tsconfig.json`
   - Result: blocked by local dependency install state: nested package pins `ts-morph@26.0.0`, but `ts-morph` is not installed/resolvable from that package directory.
 - `./.venv/bin/pytest`
   - Result: blocked by local venv dependency state: `tiktoken` missing during `tests/test_llm_gateway.py` collection.

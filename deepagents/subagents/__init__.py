@@ -5,7 +5,6 @@ prompt and tool boundaries remain reviewable independently. Legal Triage is a pr
 legal-intelligence specialist and is intentionally not an assessment pipeline node.
 """
 
-from orchestration.pipeline import NODE_TOOL_NAMES
 from subagents.context_wizard.definition import SUBAGENT as CONTEXT_WIZARD_SUBAGENT
 from subagents.context_wizard.definition import TOOLS as CONTEXT_WIZARD_TOOLS
 from subagents.investigator.definition import SUBAGENT as INVESTIGATOR_SUBAGENT
@@ -16,25 +15,6 @@ from subagents.resolver.definition import SUBAGENT as RESOLVER_SUBAGENT
 from subagents.resolver.definition import TOOLS as RESOLVER_TOOLS
 from subagents.triage.definition import SUBAGENT as TRIAGE_SUBAGENT
 from subagents.triage.definition import TOOLS as TRIAGE_TOOLS
-
-
-def _tool_names(tools: list[object]) -> tuple[str, ...]:
-    return tuple(str(getattr(tool, "name")) for tool in tools)
-
-
-_ASSESSMENT_ROLE_TOOLS = {
-    "context_wizard": CONTEXT_WIZARD_TOOLS,
-    "planner": PLANNER_TOOLS,
-    "investigator": INVESTIGATOR_TOOLS,
-    "resolver": RESOLVER_TOOLS,
-}
-for role, tools in _ASSESSMENT_ROLE_TOOLS.items():
-    if _tool_names(tools) != NODE_TOOL_NAMES[role]:
-        raise RuntimeError(f"{role} tools drifted from the canonical assessment pipeline manifest")
-
-if _tool_names(TRIAGE_TOOLS) != ("maintain_legal_catalog",):
-    raise RuntimeError("triage tools drifted from the proactive legal-maintenance contract")
-
 
 FLOW_SUBAGENTS = [
     TRIAGE_SUBAGENT,

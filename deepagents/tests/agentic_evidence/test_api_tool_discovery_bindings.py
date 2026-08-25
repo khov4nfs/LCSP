@@ -4,14 +4,14 @@ import inspect
 from unittest.mock import MagicMock
 from uuid import uuid4
 
-from tools.common.agentic_evidence import tool_entrypoints
-from tools.common.agentic_evidence.dispatcher import (
+from tools.common.capabilities.agentic_evidence.entrypoints import tool_entrypoints
+from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import (
     NEST_CQRS_DISCOVERY_BINDINGS,
     ToolRuntimeTarget,
     runtime_binding,
 )
-from tools.common.agentic_evidence.registry import AgenticToolRequest
-from tools.common.agentic_evidence.tool_entrypoints import AgenticToolExecutionContext
+from tools.common.capabilities.agentic_evidence.governance.registry import AgenticToolRequest
+from tools.common.capabilities.agentic_evidence.entrypoints.tool_entrypoints import AgenticToolExecutionContext
 
 
 EXPECTED_NEST_DISCOVERY_TOOLS = {

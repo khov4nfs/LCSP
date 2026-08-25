@@ -1,7 +1,10 @@
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from tools.reports.reporting.final_report_boundary import FinalReportBoundary
-from tools.reports.reporting.final_report_generator import FinalReportGenerator
+from langchain.messages import AIMessage
+
+from tools.common.capabilities.reporting.report.final_report.final_report_boundary import FinalReportBoundary
+from tools.common.capabilities.reporting.report.final_report.final_report_generator import FinalReportGenerator
 
 
 def _context() -> dict:
@@ -65,25 +68,20 @@ def _context() -> dict:
     }
 
 
-def _boundary(llm=None):
-    llm = llm or MagicMock()
-    llm.complete.return_value = MagicMock(content="Summary of system.")
+def _boundary():
     document_client = MagicMock()
     document_client.get_generation_context.return_value = _context()
     return (
-        FinalReportBoundary(
-            config=MagicMock(),
-            llm_client=llm,
-            document_client=document_client,
-        ),
+        FinalReportBoundary(config=MagicMock(), document_client=document_client),
         document_client,
     )
 
 
 def test_t01_authoritative_context_generates_ready_report():
     boundary, document_client = _boundary()
+    boundary._generator.generate = MagicMock(return_value="Summary of system.")
     with patch(
-        "tools.reports.reporting.final_report_boundary.StorageUploader.upload_document",
+        "tools.common.capabilities.reporting.report.final_report.final_report_boundary.StorageUploader.upload_document",
         return_value="https://url",
     ):
         boundary.handle({"documentRequestId": "doc123"}, "corr-id")
@@ -96,7 +94,7 @@ def test_t01_authoritative_context_generates_ready_report():
 def test_t02_report_contains_certified_is_blocked():
     boundary, document_client = _boundary()
     with patch(
-        "tools.reports.reporting.final_report_boundary.FinalReportGenerator.generate",
+        "tools.common.capabilities.reporting.report.final_report.final_report_boundary.FinalReportGenerator.generate",
         return_value="The system is certified.",
     ):
         boundary.handle({"documentRequestId": "doc123"}, "corr-id")
@@ -106,9 +104,10 @@ def test_t02_report_contains_certified_is_blocked():
 
 
 def test_t03_llm_failure_returns_safe_reason_without_exception_text():
-    llm = MagicMock()
-    llm.complete.side_effect = RuntimeError("secret internal provider detail")
-    boundary, document_client = _boundary(llm)
+    boundary, document_client = _boundary()
+    boundary._generator.generate = MagicMock(
+        side_effect=RuntimeError("secret internal provider detail")
+    )
     boundary.handle({"documentRequestId": "doc123"}, "corr-id")
     kwargs = document_client.post_document_callback.call_args.kwargs
     assert kwargs["status"] == "FAILED"
@@ -117,31 +116,35 @@ def test_t03_llm_failure_returns_safe_reason_without_exception_text():
 
 
 def test_t04_generation_context_guardrail_blocks_before_llm():
-    llm = MagicMock()
-    boundary, document_client = _boundary(llm)
+    boundary, document_client = _boundary()
+    boundary._generator.generate = MagicMock(return_value="Summary of system.")
     context = _context()
     context["classification_result"]["guardrail_status"] = "BLOCKED"
     document_client.get_generation_context.return_value = context
     boundary.handle({"documentRequestId": "doc123"}, "corr-id")
-    llm.complete.assert_not_called()
+    boundary._generator.generate.assert_not_called()
     kwargs = document_client.post_document_callback.call_args.kwargs
     assert kwargs["status"] == "FAILED"
     assert kwargs["error_code"] == "DOCUMENT_GENERATION_CONTEXT_INVALID"
 
 
 def test_t05_citation_references():
-    mock_llm = MagicMock()
-    mock_llm.complete.return_value = MagicMock(content="Summary.")
-    generator = FinalReportGenerator(mock_llm)
-    content = generator.generate(
-        assessment_name="Test",
-        assessment_context="Ctx",
-        technical_evidence=[],
-        rule_evaluations=["engineering-rule-result"],
-        citations=["chunk-1::art-2", "chunk-5::art-9"],
-        limitations="",
-        evidence_provenance="",
+    agent = SimpleNamespace(
+        invoke=MagicMock(return_value={"messages": [AIMessage(content="Summary.")]})
     )
+    with patch(
+        "tools.common.capabilities.reporting.report.final_report.final_report_generator.create_agent",
+        return_value=agent,
+    ):
+        content = FinalReportGenerator().generate(
+            assessment_name="Test",
+            assessment_context="Ctx",
+            technical_evidence=[],
+            rule_evaluations=["engineering-rule-result"],
+            citations=["chunk-1::art-2", "chunk-5::art-9"],
+            limitations="",
+            evidence_provenance="",
+        )
     assert "chunk-1::art-2" in content
     assert "chunk-5::art-9" in content
     assert "engineering-rule-result" in content
@@ -164,11 +167,11 @@ def test_t06_planner_audit_metadata_is_not_sent_to_final_report_prompt():
 
     with (
         patch(
-            "tools.reports.reporting.final_report_boundary.FinalReportGenerator.generate",
+            "tools.common.capabilities.reporting.report.final_report.final_report_boundary.FinalReportGenerator.generate",
             return_value="Final report.",
         ) as generate,
         patch(
-            "tools.reports.reporting.final_report_boundary.StorageUploader.upload_document",
+            "tools.common.capabilities.reporting.report.final_report.final_report_boundary.StorageUploader.upload_document",
             return_value="https://url",
         ),
     ):

@@ -1,5 +1,6 @@
 """Legal Triage subagent: proactively maintain legal intelligence before assessments need it."""
 
+from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.runtime_context import inject_lcsp_runtime_context
 from model_policy import TRIAGE_MODEL_SPEC
 from tools.triage.maintain_legal_catalog.code import maintain_legal_catalog
@@ -55,5 +56,5 @@ SUBAGENT = {
     "system_prompt": SYSTEM_PROMPT,
     "tools": TOOLS,
     "model": TRIAGE_MODEL_SPEC,
-    "middleware": [inject_lcsp_runtime_context],
+    "middleware": [inject_lcsp_runtime_context, *MODEL_GOVERNANCE_MIDDLEWARE],
 }

@@ -486,13 +486,81 @@ describe("OutboxPublisherService", () => {
     );
   });
 
-  it("T04: skips the poll and does not crash when RabbitMQ is unavailable", async () => {
-    const withPendingBatch = jest.fn<WithPendingBatchFn>();
-    const outboxRepository = makeOutboxRepository({ withPendingBatch });
+  it("publishes scan commands to RabbitMQ for the Managed Deep Agent event bridge", async () => {
+    const message = makeMessage({
+      aggregateType: OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
+      aggregateId: "scan-job-1",
+      eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered,
+      payload: {
+        scanJobId: "scan-job-1",
+        snapshotId: "snapshot-1",
+        assessmentId: "assessment-1",
+        organizationId: "org-1",
+        correlationId: "corr-1",
+      },
+    });
+    const markPublished = jest
+      .fn<MarkPublishedFn>()
+      .mockResolvedValue(undefined);
+    const publish = jest.fn<PublishFn>().mockResolvedValue(undefined);
+
+    const service = new OutboxPublisherService(
+      makeOutboxRepository({
+        withPendingBatch: jest
+          .fn<WithPendingBatchFn>()
+          .mockImplementation(async (_batchSize, handler) =>
+            handler([message], {} as Prisma.TransactionClient),
+          ),
+        markPublished,
+      }),
+      makeRabbitMqClient({
+        ensureConnected: jest
+          .fn<EnsureConnectedFn>()
+          .mockResolvedValue(undefined),
+        publish,
+      }),
+      makeConfigService(),
+      makeAuditWriter(),
+      makeSnapshotCreatedAutoScanService(),
+    );
+
+    await service.poll();
+
+    expect(publish).toHaveBeenCalledWith(
+      "lcsp.events",
+      GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered,
+      message.payload,
+    );
+    expect(markPublished).toHaveBeenCalledWith(
+      {},
+      "outbox-1",
+      expect.any(Date),
+    );
+  });
+
+  it("T04: leaves messages pending and does not crash when RabbitMQ is unavailable", async () => {
+    const message = makeMessage();
+    const markPublished = jest
+      .fn<MarkPublishedFn>()
+      .mockResolvedValue(undefined);
+    const markFailure = jest.fn<MarkFailureFn>().mockResolvedValue(undefined);
+    const withPendingBatch = jest
+      .fn<WithPendingBatchFn>()
+      .mockImplementation(async (_batchSize, handler) =>
+        handler([message], {} as Prisma.TransactionClient),
+      );
+    const outboxRepository = makeOutboxRepository({
+      withPendingBatch,
+      markPublished,
+      markFailure,
+    });
 
     const rabbitMqClient = makeRabbitMqClient({
       ensureConnected: jest
         .fn<EnsureConnectedFn>()
+        .mockRejectedValue(new Error("ECONNREFUSED")),
+      publish: jest
+        .fn<PublishFn>()
         .mockRejectedValue(new Error("ECONNREFUSED")),
     });
 
@@ -506,6 +574,8 @@ describe("OutboxPublisherService", () => {
 
     await expect(service.poll()).resolves.toBeUndefined();
     expect(withPendingBatch).not.toHaveBeenCalled();
+    expect(markPublished).not.toHaveBeenCalled();
+    expect(markFailure).not.toHaveBeenCalled();
   });
 
   it("does not overlap polls when one is already in progress", async () => {
@@ -534,9 +604,11 @@ describe("OutboxPublisherService", () => {
     const secondPoll = service.poll();
 
     expect(ensureConnected).toHaveBeenCalledTimes(1);
+    expect(withPendingBatch).not.toHaveBeenCalled();
 
     resolveEnsureConnected();
     await Promise.all([firstPoll, secondPoll]);
+    expect(withPendingBatch).toHaveBeenCalledTimes(1);
   });
 
   it("T08: onModuleDestroy stops the poller so no further polls fire", async () => {
@@ -565,6 +637,6 @@ describe("OutboxPublisherService", () => {
     await jest.advanceTimersByTimeAsync(1000);
 
     // Two ticks fired before destroy (at 100ms and 200ms); none after.
-    expect(ensureConnected).toHaveBeenCalledTimes(2);
+    expect(withPendingBatch).toHaveBeenCalledTimes(2);
   });
 });

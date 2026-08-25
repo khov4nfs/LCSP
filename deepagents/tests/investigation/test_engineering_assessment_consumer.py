@@ -5,12 +5,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tools.engineer_rule.investigation.engineering_assessment_boundary import (
+from tools.common.capabilities.assessment.investigation.engineering_rule.engineering_assessment_boundary import (
     EngineeringAssessmentBoundary,
 )
-from tools.engineer_rule.investigation.pipeline import EngineeringInvestigationResult
-from tools.common.platform.api_client import WorkerCallbackError
-from tools.common.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.assessment.investigation.engineering_rule.pipeline import EngineeringInvestigationResult
+from tools.common.capabilities.platform.api_client import WorkerCallbackError
+from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
 
 
 def _config():

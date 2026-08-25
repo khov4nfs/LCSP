@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-from tools.planner.investigation.openwiki_context import (
+from tools.common.capabilities.assessment.investigation.engineering_rule.openwiki_context import (
     OPENWIKI_HINT_AUTHORITY,
     OpenWikiContextProvider,
     OpenWikiContextRequiredError,

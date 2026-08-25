@@ -25,6 +25,8 @@ workers      -> api:8080
 ## Required production environment
 
 The VPS runtime env stays at `/srv/apps/lcsp/.env` and must remain root-owned mode `0600`.
+Managed Deep Agents load the nearest `.env` file at startup with
+`override=False`, so already-injected process environment variables still win.
 
 At minimum, deployment-specific service addresses should follow the internal Docker topology:
 
@@ -38,16 +40,27 @@ HEALTH_PORT=8080
 
 Keep credentials only in the VPS env/secret store. Do not commit production credentials.
 
+In local development, `mda dev` injects MDA-specific local variables and
+`scripts/run.mjs` passes the repository `.env` into child processes. Python
+runtime code also loads `.env` directly as a fallback for standalone commands.
+
 ## Managed Deep Agent
 
 `deepagents` is now a Managed Deep Agents project. It uses root
 `agent.py`, project `tools/`, `skills/`, `schedules/`, and `evals/` instead of
-long-running consumer commands. Local/dev images run `mda dev .`; production
+long-running consumer commands. Local/dev images run `mda dev --no-reload .`; production
 schedules and agent execution are managed by the deployed agent runtime.
 
 Former queue consumers are exposed through the Managed Agent invocation manifest
 in `tools.common.managed.invocation`. Do not deploy separate `ConsumerBase`
 processes for scanner, assessment, reporting, or legal corpus jobs.
+
+NestJS still owns durable outbox rows and publishes every async command/event to
+RabbitMQ with `routingKey = eventType`. The Managed Deep Agent service runs one
+generic RabbitMQ event bridge alongside the agent runtime. That bridge derives
+its queue bindings from the Managed Agent invocation manifest and dispatches
+messages into the matching boundary. Do not add API-side MDA routing predicates
+for individual events.
 
 ## Fogewise deployer compatibility
 

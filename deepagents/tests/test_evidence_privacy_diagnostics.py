@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from tools.graph.scanner.evidence_assembler import (
+from tools.common.capabilities.evidence.scanner.assembly.evidence_assembler import (
     EvidenceAssembler,
     PrivacyAssertionError,
 )

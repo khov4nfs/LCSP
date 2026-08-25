@@ -1,14 +1,14 @@
 import json
 from pathlib import Path
 
-from tools.legal.legal.official_text_extraction_repository import (
+from tools.legal.sources.extraction.official_text_extraction_repository import (
     OfficialTextExtractionRepository,
 )
-from tools.legal.legal.ocr_fallback_repository import (
+from tools.legal.sources.ocr_fallback.ocr_fallback_repository import (
     OcrFallbackRecord,
     OcrFallbackRepository,
 )
-from tools.legal.legal.ocr_quality_validator import (
+from tools.legal.sources.ocr_quality.ocr_quality_validator import (
     EvaluateOcrQualityRequest,
     OcrQualityValidator,
 )
@@ -28,7 +28,7 @@ def _write_canonical_extraction(
     spans_path = output_dir / "LAW-TEST.extraction.spans.json"
     manifest_path = output_dir / "LAW-TEST.extraction.manifest.json"
     spans_json = json.dumps(spans, ensure_ascii=False, indent=2) + "\n"
-    from tools.legal.legal.official_text_extraction import _sha256_bytes
+    from tools.legal.sources.extraction.official_text_extraction import _sha256_bytes
 
     span_manifest_sha256 = _sha256_bytes(spans_json.encode("utf-8"))
     spans_path.write_text(spans_json, encoding="utf-8")
@@ -114,7 +114,7 @@ def _write_ocr_record(
         / "ocr-quality-1234"
     )
     output_dir.mkdir(parents=True, exist_ok=True)
-    from tools.legal.legal.official_text_extraction import _sha256_text
+    from tools.legal.sources.extraction.official_text_extraction import _sha256_text
 
     pages = []
     evidence_refs = []

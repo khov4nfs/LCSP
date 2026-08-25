@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from tools.graph.scanner.tools.syft_tool import SyftTool
-from tools.graph.scanner.tools.tool_base import (
+from tools.common.capabilities.evidence.scanner.tools.syft.syft_tool import SyftTool
+from tools.common.capabilities.evidence.scanner.tools.common.tool_base import (
     OUTCOME_SUCCESS,
     OUTCOME_TOOL_FAILURE,
     OUTCOME_TOOL_TIMEOUT,

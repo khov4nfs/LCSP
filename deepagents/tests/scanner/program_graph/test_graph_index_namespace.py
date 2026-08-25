@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from tools.graph.scanner.evidence_assembler import EvidenceAssembler
-from tools.graph.scanner.program_graph.builder import ProgramGraphBuilder
-from tools.graph.scanner.program_graph.semantic_ir import SemanticNodeFact, SemanticProgram
+from tools.common.capabilities.evidence.scanner.assembly.evidence_assembler import EvidenceAssembler
+from tools.common.capabilities.evidence.graph.construction.assembly.builder import ProgramGraphBuilder
+from tools.common.capabilities.evidence.graph.schema.semantic_ir import SemanticNodeFact, SemanticProgram
 
 
 def test_secret_node_type_uses_namespaced_index_and_passes_evidence_privacy(tmp_path) -> None:

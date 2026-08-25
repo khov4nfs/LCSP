@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from tools.engineer_rule.intelligence.ai_usage_flow_rule_engine import AIUsageFlow
-from tools.engineer_rule.intelligence.engineering_claim_adapter import EngineeringClaimAdapter
+from tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_rule_engine import AIUsageFlow
+from tools.common.capabilities.assessment.claims.ai_usage_flow.engineering_claim_adapter import EngineeringClaimAdapter
 
 
 def _flow() -> AIUsageFlow:

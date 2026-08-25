@@ -8,7 +8,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from runtime.orchestration.managed.invocation import invocation_boundary_manifest
+from tools.common.capabilities.managed.invocation import invocation_boundary_manifest
 from tools.common.get_assessment_context.code import get_assessment_context
 from tools.common.get_legal_corpus_readiness.code import get_legal_corpus_readiness
 from tools.common.retrieve_legal_basis.code import retrieve_legal_basis
@@ -74,28 +74,16 @@ def test_managed_project_separates_authored_tools_from_runtime() -> None:
         for path in (PROJECT_ROOT / "tools").iterdir()
         if path.is_dir() and not path.name.startswith("__")
     }
-    runtime_packages = {
-        path.name
-        for path in (PROJECT_ROOT / "runtime").iterdir()
-        if path.is_dir() and not path.name.startswith("__")
-    }
-
     assert tool_packages == {
         "common",
+        "legal",
         "planner",
         "investigator",
         "resolver",
         "orchestration",
         "triage",
     }
-    assert runtime_packages == {
-        "evidence",
-        "legal",
-        "assessment",
-        "workflow",
-        "reporting",
-        "infrastructure",
-    }
+    assert not (PROJECT_ROOT / "runtime").exists()
     assert (PROJECT_ROOT / "orchestration").is_dir()
     assert (PROJECT_ROOT / "subagents").is_dir()
     assert not (PROJECT_ROOT / "subagents.py").exists()
@@ -107,7 +95,7 @@ def test_managed_project_separates_authored_tools_from_runtime() -> None:
     assert (PROJECT_ROOT / "identity.py").is_file()
     # MDA deployment-shared long-term memory is intentionally disabled for LCSP.
     assert not (PROJECT_ROOT / "memory.py").exists()
-    assert (PROJECT_ROOT / "orchestration" / "memory.py").is_file()
+    assert not (PROJECT_ROOT / "orchestration" / "memory.py").exists()
     assert (PROJECT_ROOT / "middleware").is_dir()
     assert (PROJECT_ROOT / "sandbox" / "__init__.py").is_file()
     assert (PROJECT_ROOT / "skills" / "lcsp" / "SKILL.md").is_file()
@@ -118,7 +106,6 @@ def test_managed_project_separates_authored_tools_from_runtime() -> None:
         path.name
         for path in (PROJECT_ROOT / "tools").glob("*.py")
     } == {"__init__.py"}
-    assert not (PROJECT_ROOT / "tools" / "legal").exists()
     assert not (PROJECT_ROOT / "tools" / "graph").exists()
     assert not (PROJECT_ROOT / "tools" / "classification").exists()
 

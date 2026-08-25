@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from tools.graph.scanner.inventory.language_types import (
+from tools.common.capabilities.evidence.scanner.inventory.language.language_types import (
     LANGUAGE_JAVA,
     LANGUAGE_PYTHON,
     LANGUAGE_TYPESCRIPT,
@@ -10,14 +10,14 @@ from tools.graph.scanner.inventory.language_types import (
     SUPPORT_FULL,
     LanguageClassification,
 )
-from tools.graph.scanner.toolchain_execution import (
+from tools.common.capabilities.evidence.scanner.toolchain.toolchain_execution import (
     APPROVED_TOOL_NAMES,
     TOOL_DISPOSITIONS,
     ToolchainExecutionPlanner,
 )
-from tools.graph.scanner.tool_registry import ToolRegistry
-from tools.graph.scanner.tools.tool_base import OUTCOME_SUCCESS, ToolExecutionResult
-from tools.graph.scanner.tools.tool_base import OUTCOME_SKIPPED_UNSUPPORTED
+from tools.common.capabilities.evidence.scanner.toolchain.tool_registry import ToolRegistry
+from tools.common.capabilities.evidence.scanner.tools.common.tool_base import OUTCOME_SUCCESS, ToolExecutionResult
+from tools.common.capabilities.evidence.scanner.tools.common.tool_base import OUTCOME_SKIPPED_UNSUPPORTED
 
 
 def _classification(

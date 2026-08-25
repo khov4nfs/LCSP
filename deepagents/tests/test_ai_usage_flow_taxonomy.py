@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tools.engineer_rule.intelligence.ai_usage_flow_rule_engine import AIUsageFlowRuleEngine
+from tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_rule_engine import AIUsageFlowRuleEngine
 
 
 CANONICAL_CLAIM_TYPES = {

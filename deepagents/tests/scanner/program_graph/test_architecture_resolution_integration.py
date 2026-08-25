@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tools.graph.scanner.program_graph.assembler import ProgramGraphAssembler
+from tools.common.capabilities.evidence.graph.construction.assembly.assembler import ProgramGraphAssembler
 
 
 def test_architecture_resolvers_build_privacy_safe_graph_with_di_and_redux(tmp_path) -> None:

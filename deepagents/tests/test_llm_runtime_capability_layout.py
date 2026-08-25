@@ -25,21 +25,10 @@ def _py(path: Path) -> set[str]:
     }
 
 
-def test_llm_runtime_groups_support_capabilities() -> None:
+def test_removed_llm_infrastructure_has_no_runtime_tree() -> None:
     llm = PROJECT_ROOT / "runtime" / "infrastructure" / "llm"
 
-    assert _dirs(llm) == {
-        "providers",
-        "budget",
-        "safety",
-        "sandbox",
-        "deep_agent_skills",
-    }
-    assert _py(llm) == {"deep_agent_client.py"}
-    assert _py(llm / "providers") == {"fallback_client.py"}
-    assert _py(llm / "budget") == {"budget_tracker.py"}
-    assert _py(llm / "safety") == {"prompt_safety.py"}
-    assert _py(llm / "sandbox") == {"docker_sandbox.py"}
+    assert not llm.exists()
 
 
 def _assert_alias(legacy: str, canonical: str) -> None:
@@ -50,42 +39,16 @@ def _assert_alias(legacy: str, canonical: str) -> None:
     ).resolve()
 
 
-def test_flat_llm_support_imports_route_to_capability_packages() -> None:
-    _assert_alias(
-        "runtime.infrastructure.llm.fallback_client",
-        "runtime.infrastructure.llm.providers.fallback_client",
-    )
-    _assert_alias(
-        "runtime.infrastructure.llm.budget_tracker",
-        "runtime.infrastructure.llm.budget.budget_tracker",
-    )
-    _assert_alias(
-        "runtime.infrastructure.llm.prompt_safety",
-        "runtime.infrastructure.llm.safety.prompt_safety",
-    )
-    _assert_alias(
-        "runtime.infrastructure.llm.docker_sandbox",
-        "runtime.infrastructure.llm.sandbox.docker_sandbox",
-    )
+def test_sandbox_is_owned_by_managed_sandbox_package() -> None:
+    module = importlib.import_module("sandbox")
+
+    assert Path(str(module.__file__)).resolve() == PROJECT_ROOT / "sandbox" / "__init__.py"
+    assert module.sandbox.kind == "sandbox"
 
 
-def test_tools_common_llm_legacy_submodules_route_to_capability_files() -> None:
-    _assert_alias(
-        "tools.common.llm.budget_tracker",
-        "runtime.infrastructure.llm.budget.budget_tracker",
-    )
-    _assert_alias(
-        "tools.common.llm.prompt_safety",
-        "runtime.infrastructure.llm.safety.prompt_safety",
-    )
-    _assert_alias(
-        "tools.common.llm.docker_sandbox",
-        "runtime.infrastructure.llm.sandbox.docker_sandbox",
-    )
-
-
-def test_deep_agent_client_remains_root_entrypoint_for_skill_paths() -> None:
-    module = importlib.import_module("runtime.infrastructure.llm.deep_agent_client")
-    module_path = Path(str(module.__file__)).resolve()
-    assert module_path.parent.name == "llm"
-    assert (module_path.parent / "deep_agent_skills" / "lcsp" / "SKILL.md").is_file()
+def test_legacy_model_runtime_is_removed() -> None:
+    orchestration = PROJECT_ROOT / "orchestration"
+    assert not (orchestration / "deep_agent_client.py").exists()
+    assert not (orchestration / "provider_fallback.py").exists()
+    assert not (orchestration / "model_runtime.py").exists()
+    assert (PROJECT_ROOT / "skills" / "deep_agent_skills" / "lcsp" / "SKILL.md").is_file()

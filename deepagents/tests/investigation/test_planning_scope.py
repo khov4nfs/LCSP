@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from tools.planner.investigation.models import InvestigationPacket
-from tools.planner.investigation.planning_scope import (
+from tools.common.capabilities.assessment.claims.evidence_claim.models import InvestigationPacket
+from tools.common.capabilities.assessment.planning.engineering_rule.planning_scope import (
     ScopedEngineeringRulePlanningCandidate,
     ScopedMaterialEngineeringRulePlanner,
 )
-from tools.graph.scanner.program_graph.models import ProgramEvidenceGraph
+from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
 
 
 def _rule():

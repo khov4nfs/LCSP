@@ -82,7 +82,8 @@ LCSP authoritative data remains in the API/database:
 
 The project intentionally does **not** define root `memory.py`. Managed Deep
 Agents deployment-shared long-term memory is therefore not used for tenant or
-assessment data. `orchestration/memory.py` documents this authority boundary.
+assessment data. This absence is the MDA memory declaration and the LCSP
+API/database remains the authority boundary.
 
 ### Todos
 
@@ -105,8 +106,9 @@ context_wizard
 → report
 ```
 
-Allowed transitions are declared in `orchestration/pipeline.py`; `flow.py` is only
-a temporary compatibility re-export.
+The supervisor follows this sequence through `instructions.md` and delegates with
+Deep Agents' native `task` tool. LCSP does not maintain a second transition engine
+beside the Deep Agent/LangGraph runtime.
 
 `NEEDS_INPUT` and `resume` are orchestration states. The deterministic gate is not
 a subagent and cannot be called as a model tool.
@@ -246,8 +248,8 @@ tools/
 ```
 
 Physical tool ownership and subagent exposure are intentionally separate. A tool
-being in `tools/common` does not mean every subagent receives it; the canonical
-role allowlists live in `orchestration/pipeline.py`.
+being in `tools/common` does not mean every subagent receives it; each native
+subagent definition owns its exact `tools` list.
 
 The only authored root mutation is:
 

@@ -6,20 +6,20 @@ from dataclasses import asdict
 
 import pytest
 
-from tools.graph.scanner.analyzers.python_analyzer import AiCallSite, PythonAnalysisResult
-from tools.graph.scanner.dependencies.dependency_fact import (
+from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import AiCallSite, PythonAnalysisResult
+from tools.common.capabilities.evidence.scanner.dependencies.dependency_fact import (
     DependencyUsageFact,
     PackageDependency,
     USAGE_USED,
 )
-from tools.graph.scanner.tools.semgrep_tool import SemgrepFinding, SemgrepRunResult
-from tools.graph.scanner.tools.syft_tool import SBOMEntry, SyftRunResult
-from tools.graph.scanner.tools.tool_base import (
+from tools.common.capabilities.evidence.scanner.tools.semgrep.semgrep_tool import SemgrepFinding, SemgrepRunResult
+from tools.common.capabilities.evidence.scanner.tools.syft.syft_tool import SBOMEntry, SyftRunResult
+from tools.common.capabilities.evidence.scanner.tools.common.tool_base import (
     OUTCOME_SUCCESS,
     OUTCOME_TOOL_FAILURE,
     ToolExecutionResult,
 )
-from tools.graph.scanner.ts_js_bridge.bridge_types import (
+from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge_types import (
     TsJsBridgeResult,
     TsJsFinding,
     TsJsUnsupportedDynamicFlow,
@@ -177,7 +177,7 @@ def _syft_result(name: str = "openai") -> SyftRunResult:
 
 @pytest.mark.p0
 def test_t01_fuses_semgrep_and_python_ast_with_direct_evidence() -> None:
-    from tools.graph.scanner.analyzers.ai_invocation_detector import AIInvocationDetector
+    from tools.common.capabilities.evidence.scanner.analyzers.ai_invocation.ai_invocation_detector import AIInvocationDetector
 
     result = AIInvocationDetector().detect(
         semgrep_result=_semgrep_result(_semgrep_finding()),
@@ -195,7 +195,7 @@ def test_t01_fuses_semgrep_and_python_ast_with_direct_evidence() -> None:
 
 @pytest.mark.p0
 def test_t02_t03_sbom_and_dependency_usage_add_corroboration_bonus() -> None:
-    from tools.graph.scanner.analyzers.ai_invocation_detector import AIInvocationDetector
+    from tools.common.capabilities.evidence.scanner.analyzers.ai_invocation.ai_invocation_detector import AIInvocationDetector
 
     result = AIInvocationDetector().detect(
         semgrep_result=_semgrep_result(_semgrep_finding()),
@@ -213,7 +213,7 @@ def test_t02_t03_sbom_and_dependency_usage_add_corroboration_bonus() -> None:
 
 @pytest.mark.p0
 def test_t04_dynamic_call_adds_ambiguity_penalty_and_l4_limitation() -> None:
-    from tools.graph.scanner.analyzers.ai_invocation_detector import AIInvocationDetector
+    from tools.common.capabilities.evidence.scanner.analyzers.ai_invocation.ai_invocation_detector import AIInvocationDetector
 
     result = AIInvocationDetector().detect(
         python_analysis=_python_analysis(
@@ -238,7 +238,7 @@ def test_t04_dynamic_call_adds_ambiguity_penalty_and_l4_limitation() -> None:
 
 @pytest.mark.p0
 def test_t05_t07_tool_failures_emit_coverage_limitations_and_apply_capped_penalty() -> None:
-    from tools.graph.scanner.analyzers.ai_invocation_detector import AIInvocationDetector
+    from tools.common.capabilities.evidence.scanner.analyzers.ai_invocation.ai_invocation_detector import AIInvocationDetector
 
     failures = [
         ToolExecutionResult(
@@ -279,7 +279,7 @@ def test_t05_t07_tool_failures_emit_coverage_limitations_and_apply_capped_penalt
 
 @pytest.mark.p0
 def test_t08_model_invocation_confidence_clamps_to_one() -> None:
-    from tools.graph.scanner.analyzers.ai_invocation_detector import AIInvocationDetector
+    from tools.common.capabilities.evidence.scanner.analyzers.ai_invocation.ai_invocation_detector import AIInvocationDetector
 
     result = AIInvocationDetector().detect(
         python_analysis=_python_analysis(
@@ -300,7 +300,7 @@ def test_t08_model_invocation_confidence_clamps_to_one() -> None:
 
 @pytest.mark.p0
 def test_t11_kwarg_names_are_names_only_and_extended_input_signal_is_emitted() -> None:
-    from tools.graph.scanner.analyzers.ai_invocation_detector import AIInvocationDetector
+    from tools.common.capabilities.evidence.scanner.analyzers.ai_invocation.ai_invocation_detector import AIInvocationDetector
 
     result = AIInvocationDetector().detect(
         python_analysis=_python_analysis(_python_site(kwarg_names=["model", "messages"]))
@@ -315,7 +315,7 @@ def test_t11_kwarg_names_are_names_only_and_extended_input_signal_is_emitted() -
 
 @pytest.mark.p0
 def test_t12_findings_sort_limitations_first_then_confidence_descending() -> None:
-    from tools.graph.scanner.analyzers.ai_invocation_detector import AIInvocationDetector
+    from tools.common.capabilities.evidence.scanner.analyzers.ai_invocation.ai_invocation_detector import AIInvocationDetector
 
     result = AIInvocationDetector().detect(
         python_analysis=_python_analysis(
@@ -347,7 +347,7 @@ def test_t12_findings_sort_limitations_first_then_confidence_descending() -> Non
 
 @pytest.mark.p0
 def test_t15_t17_t18_extended_display_and_decisive_signals_are_mutually_exclusive() -> None:
-    from tools.graph.scanner.analyzers.ai_invocation_detector import AIInvocationDetector
+    from tools.common.capabilities.evidence.scanner.analyzers.ai_invocation.ai_invocation_detector import AIInvocationDetector
 
     display_only = AIInvocationDetector().detect(
         python_analysis=_python_analysis(
@@ -368,7 +368,7 @@ def test_t15_t17_t18_extended_display_and_decisive_signals_are_mutually_exclusiv
 
 @pytest.mark.p0
 def test_t16_domain_and_harm_potential_from_packages_and_function_names() -> None:
-    from tools.graph.scanner.analyzers.ai_invocation_detector import AIInvocationDetector
+    from tools.common.capabilities.evidence.scanner.analyzers.ai_invocation.ai_invocation_detector import AIInvocationDetector
 
     result = AIInvocationDetector().detect(
         python_analysis=_python_analysis(_python_site(function_name="assess_risk")),

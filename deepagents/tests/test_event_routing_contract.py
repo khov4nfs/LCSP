@@ -1,14 +1,14 @@
 import re
 from pathlib import Path
 
-from tools.engineer_rule.investigation.engineering_assessment_boundary import (
+from tools.common.capabilities.assessment.investigation.engineering_rule.engineering_assessment_boundary import (
     EngineeringAssessmentBoundary,
 )
-from tools.legal.legal.legal_corpus_recovery_boundary import LegalCorpusRecoveryBoundary
-from tools.reports.reporting.final_report_boundary import FinalReportBoundary
-from tools.gap.reporting.gap_analysis_boundary import GapAnalysisBoundary
-from tools.graph.scanner.scan_boundary import ScanBoundary
-from tools.graph.scanner.targeted_reanalysis_boundary import TargetedReanalysisBoundary
+from tools.legal.sources.recovery.legal_corpus_recovery_boundary import LegalCorpusRecoveryBoundary
+from tools.common.capabilities.reporting.report.final_report.final_report_boundary import FinalReportBoundary
+from tools.common.capabilities.reporting.gap.gap_analysis_boundary import GapAnalysisBoundary
+from tools.common.capabilities.evidence.scanner.scanning.scan_boundary import ScanBoundary
+from tools.common.capabilities.evidence.scanner.scanning.targeted_reanalysis_boundary import TargetedReanalysisBoundary
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
@@ -60,8 +60,8 @@ def test_production_pm2_starts_managed_deep_agent_not_worker_processes():
     }
 
     assert '"lcsp-managed-deep-agent"' in ecosystem
-    assert '"dev"' in ecosystem
-    assert ".venv/bin/mda" in ecosystem
+    assert "entrypoint.py" in ecosystem
+    assert ".venv/bin/python" in ecosystem
     assert all(f'"{process}"' not in ecosystem for process in removed_processes)
 
 

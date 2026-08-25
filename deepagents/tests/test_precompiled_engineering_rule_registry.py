@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from tools.legal.legal.engineering_rules.compiler import COMPILER_VERSION, PROMPT_VERSION
-from tools.legal.legal.engineering_rules.models import ENGINEERING_RULE_SCHEMA_VERSION
-from tools.legal.legal.engineering_rules.precompiled_registry import (
+from tools.legal.corpus.engineering_rules.compilation.compiler import COMPILER_VERSION, PROMPT_VERSION
+from tools.legal.corpus.engineering_rules.contract.models import ENGINEERING_RULE_SCHEMA_VERSION
+from tools.legal.corpus.engineering_rules.registry.precompiled_registry import (
     PrecompiledEngineeringRuleRegistry,
 )
 

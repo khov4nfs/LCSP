@@ -9,20 +9,20 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tools.legal.legal.chunk_integrity_boundary import ChunkIntegrityBoundary
-from tools.legal.legal.legal_chunk_boundary import LegalChunkBoundary
-from tools.legal.legal.legal_corpus_recovery_driver import LegalCorpusRecoveryDriver
-from tools.legal.legal.legal_retrieval_index_boundary import LegalRetrievalIndexBoundary
-from tools.legal.legal.legal_source_ingest_boundary import LegalSourceIngestBoundary
-from tools.legal.legal.ocr_fallback_boundary import OcrFallbackBoundary
-from tools.legal.legal.ocr_quality_boundary import OcrQualityBoundary
-from tools.legal.legal.official_text_extraction_boundary import (
+from tools.legal.corpus.chunk_integrity.chunk_integrity_boundary import ChunkIntegrityBoundary
+from tools.legal.corpus.legal_chunks.legal_chunk_boundary import LegalChunkBoundary
+from tools.legal.sources.recovery.legal_corpus_recovery_driver import LegalCorpusRecoveryDriver
+from tools.legal.retrieval.index.legal_retrieval_index_boundary import LegalRetrievalIndexBoundary
+from tools.legal.sources.ingest.legal_source_ingest_boundary import LegalSourceIngestBoundary
+from tools.legal.sources.ocr_fallback.ocr_fallback_boundary import OcrFallbackBoundary
+from tools.legal.sources.ocr_quality.ocr_quality_boundary import OcrQualityBoundary
+from tools.legal.sources.extraction.official_text_extraction_boundary import (
     OfficialTextExtractionBoundary,
 )
-from tools.legal.legal.reviewed_corpus_input_boundary import (
+from tools.legal.corpus.reviewed_input.reviewed_corpus_input_boundary import (
     ReviewedCorpusInputBoundary,
 )
-from tools.legal.legal.vbpl_effected_chunk_set_boundary import (
+from tools.legal.sources.vbpl_effects.vbpl_effected_chunk_set_boundary import (
     VbplEffectedChunkSetBoundary,
 )
 

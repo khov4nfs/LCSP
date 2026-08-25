@@ -9,7 +9,7 @@ from typing import Any
 
 import pytest
 
-from runtime.evidence.scanner.tools.tool_base import (
+from tools.common.capabilities.evidence.scanner.tools.common.tool_base import (
     OUTCOME_SUCCESS,
     OUTCOME_TOOL_FAILURE,
     OUTCOME_TOOL_TIMEOUT,
@@ -74,7 +74,7 @@ async def test_t01_openai_chat_completion_payload_is_validated(
     sample_ts_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from runtime.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
+    from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
 
     async def fake_exec(*args: str, **kwargs: Any) -> FakeProcess:
         assert "npm" not in args
@@ -101,7 +101,7 @@ async def test_t02_anthropic_messages_payload_is_validated(
     sample_ts_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from runtime.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
+    from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
 
     async def fake_exec(*_: str, **__: Any) -> FakeProcess:
         return FakeProcess(
@@ -138,7 +138,7 @@ async def test_t03_langchain_prompt_payload_is_validated(
     sample_ts_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from runtime.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
+    from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
 
     async def fake_exec(*_: str, **__: Any) -> FakeProcess:
         return FakeProcess(
@@ -175,7 +175,7 @@ async def test_t04_dynamic_property_access_is_returned_as_unsupported_flow(
     sample_ts_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from runtime.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
+    from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
 
     async def fake_exec(*_: str, **__: Any) -> FakeProcess:
         return FakeProcess(
@@ -209,7 +209,7 @@ async def test_t05_timeout_kills_process_and_records_limitation(
     sample_ts_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from runtime.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
+    from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
 
     fake_process = FakeProcess(delay_seconds=1)
 
@@ -235,7 +235,7 @@ async def test_t06_invalid_json_stdout_records_non_blocking_failure(
     sample_ts_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from runtime.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
+    from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
 
     async def fake_exec(*_: str, **__: Any) -> FakeProcess:
         return FakeProcess(stdout="{not-json")
@@ -257,8 +257,8 @@ async def test_t07_subprocess_env_contains_path_only(
     sample_ts_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from runtime.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
-    from runtime.evidence.scanner.ts_js_bridge.bridge import assert_subprocess_env_safe
+    from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
+    from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge import assert_subprocess_env_safe
 
     monkeypatch.setenv("GITHUB_TOKEN", "ghp_123456789012345678901234567890123456")
     captured_env: dict[str, str] = {}
@@ -288,7 +288,7 @@ async def test_t08_absolute_finding_path_is_stripped_to_workspace_relative(
     sample_ts_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from runtime.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
+    from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
 
     absolute = sample_ts_repo / "src" / "ai.ts"
 
@@ -328,7 +328,7 @@ async def test_t09_secret_in_stderr_is_stripped_before_result_message(
     sample_ts_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from runtime.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
+    from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
 
     async def fake_exec(*_: str, **__: Any) -> FakeProcess:
         return FakeProcess(
@@ -353,7 +353,7 @@ async def test_t10_no_js_ts_files_skips_subprocess(
     workspace_dir: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from runtime.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
+    from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
 
     (workspace_dir / "src").mkdir()
     (workspace_dir / "src" / "app.py").write_text("print('ok')\n", encoding="utf-8")
@@ -383,7 +383,7 @@ async def test_t11_missing_analyzer_script_records_concise_failure(
     sample_ts_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from runtime.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
+    from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
 
     async def fake_exec(*_: str, **__: Any) -> FakeProcess:
         raise AssertionError("subprocess should not run when analyzer script is missing")
@@ -411,7 +411,9 @@ async def test_t11_missing_analyzer_script_records_concise_failure(
 def test_ts_analyzer_source_contains_required_rule_ids() -> None:
     analyzer = (
         Path(__file__).parents[1]
-        / "runtime"
+        / "tools"
+        / "common"
+        / "capabilities"
         / "evidence"
         / "scanner"
         / "ts_js_bridge"

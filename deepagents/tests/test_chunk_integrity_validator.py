@@ -1,24 +1,24 @@
 import json
 from pathlib import Path
 
-from tools.legal.legal.chunk_integrity_validator import (
+from tools.legal.corpus.chunk_integrity.chunk_integrity_validator import (
     ChunkIntegrityValidator,
     ValidateChunkIntegrityRequest,
 )
-from tools.legal.legal.legal_chunk_builder import (
+from tools.legal.corpus.legal_chunks.legal_chunk_builder import (
     BuildLegalChunksRequest,
     LegalChunkBuilder,
 )
-from tools.legal.legal.legal_chunk_repository import (
+from tools.legal.corpus.legal_chunks.legal_chunk_repository import (
     LegalChunkRepository,
     LegalChunkSetRecord,
 )
-from tools.legal.legal.official_text_extraction import _sha256_bytes
-from tools.legal.legal.relationship_manifest_repository import (
+from tools.legal.sources.extraction.official_text_extraction import _sha256_bytes
+from tools.legal.corpus.relationships.relationship_manifest_repository import (
     RelationshipManifestRecord,
     RelationshipManifestRepository,
 )
-from tools.legal.legal.reviewed_corpus_input_repository import (
+from tools.legal.corpus.reviewed_input.reviewed_corpus_input_repository import (
     ReviewedCorpusInputRecord,
     ReviewedCorpusInputRepository,
 )
@@ -36,7 +36,7 @@ def _write_reviewed_input(
     normalized_text_path = output_dir / f"{document_id}.reviewed.txt"
     manifest_path = output_dir / f"{document_id}.reviewed-input.json"
     normalized_text_path.write_text(text + "\n", encoding="utf-8")
-    from tools.legal.legal.official_text_extraction import _sha256_text
+    from tools.legal.sources.extraction.official_text_extraction import _sha256_text
 
     content_sha256 = _sha256_text(text)
     ReviewedCorpusInputRepository(storage_root=storage_root).save(

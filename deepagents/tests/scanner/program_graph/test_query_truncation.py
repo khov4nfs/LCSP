@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from tools.graph.scanner.program_graph.models import ProgramEvidenceGraph
-from tools.graph.scanner.program_graph.query_engine import ProgramGraphQueryEngine
+from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
+from tools.common.capabilities.evidence.graph.query.query_engine import ProgramGraphQueryEngine
 
 
 def _node(node_id: str, node_type: str, *, provider: str | None = None) -> dict:

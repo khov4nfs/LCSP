@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tools.legal.legal.vbpl_effect_detector import detect_effects
+from tools.legal.sources.vbpl_effects.vbpl_effect_detector import detect_effects
 
 
 def test_detects_vbpl_type_markers_as_reviewable_effects(tmp_path: Path) -> None:
