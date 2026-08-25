@@ -3,8 +3,8 @@ import json
 import pytest
 from unittest.mock import MagicMock, patch
 
-from tools.reports.reporting.audit_export_generator import AuditExportGenerator
-from tools.common.platform.callback_schemas import AuditExportCallbackPayload
+from tools.common.capabilities.reporting.report.audit_export.audit_export_generator import AuditExportGenerator
+from tools.common.capabilities.platform.callback_schemas import AuditExportCallbackPayload
 
 @pytest.fixture
 def mock_api_client():
@@ -98,9 +98,9 @@ def test_t03_json_lines_format(generator, mock_api_client, mock_s3_client):
 
 def test_t04_upload_fails_consumer_behavior():
     """T04: Upload fails -> status = FAILED, logged"""
-    from tools.reports.reporting.audit_export_boundary import AuditExportBoundary
+    from tools.common.capabilities.reporting.report.audit_export.audit_export_boundary import AuditExportBoundary
     
-    with patch("tools.reports.reporting.audit_export_boundary.boto3.client") as mock_boto:
+    with patch("tools.common.capabilities.reporting.report.audit_export.audit_export_boundary.boto3.client") as mock_boto:
         with patch.dict(os.environ, {
             "AWS_S3_BUCKET_NAME": "test-bucket", 
             "NESTJS_API_BASE_URL": "http://localhost", 

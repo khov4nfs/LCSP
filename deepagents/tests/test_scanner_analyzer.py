@@ -18,7 +18,7 @@ def test_analyzer_does_not_execute_source_code(sample_python_repo: Path) -> None
     """
     # RED: Analyzer not yet implemented.
     try:
-        from tools.graph.scanner.analyzers.python_ast import PythonAstAnalyzer
+        from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_ast import PythonAstAnalyzer
 
         # Inject a canary — if source is executed, this will raise
         canary = sample_python_repo / "src" / "canary.py"
@@ -45,7 +45,7 @@ def test_analyzer_does_not_install_dependencies(sample_python_repo: Path) -> Non
     """
     # RED: Analyzer not yet implemented.
     try:
-        from tools.graph.scanner.analyzers.python_ast import PythonAstAnalyzer
+        from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_ast import PythonAstAnalyzer
 
         with patch("subprocess.run") as mock_run, patch("subprocess.Popen") as mock_popen:
             analyzer = PythonAstAnalyzer(workspace=str(sample_python_repo))
@@ -65,7 +65,7 @@ def test_analyzer_does_not_install_dependencies(sample_python_repo: Path) -> Non
 def test_analyzer_does_not_run_npm_install(sample_ts_repo: Path) -> None:
     """AC-031: TS/JS bridge subprocess must not invoke npm install."""
     try:
-        from tools.graph.scanner.ts_js_bridge.bridge import TsJsBridge
+        from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge import TsJsBridge
 
         with patch("asyncio.create_subprocess_exec") as mock_exec:
             # Capture the command that would be run
@@ -106,7 +106,7 @@ def test_finding_has_required_fields(sample_python_repo: Path) -> None:
     }
 
     try:
-        from tools.graph.scanner.analyzers.python_ast import PythonAstAnalyzer
+        from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_ast import PythonAstAnalyzer
 
         analyzer = PythonAstAnalyzer(workspace=str(sample_python_repo))
         result = analyzer.analyze()
@@ -134,7 +134,7 @@ def test_finding_has_required_fields(sample_python_repo: Path) -> None:
 def test_finding_confidence_never_exceeds_1_00(sample_python_repo: Path) -> None:
     """AC-032: Confidence must be clamped to [0.00, 1.00]."""
     try:
-        from tools.graph.scanner.analyzers.python_ast import PythonAstAnalyzer
+        from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_ast import PythonAstAnalyzer
 
         analyzer = PythonAstAnalyzer(workspace=str(sample_python_repo))
         result = analyzer.analyze()
@@ -159,7 +159,7 @@ def test_finding_does_not_include_source_code(sample_python_repo: Path) -> None:
     CODE_HEURISTICS = ["def ", "import ", "function ", "class ", "const ", "let "]
 
     try:
-        from tools.graph.scanner.analyzers.python_ast import PythonAstAnalyzer
+        from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_ast import PythonAstAnalyzer
 
         analyzer = PythonAstAnalyzer(workspace=str(sample_python_repo))
         result = analyzer.analyze()
@@ -177,7 +177,7 @@ def test_finding_does_not_include_source_code(sample_python_repo: Path) -> None:
 
 @pytest.mark.p0
 def test_t01_openai_chat_completion_call_site(workspace_dir: Path) -> None:
-    from tools.graph.scanner.analyzers.python_analyzer import PythonAnalyzer
+    from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import PythonAnalyzer
 
     src = workspace_dir / "src"
     src.mkdir()
@@ -198,7 +198,7 @@ def test_t01_openai_chat_completion_call_site(workspace_dir: Path) -> None:
 
 @pytest.mark.p0
 def test_t02_langchain_prompt_template_detected(workspace_dir: Path) -> None:
-    from tools.graph.scanner.analyzers.python_analyzer import PythonAnalyzer
+    from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import PythonAnalyzer
 
     src = workspace_dir / "src"
     src.mkdir()
@@ -219,7 +219,7 @@ def test_t02_langchain_prompt_template_detected(workspace_dir: Path) -> None:
 
 @pytest.mark.p0
 def test_t03_getattr_dynamic_flow_is_unsupported(workspace_dir: Path) -> None:
-    from tools.graph.scanner.analyzers.python_analyzer import PythonAnalyzer
+    from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import PythonAnalyzer
 
     (workspace_dir / "dynamic.py").write_text(
         "method = 'predict'\ngetattr(model, method)(payload)\n",
@@ -235,7 +235,7 @@ def test_t03_getattr_dynamic_flow_is_unsupported(workspace_dir: Path) -> None:
 
 @pytest.mark.p0
 def test_t04_dynamic_system_prompt_reference(workspace_dir: Path) -> None:
-    from tools.graph.scanner.analyzers.python_analyzer import PythonAnalyzer
+    from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import PythonAnalyzer
 
     (workspace_dir / "prompt.py").write_text(
         "SYSTEM_PROMPT = 'policy'\n"
@@ -250,7 +250,7 @@ def test_t04_dynamic_system_prompt_reference(workspace_dir: Path) -> None:
 
 @pytest.mark.p0
 def test_t05_large_python_file_is_parsed_without_arbitrary_50kb_skip(workspace_dir: Path) -> None:
-    from tools.graph.scanner.analyzers.python_analyzer import PythonAnalyzer
+    from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import PythonAnalyzer
 
     (workspace_dir / "large.py").write_text("x = 1\n" * 40000, encoding="utf-8")
 
@@ -266,7 +266,7 @@ def test_t05_large_python_file_is_parsed_without_arbitrary_50kb_skip(workspace_d
 
 @pytest.mark.p0
 def test_t06_call_args_schema_contains_names_only(workspace_dir: Path) -> None:
-    from tools.graph.scanner.analyzers.python_analyzer import PythonAnalyzer
+    from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import PythonAnalyzer
 
     (workspace_dir / "app.py").write_text(
         "import openai\n"
@@ -284,7 +284,7 @@ def test_t06_call_args_schema_contains_names_only(workspace_dir: Path) -> None:
 
 @pytest.mark.p0
 def test_t07_venv_folder_not_traversed(workspace_dir: Path) -> None:
-    from tools.graph.scanner.analyzers.python_analyzer import PythonAnalyzer
+    from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import PythonAnalyzer
 
     venv = workspace_dir / "venv"
     venv.mkdir()
@@ -298,7 +298,7 @@ def test_t07_venv_folder_not_traversed(workspace_dir: Path) -> None:
 
 @pytest.mark.p0
 def test_t08_l3_cross_file_direct_import_chain(workspace_dir: Path) -> None:
-    from tools.graph.scanner.analyzers.python_analyzer import PythonAnalyzer
+    from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import PythonAnalyzer
 
     (workspace_dir / "main.py").write_text("from helper import ask\nask()\n", encoding="utf-8")
     (workspace_dir / "helper.py").write_text(
@@ -320,7 +320,7 @@ def test_t08_l3_cross_file_direct_import_chain(workspace_dir: Path) -> None:
 
 @pytest.mark.p0
 def test_t09_sklearn_predict_detected(workspace_dir: Path) -> None:
-    from tools.graph.scanner.analyzers.python_analyzer import PythonAnalyzer
+    from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import PythonAnalyzer
 
     (workspace_dir / "ml.py").write_text(
         "from sklearn.linear_model import LogisticRegression\n"
@@ -338,7 +338,7 @@ def test_t09_sklearn_predict_detected(workspace_dir: Path) -> None:
 
 @pytest.mark.p0
 def test_t10_llamaindex_query_engine_detected(workspace_dir: Path) -> None:
-    from tools.graph.scanner.analyzers.python_analyzer import PythonAnalyzer
+    from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import PythonAnalyzer
 
     (workspace_dir / "rag.py").write_text(
         "from llama_index.core import VectorStoreIndex\n"
@@ -361,7 +361,7 @@ def test_t11_python_cst_parser_executes_the_pinned_libcst_backend(
     workspace_dir: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import tools.graph.scanner.parsers.python_cst_parser as parser_module
+    import tools.common.capabilities.evidence.scanner.parsers.python.python_cst_parser as parser_module
 
     source_file = workspace_dir / "app.py"
     source_file.write_text(
@@ -393,8 +393,8 @@ def test_t12_python_cst_parse_error_records_coverage_limitation(
     workspace_dir: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import tools.graph.scanner.parsers.python_cst_parser as parser_module
-    from tools.graph.scanner.analyzers.python_analyzer import PythonAnalyzer
+    import tools.common.capabilities.evidence.scanner.parsers.python.python_cst_parser as parser_module
+    from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import PythonAnalyzer
 
     source_file = workspace_dir / "app.py"
     source_file.write_text(

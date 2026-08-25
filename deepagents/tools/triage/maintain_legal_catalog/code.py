@@ -5,7 +5,7 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field
 from langchain.tools import tool
 
-from runtime.legal.maintenance import LegalIntelligenceMaintenanceService
+from .service import MaintainLegalCatalogService
 
 
 class MaintainLegalCatalogInput(BaseModel):
@@ -20,7 +20,7 @@ class MaintainLegalCatalogInput(BaseModel):
 @tool(args_schema=MaintainLegalCatalogInput)
 def maintain_legal_catalog(max_runs: int = 500, correlation_id: str | None = None) -> dict:
     """Refresh only approved legal sources and run governed recovery when they changed."""
-    return LegalIntelligenceMaintenanceService().run(
+    return MaintainLegalCatalogService().run(
         max_runs=max_runs,
         correlation_id=correlation_id,
     )

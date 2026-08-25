@@ -5,8 +5,8 @@ from uuid import uuid4
 import pytest
 from pydantic import ValidationError
 
-from tools.common.agentic_evidence.catalog import build_llm_tool_definitions
-from tools.common.agentic_evidence.registry import (
+from tools.common.capabilities.agentic_evidence.governance.catalog import llm_callable_tool_specs
+from tools.common.capabilities.agentic_evidence.governance.registry import (
     AgenticToolRequest,
     AgenticToolValidationError,
     build_sprint6_agentic_registry,
@@ -99,13 +99,13 @@ def test_sprint6_inventory_is_exact_and_unique() -> None:
 
 def test_only_read_tools_are_exposed_to_the_model() -> None:
     registry = build_sprint6_agentic_registry()
-    definitions = build_llm_tool_definitions()
-    model_names = {definition.name for definition in definitions}
+    specs = llm_callable_tool_specs()
+    model_names = {spec.name for spec in specs}
 
     assert model_names == EXPECTED_TOOLS - NON_MODEL_TOOLS
     assert set(registry.model_callable_names()) == model_names
-    assert len(definitions) == 17
-    assert all(definition.input_schema["additionalProperties"] is False for definition in definitions)
+    assert len(specs) == 17
+    assert all(spec.input_schema["additionalProperties"] is False for spec in specs)
 
 
 def test_unknown_tool_fails_closed() -> None:

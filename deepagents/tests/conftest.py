@@ -19,9 +19,9 @@ if ROOT_PATH not in sys.path:
     sys.path.insert(0, ROOT_PATH)
 
 
-# Migration-only test bridge for historical tests that load legal utilities by
-# physical file path instead of importing the runtime package. Production code
-# does not expose or recreate runtime/legal/scripts.
+# Test bridge for historical tests that load legal utilities by physical file
+# path instead of importing the package. Production code owns legal utilities
+# under tools/legal.
 _original_spec_from_file_location = importlib.util.spec_from_file_location
 
 
@@ -29,16 +29,30 @@ def _canonical_test_module_path(location: object) -> object:
     if not isinstance(location, (str, bytes, Path)):
         return location
     path = Path(location)
-    legacy_scripts = ROOT_DIR / "runtime" / "legal" / "scripts"
-    legacy_extraction = ROOT_DIR / "runtime" / "legal" / "official_text_extraction.py"
-    try:
-        relative_script = path.relative_to(legacy_scripts)
-    except ValueError:
-        relative_script = None
-    if relative_script is not None:
-        return ROOT_DIR / "runtime" / "legal" / "sources" / "scripts" / relative_script
-    if path == legacy_extraction:
-        return ROOT_DIR / "runtime" / "legal" / "sources" / "official_text_extraction.py"
+    legal_root = ROOT_DIR / "tools" / "legal"
+    legacy_script_roots = (
+        ROOT_DIR / "runtime" / "legal" / "scripts",
+        ROOT_DIR / "runtime" / "legal" / "sources" / "scripts",
+    )
+    for legacy_scripts in legacy_script_roots:
+        try:
+            relative_script = path.relative_to(legacy_scripts)
+        except ValueError:
+            continue
+        return legal_root / "sources" / "scripts" / relative_script
+
+    legacy_extractions = {
+        ROOT_DIR / "runtime" / "legal" / "official_text_extraction.py",
+        ROOT_DIR / "runtime" / "legal" / "sources" / "official_text_extraction.py",
+        ROOT_DIR
+        / "runtime"
+        / "legal"
+        / "sources"
+        / "extraction"
+        / "official_text_extraction.py",
+    }
+    if path in legacy_extractions:
+        return legal_root / "sources" / "extraction" / "official_text_extraction.py"
     return location
 
 

@@ -88,9 +88,8 @@ module.exports = {
       args: [
         "-e", ENV_FILE,
         "--",
-        `${APP}/.venv/bin/mda`,
-        "dev",
-        "."
+        `${APP}/.venv/bin/python`,
+        "entrypoint.py"
       ],
 
       env: {

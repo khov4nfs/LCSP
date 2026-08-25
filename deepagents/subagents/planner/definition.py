@@ -1,5 +1,6 @@
 """Planner subagent: turn hydrated context and EngineeringRules into bounded work."""
 
+from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.runtime_context import inject_lcsp_runtime_context
 from model_policy import PLANNER_MODEL_SPEC
 from tools.common.search_program_graph.code import search_program_graph
@@ -50,5 +51,5 @@ SUBAGENT = {
     "system_prompt": SYSTEM_PROMPT,
     "tools": TOOLS,
     "model": PLANNER_MODEL_SPEC,
-    "middleware": [inject_lcsp_runtime_context],
+    "middleware": [inject_lcsp_runtime_context, *MODEL_GOVERNANCE_MIDDLEWARE],
 }

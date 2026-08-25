@@ -2,6 +2,12 @@ import * as assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  ASSESSMENT_RUNTIME_EVENT_TYPES,
+  ASSESSMENT_RUNTIME_RUN_STATUSES,
+} from "@lcsp/contracts/evidence";
+import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
+
+import {
   parseRuntimeEvent,
   runtimeFingerprint,
 } from "../src/features/workspace/utils/workspace-runtime-parser.ts";
@@ -223,6 +229,64 @@ test("runtime console model keeps waiting steps out of completed fallback", () =
   assert.equal(model.completedCount, 0);
   assert.equal(model.activeStep?.id, "scan-waiting");
   assert.equal(model.steps[0]?.defaultExpanded, true);
+});
+
+test("runtime console model closes orphaned tool starts after the run completes", () => {
+  const model = buildRuntimeConsoleModel([
+    runtimeActivity({
+      eventId: "semgrep-started",
+      eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
+      runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+      sequence: 1,
+      toolName: "semgrep",
+      summary: "Running semgrep analysis",
+    }),
+    runtimeActivity({
+      eventId: "run-completed",
+      eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted,
+      runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
+      sequence: 2,
+      toolName: "repository_scan",
+      summary: "Repository scan completed",
+    }),
+  ]);
+
+  assert.equal(model.runningCount, 0);
+  assert.equal(model.completedCount, 2);
+  assert.equal(model.activeStep, null);
+  assert.equal(model.steps[0]?.isActive, false);
+  assert.equal(
+    model.steps[0]?.item.runStatus,
+    ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
+  );
+  assert.deepEqual(model.steps[0]?.item.outputSummary, {
+    status: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
+    completedBy: ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted,
+  });
+});
+
+test("runtime console model closes orphaned tool starts from terminal scan job status", () => {
+  const model = buildRuntimeConsoleModel(
+    [
+      runtimeActivity({
+        eventId: "python-started",
+        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolStarted,
+        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+        sequence: 1,
+        toolName: "python_semantic_analysis",
+        summary: "Running Python semantic analysis",
+      }),
+    ],
+    { runStatusOverride: REPOSITORY_SCAN_JOB_STATUSES.completed },
+  );
+
+  assert.equal(model.runningCount, 0);
+  assert.equal(model.completedCount, 1);
+  assert.equal(model.activeStep, null);
+  assert.deepEqual(model.steps[0]?.item.outputSummary, {
+    status: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
+    completedBy: "REPOSITORY_SCAN_JOB_STATUS",
+  });
 });
 
 test("runtime console activity keeps only the latest scan run", () => {

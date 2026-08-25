@@ -6,6 +6,7 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.runtime_context import inject_lcsp_runtime_context
 from model_policy import CONTEXT_WIZARD_MODEL_SPEC
 from tools.common.get_assessment_context.code import get_assessment_context
@@ -146,7 +147,7 @@ SUBAGENT = {
     "system_prompt": SYSTEM_PROMPT,
     "tools": TOOLS,
     "model": CONTEXT_WIZARD_MODEL_SPEC,
-    "middleware": [inject_lcsp_runtime_context],
+    "middleware": [inject_lcsp_runtime_context, *MODEL_GOVERNANCE_MIDDLEWARE],
 }
 
 

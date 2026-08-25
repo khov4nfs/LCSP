@@ -1,4 +1,4 @@
-from tools.engineer_rule.intelligence.technical_profile_boundary import (
+from tools.common.capabilities.assessment.claims.technical_profile.technical_profile_boundary import (
     MAX_ENGINEERING_CLAIMS,
     TechnicalProfileBoundary,
 )

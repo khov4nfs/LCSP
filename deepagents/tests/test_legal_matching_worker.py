@@ -1,12 +1,12 @@
-from tools.legal.legal.rule_applicability_evaluator import (
+from tools.legal.retrieval.legal_basis.rule_applicability_evaluator import (
     RuleApplicabilityEvaluator,
     RuleEvaluationResult,
 )
-from tools.legal.legal.chromadb_citation_retriever import (
+from tools.legal.retrieval.legal_basis.chromadb_citation_retriever import (
     ChromaDbCitationRetriever,
     RetrievedChunk,
 )
-from tools.legal.legal.legal_match_builder import LegalMatchBuilder
+from tools.legal.retrieval.legal_basis.legal_match_builder import LegalMatchBuilder
 
 
 def test_rule_applicability_evaluator_marks_match_when_required_facts_present_and_evidence_backed():

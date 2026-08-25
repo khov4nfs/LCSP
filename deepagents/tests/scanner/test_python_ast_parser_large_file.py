@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tools.graph.scanner.parsers.python_ast_parser import PythonAstParser
+from tools.common.capabilities.evidence.scanner.parsers.python.python_ast_parser import PythonAstParser
 
 
 def test_python_ast_parser_does_not_skip_file_only_because_it_exceeds_50kb(tmp_path) -> None:

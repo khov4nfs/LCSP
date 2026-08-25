@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from tools.classification.classification.classification_boundary import ClassificationBoundary
-from tools.legal.legal.chromadb_citation_retriever import RetrievedChunk
-from tools.legal.legal.legal_retrieval_boundary import LegalRetrievalBoundary
+from tools.common.capabilities.assessment.evaluation.classification.classification_boundary import ClassificationBoundary
+from tools.legal.retrieval.legal_basis.chromadb_citation_retriever import RetrievedChunk
+from tools.legal.retrieval.legal_basis.legal_retrieval_boundary import LegalRetrievalBoundary
 
 
 class DummyConfig:

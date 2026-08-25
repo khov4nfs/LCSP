@@ -4,31 +4,31 @@ from dataclasses import replace
 
 import pytest
 
-from tools.graph.scanner.analyzers.python_analyzer import AiCallSite, PythonAnalysisResult
-from tools.graph.scanner.dependencies.dependency_fact import PackageDependency
-from tools.graph.scanner.evidence_assembler import (
+from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import AiCallSite, PythonAnalysisResult
+from tools.common.capabilities.evidence.scanner.dependencies.dependency_fact import PackageDependency
+from tools.common.capabilities.evidence.scanner.assembly.evidence_assembler import (
     EvidenceAssembler,
     PrivacyAssertionError,
     PrivacyFlags,
 )
-from tools.graph.scanner.inventory.language_types import (
+from tools.common.capabilities.evidence.scanner.inventory.language.language_types import (
     LANGUAGE_PYTHON,
     LanguageClassification,
     SUPPORT_FULL,
 )
-from tools.graph.scanner.parsers.structural_types import StructuralFact
-from tools.graph.scanner.program_graph.builder import ProgramGraphBuilder
-from tools.graph.scanner.program_graph.semantic_ir import SemanticNodeFact, SemanticProgram
-from tools.graph.scanner.tool_registry import ToolProvenance
-from tools.graph.scanner.toolchain_execution import RepositoryLanguageProfile
-from tools.graph.scanner.tools.semgrep_tool import SemgrepRunResult
-from tools.graph.scanner.tools.syft_tool import SBOMEntry, SyftRunResult
-from tools.graph.scanner.tools.tool_base import (
+from tools.common.capabilities.evidence.scanner.parsers.structural.structural_types import StructuralFact
+from tools.common.capabilities.evidence.graph.construction.assembly.builder import ProgramGraphBuilder
+from tools.common.capabilities.evidence.graph.schema.semantic_ir import SemanticNodeFact, SemanticProgram
+from tools.common.capabilities.evidence.scanner.toolchain.tool_registry import ToolProvenance
+from tools.common.capabilities.evidence.scanner.toolchain.toolchain_execution import RepositoryLanguageProfile
+from tools.common.capabilities.evidence.scanner.tools.semgrep.semgrep_tool import SemgrepRunResult
+from tools.common.capabilities.evidence.scanner.tools.syft.syft_tool import SBOMEntry, SyftRunResult
+from tools.common.capabilities.evidence.scanner.tools.common.tool_base import (
     OUTCOME_SUCCESS,
     OUTCOME_TOOL_FAILURE,
     ToolExecutionResult,
 )
-from tools.graph.scanner.ts_js_bridge.bridge_types import (
+from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge_types import (
     TsJsBridgeResult,
     TsJsCoverageLimitation,
     TsJsFinding,
@@ -327,7 +327,7 @@ def test_t09_serializes_sanitized_versioned_program_evidence_graph() -> None:
     assert graph_payload["evidence_graph_ref"]
 
     # Resolution checks: ProgramEvidenceGraph.from_dict correctly loads data from the ref file
-    from tools.graph.scanner.program_graph.models import ProgramEvidenceGraph
+    from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
     loaded_graph = ProgramEvidenceGraph.from_dict(graph_payload)
     assert loaded_graph.source_anchors
     assert loaded_graph.nodes

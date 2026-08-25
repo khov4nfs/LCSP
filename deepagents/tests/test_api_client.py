@@ -3,8 +3,8 @@ import httpx
 from unittest.mock import patch, MagicMock
 from pydantic import ValidationError
 
-from tools.common.platform.api_client import WorkerApiClient, WorkerCallbackError
-from tools.common.platform.callback_schemas import (
+from tools.common.capabilities.platform.api_client import WorkerApiClient, WorkerCallbackError
+from tools.common.capabilities.platform.callback_schemas import (
     ScanCallbackPayload,
     CallbackResponse,
     AIUsageFlowCallbackPayload,
@@ -13,13 +13,13 @@ from tools.common.platform.callback_schemas import (
     TechnicalProfileCallbackPayload,
     VerifiedProfileCallbackPayload,
 )
-from tools.common.platform.correlation import set_correlationId
+from tools.common.capabilities.platform.correlation import set_correlationId
 
 
 @pytest.fixture
 def client():
     # Fast retry for tests by patching time.sleep
-    with patch("tools.common.platform.api_client.time.sleep"):
+    with patch("tools.common.capabilities.platform.api_client.time.sleep"):
         yield WorkerApiClient(base_url="http://testserver", api_key="test-api-key")
 
 
@@ -30,7 +30,7 @@ def dummy_payload():
 
 def test_t01_successful_callback(client, dummy_payload):
     """T01: Successful callback parses response."""
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"success": True, "message": "OK"}
@@ -49,7 +49,7 @@ def test_t01_successful_callback(client, dummy_payload):
 
 def test_t02_5xx_response(client, dummy_payload):
     """T02: 5xx response is retried 3 times then raises WorkerCallbackError."""
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 503
         mock_post.return_value = mock_resp
@@ -63,7 +63,7 @@ def test_t02_5xx_response(client, dummy_payload):
 
 def test_t03_422_response(client, dummy_payload):
     """T03: 422 response is NOT retried, raises WorkerCallbackError immediately."""
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 422
         mock_post.return_value = mock_resp
@@ -77,7 +77,7 @@ def test_t03_422_response(client, dummy_payload):
 
 def test_t04_network_timeout(client, dummy_payload):
     """T04: Network timeout is retried 3 times."""
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_post.side_effect = httpx.TimeoutException("Timeout")
 
         with pytest.raises(WorkerCallbackError) as exc_info:
@@ -90,7 +90,7 @@ def test_t04_network_timeout(client, dummy_payload):
 def test_t05_t06_headers(client, dummy_payload):
     """T05 & T06: X-Worker-Api-Key and X-Correlation-Id are included in every request."""
     set_correlationId("test-cid-999")
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"success": True}
@@ -107,7 +107,7 @@ def test_t05_t06_headers(client, dummy_payload):
 def test_scan_runtime_event_posts_best_effort_metadata(client):
     """Runtime progress uses the worker-auth internal endpoint and sanitized payload."""
     set_correlationId("runtime-cid-1")
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 202
         mock_post.return_value = mock_resp
@@ -137,7 +137,7 @@ def test_scan_runtime_event_posts_best_effort_metadata(client):
 
 def test_scan_runtime_event_failure_does_not_fail_scan(client):
     """Runtime progress is best-effort and never raises into scan execution."""
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_post.side_effect = httpx.TimeoutException("runtime timeout")
 
         client.post_scan_runtime_event(
@@ -180,7 +180,7 @@ def test_callback_payload_strips_raw_source_and_secret_values(client):
         ],
     )
 
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"success": True}
@@ -213,7 +213,7 @@ def test_scan_callback_preserves_boolean_privacy_flags(client):
         },
     )
 
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"success": True}
@@ -235,7 +235,7 @@ def test_scan_callback_preserves_secret_detection_tool_provenance(client):
         privacy_flags={"containsSourceCode": False, "secretsRedacted": True},
     )
 
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"success": True}
@@ -255,7 +255,7 @@ def test_scan_callback_preserves_secret_detection_tool_provenance(client):
 
 
 def test_requeue_targeted_reanalysis_request_uses_internal_worker_endpoint(client):
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"ok": True, "data": {"requeued": True}}
@@ -278,7 +278,7 @@ def test_technical_profile_callback_uses_evidence_endpoint(client):
         privacy_flags={"containsSourceCode": False, "secretsRedacted": True},
     )
 
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
@@ -311,7 +311,7 @@ def test_large_technical_profile_callback_uses_artifact_with_inline_fallback(
         scan_job_id="scan-job-1",
     )
 
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
@@ -328,7 +328,7 @@ def test_large_technical_profile_callback_uses_artifact_with_inline_fallback(
     assert sent_payload["profile_data"] == payload.profile_data
 
 def test_dispatch_agentic_tool_uses_internal_runtime_endpoint(client):
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"ok": True, "data": {"status": "READY"}}
@@ -353,7 +353,7 @@ def test_dispatch_agentic_tool_uses_internal_runtime_endpoint(client):
 
 
 def test_create_targeted_reanalysis_request_uses_internal_api_endpoint(client):
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 202
         mock_resp.json.return_value = {"ok": True, "data": {"state": "QUEUED"}}
@@ -370,7 +370,7 @@ def test_create_targeted_reanalysis_request_uses_internal_api_endpoint(client):
 
 
 def test_resume_waiting_runs_uses_internal_legal_catalog_endpoint(client):
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 202
         mock_resp.json.return_value = {
@@ -391,7 +391,7 @@ def test_resume_waiting_runs_uses_internal_legal_catalog_endpoint(client):
 
 
 def test_recover_legal_rules_from_active_corpus_uses_internal_worker_endpoint(client):
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
@@ -421,7 +421,7 @@ def test_profile_already_exists_is_an_idempotent_callback_result(client):
         privacy_flags={"containsSourceCode": False, "secretsRedacted": True},
     )
 
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 409
         mock_resp.json.return_value = {"problem": {"code": "PROFILE_ALREADY_EXISTS"}}
@@ -435,7 +435,7 @@ def test_profile_already_exists_is_an_idempotent_callback_result(client):
 
 
 def test_get_accepted_technical_evidence_report_rejects_non_accepted(client):
-    with patch("tools.common.platform.api_client.httpx.get") as mock_get:
+    with patch("tools.common.capabilities.platform.api_client.httpx.get") as mock_get:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"id": "ter-1", "status": "rejected"}
@@ -456,7 +456,7 @@ def test_ai_usage_flow_callback_uses_internal_ai_usage_flow_endpoint(client):
         privacy_flags={"containsSourceCode": False, "secretsRedacted": True},
     )
 
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"accepted": True}
@@ -469,7 +469,7 @@ def test_ai_usage_flow_callback_uses_internal_ai_usage_flow_endpoint(client):
 
 
 def test_get_accepted_technical_profile_rejects_non_accepted(client):
-    with patch("tools.common.platform.api_client.httpx.get") as mock_get:
+    with patch("tools.common.capabilities.platform.api_client.httpx.get") as mock_get:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"id": "tp-1", "status": "rejected"}
@@ -480,7 +480,7 @@ def test_get_accepted_technical_profile_rejects_non_accepted(client):
 
 
 def test_get_wizard_profile_returns_none_for_404(client):
-    with patch("tools.common.platform.api_client.httpx.get") as mock_get:
+    with patch("tools.common.capabilities.platform.api_client.httpx.get") as mock_get:
         mock_resp = MagicMock()
         mock_resp.status_code = 404
         mock_get.return_value = mock_resp
@@ -489,7 +489,7 @@ def test_get_wizard_profile_returns_none_for_404(client):
 
 
 def test_get_official_source_snapshot_uses_query_params(client):
-    with patch("tools.common.platform.api_client.httpx.get") as mock_get:
+    with patch("tools.common.capabilities.platform.api_client.httpx.get") as mock_get:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"snapshotRef": "snapshot:LAW-TEST:abcd1234ef56"}
@@ -518,7 +518,7 @@ def test_reconciliation_conflict_callback_uses_internal_endpoint(client):
         privacy_flags={"containsSourceCode": False, "secretsRedacted": True},
     )
 
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
@@ -550,7 +550,7 @@ def _verified_profile_callback_payload() -> VerifiedProfileCallbackPayload:
 def test_verified_profile_callback_uses_reconciliation_endpoint(client):
     payload = _verified_profile_callback_payload()
 
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"accepted": True}
@@ -570,7 +570,7 @@ def test_verified_profile_callback_uses_reconciliation_endpoint(client):
 def test_verified_profile_pending_conflicts_error_preserves_error_code(client):
     payload = _verified_profile_callback_payload()
 
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 409
         mock_resp.json.return_value = {"error_code": "PENDING_CONFLICTS_EXIST"}
@@ -589,7 +589,7 @@ def test_legal_rule_match_callback_uses_classification_endpoint(client):
         matches=[],
     )
 
-    with patch("tools.common.platform.api_client.httpx.post") as mock_post:
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"accepted": True}
@@ -602,7 +602,7 @@ def test_legal_rule_match_callback_uses_classification_endpoint(client):
 
 
 def test_get_verified_profile_reconciliation_context_uses_internal_endpoint(client):
-    with patch("tools.common.platform.api_client.httpx.get") as mock_get:
+    with patch("tools.common.capabilities.platform.api_client.httpx.get") as mock_get:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"ai_usage_flow": {"id": "auf-1"}}
@@ -621,7 +621,7 @@ def test_get_verified_profile_reconciliation_context_uses_internal_endpoint(clie
 
 
 def test_get_accepted_ai_usage_flow_rejects_non_ready_status(client):
-    with patch("tools.common.platform.api_client.httpx.get") as mock_get:
+    with patch("tools.common.capabilities.platform.api_client.httpx.get") as mock_get:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {"id": "auf-1", "status": "draft"}

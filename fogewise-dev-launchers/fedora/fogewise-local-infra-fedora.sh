@@ -88,7 +88,6 @@ print_summary() {
 Use these local endpoints from the host machine:
   DATABASE_URL=postgresql://fogewise:6f9242d8c5d84112a7f8c7f11f6e6372b7f8b5b61a83b7a4@127.0.0.1:5432/lcsp_dev?schema=public
   RABBITMQ_URL=amqp://fogewise:10e0064b19b1dc9727458cdbb0e4f3998d8988628619d807@127.0.0.1:5672
-  LLM_BUDGET_REDIS_URL=redis://:5b6e86e4792f020029955afa3409d8842a06e976beda806a@fogewise-redis:6379
 
 Useful checks:
   PostgreSQL: postgresql://fogewise@127.0.0.1:5432/lcsp_dev

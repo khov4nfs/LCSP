@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import sys
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from tools.planner.investigation.engineering_rule_planner import (
+import pytest
+
+from tools.common.capabilities.assessment.planning.engineering_rule.engineering_rule_planner import (
     ENGINEERING_RULE_PLAN_BASIS,
     ENGINEERING_RULE_PLAN_DECISIONS,
     ENGINEERING_RULE_PLAN_REASON_CODES,
@@ -11,13 +14,13 @@ from tools.planner.investigation.engineering_rule_planner import (
     EngineeringRulePlanner,
     EngineeringRulePlanningCandidate,
 )
-from tools.planner.investigation.models import (
+from tools.common.capabilities.assessment.claims.evidence_claim.models import (
     ENGINEERING_LIMITATION_CODES,
     EvidenceClaim,
     InvestigationPacket,
 )
-from tools.engineer_rule.investigation.planned_pipeline import PlannedEngineeringInvestigationPipeline
-from tools.graph.scanner.program_graph.models import ProgramEvidenceGraph
+from tools.common.capabilities.assessment.investigation.engineering_rule.planned_pipeline import PlannedEngineeringInvestigationPipeline
+from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
 
 
 def _graph() -> ProgramEvidenceGraph:
@@ -81,20 +84,23 @@ def _candidate(rule_id: str, *, source_hits: int) -> EngineeringRulePlanningCand
     )
 
 
-def _tool_response(decisions: list[dict]):
-    return SimpleNamespace(
-        tool_calls=(
-            SimpleNamespace(
-                name="submit_engineering_rule_plan",
-                arguments={"decisions": decisions},
-            ),
-        )
+@pytest.fixture
+def native_agent(monkeypatch):
+    agent = MagicMock()
+    monkeypatch.setattr(
+        sys.modules[EngineeringRulePlanner.__module__],
+        "create_agent",
+        lambda **_kwargs: agent,
     )
+    return agent
 
 
-def test_planner_selects_only_relevant_rules() -> None:
-    llm = MagicMock()
-    llm.complete_with_tools.return_value = _tool_response(
+def _structured_response(decisions: list[dict]):
+    return {"structured_response": {"decisions": decisions}}
+
+
+def test_planner_selects_only_relevant_rules(native_agent) -> None:
+    native_agent.invoke.return_value = _structured_response(
         [
             {
                 "engineeringRuleId": "eng-general",
@@ -118,7 +124,7 @@ def test_planner_selects_only_relevant_rules() -> None:
         ]
     )
 
-    result = EngineeringRulePlanner(llm).plan(
+    result = EngineeringRulePlanner().plan(
         candidates=(
             _candidate("eng-general", source_hits=2),
             _candidate("eng-health", source_hits=0),
@@ -131,12 +137,11 @@ def test_planner_selects_only_relevant_rules() -> None:
     assert result.selected_rule_ids == ("eng-general",)
     assert result.skipped_rule_ids == ("eng-health",)
     assert result.fallback_used is False
-    llm.complete_with_tools.assert_called_once()
+    native_agent.invoke.assert_called_once()
 
 
-def test_planner_cannot_skip_source_backed_rule_using_wizard_only() -> None:
-    llm = MagicMock()
-    llm.complete_with_tools.return_value = _tool_response(
+def test_planner_cannot_skip_source_backed_rule_using_wizard_only(native_agent) -> None:
+    native_agent.invoke.return_value = _structured_response(
         [
             {
                 "engineeringRuleId": "eng-source-conflict",
@@ -155,7 +160,7 @@ def test_planner_cannot_skip_source_backed_rule_using_wizard_only() -> None:
         ]
     )
 
-    result = EngineeringRulePlanner(llm).plan(
+    result = EngineeringRulePlanner().plan(
         candidates=(
             _candidate("eng-source-conflict", source_hits=1),
             _candidate("eng-other", source_hits=0),
@@ -169,9 +174,8 @@ def test_planner_cannot_skip_source_backed_rule_using_wizard_only() -> None:
     assert result.skipped_rule_ids == ("eng-other",)
 
 
-def test_invalid_plan_falls_back_to_all_candidates() -> None:
-    llm = MagicMock()
-    llm.complete_with_tools.return_value = _tool_response(
+def test_invalid_plan_falls_back_to_all_candidates(native_agent) -> None:
+    native_agent.invoke.return_value = _structured_response(
         [
             {
                 "engineeringRuleId": "invented-rule",
@@ -184,7 +188,7 @@ def test_invalid_plan_falls_back_to_all_candidates() -> None:
         ]
     )
 
-    result = EngineeringRulePlanner(llm).plan(
+    result = EngineeringRulePlanner().plan(
         candidates=(
             _candidate("eng-1", source_hits=0),
             _candidate("eng-2", source_hits=0),
@@ -333,7 +337,7 @@ def test_planned_pipeline_investigates_only_selected_rule(tmp_path) -> None:
     retriever = MagicMock()
     pipeline = PlannedEngineeringInvestigationPipeline(
         api_client=api_client,
-        llm_client=MagicMock(),
+        model="test:model",
         retriever=retriever,
         rule_service=rule_service,
         query_executor=query_executor,
@@ -431,7 +435,7 @@ def test_planned_pipeline_falls_back_all_when_openwiki_runtime_context_missing(
 
     pipeline = PlannedEngineeringInvestigationPipeline(
         api_client=api_client,
-        llm_client=MagicMock(),
+        model="test:model",
         retriever=MagicMock(),
         rule_service=rule_service,
         query_executor=query_executor,
@@ -505,7 +509,7 @@ def test_planned_pipeline_recovers_corpus_sources_and_retries_when_no_rules_prep
 
     pipeline = PlannedEngineeringInvestigationPipeline(
         api_client=api_client,
-        llm_client=MagicMock(),
+        model="test:model",
         retriever=MagicMock(),
         rule_service=rule_service,
         query_executor=query_executor,
@@ -551,7 +555,7 @@ def test_planned_pipeline_stops_before_planner_when_corpus_triage_still_missing(
 
     pipeline = PlannedEngineeringInvestigationPipeline(
         api_client=api_client,
-        llm_client=MagicMock(),
+        model="test:model",
         retriever=MagicMock(),
         rule_service=rule_service,
         query_executor=MagicMock(),
@@ -602,7 +606,7 @@ def test_planned_pipeline_waits_when_catalog_has_no_source_rules_after_recovery(
 
     pipeline = PlannedEngineeringInvestigationPipeline(
         api_client=api_client,
-        llm_client=MagicMock(),
+        model="test:model",
         retriever=MagicMock(),
         rule_service=rule_service,
         query_executor=MagicMock(),
@@ -654,7 +658,7 @@ def test_planned_pipeline_stops_before_planner_when_engineering_rule_triage_find
 
     pipeline = PlannedEngineeringInvestigationPipeline(
         api_client=api_client,
-        llm_client=MagicMock(),
+        model="test:model",
         retriever=MagicMock(),
         rule_service=rule_service,
         query_executor=MagicMock(),

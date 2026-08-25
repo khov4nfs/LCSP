@@ -2,21 +2,18 @@ from __future__ import annotations
 
 import sys
 from types import ModuleType, SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from tools.common.llm import PrimaryThenFallbackLLMClient
-from tools.common.platform import tracing as tracing_module
-from tools.common.platform.config import (
+from tools.common.capabilities.platform import tracing as tracing_module
+from tools.common.capabilities.platform.config import (
     AgenticRuntimeConfig,
-    LlmProviderConfig,
-    LlmRuntimeConfig,
     PbacPreflightConfig,
     WorkerConfig,
     load_config,
     load_tracing_config,
 )
-from tools.common.managed.boundary import AgentBoundaryBase
-from tools.common.managed.invocation import build_boundary, build_llm_client
+from tools.common.capabilities.managed.boundary import AgentBoundaryBase
+from tools.common.capabilities.managed.invocation import build_boundary
 
 
 def _base_env(monkeypatch) -> None:
@@ -24,13 +21,12 @@ def _base_env(monkeypatch) -> None:
     monkeypatch.setenv("WORKER_API_KEY", "worker-test-key")
 
 
-def _worker_config(*, llm_runtime: LlmRuntimeConfig | None = None) -> WorkerConfig:
+def _worker_config() -> WorkerConfig:
     return WorkerConfig(
         nestjs_api_base_url="http://api.test",
         worker_api_key="worker-test-key",
         log_level="INFO",
         max_retries=3,
-        llm_runtime=llm_runtime or LlmRuntimeConfig(),
         agentic_runtime=AgenticRuntimeConfig(),
         pbac_preflight=PbacPreflightConfig(),
     )
@@ -73,42 +69,12 @@ class _FakeTracer:
         return _FakeSpanContext(self, name)
 
 
-def test_load_config_parses_llm_provider_chain(monkeypatch) -> None:
+def test_load_config_does_not_create_a_legacy_provider_chain(monkeypatch) -> None:
     _base_env(monkeypatch)
-    monkeypatch.setenv("LLM_PRIMARY_PROVIDER", "openai")
-    monkeypatch.setenv("LLM_PRIMARY_MODEL", "gpt-4o-mini")
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
-    monkeypatch.setenv("LLM_FALLBACK_PROVIDER_1", "anthropic")
-    monkeypatch.setenv("LLM_FALLBACK_MODEL_1", "claude-sonnet-5")
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test")
-    monkeypatch.setenv("LLM_FALLBACK_PROVIDER_2", "gemini")
-    monkeypatch.setenv("LLM_FALLBACK_MODEL_2", "gemini-1.5-flash")
-    monkeypatch.setenv("GEMINI_API_KEY", "AIzaSy-test")
-    monkeypatch.setenv("LLM_MAX_TOKENS_PER_CALL", "2048")
-    monkeypatch.setenv("LLM_MONTHLY_BUDGET_USD", "25")
-    monkeypatch.setenv("LLM_MONTHLY_TOKEN_CAP", "500000")
-    monkeypatch.setenv("LLM_PROVIDER_TIMEOUT_SECONDS", "15")
-    monkeypatch.setenv("LLM_FALLBACK_ON_CODES", "RATE_LIMIT,NETWORK")
-    monkeypatch.setenv("LLM_MAX_PROVIDER_ATTEMPTS", "2")
 
     config = load_config()
 
-    assert config.llm_runtime.enabled is True
-    assert [provider.provider for provider in config.llm_runtime.providers] == [
-        "openai",
-        "anthropic",
-        "gemini",
-    ]
-    assert config.llm_runtime.max_tokens_per_call == 2048
-    assert config.llm_runtime.monthly_budget_usd == 25.0
-    assert config.llm_runtime.monthly_token_cap == 500000
-    assert config.llm_runtime.provider_timeout_seconds == 15.0
-    assert config.llm_runtime.fallback_on_codes == (
-        "AUTH",
-        "RATE_LIMIT",
-        "NETWORK",
-    )
-    assert config.llm_runtime.max_provider_attempts == 2
+    assert not hasattr(config, "llm_runtime")
 
 
 def test_load_config_parses_tracing_settings(monkeypatch) -> None:
@@ -204,7 +170,7 @@ def test_traceable_creates_workflow_parent_and_records_llm_input(monkeypatch) ->
         output_tokens = 3
 
     @tracing_module.traceable(
-        name="DeepAgentClient.complete_with_tools",
+        name="LangChainAgent.invoke",
         run_type="llm",
     )
     def call_llm(
@@ -229,7 +195,7 @@ def test_traceable_creates_workflow_parent_and_records_llm_input(monkeypatch) ->
     assert parent_span.name == "lcsp.workflow:plan_engineering_rules"
     assert parent_span.attributes["metadata.correlationId"] == "request-123"
     assert "status" in parent_span.attributes
-    assert llm_span.name == "DeepAgentClient.complete_with_tools"
+    assert llm_span.name == "LangChainAgent.invoke"
     assert llm_span.attributes["openinference.span.kind"] == "LLM"
     assert llm_span.attributes["metadata.workflow_run_id"] == (
         "engineering-rule-planner:test"
@@ -245,56 +211,7 @@ def test_traceable_creates_workflow_parent_and_records_llm_input(monkeypatch) ->
     assert llm_span.attributes["llm.token_count.prompt"] == 11
 
 
-def test_build_llm_client_skips_provider_without_api_key() -> None:
-    config = _worker_config(
-        llm_runtime=LlmRuntimeConfig(
-            providers=(
-                LlmProviderConfig(
-                    provider="openai",
-                    model="gpt-4o-mini",
-                    api_key=None,
-                    api_key_env="OPENAI_API_KEY",
-                ),
-                LlmProviderConfig(
-                    provider="anthropic",
-                    model="claude-sonnet-5",
-                    api_key="sk-ant-test",
-                    api_key_env="ANTHROPIC_API_KEY",
-                ),
-            ),
-            max_provider_attempts=2,
-        )
-    )
-
-    with patch("tools.common.managed.invocation.DeepAgentClient") as deep_agent_class:
-        deep_agent_class.return_value = MagicMock()
-        client = build_llm_client(config)
-
-    assert isinstance(client, PrimaryThenFallbackLLMClient)
-    deep_agent_class.assert_called_once()
-    kwargs = deep_agent_class.call_args.kwargs
-    assert kwargs["provider"] == "anthropic"
-    assert kwargs["api_key"] == "sk-ant-test"
-
-
-def test_build_llm_client_returns_none_when_no_provider_has_key() -> None:
-    config = _worker_config(
-        llm_runtime=LlmRuntimeConfig(
-            providers=(
-                LlmProviderConfig(
-                    provider="openai",
-                    model="gpt-4o-mini",
-                    api_key=None,
-                    api_key_env="OPENAI_API_KEY",
-                ),
-            ),
-        )
-    )
-
-    assert build_llm_client(config) is None
-
-
-def test_build_boundary_keeps_graph_assembler_deterministic_when_llm_enabled() -> None:
+def test_build_boundary_keeps_graph_assembler_deterministic() -> None:
     class GraphBoundary(AgentBoundaryBase):
         boundary_source = "test"
         source_event = "test"
@@ -308,17 +225,15 @@ def test_build_boundary_keeps_graph_assembler_deterministic_when_llm_enabled() -
 
     config = _worker_config()
     with (
-        patch("tools.common.managed.invocation.load_config", return_value=config),
-        patch("tools.common.managed.invocation.load_boundary", return_value=GraphBoundary),
-        patch("tools.common.managed.invocation.build_llm_client") as build_llm_client,
+        patch("tools.common.capabilities.managed.invocation.load_config", return_value=config),
+        patch("tools.common.capabilities.managed.invocation.load_boundary", return_value=GraphBoundary),
     ):
         boundary = build_boundary("ignored:GraphBoundary")
 
-    build_llm_client.assert_not_called()
     assert boundary.evidence_graph_assembler is None
 
 
-def test_build_boundary_keeps_deterministic_default_when_llm_disabled() -> None:
+def test_build_boundary_keeps_deterministic_default_without_legacy_llm() -> None:
     class GraphBoundary(AgentBoundaryBase):
         boundary_source = "test"
         source_event = "test"
@@ -332,9 +247,8 @@ def test_build_boundary_keeps_deterministic_default_when_llm_disabled() -> None:
 
     config = _worker_config()
     with (
-        patch("tools.common.managed.invocation.load_config", return_value=config),
-        patch("tools.common.managed.invocation.load_boundary", return_value=GraphBoundary),
-        patch("tools.common.managed.invocation.build_llm_client", return_value=None),
+        patch("tools.common.capabilities.managed.invocation.load_config", return_value=config),
+        patch("tools.common.capabilities.managed.invocation.load_boundary", return_value=GraphBoundary),
     ):
         boundary = build_boundary("ignored:GraphBoundary")
 

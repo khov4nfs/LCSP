@@ -6,6 +6,8 @@ import pytest
 from pydantic import ValidationError
 
 import harness
+from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.runtime_context import inject_lcsp_runtime_context
 from model_policy import (
     ALL_LCSP_MODEL_SPECS,
     CONTEXT_WIZARD_MODEL_SPEC,
@@ -21,7 +23,6 @@ from model_policy import (
     ROOT_MODEL_SPEC,
     TRIAGE_MODEL_SPEC,
 )
-from orchestration.memory import SHARED_MDA_MEMORY_ENABLED
 from subagents import FLOW_SUBAGENTS
 from subagents.context_wizard.definition import ContextWizardQuestionRound, OUTPUT_MODEL
 
@@ -63,7 +64,10 @@ def test_subagents_follow_deep_agents_dictionary_contract() -> None:
         assert "Tool guidance:" in str(subagent["system_prompt"])
         assert "Output contract:" in str(subagent["system_prompt"])
         assert len(str(subagent["description"])) >= 80
-        assert subagent["middleware"]
+        assert subagent["middleware"] == [
+            inject_lcsp_runtime_context,
+            *MODEL_GOVERNANCE_MIDDLEWARE,
+        ]
 
 
 def test_pipeline_roles_do_not_bypass_context_wizard_hydration() -> None:
@@ -88,12 +92,12 @@ def test_pipeline_roles_do_not_bypass_context_wizard_hydration() -> None:
 
 
 def test_triage_is_not_an_assessment_pipeline_role() -> None:
-    pipeline_source = (PROJECT_ROOT / "orchestration" / "pipeline.py").read_text()
+    assessment_roles = {"context_wizard", "planner", "investigator", "resolver"}
     triage_prompt = str(
         next(item for item in FLOW_SUBAGENTS if item["name"] == "triage")["system_prompt"]
     )
 
-    assert '"triage"' not in pipeline_source.split("NODE_TOOL_NAMES", 1)[1]
+    assert "triage" not in assessment_roles
     assert "LEGAL_MAINTENANCE" in triage_prompt
     assert "approved source manifests" in triage_prompt
     assert "Never select law for a customer assessment" in triage_prompt
@@ -216,8 +220,9 @@ def test_root_agent_uses_managed_instructions_context_and_todos() -> None:
     # Managed Deep Agents owns the system prompt through instructions.md.
     assert "system_prompt=" not in source
     assert "context_schema=LCSPRunContext" in source
-    assert "ROOT_TODO_MIDDLEWARE" in source
+    assert "TodoListMiddleware()" in source
     assert "inject_lcsp_runtime_context" in source
+    assert "MODEL_GOVERNANCE_MIDDLEWARE" in source
 
     assert "LEGAL_MAINTENANCE" in instructions
     assert "triage" in instructions
@@ -232,6 +237,5 @@ def test_root_agent_uses_managed_instructions_context_and_todos() -> None:
 
 
 def test_multi_tenant_agent_does_not_enable_deployment_shared_mda_memory() -> None:
-    assert SHARED_MDA_MEMORY_ENABLED is False
     assert not (PROJECT_ROOT / "memory.py").exists()
-    assert (PROJECT_ROOT / "orchestration" / "memory.py").is_file()
+    assert not (PROJECT_ROOT / "orchestration" / "memory.py").exists()

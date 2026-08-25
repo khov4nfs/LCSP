@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from tools.graph.scanner.program_graph.semantic_ir import (
+from tools.common.capabilities.evidence.graph.schema.semantic_ir import (
     SemanticEdgeFact,
     SemanticNodeFact,
     SemanticProgram,
 )
-from tools.graph.scanner.program_graph.source_roles import (
+from tools.common.capabilities.evidence.graph.schema.source_roles import (
     exclude_test_sources_from_semantic_program,
 )
 

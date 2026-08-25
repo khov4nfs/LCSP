@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tools.graph.scanner.program_graph.assembler import ProgramGraphAssembler
+from tools.common.capabilities.evidence.graph.construction.assembly.assembler import ProgramGraphAssembler
 
 
 def _assemble(tmp_path: Path):

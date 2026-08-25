@@ -4,15 +4,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tools.engineer_rule.intelligence.conflict_detection_boundary import (
+from tools.common.capabilities.assessment.claims.conflict_detection.conflict_detection_boundary import (
     ConflictDetectionBoundary,
 )
-from tools.engineer_rule.intelligence.conflict_detector import ConflictDetector
-from tools.engineer_rule.intelligence.conflict_score_calculator import (
+from tools.common.capabilities.assessment.claims.conflict_detection.conflict_detector import ConflictDetector
+from tools.common.capabilities.assessment.claims.conflict_detection.conflict_score_calculator import (
     ConflictScoreCalculator,
 )
-from tools.common.platform.callback_schemas import ConflictDetectionCallbackPayload
-from tools.common.platform.config import WorkerConfig
+from tools.common.capabilities.platform.callback_schemas import ConflictDetectionCallbackPayload
+from tools.common.capabilities.platform.config import WorkerConfig
 
 
 def _config() -> WorkerConfig:

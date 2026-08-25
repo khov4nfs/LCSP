@@ -4,6 +4,8 @@ import importlib
 import sys
 from pathlib import Path
 
+import pytest
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -26,7 +28,7 @@ def _py(path: Path) -> set[str]:
 
 
 def test_graph_construction_is_grouped_by_capability() -> None:
-    root = PROJECT_ROOT / "runtime" / "evidence" / "graph" / "construction"
+    root = PROJECT_ROOT / "tools" / "common" / "capabilities" / "evidence" / "graph" / "construction"
     assert _dirs(root) == {"assembly", "extraction", "validation"}
     assert _py(root) == set()
     assert _py(root / "assembly") == {"assembler.py", "builder.py"}
@@ -35,7 +37,7 @@ def test_graph_construction_is_grouped_by_capability() -> None:
 
 
 def test_graph_lineage_is_grouped_by_capability() -> None:
-    root = PROJECT_ROOT / "runtime" / "evidence" / "graph" / "lineage"
+    root = PROJECT_ROOT / "tools" / "common" / "capabilities" / "evidence" / "graph" / "lineage"
     assert _dirs(root) == {"ai", "contract", "data", "sensitive", "decision"}
     assert _py(root) == set()
     assert _py(root / "ai") == {"ai_invocation_gate.py", "ai_lifecycle.py"}
@@ -45,39 +47,30 @@ def test_graph_lineage_is_grouped_by_capability() -> None:
     assert _py(root / "decision") == {"decision_influence.py"}
 
 
-def _assert_alias(legacy: str, canonical: str) -> None:
-    legacy_module = importlib.import_module(legacy)
-    canonical_module = importlib.import_module(canonical)
-    assert Path(str(legacy_module.__file__)).resolve() == Path(
-        str(canonical_module.__file__)
-    ).resolve()
+def _assert_importable(module_name: str) -> None:
+    assert importlib.import_module(module_name).__file__
 
 
-def test_flat_graph_construction_imports_route_to_owner_packages() -> None:
-    _assert_alias(
-        "runtime.evidence.graph.construction.builder",
-        "runtime.evidence.graph.construction.assembly.builder",
-    )
-    _assert_alias(
-        "runtime.evidence.graph.construction.extractor",
-        "runtime.evidence.graph.construction.extraction.extractor",
-    )
-    _assert_alias(
-        "runtime.evidence.graph.construction.validator",
-        "runtime.evidence.graph.construction.validation.validator",
-    )
+def _assert_removed(module_name: str) -> None:
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module(module_name)
 
 
-def test_flat_graph_lineage_imports_route_to_owner_packages() -> None:
-    _assert_alias(
-        "runtime.evidence.graph.lineage.ai_lifecycle",
-        "runtime.evidence.graph.lineage.ai.ai_lifecycle",
-    )
-    _assert_alias(
-        "runtime.evidence.graph.lineage.contract_lineage",
-        "runtime.evidence.graph.lineage.contract.contract_lineage",
-    )
-    _assert_alias(
-        "runtime.evidence.graph.lineage.sensitive_lineage_gate",
-        "runtime.evidence.graph.lineage.sensitive.sensitive_lineage_gate",
-    )
+def test_flat_graph_construction_imports_are_removed() -> None:
+    _assert_removed("tools.common.capabilities.evidence.graph.construction.builder")
+    _assert_removed("tools.common.capabilities.evidence.graph.construction.extractor")
+    _assert_removed("tools.common.capabilities.evidence.graph.construction.validator")
+
+    _assert_importable("tools.common.capabilities.evidence.graph.construction.assembly.builder")
+    _assert_importable("tools.common.capabilities.evidence.graph.construction.extraction.extractor")
+    _assert_importable("tools.common.capabilities.evidence.graph.construction.validation.validator")
+
+
+def test_flat_graph_lineage_imports_are_removed() -> None:
+    _assert_removed("tools.common.capabilities.evidence.graph.lineage.ai_lifecycle")
+    _assert_removed("tools.common.capabilities.evidence.graph.lineage.contract_lineage")
+    _assert_removed("tools.common.capabilities.evidence.graph.lineage.sensitive_lineage_gate")
+
+    _assert_importable("tools.common.capabilities.evidence.graph.lineage.ai.ai_lifecycle")
+    _assert_importable("tools.common.capabilities.evidence.graph.lineage.contract.contract_lineage")
+    _assert_importable("tools.common.capabilities.evidence.graph.lineage.sensitive.sensitive_lineage_gate")

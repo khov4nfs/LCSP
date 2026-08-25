@@ -4,13 +4,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tools.engineer_rule.intelligence.verified_profile_boundary import (
+from tools.common.capabilities.assessment.claims.verified_profile.verified_profile_boundary import (
     PendingConflictsExist,
     VerifiedProfileBoundary,
 )
-from tools.common.platform.api_client import WorkerCallbackError
-from tools.common.platform.callback_schemas import VerifiedProfileCallbackPayload
-from tools.common.platform.config import WorkerConfig
+from tools.common.capabilities.platform.api_client import WorkerCallbackError
+from tools.common.capabilities.platform.callback_schemas import VerifiedProfileCallbackPayload
+from tools.common.capabilities.platform.config import WorkerConfig
 
 
 def _config() -> WorkerConfig:

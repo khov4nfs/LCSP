@@ -8,17 +8,17 @@ from pathlib import Path
 
 import pytest
 
-from tools.graph.scanner.dependencies.dependency_fact import (
+from tools.common.capabilities.evidence.scanner.dependencies.dependency_fact import (
     USAGE_MISSING,
     USAGE_TRANSITIVE,
     USAGE_UNUSED,
     USAGE_USED,
 )
-from tools.graph.scanner.dependencies.dependency_normalizer import DependencyNormalizer
-from tools.graph.scanner.tools.deptry_tool import DeptryTool
-from tools.graph.scanner.tools.knip_tool import KnipTool
-from tools.graph.scanner.tools.syft_tool import SBOMEntry
-from tools.graph.scanner.tools.tool_base import (
+from tools.common.capabilities.evidence.scanner.dependencies.dependency_normalizer import DependencyNormalizer
+from tools.common.capabilities.evidence.scanner.tools.deptry.deptry_tool import DeptryTool
+from tools.common.capabilities.evidence.scanner.tools.knip.knip_tool import KnipTool
+from tools.common.capabilities.evidence.scanner.tools.syft.syft_tool import SBOMEntry
+from tools.common.capabilities.evidence.scanner.tools.common.tool_base import (
     OUTCOME_SUCCESS,
     OUTCOME_TOOL_TIMEOUT,
 )

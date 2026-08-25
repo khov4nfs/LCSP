@@ -2,9 +2,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tools.common.managed.boundary import NonRetryableAgentBoundaryError
-from tools.graph.scanner.evidence_assembler import PrivacyAssertionError
-from tools.graph.scanner.targeted_reanalysis_boundary import (
+from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.evidence.scanner.assembly.evidence_assembler import PrivacyAssertionError
+from tools.common.capabilities.evidence.scanner.scanning.targeted_reanalysis_boundary import (
     DLQ_FAILURE_STATE,
     SAFE_DELIVERY_FAILURE_CODE,
     SAFE_PRIVACY_FAILURE_CODE,

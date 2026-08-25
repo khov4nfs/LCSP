@@ -26,7 +26,7 @@ def _py(path: Path) -> set[str]:
 
 
 def test_scanner_tools_are_grouped_by_tool_name() -> None:
-    tools = PROJECT_ROOT / "runtime" / "evidence" / "scanner" / "tools"
+    tools = PROJECT_ROOT / "tools" / "common" / "capabilities" / "evidence" / "scanner" / "tools"
 
     assert _dirs(tools) == {"common", "deptry", "knip", "semgrep", "syft"}
     assert _py(tools) == set()
@@ -37,32 +37,20 @@ def test_scanner_tools_are_grouped_by_tool_name() -> None:
     assert _py(tools / "syft") == {"syft_tool.py"}
 
 
-def _assert_alias(legacy: str, canonical: str) -> None:
-    legacy_module = importlib.import_module(legacy)
-    canonical_module = importlib.import_module(canonical)
-    assert Path(str(legacy_module.__file__)).resolve() == Path(
-        str(canonical_module.__file__)
-    ).resolve()
+def _assert_import_blocked(module_name: str) -> None:
+    try:
+        importlib.import_module(module_name)
+    except ModuleNotFoundError:
+        return
+    raise AssertionError(f"legacy import unexpectedly resolved: {module_name}")
 
 
-def test_flat_scanner_tool_imports_route_to_tool_packages() -> None:
-    _assert_alias(
-        "runtime.evidence.scanner.tools.tool_base",
-        "runtime.evidence.scanner.tools.common.tool_base",
-    )
-    _assert_alias(
-        "runtime.evidence.scanner.tools.deptry_tool",
-        "runtime.evidence.scanner.tools.deptry.deptry_tool",
-    )
-    _assert_alias(
-        "runtime.evidence.scanner.tools.knip_tool",
-        "runtime.evidence.scanner.tools.knip.knip_tool",
-    )
-    _assert_alias(
-        "runtime.evidence.scanner.tools.semgrep_tool",
-        "runtime.evidence.scanner.tools.semgrep.semgrep_tool",
-    )
-    _assert_alias(
-        "runtime.evidence.scanner.tools.syft_tool",
-        "runtime.evidence.scanner.tools.syft.syft_tool",
-    )
+def test_flat_scanner_tool_imports_are_not_supported() -> None:
+    for module_name in (
+        "tools.common.capabilities.evidence.scanner.tools.tool_base",
+        "tools.common.capabilities.evidence.scanner.tools.deptry_tool",
+        "tools.common.capabilities.evidence.scanner.tools.knip_tool",
+        "tools.common.capabilities.evidence.scanner.tools.semgrep_tool",
+        "tools.common.capabilities.evidence.scanner.tools.syft_tool",
+    ):
+        _assert_import_blocked(module_name)

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 
-from tools.planner.investigation.evidence_ledger import EvidenceLedger
-from tools.planner.investigation.investigator import LawGuidedInvestigator
-from tools.planner.investigation.models import InvestigationPacket
+from tools.common.capabilities.assessment.claims.evidence_claim.evidence_ledger import EvidenceLedger
+from tools.common.capabilities.assessment.investigation.engineering_rule.investigator import LawGuidedInvestigator
+from tools.common.capabilities.assessment.claims.evidence_claim.models import InvestigationPacket
 
 
 def _packet() -> InvestigationPacket:

@@ -1,11 +1,11 @@
 from __future__ import annotations
 from pathlib import Path
 import pytest
-from tools.graph.scanner.program_graph.assembler import ProgramGraphAssembler
-from tools.graph.scanner.program_graph.builder import ProgramGraphBuilder, ProgramGraphValidationError
-from tools.graph.scanner.program_graph.query_engine import ProgramGraphQueryEngine
-from tools.graph.scanner.program_graph.semantic_ir import SemanticEdgeFact, SemanticNodeFact, SemanticProgram
-from tools.graph.scanner.program_graph.validator import validate_program_graph
+from tools.common.capabilities.evidence.graph.construction.assembly.assembler import ProgramGraphAssembler
+from tools.common.capabilities.evidence.graph.construction.assembly.builder import ProgramGraphBuilder, ProgramGraphValidationError
+from tools.common.capabilities.evidence.graph.query.query_engine import ProgramGraphQueryEngine
+from tools.common.capabilities.evidence.graph.schema.semantic_ir import SemanticEdgeFact, SemanticNodeFact, SemanticProgram
+from tools.common.capabilities.evidence.graph.construction.validation.validator import validate_program_graph
 
 
 def _node(graph, kind: str): return next((n for n in graph.nodes if n["node_type"] == kind), None)

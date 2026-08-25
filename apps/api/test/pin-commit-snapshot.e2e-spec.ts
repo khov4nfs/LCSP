@@ -81,6 +81,7 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
 
   beforeEach(async () => {
     resolveCommitError = false;
+    await prisma.outboxMessage.deleteMany();
     await prisma.repositorySnapshot.deleteMany();
     await prisma.repositoryConnection.deleteMany();
     await prisma.assessment.deleteMany();
@@ -159,6 +160,10 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
     assert.equal(
       (event.payload as { snapshotId?: string }).snapshotId,
       body.snapshot_id,
+    );
+    assert.equal(
+      (event.payload as { organizationId?: string }).organizationId,
+      "org-1",
     );
     assert.equal(
       (event.payload as { schemaVersion?: string }).schemaVersion,
@@ -275,6 +280,16 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
     const body = successBody<PinSnapshotDto>(response);
 
     await app.get(OutboxPublisherService).poll();
+
+    const snapshotCreatedEvent = await prisma.outboxMessage.findFirst({
+      where: {
+        aggregateId: body.snapshot_id,
+        eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreated,
+      },
+    });
+    assert.ok(snapshotCreatedEvent);
+    assert.equal(snapshotCreatedEvent.errorMessage, null);
+    assert.ok(snapshotCreatedEvent.publishedAt);
 
     const scanJob = await prisma.repositoryScanJob.findFirst({
       where: { assessmentId: "assessment-1", snapshotId: body.snapshot_id },

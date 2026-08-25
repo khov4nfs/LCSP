@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock, patch
 
-from tools.gap.reporting.gap_analysis_boundary import GapAnalysisBoundary
-from tools.gap.reporting.gap_analysis_generator import GapAnalysisGenerator
-from tools.reports.reporting.output_guardrail import OutputGuardrail
+from tools.common.capabilities.reporting.gap.gap_analysis_boundary import GapAnalysisBoundary
+from tools.common.capabilities.reporting.gap.gap_analysis_generator import GapAnalysisGenerator
+from tools.common.capabilities.reporting.report.final_report.output_guardrail import OutputGuardrail
 
 
 def _context() -> dict:
@@ -81,7 +81,7 @@ def _boundary():
 def test_t01_valid_result_ready():
     boundary, document_client = _boundary()
     with patch(
-        "tools.gap.reporting.gap_analysis_boundary.StorageUploader.upload_document",
+        "tools.common.capabilities.reporting.gap.gap_analysis_boundary.StorageUploader.upload_document",
         return_value="https://url",
     ):
         boundary.handle({"documentRequestId": "doc123"}, "corr-id")
@@ -95,7 +95,7 @@ def test_t02_content_contains_certified():
     assert OutputGuardrail.check("This is certified.") is True
     boundary, document_client = _boundary()
     with patch(
-        "tools.gap.reporting.gap_analysis_boundary.GapAnalysisGenerator.generate",
+        "tools.common.capabilities.reporting.gap.gap_analysis_boundary.GapAnalysisGenerator.generate",
         return_value="We are certified.",
     ):
         boundary.handle({"documentRequestId": "doc123"}, "corr-id")
@@ -120,7 +120,7 @@ def test_t03_no_raw_source_code():
 def test_t04_upload_fails_with_safe_reason():
     boundary, document_client = _boundary()
     with patch(
-        "tools.gap.reporting.gap_analysis_boundary.StorageUploader.upload_document",
+        "tools.common.capabilities.reporting.gap.gap_analysis_boundary.StorageUploader.upload_document",
         side_effect=Exception("S3 secret internal detail"),
     ):
         boundary.handle({"documentRequestId": "doc123"}, "corr-id")
@@ -152,7 +152,7 @@ def test_t07_context_guardrail_failure_stops_generation():
     context["classification_result"]["guardrail_status"] = "BLOCKED"
     document_client.get_generation_context.return_value = context
     with patch(
-        "tools.gap.reporting.gap_analysis_boundary.GapAnalysisGenerator.generate"
+        "tools.common.capabilities.reporting.gap.gap_analysis_boundary.GapAnalysisGenerator.generate"
     ) as generate:
         boundary.handle({"documentRequestId": "doc123"}, "corr-id")
     generate.assert_not_called()
@@ -178,11 +178,11 @@ def test_t08_planner_audit_metadata_is_not_sent_to_gap_prompt():
 
     with (
         patch(
-            "tools.gap.reporting.gap_analysis_boundary.GapAnalysisGenerator.generate",
+            "tools.common.capabilities.reporting.gap.gap_analysis_boundary.GapAnalysisGenerator.generate",
             return_value="Gap content.",
         ) as generate,
         patch(
-            "tools.gap.reporting.gap_analysis_boundary.StorageUploader.upload_document",
+            "tools.common.capabilities.reporting.gap.gap_analysis_boundary.StorageUploader.upload_document",
             return_value="https://url",
         ),
     ):

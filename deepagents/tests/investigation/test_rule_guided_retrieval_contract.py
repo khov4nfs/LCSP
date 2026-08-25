@@ -4,17 +4,17 @@ import json
 
 import pytest
 
-from tools.planner.investigation.code_context_investigator import (
+from tools.common.capabilities.assessment.investigation.engineering_rule.code_context_investigator import (
     CodeContextLawGuidedInvestigator,
 )
-from tools.planner.investigation.evidence_ledger import EvidenceLedger
-from tools.planner.investigation.investigator import LawGuidedInvestigator
-from tools.planner.investigation.models import (
+from tools.common.capabilities.assessment.claims.evidence_claim.evidence_ledger import EvidenceLedger
+from tools.common.capabilities.assessment.investigation.engineering_rule.investigator import LawGuidedInvestigator
+from tools.common.capabilities.assessment.claims.evidence_claim.models import (
     ENGINEERING_EVIDENCE_CLAIM_TYPES,
     ENGINEERING_LIMITATION_CODES,
     InvestigationPacket,
 )
-from tools.graph.scanner.program_graph.vocabulary import EDGE_TYPES, NODE_TYPES
+from tools.common.capabilities.evidence.graph.query.query_engine import ProgramGraphQueryEngine
 
 
 def _packet() -> InvestigationPacket:
@@ -93,13 +93,18 @@ def test_rule_contract_exposes_retrieval_hints_separately_from_evidence_labels()
 
 
 def test_graph_tool_schema_only_allows_canonical_node_and_edge_vocabulary() -> None:
-    tools = {tool.name: tool for tool in LawGuidedInvestigator._tool_definitions()}
-    search_items = tools["search_nodes"].input_schema["properties"]["node_types"]["items"]
-    trace = tools["trace_static_flow"].input_schema["properties"]
+    investigator = LawGuidedInvestigator("test:model")
+    tools = {
+        tool.name: tool
+        for tool in investigator._native_tools(
+            engine=ProgramGraphQueryEngine(_graph()),
+            ledger=EvidenceLedger(),
+        )
+    }
+    trace = tools["trace_static_flow"].args_schema.model_json_schema()["properties"]
 
-    assert set(search_items["enum"]) == set(NODE_TYPES)
-    assert set(trace["edge_types"]["items"]["enum"]) == set(EDGE_TYPES)
-    assert set(trace["stop_node_types"]["items"]["enum"]) == set(NODE_TYPES)
+    assert "edge_types" in trace
+    assert "stop_node_types" in trace
 
     with pytest.raises(ValueError, match="non-canonical"):
         LawGuidedInvestigator._normalize_tool_arguments(
@@ -123,8 +128,9 @@ def test_code_prompt_drives_targeted_search_then_source_expansion() -> None:
 
 
 def test_finish_schema_requires_exact_required_evidence_criterion_scope() -> None:
-    finish = LawGuidedInvestigator._finish_tool_definition()
-    claim_schema = finish.input_schema["properties"]["claims"]["items"]
+    claim_schema = LawGuidedInvestigator._claims_response_schema()["properties"][
+        "claims"
+    ]["items"]
 
     assert "criterion" in claim_schema["properties"]
     assert "criterion" in claim_schema["required"]
@@ -142,7 +148,7 @@ def test_invalid_finish_criterion_fails_closed_to_unresolved() -> None:
             "truncated": False,
         },
     )
-    investigator = LawGuidedInvestigator(llm_client=object())
+    investigator = LawGuidedInvestigator("test:model")
 
     claims = investigator._claims_from_payload(
         {

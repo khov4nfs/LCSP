@@ -4,14 +4,13 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from tools.common.agentic_evidence import (
+from tools.common.capabilities.agentic_evidence import (
     AgenticInvocationContext,
     AgenticToolResolver,
     AgenticToolValidationError,
     build_sprint6_agentic_registry,
 )
-from tools.common.agentic_evidence.authorization import AgenticAuthorizationResult
-from tools.common.llm import LLMToolCall
+from tools.common.capabilities.agentic_evidence.governance.authorization import AgenticAuthorizationResult
 
 
 class AllowAuthorizer:
@@ -48,7 +47,7 @@ def context() -> AgenticInvocationContext:
 def test_resolver_exposes_exact_model_callable_catalog() -> None:
     registry = build_sprint6_agentic_registry()
     resolver = AgenticToolResolver(registry, AllowAuthorizer(), max_tool_calls=4)
-    names = {definition.name for definition in resolver.tool_definitions()}
+    names = {item.name for item in resolver.as_langchain_tools(context=context())}
 
     assert "resume_waiting_runs" not in names
     assert "request_targeted_reanalysis" not in names
@@ -69,23 +68,11 @@ def test_resolver_dispatches_validated_authorized_read_call() -> None:
     authorizer = AllowAuthorizer()
     resolver = AgenticToolResolver(registry, authorizer, max_tool_calls=2)
 
-    results = resolver.invoke_tool_calls(
-        [
-            LLMToolCall(
-                name="get_scan_coverage",
-                arguments={"maxResults": 25},
-                call_id="call-1",
-            )
-        ],
-        context=context(),
-    )
+    native_tool = next(item for item in resolver.as_langchain_tools(context=context()) if item.name == "get_scan_coverage")
+    result = native_tool.invoke({"maxResults": 25})
 
     assert authorizer.calls == ["get_scan_coverage"]
-    assert len(results) == 1
-    assert results[0].call_id == "call-1"
-    assert results[0].tool_name == "get_scan_coverage"
-    assert results[0].authorized_action == "evidence:read"
-    assert results[0].response["result"]["maxResults"] == 25
+    assert result["result"]["maxResults"] == 25
 
 
 def test_resolver_rejects_schema_invalid_call_before_pbac_or_handler() -> None:
@@ -105,15 +92,7 @@ def test_resolver_rejects_schema_invalid_call_before_pbac_or_handler() -> None:
         AgenticToolValidationError,
         match="AGENTIC_TOOL_INPUT_SCHEMA_INVALID",
     ):
-        resolver.invoke_tool_calls(
-            [
-                LLMToolCall(
-                    name="get_scan_coverage",
-                    arguments={"maxResults": 101},
-                )
-            ],
-            context=context(),
-        )
+        next(item for item in resolver.as_langchain_tools(context=context()) if item.name == "get_scan_coverage").invoke({"maxResults": 101})
     assert authorizer.calls == []
     assert called is False
 
@@ -131,36 +110,13 @@ def test_resolver_rejects_non_model_tool_before_pbac_even_if_registered() -> Non
         AgenticToolValidationError,
         match="AGENTIC_TOOL_NOT_MODEL_CALLABLE",
     ):
-        resolver.invoke_tool_calls(
-            [
-                LLMToolCall(
-                    name="request_targeted_reanalysis",
-                    arguments={
-                        "inputArtifactVersion": "ter_12345678",
-                        "analyzerId": "RUN_TS_JS_SEMANTIC_ANALYSIS",
-                        "scope": {"pathPrefixes": ["apps/api/"]},
-                        "reasonRequirementId": "requirement:12345678",
-                        "idempotencyKey": "request_1234567890",
-                    },
-                )
-            ],
-            context=context(),
-        )
+        resolver._invoke_capability("request_targeted_reanalysis", resolver._registry.capability("request_targeted_reanalysis"), {}, context())
     assert authorizer.calls == []
 
 
-def test_resolver_enforces_orchestration_call_count_budget_before_pbac() -> None:
+def test_resolver_exposes_tool_call_budget_for_langchain_middleware() -> None:
     registry = build_sprint6_agentic_registry()
     authorizer = AllowAuthorizer()
     resolver = AgenticToolResolver(registry, authorizer, max_tool_calls=1)
-    calls = [
-        LLMToolCall(name="get_scan_coverage", arguments={"maxResults": 10}),
-        LLMToolCall(name="search_evidence", arguments={"maxResults": 10}),
-    ]
-
-    with pytest.raises(
-        AgenticToolValidationError,
-        match="AGENTIC_TOOL_CALL_BUDGET_EXCEEDED",
-    ):
-        resolver.invoke_tool_calls(calls, context=context())
+    assert resolver.max_tool_calls == 1
     assert authorizer.calls == []

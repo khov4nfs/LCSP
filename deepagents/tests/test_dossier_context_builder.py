@@ -1,4 +1,4 @@
-from tools.common.dossiers.context_builder import ClassificationDossierBuilder
+from tools.common.capabilities.reporting.report.dossiers.context_builder import ClassificationDossierBuilder
 
 
 def _context() -> dict:

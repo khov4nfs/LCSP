@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.legal.legal.official_source_snapshot import (
+from tools.legal.sources.ingest.official_source_snapshot import (
     OfficialSourceSnapshotFetcher,
     OfficialSourceSnapshotRequest,
 )

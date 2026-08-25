@@ -15,7 +15,7 @@ def test_privacy_gate_aborts_on_source_code_flag() -> None:
     abort submission and mark job as TERMINAL_PRIVACY_FAILURE. No callback is made.
     """
     try:
-        from tools.graph.scanner.evidence.privacy_gate import assert_privacy_flags, PrivacyViolationError
+        from tools.common.capabilities.evidence.scanner.evidence.quality.privacy_gate import assert_privacy_flags, PrivacyViolationError
         from unittest.mock import MagicMock
 
         payload = MagicMock()
@@ -36,7 +36,7 @@ def test_privacy_gate_aborts_on_unredacted_secrets() -> None:
     abort with PRIVACY_BLOCKED severity.
     """
     try:
-        from tools.graph.scanner.evidence.privacy_gate import assert_privacy_flags, PrivacyViolationError
+        from tools.common.capabilities.evidence.scanner.evidence.quality.privacy_gate import assert_privacy_flags, PrivacyViolationError
 
         from unittest.mock import MagicMock
         payload = MagicMock()
@@ -57,7 +57,7 @@ def test_privacy_gate_aborts_on_secret_pattern_in_finding() -> None:
     or AWS key (AKIA...) pattern, the privacy gate must abort with PRIVACY_BLOCKED.
     """
     try:
-        from tools.graph.scanner.evidence.privacy_gate import assert_privacy_flags, PrivacyViolationError
+        from tools.common.capabilities.evidence.scanner.evidence.quality.privacy_gate import assert_privacy_flags, PrivacyViolationError
         from unittest.mock import MagicMock
 
         finding = MagicMock()
@@ -83,7 +83,7 @@ def test_privacy_gate_passes_clean_payload() -> None:
     AC-008/AC-009: Clean payload (no source code, secrets redacted, no patterns) must pass.
     """
     try:
-        from tools.graph.scanner.evidence.privacy_gate import assert_privacy_flags
+        from tools.common.capabilities.evidence.scanner.evidence.quality.privacy_gate import assert_privacy_flags
         from unittest.mock import MagicMock
 
         finding = MagicMock()
@@ -110,8 +110,8 @@ def test_provenance_blocked_on_missing_config_hash() -> None:
     This is the ONLY condition for PROVENANCE_BLOCKED (not HTTP errors, not auth failures).
     """
     try:
-        from tools.graph.scanner.evidence.schema_validator import validate_evidence_schema
-        from tools.graph.scanner.evidence.severity_mapper import SeverityCode
+        from tools.common.capabilities.evidence.scanner.evidence.contract.schema_validator import validate_evidence_schema
+        from tools.common.capabilities.evidence.scanner.evidence.quality.severity_mapper import SeverityCode
 
         payload = {
             "job_id": "job-1",
@@ -141,8 +141,8 @@ def test_provenance_blocked_on_missing_ruleset_hash() -> None:
     AC-010: Missing ruleset_hash (Semgrep ruleset provenance) must result in PROVENANCE_BLOCKED.
     """
     try:
-        from tools.graph.scanner.evidence.schema_validator import validate_evidence_schema
-        from tools.graph.scanner.evidence.severity_mapper import SeverityCode
+        from tools.common.capabilities.evidence.scanner.evidence.contract.schema_validator import validate_evidence_schema
+        from tools.common.capabilities.evidence.scanner.evidence.quality.severity_mapper import SeverityCode
 
         payload = {
             "job_id": "job-1",
@@ -174,7 +174,7 @@ def test_quality_classifier_returns_insufficient_on_critical_timeout() -> None:
     must produce QUALITY_INSUFFICIENT, not QUALITY_VALID.
     """
     try:
-        from tools.graph.scanner.evidence.quality_gate import classify_quality
+        from tools.common.capabilities.evidence.scanner.evidence.quality.quality_gate import classify_quality
 
         tool_provenance = [
             {"tool_name": "semgrep", "tool_version": "1.0.0", "outcome": "timeout", "ran_at": "2026-07-04T00:00:00Z"},
@@ -196,7 +196,7 @@ def test_quality_classifier_valid_when_all_critical_tools_succeed() -> None:
     AC-005/AC-006: QUALITY_VALID when critical tools succeeded and AI findings present.
     """
     try:
-        from tools.graph.scanner.evidence.quality_gate import classify_quality
+        from tools.common.capabilities.evidence.scanner.evidence.quality.quality_gate import classify_quality
         from unittest.mock import MagicMock
 
         tool_provenance = [

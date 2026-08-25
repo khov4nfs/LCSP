@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from tools.common.platform import dev_unsafe_trace
-from tools.common.platform import logging as worker_logging
+from tools.common.capabilities.platform import dev_unsafe_trace
+from tools.common.capabilities.platform import logging as worker_logging
 
 
 @pytest.fixture(autouse=True)

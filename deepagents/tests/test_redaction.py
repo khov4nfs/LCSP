@@ -1,4 +1,4 @@
-from tools.common.platform.redaction import (
+from middleware.redaction import (
     redact_dict,
     redact_source_code,
     redact_string,

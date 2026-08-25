@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from tools.planner.investigation.models import InvestigationPacket
-from tools.engineer_rule.investigation.selected_rule_orchestration import (
+from tools.common.capabilities.assessment.claims.evidence_claim.models import InvestigationPacket
+from tools.common.capabilities.assessment.investigation.engineering_rule.selected_rule_orchestration import (
     augment_selected_rule_packet,
 )
-from tools.graph.scanner.program_graph.models import ProgramEvidenceGraph
+from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
 
 
 def test_selected_rule_gets_bounded_deterministic_seed_trace() -> None:

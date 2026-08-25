@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from tools.planner.investigation.evidence_claim_validator import (
+from tools.common.capabilities.assessment.claims.evidence_claim.evidence_claim_validator import (
     EvidenceClaimValidationError,
     EvidenceClaimValidator,
 )
-from tools.planner.investigation.models import EvidenceClaim
-from tools.graph.scanner.program_graph.models import ProgramEvidenceGraph
+from tools.common.capabilities.assessment.claims.evidence_claim.models import EvidenceClaim
+from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
 
 
 def _node(node_id: str, node_type: str, label: str) -> dict:

@@ -4,11 +4,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tools.legal.legal.engineering_rules.models import (
+from tools.legal.corpus.engineering_rules.contract.models import (
     DEV_ENGINEERING_RULE_BOOTSTRAP_RULE_FAMILY,
     EngineeringRule,
 )
-from tools.legal.legal.engineering_rules.service import EngineeringRuleService
+from tools.legal.corpus.engineering_rules.orchestration.service import EngineeringRuleService
 
 
 def _legal_rule(*, family: str = "AI_HUMAN_OVERSIGHT") -> dict:

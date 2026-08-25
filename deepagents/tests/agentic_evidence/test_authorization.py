@@ -6,8 +6,9 @@ from uuid import uuid4
 import httpx
 import pytest
 
-from tools.common.agentic_evidence.authorization import ApiPbacToolAuthorizer
-from tools.common.agentic_evidence.registry import AgenticToolValidationError
+from tools.common.capabilities.agentic_evidence.governance.authorization import ApiPbacToolAuthorizer
+from tools.common.capabilities.agentic_evidence.governance.registry import AgenticToolValidationError
+from tools.common.capabilities.platform.pbac_client import PbacClient
 
 
 def response(decision: str, reason: str | None = None) -> httpx.Response:
@@ -37,9 +38,11 @@ def test_technical_tool_accepts_redacted_read_when_full_read_is_denied() -> None
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
     authorizer = ApiPbacToolAuthorizer(
-        base_url="http://api.local",
-        worker_api_key="worker-secret",
-        client=client,
+        pbac_client=PbacClient(
+            "http://api.local",
+            "worker-secret",
+            client=client,
+        ),
     )
 
     result = authorizer.authorize(
@@ -60,9 +63,11 @@ def test_pbac_denial_is_safe_and_terminal() -> None:
         )
     )
     authorizer = ApiPbacToolAuthorizer(
-        base_url="http://api.local",
-        worker_api_key="worker-secret",
-        client=client,
+        pbac_client=PbacClient(
+            "http://api.local",
+            "worker-secret",
+            client=client,
+        ),
     )
 
     with pytest.raises(AgenticToolValidationError, match="AGENTIC_TOOL_PBAC_BLOCKED"):
@@ -84,9 +89,11 @@ def test_unregistered_pbac_action_fails_closed_without_network_call() -> None:
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
     authorizer = ApiPbacToolAuthorizer(
-        base_url="http://api.local",
-        worker_api_key="worker-secret",
-        client=client,
+        pbac_client=PbacClient(
+            "http://api.local",
+            "worker-secret",
+            client=client,
+        ),
     )
 
     with pytest.raises(
@@ -108,9 +115,11 @@ def test_pbac_network_failure_does_not_dispatch_as_allow() -> None:
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
     authorizer = ApiPbacToolAuthorizer(
-        base_url="http://api.local",
-        worker_api_key="worker-secret",
-        client=client,
+        pbac_client=PbacClient(
+            "http://api.local",
+            "worker-secret",
+            client=client,
+        ),
     )
 
     with pytest.raises(

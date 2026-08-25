@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tools.planner.investigation.code_context import CodeContextSession
-from tools.planner.investigation.code_context_investigator import (
+from tools.common.capabilities.assessment.investigation.engineering_rule import code_context_investigator as investigator_module
+from tools.common.capabilities.assessment.investigation.engineering_rule.code_context import CodeContextSession
+from tools.common.capabilities.assessment.investigation.engineering_rule.code_context_investigator import (
     CodeContextLawGuidedInvestigator,
 )
+from tools.common.capabilities.assessment.claims.evidence_claim.evidence_ledger import EvidenceLedger
+from tools.common.capabilities.evidence.graph.query.query_engine import ProgramGraphQueryEngine
 
 
 def _graph() -> dict:
@@ -203,8 +206,18 @@ def test_references_and_workspace_preserve_context_without_resending_source(tmp_
     assert "code" not in workspace["importantSymbols"][0]
 
 
-def test_code_aware_llm_tools_hide_internal_search_resource_guards() -> None:
-    tools = CodeContextLawGuidedInvestigator._code_aware_tool_definitions()
+def test_code_aware_llm_tools_hide_internal_search_resource_guards(
+    tmp_path: Path,
+) -> None:
+    session = CodeContextSession(_graph(), workspace_path=_workspace(tmp_path))
+    token = investigator_module._ACTIVE_CODE_CONTEXT.set(session)
+    try:
+        tools = CodeContextLawGuidedInvestigator("test:model")._native_tools(
+            engine=ProgramGraphQueryEngine(_graph()),
+            ledger=EvidenceLedger(),
+        )
+    finally:
+        investigator_module._ACTIVE_CODE_CONTEXT.reset(token)
     by_name = {tool.name: tool for tool in tools}
 
     assert {
@@ -227,7 +240,7 @@ def test_code_aware_llm_tools_hide_internal_search_resource_guards() -> None:
         "symbol_context",
         "provider_invocations",
     ):
-        properties = by_name[name].input_schema["properties"]
+        properties = by_name[name].args_schema.model_json_schema()["properties"]
         assert "max_hops" not in properties
         assert "max_results" not in properties
         assert "max_neighbors" not in properties

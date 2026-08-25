@@ -1,11 +1,11 @@
 import json
 from pathlib import Path
 
-from tools.legal.legal.official_text_extraction import (
+from tools.legal.sources.extraction.official_text_extraction import (
     OfficialTextExtractionRequest,
     OfficialTextExtractor,
 )
-from tools.legal.legal.official_text_extraction_repository import (
+from tools.legal.sources.extraction.official_text_extraction_repository import (
     OfficialTextExtractionRepository,
 )
 

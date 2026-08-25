@@ -26,7 +26,7 @@ def _py(path: Path) -> set[str]:
 
 
 def test_legal_runtime_is_grouped_by_capability() -> None:
-    legal = PROJECT_ROOT / "runtime" / "legal"
+    legal = PROJECT_ROOT / "tools" / "legal"
     corpus = legal / "corpus"
     retrieval = legal / "retrieval"
     sources = legal / "sources"
@@ -89,32 +89,12 @@ def test_legal_runtime_is_grouped_by_capability() -> None:
     assert _py(sources) == set()
 
 
-def test_legacy_legal_flat_imports_resolve_to_capability_owner() -> None:
-    cases = (
-        (
-            "runtime.legal.corpus.legal_chunk_builder",
-            "runtime.legal.corpus.legal_chunks.legal_chunk_builder",
-        ),
-        (
-            "runtime.legal.retrieval.chroma_path",
-            "runtime.legal.retrieval.index.chroma_path",
-        ),
-        (
-            "runtime.legal.retrieval.legal_retrieval_boundary",
-            "runtime.legal.retrieval.legal_basis.legal_retrieval_boundary",
-        ),
-        (
-            "runtime.legal.sources.official_text_extraction",
-            "runtime.legal.sources.extraction.official_text_extraction",
-        ),
-        (
-            "runtime.legal.sources.ocr_quality_validator",
-            "runtime.legal.sources.ocr_quality.ocr_quality_validator",
-        ),
-    )
-    for legacy_name, canonical_name in cases:
-        legacy = importlib.import_module(legacy_name)
-        canonical = importlib.import_module(canonical_name)
-        assert Path(str(legacy.__file__)).resolve() == Path(
-            str(canonical.__file__)
-        ).resolve()
+def test_canonical_legal_imports_resolve() -> None:
+    for module_name in (
+        "tools.legal.corpus.legal_chunks.legal_chunk_builder",
+        "tools.legal.retrieval.index.chroma_path",
+        "tools.legal.retrieval.legal_basis.legal_retrieval_boundary",
+        "tools.legal.sources.extraction.official_text_extraction",
+        "tools.legal.sources.ocr_quality.ocr_quality_validator",
+    ):
+        assert importlib.import_module(module_name) is not None

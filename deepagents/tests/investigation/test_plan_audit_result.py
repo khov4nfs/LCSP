@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tools.planner.investigation.plan_audit_result import (
+from tools.common.capabilities.assessment.planning.engineering_rule.plan_audit_result import (
     PlannedEngineeringInvestigationResult,
 )
 

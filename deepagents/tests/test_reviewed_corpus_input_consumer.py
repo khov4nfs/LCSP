@@ -3,15 +3,15 @@ from types import SimpleNamespace
 
 import pytest
 
-from tools.legal.legal.reviewed_corpus_input_boundary import (
+from tools.legal.corpus.reviewed_input.reviewed_corpus_input_boundary import (
     REVIEWED_CORPUS_INPUT_COMMAND,
     REVIEWED_CORPUS_INPUT_BOUNDARY_SOURCE,
     ReviewedCorpusInputBoundary,
 )
-from tools.legal.legal.reviewed_corpus_input_repository import (
+from tools.legal.corpus.reviewed_input.reviewed_corpus_input_repository import (
     ReviewedCorpusInputRepository,
 )
-from tools.common.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
 
 
 def _write_canonical_extraction(*, storage_root, snapshot_ref, document_number, spans):
@@ -24,8 +24,8 @@ def _write_canonical_extraction(*, storage_root, snapshot_ref, document_number, 
     spans_path = output_dir / "LAW-TEST.extraction.spans.json"
     manifest_path = output_dir / "LAW-TEST.extraction.manifest.json"
     spans_json = json.dumps(spans, ensure_ascii=False, indent=2) + "\n"
-    from tools.legal.legal.official_text_extraction import _sha256_bytes
-    from tools.legal.legal.official_text_extraction_repository import (
+    from tools.legal.sources.extraction.official_text_extraction import _sha256_bytes
+    from tools.legal.sources.extraction.official_text_extraction_repository import (
         OfficialTextExtractionRepository,
     )
 
@@ -96,7 +96,7 @@ def _write_canonical_extraction(*, storage_root, snapshot_ref, document_number, 
 
 
 def _write_quality_record(*, storage_root, extraction_ref):
-    from tools.legal.legal.ocr_quality_repository import (
+    from tools.legal.sources.ocr_quality.ocr_quality_repository import (
         OcrQualityRecord,
         OcrQualityRepository,
     )

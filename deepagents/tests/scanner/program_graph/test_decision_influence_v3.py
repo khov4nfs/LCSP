@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tools.graph.scanner.program_graph.assembler import ProgramGraphAssembler
-from tools.graph.scanner.program_graph.query_engine import ProgramGraphQueryEngine
+from tools.common.capabilities.evidence.graph.construction.assembly.assembler import ProgramGraphAssembler
+from tools.common.capabilities.evidence.graph.query.query_engine import ProgramGraphQueryEngine
 
 
 def _graph(tmp_path: Path, source: str):

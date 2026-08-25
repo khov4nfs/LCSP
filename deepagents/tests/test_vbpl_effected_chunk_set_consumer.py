@@ -6,16 +6,16 @@ from types import SimpleNamespace
 
 import pytest
 
-from tools.common.agentic_evidence.dispatcher import LegalToolDispatcher
-from tools.common.agentic_evidence.legal_tool_entrypoints import (
+from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import LegalToolDispatcher
+from tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoints import (
     LegalToolExecutionContext,
 )
-from tools.legal.legal.vbpl_effected_chunk_set_boundary import (
+from tools.legal.sources.vbpl_effects.vbpl_effected_chunk_set_boundary import (
     VBPL_EFFECTED_CHUNK_SET_COMMAND,
     VBPL_EFFECTED_CHUNK_SET_BOUNDARY_SOURCE,
     VbplEffectedChunkSetBoundary,
 )
-from tools.common.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
 
 
 def test_dispatcher_exposes_vbpl_effected_chunk_set_tool() -> None:

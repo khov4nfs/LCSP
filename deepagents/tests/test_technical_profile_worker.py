@@ -4,23 +4,23 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from tools.engineer_rule.intelligence.evidence_quality_evaluator import (
+from tools.common.capabilities.assessment.claims.technical_profile.evidence_quality_evaluator import (
     EVIDENCE_QUALITY_HIGH,
     EVIDENCE_QUALITY_INSUFFICIENT,
     EVIDENCE_QUALITY_LOW,
     EVIDENCE_QUALITY_MEDIUM,
     EvidenceQualityEvaluator,
 )
-from tools.engineer_rule.intelligence.technical_profile_builder import (
+from tools.common.capabilities.assessment.claims.technical_profile.technical_profile_builder import (
     PrivacyAssertionError,
     TechnicalProfileBuilder,
 )
-from tools.engineer_rule.intelligence.technical_profile_boundary import (
+from tools.common.capabilities.assessment.claims.technical_profile.technical_profile_boundary import (
     TechnicalProfileBoundary,
 )
-from tools.engineer_rule.investigation.pipeline import EngineeringInvestigationResult
-from tools.common.platform.config import WorkerConfig
-from tools.common.platform.callback_schemas import TechnicalProfileCallbackPayload
+from tools.common.capabilities.assessment.investigation.engineering_rule.pipeline import EngineeringInvestigationResult
+from tools.common.capabilities.platform.config import WorkerConfig
+from tools.common.capabilities.platform.callback_schemas import TechnicalProfileCallbackPayload
 
 
 def _evidence_report(
@@ -287,7 +287,7 @@ def test_consumer_waits_without_callback_when_engineering_rules_are_rebuilding()
 def test_get_accepted_technical_profile_resolves_file_ref() -> None:
     import os
     import json
-    from tools.common.platform.api_client import WorkerApiClient
+    from tools.common.capabilities.platform.api_client import WorkerApiClient
     
     ref_path = "/tmp/lcsp-technical-profile-data-mock-ter.json"
     mock_full_data = {

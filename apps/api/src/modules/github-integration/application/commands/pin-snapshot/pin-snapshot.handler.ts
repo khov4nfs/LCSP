@@ -202,6 +202,7 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
         payload: {
           snapshotId: snapshot.id,
           assessmentId: snapshot.assessmentId,
+          organizationId: snapshot.organizationId,
           commitSha: snapshot.commitSha,
           connectionId: snapshot.connectionId,
           correlationId: command.correlationId,
@@ -224,6 +225,7 @@ export class PinSnapshotHandler implements ICommandHandler<PinSnapshotCommand> {
       payload: {
         snapshotId: snapshot.id,
         assessmentId: snapshot.assessmentId,
+        organizationId: snapshot.organizationId,
         commitSha: snapshot.commitSha,
         connectionId: snapshot.connectionId,
         correlationId: command.correlationId,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tools.clarification.investigation.clarification import (
+from tools.common.capabilities.workflow.recovery.clarification import (
     AgentClarificationQuestion,
     AgentClarificationQuestionGenerator,
     ClarificationQuestionRouter,

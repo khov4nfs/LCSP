@@ -8,6 +8,8 @@ export type StartRepositoryAnalysisInput = {
 export type StartRepositoryAnalysisResult = {
   snapshotId: string;
   commitSha: string;
+  scanJobId: string;
+  scanStatus: string;
 };
 
 type SnapshotPayload = {
@@ -51,9 +53,31 @@ export async function startRepositoryAnalysis(
     );
   }
 
+  const snapshotId = snapshotResponse.payload.snapshot_id;
+  const scanResponse = await apiRequest(
+    `/api/assessments/${encodeURIComponent(assessmentId)}/scan-jobs`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        snapshot_id: snapshotId,
+        idempotency_key: buildSnapshotScanIdempotencyKey(
+          assessmentId,
+          snapshotId,
+        ),
+      }),
+    },
+  );
+
+  if (!scanResponse.ok || !isScanPayload(scanResponse.payload)) {
+    throw new Error(scanResponse.problemCode ?? "repository-scan-start-failed");
+  }
+
   return {
-    snapshotId: snapshotResponse.payload.snapshot_id,
+    snapshotId,
     commitSha: snapshotResponse.payload.commit_sha,
+    scanJobId: scanResponse.payload.scan_job_id,
+    scanStatus: scanResponse.payload.status,
   };
 }
 
@@ -110,4 +134,11 @@ function isScanPayload(payload: unknown): payload is {
   return (
     typeof value.scan_job_id === "string" && typeof value.status === "string"
   );
+}
+
+function buildSnapshotScanIdempotencyKey(
+  assessmentId: string,
+  snapshotId: string,
+): string {
+  return ["snapshot-auto", assessmentId, snapshotId].join(":");
 }

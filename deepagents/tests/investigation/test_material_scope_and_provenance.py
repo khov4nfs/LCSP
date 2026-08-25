@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import pytest
 
-from tools.planner.investigation.evidence_claim_validator import (
+from tools.common.capabilities.assessment.claims.evidence_claim.evidence_claim_validator import (
     EvidenceClaimValidationError,
     EvidenceClaimValidator,
 )
-from tools.planner.investigation.material_scope import material_planning_packet
-from tools.planner.investigation.models import EvidenceClaim, InvestigationPacket
-from tools.legal.legal.engineering_rules.models import EngineeringRule
-from tools.graph.scanner.program_graph.models import ProgramEvidenceGraph
-from tools.graph.scanner.program_graph.source_roles import (
+from tools.common.capabilities.assessment.planning.engineering_rule.material_scope import material_planning_packet
+from tools.common.capabilities.assessment.claims.evidence_claim.models import EvidenceClaim, InvestigationPacket
+from tools.legal.corpus.engineering_rules.contract.models import EngineeringRule
+from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
+from tools.common.capabilities.evidence.graph.schema.source_roles import (
     filter_program_evidence_graph,
     is_test_source_path,
 )
@@ -99,7 +99,7 @@ def test_test_source_path_policy_covers_common_python_and_js_specs() -> None:
     assert is_test_source_path("deepagents/fixtures/sample.py")
     assert not is_test_source_path("apps/api/src/foo.handler.ts")
     assert not is_test_source_path(
-        "deepagents/tools/common/managed/invocation.py"
+        "deepagents/tools/common/capabilities/managed/invocation.py"
     )
 
 
@@ -131,7 +131,7 @@ def test_material_scope_ignores_generic_ai_seed_and_test_health_seed() -> None:
     generic = _node(
         "node:generic",
         label="internal model runtime complete",
-        path="src/model_runtime.py",
+        path="src/native_agent_runtime.py",
         evidence_ref="evidence:generic",
     )
     health = _node(
@@ -177,8 +177,11 @@ def test_material_scope_ignores_generic_ai_seed_and_test_health_seed() -> None:
 def test_material_scope_ignores_internal_deep_agent_runtime_seed() -> None:
     deep_agent_output = _node(
         "node:deep-agent-output",
-        label="output from DeepAgentClient.complete",
-        path="khovan123-LCSP-68bba10/deepagents/tools/common/llm/deep_agent_client.py",
+        label="output from LangChainAgent.invoke",
+        path=(
+            "khovan123-LCSP-68bba10/deepagents/tools/common/capabilities/assessment/"
+            "investigation/engineering_rule/investigator.py"
+        ),
         evidence_ref="evidence:deep-agent-output",
         node_type="AI_OUTPUT",
     )

@@ -2,6 +2,7 @@ import {
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
 } from "@lcsp/contracts/evidence";
+import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 
 import type { WorkspaceRuntimeActivityItem } from "../../workspace/types/workspace-runtime.types";
 
@@ -45,8 +46,19 @@ export function selectRuntimeConsoleActivity({
 
 export function buildRuntimeConsoleModel(
   activity: WorkspaceRuntimeActivityItem[],
+  options: { runStatusOverride?: string | null } = {},
 ): RuntimeConsoleModel {
   const latestByCorrelation = new Map<string, WorkspaceRuntimeActivityItem>();
+  const terminalRunEvent = activity
+    .filter((item) => isTerminalRunEvent(item.eventType))
+    .sort(compareRuntimeActivity)
+    .at(-1);
+  const terminalStatus =
+    terminalRunEvent?.runStatus ??
+    terminalRuntimeStatusFromScanStatus(options.runStatusOverride);
+  const runCompleted =
+    terminalStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.completed;
+  const runFailed = terminalStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.failed;
 
   for (const item of activity) {
     const key = `${item.runId}:${item.stage}:${item.toolName || ""}`;
@@ -59,18 +71,37 @@ export function buildRuntimeConsoleModel(
   const steps = Array.from(latestByCorrelation.values())
     .sort(compareRuntimeActivity)
     .map((item): RuntimeConsoleStep => {
-      const isActive = isActiveRuntimeStep(item);
+      const wasActive = isActiveRuntimeStep(item);
+      const isActive = terminalStatus === null && wasActive;
+      const reconciledItem =
+        terminalStatus !== null && wasActive
+          ? {
+              ...item,
+              runStatus: terminalStatus,
+              outputSummary: {
+                status: terminalStatus,
+                completedBy:
+                  terminalRunEvent?.eventType ?? "REPOSITORY_SCAN_JOB_STATUS",
+              },
+              completedAt:
+                terminalRunEvent?.completedAt ??
+                terminalRunEvent?.emittedAt ??
+                null,
+              waitingReason: null,
+            }
+          : item;
       const isFailed =
         item.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.failed ||
         item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed ||
-        item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runFailed;
+        item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runFailed ||
+        (runFailed && wasActive);
       const isSkipped =
         item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped;
       const isTerminal = isTerminalRuntimeEvent(item.eventType);
 
       return {
         id: item.eventId,
-        item,
+        item: reconciledItem,
         isActive,
         isFailed,
         isSkipped,
@@ -96,7 +127,10 @@ export function buildRuntimeConsoleModel(
     completedCount: steps.filter(
       (step) =>
         !isWaitingRuntimeStep(step.item) &&
-        (step.item.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.completed ||
+        !step.isFailed &&
+        !step.isSkipped &&
+        (runCompleted ||
+          step.item.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.completed ||
           step.item.eventType ===
             ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted ||
           step.item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted),
@@ -174,4 +208,27 @@ function isTerminalRuntimeEvent(eventType: string) {
     eventType === events.runCompleted ||
     eventType === events.runFailed
   );
+}
+
+function isTerminalRunEvent(eventType: string) {
+  return (
+    eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted ||
+    eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runFailed
+  );
+}
+
+function terminalRuntimeStatusFromScanStatus(
+  status: string | null | undefined,
+) {
+  if (status === REPOSITORY_SCAN_JOB_STATUSES.completed) {
+    return ASSESSMENT_RUNTIME_RUN_STATUSES.completed;
+  }
+  if (
+    status === REPOSITORY_SCAN_JOB_STATUSES.failed ||
+    status === REPOSITORY_SCAN_JOB_STATUSES.blocked ||
+    status === REPOSITORY_SCAN_JOB_STATUSES.blockedMapping
+  ) {
+    return ASSESSMENT_RUNTIME_RUN_STATUSES.failed;
+  }
+  return null;
 }

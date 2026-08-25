@@ -1,8 +1,8 @@
 from __future__ import annotations
 from unittest.mock import MagicMock
 from uuid import uuid4
-from tools.common.agentic_evidence.registry import AgenticToolRequest, build_sprint6_agentic_registry
-from tools.common.agentic_evidence.runtime_binding import bind_runtime_handlers
+from tools.common.capabilities.agentic_evidence.governance.registry import AgenticToolRequest, build_sprint6_agentic_registry
+from tools.common.capabilities.agentic_evidence.dispatch.runtime_binding import bind_runtime_handlers
 
 
 def _graph(): return {"graph_id": "graph:1", "schema_version": "2.0.0", "snapshot_id": "snap", "commit_sha": "sha", "node_count": 0, "edge_count": 0, "nodes": [], "edges": [], "source_anchors": [], "indexes": {}, "unresolved_frontiers": [], "coverage_state": "SUFFICIENT", "coverage_notes": [], "provenance": {}, "evidence_refs": [], "graph_hash": "sha256:test"}

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tools.planner.investigation.evidence_ledger import EvidenceLedger
+from tools.common.capabilities.assessment.claims.evidence_claim.evidence_ledger import EvidenceLedger
 
 
 def test_evidence_alias_pages_canonical_evidence_refs_without_error() -> None:

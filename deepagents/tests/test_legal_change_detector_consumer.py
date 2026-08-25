@@ -3,11 +3,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tools.legal.legal.legal_change_detector_boundary import (
+from tools.legal.sources.change_detection.legal_change_detector_boundary import (
     CheckUpdatesEnvelope,
     LegalChangeDetectorBoundary,
 )
-from tools.common.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
 
 
 def test_change_detector_uses_corpus_store_for_cron_crawl_artifacts(

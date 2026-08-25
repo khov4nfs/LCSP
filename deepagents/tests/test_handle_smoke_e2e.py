@@ -3,10 +3,11 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from langchain.messages import AIMessage
 
-from tools.classification.classification.classification_boundary import ClassificationBoundary
-from tools.engineer_rule.intelligence.ai_usage_flow_boundary import AIUsageFlowBoundary
-from tools.common.platform.config import WorkerConfig
+from tools.common.capabilities.assessment.evaluation.classification.classification_boundary import ClassificationBoundary
+from tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_boundary import AIUsageFlowBoundary
+from tools.common.capabilities.platform.config import WorkerConfig
 
 
 def _config() -> WorkerConfig:
@@ -85,33 +86,33 @@ def test_ai_usage_flow_handle_smoke_e2e_runs_graph_and_submits_callback() -> Non
     api_client.get_accepted_technical_evidence_report.return_value = _evidence_report()
     api_client.get_wizard_profile_for_assessment.return_value = _wizard_profile()
 
-    llm_client = MagicMock()
-    llm_response = MagicMock()
-    llm_response.structured_response = {
-        "summary_updates": {
-            "businessProcess": "loan_approval",
-            "aiPurpose": "credit_scoring_decision_support",
-            "affectedSubjects": ["loan_applicant"],
-            "humanReview": "present",
-        }
-    }
-    llm_response.request_id = "req-smoke-ai-1"
-    llm_client.complete_structured.return_value = llm_response
-
-    boundary = AIUsageFlowBoundary(
-        _config(),
-        api_client=api_client,
-        llm_client=llm_client,
-    )
-
-    boundary.handle(
-        {
-            "technicalProfileId": "tp-smoke-1",
-            "assessmentId": "assessment-smoke-1",
-            "evidenceReportId": "ter-smoke-1",
+    proposal_agent = MagicMock()
+    proposal_agent.invoke.return_value = {
+        "messages": [AIMessage(content="")],
+        "structured_response": {
+            "summary_updates": {
+                "businessProcess": "loan_approval",
+                "aiPurpose": "credit_scoring_decision_support",
+                "affectedSubjects": ["loan_applicant"],
+                "humanReview": "present",
+            }
         },
-        correlationId="corr-smoke-ai-1",
-    )
+    }
+
+    boundary = AIUsageFlowBoundary(_config(), api_client=api_client)
+
+    with patch(
+        "tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_proposer.create_agent",
+        return_value=proposal_agent,
+    ):
+        boundary.handle(
+            {
+                "technicalProfileId": "tp-smoke-1",
+                "assessmentId": "assessment-smoke-1",
+                "evidenceReportId": "ter-smoke-1",
+            },
+            correlationId="corr-smoke-ai-1",
+        )
 
     api_client.post_ai_usage_flow_callback.assert_called_once()
     callback_payload = api_client.post_ai_usage_flow_callback.call_args.args[0]
@@ -120,27 +121,33 @@ def test_ai_usage_flow_handle_smoke_e2e_runs_graph_and_submits_callback() -> Non
     assert callback_payload.flow_data["summary"]["businessProcess"] == "loan_approval"
     assert callback_payload.privacy_flags["containsSourceCode"] is False
 
-    llm_kwargs = llm_client.complete_structured.call_args.kwargs
-    assert llm_kwargs["workflow_run_id"] == "ai-usage-flow:tp-smoke-1:corr-smoke-ai-1"
-    assert llm_kwargs["node_name"] == "ai_usage_flow.summary_proposal"
+    invoke_kwargs = proposal_agent.invoke.call_args.kwargs
+    assert invoke_kwargs["config"]["metadata"]["workflow_run_id"] == "ai-usage-flow:tp-smoke-1:corr-smoke-ai-1"
+    assert invoke_kwargs["config"]["metadata"]["node_name"] == "ai_usage_flow.summary_proposal"
 
 
 @pytest.mark.integration
 @pytest.mark.e2e
 def test_classification_handle_smoke_e2e_runs_graph_and_submits_callback() -> None:
-    llm_client = MagicMock()
-    proposal_response = MagicMock()
-    proposal_response.structured_response = {
-        "risk_level": "HIGH",
-        "applicability_assessment": "applicable",
-        "rationale": "This assessment is high risk based on the cited evidence.",
+    proposal_agent = MagicMock()
+    proposal_agent.invoke.return_value = {
+        "messages": [AIMessage(content="")],
+        "structured_response": {
+            "risk_level": "HIGH",
+            "applicability_assessment": "applicable",
+            "rationale": "This assessment is high risk based on the cited evidence.",
+        },
     }
-    proposal_response.request_id = "req-smoke-classification-1"
-    llm_client.complete_structured.return_value = proposal_response
 
-    boundary = ClassificationBoundary(config=MagicMock(), llm_client=llm_client)
+    boundary = ClassificationBoundary(config=MagicMock())
 
-    with patch.object(boundary, "_submit_callback") as mock_submit:
+    with (
+        patch.object(boundary, "_submit_callback") as mock_submit,
+        patch(
+            "tools.common.capabilities.assessment.evaluation.classification.classification_proposer.create_agent",
+            return_value=proposal_agent,
+        ),
+    ):
         boundary.handle(
             {
                 "assessment_id": "assessment-smoke-2",
@@ -168,11 +175,10 @@ def test_classification_handle_smoke_e2e_runs_graph_and_submits_callback() -> No
         == "This assessment is high risk based on the cited evidence."
     )
 
-    llm_calls = llm_client.complete_structured.call_args_list
-    assert len(llm_calls) == 1
-    llm_kwargs = llm_calls[0].kwargs
+    proposal_agent.invoke.assert_called_once()
+    llm_kwargs = proposal_agent.invoke.call_args.kwargs["config"]
     assert (
-        llm_kwargs["workflow_run_id"]
+        llm_kwargs["metadata"]["workflow_run_id"]
         == "classification:assessment-smoke-2:2.1:corr-smoke-classification-1"
     )
-    assert llm_kwargs["node_name"] == "classification.proposal"
+    assert llm_kwargs["metadata"]["node_name"] == "classification.proposal"

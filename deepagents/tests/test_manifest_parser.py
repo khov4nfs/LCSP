@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from tools.graph.scanner.inventory.manifest_parser import ManifestParser
+from tools.common.capabilities.evidence.scanner.inventory.manifest.manifest_parser import ManifestParser
 
 
 def _find_fact(result, manifest_type: str, suffix: str):

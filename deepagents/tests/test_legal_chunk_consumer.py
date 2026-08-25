@@ -4,18 +4,18 @@ from types import SimpleNamespace
 import json
 import pytest
 
-from tools.legal.legal.legal_chunk_boundary import (
+from tools.legal.corpus.legal_chunks.legal_chunk_boundary import (
     LEGAL_CHUNK_COMMAND,
     LEGAL_CHUNK_BOUNDARY_SOURCE,
     LegalChunkBoundary,
 )
-from tools.legal.legal.legal_chunk_repository import LegalChunkRepository
-from tools.common.managed.boundary import NonRetryableAgentBoundaryError
+from tools.legal.corpus.legal_chunks.legal_chunk_repository import LegalChunkRepository
+from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
 
 
 def _write_reviewed_input(*, storage_root: Path, reviewed_input_ref: str, text: str):
-    from tools.legal.legal.official_text_extraction import _sha256_text
-    from tools.legal.legal.reviewed_corpus_input_repository import (
+    from tools.legal.sources.extraction.official_text_extraction import _sha256_text
+    from tools.legal.corpus.reviewed_input.reviewed_corpus_input_repository import (
         ReviewedCorpusInputRecord,
         ReviewedCorpusInputRepository,
     )

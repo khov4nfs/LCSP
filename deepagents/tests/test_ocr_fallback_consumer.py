@@ -5,13 +5,13 @@ from types import SimpleNamespace
 
 import pytest
 
-from tools.legal.legal.ocr_fallback_boundary import (
+from tools.legal.sources.ocr_fallback.ocr_fallback_boundary import (
     OCR_FALLBACK_COMMAND,
     OCR_FALLBACK_BOUNDARY_SOURCE,
     OcrFallbackBoundary,
 )
-from tools.legal.legal.ocr_fallback_repository import OcrFallbackRepository
-from tools.common.managed.boundary import NonRetryableAgentBoundaryError
+from tools.legal.sources.ocr_fallback.ocr_fallback_repository import OcrFallbackRepository
+from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
 
 
 def _write_extraction_record(
@@ -87,7 +87,7 @@ def test_consumer_runs_ocr_fallback_and_persists_record(tmp_path: Path, monkeypa
         canonical_extraction_available=False,
     )
 
-    from tools.legal.legal.official_text_extraction import _sha256_bytes
+    from tools.legal.sources.extraction.official_text_extraction import _sha256_bytes
 
     monkeypatch.setattr("shutil.which", lambda _: "/usr/bin/tool")
 
@@ -109,9 +109,9 @@ def test_consumer_runs_ocr_fallback_and_persists_record(tmp_path: Path, monkeypa
         max_retries=3,
         legal_source_storage_root=str(storage_root),
     )
-    from tools.legal.legal.ocr_fallback import OcrFallbackTool
-    from tools.legal.legal.official_text_extraction import OfficialSourceSnapshotResolver
-    from tools.legal.legal.official_text_extraction_repository import (
+    from tools.legal.sources.ocr_fallback.ocr_fallback import OcrFallbackTool
+    from tools.legal.sources.extraction.official_text_extraction import OfficialSourceSnapshotResolver
+    from tools.legal.sources.extraction.official_text_extraction_repository import (
         OfficialTextExtractionRepository,
     )
 

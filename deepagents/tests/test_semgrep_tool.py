@@ -6,15 +6,22 @@ from pathlib import Path
 
 import pytest
 
-from runtime.evidence.scanner.tools.semgrep_tool import (
+from tools.common.capabilities.evidence.scanner.tools.semgrep.semgrep_tool import (
     AI_USAGE_TOOL_NAME,
     SECRET_DETECT_TOOL_NAME,
     SemgrepTool,
 )
-from runtime.evidence.scanner.tools.tool_base import (
+from tools.common.capabilities.evidence.scanner.tools.common.tool_base import (
     OUTCOME_SUCCESS,
     OUTCOME_TOOL_TIMEOUT,
 )
+
+
+def test_default_rulesets_resolve_from_scanner_package() -> None:
+    tool = SemgrepTool()
+
+    assert tool._ai_ruleset_path.is_file()
+    assert tool._secret_ruleset_path.is_file()
 
 
 def _completed(
@@ -417,7 +424,9 @@ def test_semgrep_tool_parses_full_ruleset_metadata_and_strips_source_fields(
 def test_semgrep_full_ai_ruleset_declares_required_groups_and_metadata() -> None:
     ruleset = (
         Path(__file__).parents[1]
-        / "runtime"
+        / "tools"
+        / "common"
+        / "capabilities"
         / "evidence"
         / "scanner"
         / "rulesets"

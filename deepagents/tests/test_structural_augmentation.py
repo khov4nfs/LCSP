@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tools.graph.scanner.evidence_assembler import EvidenceAssembler
-from tools.graph.scanner.parsers.structural_augmentor import StructuralAugmentor
-from tools.graph.scanner.parsers.tree_sitter_parser import StructuralParser
-from tools.graph.scanner.tools.semgrep_tool import SemgrepFinding, SemgrepRunResult
-from tools.graph.scanner.tools.tool_base import OUTCOME_SUCCESS, ToolExecutionResult
+from tools.common.capabilities.evidence.scanner.assembly.evidence_assembler import EvidenceAssembler
+from tools.common.capabilities.evidence.scanner.parsers.structural.structural_augmentor import StructuralAugmentor
+from tools.common.capabilities.evidence.scanner.parsers.structural.tree_sitter_parser import StructuralParser
+from tools.common.capabilities.evidence.scanner.tools.semgrep.semgrep_tool import SemgrepFinding, SemgrepRunResult
+from tools.common.capabilities.evidence.scanner.tools.common.tool_base import OUTCOME_SUCCESS, ToolExecutionResult
 
 
 def _semgrep_result() -> SemgrepRunResult:

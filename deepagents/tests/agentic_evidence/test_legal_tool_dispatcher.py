@@ -6,15 +6,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tools.common.agentic_evidence import legal_tool_entrypoints
-from tools.common.agentic_evidence.dispatcher import (
+from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import (
     ALL_TOOL_BINDINGS,
     AO6_LEGAL_TOOL_BINDINGS,
     LegalToolDispatcher,
     ToolRuntimeTarget,
     runtime_binding,
 )
-from tools.common.agentic_evidence.legal_tool_entrypoints import (
+from tools.common.capabilities.agentic_evidence.entrypoints import legal_tool_entrypoints
+from tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoints import (
     LegalToolExecutionContext,
 )
 
