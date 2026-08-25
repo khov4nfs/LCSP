@@ -6,6 +6,12 @@ baseline_commit: fad76ae81090f42c749c507960588b9b79cda385
 
 Status: done
 
+Implementation update 2026-08-25: LCSP now supports self-signup without an
+invitation or acceptance token through `POST /auth/sign-up` and `/sign-up`.
+This path creates a new Manager-owned organization workspace, Manager PBAC
+policy, active membership, and scoped session atomically. Invitation acceptance
+remains the path for Developer/scoped collaborator onboarding.
+
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
 ## Story
@@ -23,6 +29,7 @@ so that I can access only the workspace I am authorized to use.
 
 - [x] Thiết lập auth entry flow theo boundary của Story 1.1 trong Web + NestJS API, chỉ cho approved account/invitation path (AC: 1, 2)
   - [x] Tạo public entry screens/routes cho đăng ký hoặc đăng nhập bằng approved path; không ghép OAuth/OIDC callback/provider handling vào story này.
+  - [x] Tạo self-signup path cho Manager khởi tạo workspace mới mà không cần invitation acceptance.
   - [x] Định nghĩa DTO/validation cho register/sign-in với stable error code, safe message, correlation id và không echo secret/token/password.
   - [x] Giữ rõ boundary: OAuth/OIDC login thuộc Story 1.3; MFA/session recovery/profile safety thuộc Story 1.2.
 - [x] Tạo session đăng nhập và gate truy cập workspace theo membership/verification policy (AC: 1)
@@ -117,6 +124,7 @@ so that I can access only the workspace I am authorized to use.
 ### Testing Requirements
 
 - Auth contract tests:
+  - self-signup tạo user, workspace, Manager policy, active membership, session và vào được `/workspace`;
   - approved registration/sign-in tạo session thành công;
   - invalid credentials bị reject an toàn;
   - invalid invite state bị reject an toàn;

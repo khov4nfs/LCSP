@@ -23,7 +23,7 @@ Validate the provider callback (state, nonce, issuer, audience, expiry), link th
 | `apps/api/src/modules/auth-workspace/application/commands/oauth-callback/oauth-callback.command.ts`    | Create | `{ provider, code, state, correlationId? }`         |
 | `apps/api/src/modules/auth-workspace/application/commands/oauth-callback/oauth-callback.handler.ts`    | Create | All validation + linking logic                      |
 | `apps/api/src/modules/auth-workspace/infrastructure/oauth/oauth-provider.interface.ts`                 | Verify | `handleCallback(code, state, nonce): OAuthIdentity` |
-| `apps/api/src/modules/auth-workspace/infrastructure/oauth/github-oauth.provider.ts`                    | Modify | Implement callback + token exchange                 |
+| `apps/api/src/modules/auth-workspace/infrastructure/oauth/google-oauth.provider.ts`                    | Modify | Implement callback + ID token verification          |
 | `apps/api/src/modules/auth-workspace/domain/entities/oauth-identity.entity.ts`                         | Create | `OAuthIdentity` domain entity                       |
 | `apps/api/src/modules/auth-workspace/application/ports/persistence/oauth-identity.repository.ts`       | Create | Port interface                                      |
 | `apps/api/src/modules/auth-workspace/infrastructure/persistence/prisma-auth-workspace.repositories.ts` | Modify | Add `PrismaOAuthIdentityRepository`                 |
@@ -74,6 +74,7 @@ model AuthOAuthIdentity {
 | ---- | ------------------------ | ---------------------------------------------------------------------- |
 | 400  | `OAUTH_STATE_INVALID`    | State not found or expired                                             |
 | 400  | `OAUTH_CALLBACK_INVALID` | Token exchange failed, issuer/audience/expiry mismatch, nonce mismatch |
+| 400  | `UNSUPPORTED_PROVIDER`   | Stored callback provider is not registered                             |
 | 404  | `ACCOUNT_NOT_FOUND`      | No LCSP user linked to provider identity                               |
 | 403  | `MEMBERSHIP_MISSING`     | Provider identity linked but no active membership                      |
 
@@ -92,11 +93,11 @@ model AuthOAuthIdentity {
 
 1. Load `AuthOAuthState` by `state` query param. If not found or `expiresAt < now()` → `OAUTH_STATE_INVALID`.
 2. Delete `AuthOAuthState` row (one-time use). If already deleted → `OAUTH_STATE_INVALID`.
-3. Exchange `code` for provider tokens. Validate:
+3. Exchange `code` for Google OIDC tokens. Validate:
    - `redirect_uri` matches stored `AuthOAuthState.redirectUri`.
    - `nonce` in ID token matches stored `nonce`.
    - `issuer` matches expected provider issuer.
-   - `audience` contains LCSP client ID.
+   - `audience` matches LCSP's Google OAuth client ID.
    - `exp` (expiry) is in the future.
 4. If any validation fails → `OAUTH_CALLBACK_INVALID`. Log safe reason code only.
 5. Extract provider `accountId` from ID token claims.

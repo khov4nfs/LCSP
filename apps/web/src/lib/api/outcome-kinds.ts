@@ -38,4 +38,5 @@ export const API_REDIRECT_LOCATIONS = {
   mfaEnroll: "/mfa/enroll",
   recoveryRequest: "/recovery/request",
   signIn: "/sign-in",
+  signUp: "/sign-up",
 } as const;

@@ -4,7 +4,7 @@ import { resolvePublicOrigin } from "@/lib/http/request-origin";
 import { requireSessionToken } from "@/lib/server/session-token";
 import { upstreamRequest, upstreamUrl } from "@/lib/server/upstream-request";
 
-const oauthProviders = new Set(["google", "github"]);
+const oauthProviders = new Set(["google"]);
 
 type OAuthLinkCallbackSuccess = {
   provider: string;

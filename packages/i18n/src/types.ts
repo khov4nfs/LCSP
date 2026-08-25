@@ -140,8 +140,8 @@ export type PagesMessages = {
     submitting: string;
     divider: string;
     oauthGoogle: string;
-    oauthGitHub: string;
     accessHelp: string;
+    createAccount: string;
     forgotPassword: string;
     errors: {
       emailRequired: string;
@@ -150,6 +150,43 @@ export type PagesMessages = {
       requestFailedTitle: string;
       requestFailedDetail: string;
       retryAtLabel: string;
+    };
+  };
+  signUp: {
+    metadataTitle: string;
+    metadataDescription: string;
+    homeAriaLabel: string;
+    formTitle: string;
+    formDescription: string;
+    displayNameLabel: string;
+    displayNameDescription: string;
+    organizationNameLabel: string;
+    organizationNameDescription: string;
+    emailLabel: string;
+    emailDescription: string;
+    passwordLabel: string;
+    passwordDescription: string;
+    confirmPasswordLabel: string;
+    confirmPasswordDescription: string;
+    submit: string;
+    submitting: string;
+    alreadyHaveAccount: string;
+    signInInstead: string;
+    errors: {
+      displayNameRequired: string;
+      organizationNameRequired: string;
+      emailRequired: string;
+      emailInvalid: string;
+      passwordRequired: string;
+      passwordTooShort: string;
+      confirmPasswordRequired: string;
+      passwordMismatch: string;
+      emailExistsTitle: string;
+      emailExistsDetail: string;
+      invalidRequestTitle: string;
+      invalidRequestDetail: string;
+      requestFailedTitle: string;
+      requestFailedDetail: string;
     };
   };
   mfaVerify: {
@@ -452,7 +489,6 @@ export type PagesMessages = {
         sendRecovery: string;
         updatePassword: string;
         revoke: string;
-        linkGitHub: string;
         linkGoogle: string;
         connectGitHubRepository: string;
         manageGitHubRepositoryAccess: string;

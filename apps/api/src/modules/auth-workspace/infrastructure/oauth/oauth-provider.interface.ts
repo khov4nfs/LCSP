@@ -12,11 +12,8 @@ export type OAuthCallbackInput = {
 
 /**
  * Claims recovered from the provider's callback. `nonce`/`issuer`/`audience`/
- * `expiresAt` are `null` when the provider has no cryptographically-verifiable
- * ID token to source them from (e.g. GitHub's classic OAuth2, which has no
- * OIDC ID token at all) — the generic callback handler skips a check whose
- * claim is `null` rather than failing closed on a claim the provider can
- * never supply.
+ * `expiresAt` are `null` only for providers that cannot cryptographically
+ * source that claim. Real OIDC providers should populate each verifiable claim.
  */
 export type OAuthCallbackClaims = {
   providerAccountId: string;

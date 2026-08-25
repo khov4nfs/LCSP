@@ -9,8 +9,6 @@ export interface AuthConfig {
 }
 
 export interface OAuthConfig {
-  githubClientId: string;
-  githubClientSecret: string;
   googleClientId: string;
   googleClientSecret: string;
   allowedRedirectOrigins: string[];
@@ -63,7 +61,13 @@ export interface OrchestrationConfig {
   debug: boolean;
 }
 
-export type NodeEnv = "development" | "production" | "test";
+export const NODE_ENVS = {
+  development: "development",
+  production: "production",
+  test: "test",
+} as const;
+
+export type NodeEnv = (typeof NODE_ENVS)[keyof typeof NODE_ENVS];
 
 export interface AppConfig {
   nodeEnv: NodeEnv;

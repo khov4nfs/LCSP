@@ -29,12 +29,8 @@ const EXPECTED_ISSUER = "https://issuer.example";
 const EXPECTED_AUDIENCE = "expected-audience";
 const CORRECT_NONCE = "correct-nonce";
 
-// A hypothetical real OIDC provider (unlike GitHub's classic OAuth2, which
-// has no ID token) — used only to exercise the shared nonce/issuer/audience/
-// expiry validation branch that GitHub's own claims (all-null) can never
-// reach. See ADR discussion in the OAuth story: GitHub's provider self-
-// reports fixed issuer/audience constants and null nonce/expiresAt, so this
-// stub is the only way to prove the generic validation logic is correct.
+// A stub OIDC provider exercises the shared nonce/issuer/audience/expiry
+// validation branches through the production callback handler.
 class StubOidcProvider implements OAuthProvider {
   readonly name = "stub-oidc";
   expectedIssuer: string | null = EXPECTED_ISSUER;

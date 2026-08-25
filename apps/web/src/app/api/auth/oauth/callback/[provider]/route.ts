@@ -8,7 +8,7 @@ import { resolvePublicOrigin } from "@/lib/http/request-origin";
 import { readSessionToken } from "@/lib/server/session-token";
 import { upstreamRequest, upstreamUrl } from "@/lib/server/upstream-request";
 
-const oauthProviders = new Set(["google", "github"]);
+const oauthProviders = new Set(["google"]);
 const OAUTH_LINK_STATE_COOKIE_NAME = "lcsp_oauth_link_state";
 
 type OAuthCallbackSuccess = {

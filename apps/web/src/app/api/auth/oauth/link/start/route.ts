@@ -6,7 +6,7 @@ import { problemJson } from "@/lib/server/problem-json";
 import { requireSessionToken } from "@/lib/server/session-token";
 import { upstreamRequest, upstreamUrl } from "@/lib/server/upstream-request";
 
-const oauthProviders = new Set(["google", "github"]);
+const oauthProviders = new Set(["google"]);
 const OAUTH_LINK_STATE_COOKIE_NAME = "lcsp_oauth_link_state";
 
 type OAuthLinkStartSuccess = {
@@ -19,9 +19,9 @@ export async function GET(request: NextRequest) {
 
   const requestUrl = new URL(request.url);
   const publicOrigin = resolvePublicOrigin(request);
-  const provider = requestUrl.searchParams.get("provider") ?? "github";
+  const provider = requestUrl.searchParams.get("provider");
 
-  if (!oauthProviders.has(provider)) {
+  if (!provider || !oauthProviders.has(provider)) {
     return problemJson(AUTH_ERROR_CODES.unsupportedProvider, { status: 400 });
   }
 

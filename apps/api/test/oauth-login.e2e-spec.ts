@@ -29,7 +29,7 @@ import {
 } from "./support/auth-workspace-test-helpers.js";
 
 const ALLOWED_REDIRECT_URI = "http://localhost:3000/auth/callback";
-const LEAKED_TOKEN_MARKER = "gho_should_never_leak_this_value";
+const GOOGLE_ID_TOKEN_MARKER = "google_id_token_should_never_leak_this_value";
 
 type FakeFetchResponse = { ok: boolean; json: () => Promise<unknown> };
 
@@ -45,6 +45,7 @@ describe("OAuth login (e2e)", () => {
   let prisma: PrismaClient;
   let organizationId: string;
   let originalFetch: typeof fetch;
+  let oauthNonceForMock: string;
 
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DATABASE_URL;
@@ -71,6 +72,7 @@ describe("OAuth login (e2e)", () => {
       data: { id: organizationId, slug: "oauth-acme", name: "OAuth Acme" },
     });
     originalFetch = globalThis.fetch;
+    oauthNonceForMock = "";
   });
 
   afterEach(() => {
@@ -91,7 +93,7 @@ describe("OAuth login (e2e)", () => {
   it("valid provider and allowlisted redirect_uri returns an authorization URL with a state param", async () => {
     const result = await httpRequest(app)
       .get("/auth/oauth/start")
-      .query({ provider: "github", redirect_uri: ALLOWED_REDIRECT_URI })
+      .query({ provider: "google", redirect_uri: ALLOWED_REDIRECT_URI })
       .expect(200);
 
     const success = successBody<OAuthStartSuccess>(result);
@@ -110,10 +112,20 @@ describe("OAuth login (e2e)", () => {
     assert.equal(failure.problem.code, AUTH_ERROR_CODES.unsupportedProvider);
   });
 
+  it("GitHub OAuth login provider is rejected", async () => {
+    const result = await httpRequest(app)
+      .get("/auth/oauth/start")
+      .query({ provider: "github", redirect_uri: ALLOWED_REDIRECT_URI })
+      .expect(400);
+
+    const failure = expectFailure(result.body);
+    assert.equal(failure.problem.code, AUTH_ERROR_CODES.unsupportedProvider);
+  });
+
   it("redirect_uri outside the server allowlist is rejected", async () => {
     const result = await httpRequest(app)
       .get("/auth/oauth/start")
-      .query({ provider: "github", redirect_uri: "http://evil.test/callback" })
+      .query({ provider: "google", redirect_uri: "http://evil.test/callback" })
       .expect(400);
 
     const failure = expectFailure(result.body);
@@ -123,7 +135,7 @@ describe("OAuth login (e2e)", () => {
   it("missing redirect_uri is rejected", async () => {
     const result = await httpRequest(app)
       .get("/auth/oauth/start")
-      .query({ provider: "github" })
+      .query({ provider: "google" })
       .expect(400);
 
     const failure = expectFailure(result.body);
@@ -143,7 +155,7 @@ describe("OAuth login (e2e)", () => {
   it("persists a state row with a ~10 minute expiry and never returns state/nonce in the response or audit trail", async () => {
     const result = await httpRequest(app)
       .get("/auth/oauth/start")
-      .query({ provider: "github", redirect_uri: ALLOWED_REDIRECT_URI })
+      .query({ provider: "google", redirect_uri: ALLOWED_REDIRECT_URI })
       .expect(200);
 
     const success = successBody<OAuthStartSuccess>(result);
@@ -170,7 +182,7 @@ describe("OAuth login (e2e)", () => {
   it("rejects a callback missing the code parameter", async () => {
     const result = await httpRequest(app)
       .get("/auth/oauth/callback")
-      .query({ state: "some-state", provider: "github" })
+      .query({ state: "some-state", provider: "google" })
       .expect(400);
 
     const failure = expectFailure(result.body);
@@ -180,7 +192,7 @@ describe("OAuth login (e2e)", () => {
   it("rejects a callback missing the state parameter", async () => {
     const result = await httpRequest(app)
       .get("/auth/oauth/callback")
-      .query({ code: "good-code", provider: "github" })
+      .query({ code: "good-code", provider: "google" })
       .expect(400);
 
     const failure = expectFailure(result.body);
@@ -195,11 +207,11 @@ describe("OAuth login (e2e)", () => {
     });
     const before = await prisma.repositoryConnection.count();
     const state = await startOAuthFlow();
-    mockGithubFetch("888");
+    mockGoogleFetch("888");
 
     await httpRequest(app)
       .get("/auth/oauth/callback")
-      .query({ code: "good-code", state, provider: "github" })
+      .query({ code: "good-code", state, provider: "google" })
       .expect(200);
 
     const after = await prisma.repositoryConnection.count();
@@ -213,11 +225,11 @@ describe("OAuth login (e2e)", () => {
       membershipStatus: AUTH_MEMBERSHIP_STATUSES.active,
     });
     const state = await startOAuthFlow();
-    mockGithubFetch("111");
+    mockGoogleFetch("111");
 
     const result = await httpRequest(app)
       .get("/auth/oauth/callback")
-      .query({ code: "good-code", state, provider: "github" })
+      .query({ code: "good-code", state, provider: "google" })
       .expect(200);
 
     const success = successBody<OAuthCallbackSuccess>(result);
@@ -233,13 +245,13 @@ describe("OAuth login (e2e)", () => {
   });
 
   it("rejects a callback with an unknown state", async () => {
-    mockGithubFetch("222");
+    mockGoogleFetch("222");
     const result = await httpRequest(app)
       .get("/auth/oauth/callback")
       .query({
         code: "good-code",
         state: "not-a-real-state",
-        provider: "github",
+        provider: "google",
       })
       .expect(400);
 
@@ -253,19 +265,19 @@ describe("OAuth login (e2e)", () => {
         id: "state-expired",
         state: "expired-state-value",
         nonce: "expired-nonce-value",
-        provider: "github",
+        provider: "google",
         redirectUri: ALLOWED_REDIRECT_URI,
         expiresAt: new Date(Date.now() - 1000),
       },
     });
-    mockGithubFetch("333");
+    mockGoogleFetch("333");
 
     const result = await httpRequest(app)
       .get("/auth/oauth/callback")
       .query({
         code: "good-code",
         state: "expired-state-value",
-        provider: "github",
+        provider: "google",
       })
       .expect(400);
 
@@ -280,16 +292,16 @@ describe("OAuth login (e2e)", () => {
       membershipStatus: AUTH_MEMBERSHIP_STATUSES.active,
     });
     const state = await startOAuthFlow();
-    mockGithubFetch("444");
+    mockGoogleFetch("444");
 
     await httpRequest(app)
       .get("/auth/oauth/callback")
-      .query({ code: "good-code", state, provider: "github" })
+      .query({ code: "good-code", state, provider: "google" })
       .expect(200);
 
     const replay = await httpRequest(app)
       .get("/auth/oauth/callback")
-      .query({ code: "good-code", state, provider: "github" })
+      .query({ code: "good-code", state, provider: "google" })
       .expect(400);
 
     const failure = expectFailure(replay.body);
@@ -305,7 +317,7 @@ describe("OAuth login (e2e)", () => {
 
     const result = await httpRequest(app)
       .get("/auth/oauth/callback")
-      .query({ code: "bad-code", state, provider: "github" })
+      .query({ code: "bad-code", state, provider: "google" })
       .expect(400);
 
     const failure = expectFailure(result.body);
@@ -315,17 +327,17 @@ describe("OAuth login (e2e)", () => {
     const auditEvents = await prisma.authAuditEvent.findMany();
     assert.doesNotMatch(
       JSON.stringify(auditEvents.map((e) => e.payload)),
-      new RegExp(LEAKED_TOKEN_MARKER),
+      new RegExp(GOOGLE_ID_TOKEN_MARKER),
     );
   });
 
   it("rejects a callback for a provider account with no linked LCSP identity", async () => {
     const state = await startOAuthFlow();
-    mockGithubFetch("999-unknown");
+    mockGoogleFetch("999-unknown");
 
     const result = await httpRequest(app)
       .get("/auth/oauth/callback")
-      .query({ code: "good-code", state, provider: "github" })
+      .query({ code: "good-code", state, provider: "google" })
       .expect(404);
 
     const failure = expectFailure(result.body);
@@ -339,11 +351,11 @@ describe("OAuth login (e2e)", () => {
       membershipStatus: AUTH_MEMBERSHIP_STATUSES.active,
     });
     const state = await startOAuthFlow();
-    mockGithubFetch("555");
+    mockGoogleFetch("555");
 
     const result = await httpRequest(app)
       .get("/auth/oauth/callback")
-      .query({ code: "good-code", state, provider: "github" })
+      .query({ code: "good-code", state, provider: "google" })
       .expect(404);
 
     const failure = expectFailure(result.body);
@@ -357,11 +369,11 @@ describe("OAuth login (e2e)", () => {
       membershipStatus: AUTH_MEMBERSHIP_STATUSES.revoked,
     });
     const state = await startOAuthFlow();
-    mockGithubFetch("666");
+    mockGoogleFetch("666");
 
     const result = await httpRequest(app)
       .get("/auth/oauth/callback")
-      .query({ code: "good-code", state, provider: "github" })
+      .query({ code: "good-code", state, provider: "google" })
       .expect(403);
 
     const failure = expectFailure(result.body);
@@ -375,42 +387,55 @@ describe("OAuth login (e2e)", () => {
       membershipStatus: AUTH_MEMBERSHIP_STATUSES.active,
     });
     const state = await startOAuthFlow();
-    mockGithubFetch("777");
+    mockGoogleFetch("777");
 
     await httpRequest(app)
       .get("/auth/oauth/callback")
-      .query({ code: "good-code", state, provider: "github" })
+      .query({ code: "good-code", state, provider: "google" })
       .expect(200);
 
     const auditEvents = await prisma.authAuditEvent.findMany();
     const serialized = JSON.stringify(auditEvents.map((e) => e.payload));
     assert.match(serialized, /auth\.oauth\.login\.succeeded/);
-    assert.doesNotMatch(serialized, new RegExp(LEAKED_TOKEN_MARKER));
+    assert.doesNotMatch(serialized, new RegExp(GOOGLE_ID_TOKEN_MARKER));
   });
 
   async function startOAuthFlow(): Promise<string> {
     const start = await httpRequest(app)
       .get("/auth/oauth/start")
-      .query({ provider: "github", redirect_uri: ALLOWED_REDIRECT_URI })
+      .query({ provider: "google", redirect_uri: ALLOWED_REDIRECT_URI })
       .expect(200);
     const success = successBody<OAuthStartSuccess>(start);
     const url = new URL(success.authorization_url);
     const state = url.searchParams.get("state");
     assert.ok(state, "expected a state param on the authorization URL");
+    const stateRow = await prisma.authOAuthState.findFirst({
+      where: { state },
+    });
+    assert.ok(stateRow, "expected a state row for the returned state");
+    oauthNonceForMock = stateRow.nonce;
     return state;
   }
 
-  function mockGithubFetch(providerAccountId: string): void {
-    globalThis.fetch = ((input: string | URL) => {
-      const urlStr = input.toString();
-      if (urlStr.includes("/login/oauth/access_token")) {
+  function mockGoogleFetch(providerAccountId: string): void {
+    globalThis.fetch = ((input: string | URL | Request) => {
+      const urlStr = input instanceof Request ? input.url : input.toString();
+      if (urlStr.includes("oauth2.googleapis.com/tokeninfo")) {
         return Promise.resolve(
-          fakeResponse(200, { access_token: LEAKED_TOKEN_MARKER }),
+          fakeResponse(200, {
+            sub: providerAccountId,
+            email: `oauth-${providerAccountId}@acme.test`,
+            email_verified: "true",
+            nonce: oauthNonceForMock,
+            iss: "https://accounts.google.com",
+            aud: process.env.OAUTH_GOOGLE_CLIENT_ID,
+            exp: Math.floor(Date.now() / 1000) + 300,
+          }),
         );
       }
-      if (urlStr.includes("api.github.com/user")) {
+      if (urlStr.includes("oauth2.googleapis.com/token")) {
         return Promise.resolve(
-          fakeResponse(200, { id: Number(providerAccountId) }),
+          fakeResponse(200, { id_token: GOOGLE_ID_TOKEN_MARKER }),
         );
       }
       throw new Error(`unexpected fetch call in test: ${urlStr}`);
@@ -436,7 +461,7 @@ describe("OAuth login (e2e)", () => {
       data: {
         id: `identity-${input.providerAccountId}`,
         userId,
-        provider: "github",
+        provider: "google",
         providerAccountId: input.providerAccountId,
       },
     });

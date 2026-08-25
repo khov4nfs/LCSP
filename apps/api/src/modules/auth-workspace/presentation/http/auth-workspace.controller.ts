@@ -56,6 +56,7 @@ import type {
 import type { RegisterPayload } from "../../application/contracts/auth-workspace/register-approved-path.contract.ts";
 import type { SensitiveRouteCheckDto } from "../../application/contracts/auth-workspace/sensitive-route.contract.ts";
 import type { CredentialPayload } from "../../application/contracts/auth-workspace/sign-in.contract.ts";
+import type { SignUpPayload } from "../../application/contracts/auth-workspace/sign-up.contract.ts";
 import type { WorkspaceRequest } from "../../application/contracts/auth-workspace/workspace.contract.ts";
 import { CheckSensitiveRouteQuery } from "../../application/queries/check-sensitive-route/check-sensitive-route.query.ts";
 import { AuthWorkspaceFacade } from "../../application/services/auth-workspace/auth-workspace.facade.ts";
@@ -289,6 +290,19 @@ export class AuthWorkspaceController {
   ) {
     return resultEnvelope(
       await this.authWorkspaceFacade.signIn(
+        payload,
+        requestMeta(correlationId),
+      ),
+    );
+  }
+
+  @Post("auth/sign-up")
+  async signUp(
+    @Body() payload: SignUpPayload,
+    @Headers("x-correlation-id") correlationId?: string,
+  ) {
+    return resultEnvelope(
+      await this.authWorkspaceFacade.signUp(
         payload,
         requestMeta(correlationId),
       ),

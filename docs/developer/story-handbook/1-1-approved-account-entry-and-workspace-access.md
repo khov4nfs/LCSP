@@ -2,6 +2,10 @@
 
 Status: done
 
+Implementation update 2026-08-25: Story 1.1 includes self-signup without
+invitation acceptance for new Manager workspace owners. The collaborator path
+still uses invitation acceptance.
+
 ## Story
 
 As a user, I want to register or enter LCSP through an approved authentication path, so that I can access only the workspace I am authorized to use.
@@ -42,6 +46,7 @@ As a user, I want to register or enter LCSP through an approved authentication p
 ### Story-Specific Implementation Tasks
 
 - Implement approved password/invite entry routes and safe auth DTO/error-code contract.
+- Implement self-signup for a new Manager-owned organization workspace.
 - Create authenticated session plus membership gate before any workspace-scoped data is returned.
 - Add backend guard/service recheck and audit trail for login success/failure and access denial.
 
@@ -79,7 +84,6 @@ As a user, I want to register or enter LCSP through an approved authentication p
 - Story này phải được triển khai đúng theo acceptance criteria của riêng nó; không kéo behavior của story sau vào cùng slice nếu không có seam thật sự cần thiết.
 - Domain chain liên quan của Epic 1: approved identity -> session -> organization membership gate -> PBAC-evaluated workspace access.
 - Khi story chạm workflow gate, blocked/degraded path là một phần của yêu cầu chứ không phải edge-case tuỳ chọn.
-
 
 ### Data and Persistence Requirements
 

@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common";
 
-import { GitHubOAuthProvider } from "./github-oauth.provider.ts";
 import { GoogleOAuthProvider } from "./google-oauth.provider.ts";
 import type { OAuthProvider } from "./oauth-provider.interface.ts";
 
@@ -8,13 +7,8 @@ import type { OAuthProvider } from "./oauth-provider.interface.ts";
 export class OAuthProviderRegistry {
   private readonly providers: ReadonlyMap<string, OAuthProvider>;
 
-  constructor(
-    githubProvider: GitHubOAuthProvider,
-    googleProvider: GoogleOAuthProvider,
-  ) {
-    const providers: [string, OAuthProvider][] = [
-      [githubProvider.name, githubProvider],
-    ];
+  constructor(googleProvider: GoogleOAuthProvider) {
+    const providers: [string, OAuthProvider][] = [];
     if (googleProvider.isConfigured) {
       providers.push([googleProvider.name, googleProvider]);
     }
