@@ -61,7 +61,7 @@ sequenceDiagram
   P-->>O: safe verified profile ref
 ```
 
-Algorithm: validate → registry/PBAC/tenant/version/state check → load only sanitized projections → require complete conflict ledger → deterministically merge allow-listed typed facts → privacy validation → reserve/replay idempotency → atomically persist profile, audit and `event.profile.verified.v1` outbox → normalize result. Build `packages/contracts/src/agentic-evidence/reconciliation`, API `modules/reconciliation`, profile repository/outbox mapper, and worker orchestration adapter.
+Algorithm: validate → registry/PBAC/tenant/version/state check → load only sanitized projections → require complete conflict ledger → deterministically merge allow-listed typed facts → privacy validation → reserve/replay idempotency → atomically persist profile, audit and `event.profile.verified.v1` outbox → normalize result. Build `packages/contracts/src/evidence/reconciliation`, API `modules/reconciliation`, profile repository/outbox mapper, and worker orchestration adapter.
 
 `exposed_to_model:false`: only AO-3 may call it after resolver validation. The model sees a later `get_verified_profile` response, never input facts, decisions, or this mutation response. Audit actor/service, PBAC policy/version, all safe refs/hashes, outcome, output hash, correlation, and duration; never raw answers, source, prompt, secret, full AST, decision notes, or stack traces. API defaults deny and verifies reviewer/actor separation where a reconciliation decision has a human actor.
 

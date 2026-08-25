@@ -1163,6 +1163,31 @@ export type PagesMessages = {
     rerunSubmitting: string;
     errorTitle: string;
     errorDetail: string;
+    observability: {
+      title: string;
+      description: string;
+      openWikiStatus: string;
+      compileFailed: string;
+      candidates: string;
+      claimsWithEvidence: string;
+      openWikiError: string;
+      fallback: string;
+      failedLegalRuleIds: string;
+      sourceHitBuckets: string;
+      sourceEvidenceBuckets: string;
+      scopeCoverage: string;
+      sourceNodeTypes: string;
+      evaluationsWithEvidence: string;
+      displayableTechnicalEvidence: string;
+      available: string;
+      unavailable: string;
+      unknown: string;
+      bucket0: string;
+      bucket1: string;
+      bucket2To5: string;
+      bucket6To20: string;
+      bucket21Plus: string;
+    };
     verifiedProfileReview: {
       title: string;
       description: string;

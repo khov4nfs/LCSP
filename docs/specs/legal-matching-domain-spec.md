@@ -1,5 +1,7 @@
 # Legal Matching Domain Spec
 
+> Superseded for active runtime: new assessment execution uses direct EngineeringRule classification. This document remains as historical domain behavior for the retired `VerifiedProfile -> LegalRuleMatch -> ClassificationWorker` chain; do not treat its callback or event handoff as an active MVP contract.
+
 ## Purpose
 
 This document explains how verified LCSP business facts become citation-backed legal matches.

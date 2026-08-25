@@ -22,6 +22,7 @@ import { useClassificationStatusQuery } from "@/lib/api/assessment-queries";
 import { appLocale } from "@/lib/locale";
 import type { ClassificationStatusPageProps } from "../../types/component-props.types";
 import type {
+  ClassificationObservabilityViewModel,
   EngineeringRuleEvaluationViewModel,
   TechnicalEvidenceViewModel,
 } from "@/lib/api/classification-client";
@@ -159,6 +160,12 @@ export function ClassificationStatusPage({
           </div>
         ) : null}
 
+        {viewModel.observability ? (
+          <ClassificationObservabilityPanel
+            observability={viewModel.observability}
+          />
+        ) : null}
+
         {viewModel.evaluations.length ? (
           <div className="grid gap-3">
             {viewModel.evaluations.map((evaluation) => (
@@ -204,6 +211,242 @@ export function ClassificationStatusPage({
       </StatusCard>
     </PageShell>
   );
+}
+
+function ClassificationObservabilityPanel({
+  observability,
+}: {
+  observability: ClassificationObservabilityViewModel;
+}) {
+  const openWiki = observability.openWiki;
+  const preparation = observability.engineeringRulePreparation;
+  const distribution = observability.candidateSourceHitDistribution;
+  const provenance = observability.provenance;
+  const failedLegalRuleIds = preparation?.compileFailedLegalRuleIds ?? [];
+  const visibleFailedLegalRuleIds = failedLegalRuleIds.slice(0, 8);
+  const hiddenFailedLegalRuleIdCount = Math.max(
+    0,
+    failedLegalRuleIds.length - visibleFailedLegalRuleIds.length,
+  );
+
+  return (
+    <section className="rounded-lg border bg-muted/20 p-4">
+      <div>
+        <p className="text-sm font-medium">
+          {resolveMessage(appLocale, "pages.classification.observability.title")}
+        </p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {resolveMessage(
+            appLocale,
+            "pages.classification.observability.description",
+          )}
+        </p>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-4">
+        <DetailMetric
+          label={resolveMessage(
+            appLocale,
+            "pages.classification.observability.openWikiStatus",
+          )}
+          value={openWikiStatusLabel(openWiki?.available ?? null)}
+        />
+        <DetailMetric
+          label={resolveMessage(
+            appLocale,
+            "pages.classification.observability.compileFailed",
+          )}
+          value={String(preparation?.compileFailedCount ?? 0)}
+        />
+        <DetailMetric
+          label={resolveMessage(
+            appLocale,
+            "pages.classification.observability.candidates",
+          )}
+          value={String(
+            preparation?.candidateCount ?? distribution?.candidateCount ?? 0,
+          )}
+        />
+        <DetailMetric
+          label={resolveMessage(
+            appLocale,
+            "pages.classification.observability.claimsWithEvidence",
+          )}
+          value={
+            provenance
+              ? `${provenance.claimsWithEvidence}/${provenance.claimCount}`
+              : "0/0"
+          }
+        />
+      </div>
+
+      {openWiki?.error ? (
+        <div className="mt-4 rounded-md border bg-background px-3 py-3 text-sm">
+          <span className="font-medium">
+            {resolveMessage(
+              appLocale,
+              "pages.classification.observability.openWikiError",
+            )}
+          </span>{" "}
+          <span className="break-all text-muted-foreground">
+            {openWiki.error}
+          </span>
+          {openWiki.fallback ? (
+            <div className="mt-1 text-xs text-muted-foreground">
+              <span className="font-medium">
+                {resolveMessage(
+                  appLocale,
+                  "pages.classification.observability.fallback",
+                )}
+              </span>{" "}
+              <span>{openWiki.fallback}</span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {visibleFailedLegalRuleIds.length ? (
+        <div className="mt-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {resolveMessage(
+              appLocale,
+              "pages.classification.observability.failedLegalRuleIds",
+            )}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {visibleFailedLegalRuleIds.map((id) => (
+              <span
+                key={id}
+                className="rounded-md border bg-background px-2.5 py-1.5 text-xs text-muted-foreground"
+              >
+                {id}
+              </span>
+            ))}
+            {hiddenFailedLegalRuleIdCount ? (
+              <span className="rounded-md border bg-background px-2.5 py-1.5 text-xs text-muted-foreground">
+                +{hiddenFailedLegalRuleIdCount}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {distribution ? (
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <CountDistribution
+            titleKey="pages.classification.observability.sourceHitBuckets"
+            values={distribution.sourceHitCountBuckets}
+            bucketLabels
+          />
+          <CountDistribution
+            titleKey="pages.classification.observability.sourceEvidenceBuckets"
+            values={distribution.sourceEvidenceCountBuckets}
+            bucketLabels
+          />
+          <CountDistribution
+            titleKey="pages.classification.observability.scopeCoverage"
+            values={distribution.scopeCoverageCounts}
+          />
+          <CountDistribution
+            titleKey="pages.classification.observability.sourceNodeTypes"
+            values={distribution.sourceNodeTypeCounts}
+          />
+        </div>
+      ) : null}
+
+      {provenance ? (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <DetailMetric
+            label={resolveMessage(
+              appLocale,
+              "pages.classification.observability.evaluationsWithEvidence",
+            )}
+            value={String(provenance.evaluationsWithEvidence)}
+          />
+          <DetailMetric
+            label={resolveMessage(
+              appLocale,
+              "pages.classification.observability.displayableTechnicalEvidence",
+            )}
+            value={String(
+              provenance.evaluationsWithDisplayableTechnicalEvidence,
+            )}
+          />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function CountDistribution({
+  titleKey,
+  values,
+  bucketLabels = false,
+}: {
+  titleKey: Parameters<typeof resolveMessage>[1];
+  values: Record<string, number>;
+  bucketLabels?: boolean;
+}) {
+  const rows = Object.entries(values);
+  if (!rows.length) return null;
+  return (
+    <div className="rounded-md border bg-background px-3 py-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {resolveMessage(appLocale, titleKey)}
+      </p>
+      <dl className="mt-2 grid gap-2">
+        {rows.map(([label, value]) => (
+          <div
+            key={label}
+            className="flex items-center justify-between gap-3 text-sm"
+          >
+            <dt className="min-w-0 truncate text-muted-foreground">
+              {bucketLabels ? sourceHitBucketLabel(label) : label}
+            </dt>
+            <dd className="font-semibold tabular-nums">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+function openWikiStatusLabel(value: boolean | null): string {
+  if (value === true) {
+    return resolveMessage(
+      appLocale,
+      "pages.classification.observability.available",
+    );
+  }
+  if (value === false) {
+    return resolveMessage(
+      appLocale,
+      "pages.classification.observability.unavailable",
+    );
+  }
+  return resolveMessage(appLocale, "pages.classification.observability.unknown");
+}
+
+function sourceHitBucketLabel(value: string): string {
+  if (value === "0") {
+    return resolveMessage(appLocale, "pages.classification.observability.bucket0");
+  }
+  if (value === "1") {
+    return resolveMessage(appLocale, "pages.classification.observability.bucket1");
+  }
+  if (value === "2_5") {
+    return resolveMessage(appLocale, "pages.classification.observability.bucket2To5");
+  }
+  if (value === "6_20") {
+    return resolveMessage(appLocale, "pages.classification.observability.bucket6To20");
+  }
+  if (value === "21_plus") {
+    return resolveMessage(
+      appLocale,
+      "pages.classification.observability.bucket21Plus",
+    );
+  }
+  return value;
 }
 
 function EngineeringRuleCard({

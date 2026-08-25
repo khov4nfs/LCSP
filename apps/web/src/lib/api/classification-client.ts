@@ -56,6 +56,36 @@ export type EngineeringRuleEvaluationViewModel = {
   limitations: string[];
 };
 
+export type ClassificationObservabilityViewModel = {
+  openWiki: {
+    available: boolean | null;
+    error: string | null;
+    fallback: string | null;
+    hintCount: number | null;
+    authority: string | null;
+  } | null;
+  engineeringRulePreparation: {
+    legalRulesSeen: number;
+    candidateCount: number;
+    compileFailedCount: number;
+    compileFailedLegalRuleIds: string[];
+    compileSkippedCount: number;
+  } | null;
+  candidateSourceHitDistribution: {
+    candidateCount: number;
+    sourceHitCountBuckets: Record<string, number>;
+    sourceEvidenceCountBuckets: Record<string, number>;
+    scopeCoverageCounts: Record<string, number>;
+    sourceNodeTypeCounts: Record<string, number>;
+  } | null;
+  provenance: {
+    claimCount: number;
+    claimsWithEvidence: number;
+    evaluationsWithEvidence: number;
+    evaluationsWithDisplayableTechnicalEvidence: number;
+  } | null;
+};
+
 export type ClassificationStatusViewModel = {
   state: ClassificationStatusState;
   titleKey: MessageKey;
@@ -71,6 +101,7 @@ export type ClassificationStatusViewModel = {
     total: number;
   } | null;
   limitations: string[];
+  observability: ClassificationObservabilityViewModel | null;
   hasClassification: boolean;
   canRerunClassification: boolean;
 };
@@ -117,20 +148,6 @@ export async function rerunClassification(assessmentId: string): Promise<void> {
   );
   if (!response.ok) {
     throw new Error(response.problemCode ?? "classification-rerun-failed");
-  }
-}
-
-/** Legacy endpoint wrapper retained so old imports fail softly during migration. */
-export async function approveVerifiedProfile(
-  assessmentId: string,
-  verifiedProfileId: string,
-): Promise<void> {
-  const response = await apiRequest(
-    `/api/assessments/${encodeURIComponent(assessmentId)}/verified-profiles/${encodeURIComponent(verifiedProfileId)}/approve`,
-    { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
-  );
-  if (!response.ok) {
-    throw new Error(response.problemCode ?? "verified-profile-approval-failed");
   }
 }
 
@@ -252,6 +269,9 @@ function toClassificationStatusViewModel(
     evaluations,
     engineeringSummary,
     limitations: result?.limitations ?? [],
+    observability: result?.observability
+      ? toObservabilityViewModel(result.observability)
+      : null,
     hasClassification: result !== null,
     canRerunClassification: false,
   };
@@ -360,8 +380,16 @@ type ClassificationResultPayload = {
   };
   evaluations: EngineeringRuleEvaluationPayload[];
   limitations: string[];
+  observability: ClassificationObservabilityPayload | null;
   technical_evidence_report_id: string | null;
   snapshot_id: string | null;
+};
+
+type ClassificationObservabilityPayload = {
+  openwiki?: Record<string, unknown>;
+  engineering_rule_preparation?: Record<string, unknown>;
+  candidate_source_hit_distribution?: Record<string, unknown>;
+  provenance?: Record<string, unknown>;
 };
 
 type AssessmentDetailPayload = {
@@ -402,10 +430,30 @@ function sanitizeClassificationResult(
     },
     evaluations: evaluations as EngineeringRuleEvaluationPayload[],
     limitations: stringArray(value.limitations) ?? [],
+    observability: sanitizeObservability(value.observability),
     technical_evidence_report_id:
       nullableString(value.technical_evidence_report_id) ?? null,
     snapshot_id: nullableString(value.snapshot_id) ?? null,
   };
+}
+
+function sanitizeObservability(
+  value: unknown,
+): ClassificationObservabilityPayload | null {
+  if (!recordValue(value)) return null;
+  const payload = {
+    openwiki: recordValue(value.openwiki) ? value.openwiki : undefined,
+    engineering_rule_preparation: recordValue(value.engineering_rule_preparation)
+      ? value.engineering_rule_preparation
+      : undefined,
+    candidate_source_hit_distribution: recordValue(
+      value.candidate_source_hit_distribution,
+    )
+      ? value.candidate_source_hit_distribution
+      : undefined,
+    provenance: recordValue(value.provenance) ? value.provenance : undefined,
+  };
+  return Object.values(payload).some(Boolean) ? payload : null;
 }
 
 function sanitizeEvaluation(value: unknown): EngineeringRuleEvaluationPayload | null {
@@ -484,6 +532,68 @@ function sanitizeLegalProvision(value: unknown): LegalProvisionPayload | null {
   };
 }
 
+function toObservabilityViewModel(
+  value: ClassificationObservabilityPayload,
+): ClassificationObservabilityViewModel {
+  const openWiki = value.openwiki;
+  const preparation = value.engineering_rule_preparation;
+  const sourceHits = value.candidate_source_hit_distribution;
+  const provenance = value.provenance;
+  return {
+    openWiki: openWiki
+      ? {
+          available:
+            typeof openWiki.available === "boolean" ? openWiki.available : null,
+          error: nullableString(openWiki.error) ?? null,
+          fallback: nullableString(openWiki.fallback) ?? null,
+          hintCount: nullableInteger(openWiki.hint_count),
+          authority: nullableString(openWiki.authority) ?? null,
+        }
+      : null,
+    engineeringRulePreparation: preparation
+      ? {
+          legalRulesSeen: nonNegativeNumber(preparation.legal_rules_seen),
+          candidateCount: nonNegativeNumber(preparation.candidate_count),
+          compileFailedCount: nonNegativeNumber(
+            preparation.compile_failed_count,
+          ),
+          compileFailedLegalRuleIds:
+            stringArray(preparation.compile_failed_legal_rule_ids) ?? [],
+          compileSkippedCount: nonNegativeNumber(
+            preparation.compile_skipped_count,
+          ),
+        }
+      : null,
+    candidateSourceHitDistribution: sourceHits
+      ? {
+          candidateCount: nonNegativeNumber(sourceHits.candidate_count),
+          sourceHitCountBuckets: numberRecord(
+            sourceHits.source_hit_count_buckets,
+          ),
+          sourceEvidenceCountBuckets: numberRecord(
+            sourceHits.source_evidence_count_buckets,
+          ),
+          scopeCoverageCounts: numberRecord(sourceHits.scope_coverage_counts),
+          sourceNodeTypeCounts: numberRecord(sourceHits.source_node_type_counts),
+        }
+      : null,
+    provenance: provenance
+      ? {
+          claimCount: nonNegativeNumber(provenance.claim_count),
+          claimsWithEvidence: nonNegativeNumber(
+            provenance.claims_with_evidence,
+          ),
+          evaluationsWithEvidence: nonNegativeNumber(
+            provenance.evaluations_with_evidence,
+          ),
+          evaluationsWithDisplayableTechnicalEvidence: nonNegativeNumber(
+            provenance.evaluations_with_displayable_technical_evidence,
+          ),
+        }
+      : null,
+  };
+}
+
 function toEvaluationViewModel(
   value: EngineeringRuleEvaluationPayload,
 ): EngineeringRuleEvaluationViewModel {
@@ -543,6 +653,18 @@ function nonNegativeNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? value
     : 0;
+}
+
+function numberRecord(value: unknown): Record<string, number> {
+  if (!recordValue(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter((entry): entry is [string, number] => {
+        const [, item] = entry;
+        return typeof item === "number" && Number.isFinite(item) && item >= 0;
+      })
+      .sort(([left], [right]) => left.localeCompare(right)),
+  );
 }
 
 function nullableInteger(value: unknown): number | null {

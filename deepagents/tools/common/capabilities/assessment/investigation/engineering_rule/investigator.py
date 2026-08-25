@@ -595,27 +595,80 @@ class LawGuidedInvestigator:
                     )
                 )
 
-        if result:
+        if result and any(
+            claim.evidence_refs or claim.graph_path_refs or claim.source_anchor_refs
+            for claim in result
+        ):
             return result
 
-        return [
-            EvidenceClaim(
-                "claim:"
-                + hashlib.sha256(
-                    f"{packet.engineering_rule_id}:empty".encode()
-                ).hexdigest()[:24],
+        return self._fallback_unresolved_claims(packet, graph, ledger)
+
+    def _fallback_unresolved_claims(
+        self,
+        packet: InvestigationPacket,
+        graph,
+        ledger: EvidenceLedger,
+    ) -> list[EvidenceClaim]:
+        """Keep fail-closed UNKNOWN outcomes tied to the evidence already inspected.
+
+        A native-agent runtime failure or empty structured response is not allowed to
+        become an evidence-less generic UNKNOWN when LCSP already has seed/tool
+        observations for the EngineeringRule. Validator filtering keeps the fallback
+        limited to material production provenance.
+        """
+        provenance = ledger.provenance_for_all()
+        criteria = tuple(dict.fromkeys(packet.required_evidence)) or (None,)
+        result: list[EvidenceClaim] = []
+        limitations = (
+            ENGINEERING_LIMITATION_CODES["investigation_returned_no_valid_claims"],
+            ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"],
+        )
+
+        for index, criterion in enumerate(criteria, 1):
+            seed = (
+                f"{packet.engineering_rule_id}:fallback:{index}:{criterion}:"
+                f"{provenance}:{limitations}"
+            )
+            claim = EvidenceClaim(
+                "claim:" + hashlib.sha256(seed.encode()).hexdigest()[:24],
                 packet.engineering_rule_id,
                 ENGINEERING_EVIDENCE_CLAIM_TYPES["unresolved"],
                 None,
-                (),
+                provenance.evidence_refs,
+                provenance.graph_refs,
+                provenance.source_anchor_refs,
                 confidence=0.0,
-                limitations=(
-                    ENGINEERING_LIMITATION_CODES[
-                        "investigation_returned_no_valid_claims"
-                    ],
-                ),
+                limitations=limitations,
+                criterion=criterion,
             )
-        ]
+            try:
+                result.append(self.validator.validate(claim, graph))
+            except EvidenceClaimValidationError as error:
+                logger.warning(
+                    "ENGINEERING_INVESTIGATION_FALLBACK_PROVENANCE_REJECTED",
+                    engineering_rule_id=packet.engineering_rule_id,
+                    criterion=criterion,
+                    claim_id=claim.claim_id,
+                    error_type=type(error).__name__,
+                    error_message=str(error)[:2000],
+                    evidence_ref_count=len(claim.evidence_refs),
+                    graph_path_ref_count=len(claim.graph_path_refs),
+                    source_anchor_ref_count=len(claim.source_anchor_refs),
+                )
+                result.append(
+                    EvidenceClaim(
+                        claim_id=claim.claim_id + ":unresolved",
+                        engineering_rule_id=packet.engineering_rule_id,
+                        claim_type=ENGINEERING_EVIDENCE_CLAIM_TYPES["unresolved"],
+                        value=None,
+                        evidence_refs=(),
+                        confidence=0.0,
+                        limitations=limitations,
+                        criterion=criterion,
+                    )
+                )
+
+        return result
 
     @staticmethod
     def _normalize_limitations(value: Any) -> tuple[tuple[str, ...], bool]:
@@ -740,6 +793,7 @@ class LawGuidedInvestigator:
                     "At finish emit exactly one primary claim for each requiredEvidence label and set criterion to that exact label; supportingEvidence/negativeEvidence are evidence guidance, not extra claim criteria.",
                     "If a required criterion cannot be resolved, emit UNRESOLVED_ENGINEERING_FACT for that criterion rather than an unscoped generic unresolved claim.",
                     "MET/NOT_MET must reference one or more observationRefs with concrete provenance.",
+                    "UNRESOLVED must reference the strongest relevant observationRefs when any seed/tool observation exists for that criterion.",
                     "Do not author evidenceRefs, graphPathRefs, or sourceAnchorRefs yourself.",
                     "LCSP derives immutable provenance from observationRefs deterministically.",
                     "Absence is NOT_MET only when the relevant observation proves bounded complete search.",
@@ -771,6 +825,7 @@ class LawGuidedInvestigator:
                 "claimRules": [
                     "Emit exactly one primary claim per requiredEvidence criterion and set criterion to the exact requiredEvidence label.",
                     "If a required criterion is insufficiently evidenced, emit UNRESOLVED_ENGINEERING_FACT for that criterion.",
+                    "UNRESOLVED must reference relevant observationRefs when the EvidenceLedger contains seed/tool observations for that criterion.",
                     "Do not create separate claims for supportingEvidence or negativeEvidence labels; use them only to select supporting observations.",
                     "Do not mark a claim unresolved solely because an observation has truncated=true when the required criterion is already proven by concrete evidence.",
                     "Do not invent evidence/node/edge/source-anchor IDs.",

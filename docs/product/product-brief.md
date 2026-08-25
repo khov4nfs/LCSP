@@ -10,7 +10,7 @@ This brief defines the product intent, users, value proposition, scope boundarie
 
 ## Product Summary
 
-LCSP is an evidence-based legal compliance support platform for businesses using AI in Vietnam. It helps a Manager create an assessment, provide business context, connect a repository, run a trusted scan, reconcile business and technical evidence, classify AI risk with citation-backed legal matching, generate compliance support documents, and preserve an audit trail.
+LCSP is an evidence-based legal compliance support platform for businesses using AI in Vietnam. It helps a Manager create an assessment, provide business context, connect a repository, run a trusted scan, reconcile business and technical evidence, classify AI risk through direct EngineeringRule assessment with citation-backed legal provenance, generate compliance support documents, and preserve an audit trail.
 
 LCSP is not a legal chatbot, formal legal opinion product, compliance certification product, direct regulator submission tool, or Wizard-only checklist.
 
@@ -18,7 +18,7 @@ LCSP is not a legal chatbot, formal legal opinion product, compliance certificat
 
 | User | Active MVP responsibility |
 |---|---|
-| Manager | Owns the assessment, Wizard answers, repository connection, conflict resolution, VerifiedProfile approval, classification request, report generation and audit export. |
+| Manager | Owns the assessment, Wizard answers, repository connection, conflict resolution, classification request, report generation and audit export. |
 | Developer | Optional scoped technical collaborator who may review redacted technical findings or support repository/evidence correction within PBAC policy. |
 | Internal Legal Operator | Internal API/CLI actor who validates official legal sources, approves corpus versions and triggers legal index builds. No Manager/Developer UX screen is required for this actor in MVP. |
 
@@ -33,9 +33,8 @@ Manager creates assessment
 -> Automatic Trusted Scan Initiation creates or resumes Repository Scan
 -> Python Scanner Worker produces TechnicalEvidenceReport
 -> Python Worker Platform builds TechnicalProfile and AIUsageFlow
--> Reconciliation creates or blocks VerifiedProfile
 -> Manager resolves material conflicts when required
--> Legal matching retrieves ChromaDB vectorless citation context
+-> Direct EngineeringRule assessment compiles/investigates citation-backed legal rules
 -> Risk classification and gap analysis run only after gates pass
 -> Manager generates report and exports audit trail
 ```
@@ -43,7 +42,7 @@ Manager creates assessment
 ## Product Principles
 
 - PBAC is the authorization source of truth. Role labels are subject attributes/templates only.
-- Risk classification requires evidence gates, reconciliation, VerifiedProfile, legal citation traceability and unresolved-conflict checks.
+- Risk classification requires evidence gates, direct EngineeringRule evaluations, legal citation traceability and unresolved-conflict checks.
 - Wizard-only assessments may show readiness/preliminary indicators, but must not show HIGH/MEDIUM/LOW risk classification.
 - Structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP`.
 - Manual technical evidence JSON upload (`FR-051`) is `REMOVED_FROM_PRODUCT`.
@@ -57,10 +56,10 @@ Manager creates assessment
 
 - Manager-led assessment workspace.
 - WizardProfile, Repository Scan, TechnicalEvidenceReport, TechnicalProfile and AIUsageFlow.
-- Evidence quality gates and reconciliation.
+- Evidence quality gates and conflict reconciliation.
 - Manager-only final conflict resolution for MVP.
 - Legal corpus ingestion from validated official-source snapshots.
-- ChromaDB vectorless legal matching with `PRIMARY_MATCH`, `PARENT_CONTEXT` and `REFERENCED_CONTEXT`.
+- Direct EngineeringRule assessment with citation-backed LegalRule provenance.
 - Risk classification, gap analysis, document generation and audit export after gates pass.
 - Optional Developer task participation with scoped PBAC permissions.
 - Real configured LLM provider for A-to-Z acceptance.

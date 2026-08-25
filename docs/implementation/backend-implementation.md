@@ -185,7 +185,7 @@ LCSP supports OAuth/OIDC Login as the active controlled MVP identity boundary, T
 | Resolve business conflict                 | Yes     | No                                            |
 | Resolve technical conflict                | Yes     | Optional input only                           |
 | Finalize conflict resolution              | Yes     | No                                            |
-| Build/approve VerifiedProfile             | Yes     | No                                            |
+| Resolve conflicts / own final facts       | Yes     | No                                            |
 | Trigger risk classification               | Yes     | No                                            |
 | View gap analysis                         | Yes     | Optional if permitted                         |
 | Generate compliance document              | Yes     | No                                            |

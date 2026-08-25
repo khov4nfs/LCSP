@@ -288,6 +288,10 @@ class EvidenceLedger:
             source_anchor_refs=tuple(sorted(source_anchor_refs)),
         )
 
+    def provenance_for_all(self) -> ObservationProvenance:
+        """Resolve bounded fallback provenance from every retained observation."""
+        return self.provenance_for(tuple(row.observation_id for row in self._rows))
+
     @staticmethod
     def _available_sections(value: Mapping[str, Any]) -> list[str]:
         return [

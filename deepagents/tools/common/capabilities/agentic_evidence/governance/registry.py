@@ -68,7 +68,7 @@ class AgenticToolRequest(BaseModel):
 
 AgenticToolCapability = AgenticToolSpec
 AgenticToolHandler = Callable[[AgenticToolRequest], Mapping[str, Any]]
-SPRINT6_AGENTIC_CAPABILITIES = AGENTIC_TOOL_SPECS
+ENGINEERING_RULE_AGENTIC_CAPABILITIES = AGENTIC_TOOL_SPECS
 
 
 class AgenticToolRegistry:
@@ -209,8 +209,8 @@ class AgenticToolRegistry:
         return response
 
 
-def build_sprint6_agentic_registry() -> AgenticToolRegistry:
-    """Build the runtime registry from the canonical Sprint 6 capability catalog."""
+def build_engineering_rule_agentic_registry() -> AgenticToolRegistry:
+    """Build the runtime registry from the canonical EngineeringRule capability catalog."""
     return AgenticToolRegistry(AGENTIC_TOOL_SPECS)
 
 

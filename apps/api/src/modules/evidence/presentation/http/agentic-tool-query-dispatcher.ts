@@ -4,19 +4,15 @@ import {
   ASSESSMENT_CONTEXT_ANSWER_FIELDS,
   ASSESSMENT_CONTEXT_INCLUDES,
   EVIDENCE_ERROR_CODES,
-  VERIFIED_PROFILE_REQUIRED_FOR,
 } from "@lcsp/contracts/evidence";
 import { HttpStatus } from "@nestjs/common";
 
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { EvaluateGapMatrixQuery } from "../../../classification/application/queries/evaluate-gap-matrix/evaluate-gap-matrix.query.js";
-import { GetClassificationBaselineQuery } from "../../../classification/application/queries/get-classification-baseline/get-classification-baseline.query.js";
 import { GetGapEvidenceTraceQuery } from "../../../classification/application/queries/get-gap-evidence-trace/get-gap-evidence-trace.query.js";
 import { GetGapRequirementsQuery } from "../../../classification/application/queries/get-gap-requirements/get-gap-requirements.query.js";
-import { ValidateClassificationProposalQuery } from "../../../classification/application/queries/validate-classification-proposal/validate-classification-proposal.query.js";
 import { GetAdminSourceCatalogQuery } from "../../../legal-rule-catalog/application/queries/get-admin-source-catalog/get-admin-source-catalog.query.js";
 import { GetLegalCorpusReadinessQuery } from "../../../legal-rule-catalog/application/queries/get-legal-corpus-readiness/get-legal-corpus-readiness.query.js";
-import { GetLegalRuleMatchQuery } from "../../../legal-rule-catalog/application/queries/get-legal-rule-match/get-legal-rule-match.query.js";
 import { RetrieveLegalBasisQuery } from "../../../legal-rule-catalog/application/queries/retrieve-legal-basis/retrieve-legal-basis.query.js";
 import { ValidateCitationSetQuery } from "../../../legal-rule-catalog/application/queries/validate-citation-set/validate-citation-set.query.js";
 import { RECONCILIATION_CONTEXT_STATUSES } from "../../../reconciliation/application/contracts/reconciliation/reconciliation-context.contract.js";
@@ -24,7 +20,6 @@ import { CompareWizardClaimQuery } from "../../../reconciliation/application/que
 import { GetArtifactChainQuery } from "../../../reconciliation/application/queries/get-artifact-chain/get-artifact-chain.query.js";
 import { GetAssessmentContextQuery } from "../../../reconciliation/application/queries/get-assessment-context/get-assessment-context.query.js";
 import { GetReconciliationContextQuery } from "../../../reconciliation/application/queries/get-reconciliation-context/get-reconciliation-context.query.js";
-import { GetVerifiedProfileQuery } from "../../../reconciliation/application/queries/get-verified-profile/get-verified-profile.query.js";
 import {
   parseSingleTargetId,
   parseWizardClaimComparisonScope,
@@ -55,18 +50,12 @@ export function buildAgenticToolQuery(args: AgenticToolQueryDispatchArgs) {
       return get_artifact_chain(args);
     case AGENTIC_TOOL_NAMES.getReconciliationContext:
       return get_reconciliation_context(args);
-    case AGENTIC_TOOL_NAMES.getVerifiedProfile:
-      return get_verified_profile(args);
     case AGENTIC_TOOL_NAMES.compareWizardClaim:
       return compare_wizard_claim(args);
-    case AGENTIC_TOOL_NAMES.getClassificationBaseline:
-      return get_classification_baseline(args);
     case AGENTIC_TOOL_NAMES.getGapRequirements:
       return get_gap_requirements(args);
     case AGENTIC_TOOL_NAMES.getGapEvidenceTrace:
       return get_gap_evidence_trace(args);
-    case AGENTIC_TOOL_NAMES.validateClassificationProposal:
-      return validate_classification_proposal(args);
     case AGENTIC_TOOL_NAMES.evaluateGapMatrix:
       return evaluate_gap_matrix(args);
     case AGENTIC_TOOL_NAMES.getAdminSourceCatalog:
@@ -75,8 +64,6 @@ export function buildAgenticToolQuery(args: AgenticToolQueryDispatchArgs) {
       return get_legal_corpus_readiness(args);
     case AGENTIC_TOOL_NAMES.retrieveLegalBasis:
       return retrieve_legal_basis(args);
-    case AGENTIC_TOOL_NAMES.getLegalRuleMatch:
-      return get_legal_rule_match(args);
     case AGENTIC_TOOL_NAMES.validateCitationSet:
       return validate_citation_set(args);
     default:
@@ -139,21 +126,6 @@ export function get_reconciliation_context(args: AgenticToolQueryDispatchArgs) {
   );
 }
 
-export function get_verified_profile(args: AgenticToolQueryDispatchArgs) {
-  const { input } = args;
-  return new GetVerifiedProfileQuery(
-    args.assessmentId,
-    args.organizationId,
-    stripRef(requiredString(input.verifiedProfileId), "verified:"),
-    requiredString(input.expectedVersion),
-    requiredEnum(
-      input.requiredFor,
-      Object.values(VERIFIED_PROFILE_REQUIRED_FOR),
-    ),
-    args.correlationId,
-  );
-}
-
 export function compare_wizard_claim(args: AgenticToolQueryDispatchArgs) {
   const { input, artifactVersions } = args;
   const claimField = parseWizardClaimField(
@@ -185,19 +157,6 @@ export function compare_wizard_claim(args: AgenticToolQueryDispatchArgs) {
   );
 }
 
-export function get_classification_baseline(
-  args: AgenticToolQueryDispatchArgs,
-) {
-  return new GetClassificationBaselineQuery(
-    args.assessmentId,
-    args.organizationId,
-    args.input as never,
-    args.userId,
-    null,
-    null,
-    args.correlationId,
-  );
-}
 export function get_gap_requirements(args: AgenticToolQueryDispatchArgs) {
   return new GetGapRequirementsQuery(
     args.assessmentId,
@@ -215,19 +174,6 @@ export function get_gap_evidence_trace(args: AgenticToolQueryDispatchArgs) {
     args.organizationId,
     args.input as never,
     args.userId,
-    args.correlationId,
-  );
-}
-export function validate_classification_proposal(
-  args: AgenticToolQueryDispatchArgs,
-) {
-  return new ValidateClassificationProposalQuery(
-    args.assessmentId,
-    args.organizationId,
-    args.input as never,
-    args.userId,
-    null,
-    null,
     args.correlationId,
   );
 }
@@ -266,17 +212,6 @@ export function get_legal_corpus_readiness(args: AgenticToolQueryDispatchArgs) {
 }
 export function retrieve_legal_basis(args: AgenticToolQueryDispatchArgs) {
   return new RetrieveLegalBasisQuery(
-    args.assessmentId,
-    args.organizationId,
-    args.input as never,
-    args.userId,
-    null,
-    null,
-    args.correlationId,
-  );
-}
-export function get_legal_rule_match(args: AgenticToolQueryDispatchArgs) {
-  return new GetLegalRuleMatchQuery(
     args.assessmentId,
     args.organizationId,
     args.input as never,
@@ -345,27 +280,6 @@ function stripRef(value: string, prefix: string): string {
 }
 function stripOptionalRef(value: string | null, prefix: string): string | null {
   return value ? stripRef(value, prefix) : null;
-}
-function optionalEnum<T extends string>(
-  value: unknown,
-  allowed: readonly T[],
-): T | undefined {
-  return typeof value === "string" && allowed.includes(value as T)
-    ? (value as T)
-    : undefined;
-}
-function requiredEnum<T extends string>(
-  value: unknown,
-  allowed: readonly T[],
-): T {
-  const parsed = optionalEnum(value, allowed);
-  if (!parsed)
-    throw problemException(
-      EVIDENCE_ERROR_CODES.notFound,
-      "internal-agentic-dispatch",
-      { status: HttpStatus.NOT_FOUND },
-    );
-  return parsed;
 }
 function typedStringArray<T extends string>(
   value: unknown,

@@ -466,26 +466,26 @@ Critical conflicts remain blocking until resolved.
 - Assessment state remains `RECONCILIATION_REQUIRED`, `CONFLICT_RESOLUTION_REQUIRED` or `MANAGER_CONFIRMATION_REQUIRED`.
 - `DEVELOPER_CONFIRMATION_REQUIRED` is not an MVP blocking state; delegated Developer clarification is Deferred/Future under `FR-052` and cannot unlock classification by itself.
 
-### Epic 6 - Verified Profile & Risk Classification
+### Epic 6 - Evidence-Provenance Classification
 
-**Description:** LCSP creates VerifiedProfile only after reconciliation and runs Risk Classification only after all gates pass.
+**Description:** LCSP runs Risk Classification through direct EngineeringRule assessment after evidence, legal corpus, citation and conflict gates pass.
 
-#### FR-E6-1: Create VerifiedProfile
+#### FR-E6-1: Preserve reconciled evidence context
 
-System creates VerifiedProfile from WizardProfile, TechnicalProfile and resolved conflicts.
+System preserves reconciled AIUsageFlow and technical evidence context for EngineeringRule investigation.
 
 **Consequences:**
-- VerifiedProfile cannot be created with unresolved material/critical conflict.
-- VerifiedProfile version is auditable.
+- Classification cannot proceed with unresolved material/critical conflict.
+- Evidence context and rule evaluation versions are auditable.
 
 #### FR-E6-2: Lock classification until conditions pass
 
-Risk Classification Agent remains locked until technical evidence received, schema gate passed, quality gate passed, VerifiedProfile exists and no material/critical conflict remains unresolved. WizardProfile submission is optional: when submitted, VerifiedProfile carries `verificationSource: TECHNICAL_PLUS_WIZARD`; when absent, VerifiedProfile is still created from technical evidence alone (`verificationSource: TECHNICAL_ONLY`) once its confidence clears the required bar.
+Risk Classification remains locked until technical evidence is received, schema gate passed, quality gate passed, EngineeringRules are available or fail closed with diagnostics, and no material/critical conflict remains unresolved. WizardProfile submission is optional: when submitted, it supplements the direct investigation context; when absent, technical evidence alone may proceed and business-declaration-dependent fields resolve `UNKNOWN` instead of being invented.
 
 **Consequences:**
 - Wizard-only assessments (no technical evidence yet) never trigger Risk Classification Agent.
 - Evidence-pending assessments never show risk level.
-- Technical-only assessments (no WizardProfile) may trigger Risk Classification Agent once VerifiedProfile exists, always flagged `verificationSource: TECHNICAL_ONLY`.
+- Technical-only assessments (no WizardProfile) may trigger Risk Classification once evidence and EngineeringRule gates pass.
 
 #### FR-E6-3: Produce evidence-based risk output
 
@@ -919,7 +919,7 @@ Audit trail must support the question: "Why did LCSP reach this conclusion, base
 ### Product Acceptance Criteria
 
 - AC-1: A Wizard-only assessment never displays HIGH/MEDIUM/LOW.
-- AC-2: Risk Classification Agent cannot run before VerifiedProfile exists.
+- AC-2: Risk Classification cannot run before direct EngineeringRule assessment has evidence refs and legal-rule provenance.
 - AC-3: Technical evidence must pass schema completeness gate before reconciliation.
 - AC-4: Technical evidence must pass quality threshold gate before classification unlock.
 - AC-5: Any unresolved conflict blocks final classification/report until resolved.

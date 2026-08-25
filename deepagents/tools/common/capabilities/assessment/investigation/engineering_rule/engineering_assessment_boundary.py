@@ -148,6 +148,7 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
             evidence_report_id=evidence_report_id,
             guardrail_status=guardrail_status,
             evaluation_count=(result_data.get("summary") or {}).get("total", 0),
+            observability=result_data.get("observability") or {},
             correlationId=correlationId,
         )
 

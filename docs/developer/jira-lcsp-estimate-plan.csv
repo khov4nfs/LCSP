@@ -97,20 +97,20 @@ LCSP Sprint 3,LCSP-131,Task,MW-rec-001,MW-rec-001: Conflict Detection Callback E
 LCSP Sprint 3,LCSP-132,Task,MW-rec-002,MW-rec-002: List Conflicts Endpoint,Nta1210,5.2,2026-08-12,2026-08-14,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-132
 LCSP Sprint 3,LCSP-133,Task,MW-rec-003,MW-rec-003: Resolve Conflict Endpoint,Nta1210,5.3,2026-08-13,2026-08-15,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-133
 LCSP Sprint 3,LCSP-141,Task,MW-web-004,MW-web-004: Conflict Resolution Page,DthuyInk,5.3,2026-08-14,2026-08-16,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-141
-LCSP Sprint 3,LCSP-103,Task,MW-intel-004,MW-intel-004: VerifiedProfile Worker,Nta1210,5.4,2026-08-15,2026-08-17,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-103
-LCSP Sprint 3,LCSP-134,Task,MW-rec-004,MW-rec-004: VerifiedProfile Callback Endpoint,Nta1210,5.4,2026-08-16,2026-08-17,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-134
+LCSP Sprint 3,LCSP-103,Task,MW-intel-004,MW-intel-004: VerifiedProfile Worker,Nta1210,5.4,2026-08-15,2026-08-17,2,High,P0,false,SUPERSEDED_FOR_ACTIVE_MVP,https://minhpnq1807.atlassian.net/browse/LCSP-103
+LCSP Sprint 3,LCSP-134,Task,MW-rec-004,MW-rec-004: VerifiedProfile Callback Endpoint,Nta1210,5.4,2026-08-16,2026-08-17,2,High,P0,false,SUPERSEDED_FOR_ACTIVE_MVP,https://minhpnq1807.atlassian.net/browse/LCSP-134
 LCSP Sprint 4,LCSP-50,Story,,Story 6.1: Ingest Official Legal Source Snapshot,,6.1,2026-08-18,2026-08-20,2,High,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-50
 LCSP Sprint 4,LCSP-51,Story,,Story 6.2: Parse Legal Structure and Stable Hierarchical IDs,,6.2,2026-08-19,2026-08-21,2,High,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-51
 LCSP Sprint 4,LCSP-52,Story,,Story 6.7: Create LegalMatchingResult and LegalRuleMatch Evidence,,6.7,2026-08-20,2026-08-22,3,Highest,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-52
 LCSP Sprint 4,LCSP-53,Story,,Story 7.3: Use Real LLM Provider With Schema and Budget Guardrails,,7.3,2026-08-21,2026-08-23,5,Highest,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-53
 LCSP Sprint 4,LCSP-54,Story,,Story 7.5: Validate Classification Citations Against Legal Allowlist,,7.5,2026-08-22,2026-08-24,3,Highest,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-54
-LCSP Sprint 4,LCSP-104,Task,MW-legal-001,MW-legal-001: ChromaDB Legal Retrieval Worker,DthuyInk,6.1,2026-08-23,2026-08-25,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-104
-LCSP Sprint 4,LCSP-99,Task,MW-cls-py-001,MW-cls-py-001: Classification Worker,anhtunguyen05,6.2,2026-08-25,2026-08-27,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-99
-LCSP Sprint 4,LCSP-78,Task,MW-cls-001,MW-cls-001: LegalRuleMatch Callback Endpoint,Khovan,6.7,2026-08-26,2026-08-28,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-78
+LCSP Sprint 4,LCSP-104,Task,MW-legal-001,MW-legal-001: ChromaDB Legal Retrieval Worker,DthuyInk,6.1,2026-08-23,2026-08-25,2,High,P0,false,SUPERSEDED_FOR_ACTIVE_MVP,https://minhpnq1807.atlassian.net/browse/LCSP-104
+LCSP Sprint 4,LCSP-99,Task,MW-cls-py-001,MW-cls-py-001: Classification Worker,anhtunguyen05,6.2,2026-08-25,2026-08-27,2,High,P0,false,SUPERSEDED_FOR_ACTIVE_MVP,https://minhpnq1807.atlassian.net/browse/LCSP-99
+LCSP Sprint 4,LCSP-78,Task,MW-cls-001,MW-cls-001: LegalRuleMatch Callback Endpoint,Khovan,6.7,2026-08-26,2026-08-28,3,Highest,P0,true,SUPERSEDED_FOR_ACTIVE_MVP,https://minhpnq1807.atlassian.net/browse/LCSP-78
 LCSP Sprint 4,LCSP-82,Task,MW-doc-003,MW-doc-003: Get Document Status and Download Endpoint,Khovan,7.3,2026-08-27,2026-08-29,2,High,P1,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-82
 LCSP Sprint 4,LCSP-142,Task,MW-web-005,MW-web-005: Classification Status Page,DthuyInk,7.3,2026-08-28,2026-08-30,1,Medium,P1,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-142
 LCSP Sprint 4,LCSP-143,Task,MW-web-006,MW-web-006: Document Download Page,DthuyInk,7.3,2026-08-29,2026-08-31,1,Medium,P1,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-143
-LCSP Sprint 4,LCSP-79,Task,MW-cls-002,MW-cls-002: Classification Result Callback Endpoint,Khovan,7.5,2026-08-30,2026-09-01,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-79
+LCSP Sprint 4,LCSP-79,Task,MW-cls-002,MW-cls-002: Classification Result Callback Endpoint,Khovan,7.5,2026-08-30,2026-09-01,3,Highest,P0,true,SUPERSEDED_FOR_ACTIVE_MVP,https://minhpnq1807.atlassian.net/browse/LCSP-79
 LCSP Sprint 5,LCSP-55,Story,,Story 8.1: Generate GapAnalysis From Classification and Evidence,,8.1,2026-09-02,2026-09-04,2,Medium,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-55
 LCSP Sprint 5,LCSP-56,Story,,Story 8.3: Generate Guarded Final Report,,8.3,2026-09-03,2026-09-05,2,Medium,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-56
 LCSP Sprint 5,LCSP-57,Story,,Story 8.6: Record Immutable Assessment Audit Trail,,8.6,2026-09-04,2026-09-06,1,Medium,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-57

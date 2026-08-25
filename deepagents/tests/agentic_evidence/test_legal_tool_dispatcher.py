@@ -8,7 +8,7 @@ import pytest
 
 from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import (
     ALL_TOOL_BINDINGS,
-    AO6_LEGAL_TOOL_BINDINGS,
+    LEGAL_CORPUS_TOOL_BINDINGS,
     LegalToolDispatcher,
     ToolRuntimeTarget,
     runtime_binding,
@@ -19,7 +19,7 @@ from tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoin
 )
 
 
-EXPECTED_AO6_LOCAL_TOOLS = {
+EXPECTED_LEGAL_CORPUS_LOCAL_TOOLS = {
     "fetch_official_source_snapshot": (
         ToolRuntimeTarget.PYTHON_LOCAL,
         "OfficialSourceSnapshotFetcher.fetch",
@@ -68,14 +68,14 @@ def _context() -> LegalToolExecutionContext:
     )
 
 
-def test_ao6_bindings_have_exact_named_static_entrypoints() -> None:
-    names = {binding.tool_name for binding in AO6_LEGAL_TOOL_BINDINGS}
-    assert names == set(EXPECTED_AO6_LOCAL_TOOLS)
-    assert len(names) == len(AO6_LEGAL_TOOL_BINDINGS)
+def test_legal_corpus_bindings_have_exact_named_static_entrypoints() -> None:
+    names = {binding.tool_name for binding in LEGAL_CORPUS_TOOL_BINDINGS}
+    assert names == set(EXPECTED_LEGAL_CORPUS_LOCAL_TOOLS)
+    assert len(names) == len(LEGAL_CORPUS_TOOL_BINDINGS)
 
     source = inspect.getsource(legal_tool_entrypoints)
-    for binding in AO6_LEGAL_TOOL_BINDINGS:
-        expected_runtime, expected_downstream = EXPECTED_AO6_LOCAL_TOOLS[
+    for binding in LEGAL_CORPUS_TOOL_BINDINGS:
+        expected_runtime, expected_downstream = EXPECTED_LEGAL_CORPUS_LOCAL_TOOLS[
             binding.tool_name
         ]
         assert binding.runtime_target == expected_runtime
@@ -85,11 +85,11 @@ def test_ao6_bindings_have_exact_named_static_entrypoints() -> None:
         assert f"def {binding.tool_name}(" in source
 
 
-def test_global_binding_index_covers_all_56_canonical_tools() -> None:
+def test_global_binding_index_covers_all_canonical_tools() -> None:
     names = [binding.tool_name for binding in ALL_TOOL_BINDINGS]
 
     assert len(names) == len(set(names))
-    assert len(names) == 56
+    assert len(names) == 49
     assert runtime_binding("build_legal_chunks").downstream_target == "LegalChunkBuilder.build"
     assert (
         runtime_binding("activate_validated_corpus_version").runtime_target

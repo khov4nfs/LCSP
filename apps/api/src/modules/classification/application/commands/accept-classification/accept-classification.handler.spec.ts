@@ -47,6 +47,7 @@ describe("AcceptClassificationHandler", () => {
   let mockEnqueueOutbox: jest.Mock<(...args: unknown[]) => Promise<void>>;
   let mockWriteAuditInTx: jest.Mock<(...args: unknown[]) => Promise<void>>;
   let mockRecordToolCompleted: jest.Mock<(...args: unknown[]) => Promise<void>>;
+  let mockRecordRunCompleted: jest.Mock<(...args: unknown[]) => Promise<void>>;
 
   const validPayload: AcceptClassificationDto = {
     technical_evidence_report_id: "ter-123",
@@ -100,6 +101,9 @@ describe("AcceptClassificationHandler", () => {
     mockRecordToolCompleted = jest
       .fn<(...args: unknown[]) => Promise<void>>()
       .mockResolvedValue(undefined);
+    mockRecordRunCompleted = jest
+      .fn<(...args: unknown[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
 
     prisma = {
       technicalEvidenceReport: { findFirst: mockFindEvidence },
@@ -122,9 +126,7 @@ describe("AcceptClassificationHandler", () => {
       new OverclaimGuardrailService(),
       {
         recordToolCompleted: mockRecordToolCompleted,
-        recordRunCompleted: jest
-          .fn<(...args: unknown[]) => Promise<void>>()
-          .mockResolvedValue(undefined),
+        recordRunCompleted: mockRecordRunCompleted,
       } as unknown as AssessmentRuntimeEventService,
     );
   });
@@ -173,6 +175,73 @@ describe("AcceptClassificationHandler", () => {
       expect.objectContaining({
         assessmentId: "asm-123",
         toolName: "engineering_rule_evaluation",
+      }),
+    );
+  });
+
+  it("records engineering observability in runtime event summaries", async () => {
+    const payload: AcceptClassificationDto = {
+      ...validPayload,
+      classification_data: {
+        ...validPayload.classification_data,
+        limitations: [
+          ENGINEERING_LIMITATION_CODES.engineeringRuleCompilationFailed,
+        ],
+        observability: {
+          openwiki: {
+            available: false,
+            error: "OPENWIKI_RUNTIME_COMMAND_UNAVAILABLE",
+            fallback: "OPENWIKI_REQUIRED_FALLBACK_ALL",
+          },
+          engineering_rule_preparation: {
+            compile_failed_count: 1,
+            compile_failed_legal_rule_ids: ["legal-broken"],
+          },
+          candidate_source_hit_distribution: {
+            candidate_count: 2,
+            source_hit_count_buckets: { "0": 2 },
+          },
+        },
+      },
+    };
+
+    await handler.execute(
+      new AcceptClassificationCommand(payload, "corr-observability"),
+    );
+
+    expect(mockRecordToolCompleted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputSummary: expect.objectContaining({
+          engineeringSummary: {
+            compliant: 1,
+            nonCompliant: 1,
+            unknown: 0,
+            total: 2,
+          },
+          limitations: [
+            ENGINEERING_LIMITATION_CODES.engineeringRuleCompilationFailed,
+          ],
+          observability: expect.objectContaining({
+            openwiki: expect.objectContaining({
+              error: "OPENWIKI_RUNTIME_COMMAND_UNAVAILABLE",
+            }),
+            engineering_rule_preparation: expect.objectContaining({
+              compile_failed_count: 1,
+              compile_failed_legal_rule_ids: ["legal-broken"],
+            }),
+          }),
+        }),
+      }),
+    );
+    expect(mockRecordRunCompleted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        outputSummary: expect.objectContaining({
+          observability: expect.objectContaining({
+            candidate_source_hit_distribution: expect.objectContaining({
+              candidate_count: 2,
+            }),
+          }),
+        }),
       }),
     );
   });

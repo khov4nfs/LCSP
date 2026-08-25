@@ -46,6 +46,7 @@ class EngineeringInvestigationResult:
     technical_evidence_by_rule: dict[str, tuple[dict[str, Any], ...]] = field(
         default_factory=dict
     )
+    observability: dict[str, Any] = field(default_factory=dict)
 
     def to_assessment_data(self) -> dict[str, Any]:
         evaluations: list[dict[str, Any]] = []
@@ -81,12 +82,41 @@ class EngineeringInvestigationResult:
             "evaluations": evaluations,
             "claims": [claim.to_dict() for claim in self.claims],
             "limitations": list(self.limitations),
+            "observability": {
+                **dict(self.observability),
+                "provenance": self._provenance_summary(evaluations),
+            },
         }
 
     # Compatibility for any tests/readers still calling the old method name. The
     # payload is no longer persisted as TechnicalProfile data.
     def to_profile_data(self) -> dict[str, Any]:
         return self.to_assessment_data()
+
+    def _provenance_summary(
+        self,
+        evaluation_payloads: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        return {
+            "claim_count": len(self.claims),
+            "claims_with_evidence": sum(
+                1
+                for claim in self.claims
+                if claim.evidence_refs
+                or claim.graph_path_refs
+                or claim.source_anchor_refs
+            ),
+            "evaluations_with_evidence": sum(
+                1
+                for item in evaluation_payloads
+                if item.get("evidence_refs")
+                or item.get("graph_path_refs")
+                or item.get("source_anchor_refs")
+            ),
+            "evaluations_with_displayable_technical_evidence": sum(
+                1 for item in evaluation_payloads if item.get("technical_evidence")
+            ),
+        }
 
 
 class EngineeringInvestigationPipeline:

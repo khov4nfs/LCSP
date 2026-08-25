@@ -1,6 +1,7 @@
 """Planner-gated direct EngineeringRule investigation runtime."""
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -178,7 +179,12 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 correlation_id=correlation_id,
             )
 
-        limitations, cache_hits, prepared = self._prepare_engineering_rules(
+        (
+            limitations,
+            cache_hits,
+            prepared,
+            preparation_observability,
+        ) = self._prepare_engineering_rules(
             rules=rules,
             catalog_version_id=catalog_version_id,
             corpus_version_id=corpus_version_id,
@@ -251,7 +257,12 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                         workflow_run_id=workflow_run_id,
                         correlation_id=correlation_id,
                     )
-                limitations, cache_hits, prepared = self._prepare_engineering_rules(
+                (
+                    limitations,
+                    cache_hits,
+                    prepared,
+                    preparation_observability,
+                ) = self._prepare_engineering_rules(
                     rules=rules,
                     catalog_version_id=catalog_version_id,
                     corpus_version_id=corpus_version_id,
@@ -280,6 +291,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 reason="NO_ENGINEERING_RULE_CANDIDATES_AFTER_TRIAGE",
                 workflow_run_id=workflow_run_id,
                 correlation_id=correlation_id,
+                observability=preparation_observability,
             )
 
         return self._run_planned_investigation(
@@ -287,6 +299,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             code_context=code_context,
             rules=rules,
             prepared=prepared,
+            preparation_observability=preparation_observability,
             limitations=limitations,
             cache_hits=cache_hits,
             catalog_version_id=catalog_version_id,
@@ -304,6 +317,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         code_context: CodeContextSession,
         rules: list[dict[str, Any]],
         prepared: list[tuple[Any, Any]],
+        preparation_observability: dict[str, Any],
         limitations: list[str],
         cache_hits: int,
         catalog_version_id: str,
@@ -331,10 +345,21 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             )
             for rule, material_packet in material_prepared
         )
+        observability = {
+            **dict(preparation_observability),
+            "candidate_source_hit_distribution": self._candidate_source_hit_distribution(
+                candidates
+            ),
+        }
         try:
             openwiki_context = OpenWikiContextProvider(
                 workspace_path or Path.cwd()
             ).collect_required_for_candidates(candidates)
+            observability["openwiki"] = {
+                "available": True,
+                "hint_count": int(openwiki_context.get("hintCount") or 0),
+                "authority": str(openwiki_context.get("authority") or ""),
+            }
             logger.info(
                 "OPENWIKI_PLANNER_HINTS_READY",
                 hint_count=openwiki_context.get("hintCount", 0),
@@ -351,6 +376,11 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 openwiki_context=openwiki_context,
             )
         except OpenWikiContextRequiredError as error:
+            observability["openwiki"] = {
+                "available": False,
+                "error": str(error),
+                "fallback": "OPENWIKI_REQUIRED_FALLBACK_ALL",
+            }
             logger.warning(
                 "OPENWIKI_PLANNER_HINTS_REQUIRED_FALLBACK_ALL",
                 reason=str(error),
@@ -391,6 +421,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             rules=rules,
             workflow_run_id=workflow_run_id,
             correlation_id=correlation_id,
+            observability=observability,
         )
 
     def _finish_planned_investigation(
@@ -408,8 +439,27 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         rules: list[dict[str, Any]],
         workflow_run_id: str,
         correlation_id: str | None,
+        observability: dict[str, Any],
     ) -> EngineeringInvestigationResult:
         selected_ids = set(plan.selected_rule_ids)
+        observability = {
+            **dict(observability),
+            "planner_decision_distribution": {
+                "final_decision_counts": dict(
+                    Counter(item.final_decision for item in plan.decision_audit)
+                ),
+                "reason_code_counts": dict(
+                    Counter(item.reason_code for item in plan.decision_audit)
+                ),
+                "validation_override_counts": dict(
+                    Counter(
+                        item.validation_override
+                        for item in plan.decision_audit
+                        if item.validation_override
+                    )
+                ),
+            },
+        }
         logger.info(
             "ENGINEERING_RULE_PLAN_APPLIED",
             candidate_count=len(candidates),
@@ -563,6 +613,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             technical_evidence_by_rule=technical_evidence_by_rule,
             planner_fallback_used=plan.fallback_used,
             planner_decisions=tuple(planner_decisions),
+            observability=observability,
         )
 
     def _load_legal_rule_sources(
@@ -674,6 +725,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         reason: str,
         workflow_run_id: str,
         correlation_id: str | None,
+        observability: dict[str, Any] | None = None,
     ) -> EngineeringInvestigationResult:
         logger.warning(
             "ENGINEERING_INVESTIGATION_STOPPED_BEFORE_PLANNER",
@@ -691,6 +743,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             engineering_rules_executed=0,
             engineering_rule_cache_hits=cache_hits,
             limitations=tuple(dict.fromkeys(limitations)),
+            observability=dict(observability or {}),
         )
 
     def _waiting_before_llm(
@@ -704,6 +757,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         reason: str,
         workflow_run_id: str,
         correlation_id: str | None,
+        observability: dict[str, Any] | None = None,
     ) -> EngineeringInvestigationResult:
         logger.warning(
             "ENGINEERING_INVESTIGATION_WAITING_FOR_RULE_SOURCE_REBUILD",
@@ -721,6 +775,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             engineering_rules_executed=0,
             engineering_rule_cache_hits=cache_hits,
             limitations=tuple(dict.fromkeys(limitations)),
+            observability=dict(observability or {}),
         )
 
     def _prepare_engineering_rules(
@@ -733,10 +788,13 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         wizard_context: dict[str, Any] | None,
         workflow_run_id: str,
         correlation_id: str | None,
-    ) -> tuple[list[str], int, list[tuple[Any, Any]]]:
+    ) -> tuple[list[str], int, list[tuple[Any, Any]], dict[str, Any]]:
         limitations: list[str] = []
         cache_hits = 0
         prepared: list[tuple[Any, Any]] = []
+        compile_failures: list[dict[str, Any]] = []
+        compile_skipped_legal_rule_ids: list[str] = []
+        compiled_rule_counts: list[dict[str, Any]] = []
 
         # Materialize/cache governed EngineeringRule contracts and run deterministic
         # seed queries against the test-free runtime graph before planning.
@@ -769,7 +827,23 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 limitations.append(
                     ENGINEERING_LIMITATION_CODES["engineering_rule_compilation_failed"]
                 )
+                compile_failures.append(
+                    {
+                        "legal_rule_id": legal_rule_id,
+                        "error_type": type(error).__name__,
+                        "error_message": str(error)[:500],
+                    }
+                )
                 continue
+            if not engineering_rules:
+                compile_skipped_legal_rule_ids.append(legal_rule_id)
+            compiled_rule_counts.append(
+                {
+                    "legal_rule_id": legal_rule_id,
+                    "engineering_rule_count": len(engineering_rules),
+                    "cache_hit": cache_hit,
+                }
+            )
 
             for engineering_rule in engineering_rules:
                 packet = self._query_executor.execute(
@@ -779,7 +853,66 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 )
                 prepared.append((engineering_rule, packet))
 
-        return limitations, cache_hits, prepared
+        return limitations, cache_hits, prepared, {
+            "engineering_rule_preparation": {
+                "legal_rules_seen": len(rules),
+                "candidate_count": len(prepared),
+                "compile_failed_count": len(compile_failures),
+                "compile_failed_legal_rule_ids": [
+                    item["legal_rule_id"] for item in compile_failures
+                ],
+                "compile_failures": compile_failures,
+                "compile_skipped_count": len(compile_skipped_legal_rule_ids),
+                "compile_skipped_legal_rule_ids": compile_skipped_legal_rule_ids,
+                "compiled_engineering_rule_counts": compiled_rule_counts,
+            },
+        }
+
+    @staticmethod
+    def _candidate_source_hit_distribution(
+        candidates: tuple[Any, ...],
+    ) -> dict[str, Any]:
+        hit_buckets: Counter[str] = Counter()
+        evidence_buckets: Counter[str] = Counter()
+        scope_states: Counter[str] = Counter()
+        node_types: Counter[str] = Counter()
+        for candidate in candidates:
+            hit_buckets[
+                PlannedEngineeringInvestigationPipeline._count_bucket(
+                    int(getattr(candidate, "source_hit_count", 0) or 0)
+                )
+            ] += 1
+            evidence_buckets[
+                PlannedEngineeringInvestigationPipeline._count_bucket(
+                    int(getattr(candidate, "source_evidence_count", 0) or 0)
+                )
+            ] += 1
+            scope_states[
+                str(getattr(candidate, "scope_coverage_state", "UNKNOWN"))
+            ] += 1
+            node_types.update(
+                str(item)
+                for item in getattr(candidate, "source_node_types", ()) or ()
+            )
+        return {
+            "candidate_count": len(candidates),
+            "source_hit_count_buckets": dict(sorted(hit_buckets.items())),
+            "source_evidence_count_buckets": dict(sorted(evidence_buckets.items())),
+            "scope_coverage_counts": dict(sorted(scope_states.items())),
+            "source_node_type_counts": dict(node_types.most_common(20)),
+        }
+
+    @staticmethod
+    def _count_bucket(count: int) -> str:
+        if count <= 0:
+            return "0"
+        if count == 1:
+            return "1"
+        if count <= 5:
+            return "2_5"
+        if count <= 20:
+            return "6_20"
+        return "21_plus"
 
     def _recover_legal_rule_sources(
         self,

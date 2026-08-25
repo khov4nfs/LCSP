@@ -3,7 +3,7 @@ task_id: MW-rec-004
 module: reconciliation
 runtime: nestjs-api
 priority: P0
-status: DONE
+status: SUPERSEDED_FOR_ACTIVE_MVP
 epic_story: 5.4
 depends_on:
   - reconciliation/03-resolve-conflict-endpoint.md
@@ -11,6 +11,8 @@ depends_on:
 ---
 
 # VerifiedProfile Callback Endpoint
+
+> Superseded: the active flow no longer exposes a customer-facing VerifiedProfile approval gate or `POST /internal/reconciliation/verified-profile-callback` runtime contract. Direct EngineeringRule classification consumes accepted evidence context instead.
 
 ## Outcome
 

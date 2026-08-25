@@ -191,6 +191,12 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
         evidenceReport.assessmentId,
         evidenceReport.id,
       );
+    const runtimeOutputSummary = engineeringAssessmentRuntimeOutputSummary({
+      classificationResultId,
+      technicalEvidenceReportId: evidenceReport.id,
+      guardrailStatus,
+      classificationData: payload.classification_data,
+    });
     await this.runtimeEvents.recordToolCompleted({
       organizationId: evidenceReport.organizationId,
       assessmentId: evidenceReport.assessmentId,
@@ -202,6 +208,7 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
         ? "EngineeringRule assessment completed with guardrail block"
         : "EngineeringRule assessment completed",
       outputSummary: {
+        ...runtimeOutputSummary,
         classificationResultId,
         technicalEvidenceReportId: evidenceReport.id,
         guardrailStatus,
@@ -218,6 +225,7 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
       toolName: "engineering_rule_evaluation",
       summary: "Direct EngineeringRule assessment orchestration completed",
       outputSummary: {
+        ...runtimeOutputSummary,
         classificationResultId,
         technicalEvidenceReportId: evidenceReport.id,
         guardrailStatus,
@@ -406,6 +414,45 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function clean(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function nonNegativeInteger(value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0
+    ? value
+    : 0;
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function engineeringAssessmentRuntimeOutputSummary(input: {
+  classificationResultId: string;
+  technicalEvidenceReportId: string;
+  guardrailStatus: ClassificationGuardrailStatus;
+  classificationData: Record<string, unknown>;
+}): Record<string, unknown> {
+  const summary = isRecord(input.classificationData.summary)
+    ? input.classificationData.summary
+    : {};
+  const observability = isRecord(input.classificationData.observability)
+    ? input.classificationData.observability
+    : {};
+  return {
+    classificationResultId: input.classificationResultId,
+    technicalEvidenceReportId: input.technicalEvidenceReportId,
+    guardrailStatus: input.guardrailStatus,
+    engineeringSummary: {
+      compliant: nonNegativeInteger(summary.compliant),
+      nonCompliant: nonNegativeInteger(summary.non_compliant),
+      unknown: nonNegativeInteger(summary.unknown),
+      total: nonNegativeInteger(summary.total),
+    },
+    limitations: stringArray(input.classificationData.limitations),
+    observability,
+  };
 }
 
 function engineeringAssessmentRunId(

@@ -3,7 +3,7 @@ task_id: MW-cls-001
 module: classification
 runtime: nestjs-api
 priority: P0
-status: DONE
+status: SUPERSEDED_FOR_ACTIVE_MVP
 epic_story: 6.7
 depends_on:
   - reconciliation/04-verified-profile-callback-endpoint.md
@@ -11,6 +11,8 @@ depends_on:
 ---
 
 # LegalRuleMatch Callback Endpoint
+
+> Superseded: this endpoint and its API e2e contract were removed from the active direct EngineeringRule classification flow. Do not reintroduce `POST /internal/classification/legal-rule-match-callback` without a new architecture decision.
 
 ## Outcome
 

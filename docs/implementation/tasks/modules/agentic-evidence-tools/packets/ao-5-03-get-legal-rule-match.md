@@ -3,9 +3,11 @@ template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-5-03-get-legal-rule-match
 jira_issue: LCSP-162
-status: DONE
+status: SUPERSEDED_FOR_ACTIVE_MVP
 ---
 # TASK-AO-5-03 — `get_legal_rule_match`
+
+> Superseded: `get_legal_rule_match` is no longer a canonical runtime tool for active direct EngineeringRule classification.
 ## 1. Task Information
 | Item | Value |
 |---|---|

@@ -457,6 +457,93 @@ def test_planned_pipeline_falls_back_all_when_openwiki_runtime_context_missing(
         "eng-1",
         "eng-2",
     ]
+    assert result.observability["openwiki"] == {
+        "available": False,
+        "error": "OPENWIKI_RUNTIME_COMMAND_UNAVAILABLE",
+        "fallback": "OPENWIKI_REQUIRED_FALLBACK_ALL",
+    }
+    assert result.observability["candidate_source_hit_distribution"][
+        "candidate_count"
+    ] == 2
+    assert result.observability["planner_decision_distribution"][
+        "validation_override_counts"
+    ] == {"OPENWIKI_REQUIRED_FALLBACK_ALL": 2}
+
+
+def test_planned_pipeline_persists_compile_failure_observability(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("OPENWIKI_RUNTIME_COMMAND", "missing-openwiki-runtime-command")
+
+    api_client = MagicMock()
+    api_client.get_active_legal_rule_catalog.return_value = {
+        "versionId": "catalog-v1",
+        "rules": [
+            {"legalRuleId": "legal-broken", "status": "APPROVED"},
+            {"legalRuleId": "legal-ok", "status": "APPROVED"},
+        ],
+    }
+    api_client.get_active_legal_corpus.return_value = {"versionId": "corpus-v1"}
+    api_client.get_legal_corpus_chunks.return_value = {
+        "chunks": [{"id": "LAW:A1", "content": "approved legal text"}]
+    }
+
+    rule_service = MagicMock()
+    rule_service.get_or_compile.side_effect = [
+        ValueError("compiler structured response must be object"),
+        ([_engineering_rule("eng-ok")], False),
+    ]
+    query_executor = MagicMock()
+    query_executor.execute.return_value = _packet("eng-ok")
+    investigator = MagicMock()
+    investigator.investigate.return_value = [
+        EvidenceClaim(
+            claim_id="claim-1",
+            engineering_rule_id="eng-ok",
+            claim_type="RULE_REQUIREMENT_MET",
+            value=True,
+            evidence_refs=("evidence:ai:1",),
+            confidence=0.9,
+        )
+    ]
+    evaluator = MagicMock()
+    evaluator.evaluate.return_value = SimpleNamespace(
+        engineering_rule_id="eng-ok",
+        status="COMPLIANT",
+        evidence_refs=("evidence:ai:1",),
+    )
+
+    pipeline = PlannedEngineeringInvestigationPipeline(
+        api_client=api_client,
+        model="test:model",
+        retriever=MagicMock(),
+        rule_service=rule_service,
+        query_executor=query_executor,
+        investigator=investigator,
+        evaluator=evaluator,
+        planner=MagicMock(),
+    )
+
+    result = pipeline.run(
+        evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
+        workflow_run_id="workflow-1",
+        workspace_path=tmp_path,
+    )
+
+    preparation = result.observability["engineering_rule_preparation"]
+    assert result.status == "PARTIAL"
+    assert preparation["legal_rules_seen"] == 2
+    assert preparation["candidate_count"] == 1
+    assert preparation["compile_failed_count"] == 1
+    assert preparation["compile_failed_legal_rule_ids"] == ["legal-broken"]
+    assert preparation["compile_failures"] == [
+        {
+            "legal_rule_id": "legal-broken",
+            "error_type": "ValueError",
+            "error_message": "compiler structured response must be object",
+        }
+    ]
 
 
 def test_planned_pipeline_recovers_corpus_sources_and_retries_when_no_rules_prepare(

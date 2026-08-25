@@ -71,7 +71,6 @@ def test_legal_runtime_is_grouped_by_capability() -> None:
     assert _py(retrieval / "legal_basis") == {
         "chromadb_citation_retriever.py",
         "legal_match_builder.py",
-        "legal_retrieval_boundary.py",
         "normative_chunk_filter.py",
         "rule_applicability_evaluator.py",
     }
@@ -93,7 +92,7 @@ def test_canonical_legal_imports_resolve() -> None:
     for module_name in (
         "tools.legal.corpus.legal_chunks.legal_chunk_builder",
         "tools.legal.retrieval.index.chroma_path",
-        "tools.legal.retrieval.legal_basis.legal_retrieval_boundary",
+        "tools.legal.retrieval.legal_basis.chromadb_citation_retriever",
         "tools.legal.sources.extraction.official_text_extraction",
         "tools.legal.sources.ocr_quality.ocr_quality_validator",
     ):

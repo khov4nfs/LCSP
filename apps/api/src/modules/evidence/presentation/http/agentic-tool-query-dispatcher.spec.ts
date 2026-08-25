@@ -21,18 +21,21 @@ const CQRS_ENTRYPOINTS = [
   "get_assessment_context",
   "get_artifact_chain",
   "get_reconciliation_context",
-  "get_verified_profile",
   "compare_wizard_claim",
-  "get_classification_baseline",
   "get_gap_requirements",
   "get_gap_evidence_trace",
-  "validate_classification_proposal",
   "evaluate_gap_matrix",
   "get_admin_source_catalog",
   "get_legal_corpus_readiness",
   "retrieve_legal_basis",
-  "get_legal_rule_match",
   "validate_citation_set",
+] as const;
+
+const RETIRED_CQRS_ENTRYPOINTS = [
+  "get_verified_profile",
+  "get_classification_baseline",
+  "validate_classification_proposal",
+  "get_legal_rule_match",
 ] as const;
 
 const PYTHON_PROCESSING_TOOLS = [
@@ -60,6 +63,20 @@ describe("buildAgenticToolQuery", () => {
       expect((entrypoint as { name: string }).name).toBe(toolName);
     }
   });
+
+  it.each(RETIRED_CQRS_ENTRYPOINTS)(
+    "does not expose retired Nest CQRS tool %s",
+    (toolName) => {
+      expect(queryEntrypoints[toolName]).toBeUndefined();
+      expect(() =>
+        buildAgenticToolQuery({
+          ...baseArgs,
+          toolName,
+          input: {},
+        }),
+      ).toThrow();
+    },
+  );
 
   it.each(PYTHON_PROCESSING_TOOLS)(
     "does not dispatch Python processing tool %s through Nest",

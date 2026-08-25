@@ -148,7 +148,7 @@ The following PRD `NFR-*` identifiers are retained only as PRD/source aliases. A
 | UC-M06-05 | Resolve Business/Legal Conflict | Manager, LCSP System | ACTIVE | active business-rules.md; archived use-case-specification.md |
 | UC-M06-06 | Post-MVP Delegated Technical Clarification | Manager, optional Developer, LCSP System | OUT_OF_SCOPE | active business-rules.md; archived use-case-specification.md |
 | UC-M06-07 | Create VerifiedProfile | LCSP System | ACTIVE | active business-rules.md; archived use-case-specification.md |
-| UC-M06-08 | Review and Approve VerifiedProfile | Manager, LCSP System | ACTIVE | active business-rules.md; archived use-case-specification.md |
+| UC-M06-08 | Review and Approve VerifiedProfile | Manager, LCSP System | SUPERSEDED_FOR_ACTIVE_MVP | active flow removed VerifiedProfile approval gate |
 | UC-M07-01 | Retrieve Legal Rules/Citations | LCSP System, Legal Corpus | ACTIVE | active business-rules.md; archived use-case-specification.md |
 | UC-M07-02 | Run Risk Classification Agent | LCSP System, LLM Provider | ACTIVE | active business-rules.md; archived use-case-specification.md |
 | UC-M07-03 | Trace Classification to Legal Rule | LCSP System, Legal Corpus | ACTIVE | active business-rules.md; archived use-case-specification.md |
@@ -202,7 +202,7 @@ The following PRD `NFR-*` identifiers are retained only as PRD/source aliases. A
 | FR-028 | Route conflicts to Manager | FR-E5-3 | CANONICAL_MAPPING | `docs/specs/functional-requirements.md` |
 | FR-029 | Resolve conflicts by Manager | FR-E5-3, FR-E5-4, FR-E5-5 | CANONICAL_MAPPING | `docs/specs/functional-requirements.md` |
 | FR-030 | Create VerifiedProfile | FR-E6-1 | CANONICAL_MAPPING | `docs/specs/functional-requirements.md` |
-| FR-031 | Approve VerifiedProfile | FR-E6-1, FR-E6-2 | CANONICAL_MAPPING | `docs/specs/functional-requirements.md` |
+| FR-031 | Remove VerifiedProfile approval gate | FR-E6-1, FR-E6-2 | CANONICAL_MAPPING | `docs/specs/functional-requirements.md` |
 | FR-032 | Retrieve legal rules and citations | FR-E6-3, FR-E6-4, FR-E6-5 | CANONICAL_MAPPING | `docs/specs/functional-requirements.md` |
 | FR-033 | Match legal rules by usage flow | FR-E6-3, FR-E6-4, FR-E6-5 | CANONICAL_MAPPING | `docs/specs/functional-requirements.md` |
 | FR-034 | Block/degrade legal matching without citation | FR-E6-4 | CANONICAL_MAPPING | `docs/specs/functional-requirements.md` |
@@ -280,8 +280,8 @@ These identifiers are retained only for traceability drift cleanup. They are not
 
 | AC | Statement | Source |
 | --- | --- | --- |
-| AC-1 | A Wizard-only assessment never displays HIGH/MEDIUM/LOW. A `TECHNICAL_ONLY` assessment (no linked WizardProfile) may display a classification once VerifiedProfile confidence clears the required bar, always flagged `verificationSource: TECHNICAL_ONLY`. | docs/product/prd.md |
-| AC-2 | Risk Classification Agent cannot run before VerifiedProfile exists. | docs/product/prd.md |
+| AC-1 | A Wizard-only assessment never displays HIGH/MEDIUM/LOW. A technical-only assessment may display a classification once evidence and EngineeringRule gates pass; business-declaration-dependent fields remain `UNKNOWN` when unsupported. | docs/product/prd.md |
+| AC-2 | Risk Classification cannot run before direct EngineeringRule assessment has evidence refs and legal-rule provenance. | docs/product/prd.md |
 | AC-3 | Technical evidence must pass schema completeness gate before reconciliation. | docs/product/prd.md |
 | AC-4 | Technical evidence must pass quality threshold gate before classification unlock. | docs/product/prd.md |
 | AC-5 | Any unresolved conflict blocks final classification/report until resolved. | docs/product/prd.md |

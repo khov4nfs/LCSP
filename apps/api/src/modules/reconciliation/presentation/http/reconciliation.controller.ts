@@ -7,7 +7,6 @@ import {
   Headers,
   HttpStatus,
   HttpCode,
-  NotFoundException,
   Param,
   Patch,
   Post,
@@ -17,40 +16,30 @@ import {
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
-import { AI_USAGE_FLOW_STATUSES } from "@lcsp/contracts/scan";
 import {
   ARTIFACT_CHAIN_STAGES,
   ASSESSMENT_CONTEXT_ANSWER_FIELDS,
   ASSESSMENT_CONTEXT_INCLUDES,
-  VERIFIED_PROFILE_REQUIRED_FOR,
   type ArtifactChainStage,
   type AssessmentContextAnswerField,
   type AssessmentContextInclude,
-  type VerifiedProfileRequiredFor,
 } from "@lcsp/contracts/evidence";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
 import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import { AcceptConflictCommand } from "../../application/commands/accept-conflict/accept-conflict.command.js";
-import { ApproveVerifiedProfileCommand } from "../../application/commands/approve-verified-profile/approve-verified-profile.command.js";
 import { ResolveConflictCommand } from "../../application/commands/resolve-conflict/resolve-conflict.command.js";
-import { ReconcileProfileToVerifiedProfileCommand } from "../../application/commands/reconcile-profile-to-verified-profile/reconcile-profile-to-verified-profile.command.js";
 import type { ConflictDetectionCallbackRequest } from "../../application/contracts/reconciliation/conflict-detection-callback.contract.js";
-import type { VerifiedProfileCallbackRequest } from "../../application/contracts/reconciliation/verified-profile-callback.contract.js";
 import { ListConflictsQuery } from "../../application/queries/list-conflicts/list-conflicts.query.js";
-import { GetVerifiedProfileByIdQuery } from "../../application/queries/get-verified-profile-by-id/get-verified-profile-by-id.query.js";
-import { GetVerifiedProfileQuery } from "../../application/queries/get-verified-profile/get-verified-profile.query.js";
 import { GetArtifactChainQuery } from "../../application/queries/get-artifact-chain/get-artifact-chain.query.js";
 import { GetAssessmentContextQuery } from "../../application/queries/get-assessment-context/get-assessment-context.query.js";
 import { GetReconciliationContextQuery } from "../../application/queries/get-reconciliation-context/get-reconciliation-context.query.js";
 import { ProposeMissingTargetsQuery } from "../../application/queries/propose-missing-targets/propose-missing-targets.query.js";
-import { ListVerifiedProfilesQuery } from "../../application/queries/list-verified-profiles/list-verified-profiles.query.js";
 import {
   RECONCILIATION_CONTEXT_STATUSES,
   type ReconciliationContextStatus,
@@ -64,11 +53,7 @@ type ResolveConflictRequest = {
 
 @Controller("internal/reconciliation")
 export class InternalReconciliationController {
-  constructor(
-    private readonly commandBus: CommandBus,
-    private readonly queryBus: QueryBus,
-    private readonly prisma: PrismaService,
-  ) {}
+  constructor(private readonly commandBus: CommandBus) {}
 
   @Post("conflict-callback")
   @HttpCode(200)
@@ -85,140 +70,6 @@ export class InternalReconciliationController {
         ),
       ),
     );
-  }
-
-  /**
-   * Persist one verified profile through the single canonical reconciliation
-   * command. Legacy worker-computed profile payloads are intentionally not
-   * accepted: Nest re-validates the pinned artifact chain and conflict refs.
-   */
-  @Post("verified-profile-callback")
-  @HttpCode(200)
-  @UseGuards(WorkerApiKeyGuard)
-  async acceptVerifiedProfile(
-    @Body() payload: VerifiedProfileCallbackRequest,
-    @Headers("x-correlation-id") correlationId?: string,
-  ) {
-    return resultEnvelope(
-      await this.commandBus.execute(
-        new ReconcileProfileToVerifiedProfileCommand(
-          {
-            assessmentId: payload.assessment_id,
-            wizardProfileId: payload.wizard_profile_id,
-            technicalEvidenceReportId: payload.technical_evidence_report_id,
-            aiUsageFlowId: payload.ai_usage_flow_id,
-            reconciliationDecisionRefs: payload.reconciliation_decision_refs,
-            idempotencyKey: payload.idempotency_key,
-          },
-          payload.organization_id,
-          correlationId?.trim() || randomUUID(),
-        ),
-      ),
-    );
-  }
-
-  @Get("verified-profiles/:verifiedProfileId")
-  @HttpCode(200)
-  @UseGuards(WorkerApiKeyGuard)
-  async getVerifiedProfileById(
-    @Param("verifiedProfileId") verifiedProfileId: string,
-  ) {
-    return resultEnvelope(
-      await this.queryBus.execute(
-        new GetVerifiedProfileByIdQuery(verifiedProfileId),
-      ),
-    );
-  }
-
-  @Get("verified-profile-context/:assessmentId")
-  @UseGuards(WorkerApiKeyGuard)
-  async getVerifiedProfileContext(
-    @Param("assessmentId") assessmentId: string,
-    @Query("ai_usage_flow_id") aiUsageFlowId?: string,
-  ) {
-    const aiUsageFlow = await this.prisma.aIUsageFlow.findFirst({
-      where: {
-        assessmentId,
-        ...(aiUsageFlowId ? { id: aiUsageFlowId } : {}),
-        status: AI_USAGE_FLOW_STATUSES.accepted,
-      },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        technicalProfileId: true,
-        assessmentId: true,
-        organizationId: true,
-        schemaVersion: true,
-        providerVersion: true,
-        claims: true,
-        unknownUsages: true,
-        privacyFlags: true,
-        status: true,
-        createdAt: true,
-      },
-    });
-
-    if (!aiUsageFlow) {
-      throw new NotFoundException("Accepted AI usage flow not found");
-    }
-
-    const [conflicts, wizardProfile, technicalProfile] = await Promise.all([
-      this.prisma.conflictRecord.findMany({
-        where: { aiUsageFlowId: aiUsageFlow.id, assessmentId },
-        orderBy: { createdAt: "asc" },
-        select: {
-          id: true,
-          conflictType: true,
-          status: true,
-          resolvedAt: true,
-          evidenceRefs: true,
-        },
-      }),
-      this.prisma.wizardProfile.findUnique({
-        where: { assessmentId },
-        select: { id: true, assessmentId: true, version: true, answers: true },
-      }),
-      this.prisma.technicalProfile.findFirst({
-        where: {
-          id: aiUsageFlow.technicalProfileId,
-          assessmentId,
-          organizationId: aiUsageFlow.organizationId,
-        },
-        select: { evidenceReportId: true },
-      }),
-    ]);
-
-    return resultEnvelope({
-      ai_usage_flow: {
-        id: aiUsageFlow.id,
-        ai_usage_flow_id: aiUsageFlow.id,
-        assessment_id: aiUsageFlow.assessmentId,
-        organization_id: aiUsageFlow.organizationId,
-        schema_version: aiUsageFlow.schemaVersion,
-        provider_version: aiUsageFlow.providerVersion,
-        claims: aiUsageFlow.claims,
-        unknown_usages: aiUsageFlow.unknownUsages,
-        privacy_flags: aiUsageFlow.privacyFlags,
-        status: AI_USAGE_FLOW_STATUSES.accepted.toLowerCase(),
-        created_at: aiUsageFlow.createdAt.toISOString(),
-      },
-      conflicts: conflicts.map((conflict) => ({
-        conflict_id: conflict.id,
-        conflict_type: conflict.conflictType,
-        status: conflict.status,
-        resolved_at: conflict.resolvedAt?.toISOString() ?? null,
-        evidence_refs: conflict.evidenceRefs,
-      })),
-      wizard_profile: wizardProfile
-        ? {
-            id: wizardProfile.id,
-            assessment_id: wizardProfile.assessmentId,
-            version: wizardProfile.version,
-            answers: wizardProfile.answers,
-          }
-        : null,
-      technical_evidence_report_id: technicalProfile?.evidenceReportId ?? null,
-    });
   }
 }
 
@@ -400,55 +251,6 @@ export class ReconciliationController {
     );
   }
 
-  @Get(":assessmentId/verified-profiles")
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.verifiedProfileRead)
-  async listVerifiedProfiles(
-    @Param("assessmentId") assessmentId: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.queryBus.execute(
-        new ListVerifiedProfilesQuery(
-          assessmentId,
-          request.pbacContext.organizationId,
-          request.correlationId as string,
-        ),
-      ),
-    );
-  }
-
-  @Get(":assessmentId/verified-profiles/:verifiedProfileId")
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.verifiedProfileRead)
-  async getVerifiedProfile(
-    @Param("assessmentId") assessmentId: string,
-    @Param("verifiedProfileId") verifiedProfileId: string,
-    @Query("expected_version") expectedVersion: string | undefined,
-    @Query("required_for") requiredForRaw: string | undefined,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    const correlationId = request.correlationId as string;
-    const requiredFor = parseVerifiedProfileRequiredFor(
-      requiredForRaw,
-      correlationId,
-    );
-    const version = parseVerifiedProfileVersion(expectedVersion, correlationId);
-
-    return resultEnvelope(
-      await this.queryBus.execute(
-        new GetVerifiedProfileQuery(
-          assessmentId,
-          request.pbacContext.organizationId,
-          verifiedProfileId,
-          version,
-          requiredFor,
-          correlationId,
-        ),
-      ),
-    );
-  }
-
   @Patch(":assessmentId/conflicts/:conflictId/resolve")
   @UseGuards(PbacGuard)
   @RequireAction(PBAC_ACTIONS.conflictResolve)
@@ -480,61 +282,6 @@ export class ReconciliationController {
       ),
     );
   }
-
-  @Post(":assessmentId/verified-profiles/:verifiedProfileId/approve")
-  @HttpCode(200)
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.verifiedProfileApprove)
-  async approveVerifiedProfile(
-    @Param("assessmentId") assessmentId: string,
-    @Param("verifiedProfileId") verifiedProfileId: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    const pbacContext = request.pbacContext;
-
-    return resultEnvelope(
-      await this.commandBus.execute(
-        new ApproveVerifiedProfileCommand(
-          assessmentId,
-          verifiedProfileId,
-          pbacContext.organizationId,
-          pbacContext.userId,
-          pbacContext.subjectRole,
-          request.correlationId as string,
-          {
-            selectedAction: pbacContext.selectedAction,
-            policyId: pbacContext.policyId,
-            policyVersion: pbacContext.policyVersion,
-          },
-        ),
-      ),
-    );
-  }
-}
-
-function parseVerifiedProfileVersion(
-  value: string | undefined,
-  correlationId: string,
-): string {
-  if (value && /^[1-9][0-9]{0,9}$/.test(value)) return value;
-  throw problemException(ASSESSMENT_ERROR_CODES.invalidRequest, correlationId, {
-    status: HttpStatus.UNPROCESSABLE_ENTITY,
-  });
-}
-
-function parseVerifiedProfileRequiredFor(
-  value: string | undefined,
-  correlationId: string,
-): VerifiedProfileRequiredFor {
-  if (
-    value === VERIFIED_PROFILE_REQUIRED_FOR.legalMatching ||
-    value === VERIFIED_PROFILE_REQUIRED_FOR.classification ||
-    value === VERIFIED_PROFILE_REQUIRED_FOR.gapAnalysis
-  )
-    return value;
-  throw problemException(ASSESSMENT_ERROR_CODES.invalidRequest, correlationId, {
-    status: HttpStatus.UNPROCESSABLE_ENTITY,
-  });
 }
 
 function parseArtifactChainStages(

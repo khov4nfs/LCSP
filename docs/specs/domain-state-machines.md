@@ -9,7 +9,7 @@ Canonical state transitions for the A-to-Z runnable MVP. Physical enums remain o
 - Every transition requires a guard and material state changes write AuditEvent.
 - Async work uses names from `event-catalog.md`.
 - Completed and failed artifacts are immutable history.
-- Classification requires VerifiedProfile and completed legal matching.
+- Classification requires direct EngineeringRule evaluation with legal-rule provenance and evidence refs.
 - Final document requires classification, GapAnalysis, citations, and no unresolved conflict.
 - Manager completion never depends on Developer participation.
 - PBAC is the authorization source of truth for all user and service transitions.
@@ -29,8 +29,7 @@ CREATED
 -> SCAN_COMPLETED
 -> TECHNICAL_PROFILE_READY
 -> AI_USAGE_FLOW_READY
--> RECONCILIATION_REQUIRED or VERIFIED_PROFILE_READY
--> LEGAL_MATCHING_READY
+-> RECONCILIATION_REQUIRED or ENGINEERING_RULE_ASSESSMENT_REQUESTED
 -> CLASSIFICATION_READY or CLASSIFICATION_BLOCKED
 -> GAP_ANALYSIS_READY or GAP_ANALYSIS_BLOCKED
 -> DOCUMENT_GENERATED or DOCUMENT_BLOCKED
@@ -56,11 +55,10 @@ CREATED
 | SCAN_COMPLETED | technical-profile completed | profile persisted | TECHNICAL_PROFILE_READY |
 | TECHNICAL_PROFILE_READY | AIUsageFlow completed | flow persisted | AI_USAGE_FLOW_READY |
 | AI_USAGE_FLOW_READY | conflict detected | material conflict exists (only possible when WizardProfile is linked) | RECONCILIATION_REQUIRED |
-| AI_USAGE_FLOW_READY | verified profile ready | no material conflict, or no WizardProfile linked (`verificationSource: TECHNICAL_ONLY`) | VERIFIED_PROFILE_READY |
-| RECONCILIATION_REQUIRED | verified profile ready | Manager resolved all conflicts | VERIFIED_PROFILE_READY |
-| VERIFIED_PROFILE_READY | legal matching completed | citation-backed matches persisted | LEGAL_MATCHING_READY |
-| LEGAL_MATCHING_READY | classification completed | result persisted | CLASSIFICATION_READY |
-| LEGAL_MATCHING_READY | classification blocked | guard failed | CLASSIFICATION_BLOCKED |
+| AI_USAGE_FLOW_READY | EngineeringRule assessment requested | no material conflict, or no WizardProfile linked | ENGINEERING_RULE_ASSESSMENT_REQUESTED |
+| RECONCILIATION_REQUIRED | EngineeringRule assessment requested | Manager resolved all conflicts | ENGINEERING_RULE_ASSESSMENT_REQUESTED |
+| ENGINEERING_RULE_ASSESSMENT_REQUESTED | classification completed | direct result persisted with provenance | CLASSIFICATION_READY |
+| ENGINEERING_RULE_ASSESSMENT_REQUESTED | classification blocked | guard failed | CLASSIFICATION_BLOCKED |
 | CLASSIFICATION_READY | gap completed | GapAnalysis persisted | GAP_ANALYSIS_READY |
 | CLASSIFICATION_READY | gap blocked or failed | gap unavailable | GAP_ANALYSIS_BLOCKED |
 | GAP_ANALYSIS_READY | document generated | artifact metadata persisted | DOCUMENT_GENERATED |
@@ -189,15 +187,15 @@ Only READY ChromaDB legal indexes are available to vectorless legal retrieval.
 
 ## Legal Matching
 
-States: `REQUESTED`, `RUNNING`, `COMPLETED`, `BLOCKED`, `FAILED`.
+Status: `SUPERSEDED_FOR_ACTIVE_MVP`.
 
-COMPLETED requires VerifiedProfile, approved READY corpus index, and persisted citation-backed matches. Missing corpus, index, effective basis, or required citation yields BLOCKED. Worker failure after retries yields FAILED.
+The retired legal matching state machine is not an active gate for new assessment execution. Direct EngineeringRule assessment owns legal-rule provenance and citation-backed evaluation.
 
 ## RiskClassification
 
 States: `REQUESTED`, `RUNNING`, `COMPLETED`, `BLOCKED`, `FAILED`.
 
-COMPLETED requires VerifiedProfile, legal matches, citation basis, and valid guarded model output where used. Missing prerequisites or unsupported conclusion yields BLOCKED.
+COMPLETED requires direct EngineeringRule evaluations, citation basis, evidence refs, and valid guarded model output where used. Missing prerequisites, evidence-less claims, or unsupported conclusion yields BLOCKED.
 
 ## GapAnalysis
 

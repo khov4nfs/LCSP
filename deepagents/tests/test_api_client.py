@@ -9,9 +9,7 @@ from tools.common.capabilities.platform.callback_schemas import (
     CallbackResponse,
     AIUsageFlowCallbackPayload,
     ConflictDetectionCallbackPayload,
-    LegalRuleMatchCallbackPayload,
     TechnicalProfileCallbackPayload,
-    VerifiedProfileCallbackPayload,
 )
 from tools.common.capabilities.platform.correlation import set_correlationId
 
@@ -533,91 +531,6 @@ def test_reconciliation_conflict_callback_uses_internal_endpoint(client):
         url = mock_post.call_args.args[0]
         assert url == "http://testserver/internal/reconciliation/conflict-callback"
         assert response.conflict_count == 0
-
-
-def _verified_profile_callback_payload() -> VerifiedProfileCallbackPayload:
-    return VerifiedProfileCallbackPayload(
-        ai_usage_flow_id="auf-1",
-        assessment_id="assessment-1",
-        wizard_profile_id="wizard-1",
-        technical_evidence_report_id="report-1",
-        reconciliation_decision_refs=["reconciliation:conflict-1"],
-        idempotency_key="verified-profile-idempotency-0001",
-        organization_id="org-1",
-    )
-
-
-def test_verified_profile_callback_uses_reconciliation_endpoint(client):
-    payload = _verified_profile_callback_payload()
-
-    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"accepted": True}
-        mock_post.return_value = mock_resp
-
-        client.post_verified_profile_callback(payload)
-
-        url = mock_post.call_args.args[0]
-        assert url == (
-            "http://testserver/internal/reconciliation/verified-profile-callback"
-        )
-        serialized = mock_post.call_args.kwargs["json"]
-        assert "profile_data" not in serialized
-        assert "gates_passed_at" not in serialized
-
-
-def test_verified_profile_pending_conflicts_error_preserves_error_code(client):
-    payload = _verified_profile_callback_payload()
-
-    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 409
-        mock_resp.json.return_value = {"error_code": "PENDING_CONFLICTS_EXIST"}
-        mock_post.return_value = mock_resp
-
-        with pytest.raises(WorkerCallbackError, match="PENDING_CONFLICTS_EXIST"):
-            client.post_verified_profile_callback(payload)
-
-
-def test_legal_rule_match_callback_uses_classification_endpoint(client):
-    payload = LegalRuleMatchCallbackPayload(
-        verified_profile_id="vp-1",
-        assessment_id="assessment-1",
-        corpus_version_id="corpus-v1",
-        legal_rule_catalog_version_id="catalog-v1",
-        matches=[],
-    )
-
-    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"accepted": True}
-        mock_post.return_value = mock_resp
-
-        client.post_legal_rule_match_callback(payload)
-
-        url = mock_post.call_args.args[0]
-        assert url == "http://testserver/internal/classification/legal-rule-match-callback"
-
-
-def test_get_verified_profile_reconciliation_context_uses_internal_endpoint(client):
-    with patch("tools.common.capabilities.platform.api_client.httpx.get") as mock_get:
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {"ai_usage_flow": {"id": "auf-1"}}
-        mock_get.return_value = mock_resp
-
-        data = client.get_verified_profile_reconciliation_context(
-            "assessment-1", "auf-1"
-        )
-
-        assert data == {"ai_usage_flow": {"id": "auf-1"}}
-        url = mock_get.call_args.args[0]
-        assert url == (
-            "http://testserver/internal/reconciliation/"
-            "verified-profile-context/assessment-1?ai_usage_flow_id=auf-1"
-        )
 
 
 def test_get_accepted_ai_usage_flow_rejects_non_ready_status(client):

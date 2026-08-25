@@ -29,8 +29,8 @@ Canonical active use-case catalog for the A-to-Z runnable MVP. Detailed user int
 | UC-008 | Generate TechnicalProfile | System | FR-021..FR-023 | AC-006, AC-007, AC-032 |
 | UC-009 | Generate AIUsageFlow | System | FR-023..FR-025 | AC-008, AC-009, AC-031, AC-032 |
 | UC-010 | Resolve Conflict | Manager | FR-026..FR-029 | AC-010..AC-012, AC-033 |
-| UC-011 | Create and Approve VerifiedProfile | Manager / System | FR-030, FR-031 | AC-014, AC-015 |
-| UC-012 | Operate Legal Corpus and Perform Legal Matching | Internal Legal Operator / System | FR-032..FR-034, FR-053, FR-054, FR-056 | AC-016, AC-017, AC-034..AC-036 |
+| UC-011 | Preserve AIUsageFlow Evidence Context | System | FR-030, FR-031 | AC-014, AC-015 |
+| UC-012 | Operate Legal Corpus and Compile EngineeringRules | Internal Legal Operator / System | FR-032..FR-034, FR-053, FR-054, FR-056 | AC-016, AC-017, AC-034..AC-036 |
 | UC-013 | Run Risk Classification | Manager / System | FR-035..FR-037, FR-055 | AC-018, AC-034, AC-037, AC-038 |
 | UC-014 | Generate Gap Analysis and Documents | Manager / System | FR-038..FR-041 | AC-003, AC-018, AC-019, AC-041 |
 | UC-015 | Review and Export Audit Trail | Manager / System | FR-042..FR-045 | AC-020, AC-039, AC-040 |
@@ -77,17 +77,17 @@ Goal: combine WizardProfile, TechnicalProfile, findings, and evidence refs into 
 
 Goal: let Manager resolve material mismatch while preserving scanner evidence. Structured attestation is not active MVP input. Free-form delegated clarification under `FR-052` is not active.
 
-## UC-011 Create and Approve VerifiedProfile
+## UC-011 Preserve AIUsageFlow Evidence Context
 
-Goal: produce the reconciled basis for legal matching after all material conflicts are absent or Manager-resolved. Open conflict blocks the profile.
+Goal: preserve evidence-backed AIUsageFlow context for classification without a customer-facing VerifiedProfile approval gate. Open material conflict blocks final classification until resolved.
 
-## UC-012 Operate Legal Corpus and Perform Legal Matching
+## UC-012 Operate Legal Corpus and Compile EngineeringRules
 
-Goal: prepare an approved immutable legal corpus and match VerifiedProfile facts to citation-backed rules. Source validation, ingestion, review, approval, and index build are Internal Legal Operator API/CLI operations. Manager/Developer UX only sees assessment-relevant corpus version and citations.
+Goal: prepare an approved immutable legal corpus and compile citation-backed LegalRules into validated EngineeringRules. Source validation, ingestion, review, approval, and index build are Internal Legal Operator API/CLI operations. Manager/Developer UX only sees assessment-relevant corpus version and citations.
 
 ## UC-013 Run Risk Classification
 
-Goal: create a cited risk result or explicit blocked state after VerifiedProfile and LegalRuleMatch. The acceptance run uses a real configured provider; missing citation, provider failure, invalid output, or unknown critical usage fails closed.
+Goal: create a cited risk result or explicit blocked state from direct EngineeringRule investigation. The acceptance run uses a real configured provider; missing citation, missing evidence refs, provider failure, invalid output, or unknown critical usage fails closed.
 
 ## UC-014 Generate Gap Analysis and Documents
 

@@ -1,4 +1,4 @@
-name: Agentic tool runtime
+name: EngineeringRule managed runtime
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ on:
       - "apps/api/src/modules/scan/**"
       - "apps/api/src/modules/legal-rule-catalog/**"
       - "packages/contracts/src/evidence/**"
-      - "deepagents/tools/common/agentic_evidence/**"
+      - "deepagents/tools/common/capabilities/agentic_evidence/**"
       - "deepagents/tools/common/llm/**"
       - "deepagents/tests/agentic_evidence/**"
       - "scripts/check-agentic-tool-runtime.mjs"
@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   runtime-integrity:
-    name: Sprint 6 runtime integrity
+    name: EngineeringRule runtime integrity
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +35,7 @@ jobs:
         run: node scripts/check-agentic-tool-runtime.mjs
 
   worker-registry:
-    name: Worker agentic runtime
+    name: Worker EngineeringRule runtime
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -52,5 +52,5 @@ jobs:
       - name: Install worker dependencies
         run: python -m pip install -e ".[dev]"
 
-      - name: Test fail-closed agentic runtime
+      - name: Test fail-closed EngineeringRule runtime
         run: pytest tests/agentic_evidence

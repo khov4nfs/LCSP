@@ -3,9 +3,11 @@ template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-5-05-get-classification-baseline
 jira_issue: LCSP-202
-status: DONE
+status: SUPERSEDED_FOR_ACTIVE_MVP
 ---
 # TASK-AO-5-05 — `get_classification_baseline`
+
+> Superseded: `get_classification_baseline` is no longer a canonical runtime tool for active direct EngineeringRule classification.
 ## 1. Task Information
 AO-5 P0; `LLM_CALLABLE`; `READ`; deterministic baseline service.
 ## 2. Objective

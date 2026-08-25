@@ -3,7 +3,7 @@ task_id: MW-cls-py-001
 module: python-workers/classification
 runtime: deepagents
 priority: P0
-status: READY_FOR_DEV
+status: SUPERSEDED_FOR_ACTIVE_MVP
 epic_story: 6.2
 depends_on:
   - python-workers/legal/01-chromadb-legal-retrieval-worker.md
@@ -11,6 +11,8 @@ depends_on:
 ---
 
 # Classification Worker
+
+> Superseded: the active runtime no longer consumes `legal-rule-match-ready` or requires `VerifiedProfile + LegalRuleMatch` input. Direct EngineeringRule classification runs through the managed `engineering_assessment_requested` boundary and persists the authoritative result.
 
 ## Outcome
 

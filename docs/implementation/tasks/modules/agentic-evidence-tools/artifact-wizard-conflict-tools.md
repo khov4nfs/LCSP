@@ -1,8 +1,10 @@
 # Artifact, Wizard, and Conflict Tool Tasks
 
-Status: DELIVERED  
+Status: PARTIALLY_SUPERSEDED_FOR_ACTIVE_MVP
 Stories: AO-3 — Missing-Input Orchestration; AO-4 — Wizard Target Verification  
 Template: `agentic-tool-implementation-task-template.md`
+
+`get_verified_profile` and any VerifiedProfile approval-dependent path are retired from the active Managed Deep Agents runtime. The remaining artifact/wizard/conflict read tools are historical AO-4 context unless revalidated against the direct EngineeringRule flow.
 
 | Task ID / tool | Implementation instruction | Typed result and safety boundary | Required verification |
 |---|---|---|---|

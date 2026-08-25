@@ -97,9 +97,9 @@ All AO-2 tools except `request_targeted_reanalysis` are wired through [evidence.
 
 | Tool                                           | Status              | Evidence                                                      |
 | ---------------------------------------------- | ------------------- | ------------------------------------------------------------- |
-| `reconcile_profile_to_verified_profile`        | IMPLEMENTED_RUNTIME | reconciliation module + controller + command/handler          |
-| `submit_classification_for_independent_review` | IMPLEMENTED_RUNTIME | classification review submission controller + command/handler |
-| `resolve_independent_classification_review`    | IMPLEMENTED_RUNTIME | classification review resolution controller + command/handler |
+| `reconcile_profile_to_verified_profile`        | RETIRED_RUNTIME | retired with the VerifiedProfile approval/legal-match gate removal |
+| `submit_classification_for_independent_review` | RETIRED_RUNTIME | classification review submission controller + command/handler |
+| `resolve_independent_classification_review`    | RETIRED_RUNTIME | classification review resolution controller + command/handler |
 
 ### AO-4 artifact, wizard, and conflict tools
 
@@ -110,7 +110,7 @@ All AO-2 tools except `request_targeted_reanalysis` are wired through [evidence.
 | `propose_missing_targets`    | IMPLEMENTED_RUNTIME | reconciliation controller + handler                                |
 | `get_artifact_chain`         | IMPLEMENTED_RUNTIME | reconciliation controller + handler                                |
 | `get_reconciliation_context` | IMPLEMENTED_RUNTIME | reconciliation controller + handler                                |
-| `get_verified_profile`       | IMPLEMENTED_RUNTIME | reconciliation controller + handler                                |
+| `get_verified_profile`       | RETIRED_RUNTIME | reconciliation controller + handler                                |
 
 ### AO-5 legal retrieval, classification, and gap tools
 
@@ -118,10 +118,10 @@ All AO-2 tools except `request_targeted_reanalysis` are wired through [evidence.
 | ---------------------------------- | ------------------- | ---------------------------------------------------------- |
 | `get_legal_corpus_readiness`       | IMPLEMENTED_RUNTIME | legal-rule-catalog module + readiness controller + handler |
 | `retrieve_legal_basis`             | IMPLEMENTED_RUNTIME | legal basis retrieval controller + handler                 |
-| `get_legal_rule_match`             | IMPLEMENTED_RUNTIME | legal rule match controller + handler                      |
+| `get_legal_rule_match`             | RETIRED_RUNTIME | legal rule match controller + handler                      |
 | `validate_citation_set`            | IMPLEMENTED_RUNTIME | citation set validation controller + handler               |
-| `get_classification_baseline`      | IMPLEMENTED_RUNTIME | classification baseline controller + handler               |
-| `validate_classification_proposal` | IMPLEMENTED_RUNTIME | proposal validation controller + handler                   |
+| `get_classification_baseline`      | RETIRED_RUNTIME | classification baseline controller + handler               |
+| `validate_classification_proposal` | RETIRED_RUNTIME | proposal validation controller + handler                   |
 | `get_gap_requirements`             | IMPLEMENTED_RUNTIME | gap requirements controller + registration + handler       |
 | `evaluate_gap_matrix`              | IMPLEMENTED_RUNTIME | gap matrix controller + handler                            |
 | `get_gap_evidence_trace`           | IMPLEMENTED_RUNTIME | gap evidence trace controller + handler                    |

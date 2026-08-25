@@ -89,7 +89,7 @@ def test_recovery_driver_skips_validation_activation_when_corpus_unchanged(
     api_client = FakeApiClient(
         ingest_response={
             "id": "corpus-active",
-            "version": "VN-LEGAL-AO6-existing",
+            "version": "VN-LEGAL-CORPUS-existing",
             "status": "APPROVED",
             "noChanges": True,
             "changeSet": {

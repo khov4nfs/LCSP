@@ -10,11 +10,7 @@ const legalCorpusActions = [
   PBAC_ACTIONS.legalCorpusIngest,
   PBAC_ACTIONS.legalCorpusApprove,
   PBAC_ACTIONS.legalCorpusRead,
-  PBAC_ACTIONS.legalRuleMatchRead,
   PBAC_ACTIONS.legalCitationValidate,
-  PBAC_ACTIONS.classificationBaselineRead,
-  PBAC_ACTIONS.classificationProposalValidate,
-  PBAC_ACTIONS.classificationReviewSubmit,
 ];
 
 async function main() {

@@ -198,6 +198,27 @@ describe("GetAssessmentHandler direct EngineeringRule runtime", () => {
           technical_evidence_report_id: "ter-1",
           snapshot_id: "snapshot-1",
           limitations: [],
+          observability: {
+            openwiki: {
+              available: false,
+              error: "OPENWIKI_RUNTIME_COMMAND_UNAVAILABLE",
+              fallback: "OPENWIKI_REQUIRED_FALLBACK_ALL",
+            },
+            engineering_rule_preparation: {
+              legal_rules_seen: 176,
+              candidate_count: 265,
+              compile_failed_count: 2,
+              compile_failed_legal_rule_ids: ["legal-a", "legal-b"],
+            },
+            candidate_source_hit_distribution: {
+              candidate_count: 265,
+              source_hit_count_buckets: { "0": 11, "2_5": 200 },
+            },
+            provenance: {
+              claim_count: 265,
+              claims_with_evidence: 252,
+            },
+          },
           evaluations: [
             {
               engineering_rule_id: "eng-1",
@@ -240,6 +261,27 @@ describe("GetAssessmentHandler direct EngineeringRule runtime", () => {
       },
       technical_evidence_report_id: "ter-1",
       snapshot_id: "snapshot-1",
+      observability: {
+        openwiki: {
+          available: false,
+          error: "OPENWIKI_RUNTIME_COMMAND_UNAVAILABLE",
+          fallback: "OPENWIKI_REQUIRED_FALLBACK_ALL",
+        },
+        engineering_rule_preparation: {
+          legal_rules_seen: 176,
+          candidate_count: 265,
+          compile_failed_count: 2,
+          compile_failed_legal_rule_ids: ["legal-a", "legal-b"],
+        },
+        candidate_source_hit_distribution: {
+          candidate_count: 265,
+          source_hit_count_buckets: { "0": 11, "2_5": 200 },
+        },
+        provenance: {
+          claim_count: 265,
+          claims_with_evidence: 252,
+        },
+      },
     });
     expect(result.classification_result?.evaluations[0]).toMatchObject({
       engineering_rule_id: "eng-1",

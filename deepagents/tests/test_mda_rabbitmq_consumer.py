@@ -50,10 +50,6 @@ def test_boundary_bindings_are_derived_from_manifest(monkeypatch):
                 "source_event": "command.scan.requested.v1",
             },
             {
-                "name": "technical_profile_requested",
-                "source_event": "event.technical-evidence.accepted.v1",
-            },
-            {
                 "name": "engineering_assessment_requested",
                 "source_event": "event.technical-evidence.accepted.v1",
             },
@@ -67,11 +63,6 @@ def test_boundary_bindings_are_derived_from_manifest(monkeypatch):
             boundary_name="scan_requested",
             source_event="command.scan.requested.v1",
             queue_name="lcsp.mda.test.scan_requested",
-        ),
-        rabbitmq_consumer.BoundaryBinding(
-            boundary_name="technical_profile_requested",
-            source_event="event.technical-evidence.accepted.v1",
-            queue_name="lcsp.mda.test.technical_profile_requested",
         ),
         rabbitmq_consumer.BoundaryBinding(
             boundary_name="engineering_assessment_requested",

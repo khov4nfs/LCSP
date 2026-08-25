@@ -80,7 +80,7 @@ Given an authorized valid pin, return stable readiness and refs. Given extra/inv
 ## 19. Definition of Done
 Registry, strict schema, projection/handler, normalizer, PBAC/audit/privacy and the matrix pass.
 ## 20. Technical Notes and Files
-Add contracts in `packages/contracts/src/agentic-evidence`; worker projection/handler under `deepagents/tools/common/agentic_evidence`; gateway/audit seam under `apps/api/src/modules/evidence`. Authority: tool catalog, AO-5 story, legal source spec.
+Add contracts in `packages/contracts/src/evidence`; worker projection/handler under `deepagents/tools/common/capabilities/agentic_evidence`; gateway/audit seam under `apps/api/src/modules/evidence`. Authority: tool catalog, AO-5 story, legal source spec.
 ## 21. Open Questions
 | ID | Question | Owner | Status | Blocks |
 |---|---|---|---|---|

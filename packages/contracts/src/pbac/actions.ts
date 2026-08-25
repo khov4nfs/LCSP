@@ -1,7 +1,6 @@
 import { ASSESSMENT_ACTIONS } from "../assessment/actions.ts";
 import { DOCUMENT_ACTIONS } from "../document/actions.ts";
-import { AO3_PBAC_ACTIONS } from "./ao3-actions.ts";
-import { AO5_PBAC_ACTIONS } from "./ao5-actions.ts";
+import { GAP_REQUIREMENTS_PBAC_ACTIONS } from "./gap-requirements-actions.ts";
 
 export const PBAC_ACTIONS = {
   assessmentCreate: ASSESSMENT_ACTIONS.create,
@@ -29,14 +28,10 @@ export const PBAC_ACTIONS = {
   legalCorpusActivate: "legal-corpus:activate",
   legalCorpusApprove: "legal-corpus:approve",
   legalCorpusRead: "legal-corpus:read",
-  legalRuleMatchRead: "legal-rule-match:read",
   legalCitationValidate: "legal-citation:validate",
-  classificationBaselineRead: "classification-baseline:read",
-  classificationProposalValidate: "classification-proposal:validate",
   gapMatrixEvaluate: "gap-matrix:evaluate",
   gapEvidenceTraceRead: "gap-evidence-trace:read",
   gapRemediationPropose: "gap-remediation:propose",
-  classificationReviewSubmit: "classification-review:submit",
   managerDecisionChange: "manager-decision:change",
   membershipRevoke: "membership:revoke",
   metadataCheck: "pbac:metadata",
@@ -46,15 +41,11 @@ export const PBAC_ACTIONS = {
   scanTrigger: "scan:trigger",
   technicalEvidenceReanalyze: "technical-evidence:reanalyze",
   snapshotCreate: "snapshot:create",
-  verifiedProfileApprove: "verified-profile:approve",
-  verifiedProfilePersist: "verified-profile:persist",
-  verifiedProfileRead: "verified-profile:read",
   wizardWrite: "wizard:write",
   wizardSubmit: "wizard:submit",
   wizardExport: "wizard:export",
   workspaceRead: "workspace:read",
-  ...AO5_PBAC_ACTIONS,
-  ...AO3_PBAC_ACTIONS,
+  ...GAP_REQUIREMENTS_PBAC_ACTIONS,
 } as const;
 
 export type PbacAction = (typeof PBAC_ACTIONS)[keyof typeof PBAC_ACTIONS];

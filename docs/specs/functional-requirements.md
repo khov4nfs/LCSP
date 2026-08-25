@@ -45,12 +45,12 @@ PBAC is the authorization source of truth for every active requirement. Role lab
 | FR-027 | Calculate explanatory Conflict Score. | Y | UC-010 | BR-048, BR-085 | AC-011 | FR-026, NFR-028 |
 | FR-028 | Route conflicts to Manager. | Y | UC-010 | BR-042, BR-043, BR-072 | AC-012, AC-033 | FR-026, NFR-008, NFR-018 |
 | FR-029 | Resolve conflicts by Manager. | Y | UC-010 | BR-042, BR-043, BR-047, BR-093 | AC-012, AC-033 | FR-028, NFR-008, NFR-010, NFR-011, NFR-018 |
-| FR-030 | Create VerifiedProfile after gates. | Y | UC-011 | BR-045, BR-078 | AC-014, AC-015 | FR-026, FR-029, NFR-016, NFR-018 |
-| FR-031 | Review/approve VerifiedProfile where required. | Y | UC-011 | BR-078 | AC-015 | FR-030, NFR-008, NFR-010, NFR-018, NFR-022 |
+| FR-030 | Preserve reconciled AIUsageFlow evidence context. | Y | UC-011 | BR-045, BR-078 | AC-014, AC-015 | FR-026, FR-029, NFR-016, NFR-018 |
+| FR-031 | Remove customer-facing VerifiedProfile approval as a classification gate. | Y | UC-011 | BR-078 | AC-015 | FR-030, NFR-008, NFR-010, NFR-018, NFR-022 |
 | FR-032 | Retrieve legal rules/citations from approved corpus. | Y | UC-012 | BR-050, BR-084 | AC-016, AC-035, AC-036 | FR-030, NFR-017, NFR-034 |
-| FR-033 | Match legal rules by verified usage. | Y | UC-012 | BR-082, BR-084 | AC-016, AC-036 | FR-024, FR-032, NFR-029 |
+| FR-033 | Compile and evaluate EngineeringRules by evidence-backed usage. | Y | UC-012 | BR-082, BR-084 | AC-016, AC-036 | FR-024, FR-032, NFR-029 |
 | FR-034 | Block/degrade output without citations. | Y | UC-012, UC-013 | BR-050, BR-051, BR-073 | AC-017, AC-034, AC-036 | FR-032, NFR-017, NFR-018, NFR-020 |
-| FR-035 | Run classification after legal matching. | Y | UC-013 | BR-049, BR-082, BR-084 | AC-016, AC-018, AC-037, AC-038 | FR-030, FR-032, FR-033, NFR-018, NFR-019 |
+| FR-035 | Run classification through direct EngineeringRule assessment. | Y | UC-013 | BR-049, BR-082, BR-084 | AC-016, AC-018, AC-037, AC-038 | FR-030, FR-032, FR-033, NFR-018, NFR-019 |
 | FR-036 | Produce cited result or blocked state. | Y | UC-013 | BR-049..BR-051 | AC-017, AC-018, AC-034 | FR-035, NFR-017, NFR-018, NFR-020 |
 | FR-037 | View classification status/result. | Y | UC-013 | BR-049, BR-073 | AC-018 | FR-036, NFR-022, NFR-028 |
 | FR-038 | Generate GapAnalysis. | Y | UC-014 | BR-062, BR-079 | AC-018 | FR-036, NFR-018, NFR-021 |

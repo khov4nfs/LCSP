@@ -1,16 +1,13 @@
 import { HttpException } from "@nestjs/common";
 import { jest } from "@jest/globals";
-import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_CONTEXT_ANSWER_FIELDS,
   ASSESSMENT_CONTEXT_INCLUDES,
-  VERIFIED_PROFILE_REQUIRED_FOR,
 } from "@lcsp/contracts/evidence";
 import { TARGET_CANDIDATE_KINDS } from "../../application/contracts/missing-target-proposal.contract.js";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { GetAssessmentContextQuery } from "../../application/queries/get-assessment-context/get-assessment-context.query.js";
-import { GetVerifiedProfileQuery } from "../../application/queries/get-verified-profile/get-verified-profile.query.js";
 import { ProposeMissingTargetsQuery } from "../../application/queries/propose-missing-targets/propose-missing-targets.query.js";
 import { ReconciliationController } from "./reconciliation.controller.js";
 
@@ -30,74 +27,6 @@ function queryBusWithResolvedValue(value: unknown) {
       .mockResolvedValue(value),
   };
 }
-
-describe("ReconciliationController.getVerifiedProfile", () => {
-  it("TC-03: forwards an exact profile version and named purpose to the protected query", async () => {
-    const commandBus = {};
-    const queryBus = queryBusWithResolvedValue({
-      result: { profile_ref: "verified:vp-1" },
-    });
-    const controller = new ReconciliationController(
-      commandBus as never,
-      queryBus as never,
-    );
-
-    const response = await controller.getVerifiedProfile(
-      "assessment-1",
-      "vp-1",
-      "3",
-      VERIFIED_PROFILE_REQUIRED_FOR.legalMatching,
-      request(),
-    );
-
-    expect(response).toEqual({
-      ok: true,
-      data: { result: { profile_ref: "verified:vp-1" } },
-    });
-    expect(queryBus.execute).toHaveBeenCalledWith(
-      new GetVerifiedProfileQuery(
-        "assessment-1",
-        "org-1",
-        "vp-1",
-        "3",
-        VERIFIED_PROFILE_REQUIRED_FOR.legalMatching,
-        "corr-1",
-      ),
-    );
-  });
-
-  it("TC-03: rejects malformed version and unknown purpose before dispatch", async () => {
-    const queryBus = { execute: jest.fn() };
-    const controller = new ReconciliationController(
-      {} as never,
-      queryBus as never,
-    );
-
-    await expect(
-      controller.getVerifiedProfile(
-        "assessment-1",
-        "vp-1",
-        "0",
-        "UNKNOWN",
-        request(),
-      ),
-    ).rejects.toBeInstanceOf(HttpException);
-    expect(queryBus.execute).not.toHaveBeenCalled();
-    try {
-      await controller.getVerifiedProfile(
-        "assessment-1",
-        "vp-1",
-        "3",
-        "UNKNOWN",
-        request(),
-      );
-    } catch (error) {
-      expect((error as HttpException).getResponse()).toMatchObject({
-        problem: { code: ASSESSMENT_ERROR_CODES.invalidRequest },
-      });
-    }
-  });
-});
 
 describe("ReconciliationController.getAssessmentContext", () => {
   it("forwards include and answer-field allow lists to the protected query", async () => {

@@ -61,7 +61,7 @@ TC-01 valid set; TC-02 malformed/extra; TC-03 fabricated/repealed/version mismat
 ## 19. Definition of Done
 Registry/schema/validator/normalizer/PBAC/audit/privacy and contract/integration tests pass.
 ## 20. Technical Notes and Files
-`packages/contracts/src/agentic-evidence`; worker `legal_corpus/citation_validator.py`; API evidence gateway/tests. Authority: AO-5/tool catalog.
+`packages/contracts/src/evidence`; worker `legal_corpus/citation_validator.py`; API evidence gateway/tests. Authority: AO-5/tool catalog.
 ## 21. Open Questions
 OQ-01: Legal owner ratifies context-role policy (`OPEN`, blocks sprint readiness).
 ## 22. Deliverables

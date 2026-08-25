@@ -34,7 +34,7 @@ describe("RuleCatalogVersionService", () => {
       legalCorpusVersion: {
         findFirst: jest.fn().mockResolvedValue({
           id: "corpus-1",
-          version: "VN-LEGAL-AO6-test",
+          version: "VN-LEGAL-CORPUS-test",
           chunks: [
             {
               id: "LAW-134:art-11::cl-1",
@@ -155,7 +155,7 @@ describe("RuleCatalogVersionService", () => {
       legalCorpusVersion: {
         findFirst: jest.fn().mockResolvedValue({
           id: "corpus-legacy",
-          version: "VN-LEGAL-AO6-legacy",
+          version: "VN-LEGAL-CORPUS-legacy",
           chunks: [
             {
               id: "LAW-134:art-11::cl-2",
@@ -226,7 +226,7 @@ describe("RuleCatalogVersionService", () => {
       legalCorpusVersion: {
         findFirst: jest.fn().mockResolvedValue({
           id: "corpus-normalized",
-          version: "VN-LEGAL-AO6-normalized",
+          version: "VN-LEGAL-CORPUS-normalized",
           chunks: [
             {
               id: "LAW-134:art-12::cl-1",

@@ -68,6 +68,7 @@ export interface ClassificationResultSummaryDto {
   };
   evaluations: EngineeringRuleEvaluationDto[];
   limitations: string[];
+  observability: Record<string, unknown> | null;
   legal_rule_catalog_version_id: string | null;
   legal_corpus_version_id: string | null;
   technical_evidence_report_id: string | null;

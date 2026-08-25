@@ -16,16 +16,12 @@ from tools.common.capabilities.agentic_evidence.entrypoints.tool_entrypoints imp
 
 EXPECTED_NEST_DISCOVERY_TOOLS = {
     "get_assessment_context": "GetAssessmentContextQuery",
-    "get_verified_profile": "GetVerifiedProfileQuery",
     "compare_wizard_claim": "CompareWizardClaimQuery",
-    "get_classification_baseline": "GetClassificationBaselineQuery",
     "get_gap_requirements": "GetGapRequirementsQuery",
-    "validate_classification_proposal": "ValidateClassificationProposalQuery",
     "evaluate_gap_matrix": "EvaluateGapMatrixQuery",
     "get_admin_source_catalog": "GetAdminSourceCatalogQuery",
     "get_legal_corpus_readiness": "GetLegalCorpusReadinessQuery",
     "retrieve_legal_basis": "RetrieveLegalBasisQuery",
-    "get_legal_rule_match": "GetLegalRuleMatchQuery",
     "validate_citation_set": "ValidateCitationSetQuery",
 }
 

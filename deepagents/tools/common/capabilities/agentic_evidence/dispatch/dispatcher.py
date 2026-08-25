@@ -15,12 +15,9 @@ from ..entrypoints.remediation_tool_entrypoints import propose_gap_remediation
 from ..entrypoints.tool_entrypoints import (
     AgenticToolExecutionContext, compare_wizard_claim, evaluate_gap_matrix,
     get_admin_source_catalog, get_artifact_chain, get_assessment_context,
-    get_classification_baseline, get_gap_evidence_trace, get_gap_requirements,
-    get_legal_corpus_readiness, get_legal_rule_match, get_reconciliation_context,
-    get_verified_profile, reconcile_profile_to_verified_profile,
-    request_targeted_reanalysis, resolve_independent_classification_review,
-    resume_waiting_runs, retrieve_legal_basis, submit_classification_for_independent_review,
-    validate_citation_set, validate_classification_proposal,
+    get_gap_evidence_trace, get_gap_requirements, get_legal_corpus_readiness,
+    get_reconciliation_context, request_targeted_reanalysis,
+    resume_waiting_runs, retrieve_legal_basis, validate_citation_set,
 )
 from ..entrypoints.scanner_tool_entrypoints import (
     ScannerToolExecutionContext, build_evidence_graph, classify_workspace_languages,
@@ -65,7 +62,7 @@ PROGRAM_GRAPH_TOOL_BINDINGS = (
     _binding("trace_static_flow", ToolRuntimeTarget.PYTHON_LOCAL, trace_static_flow, "ProgramGraphQueryEngine.trace_static_flow"),
 )
 
-SPRINT6_AGENTIC_TOOL_BINDINGS = (
+ENGINEERING_RULE_AGENTIC_TOOL_BINDINGS = (
     _binding("resume_waiting_runs", ToolRuntimeTarget.MANAGED_AGENT_COMMAND, resume_waiting_runs, "ResumeWaitingRunsCommand"),
     _binding("request_targeted_reanalysis", ToolRuntimeTarget.MANAGED_AGENT_COMMAND, request_targeted_reanalysis, "RequestTargetedReanalysisCommand"),
     _binding("propose_gap_remediation", ToolRuntimeTarget.PYTHON_LOCAL, propose_gap_remediation, "Python remediation over GetGapEvidenceTraceQuery"),
@@ -78,24 +75,16 @@ SPRINT6_AGENTIC_TOOL_BINDINGS = (
 
 NEST_CQRS_DISCOVERY_BINDINGS = (
     _binding("get_assessment_context", ToolRuntimeTarget.NEST_CQRS, get_assessment_context, "GetAssessmentContextQuery"),
-    _binding("get_verified_profile", ToolRuntimeTarget.NEST_CQRS, get_verified_profile, "GetVerifiedProfileQuery"),
     _binding("compare_wizard_claim", ToolRuntimeTarget.NEST_CQRS, compare_wizard_claim, "CompareWizardClaimQuery"),
-    _binding("get_classification_baseline", ToolRuntimeTarget.NEST_CQRS, get_classification_baseline, "GetClassificationBaselineQuery"),
     _binding("get_gap_requirements", ToolRuntimeTarget.NEST_CQRS, get_gap_requirements, "GetGapRequirementsQuery"),
-    _binding("validate_classification_proposal", ToolRuntimeTarget.NEST_CQRS, validate_classification_proposal, "ValidateClassificationProposalQuery"),
     _binding("evaluate_gap_matrix", ToolRuntimeTarget.NEST_CQRS, evaluate_gap_matrix, "EvaluateGapMatrixQuery"),
     _binding("get_admin_source_catalog", ToolRuntimeTarget.NEST_CQRS, get_admin_source_catalog, "GetAdminSourceCatalogQuery"),
     _binding("get_legal_corpus_readiness", ToolRuntimeTarget.NEST_CQRS, get_legal_corpus_readiness, "GetLegalCorpusReadinessQuery"),
     _binding("retrieve_legal_basis", ToolRuntimeTarget.NEST_CQRS, retrieve_legal_basis, "RetrieveLegalBasisQuery"),
-    _binding("get_legal_rule_match", ToolRuntimeTarget.NEST_CQRS, get_legal_rule_match, "GetLegalRuleMatchQuery"),
     _binding("validate_citation_set", ToolRuntimeTarget.NEST_CQRS, validate_citation_set, "ValidateCitationSetQuery"),
 )
-PROTECTED_COMMAND_BINDINGS = (
-    _binding("reconcile_profile_to_verified_profile", ToolRuntimeTarget.NEST_COMMAND, reconcile_profile_to_verified_profile, "ReconcileProfileToVerifiedProfileCommand"),
-    _binding("submit_classification_for_independent_review", ToolRuntimeTarget.NEST_COMMAND, submit_classification_for_independent_review, "SubmitClassificationReviewCommand"),
-    _binding("resolve_independent_classification_review", ToolRuntimeTarget.NEST_COMMAND, resolve_independent_classification_review, "ResolveClassificationReviewCommand"),
-)
-AO1_SCANNER_TOOL_BINDINGS = (
+PROTECTED_COMMAND_BINDINGS = ()
+SCANNER_TOOL_BINDINGS = (
     _binding("materialize_snapshot", ToolRuntimeTarget.PYTHON_LOCAL, materialize_snapshot, "ScannerWorkspace.materialize"),
     _binding("classify_workspace_languages", ToolRuntimeTarget.PYTHON_LOCAL, classify_workspace_languages, "LanguageClassifier.classify_workspace"),
     _binding("run_syft_inventory", ToolRuntimeTarget.PYTHON_LOCAL, run_syft_inventory, "SyftTool.run"),
@@ -108,7 +97,7 @@ AO1_SCANNER_TOOL_BINDINGS = (
     _binding("build_evidence_graph", ToolRuntimeTarget.PYTHON_LOCAL, build_evidence_graph, "ProgramGraphAssembler.assemble"),
     _binding("validate_evidence_report", ToolRuntimeTarget.PYTHON_LOCAL, validate_evidence_report, "validate_schema + assert_privacy_flags + classify_quality"),
 )
-AO6_LEGAL_TOOL_BINDINGS = (
+LEGAL_CORPUS_TOOL_BINDINGS = (
     _binding("fetch_official_source_snapshot", ToolRuntimeTarget.PYTHON_LOCAL, fetch_official_source_snapshot, "OfficialSourceSnapshotFetcher.fetch"),
     _binding("extract_official_text", ToolRuntimeTarget.PYTHON_LOCAL, extract_official_text, "OfficialTextExtractor.extract"),
     _binding("run_ocr_fallback", ToolRuntimeTarget.PYTHON_LOCAL, run_ocr_fallback, "OcrFallbackTool.run"),
@@ -121,7 +110,7 @@ AO6_LEGAL_TOOL_BINDINGS = (
     _binding("validate_retrieval_index", ToolRuntimeTarget.PYTHON_LOCAL, validate_retrieval_index, "ChromaDbCitationRetriever.index_corpus + retrieve_exact"),
     _binding("activate_validated_corpus_version", ToolRuntimeTarget.PROTECTED_API, activate_validated_corpus_version, "WorkerApiClient.activate_validated_corpus_version"),
 )
-ALL_TOOL_BINDINGS = (*SPRINT6_AGENTIC_TOOL_BINDINGS, *NEST_CQRS_DISCOVERY_BINDINGS, *PROTECTED_COMMAND_BINDINGS, *AO1_SCANNER_TOOL_BINDINGS, *AO6_LEGAL_TOOL_BINDINGS)
+ALL_TOOL_BINDINGS = (*ENGINEERING_RULE_AGENTIC_TOOL_BINDINGS, *NEST_CQRS_DISCOVERY_BINDINGS, *PROTECTED_COMMAND_BINDINGS, *SCANNER_TOOL_BINDINGS, *LEGAL_CORPUS_TOOL_BINDINGS)
 _TOOL_BINDING_INDEX = {b.tool_name: b for b in ALL_TOOL_BINDINGS}
 if len(_TOOL_BINDING_INDEX) != len(ALL_TOOL_BINDINGS): raise RuntimeError("canonical tool runtime bindings must be globally unique")
 
@@ -134,7 +123,7 @@ def tool_runtime_manifest() -> tuple[dict[str, str], ...]: return tuple({"tool_n
 
 class AgenticToolDispatcher:
     def __init__(self, context: AgenticToolExecutionContext) -> None:
-        self._context = context; self._bindings = {b.tool_name: b for b in SPRINT6_AGENTIC_TOOL_BINDINGS}; self._assert_catalog_coverage()
+        self._context = context; self._bindings = {b.tool_name: b for b in ENGINEERING_RULE_AGENTIC_TOOL_BINDINGS}; self._assert_catalog_coverage()
     def names(self): return tuple(sorted(self._bindings))
     def binding(self, name):
         value = self._bindings.get(name)
@@ -150,7 +139,7 @@ class AgenticToolDispatcher:
         if catalog != bindings: raise ValueError(f"agentic tool runtime bindings must exactly cover catalog; missing={sorted(catalog-bindings)}, extra={sorted(bindings-catalog)}")
 
 class ScannerToolDispatcher:
-    def __init__(self, context: ScannerToolExecutionContext) -> None: self._context = context; self._bindings = {b.tool_name: b for b in AO1_SCANNER_TOOL_BINDINGS}
+    def __init__(self, context: ScannerToolExecutionContext) -> None: self._context = context; self._bindings = {b.tool_name: b for b in SCANNER_TOOL_BINDINGS}
     def names(self): return tuple(sorted(self._bindings))
     def binding(self, name):
         value = self._bindings.get(name)
@@ -160,7 +149,7 @@ class ScannerToolDispatcher:
 
 class LegalToolDispatcher:
     def __init__(self, context: LegalToolExecutionContext) -> None:
-        self._context = context; self._bindings = {b.tool_name: b for b in AO6_LEGAL_TOOL_BINDINGS}
+        self._context = context; self._bindings = {b.tool_name: b for b in LEGAL_CORPUS_TOOL_BINDINGS}
     def names(self): return tuple(sorted(self._bindings))
     def binding(self, name):
         value = self._bindings.get(name)
