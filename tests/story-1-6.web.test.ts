@@ -18,7 +18,6 @@ test("Story 1.6 manager-only action set covers accountable Manager authority", (
     PBAC_ACTIONS.conflictFinalize,
     PBAC_ACTIONS.conflictRead,
     PBAC_ACTIONS.conflictResolve,
-    PBAC_ACTIONS.verifiedProfileApprove,
     PBAC_ACTIONS.classificationRun,
     PBAC_ACTIONS.finalReportGenerate,
     PBAC_ACTIONS.complianceDossierExport,
@@ -29,16 +28,11 @@ test("Story 1.6 manager-only action set covers accountable Manager authority", (
     PBAC_ACTIONS.legalCorpusIngest,
     PBAC_ACTIONS.legalCorpusApprove,
     PBAC_ACTIONS.legalCorpusRead,
-    PBAC_ACTIONS.legalRuleMatchRead,
     PBAC_ACTIONS.legalCitationValidate,
-    PBAC_ACTIONS.classificationBaselineRead,
-    PBAC_ACTIONS.classificationProposalValidate,
     PBAC_ACTIONS.gapMatrixEvaluate,
     PBAC_ACTIONS.gapEvidenceTraceRead,
     PBAC_ACTIONS.gapRemediationPropose,
-    PBAC_ACTIONS.classificationReviewSubmit,
     PBAC_ACTIONS.gapRequirementsRead,
-    PBAC_ACTIONS.classificationReviewResolve,
   ]);
 });
 

@@ -10,7 +10,7 @@ from typing import Any, Type
 from tools.common.capabilities.agentic_evidence import (
     AgenticToolResolver,
     bind_runtime_handlers,
-    build_sprint6_agentic_registry,
+    build_engineering_rule_agentic_registry,
 )
 from tools.common.capabilities.agentic_evidence.governance.authorization import ApiPbacToolAuthorizer
 from tools.common.capabilities.platform.pbac_client import PbacClient
@@ -47,42 +47,6 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
         "tools.common.capabilities.assessment.investigation.engineering_rule.engineering_assessment_boundary:EngineeringAssessmentBoundary",
         "investigation.evidence-accepted",
         "event.technical-evidence.accepted.v1",
-    ),
-    AgentInvocationBoundary(
-        "technical_profile_requested",
-        "tools.common.capabilities.assessment.claims.technical_profile.technical_profile_boundary:TechnicalProfileBoundary",
-        "intelligence.evidence-accepted",
-        "event.technical-evidence.accepted.v1",
-    ),
-    AgentInvocationBoundary(
-        "ai_usage_flow_requested",
-        "tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_boundary:AIUsageFlowBoundary",
-        "intelligence.technical-profile-ready",
-        "event.technical-profile.ready.v1",
-    ),
-    AgentInvocationBoundary(
-        "conflict_detection_requested",
-        "tools.common.capabilities.assessment.claims.conflict_detection.conflict_detection_boundary:ConflictDetectionBoundary",
-        "intelligence.ai-usage-flow-ready",
-        "event.ai-usage-flow.ready.v1",
-    ),
-    AgentInvocationBoundary(
-        "verified_profile_requested",
-        "tools.common.capabilities.assessment.claims.verified_profile.verified_profile_boundary:VerifiedProfileBoundary",
-        "intelligence.all-conflicts-resolved",
-        "event.reconciliation.all-conflicts-resolved.v1",
-    ),
-    AgentInvocationBoundary(
-        "classification_requested",
-        "tools.common.capabilities.assessment.evaluation.classification.classification_boundary:ClassificationBoundary",
-        "classification.legal-rule-match-ready",
-        "event.legal-rule-match.ready.v1",
-    ),
-    AgentInvocationBoundary(
-        "legal_retrieval_requested",
-        "tools.legal.retrieval.legal_basis.legal_retrieval_boundary:LegalRetrievalBoundary",
-        "legal.legal-matching-requested",
-        "command.legal-matching.requested.v1",
     ),
     AgentInvocationBoundary(
         "legal_change_detection_requested",
@@ -238,7 +202,7 @@ def build_boundary(target: str) -> AgentBoundaryBase:
             config.nestjs_api_base_url,
             config.worker_api_key,
         )
-        registry = build_sprint6_agentic_registry()
+        registry = build_engineering_rule_agentic_registry()
         bind_runtime_handlers(
             registry,
             api_client=api_client,

@@ -11,8 +11,6 @@ class CallbackPath(StrEnum):
     TECHNICAL_PROFILE = "/internal/evidence/technical-profile-callback"
     AI_USAGE_FLOW = "/internal/ai-usage-flow/callback"
     RECONCILIATION_CONFLICT = "/internal/reconciliation/conflict-callback"
-    VERIFIED_PROFILE = "/internal/reconciliation/verified-profile-callback"
-    LEGAL_RULE_MATCH = "/internal/classification/legal-rule-match-callback"
     CLASSIFICATION = "/internal/classification/result-callback"
     AUDIT_EXPORT = "/internal/callbacks/audit-export/{export_request_id}"
     TARGETED_REANALYSIS_CLAIM = "/internal/targeted-reanalysis/{request_id}/claim"
@@ -27,9 +25,7 @@ class InternalPath(StrEnum):
     AGENTIC_TOOL_DISPATCH = "/internal/evidence/agentic-tools/dispatch"
     TARGETED_REANALYSIS_CREATE = "/internal/scan-jobs/targeted-reanalysis"
     AI_USAGE_FLOW = "/internal/ai-usage-flow/{ai_usage_flow_id}"
-    VERIFIED_PROFILE_CONTEXT = "/internal/reconciliation/verified-profile-context/{assessment_id}"
     WIZARD_PROFILE = "/internal/assessments/{assessment_id}/wizard-profile"
-    LEGAL_RULE_MATCH = "/internal/classification/runtime/legal-rule-matches/{legal_rule_match_id}"
     TARGETED_REANALYSIS_REQUEST = "/internal/targeted-reanalysis/{request_id}"
     LEGAL_SOURCE_SNAPSHOTS = "/internal/legal-rule-catalog/source-snapshots"
 

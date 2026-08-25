@@ -1,4 +1,3 @@
-import { AO3_SCAN_EVENT_TYPES } from "./callback-ao3.ts";
 import { TARGETED_REANALYSIS_SCAN_EVENT_TYPES } from "./callback-targeted-reanalysis.ts";
 
 export const SCAN_CALLBACK_STATUSES = {
@@ -183,9 +182,6 @@ export const SCAN_EVENT_TYPES = {
   reconciliationNoConflicts: "event.reconciliation.no-conflicts.v1",
   reconciliationAllConflictsResolved:
     "event.reconciliation.all-conflicts-resolved.v1",
-  verifiedProfileReady: "event.verified-profile.ready.v1",
-  verifiedProfilePersisted: "event.verified-profile.persisted.v1",
-  legalRuleMatchReady: "event.legal-rule-match.ready.v1",
   classificationResultReady: "event.classification-result.ready.v1",
   evidenceAcceptedAudit: "SCAN_EVIDENCE_ACCEPTED",
   evidenceRejectedAudit: "SCAN_EVIDENCE_REJECTED",
@@ -196,16 +192,9 @@ export const SCAN_EVENT_TYPES = {
   conflictDismissedAudit: "CONFLICT_DISMISSED",
   noConflictsDetectedAudit: "NO_CONFLICTS_DETECTED",
   verifiedProfileAcceptedAudit: "VERIFIED_PROFILE_ACCEPTED",
-  verifiedProfileApprovedAudit: "VERIFIED_PROFILE_APPROVED",
-  verifiedProfileStaleAudit: "VERIFIED_PROFILE_STALE",
-  verifiedProfileHistoryReadAudit: "VERIFIED_PROFILE_HISTORY_READ",
-  verifiedProfilePersistedAudit: "VERIFIED_PROFILE_PERSISTED",
-  legalRuleMatchAcceptedAudit: "LEGAL_RULE_MATCH_ACCEPTED",
-  legalRuleMatchBlockedAudit: "LEGAL_RULE_MATCH_BLOCKED",
   classificationAcceptedAudit: "CLASSIFICATION_ACCEPTED",
   classificationBlockedAudit: "CLASSIFICATION_BLOCKED",
   classificationRerunTriggeredAudit: "CLASSIFICATION_RERUN_TRIGGERED",
   scanRerunTriggeredAudit: "SCAN_RERUN_TRIGGERED",
-  ...AO3_SCAN_EVENT_TYPES,
   ...TARGETED_REANALYSIS_SCAN_EVENT_TYPES,
 } as const;

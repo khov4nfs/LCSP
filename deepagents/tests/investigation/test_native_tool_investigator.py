@@ -161,3 +161,72 @@ def test_unknown_observation_ref_fails_closed() -> None:
         ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
         in claim.limitations
     )
+
+
+def test_empty_native_response_falls_back_to_seed_provenance() -> None:
+    class Agent:
+        def invoke(self, payload, config=None):
+            return {"structured_response": {"claims": []}}
+
+    with patch(
+        "tools.common.capabilities.assessment.investigation.engineering_rule.investigator.create_agent",
+        return_value=Agent(),
+    ):
+        claim = LawGuidedInvestigator("test:model").investigate(
+            packet=_packet(
+                initial_results=({
+                    "nodes": [_graph()["nodes"][0]],
+                    "evidenceRefs": ["evidence:review-1"],
+                },)
+            ),
+            graph=_graph(),
+            workflow_run_id="workflow-1",
+        )[0]
+
+    assert claim.claim_type == "UNRESOLVED_ENGINEERING_FACT"
+    assert claim.criterion == "A bounded human review path"
+    assert claim.evidence_refs == ("evidence:review-1",)
+    assert claim.graph_path_refs == ("node-1",)
+    assert (
+        ENGINEERING_LIMITATION_CODES["investigation_returned_no_valid_claims"]
+        in claim.limitations
+    )
+
+
+def test_evidence_less_native_claim_falls_back_to_seed_provenance() -> None:
+    class Agent:
+        def invoke(self, payload, config=None):
+            return {
+                "structured_response": {
+                    "claims": [{
+                        "criterion": "A bounded human review path",
+                        "claimType": "UNRESOLVED_ENGINEERING_FACT",
+                        "observationRefs": [],
+                        "confidence": 0,
+                        "limitations": [
+                            ENGINEERING_LIMITATION_CODES[
+                                "engineering_evidence_insufficient"
+                            ],
+                        ],
+                    }]
+                }
+            }
+
+    with patch(
+        "tools.common.capabilities.assessment.investigation.engineering_rule.investigator.create_agent",
+        return_value=Agent(),
+    ):
+        claim = LawGuidedInvestigator("test:model").investigate(
+            packet=_packet(
+                initial_results=({
+                    "nodes": [_graph()["nodes"][0]],
+                    "evidenceRefs": ["evidence:review-1"],
+                },)
+            ),
+            graph=_graph(),
+            workflow_run_id="workflow-1",
+        )[0]
+
+    assert claim.claim_type == "UNRESOLVED_ENGINEERING_FACT"
+    assert claim.evidence_refs == ("evidence:review-1",)
+    assert claim.graph_path_refs == ("node-1",)

@@ -1,19 +1,15 @@
 import {
-  AO3_AGENTIC_TOOL_EVENT_TYPES,
-  AO3_AGENTIC_TOOL_NAMES,
-} from "./agentic-tool-ao3.ts";
+  WIZARD_AGENTIC_TOOL_EVENT_TYPES,
+  WIZARD_AGENTIC_TOOL_NAMES,
+} from "./agentic-tool-wizard.ts";
 import {
-  AO4_AGENTIC_TOOL_EVENT_TYPES,
-  AO4_AGENTIC_TOOL_NAMES,
-} from "./agentic-tool-ao4.ts";
+  GAP_REQUIREMENTS_AGENTIC_TOOL_EVENT_TYPES,
+  GAP_REQUIREMENTS_AGENTIC_TOOL_NAMES,
+} from "./agentic-tool-gap-requirements.ts";
 import {
-  AO5_AGENTIC_TOOL_EVENT_TYPES,
-  AO5_AGENTIC_TOOL_NAMES,
-} from "./agentic-tool-ao5.ts";
-import {
-  AO6_AGENTIC_TOOL_EVENT_TYPES,
-  AO6_AGENTIC_TOOL_NAMES,
-} from "./agentic-tool-ao6.ts";
+  ADMIN_SOURCE_CATALOG_AGENTIC_TOOL_EVENT_TYPES,
+  ADMIN_SOURCE_CATALOG_AGENTIC_TOOL_NAMES,
+} from "./agentic-tool-admin-source-catalog.ts";
 
 /** Shared value sets for the first protected agentic-evidence tools. */
 export const AGENTIC_TOOL_NAMES = {
@@ -33,13 +29,9 @@ export const AGENTIC_TOOL_NAMES = {
   inspectDeploymentContext: "inspect_deployment_context",
   proposeMissingTargets: "propose_missing_targets",
   getReconciliationContext: "get_reconciliation_context",
-  getVerifiedProfile: "get_verified_profile",
   getLegalCorpusReadiness: "get_legal_corpus_readiness",
   retrieveLegalBasis: "retrieve_legal_basis",
-  getLegalRuleMatch: "get_legal_rule_match",
   validateCitationSet: "validate_citation_set",
-  getClassificationBaseline: "get_classification_baseline",
-  validateClassificationProposal: "validate_classification_proposal",
   evaluateGapMatrix: "evaluate_gap_matrix",
   getGapEvidenceTrace: "get_gap_evidence_trace",
   proposeGapRemediation: "propose_gap_remediation",
@@ -51,13 +43,9 @@ export const AGENTIC_TOOL_NAMES = {
   buildLegalRetrievalIndex: "build_legal_retrieval_index",
   resumeWaitingRuns: "resume_waiting_runs",
   requestTargetedReanalysis: "request_targeted_reanalysis",
-  submitClassificationForIndependentReview:
-    "submit_classification_for_independent_review",
-  reconcileProfileToVerifiedProfile: "reconcile_profile_to_verified_profile",
-  ...AO6_AGENTIC_TOOL_NAMES,
-  ...AO4_AGENTIC_TOOL_NAMES,
-  ...AO5_AGENTIC_TOOL_NAMES,
-  ...AO3_AGENTIC_TOOL_NAMES,
+  ...ADMIN_SOURCE_CATALOG_AGENTIC_TOOL_NAMES,
+  ...WIZARD_AGENTIC_TOOL_NAMES,
+  ...GAP_REQUIREMENTS_AGENTIC_TOOL_NAMES,
 } as const;
 
 export type AgenticToolName =
@@ -109,14 +97,9 @@ export const AGENTIC_TOOL_EVENT_TYPES = {
   scanCoverageRead: "AGENTIC_TOOL_SCAN_COVERAGE_READ",
   artifactChainRead: "AGENTIC_TOOL_ARTIFACT_CHAIN_READ",
   reconciliationContextRead: "AGENTIC_TOOL_RECONCILIATION_CONTEXT_READ",
-  verifiedProfileRead: "AGENTIC_TOOL_VERIFIED_PROFILE_READ",
   legalCorpusReadinessRead: "AGENTIC_TOOL_LEGAL_CORPUS_READINESS_READ",
   legalBasisRetrieved: "AGENTIC_TOOL_LEGAL_BASIS_RETRIEVED",
-  legalRuleMatchRead: "AGENTIC_TOOL_LEGAL_RULE_MATCH_READ",
   citationSetValidated: "AGENTIC_TOOL_CITATION_SET_VALIDATED",
-  classificationBaselineRead: "AGENTIC_TOOL_CLASSIFICATION_BASELINE_READ",
-  classificationProposalValidated:
-    "AGENTIC_TOOL_CLASSIFICATION_PROPOSAL_VALIDATED",
   gapMatrixEvaluated: "AGENTIC_TOOL_GAP_MATRIX_EVALUATED",
   gapEvidenceTraceRead: "AGENTIC_TOOL_GAP_EVIDENCE_TRACE_READ",
   gapRemediationProposed: "AGENTIC_TOOL_GAP_REMEDIATION_PROPOSED",
@@ -128,7 +111,6 @@ export const AGENTIC_TOOL_EVENT_TYPES = {
   legalRetrievalIndexBuilt: "AGENTIC_TOOL_LEGAL_RETRIEVAL_INDEX_BUILT",
   waitingRunsResumed: "AGENTIC_TOOL_WAITING_RUNS_RESUMED",
   targetedReanalysisRequested: "AGENTIC_TOOL_TARGETED_REANALYSIS_REQUESTED",
-  classificationReviewSubmitted: "AGENTIC_TOOL_CLASSIFICATION_REVIEW_SUBMITTED",
   findingDetailRead: "AGENTIC_TOOL_FINDING_DETAIL_READ",
   evidenceSearchRead: "AGENTIC_TOOL_EVIDENCE_SEARCH_READ",
   providerInvocationRead: "AGENTIC_TOOL_PROVIDER_INVOCATION_READ",
@@ -141,9 +123,7 @@ export const AGENTIC_TOOL_EVENT_TYPES = {
   similarSymbolsRead: "AGENTIC_TOOL_SIMILAR_SYMBOLS_READ",
   deploymentContextRead: "AGENTIC_TOOL_DEPLOYMENT_CONTEXT_READ",
   missingTargetProposalRead: "AGENTIC_TOOL_MISSING_TARGET_PROPOSAL_READ",
-  verifiedProfilePersisted: "AGENTIC_TOOL_VERIFIED_PROFILE_PERSISTED",
-  ...AO6_AGENTIC_TOOL_EVENT_TYPES,
-  ...AO4_AGENTIC_TOOL_EVENT_TYPES,
-  ...AO5_AGENTIC_TOOL_EVENT_TYPES,
-  ...AO3_AGENTIC_TOOL_EVENT_TYPES,
+  ...ADMIN_SOURCE_CATALOG_AGENTIC_TOOL_EVENT_TYPES,
+  ...WIZARD_AGENTIC_TOOL_EVENT_TYPES,
+  ...GAP_REQUIREMENTS_AGENTIC_TOOL_EVENT_TYPES,
 } as const;

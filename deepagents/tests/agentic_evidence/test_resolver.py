@@ -8,7 +8,7 @@ from tools.common.capabilities.agentic_evidence import (
     AgenticInvocationContext,
     AgenticToolResolver,
     AgenticToolValidationError,
-    build_sprint6_agentic_registry,
+    build_engineering_rule_agentic_registry,
 )
 from tools.common.capabilities.agentic_evidence.governance.authorization import AgenticAuthorizationResult
 
@@ -45,7 +45,7 @@ def context() -> AgenticInvocationContext:
 
 
 def test_resolver_exposes_exact_model_callable_catalog() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
     resolver = AgenticToolResolver(registry, AllowAuthorizer(), max_tool_calls=4)
     names = {item.name for item in resolver.as_langchain_tools(context=context())}
 
@@ -57,7 +57,7 @@ def test_resolver_exposes_exact_model_callable_catalog() -> None:
 
 
 def test_resolver_dispatches_validated_authorized_read_call() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
     registry.register_handler(
         "get_scan_coverage",
         lambda request: {
@@ -76,7 +76,7 @@ def test_resolver_dispatches_validated_authorized_read_call() -> None:
 
 
 def test_resolver_rejects_schema_invalid_call_before_pbac_or_handler() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
     called = False
 
     def handler(_request):
@@ -98,7 +98,7 @@ def test_resolver_rejects_schema_invalid_call_before_pbac_or_handler() -> None:
 
 
 def test_resolver_rejects_non_model_tool_before_pbac_even_if_registered() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
     registry.register_handler(
         "request_targeted_reanalysis",
         lambda _request: {"status": "READY"},
@@ -115,7 +115,7 @@ def test_resolver_rejects_non_model_tool_before_pbac_even_if_registered() -> Non
 
 
 def test_resolver_exposes_tool_call_budget_for_langchain_middleware() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
     authorizer = AllowAuthorizer()
     resolver = AgenticToolResolver(registry, authorizer, max_tool_calls=1)
     assert resolver.max_tool_calls == 1

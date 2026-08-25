@@ -9,7 +9,7 @@ from tools.common.capabilities.agentic_evidence.governance.catalog import llm_ca
 from tools.common.capabilities.agentic_evidence.governance.registry import (
     AgenticToolRequest,
     AgenticToolValidationError,
-    build_sprint6_agentic_registry,
+    build_engineering_rule_agentic_registry,
 )
 
 
@@ -91,14 +91,14 @@ def request_for(
     )
 
 
-def test_sprint6_inventory_is_exact_and_unique() -> None:
-    registry = build_sprint6_agentic_registry()
+def test_engineering_rule_inventory_is_exact_and_unique() -> None:
+    registry = build_engineering_rule_agentic_registry()
     assert set(registry.names()) == EXPECTED_TOOLS
     assert len(registry.names()) == len(EXPECTED_TOOLS)
 
 
 def test_only_read_tools_are_exposed_to_the_model() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
     specs = llm_callable_tool_specs()
     model_names = {spec.name for spec in specs}
 
@@ -109,13 +109,13 @@ def test_only_read_tools_are_exposed_to_the_model() -> None:
 
 
 def test_unknown_tool_fails_closed() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
     with pytest.raises(AgenticToolValidationError, match="UNREGISTERED_AGENTIC_TOOL"):
         registry.validate(request_for("read_repository_source"))
 
 
 def test_budget_cannot_exceed_tool_capability() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
     request = request_for(
         "get_scan_coverage",
         max_items=101,
@@ -126,7 +126,7 @@ def test_budget_cannot_exceed_tool_capability() -> None:
 
 
 def test_required_pinned_artifact_is_enforced() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
     request = request_for("get_scan_coverage")
     with pytest.raises(
         AgenticToolValidationError,
@@ -136,7 +136,7 @@ def test_required_pinned_artifact_is_enforced() -> None:
 
 
 def test_tool_specific_json_schema_is_enforced_before_dispatch() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
     request = request_for(
         "get_scan_coverage",
         artifact_versions={"technicalEvidenceReportId": "ter-1"},
@@ -161,7 +161,7 @@ def test_tool_specific_json_schema_is_enforced_before_dispatch() -> None:
 
 
 def test_mutation_requires_idempotency_key() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
     request = request_for(
         "request_targeted_reanalysis",
         artifact_versions={"technicalEvidenceReportId": "ter-1"},
@@ -174,7 +174,7 @@ def test_mutation_requires_idempotency_key() -> None:
 
 
 def test_system_and_orchestrator_tools_are_never_model_callable() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
 
     targeted = request_for(
         "request_targeted_reanalysis",
@@ -199,7 +199,7 @@ def test_system_and_orchestrator_tools_are_never_model_callable() -> None:
 
 
 def test_read_tool_rejects_mutation_idempotency_key() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
     request = request_for(
         "get_scan_coverage",
         idempotency_key="request-12345",
@@ -231,7 +231,7 @@ def test_unsafe_agent_input_is_rejected(unsafe_input: dict) -> None:
 
 
 def test_dispatch_requires_bound_handler_and_checks_output() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
     request = request_for(
         "get_scan_coverage",
         artifact_versions={"technicalEvidenceReportId": "ter-1"},
@@ -247,7 +247,7 @@ def test_dispatch_requires_bound_handler_and_checks_output() -> None:
 
 
 def test_dispatch_blocks_forbidden_output_fields() -> None:
-    registry = build_sprint6_agentic_registry()
+    registry = build_engineering_rule_agentic_registry()
     request = request_for(
         "get_scan_coverage",
         artifact_versions={"technicalEvidenceReportId": "ter-1"},

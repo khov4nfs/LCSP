@@ -304,10 +304,16 @@ def test_common_tools_own_non_model_callable_implementation_domains() -> None:
     ).is_file()
     assert (
         assessment
+        / "investigation"
+        / "engineering_rule"
+        / "engineering_assessment_boundary.py"
+    ).is_file()
+    assert not (
+        assessment
         / "evaluation"
         / "classification"
         / "classification_boundary.py"
-    ).is_file()
+    ).exists()
     assert (
         assessment
         / "claims"

@@ -3,9 +3,11 @@ template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-4-06-get-verified-profile
 jira_issue: LCSP-195
-status: DONE
+status: SUPERSEDED_FOR_ACTIVE_MVP
 ---
 # TASK-AO-4-06 — `get_verified_profile`
+
+> Superseded: `get_verified_profile` is no longer a canonical runtime tool for active classification.
 
 ## 1–4. Task Information, Objective, Use Case, Definition
 

@@ -7,7 +7,6 @@ export const DEVELOPER_SUBJECT_ROLE = "Developer";
 export const DEVELOPER_ALLOWED_ACTION_VALUES = [
   PBAC_ACTIONS.assessmentList,
   PBAC_ACTIONS.evidenceReadRedacted,
-  PBAC_ACTIONS.verifiedProfileRead,
   "ai-usage-flow:read",
   "findings:read:redacted",
   "conflict:comment",

@@ -1,4 +1,4 @@
-"""Rebuild, validate, activate, and resume workflows for the reviewed AO-6 legal corpus."""
+"""Rebuild, validate, activate, and resume workflows for the reviewed legal corpus."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ logger = get_logger(__name__)
 
 LEGAL_CORPUS_RECOVERY_COMMAND = "command.legal-corpus.recovery.requested.v1"
 LEGAL_CORPUS_RECOVERY_BOUNDARY_SOURCE = "lcsp.legal-corpus-recovery.v1"
-DEFAULT_VERSION_PREFIX = "VN-LEGAL-AO6"
+DEFAULT_VERSION_PREFIX = "VN-LEGAL-CORPUS"
 DEFAULT_INDEX_CONFIG = "chromadb-vectorless-legal-retriever-v1"
 SOURCE_CRAWL_DIR = "source-crawl"
 RECOVERY_LOCK_FILE = "legal-corpus-recovery.lock"
@@ -50,7 +50,7 @@ class LegalCorpusRecoveryDriver:
     Recovery rebuilds a deterministic version from source manifests/reviewed
     artifacts, ingests the validated draft, verifies exact retrieval coverage,
     registers the retrieval index, activates the corpus, then resumes workflows
-    waiting for the newly active version. Canonical AO-6 validation and activation
+    waiting for the newly active version. Canonical legal corpus validation and activation
     are forced through ``LegalToolDispatcher`` rather than invoked directly.
     """
 
@@ -327,7 +327,7 @@ class LegalCorpusRecoveryDriver:
             )
             return paths
         raise RuntimeError(
-            "AO6 legal corpus recovery has no source manifests from the crawl "
+            "reviewed legal corpus recovery has no source manifests from the crawl "
             "pipeline. Provide sourceManifestPaths in the recovery command."
         )
 
@@ -340,7 +340,7 @@ class LegalCorpusRecoveryDriver:
             path = Path(message_reviewed_dir.strip())
             if not path.is_dir():
                 raise RuntimeError(
-                    "AO6 legal corpus recovery reviewedDir does not exist: "
+                    "reviewed legal corpus recovery reviewedDir does not exist: "
                     f"{message_reviewed_dir}"
                 )
             return path
@@ -349,7 +349,7 @@ class LegalCorpusRecoveryDriver:
         if crawl_root.is_dir():
             return crawl_root
         raise RuntimeError(
-            "AO6 legal corpus recovery has no reviewed artifact directory from the "
+            "reviewed legal corpus recovery has no reviewed artifact directory from the "
             "crawl pipeline. Provide reviewedDir in the recovery command."
         )
 

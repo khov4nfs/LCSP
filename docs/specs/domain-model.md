@@ -19,15 +19,15 @@ Organization
 -> TechnicalFinding / TechnicalEvidenceReport
 -> TechnicalProfile
 -> AIUsageFlow / AIUsageFlowClaim
--> ReconciliationConflict or VerifiedProfile
--> LegalRuleMatch
+-> ReconciliationConflict or EngineeringRuleAssessmentRequest
+-> EngineeringRuleEvaluation
 -> RiskClassification
 -> GapAnalysis
 -> GeneratedDocument
 -> AuditEvent
 ```
 
-`WizardProfile` is an optional parallel branch off `Assessment` that feeds into `AIUsageFlow` and `ReconciliationConflict` when linked (`verificationSource: TECHNICAL_PLUS_WIZARD`). It is no longer on the mandatory mainline: `TechnicalProfile` + `TechnicalEvidenceReport` alone are sufficient for `AIUsageFlow`/`VerifiedProfile` to proceed (`verificationSource: TECHNICAL_ONLY`), at lower confidence for business-declaration-dependent fields. See `docs/specs/ai-usage-flow-domain-spec.md`.
+`WizardProfile` is an optional parallel branch off `Assessment` that feeds into `AIUsageFlow` and `ReconciliationConflict` when linked. It is no longer on the mandatory mainline: `TechnicalProfile` + `TechnicalEvidenceReport` alone are sufficient for direct EngineeringRule assessment to proceed, at lower confidence for business-declaration-dependent fields. See `docs/specs/ai-usage-flow-domain-spec.md`.
 
 Legal corpus preparation is a parallel internal operations flow:
 
@@ -39,7 +39,7 @@ LegalSource
 -> LegalCorpusVersion APPROVED
 -> LegalDocumentChunk / ChromaDB legal index records
 -> RetrievalAuditLog
--> LegalRuleMatch
+-> EngineeringRule citation context
 ```
 
 Legal rule catalog authoring is a second, separate internal operations flow. It is not derived automatically from the legal corpus text — a `LegalRule` is hand-authored by an Internal Legal Operator who reads approved `LegalDocumentChunk` text and writes `requiredFacts`/`blockingFacts` plus a `citationLocatorRef` pointing at the exact chunk. The corpus supplies citation targets to validate against; it does not generate rules:
@@ -49,7 +49,7 @@ LegalRuleDraft
 -> RuleApprovalRecord
 -> LegalRuleCatalogVersion APPROVED
 -> LegalRule (citationLocatorRefs must resolve inside an APPROVED LegalCorpusVersion)
--> LegalRuleMatch
+-> EngineeringRule
 ```
 
 See `docs/specs/legal-rule-catalog-spec.md`.
@@ -312,7 +312,7 @@ AIUsageFlow groups claim-level records for business process, AI purpose, inputs,
 
 ### VerifiedProfile
 
-Immutable reconciled profile combining TechnicalProfile, AIUsageFlow, and (when linked) WizardProfile and Manager resolutions. Carries `verificationSource: TECHNICAL_ONLY | TECHNICAL_PLUS_WIZARD`. It is required before legal matching regardless of `verificationSource`.
+Historical reconciled profile combining TechnicalProfile, AIUsageFlow, and (when linked) WizardProfile and Manager resolutions. It is no longer required before active direct EngineeringRule classification.
 
 ## Legal Corpus and Retrieval
 
@@ -396,7 +396,7 @@ Records provider, model, prompt version, sanitized input reference, output hash,
 | ruleRefs | JSON | Yes | Included `LegalRule` identifiers at this version |
 | createdAt / approvedAt | datetime | Yes/No | Lifecycle timestamps |
 
-Approved versions are immutable, mirroring `LegalCorpusVersion`. New rule changes create a new version; existing assessments retain the pinned version used at legal-matching time.
+Approved versions are immutable, mirroring `LegalCorpusVersion`. New rule changes create a new version; existing assessments retain the pinned version used at EngineeringRule evaluation time.
 
 ### RuleApprovalRecord
 
@@ -408,16 +408,16 @@ Approved versions are immutable, mirroring `LegalCorpusVersion`. New rule change
 | scopeDescription / comments | string | Yes/No | Review scope/notes |
 | approvalDate | datetime | Yes | Decision time |
 
-Mirrors `CorpusApprovalRecord`. Rejection leaves the catalog version `DRAFT`, blocked from legal-matching use until corrected or abandoned.
+Mirrors `CorpusApprovalRecord`. Rejection leaves the catalog version `DRAFT`, blocked from EngineeringRule/classification use until corrected or abandoned.
 
 ### LegalRule
 
 | Field | Type | Required | Meaning |
 |---|---|---:|---|
-| legalRuleId | string | Yes | Rule identity (`ruleId` referenced by `LegalRuleMatch`) |
+| legalRuleId | string | Yes | Rule identity referenced by `EngineeringRule` and direct classification results |
 | legalRuleCatalogVersionId | UUIDv7 | Yes | Owning catalog version; immutable once approved |
 | ruleFamily | string | Yes | Classification family such as AI use, data, oversight, documentation |
-| requiredFacts / optionalFacts / blockingFacts | JSON | Yes/No/No | Applicability conditions evaluated against `VerifiedProfile.mergedProfile` |
+| requiredFacts / optionalFacts / blockingFacts | JSON | Yes/No/No | Applicability conditions compiled into EngineeringRule investigation criteria |
 | unknownFactPolicy | enum | Yes | Default blocked/degraded, never guessed |
 | citationLocatorRefs | JSON | Yes | One or more `{legalCorpusVersionId, document_id, locator}` refs; each must resolve to a chunk in an APPROVED `LegalCorpusVersion` at authoring time or the rule is rejected at approval |
 | status | enum | Yes | DRAFT/APPROVED/DEPRECATED |
@@ -427,21 +427,24 @@ A `LegalRule` is hand-authored, never auto-extracted from `LegalDocumentChunk` t
 
 ### LegalRuleMatch
 
+Historical persistence artifact for the retired `VerifiedProfile -> legal matching -> classification` chain. Active assessment execution uses `EngineeringRuleEvaluation` and direct classification result provenance instead.
+
+### EngineeringRuleEvaluation
+
 | Field | Type | Required | Meaning |
 |---|---|---:|---|
-| legalRuleMatchId | UUIDv7 | Yes | Identity |
-| assessmentId / verifiedProfileId / legalCorpusVersionId / legalRuleCatalogVersionId | UUIDv7 | Yes | Scope/basis — both the corpus version and the rule catalog version used are pinned for reproducibility |
-| ruleId | string | Yes | Rule identity (`LegalRule.legalRuleId`) |
+| assessmentId / legalCorpusVersionId / legalRuleCatalogVersionId | UUIDv7 | Yes | Scope/basis pinned for reproducibility |
+| legalRuleId / engineeringRuleId | string | Yes | Rule identities used for deterministic evaluation |
+| evidenceRefs | JSON/relation | Yes | Repository evidence refs that support or contradict required criteria |
 | citationRefs | JSON/relation | Yes | Document/article/clause/point/source/hash/version refs |
-| rationale / coverage | JSON | Yes | Structured applicability/citation coverage |
-| confidence | number | Yes | Deterministic support score |
-| status | enum | Yes | applicable/not-applicable/blocked/degraded |
+| status | enum | Yes | COMPLIANT/NON_COMPLIANT/UNKNOWN/BLOCKED |
+| diagnostics | JSON | Yes | Compile failures, missing evidence, citation gaps and source-hit distribution |
 
 ## Classification and Reporting
 
 ### RiskClassification
 
-Requires VerifiedProfile and applicable LegalRuleMatch basis. Core fields: identity/scope, status, riskLevel when completed, blockingReasons, citationCoverage, confidence, legal match links, model run metadata reference.
+Requires direct EngineeringRuleEvaluation basis. Core fields: identity/scope, status, riskLevel when completed, blockingReasons, citationCoverage, confidence, legal-rule links, evidence refs and model run metadata reference where used.
 
 ### GapAnalysis
 

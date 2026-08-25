@@ -183,9 +183,6 @@ Events use `lcsp.events.v1`:
 - `event.ai-usage-flow.completed.v1`
 - `event.ai-usage-flow.failed.v1`
 - `event.reconciliation.conflict-detected.v1`
-- `event.reconciliation.verified-profile-ready.v1`
-- `event.legal-matching.completed.v1`
-- `event.legal-matching.failed.v1`
 - `event.classification.completed.v1`
 - `event.classification.blocked.v1`
 - `event.gap-analysis.completed.v1`
@@ -250,19 +247,21 @@ Publisher locking and retry:
 
 ### Canonical Classification Trigger
 
-Legal matching runs after VerifiedProfile is ready:
+Classification runs from accepted technical evidence through the managed EngineeringRule assessment boundary:
 
 ```text
-event.reconciliation.verified-profile-ready.v1 -> command.legal-matching.requested.v1
+event.technical-evidence.accepted.v1 -> engineering_assessment_requested
 ```
 
-Classification runs only after legal matching completes:
+The retired VerifiedProfile approval, legal-matching callback and classification baseline/proposal/review queues are not active MVP gates:
 
 ```text
-event.legal-matching.completed.v1 -> command.classification.requested.v1
+event.reconciliation.verified-profile-ready.v1
+command.legal-matching.requested.v1
+event.legal-matching.completed.v1
 ```
 
-Classification must not consume `event.reconciliation.verified-profile-ready.v1` directly.
+Classification persists a direct EngineeringRule result with legal rule provenance, citation state and evidence refs. Evidence-less claims fail closed to `UNKNOWN`.
 
 Gap Analysis runs only after classification completes:
 

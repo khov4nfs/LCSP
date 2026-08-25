@@ -3,7 +3,7 @@ task_id: MW-legal-001
 module: python-workers/legal
 runtime: deepagents
 priority: P0
-status: READY_FOR_DEV
+status: SUPERSEDED_FOR_ACTIVE_MVP
 epic_story: 6.1
 depends_on:
   - python-workers/platform/01-worker-platform-bootstrap.md
@@ -11,6 +11,8 @@ depends_on:
 ---
 
 # Legal Matching Worker (Rule Applicability + ChromaDB Citation Retrieval)
+
+> Superseded: the active runtime no longer consumes `verified-profile-ready` to produce `LegalRuleMatch`. Approved LegalRules are compiled into EngineeringRules; the direct assessment runtime uses citations and legal provenance without the legacy legal-rule-match callback surface.
 
 ## Outcome
 

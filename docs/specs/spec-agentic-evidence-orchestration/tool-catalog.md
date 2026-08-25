@@ -53,9 +53,8 @@ Implementation tasks: [artifact, Wizard, and conflict tools](../../implementatio
 | `get_assessment_context` | Return submitted Wizard answers, target IDs, and pinned versions. |
 | `compare_wizard_claim` | Return `SUPPORTED`, `CONTRADICTED`, `NOT_FOUND`, `UNKNOWN`, or `OUT_OF_COVERAGE` for one Wizard target. |
 | `propose_missing_targets` | Produce evidence-backed candidate targets absent from Wizard declarations. |
-| `get_artifact_chain` | Return immutable TechnicalEvidenceReport → TechnicalProfile → AIUsageFlow → conflict → VerifiedProfile references. |
+| `get_artifact_chain` | Return immutable TechnicalEvidenceReport, TechnicalProfile, AIUsageFlow, conflict and direct classification references. |
 | `get_reconciliation_context` | Return conflicts, evidence traces, and allowed resolution paths. |
-| `get_verified_profile` | Return the reconciled, versioned legal-matching input. |
 
 ## Reconciliation and independent-review transition tools
 
@@ -63,9 +62,7 @@ These are protected workflow transitions, not LLM reasoning tools. They close th
 
 | Tool | Purpose |
 | --- | --- |
-| `reconcile_profile_to_verified_profile` | Persist one immutable `VerifiedProfile` only from pinned submitted Wizard, accepted technical evidence, and conflict-free reconciliation inputs. |
-| `submit_classification_for_independent_review` | Create an immutable pending independent-review request from a passing classification-proposal gate; it cannot approve a classification. |
-| `resolve_independent_classification_review` | Let an authorized independent reviewer approve or reject the pending request and, on approval, persist the immutable reviewed `Classification`. |
+| `engineering_assessment_requested` | Managed invocation boundary that starts EngineeringRule assessment from accepted evidence and conflict-free context. |
 
 ## Legal retrieval, classification, and gap tools
 
@@ -75,10 +72,7 @@ Implementation tasks: [legal classification and gap tools](../../implementation/
 | --- | --- |
 | `get_legal_corpus_readiness` | Return active corpus/index availability and the specific missing corpus requirement. |
 | `retrieve_legal_basis` | Retrieve allowed primary, parent, and referenced legal chunks from the pinned structure-first corpus. |
-| `get_legal_rule_match` | Return rule applicability, required facts, citation allowlist, and coverage. |
 | `validate_citation_set` | Deterministically reject absent, repealed, out-of-allowlist, or version-mismatched citations. |
-| `get_classification_baseline` | Return deterministic classification baseline and prerequisites. |
-| `validate_classification_proposal` | Apply citation, overclaim, conflict, coverage, and state gates to a proposal. |
 | `get_gap_requirements` | Return the versioned requirement matrix applicable to the classification. |
 | `evaluate_gap_matrix` | Return `SATISFIED`, `MISSING`, `CONTRADICTED`, `UNKNOWN`, or `OUT_OF_COVERAGE` per requirement. |
 | `get_gap_evidence_trace` | Identify whether a gap originates in Wizard, scanner, profile, legal basis, citation, or conflict resolution. |

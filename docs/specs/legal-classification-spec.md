@@ -6,34 +6,36 @@ AUTHORITATIVE
 
 ## Purpose
 
-Single source of truth for Legal Matching and Risk Classification.
+Single source of truth for direct EngineeringRule-based legal classification.
 
 ## Input Preconditions
 
-- VerifiedProfile exists.
-- AIUsageFlow material claims have evidence refs.
+- Accepted TechnicalEvidenceReport exists.
+- WizardProfile, when present, is supplemental context and does not replace repository evidence.
+- OpenWiki context, when present, is an unverified retrieval hint only.
 - Legal corpus is versioned and citation traceability is available.
-- No unresolved conflict remains.
+- Approved LegalRules compile to validated EngineeringRules or fail closed with diagnostics.
 
-## Legal Matching
+## EngineeringRule Investigation
 
-- Retrieve legal rules by evidence-backed claim, not provider/model presence.
+- Plan and investigate EngineeringRules by evidence-backed technical scope, not provider/model presence alone.
+- Every structured claim emitted by the investigator must carry provenance/evidence refs or it is ignored/fails closed.
 - Every material legal conclusion requires citation coverage.
-- Missing citation blocks or degrades classification/output.
+- Missing citation or missing evidence refs blocks or degrades classification/output.
 - Policy-only documents cannot be treated as standalone mandatory legal obligations unless the spec identifies them as binding.
-- The rule catalog itself (`LegalRule` entity, authoring, versioning, approval) is governed by `docs/specs/legal-rule-catalog-spec.md`, a separate artifact from the legal corpus (`docs/specs/legal-corpus-source-spec.md`). Rules are hand-authored and citation-validated against the corpus, never auto-derived from it.
+- The rule catalog itself (`LegalRule` entity, authoring, versioning, approval) is governed by `docs/specs/legal-rule-catalog-spec.md`, a separate artifact from the legal corpus (`docs/specs/legal-corpus-source-spec.md`). Rules are hand-authored and citation-validated against the corpus, then compiled into validated EngineeringRules for technical investigation.
 
 ## Risk Classification
 
-Classification may use VerifiedProfile, AIUsageFlow business usage and downstream action, LegalRuleMatch[] with citations, evidence confidence, and uncertainty.
+Classification uses direct EngineeringRule evaluations, legal-rule provenance, citation-backed legal basis, evidence confidence, and uncertainty.
 
-Classification must not use provider/model/framework presence alone, unverified Manager claims, unresolved conflict, or missing citation as if it were sufficient legal basis.
+Classification must not use provider/model/framework presence alone, unverified Manager claims, evidence-less investigator claims, unresolved conflict, or missing citation as if it were sufficient legal basis.
 
 ## Gap Analysis
 
 Gap Analysis is a first-class runtime component between classification and document generation.
 
-Gap Analysis uses completed `RiskClassification`, `LegalRuleMatch[]`, citation coverage and evidence refs to produce `GapAnalysis` items. It identifies missing obligations, missing evidence, citation gaps, blocked/degraded output reasons and prioritized remediation items.
+Gap Analysis uses completed direct EngineeringRule classification, citation coverage and evidence refs to produce `GapAnalysis` items. It identifies missing obligations, missing evidence, citation gaps, blocked/degraded output reasons and prioritized remediation items.
 
 Document generation must use `GapAnalysis` as an input and must not run directly from `event.classification.completed.v1`.
 
@@ -43,9 +45,8 @@ Document generation must use `GapAnalysis` as an input and must not run directly
 {
   "riskClassificationId": "018f0000-0000-7000-8000-000000000611",
   "assessmentId": "018f0000-0000-7000-8000-000000000001",
-  "verifiedProfileId": "018f0000-0000-7000-8000-000000000411",
   "riskLevel": "BLOCKED_OR_CLASSIFIED",
-  "legalRuleMatchIds": ["018f0000-0000-7000-8000-000000000521"],
+  "engineeringRuleEvaluations": ["rule-eval-018f0000"],
   "citationCoverage": "COMPLETE_CITATION | PARTIAL_CITATION | NO_CITATION",
   "blockingReasons": []
 }
@@ -55,21 +56,15 @@ Document generation must use `GapAnalysis` as an input and must not run directly
 
 ## Phase 5.5 Canonical Trigger Contract
 
-Legal matching is triggered only after VerifiedProfile is ready:
+Risk classification is triggered from accepted technical evidence through the managed EngineeringRule assessment boundary:
 
 ```text
-event.reconciliation.verified-profile-ready.v1
--> command.legal-matching.requested.v1
+event.technical-evidence.accepted.v1
+-> engineering_assessment_requested
+-> event.classification.completed.v1 | event.classification.blocked.v1
 ```
 
-Risk classification is triggered only after legal matching completes:
-
-```text
-event.legal-matching.completed.v1
--> command.classification.requested.v1
-```
-
-Classification must not consume `event.reconciliation.verified-profile-ready.v1` directly. The legal matching step is mandatory because classification requires `LegalRuleMatch[]` and citation traceability.
+Classification must not depend on the retired `VerifiedProfile` approval or `LegalRuleMatch` callback gates. Legal support is carried by LegalRule/EngineeringRule provenance and citation traceability in the direct result.
 
 Gap Analysis is triggered only after classification completes:
 

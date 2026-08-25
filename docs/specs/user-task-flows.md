@@ -131,8 +131,8 @@ This document defines canonical user-facing and system task flows for the A-to-Z
 | Field | Content |
 |---|---|
 | Goal | Obtain a citation-backed classification or an explicit blocked state. |
-| Preconditions | VerifiedProfile exists; approved legal corpus and legal matches are available; real provider configured for acceptance run. |
-| Happy path | Request classification or observe automatic trigger, monitor status, review risk level/confidence/triggered rules/citations. |
+| Preconditions | Accepted technical evidence exists; approved legal corpus and EngineeringRules are available or fail closed with diagnostics; real provider configured for acceptance run. |
+| Happy path | Request classification or observe automatic trigger, monitor status, review risk level/confidence/EngineeringRule evaluations/citations. |
 | Failure states | Missing citation, unapproved corpus, zero candidate match, provider outage, invalid model output, unknown critical usage. |
 | UX requirements | Never display unsupported legal certainty; show blocked/degraded reason and next action. |
 | Result | `CLASSIFICATION_READY` or `CLASSIFICATION_BLOCKED`. |

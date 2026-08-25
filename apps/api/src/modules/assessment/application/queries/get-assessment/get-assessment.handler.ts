@@ -225,6 +225,7 @@ function toClassificationResultSummary(
       )
       .filter((item): item is EngineeringRuleEvaluationDto => item !== null),
     limitations: stringArray(data.limitations),
+    observability: isRecord(data.observability) ? data.observability : null,
     legal_rule_catalog_version_id: cleanString(
       data.legal_rule_catalog_version_id,
     ),

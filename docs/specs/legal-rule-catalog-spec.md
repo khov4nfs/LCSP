@@ -31,4 +31,4 @@ For each approved LegalRule, Python retrieves exact primary legal chunks plus st
 EngineeringRule cache reuse is cross-assessment: unchanged law/rule/compiler does not consume compilation tokens for each repository. Referenced legal-chunk changes, schema/compiler/prompt changes or a repealed basis invalidate affected fingerprints only.
 
 ## Non-claims
-EngineeringRule keywords/patterns are discovery hints, not proof. EngineeringRule cannot declare a system compliant/non-compliant or choose risk tier. EvidenceClaim validation, VerifiedProfile reconciliation and deterministic legal matching remain downstream.
+EngineeringRule keywords/patterns are discovery hints, not proof. EngineeringRule cannot declare a system compliant/non-compliant or choose risk tier. EvidenceClaim validation and deterministic EngineeringRule evaluation remain downstream.

@@ -6,7 +6,7 @@ AUTHORITATIVE
 
 ## Purpose
 
-Single source of truth for the evidence-to-output assessment lifecycle after Repository Scan evidence exists: TechnicalProfile, AIUsageFlow, Reconciliation, VerifiedProfile, Legal Matching, Risk Classification, Gap Analysis, Document Generation, and state handoffs.
+Single source of truth for the evidence-to-output assessment lifecycle after Repository Scan evidence exists: TechnicalProfile, AIUsageFlow context, conflict reconciliation, direct EngineeringRule Risk Classification, Gap Analysis, Document Generation, and state handoffs.
 
 ## Lifecycle
 
@@ -17,9 +17,8 @@ Assessment
 -> TechnicalEvidenceReport
 -> TechnicalProfile
 -> AIUsageFlow
--> Reconciliation
--> VerifiedProfile
--> Legal Matching
+-> Conflict Reconciliation when required
+-> EngineeringRule Assessment
 -> Risk Classification
 -> Gap Analysis
 -> Document Generation
@@ -30,9 +29,9 @@ Assessment
 - TechnicalProfile is derived from TechnicalEvidenceReport after schema and quality gates.
 - AIUsageFlow uses WizardProfile, TechnicalProfile, TechnicalFinding[], graph paths, and coverage limitations.
 - Every material AIUsageFlow claim requires evidence refs.
-- Reconciliation compares WizardProfile, TechnicalProfile, and AIUsageFlow.
-- Unresolved conflict blocks VerifiedProfile and classification.
-- Legal matching is mandatory before classification.
+- Reconciliation compares WizardProfile, TechnicalProfile, and AIUsageFlow when business context exists.
+- Unresolved conflict blocks classification.
+- Direct EngineeringRule evaluation with legal-rule provenance and citation traceability is mandatory before classification can be final.
 - Gap Analysis is mandatory between completed classification and document generation.
 - Manager is the MVP final resolver.
 - Developer absence must not block assessment lifecycle transitions.
@@ -45,11 +44,11 @@ Provider/model/framework detection alone is insufficient. Unknown critical usage
 
 ## Reconciliation Contract Summary
 
-Scanner evidence is immutable. Manager resolution is stored separately and audited. Conflict creates Manager Conflict Resolution Task. VerifiedProfile is created only when conflicts are resolved or no conflict exists.
+Scanner evidence is immutable. Manager resolution is stored separately and audited. Conflict creates Manager Conflict Resolution Task. Direct EngineeringRule classification starts only when conflicts are resolved or no conflict exists.
 
 ## State Machine Summary
 
-Classification is denied until VerifiedProfile exists. Final document generation is denied when unresolved conflict or missing citation remains.
+Classification is denied until direct EngineeringRule evaluation has evidence refs and legal-rule provenance. Final document generation is denied when unresolved conflict or missing citation remains.
 
 <!-- PHASE-5-5-AIUSAGEFLOW-TECHNICALPROFILE:START -->
 

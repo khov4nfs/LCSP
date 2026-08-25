@@ -6,7 +6,7 @@ This document defines what LCSP is, who uses it, and how an assessment moves fro
 
 ## Problem Statement
 
-Vietnamese businesses using AI need a traceable way to understand and document compliance posture without relying only on self-declared checklists or free-form legal chatbot answers. LCSP combines Manager-provided business context, repository-derived technical evidence, reconciliation, citation-backed legal matching, classification, gap analysis, document generation, and audit trail.
+Vietnamese businesses using AI need a traceable way to understand and document compliance posture without relying only on self-declared checklists or free-form legal chatbot answers. LCSP combines Manager-provided business context, repository-derived technical evidence, conflict reconciliation, direct EngineeringRule classification with citation-backed legal provenance, gap analysis, document generation, and audit trail.
 
 ## Product Vision
 
@@ -29,9 +29,8 @@ Manager intent
 -> TechnicalEvidenceReport
 -> TechnicalProfile
 -> AIUsageFlow
--> Reconciliation
--> VerifiedProfile
--> LegalRuleMatch
+-> Conflict reconciliation when required
+-> Direct EngineeringRule Assessment
 -> RiskClassification
 -> GapAnalysis
 -> GeneratedDocument
@@ -47,12 +46,12 @@ Manager intent
 - Read-only GitHub repository connection and commit-pinned Repository Scan.
 - Python Worker Platform-owned asynchronous domain work.
 - Python Scanner Worker static analysis with Syft, Knip, deptry, Python `ast`/`libcst`, bounded `ts-morph`, tree-sitter/custom parser, and Semgrep custom rules.
-- Evidence gates, TechnicalProfile, AIUsageFlow, reconciliation, and Manager-only conflict resolution.
+- Evidence gates, TechnicalProfile, AIUsageFlow context, and Manager-only conflict resolution.
 - Provenance-preserving legal corpus ingestion from approved official-source URLs.
 - Internal corpus review/approval and immutable LegalCorpusVersion management.
-- ChromaDB structure-first vectorless legal retrieval with stable legal hierarchy IDs, metadata/full-text lookup, xref expansion, parent-context assembly, citation allowlist validation and effective-date filters.
+- Direct EngineeringRule assessment with stable LegalRule provenance, citation refs, evidence refs and fail-closed diagnostics.
 - Real configured LLM provider for A-to-Z acceptance; deterministic mock only for tests/offline development.
-- Risk classification only after VerifiedProfile and legal matching.
+- Risk classification only after evidence gates, approved legal-rule basis, citation traceability and conflict checks.
 - Gap analysis, final report, readiness-only export, artifact download, and audit export.
 
 ## Out of Scope
@@ -71,7 +70,7 @@ Manager intent
 
 | Actor | Responsibility | Key Tasks |
 |---|---|---|
-| Manager | Owns assessment, business/legal truth, final MVP conflict resolution, VerifiedProfile approval where required, classification request, report generation, and audit review. | Create assessment, complete Wizard, connect repository, start scan, review evidence, resolve conflicts, request classification, generate/download report, export audit. |
+| Manager | Owns assessment, business/legal truth, final MVP conflict resolution, classification request, report generation, and audit review. | Create assessment, complete Wizard, connect repository, start scan, review evidence, resolve conflicts, request classification, generate/download report, export audit. |
 | Developer | Optional scoped technical collaborator. | Accept task, review redacted findings, support repository/evidence correction within PBAC policy scope. |
 | LCSP System | Enforces workflow gates, state transitions, evidence handling, queue choreography, retrieval, audit, and output guardrails. | Execute workers, persist domain objects, publish commands/events, block unsafe output. |
 
@@ -107,8 +106,7 @@ Login
 -> Automatic trusted scan starts or resumes Repository Scan
 -> Review Findings and AIUsageFlow
 -> Resolve Conflict if present
--> Verify Profile readiness
--> Run Legal Matching and Classification
+-> Run EngineeringRule Classification
 -> Review Gap Analysis
 -> Generate and Download Report
 -> Review and Export Audit Trail

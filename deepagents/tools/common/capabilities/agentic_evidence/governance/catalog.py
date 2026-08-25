@@ -860,11 +860,11 @@ AGENTIC_TOOL_SPECS: tuple[AgenticToolSpec, ...] = (
 )
 
 
-SPRINT6_AGENTIC_TOOL_SPEC_BY_NAME = {
+ENGINEERING_RULE_AGENTIC_TOOL_SPEC_BY_NAME = {
     spec.name: spec for spec in AGENTIC_TOOL_SPECS
 }
 
-if len(SPRINT6_AGENTIC_TOOL_SPEC_BY_NAME) != len(AGENTIC_TOOL_SPECS):
+if len(ENGINEERING_RULE_AGENTIC_TOOL_SPEC_BY_NAME) != len(AGENTIC_TOOL_SPECS):
     raise RuntimeError("Agentic tool names must be unique")
 
 

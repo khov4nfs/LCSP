@@ -17,11 +17,11 @@ Canonical catalog: `AC-001..AC-041` plus Phase 5.2L `AC-050A..AC-050F`. `FR-050`
 | AC-011 | Conflict Score explains materiality but creates no alternative route. | UC-010 | FR-027 | NFR-028 |
 | AC-012 | Manager resolution is separate from scanner evidence, audited, and reruns reconciliation. | UC-010 | FR-028,029 | NFR-008,010,011,018 |
 | AC-013 | Historical structured-attestation guard. No active MVP feature may use attestation to unlock classification, resolve conflict, approve VerifiedProfile, support reconciliation, or create report/audit dependency. | — | FR-045,046 | `SUPERSEDED_FOR_ACTIVE_MVP` |
-| AC-014 | No unresolved conflict permits VerifiedProfile creation. | UC-011 | FR-030 | NFR-016,018 |
-| AC-015 | Unresolved conflict blocks VerifiedProfile approval. | UC-011 | FR-030,031 | NFR-008,010,018,022 |
-| AC-016 | Approved immutable corpus plus VerifiedProfile yields citation-backed LegalRuleMatch records. | UC-012 | FR-032,033,053,054,056 | NFR-017,029,033,034 |
+| AC-014 | No unresolved conflict permits direct EngineeringRule classification to start. | UC-011 | FR-030 | NFR-016,018 |
+| AC-015 | Customer-facing VerifiedProfile approval is not an active classification gate. | UC-011 | FR-030,031 | NFR-008,010,018,022 |
+| AC-016 | Approved immutable corpus plus LegalRules yields citation-backed EngineeringRules. | UC-012 | FR-032,033,053,054,056 | NFR-017,029,033,034 |
 | AC-017 | Missing required corpus/citation blocks or explicitly degrades legal output. | UC-012,013 | FR-034,036 | NFR-017,018,020,022,034 |
-| AC-018 | Valid verified/legal/provider basis yields classification or explicit blocked status. | UC-013,014 | FR-035..038,055 | NFR-017..019,021,022,033 |
+| AC-018 | Valid evidence/legal/provider basis yields classification or explicit blocked status. | UC-013,014 | FR-035..038,055 | NFR-017..019,021,022,033 |
 | AC-019 | Missing final-output prerequisite blocks report; readiness-only output has no risk level. | UC-014 | FR-039..041 | NFR-018,020..022 |
 | AC-020 | Material state/version changes create redacted immutable audit history. | UC-006,015,016 | FR-017,042..045,049 | NFR-010,011,016,030 |
 | AC-021 | Invalid auth/MFA/session action is denied safely and audited. | UC-001 | FR-001..005 | NFR-001..005 |

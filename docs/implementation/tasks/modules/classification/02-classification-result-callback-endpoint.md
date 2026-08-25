@@ -12,6 +12,8 @@ depends_on:
 
 # Classification Result Callback Endpoint
 
+> Superseded in part: the legacy callback contract requiring `VerifiedProfile` plus `LegalRuleMatch` is no longer active. Direct EngineeringRule assessment persists classification results with legal-rule provenance, citation state and evidence refs.
+
 ## Dev Agent Record
 
 - **Agent**: Amelia (Senior Software Engineer)

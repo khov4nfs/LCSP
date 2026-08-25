@@ -22,12 +22,10 @@ Canonical command and event names for the A-to-Z runnable MVP.
 | `command.scan.requested.v1` | `lcsp.scan-worker.v1` | Backend API outbox | Python Scanner Worker |
 | `command.technical-profile.requested.v1` | `lcsp.technical-profile-worker.v1` | scan projection | Python Technical Profile Worker |
 | `command.ai-usage-flow.requested.v1` | `lcsp.ai-usage-flow-worker.v1` | profile projection | Python AI Usage Flow Worker |
-| `command.reconciliation.requested.v1` | `lcsp.reconciliation-worker.v1` | flow/resolution projection | Python Reconciliation Worker |
 | `command.legal-source.ingest.requested.v1` | `lcsp.legal-source-ingest.v1` | Internal Legal Operations API | Python Legal Ingestion Worker |
 | `command.legal-source.vbpl-effected-chunk-set.requested.v1` | `lcsp.legal-source-vbpl-effected-chunk-set.v1` | Internal Legal Operations API / corpus preparation outbox | Python VBPL Effected Chunk-Set Worker |
 | `command.legal-index-build.requested.v1` | `lcsp.legal-index-build.v1` | corpus approval outbox | Python ChromaDB Legal Index Worker |
-| `command.legal-matching.requested.v1` | `lcsp.legal-matching-worker.v1` | verified-profile projection | Python Legal Matching Worker |
-| `command.classification.requested.v1` | `lcsp.classification-worker.v1` | legal-matching projection | Python Classification Worker |
+| `event.technical-evidence.accepted.v1` | managed Deep Agents invocation | accepted technical evidence projection | Python EngineeringRule Assessment Boundary |
 | `command.gap-analysis.requested.v1` | `lcsp.gap-analysis-worker.v1` | classification projection | Python Gap Analysis Worker |
 | `command.document.requested.v1` | `lcsp.document-worker.v1` | gap/document request projection | Python Document Worker |
 
@@ -39,10 +37,8 @@ Canonical command and event names for the A-to-Z runnable MVP.
 | Scan | `event.scan.completed.v1` | `event.scan.failed.v1` |
 | Technical Profile | `event.technical-profile.completed.v1` | `event.technical-profile.failed.v1` |
 | AI Usage Flow | `event.ai-usage-flow.completed.v1` | `event.ai-usage-flow.failed.v1` |
-| Reconciliation | `event.reconciliation.verified-profile-ready.v1` | `event.reconciliation.conflict-detected.v1` |
 | Legal Source | `event.legal-source.ingest.completed.v1` | `event.legal-source.ingest.failed.v1` |
 | Legal Index | `event.legal-index-build.completed.v1` | `event.legal-index-build.failed.v1` |
-| Legal Matching | `event.legal-matching.completed.v1` | `event.legal-matching.failed.v1` |
 | Classification | `event.classification.completed.v1` | `event.classification.blocked.v1` |
 | Gap Analysis | `event.gap-analysis.completed.v1` | `event.gap-analysis.blocked.v1`, `event.gap-analysis.failed.v1` |
 | Document | `event.document.generated.v1` | `event.document.blocked.v1` |
@@ -53,11 +49,9 @@ Canonical command and event names for the A-to-Z runnable MVP.
 |---|---|
 | `event.scan.completed.v1` | quality-valid report persisted, ScanJob completed, workspace cleanup verified |
 | `event.scan-trigger.ready.v1` | trusted source verified, PBAC allowed, unique tenant/repository/assessment/branch/commit mapping exists |
-| `event.reconciliation.verified-profile-ready.v1` | no unresolved material conflict |
 | `event.legal-source.ingest.completed.v1` | source validated, snapshot/hash persisted, document staged in DRAFT corpus |
 | `event.legal-index-build.completed.v1` | corpus approved, ChromaDB records written, legal hierarchy/xref metadata verified and citation allowlist-ready |
-| `event.legal-matching.completed.v1` | LegalRuleMatch records and retrieval audit persisted |
-| `event.classification.completed.v1` | VerifiedProfile and citation-backed legal basis exist |
+| `event.classification.completed.v1` | direct EngineeringRule assessment result persisted with legal rule provenance and evidence refs |
 | `event.gap-analysis.completed.v1` | valid classification and legal basis exist |
 | `event.document.generated.v1` | gap/classification/citation/output guards pass and artifact metadata exists |
 
@@ -121,11 +115,8 @@ event.scan.completed.v1
 -> event.technical-profile.completed.v1
 -> command.ai-usage-flow.requested.v1
 -> event.ai-usage-flow.completed.v1
--> command.reconciliation.requested.v1
--> event.reconciliation.verified-profile-ready.v1
--> command.legal-matching.requested.v1
--> event.legal-matching.completed.v1
--> command.classification.requested.v1
+-> event.technical-evidence.accepted.v1
+-> managed boundary engineering_assessment_requested
 -> event.classification.completed.v1
 -> command.gap-analysis.requested.v1
 -> event.gap-analysis.completed.v1

@@ -1,7 +1,6 @@
 """Provide secret-safe, retrying access to LCSP internal read/callback APIs."""
 
 import time
-from urllib.parse import urlencode
 import httpx
 from structlog import get_logger
 
@@ -24,8 +23,6 @@ from tools.common.capabilities.platform.callback_schemas import (
     TechnicalProfileCallbackPayload,
     AIUsageFlowCallbackPayload,
     ConflictDetectionCallbackPayload,
-    VerifiedProfileCallbackPayload,
-    LegalRuleMatchCallbackPayload,
     ClassificationCallbackPayload,
     AuditExportCallbackPayload,
 )
@@ -609,53 +606,6 @@ class WorkerApiClient:
             raise WorkerCallbackError("Wizard profile response was invalid.")
         return data
 
-    def get_verified_profile_reconciliation_context(
-        self,
-        assessment_id: str,
-        ai_usage_flow_id: str | None = None,
-    ) -> dict:
-        """Fetch canonical flow/wizard/conflict context used to finalize a verified profile."""
-        path = InternalPath.VERIFIED_PROFILE_CONTEXT.format(
-            assessment_id=assessment_id
-        )
-        if ai_usage_flow_id:
-            path = f"{path}?{urlencode({'ai_usage_flow_id': ai_usage_flow_id})}"
-        data = self._get_with_retry(path)
-        if not isinstance(data, dict):
-            raise WorkerCallbackError(
-                "VerifiedProfile reconciliation context response was invalid."
-            )
-        return data
-
-    def post_verified_profile_callback(
-        self, payload: VerifiedProfileCallbackPayload
-    ) -> CallbackResponse:
-        """Persist a verified profile after reconciliation gates pass."""
-        path = CallbackPath.VERIFIED_PROFILE
-        resp_data = self._post_with_retry(path, payload.model_dump())
-        return CallbackResponse(**resp_data)
-
-    def get_verified_profile_by_id(self, verified_profile_id: str) -> dict:
-        """Fetch a persisted verified profile by ID."""
-        path = f"/internal/reconciliation/verified-profiles/{verified_profile_id}"
-        data = self._get_with_retry(path)
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("Verified profile response was invalid.")
-        return data
-
-    def get_legal_rule_match_by_id(self, legal_rule_match_id: str) -> dict:
-        """Fetch a legal-rule-match artifact and require accepted status."""
-        path = InternalPath.LEGAL_RULE_MATCH.format(
-            legal_rule_match_id=legal_rule_match_id
-        )
-        data = self._get_with_retry(path)
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("Legal rule match response was invalid.")
-        status = str(data.get("status", "")).lower()
-        if status and status != "accepted":
-            raise WorkerCallbackError("Legal rule match is not accepted.")
-        return data
-
     def get_active_legal_rule_catalog(self) -> dict:
         """Fetch the active legal rule catalog/version metadata."""
         path = "/internal/legal-rule-catalog/active"
@@ -694,14 +644,6 @@ class WorkerApiClient:
         if not isinstance(data, dict):
             raise WorkerCallbackError("Official source snapshot response was invalid.")
         return data
-
-    def post_legal_rule_match_callback(
-        self, payload: LegalRuleMatchCallbackPayload
-    ) -> CallbackResponse:
-        """Persist a guarded legal-rule-match result."""
-        path = CallbackPath.LEGAL_RULE_MATCH
-        resp_data = self._post_with_retry(path, payload.model_dump())
-        return CallbackResponse(**resp_data)
 
     def post_classification_callback(
         self, payload: ClassificationCallbackPayload

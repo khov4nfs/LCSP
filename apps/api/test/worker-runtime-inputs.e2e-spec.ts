@@ -3,10 +3,7 @@ import * as assert from "node:assert/strict";
 import { PrismaPg } from "@prisma/adapter-pg";
 import {
   EvidenceAcceptanceStatus,
-  LegalRuleMatchGuardrailStatus,
-  OverallCoverageStatus,
   PrismaClient,
-  VerifiedProfileStatus,
   WizardProfileStatus,
 } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
@@ -40,16 +37,6 @@ type WizardRuntimeBody = {
   answers: { businessProcess: string };
 };
 
-type LegalRuleMatchRuntimeBody = {
-  legal_rule_match_id: string;
-  verified_profile_id: string;
-  guardrail_status: string;
-  citation_allowlist: string[];
-  verified_profile_data: {
-    claims: Array<{ claim_category: string }>;
-  };
-};
-
 describe("Worker runtime input endpoints (e2e) [LCSP-155]", () => {
   let app: INestApplication;
   let prisma: PrismaClient;
@@ -69,8 +56,6 @@ describe("Worker runtime input endpoints (e2e) [LCSP-155]", () => {
   });
 
   beforeEach(async () => {
-    await prisma.legalRuleMatch.deleteMany();
-    await prisma.verifiedProfile.deleteMany();
     await prisma.wizardProfile.deleteMany();
     await prisma.technicalProfile.deleteMany();
     await prisma.technicalEvidenceReport.deleteMany();
@@ -136,43 +121,6 @@ describe("Worker runtime input endpoints (e2e) [LCSP-155]", () => {
         submittedAt: new Date("2026-08-08T01:00:00.000Z"),
       },
     });
-    await prisma.verifiedProfile.create({
-      data: {
-        id: "verified-runtime-1",
-        aiUsageFlowId: "aiuf-runtime-1",
-        assessmentId: "assessment-runtime-1",
-        organizationId: "org-runtime-1",
-        schemaVersion: "1.0.0",
-        providerVersion: "verified-profile-worker@1",
-        profileData: {
-          claims: [{ claim_category: "MODEL_INVOCATION" }],
-        },
-        gatesPassedAt: { reconciliation: "2026-08-08T01:00:00.000Z" },
-        status: VerifiedProfileStatus.APPROVED,
-      },
-    });
-    await prisma.legalRuleMatch.create({
-      data: {
-        id: "match-runtime-1",
-        verifiedProfileId: "verified-runtime-1",
-        assessmentId: "assessment-runtime-1",
-        organizationId: "org-runtime-1",
-        corpusVersionId: "corpus-runtime-1",
-        legalRuleCatalogVersionId: "catalog-runtime-1",
-        schemaVersion: "1.0.0",
-        matches: [
-          {
-            confidence: 0.92,
-            coverage_status: "COMPLETE_CITATION",
-            citation_chunk_ids: ["chunk-runtime-1"],
-          },
-        ],
-        citationAllowlist: ["chunk-runtime-1"],
-        overallCoverageStatus: OverallCoverageStatus.COMPLETE_CITATION,
-        guardrailStatus: LegalRuleMatchGuardrailStatus.PASSED,
-        status: EvidenceAcceptanceStatus.ACCEPTED,
-      },
-    });
   });
 
   afterAll(async () => {
@@ -209,21 +157,6 @@ describe("Worker runtime input endpoints (e2e) [LCSP-155]", () => {
     assert.equal(wizard.status, 200);
     assert.equal(wizardBody.id, "wizard-runtime-1");
     assert.equal(wizardBody.answers.businessProcess, "loan_approval");
-
-    const legalRuleMatch = await workerGet(
-      "/internal/classification/runtime/legal-rule-matches/match-runtime-1",
-    );
-    const legalRuleMatchBody = legalRuleMatch.body as LegalRuleMatchRuntimeBody;
-    assert.equal(legalRuleMatch.status, 200);
-    assert.equal(legalRuleMatchBody.legal_rule_match_id, "match-runtime-1");
-    assert.equal(legalRuleMatchBody.verified_profile_id, "verified-runtime-1");
-    assert.equal(legalRuleMatchBody.guardrail_status, "passed");
-    assert.deepEqual(legalRuleMatchBody.citation_allowlist, [
-      "chunk-runtime-1",
-    ]);
-    assert.deepEqual(legalRuleMatchBody.verified_profile_data.claims, [
-      { claim_category: "MODEL_INVOCATION" },
-    ]);
   });
 
   it("rejects worker runtime reads without the worker API key", async () => {

@@ -1,9 +1,3 @@
-import { AGENTIC_TOOL_NAMES } from "@lcsp/contracts/evidence";
-import {
-  PBAC_ACTIONS,
-  PBAC_DECISION,
-  PBAC_REASON_CODE,
-} from "@lcsp/contracts/pbac";
 import { jest } from "@jest/globals";
 import type { ConfigService } from "@nestjs/config";
 import type { CommandBus, QueryBus } from "@nestjs/cqrs";
@@ -32,7 +26,7 @@ function configMock() {
 
 function commandPayload() {
   return {
-    tool_name: AGENTIC_TOOL_NAMES.submitClassificationForIndependentReview,
+    tool_name: "submit_classification_for_independent_review",
     assessment_id: "assessment-1",
     organization_id: "org-1",
     user_id: "user-1",
@@ -50,64 +44,14 @@ function commandPayload() {
 }
 
 describe("InternalAgenticToolDispatchController protected commands", () => {
-  it("re-evaluates PBAC and passes trusted policy metadata to CommandBus", async () => {
-    const queryExecute = jest.fn();
-    const queryBus = { execute: queryExecute } as unknown as QueryBus;
-    const commandExecute = jest.fn(() => Promise.resolve({ status: "READY" }));
-    const commandBus = { execute: commandExecute } as unknown as CommandBus;
-    const evaluateWithPolicy = jest.fn(() =>
-      Promise.resolve({
-        decision: PBAC_DECISION.allow,
-        reasonCode: null,
-        correlationId: "correlation-1",
-        policyId: "policy-trusted",
-        policyVersion: "v7",
-      }),
+  it("rejects retired protected command tools without PBAC or CommandBus execution", async () => {
+    const queryExecute = jest.fn(() =>
+      Promise.reject(new Error("retired tool")),
     );
-    const pbacPreflight = {
-      evaluateWithPolicy,
-    } as unknown as PbacPreflightService;
-
-    const controller = new InternalAgenticToolDispatchController(
-      queryBus,
-      configMock(),
-      runtimeEventsMock(),
-      commandBus,
-      pbacPreflight,
-    );
-
-    await controller.dispatch(commandPayload());
-
-    expect(evaluateWithPolicy).toHaveBeenCalledWith({
-      userId: "user-1",
-      organizationId: "org-1",
-      action: PBAC_ACTIONS.classificationReviewSubmit,
-      correlationId: "correlation-1",
-    });
-    expect(commandExecute).toHaveBeenCalledTimes(1);
-    const command = (commandExecute.mock.calls as unknown[][])[0][0] as {
-      policyId: string;
-      policyVersion: string;
-    };
-    expect(command.policyId).toBe("policy-trusted");
-    expect(command.policyVersion).toBe("v7");
-    expect(queryExecute).not.toHaveBeenCalled();
-  });
-
-  it("fails closed on PBAC deny before CommandBus execution", async () => {
-    const queryExecute = jest.fn();
     const queryBus = { execute: queryExecute } as unknown as QueryBus;
     const commandExecute = jest.fn();
     const commandBus = { execute: commandExecute } as unknown as CommandBus;
-    const evaluateWithPolicy = jest.fn(() =>
-      Promise.resolve({
-        decision: PBAC_DECISION.deny,
-        reasonCode: PBAC_REASON_CODE.actionNotGranted,
-        correlationId: "correlation-1",
-        policyId: null,
-        policyVersion: null,
-      }),
-    );
+    const evaluateWithPolicy = jest.fn();
     const pbacPreflight = {
       evaluateWithPolicy,
     } as unknown as PbacPreflightService;
@@ -121,6 +65,8 @@ describe("InternalAgenticToolDispatchController protected commands", () => {
     );
 
     await expect(controller.dispatch(commandPayload())).rejects.toBeDefined();
+
+    expect(evaluateWithPolicy).not.toHaveBeenCalled();
     expect(commandExecute).not.toHaveBeenCalled();
     expect(queryExecute).not.toHaveBeenCalled();
   });

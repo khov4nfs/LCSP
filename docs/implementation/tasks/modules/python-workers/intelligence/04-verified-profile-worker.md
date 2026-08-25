@@ -3,13 +3,15 @@ task_id: MW-intel-004
 module: python-workers/intelligence
 runtime: deepagents
 priority: P0
-status: DONE
+status: SUPERSEDED_FOR_ACTIVE_MVP
 epic_story: 5.4
 depends_on:
   - python-workers/intelligence/03-conflict-detection-worker.md
 ---
 
 # VerifiedProfile Worker
+
+> Superseded: active classification no longer depends on a VerifiedProfile worker/callback/approval gate. Direct EngineeringRule assessment consumes accepted evidence context.
 
 ## Outcome
 

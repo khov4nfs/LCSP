@@ -2,7 +2,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 from uuid import uuid4
 from tools.common.capabilities.agentic_evidence.governance.catalog import AGENTIC_TOOL_SPECS
-from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import AgenticToolDispatcher, PROGRAM_GRAPH_TOOL_BINDINGS, SPRINT6_AGENTIC_TOOL_BINDINGS, ToolRuntimeTarget
+from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import AgenticToolDispatcher, PROGRAM_GRAPH_TOOL_BINDINGS, ENGINEERING_RULE_AGENTIC_TOOL_BINDINGS, ToolRuntimeTarget
 from tools.common.capabilities.agentic_evidence.governance.registry import AgenticToolRequest
 from tools.common.capabilities.agentic_evidence.entrypoints.tool_entrypoints import AgenticToolExecutionContext
 
@@ -14,9 +14,9 @@ def _request(tool_name: str):
     return AgenticToolRequest.model_validate({"toolName": tool_name, "requestId": str(uuid4()), "assessmentId": str(uuid4()), "workflowRunId": str(uuid4()), "artifactVersions": {"technicalEvidenceReportId": "ter-1"}, "correlationId": str(uuid4()), "scope": {}, "budget": {"maxItems": 10, "maxDepth": 1, "maxBytes": 16384, "maxDurationMs": 1000}, "input": {"maxResults": 10}})
 
 def test_every_canonical_tool_has_exact_named_runtime_binding() -> None:
-    assert {b.tool_name for b in SPRINT6_AGENTIC_TOOL_BINDINGS} == {s.name for s in AGENTIC_TOOL_SPECS}
-    assert len({b.tool_name for b in SPRINT6_AGENTIC_TOOL_BINDINGS}) == len(SPRINT6_AGENTIC_TOOL_BINDINGS)
-    for binding in SPRINT6_AGENTIC_TOOL_BINDINGS: assert binding.entrypoint.__name__ == binding.tool_name
+    assert {b.tool_name for b in ENGINEERING_RULE_AGENTIC_TOOL_BINDINGS} == {s.name for s in AGENTIC_TOOL_SPECS}
+    assert len({b.tool_name for b in ENGINEERING_RULE_AGENTIC_TOOL_BINDINGS}) == len(ENGINEERING_RULE_AGENTIC_TOOL_BINDINGS)
+    for binding in ENGINEERING_RULE_AGENTIC_TOOL_BINDINGS: assert binding.entrypoint.__name__ == binding.tool_name
 
 def test_technical_investigation_tools_are_python_local() -> None:
     assert PROGRAM_GRAPH_TOOL_BINDINGS

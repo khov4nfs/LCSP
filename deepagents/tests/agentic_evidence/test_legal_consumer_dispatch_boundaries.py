@@ -65,7 +65,7 @@ from tools.legal.sources.vbpl_effects.vbpl_effected_chunk_set_boundary import (
         ),
     ],
 )
-def test_ao6_consumer_executes_through_canonical_dispatcher(
+def test_legal_corpus_consumer_executes_through_canonical_dispatcher(
     boundary,
     tool_name: str,
     forbidden_direct_call: str,

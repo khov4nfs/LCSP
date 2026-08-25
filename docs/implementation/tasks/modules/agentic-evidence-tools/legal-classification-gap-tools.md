@@ -1,8 +1,10 @@
 # Legal Classification and Gap Tool Tasks
 
-Status: DELIVERED  
+Status: PARTIALLY_SUPERSEDED_FOR_ACTIVE_MVP
 Stories: AO-3 — Missing-Input Orchestration; AO-5 — Classification & Gap Gates  
 Template: `agentic-tool-implementation-task-template.md`
+
+`get_legal_rule_match`, `get_classification_baseline`, and `validate_classification_proposal` are retired from the active Managed Deep Agents runtime. Direct EngineeringRule assessment now owns classification evidence, citation and provenance gates.
 
 | Task ID / tool | Implementation instruction | Typed result and safety boundary | Required verification |
 |---|---|---|---|

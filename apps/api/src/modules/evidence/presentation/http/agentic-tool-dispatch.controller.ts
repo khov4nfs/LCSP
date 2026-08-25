@@ -471,27 +471,20 @@ const RECONCILIATION_TOOL_NAMES = new Set<string>([
   AGENTIC_TOOL_NAMES.getArtifactChain,
   AGENTIC_TOOL_NAMES.proposeMissingTargets,
   AGENTIC_TOOL_NAMES.getReconciliationContext,
-  AGENTIC_TOOL_NAMES.getVerifiedProfile,
   AGENTIC_TOOL_NAMES.compareWizardClaim,
-  AGENTIC_TOOL_NAMES.reconcileProfileToVerifiedProfile,
 ]);
 
 const CLASSIFICATION_TOOL_NAMES = new Set<string>([
-  AGENTIC_TOOL_NAMES.getClassificationBaseline,
   AGENTIC_TOOL_NAMES.getGapRequirements,
-  AGENTIC_TOOL_NAMES.validateClassificationProposal,
   AGENTIC_TOOL_NAMES.evaluateGapMatrix,
   AGENTIC_TOOL_NAMES.getGapEvidenceTrace,
   AGENTIC_TOOL_NAMES.proposeGapRemediation,
-  AGENTIC_TOOL_NAMES.submitClassificationForIndependentReview,
-  AGENTIC_TOOL_NAMES.resolveIndependentClassificationReview,
 ]);
 
 const LEGAL_RETRIEVAL_TOOL_NAMES = new Set<string>([
   AGENTIC_TOOL_NAMES.getAdminSourceCatalog,
   AGENTIC_TOOL_NAMES.getLegalCorpusReadiness,
   AGENTIC_TOOL_NAMES.retrieveLegalBasis,
-  AGENTIC_TOOL_NAMES.getLegalRuleMatch,
   AGENTIC_TOOL_NAMES.validateCitationSet,
   AGENTIC_TOOL_NAMES.resumeWaitingRuns,
   AGENTIC_TOOL_NAMES.extractOfficialText,

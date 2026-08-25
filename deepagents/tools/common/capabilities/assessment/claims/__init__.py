@@ -10,10 +10,6 @@ from .evidence_claim.evidence_ledger import (
     ObservationProvenance,
 )
 from .evidence_claim.models import EvidenceClaim, InvestigationPacket
-from .verified_profile.verified_profile_boundary import (
-    PendingConflictsExist,
-    VerifiedProfileBoundary,
-)
 
 __all__ = [
     "EvidenceClaimValidationError",
@@ -23,6 +19,4 @@ __all__ = [
     "ObservationProvenance",
     "EvidenceClaim",
     "InvestigationPacket",
-    "PendingConflictsExist",
-    "VerifiedProfileBoundary",
 ]

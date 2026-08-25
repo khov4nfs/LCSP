@@ -49,14 +49,14 @@ Legacy `UC-MXX-XX`, `FR-E*`, `FR-057..FR-082`, `NFR-031`, and `NFR-032` are alia
 | FR-026 | UC-010 | AC-010, AC-033 | conflict state | Reconciliation Worker |
 | FR-027 | UC-010 | AC-011 | reconciliation spec | Reconciliation Worker |
 | FR-028 | UC-010 | AC-012, AC-033 | conflict state | Reconciliation API |
-| FR-029 | UC-010 | AC-012, AC-033 | conflict/VerifiedProfile state | Reconciliation API |
-| FR-030 | UC-011 | AC-014, AC-015 | VerifiedProfile | Reconciliation Worker |
-| FR-031 | UC-011 | AC-015 | VerifiedProfile guard | Reconciliation API |
-| FR-032 | UC-012 | AC-016, AC-035, AC-036 | legal matching + corpus state | ChromaDB Legal Retriever |
-| FR-033 | UC-012 | AC-016, AC-036 | legal matching spec | Legal Matching Worker |
-| FR-034 | UC-012, UC-013 | AC-017, AC-034, AC-036 | legal match/classification state | Legal Matching Worker |
-| FR-035 | UC-013 | AC-016, AC-018, AC-037, AC-038 | classification state | Classification Worker |
-| FR-036 | UC-013 | AC-017, AC-018, AC-034 | classification state | Classification Worker |
+| FR-029 | UC-010 | AC-012, AC-033 | conflict state | Reconciliation API |
+| FR-030 | UC-011 | AC-014, AC-015 | AIUsageFlow/evidence context | EngineeringRule Assessment |
+| FR-031 | UC-011 | AC-015 | retired VerifiedProfile approval gate | Classification API/UI |
+| FR-032 | UC-012 | AC-016, AC-035, AC-036 | legal corpus state | Legal Corpus / EngineeringRule Compiler |
+| FR-033 | UC-012 | AC-016, AC-036 | EngineeringRule spec | EngineeringRule Assessment |
+| FR-034 | UC-012, UC-013 | AC-017, AC-034, AC-036 | EngineeringRule/classification state | EngineeringRule Assessment |
+| FR-035 | UC-013 | AC-016, AC-018, AC-037, AC-038 | classification state | EngineeringRule Assessment |
+| FR-036 | UC-013 | AC-017, AC-018, AC-034 | classification state | EngineeringRule Assessment |
 | FR-037 | UC-013 | AC-018 | classification spec | Classification API/UI |
 | FR-038 | UC-014 | AC-018 | GapAnalysis state | Gap Analysis Worker |
 | FR-039 | UC-014 | AC-018, AC-019, AC-027, AC-041 | document state | Document Worker |

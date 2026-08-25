@@ -113,7 +113,7 @@ def test_managed_project_separates_authored_tools_from_runtime() -> None:
 def test_all_former_consumers_remain_internal_managed_invocation_boundaries() -> None:
     manifest = invocation_boundary_manifest()
 
-    assert len(manifest) == 23
+    assert len(manifest) == 17
     assert {entry["name"] for entry in manifest} >= {
         "scan_requested",
         "engineering_assessment_requested",

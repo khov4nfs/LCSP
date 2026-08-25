@@ -5,7 +5,6 @@ import { LegalRuleCatalogController } from "./presentation/http/legal-rule-catal
 import { LegalCorpusReadinessController } from "./presentation/http/legal-corpus-readiness.controller.js";
 import { LegalBasisRetrievalController } from "./presentation/http/legal-basis-retrieval.controller.js";
 import { CitationSetValidationController } from "./presentation/http/citation-set-validation.controller.js";
-import { LegalRuleMatchController } from "./presentation/http/legal-rule-match.controller.js";
 import { AdminSourceCatalogController } from "./presentation/http/admin-source-catalog.controller.js";
 import { DraftLegalRuleHandler } from "./application/commands/draft-legal-rule/draft-legal-rule.handler.js";
 import { ApproveRuleCatalogVersionHandler } from "./application/commands/approve-rule-catalog-version/approve-rule-catalog-version.handler.js";
@@ -15,7 +14,6 @@ import { GetActiveRuleCatalogHandler } from "./application/queries/get-active-ru
 import { GetActiveLegalCorpusHandler } from "./application/queries/get-active-legal-corpus/get-active-legal-corpus.handler.js";
 import { GetLegalCorpusReadinessHandler } from "./application/queries/get-legal-corpus-readiness/get-legal-corpus-readiness.handler.js";
 import { RetrieveLegalBasisHandler } from "./application/queries/retrieve-legal-basis/retrieve-legal-basis.handler.js";
-import { GetLegalRuleMatchHandler } from "./application/queries/get-legal-rule-match/get-legal-rule-match.handler.js";
 import { ValidateCitationSetHandler } from "./application/queries/validate-citation-set/validate-citation-set.handler.js";
 import { AdminSourceCatalogService } from "./application/services/admin-source-catalog.service.js";
 import { CitationLocatorValidatorService } from "./application/services/citation-locator-validator.service.js";
@@ -32,7 +30,6 @@ const Handlers = [
   GetActiveLegalCorpusHandler,
   GetLegalCorpusReadinessHandler,
   RetrieveLegalBasisHandler,
-  GetLegalRuleMatchHandler,
   ValidateCitationSetHandler,
 ];
 
@@ -44,7 +41,6 @@ const Handlers = [
     LegalCorpusReadinessController,
     LegalBasisRetrievalController,
     CitationSetValidationController,
-    LegalRuleMatchController,
   ],
   providers: [
     ...Handlers,

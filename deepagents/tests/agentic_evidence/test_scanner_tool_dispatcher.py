@@ -4,7 +4,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 import pytest
 from tools.common.capabilities.agentic_evidence.entrypoints import scanner_tool_entrypoints
-from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import ALL_TOOL_BINDINGS, AO1_SCANNER_TOOL_BINDINGS, ScannerToolDispatcher, ToolRuntimeTarget, runtime_binding, tool_runtime_manifest
+from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import ALL_TOOL_BINDINGS, SCANNER_TOOL_BINDINGS, ScannerToolDispatcher, ToolRuntimeTarget, runtime_binding, tool_runtime_manifest
 from tools.common.capabilities.agentic_evidence.governance.registry import AgenticToolValidationError
 from tools.common.capabilities.agentic_evidence.entrypoints.scanner_tool_entrypoints import ScannerToolExecutionContext
 from tools.common.capabilities.evidence.scanner.scanning.scan_boundary import ScanBoundary
@@ -12,10 +12,10 @@ EXPECTED = {"materialize_snapshot", "classify_workspace_languages", "run_syft_in
 
 def _context(): return ScannerToolExecutionContext(workspace=MagicMock(), language_classifier=MagicMock(), syft_tool=MagicMock(), semgrep_tool=MagicMock(), knip_tool=MagicMock(), deptry_tool=MagicMock(), ts_js_bridge_factory=MagicMock(), structural_augmentor=MagicMock(), evidence_graph_assembler=MagicMock())
 
-def test_ao1_scanner_bindings_are_exact_python_functions() -> None:
-    names = {b.tool_name for b in AO1_SCANNER_TOOL_BINDINGS}; assert names == EXPECTED
+def test_scanner_bindings_are_exact_python_functions() -> None:
+    names = {b.tool_name for b in SCANNER_TOOL_BINDINGS}; assert names == EXPECTED
     source = inspect.getsource(scanner_tool_entrypoints)
-    for b in AO1_SCANNER_TOOL_BINDINGS:
+    for b in SCANNER_TOOL_BINDINGS:
         assert b.runtime_target == ToolRuntimeTarget.PYTHON_LOCAL; assert b.entrypoint.__name__ == b.tool_name; assert getattr(scanner_tool_entrypoints, b.tool_name) is b.entrypoint; assert f"def {b.tool_name}(" in source
 
 def test_global_runtime_index_places_technical_query_in_python() -> None:

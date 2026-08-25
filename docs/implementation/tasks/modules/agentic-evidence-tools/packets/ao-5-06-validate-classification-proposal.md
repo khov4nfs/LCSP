@@ -3,9 +3,11 @@ template: agentic-tool-implementation-task
 template_version: 2.0.0
 task_id: TASK-AO-5-06-validate-classification-proposal
 jira_issue: LCSP-197
-status: DONE
+status: SUPERSEDED_FOR_ACTIVE_MVP
 ---
 # TASK-AO-5-06 — `validate_classification_proposal`
+
+> Superseded: `validate_classification_proposal` is no longer a canonical runtime tool for active direct EngineeringRule classification.
 ## 1. Task Information
 AO-5 P0; `LLM_CALLABLE`; `READ`; proposal gate, no persistence.
 ## 2. Objective

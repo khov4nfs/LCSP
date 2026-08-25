@@ -77,7 +77,7 @@ Exact authorized selectors return stable capped citations; extra/free-text input
 ## 19. Definition of Done
 Implement strict registry/handler/index adapter/normalizer, redaction/audit and all tests.
 ## 20. Technical Notes and Files
-Contracts `packages/contracts/src/agentic-evidence`; worker retrieval under `deepagents/tools/legal/legal`; API evidence gateway. Authority: AO-5, tool catalog, legal source spec.
+Contracts `packages/contracts/src/evidence`; worker retrieval under `deepagents/tools/legal/legal`; API evidence gateway. Authority: AO-5, tool catalog, legal source spec.
 ## 21. Open Questions
 | ID | Question | Owner | Status | Blocks |
 |---|---|---|---|---|
