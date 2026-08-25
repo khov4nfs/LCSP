@@ -5,7 +5,7 @@ import { resolvePublicOrigin } from "@/lib/http/request-origin";
 import { problemJson } from "@/lib/server/problem-json";
 import { upstreamRequest, upstreamUrl } from "@/lib/server/upstream-request";
 
-const oauthProviders = new Set(["google", "github"]);
+const oauthProviders = new Set(["google"]);
 
 type OAuthStartSuccess = {
   authorization_url: string;
@@ -14,9 +14,9 @@ type OAuthStartSuccess = {
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const publicOrigin = resolvePublicOrigin(request);
-  const provider = requestUrl.searchParams.get("provider") ?? "github";
+  const provider = requestUrl.searchParams.get("provider");
 
-  if (!oauthProviders.has(provider)) {
+  if (!provider || !oauthProviders.has(provider)) {
     return problemJson(AUTH_ERROR_CODES.unsupportedProvider, { status: 400 });
   }
 

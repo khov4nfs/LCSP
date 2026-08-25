@@ -6,8 +6,6 @@ const VALID_ENV = {
   AUTH_BCRYPT_COST: "12",
   AUTH_SESSION_TTL_SECONDS: "86400",
   JWT_SECRET: "a".repeat(32),
-  OAUTH_GITHUB_CLIENT_ID: "client-id",
-  OAUTH_GITHUB_CLIENT_SECRET: "client-secret",
   OAUTH_GOOGLE_CLIENT_ID: "google-client-id",
   OAUTH_GOOGLE_CLIENT_SECRET: "google-client-secret",
   OAUTH_ALLOWED_REDIRECT_ORIGINS: "http://localhost:3000",
@@ -185,8 +183,6 @@ describe("config()", () => {
         jwtSecret: VALID_ENV.JWT_SECRET,
       },
       oauth: {
-        githubClientId: VALID_ENV.OAUTH_GITHUB_CLIENT_ID,
-        githubClientSecret: VALID_ENV.OAUTH_GITHUB_CLIENT_SECRET,
         googleClientId: VALID_ENV.OAUTH_GOOGLE_CLIENT_ID,
         googleClientSecret: VALID_ENV.OAUTH_GOOGLE_CLIENT_SECRET,
         allowedRedirectOrigins: [VALID_ENV.OAUTH_ALLOWED_REDIRECT_ORIGINS],

@@ -33,6 +33,12 @@ export const ACCEPT_INVITATION_ERROR_CODES = {
   invalidRequest: "INVALID_REQUEST",
 } as const;
 
+export const SIGN_UP_ERROR_CODES = {
+  emailAlreadyExists: "EMAIL_ALREADY_EXISTS",
+  passwordTooShort: "PASSWORD_TOO_SHORT",
+  invalidRequest: "INVALID_REQUEST",
+} as const;
+
 export const INVITE_DEVELOPER_ERROR_CODES = {
   invalidActions: "INVALID_ACTIONS",
   assessmentNotOwned: "ASSESSMENT_NOT_OWNED",

@@ -25,7 +25,7 @@ Initiate OAuth/OIDC provider login: generate a secure `state` and `nonce`, persi
 | `apps/api/src/modules/auth-workspace/application/commands/oauth-start/oauth-start.handler.ts` | Create | State/nonce generation, URL build                     |
 | `apps/api/src/modules/auth-workspace/infrastructure/oauth/oauth-state.store.ts`               | Create | Server-side state/nonce storage (DB or signed cookie) |
 | `apps/api/src/modules/auth-workspace/infrastructure/oauth/oauth-provider.interface.ts`        | Create | `OAuthProvider` interface                             |
-| `apps/api/src/modules/auth-workspace/infrastructure/oauth/github-oauth.provider.ts`           | Create | GitHub OAuth implementation                           |
+| `apps/api/src/modules/auth-workspace/infrastructure/oauth/google-oauth.provider.ts`           | Modify | Google OIDC implementation                            |
 | `apps/api/src/modules/auth-workspace/auth-workspace.module.ts`                                | Modify | Register new command handler and provider             |
 
 ## API Contract
@@ -35,10 +35,10 @@ Initiate OAuth/OIDC provider login: generate a secure `state` and `nonce`, persi
 
 **Query parameters:**
 
-| Param          | Type   | Required | Notes                                      |
-| -------------- | ------ | -------- | ------------------------------------------ |
-| `provider`     | string | Yes      | `github` (only supported provider for MVP) |
-| `redirect_uri` | string | Yes      | Must match allowlisted redirect URIs       |
+| Param          | Type   | Required | Notes                                                          |
+| -------------- | ------ | -------- | -------------------------------------------------------------- |
+| `provider`     | string | Yes      | `google` for auth login; `github` is intentionally unsupported |
+| `redirect_uri` | string | Yes      | Must match allowlisted redirect URIs                           |
 
 **Success response (200):**
 
@@ -78,7 +78,7 @@ model AuthOAuthState {
 
 ## Business Rules
 
-1. Validate `provider` is in the allowlist (e.g., `['github']`).
+1. Validate `provider` is in the allowlist (`['google']`). GitHub OAuth login is intentionally unsupported; GitHub App repository authorization belongs to the separate `github-integration` module.
 2. Validate `redirect_uri` exactly matches one of the server-configured allowlisted URIs. Never trust client-provided URI.
 3. Generate `state = crypto.randomBytes(32).toString('hex')` and `nonce = crypto.randomBytes(32).toString('hex')`.
 4. Persist `AuthOAuthState` row with 10-minute expiry.
@@ -108,6 +108,7 @@ Public endpoint. No authorization check.
 | T05 | State and nonce not in response body            | Response body only has `authorization_url`      |
 | T06 | No `RepositoryConnection` created               | No repo side effects                            |
 | T07 | Audit event has no state/nonce                  | Clean payload                                   |
+| T08 | `provider=github`                               | 400 `UNSUPPORTED_PROVIDER`; no GitHub login URL |
 
 ## Definition of Done
 

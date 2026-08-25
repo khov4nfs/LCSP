@@ -92,7 +92,6 @@ As a user, I want OAuth/OIDC login to authenticate only my LCSP identity, so tha
 - Domain chain liên quan của Epic 1: approved identity -> session -> organization membership gate -> PBAC-evaluated workspace access.
 - Khi story chạm workflow gate, blocked/degraded path là một phần của yêu cầu chứ không phải edge-case tuỳ chọn.
 
-
 ### Data and Persistence Requirements
 
 - Các story Epic 1 thường chạm `User`, `Session`, `Organization`, `OrganizationMembership`, `Policy`, `PolicyVersion`, `AuthorizationDecision`, `AuditEvent` và các DTO authz/authn liên quan.
@@ -162,11 +161,12 @@ GPT-5 Codex
 
 ### Completion Notes List
 
+- Updated 2026-08-25: GitHub classic OAuth login was removed from auth-workspace. `GitHubOAuthProvider` is deleted, `provider=github` is unsupported for login/linking, and Google OIDC is the only registered OAuth login provider when configured. GitHub App repository authorization remains isolated in the separate `github-integration` module.
 - Converted planning-derived developer packet into official execution artifact for dev cycle.
 - Status set to `ready-for-dev` in `docs/implementation-artifacts/sprint-status.yaml`.
 - Story retains planning authority references and scope guardrails for downstream `dev-story` work.
-- Implemented `GET /auth/oauth/start` and `GET /auth/oauth/callback` end-to-end: new `AuthOAuthState`/`AuthOAuthIdentity` Prisma models (migration `20260709192021_add_oauth_state_and_identity`), an OIDC-generic `OAuthProvider` interface with a `GitHubOAuthProvider` implementation, `OAuthStartHandler`/`OAuthCallbackHandler` command handlers wired through the existing `AuthWorkspaceFacade`/`auth-workspace.module.ts` DI pattern, and 5 new `AUTH_ERROR_CODES` (`UNSUPPORTED_PROVIDER`, `INVALID_REDIRECT_URI`, `OAUTH_STATE_INVALID`, `OAUTH_CALLBACK_INVALID`, `ACCOUNT_NOT_FOUND`) with EN/VI i18n messages.
-- **Design decision (GitHub vs. literal OIDC), confirmed with the user**: GitHub's classic OAuth2 has no signed ID token, so it cannot supply nonce/issuer/audience/expiry the way a real OIDC provider would. The `OAuthProvider` interface stays honestly OIDC-shaped (`expectedIssuer`/`expectedAudience` readonly on the provider, `nonce`/`issuer`/`audience`/`expiresAt` nullable on returned claims) so a future real OIDC provider can plug in without an interface change. `GitHubOAuthProvider` reports fixed, self-controlled issuer/audience constants (never attacker-influenced) and `nonce: null`/`expiresAt: null`; `OAuthCallbackHandler`'s shared validation skips a check whenever its claim is `null`. The generic nonce/issuer/audience/expiry mismatch branches (task doc T04–T07) are proven via a dedicated unit spec (`oauth-callback.handler.spec.ts`) using a stub OIDC-shaped provider, since GitHub's own flow can never reach those branches.
+- Implemented `GET /auth/oauth/start` and `GET /auth/oauth/callback` end-to-end: new `AuthOAuthState`/`AuthOAuthIdentity` Prisma models (migration `20260709192021_add_oauth_state_and_identity`), an OIDC-generic `OAuthProvider` interface with a Google OIDC provider implementation, `OAuthStartHandler`/`OAuthCallbackHandler` command handlers wired through the existing `AuthWorkspaceFacade`/`auth-workspace.module.ts` DI pattern, and 5 new `AUTH_ERROR_CODES` (`UNSUPPORTED_PROVIDER`, `INVALID_REDIRECT_URI`, `OAUTH_STATE_INVALID`, `OAUTH_CALLBACK_INVALID`, `ACCOUNT_NOT_FOUND`) with EN/VI i18n messages.
+- **Design decision (OIDC validation)**: the `OAuthProvider` interface remains OIDC-shaped (`expectedIssuer`/`expectedAudience` readonly on the provider, `nonce`/`issuer`/`audience`/`expiresAt` nullable on returned claims) so providers can plug in without an interface change. Google OIDC supplies and validates nonce, issuer, audience, and expiry. The generic mismatch branches are proven via a dedicated unit spec (`oauth-callback.handler.spec.ts`) using a stub OIDC-shaped provider.
 - **Design decision (no `organization_id` on the callback), documented for follow-up**: the callback endpoint has no organization context, so account resolution requires the account's active-membership set to be exactly 1 (`MembershipRepository.findActiveByUserId`, new port method). 0 or >1 active memberships fails closed as `MEMBERSHIP_MISSING`, per this codebase's stated deny-by-default philosophy (`docs/project-context.md`). Multi-membership OAuth users cannot log in via this story's endpoint alone — a real gap to revisit in a later story (e.g. an org-selection step), not silently handled.
 - **HTTP status convention followed, not the task docs' literal tables**: matching every other `auth-workspace` endpoint in this codebase (confirmed via `auth-workspace.e2e-spec.ts`'s own `.expect(201)` on a failed sign-in), both new GET endpoints always return NestJS's default status (200) with `{ok: false, problem: {...}}` in the body on logical failure, rather than mapping `problem.status` (400/403/404 per the task docs) to the actual HTTP response code.
 - Per the task docs' explicit business rules, `AuthOAuthIdentity` rows are read-only in this story (`findByProviderAccount` only, no `save`) — account linking/creation is out of scope; a not-found provider account always fails closed as `ACCOUNT_NOT_FOUND`, never auto-creates.
@@ -192,7 +192,7 @@ GPT-5 Codex
 - apps/api/src/modules/auth-workspace/application/commands/oauth-callback/oauth-callback.handler.spec.ts
 - apps/api/src/modules/auth-workspace/application/services/auth-workspace/auth-workspace.facade.ts
 - apps/api/src/modules/auth-workspace/infrastructure/oauth/oauth-provider.interface.ts
-- apps/api/src/modules/auth-workspace/infrastructure/oauth/github-oauth.provider.ts
+- apps/api/src/modules/auth-workspace/infrastructure/oauth/google-oauth.provider.ts
 - apps/api/src/modules/auth-workspace/infrastructure/oauth/oauth-provider.registry.ts
 - apps/api/src/modules/auth-workspace/infrastructure/persistence/prisma-auth-workspace.mappers.ts
 - apps/api/src/modules/auth-workspace/infrastructure/persistence/prisma-auth-workspace.repositories.ts

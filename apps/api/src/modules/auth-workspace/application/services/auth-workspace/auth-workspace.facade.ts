@@ -35,6 +35,8 @@ import { RevokeSessionCommand } from "../../commands/revoke-session/revoke-sessi
 import { RevokeSessionHandler } from "../../commands/revoke-session/revoke-session.handler.ts";
 import { SignInCommand } from "../../commands/sign-in/sign-in.command.ts";
 import { SignInHandler } from "../../commands/sign-in/sign-in.handler.ts";
+import { SignUpCommand } from "../../commands/sign-up/sign-up.command.ts";
+import { SignUpHandler } from "../../commands/sign-up/sign-up.handler.ts";
 import type { UpdateProfilePayload } from "../../commands/update-profile/update-profile.command.ts";
 import { UpdateProfileCommand } from "../../commands/update-profile/update-profile.command.ts";
 import { UpdateProfileHandler } from "../../commands/update-profile/update-profile.handler.ts";
@@ -71,6 +73,10 @@ import type {
 import type { RegisterPayload } from "../../contracts/auth-workspace/register-approved-path.contract.ts";
 import type { RevokeMembershipResponse } from "../../contracts/auth-workspace/revoke-membership.contract.ts";
 import type { CredentialPayload } from "../../contracts/auth-workspace/sign-in.contract.ts";
+import type {
+  SignUpPayload,
+  SignUpResponse,
+} from "../../contracts/auth-workspace/sign-up.contract.ts";
 import type { WorkspaceRequest } from "../../contracts/auth-workspace/workspace.contract.ts";
 import { GetAuthProfileHandler } from "../../queries/get-auth-profile/get-auth-profile.handler.ts";
 import { GetAuthProfileQuery } from "../../queries/get-auth-profile/get-auth-profile.query.ts";
@@ -89,6 +95,7 @@ export class AuthWorkspaceFacade {
   constructor(
     private readonly registerApprovedPathHandler: RegisterApprovedPathHandler,
     private readonly signInHandler: SignInHandler,
+    private readonly signUpHandler: SignUpHandler,
     private readonly revokeSessionHandler: RevokeSessionHandler,
     private readonly revokeOwnedSessionHandler: RevokeOwnedSessionHandler,
     private readonly getAuthProfileHandler: GetAuthProfileHandler,
@@ -127,6 +134,21 @@ export class AuthWorkspaceFacade {
 
   signIn(payload: CredentialPayload, requestMeta: RequestMeta = {}) {
     return this.signInHandler.execute(new SignInCommand(payload, requestMeta));
+  }
+
+  signUp(
+    payload: SignUpPayload,
+    requestMeta: RequestMeta = {},
+  ): Promise<SignUpResponse> {
+    return this.signUpHandler.execute(
+      new SignUpCommand({
+        email: payload.email,
+        displayName: payload.display_name,
+        organizationName: payload.organization_name,
+        password: payload.password,
+        correlationId: requestMeta.correlationId,
+      }),
+    );
   }
 
   revokeSession(sessionToken: string, requestMeta: RequestMeta = {}) {

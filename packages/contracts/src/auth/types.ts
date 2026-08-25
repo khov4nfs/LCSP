@@ -5,6 +5,7 @@ import type {
   AUTH_ERROR_CODES,
   INVITE_DEVELOPER_ERROR_CODES,
   REVOKE_MEMBERSHIP_ERROR_CODES,
+  SIGN_UP_ERROR_CODES,
 } from "./codes.ts";
 import type {
   AUTH_INVITATION_STATES,
@@ -21,6 +22,9 @@ export type AuthErrorCode =
 
 export type AcceptInvitationErrorCode =
   (typeof ACCEPT_INVITATION_ERROR_CODES)[keyof typeof ACCEPT_INVITATION_ERROR_CODES];
+
+export type SignUpErrorCode =
+  (typeof SIGN_UP_ERROR_CODES)[keyof typeof SIGN_UP_ERROR_CODES];
 
 export type InviteDeveloperErrorCode =
   (typeof INVITE_DEVELOPER_ERROR_CODES)[keyof typeof INVITE_DEVELOPER_ERROR_CODES];

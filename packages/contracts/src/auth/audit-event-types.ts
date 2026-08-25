@@ -4,6 +4,8 @@ import {
 } from "../audit/audit-event.types.ts";
 
 export const AUTH_AUDIT_EVENT_TYPES = {
+  authSignUpSuccess: "AUTH_SIGN_UP_SUCCESS",
+  authSignUpFailed: "AUTH_SIGN_UP_FAILED",
   authSignInSuccess: "AUTH_SIGN_IN_SUCCESS",
   authSignInFailed: "AUTH_SIGN_IN_FAILED",
   authSessionRevoked: "AUTH_SESSION_REVOKED",

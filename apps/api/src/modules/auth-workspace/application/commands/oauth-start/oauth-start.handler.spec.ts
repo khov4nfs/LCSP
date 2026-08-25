@@ -85,7 +85,7 @@ describe("OAuthStartHandler", () => {
 
   it("U02 - missing redirect_uri returns VALIDATION_FAILED", async () => {
     const command = new OAuthStartCommand(
-      { provider: "github", redirect_uri: "" },
+      { provider: "google", redirect_uri: "" },
       {},
     );
     const result = (await handler.execute(command)) as AuthProblemResult;
@@ -122,7 +122,7 @@ describe("OAuthStartHandler", () => {
 
   it("U04 - redirect_uri not in allowlist returns INVALID_REDIRECT_URI and records audit failure", async () => {
     const command = new OAuthStartCommand(
-      { provider: "github", redirect_uri: "http://hacker.com/callback" },
+      { provider: "google", redirect_uri: "http://hacker.com/callback" },
       { correlationId: "corr-1" },
     );
     const result = (await handler.execute(command)) as AuthProblemResult;
@@ -142,7 +142,7 @@ describe("OAuthStartHandler", () => {
 
   it("U05 - happy path saves state, nonce and returns authorization_url", async () => {
     const command = new OAuthStartCommand(
-      { provider: "github", redirect_uri: "http://localhost:3000/callback" },
+      { provider: "google", redirect_uri: "http://localhost:3000/callback" },
       { correlationId: "corr-1" },
     );
     const result = await handler.execute(command);
@@ -157,7 +157,7 @@ describe("OAuthStartHandler", () => {
 
     expect(mockRepositories.oauthStates.save).toHaveBeenCalledTimes(1);
     const savedState = mockRepositories.oauthStates.save.mock.calls[0][0];
-    expect(savedState.provider).toBe("github");
+    expect(savedState.provider).toBe("google");
     expect(savedState.redirectUri).toBe("http://localhost:3000/callback");
     expect(savedState.state).toBeDefined();
     expect(savedState.nonce).toBeDefined();
@@ -167,7 +167,7 @@ describe("OAuthStartHandler", () => {
       expect.objectContaining({
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthStartSucceeded,
         decision: PBAC_DECISION.allow,
-        provider: "github",
+        provider: "google",
         correlationId: "corr-1",
       }),
     );
@@ -175,7 +175,7 @@ describe("OAuthStartHandler", () => {
 
   it("U06 - audit payload does not contain state or nonce", async () => {
     const command = new OAuthStartCommand(
-      { provider: "github", redirect_uri: "http://localhost:3000/callback" },
+      { provider: "google", redirect_uri: "http://localhost:3000/callback" },
       {},
     );
     await handler.execute(command);

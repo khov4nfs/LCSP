@@ -1,6 +1,6 @@
 # Web Component Index
 
-Last updated: July 31, 2026
+Last updated: August 25, 2026
 
 ## Shared shadcn primitives
 
@@ -50,6 +50,8 @@ Location: `apps/web/src/components`
   - `recovery-request-form.tsx`
   - `sign-in-form.tsx`
   - `sign-in-page.tsx`
+  - `sign-up-form.tsx`
+  - `sign-up-page.tsx`
 
 ### Classification
 

@@ -23,6 +23,7 @@ import { RecordMfaRecoveryCodeAccessHandler } from "./application/commands/recor
 import { RevokeOwnedSessionHandler } from "./application/commands/revoke-owned-session/revoke-owned-session.handler.ts";
 import { RevokeSessionHandler } from "./application/commands/revoke-session/revoke-session.handler.ts";
 import { SignInHandler } from "./application/commands/sign-in/sign-in.handler.ts";
+import { SignUpHandler } from "./application/commands/sign-up/sign-up.handler.ts";
 import { UpdateProfileHandler } from "./application/commands/update-profile/update-profile.handler.ts";
 import { VerifyMfaOtpHandler } from "./application/commands/verify-mfa-otp/verify-mfa-otp.handler.ts";
 import { VerifyMfaRecoveryCodeHandler } from "./application/commands/verify-mfa-recovery-code/verify-mfa-recovery-code.handler.ts";
@@ -44,7 +45,6 @@ import { AuthAuditService } from "./application/services/auth-workspace/auth-aud
 import { AuthWorkspaceSupportService } from "./application/services/auth-workspace/auth-workspace-support.service.ts";
 import { AuthWorkspaceFacade } from "./application/services/auth-workspace/auth-workspace.facade.ts";
 import { RecoveryEmailNotifierService } from "./infrastructure/notification/recovery-email-notifier.service.ts";
-import { GitHubOAuthProvider } from "./infrastructure/oauth/github-oauth.provider.ts";
 import { GoogleOAuthProvider } from "./infrastructure/oauth/google-oauth.provider.ts";
 import { OAuthProviderRegistry } from "./infrastructure/oauth/oauth-provider.registry.ts";
 import {
@@ -157,7 +157,6 @@ function handlerProvider<T>(
       provide: AUTH_WORKSPACE_RECOVERY_NOTIFIER,
       useClass: RecoveryEmailNotifierService,
     },
-    GitHubOAuthProvider,
     GoogleOAuthProvider,
     OAuthProviderRegistry,
     AuthAuditService,
@@ -199,6 +198,12 @@ function handlerProvider<T>(
       useExisting: PrismaAssessmentScopeRepository,
     },
     handlerProvider(SignInHandler),
+    {
+      provide: SignUpHandler,
+      inject: [PrismaService, AuthAuditService],
+      useFactory: (prisma: PrismaService, authAudit: AuthAuditService) =>
+        new SignUpHandler(prisma, authAudit),
+    },
     handlerProvider(RevokeSessionHandler),
     {
       provide: RevokeOwnedSessionHandler,
@@ -336,6 +341,7 @@ function handlerProvider<T>(
       inject: [
         RegisterApprovedPathHandler,
         SignInHandler,
+        SignUpHandler,
         RevokeSessionHandler,
         RevokeOwnedSessionHandler,
         GetAuthProfileHandler,
@@ -365,6 +371,7 @@ function handlerProvider<T>(
       useFactory: (
         registerApprovedPathHandler: RegisterApprovedPathHandler,
         signInHandler: SignInHandler,
+        signUpHandler: SignUpHandler,
         revokeSessionHandler: RevokeSessionHandler,
         revokeOwnedSessionHandler: RevokeOwnedSessionHandler,
         getAuthProfileHandler: GetAuthProfileHandler,
@@ -394,6 +401,7 @@ function handlerProvider<T>(
         new AuthWorkspaceFacade(
           registerApprovedPathHandler,
           signInHandler,
+          signUpHandler,
           revokeSessionHandler,
           revokeOwnedSessionHandler,
           getAuthProfileHandler,

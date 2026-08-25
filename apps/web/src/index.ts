@@ -1,5 +1,6 @@
 export * from "./auth-entry.ts";
 export * from "./features/auth/schemas/sign-in.schema.ts";
+export * from "./features/auth/schemas/sign-up.schema.ts";
 export * from "./features/auth/schemas/accept-invitation.schema.ts";
 export * from "./features/developer-task/config/action-labels.ts";
 export * from "./features/developer-task/types/developer-task.types.ts";

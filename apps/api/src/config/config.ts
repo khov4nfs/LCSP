@@ -1,6 +1,6 @@
 import Joi from "joi";
 
-import type { AppConfig, NodeEnv } from "./config.types.js";
+import { NODE_ENVS, type AppConfig, type NodeEnv } from "./config.types.js";
 
 const SMTP_MAILBOX_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 const SMTP_DISPLAY_NAME_PATTERN = /^([^<>]+)<\s*([^<>]+)\s*>$/;
@@ -34,14 +34,12 @@ function isValidSmtpFrom(value: string): boolean {
 
 export const configValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
-    .valid("development", "production", "test")
-    .default("development"),
+    .valid(...Object.values(NODE_ENVS))
+    .default(NODE_ENVS.development),
   DATABASE_URL: Joi.string().required(),
   AUTH_BCRYPT_COST: Joi.number().integer().min(10).default(12),
   AUTH_SESSION_TTL_SECONDS: Joi.number().integer().positive().default(86400),
   JWT_SECRET: Joi.string().min(32).required(),
-  OAUTH_GITHUB_CLIENT_ID: Joi.string().required(),
-  OAUTH_GITHUB_CLIENT_SECRET: Joi.string().required(),
   OAUTH_GOOGLE_CLIENT_ID: Joi.string().allow("").default(""),
   OAUTH_GOOGLE_CLIENT_SECRET: Joi.string().allow("").default(""),
   OAUTH_ALLOWED_REDIRECT_ORIGINS: Joi.string().allow("").default(""),
@@ -127,7 +125,7 @@ export function config(): AppConfig {
   const env = process.env;
 
   return {
-    nodeEnv: (env.NODE_ENV as NodeEnv | undefined) ?? "development",
+    nodeEnv: (env.NODE_ENV as NodeEnv | undefined) ?? NODE_ENVS.development,
     database: {
       url: env.DATABASE_URL ?? "",
     },
@@ -137,8 +135,6 @@ export function config(): AppConfig {
       jwtSecret: env.JWT_SECRET ?? "",
     },
     oauth: {
-      githubClientId: env.OAUTH_GITHUB_CLIENT_ID ?? "",
-      githubClientSecret: env.OAUTH_GITHUB_CLIENT_SECRET ?? "",
       googleClientId: env.OAUTH_GOOGLE_CLIENT_ID ?? "",
       googleClientSecret: env.OAUTH_GOOGLE_CLIENT_SECRET ?? "",
       allowedRedirectOrigins: parseRedirectOrigins(

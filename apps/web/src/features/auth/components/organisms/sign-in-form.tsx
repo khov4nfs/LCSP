@@ -19,7 +19,6 @@ import {
   API_OUTCOME_KINDS,
   API_REDIRECT_LOCATIONS,
 } from "@/lib/api/outcome-kinds";
-import githubIcon from "@/public/assets/icons/github.svg";
 import googleIcon from "@/public/assets/icons/google.svg";
 
 import { signInFields } from "../../config/sign-in-fields";
@@ -100,16 +99,21 @@ export function SignInForm() {
             <LabeledSeparator
               label={resolveMessage(appLocale, "pages.signIn.divider")}
             />
-            <div className="grid grid-cols-2 gap-2">
+            <div>
               <OAuthButton provider="google" icon={<GoogleIcon />}>
                 {resolveMessage(appLocale, "pages.signIn.oauthGoogle")}
-              </OAuthButton>
-              <OAuthButton provider="github" icon={<GitHubIcon />}>
-                {resolveMessage(appLocale, "pages.signIn.oauthGitHub")}
               </OAuthButton>
             </div>
             <p className="text-center text-xs leading-relaxed text-muted-foreground">
               {resolveMessage(appLocale, "pages.signIn.accessHelp")}
+            </p>
+            <p className="text-center text-xs">
+              <Link
+                className="text-primary underline-offset-4 hover:underline"
+                href={API_REDIRECT_LOCATIONS.signUp}
+              >
+                {resolveMessage(appLocale, "pages.signIn.createAccount")}
+              </Link>
             </p>
             <p className="text-center text-xs">
               <Link
@@ -174,7 +178,7 @@ function OAuthButton({
   icon,
   children,
 }: {
-  provider: "google" | "github";
+  provider: "google";
   icon: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -194,16 +198,5 @@ function OAuthButton({
 function GoogleIcon() {
   return (
     <Image src={googleIcon} alt="" className="size-4" aria-hidden="true" />
-  );
-}
-
-function GitHubIcon() {
-  return (
-    <Image
-      src={githubIcon}
-      alt=""
-      className="size-4 dark:invert"
-      aria-hidden="true"
-    />
   );
 }

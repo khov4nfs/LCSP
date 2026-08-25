@@ -16,11 +16,11 @@ Bootstrap NestJS `ConfigModule` with validated environment variables at app star
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/src/config/config.ts` | Create | Joi/zod validation schema + typed config factory |
-| `apps/api/src/config/config.types.ts` | Create | Typed config interfaces for all environment groups |
-| `apps/api/src/app.module.ts` | Modify | Register `ConfigModule.forRoot({ isGlobal: true, load: [config], validationSchema })` |
+| File                                  | Action | Notes                                                                                 |
+| ------------------------------------- | ------ | ------------------------------------------------------------------------------------- |
+| `apps/api/src/config/config.ts`       | Create | Joi/zod validation schema + typed config factory                                      |
+| `apps/api/src/config/config.types.ts` | Create | Typed config interfaces for all environment groups                                    |
+| `apps/api/src/app.module.ts`          | Modify | Register `ConfigModule.forRoot({ isGlobal: true, load: [config], validationSchema })` |
 
 ## API Contract
 
@@ -29,29 +29,46 @@ No HTTP endpoint. Internal configuration provider.
 **Typed config groups:**
 
 ```typescript
-interface DatabaseConfig { url: string }
-interface AuthConfig { bcryptCost: number; sessionTtlSeconds: number; jwtSecret: string }
-interface OAuthConfig { githubClientId: string; githubClientSecret: string; allowedRedirectUris: string[] }
-interface RabbitMqConfig { url: string; exchange: string }
-interface CryptoConfig { mfaSecretEncryptionKey: string }
-interface PythonWorkerConfig { baseUrl: string }
+interface DatabaseConfig {
+  url: string;
+}
+interface AuthConfig {
+  bcryptCost: number;
+  sessionTtlSeconds: number;
+  jwtSecret: string;
+}
+interface OAuthConfig {
+  googleClientId: string;
+  googleClientSecret: string;
+  allowedRedirectUris: string[];
+}
+interface RabbitMqConfig {
+  url: string;
+  exchange: string;
+}
+interface CryptoConfig {
+  mfaSecretEncryptionKey: string;
+}
+interface PythonWorkerConfig {
+  baseUrl: string;
+}
 ```
 
 ## Environment Variables
 
-| Variable | Type | Required | Default | Notes |
-|---|---|---|---|---|
-| `DATABASE_URL` | string | Yes | — | Prisma connection string |
-| `AUTH_BCRYPT_COST` | number | No | 12 | Min 10 |
-| `AUTH_SESSION_TTL_SECONDS` | number | No | 86400 | |
-| `JWT_SECRET` | string | Yes | — | ≥ 32 chars |
-| `OAUTH_GITHUB_CLIENT_ID` | string | Yes | — | |
-| `OAUTH_GITHUB_CLIENT_SECRET` | string | Yes | — | |
-| `OAUTH_ALLOWED_REDIRECT_URIS` | string | Yes | — | Comma-separated |
-| `RABBITMQ_URL` | string | Yes | — | |
-| `RABBITMQ_EXCHANGE` | string | No | `lcsp.events` | |
-| `MFA_SECRET_ENCRYPTION_KEY` | string | Yes | — | AES-256-GCM: 32-byte hex |
-| `NODE_ENV` | string | No | `development` | `development` \| `production` \| `test` |
+| Variable                      | Type   | Required | Default       | Notes                                     |
+| ----------------------------- | ------ | -------- | ------------- | ----------------------------------------- |
+| `DATABASE_URL`                | string | Yes      | —             | Prisma connection string                  |
+| `AUTH_BCRYPT_COST`            | number | No       | 12            | Min 10                                    |
+| `AUTH_SESSION_TTL_SECONDS`    | number | No       | 86400         |                                           |
+| `JWT_SECRET`                  | string | Yes      | —             | ≥ 32 chars                                |
+| `OAUTH_GOOGLE_CLIENT_ID`      | string | No       | `""`          | Google OAuth login is disabled when blank |
+| `OAUTH_GOOGLE_CLIENT_SECRET`  | string | No       | `""`          | Google OAuth login is disabled when blank |
+| `OAUTH_ALLOWED_REDIRECT_URIS` | string | Yes      | —             | Comma-separated                           |
+| `RABBITMQ_URL`                | string | Yes      | —             |                                           |
+| `RABBITMQ_EXCHANGE`           | string | No       | `lcsp.events` |                                           |
+| `MFA_SECRET_ENCRYPTION_KEY`   | string | Yes      | —             | AES-256-GCM: 32-byte hex                  |
+| `NODE_ENV`                    | string | No       | `development` | `development` \| `production` \| `test`   |
 
 ## Business Rules
 
@@ -63,14 +80,14 @@ interface PythonWorkerConfig { baseUrl: string }
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | All required vars set | App starts successfully |
-| T02 | Missing `DATABASE_URL` | App startup fails with descriptive error |
-| T03 | Missing `JWT_SECRET` | App startup fails |
-| T04 | `MFA_SECRET_ENCRYPTION_KEY` wrong length | App startup fails |
-| T05 | `AUTH_BCRYPT_COST` below 10 | App startup fails or clamps to 10 |
-| T06 | `OAUTH_ALLOWED_REDIRECT_URIS` = `"a,b,c"` | Parsed as `['a', 'b', 'c']` |
+| ID  | Scenario                                  | Expected                                 |
+| --- | ----------------------------------------- | ---------------------------------------- |
+| T01 | All required vars set                     | App starts successfully                  |
+| T02 | Missing `DATABASE_URL`                    | App startup fails with descriptive error |
+| T03 | Missing `JWT_SECRET`                      | App startup fails                        |
+| T04 | `MFA_SECRET_ENCRYPTION_KEY` wrong length  | App startup fails                        |
+| T05 | `AUTH_BCRYPT_COST` below 10               | App startup fails or clamps to 10        |
+| T06 | `OAUTH_ALLOWED_REDIRECT_URIS` = `"a,b,c"` | Parsed as `['a', 'b', 'c']`              |
 
 ## Definition of Done
 

@@ -9,6 +9,7 @@ import {
   type MfaRecoveryCodeAccessAction,
   type ProblemMeta,
   PROBLEM_KEYS,
+  SIGN_UP_ERROR_CODES,
 } from "@lcsp/contracts/auth";
 import type { MessageKey } from "@lcsp/i18n";
 
@@ -82,6 +83,13 @@ export type AcceptInvitationOutcome =
 
 export type SignInRequest = {
   email: string;
+  password: string;
+};
+
+export type SignUpRequest = {
+  email: string;
+  display_name: string;
+  organization_name: string;
   password: string;
 };
 
@@ -257,6 +265,13 @@ export type SignInOutcome =
       retryAfterSeconds?: number;
     };
 
+export type SignUpOutcome =
+  | { kind: typeof API_OUTCOME_KINDS.authenticated }
+  | { kind: typeof API_OUTCOME_KINDS.emailAlreadyExists }
+  | { kind: typeof API_OUTCOME_KINDS.passwordTooShort }
+  | { kind: typeof API_OUTCOME_KINDS.validationError }
+  | { kind: typeof API_OUTCOME_KINDS.error };
+
 export function toSignInOutcome(
   payload: unknown,
   ok: boolean,
@@ -317,6 +332,38 @@ export async function signIn(
   });
 
   return toSignInOutcome(payload, ok, problemCode);
+}
+
+export async function signUp(request: SignUpRequest): Promise<SignUpOutcome> {
+  const { ok, payload, problemCode } = await apiRequest("/api/auth/sign-up", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(request),
+  });
+
+  return toSignUpOutcome(payload, ok, problemCode);
+}
+
+export function toSignUpOutcome(
+  payload: unknown,
+  ok: boolean,
+  problemCode = getProblemCode(payload),
+): SignUpOutcome {
+  if (ok) {
+    return { kind: API_OUTCOME_KINDS.authenticated };
+  }
+
+  switch (problemCode) {
+    case SIGN_UP_ERROR_CODES.emailAlreadyExists:
+      return { kind: API_OUTCOME_KINDS.emailAlreadyExists };
+    case SIGN_UP_ERROR_CODES.passwordTooShort:
+      return { kind: API_OUTCOME_KINDS.passwordTooShort };
+    case SIGN_UP_ERROR_CODES.invalidRequest:
+    case AUTH_ERROR_CODES.validationFailed:
+      return { kind: API_OUTCOME_KINDS.validationError };
+    default:
+      return { kind: API_OUTCOME_KINDS.error };
+  }
 }
 
 export async function previewInvitation(
@@ -653,7 +700,9 @@ export async function checkSensitiveRoute(
       };
 }
 
-function isSensitiveRouteCheck(payload: unknown): payload is SensitiveRouteCheck {
+function isSensitiveRouteCheck(
+  payload: unknown,
+): payload is SensitiveRouteCheck {
   if (typeof payload !== "object" || payload === null) {
     return false;
   }

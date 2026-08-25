@@ -18,6 +18,7 @@ import {
   revokeAuthSession,
   requestPasswordRecovery,
   signIn,
+  signUp,
   signOut,
   updateProfile,
   verifyMfaRecoveryCode,
@@ -28,6 +29,10 @@ import { apiQueryKeys } from "./query-keys";
 
 export function useSignInMutation() {
   return useMutation({ mutationFn: signIn });
+}
+
+export function useSignUpMutation() {
+  return useMutation({ mutationFn: signUp });
 }
 
 export function useInvitationPreviewQuery(invitationToken: string) {

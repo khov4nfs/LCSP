@@ -5,6 +5,83 @@ do not rewrite older entries unless correcting a factual error.
 
 ## Unreleased
 
+### 2026-08-25 - Remove GitHub OAuth Login
+
+#### Removed
+
+- Removed GitHub classic OAuth login from auth-workspace provider registration, config, sign-in UI, and account-link UI.
+
+#### Changed
+
+- Kept OAuth login on Google OIDC only when configured.
+- Updated BFF OAuth allowlists so `provider=github` is rejected instead of redirected.
+- Updated auth/web/config docs to keep GitHub App repository authorization separate from user login.
+
+#### Verification
+
+- `rtk pnpm --filter @lcsp/api test -- --runTestsByPath src/config/config.spec.ts src/modules/auth-workspace/application/commands/oauth-start/oauth-start.handler.spec.ts src/modules/auth-workspace/application/commands/oauth-callback/oauth-callback.handler.spec.ts --runInBand`
+- `rtk pnpm --filter @lcsp/api test:e2e -- --runInBand --runTestsByPath test/oauth-login.e2e-spec.ts`
+- `rtk pnpm run typecheck`
+- `rtk pnpm run test:web`
+- `rtk pnpm --filter @lcsp/api build`
+- `rtk pnpm --filter @lcsp/web lint`
+- `rtk pnpm --filter @lcsp/web build`
+- `rtk pnpm run check:imports`
+- `rtk pnpm run check:agentic-tools`
+- `git diff --check`
+
+#### Known Remaining Work
+
+- `rtk pnpm --filter @lcsp/api lint` still reports the pre-existing `require-await` error in `apps/api/src/modules/wizard/presentation/http/wizard.controller.ts` plus existing legal-rule-catalog warnings.
+- `rtk pnpm run check:contracts` still reports broader pre-existing canonical literal policy violations outside the OAuth login removal.
+
+### 2026-08-25 - Self Sign-Up Account Flow
+
+#### Added
+
+- Added public API endpoint `POST /auth/sign-up` for account creation without invitation acceptance.
+- Added transactional self-signup handler that creates the user, organization workspace, Manager PBAC policy, active membership, scoped session, and auth audit event together.
+- Added web BFF route `/api/auth/sign-up`, `/sign-up` page, signup form schema/config, i18n copy, and sign-in page link to account creation.
+- Added `SIGN_UP_ERROR_CODES` and auth signup audit event constants in shared contracts.
+
+#### Changed
+
+- Exported signup schema/client helpers from `@lcsp/web`.
+- Updated auth/web implementation docs and web component index for the signup path.
+
+#### Verification
+
+- `rtk pnpm --filter @lcsp/api test:e2e -- --runInBand --runTestsByPath test/sign-up.e2e-spec.ts`
+- `rtk pnpm run typecheck`
+- `rtk pnpm run test:web`
+- `rtk pnpm --filter @lcsp/api build`
+- `rtk pnpm --filter @lcsp/web build`
+- `rtk pnpm run check:imports`
+- `rtk pnpm run check:agentic-tools`
+- `git diff --check`
+
+#### Known Remaining Work
+
+- `rtk pnpm run check:contracts` still reports broader pre-existing canonical literal policy violations outside the signup change.
+- `rtk pnpm --filter @lcsp/api lint` still reports a pre-existing `require-await` error in `apps/api/src/modules/wizard/presentation/http/wizard.controller.ts` and warnings in legal-rule-catalog specs.
+
+### 2026-08-25 - GitHub PR Milestone Mapping
+
+#### Changed
+
+- Updated GitHub milestone descriptions for `Release` and `Core Backend`.
+- Mapped all 270 pull requests across the milestone taxonomy:
+  - `Landing & Docs`
+  - `Release`
+  - `Core Backend`
+  - `Tools & Deep Agents`
+  - `Web App & UI`
+
+#### Verification
+
+- Refreshed all PR milestone metadata from GitHub after update.
+- Verified final mapping mismatch count: `0`.
+
 ### 2026-08-25 - EngineeringRule Runtime Cleanup
 
 #### Changed

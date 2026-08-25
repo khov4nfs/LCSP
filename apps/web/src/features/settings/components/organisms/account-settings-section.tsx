@@ -1,7 +1,7 @@
 "use client";
 
 import { resolveMessage } from "@lcsp/i18n";
-import { KeyRoundIcon, LinkIcon, UserIcon } from "lucide-react";
+import { LinkIcon, UserIcon } from "lucide-react";
 
 import { InfoGrid } from "@/components/molecules/info-grid";
 import { SectionHeading } from "@/components/molecules/section-heading";
@@ -23,7 +23,10 @@ export function AccountSettingsSection({
   return (
     <section className="flex flex-col gap-4">
       <SectionHeading
-        title={resolveMessage(appLocale, "pages.workspace.settingsHub.account.title")}
+        title={resolveMessage(
+          appLocale,
+          "pages.workspace.settingsHub.account.title",
+        )}
         description={resolveMessage(
           appLocale,
           "pages.workspace.settingsHub.account.description",
@@ -129,17 +132,6 @@ export function AccountSettingsSection({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => startOAuthLink("github")}
-          >
-            <KeyRoundIcon className="size-4" />
-            {resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.actions.linkGitHub",
-            )}
-          </Button>
           <Button
             type="button"
             variant="outline"
