@@ -1,30 +1,30 @@
 ---
-task_id: MW-pbac-003
-module: platform/pbac
+task_id: MW-rbac-003
+module: platform/rbac
 runtime: nestjs-api
 priority: P0
 status: READY_FOR_DEV
 epic_story: 1.6
 depends_on:
-  - platform/pbac/02-evaluator-service.md
+  - platform/rbac/02-evaluator-service.md
   - platform/audit-writer/02-audit-writer-service.md
 ---
 
-# PBAC NestJS Guard
+# RBAC NestJS Guard
 
 ## Outcome
 
-Implement the `PbacGuard` NestJS `CanActivate` guard that orchestrates session resolution, policy loading, PBAC evaluation, decision logging, and HTTP error mapping. Works with `@RequireAction()` and `@RequireSession()` decorators. Default deny on any failure.
+Implement the `RbacGuard` NestJS `CanActivate` guard that orchestrates session resolution, policy loading, RBAC evaluation, decision logging, and HTTP error mapping. Works with `@RequireAction()` and `@RequireSession()` decorators. Default deny on any failure.
 
 ## Module Files
 
 | File                                                                 | Action | Notes                                               |
 | -------------------------------------------------------------------- | ------ | --------------------------------------------------- |
-| `apps/api/src/platform/pbac/pbac.guard.ts`                           | Create | NestJS `CanActivate` implementation                 |
-| `apps/api/src/platform/pbac/decorators/require-action.decorator.ts`  | Create | `@RequireAction('action:name')`                     |
-| `apps/api/src/platform/pbac/decorators/require-session.decorator.ts` | Create | `@RequireSession()` — session-only, no action check |
-| `apps/api/src/platform/pbac/pbac-context.loader.ts`                  | Create | Loads session + membership + policy from DB         |
-| `apps/api/src/platform/pbac/pbac.module.ts`                          | Modify | Register guard + decorators                         |
+| `apps/api/src/platform/rbac/rbac.guard.ts`                           | Create | NestJS `CanActivate` implementation                 |
+| `apps/api/src/platform/rbac/decorators/require-action.decorator.ts`  | Create | `@RequireAction('action:name')`                     |
+| `apps/api/src/platform/rbac/decorators/require-session.decorator.ts` | Create | `@RequireSession()` — session-only, no action check |
+| `apps/api/src/platform/rbac/rbac-context.loader.ts`                  | Create | Loads session + membership + policy from DB         |
+| `apps/api/src/platform/rbac/rbac.module.ts`                          | Modify | Register guard + decorators                         |
 
 ## Guard Flow
 
@@ -38,9 +38,9 @@ Request arrives
   → Load AuthMembership (userId, orgId, status = active)
   → If not found → 403 MEMBERSHIP_MISSING
   → Load AuthPolicy (policyId, policyVersion from membership)
-  → If not found → 403 PBAC_DENIED (POLICY_NOT_FOUND)
-  → Call PbacEvaluatorService.evaluate(ctx)
-  → If deny → write AuthDecisionLog + return 403 PBAC_DENIED
+  → If not found → 403 RBAC_DENIED (POLICY_NOT_FOUND)
+  → Call RbacEvaluatorService.evaluate(ctx)
+  → If deny → write AuthDecisionLog + return 403 RBAC_DENIED
   → If allow → write AuthDecisionLog (allow) + set request context + next()
 ```
 
@@ -48,14 +48,14 @@ Request arrives
 
 ```typescript
 // Session check only (no action required)
-@UseGuards(PbacGuard)
+@UseGuards(RbacGuard)
 @RequireSession()
 async getWorkspace() { ... }
 
-// Session + PBAC action check
-@UseGuards(PbacGuard)
-@RequireAction('invite:developer')
-async inviteDeveloper() { ... }
+// Session + RBAC action check
+@UseGuards(RbacGuard)
+@RequireAction('workspace:read')
+async getWorkspace() { ... }
 ```
 
 ## Request Context Injection
@@ -63,7 +63,7 @@ async inviteDeveloper() { ... }
 After allow, the guard sets the following on the request object for downstream handlers:
 
 ```typescript
-request.pbacContext = {
+request.rbacContext = {
   userId: string,
   sessionId: string,
   organizationId: string,
@@ -81,7 +81,7 @@ request.pbacContext = {
 | 401  | `SESSION_INVALID`    | Token missing, invalid, expired, or revoked                     |
 | 401  | `MFA_REQUIRED`       | MFA enrolled but not verified on session                        |
 | 403  | `MEMBERSHIP_MISSING` | No active membership                                            |
-| 403  | `PBAC_DENIED`        | Policy not found, action not granted, role mismatch, state gate |
+| 403  | `RBAC_DENIED`        | Policy not found, action not granted, role mismatch, state gate |
 
 ## Business Rules
 
@@ -113,18 +113,18 @@ request.pbacContext = {
 | T04 | Revoked session                                      | 401 `SESSION_INVALID`              |
 | T05 | MFA enrolled + unverified                            | 401 `MFA_REQUIRED`                 |
 | T06 | No active membership                                 | 403 `MEMBERSHIP_MISSING`           |
-| T07 | Action not in policy                                 | 403 `PBAC_DENIED`                  |
-| T08 | Policy not found in DB                               | 403 `PBAC_DENIED`                  |
-| T09 | DB error during load                                 | 403 `PBAC_DENIED` (deny on error)  |
+| T07 | Action not in policy                                 | 403 `RBAC_DENIED`                  |
+| T08 | Policy not found in DB                               | 403 `RBAC_DENIED`                  |
+| T09 | DB error during load                                 | 403 `RBAC_DENIED` (deny on error)  |
 | T10 | 403 response has no policyId or actions              | Response body clean                |
-| T11 | `request.pbacContext` set after allow                | Downstream handler has context     |
+| T11 | `request.rbacContext` set after allow                | Downstream handler has context     |
 | T12 | `@RequireSession()` passes with no action            | Valid session + membership → allow |
 | T13 | `AuthDecisionLog` written for every request          | DB row exists for T01, T04, T07    |
 
 ## Definition of Done
 
 - Guard never allows on exception — all error paths return 401 or 403.
-- `request.pbacContext` populated for allowed requests.
+- `request.rbacContext` populated for allowed requests.
 - `AuthDecisionLog` written for every allow and deny decision.
 - 403 response body contains only `error_code` and `correlationId`.
 - `@RequireAction()` and `@RequireSession()` decorators functional.

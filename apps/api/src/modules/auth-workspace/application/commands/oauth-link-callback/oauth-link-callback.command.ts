@@ -5,20 +5,17 @@ export class OAuthLinkCallbackCommand {
   readonly payload: OAuthLinkCallbackPayload;
   readonly userId: string;
   readonly sessionId: string;
-  readonly organizationId: string;
   readonly requestMeta: RequestMeta;
 
   constructor(
     payload: OAuthLinkCallbackPayload,
     userId: string,
     sessionId: string,
-    organizationId: string,
     requestMeta: RequestMeta = {},
   ) {
     this.payload = payload;
     this.userId = userId;
     this.sessionId = sessionId;
-    this.organizationId = organizationId;
     this.requestMeta = requestMeta;
   }
 }

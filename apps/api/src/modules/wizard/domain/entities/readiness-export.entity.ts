@@ -4,7 +4,6 @@ import type { ReadinessExportStatus } from "../../application/contracts/wizard/r
 export interface ReadinessExportEntity {
   id: string;
   assessmentId: string;
-  organizationId: string;
   ownerId: string;
   version: number;
   status: ReadinessExportStatus;

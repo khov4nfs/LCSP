@@ -24,7 +24,7 @@ Why this slice is next:
 
 - direct handler coverage exists across the AO-5 gap tool chain
 - controller coverage exists for the new `gap-requirements` endpoint
-- shared contract and PBAC overlap has already been reduced to packet files plus minimal composition hunks
+- shared contract and RBAC overlap has already been reduced to packet files plus minimal composition hunks
 - `classification.module.ts` is now thin enough to patch-split at the composition-root level
 
 ## Exact file set to include
@@ -45,8 +45,8 @@ Tracked modified files:
 - `apps/api/src/modules/classification/presentation/http/gap-requirements.controller.spec.ts`
 - `packages/contracts/src/evidence/agentic-tool.ts`
 - `packages/contracts/src/evidence/index.ts`
-- `packages/contracts/src/pbac/actions.ts`
-- `packages/contracts/src/pbac/manager-policy.ts`
+- `packages/contracts/src/rbac/actions.ts`
+- `packages/contracts/src/rbac/manager-policy.ts`
 
 Untracked packet / registration files to include:
 
@@ -54,8 +54,8 @@ Untracked packet / registration files to include:
 - `packages/contracts/src/evidence/agentic-tool-ao5.ts`
 - `packages/contracts/src/evidence/ao5-agentic-evidence.ts`
 - `packages/contracts/src/evidence/gap-requirements.ts`
-- `packages/contracts/src/pbac/ao5-actions.ts`
-- `packages/contracts/src/pbac/ao5-manager-policy.ts`
+- `packages/contracts/src/rbac/ao5-actions.ts`
+- `packages/contracts/src/rbac/ao5-manager-policy.ts`
 
 ## Minimal shared hunk rules
 
@@ -86,12 +86,12 @@ Do not carry AO-3 or AO-4 packet composition hunks.
 
 - `export * from "./ao5-agentic-evidence.ts";`
 
-`packages/contracts/src/pbac/actions.ts` must carry only:
+`packages/contracts/src/rbac/actions.ts` must carry only:
 
-- the import of `AO5_PBAC_ACTIONS`
-- the spread of `...AO5_PBAC_ACTIONS`
+- the import of `AO5_RBAC_ACTIONS`
+- the spread of `...AO5_RBAC_ACTIONS`
 
-`packages/contracts/src/pbac/manager-policy.ts` must carry only:
+`packages/contracts/src/rbac/manager-policy.ts` must carry only:
 
 - the import of `AO5_MANAGER_ONLY_ACTION_VALUES`
 - the spread of `...AO5_MANAGER_ONLY_ACTION_VALUES`
@@ -112,8 +112,8 @@ Do not move these files into the Candidate 3 branch:
 - `packages/contracts/src/evidence/agentic-tool-ao4.ts`
 - `packages/contracts/src/evidence/ao4-agentic-evidence.ts`
 - `packages/contracts/src/evidence/wizard-claim-comparison.ts`
-- `packages/contracts/src/pbac/ao3-actions.ts`
-- `packages/contracts/src/pbac/ao3-manager-policy.ts`
+- `packages/contracts/src/rbac/ao3-actions.ts`
+- `packages/contracts/src/rbac/ao3-manager-policy.ts`
 
 Also leave out unchanged adjacent files unless a fresh edit is made intentionally:
 

@@ -7,7 +7,6 @@ import type { Prisma } from "@prisma/client";
 export const ASSESSMENT_REPOSITORY = Symbol("ASSESSMENT_REPOSITORY");
 
 export interface AssessmentListCriteria {
-  organizationId: string;
   ownerId?: string;
   assessmentId?: string;
   status?: AssessmentStatus;

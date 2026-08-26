@@ -33,7 +33,7 @@ Missing inventory=`NEEDS_INPUT`; stale/foreign refs=`BLOCKED`; grammar/regex/tim
 
 ## 11–15. LLM, registry, audit and security
 
-Not exposed to model; models get graph/query projections later and may use structural context, never infer arguments/runtime behavior. Registry `run_structural_augmentation/1.0.0`, `SCAN_EXECUTE`, state `SCAN_RUNNING`, refs above, 180/240 s, no mutation. Audit parser/config hash, file/fact/limitation counts, refs and duration; forbid code/decorator argument/full AST/absolute path. Trusted scan PBAC/workspace isolation; parser output must pass privacy gate.
+Not exposed to model; models get graph/query projections later and may use structural context, never infer arguments/runtime behavior. Registry `run_structural_augmentation/1.0.0`, `SCAN_EXECUTE`, state `SCAN_RUNNING`, refs above, 180/240 s, no mutation. Audit parser/config hash, file/fact/limitation counts, refs and duration; forbid code/decorator argument/full AST/absolute path. Trusted scan RBAC/workspace isolation; parser output must pass privacy gate.
 
 ## 16–22. Scenario, AC, tests, files
 

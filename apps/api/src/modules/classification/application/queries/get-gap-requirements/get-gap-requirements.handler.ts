@@ -1,13 +1,8 @@
 import { createHash } from "node:crypto";
 
-import { HttpStatus } from "@nestjs/common";
-import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
-import {
-  ClassificationGuardrailStatus,
-  EvidenceAcceptanceStatus,
-} from "@prisma/client";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   AGENTIC_TOOL_COVERAGE_STATES,
   AGENTIC_TOOL_EVENT_TYPES,
@@ -17,7 +12,12 @@ import {
   GET_GAP_REQUIREMENTS_TOOL,
   type GetGapRequirementsResponse,
 } from "@lcsp/contracts/evidence";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { HttpStatus } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
+import {
+  ClassificationGuardrailStatus,
+  EvidenceAcceptanceStatus,
+} from "@prisma/client";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -25,7 +25,7 @@ import { problemException } from "../../../../../platform/problems/problem-facto
 import { GetGapRequirementsQuery } from "./get-gap-requirements.query.js";
 
 const CLASSIFICATION_REF_PREFIX = "classification:";
-const POLICY_REF_PREFIX = "policy_";
+const POLICY_REF_PREFIX = "rbac-role_";
 const MATRIX_REF_PREFIX = "matrix:";
 const REQUIREMENT_LOCATORS = {
   applicabilityAssessment: "classification.applicability_assessment",
@@ -47,7 +47,7 @@ export class GetGapRequirementsHandler implements IQueryHandler<
     query: GetGapRequirementsQuery,
   ): Promise<GetGapRequirementsResponse> {
     const assessment = await this.prisma.assessment.findFirst({
-      where: { id: query.assessmentId, organizationId: query.organizationId },
+      where: { id: query.assessmentId },
       select: { id: true },
     });
     if (!assessment) {
@@ -62,23 +62,20 @@ export class GetGapRequirementsHandler implements IQueryHandler<
       query.input.classificationRef,
       CLASSIFICATION_REF_PREFIX,
     );
-    const [classification, policyOk] = await Promise.all([
-      this.prisma.classificationResult.findFirst({
-        where: {
-          id: classificationId,
-          assessmentId: assessment.id,
-          organizationId: query.organizationId,
-          status: EvidenceAcceptanceStatus.ACCEPTED,
-        },
-        select: {
-          id: true,
-          classificationData: true,
-          guardrailStatus: true,
-          blockedReason: true,
-        },
-      }),
-      this.policyMatchesInput(query),
-    ]);
+    const classification = await this.prisma.classificationResult.findFirst({
+      where: {
+        id: classificationId,
+        assessmentId: assessment.id,
+        status: EvidenceAcceptanceStatus.ACCEPTED,
+      },
+      select: {
+        id: true,
+        classificationData: true,
+        guardrailStatus: true,
+        blockedReason: true,
+      },
+    });
+    const policyOk = this.policyMatchesInput(query);
 
     if (!policyOk) {
       return this.writeAndReturn(
@@ -171,25 +168,12 @@ export class GetGapRequirementsHandler implements IQueryHandler<
     return this.writeAndReturn(query, assessment.id, response);
   }
 
-  private async policyMatchesInput(
-    query: GetGapRequirementsQuery,
-  ): Promise<boolean> {
-    if (!query.policyId || !query.policyVersion) return false;
-    if (
-      query.input.policyProfileVersionId !==
-      policyProfileVersionRef(query.policyId, query.policyVersion)
-    ) {
-      return false;
-    }
-    const policy = await this.prisma.authPolicy.findFirst({
-      where: {
-        id: query.policyId,
-        version: query.policyVersion,
-        organizationId: query.organizationId,
-      },
-      select: { actions: true },
-    });
-    return Boolean(policy?.actions.includes(PBAC_ACTIONS.gapRequirementsRead));
+  private policyMatchesInput(query: GetGapRequirementsQuery): boolean {
+    return (
+      query.input.policyProfileVersionId ===
+        roleProfileVersionRef(query.actorRole) &&
+      query.actorRole === AUTH_USER_ROLES.customer
+    );
   }
 
   private async writeAndReturn(
@@ -200,7 +184,6 @@ export class GetGapRequirementsHandler implements IQueryHandler<
     await this.auditWriter.write({
       eventType: AGENTIC_TOOL_EVENT_TYPES.gapRequirementsRead,
       actorId: query.actorId,
-      organizationId: query.organizationId,
       assessmentId,
       resourceType: AUDIT_RESOURCE_TYPES.assessment,
       resourceId: assessmentId,
@@ -309,8 +292,8 @@ function idFromRef(ref: string, prefix: string): string {
   return ref.startsWith(prefix) ? ref.slice(prefix.length) : ref;
 }
 
-function policyProfileVersionRef(policyId: string, version: string): string {
-  return `${POLICY_REF_PREFIX}${policyId}_${version}`;
+function roleProfileVersionRef(role: string): string {
+  return `${POLICY_REF_PREFIX}${role}`;
 }
 
 function provenanceRef(correlationId: string): string {

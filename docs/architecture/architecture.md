@@ -21,27 +21,27 @@ LCSP is a modular, evidence-first compliance platform. The system is intentional
 
 ## Core Components
 
-| Component | Why It Exists | Communicates With |
-|---|---|---|
-| Web Frontend | Manager workspace for assessment, repository connection, scan progress, conflict resolution, classification and documents; renders customer-facing auth and blocked-state copy from approved stable keys. | Backend API, shared contracts/i18n packages. |
-| Backend API | Auth, PBAC enforcement boundary, assessment state, synchronous user actions, trusted trigger creation, async work creation; emits safe auth/workspace error contracts with stable keys instead of relying on hardcoded user-facing prose. | Web Frontend, shared contracts packages, Persistence, Queue boundary, GitHub App. |
-| Repository Integration | Authorizes read-only repository access separately from OAuth/OIDC login. | Backend API, GitHub. |
-| Python Worker Platform | Owns all asynchronous domain workloads through bounded consumers/modules, not a monolithic Python process. | Queue boundary, Persistence, Object Storage, LLM Gateway, Repository Integration. |
-| Python Scanner Worker | Owns Repository Scan lifecycle and produces static-analysis technical evidence from commit-pinned repository snapshots using Syft, Knip, deptry, `ast`/`libcst`, bounded `ts-morph`, tree-sitter/custom parser, and Semgrep custom rules. | Queue boundary, Persistence, Repository Integration, TS/JS analyzer CLI. |
-| Python AIUsageFlow Worker | Converts technical evidence and WizardProfile into business usage claims through a bounded LangGraph runtime that mixes deterministic evidence transforms with controlled LLM-assisted reasoning nodes. | Persistence, Reconciliation, LLM Gateway. |
-| Python Reconciliation Worker | Compares Manager declarations and technical evidence; pauses for Manager resolution when needed; creates VerifiedProfile. | Backend API, Persistence. |
-| Python Legal Source Ingestion Worker | Fetches official legal sources, snapshots raw PDF/HTML into S3-compatible storage, normalizes legal structure, and stages corpus versions for review. | Queue boundary, Object Storage, Persistence. |
-| Corpus Review / Approval | Internal Legal Operator gate that approves corpus versions before retrieval or classification can use them. This is an internal control function, not a new customer-facing product role. | Backend API, Persistence, Audit, ChromaDB Legal Indexer. |
-| Legal Corpus Store | Versioned, provenance-preserving legal corpus metadata, document chunks, source snapshots, approval records, corpus version pins and legal structure graph. | Persistence, Object Storage, ChromaDB Legal Retriever. |
-| ChromaDB Legal Indexer | Builds a structure-first vectorless legal retrieval index for approved corpus versions: document/chunk storage, stable hierarchical IDs, metadata filters, full-text records, direct ID lookup and cross-reference graph metadata. | Queue boundary, Persistence, ChromaDB, Legal Corpus Store. |
-| ChromaDB Legal Retriever | Retrieves citation-backed legal rules using full-text/metadata candidates, direct chunk/article lookup, parent-context assembly, one-hop cross-reference expansion and citation allowlist validation. | ChromaDB Legal Index, Legal Matching, Retrieval Audit. |
-| Citation Guardrail | Blocks or degrades legal matching, classification and documents when required citation/rule basis is missing or corpus version is not approved. | Legal Matching, Classification, Document Generation, Audit. |
-| LLM Gateway | Central model boundary for real provider calls, prompt/template versions, schema validation, retries, model metadata and privacy enforcement. Mock mode is unit/offline-only and is not acceptance evidence. | AIUsageFlow, Classification, Document Generation, Persistence. |
-| Python Legal Matching Worker | Retrieves citation-backed legal rules for verified claims through the ChromaDB Legal Retriever and citation guardrails. | ChromaDB Legal Retriever, Legal Corpus Store, Classification. |
-| Python Classification Worker | Classifies only from VerifiedProfile plus citation-backed legal matches. | Persistence, Gap Analysis. |
-| Python Gap Analysis Worker | Converts completed RiskClassification plus citation-backed legal matches into structured compliance gaps, evidence gaps, citation gaps and remediation priorities before document generation. Blocks document generation when classification/legal basis is unusable. | Queue boundary, Persistence, Document Generation. |
-| Python Document Worker | Generates output documents only after classification, gap analysis, and output guardrails. | Object storage, Persistence. |
-| Audit | Records state-changing and compliance-critical actions without raw source/secrets/full prompts. | All components. |
+| Component                            | Why It Exists                                                                                                                                                                                                                                                         | Communicates With                                                                 |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Web Frontend                         | Manager workspace for assessment, repository connection, scan progress, conflict resolution, classification and documents; renders customer-facing auth and blocked-state copy from approved stable keys.                                                             | Backend API, shared contracts/i18n packages.                                      |
+| Backend API                          | Auth, RBAC enforcement boundary, assessment state, synchronous user actions, trusted trigger creation, async work creation; emits safe auth/workspace error contracts with stable keys instead of relying on hardcoded user-facing prose.                             | Web Frontend, shared contracts packages, Persistence, Queue boundary, GitHub App. |
+| Repository Integration               | Authorizes read-only repository access separately from OAuth/OIDC login.                                                                                                                                                                                              | Backend API, GitHub.                                                              |
+| Python Worker Platform               | Owns all asynchronous domain workloads through bounded consumers/modules, not a monolithic Python process.                                                                                                                                                            | Queue boundary, Persistence, Object Storage, LLM Gateway, Repository Integration. |
+| Python Scanner Worker                | Owns Repository Scan lifecycle and produces static-analysis technical evidence from commit-pinned repository snapshots using Syft, Knip, deptry, `ast`/`libcst`, bounded `ts-morph`, tree-sitter/custom parser, and Semgrep custom rules.                             | Queue boundary, Persistence, Repository Integration, TS/JS analyzer CLI.          |
+| Python AIUsageFlow Worker            | Converts technical evidence and WizardProfile into business usage claims through a bounded LangGraph runtime that mixes deterministic evidence transforms with controlled LLM-assisted reasoning nodes.                                                               | Persistence, Reconciliation, LLM Gateway.                                         |
+| Python Reconciliation Worker         | Compares Manager declarations and technical evidence; pauses for Manager resolution when needed; creates VerifiedProfile.                                                                                                                                             | Backend API, Persistence.                                                         |
+| Python Legal Source Ingestion Worker | Fetches official legal sources, snapshots raw PDF/HTML into S3-compatible storage, normalizes legal structure, and stages corpus versions for review.                                                                                                                 | Queue boundary, Object Storage, Persistence.                                      |
+| Corpus Review / Approval             | Internal Legal Operator gate that approves corpus versions before retrieval or classification can use them. This is an internal control function, not a new customer-facing product role.                                                                             | Backend API, Persistence, Audit, ChromaDB Legal Indexer.                          |
+| Legal Corpus Store                   | Versioned, provenance-preserving legal corpus metadata, document chunks, source snapshots, approval records, corpus version pins and legal structure graph.                                                                                                           | Persistence, Object Storage, ChromaDB Legal Retriever.                            |
+| ChromaDB Legal Indexer               | Builds a structure-first vectorless legal retrieval index for approved corpus versions: document/chunk storage, stable hierarchical IDs, metadata filters, full-text records, direct ID lookup and cross-reference graph metadata.                                    | Queue boundary, Persistence, ChromaDB, Legal Corpus Store.                        |
+| ChromaDB Legal Retriever             | Retrieves citation-backed legal rules using full-text/metadata candidates, direct chunk/article lookup, parent-context assembly, one-hop cross-reference expansion and citation allowlist validation.                                                                 | ChromaDB Legal Index, Legal Matching, Retrieval Audit.                            |
+| Citation Guardrail                   | Blocks or degrades legal matching, classification and documents when required citation/rule basis is missing or corpus version is not approved.                                                                                                                       | Legal Matching, Classification, Document Generation, Audit.                       |
+| LLM Gateway                          | Central model boundary for real provider calls, prompt/template versions, schema validation, retries, model metadata and privacy enforcement. Mock mode is unit/offline-only and is not acceptance evidence.                                                          | AIUsageFlow, Classification, Document Generation, Persistence.                    |
+| Python Legal Matching Worker         | Retrieves citation-backed legal rules for verified claims through the ChromaDB Legal Retriever and citation guardrails.                                                                                                                                               | ChromaDB Legal Retriever, Legal Corpus Store, Classification.                     |
+| Python Classification Worker         | Classifies only from VerifiedProfile plus citation-backed legal matches.                                                                                                                                                                                              | Persistence, Gap Analysis.                                                        |
+| Python Gap Analysis Worker           | Converts completed RiskClassification plus citation-backed legal matches into structured compliance gaps, evidence gaps, citation gaps and remediation priorities before document generation. Blocks document generation when classification/legal basis is unusable. | Queue boundary, Persistence, Document Generation.                                 |
+| Python Document Worker               | Generates output documents only after classification, gap analysis, and output guardrails.                                                                                                                                                                            | Object storage, Persistence.                                                      |
+| Audit                                | Records state-changing and compliance-critical actions without raw source/secrets/full prompts.                                                                                                                                                                       | All components.                                                                   |
 
 ### Phase 5.2L RAG Decision
 
@@ -100,14 +100,14 @@ Runtime rules:
 
 ## Mandatory Architectural Invariants
 
-- Manager can complete the active MVP flow without Developer assignment.
-- PBAC is the authorization source of truth. Roles are subject attributes/templates only.
+- Manager can complete the active MVP flow without external collaborator assignment.
+- RBAC is the authorization source of truth. Roles are subject attributes/templates only.
 - OAuth/OIDC login is separate from GitHub App repository authorization.
 - GitHub App read-only Repository Scan is the MVP golden technical-evidence path.
 - `FR-050` is Automatic Trusted Scan Initiation. Local/CI scanner report upload is superseded.
 - `FR-051` manual technical evidence JSON upload is removed from product scope.
 - `FR-052` delegated technical clarification is Deferred/Post-MVP.
-- Developer collaboration is optional; Manager can complete the A-to-Z golden path without Developer participation.
+- Developer invitation/task collaboration is retired from the active MVP; Manager can complete the A-to-Z golden path without external collaborator participation.
 - Structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP`.
 - Scanner is static-analysis only.
 - Scanner toolchain outputs are evidence only and never legal truth, classification truth, proof of active AI use, or proof of automated decision-making.
@@ -122,15 +122,15 @@ Runtime rules:
 
 ## Detail Ownership
 
-| Detail | Canonical Location |
-|---|---|
-| Domain behavior | `docs/specs/` |
-| Runtime traces | `docs/specs/domain-state-machines.md`, `docs/specs/event-catalog.md`, `docs/implementation/` |
-| Technology/library/build details | `docs/implementation/` |
-| Historical decisions | git history |
+| Detail                           | Canonical Location                                                                           |
+| -------------------------------- | -------------------------------------------------------------------------------------------- |
+| Domain behavior                  | `docs/specs/`                                                                                |
+| Runtime traces                   | `docs/specs/domain-state-machines.md`, `docs/specs/event-catalog.md`, `docs/implementation/` |
+| Technology/library/build details | `docs/implementation/`                                                                       |
+| Historical decisions             | git history                                                                                  |
 
 ## Open Technical Decisions
 
-- PBAC engine, policy storage, cache, invalidation, evaluation topology and failure behavior: resolved for implementation planning by `docs/implementation/decisions/pbac-runtime-decision.md`.
+- RBAC engine, policy storage, cache, invalidation, evaluation topology and failure behavior: resolved for implementation planning by `docs/implementation/decisions/rbac-runtime-decision.md`.
 - Automatic trusted scan trigger idempotency, retry/DLQ, replay authority and operator recovery: resolved for implementation planning by `docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`.
 - Scanner toolchain failure severity table and tool version/config/ruleset hash policy: resolved for implementation planning by `docs/implementation/decisions/scanner-severity-tool-provenance-decision.md`.

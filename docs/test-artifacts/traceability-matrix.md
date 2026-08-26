@@ -84,7 +84,7 @@ The trace run loaded the required Test Architect knowledge fragments:
 
 Applied principles:
 
-- P0/P1 priority is assigned to security, PBAC, data integrity, compliance, legal citation, worker idempotency, and fail-closed paths.
+- P0/P1 priority is assigned to security, RBAC, data integrity, compliance, legal citation, worker idempotency, and fail-closed paths.
 - Risk score `9` is a blocker; scores `6..8` require mitigation and produce gate concerns.
 - Each acceptance criterion must map to at least one test or to an explicit owned waiver.
 - Tests should be deterministic, isolated, explicit, focused, self-cleaning, and suitable for selective execution by priority and domain tags.
@@ -191,7 +191,7 @@ coverage_heuristics:
       - invalid_mfa_or_replayed_otp
       - unsafe_oauth_callback
       - oauth_without_github_authorization
-      - pbac_denied_manager_only_action
+      - rbac_denied_manager_only_action
       - revoked_developer_scope
       - worker_service_identity_denied
   error_path_coverage:
@@ -214,7 +214,7 @@ coverage_heuristics:
     status: no_e2e_or_component_tests_found
     missing_journeys:
       - login_mfa_oauth
-      - organization_and_pbac_scope
+      - organization_and_rbac_scope
       - assessment_wizard_readiness
       - repository_connection_and_scan_status
       - technical_profile_and_ai_usage_flow_review
@@ -261,7 +261,7 @@ mapped_tests: []
 
 | AC | Priority | Coverage | Test levels | Required coverage focus | Current mapped tests |
 |---|---|---|---|---|---|
-| AC-001 | P0 | NONE | API, Integration | PBAC-authorized assessment creation, audit event. | None |
+| AC-001 | P0 | NONE | API, Integration | RBAC-authorized assessment creation, audit event. | None |
 | AC-002 | P1 | NONE | API, Component/E2E | WizardProfile submission and business-language validation. | None |
 | AC-003 | P0 | NONE | API, E2E | Readiness-only state, no risk level, blocked/degraded messaging. | None |
 | AC-004 | P0 | NONE | API, Worker, Integration | Repository authorization, snapshot, scan, rerun history. | None |
@@ -284,7 +284,7 @@ mapped_tests: []
 | AC-021 | P0 | NONE | API, Integration, E2E | Auth/MFA/session denial and audit. | None |
 | AC-022 | P0 | NONE | API, Worker, Integration | Redaction/blocking at persistence/send/display boundaries. | None |
 | AC-023 | P0 | NONE | API, Integration, E2E | OAuth identity cannot authorize repository access. | None |
-| AC-024 | P0 | NONE | API, Integration | Organization and PBAC-denied action audit. | None |
+| AC-024 | P0 | NONE | API, Integration | Organization and RBAC-denied action audit. | None |
 | AC-025 | P0 | NONE | API, E2E | Developer cannot perform Manager-only actions. | None |
 | AC-026 | P0 | NONE | API, Integration | Revoked Developer policy blocks new actions and audits. | None |
 | AC-027 | P0 | NONE | E2E, Integration | Full login-to-audit-export MVP smoke on real dependencies. | None |
@@ -307,7 +307,7 @@ mapped_tests: []
 | AC-050C | P0 | NONE | API, Worker, Integration | Out-of-order trigger does not mutate completed history. | None |
 | AC-050D | P0 | NONE | API, Worker, E2E | Missing mapping blocks scan with actionable state. | None |
 | AC-050E | P0 | NONE | API, Worker, E2E | Ambiguous mapping blocks, no best-effort scan. | None |
-| AC-050F | P0 | NONE | API, Integration | Trigger authorization audit captures PBAC decision details. | None |
+| AC-050F | P0 | NONE | API, Integration | Trigger authorization audit captures RBAC decision details. | None |
 
 ### Coverage Logic Validation
 
@@ -317,7 +317,7 @@ mapped_tests: []
 | Duplicate coverage across levels | PASS. No mapped tests, so no duplicate mapping risk yet. |
 | Error/alternate states covered where required | FAIL. Error-path tests are missing across scan, worker, legal, LLM, queue, and document guards. |
 | API items marked FULL only with endpoint checks | PASS. No API item is marked `FULL`. |
-| Auth/authz items include denied/invalid path tests | FAIL. PBAC/auth negative-path tests are missing. |
+| Auth/authz items include denied/invalid path tests | FAIL. RBAC/auth negative-path tests are missing. |
 | UI journeys marked FULL only with E2E/component coverage | PASS. No UI journey is marked `FULL`. |
 
 ### Heuristic Signals by Coverage Domain
@@ -325,7 +325,7 @@ mapped_tests: []
 | Domain | Signal |
 |---|---|
 | Endpoint coverage | Missing for all route contracts discovered in `backend-implementation.md`. |
-| Auth/authz coverage | Missing positive and negative tests for login/session/MFA/OAuth/PBAC/Developer revocation/worker service identity. |
+| Auth/authz coverage | Missing positive and negative tests for login/session/MFA/OAuth/RBAC/Developer revocation/worker service identity. |
 | Error-path coverage | Missing validation, timeout, broker failure, duplicate/out-of-order, repository failure, scanner parser/cleanup, corpus, citation, LLM, and document guard tests. |
 | UI journey coverage | Missing E2E/component tests for every Manager, Developer, legal operations, document, and audit flow. |
 | UI state coverage | Missing loading, empty, validation, permission denied, blocked, degraded, and failed-with-recovery assertions. |
@@ -394,7 +394,7 @@ All 47 active acceptance criteria are currently uncovered because no executable 
 | URGENT | Run `/bmad:tea:atdd` for the 44 P0 acceptance criteria before implementation readiness can be considered testable. |
 | HIGH | Run `/bmad:tea:automate` after ATDD scaffolding to expand coverage for 3 P1 acceptance criteria. |
 | HIGH | Add API tests for 16 route contracts from `backend-implementation.md`. |
-| HIGH | Add negative-path auth/authz tests for login/session/MFA/OAuth/PBAC/Developer revocation/worker service identity. |
+| HIGH | Add negative-path auth/authz tests for login/session/MFA/OAuth/RBAC/Developer revocation/worker service identity. |
 | MEDIUM | Add error/edge tests for validation, timeout, broker, duplicate/out-of-order, repository, scanner, legal corpus, citation, LLM, and document guard failures. |
 | HIGH | Add E2E or component coverage for the eight core UX journeys. |
 | MEDIUM | Add UI state coverage for loading, empty, validation error, permission denied, blocked, degraded, and failed-with-recovery states. |
@@ -478,7 +478,7 @@ P0 coverage is 0% (required: 100%). 44 critical requirements uncovered.
 
 1. Run `/bmad:tea:atdd` for the 44 P0 acceptance criteria.
 2. Add API/integration tests for the 16 route contracts and worker command/event handoffs.
-3. Add negative-path tests for auth, PBAC, Developer revocation, worker service identity, citation allowlist, and fail-closed states.
+3. Add negative-path tests for auth, RBAC, Developer revocation, worker service identity, citation allowlist, and fail-closed states.
 4. Add E2E/component tests for the eight core UX journeys and blocked/degraded UI states.
 5. Re-run `$bmad-testarch-trace` after executable tests exist.
 

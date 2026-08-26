@@ -11,7 +11,7 @@ This delivery plan is synchronized to the active module-scoped task catalog. The
 
 ## Delivery Constraints
 
-- Platform config, audit, outbox, and PBAC gates must precede dependent feature modules.
+- Platform config, audit, outbox, and RBAC gates must precede dependent feature modules.
 - Repository snapshot precedes scan jobs.
 - Scanner evidence assembly precedes TechnicalProfile generation.
 - TechnicalProfile and AIUsageFlow precede reconciliation and VerifiedProfile.
@@ -21,7 +21,7 @@ This delivery plan is synchronized to the active module-scoped task catalog. The
 
 ## Current Build Sequence
 
-1. Platform foundation: `platform/config`, `platform/audit-writer`, `platform/outbox`, `platform/pbac`.
+1. Platform foundation: `platform/config`, `platform/audit-writer`, `platform/outbox`, `platform/rbac`.
 2. Workspace foundation: `auth-workspace`, then web sign-in/workspace surfaces.
 3. Assessment and wizard: `assessment`, `wizard`, then wizard web surface.
 4. Repository and scan: `github-integration`, `scan`, `python-workers/scanner`, `evidence`.

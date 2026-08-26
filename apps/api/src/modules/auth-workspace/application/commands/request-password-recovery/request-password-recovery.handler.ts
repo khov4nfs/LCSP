@@ -56,7 +56,6 @@ export class RequestPasswordRecoveryHandler {
       await this.support.recordAudit(repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.recoveryRequested,
         actor_id: null,
-        organization_id: null,
         decision: AUDIT_DECISIONS.allow,
         correlationId: correlationId,
       });
@@ -86,7 +85,6 @@ export class RequestPasswordRecoveryHandler {
     await this.support.recordAudit(repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.recoveryRequested,
       actor_id: user.id,
-      organization_id: null,
       decision: AUDIT_DECISIONS.allow,
       correlationId: correlationId,
     });

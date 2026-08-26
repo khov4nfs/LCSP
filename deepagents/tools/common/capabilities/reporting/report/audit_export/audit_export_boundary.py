@@ -20,7 +20,7 @@ class AuditExportBoundary(AgentBoundaryBase):
 
     boundary_source = "reporting.audit-export-requested"
     source_event = "audit.export-requested"
-    requires_pbac = False
+    requires_rbac = False
 
     def __init__(self):
         """Load worker configuration and construct the S3-backed generator.

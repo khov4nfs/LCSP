@@ -222,7 +222,7 @@ Do not commit if any of these are true:
 
 - `reconciliation.module.ts` still contains foreign reconciliation registration hunks outside Candidate 4 scope
 - shared evidence files still contain AO-3/AO-5/AO-6 packet imports/spreads
-- scratch worktree contains `packages/contracts/src/pbac/*` packet files
+- scratch worktree contains `packages/contracts/src/rbac/*` packet files
 - verification commands fail
 
 ## Source authority

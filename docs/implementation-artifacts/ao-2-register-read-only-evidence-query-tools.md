@@ -21,7 +21,7 @@ so that I receive bounded technical evidence without receiving raw source.
 
 - [ ] Define versioned `ToolCapability`, request, response, pagination, scope, provenance, and coverage contracts; register only explicit read-only capabilities. (AC: 1, 2)
 - [ ] Implement artifact-backed adapters for coverage, evidence/finding, symbol, bounded graph/flow, and similarity retrieval; enforce allow-lists and deterministic limits. (AC: 1, 2, 3)
-- [ ] Implement targeted-reanalysis authorization/idempotency/audit seam and add contract, PBAC, pagination, and privacy-leak tests. (AC: 3, 4)
+- [ ] Implement targeted-reanalysis authorization/idempotency/audit seam and add contract, RBAC, pagination, and privacy-leak tests. (AC: 3, 4)
 
 ## Dev Notes
 
@@ -42,7 +42,7 @@ so that I receive bounded technical evidence without receiving raw source.
 
 - `packages/contracts/src/agentic-evidence/*` or the existing contract module
 - `deepagents/tools/*` for worker-owned registry/capability implementations and read-model support, never source re-execution
-- `apps/api/src/modules/*/application/services/*` only for the PBAC, audit, and persistence gateway boundary
+- `apps/api/src/modules/*/application/services/*` only for the RBAC, audit, and persistence gateway boundary
 - focused API/worker contract and privacy tests
 
 ### Verification Requirements

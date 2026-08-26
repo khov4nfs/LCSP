@@ -18,16 +18,16 @@ LCSP does not use free-form autonomous handoffs for compliance-critical workflow
 
 ## Worker Roles
 
-| Worker / Agent | Responsibility | Must Not Do |
-|---|---|---|
-| Scanner Worker | Static repository analysis and TechnicalEvidenceReport creation. | Execute source, infer legal risk, send raw source to LLM. |
-| Technical Profile Worker | Normalize scanner evidence into technical profile dimensions. | Invent business usage. |
-| AIUsageFlow Worker | Produce evidence-backed business usage claims. | Classify legal risk or ignore uncertainty. |
-| Reconciliation Worker | Detect conflicts and create VerifiedProfile only when clean/resolved. | Overwrite scanner evidence or let Developer unblock MVP alone. |
-| Legal Matching Worker | Retrieve citation-backed legal rules. | Fabricate citations or use unpinned legal basis. |
-| Classification Worker | Classify only from VerifiedProfile and citation-backed matches. | Classify before VerifiedProfile. |
-| Gap Analysis Worker | Map classification to compliance gaps. | Generate final legal output. |
-| Document Worker | Generate document artifacts under output guardrails. | Emit final legal conclusions without citation traceability. |
+| Worker / Agent           | Responsibility                                                        | Must Not Do                                                            |
+| ------------------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Scanner Worker           | Static repository analysis and TechnicalEvidenceReport creation.      | Execute source, infer legal risk, send raw source to LLM.              |
+| Technical Profile Worker | Normalize scanner evidence into technical profile dimensions.         | Invent business usage.                                                 |
+| AIUsageFlow Worker       | Produce evidence-backed business usage claims.                        | Classify legal risk or ignore uncertainty.                             |
+| Reconciliation Worker    | Detect conflicts and create VerifiedProfile only when clean/resolved. | Overwrite scanner evidence or let non-Manager input unblock MVP alone. |
+| Legal Matching Worker    | Retrieve citation-backed legal rules.                                 | Fabricate citations or use unpinned legal basis.                       |
+| Classification Worker    | Classify only from VerifiedProfile and citation-backed matches.       | Classify before VerifiedProfile.                                       |
+| Gap Analysis Worker      | Map classification to compliance gaps.                                | Generate final legal output.                                           |
+| Document Worker          | Generate document artifacts under output guardrails.                  | Emit final legal conclusions without citation traceability.            |
 
 ## Routing Principle
 

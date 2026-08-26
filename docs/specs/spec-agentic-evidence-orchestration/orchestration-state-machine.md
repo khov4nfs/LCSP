@@ -43,4 +43,4 @@ flowchart TD
 }
 ```
 
-The orchestrator validates this schema, checks the resolver allow-list, budget, PBAC context, idempotency key, and checkpoint before invoking a resolver. It never interprets free-form agent prose as authority.
+The orchestrator validates this schema, checks the resolver allow-list, budget, RBAC context, idempotency key, and checkpoint before invoking a resolver. It never interprets free-form agent prose as authority.

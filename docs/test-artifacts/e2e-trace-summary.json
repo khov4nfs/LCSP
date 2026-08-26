@@ -193,7 +193,7 @@
         "invalid_mfa_or_replayed_otp",
         "unsafe_oauth_callback",
         "oauth_without_github_authorization",
-        "pbac_denied_manager_only_action",
+        "rbac_denied_manager_only_action",
         "revoked_developer_scope",
         "worker_service_identity_denied"
       ]
@@ -222,7 +222,7 @@
       "action": "Add E2E or component coverage for 8 UX journeys",
       "requirements": [
         "login_mfa_oauth",
-        "organization_and_pbac_scope",
+        "organization_and_rbac_scope",
         "assessment_wizard_readiness",
         "repository_connection_and_scan_status",
         "technical_profile_and_ai_usage_flow_review",

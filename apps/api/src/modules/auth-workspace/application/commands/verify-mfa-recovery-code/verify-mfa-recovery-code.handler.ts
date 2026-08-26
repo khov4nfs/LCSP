@@ -61,7 +61,6 @@ export class VerifyMfaRecoveryCodeHandler {
       await this.support.recordAudit(this.repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRateLimited,
         actor_id: session.userId,
-        organization_id: session.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.mfaRateLimited,
         correlationId: correlationId,
@@ -76,7 +75,6 @@ export class VerifyMfaRecoveryCodeHandler {
     if (normalizedCode.length === 0) {
       await this.recordFailedAttempt(
         session.userId,
-        session.organizationId,
         now,
         correlationId,
         "empty",
@@ -92,7 +90,6 @@ export class VerifyMfaRecoveryCodeHandler {
     if (!consumed) {
       await this.recordFailedAttempt(
         session.userId,
-        session.organizationId,
         now,
         correlationId,
         "invalid_or_used",
@@ -125,7 +122,6 @@ export class VerifyMfaRecoveryCodeHandler {
     await this.support.recordAudit(this.repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRecoveryCodeUsed,
       actor_id: session.userId,
-      organization_id: session.organizationId,
       resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
       resource_id: session.userId,
       decision: AUDIT_DECISIONS.allow,
@@ -138,7 +134,6 @@ export class VerifyMfaRecoveryCodeHandler {
 
   private async recordFailedAttempt(
     userId: string,
-    organizationId: string,
     now: number,
     correlationId: string,
     reason: string,
@@ -153,7 +148,6 @@ export class VerifyMfaRecoveryCodeHandler {
     await this.support.recordAudit(this.repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaFailed,
       actor_id: userId,
-      organization_id: organizationId,
       decision: AUDIT_DECISIONS.deny,
       reason_code: AUTH_ERROR_CODES.mfaInvalid,
       recovery_code_failure_reason: reason,
@@ -161,7 +155,7 @@ export class VerifyMfaRecoveryCodeHandler {
     });
 
     this.logger.warn(
-      `MFA recovery code verify failed userId=${userId} organizationId=${organizationId} reason=${reason} correlationId=${correlationId}`,
+      `MFA recovery code verify failed userId=${userId} reason=${reason} correlationId=${correlationId}`,
     );
   }
 }

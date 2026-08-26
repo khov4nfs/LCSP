@@ -22,7 +22,7 @@ test("expired API sessions redirect refresh flows back to sign-in with next path
   assert.equal(
     isSessionEstablishmentProblem(
       "/api/auth/profile",
-      AUTH_ERROR_CODES.pbacDenied,
+      AUTH_ERROR_CODES.rbacDenied,
       REQUIRED_ACTIONS.contactOwner,
     ),
     true,
@@ -30,7 +30,7 @@ test("expired API sessions redirect refresh flows back to sign-in with next path
   assert.equal(
     isSessionEstablishmentProblem(
       "/api/assessments",
-      AUTH_ERROR_CODES.pbacDenied,
+      AUTH_ERROR_CODES.rbacDenied,
       REQUIRED_ACTIONS.contactOwner,
     ),
     false,

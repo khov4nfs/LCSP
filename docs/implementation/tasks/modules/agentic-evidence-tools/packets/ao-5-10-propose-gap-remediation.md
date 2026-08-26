@@ -27,7 +27,7 @@ Action `GAP_REMEDIATION_PROPOSE`; `RemediationProposalService`; audit proposal h
 {"status":"READY","toolName":"propose_gap_remediation","toolVersion":"1.0.0","configHash":"sha256:remediation-v1","correlationId":"f357436a-b72b-4830-9996-6e060d5df61f","artifactVersions":{"gapRowRef":"gap-row:01J9A"},"provenanceRef":"prov:remediation:01J9","coverageState":"SUFFICIENT","evidenceRefs":[],"limitations":[],"result":{"proposalRef":"remediation-proposal:01J9","rowRef":"gap-row:01J9A","templateId":"remediation:collect-evidence","requiredIndependentValidation":true}}
 ```
 ## 7. Error Codes and Typed Outcomes
-`INVALID_ARGUMENT`, `NEEDS_INPUT`, `BLOCKED` stale/self-close/PBAC, `OUT_OF_COVERAGE`, `FAILED`; no success changes a gap.
+`INVALID_ARGUMENT`, `NEEDS_INPUT`, `BLOCKED` stale/self-close/RBAC, `OUT_OF_COVERAGE`, `FAILED`; no success changes a gap.
 ## 8. Tool Calling Flow
 ```mermaid
 sequenceDiagram
@@ -41,19 +41,19 @@ P-->>L: proposal ref,audit
 ## 9. Business Rules
 Only allow-listed templates; bind proposer run/hash; independent validator required; no update operation.
 ## 10. Execution Logic
-Validate→PBAC/pin→load row→template build→immutable proposal→privacy/audit; `GapRemediationProposalTool`.
+Validate→RBAC/pin→load row→template build→immutable proposal→privacy/audit; `GapRemediationProposalTool`.
 ## 11. LLM Tool Definition and Context Contract
 Strict §5, 3KB; model may submit proposal to independent workflow, never mark satisfied.
 ## 12. Tool Registry
 `GapRemediationProposalTool`; `GAP_REMEDIATION_PROPOSE`; LLM allow-list; 4s/one retry/READ.
 ## 13–15. Audit, Retry, Security
-Audit refs/template/proposer hash; redact rationale/prompts/source/secrets; PBAC/tenant/state and no row-write capability; retry once then failed.
+Audit refs/template/proposer hash; redact rationale/prompts/source/secrets; RBAC/tenant/state and no row-write capability; retry once then failed.
 ## 16. Scenario
 `MISSING` row gets a collect-evidence draft; independent validation is mandatory.
 ## 17. Acceptance Criteria
 Only approved template; no self-close; replay does not mutate; safe audit.
 ## 18. Test Matrix
-Valid proposal; invalid template; stale/self-close; PBAC; privacy; replay.
+Valid proposal; invalid template; stale/self-close; RBAC; privacy; replay.
 ## 19. Definition of Done
 Registry/schema/service/audit/no-mutation tests pass.
 ## 20. Technical Notes and Files

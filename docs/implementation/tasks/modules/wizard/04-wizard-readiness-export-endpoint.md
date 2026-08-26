@@ -8,7 +8,7 @@ epic_story: 2.4
 depends_on:
   - wizard/02-submit-wizard-endpoint.md
   - wizard/03-wizard-readiness-state-endpoint.md
-  - platform/pbac/03-nestjs-guard.md
+  - platform/rbac/03-nestjs-guard.md
   - platform/audit-writer/02-audit-writer-service.md
 ---
 
@@ -72,14 +72,14 @@ model ReadinessExport {
 
 | HTTP | `error_code`                            | Meaning                                       |
 | ---- | --------------------------------------- | --------------------------------------------- |
-| 403  | `PBAC_DENIED`                           | Actor lacks `wizard:export`                   |
+| 403  | `RBAC_DENIED`                           | Actor lacks `wizard:export`                   |
 | 404  | `ASSESSMENT_NOT_FOUND`                  | Not found or not in org                       |
 | 409  | `EXPORT_REQUIRES_LOCKED_CLASSIFICATION` | Evidence already accepted — export not needed |
 | 422  | `WIZARD_NOT_SUBMITTED`                  | WizardProfile not yet submitted               |
 
 ## Business Rules
 
-1. PBAC guard: `action = wizard:export`.
+1. RBAC guard: `action = wizard:export`.
 2. Verify assessment exists, org-scoped, wizard submitted.
 3. If `classification_locked = false` (evidence already accepted) → `EXPORT_REQUIRES_LOCKED_CLASSIFICATION`.
 4. Generate export content from WizardProfile answers + readiness state.
@@ -109,7 +109,7 @@ model ReadinessExport {
 | T04 | Content contains risk label → guardrail fires  | `status = BLOCKED`, audit logged            |
 | T05 | Export labeled `Wizard Readiness Export`       | `label` field verified                      |
 | T06 | No HIGH/MEDIUM/LOW in export                   | Field inspection                            |
-| T07 | Actor lacks `wizard:export`                    | 403 `PBAC_DENIED`                           |
+| T07 | Actor lacks `wizard:export`                    | 403 `RBAC_DENIED`                           |
 | T08 | Export is immutable (new row per generation)   | New `ReadinessExport` row created each call |
 | T09 | Audit event has no content                     | Clean payload                               |
 

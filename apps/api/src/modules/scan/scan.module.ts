@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
 
-import { PbacModule } from "../../platform/pbac/pbac.module.js";
+import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { ProcessScanCallbackHandler } from "./application/commands/process-scan-callback/process-scan-callback.handler.js";
 import { GetScanJobHandler } from "./application/queries/get-scan-job/get-scan-job.handler.js";
 import { EvidenceSchemaValidatorService } from "./application/services/scan/evidence-schema-validator.service.js";
@@ -20,7 +20,7 @@ import { AssessmentRuntimeEventService } from "../../platform/runtime-events/ass
  * Wires scan-job reads/reruns, worker callbacks, targeted reanalysis, evidence validation, and workspace runtime-event streaming.
  */
 @Module({
-  imports: [CqrsModule, PbacModule],
+  imports: [CqrsModule, RbacModule],
   controllers: [
     ScanController,
     InternalScanController,

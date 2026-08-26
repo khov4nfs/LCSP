@@ -62,7 +62,7 @@ Canonical functions and the protected command switch live in:
 
 `apps/api/src/modules/evidence/presentation/http/agentic-tool-command-dispatcher.ts`
 
-Before `CommandBus.execute`, the internal dispatcher re-evaluates PBAC using the current membership and policy. Policy ID/version used by review commands come from the trusted PBAC lookup, not the worker payload.
+Before `CommandBus.execute`, the internal dispatcher re-evaluates RBAC using the current membership and policy. Policy ID/version used by review commands come from the trusted RBAC lookup, not the worker payload.
 
 ### Managed Agent command tools
 

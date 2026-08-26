@@ -5,7 +5,6 @@ import {
   AUDIT_EVENT_TYPES,
   AUDIT_EXPORT_STATUSES,
 } from "@lcsp/contracts/audit";
-import { ORGANIZATION_SCOPE_ERROR_CODES } from "@lcsp/contracts/auth";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -19,7 +18,6 @@ function buildHandler(options?: {
     id: string;
     eventType: string;
     actorId: string | null;
-    organizationId: string | null;
     decision: string | null;
     payload: Record<string, unknown>;
     createdAt: Date;
@@ -32,7 +30,6 @@ function buildHandler(options?: {
       id: "evt-1",
       eventType: "AUTH_SIGN_IN",
       actorId: "user-1",
-      organizationId: "org-1",
       decision: AUDIT_DECISIONS.allow,
       payload: { email: "masked@example.com", password: "secret" },
       createdAt: new Date("2026-07-01T00:00:00.000Z"),
@@ -65,8 +62,6 @@ function buildHandler(options?: {
   );
 
   const command = new ExportAuditTrailCommand(
-    "org-1",
-    "org-1",
     "user-1",
     "2026-07-01T00:00:00.000Z",
     "2026-07-31T23:59:59.999Z",
@@ -104,39 +99,12 @@ describe("ExportAuditTrailHandler", () => {
     );
   });
 
-  it("rejects organization scope mismatch", async () => {
-    const { handler, command } = buildHandler();
-
-    await expect(
-      handler.execute(
-        new ExportAuditTrailCommand(
-          command.organizationId,
-          "org-2",
-          command.requestedById,
-          command.fromDate,
-          command.toDate,
-          command.correlationId,
-        ),
-      ),
-    ).rejects.toMatchObject({
-      response: {
-        ok: false,
-        problem: {
-          code: ORGANIZATION_SCOPE_ERROR_CODES.mismatch,
-          correlationId: "corr-1",
-        },
-      },
-    });
-  });
-
   it("rejects invalid date range over 365 days", async () => {
     const { handler, command } = buildHandler();
 
     await expect(
       handler.execute(
         new ExportAuditTrailCommand(
-          command.organizationId,
-          command.sessionOrganizationId,
           command.requestedById,
           "2025-01-01T00:00:00.000Z",
           "2026-07-31T23:59:59.999Z",
@@ -160,8 +128,6 @@ describe("ExportAuditTrailHandler", () => {
     await expect(
       handler.execute(
         new ExportAuditTrailCommand(
-          command.organizationId,
-          command.sessionOrganizationId,
           command.requestedById,
           "nope",
           command.toDate,

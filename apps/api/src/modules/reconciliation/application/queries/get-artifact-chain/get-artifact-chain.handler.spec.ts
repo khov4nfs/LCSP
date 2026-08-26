@@ -101,7 +101,7 @@ describe("GetArtifactChainHandler", () => {
     const { handler, auditWriter } = makeHandler();
 
     const response = await handler.execute(
-      new GetArtifactChainQuery("assessment-1", "org-1", "corr-1"),
+      new GetArtifactChainQuery("assessment-1", "corr-1"),
     );
 
     expect(response.coverage_state).toBe(
@@ -128,7 +128,7 @@ describe("GetArtifactChainHandler", () => {
     });
 
     const response = await handler.execute(
-      new GetArtifactChainQuery("assessment-1", "org-1", "corr-2", null, [
+      new GetArtifactChainQuery("assessment-1", "corr-2", null, [
         ARTIFACT_CHAIN_STAGES.verifiedProfile,
       ]),
     );
@@ -174,12 +174,7 @@ describe("GetArtifactChainHandler", () => {
     });
 
     const response = await handler.execute(
-      new GetArtifactChainQuery(
-        "assessment-1",
-        "org-1",
-        "corr-3",
-        "ter:report-anchor",
-      ),
+      new GetArtifactChainQuery("assessment-1", "corr-3", "ter:report-anchor"),
     );
 
     expect(response.result.anchor_artifact_ref).toBe("ter:report-anchor");

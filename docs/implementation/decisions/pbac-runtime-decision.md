@@ -1,17 +1,17 @@
 ---
 status: ACTIVE_PLANNING_AUTHORITY
 artifact_type: implementation_decision
-decision_id: DEC-PBAC-RUNTIME-001
+decision_id: DEC-RBAC-RUNTIME-001
 owner: Platform
 resolves:
-  - PBAC_ENGINE_POLICY_STORAGE_CACHE_INVALIDATION_EVALUATION_FAILURE_BEHAVIOR
+  - RBAC_ENGINE_POLICY_STORAGE_CACHE_INVALIDATION_EVALUATION_FAILURE_BEHAVIOR
 ---
 
-# PBAC Runtime Decision
+# RBAC Runtime Decision
 
 ## Decision
 
-LCSP MVP uses an application-owned PBAC evaluator in the NestJS API and Python Worker Platform. Role labels such as `Manager` and `Developer` are subject attributes or policy templates only; they are not authorization authority.
+LCSP MVP uses an application-owned RBAC evaluator in the NestJS API and Python Worker Platform. Role labels such as `Manager` and `Developer` are subject attributes or policy templates only; they are not authorization authority.
 
 Every protected user or service action must evaluate:
 
@@ -55,13 +55,13 @@ Policy records must include `policy_id`, `policy_version`, `scope_type`, `scope_
 
 | Failure                    | Decision | User/operator signal            | Audit                                 |
 | -------------------------- | -------- | ------------------------------- | ------------------------------------- |
-| policy store unavailable   | deny     | `AUTHZ_POLICY_UNAVAILABLE`      | denied PBAC event                     |
-| policy version unknown     | deny     | `AUTHZ_POLICY_VERSION_UNKNOWN`  | denied PBAC event                     |
-| subject attributes missing | deny     | `AUTHZ_SUBJECT_INCOMPLETE`      | denied PBAC event                     |
-| organization mismatch      | deny     | `AUTHZ_TENANT_SCOPE_MISMATCH`   | denied PBAC event                     |
-| resource scope mismatch    | deny     | `AUTHZ_RESOURCE_SCOPE_MISMATCH` | denied PBAC event                     |
+| policy store unavailable   | deny     | `AUTHZ_POLICY_UNAVAILABLE`      | denied RBAC event                     |
+| policy version unknown     | deny     | `AUTHZ_POLICY_VERSION_UNKNOWN`  | denied RBAC event                     |
+| subject attributes missing | deny     | `AUTHZ_SUBJECT_INCOMPLETE`      | denied RBAC event                     |
+| organization mismatch      | deny     | `AUTHZ_TENANT_SCOPE_MISMATCH`   | denied RBAC event                     |
+| resource scope mismatch    | deny     | `AUTHZ_RESOURCE_SCOPE_MISMATCH` | denied RBAC event                     |
 | state gate not satisfied   | deny     | `AUTHZ_STATE_GATE_BLOCKED`      | state-gate denied event               |
-| evaluator exception        | deny     | `AUTHZ_EVALUATOR_FAILURE`       | denied PBAC event with correlation ID |
+| evaluator exception        | deny     | `AUTHZ_EVALUATOR_FAILURE`       | denied RBAC event with correlation ID |
 
 ## Audit Contract
 
@@ -90,12 +90,12 @@ Every material allow or deny must write or link an AuditEvent with:
 ## Implementation References
 
 - `docs/implementation/backend-implementation.md`
-- `docs/implementation/tasks/modules/platform/pbac/02-evaluator-service.md`
+- `docs/implementation/tasks/modules/platform/rbac/02-evaluator-service.md`
 - `docs/specs/domain-state-machines.md`
 - `docs/specs/event-catalog.md`
 
 ```text
-PBAC_RUNTIME_DECISION_RESOLVED
+RBAC_RUNTIME_DECISION_RESOLVED
 DENY_BY_DEFAULT_REQUIRED
 POLICY_VERSION_AUDIT_REQUIRED
 ROLE_LABELS_NOT_AUTHORITY

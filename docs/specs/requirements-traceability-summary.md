@@ -6,31 +6,31 @@ Summarize canonical requirement and planning traceability after Phase 5.2L activ
 
 ## Canonical Inventory
 
-| Item | Count / Status |
-|---|---|
-| Canonical FR total | 56 |
-| Active MVP FR total | Phase 5.2L active set includes `FR-050` Automatic Trusted Scan Initiation and excludes superseded/removed attestation/manual JSON requirements |
-| Removed / superseded FRs | `FR-045`, `FR-046` structured attestation superseded; `FR-051` removed |
-| Deferred FR total | `FR-052` delegated clarification remains deferred |
-| Active NFR total | 33 (`NFR-001..NFR-030`, `NFR-033..NFR-035`) |
-| AC total | `AC-001..AC-041` plus `AC-050A..AC-050F` |
-| Canonical use cases | `UC-001..UC-017`; `UC-018` structured attestation superseded |
-| Canonical UX | active rebased UX in `docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-24/` plus canonical UX review |
-| Canonical epics/stories | `docs/planning-artifacts/epics.md` |
-| Story traceability | created / assessable via `docs/test-artifacts/traceability/implementation-readiness-traceability-2026-06-25.md` |
+| Item                     | Count / Status                                                                                                                                 |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Canonical FR total       | 56                                                                                                                                             |
+| Active MVP FR total      | Phase 5.2L active set includes `FR-050` Automatic Trusted Scan Initiation and excludes superseded/removed attestation/manual JSON requirements |
+| Removed / superseded FRs | `FR-045`, `FR-046` structured attestation superseded; `FR-051` removed                                                                         |
+| Deferred FR total        | `FR-052` delegated clarification remains deferred                                                                                              |
+| Active NFR total         | 33 (`NFR-001..NFR-030`, `NFR-033..NFR-035`)                                                                                                    |
+| AC total                 | `AC-001..AC-041` plus `AC-050A..AC-050F`                                                                                                       |
+| Canonical use cases      | `UC-001..UC-017`; `UC-018` structured attestation superseded                                                                                   |
+| Canonical UX             | active rebased UX in `docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-24/` plus canonical UX review                                         |
+| Canonical epics/stories  | `docs/planning-artifacts/epics.md`                                                                                                             |
+| Story traceability       | created / assessable via `docs/test-artifacts/traceability/implementation-readiness-traceability-2026-06-25.md`                                |
 
 `NFR-031` and `NFR-032` are legacy aliases of active `NFR-005` and `NFR-008`. PRD `FR-E*` values and legacy `UC-MXX-XX` values are source aliases only.
 
 ## Active Scope
 
-- PBAC is the authorization source of truth; roles are attributes/templates only.
+- RBAC is the authorization source of truth; roles are attributes/templates only.
 - GitHub App read-only Repository Scan is the golden technical-evidence path.
 - `FR-050` automatically creates or resumes scan workflows from trusted integration context.
 - Python Worker Platform owns all asynchronous domain workloads.
 - Scanner analysis uses Syft, Knip, deptry, Python `ast`/`libcst`, Semgrep custom rules, tree-sitter/custom parser, and bounded `ts-morph`.
 - Real LLM provider configuration is required for A-to-Z acceptance; dense embedding providers are not required for legal retrieval MVP.
 - Legal corpus uses validated official-source snapshots, internal approval, immutable versioning, and ChromaDB structure-first vectorless retrieval with legal hierarchy, xref expansion and citation allowlist validation.
-- Manager can complete the golden path without Developer participation.
+- Manager can complete the golden path without external collaborator participation.
 - Structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP`.
 - Local/CI scanner report upload is superseded by `FR-050`.
 - Manual evidence JSON (`FR-051`) is `REMOVED_FROM_PRODUCT`.
@@ -41,7 +41,7 @@ Summarize canonical requirement and planning traceability after Phase 5.2L activ
 UX must be rebased or regenerated from the pruned active authority set. The next UX artifact must cover:
 
 - Manager authentication, organization, assessment, Wizard, repository, scan, evidence, reconciliation, classification, gap, document, and audit experiences;
-- optional Developer invitation/task and redacted findings experiences without structured attestation;
+- Developer invitation/task experiences are retired; evidence views remain redacted without structured attestation;
 - all loading, empty, permission-denied, insufficient, blocked, failed, retry, rerun, degraded, and audit-reference states.
 
 It must not design active customer-facing flows for:
@@ -54,12 +54,12 @@ Internal Legal Operator corpus administration remains API/CLI-only for MVP. Mana
 
 ## Story Dependency Carry-Forward
 
-| FR | Required story-layer NFR dependencies |
-|---|---|
-| FR-053 | NFR-017, NFR-034 |
-| FR-054 | NFR-017, NFR-034 |
-| FR-055 | NFR-012, NFR-033 |
-| FR-056 | NFR-017, NFR-033, NFR-034 |
+| FR     | Required story-layer NFR dependencies |
+| ------ | ------------------------------------- |
+| FR-053 | NFR-017, NFR-034                      |
+| FR-054 | NFR-017, NFR-034                      |
+| FR-055 | NFR-012, NFR-033                      |
+| FR-056 | NFR-017, NFR-033, NFR-034             |
 
 Every story must trace to canonical UC, FR, AC, relevant NFRs, UX flow/state, domain state, implementation area, and failure/recovery behavior.
 
@@ -72,7 +72,7 @@ CANONICAL_ACCEPTANCE_CRITERIA_NORMALIZED
 LEGAL_CORPUS_UX_BOUNDARY_LOCKED
 PYTHON_WORKER_PLATFORM_IMPLEMENTATION_CONSOLIDATED
 SCANNER_BEHAVIOR_AUTHORITY_CONSOLIDATED
-PBAC_AUTHORIZATION_MODEL_ALIGNED
+RBAC_AUTHORIZATION_MODEL_ALIGNED
 FR_050_AUTOMATIC_TRUSTED_SCAN_INITIATION_TRACED
 FR_051_REMOVED_FROM_PRODUCT
 STRUCTURED_ATTESTATION_SUPERSEDED_FOR_ACTIVE_MVP

@@ -1,6 +1,7 @@
-import { PBAC_DECISION } from "../pbac/decisions.ts";
-
-export const AUDIT_DECISIONS = PBAC_DECISION;
+export const AUDIT_DECISIONS = {
+  allow: "ALLOW",
+  deny: "DENY",
+} as const;
 
 export type AuditDecision =
   (typeof AUDIT_DECISIONS)[keyof typeof AUDIT_DECISIONS];
@@ -44,9 +45,7 @@ export const AUDIT_RESOURCE_TYPES = {
   assessmentRecord: "ASSESSMENT_RECORD",
   auditExportRequest: "AUDIT_EXPORT_REQUEST",
   authInvitation: "AUTH_INVITATION",
-  authMembership: "AUTH_MEMBERSHIP",
   authMfaRecoveryCode: "AUTH_MFA_RECOVERY_CODE",
-  authOrganization: "AUTH_ORGANIZATION",
   authSession: "AUTH_SESSION",
   classificationReviewRequest: "CLASSIFICATION_REVIEW_REQUEST",
   classificationResult: "CLASSIFICATION_RESULT",
@@ -81,7 +80,6 @@ export interface AuditActorRef {
 export interface AuditEventInput {
   eventType: string;
   actorId: string | null;
-  organizationId: string | null;
   assessmentId?: string | null;
   resourceType?: AuditResourceType | null;
   resourceId?: string | null;
@@ -92,8 +90,6 @@ export interface AuditEventInput {
   redactionStatus?: AuditRedactionStatus;
   actor?: AuditActorRef;
   sessionId?: string | null;
-  policyId?: string | null;
-  policyVersion?: string | null;
   decision: AuditDecision | null;
   payload?: Record<string, unknown>;
 }

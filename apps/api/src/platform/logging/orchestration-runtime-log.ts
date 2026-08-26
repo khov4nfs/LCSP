@@ -13,7 +13,6 @@ type OrchestrationCoreFields = {
   correlationId?: string | null;
   toolName?: string | null;
   assessmentId?: string | null;
-  organizationId?: string | null;
 };
 
 /**

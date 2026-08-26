@@ -45,7 +45,7 @@ export class RequestFinalReportHandler implements ICommandHandler<RequestFinalRe
   /**
    * Validates assessment ownership and classification readiness, reserves one active request, and publishes generation work.
    *
-   * @param command - Assessment, organization, requester, and correlation context for the report request.
+   * @param command - Assessment, requester, and correlation context for the report request.
    * @returns Queued final-report request metadata.
    * @throws When the assessment is unavailable, guardrails have not passed, or another active final-report request exists.
    */
@@ -54,10 +54,10 @@ export class RequestFinalReportHandler implements ICommandHandler<RequestFinalRe
   ): Promise<FinalReportRequestDto> {
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: command.assessmentId },
-      select: { id: true, organizationId: true },
+      select: { id: true },
     });
 
-    if (!assessment || assessment.organizationId !== command.organizationId) {
+    if (!assessment) {
       throw problemException(
         DOCUMENT_ERROR_CODES.assessmentNotFound,
         command.correlationId,
@@ -69,7 +69,6 @@ export class RequestFinalReportHandler implements ICommandHandler<RequestFinalRe
       await this.prisma.classificationResult.findFirst({
         where: {
           assessmentId: command.assessmentId,
-          organizationId: command.organizationId,
         },
         orderBy: { createdAt: "desc" },
         select: {
@@ -90,11 +89,9 @@ export class RequestFinalReportHandler implements ICommandHandler<RequestFinalRe
     }
 
     const documentRequestId = await this.prisma.$transaction(async (tx) => {
-      const lockKey = [
-        DOCUMENT_REQUEST_LOCK_PREFIX,
-        command.organizationId,
-        command.assessmentId,
-      ].join(":");
+      const lockKey = [DOCUMENT_REQUEST_LOCK_PREFIX, command.assessmentId].join(
+        ":",
+      );
 
       await tx.$executeRaw`
         SELECT pg_advisory_xact_lock(hashtext(${lockKey}))
@@ -103,7 +100,6 @@ export class RequestFinalReportHandler implements ICommandHandler<RequestFinalRe
       const existingRequest = await tx.documentRequest.findFirst({
         where: {
           assessmentId: command.assessmentId,
-          organizationId: command.organizationId,
           documentType: toPrismaDocumentType(DOCUMENT_TYPES.finalReport),
           status: {
             in: [
@@ -129,7 +125,6 @@ export class RequestFinalReportHandler implements ICommandHandler<RequestFinalRe
         data: {
           id: crypto.randomUUID(),
           assessmentId: command.assessmentId,
-          organizationId: command.organizationId,
           requestedById: command.requestedById,
           classificationResultId: classificationResult.id,
           documentType: toPrismaDocumentType(DOCUMENT_TYPES.finalReport),
@@ -159,7 +154,6 @@ export class RequestFinalReportHandler implements ICommandHandler<RequestFinalRe
     await this.auditWriter.write({
       eventType: DOCUMENT_EVENT_TYPES.finalReportRequestedAudit,
       actorId: command.requestedById,
-      organizationId: command.organizationId,
       resourceType: AUDIT_RESOURCE_TYPES.documentRequest,
       resourceId: documentRequestId,
       correlationId: command.correlationId,
@@ -175,7 +169,6 @@ export class RequestFinalReportHandler implements ICommandHandler<RequestFinalRe
     await this.auditWriter.write({
       eventType: DOCUMENT_EVENT_TYPES.finalReportRequestedAudit,
       actorId: command.requestedById,
-      organizationId: command.organizationId,
       resourceType: AUDIT_RESOURCE_TYPES.assessment,
       resourceId: command.assessmentId,
       correlationId: command.correlationId,

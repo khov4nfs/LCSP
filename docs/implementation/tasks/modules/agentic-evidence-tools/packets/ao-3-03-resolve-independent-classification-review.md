@@ -38,12 +38,12 @@ No free-text rationale is accepted in this capability; any reviewer note belongs
 
 ## 7–15. outcomes, flow, rules, execution, context, registry, audit, retry, security
 
-Bad refs/decision are `INVALID_ARGUMENT`; missing request is `NOT_FOUND`; expired/stale inputs need `NEEDS_INPUT`; a non-pending request or new conflict/citation/coverage failure is `BLOCKED`; PBAC/tenant/requester identity mismatch is `BLOCKED`; competing decision is `CONFLICT`; transaction failure is `FAILED` after one retry.
+Bad refs/decision are `INVALID_ARGUMENT`; missing request is `NOT_FOUND`; expired/stale inputs need `NEEDS_INPUT`; a non-pending request or new conflict/citation/coverage failure is `BLOCKED`; RBAC/tenant/requester identity mismatch is `BLOCKED`; competing decision is `CONFLICT`; transaction failure is `FAILED` after one retry.
 
 ```mermaid
 sequenceDiagram
   participant H as Independent reviewer
-  participant A as API PBAC/state gate
+  participant A as API RBAC/state gate
   participant S as Review decision service
   participant P as Classification/audit/outbox
   H->>A: decision + idempotency key
@@ -53,7 +53,7 @@ sequenceDiagram
   P-->>H: safe review/classification refs
 ```
 
-Validate → API-authenticated reviewer PBAC/state/tenant/separation check → lock request → revalidate gate, citations, conflicts, coverage and expiry → reserve/replay key → append decision; on `APPROVE`, atomically create immutable `Classification(REVIEWED)` → audit/outbox (`event.classification.reviewed.v1`) → privacy-normalized response. Registry `IndependentClassificationReviewResolutionTool/1.0.0`; `SYSTEM_ONLY`; no model exposure; API command state `PENDING_INDEPENDENT_REVIEW`; action above; 10 s / one serialization retry. Audit reviewer ref (not note), decision code, all safe refs/hashes, policy/version, output hash and correlation. Deny reviewer=requester, cross-tenant access, raw source/prompt/legal text/secret leakage, direct worker/database calls, and post-resolution mutation.
+Validate → API-authenticated reviewer RBAC/state/tenant/separation check → lock request → revalidate gate, citations, conflicts, coverage and expiry → reserve/replay key → append decision; on `APPROVE`, atomically create immutable `Classification(REVIEWED)` → audit/outbox (`event.classification.reviewed.v1`) → privacy-normalized response. Registry `IndependentClassificationReviewResolutionTool/1.0.0`; `SYSTEM_ONLY`; no model exposure; API command state `PENDING_INDEPENDENT_REVIEW`; action above; 10 s / one serialization retry. Audit reviewer ref (not note), decision code, all safe refs/hashes, policy/version, output hash and correlation. Deny reviewer=requester, cross-tenant access, raw source/prompt/legal text/secret leakage, direct worker/database calls, and post-resolution mutation.
 
 ## 16–22. scenarios, AC, tests, DoD, files, questions, deliverables
 
@@ -63,7 +63,7 @@ Scenario: a different authorized reviewer approves a valid pending request; one 
 | --- | --- | --- |
 | TC-01 | independent approval creates reviewed immutable classification | integration |
 | TC-02 | rejection creates no classification | integration |
-| TC-03 | same requester, PBAC/tenant, expired/non-pending request | integration |
+| TC-03 | same requester, RBAC/tenant, expired/non-pending request | integration |
 | TC-04 | stale citation/open conflict/limited coverage | integration |
 | TC-05 | extra/free-text/sensitive payload rejection | contract/privacy |
 | TC-06 | concurrent resolve, replay, rollback/outbox | integration |

@@ -2,11 +2,11 @@
 
 This directory turns the capability targets in `docs/specs/spec-agentic-evidence-orchestration/tool-catalog.md` into implementation-ready task cards. Every card uses [the agentic tool task template](../../../templates/agentic-tool-implementation-task-template.md), which extends the standard [implementation task template](../../../templates/implementation-task-template.md).
 
-Every packet also inherits the executable [shared tool contract](shared-tool-contract.md): request/response envelope, PBAC preflight, immutable artifact pinning, LLM context boundary, audit, privacy, status/error mapping, and definition of done.
+Every packet also inherits the executable [shared tool contract](shared-tool-contract.md): request/response envelope, RBAC preflight, immutable artifact pinning, LLM context boundary, audit, privacy, status/error mapping, and definition of done.
 
 ## Ownership and Completion Rule
 
-- Tools are worker-owned schema-validated capabilities. API code owns PBAC, audit, trusted trigger, and artifact-persistence boundaries; it does not reimplement tool logic.
+- Tools are worker-owned schema-validated capabilities. API code owns RBAC, audit, trusted trigger, and artifact-persistence boundaries; it does not reimplement tool logic.
 - A tool is not complete until its typed request/response contract, safe failure behavior, provenance/coverage/evidence refs, result bounds, and task-specific tests pass.
 - A tool task may reuse existing scanner task documentation. Do not create a duplicate implementation path for the same analyzer.
 

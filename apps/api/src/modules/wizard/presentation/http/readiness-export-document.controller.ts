@@ -8,7 +8,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { QueryBus } from "@nestjs/cqrs";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { randomUUID } from "node:crypto";
 
 import { DownloadReadinessExportQuery } from "../../application/queries/download-readiness-export/download-readiness-export.query.js";
@@ -16,8 +16,8 @@ import type {
   ReadinessExportFormat,
   ReadinessExportLocale,
 } from "../../application/services/wizard/readiness-export-document.service.js";
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
-import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import type { Response } from "express";
 
@@ -28,8 +28,8 @@ export class ReadinessExportDocumentController {
   @Get(
     ":assessmentId/wizard/readiness-exports/:exportId/download/:format/:locale",
   )
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.wizardExport)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
   async download(
     @Param("assessmentId") assessmentId: string,
     @Param("exportId") exportId: string,
@@ -40,12 +40,11 @@ export class ReadinessExportDocumentController {
   ) {
     const format = parseFormat(requestedFormat);
     const locale = parseLocale(requestedLocale);
-    const { userId, organizationId } = req.pbacContext;
+    const { userId } = req.rbacContext;
     const download = await this.queryBus.execute(
       new DownloadReadinessExportQuery(
         assessmentId,
         exportId,
-        organizationId,
         userId,
         req.correlationId || randomUUID(),
         format,

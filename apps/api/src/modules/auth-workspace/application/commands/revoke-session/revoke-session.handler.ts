@@ -28,7 +28,6 @@ export class RevokeSessionHandler {
     await this.support.recordAudit(repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.sessionRevoked,
       actor_id: session?.userId ?? null,
-      organization_id: session?.organizationId ?? null,
       decision: AUDIT_DECISIONS.allow,
       correlationId: correlationId,
     });

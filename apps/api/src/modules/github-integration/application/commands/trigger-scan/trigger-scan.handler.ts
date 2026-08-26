@@ -15,7 +15,7 @@ import {
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   GITHUB_INTEGRATION_ERROR_CODES,
   GITHUB_INTEGRATION_EVENT_TYPES,
@@ -27,7 +27,6 @@ import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
-import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 
 import { fromPrismaAssessmentStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -42,12 +41,12 @@ import {
 import { TriggerScanCommand } from "./trigger-scan.command.js";
 
 /**
- * Creates idempotent repository scan jobs after validating snapshot, assessment, PBAC ownership, lifecycle, and mapping readiness.
+ * Creates idempotent repository scan jobs after validating snapshot, assessment, RBAC ownership, lifecycle, and mapping readiness.
  */
 @CommandHandler(TriggerScanCommand)
 export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
   /**
-   * Creates the scan trigger handler with job persistence, tenant state, and audit dependencies.
+   * Creates the scan trigger handler with job persistence, assessment state, and audit dependencies.
    *
    * @param scanJobRepository - Repository used for idempotent scan-job lookup and transactional creation/outbox persistence.
    * @param prisma - Prisma service used to validate snapshot and assessment state.
@@ -63,9 +62,9 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
   /**
    * Validates the trigger request, deduplicates by idempotency key, handles mapping readiness, and persists the scan-trigger outbox event.
    *
-   * @param command - Assessment/snapshot, trigger provenance, actor/PBAC, idempotency, and correlation context.
+   * @param command - Assessment/snapshot, trigger provenance, actor/RBAC, idempotency, and correlation context.
    * @returns Scan-job metadata indicating whether a new job was created.
-   * @throws When required idempotency/snapshot/assessment/PBAC/lifecycle constraints are not satisfied.
+   * @throws When required idempotency/snapshot/assessment/RBAC/lifecycle constraints are not satisfied.
    */
   async execute(command: TriggerScanCommand): Promise<TriggerScanDto> {
     const snapshotId = clean(command.snapshotId);
@@ -89,7 +88,6 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
           select: {
             id: true,
             assessmentId: true,
-            organizationId: true,
             repositoryId: true,
             repositoryFullName: true,
             commitSha: true,
@@ -98,11 +96,7 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
       : null;
     const isTrusted =
       command.triggerSource === REPOSITORY_SCAN_TRIGGER_SOURCES.trusted;
-    if (
-      !snapshot ||
-      snapshot.assessmentId !== command.assessmentId ||
-      (!isTrusted && snapshot.organizationId !== command.organizationId)
-    ) {
+    if (!snapshot || snapshot.assessmentId !== command.assessmentId) {
       await this.auditRejected(
         command,
         GITHUB_INTEGRATION_ERROR_CODES.snapshotNotFound,
@@ -119,16 +113,14 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
       where: { id: command.assessmentId },
       select: {
         id: true,
-        organizationId: true,
         ownerId: true,
         status: true,
       },
     });
-    if (!assessment || assessment.organizationId !== snapshot.organizationId) {
+    if (!assessment) {
       await this.auditRejected(
         command,
         GITHUB_INTEGRATION_ERROR_CODES.snapshotNotFound,
-        snapshot.organizationId,
       );
       throw new NotFoundException(
         this.errorBody(
@@ -138,24 +130,20 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
       );
     }
 
-    const isManagerOwner =
-      command.subjectRole === SUBJECT_ROLES.manager &&
+    const isCustomerOwner =
+      command.subjectRole === AUTH_USER_ROLES.customer &&
       command.actorId === assessment.ownerId;
-    if (!isTrusted && !isManagerOwner) {
-      await this.auditRejected(
-        command,
-        AUTH_ERROR_CODES.pbacDenied,
-        snapshot.organizationId,
-      );
+    if (!isTrusted && !isCustomerOwner) {
+      await this.auditRejected(command, AUTH_ERROR_CODES.rbacDenied);
       throw new ForbiddenException(
-        this.errorBody(command, AUTH_ERROR_CODES.pbacDenied),
+        this.errorBody(command, AUTH_ERROR_CODES.rbacDenied),
       );
     }
 
     const existing =
       await this.scanJobRepository.findByIdempotencyKey(idempotencyKey);
     if (existing) {
-      return this.resolveExisting(command, existing, snapshot.organizationId);
+      return this.resolveExisting(command, existing);
     }
 
     if (
@@ -165,7 +153,6 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
       await this.auditRejected(
         command,
         GITHUB_INTEGRATION_ERROR_CODES.assessmentStateInvalid,
-        snapshot.organizationId,
       );
       throw new ConflictException(
         this.errorBody(
@@ -180,7 +167,6 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
       const job = RepositoryScanJob.createWithStatus({
         assessmentId: command.assessmentId,
         snapshotId: snapshot.id,
-        organizationId: snapshot.organizationId,
         idempotencyKey,
         triggerSource: command.triggerSource,
         correlationId: command.correlationId,
@@ -191,7 +177,6 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
       await this.auditWriter.write({
         eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggerRejectedAudit,
         actorId: command.actorId,
-        organizationId: snapshot.organizationId,
         assessmentId: job.assessmentId,
         resourceType: AUDIT_RESOURCE_TYPES.repositoryScanJob,
         resourceId: job.id,
@@ -214,7 +199,6 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
     const job = RepositoryScanJob.create({
       assessmentId: command.assessmentId,
       snapshotId: snapshot.id,
-      organizationId: snapshot.organizationId,
       idempotencyKey,
       triggerSource: command.triggerSource,
       correlationId: command.correlationId,
@@ -223,7 +207,6 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
       aggregateType: OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
       aggregateId: job.id,
       eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered,
-      organizationId: job.organizationId,
       assessmentId: job.assessmentId,
       correlationId: job.correlationId,
       causationId: command.correlationId,
@@ -233,14 +216,12 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
       },
       result: GITHUB_INTEGRATION_EVENT_TYPES.scanJobTriggeredAudit,
       redactionStatus: AUDIT_REDACTION_STATUSES.none,
-      authorizationAction: PBAC_ACTIONS.scanTrigger,
       idempotencyKey: job.idempotencyKey,
       payload: {
         scanJobId: job.id,
         assessmentId: job.assessmentId,
         snapshotId: job.snapshotId,
         commitSha: snapshot.commitSha,
-        organizationId: job.organizationId,
         triggerSource: job.triggerSource,
         idempotencyKey: job.idempotencyKey,
         correlationId: job.correlationId,
@@ -253,7 +234,7 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
       const raced =
         await this.scanJobRepository.findByIdempotencyKey(idempotencyKey);
       if (raced) {
-        return this.resolveExisting(command, raced, snapshot.organizationId);
+        return this.resolveExisting(command, raced);
       }
       throw error;
     }
@@ -261,7 +242,6 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
     await this.auditWriter.write({
       eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanJobTriggeredAudit,
       actorId: command.actorId,
-      organizationId: snapshot.organizationId,
       assessmentId: job.assessmentId,
       resourceType: AUDIT_RESOURCE_TYPES.repositoryScanJob,
       resourceId: job.id,
@@ -281,25 +261,21 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
    *
    * @param command - Incoming scan-trigger command.
    * @param existing - Existing job found by the idempotency key.
-   * @param organizationId - Organization resolved from the validated snapshot.
    * @returns Existing scan job projected as a non-new response.
    * @throws When the same idempotency key is reused for different scan inputs.
    */
   private async resolveExisting(
     command: TriggerScanCommand,
     existing: RepositoryScanJob,
-    organizationId: string,
   ): Promise<TriggerScanDto> {
     if (
       existing.assessmentId !== command.assessmentId ||
       existing.snapshotId !== clean(command.snapshotId) ||
-      existing.organizationId !== organizationId ||
       existing.triggerSource !== command.triggerSource
     ) {
       await this.auditRejected(
         command,
         GITHUB_INTEGRATION_ERROR_CODES.scanIdempotencyConflict,
-        organizationId,
       );
       throw new ConflictException(
         this.errorBody(
@@ -312,7 +288,6 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
     await this.auditWriter.write({
       eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggerDuplicateAudit,
       actorId: command.actorId,
-      organizationId,
       resourceType: AUDIT_RESOURCE_TYPES.repositoryScanJob,
       resourceId: existing.id,
       correlationId: command.correlationId,
@@ -354,18 +329,15 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
    *
    * @param command - Incoming trigger context.
    * @param reasonCode - Stable rejection reason.
-   * @param organizationId - Organization to attribute the rejection to; defaults to the command organization.
    * @returns A promise that resolves after the denial audit event is written.
    */
   private async auditRejected(
     command: TriggerScanCommand,
     reasonCode: string,
-    organizationId: string | null = command.organizationId,
   ): Promise<void> {
     await this.auditWriter.write({
       eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggerRejectedAudit,
       actorId: command.actorId,
-      organizationId,
       resourceType: AUDIT_RESOURCE_TYPES.repositorySnapshot,
       resourceId: clean(command.snapshotId) ?? command.assessmentId,
       correlationId: command.correlationId,
@@ -385,7 +357,7 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
    * Builds the standard problem payload used by scan-trigger HTTP exceptions.
    *
    * @param command - Trigger command supplying the correlation identifier.
-   * @param errorCode - Stable GitHub integration or PBAC error code.
+   * @param errorCode - Stable GitHub integration or RBAC error code.
    * @returns Standard bad-request-shaped problem result.
    */
   private errorBody(command: TriggerScanCommand, errorCode: string) {

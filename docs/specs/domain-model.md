@@ -57,8 +57,8 @@ See `docs/specs/legal-rule-catalog-spec.md`.
 ## Ownership Principles
 
 - Manager owns assessment business truth and final conflict resolution.
-- Developer is optional and may perform scoped tasks with independent product value. Structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP`.
-- PBAC is the authorization source of truth. Roles are subject attributes/templates only.
+- Developer invitation/task workspace is retired from the active MVP. Structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP`.
+- RBAC is the authorization source of truth. Roles are subject attributes/templates only.
 - Python Worker Platform owns all asynchronous domain workloads.
 - Python Scanner Worker owns Repository Scan lifecycle and scanner evidence entities.
 - Internal Legal Operator owns corpus review/approval actions through internal API/CLI for MVP.
@@ -72,74 +72,74 @@ See `docs/specs/legal-rule-catalog-spec.md`.
 
 ### Organization
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| organizationId | UUIDv7 | Yes | Tenant identity |
-| name | string | Yes | Display name |
-| createdAt / updatedAt | datetime | Yes | Lifecycle timestamps |
+| Field                 | Type     | Required | Meaning              |
+| --------------------- | -------- | -------: | -------------------- |
+| organizationId        | UUIDv7   |      Yes | Tenant identity      |
+| name                  | string   |      Yes | Display name         |
+| createdAt / updatedAt | datetime |      Yes | Lifecycle timestamps |
 
 Relationships: has memberships, users, assessments, repository connections, and audit events.
 
 ### User
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| userId | UUIDv7 | Yes | User identity |
-| email | string | Yes | Login/contact identity |
-| displayName | string | No | Human-readable name |
-| status | enum | Yes | active/disabled lifecycle |
+| Field       | Type   | Required | Meaning                   |
+| ----------- | ------ | -------: | ------------------------- |
+| userId      | UUIDv7 |      Yes | User identity             |
+| email       | string |      Yes | Login/contact identity    |
+| displayName | string |       No | Human-readable name       |
+| status      | enum   |      Yes | active/disabled lifecycle |
 
 ### OrganizationMembership
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| membershipId | UUIDv7 | Yes | Membership identity |
-| organizationId / userId | UUIDv7 | Yes | Tenant/user link |
-| role | enum | Yes | Manager or Developer subject label only |
-| policyScope | JSON | No | PBAC policy scope references for delegated tasks |
-| status | enum | Yes | invited/active/revoked |
+| Field                   | Type   | Required | Meaning                                          |
+| ----------------------- | ------ | -------: | ------------------------------------------------ |
+| membershipId            | UUIDv7 |      Yes | Membership identity                              |
+| organizationId / userId | UUIDv7 |      Yes | Tenant/user link                                 |
+| role                    | enum   |      Yes | Manager subject label for active MVP             |
+| policyScope             | JSON   |       No | RBAC policy scope references for delegated tasks |
+| status                  | enum   |      Yes | invited/active/revoked                           |
 
 ### Policy / PolicyVersion
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| policyId | UUIDv7/string | Yes | Policy identity |
-| version | integer/string | Yes | Immutable policy version |
-| organizationId | UUIDv7 | Yes | Tenant boundary |
-| subjectSelector | JSON | Yes | Subject attributes/service identity selector |
-| resourceSelector | JSON | Yes | Resource scope |
-| actions | JSON | Yes | Allowed/denied action set |
-| status | enum | Yes | active/superseded/revoked |
+| Field            | Type           | Required | Meaning                                      |
+| ---------------- | -------------- | -------: | -------------------------------------------- |
+| policyId         | UUIDv7/string  |      Yes | Policy identity                              |
+| version          | integer/string |      Yes | Immutable policy version                     |
+| organizationId   | UUIDv7         |      Yes | Tenant boundary                              |
+| subjectSelector  | JSON           |      Yes | Subject attributes/service identity selector |
+| resourceSelector | JSON           |      Yes | Resource scope                               |
+| actions          | JSON           |      Yes | Allowed/denied action set                    |
+| status           | enum           |      Yes | active/superseded/revoked                    |
 
-Concrete PBAC engine, storage, cache, invalidation, evaluation topology and failure behavior are governed by `docs/implementation/decisions/pbac-runtime-decision.md`.
+Concrete RBAC engine, storage, cache, invalidation, evaluation topology and failure behavior are governed by `docs/implementation/decisions/rbac-runtime-decision.md`.
 
 ### AuthorizationDecision
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| authorizationDecisionId | UUIDv7 | Yes | Decision identity |
-| actorOrServiceIdentity | string/UUID | Yes | Subject/service evaluated |
-| organizationId | UUIDv7 | Yes | Tenant boundary |
-| resourceRef | JSON | Yes | Safe resource reference |
-| action | string | Yes | Requested action |
-| policyId / policyVersion | string | Yes | Policy basis |
-| decision | enum | Yes | ALLOW/DENY |
-| contextRefs | JSON | Yes | Safe request/runtime context refs |
-| correlationId | UUIDv7/string | Yes | Trace correlation |
-| createdAt | datetime | Yes | Decision time |
+| Field                    | Type          | Required | Meaning                           |
+| ------------------------ | ------------- | -------: | --------------------------------- |
+| authorizationDecisionId  | UUIDv7        |      Yes | Decision identity                 |
+| actorOrServiceIdentity   | string/UUID   |      Yes | Subject/service evaluated         |
+| organizationId           | UUIDv7        |      Yes | Tenant boundary                   |
+| resourceRef              | JSON          |      Yes | Safe resource reference           |
+| action                   | string        |      Yes | Requested action                  |
+| policyId / policyVersion | string        |      Yes | Policy basis                      |
+| decision                 | enum          |      Yes | ALLOW/DENY                        |
+| contextRefs              | JSON          |      Yes | Safe request/runtime context refs |
+| correlationId            | UUIDv7/string |      Yes | Trace correlation                 |
+| createdAt                | datetime      |      Yes | Decision time                     |
 
 ## Assessment and Repository
 
 ### Assessment
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| assessmentId | UUIDv7 | Yes | Assessment identity |
-| organizationId | UUIDv7 | Yes | Tenant boundary |
-| ownerManagerId | UUIDv7 | Yes | Final accountable actor |
-| title | string | Yes | Assessment label |
-| state | AssessmentState | Yes | Canonical lifecycle state |
-| createdAt / updatedAt | datetime | Yes | Timestamps |
+| Field                 | Type            | Required | Meaning                   |
+| --------------------- | --------------- | -------: | ------------------------- |
+| assessmentId          | UUIDv7          |      Yes | Assessment identity       |
+| organizationId        | UUIDv7          |      Yes | Tenant boundary           |
+| ownerManagerId        | UUIDv7          |      Yes | Final accountable actor   |
+| title                 | string          |      Yes | Assessment label          |
+| state                 | AssessmentState |      Yes | Canonical lifecycle state |
+| createdAt / updatedAt | datetime        |      Yes | Timestamps                |
 
 Lifecycle:
 
@@ -156,65 +156,65 @@ CREATED -> WIZARD_PROFILE_READY -> REPOSITORY_CONNECTED
 
 ### WizardProfile
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| wizardProfileId | UUIDv7 | Yes | Profile identity |
-| assessmentId | UUIDv7 | Yes | Owner assessment |
-| version | integer | Yes | Immutable version |
-| answers | JSON | Yes | Structured Manager answers |
-| submittedBy | UUIDv7 | Yes | Manager actor |
-| createdAt | datetime | Yes | Submission time |
+| Field           | Type     | Required | Meaning                    |
+| --------------- | -------- | -------: | -------------------------- |
+| wizardProfileId | UUIDv7   |      Yes | Profile identity           |
+| assessmentId    | UUIDv7   |      Yes | Owner assessment           |
+| version         | integer  |      Yes | Immutable version          |
+| answers         | JSON     |      Yes | Structured Manager answers |
+| submittedBy     | UUIDv7   |      Yes | Manager actor              |
+| createdAt       | datetime |      Yes | Submission time            |
 
 ### RepositoryConnection
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| repositoryConnectionId | UUIDv7 | Yes | Connection identity |
-| assessmentId | UUIDv7 | Yes | Assessment scope |
-| installationId | string | Yes | GitHub App installation ref |
-| repositoryOwner / repositoryName / repositoryId | string | Yes | Selected repository identity |
-| selectedBranch | string | No | Default branch |
-| status | enum | Yes | connected/revoked/unavailable |
+| Field                                           | Type   | Required | Meaning                       |
+| ----------------------------------------------- | ------ | -------: | ----------------------------- |
+| repositoryConnectionId                          | UUIDv7 |      Yes | Connection identity           |
+| assessmentId                                    | UUIDv7 |      Yes | Assessment scope              |
+| installationId                                  | string |      Yes | GitHub App installation ref   |
+| repositoryOwner / repositoryName / repositoryId | string |      Yes | Selected repository identity  |
+| selectedBranch                                  | string |       No | Default branch                |
+| status                                          | enum   |      Yes | connected/revoked/unavailable |
 
 ### RepositorySnapshot
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| repositorySnapshotId | UUIDv7 | Yes | Snapshot identity |
-| assessmentId / repositoryConnectionId | UUIDv7 | Yes | Scope/source |
-| branch / commitSha | string | Yes | Pinned source |
-| fileCount / totalBytes | integer | Yes | Inventory summary |
-| metadata | JSON | Yes | Redacted provider metadata |
-| createdAt | datetime | Yes | Snapshot time |
+| Field                                 | Type     | Required | Meaning                    |
+| ------------------------------------- | -------- | -------: | -------------------------- |
+| repositorySnapshotId                  | UUIDv7   |      Yes | Snapshot identity          |
+| assessmentId / repositoryConnectionId | UUIDv7   |      Yes | Scope/source               |
+| branch / commitSha                    | string   |      Yes | Pinned source              |
+| fileCount / totalBytes                | integer  |      Yes | Inventory summary          |
+| metadata                              | JSON     |      Yes | Redacted provider metadata |
+| createdAt                             | datetime |      Yes | Snapshot time              |
 
 Snapshot is immutable and historical reruns create new ScanJob/evidence versions.
 
 ### TrustedScanTrigger
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| trustedScanTriggerId | UUIDv7 | Yes | Trigger identity |
-| organizationId | UUIDv7 | Yes | Tenant boundary |
-| sourceType | enum | Yes | GITHUB_WEBHOOK/SCHEDULED_TRIGGER/BACKEND_TRIGGER/MANAGER_ACTION |
-| sourceIdentity | string | Yes | Verified source/service/actor identity |
-| sourceDeliveryId | string | No | External delivery id where available |
-| repositoryConnectionId / repositoryId | UUID/string | No | Repository mapping context |
-| assessmentId | UUIDv7 | No | Assessment mapping if known |
-| branch / commitSha | string | No | Trusted ref context |
-| status | enum | Yes | RECEIVED/CONTEXT_VALIDATING/READY_TO_SNAPSHOT/PENDING_MAPPING/BLOCKED_MAPPING/WAITING_FOR_CONTEXT/REJECTED |
-| idempotencyKey | string | Yes | Duplicate handling |
-| correlationId / causationId | string | Yes | Trace refs |
+| Field                                 | Type        | Required | Meaning                                                                                                    |
+| ------------------------------------- | ----------- | -------: | ---------------------------------------------------------------------------------------------------------- |
+| trustedScanTriggerId                  | UUIDv7      |      Yes | Trigger identity                                                                                           |
+| organizationId                        | UUIDv7      |      Yes | Tenant boundary                                                                                            |
+| sourceType                            | enum        |      Yes | GITHUB_WEBHOOK/SCHEDULED_TRIGGER/BACKEND_TRIGGER/MANAGER_ACTION                                            |
+| sourceIdentity                        | string      |      Yes | Verified source/service/actor identity                                                                     |
+| sourceDeliveryId                      | string      |       No | External delivery id where available                                                                       |
+| repositoryConnectionId / repositoryId | UUID/string |       No | Repository mapping context                                                                                 |
+| assessmentId                          | UUIDv7      |       No | Assessment mapping if known                                                                                |
+| branch / commitSha                    | string      |       No | Trusted ref context                                                                                        |
+| status                                | enum        |      Yes | RECEIVED/CONTEXT_VALIDATING/READY_TO_SNAPSHOT/PENDING_MAPPING/BLOCKED_MAPPING/WAITING_FOR_CONTEXT/REJECTED |
+| idempotencyKey                        | string      |      Yes | Duplicate handling                                                                                         |
+| correlationId / causationId           | string      |      Yes | Trace refs                                                                                                 |
 
 ### ScanMappingResolution
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| mappingResolutionId | UUIDv7 | Yes | Mapping decision identity |
-| trustedScanTriggerId | UUIDv7 | Yes | Source trigger |
-| status | enum | Yes | READY/PENDING_MAPPING/BLOCKED_MAPPING/WAITING_FOR_CONTEXT |
-| reasonCode | string | Yes | Safe reason |
-| resolvedRefs | JSON | No | Safe org/repo/assessment refs |
-| managerVisible | boolean | Yes | Whether UI recovery is required |
+| Field                | Type    | Required | Meaning                                                   |
+| -------------------- | ------- | -------: | --------------------------------------------------------- |
+| mappingResolutionId  | UUIDv7  |      Yes | Mapping decision identity                                 |
+| trustedScanTriggerId | UUIDv7  |      Yes | Source trigger                                            |
+| status               | enum    |      Yes | READY/PENDING_MAPPING/BLOCKED_MAPPING/WAITING_FOR_CONTEXT |
+| reasonCode           | string  |      Yes | Safe reason                                               |
+| resolvedRefs         | JSON    |       No | Safe org/repo/assessment refs                             |
+| managerVisible       | boolean |      Yes | Whether UI recovery is required                           |
 
 Missing or ambiguous mapping must not create RepositorySnapshot or RepositoryScanJob.
 
@@ -222,40 +222,40 @@ Missing or ambiguous mapping must not create RepositorySnapshot or RepositorySca
 
 ### RepositoryScanJob
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| scanJobId | UUIDv7 | Yes | Job identity |
-| assessmentId / repositorySnapshotId | UUIDv7 | Yes | Scope |
-| status | ScanJobStatus | Yes | REQUESTED/RUNNING/COMPLETED/FAILED/CANCELED |
-| workerRuntime | enum | Yes | `PYTHON` for active MVP |
-| idempotencyKey | string | Yes | Duplicate protection |
-| scannerVersion / rulesetVersion | string | Yes | Reproducibility |
-| cleanupVerifiedAt | datetime | No | Required for COMPLETED |
-| failureCode / failureMessage | string | No | Redacted failure |
+| Field                               | Type          | Required | Meaning                                     |
+| ----------------------------------- | ------------- | -------: | ------------------------------------------- |
+| scanJobId                           | UUIDv7        |      Yes | Job identity                                |
+| assessmentId / repositorySnapshotId | UUIDv7        |      Yes | Scope                                       |
+| status                              | ScanJobStatus |      Yes | REQUESTED/RUNNING/COMPLETED/FAILED/CANCELED |
+| workerRuntime                       | enum          |      Yes | `PYTHON` for active MVP                     |
+| idempotencyKey                      | string        |      Yes | Duplicate protection                        |
+| scannerVersion / rulesetVersion     | string        |      Yes | Reproducibility                             |
+| cleanupVerifiedAt                   | datetime      |       No | Required for COMPLETED                      |
+| failureCode / failureMessage        | string        |       No | Redacted failure                            |
 
 ### SourceFile
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| sourceFileId / repositorySnapshotId | UUIDv7 | Yes | Identity/scope |
-| relativePath / extension / language | string | Yes | Metadata only |
-| supportLevel | AnalysisSupportLevel | Yes | BOUNDED_STATIC_L0_L3/BASIC_SIGNAL_ONLY/UNSUPPORTED |
-| sizeBytes | integer | Yes | File size |
-| contentHash | string | Yes | Integrity reference |
-| ignored | boolean | Yes | Skip state |
-| coverageLimitations | JSON | No | Bounded analysis gaps |
+| Field                               | Type                 | Required | Meaning                                            |
+| ----------------------------------- | -------------------- | -------: | -------------------------------------------------- |
+| sourceFileId / repositorySnapshotId | UUIDv7               |      Yes | Identity/scope                                     |
+| relativePath / extension / language | string               |      Yes | Metadata only                                      |
+| supportLevel                        | AnalysisSupportLevel |      Yes | BOUNDED_STATIC_L0_L3/BASIC_SIGNAL_ONLY/UNSUPPORTED |
+| sizeBytes                           | integer              |      Yes | File size                                          |
+| contentHash                         | string               |      Yes | Integrity reference                                |
+| ignored                             | boolean              |      Yes | Skip state                                         |
+| coverageLimitations                 | JSON                 |       No | Bounded analysis gaps                              |
 
 ### EvidenceReference
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| evidenceRefId | UUIDv7 | Yes | Reference identity |
-| sourceType | enum | Yes | STATIC_SCAN/WIZARD/MANAGER_RESOLUTION/LEGAL_CORPUS/SYSTEM_DERIVED |
-| sourceFileId | UUIDv7 | No | File source |
-| relativePath / symbolRef | string | No | Redacted location |
-| lineRange | JSON | No | Location only |
-| evidenceHash | string | Yes | Integrity hash |
-| redactionStatus | enum | Yes | No source stored/redacted metadata |
+| Field                    | Type   | Required | Meaning                                                           |
+| ------------------------ | ------ | -------: | ----------------------------------------------------------------- |
+| evidenceRefId            | UUIDv7 |      Yes | Reference identity                                                |
+| sourceType               | enum   |      Yes | STATIC_SCAN/WIZARD/MANAGER_RESOLUTION/LEGAL_CORPUS/SYSTEM_DERIVED |
+| sourceFileId             | UUIDv7 |       No | File source                                                       |
+| relativePath / symbolRef | string |       No | Redacted location                                                 |
+| lineRange                | JSON   |       No | Location only                                                     |
+| evidenceHash             | string |      Yes | Integrity hash                                                    |
+| redactionStatus          | enum   |      Yes | No source stored/redacted metadata                                |
 
 ### CodeGraphNode / CodeGraphEdge
 
@@ -263,25 +263,25 @@ Metadata-only scan graph. Nodes/edges contain identifiers, types, file/symbol re
 
 ### TechnicalFinding
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| findingId | UUIDv7 | Yes | Finding identity |
-| technicalEvidenceReportId | UUIDv7 | Yes | Report owner |
-| findingType | FindingType | Yes | Canonical signal type |
-| confidence | number | Yes | 0.0-1.0 |
-| evidenceRefs | relation/JSON refs | Yes | One or more references where required |
-| metadata | JSON | Yes | Redacted normalized metadata |
+| Field                     | Type               | Required | Meaning                               |
+| ------------------------- | ------------------ | -------: | ------------------------------------- |
+| findingId                 | UUIDv7             |      Yes | Finding identity                      |
+| technicalEvidenceReportId | UUIDv7             |      Yes | Report owner                          |
+| findingType               | FindingType        |      Yes | Canonical signal type                 |
+| confidence                | number             |      Yes | 0.0-1.0                               |
+| evidenceRefs              | relation/JSON refs |      Yes | One or more references where required |
+| metadata                  | JSON               |      Yes | Redacted normalized metadata          |
 
 ### TechnicalEvidenceReport
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| technicalEvidenceReportId | UUIDv7 | Yes | Report identity |
-| assessmentId / scanJobId | UUIDv7 | Yes | Scope/source |
-| status | EvidenceReportStatus | Yes | DRAFT/SCHEMA_VALID/QUALITY_VALID/QUALITY_INSUFFICIENT/FAILED |
-| reportHash | string | Yes | Integrity |
-| scannerVersion / rulesetVersion / schemaVersion | string | Yes | Reproducibility |
-| coverageSummary / privacyFlags | JSON | Yes | Gates and limitations |
+| Field                                           | Type                 | Required | Meaning                                                      |
+| ----------------------------------------------- | -------------------- | -------: | ------------------------------------------------------------ |
+| technicalEvidenceReportId                       | UUIDv7               |      Yes | Report identity                                              |
+| assessmentId / scanJobId                        | UUIDv7               |      Yes | Scope/source                                                 |
+| status                                          | EvidenceReportStatus |      Yes | DRAFT/SCHEMA_VALID/QUALITY_VALID/QUALITY_INSUFFICIENT/FAILED |
+| reportHash                                      | string               |      Yes | Integrity                                                    |
+| scannerVersion / rulesetVersion / schemaVersion | string               |      Yes | Reproducibility                                              |
+| coverageSummary / privacyFlags                  | JSON                 |      Yes | Gates and limitations                                        |
 
 Only `QUALITY_VALID` report linked to COMPLETED ScanJob with verified cleanup is downstream eligible.
 
@@ -301,14 +301,14 @@ AIUsageFlow groups claim-level records for business process, AI purpose, inputs,
 
 ### ReconciliationConflict
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| conflictId / assessmentId / aiUsageFlowId | UUIDv7 | Yes | Identity/scope |
-| conflictType | string | Yes | Material mismatch |
-| status | enum | Yes | CONFLICT_OPEN/RESOLVED/VERIFIED |
-| evidenceRefs | JSON/relation | Yes | Compared evidence |
-| managerResolution / rationale | JSON | No | Separate final decision |
-| resolvedBy / resolvedAt | UUIDv7/datetime | No | Manager resolution audit |
+| Field                                     | Type            | Required | Meaning                         |
+| ----------------------------------------- | --------------- | -------: | ------------------------------- |
+| conflictId / assessmentId / aiUsageFlowId | UUIDv7          |      Yes | Identity/scope                  |
+| conflictType                              | string          |      Yes | Material mismatch               |
+| status                                    | enum            |      Yes | CONFLICT_OPEN/RESOLVED/VERIFIED |
+| evidenceRefs                              | JSON/relation   |      Yes | Compared evidence               |
+| managerResolution / rationale             | JSON            |       No | Separate final decision         |
+| resolvedBy / resolvedAt                   | UUIDv7/datetime |       No | Manager resolution audit        |
 
 ### VerifiedProfile
 
@@ -318,26 +318,26 @@ Historical reconciled profile combining TechnicalProfile, AIUsageFlow, and (when
 
 ### LegalSource
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| legalSourceId | UUIDv7 | Yes | Source identity |
-| name / authority | string | Yes | Source label/authority |
-| baseUrl | string | Yes | Approved source boundary |
-| sourceTier | enum | Yes | PRIMARY/SUPPLEMENTARY |
-| validationStatus | enum | Yes | pending/validated/rejected |
-| validatedBy / validatedAt | string/datetime | No | Internal validation record |
+| Field                     | Type            | Required | Meaning                    |
+| ------------------------- | --------------- | -------: | -------------------------- |
+| legalSourceId             | UUIDv7          |      Yes | Source identity            |
+| name / authority          | string          |      Yes | Source label/authority     |
+| baseUrl                   | string          |      Yes | Approved source boundary   |
+| sourceTier                | enum            |      Yes | PRIMARY/SUPPLEMENTARY      |
+| validationStatus          | enum            |      Yes | pending/validated/rejected |
+| validatedBy / validatedAt | string/datetime |       No | Internal validation record |
 
 ### LegalDocument
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| legalDocumentId / legalSourceId | UUIDv7 | Yes | Identity/source |
-| documentNumber / documentType / issuingAuthority / title | string | Yes | Official identity |
-| issueDate / effectiveStartDate / effectiveEndDate | date | Yes/No | Legal effect |
-| sourceUrl / snapshotRef | string | Yes | Provenance and immutable object storage ref |
-| retrievedAt / contentHash | datetime/string | Yes | Capture provenance |
-| status | enum | Yes | DRAFT/APPROVED/SUPERSEDED |
-| supersedes / supersededBy / amends | JSON | No | Legal relationships |
+| Field                                                    | Type            | Required | Meaning                                     |
+| -------------------------------------------------------- | --------------- | -------: | ------------------------------------------- |
+| legalDocumentId / legalSourceId                          | UUIDv7          |      Yes | Identity/source                             |
+| documentNumber / documentType / issuingAuthority / title | string          |      Yes | Official identity                           |
+| issueDate / effectiveStartDate / effectiveEndDate        | date            |   Yes/No | Legal effect                                |
+| sourceUrl / snapshotRef                                  | string          |      Yes | Provenance and immutable object storage ref |
+| retrievedAt / contentHash                                | datetime/string |      Yes | Capture provenance                          |
+| status                                                   | enum            |      Yes | DRAFT/APPROVED/SUPERSEDED                   |
+| supersedes / supersededBy / amends                       | JSON            |       No | Legal relationships                         |
 
 ### LegalCorpusItem
 
@@ -345,38 +345,38 @@ Represents a normalized legal hierarchy unit tied to a document and corpus versi
 
 ### LegalDocumentChunk
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| chunkId / corpusItemId | UUIDv7 | Yes | Identity/owner |
-| chunkIndex | integer | Yes | Stable order |
-| content | text | Yes | Approved normalized legal text |
-| hierarchicalPath | string | Yes | Stable document/article/clause/point path |
-| contextRole | enum | Yes | PRIMARY_MATCH/PARENT_CONTEXT/REFERENCED_CONTEXT at retrieval time |
-| outgoingRefIds / incomingRefIds | JSON | No | Cross-reference graph edges |
-| chromaCollectionId / chromaRecordId | string | Yes after indexing | ChromaDB collection/record identity |
-| supersedesChunkId | string | No | Versioned legal text history |
+| Field                               | Type    |           Required | Meaning                                                           |
+| ----------------------------------- | ------- | -----------------: | ----------------------------------------------------------------- |
+| chunkId / corpusItemId              | UUIDv7  |                Yes | Identity/owner                                                    |
+| chunkIndex                          | integer |                Yes | Stable order                                                      |
+| content                             | text    |                Yes | Approved normalized legal text                                    |
+| hierarchicalPath                    | string  |                Yes | Stable document/article/clause/point path                         |
+| contextRole                         | enum    |                Yes | PRIMARY_MATCH/PARENT_CONTEXT/REFERENCED_CONTEXT at retrieval time |
+| outgoingRefIds / incomingRefIds     | JSON    |                 No | Cross-reference graph edges                                       |
+| chromaCollectionId / chromaRecordId | string  | Yes after indexing | ChromaDB collection/record identity                               |
+| supersedesChunkId                   | string  |                 No | Versioned legal text history                                      |
 
 ### LegalCorpusVersion
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| legalCorpusVersionId | UUIDv7 | Yes | Version identity |
-| version | string | Yes | Human/system version |
-| status | enum | Yes | DRAFT/APPROVED/SUPERSEDED |
-| sourceRefs | JSON | Yes | Included source/document/hash refs |
-| createdAt / approvedAt | datetime | Yes/No | Lifecycle timestamps |
+| Field                  | Type     | Required | Meaning                            |
+| ---------------------- | -------- | -------: | ---------------------------------- |
+| legalCorpusVersionId   | UUIDv7   |      Yes | Version identity                   |
+| version                | string   |      Yes | Human/system version               |
+| status                 | enum     |      Yes | DRAFT/APPROVED/SUPERSEDED          |
+| sourceRefs             | JSON     |      Yes | Included source/document/hash refs |
+| createdAt / approvedAt | datetime |   Yes/No | Lifecycle timestamps               |
 
 Approved versions are immutable. New changes create a new version; existing assessments retain pinned versions.
 
 ### CorpusApprovalRecord
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| approvalRecordId / corpusVersionId | UUIDv7 | Yes | Identity/version |
-| approvedBy | string/actor ref | Yes | Internal Legal Operator |
-| status | enum | Yes | APPROVED/REJECTED |
-| scopeDescription / comments | string | Yes/No | Review scope/notes |
-| approvalDate | datetime | Yes | Decision time |
+| Field                              | Type             | Required | Meaning                 |
+| ---------------------------------- | ---------------- | -------: | ----------------------- |
+| approvalRecordId / corpusVersionId | UUIDv7           |      Yes | Identity/version        |
+| approvedBy                         | string/actor ref |      Yes | Internal Legal Operator |
+| status                             | enum             |      Yes | APPROVED/REJECTED       |
+| scopeDescription / comments        | string           |   Yes/No | Review scope/notes      |
+| approvalDate                       | datetime         |      Yes | Decision time           |
 
 ### RetrievalAuditLog
 
@@ -388,40 +388,40 @@ Records provider, model, prompt version, sanitized input reference, output hash,
 
 ### LegalRuleCatalogVersion
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| legalRuleCatalogVersionId | UUIDv7 | Yes | Version identity |
-| version | string | Yes | Human/system version |
-| status | enum | Yes | DRAFT/APPROVED/SUPERSEDED |
-| ruleRefs | JSON | Yes | Included `LegalRule` identifiers at this version |
-| createdAt / approvedAt | datetime | Yes/No | Lifecycle timestamps |
+| Field                     | Type     | Required | Meaning                                          |
+| ------------------------- | -------- | -------: | ------------------------------------------------ |
+| legalRuleCatalogVersionId | UUIDv7   |      Yes | Version identity                                 |
+| version                   | string   |      Yes | Human/system version                             |
+| status                    | enum     |      Yes | DRAFT/APPROVED/SUPERSEDED                        |
+| ruleRefs                  | JSON     |      Yes | Included `LegalRule` identifiers at this version |
+| createdAt / approvedAt    | datetime |   Yes/No | Lifecycle timestamps                             |
 
 Approved versions are immutable, mirroring `LegalCorpusVersion`. New rule changes create a new version; existing assessments retain the pinned version used at EngineeringRule evaluation time.
 
 ### RuleApprovalRecord
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| ruleApprovalRecordId / legalRuleCatalogVersionId | UUIDv7 | Yes | Identity/version |
-| approvedBy | string/actor ref | Yes | Internal Legal Operator |
-| status | enum | Yes | APPROVED/REJECTED |
-| scopeDescription / comments | string | Yes/No | Review scope/notes |
-| approvalDate | datetime | Yes | Decision time |
+| Field                                            | Type             | Required | Meaning                 |
+| ------------------------------------------------ | ---------------- | -------: | ----------------------- |
+| ruleApprovalRecordId / legalRuleCatalogVersionId | UUIDv7           |      Yes | Identity/version        |
+| approvedBy                                       | string/actor ref |      Yes | Internal Legal Operator |
+| status                                           | enum             |      Yes | APPROVED/REJECTED       |
+| scopeDescription / comments                      | string           |   Yes/No | Review scope/notes      |
+| approvalDate                                     | datetime         |      Yes | Decision time           |
 
 Mirrors `CorpusApprovalRecord`. Rejection leaves the catalog version `DRAFT`, blocked from EngineeringRule/classification use until corrected or abandoned.
 
 ### LegalRule
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| legalRuleId | string | Yes | Rule identity referenced by `EngineeringRule` and direct classification results |
-| legalRuleCatalogVersionId | UUIDv7 | Yes | Owning catalog version; immutable once approved |
-| ruleFamily | string | Yes | Classification family such as AI use, data, oversight, documentation |
-| requiredFacts / optionalFacts / blockingFacts | JSON | Yes/No/No | Applicability conditions compiled into EngineeringRule investigation criteria |
-| unknownFactPolicy | enum | Yes | Default blocked/degraded, never guessed |
-| citationLocatorRefs | JSON | Yes | One or more `{legalCorpusVersionId, document_id, locator}` refs; each must resolve to a chunk in an APPROVED `LegalCorpusVersion` at authoring time or the rule is rejected at approval |
-| status | enum | Yes | DRAFT/APPROVED/DEPRECATED |
-| authoredBy | string/actor ref | Yes | Internal Legal Operator |
+| Field                                         | Type             |  Required | Meaning                                                                                                                                                                                 |
+| --------------------------------------------- | ---------------- | --------: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| legalRuleId                                   | string           |       Yes | Rule identity referenced by `EngineeringRule` and direct classification results                                                                                                         |
+| legalRuleCatalogVersionId                     | UUIDv7           |       Yes | Owning catalog version; immutable once approved                                                                                                                                         |
+| ruleFamily                                    | string           |       Yes | Classification family such as AI use, data, oversight, documentation                                                                                                                    |
+| requiredFacts / optionalFacts / blockingFacts | JSON             | Yes/No/No | Applicability conditions compiled into EngineeringRule investigation criteria                                                                                                           |
+| unknownFactPolicy                             | enum             |       Yes | Default blocked/degraded, never guessed                                                                                                                                                 |
+| citationLocatorRefs                           | JSON             |       Yes | One or more `{legalCorpusVersionId, document_id, locator}` refs; each must resolve to a chunk in an APPROVED `LegalCorpusVersion` at authoring time or the rule is rejected at approval |
+| status                                        | enum             |       Yes | DRAFT/APPROVED/DEPRECATED                                                                                                                                                               |
+| authoredBy                                    | string/actor ref |       Yes | Internal Legal Operator                                                                                                                                                                 |
 
 A `LegalRule` is hand-authored, never auto-extracted from `LegalDocumentChunk` text by an LLM or rule-mining process. The legal corpus only supplies citation targets that `citationLocatorRefs` are validated against.
 
@@ -431,14 +431,14 @@ Historical persistence artifact for the retired `VerifiedProfile -> legal matchi
 
 ### EngineeringRuleEvaluation
 
-| Field | Type | Required | Meaning |
-|---|---|---:|---|
-| assessmentId / legalCorpusVersionId / legalRuleCatalogVersionId | UUIDv7 | Yes | Scope/basis pinned for reproducibility |
-| legalRuleId / engineeringRuleId | string | Yes | Rule identities used for deterministic evaluation |
-| evidenceRefs | JSON/relation | Yes | Repository evidence refs that support or contradict required criteria |
-| citationRefs | JSON/relation | Yes | Document/article/clause/point/source/hash/version refs |
-| status | enum | Yes | COMPLIANT/NON_COMPLIANT/UNKNOWN/BLOCKED |
-| diagnostics | JSON | Yes | Compile failures, missing evidence, citation gaps and source-hit distribution |
+| Field                                                           | Type          | Required | Meaning                                                                       |
+| --------------------------------------------------------------- | ------------- | -------: | ----------------------------------------------------------------------------- |
+| assessmentId / legalCorpusVersionId / legalRuleCatalogVersionId | UUIDv7        |      Yes | Scope/basis pinned for reproducibility                                        |
+| legalRuleId / engineeringRuleId                                 | string        |      Yes | Rule identities used for deterministic evaluation                             |
+| evidenceRefs                                                    | JSON/relation |      Yes | Repository evidence refs that support or contradict required criteria         |
+| citationRefs                                                    | JSON/relation |      Yes | Document/article/clause/point/source/hash/version refs                        |
+| status                                                          | enum          |      Yes | COMPLIANT/NON_COMPLIANT/UNKNOWN/BLOCKED                                       |
+| diagnostics                                                     | JSON          |      Yes | Compile failures, missing evidence, citation gaps and source-hit distribution |
 
 ## Classification and Reporting
 
@@ -466,7 +466,7 @@ Transactional message record with event/command type, schema version, aggregate 
 
 ## UX Boundary
 
-Manager/Developer UX may expose assessment, evidence, conflict, profile, classification, gap, document, and audit entities. LegalSource, LegalDocument, LegalCorpusItem, LegalDocumentChunk, CorpusApprovalRecord, LegalRule, LegalRuleCatalogVersion, RuleApprovalRecord, and corpus/rule-catalog administration are internal operations/API/CLI entities for MVP. Manager UX may display only the pinned corpus version, pinned rule catalog version, and citation provenance relevant to an assessment.
+Manager UX may expose assessment, evidence, conflict, profile, classification, gap, document, and audit entities. LegalSource, LegalDocument, LegalCorpusItem, LegalDocumentChunk, CorpusApprovalRecord, LegalRule, LegalRuleCatalogVersion, RuleApprovalRecord, and corpus/rule-catalog administration are internal operations/API/CLI entities for MVP. Manager UX may display only the pinned corpus version, pinned rule catalog version, and citation provenance relevant to an assessment.
 
 ## Canonical Status
 

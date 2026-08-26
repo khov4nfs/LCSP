@@ -37,7 +37,7 @@ A standalone Python Worker is the sole consumer of `command.scan.requested.v1` a
 8. workspace deletion and cleanup verification;
 9. terminal ScanJob transaction and completed/failed OutboxEvent.
 
-NestJS API retains authentication, PBAC enforcement boundary, trusted scan trigger / ScanJob creation/query, GitHub Integration credentials, and downstream orchestration projections. Commit-pinned materialization is split across the boundary: GitHub Integration validates scan/snapshot scope and streams the archive through an authenticated internal endpoint; Python Worker extracts it into the restricted workspace. The scanner runtime never calls GitHub or receives GitHub credentials.
+NestJS API retains authentication, RBAC enforcement boundary, trusted scan trigger / ScanJob creation/query, GitHub Integration credentials, and downstream orchestration projections. Commit-pinned materialization is split across the boundary: GitHub Integration validates scan/snapshot scope and streams the archive through an authenticated internal endpoint; Python Worker extracts it into the restricted workspace. The scanner runtime never calls GitHub or receives GitHub credentials.
 
 Phase 5.2L expands scanner requirements beyond the original ADR-023 baseline. Syft, Knip, deptry, Semgrep custom rules, and tree-sitter/custom parser are now required scanner toolchain components. ADR-023 remains historical authority for Python scanner lifecycle ownership, but its narrower `ast/libcst` + `ts-morph` toolchain is superseded in part by Phase 5.2L.
 

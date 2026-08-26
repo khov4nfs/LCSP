@@ -3,8 +3,10 @@ import { randomUUID } from "node:crypto";
 import {
   AUTH_BACKUP_EMAIL_POLICIES,
   AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES,
+  AUTH_USER_ROLES,
   type AuthBackupEmailPolicy,
   type AuthPrimaryEmailAddressPolicy,
+  type AuthUserRole,
 } from "@lcsp/contracts/auth";
 
 import { EmailAddress } from "../value-objects/email-address.value-object.ts";
@@ -19,6 +21,7 @@ type UserInput = {
   recoveryEmail?: string | null;
   primaryEmailAddressPolicy?: AuthPrimaryEmailAddressPolicy;
   backupEmailPolicy?: AuthBackupEmailPolicy;
+  role?: AuthUserRole;
   mfaRequired?: boolean;
 };
 
@@ -33,6 +36,7 @@ export class User {
   recoveryEmail: string | null;
   primaryEmailAddressPolicy: AuthPrimaryEmailAddressPolicy;
   backupEmailPolicy: AuthBackupEmailPolicy;
+  role: AuthUserRole;
   mfaRequired: boolean;
 
   constructor(input: UserInput) {
@@ -49,6 +53,7 @@ export class User {
       AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES.accountEmail;
     this.backupEmailPolicy =
       input.backupEmailPolicy ?? AUTH_BACKUP_EMAIL_POLICIES.recoveryEmail;
+    this.role = input.role ?? AUTH_USER_ROLES.customer;
     this.mfaRequired = input.mfaRequired ?? false;
   }
 

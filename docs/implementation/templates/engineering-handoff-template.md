@@ -78,7 +78,7 @@ flowchart LR
 
 ## Security, Privacy, and Audit
 
-- PBAC:
+- RBAC:
 - Tenant scope:
 - Secrets:
 - Raw source:
@@ -105,7 +105,7 @@ flowchart LR
 | Architecture / ADR | | |
 | Backend API | | |
 | Python worker | | |
-| Security / PBAC | | |
+| Security / RBAC | | |
 | UX | | |
 | Traceability | | |
 

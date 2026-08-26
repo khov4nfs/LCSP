@@ -37,7 +37,7 @@ The deprecated UX specification has been removed from the active doc set; use gi
 ## Confirmed UX Requirements
 
 - Manager-owned A-to-Z golden path without mandatory Developer participation.
-- PBAC-scoped optional Developer task workspace.
+- RBAC-scoped optional Developer task workspace.
 - Readiness-only state before technical evidence, with no HIGH/MEDIUM/LOW risk label.
 - Read-only GitHub repository connection, commit pinning, trusted scan initiation, scan status, retry/re-run messaging and safe failure states.
 - Evidence review using redacted findings, confidence, limitations and evidence references.
@@ -49,7 +49,7 @@ The deprecated UX specification has been removed from the active doc set; use gi
 - Citation outside retrieved/referenced allowlist blocks or rejects classification/document output.
 - Gap analysis and final documents remain blocked until upstream evidence, classification and citation gates pass.
 - Readiness-only exports are visibly distinct from final reports.
-- Audit trail exposes safe metadata, evidence refs, citation refs, PBAC policy/version and correlation IDs without raw source, full prompts or secrets.
+- Audit trail exposes safe metadata, evidence refs, citation refs, RBAC policy/version and correlation IDs without raw source, full prompts or secrets.
 
 ## UX Exclusions
 

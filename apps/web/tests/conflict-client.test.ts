@@ -78,7 +78,7 @@ test("conflict list payload sanitizer accepts valid shape", () => {
 test("conflict list outcome maps 403 to access_revoked", () => {
   assert.deepEqual(
     toConflictListOutcome(
-      problem(AUTH_ERROR_CODES.pbacDenied, 403),
+      problem(AUTH_ERROR_CODES.rbacDenied, 403),
       false,
       403,
     ),
@@ -158,10 +158,10 @@ test("resolve outcome maps 409 conflict-already-resolved", () => {
   );
 });
 
-test("resolve outcome maps PBAC denial to access_revoked", () => {
+test("resolve outcome maps RBAC denial to access_revoked", () => {
   assert.deepEqual(
     toResolveConflictOutcome(
-      problem(AUTH_ERROR_CODES.pbacDenied, 403),
+      problem(AUTH_ERROR_CODES.rbacDenied, 403),
       false,
       403,
     ),

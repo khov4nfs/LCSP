@@ -1,8 +1,8 @@
-import type { PbacRequestContext } from "../../../../../platform/pbac/interfaces/pbac-request.interface.ts";
+import type { RbacRequestContext } from "../../../../../platform/rbac/interfaces/rbac-request.interface.ts";
 
 export class GetAuthProfileQuery {
   constructor(
-    public readonly context: PbacRequestContext,
+    public readonly context: RbacRequestContext,
     public readonly correlationId: string,
   ) {}
 }

@@ -98,7 +98,6 @@ export class AcceptAIUsageFlowHandler implements ICommandHandler<AcceptAIUsageFl
       select: {
         id: true,
         assessmentId: true,
-        organizationId: true,
       },
     });
     if (!technicalProfile) {
@@ -125,7 +124,6 @@ export class AcceptAIUsageFlowHandler implements ICommandHandler<AcceptAIUsageFl
             id: aiUsageFlowId,
             technicalProfileId: technicalProfile.id,
             assessmentId: technicalProfile.assessmentId,
-            organizationId: technicalProfile.organizationId,
             schemaVersion: payload.schema_version,
             providerVersion: payload.provider_version,
             // The public callback claim contract is intentionally compact, but the
@@ -149,7 +147,6 @@ export class AcceptAIUsageFlowHandler implements ICommandHandler<AcceptAIUsageFl
           aggregateType: OUTBOX_AGGREGATE_TYPES.aiUsageFlow,
           aggregateId: aiUsageFlowId,
           eventType: SCAN_EVENT_TYPES.aiUsageFlowReady,
-          organizationId: technicalProfile.organizationId,
           assessmentId: technicalProfile.assessmentId,
           correlationId: command.correlationId,
           causationId: technicalProfile.id,
@@ -182,7 +179,6 @@ export class AcceptAIUsageFlowHandler implements ICommandHandler<AcceptAIUsageFl
         const auditEvent = buildAuditEventInput({
           eventType: SCAN_EVENT_TYPES.aiUsageFlowAcceptedAudit,
           actorId: AI_USAGE_FLOW_WORKER_ACTOR_ID,
-          organizationId: technicalProfile.organizationId,
           assessmentId: technicalProfile.assessmentId,
           resourceType: AUDIT_RESOURCE_TYPES.aiUsageFlow,
           resourceId: aiUsageFlowId,
@@ -207,7 +203,6 @@ export class AcceptAIUsageFlowHandler implements ICommandHandler<AcceptAIUsageFl
             id: crypto.randomUUID(),
             eventType: auditEvent.eventType,
             actorId: auditEvent.actorId,
-            organizationId: auditEvent.organizationId,
             resourceType: auditEvent.resourceType
               ? toPrismaAuditResourceType(auditEvent.resourceType)
               : null,

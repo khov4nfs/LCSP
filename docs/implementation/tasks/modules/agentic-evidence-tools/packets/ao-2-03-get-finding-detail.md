@@ -42,14 +42,14 @@ Unknown scoped finding is `NOT_FOUND` with `result:{finding:null}`; limited arti
 
 ## 7. Errors and Typed Outcomes
 
-`INVALID_ARGUMENT` rejects malformed/extra fields; `NEEDS_INPUT` requires accepted report version; `NOT_FOUND` is safe for absent or out-of-scope ref; `OUT_OF_COVERAGE` preserves scanner limitation; `BLOCKED` handles PBAC/tenant/state/version denial; `TOOL_TIMEOUT`/`FAILED` retry once only when transient.
+`INVALID_ARGUMENT` rejects malformed/extra fields; `NEEDS_INPUT` requires accepted report version; `NOT_FOUND` is safe for absent or out-of-scope ref; `OUT_OF_COVERAGE` preserves scanner limitation; `BLOCKED` handles RBAC/tenant/state/version denial; `TOOL_TIMEOUT`/`FAILED` retry once only when transient.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
 ```mermaid
 sequenceDiagram
   participant O as AO-3
-  participant G as PBAC gateway
+  participant G as RBAC gateway
   participant H as FindingDetailTool
   participant P as FindingProjection
   O->>G: findingRef + include
@@ -59,7 +59,7 @@ sequenceDiagram
   G-->>O: typed envelope
 ```
 
-Validate → registry → exact artifact/tenant/PBAC check → ID lookup → allow-listed field projection → privacy gate → audit. Registry: `FindingDetailTool`, `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, report required, 1s/one transient retry/`NONE`. The model gets max one finding and safe fields only; may call symbol/flow tools using refs, cannot ask for body, rule message, source or stack trace. Audit shared fields plus finding ref hash; never persist include data beyond safe hash. Deep deny-list enforces no raw source/prompt/secret/full AST/absolute path. 
+Validate → registry → exact artifact/tenant/RBAC check → ID lookup → allow-listed field projection → privacy gate → audit. Registry: `FindingDetailTool`, `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, report required, 1s/one transient retry/`NONE`. The model gets max one finding and safe fields only; may call symbol/flow tools using refs, cannot ask for body, rule message, source or stack trace. Audit shared fields plus finding ref hash; never persist include data beyond safe hash. Deep deny-list enforces no raw source/prompt/secret/full AST/absolute path. 
 
 ## 16. Scenario
 
@@ -75,14 +75,14 @@ Given a permitted exact ref it returns only requested safe fields; invalid/extra
 |---|---|---|
 | TC-01 | requested field projection | unit + contract |
 | TC-02 | guessed/malformed/extra ID | contract |
-| TC-03 | stale/cross-tenant/PBAC deny | integration |
+| TC-03 | stale/cross-tenant/RBAC deny | integration |
 | TC-04 | unknown vs scanner limit | integration |
 | TC-05 | full AST/source/secret nested value | privacy |
 | TC-06 | transient timeout and audit | worker |
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Build contracts/registry, immutable projection repository/handler/normalizer, API PBAC/audit and listed tests in the same modules as AO-2-02. OQ-01: ratify whether normalized rule identifier is safe as `RELATED_REFS` (Security, OPEN, blocks yes). Deliver strict definition/schema, mapping, audit and tests.
+Build contracts/registry, immutable projection repository/handler/normalizer, API RBAC/audit and listed tests in the same modules as AO-2-02. OQ-01: ratify whether normalized rule identifier is safe as `RELATED_REFS` (Security, OPEN, blocks yes). Deliver strict definition/schema, mapping, audit and tests.
 
 ## Source Authority
 

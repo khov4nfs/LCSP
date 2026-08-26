@@ -9,7 +9,7 @@ status: DONE
 
 ## Objective and tool definition
 
-Fail-closed deterministic gate for chunk hashes, hierarchy, locators, xrefs, duplicates, effect status and locator-level repeal consistency. `SYSTEM_ONLY` validation read; PBAC `LEGAL_CORPUS_VALIDATE`; a passing manifest is required before indexing/activation.
+Fail-closed deterministic gate for chunk hashes, hierarchy, locators, xrefs, duplicates, effect status and locator-level repeal consistency. `SYSTEM_ONLY` validation read; RBAC `LEGAL_CORPUS_VALIDATE`; a passing manifest is required before indexing/activation.
 
 ## Input
 

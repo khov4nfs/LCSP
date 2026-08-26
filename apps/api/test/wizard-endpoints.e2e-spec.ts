@@ -12,15 +12,9 @@ import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
+  seedRepositoryScanGraph,
 } from "./support/auth-workspace-test-helpers.js";
 
-import {
-  PBAC_ACTIONS,
-  PBAC_STATE_GATES,
-  SUBJECT_ROLES,
-} from "@lcsp/contracts/pbac";
-import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_LOCK_REASONS,
@@ -44,7 +38,6 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
   let app: INestApplication;
   let prisma: PrismaClient;
   let managerToken: string;
-  let restrictedToken: string;
   const orgId = "org-1";
 
   // Example Assessment ID to be created in each block
@@ -84,51 +77,6 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
     managerToken =
       successBody<{ session_token?: string }>(signInManager).session_token ??
       "";
-
-    // Setup Restricted User
-    const restrictedPolicyId = "policy-no-wizard-access";
-    await prisma.authPolicy.create({
-      data: {
-        id: restrictedPolicyId,
-        version: "2026-07-10",
-        actions: [PBAC_ACTIONS.workspaceRead], // Only workspace read
-        subjectRole: SUBJECT_ROLES.manager,
-        stateGate: PBAC_STATE_GATES.membershipActive,
-        organizationId: orgId,
-      },
-    });
-    const restrictedUserId = "user-no-wizard-access";
-    await prisma.authUser.create({
-      data: {
-        id: restrictedUserId,
-        email: "restricted@acme.test",
-        passwordHash: (
-          await import("../src/modules/auth-workspace/infrastructure/security/security.utils.js")
-        ).hashSecret("CorrectHorseBatteryStaple!"),
-        emailVerified: true,
-        failedLoginCount: 0,
-      },
-    });
-    await prisma.authMembership.create({
-      data: {
-        id: "membership-no-wizard-access",
-        userId: restrictedUserId,
-        organizationId: orgId,
-        status: AUTH_MEMBERSHIP_STATUSES.active,
-        subjectAttributes: { role: SUBJECT_ROLES.manager },
-        policyId: restrictedPolicyId,
-        policyVersion: "2026-07-10",
-      },
-    });
-
-    const signInRestricted = await httpRequest(app).post("/auth/sign-in").send({
-      email: "restricted@acme.test",
-      password: "CorrectHorseBatteryStaple!",
-      organization_id: orgId,
-    });
-    restrictedToken =
-      successBody<{ session_token?: string }>(signInRestricted).session_token ??
-      "";
   });
 
   afterAll(async () => {
@@ -150,7 +98,6 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
       data: {
         id: `snapshot-${connectionId}`,
         assessmentId,
-        organizationId: orgId,
         connectionId,
         repositoryId: `repository-${connectionId}`,
         repositoryFullName: `acme/${connectionId}`,
@@ -388,7 +335,6 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
         data: {
           id: "wp-3",
           assessmentId,
-          organizationId: orgId,
           ownerId: "user-1",
           status: WIZARD_STATUS_CODES.submitted,
           answers: [],
@@ -401,7 +347,6 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
         data: {
           id: "repo-conn-1",
           assessmentId,
-          organizationId: orgId,
           userId: "user-1",
           installationId: "123",
           repositoryId: "gh-1",
@@ -460,7 +405,6 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
         data: {
           id: "wp-4",
           assessmentId,
-          organizationId: orgId,
           ownerId: "user-1",
           status: WIZARD_STATUS_CODES.submitted,
           answers: [],
@@ -553,48 +497,6 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
         });
       assert.equal(res.status, 404);
       assert.equal(problemCode(res), ASSESSMENT_ERROR_CODES.notFound);
-    });
-
-    it("T06: Actor lacks wizard:write -> 403 PBAC_DENIED", async () => {
-      const res = await httpRequest(app)
-        .put(`/assessments/${assessmentId}/wizard/draft`)
-        .set("Authorization", `Bearer ${restrictedToken}`)
-        .send({
-          answers: [
-            {
-              questionId: "businessProcess",
-              value: "Draft",
-              answerState: "ANSWERED",
-              updatedAt: "2026-07-31T00:00:00.000Z",
-            },
-            {
-              questionId: "useCase",
-              value: "User completes the primary workflow with AI assistance",
-              answerState: "ANSWERED",
-              updatedAt: "2026-07-31T00:00:00.000Z",
-            },
-            {
-              questionId: "primaryActors",
-              value: "User, reviewer, AI system",
-              answerState: "ANSWERED",
-              updatedAt: "2026-07-31T00:00:00.000Z",
-            },
-            {
-              questionId: "businessTrigger",
-              value: "User starts the workflow",
-              answerState: "ANSWERED",
-              updatedAt: "2026-07-31T00:00:00.000Z",
-            },
-            {
-              questionId: "expectedOutcome",
-              value: "Human-reviewed result is produced",
-              answerState: "ANSWERED",
-              updatedAt: "2026-07-31T00:00:00.000Z",
-            },
-          ],
-        });
-      assert.equal(res.status, 403);
-      assert.equal(problemCode(res), AUTH_ERROR_CODES.pbacDenied);
     });
 
     it("T07: Partial save preserves existing fields", async () => {
@@ -857,7 +759,6 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
         data: {
           id: "repo-conn-2",
           assessmentId,
-          organizationId: orgId,
           userId: "user-1",
           installationId: "123",
           repositoryId: "gh-1",
@@ -965,7 +866,6 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
         data: {
           id: "repo-conn-3",
           assessmentId,
-          organizationId: orgId,
           userId: "user-1",
           installationId: "123",
           repositoryId: "gh-1",
@@ -1022,7 +922,6 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
         data: {
           id: "wp-1",
           assessmentId,
-          organizationId: orgId,
           ownerId: "user-1",
           status: WIZARD_STATUS_CODES.submitted,
           answers: {},
@@ -1046,7 +945,6 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
         data: {
           id: "wp-2",
           assessmentId,
-          organizationId: orgId,
           ownerId: "user-1",
           status: WIZARD_STATUS_CODES.submitted,
           answers: {},
@@ -1055,11 +953,17 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
         },
       });
 
+      await seedRepositoryScanGraph(prisma, {
+        assessmentId,
+        userId: "user-1",
+        connectionId: "connection-readiness-1",
+        snapshotId: "snap-1",
+        scanJobId: "job-1",
+      });
       await prisma.technicalEvidenceReport.create({
         data: {
           id: "ter-1",
           scanJobId: "job-1",
-          organizationId: orgId,
           snapshotId: "snap-1",
           toolsVersion: {},
           configHash: {},
@@ -1097,7 +1001,6 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
       await prisma.repositoryConnection.create({
         data: {
           id: "repo-1",
-          organizationId: orgId,
           userId: "user-1",
           installationId: "inst-1",
           repositoryId: "12345",
@@ -1159,7 +1062,6 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
         data: {
           id: "wp-unknowns",
           assessmentId,
-          organizationId: orgId,
           ownerId: "user-1",
           status: WIZARD_STATUS_CODES.submitted,
           answers: [
@@ -1192,7 +1094,6 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
         data: {
           id: "wp-unknowns-unlocked",
           assessmentId,
-          organizationId: orgId,
           ownerId: "user-1",
           status: WIZARD_STATUS_CODES.submitted,
           answers: [
@@ -1208,11 +1109,17 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
         },
       });
 
+      await seedRepositoryScanGraph(prisma, {
+        assessmentId,
+        userId: "user-1",
+        connectionId: "connection-readiness-2",
+        snapshotId: "snap-2",
+        scanJobId: "job-2",
+      });
       await prisma.technicalEvidenceReport.create({
         data: {
           id: "ter-unlocked",
           scanJobId: "job-2",
-          organizationId: orgId,
           snapshotId: "snap-2",
           toolsVersion: {},
           configHash: {},

@@ -7,4 +7,3 @@ export * from "./infrastructure/prisma/prisma.module.ts";
 export * from "./infrastructure/prisma/prisma.service.ts";
 export * from "./modules/app/app.module.ts";
 export * from "./modules/app/presentation/http/app.controller.ts";
-export * from "./modules/users/users.module.ts";

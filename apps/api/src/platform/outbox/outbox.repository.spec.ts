@@ -170,7 +170,6 @@ describe("OutboxRepository", () => {
     const repository = new OutboxRepository({} as PrismaService);
     const { tx, findUnique, count, updateMany, $executeRaw } = makeTx();
     findUnique.mockResolvedValue({
-      organizationId: "org-1",
       state: TARGETED_REANALYSIS_REQUEST_STATES.queued,
     });
     count.mockResolvedValue(
@@ -184,7 +183,6 @@ describe("OutboxRepository", () => {
     expect($executeRaw).toHaveBeenCalledTimes(1);
     expect(count).toHaveBeenCalledWith({
       where: {
-        organizationId: "org-1",
         state: {
           in: [
             TARGETED_REANALYSIS_REQUEST_STATES.dispatched,
@@ -206,7 +204,6 @@ describe("OutboxRepository", () => {
     const repository = new OutboxRepository({} as PrismaService);
     const { tx, findUnique, count, updateMany } = makeTx();
     findUnique.mockResolvedValue({
-      organizationId: "org-1",
       state: TARGETED_REANALYSIS_REQUEST_STATES.queued,
     });
     count.mockResolvedValue(

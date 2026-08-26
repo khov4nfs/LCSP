@@ -33,17 +33,10 @@ export function AppHeader() {
 }
 
 function t(key: string) {
-  return resolveMessage(
-    appLocale,
-    key as Parameters<typeof resolveMessage>[1],
-  );
+  return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
 }
 
 function getTitleKey(pathname: string) {
-  if (pathname.startsWith("/developer")) {
-    return "pages.appShell.developerTitle" as const;
-  }
-
   if (pathname.startsWith("/assessments/")) {
     return "pages.appShell.assessmentTitle" as const;
   }

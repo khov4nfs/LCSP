@@ -115,7 +115,7 @@ As a Manager, I want readiness guidance after Wizard submission when technical e
 ### File Structure Notes
 
 - `apps/web` cho assessment dashboard, wizard screens, readiness-only status và export entry points.
-- `apps/api` cho assessment/wizard DTOs, state guards, PBAC checks và audit emission.
+- `apps/api` cho assessment/wizard DTOs, state guards, RBAC checks và audit emission.
 - `packages/*` cho section schema, validation contract và export/read-model types.
 
 ### Implementation Guidance for the Dev Agent

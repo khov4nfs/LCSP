@@ -1,6 +1,5 @@
 import { jest } from "@jest/globals";
 import { AUDIT_DECISIONS, type AuditDecision } from "@lcsp/contracts/audit";
-import { ORGANIZATION_SCOPE_ERROR_CODES } from "@lcsp/contracts/auth";
 import { BadRequestException } from "@nestjs/common";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -14,7 +13,6 @@ interface AuditRow {
   id: string;
   eventType: string;
   actorId: string | null;
-  organizationId: string | null;
   decision: AuditDecision | null;
   payload: Record<string, unknown>;
   createdAt: Date;
@@ -22,8 +20,6 @@ interface AuditRow {
 
 function query(
   overrides: Partial<{
-    organizationId: string;
-    sessionOrganizationId: string;
     eventType: string;
     actorId: string;
     fromDate: string;
@@ -33,8 +29,6 @@ function query(
   }> = {},
 ) {
   return new ListAuditEventsQuery(
-    overrides.organizationId ?? "org-1",
-    overrides.sessionOrganizationId ?? "org-1",
     overrides.eventType,
     overrides.actorId,
     overrides.fromDate,
@@ -52,7 +46,6 @@ function buildHandler() {
       id: "event-1",
       eventType: "auth.sign_in",
       actorId: "user-1",
-      organizationId: "org-1",
       decision: AUDIT_DECISIONS.allow,
       payload: {
         email: "dev@example.com",
@@ -90,7 +83,6 @@ describe("ListAuditEventsHandler", () => {
           event_id: "event-1",
           event_type: "auth.sign_in",
           actor_id: "user-1",
-          organization_id: "org-1",
           decision: AUDIT_DECISIONS.allow,
           payload: {
             email: "dev@example.com",
@@ -130,7 +122,6 @@ describe("ListAuditEventsHandler", () => {
     );
 
     const where = {
-      organizationId: "org-1",
       eventType: "auth.sign_in",
       actorId: "user-1",
       createdAt: { gte: new Date(from), lte: new Date(to) },
@@ -168,23 +159,6 @@ describe("ListAuditEventsHandler", () => {
         problem: { code: "AUDIT_DATE_RANGE_EXCEEDED", correlationId: "corr-1" },
       },
     });
-  });
-
-  it("rejects cross-organization access before querying persistence", async () => {
-    const { handler, transaction } = buildHandler();
-
-    await expect(
-      handler.execute(query({ sessionOrganizationId: "org-2" })),
-    ).rejects.toMatchObject({
-      response: {
-        ok: false,
-        problem: {
-          code: ORGANIZATION_SCOPE_ERROR_CODES.mismatch,
-          correlationId: "corr-1",
-        },
-      },
-    });
-    expect(transaction).not.toHaveBeenCalled();
   });
 
   it.each([

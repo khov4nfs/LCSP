@@ -1,8 +1,6 @@
 import * as crypto from "node:crypto";
 
 import {
-  AUTH_INVITATION_STATES,
-  AUTH_MEMBERSHIP_STATUSES,
   authAuditReadDecision,
   authAuditReadNullableString,
   authAuditReadString,
@@ -15,16 +13,13 @@ import {
   toPrismaAuditResourceType,
   toPrismaAuthBackupEmailPolicy,
   toPrismaAuthDecision,
-  toPrismaAuthInvitationState,
-  toPrismaAuthMembershipStatus,
+  toPrismaAuthUserRole,
   toPrismaAuthorizationReasonCode,
   toPrismaAuthPrimaryEmailAddressPolicy,
 } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditEventRepository } from "../../application/ports/persistence/audit-event.repository.ts";
 import type { AuthorizationDecisionRepository } from "../../application/ports/persistence/authorization-decision.repository.ts";
-import type { InvitationRepository } from "../../application/ports/persistence/invitation.repository.ts";
-import type { MembershipRepository } from "../../application/ports/persistence/membership.repository.ts";
 import type {
   MfaEnrollmentRepository,
   MfaOtpUsedRepository,
@@ -34,8 +29,6 @@ import type {
 } from "../../application/ports/persistence/mfa.repository.ts";
 import type { OAuthIdentityRepository } from "../../application/ports/persistence/oauth-identity.repository.ts";
 import type { OAuthStateRepository } from "../../application/ports/persistence/oauth-state.repository.ts";
-import type { OrganizationRepository } from "../../application/ports/persistence/organization.repository.ts";
-import type { PolicyRepository } from "../../application/ports/persistence/policy.repository.ts";
 import type { RecoveryRequestRepository } from "../../application/ports/persistence/recovery-request.repository.ts";
 import type { SessionRepository } from "../../application/ports/persistence/session.repository.ts";
 import type { UserRepository } from "../../application/ports/persistence/user.repository.ts";
@@ -43,14 +36,10 @@ import { DuplicateEmailError } from "../../application/ports/persistence/user.re
 import type {
   AuditEvent,
   AuthorizationDecision,
-  Invitation,
-  Membership,
   MfaEnrollment,
   MfaRateLimit,
   OAuthIdentity,
   OAuthState,
-  Organization,
-  Policy,
   RecoveryRequest,
   Session,
   User,
@@ -58,49 +47,14 @@ import type {
 import {
   dateFromEpochMs,
   dateFromEpochMsRequired,
-  mapInvitationRecord,
-  mapMembershipRecord,
   mapMfaEnrollmentRecord,
   mapMfaRateLimitRecord,
   mapOAuthIdentityRecord,
   mapOAuthStateRecord,
-  mapOrganizationRecord,
-  mapPolicyRecord,
   mapRecoveryRequestRecord,
   mapSessionRecord,
   mapUserRecord,
-  subjectAttributesToJson,
 } from "./prisma-auth-workspace.mappers.ts";
-
-@Injectable()
-export class PrismaOrganizationRepository implements OrganizationRepository {
-  constructor(private readonly prisma: PrismaService) {}
-
-  async save(organization: Organization): Promise<void> {
-    await this.prisma.authOrganization.upsert({
-      where: { id: organization.id },
-      create: {
-        id: organization.id,
-        slug: organization.slug,
-        name: organization.name,
-        mfaRequired: organization.mfaRequired,
-      },
-      update: {
-        slug: organization.slug,
-        name: organization.name,
-        mfaRequired: organization.mfaRequired,
-      },
-    });
-  }
-
-  async findById(id: string): Promise<Organization | null> {
-    const record = await this.prisma.authOrganization.findUnique({
-      where: { id },
-    });
-
-    return record ? mapOrganizationRecord(record) : null;
-  }
-}
 
 @Injectable()
 export class PrismaUserRepository implements UserRepository {
@@ -129,6 +83,7 @@ export class PrismaUserRepository implements UserRepository {
           backupEmailPolicy: toPrismaAuthBackupEmailPolicy(
             user.backupEmailPolicy,
           ),
+          role: toPrismaAuthUserRole(user.role),
           mfaRequired: user.mfaRequired,
         },
         update: {
@@ -145,6 +100,7 @@ export class PrismaUserRepository implements UserRepository {
           backupEmailPolicy: toPrismaAuthBackupEmailPolicy(
             user.backupEmailPolicy,
           ),
+          role: toPrismaAuthUserRole(user.role),
           mfaRequired: user.mfaRequired,
         },
       });
@@ -197,133 +153,6 @@ export class PrismaUserRepository implements UserRepository {
 }
 
 @Injectable()
-export class PrismaMembershipRepository implements MembershipRepository {
-  constructor(private readonly prisma: PrismaService) {}
-
-  nextId(): string {
-    return crypto.randomUUID();
-  }
-
-  async save(membership: Membership): Promise<void> {
-    await this.prisma.authMembership.upsert({
-      where: { id: membership.id },
-      create: {
-        id: membership.id,
-        userId: membership.userId,
-        organizationId: membership.organizationId,
-        status: toPrismaAuthMembershipStatus(membership.status),
-        subjectAttributes: subjectAttributesToJson(
-          membership.subjectAttributes,
-        ),
-        policyId: membership.policyId,
-        policyVersion: membership.policyVersion,
-      },
-      update: {
-        status: toPrismaAuthMembershipStatus(membership.status),
-        subjectAttributes: subjectAttributesToJson(
-          membership.subjectAttributes,
-        ),
-        policyId: membership.policyId,
-        policyVersion: membership.policyVersion,
-      },
-    });
-  }
-
-  async findByUserAndOrganization(
-    userId: string,
-    organizationId: string,
-  ): Promise<Membership | null> {
-    const record = await this.prisma.authMembership.findUnique({
-      where: {
-        userId_organizationId: {
-          userId,
-          organizationId,
-        },
-      },
-    });
-
-    return record ? mapMembershipRecord(record) : null;
-  }
-
-  async findActiveByUserId(userId: string): Promise<Membership[]> {
-    const records = await this.prisma.authMembership.findMany({
-      where: {
-        userId,
-        status: toPrismaAuthMembershipStatus(AUTH_MEMBERSHIP_STATUSES.active),
-      },
-    });
-
-    return records.map(mapMembershipRecord);
-  }
-}
-
-@Injectable()
-export class PrismaInvitationRepository implements InvitationRepository {
-  constructor(private readonly prisma: PrismaService) {}
-
-  nextId(): string {
-    return crypto.randomUUID();
-  }
-
-  async save(invitation: Invitation): Promise<void> {
-    await this.prisma.authInvitation.upsert({
-      where: { id: invitation.id },
-      create: {
-        id: invitation.id,
-        email: invitation.email.toString(),
-        organizationId: invitation.organizationId,
-        state: toPrismaAuthInvitationState(invitation.state),
-        emailVerified: invitation.emailVerified,
-        membershipStatus: toPrismaAuthMembershipStatus(
-          invitation.membershipStatus,
-        ),
-        subjectAttributes: subjectAttributesToJson(
-          invitation.subjectAttributes,
-        ),
-        policyId: invitation.policyId,
-        policyVersion: invitation.policyVersion,
-        expiresAt: dateFromEpochMsRequired(invitation.expiresAt),
-      },
-      update: {
-        email: invitation.email.toString(),
-        state: toPrismaAuthInvitationState(invitation.state),
-        emailVerified: invitation.emailVerified,
-        membershipStatus: toPrismaAuthMembershipStatus(
-          invitation.membershipStatus,
-        ),
-        subjectAttributes: subjectAttributesToJson(
-          invitation.subjectAttributes,
-        ),
-        policyId: invitation.policyId,
-        policyVersion: invitation.policyVersion,
-        expiresAt: dateFromEpochMsRequired(invitation.expiresAt),
-      },
-    });
-  }
-
-  async findById(id: string): Promise<Invitation | null> {
-    const record = await this.prisma.authInvitation.findUnique({
-      where: { id },
-    });
-
-    return record ? mapInvitationRecord(record) : null;
-  }
-
-  async tryConsume(id: string): Promise<boolean> {
-    const result = await this.prisma.authInvitation.updateMany({
-      where: {
-        id,
-        state: toPrismaAuthInvitationState(AUTH_INVITATION_STATES.approved),
-      },
-      data: {
-        state: toPrismaAuthInvitationState(AUTH_INVITATION_STATES.consumed),
-      },
-    });
-    return result.count > 0;
-  }
-}
-
-@Injectable()
 export class PrismaSessionRepository implements SessionRepository {
   constructor(private readonly prisma: PrismaService) {}
 
@@ -339,7 +168,6 @@ export class PrismaSessionRepository implements SessionRepository {
       create: {
         id: session.id,
         userId: session.userId,
-        organizationId: session.organizationId,
         tokenHash: session.tokenHash,
         tokenFingerprint,
         expiresAt: dateFromEpochMsRequired(session.expiresAt),
@@ -351,7 +179,6 @@ export class PrismaSessionRepository implements SessionRepository {
       },
       update: {
         userId: session.userId,
-        organizationId: session.organizationId,
         tokenHash: session.tokenHash,
         tokenFingerprint,
         expiresAt: dateFromEpochMsRequired(session.expiresAt),
@@ -396,39 +223,6 @@ export class PrismaSessionRepository implements SessionRepository {
 }
 
 @Injectable()
-export class PrismaPolicyRepository implements PolicyRepository {
-  constructor(private readonly prisma: PrismaService) {}
-
-  async findByIdAndVersion(
-    id: string,
-    version: string,
-  ): Promise<Policy | null> {
-    const record = await this.prisma.authPolicy.findUnique({
-      where: {
-        id_version: {
-          id,
-          version,
-        },
-      },
-    });
-
-    return record ? mapPolicyRecord(record) : null;
-  }
-
-  async findLatestByOrganizationAndRole(
-    organizationId: string,
-    subjectRole: string,
-  ): Promise<Policy | null> {
-    const record = await this.prisma.authPolicy.findFirst({
-      where: { organizationId, subjectRole },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return record ? mapPolicyRecord(record) : null;
-  }
-}
-
-@Injectable()
 export class PrismaAuditEventRepository implements AuditEventRepository {
   constructor(private readonly prisma: PrismaService) {}
 
@@ -450,14 +244,10 @@ export class PrismaAuthorizationDecisionRepository implements AuthorizationDecis
         id: crypto.randomUUID(),
         actorId: decision.actor_id ?? null,
         sessionId: decision.session_id ?? null,
-        organizationId: decision.organization_id,
         resourceType: toPrismaAuditResourceType(decision.resource_type),
         resourceId: decision.resource_id,
-        action: decision.action,
         decision: toPrismaAuthDecision(decision.decision),
         reasonCode: toPrismaAuthorizationReasonCode(decision.reason_code),
-        policyId: decision.policy_id,
-        policyVersion: decision.policy_version,
         correlationId: decision.correlationId,
         payload: decision,
       },
@@ -830,13 +620,10 @@ function normalizeAuditEvent(
     id: crypto.randomUUID(),
     eventType: normalizeLegacyAuthAuditEventType(rawEventType),
     actorId: authAuditReadNullableString(event, "actor_id"),
-    organizationId: authAuditReadNullableString(event, "organization_id"),
     decision: mapNullableAuthDecision(authAuditReadDecision(event, "decision")),
     reasonCode: authAuditReadNullableString(event, "reason_code"),
     correlationId: authAuditReadString(event, "correlationId"),
     sessionId: authAuditReadNullableString(event, "session_id"),
-    policyId: authAuditReadNullableString(event, "policy_id"),
-    policyVersion: authAuditReadNullableString(event, "policy_version"),
     payload,
   };
 }

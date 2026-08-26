@@ -34,27 +34,27 @@ AO-3 uses it as supporting technical context; it cannot be used to retrieve arbi
 
 ## 7. Errors and Typed Outcomes
 
-Bad enum/path/cursor/cap=`INVALID_ARGUMENT`; no report=`NEEDS_INPUT`; exhaustive empty=`READY`; limited scope=`OUT_OF_COVERAGE`; PBAC/version/tenant=`BLOCKED`; timeout=`FAILED` after one retry.
+Bad enum/path/cursor/cap=`INVALID_ARGUMENT`; no report=`NEEDS_INPUT`; exhaustive empty=`READY`; limited scope=`OUT_OF_COVERAGE`; RBAC/version/tenant=`BLOCKED`; timeout=`FAILED` after one retry.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
-Validate → allow-list/PBAC/version → bounded projection page → stable sort/cap → coverage/privacy/audit. Registry `DeploymentContextTool`, `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, 2s/one retry/`NONE`. Model sees ≤100 categories/refs and may not ask for keys, values, secret names, manifests or runtime access. Audit shared safe hashes/versions/budget/refs; deep deny forbidden keys/values/source/prompts/secrets/AST/absolute paths.
+Validate → allow-list/RBAC/version → bounded projection page → stable sort/cap → coverage/privacy/audit. Registry `DeploymentContextTool`, `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, 2s/one retry/`NONE`. Model sees ≤100 categories/refs and may not ask for keys, values, secret names, manifests or runtime access. Audit shared safe hashes/versions/budget/refs; deep deny forbidden keys/values/source/prompts/secrets/AST/absolute paths.
 
 ## 16–18. Scenario, AC, Tests
 
-For “is there production deployment context?”, a category-only K8s record is supporting evidence; limited manifests require limitation. AC: page is stable, invalid/PBAC reject pre-read, empty/limited differ, privacy/audit hold.
+For “is there production deployment context?”, a category-only K8s record is supporting evidence; limited manifests require limitation. AC: page is stable, invalid/RBAC reject pre-read, empty/limited differ, privacy/audit hold.
 
 | ID | Scenario | Level |
 |---|---|---|
 | TC-01 | manifest/env page cursor | integration |
 | TC-02 | secret/config arbitrary lookup | contract/privacy |
-| TC-03 | limited/cross-tenant/PBAC | integration |
+| TC-03 | limited/cross-tenant/RBAC | integration |
 | TC-04 | nested secret output | privacy |
 | TC-05 | timeout/audit | worker |
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Build contract/registry/projection handler/normalizer/API PBAC/audit/tests. OQ-01: ratify deployment category allow-list (Platform, OPEN, blocks yes). Deliver strict schema, mapper/audit and tests.
+Build contract/registry/projection handler/normalizer/API RBAC/audit/tests. OQ-01: ratify deployment category allow-list (Platform, OPEN, blocks yes). Deliver strict schema, mapper/audit and tests.
 
 ## Source Authority
 

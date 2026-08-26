@@ -1,23 +1,18 @@
 import type {
-  AssessmentAction,
   AssessmentStatusCode,
   WizardStatusCode,
 } from "@lcsp/contracts/assessment";
+import type { AuthUserRole } from "@lcsp/contracts/auth";
 import type { MessageKey } from "@lcsp/i18n";
 
 import { API_OUTCOME_KINDS } from "../../../lib/api/outcome-kinds.ts";
 
-export type WorkspaceAction = AssessmentAction | (string & {});
-
 export type WorkspaceContext = {
-  organization: {
+  user: {
     id: string;
-    name: string;
+    display_name: string;
+    role: AuthUserRole;
   };
-  membership: {
-    role: string;
-  };
-  granted_actions: WorkspaceAction[];
 };
 
 export type AssessmentStatus = AssessmentStatusCode;

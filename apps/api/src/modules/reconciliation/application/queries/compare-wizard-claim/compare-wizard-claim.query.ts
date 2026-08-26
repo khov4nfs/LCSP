@@ -7,7 +7,6 @@ import type {
 export class CompareWizardClaimQuery {
   constructor(
     public readonly assessmentId: string,
-    public readonly organizationId: string,
     public readonly wizardProfileId: string,
     public readonly evidenceReportId: string,
     public readonly targetId: string,

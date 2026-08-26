@@ -8,7 +8,7 @@ import type { ConfigService } from "@nestjs/config";
 
 import { REPOSITORY_SCAN_TRIGGER_SOURCES } from "@lcsp/contracts/github-integration";
 
-import type { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
+import type { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { ScanTriggerGuard } from "./scan-trigger.guard.js";
 
 const WORKER_KEY = "worker-key-at-least-32-characters-long";
@@ -16,7 +16,7 @@ const WORKER_KEY = "worker-key-at-least-32-characters-long";
 function buildGuard(input?: {
   headers?: Record<string, string>;
   body?: Record<string, unknown>;
-  pbacAllowed?: boolean;
+  rbacAllowed?: boolean;
   configuredKey?: string;
 }) {
   const request = {
@@ -28,12 +28,12 @@ function buildGuard(input?: {
   } as unknown as ExecutionContext;
   const canActivate = jest
     .fn<(context: ExecutionContext) => Promise<boolean>>()
-    .mockResolvedValue(input?.pbacAllowed ?? true);
+    .mockResolvedValue(input?.rbacAllowed ?? true);
   const get = jest
     .fn<() => string>()
     .mockReturnValue(input?.configuredKey ?? WORKER_KEY);
   const guard = new ScanTriggerGuard(
-    { canActivate } as unknown as PbacGuard,
+    { canActivate } as unknown as RbacGuard,
     { get } as unknown as ConfigService,
   );
   return { guard, context, request, canActivate };
@@ -70,7 +70,7 @@ describe("ScanTriggerGuard", () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it("delegates manual triggers to PBAC", async () => {
+  it("delegates manual triggers to RBAC", async () => {
     const { guard, context, request, canActivate } = buildGuard({
       body: { trigger_source: REPOSITORY_SCAN_TRIGGER_SOURCES.manual },
     });

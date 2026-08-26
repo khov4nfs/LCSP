@@ -50,7 +50,6 @@ export class ConfirmPasswordRecoveryHandler {
       await this.support.recordAudit(repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.recoveryConfirmFailed,
         actor_id: recoveryRequest?.userId ?? null,
-        organization_id: null,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.recoveryInvalid,
         correlationId: correlationId,
@@ -81,7 +80,6 @@ export class ConfirmPasswordRecoveryHandler {
     await this.support.recordAudit(repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.recoveryConfirmed,
       actor_id: user.id,
-      organization_id: null,
       decision: AUDIT_DECISIONS.allow,
       correlationId: correlationId,
     });

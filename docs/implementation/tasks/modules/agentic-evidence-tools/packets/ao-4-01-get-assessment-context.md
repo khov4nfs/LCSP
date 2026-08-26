@@ -34,27 +34,27 @@ AO-3/4 calls when verifying submitted claims. Missing or unsubmitted version yie
 
 ## 7. Errors and Typed Outcomes
 
-Extra/unknown answer field=`INVALID_ARGUMENT`; absent/unsubmitted profile=`NEEDS_INPUT`; profile not found=`NOT_FOUND`; redacted/limited context=`OUT_OF_COVERAGE`; PBAC/tenant/version=`BLOCKED`; transient read=`FAILED` after retry.
+Extra/unknown answer field=`INVALID_ARGUMENT`; absent/unsubmitted profile=`NEEDS_INPUT`; profile not found=`NOT_FOUND`; redacted/limited context=`OUT_OF_COVERAGE`; RBAC/tenant/version=`BLOCKED`; transient read=`FAILED` after retry.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
-Validate → allow-list/PBAC/version → selected projection fields → stable target order → redaction/privacy → audit. Registry `AssessmentContextTool`, `LLM_CALLABLE`, `ASSESSMENT_READ`, submitted profile required, 1s/one retry/`NONE`. Model sees only listed safe field values/refs, may use pins in AO-4 reads, cannot update wizard/take latest/reveal other fields. Audit shared IDs/version/field names/hashes/output refs; no raw answer free-text, PII, prompt, secret, source or direct DB access.
+Validate → allow-list/RBAC/version → selected projection fields → stable target order → redaction/privacy → audit. Registry `AssessmentContextTool`, `LLM_CALLABLE`, `ASSESSMENT_READ`, submitted profile required, 1s/one retry/`NONE`. Model sees only listed safe field values/refs, may use pins in AO-4 reads, cannot update wizard/take latest/reveal other fields. Audit shared IDs/version/field names/hashes/output refs; no raw answer free-text, PII, prompt, secret, source or direct DB access.
 
 ## 16–18. Scenario, AC, Tests
 
-Verifier reads declared provider and target IDs for version 7 then passes `ter_01J` to comparison; version mismatch becomes `NEEDS_INPUT`. AC: exact submitted pin, allow-listed field projection, strict/PBAC/tenant, privacy/audit.
+Verifier reads declared provider and target IDs for version 7 then passes `ter_01J` to comparison; version mismatch becomes `NEEDS_INPUT`. AC: exact submitted pin, allow-listed field projection, strict/RBAC/tenant, privacy/audit.
 
 | ID | Scenario | Level |
 |---|---|---|
 | TC-01 | selected safe answers/target order | unit/contract |
 | TC-02 | unsubmitted/stale/version mismatch | integration |
-| TC-03 | tenant/PBAC/extra field | integration/contract |
+| TC-03 | tenant/RBAC/extra field | integration/contract |
 | TC-04 | free-text/PII nested redaction | privacy |
 | TC-05 | retry/audit | worker/API |
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Add assessment contracts/registry/projection handler/API PBAC/audit/tests. OQ-01: approve answer-field allow-list (Product+Security, OPEN, blocks yes). Deliver strict schema, mapper/audit/tests.
+Add assessment contracts/registry/projection handler/API RBAC/audit/tests. OQ-01: approve answer-field allow-list (Product+Security, OPEN, blocks yes). Deliver strict schema, mapper/audit/tests.
 
 ## Source Authority
 

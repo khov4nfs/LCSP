@@ -93,8 +93,8 @@ Do not move these files into the Candidate 4 branch unless Jira explicitly broad
 - `apps/api/src/modules/reconciliation/application/queries/get-verified-profile/get-verified-profile.handler.spec.ts`
 - `apps/api/src/modules/reconciliation/application/queries/propose-missing-targets/propose-missing-targets.handler.spec.ts`
 - `apps/api/src/modules/reconciliation/presentation/http/reconciliation.controller.ts`
-- `packages/contracts/src/pbac/actions.ts`
-- `packages/contracts/src/pbac/manager-policy.ts`
+- `packages/contracts/src/rbac/actions.ts`
+- `packages/contracts/src/rbac/manager-policy.ts`
 - `packages/contracts/src/evidence/agentic-tool-ao3.ts`
 - `packages/contracts/src/evidence/ao3-agentic-evidence.ts`
 - `packages/contracts/src/evidence/classification-review-resolution.ts`

@@ -9,7 +9,6 @@ export type AssessmentStatus = AssessmentStatusCode;
 
 type AssessmentProps = {
   id: string;
-  organizationId: string;
   ownerId: string;
   name: string;
   description: string | null;
@@ -21,7 +20,7 @@ type AssessmentProps = {
 type NewAssessmentProps = Omit<AssessmentProps, "id">;
 
 /**
- * Represents an assessment aggregate and its tenant, owner, lifecycle, and descriptive state.
+ * Represents an assessment aggregate and its owner, lifecycle, and descriptive state.
  */
 export class Assessment {
   /**
@@ -38,11 +37,10 @@ export class Assessment {
   /**
    * Creates a new assessment in the wizard-in-progress lifecycle state.
    *
-   * @param input - Organization, owner, name, and optional description for the assessment.
+   * @param input - Owner, name, and optional description for the assessment.
    * @returns A newly created assessment aggregate with normalized text fields and timestamps.
    */
   static create(input: {
-    organizationId: string;
     ownerId: string;
     name: string;
     description?: string | null;
@@ -50,7 +48,6 @@ export class Assessment {
     const now = new Date();
 
     return new Assessment({
-      organizationId: input.organizationId,
       ownerId: input.ownerId,
       name: input.name.trim(),
       description: input.description?.trim() || null,
@@ -75,11 +72,6 @@ export class Assessment {
   /** @returns The assessment identifier. */
   get id(): string {
     return this.props.id;
-  }
-
-  /** @returns The organization that owns the assessment. */
-  get organizationId(): string {
-    return this.props.organizationId;
   }
 
   /** @returns The user who owns the assessment. */

@@ -87,7 +87,7 @@ As a Manager, I want to resolve material conflicts with guided choices and evide
 ### Dependencies and Prerequisites
 
 - Story 5.2 explained conflict view.
-- PBAC Manager-only enforcement and version-safe reconciliation contract.
+- RBAC Manager-only enforcement and version-safe reconciliation contract.
 
 ### Explicit Non-Goals
 
@@ -103,9 +103,9 @@ As a Manager, I want to resolve material conflicts with guided choices and evide
 
 ### Architecture Compliance
 
-- Reconciliation logic thuộc Python Worker Platform, nhưng Manager resolution surfaces và approval endpoints vẫn cần PBAC/state enforcement ở API.
+- Reconciliation logic thuộc Python Worker Platform, nhưng Manager resolution surfaces và approval endpoints vẫn cần RBAC/state enforcement ở API.
 - Upstream artifacts `WizardProfile`, `TechnicalProfile`, `AIUsageFlow` là immutable inputs; worker chỉ tạo conflict/verified outputs mới.
-- Manager-only actions phải được bảo vệ bằng PBAC subject/resource/action/context + version-safe checks.
+- Manager-only actions phải được bảo vệ bằng RBAC subject/resource/action/context + version-safe checks.
 
 ### Functional and Domain Requirements
 

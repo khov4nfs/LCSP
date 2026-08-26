@@ -1,20 +1,20 @@
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
-  Controller,
-  Post,
-  Param,
   Body,
-  UseGuards,
-  Req,
-  HttpCode,
+  Controller,
   Get,
+  HttpCode,
+  Param,
+  Post,
   Query,
+  Req,
+  UseGuards,
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 
-import type { DraftLegalRuleRequest } from "../../application/contracts/draft-legal-rule.contract.js";
 import type { ApproveRuleCatalogVersionRequest } from "../../application/contracts/approve-catalog-version.contract.js";
 import type { CreateRuleCatalogVersionRequest } from "../../application/contracts/create-catalog-version.contract.js";
+import type { DraftLegalRuleRequest } from "../../application/contracts/draft-legal-rule.contract.js";
 import type {
   ApproveLegalCorpusRequest,
   IngestLegalCorpusRequest,
@@ -23,18 +23,18 @@ import type {
 import type { RegisterOfficialSourceSnapshotRequest } from "../../application/contracts/official-source-snapshot.contract.js";
 import type { ResumeWaitingRunsRequest } from "../../application/contracts/resume-waiting-runs.contract.js";
 
-import { DraftLegalRuleCommand } from "../../application/commands/draft-legal-rule/draft-legal-rule.command.js";
 import { ApproveRuleCatalogVersionCommand } from "../../application/commands/approve-rule-catalog-version/approve-rule-catalog-version.command.js";
+import { DraftLegalRuleCommand } from "../../application/commands/draft-legal-rule/draft-legal-rule.command.js";
 import { ResumeWaitingRunsCommand } from "../../application/commands/resume-waiting-runs/resume-waiting-runs.command.js";
-import { GetActiveRuleCatalogQuery } from "../../application/queries/get-active-rule-catalog/get-active-rule-catalog.query.js";
 import { GetActiveLegalCorpusQuery } from "../../application/queries/get-active-legal-corpus/get-active-legal-corpus.query.js";
+import { GetActiveRuleCatalogQuery } from "../../application/queries/get-active-rule-catalog/get-active-rule-catalog.query.js";
 
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
-import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
-import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { randomUUID } from "node:crypto";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
+import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import { LegalCorpusService } from "../../application/services/legal-corpus.service.js";
 import { OfficialSourceSnapshotService } from "../../application/services/official-source-snapshot.service.js";
 import { RuleCatalogVersionService } from "../../application/services/rule-catalog-version.service.js";
@@ -51,8 +51,8 @@ export class LegalRuleCatalogController {
 
   @Post("versions")
   @HttpCode(201)
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.legalRuleCatalogAuthor)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.admin)
   async createVersion(
     @Body() body: CreateRuleCatalogVersionRequest,
     @Req() req: AuthenticatedRequest,
@@ -67,8 +67,8 @@ export class LegalRuleCatalogController {
 
   @Post("corpus")
   @HttpCode(201)
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.legalCorpusIngest)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.admin)
   async ingestCorpus(@Body() body: IngestLegalCorpusRequest) {
     return resultEnvelope(
       await this.legalCorpus.ingestDraft({
@@ -155,14 +155,13 @@ export class LegalRuleCatalogController {
 
   @Post("rules")
   @HttpCode(201)
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.legalRuleCatalogAuthor)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.admin)
   async draftRule(
     @Body() body: DraftLegalRuleRequest,
     @Req() req: AuthenticatedRequest,
   ) {
-    const { userId } = req.pbacContext;
-    const pbacContext = req.pbacContext;
+    const { userId } = req.rbacContext;
     const correlationId = req.correlationId || randomUUID();
 
     return resultEnvelope(
@@ -177,12 +176,6 @@ export class LegalRuleCatalogController {
           body.citationLocatorRefs,
           userId,
           body.legalRuleCatalogVersionId,
-          {
-            subjectRole: pbacContext.subjectRole,
-            selectedAction: pbacContext.selectedAction,
-            policyId: pbacContext.policyId,
-            policyVersion: pbacContext.policyVersion,
-          },
           correlationId,
         ),
       ),
@@ -266,15 +259,14 @@ export class LegalRuleCatalogController {
 
   @Post("versions/:versionId/approve")
   @HttpCode(200)
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.legalRuleCatalogApprove)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.admin)
   async approveVersion(
     @Param("versionId") versionId: string,
     @Body() body: ApproveRuleCatalogVersionRequest,
     @Req() req: AuthenticatedRequest,
   ) {
-    const { userId } = req.pbacContext;
-    const pbacContext = req.pbacContext;
+    const { userId } = req.rbacContext;
     const correlationId = req.correlationId || randomUUID();
 
     // Passing some default values for scopeDescription since they are not in the contract body
@@ -285,12 +277,6 @@ export class LegalRuleCatalogController {
           "Approved via API", // default scopeDescription
           null, // no comments provided in the basic API body yet
           userId,
-          {
-            subjectRole: pbacContext.subjectRole,
-            selectedAction: pbacContext.selectedAction,
-            policyId: pbacContext.policyId,
-            policyVersion: pbacContext.policyVersion,
-          },
           correlationId,
         ),
       ),

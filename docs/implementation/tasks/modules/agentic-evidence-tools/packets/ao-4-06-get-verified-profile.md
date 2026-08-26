@@ -36,27 +36,27 @@ AO-5 uses it for `LEGAL_MATCHING`/`CLASSIFICATION`; unapproved, stale, unresolve
 
 ## 7. Errors and Typed Outcomes
 
-Bad ref/version/purpose=`INVALID_ARGUMENT`; absent reference=`NEEDS_INPUT`; unknown ref=`NOT_FOUND`; gate evidence limited=`OUT_OF_COVERAGE`; pending/rejected/open-conflict/PBAC/tenant/version mismatch=`BLOCKED`; transient timeout=`FAILED` after retry.
+Bad ref/version/purpose=`INVALID_ARGUMENT`; absent reference=`NEEDS_INPUT`; unknown ref=`NOT_FOUND`; gate evidence limited=`OUT_OF_COVERAGE`; pending/rejected/open-conflict/RBAC/tenant/version mismatch=`BLOCKED`; transient timeout=`FAILED` after retry.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
-Validate → registry/PBAC/exact version → verify approval/no conflict/integrity gates → legal-safe projection → privacy/audit. `VerifiedProfileTool`, `LLM_CALLABLE`, `VERIFIED_PROFILE_READ`, 1s/one retry/`NONE`. Model receives typed facts only for `requiredFor`, may proceed to matching/classification only while pin holds; it cannot access profile history, raw wizard answers or override gates. Audit shared hashes/version/gate/provenance/refs; deny raw source/prompts/secrets/AST/PII/free-text/direct storage.
+Validate → registry/RBAC/exact version → verify approval/no conflict/integrity gates → legal-safe projection → privacy/audit. `VerifiedProfileTool`, `LLM_CALLABLE`, `VERIFIED_PROFILE_READ`, 1s/one retry/`NONE`. Model receives typed facts only for `requiredFor`, may proceed to matching/classification only while pin holds; it cannot access profile history, raw wizard answers or override gates. Audit shared hashes/version/gate/provenance/refs; deny raw source/prompts/secrets/AST/PII/free-text/direct storage.
 
 ## 16–18. Scenario, AC, Tests
 
-AO-5 requests v3 for legal matching; verified facts/refs return. Open conflict produces `BLOCKED` with safe reason. AC: exact version and gate enforcement, purpose bound, strict/PBAC/privacy/audit.
+AO-5 requests v3 for legal matching; verified facts/refs return. Open conflict produces `BLOCKED` with safe reason. AC: exact version and gate enforcement, purpose bound, strict/RBAC/privacy/audit.
 
 | ID | Scenario | Level |
 |---|---|---|
 | TC-01 | verified exact legal-safe projection | integration |
 | TC-02 | pending/rejected/open conflict/version mismatch | integration |
-| TC-03 | purpose/extra/PBAC tenant denial | contract/integration |
+| TC-03 | purpose/extra/RBAC tenant denial | contract/integration |
 | TC-04 | raw answer/PII payload leak | privacy |
 | TC-05 | timeout/audit | worker/API |
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Implement verified-profile contracts/registry/read model/API PBAC/audit/tests. OQ-01: approve legal-safe fact allow-list by downstream purpose (Legal+Security, OPEN, blocks yes). Deliver strict schema/gate mapper/audit/tests.
+Implement verified-profile contracts/registry/read model/API RBAC/audit/tests. OQ-01: approve legal-safe fact allow-list by downstream purpose (Legal+Security, OPEN, blocks yes). Deliver strict schema/gate mapper/audit/tests.
 
 ## Source Authority
 

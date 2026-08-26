@@ -31,13 +31,13 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
 
     boundary_source = "investigation.evidence-accepted"
     source_event = "event.technical-evidence.accepted.v1"
-    requires_pbac = False
+    requires_rbac = False
     retry_delays_seconds = (30, 120, 600)
 
     def __init__(
         self,
         config,
-        pbac_client=None,
+        rbac_client=None,
         api_client: WorkerApiClient | None = None,
         model: str = INVESTIGATOR_MODEL_SPEC,
         planner_model: str = PLANNER_MODEL_SPEC,
@@ -45,7 +45,7 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         snapshot_client: SnapshotServiceClient | None = None,
         code_workspace: ScannerWorkspace | None = None,
     ) -> None:
-        super().__init__(config, pbac_client)
+        super().__init__(config, rbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
             config.worker_api_key,

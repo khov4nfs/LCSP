@@ -2,23 +2,22 @@
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
-import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
 import {
   DOCUMENT_REQUEST_STATUSES,
   DOCUMENT_TYPES,
   type DocumentRequestStatus,
   type DocumentType,
 } from "@lcsp/contracts/document";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import {
   CLASSIFICATION_GUARDRAIL_STATUSES,
   CLASSIFICATION_RESULT_STATUSES,
   LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
   OVERALL_COVERAGE_STATUSES,
 } from "@lcsp/contracts/scan";
+import type { INestApplication } from "@nestjs/common";
+import { Test, type TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
 import {
@@ -30,6 +29,8 @@ import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
+  seedLegalClassificationParents,
+  seedVerifiedProfileGraph,
   TEST_DATABASE_URL,
 } from "./support/auth-workspace-test-helpers.js";
 import { httpRequest, successBody } from "./support/http.js";
@@ -68,15 +69,13 @@ describe("Document List Endpoint (e2e)", () => {
     await prisma.assessment.deleteMany();
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
-    await enableManagerDocumentRead(prisma);
+    enableManagerDocumentRead(prisma);
+    await seedLegalClassificationParents(prisma);
+    await seedVerifiedProfileGraph(prisma, { verifiedProfileId: "vp-1" });
 
-    await prisma.assessment.create({
-      data: {
-        id: "assessment-1",
-        organizationId: "org-1",
-        ownerId: "user-1",
-        name: "Document list assessment",
-      },
+    await prisma.assessment.update({
+      where: { id: "assessment-1" },
+      data: { name: "Document list assessment" },
     });
 
     const signIn = await httpRequest(app).post("/auth/sign-in").send({
@@ -136,22 +135,8 @@ describe("Document List Endpoint (e2e)", () => {
   });
 });
 
-async function enableManagerDocumentRead(prisma: PrismaClient) {
-  await prisma.authPolicy.update({
-    where: {
-      id_version: {
-        id: "policy-manager-workspace",
-        version: "2026-06-26",
-      },
-    },
-    data: {
-      actions: [
-        PBAC_ACTIONS.workspaceRead,
-        PBAC_ACTIONS.documentGenerate,
-        PBAC_ACTIONS.documentRead,
-      ],
-    },
-  });
+function enableManagerDocumentRead(prisma: PrismaClient) {
+  void prisma;
 }
 
 async function seedDocumentRequest(
@@ -167,14 +152,12 @@ async function seedDocumentRequest(
 ) {
   const matchId = `lrm-${input.id}`;
   const classificationResultId = `classification-${input.id}`;
-  const organizationId = input.organizationId ?? "org-1";
 
   await prisma.legalRuleMatch.create({
     data: {
       id: matchId,
       verifiedProfileId: "vp-1",
       assessmentId: "assessment-1",
-      organizationId,
       corpusVersionId: "LCSP-LEGAL-CORPUS-v0.1.0",
       legalRuleCatalogVersionId: "LCSP-RULE-CATALOG-v0.1.0",
       schemaVersion: "1.0.0",
@@ -194,7 +177,6 @@ async function seedDocumentRequest(
       legalRuleMatchId: matchId,
       verifiedProfileId: "vp-1",
       assessmentId: "assessment-1",
-      organizationId,
       schemaVersion: "1.0.0",
       classificationData: {
         system_type: "HIGH_IMPACT_AI",
@@ -211,7 +193,6 @@ async function seedDocumentRequest(
     data: {
       id: input.id,
       assessmentId: "assessment-1",
-      organizationId,
       requestedById: "user-1",
       classificationResultId,
       documentType: toPrismaDocumentType(input.documentType),

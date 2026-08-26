@@ -63,7 +63,6 @@ export class GetAssessmentContextHandler implements IQueryHandler<
       where: {
         id: query.wizardProfileId,
         assessmentId: query.assessmentId,
-        organizationId: query.organizationId,
       },
       select: {
         id: true,
@@ -115,7 +114,6 @@ export class GetAssessmentContextHandler implements IQueryHandler<
       ? await this.prisma.technicalEvidenceReport.findFirst({
           where: {
             assessmentId: query.assessmentId,
-            organizationId: query.organizationId,
             status: toPrismaEvidenceAcceptanceStatus(
               TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
             ),
@@ -215,7 +213,6 @@ export class GetAssessmentContextHandler implements IQueryHandler<
     await this.auditWriter.write({
       eventType: AGENTIC_TOOL_EVENT_TYPES.assessmentContextRead,
       actorId: null,
-      organizationId: query.organizationId,
       assessmentId: query.assessmentId,
       resourceType: AUDIT_RESOURCE_TYPES.wizardProfile,
       resourceId: profileId,

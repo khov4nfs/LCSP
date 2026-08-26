@@ -31,7 +31,7 @@ Missing dispatch/rule table=`NEEDS_INPUT`; invalid workspace/rule/version=`BLOCK
 
 ## 11–15. LLM, registry, audit and security
 
-Not model-callable; models receive only normalized facts. Registry `run_python_semantic_analysis/1.0.0`, action `SCAN_EXECUTE`, state `SCAN_RUNNING`, workspace/dispatch/rule refs, 180/240 s, no mutation. Audit rule/config hashes, file/call/limitation counts, safe refs/duration/output hash; prohibit code, argument values, prompts, AST/CST, exceptions and absolute paths. PBAC validates scan workspace; deep privacy validation before assembler/callback.
+Not model-callable; models receive only normalized facts. Registry `run_python_semantic_analysis/1.0.0`, action `SCAN_EXECUTE`, state `SCAN_RUNNING`, workspace/dispatch/rule refs, 180/240 s, no mutation. Audit rule/config hashes, file/call/limitation counts, safe refs/duration/output hash; prohibit code, argument values, prompts, AST/CST, exceptions and absolute paths. RBAC validates scan workspace; deep privacy validation before assembler/callback.
 
 ## 16–22. Scenario, AC, tests, files
 

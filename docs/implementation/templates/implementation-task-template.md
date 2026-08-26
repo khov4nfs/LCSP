@@ -85,11 +85,11 @@ Describe the user-visible or system-visible outcome in one short paragraph.
 |---|---|---|---|---|---|
 | | | | | | |
 
-### Security / PBAC / Audit Contract
+### Security / RBAC / Audit Contract
 
 | Requirement | Contract |
 |---|---|
-| PBAC decision point | |
+| RBAC decision point | |
 | Tenant / organization scope | |
 | Secret handling | |
 | Raw source handling | |

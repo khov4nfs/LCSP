@@ -1,5 +1,5 @@
-import type { PbacRequestContext } from "../../../../../platform/pbac/interfaces/pbac-request.interface.ts";
+import type { RbacRequestContext } from "../../../../../platform/rbac/interfaces/rbac-request.interface.ts";
 
 export class ListAuthRepositoriesQuery {
-  constructor(public readonly context: PbacRequestContext) {}
+  constructor(public readonly context: RbacRequestContext) {}
 }

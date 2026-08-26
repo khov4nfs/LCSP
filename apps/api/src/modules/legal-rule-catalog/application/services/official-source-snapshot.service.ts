@@ -68,7 +68,6 @@ export class OfficialSourceSnapshotService {
     await this.auditWriter.write({
       eventType: "LEGAL_SOURCE_SNAPSHOT_STORED",
       actorId: null,
-      organizationId: null,
       resourceType: null,
       resourceId: created.snapshotRef,
       decision: AUDIT_DECISIONS.allow,
@@ -114,7 +113,6 @@ export class OfficialSourceSnapshotService {
     await this.auditWriter.write({
       eventType: "LEGAL_SOURCE_SNAPSHOT_READ",
       actorId: null,
-      organizationId: null,
       resourceType: null,
       resourceId: record.snapshotRef,
       decision: AUDIT_DECISIONS.allow,

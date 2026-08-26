@@ -90,7 +90,6 @@ function toPersistence(job: RepositoryScanJob) {
     id: job.id,
     assessmentId: job.assessmentId,
     snapshotId: job.snapshotId,
-    organizationId: job.organizationId,
     idempotencyKey: job.idempotencyKey,
     triggerSource: toPrismaRepositoryScanTriggerSource(job.triggerSource),
     status: toPrismaRepositoryScanJobStatus(job.status),

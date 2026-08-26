@@ -35,15 +35,12 @@ function createHandler(input?: { assessment?: object | null }) {
 }
 
 function query(
-  input: ConstructorParameters<typeof GetAdminSourceCatalogQuery>[2],
+  input: ConstructorParameters<typeof GetAdminSourceCatalogQuery>[1],
 ) {
   return new GetAdminSourceCatalogQuery(
     "assessment-1",
-    "organization-1",
     input,
     "user-1",
-    "policy-1",
-    "1",
     "correlation-1",
   );
 }
@@ -86,7 +83,7 @@ describe("GetAdminSourceCatalogHandler", () => {
     );
   });
 
-  it("TC-03: fails closed for an assessment outside the caller organization", async () => {
+  it("TC-03: fails closed for an inaccessible assessment", async () => {
     const { handler } = createHandler({ assessment: null });
 
     await expect(

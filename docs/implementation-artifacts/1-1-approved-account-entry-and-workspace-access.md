@@ -8,7 +8,7 @@ Status: done
 
 Implementation update 2026-08-25: LCSP now supports self-signup without an
 invitation or acceptance token through `POST /auth/sign-up` and `/sign-up`.
-This path creates a new Manager-owned organization workspace, Manager PBAC
+This path creates a new Manager-owned organization workspace, Manager RBAC
 policy, active membership, and scoped session atomically. Invitation acceptance
 remains the path for Developer/scoped collaborator onboarding.
 
@@ -56,7 +56,7 @@ so that I can access only the workspace I am authorized to use.
 
 - [x] [Review][Patch] Approved invites can be replayed indefinitely [apps/api/src/app.js:203]
 - [x] [Review][Patch] Registration invents Manager-scoped membership instead of honoring invite-derived scope [apps/api/src/app.js:226]
-- [x] [Review][Patch] Workspace authorization ignores policy state gates and reduces PBAC to role/action matching [apps/api/src/app.js:56]
+- [x] [Review][Patch] Workspace authorization ignores policy state gates and reduces RBAC to role/action matching [apps/api/src/app.js:56]
 - [x] [Review][Patch] Protected workspace access ignores requested organization scope mismatch [apps/api/src/app.js:378]
 - [x] [Review][Patch] Orphaned sessions can crash workspace access instead of failing closed [apps/api/src/app.js:406]
 - [x] [Review][Patch] Sign-in can crash on malformed stored password hashes [apps/api/src/security.js:8]
@@ -78,9 +78,9 @@ so that I can access only the workspace I am authorized to use.
 ### Architecture Compliance
 
 - Web Frontend chỉ gọi Backend API; mọi enforcement authz thực tế là server-side. [Source: docs/implementation/backend-implementation.md#Implementation Boundaries]
-- NestJS API là synchronous control plane cho auth, session, PBAC enforcement boundary, domain validation, audit emission và async work creation; không đẩy long-running logic vào request cycle. [Source: docs/architecture/architecture.md] [Source: docs/implementation/backend-implementation.md]
-- PBAC là authorization source of truth. Role label `Manager`/`Developer` chỉ là subject attribute hoặc policy template. Không được dùng role label đơn thuần để authorize workspace access. [Source: docs/product/prd.md#4-pbac-policy-model] [Source: docs/implementation/decisions/pbac-runtime-decision.md]
-- Mọi protected action phải evaluate `subject + organization + resource + action + runtime context + policy version + state gate`. Thiếu policy, thiếu attribute, cache/evaluator failure, state gate unavailable đều phải deny-by-default trừ public unauthenticated routes. [Source: docs/implementation/decisions/pbac-runtime-decision.md]
+- NestJS API là synchronous control plane cho auth, session, RBAC enforcement boundary, domain validation, audit emission và async work creation; không đẩy long-running logic vào request cycle. [Source: docs/architecture/architecture.md] [Source: docs/implementation/backend-implementation.md]
+- RBAC là authorization source of truth. Role label `Manager`/`Developer` chỉ là subject attribute hoặc policy template. Không được dùng role label đơn thuần để authorize workspace access. [Source: docs/product/prd.md#4-rbac-policy-model] [Source: docs/implementation/decisions/rbac-runtime-decision.md]
+- Mọi protected action phải evaluate `subject + organization + resource + action + runtime context + policy version + state gate`. Thiếu policy, thiếu attribute, cache/evaluator failure, state gate unavailable đều phải deny-by-default trừ public unauthenticated routes. [Source: docs/implementation/decisions/rbac-runtime-decision.md]
 - OAuth/OIDC identity và GitHub repository authorization là hai boundary riêng biệt. Story này không được tạo side effect repository access nào từ login/session. [Source: docs/architecture/architecture.md] [Source: docs/product/business-rules.md#BR-088]
 
 ### Functional and Domain Requirements
@@ -88,7 +88,7 @@ so that I can access only the workspace I am authorized to use.
 - Story này thực hiện trực tiếp `FR-001` và `FR-002`, đồng thời phải giữ compatibility với `FR-003..FR-006` sẽ đi ở story kế tiếp trong cùng use case `UC-001`. [Source: docs/specs/functional-requirements.md]
 - `UC-001` yêu cầu thiết lập organization-scoped session an toàn qua password/MFA hoặc OAuth/OIDC approved path; invalid identity/callback/MFA/session/rate-limit state phải bị deny an toàn và audited. [Source: docs/specs/use-cases.md#uc-001-authenticate-and-manage-account]
 - `BR-001`, `BR-002`, `BR-003`, `BR-005`, `BR-074`, `BR-086..BR-088`, `BR-094` là business rules cốt lõi cho password/invite verification, login protection, session expiration, email verification gate, OAuth safe handling và audit. [Source: docs/product/business-rules.md]
-- `NFR-001`, `NFR-002`, `NFR-004`, `NFR-005`, `NFR-006`, `NFR-008`, `NFR-010` là NFR tối thiểu cho auth/session/PBAC/audit mà implementation phải chứng minh bằng tests. [Source: docs/specs/non-functional-requirements.md]
+- `NFR-001`, `NFR-002`, `NFR-004`, `NFR-005`, `NFR-006`, `NFR-008`, `NFR-010` là NFR tối thiểu cho auth/session/RBAC/audit mà implementation phải chứng minh bằng tests. [Source: docs/specs/non-functional-requirements.md]
 
 ### Data and Persistence Requirements
 
@@ -101,12 +101,12 @@ so that I can access only the workspace I am authorized to use.
 
 - Assessment workflow về sau phụ thuộc guard `Manager authorized` ngay từ state tạo assessment; story auth/workspace phải cung cấp actor + org context đủ sạch để state machine kế tiếp dựa vào. [Source: docs/specs/domain-state-machines.md]
 - `AuditEvent` là append-oriented; mọi auth success/failure và access deny quan trọng phải ghi audit với correlation id và safe metadata. [Source: docs/implementation/persistence-implementation.md] [Source: docs/specs/event-catalog.md]
-- Event/domain fact tối thiểu cần được chuẩn hóa trong implementation slice này gồm login success/failure, session expired/revoked, `PBAC_DECISION_RECORDED`, và auth-related denied actions. Tên cụ thể có thể nằm ở sync audit/domain layer dù chưa thành async queue event. [Source: docs/specs/event-catalog.md]
+- Event/domain fact tối thiểu cần được chuẩn hóa trong implementation slice này gồm login success/failure, session expired/revoked, `RBAC_DECISION_RECORDED`, và auth-related denied actions. Tên cụ thể có thể nằm ở sync audit/domain layer dù chưa thành async queue event. [Source: docs/specs/event-catalog.md]
 
 ### File Structure Notes
 
 - Ưu tiên layout:
-  - `apps/api` cho auth, organization-membership, session, PBAC guard/service recheck, audit emission.
+  - `apps/api` cho auth, organization-membership, session, RBAC guard/service recheck, audit emission.
   - `apps/web` cho sign-in/register/public entry pages và protected workspace routing.
   - `packages/contracts` hoặc shared package tương đương cho DTO/error-code/authz contracts nếu bootstrap đã có.
 - Không tạo scanner, worker, legal retrieval, document generation code trong story này.
@@ -117,7 +117,7 @@ so that I can access only the workspace I am authorized to use.
 - Bắt đầu bằng public password/invite path và protected workspace gate; đừng cố nhét OAuth provider UX vào story này chỉ vì architecture có nhắc OAuth/OIDC.
 - Membership gate phải chạy sau identity proof nhưng trước khi trả workspace-scoped data. “Có session” không đồng nghĩa “được vào workspace”.
 - Safe user-facing messages phải tránh xác nhận thừa về nội bộ tenant. Ví dụ: không phân biệt quá chi tiết giữa “email không tồn tại” và “sai mật khẩu” nếu điều đó làm lộ account existence; nhưng vẫn cần machine-readable error code cho client flow.
-- Backend guard chỉ là lớp đầu. Với mọi state-changing endpoint liên quan workspace, service layer phải recheck domain scope/PBAC để tránh bypass từ controller wiring sai. [Source: docs/implementation/backend-implementation.md] [Source: docs/implementation/decisions/pbac-runtime-decision.md]
+- Backend guard chỉ là lớp đầu. Với mọi state-changing endpoint liên quan workspace, service layer phải recheck domain scope/RBAC để tránh bypass từ controller wiring sai. [Source: docs/implementation/backend-implementation.md] [Source: docs/implementation/decisions/rbac-runtime-decision.md]
 - UI chỉ được render capability do backend projection trả về; không tự suy luận permission từ role label local state.
 - Không tạo bất kỳ `RepositoryConnection`, repo token hay scan permission nào từ auth/session flow. Đó là regression trực tiếp với `FR-006`/`AC-023`. [Source: docs/specs/acceptance-criteria-catalog.md]
 
@@ -130,7 +130,7 @@ so that I can access only the workspace I am authorized to use.
   - invalid invite state bị reject an toàn;
   - membership missing hoặc membership revoked không được vào workspace;
   - expired/revoked session không gọi protected route được.
-- PBAC negative tests:
+- RBAC negative tests:
   - deny-by-default khi thiếu policy/subject attributes/state gate;
   - `AUTHZ_*` failure reason codes map đúng vào safe response;
   - protected download/read/write không được authorize chỉ dựa vào role label.
@@ -160,7 +160,7 @@ so that I can access only the workspace I am authorized to use.
 ### References
 
 - [Source: docs/planning-artifacts/epics.md#story-11-approved-account-entry-and-workspace-access]
-- [Source: docs/product/prd.md#4-pbac-policy-model]
+- [Source: docs/product/prd.md#4-rbac-policy-model]
 - [Source: docs/product/business-rules.md]
 - [Source: docs/specs/functional-requirements.md]
 - [Source: docs/specs/non-functional-requirements.md]
@@ -173,7 +173,7 @@ so that I can access only the workspace I am authorized to use.
 - [Source: docs/architecture/adr/adr-022-typescript-first-npm-only-controlled-prototype.md]
 - [Source: docs/implementation/backend-implementation.md]
 - [Source: docs/implementation/persistence-implementation.md]
-- [Source: docs/implementation/decisions/pbac-runtime-decision.md]
+- [Source: docs/implementation/decisions/rbac-runtime-decision.md]
 - [Source: docs/implementation/tasks/modules/README.md]
 - [Source: https://docs.nestjs.com/]
 - [Source: https://openid.net/specs/openid-connect-core-1_0.html]
@@ -191,7 +191,7 @@ GPT-5 Codex
 - Persistent facts: loaded `docs/project-context.md` and active implementation authority before starting execution.
 - Story selection: resumed `1-1-approved-account-entry-and-workspace-access` from `docs/implementation-artifacts/sprint-status.yaml` because it was already `in-progress`.
 - Created a minimal executable bootstrap in retained topology `apps/api`, `apps/web`, `packages/contracts`, and `tests` without expanding into OAuth/MFA/repository authorization scope.
-- Auth/session flow now issues organization-scoped sessions only after approved password/invite identity proof, enforces membership + deny-by-default PBAC gating, stores session lookup by token fingerprint plus hashed secret, and emits redacted audit/authorization records with correlation ids.
+- Auth/session flow now issues organization-scoped sessions only after approved password/invite identity proof, enforces membership + deny-by-default RBAC gating, stores session lookup by token fingerprint plus hashed secret, and emits redacted audit/authorization records with correlation ids.
 - Test evidence: `rtk npm test` passed with 14/14 green checks covering API contracts, abuse lock, session invalidation, deny-by-default authz, safe blocked copy, and protected web-route redirect behavior.
 
 ### Completion Notes List
@@ -218,4 +218,4 @@ GPT-5 Codex
 
 ### Change Log
 
-- 2026-06-26: Implemented minimal Story 1.1 auth/workspace runtime slice, added protected route and audit/PBAC scaffolding, and verified with `rtk npm test` (14/14 passing).
+- 2026-06-26: Implemented minimal Story 1.1 auth/workspace runtime slice, added protected route and audit/RBAC scaffolding, and verified with `rtk npm test` (14/14 passing).

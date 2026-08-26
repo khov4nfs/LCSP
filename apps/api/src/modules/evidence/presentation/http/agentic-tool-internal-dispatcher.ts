@@ -2,7 +2,7 @@ import {
   AGENTIC_TOOL_NAMES,
   EVIDENCE_ERROR_CODES,
 } from "@lcsp/contracts/evidence";
-import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { HttpStatus } from "@nestjs/common";
 import type { CommandBus } from "@nestjs/cqrs";
 
@@ -13,7 +13,6 @@ import { RequestTargetedReanalysisCommand } from "../../../scan/application/comm
 export type AgenticToolInternalDispatchArgs = {
   toolName: string;
   assessmentId: string;
-  organizationId: string;
   userId: string;
   correlationId: string;
   artifactVersions: Record<string, unknown>;
@@ -84,13 +83,8 @@ export function request_targeted_reanalysis(
       {
         userId: args.userId,
         sessionId: AGENT_RUNTIME_SESSION_ID,
-        organizationId: args.organizationId,
-        subjectRole: SUBJECT_ROLES.manager,
+        role: AUTH_USER_ROLES.customer,
         scope: args.assessmentId,
-        grantedActions: [PBAC_ACTIONS.technicalEvidenceReanalyze],
-        selectedAction: PBAC_ACTIONS.technicalEvidenceReanalyze,
-        policyId: AGENT_RUNTIME_SESSION_ID,
-        policyVersion: AGENT_RUNTIME_SESSION_ID,
       },
       args.correlationId,
     ),

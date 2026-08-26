@@ -6,6 +6,7 @@ export * from "./mfa.ts";
 export * from "./primary-email-address-policy.ts";
 export * from "./problems.ts";
 export * from "./redact.ts";
+export * from "./roles.ts";
 export * from "./safe.ts";
 export * from "./states.ts";
 export * from "./types.ts";

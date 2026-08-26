@@ -47,21 +47,21 @@ V-->>L: PASS/FAIL + audit
 ## 9. Business Rules
 Candidate must be in baseline eligible labels; validate citation allowlist, hard constraints, conflict/coverage and state. Audit hash only; never create/update final classification.
 ## 10. Execution Logic
-`validate → PBAC/pin → load baseline → validate citations → hard-rule/overclaim/conflict/coverage gates → normalize → privacy/audit` in `ClassificationProposalValidator`.
+`validate → RBAC/pin → load baseline → validate citations → hard-rule/overclaim/conflict/coverage gates → normalize → privacy/audit` in `ClassificationProposalValidator`.
 ## 11. LLM Tool Definition and Context Contract
 Strict §5 function; max 5KB. On PASS model may submit a proposal to independent workflow, never self-approve; on FAIL it may resolve listed typed requirement only.
 ## 12. Tool Registry
 `ClassificationProposalValidator`; `CLASSIFICATION_PROPOSAL_VALIDATE`; LLM allow-list; baseline/citations; 4s/one transient retry; READ.
 ## 13–15. Audit, Retry, Security
-Log proposal hash, refs, verdict, duration/correlation; redact rationale/free text, prompts, legal text, secrets/stacks. Gateway PBAC/tenant/state; no direct DB/object storage. One 250ms projection retry then failed/DLQ policy.
+Log proposal hash, refs, verdict, duration/correlation; redact rationale/free text, prompts, legal text, secrets/stacks. Gateway RBAC/tenant/state; no direct DB/object storage. One 250ms projection retry then failed/DLQ policy.
 ## 16. Scenario
 An eligible label with valid citations returns PASS and `PROPOSAL_READY_FOR_INDEPENDENT_REVIEW`; one unsupported citation returns FAIL without changing any classification.
 ## 17. Acceptance Criteria
 Stable gate verdict, pre-dispatch strict validation, distinct conflict/coverage, denial audit, no final persistence or sensitive payload.
 ## 18. Test Matrix
-TC-01 PASS; TC-02 each gate fail; TC-03 extra input; TC-04 PBAC/stale; TC-05 privacy; TC-06 retry; TC-07 replay no mutation.
+TC-01 PASS; TC-02 each gate fail; TC-03 extra input; TC-04 RBAC/stale; TC-05 privacy; TC-06 retry; TC-07 replay no mutation.
 ## 19. Definition of Done
-Strict contract/gates/registry/audit/PBAC and tests pass; persistence test proves no final write.
+Strict contract/gates/registry/audit/RBAC and tests pass; persistence test proves no final write.
 ## 20. Technical Notes and Files
 Contracts, `classification/proposal_validator.py`, API gateway/audit, test fixtures. Authority: AO-5.
 ## 21. Open Questions

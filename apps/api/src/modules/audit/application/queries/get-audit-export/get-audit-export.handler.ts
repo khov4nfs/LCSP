@@ -3,7 +3,6 @@ import {
   AUDIT_EXPORT_STATUSES,
   type AuditExportStatus,
 } from "@lcsp/contracts/audit";
-import { ORGANIZATION_SCOPE_ERROR_CODES } from "@lcsp/contracts/auth";
 import { HttpStatus } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
@@ -32,25 +31,16 @@ export class GetAuditExportHandler implements IQueryHandler<GetAuditExportQuery>
   ) {}
 
   /**
-   * Validates organization scope and returns current export status plus download metadata when ready.
+   * Returns current export status plus download metadata when ready.
    *
-   * @param query - Organization boundary, export identifier, session scope, and correlation context.
+   * @param query - Export identifier and correlation context.
    * @returns Audit-export status DTO with an optional short-lived download URL.
-   * @throws When organization scope mismatches or the export request cannot be found.
+   * @throws When the export request cannot be found.
    */
   async execute(query: GetAuditExportQuery): Promise<AuditExportStatusDto> {
-    if (query.organizationId !== query.sessionOrganizationId) {
-      throw problemException(
-        ORGANIZATION_SCOPE_ERROR_CODES.mismatch,
-        query.correlationId,
-        { status: HttpStatus.BAD_REQUEST },
-      );
-    }
-
     const exportRequest = await this.prisma.auditExportRequest.findFirst({
       where: {
         id: query.exportRequestId,
-        organizationId: query.organizationId,
       },
       select: {
         id: true,
@@ -81,7 +71,7 @@ export class GetAuditExportHandler implements IQueryHandler<GetAuditExportQuery>
     );
     const download =
       status === AUDIT_EXPORT_STATUSES.ready
-        ? this.buildDownload(query.organizationId, exportRequest.id)
+        ? this.buildDownload(exportRequest.id)
         : null;
 
     return {
@@ -103,18 +93,16 @@ export class GetAuditExportHandler implements IQueryHandler<GetAuditExportQuery>
   /**
    * Creates a five-minute signed download URL for a ready audit export.
    *
-   * @param organizationId - Organization that owns the export.
    * @param exportRequestId - Export request identifier embedded in the signed token.
    * @returns Signed relative URL and its ISO expiration timestamp.
    */
-  private buildDownload(
-    organizationId: string,
-    exportRequestId: string,
-  ): { url: string; expiresAt: string } {
+  private buildDownload(exportRequestId: string): {
+    url: string;
+    expiresAt: string;
+  } {
     const expiresAt = new Date(Date.now() + DOWNLOAD_URL_TTL_MS);
     return {
       url: this.storage.createSignedDownloadUrl({
-        organizationId,
         exportRequestId,
         expiresAt,
       }),

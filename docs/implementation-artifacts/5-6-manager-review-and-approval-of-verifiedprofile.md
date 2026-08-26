@@ -16,7 +16,7 @@ As a Manager, I want to review and approve VerifiedProfile before downstream cla
    **And** the review avoids final legal classification wording.
 
 2. **Given** Manager approves VerifiedProfile
-   **When** all PBAC and state gates pass
+   **When** all RBAC and state gates pass
    **Then** LCSP records approval actor, timestamp, policy version, VerifiedProfile version, and audit event
    **And** downstream legal matching can proceed.
 
@@ -65,7 +65,7 @@ As a Manager, I want to review and approve VerifiedProfile before downstream cla
 ### Dependencies and Prerequisites
 
 - Story 5.5 VerifiedProfile generation.
-- PBAC Manager approval authority.
+- RBAC Manager approval authority.
 
 ### Explicit Non-Goals
 
@@ -81,9 +81,9 @@ As a Manager, I want to review and approve VerifiedProfile before downstream cla
 
 ### Architecture Compliance
 
-- Reconciliation logic thuộc Python Worker Platform, nhưng Manager resolution surfaces và approval endpoints vẫn cần PBAC/state enforcement ở API.
+- Reconciliation logic thuộc Python Worker Platform, nhưng Manager resolution surfaces và approval endpoints vẫn cần RBAC/state enforcement ở API.
 - Upstream artifacts `WizardProfile`, `TechnicalProfile`, `AIUsageFlow` là immutable inputs; worker chỉ tạo conflict/verified outputs mới.
-- Manager-only actions phải được bảo vệ bằng PBAC subject/resource/action/context + version-safe checks.
+- Manager-only actions phải được bảo vệ bằng RBAC subject/resource/action/context + version-safe checks.
 
 ### Functional and Domain Requirements
 

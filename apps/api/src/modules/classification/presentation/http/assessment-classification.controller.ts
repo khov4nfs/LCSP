@@ -8,17 +8,17 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { CommandBus } from "@nestjs/cqrs";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
-import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
-import type { PbacRequestContext } from "../../../../platform/pbac/interfaces/pbac-request.interface.js";
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
+import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { RerunClassificationCommand } from "../../application/commands/rerun-classification/rerun-classification.command.js";
 import type { RerunClassificationRequestDto } from "../../application/contracts/classification/rerun-classification.contract.js";
 
 interface ClassificationRequest {
-  pbacContext: PbacRequestContext;
+  rbacContext: RbacRequestContext;
   correlationId: string;
 }
 
@@ -28,8 +28,8 @@ export class AssessmentClassificationController {
 
   @Post("rerun")
   @HttpCode(201)
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.classificationRun)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
   async rerun(
     @Param("assessmentId") assessmentId: string,
     @Body() payload: RerunClassificationRequestDto,
@@ -39,7 +39,7 @@ export class AssessmentClassificationController {
       await this.commandBus.execute(
         new RerunClassificationCommand(
           assessmentId,
-          request.pbacContext,
+          request.rbacContext,
           request.correlationId,
           payload?.reason,
         ),

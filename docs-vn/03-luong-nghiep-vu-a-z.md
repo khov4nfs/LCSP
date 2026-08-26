@@ -68,17 +68,17 @@ Python Classification worker dùng VerifiedProfile và LegalRuleMatch, gọi LLM
 
 Readiness-only export có thể được tạo trước nhưng phải ghi rõ chưa phải risk classification và không chứa nhãn HIGH/MEDIUM/LOW.
 
-## Luồng Developer tùy chọn
+## Luồng cộng tác kỹ thuật
 
 ```text
-Nhận lời mời/task
--> chấp nhận phạm vi
--> xem finding đã làm sạch
--> hỗ trợ sửa ngữ cảnh repository/evidence trong phạm vi PBAC
--> dừng ở phạm vi được giao
+Retired khỏi active MVP:
+Developer invitation
+-> invitation acceptance
+-> scoped task workspace
+-> membership revocation UI/API
 ```
 
-Developer không phải điều kiện để hoàn thành golden path. Developer workflow không được tồn tại chỉ để giữ structured attestation.
+Golden path hiện là Manager-owned. Không còn flow active cho Developer task hoặc structured attestation.
 
 ## Luồng legal operations nội bộ
 

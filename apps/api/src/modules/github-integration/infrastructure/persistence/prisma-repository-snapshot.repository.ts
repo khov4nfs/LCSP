@@ -40,7 +40,6 @@ export class PrismaRepositorySnapshotRepository implements RepositorySnapshotRep
         data: {
           id: snapshot.id,
           assessmentId: snapshot.assessmentId,
-          organizationId: snapshot.organizationId,
           connectionId: snapshot.connectionId,
           repositoryId: snapshot.repositoryId,
           repositoryFullName: snapshot.repositoryFullName,

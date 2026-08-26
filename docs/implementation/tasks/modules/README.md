@@ -5,7 +5,7 @@ authority: docs/implementation/tasks/README.md
 
 # LCSP Module-Scoped Feature Task Index
 
-Each file here is one **implementable feature unit** within one module. Every task has complete coding information: exact file paths, API contract, Prisma models, commands/events, PBAC rules, and test cases.
+Each file here is one **implementable feature unit** within one module. Every task has complete coding information: exact file paths, API contract, Prisma models, commands/events, RBAC rules, and test cases.
 
 ## Why Small Tasks
 
@@ -33,7 +33,7 @@ Every task file contains:
 - **Prisma Models Used** — table, action, fields
 - **Business Rules** — the invariants the implementation must enforce
 - **Commands / Events** — names, types, payloads
-- **PBAC** — who can call this, what guard checks
+- **RBAC** — who can call this, what guard checks
 - **Test Cases** — ID, scenario, expected result
 - **Definition of Done**
 
@@ -55,7 +55,7 @@ Every task file contains:
 | `platform/config/` | nestjs-api | 1.1 | 1 (01) |
 | `platform/audit-writer/` | nestjs-api | 1.8 | 2 (01–02) |
 | `platform/outbox/` | nestjs-api | 2.1 | 3 (01–03) |
-| `platform/pbac/` | nestjs-api | 1.6–1.7 | 4 (01–04) |
+| `platform/rbac/` | nestjs-api | 1.6–1.7 | 4 (01–04) |
 | `python-workers/platform/` | deepagents | cross-worker | 4 (01–04) |
 | `python-workers/scanner/` | deepagents | 3.4–3.5 | 15 (01–15) |
 | `python-workers/intelligence/` | deepagents | 3.6, 4.2, 5.1, 5.4 | 4 (01–04) |
@@ -69,9 +69,9 @@ Every task file contains:
 ## Dependency Order (Build Sequence)
 
 ```
-platform/config → platform/audit-writer → platform/outbox → platform/pbac
+platform/config → platform/audit-writer → platform/outbox → platform/rbac
                                                           ↘
-auth-workspace (sign-in, mfa, oauth, org, invitation) ← pbac
+auth-workspace (sign-in, mfa, oauth, org, invitation) ← rbac
                                                        ↘
 assessment → wizard → github-integration → scan
                                          ↘

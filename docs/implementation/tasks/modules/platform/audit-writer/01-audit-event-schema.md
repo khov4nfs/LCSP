@@ -90,7 +90,7 @@ export interface AuditEvent extends AuditEventInput {
 4. `decision` is the `AuthDecision` enum (`allow` | `deny`), nullable — not a plain string column. Contracts' `AuditEventInput.decision` is typed `AuditDecision | null` to match.
 5. Indexes: single-column `(correlationId)`, plus composite `(organizationId, createdAt)`, `(actorId, createdAt)`, `(eventType, createdAt)` to support audit log queries.
 6. `id` is `String @id` with **no Prisma-level default** — it is application-generated (`crypto.randomUUID()` in the writer service), consistent with every other model's id convention in this schema (no model uses `@default(uuid())`).
-7. `reasonCode`, `sessionId`, `policyId`, `policyVersion` are additional nullable columns not present in `AuditEventInput` — they exist for other write paths (e.g. PBAC decision logging) outside this task's scope; `AuditWriterService.write()` leaves them unset.
+7. `reasonCode`, `sessionId`, `policyId`, `policyVersion` are additional nullable columns not present in `AuditEventInput` — they exist for other write paths (e.g. RBAC decision logging) outside this task's scope; `AuditWriterService.write()` leaves them unset.
 
 ## Test Cases
 

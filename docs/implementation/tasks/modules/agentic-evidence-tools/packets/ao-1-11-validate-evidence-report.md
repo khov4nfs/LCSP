@@ -33,7 +33,7 @@ Missing draft/cleanup=`NEEDS_INPUT`; foreign callback or invalid transition=`BLO
 
 ## 11–15. LLM, registry, audit and security
 
-Not model-callable. Registry `validate_evidence_report/1.0.0`, action `SCAN_FINALIZE`, state `SCAN_ASSEMBLING`, requires draft/callback/cleanup refs, 30/60 s, callback retries, idempotency keyed by scan/report hash. Audit gate decisions/config/policy version/report hash/limitation refs/duration; never log rejected field value, source, secret/prompt/AST, stack trace or callback body. PBAC is service-to-service callback authorization; fail closed before persistence; immutable previous reports cannot change.
+Not model-callable. Registry `validate_evidence_report/1.0.0`, action `SCAN_FINALIZE`, state `SCAN_ASSEMBLING`, requires draft/callback/cleanup refs, 30/60 s, callback retries, idempotency keyed by scan/report hash. Audit gate decisions/config/policy version/report hash/limitation refs/duration; never log rejected field value, source, secret/prompt/AST, stack trace or callback body. RBAC is service-to-service callback authorization; fail closed before persistence; immutable previous reports cannot change.
 
 ## 16–22. Scenario, AC, tests, files
 

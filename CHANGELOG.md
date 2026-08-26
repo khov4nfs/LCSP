@@ -5,6 +5,70 @@ do not rewrite older entries unless correcting a factual error.
 
 ## Unreleased
 
+### 2026-08-25 - Remove Legacy User Table
+
+#### Removed
+
+- Removed the legacy standalone `User` Prisma model/table and its unused `users` API module.
+- Removed the old `/users` CQRS controller, handlers, repository, DTOs, domain entity, value objects, and bootstrap/export wiring.
+- Removed test cleanup against `prisma.user` and the legacy user-controller DI test.
+
+#### Changed
+
+- Kept the active account flow on `AuthUser`, `AuthOrganization`, `AuthMembership`, and `AuthSession`.
+
+#### Migration
+
+- Added `20260825093000_drop_legacy_user` to drop the obsolete `"User"` table.
+
+#### Verification
+
+- `rtk pnpm --filter @lcsp/api exec prisma format --schema prisma/schema.prisma`
+- `rtk pnpm run typecheck`
+- `rtk pnpm --filter @lcsp/api build`
+- `rtk pnpm --filter @lcsp/api test:e2e -- --runInBand --runTestsByPath test/app.e2e-spec.ts test/sign-up.e2e-spec.ts test/auth-workspace.e2e-spec.ts`
+- `rtk pnpm run check:imports`
+- `git diff --check`
+
+#### Known Remaining Work
+
+- `rtk pnpm run check:contracts` still reports the existing canonical literal audit failures in classification, evidence, legal-rule-catalog, scan, outbox, PBAC, runtime-event, and related tests/services outside this table cleanup.
+
+### 2026-08-25 - Retire Developer Collaboration Flow
+
+#### Removed
+
+- Removed Developer invitation, invitation acceptance, membership revocation, task workspace, navigation, BFF routes, API handlers, client hooks, mock fixtures, and related tests.
+- Removed the `AuthInvitation` Prisma model/table and `AuthInvitationState` enum with migration `20260825090000_drop_auth_invitation`.
+- Removed active Developer PBAC role/action contracts, including `Developer`, `invite:developer`, and `membership:revoke`.
+
+#### Changed
+
+- Kept self-signup and Manager-owned workspace flow as the active account path.
+- Updated assessment, readiness, repository snapshot, and mock workspace paths to fail closed for non-Manager subjects instead of using scoped Developer behavior.
+- Updated current docs to mark the Developer invitation/task flow as retired and prevent reintroducing it through task docs.
+
+#### Verification
+
+- `rtk pnpm run typecheck`
+- `rtk pnpm run test:web`
+- `rtk pnpm --filter @lcsp/api test -- --runInBand --runTestsByPath src/modules/assessment/application/queries/list-assessments/list-assessments.handler.spec.ts src/modules/assessment/application/queries/get-assessment/get-assessment.handler.spec.ts src/modules/github-integration/application/commands/pin-snapshot/pin-snapshot.handler.spec.ts src/modules/scan/application/queries/get-scan-job/get-scan-job.handler.spec.ts src/modules/wizard/application/queries/get-readiness/get-readiness.handler.spec.ts src/platform/pbac/pbac.guard.spec.ts src/platform/pbac/pbac-evaluator.service.spec.ts src/platform/pbac/pbac-context.loader.spec.ts src/modules/auth-workspace/application/commands/oauth-callback/oauth-callback.handler.spec.ts`
+- `rtk pnpm --filter @lcsp/api test:e2e -- --runInBand --runTestsByPath test/auth-workspace.e2e-spec.ts test/sign-up.e2e-spec.ts test/assessment-list.e2e-spec.ts test/assessment-get.e2e-spec.ts test/scan-job-status.e2e-spec.ts test/get-technical-evidence.e2e-spec.ts test/document-status.e2e-spec.ts test/resolve-conflict.e2e-spec.ts test/manager-golden-path.e2e-spec.ts`
+- `rtk pnpm --filter @lcsp/api build`
+- `rtk pnpm --filter @lcsp/web lint`
+- `rtk pnpm --filter @lcsp/web build`
+- `rtk pnpm run check:imports`
+- `rtk pnpm run check:agentic-tools`
+- `git diff --check`
+
+#### Compatibility Note
+
+- `AUTH_INVITATION` remains in audit resource enums/mappers for historical audit records only; it is no longer backed by an active invitation table or product flow.
+
+#### Known Remaining Work
+
+- `rtk pnpm run check:contracts` now reaches the existing canonical literal audit and still reports broader literal policy violations in classification, evidence, legal-rule-catalog, scan, outbox, PBAC and runtime-event tests/services outside the Developer flow removal.
+
 ### 2026-08-25 - Remove GitHub OAuth Login
 
 #### Removed

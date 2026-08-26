@@ -15,7 +15,7 @@ Allowed: read snapshot files; parse manifests/config/schemas/migrations/source; 
 Forbidden: execute customer code; install dependencies; run customer scripts/builds/tests/Docker/CI; probe endpoints; persist raw source/full AST/full prompts/secrets/literal PII; send prohibited raw content through the LLM gateway.
 
 ## Runtime ownership
-Python Worker owns orchestration and all technical processing. Syft, Knip, deptry, Semgrep, Python AST/libcst, tree-sitter and the Python-owned `ts-morph` subprocess are scanner implementation tools. NestJS owns snapshot/credential boundaries, CQRS/persistence/PBAC/protected APIs only.
+Python Worker owns orchestration and all technical processing. Syft, Knip, deptry, Semgrep, Python AST/libcst, tree-sitter and the Python-owned `ts-morph` subprocess are scanner implementation tools. NestJS owns snapshot/credential boundaries, CQRS/persistence/RBAC/protected APIs only.
 
 ## Pipeline
 

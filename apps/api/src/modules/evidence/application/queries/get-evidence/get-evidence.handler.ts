@@ -1,5 +1,5 @@
 import { EVIDENCE_ERROR_CODES } from "@lcsp/contracts/evidence";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   SCAN_EVIDENCE_SCHEMA_VERSIONS,
   TECHNICAL_EVIDENCE_REPORT_STATUSES,
@@ -25,22 +25,17 @@ export class GetEvidenceHandler implements IQueryHandler<GetEvidenceQuery> {
   ) {}
 
   async execute(query: GetEvidenceQuery): Promise<EvidenceDetailDto> {
-    const redactLocations =
-      query.selectedAction === PBAC_ACTIONS.evidenceReadRedacted;
+    const redactLocations = query.actorRole === AUTH_USER_ROLES.admin;
     if (
-      query.selectedAction !== PBAC_ACTIONS.evidenceRead &&
-      !redactLocations
+      query.actorRole !== AUTH_USER_ROLES.customer &&
+      query.actorRole !== AUTH_USER_ROLES.admin
     ) {
-      this.throwNotFound(query.correlationId);
-    }
-    if (redactLocations && query.scope !== query.assessmentId) {
       this.throwNotFound(query.correlationId);
     }
 
     const report = await this.prisma.technicalEvidenceReport.findFirst({
       where: {
         assessmentId: query.assessmentId,
-        organizationId: query.organizationId,
         status: toPrismaEvidenceAcceptanceStatus(
           TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
         ),

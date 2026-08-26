@@ -44,19 +44,19 @@ E-->>L: rows + audit
 ## 9. Business Rules
 Every row gets one canonical status and cited refs; evidence may not self-close a remediation; sort rowRef, cap 100.
 ## 10. Execution Logic
-Validate, PBAC/pin, load matrix/evidence/coverage, evaluate each deterministic rule, normalize/redact/audit in `GapMatrixEvaluator`.
+Validate, RBAC/pin, load matrix/evidence/coverage, evaluate each deterministic rule, normalize/redact/audit in `GapMatrixEvaluator`.
 ## 11. LLM Tool Definition and Context Contract
 Strict §5; max 15KB; model may request trace/remediation candidate only; cannot update row status.
 ## 12. Tool Registry
 `GapMatrixEvaluator`; `GAP_MATRIX_EVALUATE`; LLM allow-list; matrix/evidence refs; 5s/one retry/READ.
 ## 13–15. Audit, Retry, Security
-Audit refs/hash/status/budget; redact rationales/source/prompt/secrets/stacks. Tenant/PBAC/state/pinned projection only. One 300ms transient retry then `FAILED`/DLQ policy.
+Audit refs/hash/status/budget; redact rationales/source/prompt/secrets/stacks. Tenant/RBAC/state/pinned projection only. One 300ms transient retry then `FAILED`/DLQ policy.
 ## 16. Scenario
 No verified evidence makes one row `MISSING`; limited scanner coverage makes it `OUT_OF_COVERAGE`, not missing.
 ## 17. Acceptance Criteria
 All five status fixtures deterministic; strict input; explicit conflict/limit; no state write or raw leak.
 ## 18. Test Matrix
-TC-01 five statuses; TC-02 extra input; TC-03 stale/cross tenant; TC-04 PBAC; TC-05 privacy; TC-06 timeout; TC-07 no mutation.
+TC-01 five statuses; TC-02 extra input; TC-03 stale/cross tenant; TC-04 RBAC; TC-05 privacy; TC-06 timeout; TC-07 no mutation.
 ## 19. Definition of Done
 Evaluator/registry/schema/audit/security/tests pass.
 ## 20. Technical Notes and Files

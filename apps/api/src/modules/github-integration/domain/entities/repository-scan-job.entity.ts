@@ -10,7 +10,6 @@ export type RepositoryScanJobProps = {
   id: string;
   assessmentId: string;
   snapshotId: string;
-  organizationId: string;
   idempotencyKey: string;
   triggerSource: RepositoryScanTriggerSource;
   status: RepositoryScanJobStatus;
@@ -115,9 +114,6 @@ export class RepositoryScanJob {
   }
 
   /** @returns The organization that owns the scan job. */
-  get organizationId(): string {
-    return this.props.organizationId;
-  }
 
   /** @returns The trigger idempotency key. */
   get idempotencyKey(): string {

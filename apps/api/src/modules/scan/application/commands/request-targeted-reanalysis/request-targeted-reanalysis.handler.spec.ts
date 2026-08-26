@@ -76,7 +76,6 @@ describe("RequestTargetedReanalysisHandler admission", () => {
         },
         {
           userId: "user-1",
-          organizationId: "org-1",
         } as never,
         "correlation-1",
       ),
@@ -154,7 +153,7 @@ describe("RequestTargetedReanalysisHandler admission", () => {
           reasonRequirementId: "requirement:1",
           idempotencyKey: "idempotency-key-subject-0001",
         },
-        { userId: "user-1", organizationId: "org-1" } as never,
+        { userId: "user-1" } as never,
         "correlation-1",
       ),
     );
@@ -232,7 +231,6 @@ describe("RequestTargetedReanalysisHandler admission", () => {
           },
           {
             userId: "user-1",
-            organizationId: "org-1",
           } as never,
           "correlation-1",
         ),

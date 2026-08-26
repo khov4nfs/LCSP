@@ -25,7 +25,6 @@ function buildInstallState(overrides?: {
     id: "install-state-1",
     state: "state-token-1",
     assessmentId: null,
-    organizationId: "org-1",
     userId: "user-1",
     redirectUri: "http://localhost:3000/api/github/app/callback",
     expiresAt: overrides?.expiresAt ?? new Date(Date.now() + 60_000),

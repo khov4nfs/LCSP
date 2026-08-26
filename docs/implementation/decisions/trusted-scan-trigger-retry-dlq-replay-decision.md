@@ -60,7 +60,7 @@ DLQ payloads must not contain raw source, secrets, tokens, full prompts, or tool
 | Manager | request scan rerun from current UI state |
 | Platform operator | replay DLQ item after fixing infrastructure/config |
 | Scanner operator | replay scanner command only when prior accepted evidence is not mutated |
-| Developer | no replay authority unless separately scoped and PBAC allows a rerun request |
+| Developer | no replay authority unless separately scoped and RBAC allows a rerun request |
 
 Replay creates a new attempt or resumes an existing non-terminal job. Replay must not rewrite `COMPLETED`, `FAILED`, or accepted evidence/profile artifacts.
 

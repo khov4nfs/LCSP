@@ -8,7 +8,7 @@ epic_story: 1.1
 depends_on:
   - auth-workspace/01-sign-in-endpoint.md
   - auth-workspace/06-get-workspace-endpoint.md
-  - auth-workspace/13-pbac-guard.md
+  - auth-workspace/13-rbac-guard.md
 ---
 
 # Self Sign-Up Account Endpoint
@@ -17,7 +17,7 @@ depends_on:
 
 Allow a new Manager user to create an LCSP account without an invitation or
 acceptance token. Successful self-signup creates a new organization workspace,
-Manager PBAC policy, active Manager membership, scoped session, and safe audit
+Manager RBAC policy, active Manager membership, scoped session, and safe audit
 event in one transaction.
 
 ## Module Files

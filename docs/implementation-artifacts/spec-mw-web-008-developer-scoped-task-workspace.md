@@ -22,7 +22,7 @@ warnings: []
 
 ## Boundaries & Constraints
 
-**Always:** Keep the invitation token confined to the acceptance request; keep the session token in the existing `lcsp_session` httpOnly cookie; treat API capabilities as hints and PBAC as authority; whitelist only `DEVELOPER_ALLOWED_ACTIONS`; remove `file_path` and `line_number` from the UI view model; distinguish revoked session `401 SESSION_INVALID` from narrowed scope `403 PBAC_DENIED`; localize all customer-facing copy in English and Vietnamese.
+**Always:** Keep the invitation token confined to the acceptance request; keep the session token in the existing `lcsp_session` httpOnly cookie; treat API capabilities as hints and RBAC as authority; whitelist only `DEVELOPER_ALLOWED_ACTIONS`; remove `file_path` and `line_number` from the UI view model; distinguish revoked session `401 SESSION_INVALID` from narrowed scope `403 RBAC_DENIED`; localize all customer-facing copy in English and Vietnamese.
 
 **Block If:** No safe API contract provides organization, assessment, and granted-scope metadata before acceptance; acceptance cannot identify the scoped assessment for redirect; the post-acceptance workspace cannot obtain organization and assessment labels plus current granted actions; or a protected Next.js BFF route is not authorized to exchange the httpOnly session cookie for the API Bearer header.
 
@@ -37,7 +37,7 @@ warnings: []
 | Existing account   | Invitation email already belongs to a user                                    | Offer sign-in link                                                                                                   | Map `EMAIL_ALREADY_EXISTS` only            |
 | No evidence        | Authorized scope with no accepted report                                      | Show localized empty state                                                                                           | Treat `EVIDENCE_NOT_FOUND` as empty        |
 | Revoked session    | Evidence request returns `401 SESSION_INVALID`                                | Remove protected content and redirect to sign-in                                                                     | Never retain findings                      |
-| Narrowed scope     | Evidence request returns `403 PBAC_DENIED`                                    | Show inline revoked banner with no findings                                                                          | Do not redirect or expose policy internals |
+| Narrowed scope     | Evidence request returns `403 RBAC_DENIED`                                    | Show inline revoked banner with no findings                                                                          | Do not redirect or expose policy internals |
 
 </intent-contract>
 
@@ -49,7 +49,7 @@ warnings: []
 - `apps/web/src/lib/api/workspace-client.ts` -- status-aware API outcome normalization.
 - `apps/api/src/modules/auth-workspace/application/contracts/auth-workspace/accept-invitation.contract.ts` -- current accept response contract; lacks assessment/scope metadata.
 - `apps/api/src/modules/evidence/application/contracts/evidence/evidence-detail.contract.ts` -- current evidence contract; lacks scope-summary metadata.
-- `packages/contracts/src/pbac/developer-policy.ts` -- authoritative Developer action whitelist.
+- `packages/contracts/src/rbac/developer-policy.ts` -- authoritative Developer action whitelist.
 
 ## Tasks & Acceptance
 

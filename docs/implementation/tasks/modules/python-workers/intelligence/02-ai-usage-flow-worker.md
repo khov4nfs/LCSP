@@ -32,7 +32,7 @@ Consume `technical-profile-ready` events and generate `AIUsageFlow` claims throu
 |---|---|
 | Queue | `intelligence.technical-profile-ready` |
 | Routing key | `technical-profile-ready` |
-| PBAC preflight | No (system event) |
+| RBAC preflight | No (system event) |
 
 ## Runtime Inputs and Node Boundaries
 
@@ -179,7 +179,7 @@ Thresholds: `< 0.40` → `ABSTAINED`; `0.40..0.64` → `DETECTED` (not material-
   - `conflict_candidate_builder.py`
 - Optional:
   - `ai_usage_flow_claim_drafter.py`
-- Implemented `AIUsageFlowConsumer` as a `ConsumerBase` subclass for queue `intelligence.technical-profile-ready`, routing key `technical-profile-ready`, with `requires_pbac = False` for system event processing.
+- Implemented `AIUsageFlowConsumer` as a `ConsumerBase` subclass for queue `intelligence.technical-profile-ready`, routing key `technical-profile-ready`, with `requires_rbac = False` for system event processing.
 - Implemented canonical 15-category claim base-score table and deterministic confidence formula from `docs/specs/ai-usage-flow-domain-spec.md`.
 - Implemented deterministic claim generation for provider usage, model invocation, generated output, content labeling, provider-only abstention, missing-evidence rejection, coverage limitation preservation, and `WIZARD_NO_AI_BUT_INVOCATION_EXISTS` conflict candidate generation.
 - If model-assisted claim drafting is enabled, it runs as a bounded graph node through `LLM Gateway` with sanitized structured inputs and post-node deterministic guardrails.

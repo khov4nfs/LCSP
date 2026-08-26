@@ -7,14 +7,14 @@ status: DONE
 epic_story: 3.3
 depends_on:
   - github-integration/04-scan-trigger-endpoint.md
-  - platform/pbac/03-nestjs-guard.md
+  - platform/rbac/03-nestjs-guard.md
 ---
 
 # Scan Job Status Endpoint
 
 ## Outcome
 
-Return current status and progress of a `RepositoryScanJob`. Manager and scoped Developer can poll this endpoint. Shows blocked/failed states with business-language next-action. Never shows risk labels or source code content.
+Return current status and progress of a `RepositoryScanJob`. The owning Manager can poll this endpoint. Shows blocked/failed states with business-language next-action. Never shows risk labels or source code content.
 
 ## Module Files
 
@@ -50,12 +50,12 @@ Return current status and progress of a `RepositoryScanJob`. Manager and scoped 
 
 | HTTP | `error_code`         | Meaning                 |
 | ---- | -------------------- | ----------------------- |
-| 403  | `PBAC_DENIED`        | Actor lacks `scan:read` |
+| 403  | `RBAC_DENIED`        | Actor lacks `scan:read` |
 | 404  | `SCAN_JOB_NOT_FOUND` | Not found or not in org |
 
 ## Business Rules
 
-1. PBAC guard: `action = scan:read`.
+1. RBAC guard: `action = scan:read`.
 2. Verify `scanJob.assessmentId = pathParam.assessmentId` and `organizationId = session.organizationId`.
 3. `blocked_reason` must be business-language only — no technical stack traces or raw error messages.
 4. `next_action` must be business-language — no risk labels.
@@ -75,7 +75,7 @@ Return current status and progress of a `RepositoryScanJob`. Manager and scoped 
 | T02 | COMPLETED job              | 200 `status = COMPLETED`                                   |
 | T03 | BLOCKED job                | 200 `status = BLOCKED`, `blocked_reason` business-language |
 | T04 | Job not in org             | 404 `SCAN_JOB_NOT_FOUND`                                   |
-| T05 | Actor lacks `scan:read`    | 403 `PBAC_DENIED`                                          |
+| T05 | Actor lacks `scan:read`    | 403 `RBAC_DENIED`                                          |
 | T06 | No source code in response | Field inspection                                           |
 
 ## Definition of Done
@@ -86,7 +86,7 @@ Return current status and progress of a `RepositoryScanJob`. Manager and scoped 
 
 ## Implementation Evidence
 
-- Added the PBAC-protected `GET /assessments/:assessmentId/scan-jobs/:scanJobId` endpoint for Manager and assessment-scoped Developer polling.
+- Added the RBAC-protected `GET /assessments/:assessmentId/scan-jobs/:scanJobId` endpoint for owning Manager polling.
 - The query is constrained by scan job, assessment, and organization; out-of-scope records use the same `SCAN_JOB_NOT_FOUND` response as missing records.
 - The response uses an explicit safe-field projection. Raw blocked reasons, scanner output, source content, file paths, and stack traces are never selected or returned.
 - `QUEUED`, `RUNNING`, `FAILED`, and `BLOCKED` statuses return approved business-language guidance; `COMPLETED` returns no next action.

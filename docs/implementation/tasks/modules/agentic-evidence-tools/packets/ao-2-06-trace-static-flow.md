@@ -36,14 +36,14 @@ AO-3 calls from a symbol/finding ref to determine structural ingress→invocatio
 
 ## 7. Errors and Typed Outcomes
 
-Invalid/extra selector=`INVALID_ARGUMENT`; missing report=`NEEDS_INPUT`; no start ref=`NOT_FOUND`; dynamic/cap/L4 boundary=`OUT_OF_COVERAGE` with terminal; PBAC/version denial=`BLOCKED`; transient failure timeout=`FAILED` after one retry.
+Invalid/extra selector=`INVALID_ARGUMENT`; missing report=`NEEDS_INPUT`; no start ref=`NOT_FOUND`; dynamic/cap/L4 boundary=`OUT_OF_COVERAGE` with terminal; RBAC/version denial=`BLOCKED`; transient failure timeout=`FAILED` after one retry.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
 ```mermaid
 sequenceDiagram
  participant O as AO-3
- participant G as PBAC gateway
+ participant G as RBAC gateway
  participant H as StaticFlowTool
  participant P as Flow projection
  O->>G: strict start/direction/hops
@@ -53,23 +53,23 @@ sequenceDiagram
  G-->>O: safe path
 ```
 
-Validate → registry → PBAC/version → deterministic flow traversal → stop before hop/dynamic boundary → normalize → privacy → audit. Registry `StaticFlowTool`, `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, report ref, 3s/one retry/`NONE`. Model sees ≤20 structural segments and terminal only; may inspect data/decision/review path using returned ref, cannot claim runtime data/value behavior. Audit shared metadata and safe hashes; never raw sources/values/prompts/secrets/AST/config. 
+Validate → registry → RBAC/version → deterministic flow traversal → stop before hop/dynamic boundary → normalize → privacy → audit. Registry `StaticFlowTool`, `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, report ref, 3s/one retry/`NONE`. Model sees ≤20 structural segments and terminal only; may inspect data/decision/review path using returned ref, cannot claim runtime data/value behavior. Audit shared metadata and safe hashes; never raw sources/values/prompts/secrets/AST/config. 
 
 ## 16–18. Scenario, AC, Tests
 
-For a provider call, forward trace reaches `DYNAMIC_BOUNDARY`; model must state scope limit and use resolver only if allowed. Valid output must be deterministic, invalid input pre-dispatch, tenant/PBAC closed, terminal explicit and payload redacted.
+For a provider call, forward trace reaches `DYNAMIC_BOUNDARY`; model must state scope limit and use resolver only if allowed. Valid output must be deterministic, invalid input pre-dispatch, tenant/RBAC closed, terminal explicit and payload redacted.
 
 | ID | Scenario | Level |
 |---|---|---|
 | TC-01 | L1–L3 path order | unit |
 | TC-02 | dynamic/L4/hop stop | integration |
-| TC-03 | invalid input/PBAC/version | contract/integration |
+| TC-03 | invalid input/RBAC/version | contract/integration |
 | TC-04 | source/value payload leak | privacy |
 | TC-05 | timeout/retry/audit | worker |
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Implement flow contract/registry/handler/read model/normalizer, API PBAC/audit and tests. OQ-01: define supported L-level mapping in scanner spec (Scanner owner, OPEN, blocks yes). Deliver exact definition/schema, handler and tests.
+Implement flow contract/registry/handler/read model/normalizer, API RBAC/audit and tests. OQ-01: define supported L-level mapping in scanner spec (Scanner owner, OPEN, blocks yes). Deliver exact definition/schema, handler and tests.
 
 ## Source Authority
 

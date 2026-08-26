@@ -1,16 +1,9 @@
 import {
   AUTH_BACKUP_EMAIL_POLICIES,
-  AUTH_INVITATION_STATES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
-  AUTH_MEMBERSHIP_STATUSES,
   AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES,
-  REQUIRED_ACTIONS,
+  AUTH_USER_ROLES,
 } from "@lcsp/contracts/auth";
-import {
-  PBAC_ACTIONS,
-  PBAC_DECISION,
-  SUBJECT_ROLES,
-} from "@lcsp/contracts/pbac";
 import * as assert from "node:assert/strict";
 
 import type { INestApplication } from "@nestjs/common";
@@ -19,7 +12,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
-import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
+import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import { AUTH_ERROR_CODES, type ProblemResult } from "@lcsp/contracts/auth";
 import { resolveMessage } from "@lcsp/i18n";
 
@@ -36,7 +29,6 @@ import type {
   ConfirmRecoverySuccess,
   RequestRecoverySuccess,
 } from "../src/modules/auth-workspace/application/contracts/auth-workspace/recovery.contract.js";
-import type { RegisterSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/register-approved-path.contract.js";
 import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
 import type { WorkspaceSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/workspace.contract.js";
 import { AUTH_WORKSPACE_RECOVERY_NOTIFIER } from "../src/modules/auth-workspace/application/ports/notification/recovery-notifier.js";
@@ -91,7 +83,7 @@ describe("Auth workspace (e2e)", () => {
     await prisma.$disconnect();
   });
 
-  it("approved sign-in creates an authenticated session scoped to organization", async () => {
+  it("approved sign-in returns the current safe user projection", async () => {
     const result = await httpRequest(app)
       .post("/auth/sign-in")
       .send({
@@ -102,13 +94,15 @@ describe("Auth workspace (e2e)", () => {
       .expect(200);
     const body = successBody<SignInSuccess>(result);
 
-    assert.equal(body.user.organization_id, fixture.organizationId);
+    assert.equal(body.user.user_id, fixture.approvedUser.id);
+    assert.equal(body.user.email, fixture.approvedUser.email);
+    assert.equal(body.user.subject_attributes.role, AUTH_USER_ROLES.customer);
     assert.equal(typeof body.session_token, "string");
     assert.equal(body.mfa_required, undefined);
     assert.equal(body.mfa_enrolled, false);
   });
 
-  it("approved sign-in without organization_id auto-resolves active organization", async () => {
+  it("approved sign-in no longer requires organization_id", async () => {
     const result = await httpRequest(app)
       .post("/auth/sign-in")
       .send({
@@ -118,51 +112,11 @@ describe("Auth workspace (e2e)", () => {
       .expect(200);
     const body = successBody<SignInSuccess>(result);
 
-    assert.equal(body.user.organization_id, fixture.organizationId);
+    assert.equal(body.user.user_id, fixture.approvedUser.id);
+    assert.equal(body.user.subject_attributes.role, AUTH_USER_ROLES.customer);
     assert.equal(typeof body.session_token, "string");
     assert.equal(body.mfa_required, undefined);
     assert.equal(body.mfa_enrolled, false);
-  });
-
-  it("approved invitation registration creates session through approved path", async () => {
-    const result = await httpRequest(app)
-      .post("/auth/register-approved-path")
-      .send({
-        invite_id: "invite-approved",
-        password: "ApprovedInvite123!",
-      })
-      .expect(201);
-
-    assert.equal(
-      successBody<RegisterSuccess>(result).user.email,
-      "invitee@acme.test",
-    );
-    const invite = await prisma.authInvitation.findUnique({
-      where: { id: "invite-approved" },
-    });
-    assert.equal(invite?.state, AUTH_INVITATION_STATES.consumed);
-  });
-
-  it("approved invitation cannot be replayed after first registration", async () => {
-    const first = await httpRequest(app)
-      .post("/auth/register-approved-path")
-      .send({
-        invite_id: "invite-approved",
-        password: "ApprovedInvite123!",
-      })
-      .expect(201);
-
-    const replay = await httpRequest(app)
-      .post("/auth/register-approved-path")
-      .send({
-        invite_id: "invite-approved",
-        password: "ApprovedInvite123!",
-      })
-      .expect(403);
-
-    assert.equal(successBody<RegisterSuccess>(first).ok, true);
-    const failure = expectFailure(replay.body);
-    assert.equal(failure.problem.code, AUTH_ERROR_CODES.invalidInviteState);
   });
 
   it("invalid credentials return stable safe error without echoing secrets", async () => {
@@ -226,7 +180,6 @@ describe("Auth workspace (e2e)", () => {
     const session = await prisma.authSession.findFirst({
       where: {
         userId: fixture.approvedUser.id,
-        organizationId: fixture.organizationId,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -274,49 +227,6 @@ describe("Auth workspace (e2e)", () => {
     assert.doesNotMatch(JSON.stringify(failure), /WrongPassword123!/);
   });
 
-  it("invalid invite state is rejected with safe machine-readable contract", async () => {
-    const result = await httpRequest(app)
-      .post("/auth/register-approved-path")
-      .send({
-        invite_id: "invite-pending",
-        password: "SomePassword123!",
-      })
-      .expect(403);
-
-    const failure = expectFailure(result.body);
-    assert.equal(failure.problem.code, AUTH_ERROR_CODES.invalidInviteState);
-    assert.equal(failure.problem.requiredAction, REQUIRED_ACTIONS.acceptInvite);
-  });
-
-  it("approved invitation still blocks registration when email verification is pending", async () => {
-    const result = await httpRequest(app)
-      .post("/auth/register-approved-path")
-      .send({
-        invite_id: "invite-unverified",
-        password: "SomePassword123!",
-      })
-      .expect(403);
-
-    const failure = expectFailure(result.body);
-    assert.equal(
-      failure.problem.code,
-      AUTH_ERROR_CODES.emailVerificationRequired,
-    );
-  });
-
-  it("approved invitation still blocks registration when membership is not active", async () => {
-    const result = await httpRequest(app)
-      .post("/auth/register-approved-path")
-      .send({
-        invite_id: "invite-not-active",
-        password: "SomePassword123!",
-      })
-      .expect(403);
-
-    const failure = expectFailure(result.body);
-    assert.equal(failure.problem.code, AUTH_ERROR_CODES.invalidInviteState);
-  });
-
   it("email verification is required before continuing to workspace", async () => {
     const result = await httpRequest(app)
       .post("/auth/sign-in")
@@ -334,7 +244,7 @@ describe("Auth workspace (e2e)", () => {
     );
   });
 
-  it("membership missing blocks access before workspace data is returned", async () => {
+  it("sign-in succeeds for users without legacy membership records", async () => {
     const result = await httpRequest(app)
       .post("/auth/sign-in")
       .send({
@@ -342,10 +252,11 @@ describe("Auth workspace (e2e)", () => {
         password: "NoMembership123!",
         organization_id: fixture.organizationId,
       })
-      .expect(403);
+      .expect(200);
 
-    const failure = expectFailure(result.body);
-    assert.equal(failure.problem.code, AUTH_ERROR_CODES.membershipMissing);
+    const body = successBody<SignInSuccess>(result);
+    assert.equal(body.user.user_id, fixture.noMembershipUser.id);
+    assert.equal(body.user.subject_attributes.role, AUTH_USER_ROLES.admin);
   });
 
   it("protected workspace endpoint fails closed without authentication", async () => {
@@ -361,23 +272,21 @@ describe("Auth workspace (e2e)", () => {
     const decision = await prisma.authDecisionLog.findFirstOrThrow({
       where: { correlationId: "corr-workspace-no-session" },
     });
-    assert.equal(decision.decision, PBAC_DECISION.deny);
+    assert.equal(decision.decision, AUDIT_DECISIONS.deny);
   });
 
-  it("workspace access fails closed when request organization does not match session scope", async () => {
+  it("workspace ignores deprecated organization_id query parameters", async () => {
     const signIn = await signInAndVerifyApprovedUser();
 
     const result = await httpRequest(app)
       .get("/workspace")
       .query({ organization_id: "org-2" })
       .set("Authorization", `Bearer ${signIn.session_token}`)
-      .expect(403);
+      .expect(200);
 
-    const failure = expectFailure(result.body);
-    assert.equal(
-      failure.problem.code,
-      AUTH_ERROR_CODES.authzTenantScopeMismatch,
-    );
+    const body = successBody<WorkspaceSuccess>(result);
+    assert.equal(body.user_id, fixture.approvedUser.id);
+    assert.equal(body.role, AUTH_USER_ROLES.customer);
   });
 
   it("revoked session cannot access protected workspace", async () => {
@@ -390,66 +299,32 @@ describe("Auth workspace (e2e)", () => {
     assert.equal(problemCode(result), AUTH_ERROR_CODES.sessionInvalid);
   });
 
-  it("deny-by-default blocks workspace access when subject attributes are incomplete", async () => {
+  it("workspace access is derived from the session-backed user role", async () => {
     const signIn = await signInAndVerifyApprovedUser();
-
-    await prisma.authMembership.update({
-      where: {
-        userId_organizationId: {
-          userId: fixture.approvedUser.id,
-          organizationId: fixture.organizationId,
-        },
-      },
-      data: {
-        subjectAttributes: {},
-      },
-    });
 
     const result = await httpRequest(app)
       .get("/workspace")
-      .query({ organization_id: fixture.organizationId })
       .set("Authorization", `Bearer ${signIn.session_token}`)
-      .expect(403);
+      .expect(200);
 
-    assert.equal(problemCode(result), AUTH_ERROR_CODES.pbacDenied);
-  });
-
-  it("deny-by-default blocks workspace access when policy state gate is not satisfied", async () => {
-    const signIn = await signInAndVerifyApprovedUser();
-
-    await prisma.authOrganization.create({
-      data: {
-        id: "org-other",
-        slug: "other",
-        name: "Other Org",
-      },
-    });
-    await prisma.authPolicy.update({
-      where: {
-        id_version: {
-          id: "policy-manager-workspace",
-          version: "2026-06-26",
-        },
-      },
-      data: {
-        organizationId: "org-other",
-      },
-    });
-
-    const result = await httpRequest(app)
-      .get("/workspace")
-      .query({ organization_id: fixture.organizationId })
-      .set("Authorization", `Bearer ${signIn.session_token}`)
-      .expect(403);
-
-    const failure = expectFailure(result.body);
     assert.equal(
-      failure.problem.code,
-      AUTH_ERROR_CODES.authzTenantScopeMismatch,
+      successBody<WorkspaceSuccess>(result).role,
+      AUTH_USER_ROLES.customer,
     );
   });
 
-  it("returns the active Manager organization context and safe PBAC action projection", async () => {
+  it("workspace access does not depend on legacy organization policy rows", async () => {
+    const signIn = await signInAndVerifyApprovedUser();
+
+    const result = await httpRequest(app)
+      .get("/workspace")
+      .set("Authorization", `Bearer ${signIn.session_token}`)
+      .expect(200);
+
+    assert.equal(successBody<WorkspaceSuccess>(result).ok, true);
+  });
+
+  it("returns the active workspace session context", async () => {
     const signIn = await signInAndVerifyApprovedUser();
 
     const result = await httpRequest(app)
@@ -462,26 +337,11 @@ describe("Auth workspace (e2e)", () => {
     const body = successBody<WorkspaceSuccess & Record<string, unknown>>(
       result,
     );
-    assert.equal(body.organization_id, fixture.organizationId);
-    assert.equal(body.organization_name, "Acme Legal");
     assert.equal(body.user_id, fixture.approvedUser.id);
     assert.equal(body.display_name, "Acme Manager");
-    assert.equal(body.membership_status, AUTH_MEMBERSHIP_STATUSES.active);
-    assert.equal(body.subject_role, SUBJECT_ROLES.manager);
-    assert.deepEqual(body.granted_actions, [
-      PBAC_ACTIONS.workspaceRead,
-      PBAC_ACTIONS.assessmentCreate,
-      PBAC_ACTIONS.assessmentRead,
-      PBAC_ACTIONS.assessmentList,
-      PBAC_ACTIONS.githubConnect,
-      PBAC_ACTIONS.scanRead,
-      PBAC_ACTIONS.scanTrigger,
-      PBAC_ACTIONS.documentGenerate,
-      PBAC_ACTIONS.snapshotCreate,
-      PBAC_ACTIONS.wizardWrite,
-      PBAC_ACTIONS.wizardSubmit,
-      PBAC_ACTIONS.wizardExport,
-    ]);
+    assert.equal(body.role, AUTH_USER_ROLES.customer);
+    assert.equal(typeof body.session_expires_at, "string");
+    assert.equal(body.mfa_verified, true);
     assert.equal(body.mfa_verified, true);
     assert.equal(body.correlationId, "corr-manager-workspace-context");
     assert.equal(Number.isNaN(Date.parse(body.session_expires_at)), false);
@@ -495,14 +355,14 @@ describe("Auth workspace (e2e)", () => {
         resourceType: AUDIT_RESOURCE_TYPES.workspace,
       },
     });
-    assert.equal(decision.organizationId, fixture.organizationId);
     assert.equal(decision.resourceType, AUDIT_RESOURCE_TYPES.workspace);
     assert.equal(decision.resourceId, "workspace-home");
-    assert.equal(decision.action, PBAC_ACTIONS.workspaceRead);
-    assert.equal(decision.decision, PBAC_DECISION.allow);
-    assert.equal(decision.policyId, "policy-manager-workspace");
-    assert.equal(decision.policyVersion, "2026-06-26");
+    assert.equal(decision.decision, AUDIT_DECISIONS.allow);
     assert.equal(decision.correlationId, "corr-manager-workspace-context");
+    assert.doesNotMatch(
+      JSON.stringify(decision.payload),
+      /policyId|policyVersion/,
+    );
   });
 
   it("repeated failed logins trigger temporary lock expectation", async () => {
@@ -550,7 +410,7 @@ describe("Auth workspace (e2e)", () => {
     const allowDecision = await prisma.authDecisionLog.findFirstOrThrow({
       where: { correlationId: "corr-workspace-allow" },
     });
-    assert.equal(allowDecision.decision, PBAC_DECISION.allow);
+    assert.equal(allowDecision.decision, AUDIT_DECISIONS.allow);
 
     await httpRequest(app)
       .post("/auth/revoke-session")
@@ -878,7 +738,6 @@ describe("Auth workspace (e2e)", () => {
       data: {
         id: "session-expired",
         userId: fixture.approvedUser.id,
-        organizationId: fixture.organizationId,
         tokenHash: hashSecret(expiredToken),
         tokenFingerprint: fingerprintToken(expiredToken),
         expiresAt: new Date(Date.now() - 1000),
@@ -1030,26 +889,20 @@ describe("Auth workspace (e2e)", () => {
     assert.equal(failure.problem.code, AUTH_ERROR_CODES.validationFailed);
   });
 
-  it("organization-mandated MFA blocks workspace access even without personal enrollment", async () => {
-    await prisma.authOrganization.update({
-      where: { id: fixture.organizationId },
-      data: { mfaRequired: true },
-    });
-
+  it("workspace access still succeeds without personal MFA enrollment", async () => {
     const signIn = await signInApprovedUser();
     assert.equal(signIn.mfa_required, undefined);
     assert.equal(signIn.mfa_enrolled, false);
 
     const result = await httpRequest(app)
       .get("/workspace")
-      .query({ organization_id: fixture.organizationId })
       .set("Authorization", `Bearer ${signIn.session_token}`)
       .expect(200);
 
     assert.equal(successBody<WorkspaceSuccess>(result).ok, true);
   });
 
-  it("client-facing user projection only exposes role, not other PBAC subject attributes", async () => {
+  it("client-facing user projection only exposes role, not other RBAC subject attributes", async () => {
     const result = await httpRequest(app)
       .post("/auth/sign-in")
       .send({
@@ -1062,7 +915,10 @@ describe("Auth workspace (e2e)", () => {
     const success = successBody<{
       user: { subject_attributes: Record<string, string> };
     }>(result);
-    assert.equal(success.user.subject_attributes.role, SUBJECT_ROLES.manager);
+    assert.equal(
+      success.user.subject_attributes.role,
+      AUTH_USER_ROLES.customer,
+    );
     assert.equal("department" in success.user.subject_attributes, false);
   });
 

@@ -17,7 +17,6 @@ export class AuditEventEntity implements AuditEventProps {
    *
    * @param eventType - Identifier describing the audited action or event.
    * @param actorId - Identifier of the actor that triggered the event, or null for system activity.
-   * @param organizationId - Organization associated with the event, when applicable.
    * @param correlationId - Correlation identifier used to trace the event across operations.
    * @param decision - Authorization or policy decision associated with the event, when applicable.
    * @param payload - Additional structured audit metadata.
@@ -26,7 +25,6 @@ export class AuditEventEntity implements AuditEventProps {
   private constructor(
     readonly eventType: string,
     readonly actorId: string | null,
-    readonly organizationId: string | null,
     readonly correlationId: string,
     readonly decision: AuditDecision | null,
     readonly payload: Record<string, unknown>,
@@ -47,7 +45,6 @@ export class AuditEventEntity implements AuditEventProps {
     return new AuditEventEntity(
       input.eventType,
       input.actorId,
-      input.organizationId,
       input.correlationId,
       input.decision,
       input.payload ?? {},
@@ -65,7 +62,6 @@ export class AuditEventEntity implements AuditEventProps {
     const entity = new AuditEventEntity(
       fields.eventType,
       fields.actorId,
-      fields.organizationId,
       fields.correlationId,
       fields.decision,
       fields.payload,

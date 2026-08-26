@@ -35,7 +35,7 @@ Invalid workspace=`BLOCKED`; absent manifest=`NEEDS_INPUT`; unreadable file=`OUT
 
 ## 11–15. LLM, registry, audit and security
 
-`exposed_to_model:false`; model may only consume downstream coverage projection. Registry: `classify_workspace_languages/1.0.0`, `SCAN_EXECUTE`, `SCAN_RUNNING`, requires `workspaceRef`, server file ceiling, 30/60 s, no mutation/DLQ. Audit refs/counts/config hash/duration; redact filenames only if they match secret policy, never log file content/absolute root. PBAC is inherited trusted scan dispatch; handler rejects foreign/expired workspace refs.
+`exposed_to_model:false`; model may only consume downstream coverage projection. Registry: `classify_workspace_languages/1.0.0`, `SCAN_EXECUTE`, `SCAN_RUNNING`, requires `workspaceRef`, server file ceiling, 30/60 s, no mutation/DLQ. Audit refs/counts/config hash/duration; redact filenames only if they match secret policy, never log file content/absolute root. RBAC is inherited trusted scan dispatch; handler rejects foreign/expired workspace refs.
 
 ## 16–22. Scenario, AC, tests, files
 

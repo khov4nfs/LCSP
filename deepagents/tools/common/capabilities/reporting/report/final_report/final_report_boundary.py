@@ -25,7 +25,7 @@ class FinalReportBoundary(AgentBoundaryBase):
 
     boundary_source = "reporting.document-final-report-requested"
     source_event = "document.final-report-requested"
-    requires_pbac = False
+    requires_rbac = False
 
     def __init__(
         self,

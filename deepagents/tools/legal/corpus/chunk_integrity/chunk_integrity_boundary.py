@@ -30,7 +30,7 @@ class ChunkIntegrityEnvelope:
 class ChunkIntegrityBoundary(AgentBoundaryBase):
     boundary_source = CHUNK_INTEGRITY_BOUNDARY_SOURCE
     source_event = CHUNK_INTEGRITY_COMMAND
-    requires_pbac = False
+    requires_rbac = False
     retry_delays_seconds = ()
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:

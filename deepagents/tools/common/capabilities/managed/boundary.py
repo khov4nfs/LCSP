@@ -20,12 +20,12 @@ class AgentBoundaryBase:
 
     boundary_source: str = ""
     source_event: str = ""
-    requires_pbac: bool = True
+    requires_rbac: bool = True
     retry_delays_seconds: tuple[int, ...] = ()
 
-    def __init__(self, config: Any, pbac_client: Any | None = None) -> None:
+    def __init__(self, config: Any, rbac_client: Any | None = None) -> None:
         self._config = config
-        self._pbac = pbac_client
+        self._rbac = rbac_client
 
     @property
     def boundary_name(self) -> str:

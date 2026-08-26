@@ -8,7 +8,6 @@ import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import {
   CLASSIFICATION_RERUN_STATUSES,
   SCAN_ERROR_CODES,
@@ -40,7 +39,6 @@ export class RerunClassificationHandler implements ICommandHandler<RerunClassifi
     const evidenceReport = await this.prisma.technicalEvidenceReport.findFirst({
       where: {
         assessmentId: command.assessmentId,
-        organizationId: command.pbacContext.organizationId,
         status: toPrismaEvidenceAcceptanceStatus(
           TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
         ),
@@ -65,17 +63,15 @@ export class RerunClassificationHandler implements ICommandHandler<RerunClassifi
       aggregateType: OUTBOX_AGGREGATE_TYPES.technicalEvidenceReport,
       aggregateId: evidenceReport.id,
       eventType: SCAN_EVENT_TYPES.evidenceAccepted,
-      organizationId: command.pbacContext.organizationId,
       assessmentId: command.assessmentId,
       correlationId: command.correlationId,
       causationId: evidenceReport.id,
       actor: {
-        id: command.pbacContext.userId,
+        id: command.rbacContext.userId,
         type: AUDIT_ACTOR_TYPES.user,
       },
       result: SCAN_EVENT_TYPES.classificationRerunTriggeredAudit,
       redactionStatus: AUDIT_REDACTION_STATUSES.none,
-      authorizationAction: PBAC_ACTIONS.classificationRun,
       idempotencyKey: `${evidenceReport.id}:${command.correlationId}:engineering-assessment-rerun`,
       payload: {
         evidenceReportId: evidenceReport.id,
@@ -93,8 +89,7 @@ export class RerunClassificationHandler implements ICommandHandler<RerunClassifi
       await this.auditWriter.writeInTx(
         {
           eventType: SCAN_EVENT_TYPES.classificationRerunTriggeredAudit,
-          actorId: command.pbacContext.userId,
-          organizationId: command.pbacContext.organizationId,
+          actorId: command.rbacContext.userId,
           assessmentId: command.assessmentId,
           resourceType: AUDIT_RESOURCE_TYPES.technicalEvidenceReport,
           resourceId: evidenceReport.id,

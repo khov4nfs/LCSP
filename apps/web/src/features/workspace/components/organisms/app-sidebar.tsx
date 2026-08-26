@@ -1,7 +1,7 @@
 "use client";
 
 import { resolveMessage } from "@lcsp/i18n";
-import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   ChevronDownIcon,
   LogOutIcon,
@@ -131,7 +131,7 @@ export function AppSidebar({
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
-        {workspace && workspace.membership.role !== SUBJECT_ROLES.manager ? (
+        {workspace && workspace.user.role !== AUTH_USER_ROLES.customer ? (
           <div className="px-2 pb-2">
             <p className="mb-1 px-2 text-xs font-semibold tracking-widest text-sidebar-foreground/55 uppercase">
               {t("pages.appShell.currentWorkspace")}

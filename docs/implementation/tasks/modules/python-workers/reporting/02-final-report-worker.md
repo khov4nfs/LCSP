@@ -29,7 +29,7 @@ Consume `document.final-report-requested` events and generate a final report usi
 |---|---|
 | Queue | `reporting.document-final-report-requested` |
 | Routing key | `document.final-report-requested` |
-| PBAC preflight | No (system event) |
+| RBAC preflight | No (system event) |
 
 ## Final Report Structure
 

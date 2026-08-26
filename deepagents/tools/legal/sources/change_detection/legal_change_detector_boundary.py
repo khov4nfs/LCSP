@@ -68,11 +68,11 @@ class LegalChangeDetectorBoundary(AgentBoundaryBase):
 
     boundary_source = LEGAL_CHANGE_DETECTOR_BOUNDARY_SOURCE
     source_event = LEGAL_CHANGE_DETECTOR_COMMAND
-    requires_pbac = False
+    requires_rbac = False
     retry_delays_seconds = (30, 120, 600)
 
-    def __init__(self, config, pbac_client=None, api_client: WorkerApiClient | None = None, snapshot_fetcher=None) -> None:
-        super().__init__(config, pbac_client)
+    def __init__(self, config, rbac_client=None, api_client: WorkerApiClient | None = None, snapshot_fetcher=None) -> None:
+        super().__init__(config, rbac_client)
         self._api_client = api_client or WorkerApiClient(config.nestjs_api_base_url, config.worker_api_key)
         self._snapshot_fetcher = snapshot_fetcher
 

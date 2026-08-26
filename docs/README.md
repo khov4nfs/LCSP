@@ -44,24 +44,24 @@ UX review should focus on product, use cases, FR/NFR, acceptance criteria, domai
 
 ## Single Sources of Truth
 
-| Concern | Authoritative Document |
-|---|---|
-| Product scope and actors | `product/system-context.md`, `product/product-brief.md`, `product/prd.md` |
-| Product / architecture evolution history | `product/version-history.md` |
-| Business rules | `product/business-rules.md` |
-| Canonical requirements | `specs/functional-requirements.md`, `specs/non-functional-requirements.md` |
-| Use cases and user flows | `specs/use-cases.md`, `specs/user-task-flows.md` |
-| Acceptance criteria | `specs/acceptance-criteria-catalog.md` |
-| Traceability | `specs/requirements-traceability-summary.md`, `specs/requirements-traceability-matrix.md` |
-| System components | `architecture/architecture.md`, active ADRs |
-| End-to-end runtime | `specs/domain-state-machines.md`, `specs/event-catalog.md`, `implementation/` |
-| Assessment lifecycle | `specs/assessment-lifecycle-spec.md` |
-| Scanner behavior | `specs/scanner-spec.md` |
-| Scanner runtime | `implementation/scanner-implementation.md`, `implementation/scanner-worker-implementation.md` |
-| Build details | `implementation/` |
-| UX-to-readiness coordination | `implementation/phase-5-2l-ux-to-readiness-execution-plan.md`, `implementation/phase-5-2l-ux-to-readiness-task-list.md`, `implementation/phase-5-2l-ux-to-readiness-implementation-guide.md` |
-| Physical persistence | `implementation/persistence-implementation.md` |
-| Queues/outbox | `implementation/queue-implementation.md` |
+| Concern                                  | Authoritative Document                                                                                                                                                                       |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Product scope and actors                 | `product/system-context.md`, `product/product-brief.md`, `product/prd.md`                                                                                                                    |
+| Product / architecture evolution history | `product/version-history.md`                                                                                                                                                                 |
+| Business rules                           | `product/business-rules.md`                                                                                                                                                                  |
+| Canonical requirements                   | `specs/functional-requirements.md`, `specs/non-functional-requirements.md`                                                                                                                   |
+| Use cases and user flows                 | `specs/use-cases.md`, `specs/user-task-flows.md`                                                                                                                                             |
+| Acceptance criteria                      | `specs/acceptance-criteria-catalog.md`                                                                                                                                                       |
+| Traceability                             | `specs/requirements-traceability-summary.md`, `specs/requirements-traceability-matrix.md`                                                                                                    |
+| System components                        | `architecture/architecture.md`, active ADRs                                                                                                                                                  |
+| End-to-end runtime                       | `specs/domain-state-machines.md`, `specs/event-catalog.md`, `implementation/`                                                                                                                |
+| Assessment lifecycle                     | `specs/assessment-lifecycle-spec.md`                                                                                                                                                         |
+| Scanner behavior                         | `specs/scanner-spec.md`                                                                                                                                                                      |
+| Scanner runtime                          | `implementation/scanner-implementation.md`, `implementation/scanner-worker-implementation.md`                                                                                                |
+| Build details                            | `implementation/`                                                                                                                                                                            |
+| UX-to-readiness coordination             | `implementation/phase-5-2l-ux-to-readiness-execution-plan.md`, `implementation/phase-5-2l-ux-to-readiness-task-list.md`, `implementation/phase-5-2l-ux-to-readiness-implementation-guide.md` |
+| Physical persistence                     | `implementation/persistence-implementation.md`                                                                                                                                               |
+| Queues/outbox                            | `implementation/queue-implementation.md`                                                                                                                                                     |
 
 ## Documentation Layers
 
@@ -79,7 +79,7 @@ Historical material remains available through git history, not as active documen
 
 ```text
 apps/api                 NestJS API synchronous control plane
-apps/web                 Manager and optional Developer web UX
+apps/web                 Manager web UX
 deepagents      bounded Python Worker Platform for all async domain workloads
 tools/ts-js-analyzer     bounded Node.js CLI used only by Python Scanner Worker
 PostgreSQL + ChromaDB legal index
@@ -92,7 +92,7 @@ Node.js downstream domain workers are `SUPERSEDED_FOR_ACTIVE_MVP`. Node.js remai
 
 ## Phase 5.2L Locked Corrections
 
-- PBAC is the authorization source of truth. Roles may remain only as subject attributes, grouping labels, or policy templates; roles are not the final authorization authority.
+- RBAC is the authorization source of truth. Roles may remain only as subject attributes, grouping labels, or policy templates; roles are not the final authorization authority.
 - Structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP` and removed from active MVP use cases, requirements, UX, entities, events, audit/report dependencies, and delivery tasks.
 - Compliance certification, formal legal opinion, direct regulator submission, and `FR-051` manual technical evidence JSON upload are `REMOVED_FROM_PRODUCT`.
 - `FR-050` no longer means Local/CI scanner report upload. It is redefined as `AUTOMATIC_TRUSTED_SCAN_INITIATION`.
@@ -101,24 +101,24 @@ Node.js downstream domain workers are `SUPERSEDED_FOR_ACTIVE_MVP`. Node.js remai
 
 ## Scanner Ownership
 
-| Concern | Owner |
-|---|---|
-| Trusted scan trigger/job query | NestJS API synchronous control plane |
-| Scan lifecycle | Python Scanner Worker |
-| Python AST/CST | Python Scanner Worker |
-| SBOM/dependency inventory | Python Scanner Worker invoking Syft |
-| JS/TS dependency usage | Python Scanner Worker invoking Knip |
-| Python dependency usage | Python Scanner Worker invoking deptry |
-| AI pattern rules | Python Scanner Worker invoking Semgrep custom rules |
-| Cross-language structural augmentation | Python Scanner Worker using tree-sitter/custom parser |
-| TS/JS semantic analysis | Node CLI subprocess controlled by Python Scanner Worker |
-| Findings/taxonomy | `specs/scanner-spec.md` |
-| Runtime object journey | `specs/domain-state-machines.md`, `implementation/scanner-worker-implementation.md` |
-| Persistence/queues | implementation docs |
+| Concern                                | Owner                                                                               |
+| -------------------------------------- | ----------------------------------------------------------------------------------- |
+| Trusted scan trigger/job query         | NestJS API synchronous control plane                                                |
+| Scan lifecycle                         | Python Scanner Worker                                                               |
+| Python AST/CST                         | Python Scanner Worker                                                               |
+| SBOM/dependency inventory              | Python Scanner Worker invoking Syft                                                 |
+| JS/TS dependency usage                 | Python Scanner Worker invoking Knip                                                 |
+| Python dependency usage                | Python Scanner Worker invoking deptry                                               |
+| AI pattern rules                       | Python Scanner Worker invoking Semgrep custom rules                                 |
+| Cross-language structural augmentation | Python Scanner Worker using tree-sitter/custom parser                               |
+| TS/JS semantic analysis                | Node CLI subprocess controlled by Python Scanner Worker                             |
+| Findings/taxonomy                      | `specs/scanner-spec.md`                                                             |
+| Runtime object journey                 | `specs/domain-state-machines.md`, `implementation/scanner-worker-implementation.md` |
+| Persistence/queues                     | implementation docs                                                                 |
 
 ## Legal Corpus UX Boundary
 
-Corpus ingestion, review, approval, and index build are internal operations/API/CLI for MVP. `bmad-ux` designs Manager and optional Developer product experiences; it does not create customer-facing corpus administration screens.
+Corpus ingestion, review, approval, and index build are internal operations/API/CLI for MVP. `bmad-ux` designs the Manager product experience; it does not create customer-facing corpus administration screens.
 
 ## Planned Local Development Commands
 

@@ -1,8 +1,9 @@
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { jest } from "@jest/globals";
-import { PBAC_ACTIONS, PBAC_METADATA_TYPES } from "@lcsp/contracts/pbac";
+
 import { OutboxDlqController } from "./outbox-dlq.controller.js";
 import { OutboxDlqService } from "./outbox-dlq.service.js";
-import { PBAC_METADATA_KEY } from "../pbac/decorators/pbac-metadata.js";
+import { RBAC_METADATA_KEY } from "../rbac/decorators/rbac-metadata.js";
 
 describe("OutboxDlqController", () => {
   let controller: OutboxDlqController;
@@ -24,74 +25,51 @@ describe("OutboxDlqController", () => {
     } as unknown as OutboxDlqService);
   });
 
-  describe("getDlqMessages", () => {
-    it("should return DLQ messages", async () => {
-      const mockResult = { messages: [], count: 0 };
-      getDlqMessages.mockResolvedValue(mockResult);
+  it("requires the ADMIN role for DLQ operations", () => {
+    const metadata = Reflect.getMetadata(
+      RBAC_METADATA_KEY,
+      OutboxDlqController,
+    ) as unknown;
 
-      const result = await controller.getDlqMessages();
-      expect(result).toEqual({ ok: true, data: mockResult });
-      expect(getDlqMessages).toHaveBeenCalled();
+    expect(metadata).toEqual({
+      type: "roles",
+      roles: [AUTH_USER_ROLES.admin],
     });
   });
 
-  describe("replayMessage", () => {
-    it("requires the outbox:replay PBAC action", () => {
-      const metadata = Reflect.getMetadata(
-        PBAC_METADATA_KEY,
-        OutboxDlqController,
-      ) as unknown;
+  it("returns DLQ messages", async () => {
+    const mockResult = { messages: [], count: 0 };
+    getDlqMessages.mockResolvedValue(mockResult);
 
-      expect(metadata).toEqual({
-        type: PBAC_METADATA_TYPES.action,
-        action: PBAC_ACTIONS.outboxReplay,
-      });
-    });
-
-    it("should replay message using PBAC context", async () => {
-      const req = {
-        pbacContext: { userId: "user-123", organizationId: "org-1" },
-        correlationId: "corr-1",
-      } as ControllerRequest;
-      const result = await controller.replayMessage("1", req);
-
-      expect(replayMessage).toHaveBeenCalledWith(
-        "1",
-        "user-123",
-        "org-1",
-        "corr-1",
-      );
-      expect(result).toEqual({
-        ok: true,
-        data: {
-          success: true,
-          message: "Message 1 queued for replay",
-        },
-      });
+    await expect(controller.getDlqMessages()).resolves.toEqual({
+      ok: true,
+      data: mockResult,
     });
   });
 
-  describe("deleteMessage", () => {
-    it("should delete message using PBAC context", async () => {
-      const req = {
-        pbacContext: { userId: "user-123", organizationId: "org-1" },
-        correlationId: "corr-2",
-      } as ControllerRequest;
-      const result = await controller.deleteMessage("1", req);
+  it("replays a message using the authenticated user", async () => {
+    const req = {
+      rbacContext: { userId: "user-123" },
+      correlationId: "corr-1",
+    } as ControllerRequest;
 
-      expect(deleteMessage).toHaveBeenCalledWith(
-        "1",
-        "user-123",
-        "org-1",
-        "corr-2",
-      );
-      expect(result).toEqual({
-        ok: true,
-        data: {
-          success: true,
-          message: "Message 1 permanently deleted",
-        },
-      });
+    await expect(controller.replayMessage("1", req)).resolves.toEqual({
+      ok: true,
+      data: { success: true, message: "Message 1 queued for replay" },
     });
+    expect(replayMessage).toHaveBeenCalledWith("1", "user-123", "corr-1");
+  });
+
+  it("deletes a message using the authenticated user", async () => {
+    const req = {
+      rbacContext: { userId: "user-123" },
+      correlationId: "corr-2",
+    } as ControllerRequest;
+
+    await expect(controller.deleteMessage("1", req)).resolves.toEqual({
+      ok: true,
+      data: { success: true, message: "Message 1 permanently deleted" },
+    });
+    expect(deleteMessage).toHaveBeenCalledWith("1", "user-123", "corr-2");
   });
 });

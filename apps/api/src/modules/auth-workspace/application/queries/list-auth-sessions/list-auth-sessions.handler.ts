@@ -9,7 +9,6 @@ export class ListAuthSessionsHandler {
     const sessions = await this.prisma.authSession.findMany({
       where: {
         userId: query.context.userId,
-        organizationId: query.context.organizationId,
       },
       orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
     });

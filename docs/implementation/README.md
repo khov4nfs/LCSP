@@ -22,7 +22,7 @@ Implementation documents are build specifications, not evidence that application
 
 | File | Purpose |
 |---|---|
-| `backend-implementation.md` | NestJS API, auth, PBAC, GitHub App, automatic trusted scan initiation, orchestration, audit, and local backend behavior |
+| `backend-implementation.md` | NestJS API, auth, RBAC, GitHub App, automatic trusted scan initiation, orchestration, audit, and local backend behavior |
 | `persistence-implementation.md` | PostgreSQL/Prisma metadata, ChromaDB legal index references, object metadata, retention, and migration order |
 | `queue-implementation.md` | RabbitMQ topology, outbox, retry, idempotency, and worker choreography |
 | `scanner-implementation.md` | Cross-runtime scanner build boundary and package structure |
@@ -35,7 +35,7 @@ Implementation documents are build specifications, not evidence that application
 | `phase-5-2l-ux-to-readiness-execution-plan.md` | Coordination plan from pruned authority set to UX, epics/stories, readiness, and sprint planning |
 | `phase-5-2l-ux-to-readiness-task-list.md` | Actionable pre-implementation task board for UX rebase, story creation, readiness, and sprint planning gates |
 | `phase-5-2l-ux-to-readiness-implementation-guide.md` | Fresh-context handoff guide for BMAD planning sessions before implementation is authorized |
-| `decisions/` | PBAC, trusted trigger, scanner severity/provenance decision artifacts |
+| `decisions/` | RBAC, trusted trigger, scanner severity/provenance decision artifacts |
 | `readiness/` | Implementation-readiness assessment and state-transition authority for planning and sprint-review handoff |
 | `templates/` | Reusable implementation task, engineering handoff, and operational runbook templates |
 | `tasks/` | Stable implementation task catalog plus detailed task briefs |
@@ -64,7 +64,7 @@ Implementation documents are build specifications, not evidence that application
 5. `templates/operational-runbook-template.md`
 6. `tasks/README.md`
 7. `handoffs/README.md`
-8. `decisions/pbac-runtime-decision.md`
+8. `decisions/rbac-runtime-decision.md`
 9. `decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`
 10. `decisions/scanner-severity-tool-provenance-decision.md`
 11. `readiness/implementation-readiness-report-2026-06-25.md`

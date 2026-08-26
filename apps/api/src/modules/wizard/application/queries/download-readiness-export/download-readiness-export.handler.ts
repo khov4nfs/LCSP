@@ -32,7 +32,6 @@ export class DownloadReadinessExportHandler implements IQueryHandler<
       where: {
         id: query.exportId,
         assessmentId: query.assessmentId,
-        organizationId: query.organizationId,
         ownerId: query.ownerId,
         status: READINESS_EXPORT_STATUSES.generated,
       },

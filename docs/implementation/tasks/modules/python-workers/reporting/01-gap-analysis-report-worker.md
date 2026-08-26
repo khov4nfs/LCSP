@@ -32,7 +32,7 @@ Consume `document.gap-analysis-requested` events and generate a GapAnalysis docu
 |---|---|
 | Queue | `reporting.document-gap-analysis-requested` |
 | Routing key | `document.gap-analysis-requested` |
-| PBAC preflight | No (system event) |
+| RBAC preflight | No (system event) |
 
 ## GapAnalysis Document Structure
 

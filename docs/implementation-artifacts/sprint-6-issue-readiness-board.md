@@ -162,10 +162,10 @@ Current branch-scope quality from `git diff main...branch` is now clearer:
   - each changes one tool contract + one query/handler/spec plus shared `reconciliation.controller.ts` / `reconciliation.module.ts`
 - AO-4 branch that is materially broader than a simple read-tool slice:
   - `feat/LCSP-216-reconcile-verified-profile`
-  - includes Prisma migration/schema, worker callback/consumer changes, PBAC/contracts, and scan callback changes
+  - includes Prisma migration/schema, worker callback/consumer changes, RBAC/contracts, and scan callback changes
 - AO-5 branch currently broader than a minimal single-tool slice:
   - `feat/LCSP-196-validate-citation-set`
-  - besides the target handler/controller/spec, it also changes policy sync script, retrieve-legal-basis handler, PBAC shared contracts, story/web test, and shared evidence barrels
+  - besides the target handler/controller/spec, it also changes policy sync script, retrieve-legal-basis handler, RBAC shared contracts, story/web test, and shared evidence barrels
 - AO-1 baseline branches remain overlapping:
   - `feat/LCSP-172-build-evidence-graph`
   - `feat/LCSP-173-validate-evidence-report`

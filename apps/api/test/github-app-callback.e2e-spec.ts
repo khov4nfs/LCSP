@@ -79,7 +79,7 @@ describe("GitHub App Callback Endpoint (e2e) [MW-gh-002]", () => {
     const signInBody = successBody<SignInSuccess>(signIn);
     managerToken = signInBody?.session_token ?? "";
     await prisma.authSession.updateMany({
-      where: { userId: "user-1", organizationId: orgId },
+      where: { userId: "user-1" },
       data: { sensitiveActionVerifiedAt: new Date() },
     });
   });
@@ -223,7 +223,6 @@ describe("GitHub App Callback Endpoint (e2e) [MW-gh-002]", () => {
       data: {
         id: "existing-connection-1",
         assessmentId: null,
-        organizationId: orgId,
         userId: "user-1",
         installationId: INSTALLATION_ID,
         repositoryId: "555",

@@ -19,7 +19,6 @@ function buildHandler(
       Promise.resolve({
         id: "report-1",
         assessmentId: "assessment-1",
-        organizationId: "org-1",
       }),
     ),
   };

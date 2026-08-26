@@ -14,18 +14,18 @@ depends_on:
 
 ## Outcome
 
-End-to-end test covering the complete Manager workflow from registration to final report download without any Developer assignment. Validates that the system works fully Manager-only and that every gate check functions correctly.
+End-to-end test covering the complete Manager workflow from registration to final report download without any external collaborator assignment. Validates that the system works fully Manager-only and that every gate check functions correctly.
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `tests/e2e/manager-golden-path.spec.ts` | Create | Playwright E2E test |
-| `tests/e2e/helpers/api-seed.ts` | Create | Seed test org + policy + invitation |
+| File                                    | Action | Notes                          |
+| --------------------------------------- | ------ | ------------------------------ |
+| `tests/e2e/manager-golden-path.spec.ts` | Create | Playwright E2E test            |
+| `tests/e2e/helpers/api-seed.ts`         | Create | Seed test org + Manager policy |
 
 ## Golden Path Steps
 
-1. Manager receives approved invitation → accepts → account created
+1. Manager signs up or uses seeded account → account created
 2. Manager signs in → workspace visible
 3. Manager creates assessment
 4. Manager completes Wizard → submits
@@ -41,10 +41,10 @@ End-to-end test covering the complete Manager workflow from registration to fina
 
 ## Key Assertions
 
-- Manager completes full flow without Developer
+- Manager completes full flow without external collaborator
 - No risk labels appear at any step
 - Session token never in URL
-- All PBAC-gated actions allowed for Manager
+- All RBAC-gated actions allowed for Manager
 - Classification lock removed after evidence accepted
 - Final report download available after `guardrail = passed`
 
@@ -53,4 +53,4 @@ End-to-end test covering the complete Manager workflow from registration to fina
 - Full golden path passes in CI.
 - Manager-only flow validated end-to-end.
 - No risk labels at any UI step.
-- PBAC enforce verified at each server call.
+- RBAC enforce verified at each server call.

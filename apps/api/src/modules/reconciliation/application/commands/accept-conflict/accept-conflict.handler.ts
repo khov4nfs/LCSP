@@ -96,7 +96,6 @@ export class AcceptConflictHandler implements ICommandHandler<AcceptConflictComm
       select: {
         id: true,
         assessmentId: true,
-        organizationId: true,
       },
     });
     if (!aiUsageFlow) {
@@ -115,7 +114,6 @@ export class AcceptConflictHandler implements ICommandHandler<AcceptConflictComm
               id: conflictIds[index],
               aiUsageFlowId: aiUsageFlow.id,
               assessmentId: aiUsageFlow.assessmentId,
-              organizationId: aiUsageFlow.organizationId,
               conflictType: conflict.conflict_type,
               conflictScore: conflict.conflict_score,
               scoreExplanation: conflict.score_explanation,
@@ -144,7 +142,6 @@ export class AcceptConflictHandler implements ICommandHandler<AcceptConflictComm
         aggregateType: OUTBOX_AGGREGATE_TYPES.aiUsageFlow,
         aggregateId: aiUsageFlow.id,
         eventType,
-        organizationId: aiUsageFlow.organizationId,
         assessmentId: aiUsageFlow.assessmentId,
         correlationId: command.correlationId,
         causationId: aiUsageFlow.id,
@@ -177,7 +174,6 @@ export class AcceptConflictHandler implements ICommandHandler<AcceptConflictComm
           eventType: SCAN_EVENT_TYPES.noConflictsDetectedAudit,
           resourceId: aiUsageFlow.id,
           resourceType: AUDIT_RESOURCE_TYPES.aiUsageFlow,
-          organizationId: aiUsageFlow.organizationId,
           assessmentId: aiUsageFlow.assessmentId,
           correlationId: command.correlationId,
           causationId: aiUsageFlow.id,
@@ -197,7 +193,6 @@ export class AcceptConflictHandler implements ICommandHandler<AcceptConflictComm
             eventType: SCAN_EVENT_TYPES.conflictDetectedAudit,
             resourceId: conflictIds[index],
             resourceType: AUDIT_RESOURCE_TYPES.conflictRecord,
-            organizationId: aiUsageFlow.organizationId,
             assessmentId: aiUsageFlow.assessmentId,
             correlationId: command.correlationId,
             causationId: aiUsageFlow.id,
@@ -274,7 +269,6 @@ export class AcceptConflictHandler implements ICommandHandler<AcceptConflictComm
       eventType: string;
       resourceType: AuditResourceType;
       resourceId: string;
-      organizationId: string;
       assessmentId: string;
       correlationId: string;
       causationId: string;
@@ -284,7 +278,6 @@ export class AcceptConflictHandler implements ICommandHandler<AcceptConflictComm
     const auditEvent = buildAuditEventInput({
       eventType: input.eventType,
       actorId: RECONCILIATION_WORKER_ACTOR_ID,
-      organizationId: input.organizationId,
       assessmentId: input.assessmentId,
       resourceType: input.resourceType,
       resourceId: input.resourceId,
@@ -304,7 +297,6 @@ export class AcceptConflictHandler implements ICommandHandler<AcceptConflictComm
         id: crypto.randomUUID(),
         eventType: auditEvent.eventType,
         actorId: auditEvent.actorId,
-        organizationId: auditEvent.organizationId,
         resourceType: auditEvent.resourceType
           ? toPrismaAuditResourceType(auditEvent.resourceType)
           : null,

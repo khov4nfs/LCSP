@@ -10,7 +10,6 @@ import {
 
 const baseArgs = {
   assessmentId: "assessment-1",
-  organizationId: "org-1",
   userId: "user-1",
   correlationId: "correlation-1",
 };

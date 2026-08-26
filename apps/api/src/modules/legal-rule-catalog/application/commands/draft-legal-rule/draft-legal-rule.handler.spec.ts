@@ -2,7 +2,6 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import { describe, expect, it, jest, beforeEach } from "@jest/globals";
 import {
-  ForbiddenException,
   UnprocessableEntityException,
   ConflictException,
   NotFoundException,
@@ -12,7 +11,6 @@ import { PrismaService } from "../../../../../infrastructure/prisma/prisma.servi
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { CitationLocatorValidatorService } from "../../services/citation-locator-validator.service.js";
 import { DraftLegalRuleCommand } from "./draft-legal-rule.command.js";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import {
   LEGAL_RULE_ERROR_CODES,
   LEGAL_RULE_LIFECYCLE_STATUSES,
@@ -68,12 +66,6 @@ describe("DraftLegalRuleHandler", () => {
       [{ legalCorpusVersionId: "v1", documentId: "d1", locator: "loc1" }],
       "user123",
       "version-uuid",
-      {
-        subjectRole: "manager",
-        selectedAction: PBAC_ACTIONS.legalRuleCatalogAuthor,
-        policyId: "pol1",
-        policyVersion: "1.0",
-      },
       "corr-id",
     );
   };
@@ -147,14 +139,6 @@ describe("DraftLegalRuleHandler", () => {
     await expect(handler.execute(command)).rejects.toThrow(
       UnprocessableEntityException,
     );
-  });
-
-  it("T06: Actor lacks legal-rule-catalog:author -> 403 PBAC_DENIED", async () => {
-    const command = createCommand();
-    command.authorization.selectedAction = "some:other:action";
-
-    await expect(handler.execute(command)).rejects.toThrow(ForbiddenException);
-    expect(auditWriter.write).toHaveBeenCalled(); // Logs the denial
   });
 
   it("Should throw ConflictException if version is already APPROVED", async () => {

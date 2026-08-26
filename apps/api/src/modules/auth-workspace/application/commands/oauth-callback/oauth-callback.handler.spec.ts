@@ -1,14 +1,11 @@
-import { PBAC_DECISION, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
+  AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
-  AUTH_MEMBERSHIP_STATUSES,
 } from "@lcsp/contracts/auth";
-import { describe, it, expect, beforeEach, jest } from "@jest/globals";
-
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { describe, expect, it, jest } from "@jest/globals";
 
 import {
-  Membership,
   OAuthIdentity,
   OAuthState,
   User,
@@ -20,17 +17,15 @@ import type {
 import type { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
 import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
 import { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
-import { OAuthCallbackCommand } from "./oauth-callback.command.ts";
-import { OAuthCallbackHandler } from "./oauth-callback.handler.ts";
 import { OAuthLinkCallbackCommand } from "../oauth-link-callback/oauth-link-callback.command.ts";
 import { OAuthLinkCallbackHandler } from "../oauth-link-callback/oauth-link-callback.handler.ts";
+import { OAuthCallbackCommand } from "./oauth-callback.command.ts";
+import { OAuthCallbackHandler } from "./oauth-callback.handler.ts";
 
 const EXPECTED_ISSUER = "https://issuer.example";
 const EXPECTED_AUDIENCE = "expected-audience";
 const CORRECT_NONCE = "correct-nonce";
 
-// A stub OIDC provider exercises the shared nonce/issuer/audience/expiry
-// validation branches through the production callback handler.
 class StubOidcProvider implements OAuthProvider {
   readonly name = "stub-oidc";
   expectedIssuer: string | null = EXPECTED_ISSUER;
@@ -52,20 +47,55 @@ class StubOidcProvider implements OAuthProvider {
   }
 }
 
+function makeUser(
+  overrides: Partial<Parameters<typeof User.rehydrate>[0]> = {},
+) {
+  return User.rehydrate({
+    id: "user-1",
+    email: "oidc-user@acme.test",
+    passwordHash: "unused",
+    emailVerified: true,
+    failedLoginCount: 0,
+    ...overrides,
+  });
+}
+
+function makeState(
+  overrides: Partial<Parameters<typeof OAuthState.rehydrate>[0]> = {},
+) {
+  return OAuthState.rehydrate({
+    id: "state-1",
+    state: "state-value",
+    nonce: CORRECT_NONCE,
+    provider: "stub-oidc",
+    redirectUri: "https://app.example/callback",
+    expiresAt: Date.now() + 60_000,
+    ...overrides,
+  });
+}
+
+function makeIdentity(
+  overrides: Partial<Parameters<typeof OAuthIdentity.rehydrate>[0]> = {},
+) {
+  return OAuthIdentity.rehydrate({
+    id: "identity-1",
+    userId: "user-1",
+    provider: "stub-oidc",
+    providerAccountId: "acct-1",
+    createdAt: Date.now(),
+    ...overrides,
+  });
+}
+
 function buildRepositories(input: {
   oauthState: OAuthState | null;
   identity: OAuthIdentity | null;
   user: User | null;
-  activeMemberships: Membership[];
-}): AuthWorkspaceRepositories {
-  const auditEvents: Record<string, unknown>[] = [];
+}): AuthWorkspaceRepositories & { auditRecords: Record<string, unknown>[] } {
+  const auditRecords: Record<string, unknown>[] = [];
   let consumed = false;
 
   const repositories: AuthWorkspaceRepositories = {
-    organizations: {
-      findById: () => Promise.resolve(null),
-      save: () => Promise.resolve(),
-    },
     users: {
       nextId: () => "unused",
       save: () => Promise.resolve(),
@@ -75,31 +105,15 @@ function buildRepositories(input: {
       findByRecoveryEmail: () => Promise.resolve(null),
       findByPrimaryEmail: () => Promise.resolve(null),
     },
-    memberships: {
-      nextId: () => "unused",
-      save: () => Promise.resolve(),
-      findByUserAndOrganization: () => Promise.resolve(null),
-      findActiveByUserId: () => Promise.resolve(input.activeMemberships),
-    },
-    invitations: {
-      nextId: () => "unused",
-      save: () => Promise.resolve(),
-      findById: () => Promise.resolve(null),
-      tryConsume: () => Promise.resolve(false),
-    },
     sessions: {
       nextId: () => "session-1",
       save: () => Promise.resolve(),
       findByFingerprint: () => Promise.resolve(null),
       revokeAllForUser: () => Promise.resolve(),
     },
-    policies: {
-      findByIdAndVersion: () => Promise.resolve(null),
-      findLatestByOrganizationAndRole: () => Promise.resolve(null),
-    },
     auditEvents: {
       append: (event) => {
-        auditEvents.push(event);
+        auditRecords.push(event);
         return Promise.resolve();
       },
     },
@@ -142,9 +156,7 @@ function buildRepositories(input: {
       nextId: () => "unused",
       save: () => Promise.resolve(),
       consumeByState: () => {
-        if (consumed || !input.oauthState) {
-          return Promise.resolve(null);
-        }
+        if (consumed || !input.oauthState) return Promise.resolve(null);
         consumed = true;
         return Promise.resolve(input.oauthState);
       },
@@ -164,605 +176,278 @@ function buildRepositories(input: {
     },
   };
 
-  return repositories;
+  return Object.assign(repositories, { auditRecords });
 }
 
-describe("OAuthCallbackHandler generic OIDC claim validation", () => {
-  let support: AuthWorkspaceSupportService;
-  let registry: OAuthProviderRegistry;
-  let provider: StubOidcProvider;
-  let oauthState: OAuthState;
-  let user: User;
-  let membership: Membership;
-  let identity: OAuthIdentity;
+function buildProviderRegistry(
+  provider: StubOidcProvider,
+): OAuthProviderRegistry {
+  return {
+    resolve: (name: string) => (name === provider.name ? provider : null),
+  } as unknown as OAuthProviderRegistry;
+}
 
-  beforeEach(() => {
-    support = new AuthWorkspaceSupportService();
-    provider = new StubOidcProvider();
-    registry = {
-      resolve: (name: string) => (name === provider.name ? provider : null),
-    } as unknown as OAuthProviderRegistry;
-
-    oauthState = OAuthState.rehydrate({
-      id: "state-1",
-      state: "state-value",
-      nonce: CORRECT_NONCE,
-      provider: provider.name,
-      redirectUri: "https://app.example/callback",
-      expiresAt: Date.now() + 60_000,
-    });
-
-    user = User.rehydrate({
-      id: "user-1",
-      email: "oidc-user@acme.test",
-      passwordHash: "unused",
-      emailVerified: true,
-    });
-
-    membership = Membership.rehydrate({
-      id: "membership-1",
-      userId: user.id,
-      organizationId: "org-1",
-      status: AUTH_MEMBERSHIP_STATUSES.active,
-      subjectAttributes: { role: SUBJECT_ROLES.manager },
-      policyId: "policy-1",
-      policyVersion: "v1",
-    });
-
-    identity = OAuthIdentity.rehydrate({
-      id: "identity-1",
-      userId: user.id,
-      provider: provider.name,
-      providerAccountId: "acct-1",
-      createdAt: Date.now(),
-    });
+function buildLoginHarness(
+  input: {
+    oauthState?: OAuthState | null;
+    identity?: OAuthIdentity | null;
+    user?: User | null;
+    provider?: StubOidcProvider;
+  } = {},
+) {
+  const provider = input.provider ?? new StubOidcProvider();
+  const repositories = buildRepositories({
+    oauthState: input.oauthState === undefined ? makeState() : input.oauthState,
+    identity: input.identity === undefined ? makeIdentity() : input.identity,
+    user: input.user === undefined ? makeUser() : input.user,
   });
+  const support = new AuthWorkspaceSupportService({
+    write: (event: Record<string, unknown>) => {
+      repositories.auditRecords.push(event);
+      return Promise.resolve();
+    },
+  } as never);
+  const handler = new OAuthCallbackHandler(
+    support,
+    repositories,
+    buildProviderRegistry(provider),
+  );
 
-  function execute() {
-    const repositories = buildRepositories({
-      oauthState,
-      identity,
-      user,
-      activeMemberships: [membership],
-    });
-    const handler = new OAuthCallbackHandler(support, repositories, registry);
-    return handler.execute(
-      new OAuthCallbackCommand({
-        code: "good-code",
-        state: oauthState.state,
-        provider: provider.name,
-      }),
+  return { handler, provider, repositories };
+}
+
+describe("OAuthCallbackHandler", () => {
+  it("succeeds when nonce, issuer, audience, expiry, identity, and user are valid", async () => {
+    const { handler, repositories } = buildLoginHarness();
+
+    const result = await handler.execute(
+      new OAuthCallbackCommand(
+        { code: "good-code", state: "state-value", provider: "stub-oidc" },
+        { correlationId: "corr-1" },
+      ),
     );
-  }
 
-  it("succeeds when nonce, issuer, audience and expiry all match", async () => {
-    const result = await execute();
     expect("ok" in result && result.ok).toBe(true);
-  });
-
-  it("rejects a nonce that does not match the one issued at start", async () => {
-    provider.claims = { ...provider.claims, nonce: "wrong-nonce" };
-    const result = await execute();
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.oauthCallbackInvalid,
+    expect(repositories.auditRecords).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLoginSucceeded,
+          actor_id: "user-1",
+          decision: AUDIT_DECISIONS.allow,
+          correlationId: "corr-1",
+        }),
+      ]),
+    );
+    expect(JSON.stringify(repositories.auditRecords)).not.toMatch(
+      /access_token|refresh_token/i,
     );
   });
 
-  it("rejects an issuer that does not match the provider's expected issuer", async () => {
+  it("rejects invalid claims without leaking provider detail", async () => {
+    const provider = new StubOidcProvider();
     provider.claims = {
       ...provider.claims,
-      issuer: "https://attacker.example",
+      nonce: "wrong-nonce",
     };
-    const result = await execute();
+    const { handler, repositories } = buildLoginHarness({ provider });
+
+    const result = await handler.execute(
+      new OAuthCallbackCommand(
+        { code: "good-code", state: "state-value", provider: "stub-oidc" },
+        { correlationId: "corr-2" },
+      ),
+    );
+
     expect("problem" in result && result.problem.code).toBe(
       AUTH_ERROR_CODES.oauthCallbackInvalid,
     );
+    expect(repositories.auditRecords[0]).toMatchObject({
+      event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLoginFailed,
+      decision: AUDIT_DECISIONS.deny,
+      reason_code: AUTH_ERROR_CODES.oauthCallbackInvalid,
+      correlationId: "corr-2",
+    });
   });
 
-  it("rejects an audience that does not match the provider's expected audience", async () => {
-    provider.claims = { ...provider.claims, audience: "wrong-audience" };
-    const result = await execute();
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.oauthCallbackInvalid,
+  it("rejects missing callback parameters", async () => {
+    const { handler } = buildLoginHarness();
+
+    const result = await handler.execute(
+      new OAuthCallbackCommand(
+        { code: "", state: "state-value", provider: "stub-oidc" },
+        { correlationId: "corr-3" },
+      ),
     );
-  });
 
-  it("rejects an expired ID token claim", async () => {
-    provider.claims = { ...provider.claims, expiresAt: Date.now() - 1000 };
-    const result = await execute();
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.oauthCallbackInvalid,
-    );
-  });
-
-  it("skips the nonce/issuer/audience/expiry checks when a provider reports them as null (e.g. GitHub)", async () => {
-    provider.claims = {
-      providerAccountId: "acct-1",
-      nonce: null,
-      issuer: null,
-      audience: null,
-      expiresAt: null,
-    };
-    provider.expectedIssuer = null;
-    provider.expectedAudience = null;
-
-    const result = await execute();
-    expect("ok" in result && result.ok).toBe(true);
-  });
-});
-
-describe("OAuthCallbackHandler — missing params, state, identity and membership", () => {
-  let support: AuthWorkspaceSupportService;
-  let registry: OAuthProviderRegistry;
-  let provider: StubOidcProvider;
-  let oauthState: OAuthState;
-  let user: User;
-  let membership: Membership;
-  let identity: OAuthIdentity;
-  let recordAuditSpy: jest.SpiedFunction<typeof support.recordAudit>;
-
-  beforeEach(() => {
-    support = new AuthWorkspaceSupportService();
-    recordAuditSpy = jest
-      .spyOn(support, "recordAudit")
-      .mockImplementation(async () => {});
-
-    provider = new StubOidcProvider();
-    registry = {
-      resolve: (name: string) => (name === provider.name ? provider : null),
-    } as unknown as OAuthProviderRegistry;
-
-    oauthState = OAuthState.rehydrate({
-      id: "state-1",
-      state: "state-value",
-      nonce: CORRECT_NONCE,
-      provider: provider.name,
-      redirectUri: "https://app.example/callback",
-      expiresAt: Date.now() + 60_000,
-    });
-
-    user = User.rehydrate({
-      id: "user-1",
-      email: "oidc-user@acme.test",
-      passwordHash: "unused",
-      emailVerified: true,
-    });
-
-    membership = Membership.rehydrate({
-      id: "membership-1",
-      userId: user.id,
-      organizationId: "org-1",
-      status: AUTH_MEMBERSHIP_STATUSES.active,
-      subjectAttributes: { role: SUBJECT_ROLES.manager },
-      policyId: "policy-1",
-      policyVersion: "v1",
-    });
-
-    identity = OAuthIdentity.rehydrate({
-      id: "identity-1",
-      userId: user.id,
-      provider: provider.name,
-      providerAccountId: "acct-1",
-      createdAt: Date.now(),
-    });
-  });
-
-  function execute(
-    commandArgs: Partial<
-      ConstructorParameters<typeof OAuthCallbackCommand>[0]
-    > = {},
-  ) {
-    const repositories = buildRepositories({
-      oauthState,
-      identity,
-      user,
-      activeMemberships: [membership],
-    });
-    const handler = new OAuthCallbackHandler(support, repositories, registry);
-    return handler.execute(
-      new OAuthCallbackCommand({
-        code: "good-code",
-        state: oauthState ? oauthState.state : "some-state",
-        provider: provider.name,
-        ...commandArgs,
-      }),
-    );
-  }
-
-  it("U01 - missing code returns VALIDATION_FAILED", async () => {
-    const result = await execute({ code: "" });
     expect("problem" in result && result.problem.code).toBe(
       AUTH_ERROR_CODES.validationFailed,
     );
   });
 
-  it("U02 - missing state returns VALIDATION_FAILED", async () => {
-    const result = await execute({ state: "" });
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.validationFailed,
-    );
-  });
+  it("rejects unknown, expired, replayed, and link-flow states", async () => {
+    for (const oauthState of [
+      null,
+      makeState({ expiresAt: Date.now() - 1_000 }),
+      makeState({ userId: "user-1", sessionId: "session-1" }),
+    ]) {
+      const { handler } = buildLoginHarness({ oauthState });
 
-  it("U03 - missing provider returns VALIDATION_FAILED", async () => {
-    const result = await execute({ provider: "" });
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.validationFailed,
-    );
-  });
+      const result = await handler.execute(
+        new OAuthCallbackCommand(
+          { code: "good-code", state: "state-value", provider: "stub-oidc" },
+          { correlationId: "corr-state" },
+        ),
+      );
 
-  it("U04 - unknown state returns OAUTH_STATE_INVALID and records audit failure", async () => {
-    oauthState = null as unknown as OAuthState;
-    const result = await execute();
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.oauthStateInvalid,
-    );
-    expect(recordAuditSpy).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        decision: PBAC_DECISION.deny,
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLoginFailed,
-      }),
-    );
-  });
+      expect("problem" in result && result.problem.code).toBe(
+        AUTH_ERROR_CODES.oauthStateInvalid,
+      );
+    }
 
-  it("U05 - expired state returns OAUTH_STATE_INVALID and records audit failure", async () => {
-    oauthState = OAuthState.rehydrate({
-      ...oauthState,
-      expiresAt: Date.now() - 1000,
-    });
-    const result = await execute();
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.oauthStateInvalid,
-    );
-    expect(recordAuditSpy).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        decision: PBAC_DECISION.deny,
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLoginFailed,
-      }),
-    );
-  });
-
-  it("U06 - replayed state returns OAUTH_STATE_INVALID", async () => {
-    const repositories = buildRepositories({
-      oauthState,
-      identity,
-      user,
-      activeMemberships: [membership],
-    });
-    const handler = new OAuthCallbackHandler(support, repositories, registry);
-
-    // First call consumes state successfully
-    await handler.execute(
-      new OAuthCallbackCommand({
-        code: "good",
-        state: oauthState.state,
-        provider: provider.name,
-      }),
-    );
-
-    // Second call fails
-    const result = await handler.execute(
-      new OAuthCallbackCommand({
-        code: "good",
-        state: oauthState.state,
-        provider: provider.name,
-      }),
-    );
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.oauthStateInvalid,
-    );
-  });
-
-  it("U07 - handleCallback failure maps to OAUTH_CALLBACK_INVALID without leaking provider detail", async () => {
-    jest
-      .spyOn(provider, "handleCallback")
-      .mockRejectedValue(new Error("Network Error at Provider API"));
-    const result = await execute();
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.oauthCallbackInvalid,
-    );
-
-    expect(recordAuditSpy).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        decision: PBAC_DECISION.deny,
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLoginFailed,
-      }),
-    );
-    const auditPayload = recordAuditSpy.mock.calls[0][1];
-    expect(JSON.stringify(auditPayload)).not.toContain(
-      "Network Error at Provider API",
-    );
-  });
-
-  it("U08 - unknown provider identity returns ACCOUNT_NOT_FOUND", async () => {
-    identity = null as unknown as OAuthIdentity;
-    const result = await execute();
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.accountNotFound,
-    );
-    expect(recordAuditSpy).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        decision: PBAC_DECISION.deny,
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLoginFailed,
-      }),
-    );
-  });
-
-  it("rejects a link-flow state on the public login callback", async () => {
-    oauthState = OAuthState.rehydrate({
-      ...oauthState,
-      userId: user.id,
-      sessionId: "session-1",
-    });
-
-    const result = await execute();
-
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.oauthStateInvalid,
-    );
-  });
-
-  it("does not link a verified provider email during login callback", async () => {
-    identity = null as unknown as OAuthIdentity;
-    provider.claims = {
-      ...provider.claims,
-      email: String(user.email),
-      emailVerified: true,
-    };
-    const repositories = buildRepositories({
-      oauthState,
-      identity,
-      user,
-      activeMemberships: [membership],
-    });
-    const linkedIdentity = OAuthIdentity.rehydrate({
-      id: "linked-identity-1",
-      userId: user.id,
-      provider: provider.name,
-      providerAccountId: provider.claims.providerAccountId,
-      createdAt: Date.now(),
-    });
-    repositories.users.findByEmail = () => Promise.resolve(user);
-    const linkToUser = jest
-      .spyOn(repositories.oauthIdentities, "linkToUser")
-      .mockResolvedValue(linkedIdentity);
-    const handler = new OAuthCallbackHandler(support, repositories, registry);
-
-    const result = await handler.execute(
+    const replayHarness = buildLoginHarness();
+    await replayHarness.handler.execute(
       new OAuthCallbackCommand({
         code: "good-code",
-        state: oauthState.state,
-        provider: provider.name,
+        state: "state-value",
+        provider: "stub-oidc",
       }),
     );
-
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.accountNotFound,
-    );
-    expect(linkToUser).not.toHaveBeenCalled();
-  });
-
-  it("U09 - unverified email returns ACCOUNT_NOT_FOUND", async () => {
-    user = User.rehydrate({
-      id: "user-1",
-      email: "oidc-user@acme.test",
-      passwordHash: "unused",
-      emailVerified: false,
-    });
-    const result = await execute();
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.accountNotFound,
-    );
-    expect(recordAuditSpy).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        decision: PBAC_DECISION.deny,
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLoginFailed,
-      }),
-    );
-  });
-
-  it("U10 - no active membership returns MEMBERSHIP_MISSING", async () => {
-    const repositories = buildRepositories({
-      oauthState,
-      identity,
-      user,
-      activeMemberships: [], // Empty memberships
-    });
-    const handler = new OAuthCallbackHandler(support, repositories, registry);
-    const result = await handler.execute(
+    const replay = await replayHarness.handler.execute(
       new OAuthCallbackCommand({
         code: "good-code",
-        state: oauthState.state,
-        provider: provider.name,
+        state: "state-value",
+        provider: "stub-oidc",
       }),
     );
-
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.membershipMissing,
-    );
-    expect(recordAuditSpy).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        decision: PBAC_DECISION.deny,
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLoginFailed,
-      }),
+    expect("problem" in replay && replay.problem.code).toBe(
+      AUTH_ERROR_CODES.oauthStateInvalid,
     );
   });
 
-  it("U11 - success audit payload does not contain provider access token", async () => {
-    Object.assign(provider.claims, { access_token: "LEAKED_TOKEN_MARKER" });
-    await execute();
-    expect(recordAuditSpy).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        decision: PBAC_DECISION.allow,
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLoginSucceeded,
+  it("rejects missing identity or unverified user email", async () => {
+    const missingIdentity = await buildLoginHarness({
+      identity: null,
+    }).handler.execute(
+      new OAuthCallbackCommand({
+        code: "good-code",
+        state: "state-value",
+        provider: "stub-oidc",
       }),
     );
-    const auditPayload = recordAuditSpy.mock.calls[0][1];
-    expect(JSON.stringify(auditPayload)).not.toContain("LEAKED_TOKEN_MARKER");
+    expect("problem" in missingIdentity && missingIdentity.problem.code).toBe(
+      AUTH_ERROR_CODES.accountNotFound,
+    );
+
+    const unverifiedUser = await buildLoginHarness({
+      user: makeUser({ emailVerified: false }),
+    }).handler.execute(
+      new OAuthCallbackCommand({
+        code: "good-code",
+        state: "state-value",
+        provider: "stub-oidc",
+      }),
+    );
+    expect("problem" in unverifiedUser && unverifiedUser.problem.code).toBe(
+      AUTH_ERROR_CODES.accountNotFound,
+    );
   });
 });
 
 describe("OAuthLinkCallbackHandler", () => {
-  let support: AuthWorkspaceSupportService;
-  let registry: OAuthProviderRegistry;
-  let provider: StubOidcProvider;
-  let oauthState: OAuthState;
-  let user: User;
-  let membership: Membership;
-  let identity: OAuthIdentity | null;
-  let recordAuditSpy: jest.SpiedFunction<typeof support.recordAudit>;
-
-  beforeEach(() => {
-    support = new AuthWorkspaceSupportService();
-    recordAuditSpy = jest
-      .spyOn(support, "recordAudit")
-      .mockImplementation(async () => {});
-
-    provider = new StubOidcProvider();
-    registry = {
-      resolve: (name: string) => (name === provider.name ? provider : null),
-    } as unknown as OAuthProviderRegistry;
-
-    user = User.rehydrate({
-      id: "user-1",
-      email: "oidc-user@acme.test",
-      passwordHash: "unused",
-      emailVerified: true,
-    });
-
-    membership = Membership.rehydrate({
-      id: "membership-1",
-      userId: user.id,
-      organizationId: "org-1",
-      status: AUTH_MEMBERSHIP_STATUSES.active,
-      subjectAttributes: { role: SUBJECT_ROLES.manager },
-      policyId: "policy-1",
-      policyVersion: "v1",
-    });
-
-    oauthState = OAuthState.rehydrate({
-      id: "state-1",
-      state: "state-value",
-      nonce: CORRECT_NONCE,
-      provider: provider.name,
-      redirectUri: "https://app.example/api/auth/oauth/link/callback/stub-oidc",
-      expiresAt: Date.now() + 60_000,
-      userId: user.id,
-      sessionId: "session-1",
-    });
-
-    identity = null;
-  });
-
-  function buildLinkHandler() {
+  function buildLinkHarness(
+    input: {
+      oauthState?: OAuthState | null;
+      identity?: OAuthIdentity | null;
+      provider?: StubOidcProvider;
+    } = {},
+  ) {
+    const provider = input.provider ?? new StubOidcProvider();
     const repositories = buildRepositories({
-      oauthState,
-      identity,
-      user,
-      activeMemberships: [membership],
+      oauthState:
+        input.oauthState === undefined
+          ? makeState({
+              redirectUri:
+                "https://app.example/api/auth/oauth/link/callback/stub-oidc",
+              userId: "user-1",
+              sessionId: "session-1",
+            })
+          : input.oauthState,
+      identity: input.identity === undefined ? null : input.identity,
+      user: makeUser(),
     });
-    return {
+    const support = new AuthWorkspaceSupportService({
+      write: (event: Record<string, unknown>) => {
+        repositories.auditRecords.push(event);
+        return Promise.resolve();
+      },
+    } as never);
+    const handler = new OAuthLinkCallbackHandler(
+      support,
       repositories,
-      handler: new OAuthLinkCallbackHandler(support, repositories, registry),
-    };
-  }
-
-  function execute() {
-    const { handler } = buildLinkHandler();
-    return handler.execute(
-      new OAuthLinkCallbackCommand(
-        {
-          code: "good-code",
-          state: oauthState.state,
-          provider: provider.name,
-        },
-        user.id,
-        "session-1",
-        membership.organizationId,
-      ),
+      buildProviderRegistry(provider),
     );
+    return { handler, repositories };
   }
 
   it("links a verified provider account for the authenticated user", async () => {
-    const { handler, repositories } = buildLinkHandler();
+    const { handler, repositories } = buildLinkHarness();
     const linkToUser = jest.spyOn(repositories.oauthIdentities, "linkToUser");
 
     const result = await handler.execute(
       new OAuthLinkCallbackCommand(
-        {
-          code: "good-code",
-          state: oauthState.state,
-          provider: provider.name,
-        },
-        user.id,
+        { code: "good-code", state: "state-value", provider: "stub-oidc" },
+        "user-1",
         "session-1",
-        membership.organizationId,
+        { correlationId: "corr-link" },
       ),
     );
 
     expect("ok" in result && result.ok).toBe(true);
-    expect(linkToUser).toHaveBeenCalledWith(provider.name, "acct-1", user.id);
-    expect(recordAuditSpy).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        decision: PBAC_DECISION.allow,
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLinkSucceeded,
-        actor_id: user.id,
-      }),
-    );
+    expect(linkToUser).toHaveBeenCalledWith("stub-oidc", "acct-1", "user-1");
+    expect(repositories.auditRecords[0]).toMatchObject({
+      event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLinkSucceeded,
+      actor_id: "user-1",
+      decision: AUDIT_DECISIONS.allow,
+      correlationId: "corr-link",
+      linked: true,
+    });
   });
 
   it("rejects a link state bound to another session", async () => {
-    const result = await new OAuthLinkCallbackHandler(
-      support,
-      buildRepositories({
-        oauthState,
-        identity,
-        user,
-        activeMemberships: [membership],
-      }),
-      registry,
-    ).execute(
+    const { handler, repositories } = buildLinkHarness();
+
+    const result = await handler.execute(
       new OAuthLinkCallbackCommand(
-        {
-          code: "good-code",
-          state: oauthState.state,
-          provider: provider.name,
-        },
-        user.id,
+        { code: "good-code", state: "state-value", provider: "stub-oidc" },
+        "user-1",
         "different-session",
-        membership.organizationId,
+        { correlationId: "corr-link-deny" },
       ),
     );
 
     expect("problem" in result && result.problem.code).toBe(
       AUTH_ERROR_CODES.oauthStateInvalid,
     );
-    expect(recordAuditSpy).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        decision: PBAC_DECISION.deny,
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLinkFailed,
-      }),
-    );
+    expect(repositories.auditRecords[0]).toMatchObject({
+      event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLinkFailed,
+      decision: AUDIT_DECISIONS.deny,
+      correlationId: "corr-link-deny",
+    });
   });
 
   it("rejects a provider account already linked to another user", async () => {
-    identity = OAuthIdentity.rehydrate({
-      id: "identity-1",
-      userId: "other-user",
-      provider: provider.name,
-      providerAccountId: "acct-1",
-      createdAt: Date.now(),
+    const { handler } = buildLinkHarness({
+      identity: makeIdentity({ userId: "other-user" }),
     });
 
-    const result = await execute();
+    const result = await handler.execute(
+      new OAuthLinkCallbackCommand(
+        { code: "good-code", state: "state-value", provider: "stub-oidc" },
+        "user-1",
+        "session-1",
+        { correlationId: "corr-link-conflict" },
+      ),
+    );
 
     expect("problem" in result && result.problem.code).toBe(
       AUTH_ERROR_CODES.oauthCallbackInvalid,

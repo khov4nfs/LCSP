@@ -5,7 +5,6 @@ import type { ReadinessExportResponse } from "../../contracts/wizard/readiness-e
 export class GenerateReadinessExportCommand extends Command<ReadinessExportResponse> {
   constructor(
     public readonly assessmentId: string,
-    public readonly organizationId: string,
     public readonly ownerId: string,
     public readonly correlationId: string,
     public readonly authorization: ManagerOnlyAuthorizationContext,

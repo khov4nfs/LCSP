@@ -14,7 +14,7 @@ As a Manager, I want to download generated reports and artifacts with version me
 
 2. **Given** Manager downloads an artifact
    **When** LCSP serves the file
-   **Then** access is PBAC-checked
+   **Then** access is RBAC-checked
    **And** download is audited with artifact ID, version, actor, timestamp, and correlation ID.
 
 3. **Given** Manager permission, organization membership, artifact access, or assessment scope is revoked after artifact generation
@@ -48,19 +48,19 @@ As a Manager, I want to download generated reports and artifacts with version me
 ### Story-Specific Implementation Tasks
 
 - Expose artifact history with type, version, status, checksum and source assessment versions.
-- Enforce PBAC on download serving and audit every access or denial.
+- Enforce RBAC on download serving and audit every access or denial.
 - Mark current vs superseded artifacts while preserving immutable historical versions.
 
 ### Task to Acceptance Criteria Traceability
 
 - `AC1`: Expose artifact history with type, version, status, checksum and source assessment versions.
-- `AC2`: Enforce PBAC on download serving and audit every access or denial.
+- `AC2`: Enforce RBAC on download serving and audit every access or denial.
 - `AC3`: Mark current vs superseded artifacts while preserving immutable historical versions.
 
 ### Dependencies and Prerequisites
 
 - Generated artifacts from Stories 2.4, 8.3, 8.4 and audit/event foundations.
-- PBAC and membership validity from Epic 1.
+- RBAC and membership validity from Epic 1.
 
 ### Explicit Non-Goals
 
@@ -78,7 +78,7 @@ As a Manager, I want to download generated reports and artifacts with version me
 
 - Gap analysis, document generation và artifact persistence chạy ở async worker chain; API/Web chỉ request, track status và serve authorized downloads/views.
 - Document generation phải tiêu thụ Classification + GapAnalysis + citations/evidence appendix; không được chạy trực tiếp từ classification event.
-- Audit export là domain riêng, chịu PBAC + redaction policy rõ ràng trước khi download.
+- Audit export là domain riêng, chịu RBAC + redaction policy rõ ràng trước khi download.
 
 ### Functional and Domain Requirements
 
@@ -97,7 +97,7 @@ As a Manager, I want to download generated reports and artifacts with version me
 
 - Final report chỉ hợp lệ khi `CLASSIFICATION_READY`, `GAP_ANALYSIS_READY`, citations valid và không còn unresolved material conflict.
 - Document blocked, readiness-generated, final generated và audit-export-generated đều phải có audit trail và status projection rõ.
-- Artifact downloads/exports phải tuân PBAC scope và giữ immutable history/superseded version semantics.
+- Artifact downloads/exports phải tuân RBAC scope và giữ immutable history/superseded version semantics.
 
 ### File Structure Notes
 

@@ -57,16 +57,9 @@ export function AccountSettingsSection({
           {
             label: resolveMessage(
               appLocale,
-              "pages.workspace.settingsHub.labels.organization",
+              "pages.workspace.settingsHub.labels.accountRole",
             ),
-            value: profile?.organization_id ?? "…",
-          },
-          {
-            label: resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.labels.membershipRole",
-            ),
-            value: profile?.membership_role ?? "…",
+            value: profile?.role ?? "…",
           },
           {
             label: resolveMessage(

@@ -57,7 +57,7 @@ export class RetrieveLegalBasisHandler implements IQueryHandler<
     query: RetrieveLegalBasisQuery,
   ): Promise<RetrieveLegalBasisResponse> {
     const assessment = await this.prisma.assessment.findFirst({
-      where: { id: query.assessmentId, organizationId: query.organizationId },
+      where: { id: query.assessmentId },
       select: { id: true },
     });
     if (!assessment) {
@@ -420,13 +420,10 @@ export class RetrieveLegalBasisHandler implements IQueryHandler<
     await this.auditWriter.write({
       eventType: AGENTIC_TOOL_EVENT_TYPES.legalBasisRetrieved,
       actorId: query.actorId,
-      organizationId: query.organizationId,
       assessmentId,
       resourceType: AUDIT_RESOURCE_TYPES.assessment,
       resourceId: assessmentId,
       correlationId: query.correlationId,
-      policyId: query.policyId,
-      policyVersion: query.policyVersion,
       decision:
         hydrated.status === AGENTIC_TOOL_STATUSES.ready
           ? AUDIT_DECISIONS.allow

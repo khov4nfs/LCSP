@@ -30,29 +30,29 @@ Story 5.3's richer guided-resolution behavior (choose/correct/mark unknown, stal
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/web/app/(workspace)/assessments/[id]/conflicts/page.tsx` | Create | Conflict list page |
+| File                                                                    | Action | Notes                                  |
+| ----------------------------------------------------------------------- | ------ | -------------------------------------- |
+| `apps/web/app/(workspace)/assessments/[id]/conflicts/page.tsx`          | Create | Conflict list page                     |
 | `apps/web/app/(workspace)/assessments/[id]/conflicts/conflict-card.tsx` | Create | Per-conflict card with resolution form |
-| `apps/web/lib/api/conflict-client.ts` | Create | List + resolve API wrappers |
+| `apps/web/lib/api/conflict-client.ts`                                   | Create | List + resolve API wrappers            |
 
 ## UI Components
 
-| Component | Notes |
-|---|---|
-| Conflict card | Type (business label), score (progress bar 0–100%), explanation, evidence refs (IDs only) |
-| Conflict score indicator | Visual bar: 0% = low tension, 100% = high tension |
-| Resolution buttons | "Mark as Resolved" + "Dismiss" |
-| Resolution note | Optional for `RESOLVED`; required for `DISMISSED`; max 2000 chars |
-| "All resolved" banner | Shown when no more PENDING conflicts |
+| Component                | Notes                                                                                     |
+| ------------------------ | ----------------------------------------------------------------------------------------- |
+| Conflict card            | Type (business label), score (progress bar 0–100%), explanation, evidence refs (IDs only) |
+| Conflict score indicator | Visual bar: 0% = low tension, 100% = high tension                                         |
+| Resolution buttons       | "Mark as Resolved" + "Dismiss"                                                            |
+| Resolution note          | Optional for `RESOLVED`; required for `DISMISSED`; max 2000 chars                         |
+| "All resolved" banner    | Shown when no more PENDING conflicts                                                      |
 
 ## Conflict Type Labels (business language)
 
-| API value | UI label |
-|---|---|
+| API value                | UI label               |
+| ------------------------ | ---------------------- |
 | `evidence_contradiction` | Evidence Contradiction |
-| `scope_mismatch` | Scope Mismatch |
-| `unverifiable` | Unverifiable Finding |
+| `scope_mismatch`         | Scope Mismatch         |
+| `unverifiable`           | Unverifiable Finding   |
 
 ## Business Rules
 
@@ -70,21 +70,21 @@ Story 5.3's richer guided-resolution behavior (choose/correct/mark unknown, stal
     - `401`: redirect to sign-in with return URL.
     - `403`: show localized friendly copy: user does not have permission to resolve conflicts for this assessment; include CTA back to assessment list.
     - `404`: show generic not-found/out-of-organization state.
-    - Do not render raw backend error codes such as `PBAC_DENIED` as customer-facing copy.
-12. Developer cannot access this page (PBAC gated — will show 403).
+    - Do not render raw backend error codes such as `RBAC_DENIED` as customer-facing copy.
+12. Non-Manager subjects cannot access this page (RBAC gated — will show 403).
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
-| T01 | PENDING conflicts exist | Cards shown with score and explanation |
-| T02 | Resolve a conflict | Card disappears, list refreshes |
-| T03 | All conflicts resolved | "All Resolved" banner shown |
-| T04 | Conflict score 0.9 | Red indicator shown |
-| T05 | `evidence_refs` shown as IDs | No source code shown |
-| T06 | Developer accesses page | 403 shown |
-| T07 | Dismiss without reason | Submit blocked with localized validation message |
-| T08 | Last conflict submitted | Page stays open, shows all-resolved state and next-step CTA only when available |
+| ID  | Scenario                     | Expected                                                                        |
+| --- | ---------------------------- | ------------------------------------------------------------------------------- |
+| T01 | PENDING conflicts exist      | Cards shown with score and explanation                                          |
+| T02 | Resolve a conflict           | Card disappears, list refreshes                                                 |
+| T03 | All conflicts resolved       | "All Resolved" banner shown                                                     |
+| T04 | Conflict score 0.9           | Red indicator shown                                                             |
+| T05 | `evidence_refs` shown as IDs | No source code shown                                                            |
+| T06 | Non-Manager accesses page    | 403 shown                                                                       |
+| T07 | Dismiss without reason       | Submit blocked with localized validation message                                |
+| T08 | Last conflict submitted      | Page stays open, shows all-resolved state and next-step CTA only when available |
 
 ## Definition of Done
 

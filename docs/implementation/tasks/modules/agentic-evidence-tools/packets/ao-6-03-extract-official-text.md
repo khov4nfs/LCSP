@@ -9,7 +9,7 @@ status: DONE
 
 ## Objective and tool definition
 
-Deterministically extract normalized text, page/span hashes, identity/effect-status candidates from an immutable HTML/DOCX snapshot. Worker `SYSTEM_ONLY` mutation, PBAC `LEGAL_CORPUS_EXTRACT`; canonical extraction is preferred and no full document is exposed to LLMs.
+Deterministically extract normalized text, page/span hashes, identity/effect-status candidates from an immutable HTML/DOCX snapshot. Worker `SYSTEM_ONLY` mutation, RBAC `LEGAL_CORPUS_EXTRACT`; canonical extraction is preferred and no full document is exposed to LLMs.
 
 ## Input
 

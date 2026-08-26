@@ -31,7 +31,7 @@ Available with verified profile, rule match and policy profile; action `CLASSIFI
 {"status":"READY","toolName":"get_classification_baseline","toolVersion":"1.0.0","configHash":"sha256:classification-baseline-v1","correlationId":"0a0f6e55-7153-4367-9d62-25e3921e47a5","artifactVersions":{"profileId":"profile_01J9A","policyProfileVersionId":"policy_01J9A"},"provenanceRef":"prov:baseline:01J9","coverageState":"SUFFICIENT","evidenceRefs":["rule-match:01J9A"],"limitations":[],"result":{"baselineRef":"baseline:01J9A","eligibleLabels":["CLASSIFICATION_CANDIDATE_A"],"requiredPrerequisites":["VALID_CITATIONS"],"unmetPrerequisites":[]}}
 ```
 ## 7. Error Codes and Typed Outcomes
-`INVALID_ARGUMENT`, `NEEDS_INPUT` missing immutable input, `CONFLICT` contradictory inputs, `OUT_OF_COVERAGE` limited evidence, `BLOCKED` PBAC/stale policy, `FAILED` transient. No baseline authorizes final persistence.
+`INVALID_ARGUMENT`, `NEEDS_INPUT` missing immutable input, `CONFLICT` contradictory inputs, `OUT_OF_COVERAGE` limited evidence, `BLOCKED` RBAC/stale policy, `FAILED` transient. No baseline authorizes final persistence.
 ## 8. Tool Calling Flow
 ```mermaid
 sequenceDiagram
@@ -40,14 +40,14 @@ participant G as Gateway
 participant B as Baseline builder
 participant P as Immutable projections
 L->>G: profile,match,policy
-G->>B: PBAC-approved
+G->>B: RBAC-approved
 B->>P: validate prerequisites
 B-->>L: constraints ledger + audit
 ```
 ## 9. Business Rules
 All artifact versions must be immutable/compatible; policy pin controls labels; hard-rule conflicts win; stable ID sort/caps; no LLM inference in builder.
 ## 10. Execution Logic
-`schema → registry/PBAC/version checks → load projections → evaluate hard prerequisites/conflicts → normalize → privacy gate → audit` in `ClassificationBaselineTool`.
+`schema → registry/RBAC/version checks → load projections → evaluate hard prerequisites/conflicts → normalize → privacy gate → audit` in `ClassificationBaselineTool`.
 ## 11. LLM Tool Definition and Context Contract
 Strict §5 function; max 6KB ledger; model may call `validate_classification_proposal`, never persist/override baseline. Audit template version/output hash, not prompt.
 ## 12. Tool Registry
@@ -57,9 +57,9 @@ Audit shared fields/artifact hashes/constraint IDs; no profile source, legal tex
 ## 16. Scenario
 A fully verified profile returns eligible candidate labels; a citation conflict returns `CONFLICT`, and the orchestrator must resolve it rather than propose.
 ## 17. Acceptance Criteria
-Compatible pins return deterministic ledger; extra args reject; stale policy/conflict/limit are distinct; PBAC fails closed; safe payload only.
+Compatible pins return deterministic ledger; extra args reject; stale policy/conflict/limit are distinct; RBAC fails closed; safe payload only.
 ## 18. Test Matrix
-TC-01 valid pins; TC-02 invalid extra; TC-03 stale/missing/conflict; TC-04 PBAC tenant; TC-05 privacy; TC-06 timeout retry.
+TC-01 valid pins; TC-02 invalid extra; TC-03 stale/missing/conflict; TC-04 RBAC tenant; TC-05 privacy; TC-06 timeout retry.
 ## 19. Definition of Done
 Contracts, projection/service, registry, normalizer, audit/security and tests pass.
 ## 20. Technical Notes and Files

@@ -34,27 +34,27 @@ AO-3 uses a symbol/finding anchor to determine whether static decision-path evid
 
 ## 7. Errors and Typed Outcomes
 
-Invalid args=`INVALID_ARGUMENT`; absent accepted report=`NEEDS_INPUT`; unknown anchor=`NOT_FOUND`; dynamic/cap/limited evidence=`OUT_OF_COVERAGE`; PBAC/version/tenant=`BLOCKED`; transient timeout=`FAILED` after one retry.
+Invalid args=`INVALID_ARGUMENT`; absent accepted report=`NEEDS_INPUT`; unknown anchor=`NOT_FOUND`; dynamic/cap/limited evidence=`OUT_OF_COVERAGE`; RBAC/version/tenant=`BLOCKED`; transient timeout=`FAILED` after one retry.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
-Validate → allow-list/PBAC/version → deterministic decision projection traversal → cap/terminal → normalize/privacy/audit. Registry `DecisionPathTool`, `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, report ref, 3s/one retry/`NONE`. Model gets max 100 category segments and terminal, can call registered related tools, and must not call a recommendation “automated legal decision.” Audit shared safe fields/hashes/version/budget; deny source, expressions/scores, prompts, secrets, AST, absolute paths/stack traces and direct storage.
+Validate → allow-list/RBAC/version → deterministic decision projection traversal → cap/terminal → normalize/privacy/audit. Registry `DecisionPathTool`, `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, report ref, 3s/one retry/`NONE`. Model gets max 100 category segments and terminal, can call registered related tools, and must not call a recommendation “automated legal decision.” Audit shared safe fields/hashes/version/budget; deny source, expressions/scores, prompts, secrets, AST, absolute paths/stack traces and direct storage.
 
 ## 16–18. Scenario, AC, Tests
 
-For a recommendation claim, returned structural `RECOMMEND` fact is evidence; a dynamic terminal must remain a stated limit. AC: deterministic structural-only output; invalid/PBAC preflight; limit distinction; privacy/audit.
+For a recommendation claim, returned structural `RECOMMEND` fact is evidence; a dynamic terminal must remain a stated limit. AC: deterministic structural-only output; invalid/RBAC preflight; limit distinction; privacy/audit.
 
 | ID | Scenario | Level |
 |---|---|---|
 | TC-01 | action-category trace/order | unit/integration |
 | TC-02 | cap/dynamic/unknown anchor | integration |
-| TC-03 | extra/cross-tenant/PBAC | contract/integration |
+| TC-03 | extra/cross-tenant/RBAC | contract/integration |
 | TC-04 | score/source expression leak | privacy |
 | TC-05 | timeout/audit | worker |
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Add decision contracts/registry/projection handler/normalizer/API PBAC/audit/tests. OQ-01: approve action taxonomy mapping (Domain owner, OPEN, blocks yes). Deliver schema, handler, audit and test suite.
+Add decision contracts/registry/projection handler/normalizer/API RBAC/audit/tests. OQ-01: approve action taxonomy mapping (Domain owner, OPEN, blocks yes). Deliver schema, handler, audit and test suite.
 
 ## Source Authority
 

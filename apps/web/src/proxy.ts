@@ -59,7 +59,7 @@ function isExpiredSessionVerification(
   return (
     status === 401 ||
     requiredAction === REQUIRED_ACTIONS.signIn ||
-    (problemCode === AUTH_ERROR_CODES.pbacDenied &&
+    (problemCode === AUTH_ERROR_CODES.rbacDenied &&
       requiredAction === REQUIRED_ACTIONS.contactOwner) ||
     problemCode === AUTH_ERROR_CODES.authRequired ||
     problemCode === AUTH_ERROR_CODES.sessionInvalid
@@ -67,10 +67,5 @@ function isExpiredSessionVerification(
 }
 
 export const config = {
-  matcher: [
-    "/workspace/:path*",
-    "/assessments/:path*",
-    "/laws/:path*",
-    "/developer/assessments/:path*",
-  ],
+  matcher: ["/workspace/:path*", "/assessments/:path*", "/laws/:path*"],
 };

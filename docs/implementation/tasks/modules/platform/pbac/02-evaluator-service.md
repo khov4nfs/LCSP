@@ -1,33 +1,33 @@
 ---
-task_id: MW-pbac-002
-module: platform/pbac
+task_id: MW-rbac-002
+module: platform/rbac
 runtime: nestjs-api
 priority: P0
 status: DONE
 epic_story: 1.6
 depends_on:
-  - platform/pbac/01-policy-model.md
+  - platform/rbac/01-policy-model.md
 ---
 
-# PBAC Evaluator Service
+# RBAC Evaluator Service
 
 ## Outcome
 
-Provide a stateless `PbacEvaluatorService` that evaluates a `PbacEvaluationContext` against a loaded `PolicyDocument` and returns a `PbacDecisionResult`. Default deny on any failure path. Stateless — all policy loading done by the caller (guard or handler) before invocation.
+Provide a stateless `RbacEvaluatorService` that evaluates a `RbacEvaluationContext` against a loaded `PolicyDocument` and returns a `RbacDecisionResult`. Default deny on any failure path. Stateless — all policy loading done by the caller (guard or handler) before invocation.
 
 ## Module Files
 
 | File | Action | Notes |
 |---|---|---|
-| `apps/api/src/platform/pbac/pbac-evaluator.service.ts` | Create | Core evaluation logic |
-| `apps/api/src/platform/pbac/pbac.module.ts` | Create | `@Global()` NestJS module — exports `PbacEvaluatorService` |
-| `apps/api/src/app.module.ts` | Modify | Import `PbacModule` |
+| `apps/api/src/platform/rbac/rbac-evaluator.service.ts` | Create | Core evaluation logic |
+| `apps/api/src/platform/rbac/rbac.module.ts` | Create | `@Global()` NestJS module — exports `RbacEvaluatorService` |
+| `apps/api/src/app.module.ts` | Modify | Import `RbacModule` |
 
 ## API Contract
 
 No HTTP endpoint. Internal service.
 
-**`PbacEvaluatorService.evaluate(ctx: PbacEvaluationContext): PbacDecisionResult`**
+**`RbacEvaluatorService.evaluate(ctx: RbacEvaluationContext): RbacDecisionResult`**
 
 Synchronous. Never throws — all exceptions caught internally and returned as `decision: deny`.
 
@@ -80,5 +80,5 @@ function evaluate(ctx):
 - `evaluate()` is synchronous and never throws.
 - All four denial reason codes implemented.
 - Default deny on any unexpected exception path.
-- `PbacModule` exported globally.
+- `RbacModule` exported globally.
 - Zero DB calls inside evaluator (policy loaded by caller).

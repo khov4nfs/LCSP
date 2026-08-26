@@ -60,7 +60,6 @@ export class ProcessDocumentCallbackHandler implements ICommandHandler<ProcessDo
       select: {
         id: true,
         assessmentId: true,
-        organizationId: true,
         correlationId: true,
       },
     });
@@ -92,7 +91,6 @@ export class ProcessDocumentCallbackHandler implements ICommandHandler<ProcessDo
     const auditEvent = buildAuditEventInput({
       eventType: DOCUMENT_EVENT_TYPES.gapAnalysisRequestedAudit,
       actorId: AUDIT_ACTOR_IDS.documentWorker,
-      organizationId: request.organizationId,
       assessmentId: request.assessmentId,
       resourceType: AUDIT_RESOURCE_TYPES.documentRequest,
       resourceId: request.id,
@@ -108,7 +106,6 @@ export class ProcessDocumentCallbackHandler implements ICommandHandler<ProcessDo
         id: crypto.randomUUID(),
         eventType: auditEvent.eventType,
         actorId: auditEvent.actorId,
-        organizationId: auditEvent.organizationId,
         resourceType: auditEvent.resourceType
           ? toPrismaAuditResourceType(auditEvent.resourceType)
           : null,

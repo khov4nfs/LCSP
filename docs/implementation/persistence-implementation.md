@@ -27,7 +27,7 @@ Define PostgreSQL/Prisma ownership, physical model requirements, ChromaDB legal 
 - Raw repository source, full AST bodies, secrets, raw provider tokens, and full prompts are never persistent records.
 - Queue payloads and audit metadata are reference-only/redacted.
 - Approved LegalCorpusVersion and historical assessment artifacts are immutable.
-- Every assessment-scoped query enforces tenant scope and PBAC server-side.
+- Every assessment-scoped query enforces tenant scope and RBAC server-side.
 
 ## Required PostgreSQL Extensions
 
@@ -303,7 +303,7 @@ Artifact upload and metadata registration must avoid orphaned states. Use staged
 ## Migration Order
 
 1. identity/session/organization;
-2. assessment/Wizard/developer policy/PBAC scope;
+2. assessment/Wizard/developer policy/RBAC scope;
 3. repository connection/snapshot/scan job;
 4. evidence refs/findings/report/graph;
 5. TechnicalProfile/AIUsageFlow/reconciliation/VerifiedProfile;

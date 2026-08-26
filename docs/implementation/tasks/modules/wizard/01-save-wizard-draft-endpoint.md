@@ -7,7 +7,7 @@ status: READY_FOR_DEV
 epic_story: 2.2
 depends_on:
   - assessment/01-create-assessment-endpoint.md
-  - platform/pbac/03-nestjs-guard.md
+  - platform/rbac/03-nestjs-guard.md
   - platform/audit-writer/02-audit-writer-service.md
 ---
 
@@ -90,13 +90,13 @@ model WizardProfile {
 
 | HTTP | `error_code`               | Meaning                             |
 | ---- | -------------------------- | ----------------------------------- |
-| 403  | `PBAC_DENIED`              | Actor lacks `wizard:write`          |
+| 403  | `RBAC_DENIED`              | Actor lacks `wizard:write`          |
 | 404  | `ASSESSMENT_NOT_FOUND`     | Assessment not found or not owned   |
 | 409  | `WIZARD_ALREADY_SUBMITTED` | Cannot edit submitted WizardProfile |
 
 ## Business Rules
 
-1. PBAC guard: `action = wizard:write`.
+1. RBAC guard: `action = wizard:write`.
 2. Verify assessment exists, `organizationId = session.organizationId`, `ownerId = session.userId`.
 3. If `WizardProfile.status = SUBMITTED` → `WIZARD_ALREADY_SUBMITTED` (immutable after submit).
 4. Upsert: create `WizardProfile` if not exists, or update `answers` and increment `version`.
@@ -119,7 +119,7 @@ model WizardProfile {
 | T03 | Re-save → version incremented           | `version` increases            |
 | T04 | Already submitted                       | 409 `WIZARD_ALREADY_SUBMITTED` |
 | T05 | Assessment not found                    | 404 `ASSESSMENT_NOT_FOUND`     |
-| T06 | Actor lacks `wizard:write`              | 403 `PBAC_DENIED`              |
+| T06 | Actor lacks `wizard:write`              | 403 `RBAC_DENIED`              |
 | T07 | Partial save preserves existing answers | Unset fields not nullified     |
 | T08 | Answers not in audit payload            | Clean audit event              |
 

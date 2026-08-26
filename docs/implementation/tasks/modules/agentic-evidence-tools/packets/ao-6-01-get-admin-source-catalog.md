@@ -9,7 +9,7 @@ status: DONE
 
 ## Objective and tool definition
 
-Resolve a legal document only through the Admin-managed official catalog. This is a `SYSTEM_ONLY` read tool owned by the legal-corpus worker; the LLM may receive the returned `catalogSourceRef` but cannot provide or see a URL. It has no mutation and requires PBAC action `LEGAL_CORPUS_CATALOG_READ`.
+Resolve a legal document only through the Admin-managed official catalog. This is a `SYSTEM_ONLY` read tool owned by the legal-corpus worker; the LLM may receive the returned `catalogSourceRef` but cannot provide or see a URL. It has no mutation and requires RBAC action `LEGAL_CORPUS_CATALOG_READ`.
 
 ## Input
 
@@ -32,11 +32,11 @@ Result is a safe catalog projection: `catalogSourceRef`, `documentIdentity`, `al
 
 ## Execution, registry, and LLM context
 
-Strict parse → tenant/PBAC/catalog-version check → exact identity lookup → return allow-listed host/path policy → safe audit. Register `CatalogLookupTool`, `SYSTEM_ONLY`, `READ`, 1 s timeout, one retry only for catalog-store outage. AO-3 can use its safe ref as resolver output; LLM context is the shared envelope only and must never synthesize a fetch URL.
+Strict parse → tenant/RBAC/catalog-version check → exact identity lookup → return allow-listed host/path policy → safe audit. Register `CatalogLookupTool`, `SYSTEM_ONLY`, `READ`, 1 s timeout, one retry only for catalog-store outage. AO-3 can use its safe ref as resolver output; LLM context is the shared envelope only and must never synthesize a fetch URL.
 
 ## Errors, tests, files, and open questions
 
-Unknown identity returns `NEEDS_INPUT`; ambiguous identity `CONFLICT`; cross-tenant/PBAC denial `BLOCKED`; store failure `FAILED`. Tests: exact lookup, unknown/ambiguous, URL/extra-field rejection, PBAC, audit redaction. Build contracts in `packages/contracts/src/legal-corpus`, catalog projection/handler in `deepagents/tools/legal/legal`, and API PBAC/audit adapter in `apps/api/src/modules/legal-corpus`. OQ-01: ratify catalog refresh/cache TTL; it must not allow stale catalog use after revocation.
+Unknown identity returns `NEEDS_INPUT`; ambiguous identity `CONFLICT`; cross-tenant/RBAC denial `BLOCKED`; store failure `FAILED`. Tests: exact lookup, unknown/ambiguous, URL/extra-field rejection, RBAC, audit redaction. Build contracts in `packages/contracts/src/legal-corpus`, catalog projection/handler in `deepagents/tools/legal/legal`, and API RBAC/audit adapter in `apps/api/src/modules/legal-corpus`. OQ-01: ratify catalog refresh/cache TTL; it must not allow stale catalog use after revocation.
 
 ## Acceptance criteria
 

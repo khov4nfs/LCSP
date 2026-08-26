@@ -1,12 +1,5 @@
 import type { CitationLocatorRef } from "../../services/citation-locator-validator.service.js";
 
-export interface AuthorizationContext {
-  subjectRole: string;
-  selectedAction: string | null;
-  policyId: string | null;
-  policyVersion: string | null;
-}
-
 export class DraftLegalRuleCommand {
   constructor(
     public readonly legalRuleId: string,
@@ -18,7 +11,6 @@ export class DraftLegalRuleCommand {
     public readonly citationLocatorRefs: CitationLocatorRef[],
     public readonly authoredBy: string,
     public readonly legalRuleCatalogVersionId: string,
-    public readonly authorization: AuthorizationContext,
     public readonly correlationId: string,
   ) {}
 }

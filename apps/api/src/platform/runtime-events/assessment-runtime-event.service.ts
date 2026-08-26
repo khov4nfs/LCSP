@@ -32,7 +32,6 @@ const RUNTIME_EVENT_SEQUENCE_RETRY_ATTEMPTS = 8;
 const RUNTIME_EVENT_SEQUENCE_RETRY_DELAY_MS = 5;
 
 type RecordRuntimeEventInput = {
-  organizationId: string;
   assessmentId: string;
   runId: string;
   correlationId: string;
@@ -52,7 +51,6 @@ type RecordRuntimeEventInput = {
 };
 
 type EnsureRunInput = {
-  organizationId: string;
   assessmentId: string;
   runId: string;
   correlationId: string;
@@ -64,7 +62,7 @@ type EnsureRunInput = {
 
 export type RecordWorkerRuntimeEventInput = Omit<
   RecordRuntimeEventInput,
-  "organizationId" | "assessmentId" | "runId" | "correlationId"
+  "assessmentId" | "runId" | "correlationId"
 > & {
   scanJobId: string;
 };
@@ -75,7 +73,6 @@ export type RecordWorkerRuntimeEventResult =
 
 type PersistedAssessmentRuntimeEvent = {
   id: string;
-  organizationId: string;
   assessmentId: string;
   runId: string;
   correlationId: string;
@@ -296,7 +293,6 @@ export class AssessmentRuntimeEventService {
       select: {
         id: true,
         assessmentId: true,
-        organizationId: true,
         correlationId: true,
         status: true,
       },
@@ -313,7 +309,6 @@ export class AssessmentRuntimeEventService {
     }
 
     await this.recordEvent({
-      organizationId: scanJob.organizationId,
       assessmentId: scanJob.assessmentId,
       runId: scanJob.id,
       correlationId: scanJob.correlationId,
@@ -337,26 +332,20 @@ export class AssessmentRuntimeEventService {
   /**
    * Builds the workspace runtime snapshot from persisted runtime events plus current scan-job and evidence-report state.
    *
-   * @param organizationId - Organization whose assessment runtime state should be returned.
    * @returns Snapshot containing recent activity, derived runs, scan jobs, and evidence reports.
    */
-  async buildWorkspaceSnapshot(
-    organizationId: string,
-  ): Promise<AssessmentRuntimeSnapshot> {
+  async buildWorkspaceSnapshot(): Promise<AssessmentRuntimeSnapshot> {
     const emittedAt = new Date().toISOString();
     await failStaleRepositoryScanJobs(this.prisma, {
-      organizationId,
       now: new Date(emittedAt),
     });
     const [events, repositorySnapshots, scanJobs, evidenceReports] =
       await Promise.all([
         this.safeFindMany({
-          where: { organizationId },
           orderBy: [{ createdAt: "desc" }, { sequence: "desc" }],
           take: 200,
         }),
         this.prisma.repositorySnapshot.findMany({
-          where: { organizationId },
           orderBy: { createdAt: "desc" },
           take: 50,
           select: {
@@ -367,7 +356,6 @@ export class AssessmentRuntimeEventService {
           },
         }),
         this.prisma.repositoryScanJob.findMany({
-          where: { organizationId },
           orderBy: { updatedAt: "desc" },
           take: 50,
           select: {
@@ -381,7 +369,6 @@ export class AssessmentRuntimeEventService {
           },
         }),
         this.prisma.technicalEvidenceReport.findMany({
-          where: { organizationId },
           orderBy: { createdAt: "desc" },
           take: 50,
           select: {
@@ -400,7 +387,6 @@ export class AssessmentRuntimeEventService {
       this.toActivityEvent(event),
     );
     const syntheticActivity = buildSyntheticRuntimeActivity(
-      organizationId,
       scanJobs,
       evidenceReports,
       persistedActivity,
@@ -475,7 +461,6 @@ export class AssessmentRuntimeEventService {
           })) as { sequence: number } | null;
           await runtimeEventDelegate(tx).create({
             data: {
-              organizationId: input.organizationId,
               assessmentId: input.assessmentId,
               runId: input.runId,
               correlationId: input.correlationId,
@@ -530,7 +515,6 @@ export class AssessmentRuntimeEventService {
       eventId: event.id,
       sequence: event.sequence,
       emittedAt: event.createdAt.toISOString(),
-      organizationId: event.organizationId,
       assessmentId: event.assessmentId,
       runId: event.runId,
       correlationId: event.correlationId,
@@ -613,14 +597,12 @@ export class AssessmentRuntimeEventService {
 /**
  * Produces synthetic activity from scan jobs and evidence reports when equivalent persisted runtime events are not already present.
  *
- * @param organizationId - Organization attached to generated activity events.
  * @param scanJobs - Recent repository scan-job snapshots.
  * @param evidenceReports - Recent technical-evidence report snapshots.
  * @param existingActivity - Persisted activity used to remove duplicate synthetic event IDs.
  * @returns Synthetic activity events not represented by persisted runtime events.
  */
 function buildSyntheticRuntimeActivity(
-  organizationId: string,
   scanJobs: RuntimeScanJobSnapshot[],
   evidenceReports: RuntimeEvidenceReportSnapshot[],
   existingActivity: AssessmentRuntimeActivityEvent[],
@@ -640,14 +622,10 @@ function buildSyntheticRuntimeActivity(
           isStaleFailedScanJob(scanJob),
       )
       .map((scanJob) =>
-        scanJobToSyntheticRuntimeActivity(
-          organizationId,
-          scanJob,
-          snapshotEmittedAt,
-        ),
+        scanJobToSyntheticRuntimeActivity(scanJob, snapshotEmittedAt),
       ),
     ...evidenceReports.map((report) =>
-      evidenceReportToSyntheticRuntimeActivity(organizationId, report),
+      evidenceReportToSyntheticRuntimeActivity(report),
     ),
   ].filter((event) => !existingEventIds.has(event.eventId));
 }
@@ -662,12 +640,10 @@ function isStaleFailedScanJob(scanJob: RuntimeScanJobSnapshot): boolean {
 /**
  * Maps repository scan-job state into a synthetic runtime activity event.
  *
- * @param organizationId - Organization that owns the scan job.
  * @param scanJob - Repository scan-job snapshot to convert.
  * @returns Synthetic scan activity event suitable for the runtime feed.
  */
 function scanJobToSyntheticRuntimeActivity(
-  organizationId: string,
   scanJob: RuntimeScanJobSnapshot,
   snapshotEmittedAt: string,
 ): AssessmentRuntimeActivityEvent {
@@ -680,7 +656,6 @@ function scanJobToSyntheticRuntimeActivity(
     eventId: `scan-job:${scanJob.id}:${scanJob.status}`,
     sequence: 0,
     emittedAt,
-    organizationId,
     assessmentId: scanJob.assessmentId,
     runId: scanJob.id,
     correlationId: scanJob.id,
@@ -716,12 +691,10 @@ function scanJobToSyntheticRuntimeActivity(
 /**
  * Maps a technical-evidence report into a synthetic runtime completion or failure activity event.
  *
- * @param organizationId - Organization that owns the evidence report.
  * @param report - Technical-evidence report snapshot to convert.
  * @returns Synthetic evidence-report activity event suitable for the runtime feed.
  */
 function evidenceReportToSyntheticRuntimeActivity(
-  organizationId: string,
   report: RuntimeEvidenceReportSnapshot,
 ): AssessmentRuntimeActivityEvent {
   const failed = report.status === TECHNICAL_EVIDENCE_REPORT_STATUSES.rejected;
@@ -729,7 +702,6 @@ function evidenceReportToSyntheticRuntimeActivity(
     eventId: `technical-evidence-report:${report.id}:${report.status}`,
     sequence: 0,
     emittedAt: report.createdAt.toISOString(),
-    organizationId,
     assessmentId: report.assessmentId,
     runId: report.scanJobId,
     correlationId: report.scanJobId,

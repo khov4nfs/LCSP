@@ -1,6 +1,7 @@
 import type {
   AuthBackupEmailPolicy,
   AuthPrimaryEmailAddressPolicy,
+  AuthUserRole,
 } from "@lcsp/contracts/auth";
 
 import type { AuthProblemResult } from "./common.contract.ts";
@@ -16,8 +17,7 @@ export type AuthProfileSuccess = {
   backup_recovery_email_policy: AuthBackupEmailPolicy;
   created_at: string;
   updated_at: string;
-  membership_role: string;
-  organization_id: string;
+  role: AuthUserRole;
   mfa_enrolled: boolean;
   mfa_enrolled_at: string | null;
   mfa_verified: boolean;

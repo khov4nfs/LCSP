@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
 
-import { PbacModule } from "../../platform/pbac/pbac.module.js";
+import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { OutboxModule } from "../../platform/outbox/outbox.module.js";
 import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guard.js";
 import { WIZARD_PROFILE_REPOSITORY } from "./application/ports/persistence/wizard-profile.repository.js";
@@ -22,7 +22,7 @@ import { InternalWizardController } from "./presentation/http/internal-wizard.co
 import { ReadinessExportDocumentController } from "./presentation/http/readiness-export-document.controller.js";
 
 @Module({
-  imports: [CqrsModule, PbacModule, OutboxModule],
+  imports: [CqrsModule, RbacModule, OutboxModule],
   controllers: [
     WizardController,
     InternalWizardController,

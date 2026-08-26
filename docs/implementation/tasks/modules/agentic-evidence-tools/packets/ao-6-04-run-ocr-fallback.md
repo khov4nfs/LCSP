@@ -9,7 +9,7 @@ status: DONE
 
 ## Objective and tool definition
 
-Create page/span-hash OCR output only when canonical extraction proved unavailable or insufficient. `SYSTEM_ONLY` mutation, PBAC `LEGAL_CORPUS_OCR`, idempotent on snapshot + selected pages + profile. It is never a silent alternate parser and LLMs do not receive OCR text.
+Create page/span-hash OCR output only when canonical extraction proved unavailable or insufficient. `SYSTEM_ONLY` mutation, RBAC `LEGAL_CORPUS_OCR`, idempotent on snapshot + selected pages + profile. It is never a silent alternate parser and LLMs do not receive OCR text.
 
 ## Input
 

@@ -18,7 +18,7 @@ Web UI
 
 ### `apps/web`
 
-Giao diện cho Manager và Developer tùy chọn. UX phải thể hiện đầy đủ trạng thái bình thường, loading, empty, permission denied, insufficient, blocked, failed, degraded, retry và rerun.
+Giao diện cho Manager. UX phải thể hiện đầy đủ trạng thái bình thường, loading, empty, permission denied, insufficient, blocked, failed, degraded, retry và rerun.
 
 ### `apps/api`
 
@@ -60,7 +60,7 @@ Lưu immutable legal source snapshots và generated document artifacts. Database
 ## Các ADR quan trọng hiện tại
 
 - Kiến trúc modular monolith-first cho API, nhưng worker được tách theo tác vụ dài.
-- Manager-led workflow; Developer là tùy chọn.
+- Manager-led workflow; Developer invitation/task workspace đã retired khỏi active MVP.
 - Evidence-first và fail-closed.
 - GitHub App là đường evidence chính của MVP.
 - Không raw source sang LLM hoặc lưu dài hạn.

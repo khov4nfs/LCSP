@@ -2,16 +2,15 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import { describe, expect, it, jest, beforeEach } from "@jest/globals";
 import {
-  ForbiddenException,
   ConflictException,
   NotFoundException,
+  UnprocessableEntityException,
 } from "@nestjs/common";
 import { ApproveRuleCatalogVersionHandler } from "./approve-rule-catalog-version.handler.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { CitationLocatorValidatorService } from "../../services/citation-locator-validator.service.js";
 import { ApproveRuleCatalogVersionCommand } from "./approve-rule-catalog-version.command.js";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
 import { toPrismaLegalRuleLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 
@@ -81,12 +80,6 @@ describe("ApproveRuleCatalogVersionHandler", () => {
       "Scope description",
       null,
       "user123",
-      {
-        subjectRole: "manager",
-        selectedAction: PBAC_ACTIONS.legalRuleCatalogApprove,
-        policyId: "pol1",
-        policyVersion: "1.0",
-      },
       "corr-id",
     );
   };
@@ -131,12 +124,19 @@ describe("ApproveRuleCatalogVersionHandler", () => {
     await expect(handler.execute(command)).rejects.toThrow(ConflictException);
   });
 
-  it("T06: Actor lacks legal-rule-catalog:approve -> 403 PBAC_DENIED", async () => {
+  it("throws 422 when the version contains no rules", async () => {
     const command = createCommand();
-    command.authorization.selectedAction = "some:other:action";
+    (prisma.legalRuleCatalogVersion.findUnique as any).mockResolvedValue({
+      id: "version-uuid",
+      status: toPrismaLegalRuleLifecycleStatus(
+        LEGAL_RULE_LIFECYCLE_STATUSES.draft,
+      ),
+    } as any);
+    (prisma.legalRule.findMany as any).mockResolvedValue([]);
 
-    await expect(handler.execute(command)).rejects.toThrow(ForbiddenException);
-    expect(auditWriter.write).toHaveBeenCalled();
+    await expect(handler.execute(command)).rejects.toThrow(
+      UnprocessableEntityException,
+    );
   });
 
   it("Should throw NotFoundException if version not found", async () => {

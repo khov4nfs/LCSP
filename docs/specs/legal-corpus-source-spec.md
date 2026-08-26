@@ -168,7 +168,7 @@ signature, a real legal-department employee, or a manual source approval.
 | Rejection           | Activation is not recorded; the corpus version remains `DRAFT` and is blocked until a corrected immutable version validates.        |
 | Reactivation trigger | Content hash change, effective date change, source effect-status change, supersession event, or failed index integrity              |
 
-The automatic activation service must satisfy its configured PBAC policy. That
+The automatic activation service must satisfy its configured RBAC policy. That
 requirement provides system accountability only; it is not legal counsel
 sign-off or a legal certification.
 

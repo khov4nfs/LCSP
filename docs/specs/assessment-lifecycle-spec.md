@@ -34,7 +34,7 @@ Assessment
 - Direct EngineeringRule evaluation with legal-rule provenance and citation traceability is mandatory before classification can be final.
 - Gap Analysis is mandatory between completed classification and document generation.
 - Manager is the MVP final resolver.
-- Developer absence must not block assessment lifecycle transitions.
+- External collaborator absence must not block assessment lifecycle transitions.
 
 ## AIUsageFlow Contract Summary
 
@@ -58,24 +58,24 @@ Classification is denied until direct EngineeringRule evaluation has evidence re
 
 ```ts
 export interface TechnicalProfile {
-  technicalProfileId: string
-  assessmentId: string
-  technicalEvidenceReportId: string
-  source: 'GITHUB_REPOSITORY_SCAN'
-  aiDetected: 'none' | 'possible' | 'confirmed'
-  providers: string[]
-  frameworks: string[]
-  modelInvocationCount: number
-  inputCategories: string[]
-  outputCategories: string[]
-  decisionFlowSignals: string[]
-  humanReviewSignals: string[]
-  sensitiveDataSignals: string[]
-  domainSignals: string[]
-  coverageLimitations: CoverageLimitation[]
-  confidence: number
-  evidenceRefs: EvidenceRef[]
-  createdAt: string
+  technicalProfileId: string;
+  assessmentId: string;
+  technicalEvidenceReportId: string;
+  source: "GITHUB_REPOSITORY_SCAN";
+  aiDetected: "none" | "possible" | "confirmed";
+  providers: string[];
+  frameworks: string[];
+  modelInvocationCount: number;
+  inputCategories: string[];
+  outputCategories: string[];
+  decisionFlowSignals: string[];
+  humanReviewSignals: string[];
+  sensitiveDataSignals: string[];
+  domainSignals: string[];
+  coverageLimitations: CoverageLimitation[];
+  confidence: number;
+  evidenceRefs: EvidenceRef[];
+  createdAt: string;
 }
 ```
 
@@ -187,50 +187,50 @@ export interface AIUsageFlowRule {
 
 ### Minimum Canonical Rule Catalog
 
-| Rule ID | Input findings required | Optional supporting evidence | Output claim field | Confidence impact | Abstention behavior | Conflict behavior |
-| --- | --- | --- | --- | ---: | --- | --- |
-| AUF-001 Provider package only | `AI_PROVIDER_USAGE` | manifest/package evidence | `coverage_limitation` | -0.20 | abstain from confirmed AI usage | none |
-| AUF-002 Provider invocation detected | `AI_MODEL_INVOCATION` | provider import/call evidence | `ai_purpose` | +0.25 | none | conflicts with no-AI wizard declaration |
-| AUF-003 Model output variable detected | `AI_OUTPUT_SIGNAL` | variable/call return evidence | `ai_output_types` | +0.15 | none | none |
-| AUF-004 Financial input detected | `SENSITIVE_DATA_SIGNAL` | field names/schema refs | `ai_input_types` | +0.15 | unknown if weak evidence | none |
-| AUF-005 Employment input detected | `DOMAIN_CONTEXT_SIGNAL` | HR field/route refs | `ai_input_types` | +0.15 | unknown if weak evidence | none |
-| AUF-006 Health input detected | `SENSITIVE_DATA_SIGNAL` | health field/route refs | `ai_input_types` | +0.15 | unknown if weak evidence | none |
-| AUF-007 Education input detected | `DOMAIN_CONTEXT_SIGNAL` | education field/route refs | `ai_input_types` | +0.10 | unknown if weak evidence | none |
-| AUF-008 Personal data input detected | `SENSITIVE_DATA_SIGNAL` | PII field refs | `ai_input_types` | +0.10 | unknown if weak evidence | none |
-| AUF-009 Score output detected | `AI_OUTPUT_SIGNAL` | numeric score variable refs | `ai_output_types` | +0.15 | none | none |
-| AUF-010 Ranking output detected | `RANKING_SIGNAL` | sort/rank path refs | `ai_output_types` | +0.20 | none | none |
-| AUF-011 Summary output detected | `AI_OUTPUT_SIGNAL` | summary/description refs | `ai_output_types` | +0.10 | none | none |
-| AUF-012 Decision label output detected | `AI_OUTPUT_SIGNAL` | label/classification refs | `ai_output_types` | +0.15 | none | none |
-| AUF-013 Output feeds threshold branch | `AI_DECISION_FLOW_SIGNAL` | branch condition refs | `downstream_action` | +0.25 | abstain if output path dynamic | none |
-| AUF-014 Output triggers approve/reject | `AUTOMATED_DECISION_SIGNAL` | approve/reject action refs | `downstream_action` | +0.30 | abstain if action target unknown | none |
-| AUF-015 Output triggers status update | `STATUS_UPDATE_SIGNAL` | persistence action refs | `downstream_action` | +0.25 | abstain if status target unknown | none |
-| AUF-016 Output displayed to user only | `USER_IMPACT_SIGNAL` | response rendering refs | `downstream_action` | +0.10 | none | conflicts with wizard automated decision claim if no action evidence |
-| AUF-017 Human review present | `HUMAN_REVIEW_SIGNAL` | review queue/approval refs | `human_review` | +0.25 | none | none |
-| AUF-018 Human review absent with bounded path | `AUTOMATED_DECISION_SIGNAL` | complete bounded path refs | `human_review` | +0.20 | abstain if path incomplete | conflicts with human-review wizard claim |
-| AUF-019 Human review unclear | `UNSUPPORTED_DYNAMIC_FLOW` | coverage limitation refs | `human_review` | -0.20 | require unclear state | none |
-| AUF-020 Loan approval context | `DOMAIN_CONTEXT_SIGNAL` | loan/credit refs | `business_process` | +0.20 | unknown if only text hint | none |
-| AUF-021 Recruitment context | `DOMAIN_CONTEXT_SIGNAL` | candidate/job refs | `business_process` | +0.20 | unknown if only text hint | none |
-| AUF-022 Healthcare context | `DOMAIN_CONTEXT_SIGNAL` | patient/medical refs | `business_process` | +0.20 | unknown if only text hint | none |
-| AUF-023 Customer support context | `USER_IMPACT_SIGNAL` | chat/support refs | `business_process` | +0.10 | none | none |
-| AUF-024 Internal productivity context | `DOMAIN_CONTEXT_SIGNAL` | internal tool refs | `business_process` | +0.10 | none | none |
-| AUF-025 Fully automated decision | `AUTOMATED_DECISION_SIGNAL` | output + action + no human review refs | `automation_level` | +0.30 | block if missing output/action link | none |
-| AUF-026 Semi-automated decision | `AI_DECISION_FLOW_SIGNAL` + `HUMAN_REVIEW_SIGNAL` | review refs | `automation_level` | +0.20 | unknown if review path unclear | none |
-| AUF-027 Assistive usage | `AI_MODEL_INVOCATION` | no downstream action, display/summary refs | `automation_level` | +0.10 | abstain if downstream unknown | none |
-| AUF-028 Financial harm potential | financial input + decision action | loan/credit refs | `potential_harm_categories` | +0.20 | block if evidence missing | none |
-| AUF-029 Employment discrimination harm potential | employment input + ranking/decision | HR refs | `potential_harm_categories` | +0.20 | block if evidence missing | none |
-| AUF-030 Provider only abstention | `AI_PROVIDER_USAGE` only | package evidence | `coverage_limitation` | -0.30 | must abstain from legal matching eligibility | none |
-| AUF-031 Dynamic flow limitation | `UNSUPPORTED_DYNAMIC_FLOW` | dynamic import/runtime config refs | `coverage_limitation` | -0.25 | mark unknown/unclear | none |
-| AUF-032 Wizard conflict: no AI but invocation exists | `AI_MODEL_INVOCATION` | wizard no-AI declaration | `conflict` | -0.20 | none | create reconciliation conflict |
-| AUF-033 Wizard conflict: human review claimed but absent | `AUTOMATED_DECISION_SIGNAL` | wizard human-review claim | `conflict` | -0.20 | none | create reconciliation conflict |
-| AUF-034 Wizard conflict: internal-only but customer-facing evidence | `USER_IMPACT_SIGNAL` | wizard internal-only claim | `conflict` | -0.15 | none | create reconciliation conflict |
-| AUF-035 Wizard conflict: content-only but scoring/ranking/decision found | `RANKING_SIGNAL` or `AUTOMATED_DECISION_SIGNAL` | wizard content-only claim | `conflict` | -0.20 | none | create reconciliation conflict |
-| AUF-036 Customer affected subject | `USER_IMPACT_SIGNAL` | customer/user route or response refs | `affected_subjects` | +0.15 | unknown if only generic UI evidence exists | conflicts with internal-only wizard claim |
-| AUF-037 Applicant or employee affected subject | `DOMAIN_CONTEXT_SIGNAL` | candidate/employee route, DTO or entity refs | `affected_subjects` | +0.15 | unknown if domain evidence is weak | conflicts with no affected-subject wizard claim |
-| AUF-038 Patient or student affected subject | `DOMAIN_CONTEXT_SIGNAL` or `SENSITIVE_DATA_SIGNAL` | patient/student field, route or entity refs | `affected_subjects` | +0.15 | unknown if domain evidence is weak | conflicts with no affected-subject wizard claim |
-| AUF-039 Internal staff only affected subject | `DOMAIN_CONTEXT_SIGNAL` | internal admin/staff-only route refs | `affected_subjects` | +0.05 | unknown if user-facing evidence also exists | conflicts with customer-facing evidence |
-| AUF-040 Health or education harm potential | health/education input + decision/recommendation path | domain refs | `potential_harm_categories` | +0.20 | block if evidence missing | none |
-| AUF-041 Material claim evidence eligibility | material claim field | one or more evidence refs | `coverage_limitation` | +0.00 | claim is not legal-matching eligible without evidence refs | none |
-| AUF-042 Material claim missing evidence blocks legal matching | material claim field without evidence refs | none | `coverage_limitation` | -0.35 | must block legal matching eligibility for that claim | create blocking reason if claim is needed for classification |
+| Rule ID                                                                  | Input findings required                               | Optional supporting evidence                 | Output claim field          | Confidence impact | Abstention behavior                                        | Conflict behavior                                                    |
+| ------------------------------------------------------------------------ | ----------------------------------------------------- | -------------------------------------------- | --------------------------- | ----------------: | ---------------------------------------------------------- | -------------------------------------------------------------------- |
+| AUF-001 Provider package only                                            | `AI_PROVIDER_USAGE`                                   | manifest/package evidence                    | `coverage_limitation`       |             -0.20 | abstain from confirmed AI usage                            | none                                                                 |
+| AUF-002 Provider invocation detected                                     | `AI_MODEL_INVOCATION`                                 | provider import/call evidence                | `ai_purpose`                |             +0.25 | none                                                       | conflicts with no-AI wizard declaration                              |
+| AUF-003 Model output variable detected                                   | `AI_OUTPUT_SIGNAL`                                    | variable/call return evidence                | `ai_output_types`           |             +0.15 | none                                                       | none                                                                 |
+| AUF-004 Financial input detected                                         | `SENSITIVE_DATA_SIGNAL`                               | field names/schema refs                      | `ai_input_types`            |             +0.15 | unknown if weak evidence                                   | none                                                                 |
+| AUF-005 Employment input detected                                        | `DOMAIN_CONTEXT_SIGNAL`                               | HR field/route refs                          | `ai_input_types`            |             +0.15 | unknown if weak evidence                                   | none                                                                 |
+| AUF-006 Health input detected                                            | `SENSITIVE_DATA_SIGNAL`                               | health field/route refs                      | `ai_input_types`            |             +0.15 | unknown if weak evidence                                   | none                                                                 |
+| AUF-007 Education input detected                                         | `DOMAIN_CONTEXT_SIGNAL`                               | education field/route refs                   | `ai_input_types`            |             +0.10 | unknown if weak evidence                                   | none                                                                 |
+| AUF-008 Personal data input detected                                     | `SENSITIVE_DATA_SIGNAL`                               | PII field refs                               | `ai_input_types`            |             +0.10 | unknown if weak evidence                                   | none                                                                 |
+| AUF-009 Score output detected                                            | `AI_OUTPUT_SIGNAL`                                    | numeric score variable refs                  | `ai_output_types`           |             +0.15 | none                                                       | none                                                                 |
+| AUF-010 Ranking output detected                                          | `RANKING_SIGNAL`                                      | sort/rank path refs                          | `ai_output_types`           |             +0.20 | none                                                       | none                                                                 |
+| AUF-011 Summary output detected                                          | `AI_OUTPUT_SIGNAL`                                    | summary/description refs                     | `ai_output_types`           |             +0.10 | none                                                       | none                                                                 |
+| AUF-012 Decision label output detected                                   | `AI_OUTPUT_SIGNAL`                                    | label/classification refs                    | `ai_output_types`           |             +0.15 | none                                                       | none                                                                 |
+| AUF-013 Output feeds threshold branch                                    | `AI_DECISION_FLOW_SIGNAL`                             | branch condition refs                        | `downstream_action`         |             +0.25 | abstain if output path dynamic                             | none                                                                 |
+| AUF-014 Output triggers approve/reject                                   | `AUTOMATED_DECISION_SIGNAL`                           | approve/reject action refs                   | `downstream_action`         |             +0.30 | abstain if action target unknown                           | none                                                                 |
+| AUF-015 Output triggers status update                                    | `STATUS_UPDATE_SIGNAL`                                | persistence action refs                      | `downstream_action`         |             +0.25 | abstain if status target unknown                           | none                                                                 |
+| AUF-016 Output displayed to user only                                    | `USER_IMPACT_SIGNAL`                                  | response rendering refs                      | `downstream_action`         |             +0.10 | none                                                       | conflicts with wizard automated decision claim if no action evidence |
+| AUF-017 Human review present                                             | `HUMAN_REVIEW_SIGNAL`                                 | review queue/approval refs                   | `human_review`              |             +0.25 | none                                                       | none                                                                 |
+| AUF-018 Human review absent with bounded path                            | `AUTOMATED_DECISION_SIGNAL`                           | complete bounded path refs                   | `human_review`              |             +0.20 | abstain if path incomplete                                 | conflicts with human-review wizard claim                             |
+| AUF-019 Human review unclear                                             | `UNSUPPORTED_DYNAMIC_FLOW`                            | coverage limitation refs                     | `human_review`              |             -0.20 | require unclear state                                      | none                                                                 |
+| AUF-020 Loan approval context                                            | `DOMAIN_CONTEXT_SIGNAL`                               | loan/credit refs                             | `business_process`          |             +0.20 | unknown if only text hint                                  | none                                                                 |
+| AUF-021 Recruitment context                                              | `DOMAIN_CONTEXT_SIGNAL`                               | candidate/job refs                           | `business_process`          |             +0.20 | unknown if only text hint                                  | none                                                                 |
+| AUF-022 Healthcare context                                               | `DOMAIN_CONTEXT_SIGNAL`                               | patient/medical refs                         | `business_process`          |             +0.20 | unknown if only text hint                                  | none                                                                 |
+| AUF-023 Customer support context                                         | `USER_IMPACT_SIGNAL`                                  | chat/support refs                            | `business_process`          |             +0.10 | none                                                       | none                                                                 |
+| AUF-024 Internal productivity context                                    | `DOMAIN_CONTEXT_SIGNAL`                               | internal tool refs                           | `business_process`          |             +0.10 | none                                                       | none                                                                 |
+| AUF-025 Fully automated decision                                         | `AUTOMATED_DECISION_SIGNAL`                           | output + action + no human review refs       | `automation_level`          |             +0.30 | block if missing output/action link                        | none                                                                 |
+| AUF-026 Semi-automated decision                                          | `AI_DECISION_FLOW_SIGNAL` + `HUMAN_REVIEW_SIGNAL`     | review refs                                  | `automation_level`          |             +0.20 | unknown if review path unclear                             | none                                                                 |
+| AUF-027 Assistive usage                                                  | `AI_MODEL_INVOCATION`                                 | no downstream action, display/summary refs   | `automation_level`          |             +0.10 | abstain if downstream unknown                              | none                                                                 |
+| AUF-028 Financial harm potential                                         | financial input + decision action                     | loan/credit refs                             | `potential_harm_categories` |             +0.20 | block if evidence missing                                  | none                                                                 |
+| AUF-029 Employment discrimination harm potential                         | employment input + ranking/decision                   | HR refs                                      | `potential_harm_categories` |             +0.20 | block if evidence missing                                  | none                                                                 |
+| AUF-030 Provider only abstention                                         | `AI_PROVIDER_USAGE` only                              | package evidence                             | `coverage_limitation`       |             -0.30 | must abstain from legal matching eligibility               | none                                                                 |
+| AUF-031 Dynamic flow limitation                                          | `UNSUPPORTED_DYNAMIC_FLOW`                            | dynamic import/runtime config refs           | `coverage_limitation`       |             -0.25 | mark unknown/unclear                                       | none                                                                 |
+| AUF-032 Wizard conflict: no AI but invocation exists                     | `AI_MODEL_INVOCATION`                                 | wizard no-AI declaration                     | `conflict`                  |             -0.20 | none                                                       | create reconciliation conflict                                       |
+| AUF-033 Wizard conflict: human review claimed but absent                 | `AUTOMATED_DECISION_SIGNAL`                           | wizard human-review claim                    | `conflict`                  |             -0.20 | none                                                       | create reconciliation conflict                                       |
+| AUF-034 Wizard conflict: internal-only but customer-facing evidence      | `USER_IMPACT_SIGNAL`                                  | wizard internal-only claim                   | `conflict`                  |             -0.15 | none                                                       | create reconciliation conflict                                       |
+| AUF-035 Wizard conflict: content-only but scoring/ranking/decision found | `RANKING_SIGNAL` or `AUTOMATED_DECISION_SIGNAL`       | wizard content-only claim                    | `conflict`                  |             -0.20 | none                                                       | create reconciliation conflict                                       |
+| AUF-036 Customer affected subject                                        | `USER_IMPACT_SIGNAL`                                  | customer/user route or response refs         | `affected_subjects`         |             +0.15 | unknown if only generic UI evidence exists                 | conflicts with internal-only wizard claim                            |
+| AUF-037 Applicant or employee affected subject                           | `DOMAIN_CONTEXT_SIGNAL`                               | candidate/employee route, DTO or entity refs | `affected_subjects`         |             +0.15 | unknown if domain evidence is weak                         | conflicts with no affected-subject wizard claim                      |
+| AUF-038 Patient or student affected subject                              | `DOMAIN_CONTEXT_SIGNAL` or `SENSITIVE_DATA_SIGNAL`    | patient/student field, route or entity refs  | `affected_subjects`         |             +0.15 | unknown if domain evidence is weak                         | conflicts with no affected-subject wizard claim                      |
+| AUF-039 Internal staff only affected subject                             | `DOMAIN_CONTEXT_SIGNAL`                               | internal admin/staff-only route refs         | `affected_subjects`         |             +0.05 | unknown if user-facing evidence also exists                | conflicts with customer-facing evidence                              |
+| AUF-040 Health or education harm potential                               | health/education input + decision/recommendation path | domain refs                                  | `potential_harm_categories` |             +0.20 | block if evidence missing                                  | none                                                                 |
+| AUF-041 Material claim evidence eligibility                              | material claim field                                  | one or more evidence refs                    | `coverage_limitation`       |             +0.00 | claim is not legal-matching eligible without evidence refs | none                                                                 |
+| AUF-042 Material claim missing evidence blocks legal matching            | material claim field without evidence refs            | none                                         | `coverage_limitation`       |             -0.35 | must block legal matching eligibility for that claim       | create blocking reason if claim is needed for classification         |
 
 Every material claim used for legal matching must carry at least one `EvidenceRef`. Provider/model/framework detection alone never makes a claim eligible for legal matching.
 

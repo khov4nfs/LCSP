@@ -7,7 +7,7 @@ status: READY_FOR_DEV
 epic_story: 8.6
 depends_on:
   - platform/audit-writer/02-audit-writer-service.md
-  - platform/pbac/03-nestjs-guard.md
+  - platform/rbac/03-nestjs-guard.md
 ---
 
 # List Audit Events Endpoint
@@ -69,12 +69,12 @@ Return paginated audit trail for an organization. Responses are pre-redacted: no
 
 | HTTP | `error_code`         | Meaning                  |
 | ---- | -------------------- | ------------------------ |
-| 403  | `PBAC_DENIED`        | Actor lacks `audit:read` |
+| 403  | `RBAC_DENIED`        | Actor lacks `audit:read` |
 | 400  | `ORG_SCOPE_MISMATCH` | `orgId` ≠ session org    |
 
 ## Business Rules
 
-1. PBAC guard: `action = audit:read`.
+1. RBAC guard: `action = audit:read`.
 2. `orgId` must match `session.organizationId`.
 3. Apply `AuditRedactorService.redact(event.payload)` before returning. Same sanitizer as audit writer — strips fields matching `password|token|secret|key|nonce|code|hash`.
 4. `from_date`/`to_date` used as `occurredAt >= from AND occurredAt <= to` filter.
@@ -96,7 +96,7 @@ Return paginated audit trail for an organization. Responses are pre-redacted: no
 | T03 | Filter by `actor_id`              | Only events for that actor |
 | T04 | Date range filter                 | Events within range        |
 | T05 | Date range > 90 days              | 400 or clamped             |
-| T06 | Actor lacks `audit:read`          | 403 `PBAC_DENIED`          |
+| T06 | Actor lacks `audit:read`          | 403 `RBAC_DENIED`          |
 | T07 | `orgId` mismatch                  | 400 `ORG_SCOPE_MISMATCH`   |
 | T08 | `payload` has no sensitive fields | Redaction verified         |
 

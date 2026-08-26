@@ -2,7 +2,6 @@ export interface DocumentGenerationContextDto {
   document_request: {
     id: string;
     assessment_id: string;
-    organization_id: string;
     classification_result_id: string;
     document_type: string;
   };

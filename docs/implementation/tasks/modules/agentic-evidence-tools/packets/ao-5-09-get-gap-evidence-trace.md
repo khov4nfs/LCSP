@@ -26,7 +26,7 @@ Action `GAP_TRACE_READ`; `GapTraceProjection`; audit-only; 2s/one transient retr
 {"status":"READY","toolName":"get_gap_evidence_trace","toolVersion":"1.0.0","configHash":"sha256:gap-trace-v1","correlationId":"2d1c8928-7799-4e39-a133-c47a3f842b32","artifactVersions":{"gapRowRef":"gap-row:01J9A"},"provenanceRef":"prov:gap-trace:01J9","coverageState":"SUFFICIENT","evidenceRefs":["evidence:fact_01J9"],"limitations":[],"result":{"rowRef":"gap-row:01J9A","layers":[{"layer":"TECHNICAL_EVIDENCE","artifactRef":"evidence:fact_01J9"}],"resolverType":"COLLECT_EVIDENCE"}}
 ```
 ## 7. Error Codes and Typed Outcomes
-`INVALID_ARGUMENT`, `NOT_FOUND`, `OUT_OF_COVERAGE`, `BLOCKED` PBAC/tenant, `FAILED` transient; never infer an absent layer.
+`INVALID_ARGUMENT`, `NOT_FOUND`, `OUT_OF_COVERAGE`, `BLOCKED` RBAC/tenant, `FAILED` transient; never infer an absent layer.
 ## 8. Tool Calling Flow
 ```mermaid
 sequenceDiagram
@@ -34,27 +34,27 @@ participant L as LLM
 participant G as Gateway
 participant T as Trace handler
 L->>G: row ref
-G->>T: PBAC approved
+G->>T: RBAC approved
 T-->>L: capped layers,resolver,audit
 ```
 ## 9. Business Rules
 Follow only immutable row links; tenant match, stable order, no arbitrary graph traversal.
 ## 10. Execution Logic
-Validate→registry/PBAC→projection lookup→cap→privacy/audit→response (`GapTraceTool`).
+Validate→registry/RBAC→projection lookup→cap→privacy/audit→response (`GapTraceTool`).
 ## 11. LLM Tool Definition and Context Contract
 Strict §5, max 3KB; may invoke only returned AO-3 resolver; cannot access artifacts directly.
 ## 12. Tool Registry
 `GapTraceTool`; `GAP_TRACE_READ`; LLM allow-list; 2s/one retry/READ.
 ## 13–15. Audit, Retry, Security
-Audit shared IDs/refs/hash/status; redact content/prompts/secrets/stacks; projection-only worker, tenant/state/PBAC gateway; retry 200ms once then FAILED.
+Audit shared IDs/refs/hash/status; redact content/prompts/secrets/stacks; projection-only worker, tenant/state/RBAC gateway; retry 200ms once then FAILED.
 ## 16. Scenario
 Missing evidence trace returns `COLLECT_EVIDENCE`; model requests that resolver only.
 ## 17. Acceptance Criteria
 Stable trace, strict input, explicit limited/denied result, no source leak.
 ## 18. Test Matrix
-TC valid trace; malformed; missing/limited; PBAC; privacy; timeout.
+TC valid trace; malformed; missing/limited; RBAC; privacy; timeout.
 ## 19. Definition of Done
-Schema/registry/handler/audit/PBAC/tests pass.
+Schema/registry/handler/audit/RBAC/tests pass.
 ## 20. Technical Notes and Files
 Contracts, `gap/trace.py`, API gateway/tests; AO-5 catalog authority.
 ## 21. Open Questions

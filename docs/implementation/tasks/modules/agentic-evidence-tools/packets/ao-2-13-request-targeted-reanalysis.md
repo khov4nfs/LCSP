@@ -113,14 +113,14 @@ Duplicate idempotency key returns same request with `ALREADY_QUEUED`; failed wor
 
 ## 7. Errors and Typed Outcomes
 
-Invalid analyzer/scope/extra args=`INVALID_ARGUMENT`; missing requirement/version=`NEEDS_INPUT`; unsupported scope=`OUT_OF_COVERAGE`; resolver/PBAC/state/snapshot denial=`BLOCKED`; transient outbox failure=`FAILED` after 3 retries then DLQ/checkpoint.
+Invalid analyzer/scope/extra args=`INVALID_ARGUMENT`; missing requirement/version=`NEEDS_INPUT`; unsupported scope=`OUT_OF_COVERAGE`; resolver/RBAC/state/snapshot denial=`BLOCKED`; transient outbox failure=`FAILED` after 3 retries then DLQ/checkpoint.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
 ```mermaid
 sequenceDiagram
  participant O as AO-3 resolver
- participant G as PBAC/state gateway
+ participant G as RBAC/state gateway
  participant H as ReanalysisCommandTool
  participant B as Outbox
  participant W as Scanner worker
@@ -131,7 +131,7 @@ sequenceDiagram
  W-->>O: later new artifact/checkpoint event
 ```
 
-Validate → internal registry → resolver/PBAC/state/snapshot pin → analyzer/scope allow-list → idempotency reservation → capacity admission → outbox transaction/audit → `QUEUED` response. Registry `TargetedReanalysisTool`, `ORCHESTRATOR_ONLY`, action `TECHNICAL_EVIDENCE_REANALYZE`, idempotency key mandatory. `exposed_to_model:false`; AO-3 passes requirement/ref only. Audit shared metadata plus idempotency hash/command/output/checkpoint; no source, shell, URL, raw prompt/secret/AST. Worker reads commit-pinned snapshot and writes new immutable version only.
+Validate → internal registry → resolver/RBAC/state/snapshot pin → analyzer/scope allow-list → idempotency reservation → capacity admission → outbox transaction/audit → `QUEUED` response. Registry `TargetedReanalysisTool`, `ORCHESTRATOR_ONLY`, action `TECHNICAL_EVIDENCE_REANALYZE`, idempotency key mandatory. `exposed_to_model:false`; AO-3 passes requirement/ref only. Audit shared metadata plus idempotency hash/command/output/checkpoint; no source, shell, URL, raw prompt/secret/AST. Worker reads commit-pinned snapshot and writes new immutable version only.
 
 ### Capacity, queue and retry policy (v1)
 
@@ -150,17 +150,17 @@ The baseline scanner has a 600-second scan budget and each `ConsumerBase` proces
 
 Admission is transactional: lock/count active requests for the organization, reserve the idempotency key, create the request in `QUEUED`, its `PENDING_DISPATCH` checkpoint and its outbox event in one database transaction. A scheduler claims the oldest eligible request with `FOR UPDATE SKIP LOCKED`, changes it to `DISPATCHED`, and publishes only if the organization has fewer than two `RUNNING` rows. The worker atomically claims `DISPATCHED` as `RUNNING`; duplicate deliveries return the stored checkpoint state rather than rerunning the analyzer.
 
-Only transient broker/network/PBAC-unavailable/worker-infrastructure failures retry. Invalid scope, pinned-artifact mismatch, PBAC deny, privacy/schema failure and unsupported analyzer are terminal and go directly to `FAILED`/DLQ without retry. DLQ replay requires the existing protected replay path plus a fresh checkpoint transition; it cannot mutate the request scope, analyzer, pinned snapshot or already accepted evidence version.
+Only transient broker/network/RBAC-unavailable/worker-infrastructure failures retry. Invalid scope, pinned-artifact mismatch, RBAC deny, privacy/schema failure and unsupported analyzer are terminal and go directly to `FAILED`/DLQ without retry. DLQ replay requires the existing protected replay path plus a fresh checkpoint transition; it cannot mutate the request scope, analyzer, pinned snapshot or already accepted evidence version.
 
 ## 16–18. Scenario, AC, Tests
 
-Limited TS semantic coverage routes allowed resolver; command queues one analyzer, later links a new report. AC: only allow-list/bounded scope, duplicate has no extra command, prior artifacts unchanged, PBAC/state closed, audit/checkpoint/DLQ observable.
+Limited TS semantic coverage routes allowed resolver; command queues one analyzer, later links a new report. AC: only allow-list/bounded scope, duplicate has no extra command, prior artifacts unchanged, RBAC/state closed, audit/checkpoint/DLQ observable.
 
 | ID    | Scenario                                                                  | Level                |
 | ----- | ------------------------------------------------------------------------- | -------------------- |
 | TC-01 | allowed command/outbox event                                              | integration          |
 | TC-02 | duplicate key replay                                                      | integration          |
-| TC-03 | analyzer/scope/PBAC/state denial                                          | contract/integration |
+| TC-03 | analyzer/scope/RBAC/state denial                                          | contract/integration |
 | TC-04 | source preservation/new version                                           | worker               |
 | TC-05 | 2 running + 10 queued FIFO, 13th capacity rejection and quota windows     | integration          |
 | TC-06 | API 4 publish attempts/backoff/DLQ and audit                              | integration          |

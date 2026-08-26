@@ -36,8 +36,8 @@ Tracked modified files:
 - `apps/api/src/modules/classification/classification.module.ts`
 - `packages/contracts/src/evidence/agentic-tool.ts`
 - `packages/contracts/src/evidence/index.ts`
-- `packages/contracts/src/pbac/actions.ts`
-- `packages/contracts/src/pbac/manager-policy.ts`
+- `packages/contracts/src/rbac/actions.ts`
+- `packages/contracts/src/rbac/manager-policy.ts`
 - `packages/contracts/src/scan/callback.ts`
 
 Untracked packet / registration files to include:
@@ -48,8 +48,8 @@ Untracked packet / registration files to include:
 - `packages/contracts/src/evidence/agentic-tool-ao3.ts`
 - `packages/contracts/src/evidence/ao3-agentic-evidence.ts`
 - `packages/contracts/src/evidence/classification-review-resolution.ts`
-- `packages/contracts/src/pbac/ao3-actions.ts`
-- `packages/contracts/src/pbac/ao3-manager-policy.ts`
+- `packages/contracts/src/rbac/ao3-actions.ts`
+- `packages/contracts/src/rbac/ao3-manager-policy.ts`
 - `packages/contracts/src/scan/callback-ao3.ts`
 
 Conditionally include only if the Jira issue explicitly owns both submit and resolve:
@@ -85,12 +85,12 @@ Do not carry AO-4 or AO-5 packet composition hunks.
 
 - `export * from "./ao3-agentic-evidence.ts";`
 
-`packages/contracts/src/pbac/actions.ts` must carry only:
+`packages/contracts/src/rbac/actions.ts` must carry only:
 
-- the import of `AO3_PBAC_ACTIONS`
-- the spread of `...AO3_PBAC_ACTIONS`
+- the import of `AO3_RBAC_ACTIONS`
+- the spread of `...AO3_RBAC_ACTIONS`
 
-`packages/contracts/src/pbac/manager-policy.ts` must carry only:
+`packages/contracts/src/rbac/manager-policy.ts` must carry only:
 
 - the import of `AO3_MANAGER_ONLY_ACTION_VALUES`
 - the spread of `...AO3_MANAGER_ONLY_ACTION_VALUES`
@@ -127,8 +127,8 @@ Do not move these files into the Candidate 2 branch:
 - `packages/contracts/src/evidence/agentic-tool-ao4.ts`
 - `packages/contracts/src/evidence/ao4-agentic-evidence.ts`
 - `packages/contracts/src/evidence/wizard-claim-comparison.ts`
-- `packages/contracts/src/pbac/ao5-actions.ts`
-- `packages/contracts/src/pbac/ao5-manager-policy.ts`
+- `packages/contracts/src/rbac/ao5-actions.ts`
+- `packages/contracts/src/rbac/ao5-manager-policy.ts`
 - `packages/contracts/src/scan/callback-targeted-reanalysis.ts`
 
 ## Verification commands after extraction
@@ -203,7 +203,7 @@ Verified again on Wednesday, August 12, 2026 in detached scratch worktree:
 Low, but explicit:
 
 1. `classification.module.ts` must be hunk-split carefully to keep AO-5 gap wiring out.
-2. Shared evidence/PBAC/scan composition files must carry only AO-3 hunks.
+2. Shared evidence/RBAC/scan composition files must carry only AO-3 hunks.
 3. Detached verification requires Prisma bootstrap before Jest or the slice will fail with `.prisma/client/default` missing even when the extraction boundary is correct.
 4. If Jira scope includes `submit_classification_review`, the spec-only submit diff must be intentionally included rather than accidentally omitted.
 

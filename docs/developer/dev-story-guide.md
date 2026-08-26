@@ -27,7 +27,7 @@ Bộ `story-handbook/` là implementation packet developer-facing cho từng sto
 ## Guardrails cố định
 
 - Chỉ dùng active docs; không dùng `docs/archive/**`.
-- PBAC là source of truth cho authorization; UI capability không phải authority.
+- RBAC là source of truth cho authorization; UI capability không phải authority.
 - Manager golden path luôn phải giữ được, Developer là optional scoped collaborator nếu docs không nói khác.
 - OAuth/OIDC login và GitHub repository authorization là hai boundary riêng.
 - Audit, privacy, immutability và fail-closed behavior là non-negotiable.
@@ -36,5 +36,5 @@ Bộ `story-handbook/` là implementation packet developer-facing cho từng sto
 
 - Story đang thực thi: `1-1-approved-account-entry-and-workspace-access`.
 - Bootstrap/task catalog nền: `docs/implementation/tasks/modules/README.md`.
-- Authorization foundation: `docs/implementation/tasks/modules/platform/pbac/02-evaluator-service.md`.
+- Authorization foundation: `docs/implementation/tasks/modules/platform/rbac/02-evaluator-service.md`.
 - Runtime summary: `docs/developer/developer-implementation-guide.md`.

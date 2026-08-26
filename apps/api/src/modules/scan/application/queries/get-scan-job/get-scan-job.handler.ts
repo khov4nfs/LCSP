@@ -2,7 +2,6 @@ import {
   REPOSITORY_SCAN_JOB_STATUSES,
   type RepositoryScanJobStatus,
 } from "@lcsp/contracts/github-integration";
-import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import { SCAN_ERROR_CODES, SCAN_JOB_GUIDANCE } from "@lcsp/contracts/scan";
 import { HttpStatus } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
@@ -29,25 +28,17 @@ export class GetScanJobHandler implements IQueryHandler<GetScanJobQuery> {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Enforces developer scope, loads the scan job, and returns normalized status, blocked reason, and next-action guidance.
+   * Loads the scan job and returns normalized status, blocked reason, and next-action guidance.
    *
    * @param query - Scan-job identity, tenant/role/scope, and correlation context.
    * @returns Normalized scan-job status DTO.
-   * @throws A job-not-found problem when the job is missing or outside the caller's developer scope.
+   * @throws A job-not-found problem when the job is missing from the assessment scope.
    */
   async execute(query: GetScanJobQuery): Promise<ScanJobStatusDto> {
-    if (
-      query.subjectRole === SUBJECT_ROLES.developer &&
-      query.scope !== query.assessmentId
-    ) {
-      this.notFound(query.correlationId);
-    }
-
     const job = await this.prisma.repositoryScanJob.findFirst({
       where: {
         id: query.scanJobId,
         assessmentId: query.assessmentId,
-        organizationId: query.organizationId,
       },
       select: {
         id: true,

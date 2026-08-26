@@ -37,7 +37,7 @@ It is not a release sign-off. It is a splitting and audit aid so the current mix
 - `pnpm --filter @lcsp/api test -- --runInBand --runTestsByPath src/modules/classification/presentation/http/classification-review-resolution.controller.spec.ts src/modules/classification/presentation/http/gap-requirements.controller.spec.ts src/modules/classification/application/commands/resolve-classification-review/resolve-classification-review.handler.spec.ts src/modules/classification/application/queries/get-gap-requirements/get-gap-requirements.handler.spec.ts`
   - Result: 4 suites passed, 19 tests passed on 2026-08-12 after extracting AO-3 and AO-5 module wiring into dedicated registration files
 - `pnpm --filter @lcsp/api test -- --runInBand --runTestsByPath src/modules/classification/presentation/http/classification-review-resolution.controller.spec.ts src/modules/classification/presentation/http/gap-requirements.controller.spec.ts src/modules/reconciliation/presentation/http/compare-wizard-claim.controller.spec.ts src/modules/reconciliation/application/queries/compare-wizard-claim/compare-wizard-claim.handler.spec.ts src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.spec.ts`
-  - Result: 5 suites passed, 14 tests passed on 2026-08-12 after moving AO-3, AO-4, and AO-5 shared contract/PBAC additions into issue-owned packet files
+  - Result: 5 suites passed, 14 tests passed on 2026-08-12 after moving AO-3, AO-4, and AO-5 shared contract/RBAC additions into issue-owned packet files
 - `pnpm --filter @lcsp/api test -- --runInBand --runTestsByPath src/modules/scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.handler.spec.ts src/modules/scan/application/commands/process-scan-callback/process-scan-callback.handler.spec.ts src/modules/scan/presentation/http/scan.controller.spec.ts src/modules/classification/application/commands/resolve-classification-review/resolve-classification-review.handler.spec.ts src/modules/classification/application/commands/submit-classification-review/submit-classification-review.handler.spec.ts`
   - Result: 5 suites passed, 29 tests passed on 2026-08-12 after splitting `packages/contracts/src/scan/callback.ts` into AO-3 and targeted-reanalysis packet files
 - `pnpm run check:contracts`
@@ -48,11 +48,11 @@ It is not a release sign-off. It is a splitting and audit aid so the current mix
     - `packages/contracts/src/evidence/ao3-agentic-evidence.ts`
     - `packages/contracts/src/evidence/ao4-agentic-evidence.ts`
     - `packages/contracts/src/evidence/ao5-agentic-evidence.ts`
-    - `packages/contracts/src/pbac/ao3-actions.ts`
-    - `packages/contracts/src/pbac/ao5-actions.ts`
-    - `packages/contracts/src/pbac/ao3-manager-policy.ts`
-    - `packages/contracts/src/pbac/ao5-manager-policy.ts`
-- `pnpm run check:contracts 2>&1 | rg 'packages/contracts/src/evidence/agentic-tool-ao|packages/contracts/src/evidence/ao[345]-agentic-evidence|packages/contracts/src/pbac/ao[35]-(actions|manager-policy)'`
+    - `packages/contracts/src/rbac/ao3-actions.ts`
+    - `packages/contracts/src/rbac/ao5-actions.ts`
+    - `packages/contracts/src/rbac/ao3-manager-policy.ts`
+    - `packages/contracts/src/rbac/ao5-manager-policy.ts`
+- `pnpm run check:contracts 2>&1 | rg 'packages/contracts/src/evidence/agentic-tool-ao|packages/contracts/src/evidence/ao[345]-agentic-evidence|packages/contracts/src/rbac/ao[35]-(actions|manager-policy)'`
   - Result: no matches on 2026-08-12, confirming the new AO-3/AO-4/AO-5 packet files were not named by the contract-literal checker output
 - `pnpm --filter @lcsp/api test -- --runInBand --runTestsByPath src/modules/legal-rule-catalog/presentation/http/admin-source-catalog.controller.spec.ts src/modules/legal-rule-catalog/application/queries/get-admin-source-catalog/get-admin-source-catalog.handler.spec.ts`
   - Result: 2 suites passed, 5 tests passed on 2026-08-12 after implementing AO-6-01 `get_admin_source_catalog`
@@ -149,12 +149,12 @@ It is not a release sign-off. It is a splitting and audit aid so the current mix
 | `packages/contracts/src/evidence/gap-requirements.ts` | Indirect typecheck/build/spec imports | Used by handler/controller specs. |
 | `packages/contracts/src/evidence/index.ts` | Indirect typecheck/build | Barrel export verification only. |
 | `packages/contracts/src/evidence/wizard-claim-comparison.ts` | Indirect typecheck/build/spec imports | Used by compare-wizard-claim path. |
-| `packages/contracts/src/pbac/ao3-actions.ts` | Indirect build + focused Sprint 6 suites | AO-3 PBAC packet composed into `actions.ts`. |
-| `packages/contracts/src/pbac/ao5-actions.ts` | Indirect build + focused Sprint 6 suites | AO-5 PBAC packet composed into `actions.ts`. |
-| `packages/contracts/src/pbac/ao3-manager-policy.ts` | Indirect build + focused Sprint 6 suites | AO-3 manager-only packet composed into `manager-policy.ts`. |
-| `packages/contracts/src/pbac/ao5-manager-policy.ts` | Indirect build + focused Sprint 6 suites | AO-5 manager-only packet composed into `manager-policy.ts`. |
-| `packages/contracts/src/pbac/actions.ts` | Indirect typecheck/build/spec imports | Verified through controller/handler compile path. |
-| `packages/contracts/src/pbac/manager-policy.ts` | Indirect typecheck/build/spec imports | Verified through controller/handler compile path. |
+| `packages/contracts/src/rbac/ao3-actions.ts` | Indirect build + focused Sprint 6 suites | AO-3 RBAC packet composed into `actions.ts`. |
+| `packages/contracts/src/rbac/ao5-actions.ts` | Indirect build + focused Sprint 6 suites | AO-5 RBAC packet composed into `actions.ts`. |
+| `packages/contracts/src/rbac/ao3-manager-policy.ts` | Indirect build + focused Sprint 6 suites | AO-3 manager-only packet composed into `manager-policy.ts`. |
+| `packages/contracts/src/rbac/ao5-manager-policy.ts` | Indirect build + focused Sprint 6 suites | AO-5 manager-only packet composed into `manager-policy.ts`. |
+| `packages/contracts/src/rbac/actions.ts` | Indirect typecheck/build/spec imports | Verified through controller/handler compile path. |
+| `packages/contracts/src/rbac/manager-policy.ts` | Indirect typecheck/build/spec imports | Verified through controller/handler compile path. |
 | `packages/contracts/src/scan/callback.ts` | Indirect typecheck/build/spec imports | Verified through scan/reconciliation/classification imports and tests. |
 
 ## Current issue buckets inside the mixed worktree
@@ -198,8 +198,8 @@ These files must be split carefully when returning to `1 branch = 1 issue = 1 PR
 
 - `packages/contracts/src/evidence/agentic-tool.ts`
 - `packages/contracts/src/evidence/index.ts`
-- `packages/contracts/src/pbac/actions.ts`
-- `packages/contracts/src/pbac/manager-policy.ts`
+- `packages/contracts/src/rbac/actions.ts`
+- `packages/contracts/src/rbac/manager-policy.ts`
 - `packages/contracts/src/scan/callback.ts`
 - `apps/api/src/modules/classification/classification.module.ts`
 - `apps/api/src/modules/reconciliation/reconciliation.module.ts`
@@ -228,8 +228,8 @@ Split caution:
 - Avoid taking the current mixed changes in:
   - `packages/contracts/src/evidence/agentic-tool.ts`
   - `packages/contracts/src/evidence/index.ts`
-  - `packages/contracts/src/pbac/actions.ts`
-  - `packages/contracts/src/pbac/manager-policy.ts`
+  - `packages/contracts/src/rbac/actions.ts`
+  - `packages/contracts/src/rbac/manager-policy.ts`
   because the current diff in those files is dominated by AO-3/AO-4/AO-5 additions unrelated to targeted reanalysis.
 
 #### Candidate 1 exact changed-file set from the current mixed worktree
@@ -251,8 +251,8 @@ Do not include from the current branch:
 
 - `packages/contracts/src/evidence/agentic-tool.ts`
 - `packages/contracts/src/evidence/index.ts`
-- `packages/contracts/src/pbac/actions.ts`
-- `packages/contracts/src/pbac/manager-policy.ts`
+- `packages/contracts/src/rbac/actions.ts`
+- `packages/contracts/src/rbac/manager-policy.ts`
 - `packages/contracts/src/scan/callback-ao3.ts`
 
 Unchanged but functionally adjacent files that can stay out of the PR if they are not otherwise modified:
@@ -301,8 +301,8 @@ Include:
 - `packages/contracts/src/evidence/agentic-tool-ao3.ts`
 - `packages/contracts/src/evidence/ao3-agentic-evidence.ts`
 - `packages/contracts/src/evidence/classification-review-resolution.ts`
-- `packages/contracts/src/pbac/ao3-actions.ts`
-- `packages/contracts/src/pbac/ao3-manager-policy.ts`
+- `packages/contracts/src/rbac/ao3-actions.ts`
+- `packages/contracts/src/rbac/ao3-manager-policy.ts`
 
 Conditionally include only if the issue is defined as "submit + resolve" together:
 
@@ -312,8 +312,8 @@ Include minimal composition hunks only, not the full mixed shared-file diff:
 
 - `packages/contracts/src/evidence/agentic-tool.ts`
 - `packages/contracts/src/evidence/index.ts`
-- `packages/contracts/src/pbac/actions.ts`
-- `packages/contracts/src/pbac/manager-policy.ts`
+- `packages/contracts/src/rbac/actions.ts`
+- `packages/contracts/src/rbac/manager-policy.ts`
 
 Mixed-file blocker:
 
@@ -387,15 +387,15 @@ Include:
 - `packages/contracts/src/evidence/agentic-tool-ao5.ts`
 - `packages/contracts/src/evidence/ao5-agentic-evidence.ts`
 - `packages/contracts/src/evidence/gap-requirements.ts`
-- `packages/contracts/src/pbac/ao5-actions.ts`
-- `packages/contracts/src/pbac/ao5-manager-policy.ts`
+- `packages/contracts/src/rbac/ao5-actions.ts`
+- `packages/contracts/src/rbac/ao5-manager-policy.ts`
 
 Include minimal composition hunks only, not the full mixed shared-file diff:
 
 - `packages/contracts/src/evidence/agentic-tool.ts`
 - `packages/contracts/src/evidence/index.ts`
-- `packages/contracts/src/pbac/actions.ts`
-- `packages/contracts/src/pbac/manager-policy.ts`
+- `packages/contracts/src/rbac/actions.ts`
+- `packages/contracts/src/rbac/manager-policy.ts`
 
 Conditionally include only if you are willing to patch-split mixed module wiring:
 
@@ -512,8 +512,8 @@ Do not treat these touched files as new AO-4 production scope by themselves:
 
 Do not include from the current branch:
 
-- `packages/contracts/src/pbac/actions.ts`
-- `packages/contracts/src/pbac/manager-policy.ts`
+- `packages/contracts/src/rbac/actions.ts`
+- `packages/contracts/src/rbac/manager-policy.ts`
 
 Mixed-file blocker:
 
@@ -547,7 +547,7 @@ Shared-file/process overlap:
 
 - `packages/contracts/src/evidence/agentic-tool.ts` currently mixes AO-3, AO-4, and AO-5 tool-name/event additions.
 - `packages/contracts/src/evidence/index.ts` currently mixes AO-3, AO-4, and AO-5 barrel exports.
-- `packages/contracts/src/pbac/actions.ts` and `packages/contracts/src/pbac/manager-policy.ts` currently mix AO-3 and AO-5 permission additions; they do not yet carry an AO-4-specific delta in the current diff.
+- `packages/contracts/src/rbac/actions.ts` and `packages/contracts/src/rbac/manager-policy.ts` currently mix AO-3 and AO-5 permission additions; they do not yet carry an AO-4-specific delta in the current diff.
 
 Recommended extraction rule:
 
@@ -718,20 +718,20 @@ Split rule:
 
 - candidate-local to AO-5 gap requirements
 
-### `packages/contracts/src/pbac/actions.ts`
+### `packages/contracts/src/rbac/actions.ts`
 
 Current mixed additions:
 
 - composition spreads for:
-  - `AO5_PBAC_ACTIONS`
-  - `AO3_PBAC_ACTIONS`
+  - `AO5_RBAC_ACTIONS`
+  - `AO3_RBAC_ACTIONS`
 
 Split rule:
 
 - keep this file as thin composition only
-- issue-owned PBAC packet should travel with the owning branch
+- issue-owned RBAC packet should travel with the owning branch
 
-### `packages/contracts/src/pbac/ao3-actions.ts`
+### `packages/contracts/src/rbac/ao3-actions.ts`
 
 Current owned additions:
 
@@ -742,7 +742,7 @@ Split rule:
 
 - candidate-local to AO-3 review resolution
 
-### `packages/contracts/src/pbac/ao5-actions.ts`
+### `packages/contracts/src/rbac/ao5-actions.ts`
 
 Current owned additions:
 
@@ -753,7 +753,7 @@ Split rule:
 
 - candidate-local to AO-5 gap requirements
 
-### `packages/contracts/src/pbac/manager-policy.ts`
+### `packages/contracts/src/rbac/manager-policy.ts`
 
 Current mixed additions:
 
@@ -764,25 +764,25 @@ Current mixed additions:
 Split rule:
 
 - keep this file as thin composition only
-- keep issue-owned manager-policy packet in lockstep with the matching PBAC action packet
+- keep issue-owned manager-policy packet in lockstep with the matching RBAC action packet
 
-### `packages/contracts/src/pbac/ao3-manager-policy.ts`
+### `packages/contracts/src/rbac/ao3-manager-policy.ts`
 
 Current owned additions:
 
 - AO-3:
-  - `PBAC_ACTIONS.classificationReviewResolve`
+  - `RBAC_ACTIONS.classificationReviewResolve`
 
 Split rule:
 
 - candidate-local to AO-3 review resolution
 
-### `packages/contracts/src/pbac/ao5-manager-policy.ts`
+### `packages/contracts/src/rbac/ao5-manager-policy.ts`
 
 Current owned additions:
 
 - AO-5:
-  - `PBAC_ACTIONS.gapRequirementsRead`
+  - `RBAC_ACTIONS.gapRequirementsRead`
 
 Split rule:
 
@@ -913,13 +913,13 @@ These items still require deliberate patch-splitting or issue-owned movement bef
    - Remaining reason: same composition-root issue as above for AO-3/AO-4/AO-5 contract packets.
    - Safe path: move only the relevant packet export line with the owning issue branch.
 
-4. `packages/contracts/src/pbac/actions.ts`
-   - Remaining reason: shared composition file for AO-3 and AO-5 PBAC packets.
+4. `packages/contracts/src/rbac/actions.ts`
+   - Remaining reason: shared composition file for AO-3 and AO-5 RBAC packets.
    - Safe path: take only the minimal spread hunk required by the owning branch.
 
-5. `packages/contracts/src/pbac/manager-policy.ts`
+5. `packages/contracts/src/rbac/manager-policy.ts`
    - Remaining reason: shared composition file for AO-3 and AO-5 manager-only packets.
-   - Safe path: keep in lockstep with `packages/contracts/src/pbac/actions.ts`.
+   - Safe path: keep in lockstep with `packages/contracts/src/rbac/actions.ts`.
 
 6. `packages/contracts/src/scan/callback.ts`
    - Remaining reason: shared composition file for AO-3 classification-review events and Candidate 1 targeted-reanalysis events.

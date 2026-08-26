@@ -187,7 +187,7 @@ Do not commit if any of these are true:
 - `packages/contracts/src/scan/callback.ts` still contains `AO3_SCAN_EVENT_TYPES`
 - `packages/contracts/src/scan/callback.ts` no longer contains `classificationReviewRequested` and `classificationReviewRequestedAudit`
 - scratch worktree contains `packages/contracts/src/evidence/*` packet files
-- scratch worktree contains `packages/contracts/src/pbac/*` packet files
+- scratch worktree contains `packages/contracts/src/rbac/*` packet files
 - verification commands fail
 
 ## Source authority

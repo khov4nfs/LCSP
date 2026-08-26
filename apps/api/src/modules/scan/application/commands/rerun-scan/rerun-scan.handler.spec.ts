@@ -1,21 +1,21 @@
-import { describe, expect, it, jest, beforeEach } from "@jest/globals";
-import { Test, type TestingModule } from "@nestjs/testing";
+import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
 } from "@nestjs/common";
+import { Test, type TestingModule } from "@nestjs/testing";
 
 import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
-import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
-import { RerunScanHandler } from "./rerun-scan.handler.js";
 import { RerunScanCommand } from "./rerun-scan.command.js";
+import { RerunScanHandler } from "./rerun-scan.handler.js";
 
 describe("RerunScanHandler", () => {
   let handler: RerunScanHandler;
@@ -23,23 +23,18 @@ describe("RerunScanHandler", () => {
   let auditWriter: jest.Mocked<AuditWriterService>;
   let outbox: jest.Mocked<OutboxRepository>;
 
-  const defaultPbac = {
+  const defaultRbac = {
     userId: "user-1",
     sessionId: "sess",
-    organizationId: "org-1",
-    subjectRole: SUBJECT_ROLES.manager,
+    role: AUTH_USER_ROLES.customer,
     scope: "assessment-1",
-    grantedActions: [],
-    selectedAction: PBAC_ACTIONS.scanTrigger,
-    policyId: "pol",
-    policyVersion: "1",
   };
 
   const defaultCommand = new RerunScanCommand(
     "assessment-1",
     "snapshot-1",
     "idempotency-key",
-    defaultPbac,
+    defaultRbac,
     "corr-id",
     "reason",
   );
@@ -212,7 +207,7 @@ describe("RerunScanHandler", () => {
       "assessment-1",
       "snapshot-1",
       "",
-      defaultPbac,
+      defaultRbac,
       "corr",
     );
     await expect(handler.execute(cmd)).rejects.toThrow(BadRequestException);
@@ -226,7 +221,6 @@ describe("RerunScanHandler", () => {
       status: REPOSITORY_SCAN_JOB_STATUSES.queued,
       assessmentId: "assessment-1",
       snapshotId: "snapshot-1",
-      organizationId: "org-1",
     });
 
     const result = await handler.execute(defaultCommand);
@@ -269,7 +263,6 @@ describe("RerunScanHandler", () => {
     ).mockResolvedValueOnce({
       id: "snapshot-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       commitSha: "a".repeat(40),
     });
     (prisma.assessment.findUnique as jest.Mock<any>).mockResolvedValueOnce(
@@ -290,12 +283,10 @@ describe("RerunScanHandler", () => {
     ).mockResolvedValueOnce({
       id: "snapshot-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       commitSha: "a".repeat(40),
     });
     (prisma.assessment.findUnique as jest.Mock<any>).mockResolvedValueOnce({
       id: "assessment-1",
-      organizationId: "org-1",
       ownerId: "other-user",
       status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
     });
@@ -314,12 +305,10 @@ describe("RerunScanHandler", () => {
     ).mockResolvedValueOnce({
       id: "snapshot-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       commitSha: "a".repeat(40),
     });
     (prisma.assessment.findUnique as jest.Mock<any>).mockResolvedValueOnce({
       id: "assessment-1",
-      organizationId: "org-1",
       ownerId: "user-1",
       status: "INVALID_STATE",
     });
@@ -338,12 +327,10 @@ describe("RerunScanHandler", () => {
     ).mockResolvedValueOnce({
       id: "snapshot-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       commitSha: "a".repeat(40),
     });
     (prisma.assessment.findUnique as jest.Mock<any>).mockResolvedValueOnce({
       id: "assessment-1",
-      organizationId: "org-1",
       ownerId: "user-1",
       status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
     });
@@ -389,12 +376,10 @@ describe("RerunScanHandler", () => {
     ).mockResolvedValueOnce({
       id: "snapshot-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       commitSha: "a".repeat(40),
     });
     (prisma.assessment.findUnique as jest.Mock<any>).mockResolvedValueOnce({
       id: "assessment-1",
-      organizationId: "org-1",
       ownerId: "user-1",
       status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
     });
@@ -420,12 +405,10 @@ describe("RerunScanHandler", () => {
     ).mockResolvedValueOnce({
       id: "snapshot-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       commitSha: "a".repeat(40),
     });
     (prisma.assessment.findUnique as jest.Mock<any>).mockResolvedValueOnce({
       id: "assessment-1",
-      organizationId: "org-1",
       ownerId: "user-1",
       status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
     });
@@ -473,12 +456,10 @@ describe("RerunScanHandler", () => {
     ).mockResolvedValueOnce({
       id: "snapshot-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       commitSha: "a".repeat(40),
     });
     (prisma.assessment.findUnique as jest.Mock<any>).mockResolvedValueOnce({
       id: "assessment-1",
-      organizationId: "org-1",
       ownerId: "user-1",
       status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
     });

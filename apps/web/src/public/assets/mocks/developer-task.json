@@ -1,5 +1,0 @@
-{
-  "organization": { "id": "org-lcsp", "name": "LCSP" },
-  "scope": { "type": "organization", "assessment": null },
-  "granted_actions": ["assessment:list", "assessment:read", "evidence:read"]
-}

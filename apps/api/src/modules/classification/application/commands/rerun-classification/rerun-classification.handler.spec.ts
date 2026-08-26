@@ -1,5 +1,5 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   CLASSIFICATION_RERUN_STATUSES,
   SCAN_EVENT_TYPES,
@@ -19,16 +19,11 @@ type EvidenceReportFixture = {
 } | null;
 
 describe("RerunClassificationHandler", () => {
-  const pbacContext = {
+  const rbacContext = {
     userId: "user-1",
     sessionId: "session-1",
-    organizationId: "org-1",
-    subjectRole: SUBJECT_ROLES.manager,
+    role: AUTH_USER_ROLES.customer,
     scope: "assessment-1",
-    grantedActions: [PBAC_ACTIONS.classificationRun],
-    selectedAction: PBAC_ACTIONS.classificationRun,
-    policyId: "policy-1",
-    policyVersion: "1",
   };
 
   function createHandler(options?: { evidenceReport?: EvidenceReportFixture }) {
@@ -76,7 +71,7 @@ describe("RerunClassificationHandler", () => {
     const result = await handler.execute(
       new RerunClassificationCommand(
         "assessment-1",
-        pbacContext,
+        rbacContext,
         "correlation-1",
       ),
     );
@@ -90,7 +85,6 @@ describe("RerunClassificationHandler", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           assessmentId: "assessment-1",
-          organizationId: "org-1",
         }),
         orderBy: { createdAt: "desc" },
       }),
@@ -125,7 +119,7 @@ describe("RerunClassificationHandler", () => {
       handler.execute(
         new RerunClassificationCommand(
           "assessment-1",
-          pbacContext,
+          rbacContext,
           "correlation-1",
         ),
       ),
@@ -138,14 +132,14 @@ describe("RerunClassificationHandler", () => {
     const first = await handler.execute(
       new RerunClassificationCommand(
         "assessment-1",
-        pbacContext,
+        rbacContext,
         "correlation-1",
       ),
     );
     const second = await handler.execute(
       new RerunClassificationCommand(
         "assessment-1",
-        pbacContext,
+        rbacContext,
         "correlation-2",
       ),
     );

@@ -26,7 +26,7 @@ Instead it uses:
 
 - a fresh scratch worktree from `HEAD`
 - selective file copy from the mixed worktree
-- manual shared-file cleanup for the AO-3-only hunks in classification/evidence/PBAC/scan composition files
+- manual shared-file cleanup for the AO-3-only hunks in classification/evidence/RBAC/scan composition files
 
 ## Inputs
 
@@ -66,7 +66,7 @@ mkdir -p "$LCSP_CANDIDATE2_WORKTREE/apps/api/src/modules/classification/applicat
 mkdir -p "$LCSP_CANDIDATE2_WORKTREE/apps/api/src/modules/classification/presentation/http"
 mkdir -p "$LCSP_CANDIDATE2_WORKTREE/apps/api/src/modules/classification"
 mkdir -p "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/evidence"
-mkdir -p "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/pbac"
+mkdir -p "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/rbac"
 mkdir -p "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/scan"
 ```
 
@@ -95,14 +95,14 @@ cp "$LCSP_REPO_ROOT/packages/contracts/src/evidence/agentic-tool.ts" \
   "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/evidence/"
 cp "$LCSP_REPO_ROOT/packages/contracts/src/evidence/index.ts" \
   "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/evidence/"
-cp "$LCSP_REPO_ROOT/packages/contracts/src/pbac/ao3-actions.ts" \
-  "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/pbac/"
-cp "$LCSP_REPO_ROOT/packages/contracts/src/pbac/ao3-manager-policy.ts" \
-  "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/pbac/"
-cp "$LCSP_REPO_ROOT/packages/contracts/src/pbac/actions.ts" \
-  "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/pbac/"
-cp "$LCSP_REPO_ROOT/packages/contracts/src/pbac/manager-policy.ts" \
-  "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/pbac/"
+cp "$LCSP_REPO_ROOT/packages/contracts/src/rbac/ao3-actions.ts" \
+  "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/rbac/"
+cp "$LCSP_REPO_ROOT/packages/contracts/src/rbac/ao3-manager-policy.ts" \
+  "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/rbac/"
+cp "$LCSP_REPO_ROOT/packages/contracts/src/rbac/actions.ts" \
+  "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/rbac/"
+cp "$LCSP_REPO_ROOT/packages/contracts/src/rbac/manager-policy.ts" \
+  "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/rbac/"
 cp "$LCSP_REPO_ROOT/packages/contracts/src/scan/callback-ao3.ts" \
   "$LCSP_CANDIDATE2_WORKTREE/packages/contracts/src/scan/"
 cp "$LCSP_REPO_ROOT/packages/contracts/src/scan/callback.ts" \
@@ -123,8 +123,8 @@ Open these scratch-worktree files:
 - [classification.module.ts](/home/khovan/Workplaces/LCSP-candidate-2/apps/api/src/modules/classification/classification.module.ts)
 - [agentic-tool.ts](/home/khovan/Workplaces/LCSP-candidate-2/packages/contracts/src/evidence/agentic-tool.ts)
 - [index.ts](/home/khovan/Workplaces/LCSP-candidate-2/packages/contracts/src/evidence/index.ts)
-- [actions.ts](/home/khovan/Workplaces/LCSP-candidate-2/packages/contracts/src/pbac/actions.ts)
-- [manager-policy.ts](/home/khovan/Workplaces/LCSP-candidate-2/packages/contracts/src/pbac/manager-policy.ts)
+- [actions.ts](/home/khovan/Workplaces/LCSP-candidate-2/packages/contracts/src/rbac/actions.ts)
+- [manager-policy.ts](/home/khovan/Workplaces/LCSP-candidate-2/packages/contracts/src/rbac/manager-policy.ts)
 - [callback.ts](/home/khovan/Workplaces/LCSP-candidate-2/packages/contracts/src/scan/callback.ts)
 
 Keep only Candidate 2 / AO-3 content:
@@ -138,7 +138,7 @@ Keep only Candidate 2 / AO-3 content:
 - `index.ts`
   - `export * from "./ao3-agentic-evidence.ts";`
 - `actions.ts`
-  - `AO3_PBAC_ACTIONS`
+  - `AO3_RBAC_ACTIONS`
 - `manager-policy.ts`
   - `AO3_MANAGER_ONLY_ACTION_VALUES`
 - `callback.ts`
@@ -173,10 +173,10 @@ git diff -- \
   packages/contracts/src/evidence/ao3-agentic-evidence.ts \
   packages/contracts/src/evidence/agentic-tool.ts \
   packages/contracts/src/evidence/index.ts \
-  packages/contracts/src/pbac/ao3-actions.ts \
-  packages/contracts/src/pbac/ao3-manager-policy.ts \
-  packages/contracts/src/pbac/actions.ts \
-  packages/contracts/src/pbac/manager-policy.ts \
+  packages/contracts/src/rbac/ao3-actions.ts \
+  packages/contracts/src/rbac/ao3-manager-policy.ts \
+  packages/contracts/src/rbac/actions.ts \
+  packages/contracts/src/rbac/manager-policy.ts \
   packages/contracts/src/scan/callback-ao3.ts \
   packages/contracts/src/scan/callback.ts
 ```
@@ -205,10 +205,10 @@ git add \
   packages/contracts/src/evidence/ao3-agentic-evidence.ts \
   packages/contracts/src/evidence/agentic-tool.ts \
   packages/contracts/src/evidence/index.ts \
-  packages/contracts/src/pbac/ao3-actions.ts \
-  packages/contracts/src/pbac/ao3-manager-policy.ts \
-  packages/contracts/src/pbac/actions.ts \
-  packages/contracts/src/pbac/manager-policy.ts \
+  packages/contracts/src/rbac/ao3-actions.ts \
+  packages/contracts/src/rbac/ao3-manager-policy.ts \
+  packages/contracts/src/rbac/actions.ts \
+  packages/contracts/src/rbac/manager-policy.ts \
   packages/contracts/src/scan/callback-ao3.ts \
   packages/contracts/src/scan/callback.ts
 ```

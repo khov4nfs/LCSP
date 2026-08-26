@@ -9,7 +9,7 @@ status: DONE
 
 ## Objective and tool definition
 
-Run deterministic quality gates over canonical extraction/OCR manifests: page continuity, confidence, numbering, document identity, hierarchy markers and hashes. `SYSTEM_ONLY` read/validation tool; PBAC `LEGAL_CORPUS_VALIDATE`; LLM sees only manifest findings.
+Run deterministic quality gates over canonical extraction/OCR manifests: page continuity, confidence, numbering, document identity, hierarchy markers and hashes. `SYSTEM_ONLY` read/validation tool; RBAC `LEGAL_CORPUS_VALIDATE`; LLM sees only manifest findings.
 
 ## Input
 

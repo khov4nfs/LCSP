@@ -4,7 +4,6 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 
 import { AppModule } from "../src/app.module.js";
 import {
@@ -12,10 +11,11 @@ import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
+  seedLegalClassificationParents,
+  seedVerifiedProfileGraph,
 } from "./support/auth-workspace-test-helpers.js";
 import { httpRequest, successBody } from "./support/http.js";
 
-const ORGANIZATION_ID = "org-1";
 const ASSESSMENT_ID = "assessment-citation-validation";
 const CORPUS_ID = "corpus-citation-01";
 const DOCUMENT_ID = "document-citation-01";
@@ -24,7 +24,7 @@ const MATCH_ID = "match-citation-01";
 describe("Citation set validation endpoint (e2e)", () => {
   let app: INestApplication;
   let prisma: PrismaClient;
-  let managerToken: string;
+  let adminToken: string;
 
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DATABASE_URL;
@@ -46,30 +46,16 @@ describe("Citation set validation endpoint (e2e)", () => {
     await prisma.assessment.deleteMany();
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
-    const policy = await prisma.authPolicy.findUniqueOrThrow({
-      where: {
-        id_version: { id: "policy-manager-workspace", version: "2026-06-26" },
-      },
-      select: { actions: true },
+    await seedVerifiedProfileGraph(prisma, {
+      assessmentId: ASSESSMENT_ID,
+      verifiedProfileId: "verified-profile-1",
     });
-    await prisma.authPolicy.update({
-      where: {
-        id_version: { id: "policy-manager-workspace", version: "2026-06-26" },
-      },
-      data: {
-        actions: [...policy.actions, PBAC_ACTIONS.legalCitationValidate],
-      },
-    });
-    await prisma.assessment.create({
-      data: {
-        id: ASSESSMENT_ID,
-        organizationId: ORGANIZATION_ID,
-        ownerId: "user-1",
-        name: "Citation validation assessment",
-      },
+    await prisma.assessment.update({
+      where: { id: ASSESSMENT_ID },
+      data: { name: "Citation validation assessment" },
     });
     await seedCorpusAndMatch(prisma);
-    managerToken = await signIn(app);
+    adminToken = await signInAsAdmin(app);
   });
 
   afterAll(async () => {
@@ -80,7 +66,7 @@ describe("Citation set validation endpoint (e2e)", () => {
   it("TC-01/TC-05: validates an allow-listed citation and audits only safe refs", async () => {
     const response = await httpRequest(app)
       .post(`/assessments/${ASSESSMENT_ID}/citation-set-validation`)
-      .set("Authorization", `Bearer ${managerToken}`)
+      .set("Authorization", `Bearer ${adminToken}`)
       .send({
         corpusVersionId: `corpus_${CORPUS_ID}`,
         legalRuleMatchId: `legal_rule_match_${MATCH_ID}`,
@@ -105,10 +91,10 @@ describe("Citation set validation endpoint (e2e)", () => {
     );
   });
 
-  it("TC-03/TC-04: rejects an out-of-allowlist citation and PBAC denial fails closed", async () => {
+  it("TC-03/TC-04: rejects an out-of-allowlist citation", async () => {
     const invalid = await httpRequest(app)
       .post(`/assessments/${ASSESSMENT_ID}/citation-set-validation`)
-      .set("Authorization", `Bearer ${managerToken}`)
+      .set("Authorization", `Bearer ${adminToken}`)
       .send({
         corpusVersionId: `corpus_${CORPUS_ID}`,
         legalRuleMatchId: `legal_rule_match_${MATCH_ID}`,
@@ -126,30 +112,18 @@ describe("Citation set validation endpoint (e2e)", () => {
         .result.items[0]?.validity,
       "OUT_OF_ALLOWLIST",
     );
-    await prisma.authPolicy.update({
-      where: {
-        id_version: { id: "policy-manager-workspace", version: "2026-06-26" },
-      },
-      data: { actions: [PBAC_ACTIONS.assessmentRead] },
-    });
-    const denied = await httpRequest(app)
-      .post(`/assessments/${ASSESSMENT_ID}/citation-set-validation`)
-      .set("Authorization", `Bearer ${managerToken}`)
-      .send({
-        corpusVersionId: `corpus_${CORPUS_ID}`,
-        legalRuleMatchId: `legal_rule_match_${MATCH_ID}`,
-        citationRefs: ["citation:chunk_allowed1"],
-      });
-    assert.equal(denied.status, 403);
   });
 });
 
 async function seedCorpusAndMatch(prisma: PrismaClient): Promise<void> {
-  await prisma.legalCorpusVersion.create({
+  await seedLegalClassificationParents(prisma, {
+    corpusVersionId: CORPUS_ID,
+    catalogVersionId: "catalog-1",
+  });
+  await prisma.legalCorpusVersion.update({
+    where: { id: CORPUS_ID },
     data: {
-      id: CORPUS_ID,
       version: "corpus-citation-v1",
-      status: "APPROVED",
       sourceManifest: {},
     },
   });
@@ -198,7 +172,6 @@ async function seedCorpusAndMatch(prisma: PrismaClient): Promise<void> {
       id: MATCH_ID,
       verifiedProfileId: "verified-profile-1",
       assessmentId: ASSESSMENT_ID,
-      organizationId: ORGANIZATION_ID,
       corpusVersionId: CORPUS_ID,
       legalRuleCatalogVersionId: "catalog-1",
       schemaVersion: "1.0.0",
@@ -211,11 +184,10 @@ async function seedCorpusAndMatch(prisma: PrismaClient): Promise<void> {
   });
 }
 
-async function signIn(app: INestApplication): Promise<string> {
+async function signInAsAdmin(app: INestApplication): Promise<string> {
   const response = await httpRequest(app).post("/auth/sign-in").send({
-    email: "manager@acme.test",
-    password: "CorrectHorseBatteryStaple!",
-    organization_id: ORGANIZATION_ID,
+    email: "nomembership@acme.test",
+    password: "NoMembership123!",
   });
   return String(
     successBody<{ session_token?: string }>(response).session_token ?? "",

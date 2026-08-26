@@ -73,9 +73,9 @@ Allow a user to explicitly revoke their current session, preventing further acce
 | `RevokeSessionCommand`       | App command      | `{ sessionToken, correlationId? }`                                       |
 | `event.auth.session-revoked` | `AuthAuditEvent` | `{ actorId, sessionId, organizationId, correlationId, decision: allow }` |
 
-## PBAC
+## RBAC
 
-No PBAC check beyond proving ownership of the session token. A user can only revoke their own session.
+No RBAC check beyond proving ownership of the session token. A user can only revoke their own session.
 
 ## Test Cases
 

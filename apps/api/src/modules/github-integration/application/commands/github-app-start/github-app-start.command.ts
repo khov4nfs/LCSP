@@ -9,7 +9,6 @@ export class GitHubAppStartCommand extends Command<GitHubAppStartDto> {
   /**
    * Creates a GitHub App start command.
    *
-   * @param organizationId - Organization that will own the GitHub App installation/linkage.
    * @param userId - Authenticated user initiating the installation flow.
    * @param redirectUri - Optional client redirect URI to restore after GitHub authorization.
    * @param assessmentId - Optional assessment that should receive the resulting repository connection.
@@ -18,7 +17,6 @@ export class GitHubAppStartCommand extends Command<GitHubAppStartDto> {
    * @param installationId - Optional existing GitHub installation identifier when reconnecting/resuming.
    */
   constructor(
-    public readonly organizationId: string,
     public readonly userId: string,
     public readonly redirectUri: string | undefined,
     public readonly assessmentId: string | undefined,

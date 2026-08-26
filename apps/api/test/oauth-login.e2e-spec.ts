@@ -1,10 +1,4 @@
-import type { AuthMembershipStatus } from "@lcsp/contracts/auth";
-import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
-import {
-  PBAC_ACTIONS,
-  PBAC_STATE_GATES,
-  SUBJECT_ROLES,
-} from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import * as assert from "node:assert/strict";
 
 import type { INestApplication } from "@nestjs/common";
@@ -43,7 +37,6 @@ function fakeResponse(status: number, body: unknown): FakeFetchResponse {
 describe("OAuth login (e2e)", () => {
   let app: INestApplication;
   let prisma: PrismaClient;
-  let organizationId: string;
   let originalFetch: typeof fetch;
   let oauthNonceForMock: string;
 
@@ -67,10 +60,6 @@ describe("OAuth login (e2e)", () => {
 
   beforeEach(async () => {
     await resetAuthWorkspaceDatabase(prisma);
-    organizationId = "org-oauth-1";
-    await prisma.authOrganization.create({
-      data: { id: organizationId, slug: "oauth-acme", name: "OAuth Acme" },
-    });
     originalFetch = globalThis.fetch;
     oauthNonceForMock = "";
   });
@@ -203,7 +192,6 @@ describe("OAuth login (e2e)", () => {
     await seedLinkedUser({
       emailVerified: true,
       providerAccountId: "888",
-      membershipStatus: AUTH_MEMBERSHIP_STATUSES.active,
     });
     const before = await prisma.repositoryConnection.count();
     const state = await startOAuthFlow();
@@ -222,7 +210,6 @@ describe("OAuth login (e2e)", () => {
     const userId = await seedLinkedUser({
       emailVerified: true,
       providerAccountId: "111",
-      membershipStatus: AUTH_MEMBERSHIP_STATUSES.active,
     });
     const state = await startOAuthFlow();
     mockGoogleFetch("111");
@@ -234,7 +221,6 @@ describe("OAuth login (e2e)", () => {
 
     const success = successBody<OAuthCallbackSuccess>(result);
     assert.equal(typeof success.session_token, "string");
-    assert.equal(success.organization_id, organizationId);
     assert.equal(success.mfa_required, false);
     assert.ok(success.expires_at > Date.now());
 
@@ -289,7 +275,6 @@ describe("OAuth login (e2e)", () => {
     await seedLinkedUser({
       emailVerified: true,
       providerAccountId: "444",
-      membershipStatus: AUTH_MEMBERSHIP_STATUSES.active,
     });
     const state = await startOAuthFlow();
     mockGoogleFetch("444");
@@ -348,7 +333,6 @@ describe("OAuth login (e2e)", () => {
     await seedLinkedUser({
       emailVerified: false,
       providerAccountId: "555",
-      membershipStatus: AUTH_MEMBERSHIP_STATUSES.active,
     });
     const state = await startOAuthFlow();
     mockGoogleFetch("555");
@@ -362,29 +346,10 @@ describe("OAuth login (e2e)", () => {
     assert.equal(failure.problem.code, AUTH_ERROR_CODES.accountNotFound);
   });
 
-  it("rejects a callback when the linked account has no active membership", async () => {
-    await seedLinkedUser({
-      emailVerified: true,
-      providerAccountId: "666",
-      membershipStatus: AUTH_MEMBERSHIP_STATUSES.revoked,
-    });
-    const state = await startOAuthFlow();
-    mockGoogleFetch("666");
-
-    const result = await httpRequest(app)
-      .get("/auth/oauth/callback")
-      .query({ code: "good-code", state, provider: "google" })
-      .expect(403);
-
-    const failure = expectFailure(result.body);
-    assert.equal(failure.problem.code, AUTH_ERROR_CODES.membershipMissing);
-  });
-
   it("successful login audit never contains the provider access token", async () => {
     await seedLinkedUser({
       emailVerified: true,
       providerAccountId: "777",
-      membershipStatus: AUTH_MEMBERSHIP_STATUSES.active,
     });
     const state = await startOAuthFlow();
     mockGoogleFetch("777");
@@ -445,7 +410,6 @@ describe("OAuth login (e2e)", () => {
   async function seedLinkedUser(input: {
     emailVerified: boolean;
     providerAccountId: string;
-    membershipStatus: AuthMembershipStatus;
   }): Promise<string> {
     const userId = `user-oauth-${input.providerAccountId}`;
     await prisma.authUser.create({
@@ -455,6 +419,7 @@ describe("OAuth login (e2e)", () => {
         passwordHash: hashSecret("UnusedPassword123!"),
         emailVerified: input.emailVerified,
         failedLoginCount: 0,
+        role: AUTH_USER_ROLES.customer,
       },
     });
     await prisma.authOAuthIdentity.create({
@@ -463,34 +428,6 @@ describe("OAuth login (e2e)", () => {
         userId,
         provider: "google",
         providerAccountId: input.providerAccountId,
-      },
-    });
-    await prisma.authPolicy.upsert({
-      where: {
-        id_version: {
-          id: "policy-oauth-workspace",
-          version: "2026-07-10",
-        },
-      },
-      create: {
-        id: "policy-oauth-workspace",
-        version: "2026-07-10",
-        actions: [PBAC_ACTIONS.workspaceRead],
-        subjectRole: SUBJECT_ROLES.manager,
-        stateGate: PBAC_STATE_GATES.membershipActive,
-        organizationId,
-      },
-      update: {},
-    });
-    await prisma.authMembership.create({
-      data: {
-        id: `membership-${input.providerAccountId}`,
-        userId,
-        organizationId,
-        status: input.membershipStatus,
-        subjectAttributes: { role: SUBJECT_ROLES.manager },
-        policyId: "policy-oauth-workspace",
-        policyVersion: "2026-07-10",
       },
     });
     return userId;

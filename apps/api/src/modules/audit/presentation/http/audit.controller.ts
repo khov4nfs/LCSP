@@ -13,12 +13,12 @@ import {
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { AUDIT_ERROR_CODES } from "@lcsp/contracts/audit";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type { Response } from "express";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import type { AuditExportArtifact } from "../../application/contracts/audit/audit-export.contract.js";
@@ -34,9 +34,9 @@ interface AuditExportBody {
 }
 
 /**
- * Exposes organization-scoped audit browsing, export generation/status, and signed artifact download endpoints.
+ * Exposes audit browsing, export generation/status, and signed artifact download endpoints.
  */
-@Controller("organizations/:orgId/audit-events")
+@Controller("audit-events")
 export class AuditController {
   /**
    * Creates the controller with CQRS dispatch and signed-download verification support.
@@ -52,23 +52,21 @@ export class AuditController {
   ) {}
 
   /**
-   * Lists redacted audit events for an organization using optional event, actor, date, and pagination filters.
+   * Lists redacted audit events using optional event, actor, date, and pagination filters.
    *
-   * @param organizationId - Organization identifier from the route.
    * @param eventType - Optional event-type filter.
    * @param actorId - Optional actor identifier filter.
    * @param fromDate - Optional inclusive date-range start.
    * @param toDate - Optional inclusive date-range end.
    * @param page - Optional page number query value.
    * @param pageSize - Optional page-size query value.
-   * @param request - Authenticated request containing PBAC and correlation context.
+   * @param request - Authenticated request containing RBAC and correlation context.
    * @returns The standard result envelope containing a paginated audit event list.
    */
   @Get()
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.auditRead)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.admin)
   async listAuditEvents(
-    @Param("orgId") organizationId: string,
     @Query("event_type") eventType: string | undefined,
     @Query("actor_id") actorId: string | undefined,
     @Query("from_date") fromDate: string | undefined,
@@ -77,13 +75,9 @@ export class AuditController {
     @Query("page_size") pageSize: string | undefined,
     @Req() request: AuthenticatedRequest,
   ) {
-    const context = request.pbacContext;
-
     return resultEnvelope(
       await this.queryBus.execute(
         new ListAuditEventsQuery(
-          organizationId,
-          context.organizationId,
           eventType,
           actorId,
           fromDate,
@@ -97,19 +91,17 @@ export class AuditController {
   }
 
   /**
-   * Generates a versioned audit export for the requested organization/date range.
+   * Generates a versioned audit export for the requested date range.
    *
-   * @param organizationId - Organization identifier from the route.
    * @param body - Required export date range.
-   * @param request - Authenticated request containing organization/user and correlation context.
+   * @param request - Authenticated request containing user and correlation context.
    * @returns The standard result envelope containing generated export request metadata.
    */
   @Post("export")
   @HttpCode(202)
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.auditExport)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.admin)
   async exportAuditTrail(
-    @Param("orgId") organizationId: string,
     @Body() body: AuditExportBody,
     @Req() request: AuthenticatedRequest,
   ) {
@@ -121,9 +113,7 @@ export class AuditController {
     return resultEnvelope(
       await this.commandBus.execute(
         new ExportAuditTrailCommand(
-          organizationId,
-          request.pbacContext.organizationId,
-          request.pbacContext.userId,
+          request.rbacContext.userId,
           body.from_date,
           body.to_date,
           correlationId,
@@ -135,24 +125,20 @@ export class AuditController {
   /**
    * Returns export lifecycle and signed-download metadata for one audit export request.
    *
-   * @param organizationId - Organization identifier from the route.
    * @param exportRequestId - Audit export request identifier.
-   * @param request - Authenticated request containing organization and correlation context.
+   * @param request - Authenticated request containing correlation context.
    * @returns The standard result envelope containing export status metadata.
    */
   @Get("export/:exportRequestId")
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.auditExport)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.admin)
   async getAuditExport(
-    @Param("orgId") organizationId: string,
     @Param("exportRequestId") exportRequestId: string,
     @Req() request: AuthenticatedRequest,
   ) {
     return resultEnvelope(
       await this.queryBus.execute(
         new GetAuditExportQuery(
-          organizationId,
-          request.pbacContext.organizationId,
           exportRequestId,
           request.correlationId as string,
         ),
@@ -163,7 +149,6 @@ export class AuditController {
   /**
    * Verifies a signed download token and streams the persisted audit artifact as a JSON attachment.
    *
-   * @param organizationId - Organization identifier bound into the signed token.
    * @param exportRequestId - Export request identifier bound into the signed token.
    * @param token - Signed, expiring download token from the query string.
    * @param response - Express response used to send the JSON attachment.
@@ -172,7 +157,6 @@ export class AuditController {
    */
   @Get("export/:exportRequestId/download")
   async downloadAuditExport(
-    @Param("orgId") organizationId: string,
     @Param("exportRequestId") exportRequestId: string,
     @Query("token") token: string | undefined,
     @Res() response: Response,
@@ -188,7 +172,6 @@ export class AuditController {
 
     const payload = this.storage.verifySignedDownloadToken(
       token,
-      organizationId,
       exportRequestId,
     );
     if (!payload) {
@@ -200,11 +183,7 @@ export class AuditController {
     }
 
     const artifact: AuditExportArtifact = await this.queryBus.execute(
-      new GetAuditExportArtifactQuery(
-        organizationId,
-        exportRequestId,
-        crypto.randomUUID(),
-      ),
+      new GetAuditExportArtifactQuery(exportRequestId, crypto.randomUUID()),
     );
 
     response.setHeader("Content-Type", "application/json; charset=utf-8");

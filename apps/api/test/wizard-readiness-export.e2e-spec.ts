@@ -11,8 +11,6 @@ import {
   type AssessmentStatusCode,
   WIZARD_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import { WIZARD_EVENT_TYPES } from "@lcsp/contracts/wizard";
 import {
   READINESS_CLASSIFICATION_STATUSES,
@@ -30,6 +28,7 @@ import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
+  seedRepositoryScanGraph,
 } from "./support/auth-workspace-test-helpers.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
@@ -216,12 +215,18 @@ describe("Wizard Readiness Export Endpoint (e2e) [MW-wiz-004]", () => {
 
   it("T02 rejects readiness export when accepted technical evidence already exists", async () => {
     await seedSubmittedWizard(prisma);
+    await seedRepositoryScanGraph(prisma, {
+      assessmentId: "assessment-1",
+      userId: "user-1",
+      connectionId: "connection-1",
+      snapshotId: "snapshot-1",
+      scanJobId: "scan-job-1",
+    });
     await prisma.technicalEvidenceReport.create({
       data: {
         id: "evidence-1",
         scanJobId: "scan-job-1",
         assessmentId: "assessment-1",
-        organizationId: "org-1",
         snapshotId: "snapshot-1",
         toolsVersion: { semgrep: "1.0.0" },
         configHash: { semgrep: "sha256:abc" },
@@ -251,26 +256,6 @@ describe("Wizard Readiness Export Endpoint (e2e) [MW-wiz-004]", () => {
       problemCode(response),
       READINESS_EXPORT_ERROR_CODES.wizardNotSubmitted,
     );
-  });
-
-  it("T07 denies actors without wizard export action", async () => {
-    await seedSubmittedWizard(prisma);
-    await prisma.authPolicy.update({
-      where: {
-        id_version: {
-          id: "policy-manager-workspace",
-          version: "2026-06-26",
-        },
-      },
-      data: {
-        actions: [PBAC_ACTIONS.workspaceRead, PBAC_ACTIONS.assessmentRead],
-      },
-    });
-
-    const response = await requestExport(app, managerToken);
-
-    assert.equal(response.status, 403);
-    assert.equal(problemCode(response), AUTH_ERROR_CODES.pbacDenied);
   });
 
   it("T08 creates a new immutable row for each generated export", async () => {
@@ -319,7 +304,6 @@ async function seedSubmittedWizard(prisma: PrismaClient): Promise<void> {
     data: {
       id: "wizard-profile-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       ownerId: "user-1",
       version: 3,
       status: WIZARD_STATUS_CODES.submitted,
@@ -373,7 +357,6 @@ async function seedAssessment(
   await prisma.assessment.create({
     data: {
       id: "assessment-1",
-      organizationId: "org-1",
       ownerId: "user-1",
       name: "Wizard readiness export assessment",
       status,

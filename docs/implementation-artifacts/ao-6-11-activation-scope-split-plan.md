@@ -47,7 +47,7 @@ These are the AO-6-11-owned surfaces that should stay in the final issue branch 
   - `packages/contracts/src/evidence/index.ts`
   - `packages/contracts/src/legal-rule-catalog/event-types.ts`
   - `packages/contracts/src/outbox/outbox-message.types.ts`
-  - `packages/contracts/src/pbac/actions.ts`
+  - `packages/contracts/src/rbac/actions.ts`
 
 ### Exclude from AO-6-11
 
@@ -100,7 +100,7 @@ In shared files, keep only the AO-6-11-specific hunks:
 
 - activation tool registration
 - activation event type
-- activation PBAC action
+- activation RBAC action
 
 Remove all AO-6-03 through AO-6-10 contract exports or registrations.
 

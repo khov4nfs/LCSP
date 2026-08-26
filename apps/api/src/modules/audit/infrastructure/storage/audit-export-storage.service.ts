@@ -2,13 +2,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { Injectable } from "@nestjs/common";
 
 interface SignedDownloadInput {
-  organizationId: string;
   exportRequestId: string;
   expiresAt: Date;
 }
 
 interface SignedDownloadTokenPayload {
-  organizationId: string;
   exportRequestId: string;
   expiresAt: string;
 }
@@ -19,14 +17,13 @@ interface SignedDownloadTokenPayload {
 @Injectable()
 export class AuditExportStorageService {
   /**
-   * Creates a signed relative download URL bound to one organization, export request, and expiration time.
+   * Creates a signed relative download URL bound to one export request and expiration time.
    *
-   * @param input - Organization/export identity and token expiration timestamp.
+   * @param input - Export identity and token expiration timestamp.
    * @returns Relative download URL containing the encoded payload and HMAC signature.
    */
   createSignedDownloadUrl(input: SignedDownloadInput): string {
     const payload: SignedDownloadTokenPayload = {
-      organizationId: input.organizationId,
       exportRequestId: input.exportRequestId,
       expiresAt: input.expiresAt.toISOString(),
     };
@@ -36,20 +33,18 @@ export class AuditExportStorageService {
     ).toString("base64url");
     const signature = this.sign(encodedPayload);
 
-    return `/organizations/${encodeURIComponent(input.organizationId)}/audit-events/export/${encodeURIComponent(input.exportRequestId)}/download?token=${encodedPayload}.${signature}`;
+    return `/audit-events/export/${encodeURIComponent(input.exportRequestId)}/download?token=${encodedPayload}.${signature}`;
   }
 
   /**
    * Verifies a signed download token against its signature, route identity, and expiration time.
    *
    * @param token - Encoded payload and signature supplied by the download client.
-   * @param organizationId - Organization identifier expected by the route.
    * @param exportRequestId - Export request identifier expected by the route.
    * @returns Verified token payload, or null when the token is malformed, forged, mismatched, or expired.
    */
   verifySignedDownloadToken(
     token: string,
-    organizationId: string,
     exportRequestId: string,
   ): SignedDownloadTokenPayload | null {
     const [encodedPayload, signature] = token.split(".");
@@ -67,7 +62,6 @@ export class AuditExportStorageService {
         Buffer.from(encodedPayload, "base64url").toString("utf8"),
       ) as Partial<SignedDownloadTokenPayload>;
       if (
-        payload.organizationId !== organizationId ||
         payload.exportRequestId !== exportRequestId ||
         typeof payload.expiresAt !== "string"
       ) {
@@ -80,7 +74,6 @@ export class AuditExportStorageService {
       }
 
       return {
-        organizationId: payload.organizationId,
         exportRequestId: payload.exportRequestId,
         expiresAt: payload.expiresAt,
       };

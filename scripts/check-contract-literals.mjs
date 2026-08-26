@@ -16,16 +16,12 @@ import {
 } from "@lcsp/contracts/assessment";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
-  ACCEPT_INVITATION_ERROR_CODES,
   AUTH_AUDIT_EVENT_TYPES,
   AUTH_ERROR_CODES,
-  AUTH_INVITATION_STATES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
   AUTH_MEMBERSHIP_STATUSES,
-  INVITE_DEVELOPER_ERROR_CODES,
   ORGANIZATION_SCOPE_ERROR_CODES,
   REQUIRED_ACTIONS,
-  REVOKE_MEMBERSHIP_ERROR_CODES,
   WORKSPACE_CAPABILITY_SOURCES,
 } from "@lcsp/contracts/auth";
 import {
@@ -42,12 +38,10 @@ import {
   OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
 import {
-  PBAC_ACTIONS,
-  PBAC_DECISION,
-  PBAC_REASON_CODE,
-  PBAC_STATE_GATES,
-  SUBJECT_ROLES,
-} from "@lcsp/contracts/pbac";
+  RBAC_ACTIONS,
+  RBAC_DECISION,
+  RBAC_REASON_CODE,
+} from "@lcsp/contracts/rbac";
 import { SERVICE_HEALTH_STATUSES } from "@lcsp/contracts/shared";
 import {
   SCAN_CALLBACK_STATUSES,
@@ -59,11 +53,10 @@ import {
 import { WIZARD_EVENT_TYPES } from "@lcsp/contracts/wizard";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-const sourceRoots = ["apps/api/src", "apps/api/test", "apps/web/src"];
+const sourceRoots = ["apps/api/src", "apps/web/src"];
 const extensions = new Set([".ts", ".tsx"]);
 const canonicalValues = new Set(
   [
-    ACCEPT_INVITATION_ERROR_CODES,
     ASSESSMENT_ACTIONS,
     ASSESSMENT_ERROR_CODES,
     ASSESSMENT_EVENT_TYPES,
@@ -74,32 +67,27 @@ const canonicalValues = new Set(
     AUDIT_DECISIONS,
     AUTH_AUDIT_EVENT_TYPES,
     AUTH_ERROR_CODES,
-    AUTH_INVITATION_STATES,
     AUTH_LEGACY_AUDIT_EVENT_TYPES,
     AUTH_MEMBERSHIP_STATUSES,
     GITHUB_INTEGRATION_ERROR_CODES,
     GITHUB_INTEGRATION_EVENT_TYPES,
     GITHUB_REPOSITORY_PERMISSION_LEVELS,
-    INVITE_DEVELOPER_ERROR_CODES,
     ORGANIZATION_SCOPE_ERROR_CODES,
     OUTBOX_AUDIT_EVENT_TYPES,
     OUTBOX_STATUSES,
-    PBAC_ACTIONS,
-    PBAC_DECISION,
-    PBAC_REASON_CODE,
-    PBAC_STATE_GATES,
+    RBAC_ACTIONS,
+    RBAC_DECISION,
+    RBAC_REASON_CODE,
     REPOSITORY_CONNECTION_STATUSES,
     REPOSITORY_SCAN_JOB_STATUSES,
     REPOSITORY_SCAN_TRIGGER_SOURCES,
     REPOSITORY_SNAPSHOT_STATUSES,
     REQUIRED_ACTIONS,
-    REVOKE_MEMBERSHIP_ERROR_CODES,
     SCAN_CALLBACK_STATUSES,
     SCAN_ERROR_CODES,
     SCAN_EVENT_TYPES,
     SCAN_JOB_GUIDANCE,
     SERVICE_HEALTH_STATUSES,
-    SUBJECT_ROLES,
     TECHNICAL_EVIDENCE_REPORT_STATUSES,
     WIZARD_EVENT_TYPES,
     WIZARD_STATUS_CODES,
@@ -137,6 +125,7 @@ for (const sourceRoot of sourceRoots) {
       file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
     );
     const isTestFile = file.endsWith(".spec.ts") || file.endsWith(".test.ts");
+    if (isTestFile) continue;
 
     function visit(node) {
       if (

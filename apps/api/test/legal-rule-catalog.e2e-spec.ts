@@ -1,9 +1,9 @@
-import * as assert from "node:assert/strict";
-import { createHash } from "node:crypto";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
+import * as assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { httpRequest, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
@@ -14,12 +14,7 @@ import {
   seedAuthWorkspaceFixture,
 } from "./support/auth-workspace-test-helpers.js";
 
-import {
-  PBAC_ACTIONS,
-  PBAC_STATE_GATES,
-  SUBJECT_ROLES,
-} from "@lcsp/contracts/pbac";
-import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
 
 describe("Legal Rule Catalog Endpoints (e2e)", () => {
@@ -29,7 +24,6 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
   let prisma: PrismaClient;
   let authorToken: string;
   let approverToken: string;
-  let restrictedToken: string;
   const orgId = "org-1";
 
   beforeAll(async () => {
@@ -67,20 +61,6 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
     ).hashSecret;
     const passwordHash = hashFn("CorrectHorseBatteryStaple!");
 
-    const authorPolicyId = "policy-author";
-    await prisma.authPolicy.create({
-      data: {
-        id: authorPolicyId,
-        version: "2026-07-26-author",
-        actions: [
-          PBAC_ACTIONS.legalRuleCatalogAuthor,
-          PBAC_ACTIONS.legalCorpusIngest,
-        ],
-        subjectRole: SUBJECT_ROLES.developer,
-        stateGate: PBAC_STATE_GATES.membershipActive,
-        organizationId: orgId,
-      },
-    });
     const authorUserId = "user-author";
     await prisma.authUser.create({
       data: {
@@ -89,17 +69,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
         passwordHash,
         emailVerified: true,
         failedLoginCount: 0,
-      },
-    });
-    await prisma.authMembership.create({
-      data: {
-        id: "mem-author",
-        userId: authorUserId,
-        organizationId: orgId,
-        status: AUTH_MEMBERSHIP_STATUSES.active,
-        subjectAttributes: { role: SUBJECT_ROLES.developer },
-        policyId: authorPolicyId,
-        policyVersion: "2026-07-26-author",
+        role: AUTH_USER_ROLES.admin,
       },
     });
     const signInAuthor = await httpRequest(app).post("/auth/sign-in").send({
@@ -111,20 +81,6 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
       successBody<{ session_token?: string }>(signInAuthor).session_token ?? "",
     );
 
-    const approverPolicyId = "policy-approver";
-    await prisma.authPolicy.create({
-      data: {
-        id: approverPolicyId,
-        version: "2026-07-26-approver",
-        actions: [
-          PBAC_ACTIONS.legalRuleCatalogApprove,
-          PBAC_ACTIONS.legalCorpusApprove,
-        ],
-        subjectRole: SUBJECT_ROLES.developer,
-        stateGate: PBAC_STATE_GATES.membershipActive,
-        organizationId: orgId,
-      },
-    });
     const approverUserId = "user-approver";
     await prisma.authUser.create({
       data: {
@@ -133,17 +89,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
         passwordHash,
         emailVerified: true,
         failedLoginCount: 0,
-      },
-    });
-    await prisma.authMembership.create({
-      data: {
-        id: "mem-approver",
-        userId: approverUserId,
-        organizationId: orgId,
-        status: AUTH_MEMBERSHIP_STATUSES.active,
-        subjectAttributes: { role: SUBJECT_ROLES.developer },
-        policyId: approverPolicyId,
-        policyVersion: "2026-07-26-approver",
+        role: AUTH_USER_ROLES.admin,
       },
     });
     const signInApprover = await httpRequest(app).post("/auth/sign-in").send({
@@ -156,17 +102,6 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
         "",
     );
 
-    const restrictedPolicyId = "policy-restricted";
-    await prisma.authPolicy.create({
-      data: {
-        id: restrictedPolicyId,
-        version: "2026-07-26-restricted",
-        actions: [PBAC_ACTIONS.workspaceRead],
-        subjectRole: SUBJECT_ROLES.developer,
-        stateGate: PBAC_STATE_GATES.membershipActive,
-        organizationId: orgId,
-      },
-    });
     const restrictedUserId = "user-restricted";
     await prisma.authUser.create({
       data: {
@@ -175,17 +110,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
         passwordHash,
         emailVerified: true,
         failedLoginCount: 0,
-      },
-    });
-    await prisma.authMembership.create({
-      data: {
-        id: "mem-restricted",
-        userId: restrictedUserId,
-        organizationId: orgId,
-        status: AUTH_MEMBERSHIP_STATUSES.active,
-        subjectAttributes: { role: SUBJECT_ROLES.developer },
-        policyId: restrictedPolicyId,
-        policyVersion: "2026-07-26-restricted",
+        role: AUTH_USER_ROLES.customer,
       },
     });
 
@@ -203,10 +128,8 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
       password: "CorrectHorseBatteryStaple!",
       organization_id: orgId,
     });
-    restrictedToken = String(
-      successBody<{ session_token?: string }>(signInRestricted).session_token ??
-        "",
-    );
+    void successBody<{ session_token?: string }>(signInRestricted)
+      .session_token;
   });
 
   afterAll(async () => {
@@ -242,24 +165,6 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
       );
       assert.equal(body.legalRuleId, "RULE-TEST-001");
       assert.equal(body.status, "DRAFT");
-    });
-
-    it("T06: Returns 403 when called by restricted user", async () => {
-      const response = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/rules")
-        .set("Authorization", `Bearer ${restrictedToken}`)
-        .send(payload);
-
-      assert.equal(response.status, 403);
-    });
-
-    it("T06: Returns 403 when called by approver user (missing author right)", async () => {
-      const response = await httpRequest(app)
-        .post("/internal/legal-rule-catalog/rules")
-        .set("Authorization", `Bearer ${approverToken}`)
-        .send(payload);
-
-      assert.equal(response.status, 403);
     });
   });
 
@@ -765,24 +670,6 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
         successBody<{ status: string }>(response).status,
         LEGAL_RULE_LIFECYCLE_STATUSES.approved,
       );
-    });
-
-    it("T06: Returns 403 when called by restricted user", async () => {
-      const response = await httpRequest(app)
-        .post(`/internal/legal-rule-catalog/versions/${versionId}/approve`)
-        .set("Authorization", `Bearer ${restrictedToken}`)
-        .send({ scopeDescription: "Test" });
-
-      assert.equal(response.status, 403);
-    });
-
-    it("T06: Returns 403 when called by author user (missing approve right)", async () => {
-      const response = await httpRequest(app)
-        .post(`/internal/legal-rule-catalog/versions/${versionId}/approve`)
-        .set("Authorization", `Bearer ${authorToken}`)
-        .send({ scopeDescription: "Test" });
-
-      assert.equal(response.status, 403);
     });
   });
 });

@@ -20,7 +20,7 @@ As a Manager, I want to review AIUsageFlow claims and uncertainty, so that I can
 
 3. **Given** a Developer has scoped access to technical evidence only
    **When** the Developer requests AIUsageFlow review
-   **Then** LCSP applies PBAC to hide Manager-only review actions and out-of-scope business declarations
+   **Then** LCSP applies RBAC to hide Manager-only review actions and out-of-scope business declarations
    **And** audits access.
 
 ## Dev Notes
@@ -45,26 +45,26 @@ As a Manager, I want to review AIUsageFlow claims and uncertainty, so that I can
 ### Story-Specific Implementation Tasks
 
 - Create Manager review surface showing claim summaries, refs, confidence, unknowns and conflict candidates.
-- Enforce PBAC-scoped view differences for Developers versus Managers.
+- Enforce RBAC-scoped view differences for Developers versus Managers.
 - Keep review state neutral and clearly pre-reconciliation/pre-classification.
 
 ### Story-Specific Subtasks
 
 - Build Manager review read model for claims, source refs, confidence, uncertainty and conflict candidates.
 - Render declaration-backed versus scanner-backed claims distinctly so provenance is visible at a glance.
-- Apply PBAC-scoped filtering for Developer access so out-of-scope business declarations and Manager-only actions stay hidden.
+- Apply RBAC-scoped filtering for Developer access so out-of-scope business declarations and Manager-only actions stay hidden.
 - Keep copy, labels and next actions neutral so the surface cannot be mistaken for VerifiedProfile approval or final classification.
 
 ### Task to Acceptance Criteria Traceability
 
 - `AC1`: Create Manager review surface showing claim summaries, refs, confidence, unknowns and conflict candidates.
-- `AC2`: Enforce PBAC-scoped view differences for Developers versus Managers.
+- `AC2`: Enforce RBAC-scoped view differences for Developers versus Managers.
 - `AC3`: Keep review state neutral and clearly pre-reconciliation/pre-classification.
 
 ### Dependencies and Prerequisites
 
 - Stories 4.1-4.5 AIUsageFlow artifact and conflict candidates.
-- PBAC collaboration scope from Epic 1/3.
+- RBAC collaboration scope from Epic 1/3.
 
 ### Explicit Non-Goals
 

@@ -17,7 +17,7 @@ As a Manager or scoped Developer, I want to review redacted technical findings, 
    **When** the Developer opens technical findings
    **Then** LCSP shows only assigned or permitted finding surfaces
    **And** hides Manager-only controls and out-of-scope assessment data
-   **And** all access is PBAC-evaluated and audited.
+   **And** all access is RBAC-evaluated and audited.
 
 3. **Given** a Developer has assigned repository or findings tasks
    **When** the Developer opens the workspace
@@ -55,19 +55,19 @@ As a Manager or scoped Developer, I want to review redacted technical findings, 
 ### Story-Specific Implementation Tasks
 
 - Build review surface for technical findings with redacted evidence context and scoped access rules.
-- Separate Manager/business-safe views from Developer technical scope where required by PBAC.
+- Separate Manager/business-safe views from Developer technical scope where required by RBAC.
 - Audit findings access and prevent exposure of raw source, secrets or out-of-scope data.
 
 ### Task to Acceptance Criteria Traceability
 
 - `AC1`: Build review surface for technical findings with redacted evidence context and scoped access rules.
-- `AC2`: Separate Manager/business-safe views from Developer technical scope where required by PBAC.
+- `AC2`: Separate Manager/business-safe views from Developer technical scope where required by RBAC.
 - `AC3`: Audit findings access and prevent exposure of raw source, secrets or out-of-scope data.
 
 ### Dependencies and Prerequisites
 
 - Story 3.8 TechnicalProfile and accepted evidence.
-- PBAC scoped Developer collaboration from Epic 1.
+- RBAC scoped Developer collaboration from Epic 1.
 
 ### Explicit Non-Goals
 

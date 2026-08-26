@@ -76,7 +76,7 @@ Allow an authenticated user to update their display name and/or recovery email. 
 | `UpdateProfileCommand`       | App command      | `{ sessionToken, displayName?, recoveryEmail?, correlationId? }`               |
 | `event.auth.profile-updated` | `AuthAuditEvent` | `{ actorId, fieldsUpdated: ['displayName'?,'recoveryEmail'?], correlationId }` |
 
-## PBAC
+## RBAC
 
 Requires valid session. User updates their own profile only. No organization-scope check needed.
 

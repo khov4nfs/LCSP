@@ -9,7 +9,6 @@ import {
   DOCUMENT_TYPES,
 } from "@lcsp/contracts/document";
 import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
-import { PBAC_ACTIONS, PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
 import {
   CLASSIFICATION_GUARDRAIL_STATUSES,
   CLASSIFICATION_RESULT_STATUSES,
@@ -34,6 +33,8 @@ import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
+  seedLegalClassificationParents,
+  seedVerifiedProfileGraph,
 } from "./support/auth-workspace-test-helpers.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
@@ -52,14 +53,11 @@ describe("Request Final Report Endpoint (e2e) [LCSP-81]", () => {
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DATABASE_URL;
     pushPrismaSchema();
-
     prisma = new PrismaClient({ adapter: new PrismaPg(TEST_DATABASE_URL) });
     await prisma.$connect();
-
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
-
     app = moduleFixture.createNestApplication();
     await app.init();
   });
@@ -78,20 +76,16 @@ describe("Request Final Report Endpoint (e2e) [LCSP-81]", () => {
     await prisma.assessment.deleteMany();
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
-
     await prisma.assessment.create({
       data: {
         id: "assessment-1",
-        organizationId: "org-1",
         ownerId: "user-1",
         name: "Final report assessment",
       },
     });
-
     const signIn = await httpRequest(app).post("/auth/sign-in").send({
       email: "manager@acme.test",
       password: "CorrectHorseBatteryStaple!",
-      organization_id: "org-1",
     });
     managerToken = successBody<SignInSuccess>(signIn).session_token;
   });
@@ -103,14 +97,12 @@ describe("Request Final Report Endpoint (e2e) [LCSP-81]", () => {
 
   it("returns QUEUED and writes document request, outbox, and audit when guardrail passed", async () => {
     await seedClassification(prisma, CLASSIFICATION_GUARDRAIL_STATUSES.passed);
-
     const response = await requestFinalReport(
       app,
       managerToken,
       "assessment-1",
     );
     const body = successBody<SuccessResponse>(response);
-
     assert.equal(response.status, 202);
     assert.ok(body.document_request_id);
     assert.equal(body.status, DOCUMENT_REQUEST_STATUSES.queued);
@@ -135,7 +127,6 @@ describe("Request Final Report Endpoint (e2e) [LCSP-81]", () => {
         },
       }),
     ]);
-
     assert.ok(docRequest);
     assert.equal(
       docRequest?.status,
@@ -154,19 +145,16 @@ describe("Request Final Report Endpoint (e2e) [LCSP-81]", () => {
       prisma,
       CLASSIFICATION_GUARDRAIL_STATUSES.degraded,
     );
-
     const response = await requestFinalReport(
       app,
       managerToken,
       "assessment-1",
     );
-
     assert.equal(response.status, 409);
     assert.equal(
       problemCode(response),
       DOCUMENT_ERROR_CODES.classificationGuardrailNotPassed,
     );
-
     assert.equal(await prisma.documentRequest.count(), 0);
     assert.equal(
       await prisma.outboxMessage.count({
@@ -185,7 +173,6 @@ describe("Request Final Report Endpoint (e2e) [LCSP-81]", () => {
       data: {
         id: "doc-req-existing",
         assessmentId: "assessment-1",
-        organizationId: "org-1",
         requestedById: "user-1",
         classificationResultId,
         documentType: toPrismaDocumentType(DOCUMENT_TYPES.finalReport),
@@ -193,63 +180,26 @@ describe("Request Final Report Endpoint (e2e) [LCSP-81]", () => {
         correlationId: "corr-existing",
       },
     });
-
     const response = await requestFinalReport(
       app,
       managerToken,
       "assessment-1",
     );
-
     assert.equal(response.status, 409);
     assert.equal(problemCode(response), DOCUMENT_ERROR_CODES.alreadyQueued);
   });
 
-  it("returns 404 ASSESSMENT_NOT_FOUND for assessment outside session organization", async () => {
-    await prisma.assessment.create({
-      data: {
-        id: "assessment-foreign",
-        organizationId: "org-foreign",
-        ownerId: "user-x",
-        name: "Foreign assessment",
-      },
-    });
-
+  it("returns 404 ASSESSMENT_NOT_FOUND for a missing assessment", async () => {
     const response = await requestFinalReport(
       app,
       managerToken,
-      "assessment-foreign",
+      "assessment-missing",
     );
-
     assert.equal(response.status, 404);
     assert.equal(
       problemCode(response),
       DOCUMENT_ERROR_CODES.assessmentNotFound,
     );
-  });
-
-  it("returns 403 PBAC_DENIED when manager policy does not include document:generate", async () => {
-    await seedClassification(prisma, CLASSIFICATION_GUARDRAIL_STATUSES.passed);
-
-    await prisma.authPolicy.update({
-      where: {
-        id_version: {
-          id: "policy-manager-workspace",
-          version: "2026-06-26",
-        },
-      },
-      data: {
-        actions: [PBAC_ACTIONS.workspaceRead],
-      },
-    });
-
-    const response = await requestFinalReport(
-      app,
-      managerToken,
-      "assessment-1",
-    );
-
-    assert.equal(response.status, 403);
-    assert.equal(problemCode(response), PBAC_REASON_CODE.denied);
   });
 });
 
@@ -272,12 +222,14 @@ async function seedClassification(
   const matchId = `lrm-${guardrailStatus}`;
   const classificationResultId = `classification-${guardrailStatus}`;
 
+  await seedVerifiedProfileGraph(prisma, { verifiedProfileId: "vp-1" });
+  await seedLegalClassificationParents(prisma);
+
   await prisma.legalRuleMatch.create({
     data: {
       id: matchId,
       verifiedProfileId: "vp-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       corpusVersionId: "LCSP-LEGAL-CORPUS-v0.1.0",
       legalRuleCatalogVersionId: "LCSP-RULE-CATALOG-v0.1.0",
       schemaVersion: "1.0.0",
@@ -297,7 +249,6 @@ async function seedClassification(
       legalRuleMatchId: matchId,
       verifiedProfileId: "vp-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       schemaVersion: "1.0.0",
       classificationData: {
         system_type: "HIGH_IMPACT_AI",
@@ -309,6 +260,5 @@ async function seedClassification(
       status: CLASSIFICATION_RESULT_STATUSES.accepted,
     },
   });
-
   return { classificationResultId };
 }

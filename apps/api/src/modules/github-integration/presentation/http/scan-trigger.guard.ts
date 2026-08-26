@@ -17,7 +17,7 @@ import {
   type RepositoryScanTriggerSource,
 } from "@lcsp/contracts/github-integration";
 
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 
 export interface ScanTriggerRequestContext extends Request {
@@ -25,25 +25,25 @@ export interface ScanTriggerRequestContext extends Request {
 }
 
 /**
- * Selects the trusted-worker or manual-PBAC authentication path for scan triggers and normalizes the resulting trigger source.
+ * Selects the trusted-worker or manual-RBAC authentication path for scan triggers and normalizes the resulting trigger source.
  */
 @Injectable()
 export class ScanTriggerGuard implements CanActivate {
   /**
-   * Creates the guard with PBAC authorization and worker-key configuration dependencies.
+   * Creates the guard with RBAC authorization and worker-key configuration dependencies.
    *
-   * @param pbacGuard - Standard PBAC guard used for manually triggered scans.
+   * @param rbacGuard - Standard RBAC guard used for manually triggered scans.
    * @param configService - Configuration service used to validate trusted worker API keys.
    */
   constructor(
-    private readonly pbacGuard: PbacGuard,
+    private readonly rbacGuard: RbacGuard,
     private readonly configService: ConfigService,
   ) {}
 
   /**
-   * Authenticates trusted worker requests by API key or delegates manual requests to PBAC, rejecting forged/mismatched trigger sources.
+   * Authenticates trusted worker requests by API key or delegates manual requests to RBAC, rejecting forged/mismatched trigger sources.
    *
-   * @param context - Nest execution context containing request headers, body, and PBAC metadata.
+   * @param context - Nest execution context containing request headers, body, and RBAC metadata.
    * @returns True when the request is authorized and its normalized scan trigger source has been attached.
    * @throws When worker credentials are invalid or the requested trigger source conflicts with the authentication path.
    */
@@ -78,7 +78,7 @@ export class ScanTriggerGuard implements CanActivate {
       throw this.invalidSource(correlationId);
     }
 
-    const allowed = await this.pbacGuard.canActivate(context);
+    const allowed = await this.rbacGuard.canActivate(context);
     if (allowed) {
       request.scanTriggerSource = REPOSITORY_SCAN_TRIGGER_SOURCES.manual;
     }

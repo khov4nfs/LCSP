@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
-  acceptInvitation,
   type AuthSessionSummary,
   type AuthSettingsProfile,
   confirmPasswordRecovery,
@@ -12,18 +11,17 @@ import {
   getAuthRepositories,
   getAuthSessions,
   getAuthSettingsProfile,
-  previewInvitation,
   recordMfaRecoveryCodeAccess,
   reauthenticateWithPassword,
   revokeAuthSession,
   requestPasswordRecovery,
-  signIn,
   signUp,
   signOut,
   updateProfile,
   verifyMfaRecoveryCode,
   verifyMfaOtp,
 } from "./auth-client";
+import { signIn } from "./sign-in-client";
 import { API_OUTCOME_KINDS } from "./outcome-kinds";
 import { apiQueryKeys } from "./query-keys";
 
@@ -33,15 +31,6 @@ export function useSignInMutation() {
 
 export function useSignUpMutation() {
   return useMutation({ mutationFn: signUp });
-}
-
-export function useInvitationPreviewQuery(invitationToken: string) {
-  return useQuery({
-    queryKey: apiQueryKeys.auth.invitationPreview(invitationToken),
-    queryFn: () => previewInvitation(invitationToken),
-    enabled: invitationToken.length > 0,
-    retry: false,
-  });
 }
 
 export function useAuthSettingsProfileQuery() {
@@ -63,10 +52,6 @@ export function useAuthRepositoriesQuery() {
     queryKey: apiQueryKeys.auth.repositories(),
     queryFn: getAuthRepositories,
   });
-}
-
-export function useAcceptInvitationMutation() {
-  return useMutation({ mutationFn: acceptInvitation });
 }
 
 export function useMfaVerifyMutation() {

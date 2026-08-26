@@ -9,7 +9,7 @@ status: DONE
 
 ## Objective and tool definition
 
-Build a version-scoped, structure-first ChromaDB index from a validated chunk set. It is `SYSTEM_ONLY`, idempotent mutation with PBAC `LEGAL_CORPUS_INDEX_BUILD`; no dense embeddings or cross-version collection reuse.
+Build a version-scoped, structure-first ChromaDB index from a validated chunk set. It is `SYSTEM_ONLY`, idempotent mutation with RBAC `LEGAL_CORPUS_INDEX_BUILD`; no dense embeddings or cross-version collection reuse.
 
 ## Input
 

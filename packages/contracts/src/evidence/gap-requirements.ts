@@ -22,7 +22,7 @@ export const GET_GAP_REQUIREMENTS_TOOL = {
 } as const;
 
 const STABLE_CLASSIFICATION_REF = "^classification:[A-Za-z0-9_-]{6,80}$";
-const STABLE_POLICY_REF = "^policy_[A-Za-z0-9_-]{8,80}$";
+const STABLE_POLICY_REF = "^rbac-role_(ADMIN|CUSTOMER)$";
 const STABLE_MATRIX_REF = "^matrix:[A-Za-z0-9_-]{6,80}$";
 
 export const GET_GAP_REQUIREMENTS_INPUT_JSON_SCHEMA = {

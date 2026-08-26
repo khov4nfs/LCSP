@@ -12,8 +12,8 @@ from tools.common.capabilities.agentic_evidence import (
     bind_runtime_handlers,
     build_engineering_rule_agentic_registry,
 )
-from tools.common.capabilities.agentic_evidence.governance.authorization import ApiPbacToolAuthorizer
-from tools.common.capabilities.platform.pbac_client import PbacClient
+from tools.common.capabilities.agentic_evidence.governance.authorization import ApiRbacToolAuthorizer
+from tools.common.capabilities.platform.rbac_client import RbacClient
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.config import load_config
 from tools.common.capabilities.managed.boundary import AgentBoundaryBase
@@ -191,8 +191,8 @@ def build_boundary(target: str) -> AgentBoundaryBase:
     constructor = inspect.signature(boundary_type)
     kwargs: dict[str, object] = {}
 
-    if "pbac_client" in constructor.parameters:
-        kwargs["pbac_client"] = PbacClient(
+    if "rbac_client" in constructor.parameters:
+        kwargs["rbac_client"] = RbacClient(
             config.nestjs_api_base_url,
             config.worker_api_key,
         )
@@ -211,11 +211,11 @@ def build_boundary(target: str) -> AgentBoundaryBase:
         )
         kwargs["agentic_tool_resolver"] = AgenticToolResolver(
             registry,
-            ApiPbacToolAuthorizer(
-                pbac_client=PbacClient(
+            ApiRbacToolAuthorizer(
+                rbac_client=RbacClient(
                     config.nestjs_api_base_url,
                     config.worker_api_key,
-                    timeout_seconds=config.pbac_preflight.timeout_seconds,
+                    timeout_seconds=config.rbac_preflight.timeout_seconds,
                 ),
             ),
             max_tool_calls=config.agentic_runtime.max_tool_calls,

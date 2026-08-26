@@ -1,11 +1,9 @@
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   DOCUMENT_ERROR_CODES,
   DOCUMENT_REQUEST_STATUSES,
   DOCUMENT_TYPES,
-  type DocumentRequestStatus,
 } from "@lcsp/contracts/document";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import { HttpStatus } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
@@ -25,7 +23,7 @@ const GENERIC_BLOCKED_REASON =
   "Document generation is blocked until the required review items are resolved.";
 
 /**
- * Resolves one PBAC-filtered document status, hides restricted report types, and issues signed downloads for ready artifacts.
+ * Resolves one RBAC-filtered document status, hides restricted report types, and issues signed downloads for ready artifacts.
  */
 @QueryHandler(GetDocumentQuery)
 export class GetDocumentHandler implements IQueryHandler<GetDocumentQuery> {
@@ -43,27 +41,21 @@ export class GetDocumentHandler implements IQueryHandler<GetDocumentQuery> {
   /**
    * Applies full/redacted read semantics, retrieves one document request, and projects safe status/download metadata.
    *
-   * @param query - Assessment/document identity, tenant scope, PBAC scope/action, and correlation context.
+   * @param query - Assessment/document identity, RBAC scope/action, and correlation context.
    * @returns Document status DTO with business-safe blocked reason and optional signed download.
    * @throws When the read action is unauthorized or the document is outside the caller's permitted scope.
    */
   async execute(query: GetDocumentQuery): Promise<DocumentStatusDto> {
-    const allowRedactedRead =
-      query.selectedAction === PBAC_ACTIONS.documentReadRedacted;
-    const allowFullRead = query.selectedAction === PBAC_ACTIONS.documentRead;
+    const allowRedactedRead = query.actorRole === AUTH_USER_ROLES.admin;
+    const allowFullRead = query.actorRole === AUTH_USER_ROLES.customer;
     if (!allowFullRead && !allowRedactedRead) {
       this.forbidden(query.correlationId);
-    }
-
-    if (allowRedactedRead && query.scope !== query.assessmentId) {
-      this.notFound(query.correlationId);
     }
 
     const documentRequest = await this.prisma.documentRequest.findFirst({
       where: {
         id: query.documentRequestId,
         assessmentId: query.assessmentId,
-        organizationId: query.organizationId,
       },
       select: {
         id: true,
@@ -79,22 +71,19 @@ export class GetDocumentHandler implements IQueryHandler<GetDocumentQuery> {
       },
     });
 
-    if (!documentRequest) {
-      this.notFound(query.correlationId);
-    }
+    if (!documentRequest) this.notFound(query.correlationId);
 
     const documentType = fromPrismaDocumentType(documentRequest.documentType);
-    const status = fromPrismaDocumentRequestStatus(documentRequest.status);
+    if (allowRedactedRead && documentType === DOCUMENT_TYPES.finalReport) {
+      this.notFound(query.correlationId);
+    }
 
     const classification = await this.prisma.classificationResult.findUnique({
       where: { id: documentRequest.classificationResultId },
       select: { guardrailStatus: true },
     });
 
-    if (allowRedactedRead && documentType === DOCUMENT_TYPES.finalReport) {
-      this.forbidden(query.correlationId);
-    }
-
+    const status = fromPrismaDocumentRequestStatus(documentRequest.status);
     const isReady = status === DOCUMENT_REQUEST_STATUSES.ready;
     const download = isReady
       ? this.buildDownload(
@@ -110,7 +99,7 @@ export class GetDocumentHandler implements IQueryHandler<GetDocumentQuery> {
       status,
       blocked_reason:
         status === DOCUMENT_REQUEST_STATUSES.blocked
-          ? toBusinessBlockedReason(documentRequest.blockedReason)
+          ? this.toBusinessBlockedReason(documentRequest.blockedReason)
           : null,
       guardrail_status: classification
         ? fromPrismaClassificationGuardrailStatus(
@@ -120,9 +109,12 @@ export class GetDocumentHandler implements IQueryHandler<GetDocumentQuery> {
       download_url: download?.url ?? null,
       download_url_expires_at: download?.expiresAt ?? null,
       requested_at: documentRequest.createdAt.toISOString(),
-      completed_at: isCompletedStatus(status)
-        ? documentRequest.updatedAt.toISOString()
-        : null,
+      completed_at:
+        isReady ||
+        status === DOCUMENT_REQUEST_STATUSES.failed ||
+        status === DOCUMENT_REQUEST_STATUSES.blocked
+          ? documentRequest.updatedAt.toISOString()
+          : null,
       correlationId: documentRequest.correlationId,
     };
   }
@@ -133,13 +125,13 @@ export class GetDocumentHandler implements IQueryHandler<GetDocumentQuery> {
    * @param assessmentId - Assessment bound into the signed token.
    * @param documentRequestId - Document request bound into the signed token.
    * @param documentUrl - Persisted backing artifact URL.
-   * @returns Signed URL and expiration timestamp, or null when no artifact URL exists.
+   * @returns Signed URL and expiration metadata, or null when no artifact URL exists.
    */
   private buildDownload(
     assessmentId: string,
     documentRequestId: string,
     documentUrl: string | null,
-  ): { url: string; expiresAt: string } | null {
+  ) {
     if (!documentUrl) {
       return null;
     }
@@ -157,7 +149,33 @@ export class GetDocumentHandler implements IQueryHandler<GetDocumentQuery> {
   }
 
   /**
-   * Throws the tenant/scope-safe document-not-found problem.
+   * Converts a worker blocked reason into business-safe text.
+   *
+   * @param reason - Persisted worker blocked reason.
+   * @returns Safe business-facing blocked reason.
+   */
+  private toBusinessBlockedReason(reason: string | null): string {
+    if (!reason || !reason.trim()) {
+      return GENERIC_BLOCKED_REASON;
+    }
+
+    return this.looksTechnical(reason) ? GENERIC_BLOCKED_REASON : reason.trim();
+  }
+
+  /**
+   * Detects implementation details that should be hidden from document consumers.
+   *
+   * @param reason - Raw blocked reason to inspect.
+   * @returns True when the reason appears technical and should be replaced.
+   */
+  private looksTechnical(reason: string): boolean {
+    return /(exception|stack|trace|\/|\\|\.ts\b|\.js\b|sql\b|timeout|503|500)/i.test(
+      reason,
+    );
+  }
+
+  /**
+   * Throws a tenant/scope-safe document-not-found problem.
    *
    * @param correlationId - Correlation identifier attached to the problem response.
    * @throws Always throws the document-not-found problem.
@@ -173,58 +191,14 @@ export class GetDocumentHandler implements IQueryHandler<GetDocumentQuery> {
   }
 
   /**
-   * Throws the standardized PBAC-denied problem for unauthorized document read modes.
+   * Throws a standardized RBAC-denied problem for unsupported document read actions.
    *
    * @param correlationId - Correlation identifier attached to the problem response.
-   * @throws Always throws the PBAC-denied problem.
+   * @throws Always throws the RBAC-denied problem.
    */
   private forbidden(correlationId: string): never {
-    throw problemException(AUTH_ERROR_CODES.pbacDenied, correlationId, {
+    throw problemException(AUTH_ERROR_CODES.rbacDenied, correlationId, {
       status: HttpStatus.FORBIDDEN,
     });
-  }
-}
-
-/**
- * Converts a worker blocked reason into business-safe text by hiding empty or technical implementation details.
- *
- * @param reason - Persisted worker blocked reason.
- * @returns Safe business-facing blocked reason.
- */
-function toBusinessBlockedReason(reason: string | null): string {
-  if (!reason || !reason.trim()) {
-    return GENERIC_BLOCKED_REASON;
-  }
-
-  return looksTechnical(reason) ? GENERIC_BLOCKED_REASON : reason.trim();
-}
-
-/**
- * Detects stack traces, file paths, status codes, and other implementation details that should not reach document consumers.
- *
- * @param reason - Raw blocked reason to inspect.
- * @returns True when the reason appears technical and should be replaced.
- */
-function looksTechnical(reason: string): boolean {
-  return /(exception|stack|trace|\/|\\|\.ts\b|\.js\b|sql\b|timeout|503|500)/i.test(
-    reason,
-  );
-}
-
-/**
- * Determines whether a document request status represents a terminal state with a completion timestamp.
- *
- * @param status - Normalized document request status.
- * @returns True for ready, failed, and blocked statuses; false while queued or generating.
- */
-function isCompletedStatus(status: DocumentRequestStatus): boolean {
-  switch (status) {
-    case DOCUMENT_REQUEST_STATUSES.ready:
-    case DOCUMENT_REQUEST_STATUSES.failed:
-    case DOCUMENT_REQUEST_STATUSES.blocked:
-      return true;
-    case DOCUMENT_REQUEST_STATUSES.queued:
-    case DOCUMENT_REQUEST_STATUSES.generating:
-      return false;
   }
 }

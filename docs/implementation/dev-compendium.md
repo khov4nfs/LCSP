@@ -19,7 +19,7 @@ Tài liệu này không thay thế authority gốc. Khi có mâu thuẫn, luôn 
 
 - Task catalog vẫn giữ nhãn `IMPLEMENTATION_NOT_AUTHORIZED` ở lớp planning artifact, nhưng story-level execution artifacts hiện đã mở execution surface cho toàn bộ MVP.
 - Runtime shape đã khóa: `apps/web` là Next.js, `apps/api` là NestJS synchronous control plane, mọi async domain workload thuộc monorepo `deepagents`.
-- PBAC là authorization source of truth. Role label như `Manager` và `Developer` chỉ là attribute hoặc policy template.
+- RBAC là authorization source of truth. Role label như `Manager` và `Developer` chỉ là attribute hoặc policy template.
 - Scanner lifecycle do Python Scanner Worker sở hữu; Node.js chỉ còn là bounded TS/JS analyzer subprocess.
 - Legal retrieval dùng ChromaDB structure-first vectorless retrieval; không dùng dense embedding hoặc pgvector cho legal MVP.
 - `implementation-artifacts/` hiện phản ánh Epic `1-8` đều đang `in-progress`; Story `1.1` đã `done` và các story còn lại hiện `ready-for-dev`.
@@ -46,7 +46,7 @@ PLANNING_GATE_AND_EXECUTION_GATE_ARE_SEPARATE
 | Concern | Canonical owner | Notes |
 |---|---|---|
 | Web UX | `apps/web` | Next.js frontend, chỉ gọi API |
-| Sync control plane | `apps/api` | NestJS API, auth, PBAC boundary, state validation, audit, outbox creation |
+| Sync control plane | `apps/api` | NestJS API, auth, RBAC boundary, state validation, audit, outbox creation |
 | Async domain workloads | `deepagents` | toàn bộ scanner, profile, legal, classification, document pipeline |
 | Queue choreography | RabbitMQ + outbox | không publish trực tiếp trong domain transaction |
 | Relational metadata | PostgreSQL | domain state, audit, outbox, workflow metadata |
@@ -104,8 +104,8 @@ flowchart LR
 1. `backend-implementation.md`
 2. `persistence-implementation.md`
 3. `queue-implementation.md`
-4. `decisions/pbac-runtime-decision.md`
-5. `tasks/MW-pbac-002-pbac-policy-model-evaluator-integration.md`
+4. `decisions/rbac-runtime-decision.md`
+5. `tasks/MW-rbac-002-rbac-policy-model-evaluator-integration.md`
 6. `implementation-artifacts/1-1-approved-account-entry-and-workspace-access.md`
 
 ### Nếu bạn làm scanner và evidence pipeline
@@ -133,7 +133,7 @@ flowchart LR
 
 | Workstream | Main docs | Execution units |
 |---|---|---|
-| Auth / Session / PBAC | `backend-implementation.md`, `persistence-implementation.md`, `decisions/pbac-runtime-decision.md` | MW-pbac-002, Story 1.1 |
+| Auth / Session / RBAC | `backend-implementation.md`, `persistence-implementation.md`, `decisions/rbac-runtime-decision.md` | MW-rbac-002, Story 1.1 |
 | Assessment / Wizard / scan trigger | `backend-implementation.md`, `queue-implementation.md`, `readiness/state-transition-authority.md` | module task catalog range |
 | Scanner runtime | `scanner-implementation.md`, `scanner-worker-implementation.md`, `python-worker-platform-implementation.md` | module task catalog range |
 | Technical profile / AI usage / reconciliation | `python-worker-platform-implementation.md`, handoffs, state-transition authority | module task catalog range |
@@ -199,7 +199,7 @@ Nếu bạn chuẩn bị code bootstrap đầu tiên cho repo, `module task cata
 
 | Decision | Why it matters |
 |---|---|
-| `DEC-PBAC-RUNTIME-001` | khóa evaluator topology, fail-closed behavior, audit fields, cache boundary |
+| `DEC-RBAC-RUNTIME-001` | khóa evaluator topology, fail-closed behavior, audit fields, cache boundary |
 | `DEC-TRUSTED-SCAN-TRIGGER-001` | khóa idempotency key, retry, DLQ, replay behavior cho scan orchestration |
 | `DEC-SCANNER-SEVERITY-001` | khóa downstream eligibility của evidence và các privacy/provenance gate |
 
@@ -210,7 +210,7 @@ Ba decision này là phần tài liệu dev thường bị bỏ qua nhưng lại
 ### NestJS API
 
 - sở hữu synchronous request handling;
-- là boundary cho auth, PBAC, domain validation, audit emission, durable job creation;
+- là boundary cho auth, RBAC, domain validation, audit emission, durable job creation;
 - không chạy inline scan, legal retrieval, classification, hoặc document generation;
 - chỉ được enqueue async work qua `OutboxEvent`.
 
@@ -274,7 +274,7 @@ Ba decision này là phần tài liệu dev thường bị bỏ qua nhưng lại
 - `docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`
 - `docs/implementation/llm-gateway-implementation.md`
 - `docs/implementation/readiness/state-transition-authority.md`
-- `docs/implementation/decisions/pbac-runtime-decision.md`
+- `docs/implementation/decisions/rbac-runtime-decision.md`
 - `docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`
 - `docs/implementation/decisions/scanner-severity-tool-provenance-decision.md`
 - `docs/implementation/tasks/README.md`

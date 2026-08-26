@@ -186,7 +186,7 @@ reviewed text + hierarchy APPROVED
   -> approve corpus
 ```
 
-The API still requires an authenticated principal with the applicable PBAC
+The API still requires an authenticated principal with the applicable RBAC
 actions to execute ingest/approval. That principal is a technical audit actor;
 it does not have to be a real-person Legal Operator and its identity is not a
 legal signature.

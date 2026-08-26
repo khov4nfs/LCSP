@@ -29,7 +29,7 @@ export function getLoggingContext(): { userId: string; assessmentId: string } {
     { assessmentId?: unknown; userId?: unknown } | undefined;
   const customReq = req as unknown as {
     userId?: unknown;
-    pbacContext?: {
+    rbacContext?: {
       userId?: unknown;
     };
   };
@@ -56,10 +56,10 @@ export function getLoggingContext(): { userId: string; assessmentId: string } {
   // Try to find userId
   let userId = "";
   if (
-    customReq.pbacContext &&
-    typeof customReq.pbacContext.userId === "string"
+    customReq.rbacContext &&
+    typeof customReq.rbacContext.userId === "string"
   ) {
-    userId = customReq.pbacContext.userId;
+    userId = customReq.rbacContext.userId;
   }
   if (!userId && typeof customReq.userId === "string") {
     userId = customReq.userId;

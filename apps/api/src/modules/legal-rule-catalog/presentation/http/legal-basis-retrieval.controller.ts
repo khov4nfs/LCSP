@@ -16,11 +16,11 @@ import {
   RETRIEVE_LEGAL_BASIS_TOOL,
   type RetrieveLegalBasisInput,
 } from "@lcsp/contracts/evidence";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { RetrieveLegalBasisQuery } from "../../application/queries/retrieve-legal-basis/retrieve-legal-basis.query.js";
@@ -37,8 +37,8 @@ export class LegalBasisRetrievalController {
 
   @Post(":assessmentId/legal-basis")
   @HttpCode(HttpStatus.OK)
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.legalCorpusRead)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.admin)
   async retrieveLegalBasis(
     @Param("assessmentId") assessmentId: string,
     @Body() body: unknown,
@@ -50,11 +50,8 @@ export class LegalBasisRetrievalController {
       await this.queryBus.execute(
         new RetrieveLegalBasisQuery(
           assessmentId,
-          request.pbacContext.organizationId,
           input,
-          request.pbacContext.userId,
-          request.pbacContext.policyId,
-          request.pbacContext.policyVersion,
+          request.rbacContext.userId,
           correlationId,
         ),
       ),

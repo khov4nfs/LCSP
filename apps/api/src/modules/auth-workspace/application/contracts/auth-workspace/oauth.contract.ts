@@ -22,7 +22,6 @@ export type OAuthCallbackSuccess = {
   expires_at: number;
   mfa_required: boolean;
   mfa_enrolled: boolean;
-  organization_id: string;
 };
 
 export type OAuthLinkStartPayload = OAuthStartPayload;

@@ -333,7 +333,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--operator-token",
         default=os.getenv("LEGAL_OPERATOR_BEARER_TOKEN", ""),
-        help="Authenticated principal holding legal-corpus ingest/approve PBAC actions. It need not equal reviewedBy.",
+        help="Authenticated principal holding legal-corpus ingest/approve RBAC actions. It need not equal reviewedBy.",
     )
     parser.add_argument(
         "--chroma-path",

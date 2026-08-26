@@ -13,7 +13,7 @@ The canonical runtime is code-centric. `TechnicalProfile`, `AIUsageFlow`, `Verif
 ## Ownership
 
 - Python Worker owns scanner execution, semantic IR, graph construction/query, legal-to-engineering compilation, graph investigation, EvidenceClaim validation, EngineeringRule evaluation, remediation synthesis, and document generation inputs.
-- NestJS owns CQRS persistence/read boundaries, PBAC/authority, HTTP/internal APIs, outbox/events, protected mutations, and persistence of the direct EngineeringRule assessment result.
+- NestJS owns CQRS persistence/read boundaries, RBAC/authority, HTTP/internal APIs, outbox/events, protected mutations, and persistence of the direct EngineeringRule assessment result.
 - TypeScript/JavaScript semantic parsing may run as a `ts-morph` subprocess owned and invoked by the Python Scanner Worker; it does not own orchestration or evidence decisions.
 - LLM Gateway remains the only model-provider boundary.
 

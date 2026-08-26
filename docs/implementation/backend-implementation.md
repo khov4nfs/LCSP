@@ -18,7 +18,7 @@ Define API backend boundaries, module responsibilities, validation, state transi
 
 ## Scope
 
-The NestJS API owns synchronous request handling, authentication, PBAC authorization enforcement boundary, domain state validation, trusted trigger creation, persistence coordination, audit emission and queue job creation. It must not execute long-running scans, RAG/classification or document generation inline.
+The NestJS API owns synchronous request handling, authentication, RBAC authorization enforcement boundary, domain state validation, trusted trigger creation, persistence coordination, audit emission and queue job creation. It must not execute long-running scans, RAG/classification or document generation inline.
 
 ## Active References
 
@@ -36,7 +36,7 @@ The NestJS API owns synchronous request handling, authentication, PBAC authoriza
 - Worker results are accepted through controlled result/status channels.
 - All permission checks are server-side.
 - OAuth/OIDC identity is not GitHub repository authorization.
-- Manager has the active MVP policy template needed to complete an assessment, subject to PBAC and state gates.
+- Manager has the active MVP policy template needed to complete an assessment, subject to RBAC and state gates.
 
 ## Module Boundaries
 
@@ -46,7 +46,7 @@ The NestJS API owns synchronous request handling, authentication, PBAC authoriza
 | OAuth/OIDC                   | Start login, validate callback, link identity  | Auth redirect/callback endpoints                      | Provider validation, linking policy | OAuthIdentity                                                |
 | MFA                          | TOTP setup/challenge/reset/disable             | MFA endpoints                                         | MFA policy and verification         | UserMfaMethod                                                |
 | User/Profile                 | Profile and security settings                  | Profile endpoints                                     | User update policy                  | User                                                         |
-| Organization                 | Organization membership context                | Organization endpoints                                | Membership/PBAC policy              | Organization                                                 |
+| Organization                 | Organization membership context                | Organization endpoints                                | Membership/RBAC policy              | Organization                                                 |
 | Assessment                   | Assessment lifecycle                           | Assessment endpoints                                  | Workflow state guard                | Assessment                                                   |
 | Wizard                       | WizardProfile save/submit                      | Wizard endpoints                                      | Wizard validation                   | WizardProfile                                                |
 | GitHub Integration           | GitHub App connection                          | Repository connection endpoints                       | Installation/access policy          | RepositoryConnection                                         |
@@ -70,9 +70,9 @@ The NestJS API owns synchronous request handling, authentication, PBAC authoriza
 
 ## Authentication and Permission Guards
 
-- Active MVP Manager subject profile can perform assessment-owner workflow actions where PBAC and state gates allow.
-- Developer may only act in optional delegated scope where PBAC policy explicitly allows.
-- OAuth/OIDC-linked identity still uses LCSP session, MFA and PBAC policy evaluation.
+- Active MVP Manager subject profile can perform assessment-owner workflow actions where RBAC and state gates allow.
+- Developer may only act in optional delegated scope where RBAC policy explicitly allows.
+- OAuth/OIDC-linked identity still uses LCSP session, MFA and RBAC policy evaluation.
 - GitHub App permissions are checked for repository access and never replace LCSP authorization.
 
 ## State Transition Validation
@@ -81,7 +81,7 @@ The NestJS API owns synchronous request handling, authentication, PBAC authoriza
 | ---------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------ |
 | Submit WizardProfile         | Assessment exists, Manager authorized, Wizard valid                                     | Return validation errors                         |
 | Connect repository           | Manager authorized, GitHub App installation valid                                       | Block scan until connected                       |
-| Resolve trusted scan trigger | Trusted source, PBAC allow, mapping context valid or safely pending                     | Create/resume scan context or safe mapping state |
+| Resolve trusted scan trigger | Trusted source, RBAC allow, mapping context valid or safely pending                     | Create/resume scan context or safe mapping state |
 | Request scan                 | Trusted trigger or repository context exists, branch/commit selected, idempotency valid | Return existing job or block with reason         |
 | Resolve conflict             | Conflict open, Manager authorized, traceable resolution supplied                        | Keep workflow paused                             |
 | Request classification       | VerifiedProfile ready, no unresolved conflict, usage purpose resolved                   | Return blocked state                             |
@@ -130,7 +130,7 @@ Controlled MVP uses polling through API-owned status endpoints. SSE may be added
 
 ---
 
-## Auth, OAuth/OIDC, MFA and PBAC Implementation
+## Auth, OAuth/OIDC, MFA and RBAC Implementation
 
 ## Purpose
 
@@ -138,7 +138,7 @@ Define authentication, session, MFA and authorization implementation contracts f
 
 ## Scope
 
-LCSP supports OAuth/OIDC Login as the active controlled MVP identity boundary, TOTP MFA where enabled, and server-side PBAC checks. OAuth/OIDC authenticates LCSP identity only and does not grant GitHub repository access.
+LCSP supports OAuth/OIDC Login as the active controlled MVP identity boundary, TOTP MFA where enabled, and server-side RBAC checks. OAuth/OIDC authenticates LCSP identity only and does not grant GitHub repository access.
 
 ## Active References
 
@@ -151,7 +151,7 @@ LCSP supports OAuth/OIDC Login as the active controlled MVP identity boundary, T
 
 - OAuth/OIDC Login is separate from GitHub App repository authorization.
 - OAuth/OIDC provider tokens must not be exposed to UI or logs.
-- LCSP session provides identity; PBAC is internal authorization authority.
+- LCSP session provides identity; RBAC is internal authorization authority.
 - Manager is an MVP subject label/policy template, not final authority by itself.
 - Developer delegation is Post-MVP and scoped.
 
@@ -269,13 +269,13 @@ MVP technical evidence is acquired only through GitHub App read-only Repository 
 | Automatic Trusted Scan Initiation | Creates/resumes safe pending scan workflow from verified context    |
 | Repository Scan                   | Produces `TechnicalEvidenceReport` from selected repo/branch/commit |
 
-OAuth/OIDC Login does not install GitHub App, does not grant repository access and does not authorize scanning. PBAC and GitHub App scope must both allow scan initiation.
+OAuth/OIDC Login does not install GitHub App, does not grant repository access and does not authorize scanning. RBAC and GitHub App scope must both allow scan initiation.
 
 ## MVP Scan Flow
 
 ```text
 Trusted trigger received from verified webhook, scheduler, backend trigger, or authorized Manager action
--> API/trigger boundary validates PBAC and source context
+-> API/trigger boundary validates RBAC and source context
 -> mapping becomes READY, PENDING_MAPPING, BLOCKED_MAPPING, or WAITING_FOR_CONTEXT
 -> system creates or resumes Repository Scan when mapping is READY
 -> API creates RepositoryScanJob
@@ -287,13 +287,13 @@ Trusted trigger received from verified webhook, scheduler, backend trigger, or a
 
 ## GitHub App Installation and Authorization
 
-- Manager initiates GitHub App connection from LCSP where PBAC allows.
+- Manager initiates GitHub App connection from LCSP where RBAC allows.
 - API records installation metadata and selected repository access reference.
 - Repository access must be least privilege and scoped to selected repositories.
 - Existing installation repository access changes must be initiated from LCSP Manage so the API can generate and validate a one-time `state`; do not trust bare GitHub update redirects with only `installation_id`.
 - GitHub App start is a sensitive route. Sensitive-route membership is declared at the route owner with `@ReAuthForSensitiveRoute(...)`, which both enables guard enforcement and registers route IDs/path templates for frontend preflight. UI may call `POST /auth/sensitive-route/check` with the target `{ method, path }` to decide whether to show the re-auth modal, but `GET /github/app/start` must independently enforce recent session verification and return `REAUTH_REQUIRED` on direct requests without a fresh proof.
 - Branch and commit selection must be pinned before scan.
-- Scan authorization must verify PBAC policy, tenant scope, trusted source identity and valid GitHub App installation.
+- Scan authorization must verify RBAC policy, tenant scope, trusted source identity and valid GitHub App installation.
 
 ## Static Scanner Lifecycle
 
@@ -564,7 +564,7 @@ Covers authentication, authorization, GitHub App access, scanner isolation, sour
 | OAuth callback spoofing      | Validate redirect URI, state, nonce, issuer, audience and expiry                         |
 | Account takeover via linking | Do not link by unverified email; audit account link/unlink                               |
 | Session theft                | Secure cookies, revocation, expiration, MFA policy                                       |
-| Privilege escalation         | Server-side PBAC, Manager subject-label policy template, scoped Post-MVP PermissionGrant |
+| Privilege escalation         | Server-side RBAC, Manager subject-label policy template, scoped Post-MVP PermissionGrant |
 | Developer overreach          | Developer cannot finalize conflict/classification/document by default                    |
 | Excess GitHub access         | Least privilege GitHub App installation and selected repository scope                    |
 | Source leakage               | Temporary workspace, no long-term raw source persistence                                 |
@@ -588,7 +588,7 @@ Covers authentication, authorization, GitHub App access, scanner isolation, sour
 
 ## State / Error / Failure Handling
 
-- Fail closed on authentication or PBAC violation.
+- Fail closed on authentication or RBAC violation.
 - Block workflow on cleanup failure until security review.
 - Reject evidence containing raw source, full prompts or secrets.
 - Block/degrade legal output when citation guardrail fails.

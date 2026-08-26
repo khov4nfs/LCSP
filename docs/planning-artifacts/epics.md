@@ -54,9 +54,9 @@ FR-009: Assign Manager subject attributes and policy templates.
 
 FR-010: Invite optional Developer collaborator.
 
-FR-011: Assign and revoke Developer PBAC policy scope.
+FR-011: Assign and revoke Developer RBAC policy scope.
 
-FR-012: Enforce PBAC-protected Manager-only actions.
+FR-012: Enforce RBAC-protected Manager-only actions.
 
 FR-013: Create Manager-owned assessment.
 
@@ -162,11 +162,11 @@ NFR-006: OAuth/OIDC login must remain separate from GitHub App repository author
 
 NFR-007: GitHub App access must be read-only and limited to selected repositories for MVP.
 
-NFR-008: PBAC must enforce organization-scoped authorization for customer APIs, internal APIs, worker identities, repository access, scan triggers, assessment transitions, legal operations, document downloads, audit exports and administrative operations.
+NFR-008: RBAC must enforce organization-scoped authorization for customer APIs, internal APIs, worker identities, repository access, scan triggers, assessment transitions, legal operations, document downloads, audit exports and administrative operations.
 
-NFR-009: Developer access must be scoped to assigned PBAC policy scope and revocable.
+NFR-009: Developer access must be scoped to assigned RBAC policy scope and revocable.
 
-NFR-010: Material workflow, auth, PBAC decisions, delegation, evidence, scan trigger, conflict, classification and document events must be audited.
+NFR-010: Material workflow, auth, RBAC decisions, delegation, evidence, scan trigger, conflict, classification and document events must be audited.
 
 NFR-011: Audit trail must be append-oriented with controlled correction model.
 
@@ -218,7 +218,7 @@ NFR-035: Python Scanner Worker must operate in a restricted scanner workspace wi
 
 - Architecture style is `Web Frontend -> NestJS API synchronous control plane -> Python Worker Platform -> Persistence / Legal Retrieval / Object Storage`.
 - Web Frontend owns Manager workspace for assessment, repository connection, scan progress, conflict resolution, classification and documents.
-- Backend API owns auth, PBAC enforcement boundary, assessment state, synchronous user actions, trusted trigger creation and async work creation.
+- Backend API owns auth, RBAC enforcement boundary, assessment state, synchronous user actions, trusted trigger creation and async work creation.
 - Repository Integration must keep read-only repository authorization separate from OAuth/OIDC login.
 - Python Worker Platform owns all async domain workloads through bounded consumers/modules.
 - Python Scanner Worker owns repository scan lifecycle and must use Syft, Knip, deptry, Python `ast`/`libcst`, bounded `ts-morph`, tree-sitter/custom parser and Semgrep custom rules.
@@ -234,7 +234,7 @@ NFR-035: Python Scanner Worker must operate in a restricted scanner workspace wi
 - LLM Gateway is the only model boundary; raw source, full prompts, secrets, provider tokens and full AST bodies are forbidden in LLM payloads.
 - Real LLM provider/model configuration, credentials, token/cost controls and privacy boundaries are required for A-to-Z acceptance; mock mode is unit/offline-only.
 - Each major stage persists typed output before the next stage runs; hidden synchronous jumps across workflow gates are forbidden.
-- PBAC is the authorization source of truth. Roles are only subject attributes/templates.
+- RBAC is the authorization source of truth. Roles are only subject attributes/templates.
 - Manager can complete active MVP flow without Developer assignment.
 - GitHub App read-only Repository Scan is the golden technical-evidence path.
 - `FR-050` replaces Local/CI scanner report upload with Automatic Trusted Scan Initiation.
@@ -243,7 +243,7 @@ NFR-035: Python Scanner Worker must operate in a restricted scanner workspace wi
 - Structured attestation is superseded and must not re-enter active MVP stories.
 - Scanner is static-analysis only; it must not execute source, install dependencies, run builds/tests/scripts/Docker/CI, probe endpoints, persist raw source or send raw source to LLM.
 - Scanner tool failure severity table and tool version/config/ruleset hash policy are governed by `docs/implementation/decisions/scanner-severity-tool-provenance-decision.md`.
-- PBAC engine, policy storage, cache, invalidation, evaluation topology and failure behavior are governed by `docs/implementation/decisions/pbac-runtime-decision.md`.
+- RBAC engine, policy storage, cache, invalidation, evaluation topology and failure behavior are governed by `docs/implementation/decisions/rbac-runtime-decision.md`.
 - Automatic trusted scan trigger idempotency, retry/DLQ, replay authority and operator recovery are governed by `docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`.
 
 ### UX Design Requirements
@@ -294,7 +294,7 @@ UX-DR22: Final report UX must show document version, inputs, classification/gap 
 
 UX-DR23: Audit trail table must filter by stage, actor/service, action, outcome, correlation ID, policy ID/version and evidence/citation ref; it must exclude raw source, full prompts, secrets and raw provider tokens.
 
-UX-DR24: Developer task workspace must show granted PBAC scope, expiry/revocation state, hidden data boundaries and assigned redacted technical findings only.
+UX-DR24: Developer task workspace must show granted RBAC scope, expiry/revocation state, hidden data boundaries and assigned redacted technical findings only.
 
 UX-DR25: Permission denied states must hide inaccessible data where possible and show denied action and recovery path without internal policy details.
 
@@ -312,19 +312,19 @@ UX-DR31: Open UX dependencies to carry into stories are Vietnamese microcopy for
 
 ## Cross-Epic Guardrails
 
-- Every user-visible read, write, action, download or export of workspace-scoped business data must enforce PBAC using workspace scope, actor or system identity, subject attributes, action and resource context.
+- Every user-visible read, write, action, download or export of workspace-scoped business data must enforce RBAC using workspace scope, actor or system identity, subject attributes, action and resource context.
 - Every state-changing operation and trusted trigger execution must emit an audit event with actor or system identity, workspace or organization scope, entity type, entity ID, action, result, correlation ID and timestamp.
 - Risk, severity, violation, non-compliant or equivalent authoritative labels must not be persisted or shown before their explicit validation gates pass. Pre-gate outputs may use neutral statuses such as `finding`, `candidate issue`, `requires review`, `uncertain`, `blocked`, `readiness-only` or `unverified gap`.
 - `FR-045`, `FR-046`, `FR-051` and `FR-052` are negative acceptance criteria and negative test cases, not standalone feature stories or active user journeys.
 - Structured attestation, manual technical evidence JSON upload, Local/CI scanner report upload as an MVP evidence path, delegated free-form clarification screens and customer-facing corpus administration must not reappear in active stories.
-- Guardrail ownership is local to each epic when the story touches that boundary; shared PBAC, audit, trigger, citation and gate primitives may be implemented as reusable platform stories where needed.
+- Guardrail ownership is local to each epic when the story touches that boundary; shared RBAC, audit, trigger, citation and gate primitives may be implemented as reusable platform stories where needed.
 
 ## Handoff Invariant
 
 Stories must preserve this evidence and decision lineage:
 
 ```text
-PBAC-scoped Workspace
+RBAC-scoped Workspace
 -> StructuredAssessment / StructuredEvidence
 -> TechnicalProfile
 -> AIUsageFlow
@@ -334,7 +334,7 @@ PBAC-scoped Workspace
 -> GapAnalysis / Documents / Audit
 ```
 
-Each epic handoff must define producer, consumer, artifact or schema, required identifiers, PBAC scope, audit event, validation gate and failure behavior. A story may consume an upstream artifact only after the producing story defines ownership, validation state and auditability. Audit is a cross-cutting side effect at each material transition, not only a final-report feature.
+Each epic handoff must define producer, consumer, artifact or schema, required identifiers, RBAC scope, audit event, validation gate and failure behavior. A story may consume an upstream artifact only after the producing story defines ownership, validation state and auditability. Audit is a cross-cutting side effect at each material transition, not only a final-report feature.
 
 ## Story-Generation Constraints
 
@@ -343,7 +343,7 @@ Each epic handoff must define producer, consumer, artifact or schema, required i
 - Stories touching trusted trigger behavior must include idempotency key behavior, retry policy, DLQ or failure state, audit emission and replay-safe tests.
 - Scanner severity classification must be spike-gated or validation-gated before any severity value is persisted or shown as authoritative.
 - Stories touching citation behavior must include citation allowlist enforcement, retrieval `context_role` checks, missing/invalid citation handling and tests proving unapproved sources are rejected.
-- Stories touching PBAC-protected surfaces must include authorization negative tests for read, write, action and export paths.
+- Stories touching RBAC-protected surfaces must include authorization negative tests for read, write, action and export paths.
 - Stories touching generated outputs must prove provenance from assessment, evidence, AIUsageFlow claim, LegalRuleMatch, classification, gap and document version where applicable.
 
 ## Canonical Status and Testability Model
@@ -356,11 +356,11 @@ Stories must use these user-visible state classes consistently:
 | `BLOCKED_NO_CLASSIFICATION` | Blocked - no classification | No legal matching/classification or final report until blocker clears | Final report blocked | No |
 | `DEGRADED_NOT_FINAL` | Degraded - not final | May show diagnostic evidence, no final risk label | Final report blocked; readiness/evidence report allowed | No |
 | `FINAL_CLASSIFICATION` | Final classification | Gap analysis and final report allowed if output gates pass | Final report allowed | Yes for that version |
-| `SUPERSEDED_VERSION` | Superseded version | Historical only | Historical download only if PBAC permits | Yes |
+| `SUPERSEDED_VERSION` | Superseded version | Historical only | Historical download only if RBAC permits | Yes |
 
 Policy-dependent wording in stories must resolve to enumerated reason codes or referenced decision artifacts before implementation readiness. Required decision artifacts are:
 
-- PBAC policy/runtime contract and deny-on-failure reason codes.
+- RBAC policy/runtime contract and deny-on-failure reason codes.
 - Scanner severity table covering per-tool timeout, crash, partial output, unsupported language, redaction failure, cleanup failure, missing config hash, missing ruleset hash and downstream eligibility.
 - Worker replay contract covering idempotency key format, duplicate behavior, retry budget, DLQ reason codes, replay authority and immutable-result rules per worker domain.
 - Citation validation reason codes for fabricated locator, wrong corpus version, stale effective date, parent-as-primary misuse, referenced-as-primary misuse and out-of-allowlist citation.
@@ -374,13 +374,13 @@ Before implementation readiness can pass, this artifact or a companion traceabil
 FR/NFR/UX/control -> story ID -> acceptance criterion ID -> test level -> owner -> evidence artifact
 ```
 
-Minimum required coverage rows: PBAC deny-by-default, Developer optionality, trusted scan trigger idempotency, scanner severity, evidence privacy gate, AIUsageFlow claim authority, VerifiedProfile critical unknown blocking, LegalMatchingResult eligibility, citation allowlist, classification blocked/degraded/final taxonomy, readiness-only artifacts, report guardrails and audit/export redaction.
+Minimum required coverage rows: RBAC deny-by-default, Developer optionality, trusted scan trigger idempotency, scanner severity, evidence privacy gate, AIUsageFlow claim authority, VerifiedProfile critical unknown blocking, LegalMatchingResult eligibility, citation allowlist, classification blocked/degraded/final taxonomy, readiness-only artifacts, report guardrails and audit/export redaction.
 
 ## Binding Negative-Test Checklist
 
 Implementation stories derived from this epic artifact must include negative tests for:
 
-- PBAC read/write/action/export denial on every protected surface, including Internal Legal Operator API/CLI, worker-triggered transitions and generated artifact downloads.
+- RBAC read/write/action/export denial on every protected surface, including Internal Legal Operator API/CLI, worker-triggered transitions and generated artifact downloads.
 - Duplicate, retry, replay and DLQ handling for scan, technical profile, AIUsageFlow, reconciliation, legal matching, classification, gap analysis, document generation and audit export commands.
 - Stale handoff rejection for TechnicalProfile, AIUsageFlow, VerifiedProfile, LegalMatchingResult, classification result, GapAnalysis and generated documents.
 - Concurrent Manager approval, revoked Developer scope during task execution, corpus version supersession during classification, LLM budget exhaustion during retry, audit write failure after artifact generation and artifact download after revocation.
@@ -389,7 +389,7 @@ Implementation stories derived from this epic artifact must include negative tes
 ## Stakeholder Outcomes and Decision Boundaries
 
 - Manager outcome: understand what is known, what is missing, what is blocked and what next action is available without needing source-code expertise.
-- Optional Developer outcome: view only assigned technical findings and repository/evidence tasks inside granted PBAC scope; Developer participation must not block the Manager golden path by default.
+- Optional Developer outcome: view only assigned technical findings and repository/evidence tasks inside granted RBAC scope; Developer participation must not block the Manager golden path by default.
 - Internal Legal Operator outcome: ingest, review and approve legal corpus versions through internal API/CLI or operations workflow; this is not customer-facing corpus administration.
 - Legal or compliance reviewer outcome: inspect LegalRuleMatch evidence, citation provenance, rationale, confidence and coverage before classification relies on legal basis.
 - Workspace owner or audit consumer outcome: see who viewed, changed, approved, generated, exported or was denied access to material artifacts, with correlation IDs and safe refs.
@@ -397,29 +397,29 @@ Implementation stories derived from this epic artifact must include negative tes
 
 ### FR Coverage Map
 
-FR-001: Epic 1 - Secure Workspace and PBAC-Scoped Collaboration.
+FR-001: Epic 1 - Secure Workspace and RBAC-Scoped Collaboration.
 
-FR-002: Epic 1 - Secure Workspace and PBAC-Scoped Collaboration.
+FR-002: Epic 1 - Secure Workspace and RBAC-Scoped Collaboration.
 
-FR-003: Epic 1 - Secure Workspace and PBAC-Scoped Collaboration.
+FR-003: Epic 1 - Secure Workspace and RBAC-Scoped Collaboration.
 
-FR-004: Epic 1 - Secure Workspace and PBAC-Scoped Collaboration.
+FR-004: Epic 1 - Secure Workspace and RBAC-Scoped Collaboration.
 
-FR-005: Epic 1 - Secure Workspace and PBAC-Scoped Collaboration.
+FR-005: Epic 1 - Secure Workspace and RBAC-Scoped Collaboration.
 
-FR-006: Epic 1 - Secure Workspace and PBAC-Scoped Collaboration.
+FR-006: Epic 1 - Secure Workspace and RBAC-Scoped Collaboration.
 
-FR-007: Epic 1 - Secure Workspace and PBAC-Scoped Collaboration.
+FR-007: Epic 1 - Secure Workspace and RBAC-Scoped Collaboration.
 
-FR-008: Epic 1 - Secure Workspace and PBAC-Scoped Collaboration.
+FR-008: Epic 1 - Secure Workspace and RBAC-Scoped Collaboration.
 
-FR-009: Epic 1 - Secure Workspace and PBAC-Scoped Collaboration.
+FR-009: Epic 1 - Secure Workspace and RBAC-Scoped Collaboration.
 
-FR-010: Epic 1 - Secure Workspace and PBAC-Scoped Collaboration.
+FR-010: Epic 1 - Secure Workspace and RBAC-Scoped Collaboration.
 
-FR-011: Epic 1 - Secure Workspace and PBAC-Scoped Collaboration.
+FR-011: Epic 1 - Secure Workspace and RBAC-Scoped Collaboration.
 
-FR-012: Epic 1 - Secure Workspace and PBAC-Scoped Collaboration.
+FR-012: Epic 1 - Secure Workspace and RBAC-Scoped Collaboration.
 
 FR-013: Epic 2 - Manager Assessment and Wizard Readiness.
 
@@ -489,7 +489,7 @@ FR-045: Cross-epic exclusion guardrail - structured-attestation disclosure is su
 
 FR-046: Cross-epic exclusion guardrail - structured supplemental attestation is superseded and must not create active stories.
 
-FR-047: Epic 1 - Secure Workspace and PBAC-Scoped Collaboration.
+FR-047: Epic 1 - Secure Workspace and RBAC-Scoped Collaboration.
 
 FR-048: Epic 3 - Trusted Repository Evidence and TechnicalProfile.
 
@@ -519,7 +519,7 @@ FR-056: Epic 6 - Legal Corpus Retrieval and LegalRuleMatch Evidence.
 | 1.4 Organization Membership and Manager Policy Scope | FR-007, FR-008, FR-009 |
 | 1.5 Optional Developer Invitation and Scoped Task Acceptance | FR-010, FR-011, FR-047 |
 | 1.6 Manager-Only Action Enforcement | FR-012 |
-| 1.7 PBAC Policy Runtime and Deny-on-Failure Contract | Cross-cutting PBAC control for FR-007..FR-012, FR-047 and NFR-008/NFR-009 |
+| 1.7 RBAC Policy Runtime and Deny-on-Failure Contract | Cross-cutting RBAC control for FR-007..FR-012, FR-047 and NFR-008/NFR-009 |
 | 1.8 Foundational Audit, Outbox, and Event Contract | Cross-cutting audit/event control for FR-042 and NFR-010/NFR-011/NFR-026 |
 | 1.9 Python Worker Command and Event Platform Contract | Cross-cutting worker control for FR-018, FR-050 and async domain workloads |
 | 2.1 Create Manager-Owned Assessment | FR-013 |
@@ -582,20 +582,20 @@ Validation date: 2026-06-25.
 | Database/entity sequencing | PASS | Stories define domain artifacts at first use and do not require all tables/entities to be created upfront. |
 | Story quality | PASS_WITH_GATES | Stories have acceptance criteria and story-level FR coverage. AC-level IDs and detailed trace rows are required before implementation readiness certification. |
 | Epic structure | PASS | Epics deliver user-visible or operator-visible value and preserve the Manager golden path, optional Developer participation, and internal legal-operator boundary. |
-| Dependency flow | PASS_WITH_GATES | Dependencies flow from workspace/PBAC through evidence, AIUsageFlow, VerifiedProfile, legal matching, classification, documents, and audit. Decision artifacts remain explicit pre-implementation gates. |
-| Architecture compliance | PASS_WITH_GATES | PBAC, Python Worker Platform, scanner, ChromaDB vectorless retrieval, LegalMatchingResult, audit/outbox, and LLM guardrails are represented; implementation readiness still requires companion traceability and state-transition artifacts. |
+| Dependency flow | PASS_WITH_GATES | Dependencies flow from workspace/RBAC through evidence, AIUsageFlow, VerifiedProfile, legal matching, classification, documents, and audit. Decision artifacts remain explicit pre-implementation gates. |
+| Architecture compliance | PASS_WITH_GATES | RBAC, Python Worker Platform, scanner, ChromaDB vectorless retrieval, LegalMatchingResult, audit/outbox, and LLM guardrails are represented; implementation readiness still requires companion traceability and state-transition artifacts. |
 
 Final validation status: `EPICS_AND_STORIES_READY_FOR_NEXT_WORKFLOW_STEP`.
 
 ## Epic List
 
-### Epic 1: Secure Workspace and PBAC-Scoped Collaboration
+### Epic 1: Secure Workspace and RBAC-Scoped Collaboration
 
-Manager and optional Developer collaborators can authenticate, enter the correct organization workspace, and act only within tenant-scoped PBAC policy boundaries.
+Manager and optional Developer collaborators can authenticate, enter the correct organization workspace, and act only within tenant-scoped RBAC policy boundaries.
 
 **FRs covered:** FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-011, FR-012, FR-047.
 
-**Implementation notes:** This epic must establish identity/session/MFA/OAuth separation, organization membership, Manager policy templates, Developer scoped task acceptance and deny-by-default PBAC enforcement. It must carry audit and policy traceability acceptance constraints from the start.
+**Implementation notes:** This epic must establish identity/session/MFA/OAuth separation, organization membership, Manager policy templates, Developer scoped task acceptance and deny-by-default RBAC enforcement. It must carry audit and policy traceability acceptance constraints from the start.
 
 ### Epic 2: Manager Assessment and Wizard Readiness
 
@@ -607,7 +607,7 @@ Manager can create an assessment, complete WizardProfile in business/legal langu
 
 ### Epic 3: Trusted Repository Evidence and TechnicalProfile
 
-Manager or a PBAC-scoped Developer can connect a read-only GitHub repository, pin a commit, trigger or resume trusted static scan, review redacted findings, and produce a TechnicalEvidenceReport plus TechnicalProfile without mutating history.
+Manager or a RBAC-scoped Developer can connect a read-only GitHub repository, pin a commit, trigger or resume trusted static scan, review redacted findings, and produce a TechnicalEvidenceReport plus TechnicalProfile without mutating history.
 
 **FRs covered:** FR-016, FR-017, FR-018, FR-019, FR-020, FR-021, FR-022, FR-023, FR-048, FR-049, FR-050, FR-051, FR-052.
 
@@ -653,9 +653,9 @@ Manager can review gap analysis, generate final reports or readiness-only export
 
 **Implementation notes:** This epic owns GapAnalysis, guarded document generation, object artifact status/download, readiness-only export, immutable artifact versioning, audit event writing, redacted audit table/export and report overclaim prevention. Audit event creation is also an acceptance constraint across earlier epics.
 
-## Epic 1: Secure Workspace and PBAC-Scoped Collaboration
+## Epic 1: Secure Workspace and RBAC-Scoped Collaboration
 
-Manager and optional Developer collaborators can authenticate, enter the correct organization workspace, and act only within tenant-scoped PBAC policy boundaries.
+Manager and optional Developer collaborators can authenticate, enter the correct organization workspace, and act only within tenant-scoped RBAC policy boundaries.
 
 ### Story 1.1: Approved Account Entry and Workspace Access
 
@@ -735,18 +735,18 @@ So that I can start and own assessments without receiving unauthorized powers.
 **Given** an authenticated user belongs to an organization
 **When** the user enters the workspace
 **Then** LCSP displays the active organization/workspace context
-**And** PBAC evaluates workspace-scoped actions using actor identity, organization, resource, action, subject attributes, policy, and policy version.
+**And** RBAC evaluates workspace-scoped actions using actor identity, organization, resource, action, subject attributes, policy, and policy version.
 
 **Given** the user has Manager policy scope for an organization
 **When** the user opens Manager workspace actions
-**Then** LCSP allows only actions granted by PBAC and current state gates
+**Then** LCSP allows only actions granted by RBAC and current state gates
 **And** denied actions are hidden where appropriate or blocked with safe explanation
 **And** allow/deny decisions are audited with policy ID/version and correlation ID.
 
 ### Story 1.5: Optional Developer Invitation and Scoped Task Acceptance
 
 As a Manager,
-I want to invite a Developer with a scoped PBAC task,
+I want to invite a Developer with a scoped RBAC task,
 So that the Developer can help without becoming required for the Manager golden path.
 
 **Acceptance Criteria:**
@@ -758,7 +758,7 @@ So that the Developer can help without becoming required for the Manager golden 
 
 **Given** an invited Developer opens the task
 **When** the Developer accepts a valid invitation
-**Then** LCSP shows granted PBAC scope, expiry/revocation state, hidden data boundaries, and assigned task context
+**Then** LCSP shows granted RBAC scope, expiry/revocation state, hidden data boundaries, and assigned task context
 **And** Developer can access only assigned task surfaces
 **And** Manager flow remains available without Developer participation.
 
@@ -787,15 +787,15 @@ So that final assessment authority stays with the accountable Manager.
 **Then** LCSP permits the action
 **And** the action is auditable and tenant-scoped.
 
-### Story 1.7: PBAC Policy Runtime and Deny-on-Failure Contract
+### Story 1.7: RBAC Policy Runtime and Deny-on-Failure Contract
 
 As LCSP,
-I want a canonical PBAC runtime contract before feature workflows depend on policy decisions,
+I want a canonical RBAC runtime contract before feature workflows depend on policy decisions,
 So that authorization behavior is consistent across Web, API, and worker-triggered domain actions.
 
 **Acceptance Criteria:**
 
-**Given** PBAC policies are loaded for an organization
+**Given** RBAC policies are loaded for an organization
 **When** LCSP evaluates a protected action
 **Then** the decision uses actor, organization, resource, action, subject attributes, policy ID, policy version, and state gates
 **And** records allow/deny outcome, reason code, policy version, and correlation ID.
@@ -805,7 +805,7 @@ So that authorization behavior is consistent across Web, API, and worker-trigger
 **Then** LCSP denies by default unless the action is explicitly classified as safe public access
 **And** records a degraded authorization event without leaking policy internals.
 
-**Given** PBAC policies change or migrate
+**Given** RBAC policies change or migrate
 **When** new policy versions are activated
 **Then** LCSP preserves prior policy versions for historical audit
 **And** invalidates or refreshes caches according to the policy version contract.
@@ -884,7 +884,7 @@ So that I can start an evidence-based LCSP workflow for one AI-enabled system.
 
 **Acceptance Criteria:**
 
-**Given** an authenticated Manager has PBAC permission to create assessments
+**Given** an authenticated Manager has RBAC permission to create assessments
 **When** the Manager enters basic assessment identity and context
 **Then** LCSP creates a Manager-owned assessment in the active organization
 **And** the assessment starts in a pre-Wizard state or `WIZARD_IN_PROGRESS`
@@ -960,7 +960,7 @@ So that I can share preparation gaps without implying legal classification.
 
 ## Epic 3: Trusted Repository Evidence and TechnicalProfile
 
-Manager or PBAC-scoped Developer can connect a read-only GitHub repository, pin a commit, trigger or resume trusted static scan, review redacted findings, and produce TechnicalEvidenceReport plus TechnicalProfile without mutating history.
+Manager or RBAC-scoped Developer can connect a read-only GitHub repository, pin a commit, trigger or resume trusted static scan, review redacted findings, and produce TechnicalEvidenceReport plus TechnicalProfile without mutating history.
 
 ### Story 3.1: Connect Read-Only GitHub Repository
 
@@ -970,7 +970,7 @@ So that LCSP can collect trusted technical evidence without granting write acces
 
 **Acceptance Criteria:**
 
-**Given** the actor has PBAC permission to connect a repository for the assessment
+**Given** the actor has RBAC permission to connect a repository for the assessment
 **When** the actor starts GitHub App repository connection
 **Then** LCSP requests only read-only repository permissions required for trusted scan
 **And** the actor can select only authorized repositories and branches
@@ -982,7 +982,7 @@ So that LCSP can collect trusted technical evidence without granting write acces
 **Then** LCSP does not treat identity login as repository authorization
 **And** no RepositoryConnection or scan permission is created until GitHub App connection is completed.
 
-**Given** repository authorization is revoked, invalid, wrong-organization, or outside PBAC scope
+**Given** repository authorization is revoked, invalid, wrong-organization, or outside RBAC scope
 **When** LCSP validates the connection or receives a repository action
 **Then** LCSP blocks the action with a safe explanation
 **And** no repository content is scanned
@@ -1166,7 +1166,7 @@ So that I can understand evidence without exposing raw source, secrets, prompts,
 **When** the Developer opens technical findings
 **Then** LCSP shows only assigned or permitted finding surfaces
 **And** hides Manager-only controls and out-of-scope assessment data
-**And** all access is PBAC-evaluated and audited.
+**And** all access is RBAC-evaluated and audited.
 
 **Given** a Developer has assigned repository or findings tasks
 **When** the Developer opens the workspace
@@ -1362,10 +1362,10 @@ So that I can understand the interpreted AI usage before reconciliation without 
 
 **Given** a Developer has scoped access to technical evidence only
 **When** the Developer requests AIUsageFlow review
-**Then** LCSP applies PBAC to hide Manager-only review actions and out-of-scope business declarations
+**Then** LCSP applies RBAC to hide Manager-only review actions and out-of-scope business declarations
 **And** audits access.
 
-**Handoff Contract:** Producer: AIUsageFlow generation domain. Consumer: reconciliation domain. Artifact: `AIUsageFlow` with version, WizardProfile ref, TechnicalProfile ref, TechnicalEvidenceReport refs, claim IDs, claim source refs, confidence, uncertainty reasons, conflict candidates, PBAC scope, audit event, validation gate status, and failure behavior for unsupported material claims.
+**Handoff Contract:** Producer: AIUsageFlow generation domain. Consumer: reconciliation domain. Artifact: `AIUsageFlow` with version, WizardProfile ref, TechnicalProfile ref, TechnicalEvidenceReport refs, claim IDs, claim source refs, confidence, uncertainty reasons, conflict candidates, RBAC scope, audit event, validation gate status, and failure behavior for unsupported material claims.
 
 ## Epic 5: Reconciliation and VerifiedProfile
 
@@ -1508,7 +1508,7 @@ So that I remain accountable for final assessment facts.
 **And** the review avoids final legal classification wording.
 
 **Given** Manager approves VerifiedProfile
-**When** all PBAC and state gates pass
+**When** all RBAC and state gates pass
 **Then** LCSP records approval actor, timestamp, policy version, VerifiedProfile version, and audit event
 **And** downstream legal matching can proceed.
 
@@ -1517,7 +1517,7 @@ So that I remain accountable for final assessment facts.
 **Then** LCSP records the reason and returns the assessment to the appropriate reconciliation or evidence-readiness state
 **And** classification remains blocked until a VerifiedProfile is approved.
 
-**Handoff Contract:** Producer: reconciliation domain. Consumer: legal matching domain. Artifact: `VerifiedProfile` with version, assessment ID, organization ID, source profile refs, reconciliation decision refs, non-critical unknowns, approval status, PBAC scope, audit event, validation gate status, and failure behavior for stale or critical unknown facts.
+**Handoff Contract:** Producer: reconciliation domain. Consumer: legal matching domain. Artifact: `VerifiedProfile` with version, assessment ID, organization ID, source profile refs, reconciliation decision refs, non-critical unknowns, approval status, RBAC scope, audit event, validation gate status, and failure behavior for stale or critical unknown facts.
 
 ## Epic 6: Legal Corpus Retrieval and LegalRuleMatch Evidence
 
@@ -1692,7 +1692,7 @@ So that classification can use citation-backed legal evidence.
 **And** each citation displays document title, article, clause, point, context role, allowlist pass/fail, corpus version, effective dates/status, source URL or reference, source checksum or integrity reference, and xref reason where applicable
 **And** referenced and parent context are visually demoted from primary legal basis unless separately retrieved as primary.
 
-**Handoff Contract:** Producer: legal matching domain. Consumer: classification domain. Artifact: `LegalMatchingResult` with legal_matching_result_id, version, linked `LegalRuleMatch[]`, classification eligibility, citation coverage, blocking reasons, retrieval audit ID, VerifiedProfile version, corpus version, PBAC scope, audit event, validation gate status, and failure behavior for invalid citations, stale VerifiedProfile, or stale corpus versions.
+**Handoff Contract:** Producer: legal matching domain. Consumer: classification domain. Artifact: `LegalMatchingResult` with legal_matching_result_id, version, linked `LegalRuleMatch[]`, classification eligibility, citation coverage, blocking reasons, retrieval audit ID, VerifiedProfile version, corpus version, RBAC scope, audit event, validation gate status, and failure behavior for invalid citations, stale VerifiedProfile, or stale corpus versions.
 
 ## Epic 7: Citation-Backed Classification
 
@@ -1706,7 +1706,7 @@ So that classification starts from validated assessment facts.
 
 **Acceptance Criteria:**
 
-**Given** Manager has PBAC permission and an approved VerifiedProfile exists
+**Given** Manager has RBAC permission and an approved VerifiedProfile exists
 **When** Manager requests classification
 **Then** LCSP validates assessment state, VerifiedProfile approval, LegalMatchingResult readiness, `classificationEligible=true`, citation coverage, blocking reasons, retrieval audit ID, and required evidence gates
 **And** creates a classification request with assessment ID, VerifiedProfile version, LegalMatchingResult version, linked LegalRuleMatch refs, actor, timestamp, and correlation ID.
@@ -1813,7 +1813,7 @@ So that I understand whether LCSP produced a valid result and what evidence is m
 **Then** the result is versioned and auditable
 **And** later reruns create new classification versions without mutating prior results.
 
-**Handoff Contract:** Producer: classification domain. Consumer: gap analysis and document domains. Artifact: classification result with version, VerifiedProfile ref, LegalMatchingResult ref, linked LegalRuleMatch refs, hard-rule refs, model metadata, citation validation status, PBAC scope, audit event, validation gate status, and failure behavior for blocked/degraded classification.
+**Handoff Contract:** Producer: classification domain. Consumer: gap analysis and document domains. Artifact: classification result with version, VerifiedProfile ref, LegalMatchingResult ref, linked LegalRuleMatch refs, hard-rule refs, model metadata, citation validation status, RBAC scope, audit event, validation gate status, and failure behavior for blocked/degraded classification.
 
 ## Epic 8: Gap Analysis, Guarded Documents, and Audit Trail
 
@@ -1911,7 +1911,7 @@ So that assessment evidence remains traceable.
 
 **Given** Manager downloads an artifact
 **When** LCSP serves the file
-**Then** access is PBAC-checked
+**Then** access is RBAC-checked
 **And** download is audited with artifact ID, version, actor, timestamp, and correlation ID.
 
 **Given** Manager permission, organization membership, artifact access, or assessment scope is revoked after artifact generation
@@ -1931,7 +1931,7 @@ So that assessment decisions are traceable.
 
 **Acceptance Criteria:**
 
-**Given** material actions occur across authentication, PBAC, assessment, wizard, repository, scan, evidence, AIUsageFlow, reconciliation, legal retrieval, classification, reports, artifacts, or exports
+**Given** material actions occur across authentication, RBAC, assessment, wizard, repository, scan, evidence, AIUsageFlow, reconciliation, legal retrieval, classification, reports, artifacts, or exports
 **When** LCSP processes the action
 **Then** it records audit event with actor, action, resource, organization, assessment ID, result, timestamp, policy version where applicable, correlation ID, and redaction status.
 
@@ -1956,7 +1956,7 @@ So that I can review assessment history without exposing secrets or out-of-scope
 **Given** an authorized Manager or auditor opens audit trail
 **When** LCSP loads assessment audit events
 **Then** it shows redacted event timeline with filters for actor, action, result, domain, artifact, date, and correlation ID
-**And** access is PBAC-checked and audited.
+**And** access is RBAC-checked and audited.
 
 **Given** a user requests audit export
 **When** the export is authorized

@@ -9,7 +9,7 @@ status: DONE
 
 ## Objective and tool definition
 
-Fetch one catalog-authorized official document and persist an immutable, hash-addressed snapshot. `SYSTEM_ONLY`, worker-owned mutation, PBAC `LEGAL_CORPUS_FETCH`, idempotent by catalog ref + expected identity + catalog version; no LLM sees bytes or final URL.
+Fetch one catalog-authorized official document and persist an immutable, hash-addressed snapshot. `SYSTEM_ONLY`, worker-owned mutation, RBAC `LEGAL_CORPUS_FETCH`, idempotent by catalog ref + expected identity + catalog version; no LLM sees bytes or final URL.
 
 ## Input
 

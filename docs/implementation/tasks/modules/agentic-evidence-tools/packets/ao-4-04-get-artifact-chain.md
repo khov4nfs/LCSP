@@ -34,27 +34,27 @@ AO-4 reads EvidenceReport→profile→flow→conflict→verified profile and pin
 
 ## 7. Errors and Typed Outcomes
 
-Bad anchor/stage=`INVALID_ARGUMENT`; missing anchor pin=`NEEDS_INPUT`; unknown anchor=`NOT_FOUND`; missing/stale lineage=`OUT_OF_COVERAGE`; PBAC/tenant=`BLOCKED`; transient error=`FAILED` after retry.
+Bad anchor/stage=`INVALID_ARGUMENT`; missing anchor pin=`NEEDS_INPUT`; unknown anchor=`NOT_FOUND`; missing/stale lineage=`OUT_OF_COVERAGE`; RBAC/tenant=`BLOCKED`; transient error=`FAILED` after retry.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
-Validate → allow-list/PBAC → immutable relation lookup → ordered stage checks → integrity/limitations → privacy/audit. `ArtifactChainTool`, `LLM_CALLABLE`, `ASSESSMENT_READ`, 1s/one retry/`NONE`. Model gets refs/status/version only and may pin them in allowed tools; it cannot fetch payload or substitute latest version. Audit shared metadata/hashes/ref chain only; deny artifact bodies/source/prompt/secret/AST/direct storage.
+Validate → allow-list/RBAC → immutable relation lookup → ordered stage checks → integrity/limitations → privacy/audit. `ArtifactChainTool`, `LLM_CALLABLE`, `ASSESSMENT_READ`, 1s/one retry/`NONE`. Model gets refs/status/version only and may pin them in allowed tools; it cannot fetch payload or substitute latest version. Audit shared metadata/hashes/ref chain only; deny artifact bodies/source/prompt/secret/AST/direct storage.
 
 ## 16–18. Scenario, AC, Tests
 
-Verifier finds accepted evidence and submitted profile; missing verified stage is reported, not invented. AC: ordered immutable links, strict/tenant/PBAC/version integrity, safe audit output.
+Verifier finds accepted evidence and submitted profile; missing verified stage is reported, not invented. AC: ordered immutable links, strict/tenant/RBAC/version integrity, safe audit output.
 
 | ID | Scenario | Level |
 |---|---|---|
 | TC-01 | valid ordered chain | integration |
 | TC-02 | missing/stale stage | integration |
-| TC-03 | extra/anchor tenant/PBAC | contract/integration |
+| TC-03 | extra/anchor tenant/RBAC | contract/integration |
 | TC-04 | payload leak | privacy |
 | TC-05 | retry/audit | worker/API |
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Implement lineage contracts/registry/repository/handler/API PBAC/audit/tests. OQ-01: approve immutable link status vocabulary (Architecture, OPEN, blocks yes). Deliver strict schema and lineage tests.
+Implement lineage contracts/registry/repository/handler/API RBAC/audit/tests. OQ-01: approve immutable link status vocabulary (Architecture, OPEN, blocks yes). Deliver strict schema and lineage tests.
 
 ## Source Authority
 

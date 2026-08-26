@@ -57,7 +57,7 @@ Return the readiness state of an assessment when technical evidence is not yet a
 
 | HTTP | `error_code`           | Meaning                       |
 | ---- | ---------------------- | ----------------------------- |
-| 403  | `PBAC_DENIED`          | Actor lacks `assessment:read` |
+| 403  | `RBAC_DENIED`          | Actor lacks `assessment:read` |
 | 404  | `ASSESSMENT_NOT_FOUND` | Not found or not in org       |
 
 ## Prisma Models Used
@@ -71,14 +71,14 @@ Return the readiness state of an assessment when technical evidence is not yet a
 
 ## Business Rules
 
-1. PBAC guard: `action = assessment:read`.
+1. RBAC guard: `action = assessment:read`.
 2. Org-scope guard: `assessment.organizationId = session.organizationId`.
 3. `classification_locked = true` when no `TechnicalEvidenceReport` with accepted status exists for assessment. This gate is driven by technical evidence only; a missing/unsubmitted WizardProfile never sets `classification_locked = true` by itself.
 4. `missing_evidence` derived by checking:
    - No `RepositoryConnection` for assessment → add `{ type: 'repository_connection', label: '...', description: '...' }`.
    - No accepted `TechnicalEvidenceReport` → add `{ type: 'technical_evidence', label: '...', description: '...' }`.
 5. `next_action` is a business-language string. Never include `HIGH/MEDIUM/LOW`, `risk`, `severity`, `violation`, `non-compliant`.
-6. If `classification_locked = true`: response must have no classification fields, risk fields, or PBAC policy content.
+6. If `classification_locked = true`: response must have no classification fields, risk fields, or RBAC policy content.
 
 ## Test Cases
 

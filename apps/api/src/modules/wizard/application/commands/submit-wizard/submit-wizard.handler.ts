@@ -8,12 +8,10 @@ import {
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
-import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import { WIZARD_ERROR_CODES, WIZARD_EVENT_TYPES } from "@lcsp/contracts/wizard";
 import { HttpStatus, Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
@@ -51,15 +49,11 @@ export class SubmitWizardHandler implements ICommandHandler<
   ) {}
 
   async execute(command: SubmitWizardCommand): Promise<SubmitWizardResponse> {
-    const { assessmentId, organizationId, ownerId, answers, correlationId } =
-      command;
-
-    await this.assertManagerOnlyAction(command);
+    const { assessmentId, ownerId, answers, correlationId } = command;
 
     // 1. Verify assessment ownership
     const isOwned = await this.wizardRepository.verifyAssessmentOwnership(
       assessmentId,
-      organizationId,
       ownerId,
     );
     if (!isOwned) {
@@ -125,7 +119,6 @@ export class SubmitWizardHandler implements ICommandHandler<
         create: {
           id: profileId,
           assessmentId,
-          organizationId,
           ownerId,
           version,
           status: toPrismaWizardStatus(WIZARD_STATUS_CODES.submitted),
@@ -149,12 +142,9 @@ export class SubmitWizardHandler implements ICommandHandler<
         {
           eventType: WIZARD_EVENT_TYPES.submitted,
           actorId: ownerId,
-          organizationId,
           resourceType: AUDIT_RESOURCE_TYPES.wizardProfile,
           resourceId: profileId,
           decision: AUDIT_DECISIONS.allow,
-          policyId: command.authorization.policyId,
-          policyVersion: command.authorization.policyVersion,
           payload: {
             assessmentId,
             wizardProfileId: profileId,
@@ -171,7 +161,6 @@ export class SubmitWizardHandler implements ICommandHandler<
         aggregateType: OUTBOX_AGGREGATE_TYPES.wizardProfile,
         aggregateId: profileId,
         eventType: WIZARD_EVENT_TYPES.submittedOutbox,
-        organizationId,
         assessmentId,
         correlationId,
         causationId: correlationId,
@@ -197,39 +186,5 @@ export class SubmitWizardHandler implements ICommandHandler<
       assessment_status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
       correlationId: correlationId,
     };
-  }
-
-  private async assertManagerOnlyAction(
-    command: SubmitWizardCommand,
-  ): Promise<void> {
-    const allowed =
-      command.authorization.subjectRole === SUBJECT_ROLES.manager &&
-      command.authorization.selectedAction === PBAC_ACTIONS.wizardSubmit &&
-      command.authorization.policyId !== null &&
-      command.authorization.policyVersion !== null;
-
-    if (allowed) return;
-
-    await this.auditWriter.write({
-      eventType: WIZARD_EVENT_TYPES.submitted,
-      actorId: command.ownerId,
-      organizationId: command.organizationId,
-      resourceType: AUDIT_RESOURCE_TYPES.wizardProfile,
-      resourceId: null,
-      decision: AUDIT_DECISIONS.deny,
-      reasonCode: AUTH_ERROR_CODES.pbacDenied,
-      correlationId: command.correlationId,
-      policyId: command.authorization.policyId,
-      policyVersion: command.authorization.policyVersion,
-      payload: {
-        assessmentId: command.assessmentId,
-        action: PBAC_ACTIONS.wizardSubmit,
-        result: AUDIT_DECISIONS.deny,
-      },
-    });
-
-    throw problemException(AUTH_ERROR_CODES.pbacDenied, command.correlationId, {
-      status: HttpStatus.FORBIDDEN,
-    });
   }
 }

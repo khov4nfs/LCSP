@@ -59,7 +59,6 @@ describe("GetAssessmentContextHandler", () => {
     const response = await handler.execute(
       new GetAssessmentContextQuery(
         "assessment-1",
-        "org-1",
         "wizard-1",
         [
           ASSESSMENT_CONTEXT_INCLUDES.submittedAnswers,
@@ -110,7 +109,6 @@ describe("GetAssessmentContextHandler", () => {
     const response = await handler.execute(
       new GetAssessmentContextQuery(
         "assessment-1",
-        "org-1",
         "wizard-1",
         [ASSESSMENT_CONTEXT_INCLUDES.targetIds],
         [],
@@ -148,7 +146,6 @@ describe("GetAssessmentContextHandler", () => {
     const response = await handler.execute(
       new GetAssessmentContextQuery(
         "assessment-1",
-        "org-1",
         "wizard-1",
         [ASSESSMENT_CONTEXT_INCLUDES.submittedAnswers],
         [ASSESSMENT_CONTEXT_ANSWER_FIELDS.systemPurpose],

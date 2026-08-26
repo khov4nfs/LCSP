@@ -58,10 +58,9 @@ AUTH_PROFILE_UPDATED
 AUTH_OAUTH_START
 AUTH_OAUTH_LOGIN_SUCCESS
 AUTH_OAUTH_LOGIN_FAILED
-AUTH_DEVELOPER_INVITED
-AUTH_DEVELOPER_INVITATION_ACCEPTED
-AUTH_DEVELOPER_REVOKED
 ```
+
+Retired Developer invitation/revocation audit event names are not active runtime events. Historical audit records may still use legacy resource values.
 
 ## Business Rules
 
@@ -76,7 +75,7 @@ AUTH_DEVELOPER_REVOKED
 
 This service IS the event sink. Not a command handler.
 
-## PBAC
+## RBAC
 
 Not applicable. Called post-authorization only.
 

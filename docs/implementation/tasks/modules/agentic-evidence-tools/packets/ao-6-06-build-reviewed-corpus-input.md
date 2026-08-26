@@ -9,7 +9,7 @@ status: DONE
 
 ## Objective and tool definition
 
-Build an immutable normalized corpus input from passing extraction/OCR quality artifacts and deterministic correction policy. No human or LLM source approval occurs: admin catalog membership plus automated gates is authority. `SYSTEM_ONLY` mutation, PBAC `LEGAL_CORPUS_BUILD`.
+Build an immutable normalized corpus input from passing extraction/OCR quality artifacts and deterministic correction policy. No human or LLM source approval occurs: admin catalog membership plus automated gates is authority. `SYSTEM_ONLY` mutation, RBAC `LEGAL_CORPUS_BUILD`.
 
 ## Input
 

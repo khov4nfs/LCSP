@@ -84,9 +84,9 @@ Verify a TOTP code against the enrolled secret, mark the session as MFA-verified
 | `event.auth.mfa-verified` | `AuthAuditEvent` | `{ actorId, correlationId, decision: allow }`                 |
 | `event.auth.mfa-failed`   | `AuthAuditEvent` | `{ reasonCode, correlationId, decision: deny }` — no OTP code |
 
-## PBAC
+## RBAC
 
-Requires a valid (but potentially MFA-pending) session. No further PBAC check at this layer. After verification, workspace routes require PBAC evaluation.
+Requires a valid (but potentially MFA-pending) session. No further RBAC check at this layer. After verification, workspace routes require RBAC evaluation.
 
 ## Test Cases
 

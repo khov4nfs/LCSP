@@ -18,12 +18,12 @@ class LegalCorpusRecoveryBoundary(AgentBoundaryBase):
 
     boundary_source = LEGAL_CORPUS_RECOVERY_BOUNDARY_SOURCE
     source_event = LEGAL_CORPUS_RECOVERY_COMMAND
-    requires_pbac = False
+    requires_rbac = False
 
     def __init__(
         self,
         config,
-        pbac_client=None,
+        rbac_client=None,
         api_client: WorkerApiClient | None = None,
         driver: LegalCorpusRecoveryDriver | None = None,
     ) -> None:
@@ -31,11 +31,11 @@ class LegalCorpusRecoveryBoundary(AgentBoundaryBase):
 
         Args:
             config: Managed Agent runtime configuration.
-            pbac_client: Optional base-boundary PBAC dependency; unused for system events.
+            rbac_client: Optional base-boundary RBAC dependency; unused for system events.
             api_client: Optional internal API client override.
             driver: Optional corpus recovery driver override.
         """
-        super().__init__(config, pbac_client)
+        super().__init__(config, rbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
             config.worker_api_key,

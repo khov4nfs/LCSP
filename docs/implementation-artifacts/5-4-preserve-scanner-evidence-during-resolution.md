@@ -80,9 +80,9 @@ Preserve Scanner Evidence During Resolution
 
 ### Architecture Compliance
 
-- Reconciliation logic thuộc Python Worker Platform, nhưng Manager resolution surfaces và approval endpoints vẫn cần PBAC/state enforcement ở API.
+- Reconciliation logic thuộc Python Worker Platform, nhưng Manager resolution surfaces và approval endpoints vẫn cần RBAC/state enforcement ở API.
 - Upstream artifacts `WizardProfile`, `TechnicalProfile`, `AIUsageFlow` là immutable inputs; worker chỉ tạo conflict/verified outputs mới.
-- Manager-only actions phải được bảo vệ bằng PBAC subject/resource/action/context + version-safe checks.
+- Manager-only actions phải được bảo vệ bằng RBAC subject/resource/action/context + version-safe checks.
 
 ### Functional and Domain Requirements
 

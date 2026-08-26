@@ -1,8 +1,6 @@
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { HttpStatus } from "@nestjs/common";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import {
   LEGAL_RULE_EVENT_TYPES,
   LEGAL_RULE_ERROR_CODES,
@@ -35,8 +33,6 @@ export class DraftLegalRuleHandler implements ICommandHandler<
   async execute(
     command: DraftLegalRuleCommand,
   ): Promise<DraftLegalRuleResponse> {
-    await this.assertAuthorAction(command);
-
     const version = await this.prisma.legalRuleCatalogVersion.findUnique({
       where: { id: command.legalRuleCatalogVersionId },
     });
@@ -91,13 +87,10 @@ export class DraftLegalRuleHandler implements ICommandHandler<
       await this.auditWriter.writeInTx(
         {
           eventType: LEGAL_RULE_EVENT_TYPES.drafted,
-          actorId: command.authoredBy,
-          organizationId: null, // Legal catalog is system-wide, no org id.
+          actorId: command.authoredBy, // Legal catalog is system-wide, no org id.
           resourceType: AUDIT_RESOURCE_TYPES.legalRule,
           resourceId: legalRule.id,
           decision: AUDIT_DECISIONS.allow,
-          policyId: command.authorization.policyId,
-          policyVersion: command.authorization.policyVersion,
           correlationId: command.correlationId,
           payload: {
             legalRuleId: command.legalRuleId,
@@ -116,39 +109,5 @@ export class DraftLegalRuleHandler implements ICommandHandler<
       legalRuleId: command.legalRuleId,
       status: LEGAL_RULE_LIFECYCLE_STATUSES.draft,
     };
-  }
-
-  private async assertAuthorAction(
-    command: DraftLegalRuleCommand,
-  ): Promise<void> {
-    const allowed =
-      command.authorization.selectedAction ===
-        PBAC_ACTIONS.legalRuleCatalogAuthor &&
-      command.authorization.policyId !== null &&
-      command.authorization.policyVersion !== null;
-
-    if (allowed) return;
-
-    await this.auditWriter.write({
-      eventType: LEGAL_RULE_EVENT_TYPES.drafted,
-      actorId: command.authoredBy,
-      organizationId: null,
-      resourceType: AUDIT_RESOURCE_TYPES.legalRule,
-      resourceId: null,
-      decision: AUDIT_DECISIONS.deny,
-      reasonCode: AUTH_ERROR_CODES.pbacDenied,
-      correlationId: command.correlationId,
-      policyId: command.authorization.policyId,
-      policyVersion: command.authorization.policyVersion,
-      payload: {
-        legalRuleId: command.legalRuleId,
-        action: PBAC_ACTIONS.legalRuleCatalogAuthor,
-        result: AUDIT_DECISIONS.deny,
-      },
-    });
-
-    throw problemException(AUTH_ERROR_CODES.pbacDenied, command.correlationId, {
-      status: HttpStatus.FORBIDDEN,
-    });
   }
 }

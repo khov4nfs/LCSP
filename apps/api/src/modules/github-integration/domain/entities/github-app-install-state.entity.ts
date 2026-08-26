@@ -4,7 +4,6 @@ type GitHubAppInstallStateProps = {
   id: string;
   state: string;
   assessmentId: string | null;
-  organizationId: string;
   userId: string;
   redirectUri: string;
   expiresAt: Date;
@@ -35,7 +34,6 @@ export class GitHubAppInstallState {
    * @returns Newly generated GitHub App installation state.
    */
   static create(input: {
-    organizationId: string;
     userId: string;
     redirectUri: string;
     assessmentId?: string | null;
@@ -46,7 +44,6 @@ export class GitHubAppInstallState {
     return new GitHubAppInstallState({
       state: randomBytes(32).toString("hex"),
       assessmentId: input.assessmentId ?? null,
-      organizationId: input.organizationId,
       userId: input.userId,
       redirectUri: input.redirectUri,
       expiresAt: new Date(now.getTime() + input.ttlMs),
@@ -82,9 +79,6 @@ export class GitHubAppInstallState {
   }
 
   /** @returns The organization that initiated the installation. */
-  get organizationId(): string {
-    return this.props.organizationId;
-  }
 
   /** @returns The user that initiated the installation. */
   get userId(): string {

@@ -41,7 +41,6 @@ Location: `apps/web/src/components`
 - Molecules:
   - `credential-field.tsx`
 - Organisms:
-  - `accept-invitation-form.tsx`
   - `auth-shell.tsx`
   - `mfa-enroll-form.tsx`
   - `mfa-verify-form.tsx`
@@ -57,14 +56,6 @@ Location: `apps/web/src/components`
 
 - Organisms:
   - `classification-status-page.tsx`
-
-### Developer Task
-
-- Organisms:
-  - `developer-task-selection.tsx`
-  - `developer-task-workspace.tsx`
-  - `redacted-findings-list.tsx`
-  - `scope-summary-card.tsx`
 
 ### Document
 

@@ -64,7 +64,6 @@ export class VerifyMfaOtpHandler {
       await this.support.recordAudit(this.repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRateLimited,
         actor_id: session.userId,
-        organization_id: session.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.mfaRateLimited,
         correlationId: correlationId,
@@ -82,7 +81,6 @@ export class VerifyMfaOtpHandler {
     if (alreadyUsed) {
       await this.recordFailedAttempt(
         session.userId,
-        session.organizationId,
         now,
         correlationId,
         "replayed",
@@ -96,7 +94,6 @@ export class VerifyMfaOtpHandler {
     } catch {
       await this.recordFailedAttempt(
         session.userId,
-        session.organizationId,
         now,
         correlationId,
         "decrypt_error",
@@ -108,7 +105,6 @@ export class VerifyMfaOtpHandler {
     if (!valid) {
       await this.recordFailedAttempt(
         session.userId,
-        session.organizationId,
         now,
         correlationId,
         "invalid",
@@ -124,7 +120,6 @@ export class VerifyMfaOtpHandler {
       // Lost a concurrent race to consume this exact code — treat as replay.
       await this.recordFailedAttempt(
         session.userId,
-        session.organizationId,
         now,
         correlationId,
         "replayed",
@@ -162,7 +157,6 @@ export class VerifyMfaOtpHandler {
     await this.support.recordAudit(this.repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaVerified,
       actor_id: session.userId,
-      organization_id: session.organizationId,
       decision: AUDIT_DECISIONS.allow,
       correlationId: correlationId,
     });
@@ -172,7 +166,6 @@ export class VerifyMfaOtpHandler {
 
   private async recordFailedAttempt(
     userId: string,
-    organizationId: string,
     now: number,
     correlationId: string,
     reason: string,
@@ -187,7 +180,6 @@ export class VerifyMfaOtpHandler {
     await this.support.recordAudit(this.repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaFailed,
       actor_id: userId,
-      organization_id: organizationId,
       decision: AUDIT_DECISIONS.deny,
       reason_code: AUTH_ERROR_CODES.mfaInvalid,
       otp_failure_reason: reason,
@@ -195,7 +187,7 @@ export class VerifyMfaOtpHandler {
     });
 
     this.logger.warn(
-      `MFA OTP verify failed userId=${userId} organizationId=${organizationId} reason=${reason} correlationId=${correlationId}`,
+      `MFA OTP verify failed userId=${userId} reason=${reason} correlationId=${correlationId}`,
     );
   }
 }

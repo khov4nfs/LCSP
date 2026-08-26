@@ -130,7 +130,7 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
 
             try {
               await this.snapshotCreatedAutoScanService.handle(message);
-              const headers = authorizationHeaders(message.payload);
+              const headers = contextHeaders(message.payload);
               if (headers) {
                 await this.rabbitMqClient.publish(
                   exchange,
@@ -219,7 +219,6 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
     nextAttemptAt: Date | null;
   }): Promise<void> {
     const payload = failure.message.payload;
-    const organizationId = readString(payload.organizationId);
     const assessmentId = readString(payload.assessmentId);
     const correlationId =
       readString(payload.correlationId) ?? `outbox:${failure.message.id}`;
@@ -231,7 +230,6 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
         ? OUTBOX_AUDIT_EVENT_TYPES.dlqEntered
         : OUTBOX_AUDIT_EVENT_TYPES.retryScheduled,
       actorId: actor?.id ?? null,
-      organizationId: organizationId ?? null,
       assessmentId,
       resourceType: AUDIT_RESOURCE_TYPES.outbox,
       resourceId: failure.message.id,
@@ -291,12 +289,12 @@ function retryAt(now: Date, attempts: number): Date {
 }
 
 /**
- * Extracts authorization context from an outbox payload for propagation through RabbitMQ headers.
+ * Extracts actor and correlation context from an outbox payload for RabbitMQ headers.
  *
- * @param payload - Event payload that may contain actor, organization, action, and correlation context.
- * @returns RabbitMQ headers when all required authorization fields are present; otherwise undefined.
+ * @param payload - Event payload that may contain actor and correlation context.
+ * @returns RabbitMQ headers when all required context fields are present; otherwise undefined.
  */
-function authorizationHeaders(
+function contextHeaders(
   payload: Record<string, unknown>,
 ): RabbitMqMessageHeaders | undefined {
   const actor = payload.actor;
@@ -304,18 +302,14 @@ function authorizationHeaders(
     actor && typeof actor === "object"
       ? readString((actor as Record<string, unknown>).id)
       : undefined;
-  const organizationId = readString(payload.organizationId);
-  const action = readString(payload.authorizationAction);
   const correlationId = readString(payload.correlationId);
 
-  if (!actorId || !organizationId || !action || !correlationId) {
+  if (!actorId || !correlationId) {
     return undefined;
   }
 
   return {
     user_id: actorId,
-    organization_id: organizationId,
-    action,
     "x-correlation-id": correlationId,
   };
 }

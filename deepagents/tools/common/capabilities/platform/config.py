@@ -1,4 +1,4 @@
-"""Load and validate Managed Deep Agent, agentic, PBAC, and checkpoint configuration."""
+"""Load and validate Managed Deep Agent, agentic, RBAC, and checkpoint configuration."""
 
 import os
 from dataclasses import dataclass
@@ -21,8 +21,8 @@ class AgenticRuntimeConfig:
 
 
 @dataclass(frozen=True)
-class PbacPreflightConfig:
-    """Timeout settings for worker-side PBAC authorization preflight."""
+class RbacPreflightConfig:
+    """Timeout settings for worker-side RBAC authorization preflight."""
 
     timeout_seconds: float = 5.0
 
@@ -47,7 +47,7 @@ class WorkerConfig:
     legal_source_storage_root: str | None = None
     langgraph_checkpoint_database_url: str | None = None
     agentic_runtime: AgenticRuntimeConfig = AgenticRuntimeConfig()
-    pbac_preflight: PbacPreflightConfig = PbacPreflightConfig()
+    rbac_preflight: RbacPreflightConfig = RbacPreflightConfig()
     tracing: TracingConfig = TracingConfig()
 
 
@@ -60,7 +60,7 @@ def load_config() -> WorkerConfig:
     """Load environment-backed worker configuration and validate required values.
 
     Returns:
-        Fully parsed ``WorkerConfig`` including nested LLM/agentic/PBAC settings.
+        Fully parsed ``WorkerConfig`` including nested LLM/agentic/RBAC settings.
 
     Raises:
         RuntimeError: If required variables or typed optional settings are invalid.
@@ -103,9 +103,9 @@ def load_config() -> WorkerConfig:
                 "/internal/evidence/agentic-tools/dispatch",
             ),
         ),
-        pbac_preflight=PbacPreflightConfig(
+        rbac_preflight=RbacPreflightConfig(
             timeout_seconds=float(
-                os.getenv("PBAC_PREFLIGHT_TIMEOUT_SECONDS", "5.0")
+                os.getenv("RBAC_PREFLIGHT_TIMEOUT_SECONDS", "5.0")
             )
         ),
         tracing=_load_tracing_config(),

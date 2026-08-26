@@ -190,7 +190,6 @@ describe("Outbox and consumer idempotency (e2e) [AC-039, AC-040]", () => {
         data: {
           id: assessmentId,
           name: "Idempotent Assessment",
-          organizationId: orgId,
           status: ASSESSMENT_STATUS_CODES.readyForReview,
           ownerId: "user-1",
         },

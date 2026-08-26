@@ -1,10 +1,9 @@
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import { isMockModeEnabled, readMockJson } from "@/lib/server/fixtures/response";
 import {
-  MOCK_WORKSPACE_COOKIE_NAME,
-  type MockDeveloperAccount,
-  type MockManagerAccount,
-} from "@/lib/server/fixtures/workspace";
+  isMockModeEnabled,
+  readMockJson,
+} from "@/lib/server/fixtures/response";
+import type { MockManagerAccount } from "@/lib/server/fixtures/workspace";
 
 import {
   SESSION_COOKIE_NAME,
@@ -22,9 +21,6 @@ type SignInApiSuccess = {
 export async function POST(request: Request) {
   const body: unknown = await request.json().catch(() => null);
   if (isMockModeEnabled()) {
-    const developerAccount = await readMockJson<MockDeveloperAccount>(
-      "developer-account.json",
-    );
     const managerAccount = await readMockJson<MockManagerAccount>(
       "manager-account.json",
     );
@@ -39,23 +35,6 @@ export async function POST(request: Request) {
       response.cookies.set(
         SESSION_COOKIE_NAME,
         "mock-session:manager",
-        sessionCookieOptions,
-      );
-      response.cookies.delete(MOCK_WORKSPACE_COOKIE_NAME);
-      return response;
-    }
-
-    if (
-      credentials.email === developerAccount.email &&
-      credentials.password === developerAccount.password
-    ) {
-      const response = successJson({
-        workspace_selection_required: true,
-        workspaces: developerAccount.workspaces,
-      });
-      response.cookies.set(
-        SESSION_COOKIE_NAME,
-        "mock-session:workspace-selection",
         sessionCookieOptions,
       );
       return response;

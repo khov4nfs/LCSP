@@ -350,7 +350,7 @@ Scheduled legal change detection already exists in Jira task `LCSP-231` and its 
 
 Expose governed external tools/context providers through the LCSP tool runtime using MCP where appropriate.
 
-This remains **planned** until a dedicated implementation task/PR is present. MCP must not bypass PBAC, tool allow-lists, audit, provenance, context limits or deterministic gates.
+This remains **planned** until a dedicated implementation task/PR is present. MCP must not bypass RBAC, tool allow-lists, audit, provenance, context limits or deterministic gates.
 
 ### 9. Repository knowledge / OpenWiki — PLANNED
 

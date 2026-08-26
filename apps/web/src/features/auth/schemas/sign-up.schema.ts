@@ -8,10 +8,6 @@ export const signUpSchema = z
       .string()
       .trim()
       .min(1, "pages.signUp.errors.displayNameRequired"),
-    organization_name: z
-      .string()
-      .trim()
-      .min(1, "pages.signUp.errors.organizationNameRequired"),
     email: z
       .string()
       .trim()

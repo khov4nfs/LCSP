@@ -9,33 +9,33 @@ Canonical active use-case catalog for the A-to-Z runnable MVP. Detailed user int
 - Canonical active IDs are `UC-001..UC-017`; legacy `UC-018` structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP`.
 - Legacy `UC-MXX-XX` values may remain only in `requirements-baseline.md` and the explicitly labeled source-alias columns of `business-rules.md`; they are not active traceability IDs.
 - Canonical FRs are `FR-001..FR-056`; `FR-050` is `AUTOMATIC_TRUSTED_SCAN_INITIATION`, `FR-051` is `REMOVED_FROM_PRODUCT`, and `FR-052` is `DEFERRED_POST_MVP`.
-- Manager completes the golden path without Developer participation.
+- Manager completes the golden path without external collaborator participation.
 - Structured attestation under historical `FR-045/FR-046` is removed from active MVP.
 - Delegated free-form clarification under `FR-052` is Deferred.
-- PBAC is the authorization source of truth. Role labels are not final authorization authority.
-- Internal legal corpus operations are API/CLI-only for MVP, not Manager/Developer product UX.
+- RBAC is the authorization source of truth. Role labels are not final authorization authority.
+- Internal legal corpus operations are API/CLI-only for MVP, not Manager product UX.
 
 ## Inventory
 
-| UC | Name | Primary Actor | FRs | ACs |
-|---|---|---|---|---|
-| UC-001 | Authenticate and Manage Account | Manager / Developer | FR-001..FR-006 | AC-021, AC-023 |
-| UC-002 | Manage Organization and PBAC Policy Scope | Manager | FR-007..FR-012, FR-047 | AC-024..AC-026 |
-| UC-003 | Create Assessment | Manager | FR-013 | AC-001 |
-| UC-004 | Complete WizardProfile and Readiness | Manager | FR-014, FR-015, FR-040 | AC-002, AC-003 |
-| UC-005 | Connect Repository | Manager; optional delegated Developer | FR-006, FR-016 | AC-004, AC-023 |
-| UC-006 | Create Repository Snapshot | Manager / System | FR-017 | AC-004, AC-020 |
-| UC-007 | Execute Repository Scan | Manager / System | FR-018..FR-020, FR-048 | AC-004, AC-005, AC-028..AC-032 |
-| UC-008 | Generate TechnicalProfile | System | FR-021..FR-023 | AC-006, AC-007, AC-032 |
-| UC-009 | Generate AIUsageFlow | System | FR-023..FR-025 | AC-008, AC-009, AC-031, AC-032 |
-| UC-010 | Resolve Conflict | Manager | FR-026..FR-029 | AC-010..AC-012, AC-033 |
-| UC-011 | Preserve AIUsageFlow Evidence Context | System | FR-030, FR-031 | AC-014, AC-015 |
-| UC-012 | Operate Legal Corpus and Compile EngineeringRules | Internal Legal Operator / System | FR-032..FR-034, FR-053, FR-054, FR-056 | AC-016, AC-017, AC-034..AC-036 |
-| UC-013 | Run Risk Classification | Manager / System | FR-035..FR-037, FR-055 | AC-018, AC-034, AC-037, AC-038 |
-| UC-014 | Generate Gap Analysis and Documents | Manager / System | FR-038..FR-041 | AC-003, AC-018, AC-019, AC-041 |
-| UC-015 | Review and Export Audit Trail | Manager / System | FR-042..FR-045 | AC-020, AC-039, AC-040 |
-| UC-016 | Automatic Trusted Scan Initiation and Re-run Evidence | Manager / System | FR-049, FR-050 | AC-004, AC-020, AC-028, AC-039, AC-050A..AC-050F |
-| UC-017 | Enforce Security and Privacy Controls | System | FR-019, FR-042, FR-048 | AC-022, AC-023, AC-030, AC-041 |
+| UC     | Name                                                  | Primary Actor                    | FRs                                    | ACs                                              |
+| ------ | ----------------------------------------------------- | -------------------------------- | -------------------------------------- | ------------------------------------------------ |
+| UC-001 | Authenticate and Manage Account                       | Manager                          | FR-001..FR-006                         | AC-021, AC-023                                   |
+| UC-002 | Manage Organization and RBAC Policy Scope             | Manager                          | FR-007..FR-012                         | AC-024..AC-026                                   |
+| UC-003 | Create Assessment                                     | Manager                          | FR-013                                 | AC-001                                           |
+| UC-004 | Complete WizardProfile and Readiness                  | Manager                          | FR-014, FR-015, FR-040                 | AC-002, AC-003                                   |
+| UC-005 | Connect Repository                                    | Manager                          | FR-006, FR-016                         | AC-004, AC-023                                   |
+| UC-006 | Create Repository Snapshot                            | Manager / System                 | FR-017                                 | AC-004, AC-020                                   |
+| UC-007 | Execute Repository Scan                               | Manager / System                 | FR-018..FR-020, FR-048                 | AC-004, AC-005, AC-028..AC-032                   |
+| UC-008 | Generate TechnicalProfile                             | System                           | FR-021..FR-023                         | AC-006, AC-007, AC-032                           |
+| UC-009 | Generate AIUsageFlow                                  | System                           | FR-023..FR-025                         | AC-008, AC-009, AC-031, AC-032                   |
+| UC-010 | Resolve Conflict                                      | Manager                          | FR-026..FR-029                         | AC-010..AC-012, AC-033                           |
+| UC-011 | Preserve AIUsageFlow Evidence Context                 | System                           | FR-030, FR-031                         | AC-014, AC-015                                   |
+| UC-012 | Operate Legal Corpus and Compile EngineeringRules     | Internal Legal Operator / System | FR-032..FR-034, FR-053, FR-054, FR-056 | AC-016, AC-017, AC-034..AC-036                   |
+| UC-013 | Run Risk Classification                               | Manager / System                 | FR-035..FR-037, FR-055                 | AC-018, AC-034, AC-037, AC-038                   |
+| UC-014 | Generate Gap Analysis and Documents                   | Manager / System                 | FR-038..FR-041                         | AC-003, AC-018, AC-019, AC-041                   |
+| UC-015 | Review and Export Audit Trail                         | Manager / System                 | FR-042..FR-045                         | AC-020, AC-039, AC-040                           |
+| UC-016 | Automatic Trusted Scan Initiation and Re-run Evidence | Manager / System                 | FR-049, FR-050                         | AC-004, AC-020, AC-028, AC-039, AC-050A..AC-050F |
+| UC-017 | Enforce Security and Privacy Controls                 | System                           | FR-019, FR-042, FR-048                 | AC-022, AC-023, AC-030, AC-041                   |
 
 ## UC-001 Authenticate and Manage Account
 
@@ -43,7 +43,7 @@ Goal: establish a safe organization-scoped session through approved password/MFA
 
 ## UC-002 Manage Organization and Roles
 
-Goal: maintain tenant membership, PBAC policy scope, Manager accountability, and optional scoped Developer collaboration. Cross-tenant actions, revoked policy scope, and Developer attempts at Manager-only actions are denied by server-side PBAC.
+Goal: maintain tenant membership, RBAC policy scope, and Manager accountability. Cross-tenant actions and non-Manager attempts at Manager-only actions are denied by server-side RBAC.
 
 ## UC-003 Create Assessment
 
@@ -83,7 +83,7 @@ Goal: preserve evidence-backed AIUsageFlow context for classification without a 
 
 ## UC-012 Operate Legal Corpus and Compile EngineeringRules
 
-Goal: prepare an approved immutable legal corpus and compile citation-backed LegalRules into validated EngineeringRules. Source validation, ingestion, review, approval, and index build are Internal Legal Operator API/CLI operations. Manager/Developer UX only sees assessment-relevant corpus version and citations.
+Goal: prepare an approved immutable legal corpus and compile citation-backed LegalRules into validated EngineeringRules. Source validation, ingestion, review, approval, and index build are Internal Legal Operator API/CLI operations. Manager UX only sees assessment-relevant corpus version and citations.
 
 ## UC-013 Run Risk Classification
 
@@ -107,7 +107,7 @@ Goal: enforce source non-execution, restricted workspace, cleanup, redaction, no
 
 ## UX Boundary
 
-`bmad-ux` designs Manager and optional Developer experiences for UC-001..UC-017, excluding the internal operations portion of UC-012. It must cover loading, empty, insufficient, permission-denied, blocked, failed, retry/rerun, degraded, automatic trigger mapping states, and audit-reference states. It must not create active screens for manual scanner report upload, `FR-051`, `FR-052`, structured attestation, or customer-facing corpus administration.
+`bmad-ux` designs Manager experiences for UC-001..UC-017, excluding the internal operations portion of UC-012. It must cover loading, empty, insufficient, permission-denied, blocked, failed, retry/rerun, degraded, automatic trigger mapping states, and audit-reference states. It must not create active screens for Developer invitations/tasks, manual scanner report upload, `FR-051`, `FR-052`, structured attestation, or customer-facing corpus administration.
 
 ```text
 CANONICAL_USE_CASES_NORMALIZED

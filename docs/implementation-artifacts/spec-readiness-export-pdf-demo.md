@@ -20,11 +20,11 @@ context:
 
 ## Boundaries & Constraints
 
-**Always:** Use the existing `lcsp_api_test` database, test auth fixture, Manager PBAC policy, readiness-export HTTP endpoints, and PDF download endpoint. Produce a readiness-only PDF with no accepted technical evidence. Print the output path and fail with a non-zero exit code for setup, generation, download, or file-write errors.
+**Always:** Use the existing `lcsp_api_test` database, test auth fixture, Manager RBAC policy, readiness-export HTTP endpoints, and PDF download endpoint. Produce a readiness-only PDF with no accepted technical evidence. Print the output path and fail with a non-zero exit code for setup, generation, download, or file-write errors.
 
 **Ask First:** Adding a PDF library, changing application endpoints, changing the main development database, or deleting files outside the generated demo PDF requires explicit approval.
 
-**Never:** Connect to production data, accept external command-line values as unvalidated database URLs or output paths, commit generated PDFs, bypass Manager PBAC, or replace the existing e2e test fixture semantics.
+**Never:** Connect to production data, accept external command-line values as unvalidated database URLs or output paths, commit generated PDFs, bypass Manager RBAC, or replace the existing e2e test fixture semantics.
 
 ## I/O & Edge-Case Matrix
 
@@ -32,7 +32,7 @@ context:
 |----------|---------------|----------------------------|----------------|
 | Demo succeeds | Docker test Postgres available | A version-one readiness-only PDF is saved at `output/readiness-export-demo.pdf`; the path and byte count are printed | N/A |
 | Test database unavailable | Docker Desktop stopped or port unavailable | No PDF is written | Exit with the Docker/Postgres setup failure |
-| Export/download fails | Fixture, PBAC, or API assertion fails | No stale success message is printed | Exit non-zero with the failure detail |
+| Export/download fails | Fixture, RBAC, or API assertion fails | No stale success message is printed | Exit non-zero with the failure detail |
 
 </frozen-after-approval>
 
@@ -60,7 +60,7 @@ context:
 
 ## Design Notes
 
-The command deliberately reuses HTTP endpoints instead of calling the PDF service directly. This tests the same PBAC, ownership, state-gate, persistence, guardrail, and download behavior as the real Manager-facing flow while isolating all writes to the disposable test database.
+The command deliberately reuses HTTP endpoints instead of calling the PDF service directly. This tests the same RBAC, ownership, state-gate, persistence, guardrail, and download behavior as the real Manager-facing flow while isolating all writes to the disposable test database.
 
 ## Verification
 

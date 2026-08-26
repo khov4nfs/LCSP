@@ -13,7 +13,7 @@ As a Manager or authorized auditor, I want to view and export redacted audit eve
 1. **Given** an authorized Manager or auditor opens audit trail
    **When** LCSP loads assessment audit events
    **Then** it shows redacted event timeline with filters for actor, action, result, domain, artifact, date, and correlation ID
-   **And** access is PBAC-checked and audited.
+   **And** access is RBAC-checked and audited.
 
 2. **Given** a user requests audit export
    **When** the export is authorized
@@ -27,7 +27,7 @@ As a Manager or authorized auditor, I want to view and export redacted audit eve
 
 ## Tasks / Subtasks
 
-- [ ] Build filtered redacted audit timeline view with PBAC checks and access audit. (AC: 1)
+- [ ] Build filtered redacted audit timeline view with RBAC checks and access audit. (AC: 1)
 - [ ] Generate redacted audit export with checksum, filter criteria and version metadata. (AC: 2)
 - [ ] Deny and audit out-of-scope export/view requests without exposing hidden data. (AC: 3)
 
@@ -52,20 +52,20 @@ As a Manager or authorized auditor, I want to view and export redacted audit eve
 
 ### Story-Specific Implementation Tasks
 
-- Build filtered redacted audit timeline view with PBAC checks and access audit.
+- Build filtered redacted audit timeline view with RBAC checks and access audit.
 - Generate redacted audit export with checksum, filter criteria and version metadata.
 - Deny and audit out-of-scope export/view requests without exposing hidden data.
 
 ### Task to Acceptance Criteria Traceability
 
-- `AC1`: Build filtered redacted audit timeline view with PBAC checks and access audit.
+- `AC1`: Build filtered redacted audit timeline view with RBAC checks and access audit.
 - `AC2`: Generate redacted audit export with checksum, filter criteria and version metadata.
 - `AC3`: Deny and audit out-of-scope export/view requests without exposing hidden data.
 
 ### Dependencies and Prerequisites
 
 - Story 8.6 immutable audit trail.
-- PBAC authorization for Manager or auditor roles.
+- RBAC authorization for Manager or auditor roles.
 
 ### Explicit Non-Goals
 
@@ -83,7 +83,7 @@ As a Manager or authorized auditor, I want to view and export redacted audit eve
 
 - Gap analysis, document generation và artifact persistence chạy ở async worker chain; API/Web chỉ request, track status và serve authorized downloads/views.
 - Document generation phải tiêu thụ Classification + GapAnalysis + citations/evidence appendix; không được chạy trực tiếp từ classification event.
-- Audit export là domain riêng, chịu PBAC + redaction policy rõ ràng trước khi download.
+- Audit export là domain riêng, chịu RBAC + redaction policy rõ ràng trước khi download.
 
 ### Functional and Domain Requirements
 
@@ -102,7 +102,7 @@ As a Manager or authorized auditor, I want to view and export redacted audit eve
 
 - Final report chỉ hợp lệ khi `CLASSIFICATION_READY`, `GAP_ANALYSIS_READY`, citations valid và không còn unresolved material conflict.
 - Document blocked, readiness-generated, final generated và audit-export-generated đều phải có audit trail và status projection rõ.
-- Artifact downloads/exports phải tuân PBAC scope và giữ immutable history/superseded version semantics.
+- Artifact downloads/exports phải tuân RBAC scope và giữ immutable history/superseded version semantics.
 
 ### File Structure Notes
 

@@ -13,7 +13,6 @@ import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import {
   REQUEST_TARGETED_REANALYSIS_TOOL,
   SCAN_ERROR_CODES,
@@ -68,24 +67,18 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
   /**
    * Validates/deduplicates a targeted reanalysis request, resolves its bounded code scope, applies tenant capacity limits, and queues worker execution.
    *
-   * @param command - Requested artifact/analyzer/scope plus authorized PBAC and correlation context.
+   * @param command - Requested artifact/analyzer/scope plus authorized RBAC and correlation context.
    * @returns Agentic-tool response describing the queued or already-queued reanalysis request.
    * @throws When the analyzer/scope is invalid, idempotency conflicts, evidence/snapshot is unavailable, or rate/capacity limits are exhausted.
    */
   async execute(
     command: RequestTargetedReanalysisCommand,
   ): Promise<RequestTargetedReanalysisResponse> {
-    const { input, pbacContext, correlationId } = command;
+    const { input, rbacContext, correlationId } = command;
     this.assertInput(input, correlationId);
-    const organizationId = pbacContext.organizationId;
 
     const existing = await this.prisma.targetedReanalysisRequest.findUnique({
-      where: {
-        organizationId_idempotencyKey: {
-          organizationId,
-          idempotencyKey: input.idempotencyKey,
-        },
-      },
+      where: { idempotencyKey: input.idempotencyKey },
     });
     if (existing) {
       if (
@@ -117,7 +110,6 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
       where: {
         id: input.inputArtifactVersion,
         assessmentId: input.assessmentId,
-        organizationId,
         status: TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
       },
       select: { id: true, evidencePayload: true, snapshotId: true },
@@ -127,7 +119,6 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
           where: {
             id: report.snapshotId,
             assessmentId: input.assessmentId,
-            organizationId,
           },
           select: { id: true, commitSha: true },
         })
@@ -148,7 +139,7 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
     const auditRef = `audit:${requestId}`;
     const created = await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`
-        SELECT pg_advisory_xact_lock(hashtext(${organizationId}))
+        SELECT pg_advisory_xact_lock(hashtext(${input.assessmentId}))
       `;
       const now = new Date();
       const fifteenMinutesAgo = new Date(now.getTime() - 15 * 60 * 1000);
@@ -156,14 +147,19 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
       const [fifteenMinuteCount, dailyCount, activeCount, queuedCount] =
         await Promise.all([
           tx.targetedReanalysisRequest.count({
-            where: { organizationId, createdAt: { gte: fifteenMinutesAgo } },
-          }),
-          tx.targetedReanalysisRequest.count({
-            where: { organizationId, createdAt: { gte: twentyFourHoursAgo } },
+            where: {
+              assessmentId: input.assessmentId,
+              createdAt: { gte: fifteenMinutesAgo },
+            },
           }),
           tx.targetedReanalysisRequest.count({
             where: {
-              organizationId,
+              assessmentId: input.assessmentId,
+              createdAt: { gte: twentyFourHoursAgo },
+            },
+          }),
+          tx.targetedReanalysisRequest.count({
+            where: {
               state: {
                 in: [
                   TARGETED_REANALYSIS_REQUEST_STATES.queued,
@@ -175,7 +171,6 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
           }),
           tx.targetedReanalysisRequest.count({
             where: {
-              organizationId,
               state: TARGETED_REANALYSIS_REQUEST_STATES.queued,
             },
           }),
@@ -204,12 +199,26 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
           { status: HttpStatus.TOO_MANY_REQUESTS },
         );
       }
+      await tx.repositoryScanJob.create({
+        data: {
+          id: scanJobId,
+          assessmentId: input.assessmentId,
+          snapshotId: report.snapshotId,
+          idempotencyKey: `reanalysis:${input.idempotencyKey}`,
+          triggerSource: toPrismaRepositoryScanTriggerSource(
+            REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+          ),
+          status: toPrismaRepositoryScanJobStatus(
+            REPOSITORY_SCAN_JOB_STATUSES.queued,
+          ),
+          correlationId,
+        },
+      });
       const row = await tx.targetedReanalysisRequest.create({
         data: {
           id: requestId,
           scanJobId,
           assessmentId: input.assessmentId,
-          organizationId,
           inputEvidenceReportId: input.inputArtifactVersion,
           snapshotId: report.snapshotId,
           commitSha: snapshot.commitSha,
@@ -228,35 +237,17 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
           correlationId,
         },
       });
-      await tx.repositoryScanJob.create({
-        data: {
-          id: scanJobId,
-          assessmentId: input.assessmentId,
-          snapshotId: report.snapshotId,
-          organizationId,
-          idempotencyKey: `reanalysis:${input.idempotencyKey}`,
-          triggerSource: toPrismaRepositoryScanTriggerSource(
-            REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
-          ),
-          status: toPrismaRepositoryScanJobStatus(
-            REPOSITORY_SCAN_JOB_STATUSES.queued,
-          ),
-          correlationId,
-        },
-      });
       await this.outbox.enqueue(
         buildOutboxMessageInput({
           aggregateType: OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest,
           aggregateId: requestId,
           eventType: GITHUB_INTEGRATION_EVENT_TYPES.targetedReanalysisRequested,
-          organizationId,
           assessmentId: input.assessmentId,
           correlationId,
           causationId: correlationId,
-          actor: { id: pbacContext.userId, type: AUDIT_ACTOR_TYPES.user },
+          actor: { id: rbacContext.userId, type: AUDIT_ACTOR_TYPES.user },
           result: SCAN_EVENT_TYPES.targetedReanalysisQueuedAudit,
           redactionStatus: AUDIT_REDACTION_STATUSES.none,
-          authorizationAction: PBAC_ACTIONS.technicalEvidenceReanalyze,
           idempotencyKey: input.idempotencyKey,
           payload: {
             requestId,
@@ -277,8 +268,7 @@ export class RequestTargetedReanalysisHandler implements ICommandHandler<Request
     });
     await this.auditWriter.write({
       eventType: SCAN_EVENT_TYPES.targetedReanalysisQueuedAudit,
-      actorId: pbacContext.userId,
-      organizationId,
+      actorId: rbacContext.userId,
       assessmentId: input.assessmentId,
       resourceType: AUDIT_RESOURCE_TYPES.workerTask,
       resourceId: requestId,

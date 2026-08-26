@@ -27,7 +27,6 @@ import { AcceptClassificationHandler } from "./accept-classification.handler.js"
 type EvidenceFixture = {
   id: string;
   assessmentId: string;
-  organizationId: string;
   snapshotId: string;
 } | null;
 
@@ -83,7 +82,6 @@ describe("AcceptClassificationHandler", () => {
       .mockResolvedValue({
         id: "ter-123",
         assessmentId: "asm-123",
-        organizationId: "org-123",
         snapshotId: "snapshot-123",
       });
     mockFindResults = jest
@@ -146,7 +144,6 @@ describe("AcceptClassificationHandler", () => {
           legalRuleMatchId: null,
           verifiedProfileId: null,
           assessmentId: "asm-123",
-          organizationId: "org-123",
           schemaVersion: "2.0.0",
           classificationData: expect.objectContaining({
             mode: ASSESSMENT_RESULT_MODES.engineeringRuleEvaluation,

@@ -74,7 +74,7 @@ Các sự kiện phải audit gồm authentication, PBAC denial/allow for materi
 ## Bảo mật và riêng tư
 
 - Tenant scope và PBAC được kiểm tra phía server.
-- Developer chỉ thấy dữ liệu trong task/policy được cấp.
+- Non-Manager hoặc subject không có policy phù hợp bị deny phía server; dữ liệu trả ra luôn được giới hạn theo PBAC và redaction policy.
 - OAuth/OIDC login không cấp GitHub repository access.
 - GitHub App chỉ đọc repository đã chọn.
 - Scanner không chạy mã khách hàng.

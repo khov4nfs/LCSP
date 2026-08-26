@@ -12,9 +12,7 @@ import { ReconciliationController } from "./reconciliation.controller.js";
 function request(): AuthenticatedRequest {
   return {
     correlationId: "corr-1",
-    pbacContext: {
-      organizationId: "org-1",
-    },
+    rbacContext: {},
   } as AuthenticatedRequest;
 }
 
@@ -49,7 +47,6 @@ describe("ReconciliationController.getArtifactChain", () => {
     expect(queryBus.execute).toHaveBeenCalledWith(
       new GetArtifactChainQuery(
         "assessment-1",
-        "org-1",
         "corr-1",
         "ter:report-1",
         requiredStages,

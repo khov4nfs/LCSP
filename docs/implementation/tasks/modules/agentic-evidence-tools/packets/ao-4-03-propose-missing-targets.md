@@ -34,27 +34,27 @@ AO-4 proposes questions/targets for human workflow review after coverage is suff
 
 ## 7. Errors and Typed Outcomes
 
-Invalid kind/ref/cap=`INVALID_ARGUMENT`; pins missing=`NEEDS_INPUT`; no candidate in exhaustive scope=`READY`; insufficient pattern scope=`OUT_OF_COVERAGE`; PBAC/version=`BLOCKED`; transient failure=`FAILED` after retry.
+Invalid kind/ref/cap=`INVALID_ARGUMENT`; pins missing=`NEEDS_INPUT`; no candidate in exhaustive scope=`READY`; insufficient pattern scope=`OUT_OF_COVERAGE`; RBAC/version=`BLOCKED`; transient failure=`FAILED` after retry.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
-Validate → registry/PBAC/exact pins → subtract submitted/excluded target IDs → fixed candidate algorithm → stable cap → coverage/privacy/audit. `MissingTargetProposalTool` is `LLM_CALLABLE`, `ASSESSMENT_VERIFY`, 3s/one retry/`NONE`. Model gets ≤25 typed candidates/refs and may offer them to workflow; cannot treat candidate as truth or write wizard. Audit shared hashes/config/algo/budget/refs; prohibit source, raw answers, prompt/secret/AST/direct storage.
+Validate → registry/RBAC/exact pins → subtract submitted/excluded target IDs → fixed candidate algorithm → stable cap → coverage/privacy/audit. `MissingTargetProposalTool` is `LLM_CALLABLE`, `ASSESSMENT_VERIFY`, 3s/one retry/`NONE`. Model gets ≤25 typed candidates/refs and may offer them to workflow; cannot treat candidate as truth or write wizard. Audit shared hashes/config/algo/budget/refs; prohibit source, raw answers, prompt/secret/AST/direct storage.
 
 ## 16–18. Scenario, AC, Tests
 
-Verified OpenAI invocation not represented by a submitted provider target produces a candidate; if scope partial, no overconfident candidate. AC: declared targets excluded, stable rank, no write, PBAC/privacy/audit.
+Verified OpenAI invocation not represented by a submitted provider target produces a candidate; if scope partial, no overconfident candidate. AC: declared targets excluded, stable rank, no write, RBAC/privacy/audit.
 
 | ID | Scenario | Level |
 |---|---|---|
 | TC-01 | candidate/exclusion/order/limit | golden |
 | TC-02 | invalid refs/extra args | contract |
-| TC-03 | insufficient scope/PBAC/version | integration |
+| TC-03 | insufficient scope/RBAC/version | integration |
 | TC-04 | no wizard mutation/candidate trace | integration |
 | TC-05 | sensitive payload/retry | privacy/worker |
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Add contracts/registry/candidate service/normalizer/API PBAC/audit/tests. OQ-01: approve candidate score threshold (Product, OPEN, blocks yes). Deliver schema/algorithm/audit/tests.
+Add contracts/registry/candidate service/normalizer/API RBAC/audit/tests. OQ-01: approve candidate score threshold (Product, OPEN, blocks yes). Deliver schema/algorithm/audit/tests.
 
 ## Source Authority
 

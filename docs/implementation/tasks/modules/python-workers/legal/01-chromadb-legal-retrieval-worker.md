@@ -40,7 +40,7 @@ No dense embeddings anywhere in this worker.
 |---|---|
 | Queue | `legal.verified-profile-ready` |
 | Routing key | `verified-profile-ready` |
-| PBAC preflight | No (system event) |
+| RBAC preflight | No (system event) |
 
 ## Phase 1 — Rule Applicability Evaluation (Deterministic, Not ChromaDB)
 

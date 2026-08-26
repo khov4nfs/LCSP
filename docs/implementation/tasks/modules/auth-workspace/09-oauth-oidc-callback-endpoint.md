@@ -116,9 +116,9 @@ model AuthOAuthIdentity {
 | `event.auth.oauth-login-succeeded` | `AuthAuditEvent` | `{ actorId, provider, organizationId, correlationId, decision: allow }`   |
 | `event.auth.oauth-login-failed`    | `AuthAuditEvent` | `{ provider, reasonCode, correlationId, decision: deny }` — no code/token |
 
-## PBAC
+## RBAC
 
-Public endpoint (provider redirect). Post-login PBAC applies to workspace routes.
+Public endpoint (provider redirect). Post-login RBAC applies to workspace routes.
 
 ## Test Cases
 

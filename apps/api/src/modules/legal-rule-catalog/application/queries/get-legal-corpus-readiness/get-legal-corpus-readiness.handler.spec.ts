@@ -63,12 +63,9 @@ function createHandler(input?: {
 function query(pinnedCorpusVersionId: string | null = null) {
   return new GetLegalCorpusReadinessQuery(
     "assessment-1",
-    "organization-1",
     new Date("2026-08-12T00:00:00.000Z"),
     pinnedCorpusVersionId,
     "user-1",
-    "policy-1",
-    "1",
     "correlation-1",
   );
 }
@@ -137,7 +134,7 @@ describe("GetLegalCorpusReadinessHandler", () => {
     expect(JSON.stringify(write.mock.calls)).not.toContain("must never leak");
   });
 
-  it("TC-03: fails closed for an assessment outside the caller organization", async () => {
+  it("TC-03: fails closed for an inaccessible assessment", async () => {
     const { handler, corpusFindFirst } = createHandler({ assessment: null });
 
     await expect(handler.execute(query())).rejects.toBeInstanceOf(

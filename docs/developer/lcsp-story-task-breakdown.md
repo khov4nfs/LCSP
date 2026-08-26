@@ -39,7 +39,7 @@ Stories: `1.1`, `1.2`, `1.3`, `1.4`, `1.5`, `1.6`, `1.7`, `1.8`, `1.9`, `1.10`
 | Task | Pts | Owner | Story | Dependency | Window |
 |---|---:|---|---|---|---|
 | `E1-S11-F1 Approved Account Entry and Workspace Access` | 3 | `L` | `1.1` | `none` | `D1-D5` |
-| `E1-S12-F1 Model MFA enrollment/challenge/recovery state separate from base session and keep membership/PBAC gate intact` | 2 | `A` | `1.2` | `E1-S11-F1` | `D1-D5` |
+| `E1-S12-F1 Model MFA enrollment/challenge/recovery state separate from base session and keep membership/RBAC gate intact` | 2 | `A` | `1.2` | `E1-S11-F1` | `D1-D5` |
 | `E1-S12-F2 Add OTP validation rules for invalid, expired, replayed and rate-limited attempts before workspace access is granted` | 1 | `A` | `1.2` | `E1-S12-F1` | `D1-D5` |
 | `E1-S12-F3 Implement session expiry/revocation handling so protected routes fail closed with safe recovery/sign-in actions` | 1 | `A` | `1.2` | `E1-S12-F2` | `D1-D5` |
 | `E1-S12-F4 Audit MFA/recovery/profile-safety success and failure paths without exposing secret values in UI, API, logs or audit records` | 1 | `A` | `1.2` | `E1-S12-F3` | `D1-D5` |
@@ -47,18 +47,18 @@ Stories: `1.1`, `1.2`, `1.3`, `1.4`, `1.5`, `1.6`, `1.7`, `1.8`, `1.9`, `1.10`
 | `E1-S13-F2 Create LCSP identity/session only after safe account linking` | 1 | `A` | `1.3` | `E1-S13-F1` | `D6-D10` |
 | `E1-S13-F3 Harden audit and blocked state handling so login never creates repository authorization` | 1 | `A` | `1.3` | `E1-S13-F2` | `D6-D10` |
 | `E1-S14-F1 Materialize active organization/workspace context for authenticated users` | 2 | `L` | `1.4` | `E1-S13-F3` | `D11-D15` |
-| `E1-S14-F2 Bind Manager subject attributes and policy versioning into PBAC evaluation context` | 1 | `L` | `1.4` | `E1-S14-F1` | `D11-D15` |
+| `E1-S14-F2 Bind Manager subject attributes and policy versioning into RBAC evaluation context` | 1 | `L` | `1.4` | `E1-S14-F1` | `D11-D15` |
 | `E1-S14-F3 Project safe allow/deny results into workspace UX while auditing server-side decisions` | 1 | `L` | `1.4` | `E1-S14-F2` | `D11-D15` |
 | `E1-S15-F1 Add Developer invitation issuance, acceptance and scoped membership/policy binding` | 2 | `A` | `1.5` | `E1-S14-F3` | `D6-D10` |
 | `E1-S15-F2 Persist optional collaborator scope without making Developer mandatory for Manager golden path` | 1 | `A` | `1.5` | `E1-S15-F1` | `D6-D10` |
 | `E1-S15-F3 Audit invitation lifecycle, scope assignment and revocation-safe acceptance behavior` | 1 | `A` | `1.5` | `E1-S15-F2` | `D6-D10` |
-| `E1-S16-F1 Enumerate Manager-only actions and wire PBAC-protected API guard plus service recheck` | 2 | `L` | `1.6` | `E1-S15-F3` | `D11-D15` |
+| `E1-S16-F1 Enumerate Manager-only actions and wire RBAC-protected API guard plus service recheck` | 2 | `L` | `1.6` | `E1-S15-F3` | `D11-D15` |
 | `E1-S16-F2 Hide or block Manager-only UX actions based on backend capability projection` | 1 | `L` | `1.6` | `E1-S16-F1` | `D11-D15` |
 | `E1-S16-F3 Audit allow/deny with policy id/version and correlation ID` | 1 | `L` | `1.6` | `E1-S16-F2` | `D11-D15` |
 | `E1-S17-F1 Implement evaluator contract for subject, organization, resource, action, context and policy version` | 2 | `L` | `1.7` | `E1-S16-F3` | `D11-D15` |
 | `E1-S17-F2 Define fail-closed behavior for cache miss, evaluator failure and missing policy/state gate` | 1 | `L` | `1.7` | `E1-S17-F1` | `D11-D15` |
 | `E1-S17-F3 Persist `AuthorizationDecision` and expose safe failure reasons to callers` | 1 | `L` | `1.7` | `E1-S17-F2` | `D11-D15` |
-| `E1-S18-F1 Define foundational audit event schema for auth/PBAC/session and early workflow actions` | 2 | `L` | `1.8` | `E1-S17-F3` | `D1-D10` |
+| `E1-S18-F1 Define foundational audit event schema for auth/RBAC/session and early workflow actions` | 2 | `L` | `1.8` | `E1-S17-F3` | `D1-D10` |
 | `E1-S18-F2 Introduce outbox ownership and event naming conventions for future async domains` | 1 | `L` | `1.8` | `E1-S18-F1` | `D1-D10` |
 | `E1-S18-F3 Ensure append-only audit plus correlation ID propagation across sync-to-async boundary` | 1 | `L` | `1.8` | `E1-S18-F2` | `D1-D10` |
 | `E1-S19-F1 Define command/event schemas and handoff envelope for Python worker platform` | 2 | `L` | `1.9` | `E1-S18-F3` | `D1-D10` |
@@ -76,7 +76,7 @@ Stories: `2.1`, `2.2`, `2.3`, `2.4`
 | Task | Pts | Owner | Story | Dependency | Window |
 |---|---:|---|---|---|---|
 | `E2-S21-F1 Create assessment aggregate with Manager ownership, organization scope and initial workflow state` | 2 | `L` | `2.1` | `none` | `D6-D10` |
-| `E2-S21-F2 Add create-assessment UI/API path with PBAC gating and safe denial handling` | 1 | `L` | `2.1` | `E2-S21-F1` | `D6-D10` |
+| `E2-S21-F2 Add create-assessment UI/API path with RBAC gating and safe denial handling` | 1 | `L` | `2.1` | `E2-S21-F1` | `D6-D10` |
 | `E2-S21-F3 Scaffold Wizard entry surfaces from assessment overview, including Wizard landing and initial section-progress projection` | 1 | `L` | `2.1` | `E2-S21-F2` | `D6-D10` |
 | `E2-S21-F4 Emit audit event and neutral readiness/Wizard entry projection after creation without implying any legal/risk result` | 1 | `L` | `2.1` | `E2-S21-F3` | `D6-D10` |
 | `E2-S22-F1 Implement the two-phase Wizard flow: `pre-screen` followed by detailed sectioned intake` | 2 | `C` | `2.2` | `E2-S21-F4` | `D6-D10` |
@@ -128,7 +128,7 @@ Stories: `3.1`, `3.2`, `3.3`, `3.4`, `3.5`, `3.6`, `3.7`, `3.8`, `3.9`, `3.10`, 
 | `E3-S38-F3 Mark unknown or low-confidence technical dimensions explicitly instead of inferring unsupported facts from declarations` | 1 | `C` | `3.8` | `E3-S38-F2` | `D16-D20` |
 | `E3-S38-F4 Emit downstream AIUsageFlow request only from current accepted profile version and preserve immutable lineage for reruns` | 1 | `C` | `3.8` | `E3-S38-F3` | `D16-D20` |
 | `E3-S39-F1 Build review surface for technical findings with redacted evidence context and scoped access rules` | 2 | `C` | `3.9` | `E3-S38-F4` | `D21-D25` |
-| `E3-S39-F2 Separate Manager/business-safe views from Developer technical scope where required by PBAC` | 1 | `C` | `3.9` | `E3-S39-F1` | `D21-D25` |
+| `E3-S39-F2 Separate Manager/business-safe views from Developer technical scope where required by RBAC` | 1 | `C` | `3.9` | `E3-S39-F1` | `D21-D25` |
 | `E3-S39-F3 Audit findings access and prevent exposure of raw source, secrets or out-of-scope data` | 1 | `C` | `3.9` | `E3-S39-F2` | `D21-D25` |
 | `E3-S310-F1 Add rerun request path that creates new scan generation from immutable snapshot/evidence lineage` | 2 | `B` | `3.10` | `E3-S39-F3` | `D21-D25` |
 | `E3-S310-F2 Mark superseded status/history without mutating prior accepted artifacts` | 1 | `B` | `3.10` | `E3-S310-F1` | `D21-D25` |
@@ -160,7 +160,7 @@ Stories: `4.1`, `4.2`, `4.3`, `4.4`, `4.5`, `4.6`
 | `E4-S45-F3 Route low-materiality or coverage-limited disagreements into uncertainty rather than forced conflict` | 1 | `C` | `4.5` | `E4-S45-F2` | `D21-D25` |
 | `E4-S46-F1 Build Manager review read model for claims, source refs, confidence, uncertainty and conflict candidates` | 2 | `A` | `4.6` | `E4-S45-F3` | `D21-D25` |
 | `E4-S46-F2 Render declaration-backed versus scanner-backed claims distinctly so provenance is visible at a glance` | 1 | `A` | `4.6` | `E4-S46-F1` | `D21-D25` |
-| `E4-S46-F3 Apply PBAC-scoped filtering for Developer access so out-of-scope business declarations and Manager-only actions stay hidden` | 1 | `A` | `4.6` | `E4-S46-F2` | `D21-D25` |
+| `E4-S46-F3 Apply RBAC-scoped filtering for Developer access so out-of-scope business declarations and Manager-only actions stay hidden` | 1 | `A` | `4.6` | `E4-S46-F2` | `D21-D25` |
 | `E4-S46-F4 Keep copy, labels and next actions neutral so the surface cannot be mistaken for VerifiedProfile approval or final classification` | 1 | `A` | `4.6` | `E4-S46-F3` | `D21-D25` |
 
 ## Epic 5 - Reconciliation and Verified Profile
@@ -266,12 +266,12 @@ Stories: `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, `8.6`, `8.7`
 | `E8-S84-F2 Carry explicit readiness-only labeling across title, badge, metadata, preview and artifact history` | 1 | `D` | `8.4` | `E8-S84-F1` | `D21-D30` |
 | `E8-S84-F3 Block or strip any content that implies final risk/legal/compliance conclusion` | 1 | `D` | `8.4` | `E8-S84-F2` | `D21-D30` |
 | `E8-S85-F1 Expose artifact history with type, version, status, checksum and source assessment versions` | 2 | `A` | `8.5` | `E8-S84-F3` | `D26-D30` |
-| `E8-S85-F2 Enforce PBAC on download serving and audit every access or denial` | 1 | `A` | `8.5` | `E8-S85-F1` | `D26-D30` |
+| `E8-S85-F2 Enforce RBAC on download serving and audit every access or denial` | 1 | `A` | `8.5` | `E8-S85-F1` | `D26-D30` |
 | `E8-S85-F3 Mark current vs superseded artifacts while preserving immutable historical versions` | 1 | `A` | `8.5` | `E8-S85-F2` | `D26-D30` |
 | `E8-S86-F1 Write immutable redacted audit events for all material domains from auth through exports` | 2 | `L` | `8.6` | `E8-S85-F3` | `D26-D30` |
 | `E8-S86-F2 Apply redaction/omission policy to secrets, tokens, raw source, full prompts and out-of-scope details` | 1 | `L` | `8.6` | `E8-S86-F1` | `D26-D30` |
 | `E8-S86-F3 Handle audit write failure by blocking/retrying/degrading per configured policy instead of silent drop` | 1 | `L` | `8.6` | `E8-S86-F2` | `D26-D30` |
-| `E8-S87-F1 Build filtered redacted audit timeline view with PBAC checks and access audit` | 2 | `L` | `8.7` | `E8-S86-F3` | `D26-D30` |
+| `E8-S87-F1 Build filtered redacted audit timeline view with RBAC checks and access audit` | 2 | `L` | `8.7` | `E8-S86-F3` | `D26-D30` |
 | `E8-S87-F2 Generate redacted audit export with checksum, filter criteria and version metadata` | 1 | `L` | `8.7` | `E8-S87-F1` | `D26-D30` |
 | `E8-S87-F3 Deny and audit out-of-scope export/view requests without exposing hidden data` | 1 | `L` | `8.7` | `E8-S87-F2` | `D26-D30` |
 

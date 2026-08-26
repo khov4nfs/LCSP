@@ -22,7 +22,6 @@ export class RevokeOwnedSessionHandler {
       where: {
         id: command.sessionId,
         userId: command.context.userId,
-        organizationId: command.context.organizationId,
       },
     });
 

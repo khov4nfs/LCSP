@@ -13,7 +13,6 @@ type ScanJobStalenessPrisma = Pick<
 >;
 
 type FailStaleRepositoryScanJobsInput = {
-  organizationId?: string;
   assessmentId?: string;
   now?: Date;
 };
@@ -50,7 +49,6 @@ export async function failStaleRepositoryScanJobs(
   const staleCutoff = new Date(now.getTime() - repositoryScanStaleAfterMs());
   const candidates = await prisma.repositoryScanJob.findMany({
     where: {
-      ...(input.organizationId ? { organizationId: input.organizationId } : {}),
       ...(input.assessmentId ? { assessmentId: input.assessmentId } : {}),
       status: { in: ACTIVE_SCAN_STATUSES },
       updatedAt: { lt: staleCutoff },

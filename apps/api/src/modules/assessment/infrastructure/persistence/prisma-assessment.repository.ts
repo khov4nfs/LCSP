@@ -16,7 +16,6 @@ import { Assessment } from "../../domain/entities/assessment.entity.js";
 
 type AssessmentRecord = {
   id: string;
-  organizationId: string;
   ownerId: string;
   name: string;
   description: string | null;
@@ -76,7 +75,6 @@ export class PrismaAssessmentRepository implements AssessmentRepository {
       where: { id: assessment.id },
       create: {
         id: assessment.id,
-        organizationId: assessment.organizationId,
         ownerId: assessment.ownerId,
         name: assessment.name,
         description: assessment.description,
@@ -105,16 +103,15 @@ export class PrismaAssessmentRepository implements AssessmentRepository {
   }
 
   /**
-   * Retrieves a paginated assessment page using organization, owner/scope, and status criteria.
+   * Retrieves a paginated assessment page using owner/scope and status criteria.
    *
-   * @param criteria - Tenant, visibility, status, and pagination filters.
+   * @param criteria - Visibility, status, and pagination filters.
    * @returns Rehydrated assessment items plus the total matching row count.
    */
   async findMany(
     criteria: AssessmentListCriteria,
   ): Promise<AssessmentListResult> {
     const where: Prisma.AssessmentWhereInput = {
-      organizationId: criteria.organizationId,
       ...(criteria.ownerId ? { ownerId: criteria.ownerId } : {}),
       ...(criteria.assessmentId ? { id: criteria.assessmentId } : {}),
       ...(criteria.status
@@ -147,7 +144,6 @@ export class PrismaAssessmentRepository implements AssessmentRepository {
   private toDomain(record: AssessmentRecord): Assessment {
     return Assessment.rehydrate({
       id: record.id,
-      organizationId: record.organizationId,
       ownerId: record.ownerId,
       name: record.name,
       description: record.description,

@@ -39,18 +39,18 @@ class OcrFallbackBoundary(AgentBoundaryBase):
 
     boundary_source = OCR_FALLBACK_BOUNDARY_SOURCE
     source_event = OCR_FALLBACK_COMMAND
-    requires_pbac = False
+    requires_rbac = False
     retry_delays_seconds = ()
 
     def __init__(
         self,
         config,
-        pbac_client=None,
+        rbac_client=None,
         api_client: WorkerApiClient | None = None,
         tool: OcrFallbackTool | None = None,
     ) -> None:
         """Create the boundary with optional injected API/OCR tool adapters."""
-        super().__init__(config, pbac_client)
+        super().__init__(config, rbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
             config.worker_api_key,

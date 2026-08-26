@@ -70,7 +70,7 @@ _Source: https://nextjs.org/docs/app/api-reference/config/typescript; https://ww
 
 ### Database and Storage Technologies
 
-Phạm vi migration hiện tại hầu như chưa chạm database runtime thực, nhưng source hiện có cho thấy `apps/api` đang chạy trên in-memory store để mô tả auth/PBAC flows. Vì vậy database không phải nơi rủi ro chính của migration này. Rủi ro chính là model typing cho store records, session records, audit events, membership/policy fixtures và error contracts. TypeScript nên được dùng để khóa shape của in-memory state trước, từ đó mới tách được domain types tái sử dụng nếu sau này đưa vào persistence layer thật.  
+Phạm vi migration hiện tại hầu như chưa chạm database runtime thực, nhưng source hiện có cho thấy `apps/api` đang chạy trên in-memory store để mô tả auth/RBAC flows. Vì vậy database không phải nơi rủi ro chính của migration này. Rủi ro chính là model typing cho store records, session records, audit events, membership/policy fixtures và error contracts. TypeScript nên được dùng để khóa shape của in-memory state trước, từ đó mới tách được domain types tái sử dụng nếu sau này đưa vào persistence layer thật.  
 _Relational Databases: Chưa có surface hiện hữu trong code cần migrate ở bước này._  
 _NoSQL Databases: Không có bằng chứng code hiện tại phụ thuộc NoSQL-specific shapes._  
 _In-Memory Databases: `createInMemoryStore()` hiện là locus chính để áp dụng typed entities, discriminated union cho responses, và readonly fixtures._  

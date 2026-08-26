@@ -35,7 +35,7 @@ Why:
 
 - it is isolated mostly to scan command/spec files
 - the only shared-file split is `packages/contracts/src/scan/callback.ts`
-- it does not need the shared evidence/PBAC barrels
+- it does not need the shared evidence/RBAC barrels
 
 Main shared split:
 
@@ -55,8 +55,8 @@ Main shared splits:
 - `apps/api/src/modules/classification/classification.module.ts`
 - `packages/contracts/src/evidence/agentic-tool.ts`
 - `packages/contracts/src/evidence/index.ts`
-- `packages/contracts/src/pbac/actions.ts`
-- `packages/contracts/src/pbac/manager-policy.ts`
+- `packages/contracts/src/rbac/actions.ts`
+- `packages/contracts/src/rbac/manager-policy.ts`
 
 Keep only AO-5 composition hunks.
 
@@ -73,8 +73,8 @@ Main shared splits:
 - `apps/api/src/modules/classification/classification.module.ts`
 - `packages/contracts/src/evidence/agentic-tool.ts`
 - `packages/contracts/src/evidence/index.ts`
-- `packages/contracts/src/pbac/actions.ts`
-- `packages/contracts/src/pbac/manager-policy.ts`
+- `packages/contracts/src/rbac/actions.ts`
+- `packages/contracts/src/rbac/manager-policy.ts`
 - `packages/contracts/src/scan/callback.ts`
 
 Keep only AO-3 composition hunks.
@@ -103,8 +103,8 @@ Keep only AO-4 composition hunks.
 | `apps/api/src/modules/classification/classification.module.ts` | exclude | AO-5 registration only | AO-3 registration only | exclude |
 | `packages/contracts/src/evidence/agentic-tool.ts` | exclude | AO-5 only | AO-3 only | AO-4 only |
 | `packages/contracts/src/evidence/index.ts` | exclude | AO-5 only | AO-3 only | AO-4 only |
-| `packages/contracts/src/pbac/actions.ts` | exclude | AO-5 only | AO-3 only | exclude |
-| `packages/contracts/src/pbac/manager-policy.ts` | exclude | AO-5 only | AO-3 only | exclude |
+| `packages/contracts/src/rbac/actions.ts` | exclude | AO-5 only | AO-3 only | exclude |
+| `packages/contracts/src/rbac/manager-policy.ts` | exclude | AO-5 only | AO-3 only | exclude |
 | `apps/api/src/modules/reconciliation/reconciliation.module.ts` | exclude | exclude | exclude | AO-4 registration only |
 
 ## Standard extraction procedure per candidate

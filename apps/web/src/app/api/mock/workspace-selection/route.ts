@@ -2,11 +2,11 @@ import { NextRequest } from "next/server";
 import { AUTH_ERROR_CODES, WORKSPACE_ERROR_CODES } from "@lcsp/contracts/auth";
 import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 
-import { isMockModeEnabled, readMockJson } from "@/lib/server/fixtures/response";
 import {
-  MOCK_WORKSPACE_COOKIE_NAME,
-  type MockDeveloperAccount,
-} from "@/lib/server/fixtures/workspace";
+  isMockModeEnabled,
+  readMockJson,
+} from "@/lib/server/fixtures/response";
+import type { MockWorkspace } from "@/lib/server/fixtures/workspace";
 import { problemJson, successJson } from "@/lib/server/problem-json";
 import {
   SESSION_COOKIE_NAME,
@@ -18,16 +18,13 @@ export async function GET(request: NextRequest) {
     return problemJson(SHARED_ERROR_CODES.notFound, { status: 404 });
   }
 
-  const account = await readMockJson<MockDeveloperAccount>(
-    "developer-account.json",
-  );
-  const selectedWorkspaceId = request.cookies.get(
-    MOCK_WORKSPACE_COOKIE_NAME,
-  )?.value;
+  const workspace = await readMockWorkspace();
+  const selectedWorkspaceId = request.cookies.get(SESSION_COOKIE_NAME)?.value
+    ? workspace.id
+    : undefined;
 
   return successJson({
-    email: account.email,
-    workspaces: account.workspaces,
+    workspaces: [workspace],
     selected_workspace_id: selectedWorkspaceId,
   });
 }
@@ -43,13 +40,8 @@ export async function POST(request: NextRequest) {
     return problemJson(AUTH_ERROR_CODES.validationFailed, { status: 400 });
   }
 
-  const account = await readMockJson<MockDeveloperAccount>(
-    "developer-account.json",
-  );
-  const selectedWorkspace = account.workspaces.find(
-    (workspace) => workspace.id === workspaceId,
-  );
-  if (!selectedWorkspace) {
+  const selectedWorkspace = await readMockWorkspace();
+  if (selectedWorkspace.id !== workspaceId) {
     return problemJson(WORKSPACE_ERROR_CODES.notFound, { status: 404 });
   }
 
@@ -57,14 +49,25 @@ export async function POST(request: NextRequest) {
     selected_workspace: selectedWorkspace,
   });
   response.cookies.set(
-    MOCK_WORKSPACE_COOKIE_NAME,
-    selectedWorkspace.id,
-    sessionCookieOptions,
-  );
-  response.cookies.set(
     SESSION_COOKIE_NAME,
-    `mock-session:${selectedWorkspace.id}`,
+    "mock-session:manager",
     sessionCookieOptions,
   );
   return response;
+}
+
+async function readMockWorkspace(): Promise<MockWorkspace> {
+  const payload = await readMockJson<{
+    organization?: { id?: unknown; name?: unknown };
+  }>("workspace.json");
+  return {
+    id:
+      typeof payload.organization?.id === "string"
+        ? payload.organization.id
+        : "org-lcsp",
+    name:
+      typeof payload.organization?.name === "string"
+        ? payload.organization.name
+        : "LCSP",
+  };
 }

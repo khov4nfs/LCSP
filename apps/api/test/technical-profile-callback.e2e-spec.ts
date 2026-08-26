@@ -29,6 +29,7 @@ import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
+  seedRepositoryScanGraph,
   TEST_DATABASE_URL,
 } from "./support/auth-workspace-test-helpers.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
@@ -64,12 +65,12 @@ describe("TechnicalProfile Callback Endpoint (e2e) [MW-evid-002]", () => {
     await prisma.assessment.create({
       data: {
         id: "assessment-1",
-        organizationId: "org-1",
         ownerId: "user-1",
         name: "Technical profile callback assessment",
         status: ASSESSMENT_STATUS_CODES.scanInProgress,
       },
     });
+    await seedRepositoryScanGraph(prisma, { scanJobId: "scan-job-1" });
     await createEvidenceReport(
       prisma,
       TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
@@ -300,7 +301,6 @@ async function createEvidenceReport(
       scanJobId: "scan-job-1",
       assessmentId: "assessment-1",
       snapshotId: "snapshot-1",
-      organizationId: "org-1",
       toolsVersion: { semgrep: "1.0.0" },
       configHash: { semgrep: "sha256:abc" },
       evidencePayload: { findings: [{ finding_type: "AI_MODEL_INVOCATION" }] },

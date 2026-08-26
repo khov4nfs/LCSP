@@ -6,7 +6,7 @@ import {
   WIZARD_STATUS_CODES,
   type AssessmentNextActionKey,
 } from "@lcsp/contracts/assessment";
-import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   CLASSIFICATION_RESULT_STATUSES,
   ENGINEERING_RULE_EVALUATION_STATUSES,
@@ -58,11 +58,11 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
       query.assessmentId,
     );
 
-    if (!assessment || assessment.organizationId !== query.organizationId) {
+    if (!assessment) {
       this.throwNotFound(query.correlationId);
     }
     if (
-      query.subjectRole === SUBJECT_ROLES.manager &&
+      query.subjectRole !== AUTH_USER_ROLES.customer ||
       assessment.ownerId !== query.sessionUserId
     ) {
       this.throwNotFound(query.correlationId);
@@ -79,7 +79,6 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
       await this.prisma.technicalEvidenceReport.findFirst({
         where: {
           assessmentId: assessment.id,
-          organizationId: assessment.organizationId,
           status: toPrismaEvidenceAcceptanceStatus(
             TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
           ),
@@ -92,7 +91,6 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
       ? await this.prisma.classificationResult.findFirst({
           where: {
             assessmentId: assessment.id,
-            organizationId: assessment.organizationId,
             status: toPrismaEvidenceAcceptanceStatus(
               CLASSIFICATION_RESULT_STATUSES.accepted,
             ),
@@ -128,7 +126,6 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
       name: assessment.name,
       status: assessment.status,
       owner_id: assessment.ownerId,
-      organization_id: assessment.organizationId,
       wizard_status: wizardStatus,
       readiness_state: readinessState,
       guardrail_status: classificationResult

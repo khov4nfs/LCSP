@@ -3,7 +3,6 @@ import type { ReconciliationContextStatus } from "../../contracts/reconciliation
 export class GetReconciliationContextQuery {
   constructor(
     public readonly assessmentId: string,
-    public readonly organizationId: string,
     public readonly correlationId: string,
     public readonly aiUsageFlowId: string | null,
     public readonly conflictIds: string[] = [],

@@ -33,6 +33,8 @@ import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
+  seedLegalClassificationParents,
+  seedVerifiedProfileGraph,
 } from "./support/auth-workspace-test-helpers.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
@@ -80,14 +82,12 @@ describe("Request Gap Analysis Endpoint (e2e) [LCSP-80]", () => {
     await prisma.assessment.deleteMany();
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
+    await seedLegalClassificationParents(prisma);
+    await seedVerifiedProfileGraph(prisma, { verifiedProfileId: "vp-1" });
 
-    await prisma.assessment.create({
-      data: {
-        id: "assessment-1",
-        organizationId: "org-1",
-        ownerId: "user-1",
-        name: "Gap analysis assessment",
-      },
+    await prisma.assessment.update({
+      where: { id: "assessment-1" },
+      data: { name: "Gap analysis assessment" },
     });
 
     const signIn = await httpRequest(app).post("/auth/sign-in").send({
@@ -230,7 +230,6 @@ async function seedClassification(
       id: matchId,
       verifiedProfileId: "vp-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       corpusVersionId: "LCSP-LEGAL-CORPUS-v0.1.0",
       legalRuleCatalogVersionId: "LCSP-RULE-CATALOG-v0.1.0",
       schemaVersion: "1.0.0",
@@ -250,7 +249,6 @@ async function seedClassification(
       legalRuleMatchId: matchId,
       verifiedProfileId: "vp-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       schemaVersion: "1.0.0",
       classificationData: {
         system_type: "HIGH_IMPACT_AI",

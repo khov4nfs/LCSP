@@ -5,9 +5,9 @@ import { QueryHandler } from "@nestjs/cqrs";
 import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_STATUS_CODES,
-  SUBJECT_ROLES,
   WIZARD_STATUS_CODES,
 } from "@lcsp/contracts";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { fromPrismaWizardStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
@@ -28,7 +28,7 @@ const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
 /**
- * Produces the caller-visible assessment list with fail-closed PBAC scope filtering and wizard-status enrichment.
+ * Produces the caller-visible assessment list with fail-closed RBAC scope filtering and wizard-status enrichment.
  */
 @QueryHandler(ListAssessmentsQuery)
 export class ListAssessmentsHandler implements IQueryHandler<ListAssessmentsQuery> {
@@ -47,7 +47,7 @@ export class ListAssessmentsHandler implements IQueryHandler<ListAssessmentsQuer
   /**
    * Validates pagination/status filters, applies role-aware visibility, and returns enriched assessment summaries.
    *
-   * @param query - Organization, PBAC scope, pagination, status, and correlation context for the list request.
+   * @param query - User role, pagination, status, and correlation context for the list request.
    * @returns Paginated assessment summaries visible to the caller.
    * @throws An invalid-request problem when an unknown assessment status is supplied.
    */
@@ -78,20 +78,15 @@ export class ListAssessmentsHandler implements IQueryHandler<ListAssessmentsQuer
       correlationId: query.correlationId,
     });
 
-    // Developer (or any non-Manager role) with no scope on their membership has
-    // nothing to see — fail closed rather than falling through to an org-wide query.
-    if (query.subjectRole !== SUBJECT_ROLES.manager && !query.scope) {
+    if (query.subjectRole !== AUTH_USER_ROLES.customer) {
       return emptyResult();
     }
 
     const criteria: AssessmentListCriteria = {
-      organizationId: query.organizationId,
       status,
       page,
       pageSize,
-      ...(query.subjectRole === SUBJECT_ROLES.manager
-        ? { ownerId: query.sessionUserId }
-        : { assessmentId: query.scope as string }),
+      ownerId: query.sessionUserId,
     };
 
     const { items, total } = await this.assessmentRepository.findMany(criteria);

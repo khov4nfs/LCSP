@@ -5,7 +5,7 @@ owner: LCSP Engineering
 source_specs:
   - docs/specs/domain-state-machines.md
   - docs/specs/event-catalog.md
-  - docs/implementation/decisions/pbac-runtime-decision.md
+  - docs/implementation/decisions/rbac-runtime-decision.md
   - docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md
   - docs/implementation/decisions/scanner-severity-tool-provenance-decision.md
 ---
@@ -34,7 +34,7 @@ Physical enum names remain owned by persistence implementation. This document is
 
 | Current                | Trigger                    | Guard                          | Next                         | Audit event                    | UI class             | Downstream eligibility             |
 | ---------------------- | -------------------------- | ------------------------------ | ---------------------------- | ------------------------------ | -------------------- | ---------------------------------- |
-| none                   | create assessment          | PBAC allow `CREATE_ASSESSMENT` | `CREATED`                    | `assessment.created`           | `READINESS_ONLY`     | Wizard allowed                     |
+| none                   | create assessment          | RBAC allow `CREATE_ASSESSMENT` | `CREATED`                    | `assessment.created`           | `READINESS_ONLY`     | Wizard allowed                     |
 | `CREATED`              | save draft                 | Manager owns assessment        | `WIZARD_IN_PROGRESS`         | `wizard.draft_saved`           | `READINESS_ONLY`     | submit when valid                  |
 | `WIZARD_IN_PROGRESS`   | submit WizardProfile       | required fields valid          | `WIZARD_PROFILE_READY`       | `wizard.submitted`             | `READINESS_ONLY`     | repository connection allowed      |
 | `WIZARD_PROFILE_READY` | readiness export requested | no accepted evidence           | `READINESS_EXPORT_GENERATED` | `document.readiness_requested` | `GENERATED_ARTIFACT` | final classification still blocked |
@@ -43,7 +43,7 @@ Physical enum names remain owned by persistence implementation. This document is
 
 | Current                  | Trigger                            | Guard                                              | Next                     | Audit event                        | UI class                    | Downstream eligibility      |
 | ------------------------ | ---------------------------------- | -------------------------------------------------- | ------------------------ | ---------------------------------- | --------------------------- | --------------------------- |
-| `WIZARD_PROFILE_READY`   | connect repository                 | GitHub App read-only scope + PBAC allow            | `REPOSITORY_CONNECTED`   | `repository.connected`             | `IN_PROGRESS`               | snapshot allowed            |
+| `WIZARD_PROFILE_READY`   | connect repository                 | GitHub App read-only scope + RBAC allow            | `REPOSITORY_CONNECTED`   | `repository.connected`             | `IN_PROGRESS`               | snapshot allowed            |
 | `REPOSITORY_CONNECTED`   | trusted trigger received           | source verified                                    | `TRUSTED_SCAN_TRIGGERED` | `scan_trigger.received`            | `IN_PROGRESS`               | mapping validation          |
 | `TRUSTED_SCAN_TRIGGERED` | mapping missing                    | resolvable missing context                         | `PENDING_MAPPING`        | `scan_trigger.mapping_pending`     | `BLOCKED_NO_CLASSIFICATION` | no scan                     |
 | `TRUSTED_SCAN_TRIGGERED` | mapping ambiguous                  | unsafe/ambiguous context                           | `BLOCKED_MAPPING`        | `scan_trigger.mapping_blocked`     | `BLOCKED_NO_CLASSIFICATION` | no scan                     |
@@ -53,7 +53,7 @@ Physical enum names remain owned by persistence implementation. This document is
 | `SCAN_REQUESTED`         | worker lock acquired               | lease acquired                                     | `SCAN_RUNNING`           | `scan.started`                     | `IN_PROGRESS`               | evidence pending            |
 | `SCAN_RUNNING`           | accepted with cleanup verified     | scanner severity `ACCEPTED` or accepted limitation | `SCAN_COMPLETED`         | `scan.completed`                   | `IN_PROGRESS`               | evidence gates allowed      |
 | `SCAN_RUNNING`           | privacy/cleanup/provenance failure | scanner severity blocks                            | `SCAN_FAILED`            | `scan.failed`                      | `BLOCKED_NO_CLASSIFICATION` | no TechnicalProfile         |
-| terminal scan            | rerun requested                    | PBAC allow + new generation                        | `SCAN_REQUESTED`         | `scan.rerun_requested`             | `IN_PROGRESS`               | creates new immutable chain |
+| terminal scan            | rerun requested                    | RBAC allow + new generation                        | `SCAN_REQUESTED`         | `scan.rerun_requested`             | `IN_PROGRESS`               | creates new immutable chain |
 
 ## Evidence, Profile, and Usage Flow
 
@@ -72,7 +72,7 @@ Physical enum names remain owned by persistence implementation. This document is
 | ------------------------- | ---------------------------------------- | ---------------------------------------- | --------------------------- | -------------------------------- | --------------------------- | ------------------------------- |
 | `AI_USAGE_FLOW_READY`     | reconciliation detects material conflict | conflict score/materiality threshold met | `RECONCILIATION_REQUIRED`   | `reconciliation.conflict_opened` | `BLOCKED_NO_CLASSIFICATION` | Manager resolution required     |
 | `AI_USAGE_FLOW_READY`     | no material conflict                     | critical facts known                     | `VERIFIED_PROFILE_READY`    | `verified_profile.created`       | `IN_PROGRESS`               | Manager approval/legal matching |
-| `RECONCILIATION_REQUIRED` | Manager resolves                         | PBAC allow + rationale + current version | `VERIFIED_PROFILE_READY`    | `conflict.resolved`              | `IN_PROGRESS`               | legal matching allowed          |
+| `RECONCILIATION_REQUIRED` | Manager resolves                         | RBAC allow + rationale + current version | `VERIFIED_PROFILE_READY`    | `conflict.resolved`              | `IN_PROGRESS`               | legal matching allowed          |
 | `VERIFIED_PROFILE_READY`  | Manager approves                         | no critical unknown/unresolved conflict  | `VERIFIED_PROFILE_APPROVED` | `verified_profile.approved`      | `IN_PROGRESS`               | legal matching command allowed  |
 | `VERIFIED_PROFILE_READY`  | upstream evidence rerun                  | new evidence/profile version             | `VERIFIED_PROFILE_STALE`    | `verified_profile.stale`         | `SUPERSEDED_VERSION`        | no new classification           |
 
@@ -95,14 +95,14 @@ Physical enum names remain owned by persistence implementation. This document is
 | `CLASSIFICATION_READY`   | gap requested                   | classification current             | `GAP_ANALYSIS_REQUESTED`     | `gap_analysis.requested`       | `IN_PROGRESS`               | gap worker               |
 | `GAP_ANALYSIS_REQUESTED` | gap completed                   | legal/classification basis usable  | `GAP_ANALYSIS_READY`         | `gap_analysis.completed`       | `IN_PROGRESS`               | final report allowed     |
 | `GAP_ANALYSIS_REQUESTED` | gap blocked                     | upstream basis unusable            | `GAP_ANALYSIS_BLOCKED`       | `gap_analysis.blocked`         | `BLOCKED_NO_CLASSIFICATION` | no final report          |
-| `GAP_ANALYSIS_READY`     | final report requested          | output guard/citations pass        | `DOCUMENT_GENERATED`         | `document.generated`           | `GENERATED_ARTIFACT`        | download allowed by PBAC |
+| `GAP_ANALYSIS_READY`     | final report requested          | output guard/citations pass        | `DOCUMENT_GENERATED`         | `document.generated`           | `GENERATED_ARTIFACT`        | download allowed by RBAC |
 | any readiness state      | readiness-only report requested | no final risk wording              | `READINESS_REPORT_GENERATED` | `document.readiness_generated` | `GENERATED_ARTIFACT`        | readiness artifact only  |
 | any document request     | output guard fails              | overclaim/invalid citation         | `DOCUMENT_BLOCKED`           | `document.blocked`             | `BLOCKED_NO_CLASSIFICATION` | no final download        |
-| any assessment           | audit export requested          | PBAC allow + redaction policy pass | `AUDIT_EXPORT_GENERATED`     | `audit_export.generated`       | `GENERATED_ARTIFACT`        | download allowed by PBAC |
+| any assessment           | audit export requested          | RBAC allow + redaction policy pass | `AUDIT_EXPORT_GENERATED`     | `audit_export.generated`       | `GENERATED_ARTIFACT`        | download allowed by RBAC |
 
 ## Conformance Rules
 
-- Every transition row requires PBAC evaluation when actor or service identity is involved.
+- Every transition row requires RBAC evaluation when actor or service identity is involved.
 - Every material transition must include `correlationId`.
 - Every terminal or superseded artifact remains immutable.
 - Readiness-only artifacts must not display HIGH/MEDIUM/LOW or legal conclusion.

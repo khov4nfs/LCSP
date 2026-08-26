@@ -166,7 +166,7 @@ GPT-5 Codex
 ### Completion Notes List
 
 - Converted planning-derived developer packet into official execution artifact for dev cycle.
-- Implemented `POST /assessments/:assessmentId/snapshots` with PBAC assessment scope enforcement and safe error codes.
+- Implemented `POST /assessments/:assessmentId/snapshots` with RBAC assessment scope enforcement and safe error codes.
 - Added per-request GitHub App installation token creation, immutable commit resolution, and repository-scope validation without persisting credentials or raw source.
 - Added atomic RepositorySnapshot/outbox persistence plus success and failure audit events.
 - Added unit and E2E coverage; API build, typecheck, lint, import policy, and contract-literal checks pass.
@@ -206,4 +206,4 @@ GPT-5 Codex
 - packages/contracts/src/github-integration/codes.ts
 - packages/contracts/src/github-integration/events.ts
 - packages/contracts/src/github-integration/statuses.ts
-- packages/contracts/src/pbac/actions.ts
+- packages/contracts/src/rbac/actions.ts

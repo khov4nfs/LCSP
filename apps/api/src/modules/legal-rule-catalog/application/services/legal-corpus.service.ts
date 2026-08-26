@@ -25,7 +25,6 @@ import {
   OUTBOX_AGGREGATE_TYPES,
   OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 import { LegalRetrievalIndexStatus, Prisma } from "@prisma/client";
 import { VERIFIED_PROFILE_STATUSES } from "@lcsp/contracts/scan";
 
@@ -362,7 +361,6 @@ export class LegalCorpusService {
         aggregateType: OUTBOX_AGGREGATE_TYPES.legalCorpusVersion,
         aggregateId: corpus.id,
         eventType: LEGAL_RULE_EVENT_TYPES.corpusVersionActivated,
-        organizationId: null,
         correlationId: input.correlationId,
         causationId: approval.id,
         actor: {
@@ -371,7 +369,6 @@ export class LegalCorpusService {
         },
         result: AGENTIC_TOOL_STATUSES.ready,
         redactionStatus: AUDIT_REDACTION_STATUSES.none,
-        authorizationAction: PBAC_ACTIONS.legalCorpusActivate,
         idempotencyKey: `${corpus.id}:${input.idempotencyKey}:activation`,
         payload: {
           corpusVersionRef: `corpus-version:${corpus.id}`,
@@ -395,7 +392,6 @@ export class LegalCorpusService {
             id: LEGAL_CORPUS_ACTIVATION_SERVICE,
             type: AUDIT_ACTOR_TYPES.system,
           },
-          organizationId: null,
           resourceType: AUDIT_RESOURCE_TYPES.legalRuleCatalogVersion,
           resourceId: corpus.id,
           decision: AUDIT_DECISIONS.allow,
@@ -645,7 +641,6 @@ export class LegalCorpusService {
       select: {
         id: true,
         assessmentId: true,
-        organizationId: true,
       },
     });
     if (approvedProfiles.length === 0) {
@@ -691,7 +686,6 @@ export class LegalCorpusService {
         aggregateType: OUTBOX_AGGREGATE_TYPES.verifiedProfile,
         aggregateId: profile.id,
         eventType: LEGAL_MATCHING_REQUEST_COMMAND,
-        organizationId: profile.organizationId,
         assessmentId: profile.assessmentId,
         correlationId: input.correlationId,
         causationId: input.corpusVersionId,
@@ -701,7 +695,6 @@ export class LegalCorpusService {
         },
         result: LEGAL_MATCHING_REQUEST_COMMAND,
         redactionStatus: AUDIT_REDACTION_STATUSES.none,
-        authorizationAction: PBAC_ACTIONS.legalCorpusActivate,
         idempotencyKey: `${profile.id}:${LEGAL_MATCHING_REQUEST_COMMAND}:${input.corpusVersionId}`,
         payload: {
           verifiedProfileId: profile.id,

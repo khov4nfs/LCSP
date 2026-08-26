@@ -8,7 +8,6 @@ import { buildAgenticToolQuery } from "./agentic-tool-query-dispatcher.js";
 
 const baseArgs = {
   assessmentId: "assessment-1",
-  organizationId: "org-1",
   userId: "user-1",
   correlationId: "correlation-1",
   artifactVersions: {

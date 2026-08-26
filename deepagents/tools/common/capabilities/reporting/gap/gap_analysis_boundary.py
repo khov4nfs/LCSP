@@ -25,15 +25,15 @@ class GapAnalysisBoundary(AgentBoundaryBase):
 
     boundary_source = "reporting.document-gap-analysis-requested"
     source_event = "document.gap-analysis-requested"
-    requires_pbac = False
+    requires_rbac = False
 
     def __init__(
         self,
         config,
-        pbac_client=None,
+        rbac_client=None,
         document_client: DocumentRuntimeClient | None = None,
     ) -> None:
-        super().__init__(config, pbac_client)
+        super().__init__(config, rbac_client)
         self._document_client = document_client or DocumentRuntimeClient(
             config.nestjs_api_base_url,
             config.worker_api_key,

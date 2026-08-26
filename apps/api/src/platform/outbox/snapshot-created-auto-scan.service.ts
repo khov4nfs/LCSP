@@ -12,7 +12,6 @@ import { TriggerScanCommand } from "../../modules/github-integration/application
 type SnapshotCreatedPayload = {
   snapshotId?: unknown;
   assessmentId?: unknown;
-  organizationId?: unknown;
   correlationId?: unknown;
   actor?: unknown;
 };
@@ -55,14 +54,13 @@ export class SnapshotCreatedAutoScanService {
     const payload = message.payload as SnapshotCreatedPayload;
     const snapshotId = readString(payload.snapshotId);
     const assessmentId = readString(payload.assessmentId);
-    const organizationId = readString(payload.organizationId);
     const actorId = readActorId(payload.actor);
     const correlationId =
       readString(payload.correlationId) ?? `snapshot-auto:${snapshotId ?? "?"}`;
 
-    if (!snapshotId || !assessmentId || !organizationId) {
+    if (!snapshotId || !assessmentId) {
       throw new Error(
-        "snapshotCreated payload missing snapshotId, assessmentId, or organizationId",
+        "snapshotCreated payload missing snapshotId or assessmentId",
       );
     }
 
@@ -84,7 +82,6 @@ export class SnapshotCreatedAutoScanService {
         REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
         buildAutoScanIdempotencyKey(assessmentId, snapshotId),
         actorId,
-        organizationId,
         null,
         undefined,
         correlationId,

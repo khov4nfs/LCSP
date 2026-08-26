@@ -20,7 +20,6 @@ describe("Foundational audit/outbox event contract", () => {
     const event = buildAuditEventInput({
       eventType: AUTH_AUDIT_EVENT_TYPES.authSessionRevoked,
       actorId: "manager-1",
-      organizationId: "org-1",
       assessmentId: "assessment-1",
       resourceType: AUDIT_RESOURCE_TYPES.authSession,
       resourceId: "session-1",
@@ -56,7 +55,6 @@ describe("Foundational audit/outbox event contract", () => {
       aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
       aggregateId: "assessment-1",
       eventType: ASSESSMENT_EVENT_TYPES.createdOutbox,
-      organizationId: "org-1",
       assessmentId: "assessment-1",
       correlationId: "corr-1",
       causationId: "command-1",
@@ -73,7 +71,6 @@ describe("Foundational audit/outbox event contract", () => {
     expect(message.schemaVersion).toBe(OUTBOX_MESSAGE_SCHEMA_VERSION);
     expect(message.payload).toEqual({
       schemaVersion: OUTBOX_MESSAGE_SCHEMA_VERSION,
-      organizationId: "org-1",
       assessmentId: "assessment-1",
       correlationId: "corr-1",
       causationId: "command-1",

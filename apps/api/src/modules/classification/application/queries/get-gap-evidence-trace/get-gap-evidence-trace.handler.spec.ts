@@ -82,7 +82,6 @@ function createHandler(input?: {
 function query(rowRef = "gap-row:classification-1:applicability_assessment") {
   return new GetGapEvidenceTraceQuery(
     "assessment-1",
-    "organization-1",
     { rowRef },
     "user-1",
     "correlation-1",

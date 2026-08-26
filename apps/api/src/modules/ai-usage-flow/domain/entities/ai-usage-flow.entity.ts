@@ -13,7 +13,6 @@ export class AIUsageFlowEntity {
    *
    * @param technicalProfileId - Technical profile that produced the usage-flow analysis.
    * @param assessmentId - Assessment owning the technical profile.
-   * @param organizationId - Organization that owns the assessment.
    * @param schemaVersion - Callback schema version used by the worker.
    * @param providerVersion - AI usage-flow provider/version identifier.
    * @param claims - Accepted deterministic usage claims.
@@ -25,7 +24,6 @@ export class AIUsageFlowEntity {
   private constructor(
     readonly technicalProfileId: string,
     readonly assessmentId: string,
-    readonly organizationId: string,
     readonly schemaVersion: string,
     readonly providerVersion: string,
     readonly claims: readonly unknown[],
@@ -44,7 +42,6 @@ export class AIUsageFlowEntity {
   static accept(fields: {
     technicalProfileId: string;
     assessmentId: string;
-    organizationId: string;
     schemaVersion: string;
     providerVersion: string;
     claims: readonly unknown[];
@@ -55,7 +52,6 @@ export class AIUsageFlowEntity {
     return new AIUsageFlowEntity(
       fields.technicalProfileId,
       fields.assessmentId,
-      fields.organizationId,
       fields.schemaVersion,
       fields.providerVersion,
       fields.claims,

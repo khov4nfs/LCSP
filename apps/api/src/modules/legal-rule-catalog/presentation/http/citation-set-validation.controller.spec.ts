@@ -1,6 +1,6 @@
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { HttpException } from "@nestjs/common";
 import { jest } from "@jest/globals";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 
 import type { QueryBus } from "@nestjs/cqrs";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
@@ -10,16 +10,11 @@ import { CitationSetValidationController } from "./citation-set-validation.contr
 function request(): AuthenticatedRequest {
   return {
     correlationId: "correlation-1",
-    pbacContext: {
+    rbacContext: {
       userId: "user-1",
       sessionId: "session-1",
-      organizationId: "organization-1",
-      subjectRole: "Manager",
-      scope: null,
-      grantedActions: [PBAC_ACTIONS.legalCitationValidate],
-      selectedAction: PBAC_ACTIONS.legalCitationValidate,
-      policyId: "policy-1",
-      policyVersion: "1",
+      role: AUTH_USER_ROLES.customer,
+      scope: "assessment-1",
     },
   } as AuthenticatedRequest;
 }

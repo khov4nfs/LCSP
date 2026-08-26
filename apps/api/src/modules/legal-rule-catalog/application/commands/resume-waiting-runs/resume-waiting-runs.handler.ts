@@ -151,7 +151,6 @@ export class ResumeWaitingRunsHandler implements ICommandHandler<
       select: {
         id: true,
         assessmentId: true,
-        organizationId: true,
         approvedAt: true,
       },
     });
@@ -207,7 +206,6 @@ export class ResumeWaitingRunsHandler implements ICommandHandler<
           aggregateType: OUTBOX_AGGREGATE_TYPES.verifiedProfile,
           aggregateId: profile.id,
           eventType: LEGAL_MATCHING_REQUEST_COMMAND,
-          organizationId: profile.organizationId,
           assessmentId: profile.assessmentId,
           correlationId: command.correlationId,
           causationId: profile.id,
@@ -254,7 +252,6 @@ export class ResumeWaitingRunsHandler implements ICommandHandler<
     await this.auditWriter.write({
       eventType: AGENTIC_TOOL_EVENT_TYPES.waitingRunsResumed,
       actorId: AUDIT_ACTOR_IDS.legalRuleMatchWorker,
-      organizationId: null,
       assessmentId: null,
       resourceType: AUDIT_RESOURCE_TYPES.workerTask,
       resourceId: `resume-waiting-runs:${corpus.id}`,

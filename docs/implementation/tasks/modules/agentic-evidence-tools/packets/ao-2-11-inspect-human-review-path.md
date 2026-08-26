@@ -34,27 +34,27 @@ AO-3 determines whether defined static scope contains a review path. `ABSENT` is
 
 ## 7. Errors and Typed Outcomes
 
-Invalid fields=`INVALID_ARGUMENT`; absent report=`NEEDS_INPUT`; unknown anchor=`NOT_FOUND`; dynamic/limited/cap=`OUT_OF_COVERAGE` and state `UNKNOWN`; PBAC/version=`BLOCKED`; transient timeout=`FAILED` after retry.
+Invalid fields=`INVALID_ARGUMENT`; absent report=`NEEDS_INPUT`; unknown anchor=`NOT_FOUND`; dynamic/limited/cap=`OUT_OF_COVERAGE` and state `UNKNOWN`; RBAC/version=`BLOCKED`; transient timeout=`FAILED` after retry.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
-Strict parse → registry/PBAC/version → review-only normalized traversal → derive state (never generic-name heuristic) → cap/privacy/audit. Registry `HumanReviewPathTool`, `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, 3s/one retry/`NONE`. Model gets ≤20 safe segments/state and must not call `ABSENT` a compliance conclusion. Audit shared hashes/versions/refs; no source, workflow payload, reviewer identities, prompts, secrets, AST or direct storage access.
+Strict parse → registry/RBAC/version → review-only normalized traversal → derive state (never generic-name heuristic) → cap/privacy/audit. Registry `HumanReviewPathTool`, `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, 3s/one retry/`NONE`. Model gets ≤20 safe segments/state and must not call `ABSENT` a compliance conclusion. Audit shared hashes/versions/refs; no source, workflow payload, reviewer identities, prompts, secrets, AST or direct storage access.
 
 ## 16–18. Scenario, AC, Tests
 
-An approval state-gate returns `PRESENT`; a dynamic queue integration returns `UNKNOWN` with limitation. AC: state derivation is scope-aware, strict/PBAC/tenant checks hold, output safe/audited.
+An approval state-gate returns `PRESENT`; a dynamic queue integration returns `UNKNOWN` with limitation. AC: state derivation is scope-aware, strict/RBAC/tenant checks hold, output safe/audited.
 
 | ID | Scenario | Level |
 |---|---|---|
 | TC-01 | approval/assignment path | golden integration |
 | TC-02 | generic review false positive | golden |
 | TC-03 | dynamic/cap and insufficient scope | integration |
-| TC-04 | extra/PBAC/tenant | contract/integration |
+| TC-04 | extra/RBAC/tenant | contract/integration |
 | TC-05 | reviewer/source leak and retry | privacy/worker |
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Implement contracts/registry/projection handler/normalizer/API audit/PBAC/tests. OQ-01: ratify required evidence for `PRESENT` (Policy owner, OPEN, blocks yes). Deliver strict schema/handler/audit/tests.
+Implement contracts/registry/projection handler/normalizer/API audit/RBAC/tests. OQ-01: ratify required evidence for `PRESENT` (Policy owner, OPEN, blocks yes). Deliver strict schema/handler/audit/tests.
 
 ## Source Authority
 

@@ -1,4 +1,4 @@
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   AGENTIC_TOOL_NAMES,
   AGENTIC_TOOL_STATUSES,
@@ -7,7 +7,10 @@ import {
   type AssessmentRuntimeStageCode,
   EVIDENCE_ERROR_CODES,
 } from "@lcsp/contracts/evidence";
-import { PBAC_DECISION } from "@lcsp/contracts/pbac";
+const RBAC_DECISION = {
+  allow: "ALLOW",
+  deny: "DENY",
+} as const;
 import {
   Body,
   Controller,
@@ -27,7 +30,7 @@ import {
   ORCHESTRATION_RUNTIME_LOG_EVENTS,
   sanitizeOrchestrationLogValue,
 } from "../../../../platform/logging/orchestration-runtime-log.js";
-import { PbacPreflightService } from "../../../../platform/pbac/pbac-preflight.service.js";
+import { RbacPreflightService } from "../../../../platform/rbac/rbac-preflight.service.js";
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import {
@@ -36,7 +39,6 @@ import {
 } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import {
-  agenticToolCommandPbacAction,
   buildAgenticToolCommand,
   isAgenticToolCommand,
 } from "./agentic-tool-command-dispatcher.js";
@@ -49,7 +51,6 @@ import { buildAgenticToolQuery } from "./agentic-tool-query-dispatcher.js";
 type DispatchRequest = {
   tool_name?: unknown;
   assessment_id?: unknown;
-  organization_id?: unknown;
   user_id?: unknown;
   artifact_versions?: unknown;
   input?: unknown;
@@ -63,7 +64,6 @@ type DispatchRequest = {
 type ToolExecutionArgs = {
   toolName: string;
   assessmentId: string;
-  organizationId: string;
   userId: string;
   correlationId: string;
   artifactVersions: Record<string, unknown>;
@@ -82,7 +82,7 @@ export class InternalAgenticToolDispatchController {
     private readonly configService: ConfigService<AppConfig, true>,
     private readonly runtimeEvents: AssessmentRuntimeEventService,
     @Optional() private readonly commandBus?: CommandBus,
-    @Optional() private readonly pbacPreflight?: PbacPreflightService,
+    @Optional() private readonly rbacPreflight?: RbacPreflightService,
   ) {}
 
   @Post("dispatch")
@@ -90,7 +90,6 @@ export class InternalAgenticToolDispatchController {
   async dispatch(@Body() payload: DispatchRequest) {
     const toolName = requiredString(payload.tool_name);
     const assessmentId = requiredString(payload.assessment_id);
-    const organizationId = requiredString(payload.organization_id);
     const userId = requiredString(payload.user_id);
     const correlationId = requiredString(payload.correlationId);
     const runId =
@@ -117,7 +116,6 @@ export class InternalAgenticToolDispatchController {
             correlationId,
             toolName,
             assessmentId,
-            organizationId,
             artifactVersions,
             input: sanitizeOrchestrationLogValue(input),
           },
@@ -126,7 +124,6 @@ export class InternalAgenticToolDispatchController {
     }
 
     await this.runtimeEvents.recordRunStartedIfMissing({
-      organizationId,
       assessmentId,
       runId,
       correlationId,
@@ -135,7 +132,6 @@ export class InternalAgenticToolDispatchController {
       startedAt,
     });
     await this.runtimeEvents.recordRunStageChangedIfNeeded({
-      organizationId,
       assessmentId,
       runId,
       correlationId,
@@ -145,7 +141,6 @@ export class InternalAgenticToolDispatchController {
       startedAt,
     });
     await this.runtimeEvents.recordToolStarted({
-      organizationId,
       assessmentId,
       runId,
       correlationId,
@@ -161,7 +156,6 @@ export class InternalAgenticToolDispatchController {
       const result = await this.executeTool({
         toolName,
         assessmentId,
-        organizationId,
         userId,
         correlationId,
         artifactVersions,
@@ -170,7 +164,6 @@ export class InternalAgenticToolDispatchController {
 
       if (isNeedsInputResult(result)) {
         await this.runtimeEvents.recordToolWaitingInput({
-          organizationId,
           assessmentId,
           runId,
           correlationId,
@@ -184,7 +177,6 @@ export class InternalAgenticToolDispatchController {
         });
       } else {
         await this.runtimeEvents.recordToolCompleted({
-          organizationId,
           assessmentId,
           runId,
           correlationId,
@@ -201,7 +193,6 @@ export class InternalAgenticToolDispatchController {
       return resultEnvelope(result);
     } catch (error) {
       await this.runtimeEvents.recordToolFailed({
-        organizationId,
         assessmentId,
         runId,
         correlationId,
@@ -226,15 +217,12 @@ export class InternalAgenticToolDispatchController {
     }
 
     if (isAgenticToolCommand(args.toolName)) {
-      const policy = await this.authorizeProtectedCommand(args);
+      await this.authorizeProtectedCommand(args);
       return this.requireCommandBus(args.correlationId).execute(
         buildAgenticToolCommand({
           toolName: args.toolName,
           assessmentId: args.assessmentId,
-          organizationId: args.organizationId,
           userId: args.userId,
-          policyId: policy.policyId,
-          policyVersion: policy.policyVersion,
           correlationId: args.correlationId,
           input: args.input,
         }),
@@ -244,11 +232,10 @@ export class InternalAgenticToolDispatchController {
     return this.queryBus.execute(buildAgenticToolQuery(args));
   }
 
-  private async authorizeProtectedCommand(args: ToolExecutionArgs): Promise<{
-    policyId: string;
-    policyVersion: string;
-  }> {
-    if (!this.pbacPreflight) {
+  private async authorizeProtectedCommand(
+    args: ToolExecutionArgs,
+  ): Promise<object> {
+    if (!this.rbacPreflight) {
       throw problemException(
         EVIDENCE_ERROR_CODES.notFound,
         args.correlationId,
@@ -258,27 +245,19 @@ export class InternalAgenticToolDispatchController {
       );
     }
 
-    const authorization = await this.pbacPreflight.evaluateWithPolicy({
+    const authorization = await this.rbacPreflight.evaluate({
       userId: args.userId,
-      organizationId: args.organizationId,
-      action: agenticToolCommandPbacAction(args.toolName),
+      requiredRoles: [AUTH_USER_ROLES.customer],
       correlationId: args.correlationId,
     });
 
-    if (
-      authorization.decision !== PBAC_DECISION.allow ||
-      !authorization.policyId ||
-      !authorization.policyVersion
-    ) {
-      throw problemException(AUTH_ERROR_CODES.pbacDenied, args.correlationId, {
+    if (authorization.decision !== RBAC_DECISION.allow) {
+      throw problemException(AUTH_ERROR_CODES.rbacDenied, args.correlationId, {
         status: HttpStatus.FORBIDDEN,
       });
     }
 
-    return {
-      policyId: authorization.policyId,
-      policyVersion: authorization.policyVersion,
-    };
+    return {};
   }
 
   private requireCommandBus(correlationId: string): CommandBus {

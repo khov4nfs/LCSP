@@ -1,5 +1,5 @@
 import type { Request } from "express";
-import type { PbacRequestContext } from "../../platform/pbac/interfaces/pbac-request.interface.js";
+import type { RbacRequestContext } from "../../platform/rbac/interfaces/rbac-request.interface.js";
 
 type ExpressRoutePath = string | RegExp | Array<string | RegExp>;
 
@@ -8,7 +8,7 @@ type ExpressRoute = {
 };
 
 export type AuthenticatedRequest = Omit<Request, "params" | "route"> & {
-  pbacContext: PbacRequestContext;
+  rbacContext: RbacRequestContext;
   correlationId?: string;
   params: Record<string, string | undefined>;
   route?: ExpressRoute;

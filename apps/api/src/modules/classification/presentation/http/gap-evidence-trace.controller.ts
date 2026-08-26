@@ -16,11 +16,11 @@ import {
   GET_GAP_EVIDENCE_TRACE_TOOL,
   type GetGapEvidenceTraceInput,
 } from "@lcsp/contracts/evidence";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { GetGapEvidenceTraceQuery } from "../../application/queries/get-gap-evidence-trace/get-gap-evidence-trace.query.js";
@@ -34,8 +34,8 @@ export class GapEvidenceTraceController {
 
   @Post(":assessmentId/gap-evidence-trace")
   @HttpCode(HttpStatus.OK)
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.gapEvidenceTraceRead)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
   async getGapEvidenceTrace(
     @Param("assessmentId") assessmentId: string,
     @Body() body: unknown,
@@ -47,9 +47,8 @@ export class GapEvidenceTraceController {
       await this.queryBus.execute(
         new GetGapEvidenceTraceQuery(
           assessmentId,
-          request.pbacContext.organizationId,
           input,
-          request.pbacContext.userId,
+          request.rbacContext.userId,
           correlationId,
         ),
       ),

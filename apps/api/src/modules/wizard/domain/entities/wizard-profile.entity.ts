@@ -6,7 +6,6 @@ import type { WizardAnswer } from "@lcsp/contracts/wizard";
 
 type WizardProfileEntityInput = {
   assessmentId: string;
-  organizationId?: string;
   ownerId?: string;
   version?: number;
   status?: PersistedWizardStatusCode;
@@ -19,7 +18,6 @@ type WizardProfileEntityInput = {
 export class WizardProfileEntity {
   id: string;
   assessmentId: string;
-  organizationId: string;
   ownerId: string;
   version: number;
   status: PersistedWizardStatusCode;

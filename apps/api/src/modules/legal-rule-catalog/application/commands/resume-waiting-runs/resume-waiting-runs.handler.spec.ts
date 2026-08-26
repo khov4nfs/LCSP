@@ -15,7 +15,6 @@ function buildHandler(input?: {
   approvedProfiles?: Array<{
     id: string;
     assessmentId: string;
-    organizationId: string;
     approvedAt: Date | null;
   }>;
   legalRuleMatches?: Array<{ verifiedProfileId: string }>;
@@ -56,7 +55,6 @@ function buildHandler(input?: {
             Array<{
               id: string;
               assessmentId: string;
-              organizationId: string;
               approvedAt: Date | null;
             }>
           >
@@ -66,13 +64,11 @@ function buildHandler(input?: {
             {
               id: "vp-1",
               assessmentId: "assessment-1",
-              organizationId: "org-1",
               approvedAt: new Date("2026-08-11T00:00:00.000Z"),
             },
             {
               id: "vp-2",
               assessmentId: "assessment-2",
-              organizationId: "org-1",
               approvedAt: new Date("2026-08-11T00:05:00.000Z"),
             },
           ],
