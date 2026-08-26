@@ -6,7 +6,6 @@ import type { SubmitWizardResponse } from "../../contracts/wizard/wizard-submit.
 export class SubmitWizardCommand extends Command<SubmitWizardResponse> {
   constructor(
     public readonly assessmentId: string,
-    public readonly organizationId: string,
     public readonly ownerId: string,
     public readonly answers: WizardAnswer[],
     public readonly correlationId: string,

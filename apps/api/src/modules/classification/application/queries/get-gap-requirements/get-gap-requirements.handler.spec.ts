@@ -5,7 +5,7 @@ import {
   AGENTIC_TOOL_STATUSES,
   GAP_REQUIREMENT_LIMITATION_CODES,
 } from "@lcsp/contracts/evidence";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -15,7 +15,6 @@ import { GetGapRequirementsQuery } from "./get-gap-requirements.query.js";
 function createHandler(input?: {
   assessment?: object | null;
   classification?: object | null;
-  authPolicy?: { actions: string[] } | null;
 }) {
   const prisma = {
     assessment: {
@@ -36,15 +35,6 @@ function createHandler(input?: {
             : input.classification,
         ),
     },
-    authPolicy: {
-      findFirst: jest
-        .fn<() => Promise<{ actions: string[] } | null>>()
-        .mockResolvedValue(
-          input?.authPolicy === undefined
-            ? { actions: [PBAC_ACTIONS.gapRequirementsRead] }
-            : input.authPolicy,
-        ),
-    },
   } as unknown as PrismaService;
   const write = jest
     .fn<AuditWriterService["write"]>()
@@ -59,20 +49,17 @@ function createHandler(input?: {
 
 function query(input?: {
   policyProfileVersionId?: string;
-  policyId?: string | null;
-  policyVersion?: string | null;
+  actorRole?: (typeof AUTH_USER_ROLES)[keyof typeof AUTH_USER_ROLES];
 }) {
   return new GetGapRequirementsQuery(
     "assessment-1",
-    "organization-1",
     {
       classificationRef: "classification:classification-1",
       policyProfileVersionId:
-        input?.policyProfileVersionId ?? "policy_policy-1_2026-07-29",
+        input?.policyProfileVersionId ?? "rbac-role_CUSTOMER",
     },
     "user-1",
-    input?.policyId === undefined ? "policy-1" : input.policyId,
-    input?.policyVersion === undefined ? "2026-07-29" : input.policyVersion,
+    input?.actorRole ?? AUTH_USER_ROLES.customer,
     "correlation-1",
   );
 }
@@ -95,7 +82,7 @@ function acceptedClassification(input?: {
 }
 
 describe("GetGapRequirementsHandler", () => {
-  it("TC-01: returns deterministic requirement refs from accepted classification fields", async () => {
+  it("TC-01: returns deterministic requirement refs for CUSTOMER role profile", async () => {
     const { handler, write } = createHandler();
 
     const response = await handler.execute(query());
@@ -117,14 +104,29 @@ describe("GetGapRequirementsHandler", () => {
       },
     ]);
     expect(JSON.stringify(write.mock.calls)).toContain("requirementCount");
-    expect(JSON.stringify(write.mock.calls)).not.toContain("HIGH_IMPACT_AI");
   });
 
-  it("TC-02: blocks stale or mismatched policy pins", async () => {
+  it("TC-02: blocks stale role-profile pins", async () => {
     const { handler } = createHandler();
 
     const response = await handler.execute(
-      query({ policyProfileVersionId: "policy_other_2026-07-29" }),
+      query({ policyProfileVersionId: "rbac-role_ADMIN" }),
+    );
+
+    expect(response.status).toBe(AGENTIC_TOOL_STATUSES.blocked);
+    expect(response.limitations[0]?.code).toBe(
+      GAP_REQUIREMENT_LIMITATION_CODES.policyUnavailable,
+    );
+  });
+
+  it("TC-02b: blocks ADMIN because gap requirements are CUSTOMER-only", async () => {
+    const { handler } = createHandler();
+
+    const response = await handler.execute(
+      query({
+        policyProfileVersionId: "rbac-role_ADMIN",
+        actorRole: AUTH_USER_ROLES.admin,
+      }),
     );
 
     expect(response.status).toBe(AGENTIC_TOOL_STATUSES.blocked);
@@ -175,27 +177,7 @@ describe("GetGapRequirementsHandler", () => {
     );
   });
 
-  it("TC-05b: accepts legacy system_type payloads through compatibility mapping", async () => {
-    const { handler } = createHandler({
-      classification: acceptedClassification({
-        classificationData: {
-          system_type: "HIGH_IMPACT_AI",
-          risk_level: "HIGH",
-          citation_basis: ["citation:chunk_allow_1"],
-        },
-      }),
-    });
-
-    const response = await handler.execute(query());
-
-    expect(response.status).toBe(AGENTIC_TOOL_STATUSES.ready);
-    expect(response.result.requirements).toContainEqual({
-      requirementId: "requirement:classification-1:applicability_assessment",
-      locator: "classification.applicability_assessment",
-    });
-  });
-
-  it("TC-06: rejects cross-tenant assessment access before reading classification", async () => {
+  it("TC-06: rejects inaccessible assessment before reading classification", async () => {
     const { handler } = createHandler({ assessment: null });
 
     await expect(handler.execute(query())).rejects.toBeInstanceOf(

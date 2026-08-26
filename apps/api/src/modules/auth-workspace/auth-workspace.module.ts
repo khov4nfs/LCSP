@@ -5,18 +5,14 @@ import { CqrsModule } from "@nestjs/cqrs";
 import { PrismaModule } from "../../infrastructure/prisma/prisma.module.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import { AuditModule } from "../../platform/audit/audit.module.js";
-import { AcceptInvitationHandler } from "./application/commands/accept-invitation/accept-invitation.handler.ts";
 import { ConfirmPasswordRecoveryHandler } from "./application/commands/confirm-password-recovery/confirm-password-recovery.handler.ts";
 import { DisableMfaHandler } from "./application/commands/disable-mfa/disable-mfa.handler.ts";
 import { EnrollMfaHandler } from "./application/commands/enroll-mfa/enroll-mfa.handler.ts";
 import { GenerateMfaRecoveryCodesHandler } from "./application/commands/generate-mfa-recovery-codes/generate-mfa-recovery-codes.handler.ts";
-import { InviteDeveloperHandler } from "./application/commands/invite-developer/invite-developer.handler.ts";
 import { OAuthCallbackHandler } from "./application/commands/oauth-callback/oauth-callback.handler.ts";
 import { OAuthLinkCallbackHandler } from "./application/commands/oauth-link-callback/oauth-link-callback.handler.ts";
 import { OAuthLinkStartHandler } from "./application/commands/oauth-link-start/oauth-link-start.handler.ts";
 import { OAuthStartHandler } from "./application/commands/oauth-start/oauth-start.handler.ts";
-import { RegisterApprovedPathHandler } from "./application/commands/register-approved-path/register-approved-path.handler.ts";
-import { RevokeMembershipHandler } from "./application/commands/revoke-membership/revoke-membership.handler.ts";
 import { RequestPasswordRecoveryHandler } from "./application/commands/request-password-recovery/request-password-recovery.handler.ts";
 import { ReauthenticatePasswordHandler } from "./application/commands/reauthenticate-password/reauthenticate-password.handler.ts";
 import { RecordMfaRecoveryCodeAccessHandler } from "./application/commands/record-mfa-recovery-code-access/record-mfa-recovery-code-access.handler.ts";
@@ -30,16 +26,12 @@ import { VerifyMfaRecoveryCodeHandler } from "./application/commands/verify-mfa-
 import { CheckSensitiveRouteHandler } from "./application/queries/check-sensitive-route/check-sensitive-route.handler.ts";
 import { GetWorkspaceHandler } from "./application/queries/get-workspace/get-workspace.handler.ts";
 import { GetAuthProfileHandler } from "./application/queries/get-auth-profile/get-auth-profile.handler.ts";
-import { GetDeveloperTaskContextHandler } from "./application/queries/get-developer-task-context/get-developer-task-context.handler.ts";
 import { ListAuthRepositoriesHandler } from "./application/queries/list-auth-repositories/list-auth-repositories.handler.ts";
 import { ListAuthSessionsHandler } from "./application/queries/list-auth-sessions/list-auth-sessions.handler.ts";
-import { PreviewInvitationHandler } from "./application/queries/preview-invitation/preview-invitation.handler.ts";
 import {
   AUTH_WORKSPACE_RECOVERY_NOTIFIER,
   type RecoveryNotifier,
 } from "./application/ports/notification/recovery-notifier.ts";
-import { AUTH_WORKSPACE_ASSESSMENT_SCOPE_REPOSITORY } from "./application/ports/persistence/assessment-scope.repository.ts";
-import type { AssessmentScopeRepository } from "./application/ports/persistence/assessment-scope.repository.ts";
 import type { AuthWorkspaceRepositories } from "./application/ports/persistence/auth-workspace-repositories.ts";
 import { AuthAuditService } from "./application/services/auth-workspace/auth-audit.service.ts";
 import { AuthWorkspaceSupportService } from "./application/services/auth-workspace/auth-workspace-support.service.ts";
@@ -50,30 +42,21 @@ import { OAuthProviderRegistry } from "./infrastructure/oauth/oauth-provider.reg
 import {
   PrismaAuditEventRepository,
   PrismaAuthorizationDecisionRepository,
-  PrismaInvitationRepository,
-  PrismaMembershipRepository,
   PrismaMfaEnrollmentRepository,
   PrismaMfaOtpUsedRepository,
   PrismaMfaRateLimitRepository,
   PrismaMfaRecoveryCodeRepository,
   PrismaOAuthIdentityRepository,
   PrismaOAuthStateRepository,
-  PrismaOrganizationRepository,
-  PrismaPolicyRepository,
   PrismaRecoveryRequestRepository,
   PrismaSessionRepository,
   PrismaUserRepository,
 } from "./infrastructure/persistence/prisma-auth-workspace.repositories.ts";
-import { PrismaAssessmentScopeRepository } from "./infrastructure/persistence/prisma-assessment-scope.repository.ts";
 import { AuthWorkspaceController } from "./presentation/http/auth-workspace.controller.ts";
 
 const REPOSITORY_PROVIDERS = [
-  PrismaOrganizationRepository,
   PrismaUserRepository,
-  PrismaMembershipRepository,
-  PrismaInvitationRepository,
   PrismaSessionRepository,
-  PrismaPolicyRepository,
   PrismaAuditEventRepository,
   PrismaAuthorizationDecisionRepository,
   PrismaMfaEnrollmentRepository,
@@ -83,7 +66,6 @@ const REPOSITORY_PROVIDERS = [
   PrismaRecoveryRequestRepository,
   PrismaOAuthStateRepository,
   PrismaOAuthIdentityRepository,
-  PrismaAssessmentScopeRepository,
 ];
 
 const AUTH_WORKSPACE_REPOSITORIES_BAG = "AUTH_WORKSPACE_REPOSITORIES_BAG";
@@ -114,12 +96,8 @@ function handlerProvider<T>(
       provide: AUTH_WORKSPACE_REPOSITORIES_BAG,
       inject: REPOSITORY_PROVIDERS,
       useFactory: (
-        organizations: PrismaOrganizationRepository,
         users: PrismaUserRepository,
-        memberships: PrismaMembershipRepository,
-        invitations: PrismaInvitationRepository,
         sessions: PrismaSessionRepository,
-        policies: PrismaPolicyRepository,
         auditEvents: PrismaAuditEventRepository,
         authorizationDecisions: PrismaAuthorizationDecisionRepository,
         mfaEnrollments: PrismaMfaEnrollmentRepository,
@@ -130,12 +108,8 @@ function handlerProvider<T>(
         oauthStates: PrismaOAuthStateRepository,
         oauthIdentities: PrismaOAuthIdentityRepository,
       ): AuthWorkspaceRepositories => ({
-        organizations,
         users,
-        memberships,
-        invitations,
         sessions,
-        policies,
         auditEvents,
         authorizationDecisions,
         mfaEnrollments,
@@ -160,43 +134,6 @@ function handlerProvider<T>(
     GoogleOAuthProvider,
     OAuthProviderRegistry,
     AuthAuditService,
-    handlerProvider(RegisterApprovedPathHandler),
-    {
-      provide: AcceptInvitationHandler,
-      inject: [PrismaService, AuthAuditService],
-      useFactory: (prisma: PrismaService, authAudit: AuthAuditService) =>
-        new AcceptInvitationHandler(prisma, authAudit),
-    },
-    {
-      provide: PreviewInvitationHandler,
-      inject: [PrismaService, AuthAuditService],
-      useFactory: (prisma: PrismaService, authAudit: AuthAuditService) =>
-        new PreviewInvitationHandler(prisma, authAudit),
-    },
-    {
-      provide: RevokeMembershipHandler,
-      inject: [PrismaService, AuthAuditService],
-      useFactory: (prisma: PrismaService, authAudit: AuthAuditService) =>
-        new RevokeMembershipHandler(prisma, authAudit),
-    },
-    {
-      provide: GetDeveloperTaskContextHandler,
-      inject: [
-        PrismaService,
-        AUTH_WORKSPACE_ASSESSMENT_SCOPE_REPOSITORY,
-        AuthAuditService,
-      ],
-      useFactory: (
-        prisma: PrismaService,
-        assessmentScopes: AssessmentScopeRepository,
-        authAudit: AuthAuditService,
-      ) =>
-        new GetDeveloperTaskContextHandler(prisma, assessmentScopes, authAudit),
-    },
-    {
-      provide: AUTH_WORKSPACE_ASSESSMENT_SCOPE_REPOSITORY,
-      useExisting: PrismaAssessmentScopeRepository,
-    },
     handlerProvider(SignInHandler),
     {
       provide: SignUpHandler,
@@ -240,19 +177,6 @@ function handlerProvider<T>(
     handlerProvider(RecordMfaRecoveryCodeAccessHandler),
     handlerProvider(UpdateProfileHandler),
     handlerProvider(ReauthenticatePasswordHandler),
-    {
-      provide: InviteDeveloperHandler,
-      inject: [
-        AuthWorkspaceSupportService,
-        AUTH_WORKSPACE_REPOSITORIES_BAG,
-        AUTH_WORKSPACE_ASSESSMENT_SCOPE_REPOSITORY,
-      ],
-      useFactory: (
-        support: AuthWorkspaceSupportService,
-        repositories: AuthWorkspaceRepositories,
-        assessmentScope: AssessmentScopeRepository,
-      ) => new InviteDeveloperHandler(support, repositories, assessmentScope),
-    },
     {
       provide: RequestPasswordRecoveryHandler,
       inject: [
@@ -339,7 +263,6 @@ function handlerProvider<T>(
     {
       provide: AuthWorkspaceFacade,
       inject: [
-        RegisterApprovedPathHandler,
         SignInHandler,
         SignUpHandler,
         RevokeSessionHandler,
@@ -362,14 +285,8 @@ function handlerProvider<T>(
         OAuthCallbackHandler,
         OAuthLinkStartHandler,
         OAuthLinkCallbackHandler,
-        InviteDeveloperHandler,
-        AcceptInvitationHandler,
-        PreviewInvitationHandler,
-        RevokeMembershipHandler,
-        GetDeveloperTaskContextHandler,
       ],
       useFactory: (
-        registerApprovedPathHandler: RegisterApprovedPathHandler,
         signInHandler: SignInHandler,
         signUpHandler: SignUpHandler,
         revokeSessionHandler: RevokeSessionHandler,
@@ -392,14 +309,8 @@ function handlerProvider<T>(
         oauthCallbackHandler: OAuthCallbackHandler,
         oauthLinkStartHandler: OAuthLinkStartHandler,
         oauthLinkCallbackHandler: OAuthLinkCallbackHandler,
-        inviteDeveloperHandler: InviteDeveloperHandler,
-        acceptInvitationHandler: AcceptInvitationHandler,
-        previewInvitationHandler: PreviewInvitationHandler,
-        revokeMembershipHandler: RevokeMembershipHandler,
-        getDeveloperTaskContextHandler: GetDeveloperTaskContextHandler,
       ) =>
         new AuthWorkspaceFacade(
-          registerApprovedPathHandler,
           signInHandler,
           signUpHandler,
           revokeSessionHandler,
@@ -422,24 +333,17 @@ function handlerProvider<T>(
           oauthCallbackHandler,
           oauthLinkStartHandler,
           oauthLinkCallbackHandler,
-          inviteDeveloperHandler,
-          acceptInvitationHandler,
-          previewInvitationHandler,
-          revokeMembershipHandler,
-          getDeveloperTaskContextHandler,
         ),
     },
   ],
   exports: [
     AuthWorkspaceFacade,
     AuthAuditService,
-    // Exposed for platform/pbac's PbacGuard, which needs read access to
-    // sessions/memberships/policies/MFA enrollment and write access to the
-    // decision log — reusing these rather than duplicating the same Prisma
-    // queries in a second, potentially-diverging implementation.
+    // Exposed for platform/rbac's RbacGuard, which needs read access to
+    // sessions/users/MFA enrollment and write access to the
+    // decision log.
     PrismaSessionRepository,
-    PrismaMembershipRepository,
-    PrismaPolicyRepository,
+    PrismaUserRepository,
     PrismaMfaEnrollmentRepository,
     PrismaAuthorizationDecisionRepository,
   ],

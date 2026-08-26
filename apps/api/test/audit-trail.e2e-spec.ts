@@ -1,22 +1,21 @@
 import { ASSESSMENT_EVENT_TYPES } from "@lcsp/contracts/assessment";
-import { PBAC_DECISION } from "@lcsp/contracts/pbac";
+import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 /**
  * AC-020: Complete audit trail for all state-changing operations.
  *
  * Every state-changing operation must write an AuthAuditEvent with:
  * - eventType (machine-readable)
  * - actorId (user who performed action)
- * - organizationId
  * - resourceType + resourceId
  * - No PII, secrets, tokens, or passwords in payload
  */
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 import { httpRequest, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
@@ -80,7 +79,6 @@ describe("Audit trail completeness (e2e) [AC-020]", () => {
 
     assert.ok(audit, "ASSESSMENT_CREATED audit event must be written");
     assert.ok(audit.actorId, "Audit event must include actorId");
-    assert.ok(audit.organizationId, "Audit event must include organizationId");
     assert.ok(audit.resourceType, "Audit event must include resourceType");
     assert.ok(audit.resourceId, "Audit event must include resourceId");
     assert.doesNotMatch(
@@ -101,7 +99,7 @@ describe("Audit trail completeness (e2e) [AC-020]", () => {
     assert.doesNotMatch(JSON.stringify(audit), SENSITIVE_PATTERNS);
   });
 
-  it("AC-020: PBAC denial writes AuthDecisionLog with decision=deny", async () => {
+  it("AC-020: RBAC denial writes AuthDecisionLog with decision=deny", async () => {
     if (!managerToken) return;
     // Make a request that will be denied (attempt something not in Manager policy)
     await httpRequest(app)
@@ -110,12 +108,12 @@ describe("Audit trail completeness (e2e) [AC-020]", () => {
       .send({});
 
     const decisionLog = await prisma.authDecisionLog.findFirst({
-      where: { decision: PBAC_DECISION.deny },
+      where: { decision: AUDIT_DECISIONS.deny },
       orderBy: { createdAt: "desc" },
     });
     // May or may not have denied — but any denial must be logged
     if (decisionLog) {
-      assert.equal(decisionLog.decision, PBAC_DECISION.deny);
+      assert.equal(decisionLog.decision, AUDIT_DECISIONS.deny);
       assert.doesNotMatch(JSON.stringify(decisionLog), SENSITIVE_PATTERNS);
     }
   });
@@ -137,7 +135,7 @@ describe("Audit trail completeness (e2e) [AC-020]", () => {
   });
 
   it("AC-020: AuthDecisionLog never exposes policyId or policy internals in user-facing response", async () => {
-    // The PBAC response to end user must not leak policy details
+    // The RBAC response to end user must not leak policy details
     // This tests the boundary between internal logging (OK to have policyId) and API response (NOT OK)
     if (!managerToken) return;
     const result = await httpRequest(app)
@@ -160,24 +158,27 @@ describe("Audit trail completeness (e2e) [AC-020]", () => {
     }
   });
 
-  it("AC-020: All audit events for current session have consistent organizationId", async () => {
+  it("AC-020: Assessment audit events keep the same assessment identifier in payload", async () => {
     if (!managerToken) return;
-    await httpRequest(app)
+    const createResult = await httpRequest(app)
       .post("/assessments")
       .set("Authorization", `Bearer ${managerToken}`)
       .send({ name: "Org Consistency Test", organization_id: orgId });
+    const assessmentId = successBody<{ assessment_id: string }>(
+      createResult,
+    ).assessment_id;
 
     const events = await prisma.authAuditEvent.findMany({
-      where: { organizationId: orgId },
+      where: { eventType: ASSESSMENT_EVENT_TYPES.created },
       orderBy: { createdAt: "desc" },
       take: 10,
     });
 
     for (const event of events) {
       assert.equal(
-        event.organizationId,
-        orgId,
-        `Audit event ${event.eventType} must belong to org ${orgId}`,
+        (event.payload as { assessmentId?: string }).assessmentId,
+        assessmentId,
+        `Audit event ${event.eventType} must reference assessment ${assessmentId}`,
       );
     }
   });

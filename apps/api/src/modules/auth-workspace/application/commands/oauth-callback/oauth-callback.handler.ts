@@ -151,38 +151,15 @@ export class OAuthCallbackHandler {
       );
     }
 
-    // No organization is supplied by the callback itself, so the account's
-    // active membership set must resolve to exactly one workspace. Zero or
-    // multiple active memberships is ambiguous and fails closed rather than
-    // guessing which workspace to sign the user into.
-    const activeMemberships = await repositories.memberships.findActiveByUserId(
-      user.id,
-    );
-    if (activeMemberships.length !== 1) {
-      await this.recordFailure(
-        repositories,
-        correlationId,
-        AUTH_ERROR_CODES.membershipMissing,
-        user.id,
-      );
-      return createProblemResult(
-        AUTH_ERROR_CODES.membershipMissing,
-        correlationId,
-      );
-    }
-
-    const organizationId = activeMemberships[0].organizationId;
     const sessionState = await this.support.createSession(
       repositories,
       user,
-      organizationId,
       correlationId,
     );
 
     await this.support.recordAudit(repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLoginSucceeded,
       actor_id: user.id,
-      organization_id: organizationId,
       decision: AUDIT_DECISIONS.allow,
       correlationId: correlationId,
       provider: oauthState.provider,
@@ -192,15 +169,7 @@ export class OAuthCallbackHandler {
       repositories,
       user.id,
     );
-    const organization = await this.support.resolveOrganizationById(
-      repositories,
-      organizationId,
-    );
-    const mfaRequired = this.support.isMfaRequired(
-      user,
-      organization,
-      mfaEnrollment,
-    );
+    const mfaRequired = this.support.isMfaRequired(user, mfaEnrollment);
 
     return {
       ok: true,
@@ -209,7 +178,6 @@ export class OAuthCallbackHandler {
       expires_at: sessionState.session.expiresAt,
       mfa_required: mfaRequired,
       mfa_enrolled: this.support.isMfaEnrolled(mfaEnrollment),
-      organization_id: organizationId,
     };
   }
 
@@ -222,7 +190,6 @@ export class OAuthCallbackHandler {
     await this.support.recordAudit(repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLoginFailed,
       actor_id: actorId,
-      organization_id: null,
       decision: AUDIT_DECISIONS.deny,
       reason_code: reasonCode,
       correlationId: correlationId,

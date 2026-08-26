@@ -9,7 +9,6 @@ import { ProcessDocumentCallbackCommand } from "./process-document-callback.comm
 type DocumentRequestProjection = {
   id: string;
   assessmentId: string;
-  organizationId: string;
   correlationId?: string;
 };
 
@@ -21,7 +20,6 @@ function buildHandler(options?: {
       ? {
           id: "dr-1",
           assessmentId: "asmt-1",
-          organizationId: "org-1",
           correlationId: "corr-1",
         }
       : options.request;

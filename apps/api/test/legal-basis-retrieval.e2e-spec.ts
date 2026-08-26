@@ -4,7 +4,6 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { LegalRetrievalIndexStatus, PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 
 import { AppModule } from "../src/app.module.js";
 import {
@@ -48,29 +47,9 @@ describe("Legal basis retrieval endpoint (e2e)", () => {
     await prisma.assessment.deleteMany();
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
-
-    const policy = await prisma.authPolicy.findUniqueOrThrow({
-      where: {
-        id_version: {
-          id: "policy-manager-workspace",
-          version: "2026-06-26",
-        },
-      },
-      select: { actions: true },
-    });
-    await prisma.authPolicy.update({
-      where: {
-        id_version: {
-          id: "policy-manager-workspace",
-          version: "2026-06-26",
-        },
-      },
-      data: { actions: [...policy.actions, PBAC_ACTIONS.legalCorpusRead] },
-    });
     await prisma.assessment.create({
       data: {
         id: ASSESSMENT_ID,
-        organizationId: ORGANIZATION_ID,
         ownerId: "user-1",
         name: "Legal basis assessment",
       },
@@ -163,34 +142,6 @@ describe("Legal basis retrieval endpoint (e2e)", () => {
     assert.equal(data.limitations[0]?.code, "NO_EFFECTIVE_CHUNK_FOR_SELECTOR");
     assert.deepEqual(data.result.citations, []);
   });
-
-  it("TC-04: PBAC denial is fail-closed and recorded", async () => {
-    await prisma.authPolicy.update({
-      where: {
-        id_version: {
-          id: "policy-manager-workspace",
-          version: "2026-06-26",
-        },
-      },
-      data: { actions: [PBAC_ACTIONS.assessmentRead] },
-    });
-
-    const response = await httpRequest(app)
-      .post(`/assessments/${ASSESSMENT_ID}/legal-basis`)
-      .set("Authorization", `Bearer ${managerToken}`)
-      .send({
-        corpusVersionId: `corpus_${CORPUS_ID}`,
-        selectors: { chunkIds: ["chunk_primary1"] },
-        includeContext: false,
-      });
-
-    assert.equal(response.status, 403);
-    const decision = await prisma.authDecisionLog.findFirst({
-      where: { action: PBAC_ACTIONS.legalCorpusRead },
-      orderBy: { createdAt: "desc" },
-    });
-    assert.equal(decision?.decision, "DENY");
-  });
 });
 
 async function seedReadyCorpus(prisma: PrismaClient): Promise<void> {
@@ -278,8 +229,8 @@ async function seedReadyCorpus(prisma: PrismaClient): Promise<void> {
 
 async function signIn(app: INestApplication): Promise<string> {
   const response = await httpRequest(app).post("/auth/sign-in").send({
-    email: "manager@acme.test",
-    password: "CorrectHorseBatteryStaple!",
+    email: "nomembership@acme.test",
+    password: "NoMembership123!",
     organization_id: ORGANIZATION_ID,
   });
   return String(

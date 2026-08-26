@@ -14,7 +14,6 @@ function buildHandler() {
     id: string;
     assessmentId: string;
     snapshotId: string;
-    organizationId: string;
     status: string;
   };
   type TechnicalEvidenceReportRecord = {
@@ -29,7 +28,6 @@ function buildHandler() {
           id: "scan-job-1",
           assessmentId: "assessment-1",
           snapshotId: "snapshot-1",
-          organizationId: "org-1",
           status: REPOSITORY_SCAN_JOB_STATUSES.running,
         }),
       ),
@@ -199,7 +197,6 @@ describe("ProcessScanCallbackHandler targeted reanalysis completion", () => {
     expect(response.accepted).toBe(true);
     expect(runtimeEvents.recordToolCompleted).toHaveBeenCalledWith(
       expect.objectContaining({
-        organizationId: "org-1",
         assessmentId: "assessment-1",
         runId: "scan-job-1",
         correlationId: "correlation-1",
@@ -213,7 +210,6 @@ describe("ProcessScanCallbackHandler targeted reanalysis completion", () => {
     );
     expect(runtimeEvents.recordRunCompleted).toHaveBeenCalledWith(
       expect.objectContaining({
-        organizationId: "org-1",
         assessmentId: "assessment-1",
         runId: "scan-job-1",
         correlationId: "correlation-1",
@@ -270,7 +266,6 @@ describe("ProcessScanCallbackHandler targeted reanalysis completion", () => {
       id: "scan-job-1",
       assessmentId: "assessment-1",
       snapshotId: "snapshot-1",
-      organizationId: "org-1",
       status: REPOSITORY_SCAN_JOB_STATUSES.failed,
     });
     technicalEvidenceReport.findFirst.mockResolvedValueOnce({

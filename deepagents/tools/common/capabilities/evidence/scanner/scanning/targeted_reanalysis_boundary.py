@@ -62,13 +62,13 @@ class TargetedReanalysisBoundary(AgentBoundaryBase):
 
     boundary_source = TARGETED_REANALYSIS_BOUNDARY_SOURCE
     source_event = TARGETED_REANALYSIS_COMMAND
-    requires_pbac = False
+    requires_rbac = False
     retry_delays_seconds = (10, 60, 300)
 
     def __init__(
         self,
         config,
-        pbac_client=None,
+        rbac_client=None,
         api_client: WorkerApiClient | None = None,
         scan_runner: ScanRunner | None = None,
     ):
@@ -76,12 +76,12 @@ class TargetedReanalysisBoundary(AgentBoundaryBase):
 
         Args:
             config: Managed Agent runtime configuration, including API settings.
-            pbac_client: Optional boundary dependency; PBAC is not performed here
+            rbac_client: Optional boundary dependency; RBAC is not performed here
                 because authorization is represented by the persisted API request.
             api_client: Optional internal API client override for tests/composition.
             scan_runner: Optional scan executor override; defaults to ``ScanBoundary``.
         """
-        super().__init__(config, pbac_client)
+        super().__init__(config, rbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
             config.worker_api_key,

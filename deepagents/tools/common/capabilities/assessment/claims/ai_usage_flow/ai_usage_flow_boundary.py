@@ -24,12 +24,12 @@ class AIUsageFlowBoundary(AgentBoundaryBase):
 
     boundary_source = "intelligence.technical-profile-ready"
     source_event = "event.technical-profile.ready.v1"
-    requires_pbac = False
+    requires_rbac = False
 
     def __init__(
         self,
         config,
-        pbac_client=None,
+        rbac_client=None,
         api_client: WorkerApiClient | None = None,
         rule_engine: AIUsageFlowRuleEngine | None = None,
         agentic_tool_resolver: AgenticToolResolver | None = None,
@@ -38,13 +38,13 @@ class AIUsageFlowBoundary(AgentBoundaryBase):
 
         Args:
             config: Managed Agent runtime configuration.
-            pbac_client: Optional base-boundary PBAC dependency.
+            rbac_client: Optional base-boundary RBAC dependency.
             api_client: Optional internal API client override.
             rule_engine: Optional deterministic AI-usage rule engine override.
             agentic_tool_resolver: Optional read-only agentic evidence resolver made
                 available to the model-assisted proposer.
         """
-        super().__init__(config, pbac_client)
+        super().__init__(config, rbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
             config.worker_api_key,

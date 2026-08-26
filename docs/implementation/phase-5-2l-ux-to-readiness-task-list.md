@@ -95,7 +95,7 @@ Removed concepts guarded:
 
 Stories must not silently assume decisions for:
 
-- PBAC engine and policy topology;
+- RBAC engine and policy topology;
 - trusted scan trigger retry/DLQ/idempotency;
 - scanner tool failure severity and tool version/config/ruleset hash policy.
 

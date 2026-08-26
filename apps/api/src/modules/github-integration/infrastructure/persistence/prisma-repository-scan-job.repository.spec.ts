@@ -31,7 +31,6 @@ describe("PrismaRepositoryScanJobRepository", () => {
     const job = RepositoryScanJob.create({
       assessmentId: "assessment-1",
       snapshotId: "snapshot-1",
-      organizationId: "org-1",
       idempotencyKey: "scan-request:assessment-1:snapshot-1:1",
       triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
       correlationId: "corr-1",
@@ -63,7 +62,6 @@ describe("PrismaRepositoryScanJobRepository", () => {
       id: "scan-job-1",
       assessmentId: "assessment-1",
       snapshotId: "snapshot-1",
-      organizationId: "org-1",
       idempotencyKey: "key-1",
       triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
       status: REPOSITORY_SCAN_JOB_STATUSES.running,
@@ -104,7 +102,6 @@ describe("PrismaRepositoryScanJobRepository", () => {
     const job = RepositoryScanJob.createWithStatus({
       assessmentId: "assessment-1",
       snapshotId: "snapshot-1",
-      organizationId: "org-1",
       idempotencyKey: "scan-request:assessment-1:snapshot-1:mapping",
       triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
       correlationId: "corr-1",

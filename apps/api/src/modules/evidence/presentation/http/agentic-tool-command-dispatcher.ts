@@ -1,5 +1,4 @@
 import { EVIDENCE_ERROR_CODES } from "@lcsp/contracts/evidence";
-import type { PbacAction } from "@lcsp/contracts/pbac";
 import { HttpStatus } from "@nestjs/common";
 
 import { problemException } from "../../../../platform/problems/problem-factory.js";
@@ -7,23 +6,20 @@ import { problemException } from "../../../../platform/problems/problem-factory.
 export type AgenticToolCommandDispatchArgs = {
   toolName: string;
   assessmentId: string;
-  organizationId: string;
   userId: string;
-  policyId?: string | null;
-  policyVersion?: string | null;
   correlationId: string;
   input: Record<string, unknown>;
 };
 
-const PROTECTED_COMMAND_ACTIONS: Readonly<Record<string, PbacAction>> = {};
+const PROTECTED_COMMAND_ACTIONS: Readonly<Record<string, string>> = {};
 
 /** Return true only for centrally registered protected mutation tools. */
 export function isAgenticToolCommand(toolName: string): boolean {
   return toolName in PROTECTED_COMMAND_ACTIONS;
 }
 
-/** Resolve the mandatory PBAC action for one protected canonical tool. */
-export function agenticToolCommandPbacAction(toolName: string): PbacAction {
+/** Resolve the mandatory RBAC action for one protected canonical tool. */
+export function agenticToolCommandRbacAction(toolName: string): string {
   const action = PROTECTED_COMMAND_ACTIONS[toolName];
   if (!action) {
     throw problemException(

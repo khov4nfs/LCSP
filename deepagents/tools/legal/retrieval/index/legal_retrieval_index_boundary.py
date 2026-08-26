@@ -30,7 +30,7 @@ class LegalRetrievalIndexEnvelope:
 class LegalRetrievalIndexBoundary(AgentBoundaryBase):
     boundary_source = LEGAL_RETRIEVAL_INDEX_BOUNDARY_SOURCE
     source_event = LEGAL_RETRIEVAL_INDEX_COMMAND
-    requires_pbac = False
+    requires_rbac = False
     retry_delays_seconds = ()
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:

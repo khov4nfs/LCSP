@@ -75,8 +75,8 @@ Do not move these files into the Candidate 1 branch:
 - `packages/contracts/src/scan/callback-ao3.ts`
 - `packages/contracts/src/evidence/agentic-tool.ts`
 - `packages/contracts/src/evidence/index.ts`
-- `packages/contracts/src/pbac/actions.ts`
-- `packages/contracts/src/pbac/manager-policy.ts`
+- `packages/contracts/src/rbac/actions.ts`
+- `packages/contracts/src/rbac/manager-policy.ts`
 
 Also leave out unchanged adjacent files unless a fresh edit is made intentionally:
 

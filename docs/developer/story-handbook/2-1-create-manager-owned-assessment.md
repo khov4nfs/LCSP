@@ -8,7 +8,7 @@ As a Manager, I want to create an assessment in my organization workspace, so th
 
 ## Acceptance Criteria
 
-1. **Given** an authenticated Manager has PBAC permission to create assessments
+1. **Given** an authenticated Manager has RBAC permission to create assessments
    **When** the Manager enters basic assessment identity and context
    **Then** LCSP creates a Manager-owned assessment in the active organization
    **And** the assessment starts in a pre-Wizard state or `WIZARD_IN_PROGRESS`
@@ -43,20 +43,20 @@ As a Manager, I want to create an assessment in my organization workspace, so th
 ### Story-Specific Implementation Tasks
 
 - Create assessment aggregate with Manager ownership, organization scope and initial workflow state.
-- Add create-assessment UI/API path with PBAC gating and safe denial handling.
+- Add create-assessment UI/API path with RBAC gating and safe denial handling.
 - Scaffold Wizard entry surfaces from assessment overview, including Wizard landing and initial section-progress projection.
 - Emit audit event and neutral readiness/Wizard entry projection after creation without implying any legal/risk result.
 
 ### Task to Acceptance Criteria Traceability
 
 - `AC1`: Create assessment aggregate with Manager ownership, organization scope and initial workflow state.
-- `AC2`: Add create-assessment UI/API path with PBAC gating and safe denial handling.
+- `AC2`: Add create-assessment UI/API path with RBAC gating and safe denial handling.
 - `AC1`: Scaffold Wizard entry surfaces from assessment overview, including Wizard landing and initial section-progress projection.
 - `AC1`, `AC2`: Emit audit event and neutral readiness/Wizard entry projection after creation without implying any legal/risk result.
 
 ### Dependencies and Prerequisites
 
-- Epic 1 workspace/PBAC foundation.
+- Epic 1 workspace/RBAC foundation.
 - Assessment state model from readiness authority.
 - Wizard Epic 2 UX package: `docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-26-wizard-epic-2/EXPERIENCE.md`
 
@@ -105,7 +105,7 @@ As a Manager, I want to create an assessment in my organization workspace, so th
 ### File Structure Notes
 
 - `apps/web` cho assessment dashboard, wizard screens, readiness-only status và export entry points.
-- `apps/api` cho assessment/wizard DTOs, state guards, PBAC checks và audit emission.
+- `apps/api` cho assessment/wizard DTOs, state guards, RBAC checks và audit emission.
 - `packages/*` cho section schema, validation contract và export/read-model types.
 
 ### Implementation Guidance for the Dev Agent

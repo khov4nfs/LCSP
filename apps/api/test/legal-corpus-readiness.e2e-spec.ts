@@ -4,7 +4,6 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { LegalRetrievalIndexStatus, PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
 
 import { AppModule } from "../src/app.module.js";
 import {
@@ -47,29 +46,9 @@ describe("Legal corpus readiness endpoint (e2e)", () => {
     await prisma.assessment.deleteMany();
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
-
-    const policy = await prisma.authPolicy.findUniqueOrThrow({
-      where: {
-        id_version: {
-          id: "policy-manager-workspace",
-          version: "2026-06-26",
-        },
-      },
-      select: { actions: true },
-    });
-    await prisma.authPolicy.update({
-      where: {
-        id_version: {
-          id: "policy-manager-workspace",
-          version: "2026-06-26",
-        },
-      },
-      data: { actions: [...policy.actions, PBAC_ACTIONS.legalCorpusRead] },
-    });
     await prisma.assessment.create({
       data: {
         id: ASSESSMENT_ID,
-        organizationId: ORGANIZATION_ID,
         ownerId: "user-1",
         name: "Legal readiness assessment",
       },
@@ -120,31 +99,6 @@ describe("Legal corpus readiness endpoint (e2e)", () => {
       JSON.stringify(audit.payload).includes("must never leak"),
       false,
     );
-  });
-
-  it("TC-03: PBAC denial is fail-closed and recorded", async () => {
-    await prisma.authPolicy.update({
-      where: {
-        id_version: {
-          id: "policy-manager-workspace",
-          version: "2026-06-26",
-        },
-      },
-      data: { actions: [PBAC_ACTIONS.assessmentRead] },
-    });
-
-    const response = await httpRequest(app)
-      .get(
-        `/assessments/${ASSESSMENT_ID}/legal-corpus-readiness?effective_date=2026-08-12`,
-      )
-      .set("Authorization", `Bearer ${managerToken}`);
-
-    assert.equal(response.status, 403);
-    const decision = await prisma.authDecisionLog.findFirst({
-      where: { action: PBAC_ACTIONS.legalCorpusRead },
-      orderBy: { createdAt: "desc" },
-    });
-    assert.equal(decision?.decision, "DENY");
   });
 
   it("TC-04: a corpus without a validated index is explicitly blocked", async () => {
@@ -199,8 +153,8 @@ async function seedReadyCorpus(prisma: PrismaClient): Promise<void> {
 
 async function signIn(app: INestApplication): Promise<string> {
   const response = await httpRequest(app).post("/auth/sign-in").send({
-    email: "manager@acme.test",
-    password: "CorrectHorseBatteryStaple!",
+    email: "nomembership@acme.test",
+    password: "NoMembership123!",
     organization_id: ORGANIZATION_ID,
   });
   return String(

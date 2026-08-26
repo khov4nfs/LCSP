@@ -110,8 +110,8 @@ Common branch shape:
 
 Why they are broader:
 
-- AO-5 `LCSP-196` currently includes policy sync, retrieval changes, PBAC shared contracts, and shared barrels beyond the narrow tool surface
-- AO-4 `LCSP-216` includes Prisma migration/schema, callback/worker changes, PBAC/contracts, and scan callback changes
+- AO-5 `LCSP-196` currently includes policy sync, retrieval changes, RBAC shared contracts, and shared barrels beyond the narrow tool surface
+- AO-4 `LCSP-216` includes Prisma migration/schema, callback/worker changes, RBAC/contracts, and scan callback changes
 - AO-1 `LCSP-172` and `LCSP-173` overlap in scanner graph + assembler ownership
 
 ## Standard branch-proof procedure
@@ -172,8 +172,8 @@ Typical shared files to inspect:
 - `apps/api/src/modules/reconciliation/presentation/http/reconciliation.controller.ts`
 - `packages/contracts/src/evidence/agentic-tool.ts`
 - `packages/contracts/src/evidence/index.ts`
-- `packages/contracts/src/pbac/actions.ts`
-- `packages/contracts/src/pbac/manager-policy.ts`
+- `packages/contracts/src/rbac/actions.ts`
+- `packages/contracts/src/rbac/manager-policy.ts`
 - `packages/contracts/src/scan/callback.ts`
 
 Rule:

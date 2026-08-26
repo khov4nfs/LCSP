@@ -36,15 +36,15 @@ Shared envelope must pin wizard and evidence artifact versions.
 
 ## 7. Errors and Typed Outcomes
 
-Invalid target/field/value=`INVALID_ARGUMENT`; missing pins=`NEEDS_INPUT`; unknown target=`NOT_FOUND`; limited/dynamic search=`OUT_OF_COVERAGE`; ambiguous evidence=`READY` with `UNKNOWN`; PBAC/version/tenant=`BLOCKED`; transient failure=`FAILED` after retry.
+Invalid target/field/value=`INVALID_ARGUMENT`; missing pins=`NEEDS_INPUT`; unknown target=`NOT_FOUND`; limited/dynamic search=`OUT_OF_COVERAGE`; ambiguous evidence=`READY` with `UNKNOWN`; RBAC/version/tenant=`BLOCKED`; transient failure=`FAILED` after retry.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
-Validate → registry/PBAC/exact pins → read only AO-2 safe projections → fixed verdict rules → limitation/conflict candidate → privacy/audit. `WizardClaimComparisonTool`, `LLM_CALLABLE`, `ASSESSMENT_VERIFY`, 4s/one retry/append-only candidate idempotent by pins+claim. Model receives verdict/refs only, may report/reroute, cannot edit claim or resolve conflict. Audit shared safe ids/hashes/rules/config/outcome; deny source, raw answers, prompts/secrets/AST.
+Validate → registry/RBAC/exact pins → read only AO-2 safe projections → fixed verdict rules → limitation/conflict candidate → privacy/audit. `WizardClaimComparisonTool`, `LLM_CALLABLE`, `ASSESSMENT_VERIFY`, 4s/one retry/append-only candidate idempotent by pins+claim. Model receives verdict/refs only, may report/reroute, cannot edit claim or resolve conflict. Audit shared safe ids/hashes/rules/config/outcome; deny source, raw answers, prompts/secrets/AST.
 
 ## 16–18. Scenario, AC, Tests
 
-Target claims `OPENAI`; confirmed invocation yields `SUPPORTED`; a Google-only sufficient scope yields `CONTRADICTED` plus candidate ref; partial scope yields `OUT_OF_COVERAGE`. AC: golden five verdicts, no wizard write, strict/PBAC/privacy/audit.
+Target claims `OPENAI`; confirmed invocation yields `SUPPORTED`; a Google-only sufficient scope yields `CONTRADICTED` plus candidate ref; partial scope yields `OUT_OF_COVERAGE`. AC: golden five verdicts, no wizard write, strict/RBAC/privacy/audit.
 
 | ID | Scenario | Level |
 |---|---|---|
@@ -56,7 +56,7 @@ Target claims `OPENAI`; confirmed invocation yields `SUPPORTED`; a Google-only s
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Implement comparison contracts/rule version/registry/projection service/candidate repository/API audit/PBAC/tests. OQ-01: approve typed expected-value vocabulary per claim field (Product, OPEN, blocks yes). Deliver definition/schema/rules/audit/tests.
+Implement comparison contracts/rule version/registry/projection service/candidate repository/API audit/RBAC/tests. OQ-01: approve typed expected-value vocabulary per claim field (Product, OPEN, blocks yes). Deliver definition/schema/rules/audit/tests.
 
 ## Source Authority
 

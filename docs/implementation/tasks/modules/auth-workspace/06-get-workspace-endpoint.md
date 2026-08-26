@@ -7,14 +7,14 @@ status: DONE
 epic_story: 1.4
 depends_on:
   - auth-workspace/01-sign-in-endpoint.md
-  - platform/pbac/03-nestjs-guard.md
+  - platform/rbac/03-nestjs-guard.md
 ---
 
 # Get Workspace Endpoint
 
 ## Outcome
 
-Return the authenticated Manager's active organization workspace context — membership details, granted PBAC actions, and current session state — without leaking policy internals.
+Return the authenticated Manager's active organization workspace context — membership details, granted RBAC actions, and current session state — without leaking policy internals.
 
 ## Module Files
 
@@ -47,7 +47,7 @@ Return the authenticated Manager's active organization workspace context — mem
 | `display_name`       | string   |                                                  |
 | `membership_status`  | string   | `active` only returned here                      |
 | `subject_role`       | string   | From `AuthMembership.subjectAttributes.role`     |
-| `granted_actions`    | string[] | Actions allowed by PBAC policy for this user+org |
+| `granted_actions`    | string[] | Actions allowed by RBAC policy for this user+org |
 | `session_expires_at` | string   | ISO 8601                                         |
 | `mfa_verified`       | boolean  | Whether `session.mfaVerifiedAt` is set           |
 | `correlationId`      | string   |                                                  |
@@ -78,18 +78,18 @@ Return the authenticated Manager's active organization workspace context — mem
 3. Verify `session.organizationId == organizationId` (query param). If mismatch → `ORG_SCOPE_MISMATCH`.
 4. Load `AuthMembership` for `(userId, organizationId)` with `status = active`. If not found → `MEMBERSHIP_MISSING`.
 5. Load `AuthPolicy` for `(policyId, policyVersion)` from membership.
-6. Project `granted_actions` from `policy.actions` — this is a projection/hint for UI only; server must recheck PBAC on each action.
+6. Project `granted_actions` from `policy.actions` — this is a projection/hint for UI only; server must recheck RBAC on each action.
 7. Return workspace context. Do not return `policyId`, `policyVersion`, `tokenHash`, or internal policy conditions.
 
 ## Commands / Events
 
-No audit event for read operations unless anomalous. PBAC allow/deny for sensitive workspace reads are logged by the PBAC guard.
+No audit event for read operations unless anomalous. RBAC allow/deny for sensitive workspace reads are logged by the RBAC guard.
 
-## PBAC
+## RBAC
 
 - Requires valid session AND active membership.
 - MFA check: if enrolled → must be verified.
-- `granted_actions` is a projection — UI may use it to show/hide controls, but server enforces PBAC independently on every mutation.
+- `granted_actions` is a projection — UI may use it to show/hide controls, but server enforces RBAC independently on every mutation.
 
 ## Test Cases
 

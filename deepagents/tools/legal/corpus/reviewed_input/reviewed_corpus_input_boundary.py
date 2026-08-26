@@ -30,7 +30,7 @@ class ReviewedCorpusInputEnvelope:
 class ReviewedCorpusInputBoundary(AgentBoundaryBase):
     boundary_source = REVIEWED_CORPUS_INPUT_BOUNDARY_SOURCE
     source_event = REVIEWED_CORPUS_INPUT_COMMAND
-    requires_pbac = False
+    requires_rbac = False
     retry_delays_seconds = ()
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:

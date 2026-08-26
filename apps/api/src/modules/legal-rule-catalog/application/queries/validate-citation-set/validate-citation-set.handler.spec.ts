@@ -62,15 +62,12 @@ function createHandler(input?: {
 function query(citationRefs = ["citation:chunk_active1"]) {
   return new ValidateCitationSetQuery(
     "assessment-1",
-    "organization-1",
     {
       corpusVersionId: "corpus_corpus-1",
       legalRuleMatchId: "legal_rule_match_match-1",
       citationRefs,
     },
     "user-1",
-    "policy-1",
-    "1",
     "correlation-1",
   );
 }

@@ -38,18 +38,18 @@ class OfficialTextExtractionBoundary(AgentBoundaryBase):
 
     boundary_source = OFFICIAL_TEXT_EXTRACTION_BOUNDARY_SOURCE
     source_event = OFFICIAL_TEXT_EXTRACTION_COMMAND
-    requires_pbac = False
+    requires_rbac = False
     retry_delays_seconds = (30, 120, 600)
 
     def __init__(
         self,
         config,
-        pbac_client=None,
+        rbac_client=None,
         api_client: WorkerApiClient | None = None,
         extractor: OfficialTextExtractor | None = None,
     ) -> None:
         """Create the boundary with injectable API and extraction adapters."""
-        super().__init__(config, pbac_client)
+        super().__init__(config, rbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
             config.worker_api_key,

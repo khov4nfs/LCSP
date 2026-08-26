@@ -14,7 +14,7 @@ describe("ProblemStatusInterceptor", () => {
     const response = { status: jest.fn(), locals: {} };
     const interceptor = new ProblemStatusInterceptor();
     const body: ProblemResult = createProblemResult(
-      AUTH_ERROR_CODES.pbacDenied,
+      AUTH_ERROR_CODES.rbacDenied,
       "correlation-1",
     );
 
@@ -28,7 +28,7 @@ describe("ProblemStatusInterceptor", () => {
     expect(response.status).toHaveBeenCalledWith(403);
     expect(response.locals).toEqual({
       problemResponse: {
-        code: AUTH_ERROR_CODES.pbacDenied,
+        code: AUTH_ERROR_CODES.rbacDenied,
         correlationId: "correlation-1",
         requiredAction: body.problem.requiredAction,
       },

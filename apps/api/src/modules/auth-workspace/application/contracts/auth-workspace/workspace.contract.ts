@@ -1,10 +1,9 @@
-import type { AuthMembershipStatus } from "@lcsp/contracts/auth";
+import type { AuthUserRole } from "@lcsp/contracts/auth";
 import type { AuthorizationDecision } from "../../../domain/models/auth-workspace.models.ts";
 import type { AuthProblemResult } from "./common.contract.ts";
 
 export type WorkspaceRequest = {
   correlationId?: string;
-  organization_id?: string;
   session_token?: string;
 };
 
@@ -13,20 +12,14 @@ export type WorkspaceAuthorization =
   | {
       ok: true;
       decision: AuthorizationDecision;
-      membership_status: AuthMembershipStatus;
-      subject_role: string;
-      granted_actions: string[];
+      role: AuthUserRole;
     };
 
 export type WorkspaceSuccess = {
   ok: true;
-  organization_id: string;
-  organization_name: string;
   user_id: string;
   display_name: string;
-  membership_status: AuthMembershipStatus;
-  subject_role: string;
-  granted_actions: string[];
+  role: AuthUserRole;
   session_expires_at: string;
   mfa_verified: boolean;
   correlationId: string;

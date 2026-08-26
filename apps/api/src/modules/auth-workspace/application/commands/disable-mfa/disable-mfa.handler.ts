@@ -71,7 +71,6 @@ export class DisableMfaHandler {
     await this.support.recordAudit(this.repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaDisabled,
       actor_id: session.userId,
-      organization_id: session.organizationId,
       decision: AUDIT_DECISIONS.allow,
       correlationId: correlationId,
       session_id: session.id,

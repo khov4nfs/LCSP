@@ -7,21 +7,21 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import { OutboxDlqService } from "./outbox-dlq.service.js";
 
 import type { AuthenticatedRequest } from "../../common/interfaces/authenticated-request.interface.js";
-import { RequireAction } from "../pbac/decorators/require-action.decorator.js";
-import { PbacGuard } from "../pbac/pbac.guard.js";
+import { RequireRoles } from "../rbac/decorators/require-roles.decorator.js";
+import { RbacGuard } from "../rbac/rbac.guard.js";
 import { resultEnvelope } from "../problems/result-envelope.js";
 
 /**
- * Exposes PBAC-protected operator endpoints for inspecting and recovering outbox DLQ messages.
+ * Exposes RBAC-protected operator endpoints for inspecting and recovering outbox DLQ messages.
  */
 @Controller("internal/outbox/dlq")
-@UseGuards(PbacGuard)
-@RequireAction(PBAC_ACTIONS.outboxReplay)
+@UseGuards(RbacGuard)
+@RequireRoles(AUTH_USER_ROLES.admin)
 export class OutboxDlqController {
   /**
    * Creates the controller with the DLQ application service.
@@ -44,7 +44,7 @@ export class OutboxDlqController {
    * Resets a DLQ message so the publisher can attempt delivery again.
    *
    * @param id - Identifier of the outbox message to replay.
-   * @param req - Authenticated request providing actor, organization, and correlation context.
+   * @param req - Authenticated request providing actor and correlation context.
    * @returns A standardized success result after the message is queued for replay.
    */
   @Post(":id/replay")
@@ -54,8 +54,7 @@ export class OutboxDlqController {
   ) {
     await this.dlqService.replayMessage(
       id,
-      req.pbacContext.userId,
-      req.pbacContext.organizationId,
+      req.rbacContext.userId,
       req.correlationId ?? "outbox-dlq-replay",
     );
     return resultEnvelope({
@@ -68,7 +67,7 @@ export class OutboxDlqController {
    * Permanently discards a message from the outbox dead-letter queue.
    *
    * @param id - Identifier of the DLQ message to delete.
-   * @param req - Authenticated request providing actor, organization, and correlation context.
+   * @param req - Authenticated request providing actor and correlation context.
    * @returns A standardized success result after deletion.
    */
   @Delete(":id")
@@ -78,8 +77,7 @@ export class OutboxDlqController {
   ) {
     await this.dlqService.deleteMessage(
       id,
-      req.pbacContext.userId,
-      req.pbacContext.organizationId,
+      req.rbacContext.userId,
       req.correlationId ?? "outbox-dlq-delete",
     );
     return resultEnvelope({

@@ -16,7 +16,7 @@ export type AppShellNavigationItem = {
 
 export type AppShellNavigationSection = {
   label: string;
-  kind?: "workspace" | "assessment" | "developer";
+  kind?: "workspace" | "assessment";
   assessmentId?: string;
   items: AppShellNavigationItem[];
 };

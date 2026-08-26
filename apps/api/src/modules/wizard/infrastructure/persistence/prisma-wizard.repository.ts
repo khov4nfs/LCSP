@@ -16,13 +16,11 @@ export class PrismaWizardRepository implements WizardProfileRepository {
 
   async verifyAssessmentOwnership(
     assessmentId: string,
-    orgId: string,
     ownerId: string,
   ): Promise<boolean> {
     const count = await this.prisma.assessment.count({
       where: {
         id: assessmentId,
-        organizationId: orgId,
         ownerId: ownerId,
       },
     });
@@ -39,7 +37,6 @@ export class PrismaWizardRepository implements WizardProfileRepository {
     return WizardProfileEntity.rehydrate({
       id: data.id,
       assessmentId: data.assessmentId,
-      organizationId: data.organizationId,
       ownerId: data.ownerId,
       version: data.version,
       status: fromPrismaWizardStatus(data.status) as PersistedWizardStatusCode,
@@ -63,7 +60,6 @@ export class PrismaWizardRepository implements WizardProfileRepository {
       create: {
         id: profile.id, // Or let DB generate UUID if omitted, but Prisma upsert requires ID or will generate if it's in the schema. Assuming schema provides @default(uuid()).
         assessmentId: profile.assessmentId,
-        organizationId: profile.organizationId,
         ownerId: profile.ownerId,
         version: profile.version,
         status: toPrismaWizardStatus(profile.status),
@@ -74,7 +70,6 @@ export class PrismaWizardRepository implements WizardProfileRepository {
     return WizardProfileEntity.rehydrate({
       id: data.id,
       assessmentId: data.assessmentId,
-      organizationId: data.organizationId,
       ownerId: data.ownerId,
       version: data.version,
       status: fromPrismaWizardStatus(data.status) as PersistedWizardStatusCode,

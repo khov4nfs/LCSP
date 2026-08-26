@@ -42,14 +42,14 @@ UC-01: AO-3 receives a graph seed from evidence, traverses it to locate related 
 
 ## 7. Errors and Typed Outcomes
 
-Invalid seed/filter/cap=`INVALID_ARGUMENT`; missing graph=`NEEDS_INPUT`; unknown seed=`NOT_FOUND`; cap, dynamic edge or limited graph=`OUT_OF_COVERAGE`; PBAC/graph-version denial=`BLOCKED`; timeout=`FAILED` after one retry.
+Invalid seed/filter/cap=`INVALID_ARGUMENT`; missing graph=`NEEDS_INPUT`; unknown seed=`NOT_FOUND`; cap, dynamic edge or limited graph=`OUT_OF_COVERAGE`; RBAC/graph-version denial=`BLOCKED`; timeout=`FAILED` after one retry.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
 ```mermaid
 sequenceDiagram
  participant O as AO-3
- participant G as API PBAC
+ participant G as API RBAC
  participant H as SubgraphTool
  participant P as Graph projections
  O->>G: strict seed/traversal
@@ -59,7 +59,7 @@ sequenceDiagram
  G-->>O: typed graph envelope
 ```
 
-Validate → allow-list → graph artifact/tenant/PBAC → deterministic BFS (never exceed cap) → stable normalize → limitation state → privacy scan → audit. Registry `EvidenceSubgraphTool`, `LLM_CALLABLE`, action `TECHNICAL_EVIDENCE_READ`, graph ref required, 3s/one retry/`NONE`. Model receives ≤100 nodes/200 edges and may call only returned refs; it cannot infer unreturned reachability. Audit all shared identifiers/hashes/duration/budget/refs; reject raw payload, source, prompt, secret, AST and absolute paths. 
+Validate → allow-list → graph artifact/tenant/RBAC → deterministic BFS (never exceed cap) → stable normalize → limitation state → privacy scan → audit. Registry `EvidenceSubgraphTool`, `LLM_CALLABLE`, action `TECHNICAL_EVIDENCE_READ`, graph ref required, 3s/one retry/`NONE`. Model receives ≤100 nodes/200 edges and may call only returned refs; it cannot infer unreturned reachability. Audit all shared identifiers/hashes/duration/budget/refs; reject raw payload, source, prompt, secret, AST and absolute paths. 
 
 ## 16. Scenario
 
@@ -67,13 +67,13 @@ To corroborate a finding, model traverses outbound depth 2. A cycle is emitted o
 
 ## 17–18. Acceptance Criteria and Tests
 
-Given a permitted graph, traversal is deterministic/cycle-safe and capped; schema/PBAC/version failures stop pre-query; empty unknown seed and cap limitation differ; output is audited and private.
+Given a permitted graph, traversal is deterministic/cycle-safe and capped; schema/RBAC/version failures stop pre-query; empty unknown seed and cap limitation differ; output is audited and private.
 
 | ID | Scenario | Level |
 |---|---|---|
 | TC-01 | BFS ref order/cycle | unit |
 | TC-02 | every depth/node/edge cap | contract/integration |
-| TC-03 | cross-artifact/tenant/PBAC seed | integration |
+| TC-03 | cross-artifact/tenant/RBAC seed | integration |
 | TC-04 | invalid extra/filter input | contract |
 | TC-05 | nested graph raw payload leak | privacy |
 | TC-06 | timeout/retry/audit | worker |

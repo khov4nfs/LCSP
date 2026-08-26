@@ -63,7 +63,6 @@ export type WorkspaceRuntimeActivityItem = {
   eventId: string;
   sequence: number;
   emittedAt: string;
-  organizationId: string;
   assessmentId: string;
   runId: string;
   correlationId: string;

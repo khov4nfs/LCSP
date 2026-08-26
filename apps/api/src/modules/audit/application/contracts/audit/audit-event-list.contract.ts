@@ -6,7 +6,6 @@ export interface AuditEventSummary {
   event_id: string;
   event_type: string;
   actor_id: string | null;
-  organization_id: string;
   decision: AuditEventDecision;
   payload: Record<string, unknown> | null;
   occurred_at: string;

@@ -3,7 +3,7 @@ import {
   ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 /**
- * AC-001: PBAC-authorized assessment creation, audit event.
+ * AC-001: RBAC-authorized assessment creation, audit event.
  * AC-003: Readiness-only state, no risk level, blocked/degraded messaging.
  */
 

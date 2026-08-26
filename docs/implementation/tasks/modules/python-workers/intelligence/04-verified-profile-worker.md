@@ -30,7 +30,7 @@ Consume `reconciliation.all-conflicts-resolved` events and assemble the `Verifie
 |---|---|
 | Queue | `intelligence.all-conflicts-resolved` |
 | Routing key | `reconciliation.all-conflicts-resolved` |
-| PBAC preflight | No (system event) |
+| RBAC preflight | No (system event) |
 
 ## VerifiedProfile Assembly
 
@@ -83,7 +83,7 @@ class VerifiedProfileData:
 - Added `VerifiedProfileBuilder` to assemble `VerifiedProfileData` from existing `AIUsageFlow` claims, optional `WizardProfile` context, and resolved conflict records without creating new claims.
 - Added conflict-resolution summaries that retain structured resolution metadata while intentionally excluding free-form Manager notes.
 - Added `evidence_chain_integrity` calculation so material claims without `evidence_refs` mark the profile as incomplete instead of silently passing.
-- Added `VerifiedProfileConsumer` for queue `intelligence.all-conflicts-resolved`, routing key `reconciliation.all-conflicts-resolved`, with `requires_pbac = False` for the system event.
+- Added `VerifiedProfileConsumer` for queue `intelligence.all-conflicts-resolved`, routing key `reconciliation.all-conflicts-resolved`, with `requires_rbac = False` for the system event.
 - Added pending-conflict handling so `PENDING_CONFLICTS_EXIST` from API callback failures is raised as a requeueable worker error.
 - Updated Python worker callback schema and API contract path to `POST /internal/reconciliation/verified-profile-callback`.
 - Added API client support for fetching VerifiedProfile reconciliation context from the NestJS internal API.

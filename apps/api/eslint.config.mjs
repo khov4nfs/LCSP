@@ -19,13 +19,7 @@ export default tseslint.config(
       },
       sourceType: "module",
       parserOptions: {
-        projectService: {
-          allowDefaultProject: [
-            "prisma.config.ts",
-            "jest.config.ts",
-            "test/scripts/ensure-test-postgres.mjs",
-          ],
-        },
+        project: ["./tsconfig.eslint.json"],
         tsconfigRootDir: import.meta.dirname,
       },
     },

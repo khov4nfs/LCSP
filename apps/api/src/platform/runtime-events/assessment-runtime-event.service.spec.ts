@@ -55,7 +55,7 @@ describe("AssessmentRuntimeEventService", () => {
     };
     const service = new AssessmentRuntimeEventService(prisma as never);
 
-    const snapshot = await service.buildWorkspaceSnapshot("org-1");
+    const snapshot = await service.buildWorkspaceSnapshot();
 
     expect(snapshot.recentActivity).toEqual([
       expect.objectContaining({
@@ -109,7 +109,7 @@ describe("AssessmentRuntimeEventService", () => {
     };
     const service = new AssessmentRuntimeEventService(prisma as never);
 
-    const snapshot = await service.buildWorkspaceSnapshot("org-1");
+    const snapshot = await service.buildWorkspaceSnapshot();
 
     expect(snapshot.recentActivity).toEqual([
       expect.objectContaining({
@@ -134,7 +134,6 @@ describe("AssessmentRuntimeEventService", () => {
           Promise.resolve({
             id: "scan-1",
             assessmentId: "assessment-1",
-            organizationId: "org-1",
             correlationId: "corr-1",
             status: "RUNNING",
           }),
@@ -168,7 +167,6 @@ describe("AssessmentRuntimeEventService", () => {
 
     expect(assessmentRuntimeEvent.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        organizationId: "org-1",
         assessmentId: "assessment-1",
         runId: "scan-1",
         correlationId: "corr-1",
@@ -210,7 +208,6 @@ describe("AssessmentRuntimeEventService", () => {
           Promise.resolve({
             id: "scan-1",
             assessmentId: "assessment-1",
-            organizationId: "org-1",
             correlationId: "corr-1",
             status: "RUNNING",
           }),
@@ -263,7 +260,6 @@ describe("AssessmentRuntimeEventService", () => {
           Promise.resolve({
             id: "scan-1",
             assessmentId: "assessment-1",
-            organizationId: "org-1",
             correlationId: "corr-1",
             status: "COMPLETED",
           }),
@@ -304,7 +300,6 @@ describe("AssessmentRuntimeEventService", () => {
           Promise.resolve({
             id: "scan-1",
             assessmentId: "assessment-1",
-            organizationId: "org-1",
             correlationId: "corr-1",
             status: "COMPLETED",
           }),
@@ -333,7 +328,6 @@ describe("AssessmentRuntimeEventService", () => {
 
     expect(assessmentRuntimeEvent.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
-        organizationId: "org-1",
         assessmentId: "assessment-1",
         runId: "scan-1",
         correlationId: "corr-1",
@@ -352,7 +346,6 @@ describe("AssessmentRuntimeEventService", () => {
         findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([
           {
             id: "evt-1",
-            organizationId: "org-1",
             assessmentId: "assessment-1",
             runId: "scan-1",
             correlationId: "corr-1",
@@ -395,7 +388,7 @@ describe("AssessmentRuntimeEventService", () => {
     };
     const service = new AssessmentRuntimeEventService(prisma as never);
 
-    const snapshot = await service.buildWorkspaceSnapshot("org-1");
+    const snapshot = await service.buildWorkspaceSnapshot();
 
     expect(snapshot.recentActivity).toHaveLength(1);
     expect(snapshot.recentActivity[0]).toEqual(

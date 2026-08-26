@@ -53,7 +53,6 @@ describe("ProposeMissingTargetsHandler", () => {
     ).execute(
       new ProposeMissingTargetsQuery(
         "assessment-1",
-        "org-1",
         "wizard-1",
         "report-1",
         [TARGET_CANDIDATE_KINDS.providerUsage],
@@ -115,7 +114,6 @@ describe("ProposeMissingTargetsHandler", () => {
     ).execute(
       new ProposeMissingTargetsQuery(
         "assessment-1",
-        "org-1",
         "wizard-1",
         "report-1",
         [TARGET_CANDIDATE_KINDS.providerUsage],
@@ -171,7 +169,6 @@ describe("ProposeMissingTargetsHandler", () => {
     ).execute(
       new ProposeMissingTargetsQuery(
         "assessment-1",
-        "org-1",
         "wizard-1",
         "report-1",
         [TARGET_CANDIDATE_KINDS.providerUsage],

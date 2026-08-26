@@ -9,7 +9,6 @@ import {
   REPOSITORY_SNAPSHOT_STATUSES,
 } from "@lcsp/contracts/github-integration";
 import { OUTBOX_MESSAGE_SCHEMA_VERSION } from "@lcsp/contracts/outbox";
-import { PBAC_ACTIONS, PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
 /** MW-gh-004: Scan Trigger Endpoint. */
 
 import * as assert from "node:assert/strict";
@@ -31,6 +30,7 @@ import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
+  seedRepositorySnapshotGraph,
   TEST_DATABASE_URL,
 } from "./support/auth-workspace-test-helpers.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
@@ -67,16 +67,14 @@ describe("Scan Trigger Endpoint (e2e) [MW-gh-004]", () => {
     await prisma.assessment.deleteMany();
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
-    await prisma.assessment.create({
+    await createSnapshot(prisma, "snapshot-1");
+    await prisma.assessment.update({
+      where: { id: "assessment-1" },
       data: {
-        id: "assessment-1",
-        organizationId: "org-1",
-        ownerId: "user-1",
         name: "Scan assessment",
         status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
       },
     });
-    await createSnapshot(prisma, "snapshot-1");
 
     const signIn = await httpRequest(app).post("/auth/sign-in").send({
       email: "manager@acme.test",
@@ -201,9 +199,17 @@ describe("Scan Trigger Endpoint (e2e) [MW-gh-004]", () => {
   });
 
   it("T04: hides a snapshot outside the session organization", async () => {
+    await prisma.assessment.create({
+      data: {
+        id: "assessment-other",
+        ownerId: "user-2",
+        name: "Other assessment",
+        status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
+      },
+    });
     await prisma.repositorySnapshot.update({
       where: { id: "snapshot-1" },
-      data: { organizationId: "org-other" },
+      data: { assessmentId: "assessment-other" },
     });
 
     const response = await triggerManual(app, managerToken);
@@ -213,24 +219,6 @@ describe("Scan Trigger Endpoint (e2e) [MW-gh-004]", () => {
       problemCode(response),
       GITHUB_INTEGRATION_ERROR_CODES.snapshotNotFound,
     );
-  });
-
-  it("T05: PBAC denies a Manager without scan:trigger", async () => {
-    await prisma.authPolicy.update({
-      where: {
-        id_version: {
-          id: "policy-manager-workspace",
-          version: "2026-06-26",
-        },
-      },
-      data: { actions: [PBAC_ACTIONS.workspaceRead] },
-    });
-
-    const response = await triggerManual(app, managerToken);
-
-    assert.equal(response.status, 403);
-    assert.equal(problemCode(response), PBAC_REASON_CODE.denied);
-    assert.equal(await prisma.repositoryScanJob.count(), 0);
   });
 
   it("accepts a trusted trigger with the worker API key and no user session", async () => {
@@ -289,7 +277,6 @@ describe("Scan Trigger Endpoint (e2e) [MW-gh-004]", () => {
         id: "prior-scan-job",
         assessmentId: "assessment-1",
         snapshotId: "snapshot-1",
-        organizationId: "org-1",
         idempotencyKey: "scan-request:assessment-1:snapshot-1:0",
         triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
         status: REPOSITORY_SCAN_JOB_STATUSES.completed,
@@ -325,19 +312,16 @@ function triggerManual(app: INestApplication, token: string) {
 }
 
 async function createSnapshot(prisma: PrismaClient, id: string): Promise<void> {
-  await prisma.repositorySnapshot.create({
-    data: {
-      id,
-      assessmentId: "assessment-1",
-      organizationId: "org-1",
-      connectionId: "connection-1",
-      repositoryId: "repo-1",
-      repositoryFullName: "acme/example-repo",
-      branch: "main",
-      commitSha: "a".repeat(40),
-      providerMetadata: { requestedRevision: "main" },
-      actorId: "user-1",
-      status: REPOSITORY_SNAPSHOT_STATUSES.ready,
-    },
+  await seedRepositorySnapshotGraph(prisma, {
+    assessmentId: "assessment-1",
+    userId: "user-1",
+    connectionId: "connection-1",
+    snapshotId: id,
+    installationId: "installation-1",
+    repositoryId: "repo-1",
+  });
+  await prisma.repositorySnapshot.update({
+    where: { id },
+    data: { status: REPOSITORY_SNAPSHOT_STATUSES.ready },
   });
 }

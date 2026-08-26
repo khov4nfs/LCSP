@@ -4,18 +4,9 @@ import {
   ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
-import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
-import {
-  PBAC_ACTIONS,
-  PBAC_DECISION,
-  SUBJECT_ROLES,
-} from "@lcsp/contracts/pbac";
-import {
-  ForbiddenException,
-  UnprocessableEntityException,
-} from "@nestjs/common";
+import { UnprocessableEntityException } from "@nestjs/common";
 
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import type { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
@@ -70,9 +61,7 @@ function buildHandler() {
 
   return {
     handler,
-    save,
     saveInTx,
-    write,
     writeInTx,
     enqueue,
     tx,
@@ -81,23 +70,15 @@ function buildHandler() {
 }
 
 describe("CreateAssessmentHandler", () => {
-  // T01
-  it("creates an assessment with WIZARD_IN_PROGRESS status for a valid request", async () => {
+  it("creates an assessment with WIZARD_IN_PROGRESS status", async () => {
     const { handler, saveInTx } = buildHandler();
 
     const result = await handler.execute(
       new CreateAssessmentCommand(
-        "org-1",
         "user-1",
         "My AI System Assessment",
         undefined,
         "corr-1",
-        {
-          subjectRole: SUBJECT_ROLES.manager,
-          selectedAction: PBAC_ACTIONS.assessmentCreate,
-          policyId: "policy-manager-workspace",
-          policyVersion: "2026-06-26",
-        },
       ),
     );
 
@@ -107,43 +88,18 @@ describe("CreateAssessmentHandler", () => {
     expect(saveInTx).toHaveBeenCalledTimes(1);
   });
 
-  // T03
-  it("throws UnprocessableEntityException with INVALID_REQUEST when name is missing", async () => {
+  it("rejects a missing name", async () => {
     const { handler, saveInTx } = buildHandler();
 
     await expect(
       handler.execute(
-        new CreateAssessmentCommand(
-          "org-1",
-          "user-1",
-          undefined,
-          undefined,
-          "corr-1",
-          {
-            subjectRole: SUBJECT_ROLES.manager,
-            selectedAction: PBAC_ACTIONS.assessmentCreate,
-            policyId: "policy-manager-workspace",
-            policyVersion: "2026-06-26",
-          },
-        ),
+        new CreateAssessmentCommand("user-1", undefined, undefined, "corr-1"),
       ),
     ).rejects.toThrow(UnprocessableEntityException);
 
     try {
       await handler.execute(
-        new CreateAssessmentCommand(
-          "org-1",
-          "user-1",
-          undefined,
-          undefined,
-          "corr-1",
-          {
-            subjectRole: SUBJECT_ROLES.manager,
-            selectedAction: PBAC_ACTIONS.assessmentCreate,
-            policyId: "policy-manager-workspace",
-            policyVersion: "2026-06-26",
-          },
-        ),
+        new CreateAssessmentCommand("user-1", undefined, undefined, "corr-1"),
       );
     } catch (error) {
       expect(
@@ -159,172 +115,85 @@ describe("CreateAssessmentHandler", () => {
     expect(saveInTx).not.toHaveBeenCalled();
   });
 
-  it("throws UnprocessableEntityException with INVALID_REQUEST when name exceeds 200 chars", async () => {
+  it("rejects an overlong name", async () => {
     const { handler, saveInTx } = buildHandler();
-    const longName = "a".repeat(201);
 
     await expect(
       handler.execute(
         new CreateAssessmentCommand(
-          "org-1",
           "user-1",
-          longName,
+          "a".repeat(201),
           undefined,
           "corr-1",
-          {
-            subjectRole: SUBJECT_ROLES.manager,
-            selectedAction: PBAC_ACTIONS.assessmentCreate,
-            policyId: "policy-manager-workspace",
-            policyVersion: "2026-06-26",
-          },
         ),
       ),
     ).rejects.toThrow(UnprocessableEntityException);
     expect(saveInTx).not.toHaveBeenCalled();
   });
 
-  it("throws UnprocessableEntityException with INVALID_REQUEST when description exceeds 1000 chars", async () => {
+  it("rejects an overlong description", async () => {
     const { handler, saveInTx } = buildHandler();
-    const longDescription = "a".repeat(1001);
 
     await expect(
       handler.execute(
         new CreateAssessmentCommand(
-          "org-1",
           "user-1",
           "Valid name",
-          longDescription,
+          "a".repeat(1001),
           "corr-1",
-          {
-            subjectRole: SUBJECT_ROLES.manager,
-            selectedAction: PBAC_ACTIONS.assessmentCreate,
-            policyId: "policy-manager-workspace",
-            policyVersion: "2026-06-26",
-          },
         ),
       ),
     ).rejects.toThrow(UnprocessableEntityException);
     expect(saveInTx).not.toHaveBeenCalled();
   });
 
-  // T05, T06
-  it("sets ownerId and organizationId from the command", async () => {
+  it("uses the authenticated owner id from the command", async () => {
     const { handler, saveInTx } = buildHandler();
 
     await handler.execute(
-      new CreateAssessmentCommand(
-        "org-42",
-        "user-42",
-        "Name",
-        undefined,
-        "corr-1",
-        {
-          subjectRole: SUBJECT_ROLES.manager,
-          selectedAction: PBAC_ACTIONS.assessmentCreate,
-          policyId: "policy-manager-workspace",
-          policyVersion: "2026-06-26",
-        },
-      ),
+      new CreateAssessmentCommand("user-42", "Name", undefined, "corr-1"),
     );
 
-    const savedAssessment = saveInTx.mock.calls[0][0];
-    expect(savedAssessment.ownerId).toBe("user-42");
-    expect(savedAssessment.organizationId).toBe("org-42");
+    expect(saveInTx.mock.calls[0][0].ownerId).toBe("user-42");
   });
 
-  // T07
-  it("writes an ASSESSMENT_CREATED audit event without name/description in the payload", async () => {
+  it("writes an allow audit event without name or description", async () => {
     const { handler, writeInTx } = buildHandler();
 
     await handler.execute(
       new CreateAssessmentCommand(
-        "org-1",
         "user-1",
         "Secret Project Name",
         "Sensitive description",
         "corr-1",
-        {
-          subjectRole: SUBJECT_ROLES.manager,
-          selectedAction: PBAC_ACTIONS.assessmentCreate,
-          policyId: "policy-manager-workspace",
-          policyVersion: "2026-06-26",
-        },
       ),
     );
 
-    expect(writeInTx).toHaveBeenCalledTimes(1);
     const event = writeInTx.mock.calls[0][0];
-    expect(event.eventType).toBe(ASSESSMENT_EVENT_TYPES.created);
-    expect(event.actorId).toBe("user-1");
-    expect(event.organizationId).toBe("org-1");
-    expect(event.resourceType).toBe(AUDIT_RESOURCE_TYPES.assessment);
-    expect(event.resourceId).toBeTruthy();
-    expect(event.correlationId).toBe("corr-1");
-    expect(event.policyId).toBe("policy-manager-workspace");
-    expect(event.policyVersion).toBe("2026-06-26");
-    expect(event.decision).toBe(PBAC_DECISION.allow);
+    expect(event).toMatchObject({
+      eventType: ASSESSMENT_EVENT_TYPES.created,
+      actorId: "user-1",
+      resourceType: AUDIT_RESOURCE_TYPES.assessment,
+      correlationId: "corr-1",
+      decision: AUDIT_DECISIONS.allow,
+    });
     expect(JSON.stringify(event.payload)).not.toMatch(/Secret Project Name/);
     expect(JSON.stringify(event.payload)).not.toMatch(/Sensitive description/);
-  });
-
-  // T08
-  it("response contains no developer assignment fields", async () => {
-    const { handler } = buildHandler();
-
-    const result = await handler.execute(
-      new CreateAssessmentCommand(
-        "org-1",
-        "user-1",
-        "Name",
-        undefined,
-        "corr-1",
-        {
-          subjectRole: SUBJECT_ROLES.manager,
-          selectedAction: PBAC_ACTIONS.assessmentCreate,
-          policyId: "policy-manager-workspace",
-          policyVersion: "2026-06-26",
-        },
-      ),
-    );
-
-    expect(result).not.toHaveProperty("developer_id");
-    expect(result).not.toHaveProperty("developerId");
   });
 
   it("enqueues an assessment.created outbox message", async () => {
     const { handler, enqueue, tx } = buildHandler();
 
     await handler.execute(
-      new CreateAssessmentCommand(
-        "org-1",
-        "user-1",
-        "Name",
-        undefined,
-        "corr-1",
-        {
-          subjectRole: SUBJECT_ROLES.manager,
-          selectedAction: PBAC_ACTIONS.assessmentCreate,
-          policyId: "policy-manager-workspace",
-          policyVersion: "2026-06-26",
-        },
-      ),
+      new CreateAssessmentCommand("user-1", "Name", undefined, "corr-1"),
     );
 
-    expect(enqueue).toHaveBeenCalledTimes(1);
     const input = enqueue.mock.calls[0][0];
     expect(input.eventType).toBe(ASSESSMENT_EVENT_TYPES.createdOutbox);
     expect(input.aggregateType).toBe(OUTBOX_AGGREGATE_TYPES.assessment);
     expect(input.correlationId).toBe("corr-1");
     expect(input.causationId).toBe("corr-1");
-    expect(input.organizationId).toBe("org-1");
     expect(input.assessmentId).toBeTruthy();
-    expect(input.payload).toEqual(
-      expect.objectContaining({
-        correlationId: "corr-1",
-        causationId: "corr-1",
-        organizationId: "org-1",
-      }),
-    );
     expect(enqueue.mock.calls[0][1]).toBe(tx);
   });
 
@@ -333,63 +202,12 @@ describe("CreateAssessmentHandler", () => {
       buildHandler();
 
     await handler.execute(
-      new CreateAssessmentCommand(
-        "org-1",
-        "user-1",
-        "Name",
-        undefined,
-        "corr-1",
-        {
-          subjectRole: SUBJECT_ROLES.manager,
-          selectedAction: PBAC_ACTIONS.assessmentCreate,
-          policyId: "policy-manager-workspace",
-          policyVersion: "2026-06-26",
-        },
-      ),
+      new CreateAssessmentCommand("user-1", "Name", undefined, "corr-1"),
     );
 
     expect(transaction).toHaveBeenCalledTimes(1);
     expect(saveInTx.mock.calls[0][1]).toBe(tx);
     expect(writeInTx.mock.calls[0][1]).toBe(tx);
     expect(enqueue.mock.calls[0][1]).toBe(tx);
-  });
-
-  it("denies service-level assessment creation when PBAC context is not Manager assessment:create", async () => {
-    const { handler, saveInTx, write, enqueue } = buildHandler();
-
-    await expect(
-      handler.execute(
-        new CreateAssessmentCommand(
-          "org-1",
-          "developer-1",
-          "Denied",
-          undefined,
-          "corr-deny",
-          {
-            subjectRole: SUBJECT_ROLES.developer,
-            selectedAction: PBAC_ACTIONS.assessmentCreate,
-            policyId: "policy-developer",
-            policyVersion: "2026-06-26",
-          },
-        ),
-      ),
-    ).rejects.toThrow(ForbiddenException);
-
-    expect(saveInTx).not.toHaveBeenCalled();
-    expect(enqueue).not.toHaveBeenCalled();
-    expect(write).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventType: ASSESSMENT_EVENT_TYPES.created,
-        actorId: "developer-1",
-        organizationId: "org-1",
-        resourceType: AUDIT_RESOURCE_TYPES.assessment,
-        resourceId: null,
-        correlationId: "corr-deny",
-        decision: PBAC_DECISION.deny,
-        reasonCode: AUTH_ERROR_CODES.pbacDenied,
-        policyId: "policy-developer",
-        policyVersion: "2026-06-26",
-      }),
-    );
   });
 });

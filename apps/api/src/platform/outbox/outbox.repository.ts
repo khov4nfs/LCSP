@@ -246,7 +246,7 @@ export class OutboxRepository {
   ): Promise<boolean> {
     const request = await tx.targetedReanalysisRequest.findUnique({
       where: { id: requestId },
-      select: { organizationId: true, state: true },
+      select: { assessmentId: true, state: true },
     });
     if (!request) return false;
     if (request.state === TARGETED_REANALYSIS_REQUEST_STATES.dispatched) {
@@ -257,11 +257,10 @@ export class OutboxRepository {
     }
 
     await tx.$executeRaw`
-      SELECT pg_advisory_xact_lock(hashtext(${request.organizationId}))
+      SELECT pg_advisory_xact_lock(hashtext(${request.assessmentId}))
     `;
     const reservedCount = await tx.targetedReanalysisRequest.count({
       where: {
-        organizationId: request.organizationId,
         state: {
           in: [
             TARGETED_REANALYSIS_REQUEST_STATES.dispatched,

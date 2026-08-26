@@ -10,8 +10,6 @@ export const API_OUTCOME_KINDS = {
   empty: "empty",
   error: "error",
   invalid: "invalid",
-  invitationAccepted: "invitation_accepted",
-  invitationInvalid: "invitation_invalid",
   loaded: "loaded",
   mfaRequired: "mfa_required",
   mfaEnrollmentRequired: "mfa_enrollment_required",

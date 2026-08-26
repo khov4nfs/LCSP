@@ -2,8 +2,6 @@
 
 export const apiQueryKeys = {
   auth: {
-    invitationPreview: (invitationToken: string) =>
-      ["auth", "invitation-preview", invitationToken] as const,
     settingsProfile: () => ["auth", "settings-profile"] as const,
     sessions: () => ["auth", "sessions"] as const,
     repositories: () => ["auth", "repositories"] as const,
@@ -12,7 +10,6 @@ export const apiQueryKeys = {
     detail: () => ["workspace"] as const,
     assessments: () => ["assessments"] as const,
     selection: () => ["mock-workspace-selection"] as const,
-    developerTask: () => ["workspace", "developer-task"] as const,
   },
   assessment: {
     classification: (assessmentId: string) =>

@@ -34,15 +34,15 @@ AO-3 calls this from a returned `symbol:` ref to discover similarly-shaped code.
 
 ## 7. Errors and Typed Outcomes
 
-Invalid/extra dimension/path/cap=`INVALID_ARGUMENT`; missing report=`NEEDS_INPUT`; missing seed=`NOT_FOUND`; incomplete fingerprint scope=`OUT_OF_COVERAGE`; PBAC/tenant/version=`BLOCKED`; transient index timeout=`FAILED` after one retry.
+Invalid/extra dimension/path/cap=`INVALID_ARGUMENT`; missing report=`NEEDS_INPUT`; missing seed=`NOT_FOUND`; incomplete fingerprint scope=`OUT_OF_COVERAGE`; RBAC/tenant/version=`BLOCKED`; transient index timeout=`FAILED` after one retry.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
-Validate → allow-list → PBAC/version → load fixed algorithm config → compute/query normalized fingerprints → remove seed → stable rank/cap → limitations/privacy/audit. Registry: `SimilarSymbolsTool`, `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, report required, 2s/one retry/`NONE`. Model sees ≤50 candidates and may inspect returned refs; it may not equate score with verified use. Audit shared IDs, config/algorithm/output hashes and budget; deny raw body/source/prompt/secret/AST/absolute path. No direct index/storage access.
+Validate → allow-list → RBAC/version → load fixed algorithm config → compute/query normalized fingerprints → remove seed → stable rank/cap → limitations/privacy/audit. Registry: `SimilarSymbolsTool`, `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, report required, 2s/one retry/`NONE`. Model sees ≤50 candidates and may inspect returned refs; it may not equate score with verified use. Audit shared IDs, config/algorithm/output hashes and budget; deny raw body/source/prompt/secret/AST/absolute path. No direct index/storage access.
 
 ## 16–18. Scenario, AC, Tests
 
-For a verified provider adapter, find candidates and pass one ref to evidence query; an empty exhaustive set is `READY`, not absence of providers. AC: deterministic algorithm/config rank, self exclusion, strict schema/PBAC/privacy, explicit limited state/audit.
+For a verified provider adapter, find candidates and pass one ref to evidence query; an empty exhaustive set is `READY`, not absence of providers. AC: deterministic algorithm/config rank, self exclusion, strict schema/RBAC/privacy, explicit limited state/audit.
 
 | ID | Scenario | Level |
 |---|---|---|
@@ -54,7 +54,7 @@ For a verified provider adapter, find candidates and pass one ref to evidence qu
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Add contracts/registry, fingerprint projection/index/handler/normalizer, PBAC/audit and tests under AO-2 seams. OQ-01: ratify fingerprint weights/version ownership (Architecture, OPEN, blocks yes). Deliver definition/schema, fixed algorithm, audit and tests.
+Add contracts/registry, fingerprint projection/index/handler/normalizer, RBAC/audit and tests under AO-2 seams. OQ-01: ratify fingerprint weights/version ownership (Architecture, OPEN, blocks yes). Deliver definition/schema, fixed algorithm, audit and tests.
 
 ## Source Authority
 

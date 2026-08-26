@@ -7,9 +7,9 @@
 
 ## Web state management
 
-- TanStack Query quản lý server state: workspace, assessments, Developer scopes, documents và readiness; mutation phải invalidate query liên quan.
+- TanStack Query quản lý server state: workspace, assessments, documents và readiness; mutation phải invalidate query liên quan.
 - Zustand chỉ quản lý shared UI state: assessment được chọn, sidebar, filter/sort và Wizard draft chưa gửi.
-- React Hook Form + Zod quản lý validation cho create assessment, Developer invitation và Wizard.
+- React Hook Form + Zod quản lý validation cho sign-up, sign-in, create assessment và Wizard.
 
 Repository này được tổ chức như một workspace quản trị tri thức và automation support cho LCSP. Nó có ba lớp rõ ràng: tài liệu authority, tài liệu tóm lược/onboarding, và script/config hỗ trợ BMAD/WDS. Kiến trúc này tối ưu cho planning, review và AI context injection trước khi implementation runtime tồn tại.
 
@@ -24,15 +24,15 @@ Repository này được tổ chức như một workspace quản trị tri thứ
 
 ## Các thành phần chính
 
-| Thành phần | Vai trò | Giao tiếp với |
-|---|---|---|
-| `docs/` | Active authority cho behavior, constraints, architecture và implementation planning | Con người, AI agents, review workflows |
-| `docs-vn/` | Tóm lược tiếng Việt để onboarding/review nhanh | Người đọc, nhóm triển khai |
-| `_bmad/scripts/` | Resolve config và customization theo nhiều lớp override | BMAD skills/workflows, shell users |
-| `_bmad/wds/scripts/` | Scaffold/validate tài liệu WDS theo cấu trúc cố định | WDS agents, designers |
-| `.github/copilot-instructions.md` | Instruction note cho tooling hỗ trợ | Copilot/Context-aware tooling |
-| `RTK.md` + `AGENTS.md` | Điều khiển hành vi agent và shell conventions | AI coding agents |
-| `demo /` | Placeholder cho prototype hoặc future code areas | Chưa có integration thực chất |
+| Thành phần                        | Vai trò                                                                             | Giao tiếp với                          |
+| --------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------- |
+| `docs/`                           | Active authority cho behavior, constraints, architecture và implementation planning | Con người, AI agents, review workflows |
+| `docs-vn/`                        | Tóm lược tiếng Việt để onboarding/review nhanh                                      | Người đọc, nhóm triển khai             |
+| `_bmad/scripts/`                  | Resolve config và customization theo nhiều lớp override                             | BMAD skills/workflows, shell users     |
+| `_bmad/wds/scripts/`              | Scaffold/validate tài liệu WDS theo cấu trúc cố định                                | WDS agents, designers                  |
+| `.github/copilot-instructions.md` | Instruction note cho tooling hỗ trợ                                                 | Copilot/Context-aware tooling          |
+| `RTK.md` + `AGENTS.md`            | Điều khiển hành vi agent và shell conventions                                       | AI coding agents                       |
+| `demo /`                          | Placeholder cho prototype hoặc future code areas                                    | Chưa có integration thực chất          |
 
 ## Pattern kiến trúc
 

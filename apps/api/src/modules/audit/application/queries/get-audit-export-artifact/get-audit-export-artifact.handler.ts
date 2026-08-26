@@ -32,7 +32,6 @@ export class GetAuditExportArtifactHandler implements IQueryHandler<GetAuditExpo
     const exportRequest = await this.prisma.auditExportRequest.findFirst({
       where: {
         id: query.exportRequestId,
-        organizationId: query.organizationId,
       },
       select: {
         contentJson: true,
@@ -67,7 +66,6 @@ function isAuditExportArtifact(value: unknown): value is AuditExportArtifact {
   const candidate = value as Partial<AuditExportArtifact>;
   return (
     typeof candidate.export_request_id === "string" &&
-    typeof candidate.organization_id === "string" &&
     typeof candidate.version === "number" &&
     typeof candidate.generated_at === "string" &&
     typeof candidate.total_events === "number" &&

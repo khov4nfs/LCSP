@@ -13,13 +13,9 @@ export const PROBLEM_REQUIRED_ACTIONS: Record<AuthErrorCode, RequiredAction> = {
   [AUTH_ERROR_CODES.authRequired]: REQUIRED_ACTIONS.signIn,
   [AUTH_ERROR_CODES.invalidCredentials]: REQUIRED_ACTIONS.signIn,
   [AUTH_ERROR_CODES.invalidInviteState]: REQUIRED_ACTIONS.acceptInvite,
-  [AUTH_ERROR_CODES.membershipMissing]: REQUIRED_ACTIONS.contactOwner,
   [AUTH_ERROR_CODES.emailVerificationRequired]: REQUIRED_ACTIONS.verifyEmail,
   [AUTH_ERROR_CODES.sessionInvalid]: REQUIRED_ACTIONS.signIn,
   [AUTH_ERROR_CODES.temporaryLock]: REQUIRED_ACTIONS.waitAndRetry,
-  [AUTH_ERROR_CODES.authzPolicyUnavailable]: REQUIRED_ACTIONS.contactOwner,
-  [AUTH_ERROR_CODES.authzSubjectIncomplete]: REQUIRED_ACTIONS.contactOwner,
-  [AUTH_ERROR_CODES.authzTenantScopeMismatch]: REQUIRED_ACTIONS.contactOwner,
   [AUTH_ERROR_CODES.authzStateGateBlocked]: REQUIRED_ACTIONS.contactOwner,
   [AUTH_ERROR_CODES.authzEvaluatorFailure]: REQUIRED_ACTIONS.contactOwner,
   [AUTH_ERROR_CODES.validationFailed]: REQUIRED_ACTIONS.signIn,
@@ -28,12 +24,12 @@ export const PROBLEM_REQUIRED_ACTIONS: Record<AuthErrorCode, RequiredAction> = {
   [AUTH_ERROR_CODES.mfaInvalid]: REQUIRED_ACTIONS.verifyMfa,
   [AUTH_ERROR_CODES.mfaRateLimited]: REQUIRED_ACTIONS.waitAndRetry,
   [AUTH_ERROR_CODES.recoveryInvalid]: REQUIRED_ACTIONS.retryRecovery,
-  [AUTH_ERROR_CODES.pbacDenied]: REQUIRED_ACTIONS.contactOwner,
+  [AUTH_ERROR_CODES.rbacDenied]: REQUIRED_ACTIONS.contactOwner,
   [AUTH_ERROR_CODES.unsupportedProvider]: REQUIRED_ACTIONS.none,
   [AUTH_ERROR_CODES.invalidRedirectUri]: REQUIRED_ACTIONS.none,
   [AUTH_ERROR_CODES.oauthStateInvalid]: REQUIRED_ACTIONS.signIn,
   [AUTH_ERROR_CODES.oauthCallbackInvalid]: REQUIRED_ACTIONS.signIn,
-  [AUTH_ERROR_CODES.accountNotFound]: REQUIRED_ACTIONS.contactOwner
+  [AUTH_ERROR_CODES.accountNotFound]: REQUIRED_ACTIONS.contactOwner,
 };
 
 type ProblemDefaults = {
@@ -48,146 +44,122 @@ export const PROBLEM_DEFAULTS: Record<AuthErrorCode, ProblemDefaults> = {
     type: "auth/auth-required",
     status: 401,
     titleKey: "auth.errors.authRequired.title",
-    detailKey: "auth.errors.authRequired.detail"
+    detailKey: "auth.errors.authRequired.detail",
   },
   [AUTH_ERROR_CODES.invalidCredentials]: {
     type: "auth/invalid-credentials",
     status: 401,
     titleKey: "auth.errors.invalidCredentials.title",
-    detailKey: "auth.errors.invalidCredentials.detail"
+    detailKey: "auth.errors.invalidCredentials.detail",
   },
   [AUTH_ERROR_CODES.invalidInviteState]: {
     type: "auth/invalid-invite-state",
     status: 403,
     titleKey: "auth.errors.invalidInviteState.title",
-    detailKey: "auth.errors.invalidInviteState.detail"
-  },
-  [AUTH_ERROR_CODES.membershipMissing]: {
-    type: "auth/membership-missing",
-    status: 403,
-    titleKey: "auth.errors.membershipMissing.title",
-    detailKey: "auth.errors.membershipMissing.detail"
+    detailKey: "auth.errors.invalidInviteState.detail",
   },
   [AUTH_ERROR_CODES.emailVerificationRequired]: {
     type: "auth/email-verification-required",
     status: 403,
     titleKey: "auth.errors.emailVerificationRequired.title",
-    detailKey: "auth.errors.emailVerificationRequired.detail"
+    detailKey: "auth.errors.emailVerificationRequired.detail",
   },
   [AUTH_ERROR_CODES.sessionInvalid]: {
     type: "auth/session-invalid",
     status: 401,
     titleKey: "auth.errors.sessionInvalid.title",
-    detailKey: "auth.errors.sessionInvalid.detail"
+    detailKey: "auth.errors.sessionInvalid.detail",
   },
   [AUTH_ERROR_CODES.temporaryLock]: {
     type: "auth/temporary-lock",
     status: 429,
     titleKey: "auth.errors.temporaryLock.title",
-    detailKey: "auth.errors.temporaryLock.detail"
-  },
-  [AUTH_ERROR_CODES.authzPolicyUnavailable]: {
-    type: "authz/policy-unavailable",
-    status: 503,
-    titleKey: "auth.errors.authzPolicyUnavailable.title",
-    detailKey: "auth.errors.authzPolicyUnavailable.detail"
-  },
-  [AUTH_ERROR_CODES.authzSubjectIncomplete]: {
-    type: "authz/subject-incomplete",
-    status: 403,
-    titleKey: "auth.errors.authzSubjectIncomplete.title",
-    detailKey: "auth.errors.authzSubjectIncomplete.detail"
-  },
-  [AUTH_ERROR_CODES.authzTenantScopeMismatch]: {
-    type: "authz/tenant-scope-mismatch",
-    status: 403,
-    titleKey: "auth.errors.authzTenantScopeMismatch.title",
-    detailKey: "auth.errors.authzTenantScopeMismatch.detail"
+    detailKey: "auth.errors.temporaryLock.detail",
   },
   [AUTH_ERROR_CODES.authzStateGateBlocked]: {
     type: "authz/state-gate-blocked",
     status: 403,
     titleKey: "auth.errors.authzStateGateBlocked.title",
-    detailKey: "auth.errors.authzStateGateBlocked.detail"
+    detailKey: "auth.errors.authzStateGateBlocked.detail",
   },
   [AUTH_ERROR_CODES.authzEvaluatorFailure]: {
     type: "authz/evaluator-failure",
     status: 403,
     titleKey: "auth.errors.authzEvaluatorFailure.title",
-    detailKey: "auth.errors.authzEvaluatorFailure.detail"
+    detailKey: "auth.errors.authzEvaluatorFailure.detail",
   },
   [AUTH_ERROR_CODES.validationFailed]: {
     type: "request/validation-failed",
     status: 400,
     titleKey: "auth.errors.validationFailed.title",
-    detailKey: "auth.errors.validationFailed.detail"
+    detailKey: "auth.errors.validationFailed.detail",
   },
   [AUTH_ERROR_CODES.reauthRequired]: {
     type: "auth/reauth-required",
     status: 403,
     titleKey: "auth.errors.reauthRequired.title",
-    detailKey: "auth.errors.reauthRequired.detail"
+    detailKey: "auth.errors.reauthRequired.detail",
   },
   [AUTH_ERROR_CODES.mfaRequired]: {
     type: "auth/mfa-required",
     status: 403,
     titleKey: "auth.errors.mfaRequired.title",
-    detailKey: "auth.errors.mfaRequired.detail"
+    detailKey: "auth.errors.mfaRequired.detail",
   },
   [AUTH_ERROR_CODES.mfaInvalid]: {
     type: "auth/mfa-invalid",
     status: 403,
     titleKey: "auth.errors.mfaInvalid.title",
-    detailKey: "auth.errors.mfaInvalid.detail"
+    detailKey: "auth.errors.mfaInvalid.detail",
   },
   [AUTH_ERROR_CODES.mfaRateLimited]: {
     type: "auth/mfa-rate-limited",
     status: 429,
     titleKey: "auth.errors.mfaRateLimited.title",
-    detailKey: "auth.errors.mfaRateLimited.detail"
+    detailKey: "auth.errors.mfaRateLimited.detail",
   },
   [AUTH_ERROR_CODES.recoveryInvalid]: {
     type: "auth/recovery-invalid",
     status: 400,
     titleKey: "auth.errors.recoveryInvalid.title",
-    detailKey: "auth.errors.recoveryInvalid.detail"
+    detailKey: "auth.errors.recoveryInvalid.detail",
   },
-  [AUTH_ERROR_CODES.pbacDenied]: {
-    type: "authz/pbac-denied",
+  [AUTH_ERROR_CODES.rbacDenied]: {
+    type: "authz/rbac-denied",
     status: 403,
-    titleKey: "auth.errors.pbacDenied.title",
-    detailKey: "auth.errors.pbacDenied.detail"
+    titleKey: "auth.errors.rbacDenied.title",
+    detailKey: "auth.errors.rbacDenied.detail",
   },
   [AUTH_ERROR_CODES.unsupportedProvider]: {
     type: "auth/oauth-unsupported-provider",
     status: 400,
     titleKey: "auth.errors.unsupportedProvider.title",
-    detailKey: "auth.errors.unsupportedProvider.detail"
+    detailKey: "auth.errors.unsupportedProvider.detail",
   },
   [AUTH_ERROR_CODES.invalidRedirectUri]: {
     type: "auth/oauth-invalid-redirect-uri",
     status: 400,
     titleKey: "auth.errors.invalidRedirectUri.title",
-    detailKey: "auth.errors.invalidRedirectUri.detail"
+    detailKey: "auth.errors.invalidRedirectUri.detail",
   },
   [AUTH_ERROR_CODES.oauthStateInvalid]: {
     type: "auth/oauth-state-invalid",
     status: 400,
     titleKey: "auth.errors.oauthStateInvalid.title",
-    detailKey: "auth.errors.oauthStateInvalid.detail"
+    detailKey: "auth.errors.oauthStateInvalid.detail",
   },
   [AUTH_ERROR_CODES.oauthCallbackInvalid]: {
     type: "auth/oauth-callback-invalid",
     status: 400,
     titleKey: "auth.errors.oauthCallbackInvalid.title",
-    detailKey: "auth.errors.oauthCallbackInvalid.detail"
+    detailKey: "auth.errors.oauthCallbackInvalid.detail",
   },
   [AUTH_ERROR_CODES.accountNotFound]: {
     type: "auth/oauth-account-not-found",
     status: 404,
     titleKey: "auth.errors.accountNotFound.title",
-    detailKey: "auth.errors.accountNotFound.detail"
-  }
+    detailKey: "auth.errors.accountNotFound.detail",
+  },
 };
 
 export type CreateProblemOverrides = {
@@ -202,7 +174,7 @@ export type CreateProblemOverrides = {
 export function createProblem(
   errorCode: AuthErrorCode,
   correlationId: string,
-  overrides: CreateProblemOverrides = {}
+  overrides: CreateProblemOverrides = {},
 ): AppProblem<AuthErrorCode> {
   const defaults = PROBLEM_DEFAULTS[errorCode];
   return {
@@ -211,26 +183,29 @@ export function createProblem(
     code: errorCode,
     titleKey: overrides.titleKey ?? defaults.titleKey,
     detailKey: overrides.detailKey ?? defaults.detailKey,
-    requiredAction: overrides.requiredAction ?? PROBLEM_REQUIRED_ACTIONS[errorCode] ?? REQUIRED_ACTIONS.none,
+    requiredAction:
+      overrides.requiredAction ??
+      PROBLEM_REQUIRED_ACTIONS[errorCode] ??
+      REQUIRED_ACTIONS.none,
     correlationId,
-    meta: overrides.meta
+    meta: overrides.meta,
   };
 }
 
 export function createProblemResult(
   errorCode: AuthErrorCode,
   correlationId: string,
-  overrides: CreateProblemOverrides = {}
+  overrides: CreateProblemOverrides = {},
 ): ProblemResult<AuthErrorCode> {
   return {
     ok: false,
-    problem: createProblem(errorCode, correlationId, overrides)
+    problem: createProblem(errorCode, correlationId, overrides),
   };
 }
 
 export function createSuccessResult<TData>(data: TData): SuccessResult<TData> {
   return {
     ok: true,
-    data
+    data,
   };
 }

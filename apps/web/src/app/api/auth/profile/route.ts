@@ -3,6 +3,7 @@ import {
   AUTH_ERROR_CODES,
   AUTH_BACKUP_EMAIL_POLICIES,
   AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES,
+  AUTH_USER_ROLES,
   REQUIRED_ACTIONS,
 } from "@lcsp/contracts/auth";
 
@@ -30,12 +31,10 @@ export async function GET(request: NextRequest) {
       recovery_email: "minhpnq1807@gmail.com",
       primary_email_address_policy:
         AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES.accountEmail,
-      backup_recovery_email_policy:
-        AUTH_BACKUP_EMAIL_POLICIES.recoveryEmail,
+      backup_recovery_email_policy: AUTH_BACKUP_EMAIL_POLICIES.recoveryEmail,
       created_at: new Date("2026-07-01T08:00:00.000Z").toISOString(),
       updated_at: new Date("2026-07-31T20:00:00.000Z").toISOString(),
-      membership_role: "MANAGER",
-      organization_id: "org-demo-1",
+      role: AUTH_USER_ROLES.customer,
       mfa_enrolled: true,
       mfa_enrolled_at: new Date("2026-07-31T19:10:00.000Z").toISOString(),
       mfa_verified: true,
@@ -57,7 +56,7 @@ export async function GET(request: NextRequest) {
     bearerToken: session.token,
   });
   if (
-    upstream.problemCode === AUTH_ERROR_CODES.pbacDenied &&
+    upstream.problemCode === AUTH_ERROR_CODES.rbacDenied &&
     getProblemRequiredAction(upstream.result) === REQUIRED_ACTIONS.contactOwner
   ) {
     const response = upstreamJson(upstream);
@@ -72,13 +71,11 @@ export async function PATCH(request: NextRequest) {
   if (!session.ok) return session.response;
 
   if (isMockModeEnabled()) {
-    const body = (await request.json().catch(() => null)) as
-      | {
-          recovery_email?: unknown;
-          primary_email_address_policy?: unknown;
-          backup_recovery_email_policy?: unknown;
-        }
-      | null;
+    const body = (await request.json().catch(() => null)) as {
+      recovery_email?: unknown;
+      primary_email_address_policy?: unknown;
+      backup_recovery_email_policy?: unknown;
+    } | null;
     const updated_fields: string[] = [];
     if (typeof body?.recovery_email === "string") {
       updated_fields.push("recovery_email");
@@ -122,8 +119,7 @@ function sanitizeProfilePayload(data: unknown) {
     typeof candidate.backup_recovery_email_policy === "string" &&
     typeof candidate.created_at === "string" &&
     typeof candidate.updated_at === "string" &&
-    typeof candidate.membership_role === "string" &&
-    typeof candidate.organization_id === "string" &&
+    typeof candidate.role === "string" &&
     typeof candidate.mfa_enrolled === "boolean" &&
     (typeof candidate.mfa_enrolled_at === "string" ||
       candidate.mfa_enrolled_at === null) &&

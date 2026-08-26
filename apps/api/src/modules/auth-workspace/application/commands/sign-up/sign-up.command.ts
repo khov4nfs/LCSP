@@ -5,13 +5,12 @@ export class SignUpCommand {
   /**
    * Creates a self-registration command.
    *
-   * @param input - Account, workspace, password, and request correlation fields.
+   * @param input - Account, password, and request correlation fields.
    */
   constructor(
     readonly input: {
       email?: unknown;
       displayName?: unknown;
-      organizationName?: unknown;
       password?: unknown;
       correlationId?: string;
     },

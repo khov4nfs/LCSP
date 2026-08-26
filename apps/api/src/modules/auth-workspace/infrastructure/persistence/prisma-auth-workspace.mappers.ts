@@ -1,13 +1,9 @@
 import type {
   AuthAuditEvent,
   AuthDecisionLog,
-  AuthInvitation,
-  AuthMembership,
   AuthMfaRateLimit,
   AuthOAuthIdentity,
   AuthOAuthState,
-  AuthOrganization,
-  AuthPolicy,
   AuthRecoveryRequest,
   AuthSession,
   AuthUser,
@@ -17,36 +13,20 @@ import type {
 
 import {
   fromPrismaAuthBackupEmailPolicy,
-  fromPrismaAuthInvitationState,
-  fromPrismaAuthMembershipStatus,
   fromPrismaAuthPrimaryEmailAddressPolicy,
-  fromPrismaAuthStateGate,
+  fromPrismaAuthUserRole,
 } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import {
-  Invitation,
   MfaEnrollment,
   MfaRateLimit,
-  Membership,
   OAuthIdentity,
   OAuthState,
-  Organization,
-  Policy,
   RecoveryRequest,
   Session,
   User,
   type AuditEvent,
   type AuthorizationDecision,
 } from "../../domain/models/auth-workspace.models.ts";
-import type { SubjectAttributes } from "../../domain/models/auth-workspace.models.ts";
-
-export function mapOrganizationRecord(record: AuthOrganization): Organization {
-  return Organization.rehydrate({
-    id: record.id,
-    slug: record.slug,
-    name: record.name,
-    mfaRequired: record.mfaRequired,
-  });
-}
 
 export function mapUserRecord(record: AuthUser): User {
   return User.rehydrate({
@@ -64,6 +44,7 @@ export function mapUserRecord(record: AuthUser): User {
     backupEmailPolicy: fromPrismaAuthBackupEmailPolicy(
       record.backupEmailPolicy,
     ),
+    role: fromPrismaAuthUserRole(record.role),
     mfaRequired: record.mfaRequired,
   });
 }
@@ -80,38 +61,10 @@ export function mapRecoveryRequestRecord(
   });
 }
 
-export function mapMembershipRecord(record: AuthMembership): Membership {
-  return Membership.rehydrate({
-    id: record.id,
-    userId: record.userId,
-    organizationId: record.organizationId,
-    status: fromPrismaAuthMembershipStatus(record.status),
-    subjectAttributes: jsonToSubjectAttributes(record.subjectAttributes),
-    policyId: record.policyId,
-    policyVersion: record.policyVersion,
-  });
-}
-
-export function mapInvitationRecord(record: AuthInvitation): Invitation {
-  return Invitation.rehydrate({
-    id: record.id,
-    email: record.email,
-    organizationId: record.organizationId,
-    state: fromPrismaAuthInvitationState(record.state),
-    emailVerified: record.emailVerified,
-    membershipStatus: fromPrismaAuthMembershipStatus(record.membershipStatus),
-    subjectAttributes: jsonToSubjectAttributes(record.subjectAttributes),
-    policyId: record.policyId,
-    policyVersion: record.policyVersion,
-    expiresAt: record.expiresAt.getTime(),
-  });
-}
-
 export function mapSessionRecord(record: AuthSession): Session {
   return Session.rehydrate({
     id: record.id,
     userId: record.userId,
-    organizationId: record.organizationId,
     tokenHash: record.tokenHash,
     expiresAt: record.expiresAt.getTime(),
     revokedAt: record.revokedAt?.getTime() ?? null,
@@ -135,17 +88,6 @@ export function mapMfaRateLimitRecord(record: AuthMfaRateLimit): MfaRateLimit {
     userId: record.userId,
     failedCount: record.failedCount,
     lockedUntil: record.lockedUntil?.getTime() ?? null,
-  });
-}
-
-export function mapPolicyRecord(record: AuthPolicy): Policy {
-  return Policy.rehydrate({
-    id: record.id,
-    version: record.version,
-    actions: record.actions,
-    subjectRole: record.subjectRole,
-    stateGate: fromPrismaAuthStateGate(record.stateGate),
-    organizationId: record.organizationId,
   });
 }
 
@@ -184,28 +126,12 @@ export function mapAuthorizationDecisionRecord(
   return jsonToAuthorizationDecision(record.payload);
 }
 
-export function subjectAttributesToJson(
-  value: SubjectAttributes,
-): Prisma.InputJsonValue {
-  return value;
-}
-
 export function dateFromEpochMs(value: number | null): Date | null {
   return value === null ? null : new Date(value);
 }
 
 export function dateFromEpochMsRequired(value: number): Date {
   return new Date(value);
-}
-
-export function jsonToSubjectAttributes(
-  value: Prisma.JsonValue,
-): SubjectAttributes {
-  if (!value || Array.isArray(value) || typeof value !== "object") {
-    return {};
-  }
-
-  return value as SubjectAttributes;
 }
 
 function jsonToAuditEvent(value: Prisma.JsonValue): AuditEvent {

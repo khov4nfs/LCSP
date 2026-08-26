@@ -17,7 +17,6 @@ export interface CreateAssessmentDto {
   name: string;
   status: AssessmentStatusCode;
   owner_id: string;
-  organization_id: string;
   created_at: string;
   correlationId: string;
 }

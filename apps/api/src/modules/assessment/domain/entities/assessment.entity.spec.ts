@@ -7,14 +7,12 @@ describe("Assessment", () => {
   describe("create", () => {
     it("starts in WIZARD_IN_PROGRESS status with a generated id", () => {
       const assessment = Assessment.create({
-        organizationId: "org-1",
         ownerId: "user-1",
         name: "My AI System Assessment",
       });
 
       expect(assessment.status).toBe(ASSESSMENT_STATUS_CODES.wizardInProgress);
       expect(assessment.id).toBeTruthy();
-      expect(assessment.organizationId).toBe("org-1");
       expect(assessment.ownerId).toBe("user-1");
       expect(assessment.name).toBe("My AI System Assessment");
       expect(assessment.description).toBeNull();
@@ -22,7 +20,6 @@ describe("Assessment", () => {
 
     it("trims the name and keeps an optional description", () => {
       const assessment = Assessment.create({
-        organizationId: "org-1",
         ownerId: "user-1",
         name: "  Padded Name  ",
         description: "Some context",
@@ -34,12 +31,10 @@ describe("Assessment", () => {
 
     it("generates a distinct id for each assessment", () => {
       const first = Assessment.create({
-        organizationId: "org-1",
         ownerId: "user-1",
         name: "First",
       });
       const second = Assessment.create({
-        organizationId: "org-1",
         ownerId: "user-1",
         name: "Second",
       });
@@ -55,7 +50,6 @@ describe("Assessment", () => {
 
       const assessment = Assessment.rehydrate({
         id: "assessment-1",
-        organizationId: "org-1",
         ownerId: "user-1",
         name: "Rehydrated",
         description: null,

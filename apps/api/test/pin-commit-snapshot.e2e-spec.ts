@@ -12,7 +12,6 @@ import {
   REPOSITORY_SCAN_TRIGGER_SOURCES,
 } from "@lcsp/contracts/github-integration";
 import { OUTBOX_MESSAGE_SCHEMA_VERSION } from "@lcsp/contracts/outbox";
-import { PBAC_ACTIONS, PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
 /** MW-gh-003: Pin Commit Snapshot Endpoint. */
 
 import * as assert from "node:assert/strict";
@@ -90,7 +89,6 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
     await prisma.assessment.create({
       data: {
         id: "assessment-1",
-        organizationId: "org-1",
         ownerId: "user-1",
         name: "Snapshot assessment",
         status: ASSESSMENT_STATUS_CODES.wizardInProgress,
@@ -100,7 +98,6 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
       data: {
         id: "connection-1",
         assessmentId: "assessment-1",
-        organizationId: "org-1",
         userId: "user-1",
         installationId: "installation-1",
         repositoryId: "repo-1",
@@ -115,7 +112,6 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
     const signIn = await httpRequest(app).post("/auth/sign-in").send({
       email: "manager@acme.test",
       password: "CorrectHorseBatteryStaple!",
-      organization_id: "org-1",
     });
     managerToken = successBody<SignInSuccess>(signIn).session_token;
   });
@@ -160,10 +156,6 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
     assert.equal(
       (event.payload as { snapshotId?: string }).snapshotId,
       body.snapshot_id,
-    );
-    assert.equal(
-      (event.payload as { organizationId?: string }).organizationId,
-      "org-1",
     );
     assert.equal(
       (event.payload as { schemaVersion?: string }).schemaVersion,
@@ -228,43 +220,17 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
     );
   });
 
-  it("T04: connection outside the session organization is hidden", async () => {
-    await prisma.repositoryConnection.update({
-      where: { id: "connection-1" },
-      data: { organizationId: "org-other" },
-    });
-
+  it("T04: missing connection is hidden", async () => {
     const response = await httpRequest(app)
       .post("/assessments/assessment-1/snapshots")
       .set("Authorization", `Bearer ${managerToken}`)
-      .send({ connection_id: "connection-1", branch: "main" });
+      .send({ connection_id: "connection-missing", branch: "main" });
 
     assert.equal(response.status, 404);
     assert.equal(
       problemCode(response),
       GITHUB_INTEGRATION_ERROR_CODES.connectionNotFound,
     );
-  });
-
-  it("T05: actor without snapshot:create is denied by PBAC", async () => {
-    await prisma.authPolicy.update({
-      where: {
-        id_version: {
-          id: "policy-manager-workspace",
-          version: "2026-06-26",
-        },
-      },
-      data: { actions: [PBAC_ACTIONS.workspaceRead] },
-    });
-
-    const response = await httpRequest(app)
-      .post("/assessments/assessment-1/snapshots")
-      .set("Authorization", `Bearer ${managerToken}`)
-      .send({ connection_id: "connection-1", branch: "main" });
-
-    assert.equal(response.status, 403);
-    assert.equal(problemCode(response), PBAC_REASON_CODE.denied);
-    assert.equal(await prisma.repositorySnapshot.count(), 0);
   });
 
   it("auto-chains a trusted scan job after snapshotCreated when the assessment is submitted", async () => {

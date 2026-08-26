@@ -19,15 +19,15 @@ LCSP không được tạo kết luận pháp lý khi thiếu bằng chứng ho�
 
 ### Manager
 
-Là chủ thể chính của assessment. Manager có thể hoàn thành toàn bộ luồng MVP mà không cần Developer: tạo assessment, khai báo WizardProfile, kết nối repository, theo dõi scan, xử lý xung đột, duyệt hồ sơ đã xác minh, xem kết quả pháp lý, phân loại, gap analysis, tải báo cáo và xuất audit.
+Là chủ thể chính của assessment. Manager có thể hoàn thành toàn bộ luồng MVP không cần cộng tác viên bên ngoài: tạo assessment, khai báo WizardProfile, kết nối repository, theo dõi scan, xử lý xung đột, xem kết quả pháp lý, phân loại, gap analysis, tải báo cáo và xuất audit.
 
-### Developer
+### Cộng tác viên kỹ thuật
 
-Là cộng tác viên tùy chọn, chỉ hoạt động trong phạm vi PBAC được giao. Developer có thể xem bằng chứng kỹ thuật đã làm sạch và hỗ trợ sửa ngữ cảnh repository/evidence khi việc đó có giá trị độc lập. Structured attestation không thuộc active MVP.
+Luồng Developer invitation/task đã được retired khỏi active MVP. Không còn màn hình, BFF/API handler, entity hoặc policy active cho invitation acceptance, scoped task workspace hay structured attestation.
 
 ### Internal Legal Operator
 
-Là vai trò vận hành nội bộ, dùng API/CLI để xác minh nguồn văn bản, kiểm tra dữ liệu đã chuẩn hóa, duyệt LegalCorpusVersion và khởi tạo chỉ mục. Vai trò này không thuộc UX dành cho Manager/Developer trong MVP.
+Là vai trò vận hành nội bộ, dùng API/CLI để xác minh nguồn văn bản, kiểm tra dữ liệu đã chuẩn hóa, duyệt LegalCorpusVersion và khởi tạo chỉ mục. Vai trò này không thuộc UX dành cho Manager trong MVP.
 
 ## Phạm vi MVP mục tiêu
 
@@ -68,7 +68,7 @@ Là vai trò vận hành nội bộ, dùng API/CLI để xác minh nguồn văn 
 1. Evidence-first: không phân loại dựa trên Wizard hoặc package/model name đơn lẻ.
 2. Fail-closed: thiếu bằng chứng, conflict, corpus hoặc citation thì chặn hoặc hạ cấp rõ ràng.
 3. PBAC-controlled: role chỉ là attribute/template, không phải authorization source of truth.
-4. Manager-completable: golden path không phụ thuộc Developer.
+4. Manager-completable: golden path không phụ thuộc cộng tác viên bên ngoài.
 5. Traceable: kết quả liên kết tới evidence, legal citation, policy/version và audit.
 6. Privacy-by-design: không gửi raw source, secret hoặc full prompt sang LLM.
 

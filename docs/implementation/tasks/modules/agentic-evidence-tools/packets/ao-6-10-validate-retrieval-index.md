@@ -9,7 +9,7 @@ status: DONE
 
 ## Objective and tool definition
 
-Validate that a candidate index returns exact stable chunk IDs plus required parent and one-hop cross-reference context while respecting effect-status filters. `SYSTEM_ONLY` validation read, PBAC `LEGAL_CORPUS_VALIDATE`; no LLM calls the candidate index directly.
+Validate that a candidate index returns exact stable chunk IDs plus required parent and one-hop cross-reference context while respecting effect-status filters. `SYSTEM_ONLY` validation read, RBAC `LEGAL_CORPUS_VALIDATE`; no LLM calls the candidate index directly.
 
 ## Input
 

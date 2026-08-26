@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
 
-import { PbacModule } from "../../platform/pbac/pbac.module.js";
+import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { ExportAuditTrailHandler } from "./application/commands/export-audit-trail/export-audit-trail.handler.js";
 import { GetAuditExportArtifactHandler } from "./application/queries/get-audit-export-artifact/get-audit-export-artifact.handler.js";
 import { GetAuditExportHandler } from "./application/queries/get-audit-export/get-audit-export.handler.js";
@@ -11,10 +11,10 @@ import { AuditExportStorageService } from "./infrastructure/storage/audit-export
 import { AuditController } from "./presentation/http/audit.controller.js";
 
 /**
- * Wires PBAC-protected audit browsing and export flows to redaction, signed-download, and persistence services.
+ * Wires RBAC-protected audit browsing and export flows to redaction, signed-download, and persistence services.
  */
 @Module({
-  imports: [CqrsModule, PbacModule],
+  imports: [CqrsModule, RbacModule],
   controllers: [AuditController],
   providers: [
     ExportAuditTrailHandler,

@@ -80,7 +80,7 @@ export function isSessionEstablishmentProblem(
 ) {
   return (
     path === "/api/auth/profile" &&
-    problemCode === AUTH_ERROR_CODES.pbacDenied &&
+    problemCode === AUTH_ERROR_CODES.rbacDenied &&
     requiredAction === REQUIRED_ACTIONS.contactOwner
   );
 }

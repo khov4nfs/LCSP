@@ -10,6 +10,7 @@ import {
   toSignInOutcome,
   toUpdateProfileOutcome,
 } from "../src/lib/api/auth-client.ts";
+import { toSafeSignInOutcome } from "../src/lib/api/sign-in-client.ts";
 import { profileSafetySchema } from "../src/features/auth/schemas/profile-safety.schema.ts";
 import { recoveryConfirmSchema } from "../src/features/auth/schemas/recovery-confirm.schema.ts";
 import { recoveryRequestSchema } from "../src/features/auth/schemas/recovery-request.schema.ts";
@@ -33,6 +34,36 @@ test("sign-in routes required MFA without enrollment to the setup flow", () => {
   assert.deepEqual(
     toSignInOutcome({ ok: true, mfa_required: true, mfa_enrolled: false }, true),
     { kind: "mfa_enrollment_required" },
+  );
+});
+
+test("sign-in shows a generic request failure for server errors", () => {
+  assert.deepEqual(
+    toSafeSignInOutcome(
+      problem(AUTH_ERROR_CODES.validationFailed, 500),
+      false,
+      500,
+      AUTH_ERROR_CODES.validationFailed,
+    ),
+    {
+      kind: "error",
+      titleKey: "pages.signIn.errors.requestFailedTitle",
+      detailKey: "pages.signIn.errors.requestFailedDetail",
+    },
+  );
+
+  assert.deepEqual(
+    toSafeSignInOutcome(
+      problem(AUTH_ERROR_CODES.invalidCredentials, 401),
+      false,
+      401,
+      AUTH_ERROR_CODES.invalidCredentials,
+    ),
+    {
+      kind: "error",
+      titleKey: "auth.errors.invalidCredentials.title",
+      detailKey: "auth.errors.invalidCredentials.detail",
+    },
   );
 });
 

@@ -42,12 +42,6 @@ export class SignInHandler {
 
     const email = payload.email as string;
     const password = payload.password as string;
-    let organizationId =
-      typeof payload.organization_id === "string" &&
-      payload.organization_id.trim().length > 0
-        ? payload.organization_id.trim()
-        : null;
-
     const user = await repositories.users.findByPrimaryEmail(
       email.toLowerCase(),
     );
@@ -58,7 +52,6 @@ export class SignInHandler {
       await this.support.recordAudit(repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
         actor_id: null,
-        organization_id: organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.invalidCredentials,
         correlationId: correlationId,
@@ -73,7 +66,6 @@ export class SignInHandler {
       await this.support.recordAudit(repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
         actor_id: user.id,
-        organization_id: organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.temporaryLock,
         correlationId: correlationId,
@@ -91,7 +83,6 @@ export class SignInHandler {
       await this.support.recordAudit(repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
         actor_id: user.id,
-        organization_id: organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: user.lockUntil
           ? AUTH_ERROR_CODES.temporaryLock
@@ -116,7 +107,6 @@ export class SignInHandler {
       await this.support.recordAudit(repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
         actor_id: user.id,
-        organization_id: organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.emailVerificationRequired,
         correlationId: correlationId,
@@ -127,60 +117,14 @@ export class SignInHandler {
       );
     }
 
-    if (!organizationId) {
-      const activeMemberships =
-        await repositories.memberships.findActiveByUserId(user.id);
-      if (activeMemberships.length > 0) {
-        organizationId = activeMemberships[0].organizationId;
-      }
-    }
-
-    const targetOrgId = organizationId ?? "";
-    const membership = await this.support.findMembership(
-      repositories,
-      user.id,
-      targetOrgId,
-    );
-    if (!membership) {
-      await this.support.recordAudit(repositories, {
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
-        actor_id: user.id,
-        organization_id: organizationId,
-        decision: AUDIT_DECISIONS.deny,
-        reason_code: AUTH_ERROR_CODES.membershipMissing,
-        correlationId: correlationId,
-      });
-      return createProblemResult(
-        AUTH_ERROR_CODES.membershipMissing,
-        correlationId,
-      );
-    }
-
-    if (!membership.isActive()) {
-      await this.support.recordAudit(repositories, {
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
-        actor_id: user.id,
-        organization_id: targetOrgId,
-        decision: AUDIT_DECISIONS.deny,
-        reason_code: AUTH_ERROR_CODES.invalidInviteState,
-        correlationId: correlationId,
-      });
-      return createProblemResult(
-        AUTH_ERROR_CODES.invalidInviteState,
-        correlationId,
-      );
-    }
-
     const sessionState = await this.support.createSession(
       repositories,
       user,
-      targetOrgId,
       correlationId,
     );
     await this.support.recordAudit(repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginSucceeded,
       actor_id: user.id,
-      organization_id: targetOrgId,
       decision: AUDIT_DECISIONS.allow,
       correlationId: correlationId,
     });
@@ -189,21 +133,13 @@ export class SignInHandler {
       repositories,
       user.id,
     );
-    const organization = await this.support.resolveOrganizationById(
-      repositories,
-      targetOrgId,
-    );
-    const mfaRequired = this.support.isMfaRequired(
-      user,
-      organization,
-      mfaEnrollment,
-    );
+    const mfaRequired = this.support.isMfaRequired(user, mfaEnrollment);
 
     return {
       ok: true,
       correlationId: correlationId,
       session_token: sessionState.token,
-      user: this.support.safeUserProjection(user, targetOrgId, membership),
+      user: this.support.safeUserProjection(user),
       mfa_enrolled: this.support.isMfaEnrolled(mfaEnrollment),
       ...(mfaRequired ? { mfa_required: true } : {}),
     };

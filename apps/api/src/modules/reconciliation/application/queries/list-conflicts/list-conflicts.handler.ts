@@ -51,7 +51,6 @@ export class ListConflictsHandler implements IQueryHandler<ListConflictsQuery> {
     const assessment = await this.prisma.assessment.findFirst({
       where: {
         id: query.assessmentId,
-        organizationId: query.organizationId,
       },
       select: { id: true },
     });
@@ -66,7 +65,6 @@ export class ListConflictsHandler implements IQueryHandler<ListConflictsQuery> {
 
     const where = {
       assessmentId: query.assessmentId,
-      organizationId: query.organizationId,
       status: toPrismaConflictRecordStatus(status),
     };
 

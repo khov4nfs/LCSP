@@ -24,4 +24,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=6 \
   CMD node -e "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["pnpm", "--filter", "@lcsp/api", "start:prod"]
+CMD ["sh", "-c", "pnpm --filter @lcsp/api prisma:migrate:deploy && exec pnpm --filter @lcsp/api start:prod"]

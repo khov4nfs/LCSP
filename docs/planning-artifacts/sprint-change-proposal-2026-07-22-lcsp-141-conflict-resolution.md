@@ -10,7 +10,7 @@ LCSP-141 (`MW-web-004: Conflict Resolution Page`) exposed a mismatch across impl
 
 - The web task needs to know whether authorization should use `conflict:read` + `conflict:resolve` or `conflict:finalize`.
 - The current API implementation uses `conflict:read` for listing conflicts and `conflict:resolve` for resolving/dismissing conflicts.
-- `conflict:finalize` exists in PBAC contracts/Manager policy but has no active reconciliation endpoint in the current page flow.
+- `conflict:finalize` exists in RBAC contracts/Manager policy but has no active reconciliation endpoint in the current page flow.
 - Story 5.3 describes richer guided resolution behavior than the current binary API supports.
 
 ## 2. Impact Analysis
@@ -30,8 +30,8 @@ Artifact impact:
 
 Technical impact:
 
-- Current backend already uses `PBAC_ACTIONS.conflictRead` for `GET /assessments/:assessmentId/conflicts`.
-- Current backend already uses `PBAC_ACTIONS.conflictResolve` for `PATCH /assessments/:assessmentId/conflicts/:conflictId/resolve`.
+- Current backend already uses `RBAC_ACTIONS.conflictRead` for `GET /assessments/:assessmentId/conflicts`.
+- Current backend already uses `RBAC_ACTIONS.conflictResolve` for `PATCH /assessments/:assessmentId/conflicts/:conflictId/resolve`.
 - Backend currently allows missing `resolution_note`; implementing the corrected API contract requires adding validation for `DISMISSED`.
 
 ## 3. Recommended Approach
@@ -54,7 +54,7 @@ Rationale: This keeps LCSP-141 implementable against the active API while preser
 
 Web task `MW-web-004`:
 
-- Add explicit PBAC mapping for `conflict:read` and `conflict:resolve`.
+- Add explicit RBAC mapping for `conflict:read` and `conflict:resolve`.
 - Mark `conflict:finalize` out of scope for this page.
 - Add Workspace assessment list/card as the primary navigation entry.
 - Require a reason for `DISMISSED`.
@@ -85,6 +85,6 @@ Required follow-up implementation:
 
 Success criteria:
 
-- LCSP-141 can be implemented without ambiguity about PBAC action choice.
+- LCSP-141 can be implemented without ambiguity about RBAC action choice.
 - Dismiss semantics are auditable and not confused with defer.
 - Page navigation and post-resolution behavior match the active MVP workflow gate.

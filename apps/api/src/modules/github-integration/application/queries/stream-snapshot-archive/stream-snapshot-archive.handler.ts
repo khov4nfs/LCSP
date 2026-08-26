@@ -66,7 +66,6 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
       select: {
         id: true,
         snapshotId: true,
-        organizationId: true,
         status: true,
       },
     });
@@ -120,7 +119,6 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
       where: { id: query.snapshotId },
       select: {
         id: true,
-        organizationId: true,
         connectionId: true,
         repositoryFullName: true,
         commitSha: true,
@@ -128,7 +126,7 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
       },
     });
 
-    if (!snapshot || snapshot.organizationId !== scanJob.organizationId) {
+    if (!snapshot) {
       throw problemException(
         GITHUB_INTEGRATION_ERROR_CODES.snapshotNotFound,
         query.correlationId,
@@ -141,14 +139,12 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
       select: {
         id: true,
         installationId: true,
-        organizationId: true,
         status: true,
       },
     });
 
     if (
       !connection ||
-      connection.organizationId !== snapshot.organizationId ||
       fromPrismaRepositoryConnectionStatus(connection.status) !==
         REPOSITORY_CONNECTION_STATUSES.active
     ) {

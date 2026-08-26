@@ -14,7 +14,7 @@ import type { OutboxRepository } from "../../../../../platform/outbox/outbox.rep
 import { RequestFinalReportCommand } from "./request-final-report.command.js";
 import { RequestFinalReportHandler } from "./request-final-report.handler.js";
 
-type AssessmentRecord = { id: string; organizationId: string };
+type AssessmentRecord = { id: string };
 type ClassificationResultRecord = { id: string; guardrailStatus: string };
 type CreateDocumentRequestFn = () => Promise<{ id: string }>;
 type AdvisoryLockFn = () => Promise<number>;
@@ -25,9 +25,7 @@ function buildHandler(options?: {
   existing?: { id: string } | null;
 }) {
   const assessment: AssessmentRecord | null =
-    options?.assessment === undefined
-      ? { id: "asmt-1", organizationId: "org-1" }
-      : options.assessment;
+    options?.assessment === undefined ? { id: "asmt-1" } : options.assessment;
   const evidence: ClassificationResultRecord | null =
     options?.evidence === undefined
       ? {
@@ -75,12 +73,7 @@ function buildHandler(options?: {
   const audit = { write } as unknown as AuditWriterService;
 
   const handler = new RequestFinalReportHandler(prisma, outbox, audit);
-  const command = new RequestFinalReportCommand(
-    "asmt-1",
-    "org-1",
-    "user-1",
-    "corr-1",
-  );
+  const command = new RequestFinalReportCommand("asmt-1", "user-1", "corr-1");
 
   return {
     handler,

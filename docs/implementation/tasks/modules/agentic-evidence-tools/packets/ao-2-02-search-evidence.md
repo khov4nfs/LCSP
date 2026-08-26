@@ -12,7 +12,7 @@ status: DONE
 | Item | Value |
 |---|---|
 | Story / priority | AO-2 / P0 |
-| Runtime | Worker-owned `FindingProjection` query behind API PBAC/audit boundary |
+| Runtime | Worker-owned `FindingProjection` query behind API RBAC/audit boundary |
 | Exposure / mutation | `LLM_CALLABLE` via AO-3 allow-list / `READ` |
 
 ## 2–4. Objective, Use Case, Definition
@@ -53,7 +53,7 @@ Exhaustive empty is `READY` with `findings:[]` and `exhaustive:true`; a limited 
 | `NEEDS_INPUT` | report version absent/unaccepted | AO-3 resolver only |
 | `NOT_FOUND` + `READY` | exhaustive empty | preserve as no matching finding |
 | `OUT_OF_COVERAGE` | selected scope is limited | preserve uncertainty |
-| `BLOCKED` | PBAC/tenant/version/state denial | never retry |
+| `BLOCKED` | RBAC/tenant/version/state denial | never retry |
 | `TOOL_TIMEOUT`/`FAILED` | one transient retry then terminal policy | audit/checkpoint |
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
@@ -65,14 +65,14 @@ sequenceDiagram
   participant H as FindingQueryTool
   participant P as FindingProjection
   O->>G: strict envelope + input
-  G->>G: allow-list, PBAC, version, budget
+  G->>G: allow-list, RBAC, version, budget
   G->>H: authorized call
   H->>P: deterministic filtered page
   H-->>G: normalize, privacy-check, audit
   G-->>O: typed safe envelope
 ```
 
-Stages: validate → registry allow-list → report/tenant/PBAC/state check → normalized filter query → stable sort/cursor/cap → derive coverage → redact/deep-validate → persist invocation audit/output hash. Registry: `FindingQueryTool`, action `TECHNICAL_EVIDENCE_READ`, accepted `technicalEvidenceReportId`, `LLM_CALLABLE`, `2000ms`, one retry, `NONE`. Model context is the response fields above, max 100 summaries; it may call detail/flow tools with returned refs and must not infer invocation from `DEPENDENCY_SIGNAL`. Audit: request/workflow/assessment/org/actor IDs, safe argument hash, artifact/version, status/duration/budget, refs/output hash/correlation; never raw arguments, source, prompts, secrets, AST or stack traces. LLM never accesses DB/object store.
+Stages: validate → registry allow-list → report/tenant/RBAC/state check → normalized filter query → stable sort/cursor/cap → derive coverage → redact/deep-validate → persist invocation audit/output hash. Registry: `FindingQueryTool`, action `TECHNICAL_EVIDENCE_READ`, accepted `technicalEvidenceReportId`, `LLM_CALLABLE`, `2000ms`, one retry, `NONE`. Model context is the response fields above, max 100 summaries; it may call detail/flow tools with returned refs and must not infer invocation from `DEPENDENCY_SIGNAL`. Audit: request/workflow/assessment/org/actor IDs, safe argument hash, artifact/version, status/duration/budget, refs/output hash/correlation; never raw arguments, source, prompts, secrets, AST or stack traces. LLM never accesses DB/object store.
 
 ## 16. Scenario
 
@@ -83,7 +83,7 @@ For a claim “OpenAI is invoked in API”, AO-3 searches provider `OPENAI`; onl
 1. Given a pinned accepted report, when valid filters are supplied, then result ordering/cursor are deterministic.
 2. Given extra/free-text/absolute selectors, when called, then validation rejects before handler dispatch.
 3. Given exhaustive empty versus limited scope, then returned states are distinguishable.
-4. Given stale/cross-tenant/PBAC-denied artifact, then it fails closed and audits safely.
+4. Given stale/cross-tenant/RBAC-denied artifact, then it fails closed and audits safely.
 5. Given nested source/prompt/secret/AST fields, then privacy validation prevents output.
 
 ## 18. Test Matrix
@@ -92,14 +92,14 @@ For a claim “OpenAI is invoked in API”, AO-3 searches provider `OPENAI`; onl
 |---|---|---|
 | TC-01 | provider/kind page and cursor tie order | contract + integration |
 | TC-02 | invalid/extra/free-text argument | contract, no dispatch |
-| TC-03 | stale and cross-tenant report | PBAC integration |
+| TC-03 | stale and cross-tenant report | RBAC integration |
 | TC-04 | exhaustive empty vs limited scope | integration |
 | TC-05 | dependency-only false positive | golden fixture |
 | TC-06 | nested forbidden payload and timeout | privacy + worker |
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Add strict contracts/registry under `packages/contracts/src/evidence`; `FindingProjection`, handler and normalizer under `deepagents/tools/common/capabilities/agentic_evidence`; PBAC/audit gateway and tests under `apps/api/src/modules/evidence`. OQ-01: Tech Lead must ratify the 100-item/2s ceiling before `READY_FOR_SPRINT` (blocks: yes). Deliver schema, definition, projection query, mapper, audit and unit/contract/integration/privacy tests.
+Add strict contracts/registry under `packages/contracts/src/evidence`; `FindingProjection`, handler and normalizer under `deepagents/tools/common/capabilities/agentic_evidence`; RBAC/audit gateway and tests under `apps/api/src/modules/evidence`. OQ-01: Tech Lead must ratify the 100-item/2s ceiling before `READY_FOR_SPRINT` (blocks: yes). Deliver schema, definition, projection query, mapper, audit and unit/contract/integration/privacy tests.
 
 ## Source Authority
 

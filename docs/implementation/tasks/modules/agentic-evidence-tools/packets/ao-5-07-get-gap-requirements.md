@@ -28,7 +28,7 @@ Action `GAP_REQUIREMENTS_READ`; owner immutable `RequirementMatrixProjection`; a
 {"status":"READY","toolName":"get_gap_requirements","toolVersion":"1.0.0","configHash":"sha256:gap-requirements-v1","correlationId":"81d66285-426d-43fc-940b-47a1b57d06af","artifactVersions":{"classificationRef":"classification:01J9A","policyProfileVersionId":"policy_01J9A"},"provenanceRef":"prov:requirements:01J9","coverageState":"SUFFICIENT","evidenceRefs":["requirement:req_01J9A"],"limitations":[],"result":{"matrixRef":"matrix:01J9A","requirements":[{"requirementId":"req_01J9A","locator":"Article 12(1)"}],"nextCursor":null}}
 ```
 ## 7. Error Codes and Typed Outcomes
-`INVALID_ARGUMENT`, `NEEDS_INPUT`, `NOT_FOUND` exhaustive no requirements, `OUT_OF_COVERAGE` policy limitation, `BLOCKED` PBAC/unreviewed/stale pin, `FAILED` transient.
+`INVALID_ARGUMENT`, `NEEDS_INPUT`, `NOT_FOUND` exhaustive no requirements, `OUT_OF_COVERAGE` policy limitation, `BLOCKED` RBAC/unreviewed/stale pin, `FAILED` transient.
 ## 8. Tool Calling Flow
 ```mermaid
 sequenceDiagram
@@ -44,19 +44,19 @@ H-->>L: refs + audit
 ## 9. Business Rules
 Require independently reviewed classification, policy pin and tenant match; sort ID/cap 100; no legal text or matrix mutation.
 ## 10. Execution Logic
-Validate, registry/PBAC/version check, resolve eligible matrix, sort/cap, privacy scan/audit; implement `GapRequirementsTool`.
+Validate, registry/RBAC/version check, resolve eligible matrix, sort/cap, privacy scan/audit; implement `GapRequirementsTool`.
 ## 11. LLM Tool Definition and Context Contract
 Strict §5, max 10KB; model may call `evaluate_gap_matrix`, cannot infer unlisted requirements or edit matrix.
 ## 12. Tool Registry
 `GapRequirementsTool`; `GAP_REQUIREMENTS_READ`; LLM allow-list; classification/policy refs; 3s/one retry/READ.
 ## 13–15. Audit, Retry, Security
-Shared audit hashes/refs/status/duration; redact requirement content beyond approved locator, prompts/secrets/traces. Gateway tenant/PBAC/state; projection only; retry one 200ms transient outage then failed/operator alert.
+Shared audit hashes/refs/status/duration; redact requirement content beyond approved locator, prompts/secrets/traces. Gateway tenant/RBAC/state; projection only; retry one 200ms transient outage then failed/operator alert.
 ## 16. Scenario
 Reviewed classification yields matrix `matrix:01J9A`; unreviewed candidate blocks, rather than generating obligations.
 ## 17. Acceptance Criteria
-Stable pinned matrix; strict extra-field rejection; unreviewed/stale/PBAC explicit; no legal text leaks.
+Stable pinned matrix; strict extra-field rejection; unreviewed/stale/RBAC explicit; no legal text leaks.
 ## 18. Test Matrix
-TC-01 valid matrix; TC-02 malformed; TC-03 stale/unreviewed; TC-04 tenant/PBAC; TC-05 privacy; TC-06 timeout.
+TC-01 valid matrix; TC-02 malformed; TC-03 stale/unreviewed; TC-04 tenant/RBAC; TC-05 privacy; TC-06 timeout.
 ## 19. Definition of Done
 Contract, query, registry, audit/security and tests pass.
 ## 20. Technical Notes and Files

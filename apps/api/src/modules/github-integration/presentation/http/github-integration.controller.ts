@@ -11,13 +11,13 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { CommandBus } from "@nestjs/cqrs";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type { Response } from "express";
 
 import { createCorrelationId } from "../../../auth-workspace/infrastructure/security/security.utils.js";
-import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
-import type { PbacRequestContext } from "../../../../platform/pbac/interfaces/pbac-request.interface.js";
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
+import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { ReAuthForSensitiveRoute } from "../../../../platform/security/decorators/re-auth-for-sensitive-route.decorator.js";
 import { SENSITIVE_ROUTE_IDS } from "../../../../platform/security/sensitive-route-policy.js";
@@ -35,7 +35,7 @@ import {
 } from "./scan-trigger.guard.js";
 
 interface GitHubIntegrationRequest extends ScanTriggerRequestContext {
-  pbacContext?: PbacRequestContext;
+  rbacContext?: RbacRequestContext;
   correlationId?: string;
 }
 
@@ -57,12 +57,12 @@ export class GitHubIntegrationController {
    * @param redirectUri - Allowlisted client redirect URI to restore after GitHub callback.
    * @param assessmentId - Optional assessment to bind to the resulting repository connection.
    * @param installationId - Optional existing installation identifier for reconnect/resume flows.
-   * @param request - PBAC-authenticated request containing tenant, user, session, and correlation context.
+   * @param request - RBAC-authenticated request containing tenant, user, session, and correlation context.
    * @returns Standard result envelope containing the GitHub installation URL.
    */
   @Get("github/app/start")
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.githubConnect)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
   @ReAuthForSensitiveRoute({
     routeId: SENSITIVE_ROUTE_IDS.githubAppStart,
     method: "GET",
@@ -75,17 +75,16 @@ export class GitHubIntegrationController {
     @Query("installation_id") installationId: string | undefined,
     @Req() request: GitHubIntegrationRequest,
   ) {
-    const pbacContext = request.pbacContext as PbacRequestContext;
+    const rbacContext = request.rbacContext as RbacRequestContext;
 
     return resultEnvelope(
       await this.commandBus.execute(
         new GitHubAppStartCommand(
-          pbacContext.organizationId,
-          pbacContext.userId,
+          rbacContext.userId,
           redirectUri,
           assessmentId,
           request.correlationId as string,
-          pbacContext.sessionId,
+          rbacContext.sessionId,
           installationId,
         ),
       ),
@@ -128,25 +127,24 @@ export class GitHubIntegrationController {
    *
    * @param assessmentId - Assessment that will own the snapshot.
    * @param body - Repository connection plus optional branch/ref/commit selectors.
-   * @param request - PBAC-authenticated request containing actor, tenant, scope, and correlation context.
+   * @param request - RBAC-authenticated request containing actor, scope, and correlation context.
    * @returns Standard result envelope containing persisted snapshot metadata.
    */
   @Post("assessments/:assessmentId/snapshots")
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.snapshotCreate)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
   async pinSnapshot(
     @Param("assessmentId") assessmentId: string,
     @Body() body: PinSnapshotRequest,
     @Req() request: GitHubIntegrationRequest,
   ) {
-    const context = request.pbacContext as PbacRequestContext;
+    const context = request.rbacContext as RbacRequestContext;
     return resultEnvelope(
       await this.commandBus.execute<PinSnapshotCommand, PinSnapshotDto>(
         new PinSnapshotCommand(
           assessmentId,
-          context.organizationId,
           context.userId,
-          context.subjectRole,
+          context.role,
           context.scope ?? undefined,
           body.connection_id,
           body.branch,
@@ -159,24 +157,24 @@ export class GitHubIntegrationController {
   }
 
   /**
-   * Triggers a repository scan either from a trusted worker key or a manually PBAC-authorized user request.
+   * Triggers a repository scan either from a trusted worker key or a manually RBAC-authorized user request.
    *
    * @param assessmentId - Assessment whose pinned snapshot should be scanned.
    * @param body - Snapshot identifier, idempotency key, and optional requested trigger source.
-   * @param request - Guard-enriched request containing trusted/manual source and optional PBAC context.
+   * @param request - Guard-enriched request containing trusted/manual source and optional RBAC context.
    * @param response - Express response used to distinguish newly created jobs (201) from idempotent duplicates (200).
    * @returns Standard result envelope containing scan-job trigger metadata.
    */
   @Post("assessments/:assessmentId/scan-jobs")
   @UseGuards(ScanTriggerGuard)
-  @RequireAction(PBAC_ACTIONS.scanTrigger)
+  @RequireRoles(AUTH_USER_ROLES.customer)
   async triggerScan(
     @Param("assessmentId") assessmentId: string,
     @Body() body: TriggerScanRequest,
     @Req() request: GitHubIntegrationRequest,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const context = request.pbacContext;
+    const context = request.rbacContext;
     const result = await this.commandBus.execute<
       TriggerScanCommand,
       TriggerScanDto
@@ -187,8 +185,7 @@ export class GitHubIntegrationController {
         request.scanTriggerSource as TriggerScanCommand["triggerSource"],
         body.idempotency_key,
         context?.userId ?? null,
-        context?.organizationId ?? null,
-        context?.subjectRole ?? null,
+        context?.role ?? null,
         context?.scope ?? undefined,
         request.correlationId ?? createCorrelationId(),
       ),

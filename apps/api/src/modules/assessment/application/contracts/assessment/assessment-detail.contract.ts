@@ -85,7 +85,6 @@ export interface AssessmentDetailDto {
   name: string;
   status: AssessmentStatusCode;
   owner_id: string;
-  organization_id: string;
   wizard_status: WizardStatus;
   readiness_state: ReadinessState;
   guardrail_status: ClassificationGuardrailStatus | null;

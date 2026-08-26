@@ -703,7 +703,7 @@ Wizard không được tạo:
 ### Team Recommendation
 
 - **Minh**: giữ owner cho product direction, Wizard truth model, và cross-epic sequencing.
-- **Nhi**: owner trọn module Auth, bao gồm chuỗi Epic 1 và các seam auth/session/membership/PBAC liên quan.
+- **Nhi**: owner trọn module Auth, bao gồm chuỗi Epic 1 và các seam auth/session/membership/RBAC liên quan.
 - **Tú / Anh / Thụy**: nên tách vai trò quanh Epic 2 theo 3 lane:
   - Wizard UX + question architecture
   - Wizard/API contracts + persistence

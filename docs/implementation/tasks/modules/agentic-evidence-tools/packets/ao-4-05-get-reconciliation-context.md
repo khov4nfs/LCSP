@@ -34,27 +34,27 @@ AO-4 uses this after comparison detects contradiction. Missing/open conflict blo
 
 ## 7. Errors and Typed Outcomes
 
-Bad selector/cap=`INVALID_ARGUMENT`; missing flow/version=`NEEDS_INPUT`; unknown scoped conflict=`NOT_FOUND`; incomplete record scope=`OUT_OF_COVERAGE`; PBAC/tenant/state=`BLOCKED`; transient timeout=`FAILED` after retry.
+Bad selector/cap=`INVALID_ARGUMENT`; missing flow/version=`NEEDS_INPUT`; unknown scoped conflict=`NOT_FOUND`; incomplete record scope=`OUT_OF_COVERAGE`; RBAC/tenant/state=`BLOCKED`; transient timeout=`FAILED` after retry.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
-Validate → registry/PBAC/version → scoped conflict query → status/path policy filter → stable page → privacy/audit. `ReconciliationContextTool`, `LLM_CALLABLE`, `ASSESSMENT_VERIFY`, 2s/one retry/`NONE`. Model sees max 50 typed summaries/paths, may emit `CONFLICT` or route allowed path, never resolve/update a conflict. Audit shared hashes/refs/status; never notes, identities, source, prompt/secrets/AST/direct storage.
+Validate → registry/RBAC/version → scoped conflict query → status/path policy filter → stable page → privacy/audit. `ReconciliationContextTool`, `LLM_CALLABLE`, `ASSESSMENT_VERIFY`, 2s/one retry/`NONE`. Model sees max 50 typed summaries/paths, may emit `CONFLICT` or route allowed path, never resolve/update a conflict. Audit shared hashes/refs/status; never notes, identities, source, prompt/secrets/AST/direct storage.
 
 ## 16–18. Scenario, AC, Tests
 
-Open provider conflict returns `HUMAN_RECONCILE`; model reports conflict and does not call verified profile. AC: conflict isolation/status filtering/path enforcement, strict/PBAC/privacy/audit.
+Open provider conflict returns `HUMAN_RECONCILE`; model reports conflict and does not call verified profile. AC: conflict isolation/status filtering/path enforcement, strict/RBAC/privacy/audit.
 
 | ID | Scenario | Level |
 |---|---|---|
 | TC-01 | scoped conflict/page/path policy | integration |
 | TC-02 | open conflict blocks downstream | integration |
-| TC-03 | invalid/tenant/PBAC | contract/integration |
+| TC-03 | invalid/tenant/RBAC | contract/integration |
 | TC-04 | reviewer note/identity leak | privacy |
 | TC-05 | retry/audit | worker/API |
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Build contracts/registry/conflict projection handler/API PBAC/audit/tests. OQ-01: approve resolution-path policy source (Governance, OPEN, blocks yes). Deliver strict schema and tests.
+Build contracts/registry/conflict projection handler/API RBAC/audit/tests. OQ-01: approve resolution-path policy source (Governance, OPEN, blocks yes). Deliver strict schema and tests.
 
 ## Source Authority
 

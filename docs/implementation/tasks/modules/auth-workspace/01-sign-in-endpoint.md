@@ -6,7 +6,7 @@ priority: P0
 status: DONE
 epic_story: 1.1
 depends_on:
-  - platform/pbac/03-nestjs-guard.md
+  - platform/rbac/03-nestjs-guard.md
   - platform/audit-writer/02-audit-writer-service.md
 ---
 
@@ -92,9 +92,9 @@ Authenticate a user with email + password against an approved LCSP account, enfo
 | `event.auth.sign-in-succeeded` | `AuthAuditEvent` | `SignInHandler` | `{ actorId, organizationId, sessionId, correlationId, decision: allow }` |
 | `event.auth.sign-in-failed`    | `AuthAuditEvent` | `SignInHandler` | `{ reasonCode, correlationId, decision: deny }` — no email or password   |
 
-## PBAC
+## RBAC
 
-This endpoint is public. No session guard applied. PBAC kicks in after session is issued when accessing workspace routes.
+This endpoint is public. No session guard applied. RBAC kicks in after session is issued when accessing workspace routes.
 
 ## Test Cases
 

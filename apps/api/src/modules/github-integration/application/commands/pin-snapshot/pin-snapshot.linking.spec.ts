@@ -2,7 +2,7 @@ import {
   GITHUB_REPOSITORY_PERMISSION_LEVELS,
   REPOSITORY_CONNECTION_STATUSES,
 } from "@lcsp/contracts/github-integration";
-import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { describe, expect, it, jest } from "@jest/globals";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -19,7 +19,6 @@ describe("PinSnapshotHandler repository reuse", () => {
     const repositoryConnection = RepositoryConnection.rehydrate({
       id: "connection-1",
       assessmentId: null,
-      organizationId: "org-1",
       userId: "manager-1",
       installationId: "installation-1",
       repositoryId: "repo-1",
@@ -70,13 +69,11 @@ describe("PinSnapshotHandler repository reuse", () => {
           .fn<
             () => Promise<{
               id: string;
-              organizationId: string;
               ownerId: string;
             } | null>
           >()
           .mockResolvedValue({
             id: "assessment-1",
-            organizationId: "org-1",
             ownerId: "manager-1",
           }),
       },
@@ -99,9 +96,8 @@ describe("PinSnapshotHandler repository reuse", () => {
     await handler.execute(
       new PinSnapshotCommand(
         "assessment-1",
-        "org-1",
         "manager-1",
-        SUBJECT_ROLES.manager,
+        AUTH_USER_ROLES.customer,
         undefined,
         "connection-1",
         "main",

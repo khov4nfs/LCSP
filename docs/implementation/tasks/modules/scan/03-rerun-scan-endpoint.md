@@ -50,13 +50,13 @@ Allow a Manager to trigger a re-scan on the same or a new snapshot without mutat
 
 | HTTP | `error_code`               | Meaning                                 |
 | ---- | -------------------------- | --------------------------------------- |
-| 403  | `PBAC_DENIED`              | Actor lacks `scan:trigger`              |
+| 403  | `RBAC_DENIED`              | Actor lacks `scan:trigger`              |
 | 404  | `SNAPSHOT_NOT_FOUND`       | Snapshot not found or not in org        |
 | 409  | `ASSESSMENT_STATE_INVALID` | Assessment state does not allow re-scan |
 
 ## Business Rules
 
-1. PBAC guard: `action = scan:trigger`.
+1. RBAC guard: `action = scan:trigger`.
 2. Validate snapshot exists and org-scoped.
 3. Create new `RepositoryScanJob` with `triggerSource = manual`. Prior job not mutated.
 4. Prior accepted `TechnicalEvidenceReport` and `TechnicalProfile` linked to prior scan job remain immutable — re-run creates new artifact chain version.
@@ -77,7 +77,7 @@ Allow a Manager to trigger a re-scan on the same or a new snapshot without mutat
 | T01 | Valid re-run                              | 201 new scan job, prior job/evidence intact |
 | T02 | Same `idempotency_key`                    | 200 existing re-run job returned            |
 | T03 | Prior `TechnicalEvidenceReport` unchanged | DB inspection confirms immutability         |
-| T04 | Actor lacks `scan:trigger`                | 403 `PBAC_DENIED`                           |
+| T04 | Actor lacks `scan:trigger`                | 403 `RBAC_DENIED`                           |
 | T05 | Snapshot not in org                       | 404 `SNAPSHOT_NOT_FOUND`                    |
 
 ## Definition of Done

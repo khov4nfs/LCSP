@@ -46,12 +46,12 @@ An open conflict returns `{"status":"CONFLICT","coverageState":"SUFFICIENT","res
 
 ## 7–15. outcomes, flow, rules, execution, context, registry, audit, retry, security
 
-`INVALID_ARGUMENT` rejects malformed or duplicate refs; missing/stale input is `NEEDS_INPUT`; unresolved evidence is `OUT_OF_COVERAGE`; an open conflict is `CONFLICT`; PBAC/state/tenant denial is `BLOCKED`; persistence failure is `FAILED` after the listed retry.
+`INVALID_ARGUMENT` rejects malformed or duplicate refs; missing/stale input is `NEEDS_INPUT`; unresolved evidence is `OUT_OF_COVERAGE`; an open conflict is `CONFLICT`; RBAC/state/tenant denial is `BLOCKED`; persistence failure is `FAILED` after the listed retry.
 
 ```mermaid
 sequenceDiagram
   participant O as AO-3 Orchestrator
-  participant A as API PBAC/state gate
+  participant A as API RBAC/state gate
   participant R as Reconciliation transaction
   participant P as VerifiedProfile store/outbox
   O->>A: pinned refs + idempotency key
@@ -61,9 +61,9 @@ sequenceDiagram
   P-->>O: safe verified profile ref
 ```
 
-Algorithm: validate → registry/PBAC/tenant/version/state check → load only sanitized projections → require complete conflict ledger → deterministically merge allow-listed typed facts → privacy validation → reserve/replay idempotency → atomically persist profile, audit and `event.profile.verified.v1` outbox → normalize result. Build `packages/contracts/src/evidence/reconciliation`, API `modules/reconciliation`, profile repository/outbox mapper, and worker orchestration adapter.
+Algorithm: validate → registry/RBAC/tenant/version/state check → load only sanitized projections → require complete conflict ledger → deterministically merge allow-listed typed facts → privacy validation → reserve/replay idempotency → atomically persist profile, audit and `event.profile.verified.v1` outbox → normalize result. Build `packages/contracts/src/evidence/reconciliation`, API `modules/reconciliation`, profile repository/outbox mapper, and worker orchestration adapter.
 
-`exposed_to_model:false`: only AO-3 may call it after resolver validation. The model sees a later `get_verified_profile` response, never input facts, decisions, or this mutation response. Audit actor/service, PBAC policy/version, all safe refs/hashes, outcome, output hash, correlation, and duration; never raw answers, source, prompt, secret, full AST, decision notes, or stack traces. API defaults deny and verifies reviewer/actor separation where a reconciliation decision has a human actor.
+`exposed_to_model:false`: only AO-3 may call it after resolver validation. The model sees a later `get_verified_profile` response, never input facts, decisions, or this mutation response. Audit actor/service, RBAC policy/version, all safe refs/hashes, outcome, output hash, correlation, and duration; never raw answers, source, prompt, secret, full AST, decision notes, or stack traces. API defaults deny and verifies reviewer/actor separation where a reconciliation decision has a human actor.
 
 ## 16–22. scenarios, AC, tests, DoD, files, questions, deliverables
 
@@ -76,11 +76,11 @@ AC: Given identical refs/key, when replayed, then return the original profile wi
 | TC-01 | deterministic merge and immutable version | integration |
 | TC-02 | stale/missing/cross-tenant refs | contract/integration |
 | TC-03 | open conflict and incomplete coverage | integration |
-| TC-04 | PBAC/actor separation | integration |
+| TC-04 | RBAC/actor separation | integration |
 | TC-05 | forbidden nested source/prompt/secret payload | privacy |
 | TC-06 | idempotency, transaction rollback, audit/outbox | integration |
 
-DoD: strict contracts, registry, PBAC transaction, audit/outbox, privacy and integration suites pass. OQ-01: confirm the canonical typed fact merge precedence (Architecture + Compliance, `OPEN`, blocks readiness). Deliver the definition, handler, transaction, contract, tests, and audit mapping.
+DoD: strict contracts, registry, RBAC transaction, audit/outbox, privacy and integration suites pass. OQ-01: confirm the canonical typed fact merge precedence (Architecture + Compliance, `OPEN`, blocks readiness). Deliver the definition, handler, transaction, contract, tests, and audit mapping.
 
 ## Source authority
 

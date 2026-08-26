@@ -1,10 +1,8 @@
 import {
-  ClipboardCheckIcon,
   ActivityIcon,
   FileCheck2Icon,
   FileTextIcon,
   GaugeIcon,
-  UsersIcon,
   LayoutDashboardIcon,
   ListChecksIcon,
   LibraryBigIcon,
@@ -39,14 +37,6 @@ export const primaryNavigation = [
   },
 ] as const satisfies readonly NavigationDefinition[];
 
-export const developerNavigation = [
-  {
-    href: "/developer/assessments",
-    labelKey: "pages.appShell.developer",
-    icon: ClipboardCheckIcon,
-  },
-] as const satisfies readonly NavigationDefinition[];
-
 export function getAssessmentNavigation(
   assessmentId?: string,
 ): readonly NavigationDefinition[] {
@@ -56,12 +46,6 @@ export function getAssessmentNavigation(
   const disabled = !assessmentId;
 
   return [
-    {
-      href: `${basePath}/developers`,
-      labelKey: "pages.appShell.developers",
-      icon: UsersIcon,
-      disabled,
-    },
     {
       href: basePath,
       labelKey: "pages.appShell.overview",

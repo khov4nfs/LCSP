@@ -68,7 +68,6 @@ export class ReauthenticatePasswordHandler {
       await this.support.recordAudit(this.repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginFailed,
         actor_id: user.id,
-        organization_id: session.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.invalidCredentials,
         correlationId: correlationId,
@@ -86,7 +85,6 @@ export class ReauthenticatePasswordHandler {
     await this.support.recordAudit(this.repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginSucceeded,
       actor_id: user.id,
-      organization_id: session.organizationId,
       decision: AUDIT_DECISIONS.allow,
       correlationId: correlationId,
       session_id: session.id,

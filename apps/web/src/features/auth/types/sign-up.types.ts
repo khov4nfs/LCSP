@@ -11,7 +11,6 @@ export const SIGN_UP_FIELD_AUTOCOMPLETE = {
   email: "email",
   name: "name",
   newPassword: "new-password",
-  organization: "organization",
 } as const;
 
 export const SIGN_UP_SUBMISSION_ERRORS = {

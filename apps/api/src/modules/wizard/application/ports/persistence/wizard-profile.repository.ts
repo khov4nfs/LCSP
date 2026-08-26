@@ -4,12 +4,11 @@ export const WIZARD_PROFILE_REPOSITORY = Symbol("WIZARD_PROFILE_REPOSITORY");
 
 export interface WizardProfileRepository {
   /**
-   * Verifies that the assessment exists and is owned by the specified organization and owner.
+   * Verifies that the assessment exists and is owned by the specified owner.
    * Returns true if verification passes, false otherwise.
    */
   verifyAssessmentOwnership(
     assessmentId: string,
-    orgId: string,
     ownerId: string,
   ): Promise<boolean>;
 

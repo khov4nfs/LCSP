@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
 
-import { PbacModule } from "../../platform/pbac/pbac.module.js";
+import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guard.js";
 import { AcceptConflictHandler } from "./application/commands/accept-conflict/accept-conflict.handler.js";
 import { ResolveConflictHandler } from "./application/commands/resolve-conflict/resolve-conflict.handler.js";
@@ -20,7 +20,7 @@ import {
 } from "./presentation/http/reconciliation.controller.js";
 
 @Module({
-  imports: [CqrsModule, PbacModule],
+  imports: [CqrsModule, RbacModule],
   controllers: [
     InternalReconciliationController,
     ReconciliationController,

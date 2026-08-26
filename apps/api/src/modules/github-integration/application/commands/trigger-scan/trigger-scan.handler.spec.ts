@@ -11,7 +11,7 @@ import {
   REPOSITORY_SCAN_JOB_STATUSES,
   REPOSITORY_SCAN_TRIGGER_SOURCES,
 } from "@lcsp/contracts/github-integration";
-import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -23,7 +23,6 @@ import { TriggerScanHandler } from "./trigger-scan.handler.js";
 const SNAPSHOT = {
   id: "snapshot-1",
   assessmentId: "assessment-1",
-  organizationId: "org-1",
   repositoryId: "repo-1",
   repositoryFullName: "acme/example-repo",
   commitSha: "a".repeat(40),
@@ -36,11 +35,8 @@ function command(overrides?: Partial<TriggerScanCommand>): TriggerScanCommand {
     overrides?.triggerSource ?? REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
     overrides?.idempotencyKey ?? "scan-request:assessment-1:snapshot-1:1",
     overrides?.actorId === undefined ? "manager-1" : overrides.actorId,
-    overrides?.organizationId === undefined
-      ? "org-1"
-      : overrides.organizationId,
     overrides?.subjectRole === undefined
-      ? SUBJECT_ROLES.manager
+      ? AUTH_USER_ROLES.customer
       : overrides.subjectRole,
     overrides?.scope,
     overrides?.correlationId ?? "corr-1",
@@ -51,7 +47,6 @@ function buildHandler(options?: {
   snapshot?: typeof SNAPSHOT | null;
   assessment?: {
     id: string;
-    organizationId: string;
     ownerId: string;
     status: string;
   } | null;
@@ -79,7 +74,6 @@ function buildHandler(options?: {
   const assessmentFindUnique = jest.fn<
     () => Promise<{
       id: string;
-      organizationId: string;
       ownerId: string;
       status: string;
     } | null>
@@ -88,7 +82,6 @@ function buildHandler(options?: {
     options?.assessment === undefined
       ? {
           id: "assessment-1",
-          organizationId: "org-1",
           ownerId: "manager-1",
           status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
         }
@@ -153,7 +146,6 @@ describe("TriggerScanHandler", () => {
       id: "scan-job-existing",
       assessmentId: "assessment-1",
       snapshotId: "snapshot-1",
-      organizationId: "org-1",
       idempotencyKey: "scan-request:assessment-1:snapshot-1:1",
       triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
       status: REPOSITORY_SCAN_JOB_STATUSES.running,
@@ -167,7 +159,6 @@ describe("TriggerScanHandler", () => {
       existing,
       assessment: {
         id: "assessment-1",
-        organizationId: "org-1",
         ownerId: "manager-1",
         status: ASSESSMENT_STATUS_CODES.scanInProgress,
       },
@@ -189,7 +180,6 @@ describe("TriggerScanHandler", () => {
       id: "scan-job-existing",
       assessmentId: "assessment-other",
       snapshotId: "snapshot-other",
-      organizationId: "org-1",
       idempotencyKey: "scan-request:assessment-1:snapshot-1:1",
       triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
       status: REPOSITORY_SCAN_JOB_STATUSES.queued,
@@ -206,10 +196,9 @@ describe("TriggerScanHandler", () => {
     );
   });
 
-  it("hides a missing or cross-organization snapshot", async () => {
+  it("hides a missing or wrong-assessment snapshot", async () => {
     for (const snapshot of [
       null,
-      { ...SNAPSHOT, organizationId: "org-other" },
       { ...SNAPSHOT, assessmentId: "assessment-other" },
     ]) {
       const { handler, saveWithTriggeredEvent } = buildHandler({ snapshot });
@@ -225,7 +214,6 @@ describe("TriggerScanHandler", () => {
     const { handler, saveWithTriggeredEvent } = buildHandler({
       assessment: {
         id: "assessment-1",
-        organizationId: "org-1",
         ownerId: "manager-1",
         status: ASSESSMENT_STATUS_CODES.wizardInProgress,
       },
@@ -288,7 +276,6 @@ describe("TriggerScanHandler", () => {
         command({
           triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
           actorId: null,
-          organizationId: null,
           subjectRole: null,
         }),
       ),

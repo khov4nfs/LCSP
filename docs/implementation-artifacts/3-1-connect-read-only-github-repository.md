@@ -10,7 +10,7 @@ As a Manager or scoped Developer, I want to connect an authorized GitHub reposit
 
 ## Acceptance Criteria
 
-1. **Given** the actor has PBAC permission to connect a repository for the assessment
+1. **Given** the actor has RBAC permission to connect a repository for the assessment
    **When** the actor starts GitHub App repository connection
    **Then** LCSP requests only read-only repository permissions required for trusted scan
    **And** the actor can select only authorized repositories and branches
@@ -22,7 +22,7 @@ As a Manager or scoped Developer, I want to connect an authorized GitHub reposit
    **Then** LCSP does not treat identity login as repository authorization
    **And** no RepositoryConnection or scan permission is created until GitHub App connection is completed.
 
-3. **Given** repository authorization is revoked, invalid, wrong-organization, or outside PBAC scope
+3. **Given** repository authorization is revoked, invalid, wrong-organization, or outside RBAC scope
    **When** LCSP validates the connection or receives a repository action
    **Then** LCSP blocks the action with a safe explanation
    **And** no repository content is scanned
@@ -68,7 +68,7 @@ As a Manager or scoped Developer, I want to connect an authorized GitHub reposit
 ### Dependencies and Prerequisites
 
 - Epic 1 auth boundary and Epic 2 assessment context.
-- PBAC scope for Manager or scoped Developer.
+- RBAC scope for Manager or scoped Developer.
 
 ### Explicit Non-Goals
 

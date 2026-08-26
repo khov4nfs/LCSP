@@ -3,7 +3,6 @@ import type { SafeUserProjection } from "./common.contract.ts";
 export type CredentialPayload = {
   email?: unknown;
   password?: unknown;
-  organization_id?: unknown;
 };
 
 export type SignInSuccess = {

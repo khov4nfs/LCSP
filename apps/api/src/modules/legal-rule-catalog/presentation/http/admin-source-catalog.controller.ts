@@ -17,11 +17,11 @@ import {
   type AdminSourceCatalogId,
   type AdminSourceDocumentType,
 } from "@lcsp/contracts/evidence";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { GetAdminSourceCatalogQuery } from "../../application/queries/get-admin-source-catalog/get-admin-source-catalog.query.js";
@@ -47,8 +47,8 @@ export class AdminSourceCatalogController {
   constructor(private readonly queryBus: QueryBus) {}
 
   @Get(":assessmentId/admin-source-catalog")
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.legalCorpusRead)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.admin)
   async getAdminSourceCatalog(
     @Param("assessmentId") assessmentId: string,
     @Query() query: Record<string, unknown>,
@@ -60,11 +60,8 @@ export class AdminSourceCatalogController {
       await this.queryBus.execute(
         new GetAdminSourceCatalogQuery(
           assessmentId,
-          request.pbacContext.organizationId,
           input,
-          request.pbacContext.userId,
-          request.pbacContext.policyId,
-          request.pbacContext.policyVersion,
+          request.rbacContext.userId,
           correlationId,
         ),
       ),

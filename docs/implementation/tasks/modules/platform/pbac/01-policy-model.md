@@ -1,6 +1,6 @@
 ---
-task_id: MW-pbac-001
-module: platform/pbac
+task_id: MW-rbac-001
+module: platform/rbac
 runtime: nestjs-api
 priority: P0
 status: READY_FOR_DEV
@@ -9,19 +9,19 @@ depends_on:
   - platform/config/01-config-loader.md
 ---
 
-# PBAC Policy Model — Prisma Schema + Types
+# RBAC Policy Model — Prisma Schema + Types
 
 ## Outcome
 
-Define the Prisma `AuthPolicy` and `AuthDecisionLog` models, plus the TypeScript types used by all PBAC evaluation logic. This task is schema + types only — no evaluation logic.
+Define the Prisma `AuthPolicy` and `AuthDecisionLog` models, plus the TypeScript types used by all RBAC evaluation logic. This task is schema + types only — no evaluation logic.
 
 ## Module Files
 
-| File | Action | Notes |
-|---|---|---|
-| `apps/api/prisma/schema.prisma` | Verify/Modify | Confirm `AuthPolicy`, `AuthDecisionLog` models exist with correct fields |
-| `packages/contracts/src/pbac/policy.types.ts` | Create | Shared `PolicyDocument`, `SubjectAttributes`, `PbacDecision` types |
-| `apps/api/src/platform/pbac/pbac.types.ts` | Create | Internal PBAC evaluation context types |
+| File                                          | Action        | Notes                                                                    |
+| --------------------------------------------- | ------------- | ------------------------------------------------------------------------ |
+| `apps/api/prisma/schema.prisma`               | Verify/Modify | Confirm `AuthPolicy`, `AuthDecisionLog` models exist with correct fields |
+| `packages/contracts/src/rbac/policy.types.ts` | Create        | Shared `PolicyDocument`, `SubjectAttributes`, `RbacDecision` types       |
+| `apps/api/src/platform/rbac/rbac.types.ts`    | Create        | Internal RBAC evaluation context types                                   |
 
 ## Prisma Models (verify or extend)
 
@@ -30,7 +30,7 @@ model AuthPolicy {
   id             String   @id @default(uuid())
   organizationId String
   version        Int      @default(1)
-  subjectRole    String                         // 'Manager' | 'Developer' | 'SystemAdmin'
+  subjectRole    String                         // 'Manager' | 'SystemAdmin'
   stateGate      String?                        // 'membership_active' | null
   actions        String[]
   conditions     Json?                          // reserved for future attribute conditions
@@ -63,11 +63,11 @@ model AuthDecisionLog {
 ## TypeScript Types
 
 ```typescript
-// packages/contracts/src/pbac/policy.types.ts
+// packages/contracts/src/rbac/policy.types.ts
 
-export type SubjectRole = 'Manager' | 'Developer' | 'SystemAdmin';
-export type StateGate = 'membership_active';
-export type PbacDecision = 'allow' | 'deny';
+export type SubjectRole = "Manager" | "SystemAdmin";
+export type StateGate = "membership_active";
+export type RbacDecision = "allow" | "deny";
 
 export interface PolicyDocument {
   id: string;
@@ -81,18 +81,18 @@ export interface PolicyDocument {
 
 export interface SubjectAttributes {
   role: SubjectRole;
-  scope?: string;  // assessment_id for scoped Developer invitations
+  scope?: string; // resource scope when a future explicit policy requires it
 }
 
-export interface PbacEvaluationContext {
+export interface RbacEvaluationContext {
   action: string;
   subject: SubjectAttributes;
   policy: PolicyDocument;
   membershipStatus: string;
 }
 
-export interface PbacDecisionResult {
-  decision: PbacDecision;
+export interface RbacDecisionResult {
+  decision: RbacDecision;
   reasonCode?: string;
   policyId: string;
   policyVersion: number;
@@ -105,21 +105,21 @@ export interface PbacDecisionResult {
 2. `conditions` is `Json?` — reserved for attribute-based conditions (not evaluated in Phase 1).
 3. `@@unique([organizationId, subjectRole, version])` — one policy version per role per org.
 4. `AuthDecisionLog` stores the resolved `policyId` and `policyVersion` at decision time (not a FK — allows policy deletion without losing audit history).
-5. `SubjectAttributes.scope` is used for Developer invitation scope (assessment_id). Null for Manager.
+5. `SubjectAttributes.scope` is reserved for explicit future scoped policies. Null for Manager in active MVP.
 
 ## Test Cases
 
-| ID | Scenario | Expected |
-|---|---|---|
+| ID  | Scenario                              | Expected                                 |
+| --- | ------------------------------------- | ---------------------------------------- |
 | T01 | Create `AuthPolicy` with Manager role | Row created with `subjectRole = Manager` |
-| T02 | `@@unique` constraint violated | DB error on duplicate |
-| T03 | `PolicyDocument` type accepted | No TypeScript errors |
-| T04 | `PbacDecision` union type | Only `allow` or `deny` accepted |
-| T05 | `AuthDecisionLog` without policyId FK | Row created, no FK constraint |
+| T02 | `@@unique` constraint violated        | DB error on duplicate                    |
+| T03 | `PolicyDocument` type accepted        | No TypeScript errors                     |
+| T04 | `RbacDecision` union type             | Only `allow` or `deny` accepted          |
+| T05 | `AuthDecisionLog` without policyId FK | Row created, no FK constraint            |
 
 ## Definition of Done
 
 - `AuthPolicy` and `AuthDecisionLog` Prisma models migrated.
-- `PolicyDocument`, `SubjectAttributes`, `PbacEvaluationContext`, `PbacDecisionResult` exported from `packages/contracts`.
+- `PolicyDocument`, `SubjectAttributes`, `RbacEvaluationContext`, `RbacDecisionResult` exported from `packages/contracts`.
 - `@@unique([organizationId, subjectRole, version])` constraint in place.
 - No FK from `AuthDecisionLog` to `AuthPolicy` (audit trail must survive policy deletion).

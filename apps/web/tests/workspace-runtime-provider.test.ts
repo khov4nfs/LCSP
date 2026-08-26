@@ -327,7 +327,6 @@ function runtimeActivity(
     eventId: "event-1",
     sequence: 1,
     emittedAt: "2026-08-13T11:00:00.000Z",
-    organizationId: "org-1",
     assessmentId: "assessment-1",
     runId: "scan-1",
     correlationId: "corr-1",

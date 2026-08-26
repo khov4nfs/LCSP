@@ -29,7 +29,6 @@ export class GetWorkspaceHandler {
       await this.support.recordAudit(repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.workspaceAccessDenied,
         actor_id: null,
-        organization_id: request.organization_id ?? null,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.authRequired,
         correlationId: correlationId,
@@ -45,7 +44,6 @@ export class GetWorkspaceHandler {
       await this.support.recordAudit(repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.workspaceAccessDenied,
         actor_id: null,
-        organization_id: request.organization_id ?? null,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.sessionInvalid,
         correlationId: correlationId,
@@ -64,7 +62,6 @@ export class GetWorkspaceHandler {
       await this.support.recordAudit(repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.workspaceAccessDenied,
         actor_id: session.userId,
-        organization_id: session.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.sessionInvalid,
         correlationId: correlationId,
@@ -79,34 +76,11 @@ export class GetWorkspaceHandler {
       repositories,
       session.userId,
     );
-    const sessionOrganization = await this.support.resolveOrganizationById(
-      repositories,
-      session.organizationId,
-    );
-    if (!sessionOrganization) {
-      await this.support.recordAudit(repositories, {
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.workspaceAccessDenied,
-        actor_id: session.userId,
-        organization_id: session.organizationId,
-        decision: AUDIT_DECISIONS.deny,
-        reason_code: AUTH_ERROR_CODES.authzPolicyUnavailable,
-        correlationId: correlationId,
-      });
-      return createProblemResult(
-        AUTH_ERROR_CODES.authzPolicyUnavailable,
-        correlationId,
-      );
-    }
-    const mfaRequired = this.support.isMfaRequired(
-      user,
-      sessionOrganization,
-      mfaEnrollment,
-    );
+    const mfaRequired = this.support.isMfaRequired(user, mfaEnrollment);
     if (mfaRequired && !session.isMfaVerified()) {
       await this.support.recordAudit(repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.workspaceAccessDenied,
         actor_id: session.userId,
-        organization_id: session.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.mfaRequired,
         correlationId: correlationId,
@@ -114,45 +88,18 @@ export class GetWorkspaceHandler {
       return createProblemResult(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
-    if (
-      request.organization_id &&
-      request.organization_id !== session.organizationId
-    ) {
-      await this.support.recordAudit(repositories, {
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.workspaceAccessDenied,
-        actor_id: session.userId,
-        organization_id: session.organizationId,
-        decision: AUDIT_DECISIONS.deny,
-        reason_code: AUTH_ERROR_CODES.authzTenantScopeMismatch,
-        correlationId: correlationId,
-      });
-      return createProblemResult(
-        AUTH_ERROR_CODES.authzTenantScopeMismatch,
-        correlationId,
-      );
-    }
-
-    const membership = await this.support.findMembership(
-      repositories,
-      user.id,
-      session.organizationId,
-    );
     const authorization = await this.support.authorizeWorkspace(
       repositories,
-      membership,
+      user,
       correlationId,
-      session.organizationId,
     );
     if (authorization.ok === false) {
       await this.support.recordAudit(repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.workspaceAccessDenied,
         actor_id: user.id,
-        organization_id: session.organizationId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: authorization.problem.code,
         correlationId: correlationId,
-        policy_id: membership?.policyId ?? null,
-        policy_version: membership?.policyVersion ?? null,
       });
       return authorization;
     }
@@ -160,22 +107,15 @@ export class GetWorkspaceHandler {
     await this.support.recordAudit(repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.workspaceAccessAllowed,
       actor_id: user.id,
-      organization_id: session.organizationId,
       decision: AUDIT_DECISIONS.allow,
       correlationId: correlationId,
-      policy_id: membership?.policyId ?? null,
-      policy_version: membership?.policyVersion ?? null,
     });
 
     return {
       ok: true,
-      organization_id: session.organizationId,
-      organization_name: sessionOrganization.name,
       user_id: user.id,
       display_name: user.displayName ?? user.email.toString(),
-      membership_status: authorization.membership_status,
-      subject_role: authorization.subject_role,
-      granted_actions: authorization.granted_actions,
+      role: authorization.role,
       session_expires_at: new Date(session.expiresAt).toISOString(),
       mfa_verified: session.isMfaVerified(),
       correlationId: correlationId,

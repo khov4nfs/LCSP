@@ -36,12 +36,12 @@ The handler re-loads the exact gate and rejects any non-`PASS` proposal; shared 
 
 ## 7–15. outcomes, flow, rules, execution, context, registry, audit, retry, security
 
-Invalid fields are `INVALID_ARGUMENT`; absent/stale gate is `NEEDS_INPUT`; gate `FAIL`, open conflict, limited coverage, or expired citations returns `BLOCKED`; PBAC/tenant/state denial is `BLOCKED`; a duplicate key replays `READY`; storage error is `FAILED`.
+Invalid fields are `INVALID_ARGUMENT`; absent/stale gate is `NEEDS_INPUT`; gate `FAIL`, open conflict, limited coverage, or expired citations returns `BLOCKED`; RBAC/tenant/state denial is `BLOCKED`; a duplicate key replays `READY`; storage error is `FAILED`.
 
 ```mermaid
 sequenceDiagram
   participant O as Orchestrator
-  participant A as API PBAC/state gate
+  participant A as API RBAC/state gate
   participant S as Review request service
   participant P as Store/outbox
   O->>A: PASS gate ref + immutable inputs
@@ -51,7 +51,7 @@ sequenceDiagram
   P-->>O: review request ref
 ```
 
-Validate → allow-list/PBAC/version → reload PASS gate, baseline, citation allowlist and no conflict → reserve idempotency → persist a `PENDING_INDEPENDENT_REVIEW` request with requester identity → audit/outbox → privacy normalize. Registry `ClassificationReviewSubmissionTool/1.0.0`; `ORCHESTRATOR_ONLY`; action above; valid only from `PROPOSAL_READY_FOR_INDEPENDENT_REVIEW`; 5 s / one serialization retry. `exposed_to_model:false`: an LLM can produce a proposal only; it cannot submit, choose a reviewer, or infer approval. Audit safe hashes/refs/status/policy/correlation only. Enforce tenant isolation, no requester-as-reviewer, no free-text rationale, and API-only persistence.
+Validate → allow-list/RBAC/version → reload PASS gate, baseline, citation allowlist and no conflict → reserve idempotency → persist a `PENDING_INDEPENDENT_REVIEW` request with requester identity → audit/outbox → privacy normalize. Registry `ClassificationReviewSubmissionTool/1.0.0`; `ORCHESTRATOR_ONLY`; action above; valid only from `PROPOSAL_READY_FOR_INDEPENDENT_REVIEW`; 5 s / one serialization retry. `exposed_to_model:false`: an LLM can produce a proposal only; it cannot submit, choose a reviewer, or infer approval. Audit safe hashes/refs/status/policy/correlation only. Enforce tenant isolation, no requester-as-reviewer, no free-text rationale, and API-only persistence.
 
 ## 16–22. scenarios, AC, tests, DoD, files, questions, deliverables
 
@@ -62,7 +62,7 @@ Scenario: proposal gate `PASS` plus valid citations yields one pending request. 
 | TC-01 | PASS request and stable result | integration |
 | TC-02 | FAIL/stale/limited/conflict gate | integration |
 | TC-03 | extra field and citation substitution | contract |
-| TC-04 | PBAC, tenant, requester/reviewer separation | integration |
+| TC-04 | RBAC, tenant, requester/reviewer separation | integration |
 | TC-05 | sensitive payload/audit rejection | privacy |
 | TC-06 | replay and outbox rollback | integration |
 

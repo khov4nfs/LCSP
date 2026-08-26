@@ -29,7 +29,7 @@ class AllowAuthorizer:
         assert organization_id == "org-1"
         assert isinstance(correlationId, UUID)
         self.calls.append(tool_name)
-        return AgenticAuthorizationResult(action="evidence:read")
+        return AgenticAuthorizationResult(role="CUSTOMER")
 
 
 def context() -> AgenticInvocationContext:
@@ -75,7 +75,7 @@ def test_resolver_dispatches_validated_authorized_read_call() -> None:
     assert result["result"]["maxResults"] == 25
 
 
-def test_resolver_rejects_schema_invalid_call_before_pbac_or_handler() -> None:
+def test_resolver_rejects_schema_invalid_call_before_rbac_or_handler() -> None:
     registry = build_engineering_rule_agentic_registry()
     called = False
 
@@ -97,7 +97,7 @@ def test_resolver_rejects_schema_invalid_call_before_pbac_or_handler() -> None:
     assert called is False
 
 
-def test_resolver_rejects_non_model_tool_before_pbac_even_if_registered() -> None:
+def test_resolver_rejects_non_model_tool_before_rbac_even_if_registered() -> None:
     registry = build_engineering_rule_agentic_registry()
     registry.register_handler(
         "request_targeted_reanalysis",

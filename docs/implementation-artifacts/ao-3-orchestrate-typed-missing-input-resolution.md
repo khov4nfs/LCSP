@@ -13,14 +13,14 @@ so that missing evidence triggers a safe bounded action instead of a blind retry
 ## Acceptance Criteria
 
 1. Agent outcomes use the canonical `READY`, `NEEDS_INPUT`, `CONFLICT`, `OUT_OF_COVERAGE`, `BLOCKED`, or `FAILED` values, with requirements, evidence references, confidence, and an explicit terminal reason where applicable.
-2. The resolver validates an allow-list, PBAC, idempotency, retry budget, and workflow state before dispatch.
+2. The resolver validates an allow-list, RBAC, idempotency, retry budget, and workflow state before dispatch.
 3. Durable checkpoints resume safely; exhausted or invalid resolution transitions to fallback, DLQ, or `BLOCKED`, never an infinite loop.
 4. Every transition has trace/audit data for reason, tool, artifact version, input/output references, and redaction status.
 
 ## Tasks / Subtasks
 
 - [ ] Define canonical typed outcome, missing-input requirement, resolver decision, state-transition, and audit contracts. (AC: 1, 4)
-- [ ] Implement resolver allow-list/PBAC/idempotency/retry-budget validation and durable checkpoint/resume behavior. (AC: 2, 3)
+- [ ] Implement resolver allow-list/RBAC/idempotency/retry-budget validation and durable checkpoint/resume behavior. (AC: 2, 3)
 - [ ] Implement retry, fallback, DLQ, and blocking policy; add transition, resume, exhaustion, and redaction integration tests. (AC: 3, 4)
 
 ## Dev Notes
@@ -43,7 +43,7 @@ so that missing evidence triggers a safe bounded action instead of a blind retry
 
 - `packages/contracts/src/agentic-evidence/*`
 - `deepagents/tools/common/platform/graph_runtime.py` and orchestration modules
-- `apps/api/src/modules/*` for PBAC, audit/outbox, and durable workflow projection seams
+- `apps/api/src/modules/*` for RBAC, audit/outbox, and durable workflow projection seams
 - orchestration contract and integration tests
 
 ### Verification Requirements

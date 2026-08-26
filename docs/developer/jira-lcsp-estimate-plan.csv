@@ -5,7 +5,7 @@ LCSP Sprint 1,LCSP-28,Story,,Story 1.3: OAuth/OIDC Login Without Repository Auth
 LCSP Sprint 1,LCSP-29,Story,,Story 1.4: Organization Membership and Manager Policy Scope,,1.4,2026-07-04,2026-07-06,5,High,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-29
 LCSP Sprint 1,LCSP-30,Story,,Story 1.5: Optional Developer Invitation and Scoped Task Acceptance,,1.5,2026-07-05,2026-07-07,8,High,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-30
 LCSP Sprint 1,LCSP-31,Story,,Story 1.6: Manager-Only Action Enforcement,,1.6,2026-07-05,2026-07-07,13,Highest,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-31
-LCSP Sprint 1,LCSP-32,Story,,Story 1.7: PBAC Policy Runtime and Deny-on-Failure Contract,,1.7,2026-07-05,2026-07-07,2,Highest,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-32
+LCSP Sprint 1,LCSP-32,Story,,Story 1.7: RBAC Policy Runtime and Deny-on-Failure Contract,,1.7,2026-07-05,2026-07-07,2,Highest,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-32
 LCSP Sprint 1,LCSP-33,Story,,"Story 1.8: Foundational Audit, Outbox, and Event Contract",,1.8,2026-07-05,2026-07-07,8,Highest,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-33
 LCSP Sprint 1,LCSP-34,Story,,Story 2.1: Create Manager-Owned Assessment,,2.1,2026-07-06,2026-07-08,13,Highest,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-34
 LCSP Sprint 1,LCSP-35,Story,,Story 2.2: Complete WizardProfile in Business Language,,2.2,2026-07-06,2026-07-08,8,High,,,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-35
@@ -31,11 +31,11 @@ LCSP Sprint 1,LCSP-139,Task,MW-web-002,MW-web-002: Workspace Dashboard Page,nhib
 LCSP Sprint 1,LCSP-73,Task,MW-auth-010,MW-auth-010: Invite Developer Endpoint,nhibao08,1.5,2026-07-11,2026-07-13,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-73
 LCSP Sprint 1,LCSP-74,Task,MW-auth-011,MW-auth-011: Accept Developer Invitation Endpoint,nhibao08,1.5,2026-07-12,2026-07-14,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-74
 LCSP Sprint 1,LCSP-75,Task,MW-auth-012,MW-auth-012: Revoke Developer Membership Endpoint,nhibao08,1.5,2026-07-12,2026-07-14,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-75
-LCSP Sprint 1,LCSP-76,Task,MW-auth-013,MW-auth-013: PBAC Guard — NestJS Integration,Nta1210,1.6,2026-07-12,2026-07-14,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-76
-LCSP Sprint 1,LCSP-95,Task,MW-pbac-001,MW-pbac-001: PBAC Policy Model — Prisma Schema + Types,Khovan,1.6,2026-07-12,2026-07-14,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-95
-LCSP Sprint 1,LCSP-96,Task,MW-pbac-002,MW-pbac-002: PBAC Evaluator Service,Khovan,1.6,2026-07-13,2026-07-15,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-96
-LCSP Sprint 1,LCSP-97,Task,MW-pbac-003,MW-pbac-003: PBAC NestJS Guard,Khovan,1.6,2026-07-13,2026-07-15,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-97
-LCSP Sprint 1,LCSP-98,Task,MW-pbac-004,MW-pbac-004: PBAC Worker Preflight — Python Worker Authorization Check,Khovan,1.7,2026-07-13,2026-07-15,2,High,P1,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-98
+LCSP Sprint 1,LCSP-76,Task,MW-auth-013,MW-auth-013: RBAC Guard — NestJS Integration,Nta1210,1.6,2026-07-12,2026-07-14,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-76
+LCSP Sprint 1,LCSP-95,Task,MW-rbac-001,MW-rbac-001: RBAC Policy Model — Prisma Schema + Types,Khovan,1.6,2026-07-12,2026-07-14,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-95
+LCSP Sprint 1,LCSP-96,Task,MW-rbac-002,MW-rbac-002: RBAC Evaluator Service,Khovan,1.6,2026-07-13,2026-07-15,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-96
+LCSP Sprint 1,LCSP-97,Task,MW-rbac-003,MW-rbac-003: RBAC NestJS Guard,Khovan,1.6,2026-07-13,2026-07-15,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-97
+LCSP Sprint 1,LCSP-98,Task,MW-rbac-004,MW-rbac-004: RBAC Worker Preflight — Python Worker Authorization Check,Khovan,1.7,2026-07-13,2026-07-15,2,High,P1,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-98
 LCSP Sprint 1,LCSP-77,Task,MW-auth-014,MW-auth-014: Audit Event Writer — Auth Workspace Integration,Nta1210,1.8,2026-07-13,2026-07-15,2,High,P0,false,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-77
 LCSP Sprint 1,LCSP-89,Task,MW-audit-001,MW-audit-001: Audit Event Schema — Prisma + Domain Types,Khovan,1.8,2026-07-14,2026-07-16,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-89
 LCSP Sprint 1,LCSP-90,Task,MW-audit-002,MW-audit-002: Audit Writer Service,Khovan,1.8,2026-07-14,2026-07-16,3,Highest,P0,true,READY_FOR_DEV,https://minhpnq1807.atlassian.net/browse/LCSP-90
@@ -133,7 +133,7 @@ Backlog,LCSP-9,Epic,,Module: github-integration,,,2026-07-04,2026-09-16,13,Highe
 Backlog,LCSP-10,Epic,,Module: platform/audit-writer,,,2026-07-04,2026-09-16,8,Highest,P0,true,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-10
 Backlog,LCSP-11,Epic,,Module: platform/config,,,2026-07-04,2026-09-16,8,Highest,P0,true,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-11
 Backlog,LCSP-12,Epic,,Module: platform/outbox,,,2026-07-04,2026-09-16,8,Highest,P0,true,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-12
-Backlog,LCSP-13,Epic,,Module: platform/pbac,,,2026-07-04,2026-09-16,13,Highest,P0,true,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-13
+Backlog,LCSP-13,Epic,,Module: platform/rbac,,,2026-07-04,2026-09-16,13,Highest,P0,true,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-13
 Backlog,LCSP-14,Epic,,Module: python-workers/classification,,,2026-07-04,2026-09-16,8,High,P0,false,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-14
 Backlog,LCSP-15,Epic,,Module: python-workers/intelligence,,,2026-07-04,2026-09-16,13,High,P0,false,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-15
 Backlog,LCSP-16,Epic,,Module: python-workers/legal,,,2026-07-04,2026-09-16,8,High,P0,false,Backlog,https://minhpnq1807.atlassian.net/browse/LCSP-16

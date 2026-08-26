@@ -81,4 +81,4 @@ The generic VPS program at `/usr/local/sbin/fogewise-deploy` is infrastructure o
 
 The reusable workflow groups services by `path`. The Managed Deep Agent is built from `deepagents` once as the internal `managed-deep-agent` service; former per-consumer worker images must not be reintroduced.
 
-The final deployment health check runs from the VPS against Caddy on loopback with the production Host/SNI, so Cloudflare edge policy is not part of the deployment success criterion.
+The final deployment health check runs from the VPS against Caddy on loorback with the production Host/SNI, so Cloudflare edge policy is not part of the deployment success criterion.

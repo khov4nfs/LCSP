@@ -21,7 +21,6 @@ export class InternalWizardController {
       select: {
         id: true,
         assessmentId: true,
-        organizationId: true,
         ownerId: true,
         version: true,
         status: true,
@@ -39,7 +38,6 @@ export class InternalWizardController {
     return {
       id: profile.id,
       assessment_id: profile.assessmentId,
-      organization_id: profile.organizationId,
       owner_id: profile.ownerId,
       version: profile.version,
       status: String(profile.status).toLowerCase(),

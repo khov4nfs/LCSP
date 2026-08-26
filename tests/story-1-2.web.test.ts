@@ -94,11 +94,10 @@ test("sign-up outcomes establish a session without exposing session credentials"
   );
 });
 
-test("sign-up schema validates account and workspace fields", () => {
+test("sign-up schema validates account fields", () => {
   assert.equal(
     signUpSchema.safeParse({
       display_name: "New Manager",
-      organization_name: "New Legal Team",
       email: "manager@example.test",
       password: "twelve-chars",
       confirm_password: "twelve-chars",
@@ -108,7 +107,6 @@ test("sign-up schema validates account and workspace fields", () => {
   assert.equal(
     signUpSchema.safeParse({
       display_name: "New Manager",
-      organization_name: "New Legal Team",
       email: "manager@example.test",
       password: "twelve-chars",
       confirm_password: "different-pass",
@@ -118,7 +116,6 @@ test("sign-up schema validates account and workspace fields", () => {
   assert.equal(
     signUpSchema.safeParse({
       display_name: "",
-      organization_name: "New Legal Team",
       email: "not-an-email",
       password: "short",
       confirm_password: "short",

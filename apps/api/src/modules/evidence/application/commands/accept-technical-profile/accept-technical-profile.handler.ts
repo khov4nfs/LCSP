@@ -134,7 +134,6 @@ export class AcceptTechnicalProfileHandler implements ICommandHandler<AcceptTech
       select: {
         id: true,
         assessmentId: true,
-        organizationId: true,
       },
     });
     if (!evidenceReport) {
@@ -169,7 +168,6 @@ export class AcceptTechnicalProfileHandler implements ICommandHandler<AcceptTech
             id: technicalProfileId,
             evidenceReportId: evidenceReport.id,
             assessmentId: evidenceReport.assessmentId,
-            organizationId: evidenceReport.organizationId,
             schemaVersion: payload.schema_version,
             providerVersion: payload.provider_version,
             profileData: payload.profile_data as Prisma.InputJsonValue,
@@ -184,7 +182,6 @@ export class AcceptTechnicalProfileHandler implements ICommandHandler<AcceptTech
           aggregateType: OUTBOX_AGGREGATE_TYPES.technicalProfile,
           aggregateId: technicalProfileId,
           eventType: SCAN_EVENT_TYPES.technicalProfileReady,
-          organizationId: evidenceReport.organizationId,
           assessmentId: evidenceReport.assessmentId,
           correlationId: command.correlationId,
           causationId: evidenceReport.id,
@@ -217,7 +214,6 @@ export class AcceptTechnicalProfileHandler implements ICommandHandler<AcceptTech
         const auditEvent = buildAuditEventInput({
           eventType: SCAN_EVENT_TYPES.technicalProfileAcceptedAudit,
           actorId: TECHNICAL_PROFILE_WORKER_ACTOR_ID,
-          organizationId: evidenceReport.organizationId,
           assessmentId: evidenceReport.assessmentId,
           resourceType: AUDIT_RESOURCE_TYPES.technicalProfile,
           resourceId: technicalProfileId,
@@ -242,7 +238,6 @@ export class AcceptTechnicalProfileHandler implements ICommandHandler<AcceptTech
             id: crypto.randomUUID(),
             eventType: auditEvent.eventType,
             actorId: auditEvent.actorId,
-            organizationId: auditEvent.organizationId,
             resourceType: auditEvent.resourceType
               ? toPrismaAuditResourceType(auditEvent.resourceType)
               : null,

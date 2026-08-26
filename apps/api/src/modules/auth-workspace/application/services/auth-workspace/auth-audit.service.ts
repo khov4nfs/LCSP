@@ -21,15 +21,12 @@ import type { AuditEvent } from "../../../domain/models/auth-workspace.models.ts
 export type AuthAuditEventInput = {
   eventType: AuthAuditEventType;
   actorId: string | null;
-  organizationId: string | null;
   correlationId: string;
   decision: AuditDecision | null;
   resourceType?: AuditResourceType | null;
   resourceId?: string | null;
   reasonCode?: string | null;
   sessionId?: string | null;
-  policyId?: string | null;
-  policyVersion?: string | null;
   payload?: Record<string, unknown>;
 };
 
@@ -87,14 +84,11 @@ export class AuthAuditService {
     return {
       eventType: normalized.eventType,
       actorId: normalized.actorId,
-      organizationId: normalized.organizationId,
       resourceType: normalized.resourceType ?? null,
       resourceId: normalized.resourceId ?? null,
       reasonCode: normalized.reasonCode ?? null,
       correlationId: normalized.correlationId,
       sessionId: normalized.sessionId ?? null,
-      policyId: normalized.policyId ?? null,
-      policyVersion: normalized.policyVersion ?? null,
       decision: normalized.decision,
       payload,
     };
@@ -107,14 +101,11 @@ export class AuthAuditService {
     return {
       eventType: normalizeLegacyAuthAuditEventType(eventType),
       actorId: authAuditReadNullableString(event, "actor_id"),
-      organizationId: authAuditReadNullableString(event, "organization_id"),
       resourceType: event.resource_type ?? null,
       resourceId: authAuditReadNullableString(event, "resource_id"),
       reasonCode: authAuditReadNullableString(event, "reason_code"),
       correlationId: authAuditReadRequiredString(event, "correlationId"),
       sessionId: authAuditReadNullableString(event, "session_id"),
-      policyId: authAuditReadNullableString(event, "policy_id"),
-      policyVersion: authAuditReadNullableString(event, "policy_version"),
       decision: authAuditReadDecision(event, "decision"),
       payload: { ...event },
     };

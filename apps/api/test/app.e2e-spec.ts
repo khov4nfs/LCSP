@@ -3,7 +3,6 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { AppController } from "../src/modules/app/presentation/http/app.controller.js";
-import { UsersController } from "../src/modules/users/presentation/http/users.controller.js";
 
 import { AppModule } from "../src/app.module.js";
 import {
@@ -50,21 +49,5 @@ describe("AppController (e2e)", () => {
       ok: true,
       data: "Hello World!",
     });
-  });
-
-  it("resolves the users CQRS controller through dependency injection", async () => {
-    const controller = app.get(UsersController);
-    const created = await controller.createUser({
-      email: "architect@lcsp.test",
-      displayName: "LCSP Architect",
-    });
-    expect(created.ok).toBe(true);
-    if (!created.ok) {
-      throw new Error("Expected user creation to succeed");
-    }
-
-    const found = await controller.getUserById(created.data.id);
-
-    expect(found).toEqual(created);
   });
 });

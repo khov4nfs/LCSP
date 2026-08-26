@@ -41,7 +41,7 @@ As a developer, I want authentication and workspace-facing shared modules to use
 - Packet type: `planning-derived-developer-packet`
 - Story key: `1-10-typescript-contract-localization-and-import-boundary-governance`
 - Official execution artifact: `docs/implementation-artifacts/1-10-typescript-contract-localization-and-import-boundary-governance.md`
-- Epic: `Epic 1 - Secure Workspace and PBAC-Scoped Collaboration`
+- Epic: `Epic 1 - Secure Workspace and RBAC-Scoped Collaboration`
 - Runtime ownership: `apps/api`, `apps/web`, `packages/contracts`, `packages/i18n`, `tests`
 
 ### Current State and Scope Guardrails
@@ -94,7 +94,7 @@ As a developer, I want authentication and workspace-facing shared modules to use
 ### Architecture Compliance
 
 - Preserve retained runtime shape: `apps/web` is the web UX boundary, `apps/api` is the NestJS control-plane boundary, and shared semantics live in `packages/*`.
-- PBAC, session, and audit behavior remain server-authoritative; this story only hardens the contract and localization seam around those behaviors.
+- RBAC, session, and audit behavior remain server-authoritative; this story only hardens the contract and localization seam around those behaviors.
 - Public app/package imports must use approved exports; source-path coupling is forbidden.
 
 ### Functional and Domain Requirements
@@ -111,9 +111,9 @@ As a developer, I want authentication and workspace-facing shared modules to use
 
 ### State and Audit Requirements
 
-- Existing auth/session/PBAC audit semantics from Story `1.1` must remain intact; contract migration must not remove correlation IDs or safe blocked-action hints.
+- Existing auth/session/RBAC audit semantics from Story `1.1` must remain intact; contract migration must not remove correlation IDs or safe blocked-action hints.
 - Failures from import-policy or type-validation in CI are acceptance evidence, not runtime substitutions for backend enforcement.
-- Blocked-state rendering remains non-authoritative; authorization decisions still come from backend PBAC evaluation.
+- Blocked-state rendering remains non-authoritative; authorization decisions still come from backend RBAC evaluation.
 
 ### File Structure Notes
 
@@ -169,8 +169,8 @@ GPT-5 Codex
 - Converted planning-derived developer packet into official execution artifact for dev cycle.
 - Status set to `ready-for-dev` in `docs/implementation-artifacts/sprint-status.yaml`.
 - Story retains planning authority references and scope guardrails for downstream `dev-story` work.
-- Consolidated assessment, wizard, auth, PBAC, audit, outbox, GitHub integration, and health workflow values into typed public `@lcsp/contracts` exports.
-- Replaced production business literals with shared constants/types across API and Web, including PBAC actions, lifecycle status/state values, decisions, roles, audit/outbox events, and repository connection status.
+- Consolidated assessment, wizard, auth, RBAC, audit, outbox, GitHub integration, and health workflow values into typed public `@lcsp/contracts` exports.
+- Replaced production business literals with shared constants/types across API and Web, including RBAC actions, lifecycle status/state values, decisions, roles, audit/outbox events, and repository connection status.
 - Replaced assessment next-action prose with stable i18n keys and added typed English/Vietnamese workspace dictionaries.
 - Added `check:contracts` regression enforcement and hardened import-policy scanning to ignore generated directories safely.
 - Added shared-contract drift tests; API tests (217), Web contract tests, lint, typecheck, API build, and Web build pass.
@@ -183,11 +183,11 @@ GPT-5 Codex
 - docs/implementation-artifacts/sprint-status.yaml
 - package.json
 - packages/contracts/package.json
-- packages/contracts/src/{assessment,audit,auth,github-integration,outbox,pbac,shared,wizard}/**/*.ts
+- packages/contracts/src/{assessment,audit,auth,github-integration,outbox,rbac,shared,wizard}/**/*.ts
 - packages/i18n/src/types.ts
 - packages/i18n/src/locales/{en,vi}/pages.ts
 - apps/api/src/modules/{assessment,audit,auth-workspace,github-integration,health,wizard}/**/*.ts
-- apps/api/src/platform/{outbox,pbac}/**/*.ts
+- apps/api/src/platform/{outbox,rbac}/**/*.ts
 - apps/web/src/features/workspace/**/*.ts
 - apps/web/src/features/workspace/**/*.tsx
 - apps/web/src/lib/api/{auth-client,workspace-client}.ts
@@ -206,8 +206,8 @@ GPT-5 Codex
 - Start here: assessment lifecycle and wizard states now have distinct typed authorities.
   [`statuses.ts:1`](../../packages/contracts/src/assessment/statuses.ts#L1)
 
-- PBAC actions reuse domain action constants instead of duplicating wire literals.
-  [`actions.ts:3`](../../packages/contracts/src/pbac/actions.ts#L3)
+- RBAC actions reuse domain action constants instead of duplicating wire literals.
+  [`actions.ts:3`](../../packages/contracts/src/rbac/actions.ts#L3)
 
 - Frontend error decoding is anchored to a shared compatibility wire envelope.
   [`problems.ts:71`](../../packages/contracts/src/auth/problems.ts#L71)

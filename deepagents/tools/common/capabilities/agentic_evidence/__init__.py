@@ -4,8 +4,8 @@ from __future__ import annotations
 from .governance.authorization import (
     AgenticAuthorizationResult,
     AgenticToolAuthorizer,
-    ApiPbacToolAuthorizer,
-    TOOL_PBAC_ACTIONS,
+    ApiRbacToolAuthorizer,
+    TOOL_RBAC_ROLES,
 )
 from .governance.catalog import (
     AgenticToolSpec,
@@ -68,14 +68,14 @@ __all__ = [
     "AgenticToolRuntimeTarget",
     "AgenticToolSpec",
     "AgenticToolValidationError",
-    "ApiPbacToolAuthorizer",
+    "ApiRbacToolAuthorizer",
     "LegalToolDispatcher",
     "LegalToolExecutionContext",
     "ENGINEERING_RULE_AGENTIC_CAPABILITIES",
     "ENGINEERING_RULE_AGENTIC_TOOL_BINDINGS",
     "ScannerToolDispatcher",
     "ScannerToolExecutionContext",
-    "TOOL_PBAC_ACTIONS",
+    "TOOL_RBAC_ROLES",
     "ToolBinding",
     "ToolRuntimeTarget",
     "bind_runtime_handlers",

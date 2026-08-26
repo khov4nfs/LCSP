@@ -34,15 +34,15 @@ AO-3 uses it to corroborate a provider/framework claim in a path prefix. A depen
 
 ## 7. Errors and Typed Outcomes
 
-Bad enum/path/cap=`INVALID_ARGUMENT`; missing accepted report=`NEEDS_INPUT`; exhaustive zero calls=`READY`; limited scan=`OUT_OF_COVERAGE`; PBAC/version/tenant=`BLOCKED`; transient timeout=`FAILED` after retry.
+Bad enum/path/cap=`INVALID_ARGUMENT`; missing accepted report=`NEEDS_INPUT`; exhaustive zero calls=`READY`; limited scan=`OUT_OF_COVERAGE`; RBAC/version/tenant=`BLOCKED`; transient timeout=`FAILED` after retry.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
-Validate → registry/PBAC/version → exact invocation projection filter → stable page → separate declared signals → coverage/privacy/audit. `ProviderInvocationTool` is `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, report required, 2s/one retry/`NONE`. Model may claim confirmed use only from `invocations`, may next inspect invocation ref, never source or config. Shared audit fields plus result hash; deny source, prompt, secret, AST, config keys/values and absolute paths.
+Validate → registry/RBAC/version → exact invocation projection filter → stable page → separate declared signals → coverage/privacy/audit. `ProviderInvocationTool` is `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, report required, 2s/one retry/`NONE`. Model may claim confirmed use only from `invocations`, may next inspect invocation ref, never source or config. Shared audit fields plus result hash; deny source, prompt, secret, AST, config keys/values and absolute paths.
 
 ## 16–18. Scenario, AC, Tests
 
-A repository declares `openai` but calls none: return `invocations:[]`, declared package signal separately, exhaustive `READY`. AC: no signal promotion, deterministic pages, strict input/PBAC/audit/privacy and limited distinction.
+A repository declares `openai` but calls none: return `invocations:[]`, declared package signal separately, exhaustive `READY`. AC: no signal promotion, deterministic pages, strict input/RBAC/audit/privacy and limited distinction.
 
 | ID | Scenario | Level |
 |---|---|---|
@@ -54,7 +54,7 @@ A repository declares `openai` but calls none: return `invocations:[]`, declared
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Build contracts/registry, projection/handler/normalizer, PBAC/audit and tests. OQ-01: provider alias taxonomy owner/version (Scanner, OPEN, blocks yes). Deliver safe schema/mapping and tests.
+Build contracts/registry, projection/handler/normalizer, RBAC/audit and tests. OQ-01: provider alias taxonomy owner/version (Scanner, OPEN, blocks yes). Deliver safe schema/mapping and tests.
 
 ## Source Authority
 

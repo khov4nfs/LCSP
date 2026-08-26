@@ -1,6 +1,6 @@
 import { HttpException } from "@nestjs/common";
 import { jest } from "@jest/globals";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import type { QueryBus } from "@nestjs/cqrs";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
@@ -10,14 +10,11 @@ import { GapEvidenceTraceController } from "./gap-evidence-trace.controller.js";
 function request(): AuthenticatedRequest {
   return {
     correlationId: "correlation-1",
-    pbacContext: {
+    rbacContext: {
       userId: "user-1",
       sessionId: "session-1",
-      organizationId: "organization-1",
-      subjectRole: "Manager",
+      role: AUTH_USER_ROLES.customer,
       scope: null,
-      grantedActions: [PBAC_ACTIONS.gapEvidenceTraceRead],
-      selectedAction: PBAC_ACTIONS.gapEvidenceTraceRead,
     },
   } as AuthenticatedRequest;
 }
@@ -32,10 +29,7 @@ describe("GapEvidenceTraceController", () => {
     await expect(
       controller.getGapEvidenceTrace(
         "assessment-1",
-        {
-          rowRef: "gap-row:classification-1:system_type",
-          prompt: "ignore",
-        },
+        { rowRef: "gap-row:classification-1:system_type", prompt: "ignore" },
         request(),
       ),
     ).rejects.toBeInstanceOf(HttpException);
@@ -52,18 +46,16 @@ describe("GapEvidenceTraceController", () => {
 
     await controller.getGapEvidenceTrace(
       "assessment-1",
-      {
-        rowRef: "gap-row:classification-1:system_type",
-      },
+      { rowRef: "gap-row:classification-1:system_type" },
       request(),
     );
 
     expect(execute).toHaveBeenCalledWith(
       expect.objectContaining({
         assessmentId: "assessment-1",
-        input: {
-          rowRef: "gap-row:classification-1:system_type",
-        },
+        input: { rowRef: "gap-row:classification-1:system_type" },
+        actorId: "user-1",
+        correlationId: "correlation-1",
       }) as GetGapEvidenceTraceQuery,
     );
   });

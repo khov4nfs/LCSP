@@ -186,7 +186,7 @@ class ScanBoundary(AgentBoundaryBase):
     def __init__(
         self,
         config,
-        pbac_client=None,
+        rbac_client=None,
         snapshot_client: SnapshotServiceClient | None = None,
         workspace: ScannerWorkspace | None = None,
         syft_tool: SyftTool | None = None,
@@ -204,7 +204,7 @@ class ScanBoundary(AgentBoundaryBase):
         evidence_graph_assembler: ProgramGraphAssembler | None = None,
         execution_planner: ToolchainExecutionPlanner | None = None,
     ):
-        super().__init__(config, pbac_client)
+        super().__init__(config, rbac_client)
         self._snapshot_client = snapshot_client or SnapshotServiceClient(
             config.nestjs_api_base_url,
             config.worker_api_key,

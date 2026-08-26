@@ -1,20 +1,20 @@
 ---
-task_id: MW-pbac-004
-module: platform/pbac
+task_id: MW-rbac-004
+module: platform/rbac
 runtime: nestjs-api + python-workers
 priority: P1
 status: READY_FOR_DEV
 epic_story: 1.7
 depends_on:
-  - platform/pbac/02-evaluator-service.md
+  - platform/rbac/02-evaluator-service.md
   - platform/outbox/02-outbox-publisher.md
 ---
 
-# PBAC Worker Preflight — Python Worker Authorization Check
+# RBAC Worker Preflight — Python Worker Authorization Check
 
 ## Outcome
 
-Before a Python worker processes any task-queue message that requires authorization context, it calls back to the NestJS API via a preflight endpoint to verify the authorization decision is still valid. This prevents stale-membership exploitation: a Developer whose membership was revoked after task dispatch must not have their task executed.
+Before a Python worker processes any task-queue message that requires authorization context, it calls back to the NestJS API via a preflight endpoint to verify the authorization decision is still valid. This prevents stale-membership or stale-policy exploitation after task dispatch.
 
 ## Module Files
 
@@ -22,21 +22,21 @@ Before a Python worker processes any task-queue message that requires authorizat
 
 | File                                                      | Action | Notes                                |
 | --------------------------------------------------------- | ------ | ------------------------------------ |
-| `apps/api/src/platform/pbac/pbac-preflight.controller.ts` | Create | `POST /internal/pbac/preflight`      |
-| `apps/api/src/platform/pbac/pbac-preflight.service.ts`    | Create | Re-evaluates PBAC for worker context |
-| `apps/api/src/platform/pbac/pbac.module.ts`               | Modify | Register preflight controller        |
+| `apps/api/src/platform/rbac/rbac-preflight.controller.ts` | Create | `POST /internal/rbac/preflight`      |
+| `apps/api/src/platform/rbac/rbac-preflight.service.ts`    | Create | Re-evaluates RBAC for worker context |
+| `apps/api/src/platform/rbac/rbac.module.ts`               | Modify | Register preflight controller        |
 
 **Python Worker side (specification only — implemented in python-workers tasks):**
 
 | Pattern                                                                          | Notes                                             |
 | -------------------------------------------------------------------------------- | ------------------------------------------------- |
-| Before processing: POST `/internal/pbac/preflight`                               | Pass `userId`, `orgId`, `action`, `correlationId` |
+| Before processing: POST `/internal/rbac/preflight`                               | Pass `userId`, `orgId`, `action`, `correlationId` |
 | If response `decision = deny` → discard message, emit `WORKER_TASK_DENIED` event | Do not process                                    |
 | If response `decision = allow` → process task                                    | Continue                                          |
 
 ## API Contract
 
-**Endpoint:** `POST /internal/pbac/preflight`
+**Endpoint:** `POST /internal/rbac/preflight`
 **Auth:** Internal worker API key (not session-based — workers are server-side)
 
 **Request body:**
@@ -59,7 +59,7 @@ Before a Python worker processes any task-queue message that requires authorizat
 ## Business Rules
 
 1. Endpoint is authenticated via `X-Worker-Api-Key` header (pre-shared secret from env var `WORKER_API_KEY`).
-2. Evaluation is a full PBAC re-evaluation: load membership + policy + call evaluator. Same rules as NestJS guard.
+2. Evaluation is a full RBAC re-evaluation: load membership + policy + call evaluator. Same rules as NestJS guard.
 3. `decision = deny` is returned for revoked membership, expired policy, or action not granted. Never 4xx for policy denial — always 200 with `decision = deny`.
 4. Python worker must discard the task message if `decision = deny`. Task must not be retried — log `WORKER_TASK_DENIED` event.
 5. If preflight endpoint is unreachable: worker fails the task (no silent allow). Retry after backoff.

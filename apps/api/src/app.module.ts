@@ -24,7 +24,6 @@ import { HealthModule } from "./modules/health/health.module.js";
 import { LegalRuleCatalogModule } from "./modules/legal-rule-catalog/legal-rule-catalog.module.js";
 import { ReconciliationModule } from "./modules/reconciliation/reconciliation.module.js";
 import { ScanModule } from "./modules/scan/scan.module.js";
-import { UsersModule } from "./modules/users/users.module.js";
 import { WizardModule } from "./modules/wizard/wizard.module.js";
 import { AuditModule as AuditPlatformModule } from "./platform/audit/audit.module.js";
 import { LoggingContextMiddleware } from "./platform/logging/logging-context.middleware.js";
@@ -33,7 +32,7 @@ import { HttpLoggerMiddleware } from "./platform/logging/http-logger.middleware.
 import { unsafeDevTraceEnabled } from "./platform/logging/dev-unsafe-trace.js";
 import { MailModule } from "./platform/mail/mail.module.js";
 import { OutboxModule } from "./platform/outbox/outbox.module.js";
-import { PbacModule } from "./platform/pbac/pbac.module.js";
+import { RbacModule } from "./platform/rbac/rbac.module.js";
 import { ProblemExceptionFilter } from "./platform/problems/problem-exception.filter.js";
 import { ProblemStatusInterceptor } from "./platform/problems/problem-status.interceptor.js";
 import { StorageModule } from "./platform/storage/storage.module.js";
@@ -100,12 +99,11 @@ function findUpwards(
     AuditPlatformModule,
     MailModule,
     OutboxModule,
-    PbacModule,
+    RbacModule,
     StorageModule,
     AIUsageFlowModule,
     AppFeatureModule,
     AuthWorkspaceModule,
-    UsersModule,
     AssessmentModule,
     EvidenceModule,
     DocumentModule,

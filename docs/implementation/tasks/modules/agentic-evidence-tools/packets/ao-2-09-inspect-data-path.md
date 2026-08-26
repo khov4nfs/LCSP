@@ -34,27 +34,27 @@ AO-3 asks whether declared categories reach a provider/action; dynamic stop rema
 
 ## 7. Errors and Typed Outcomes
 
-Invalid input=`INVALID_ARGUMENT`; no report=`NEEDS_INPUT`; unknown start=`NOT_FOUND`; dynamic/limited/cap path=`OUT_OF_COVERAGE`; PBAC/version=`BLOCKED`; timeout=`FAILED` after one retry.
+Invalid input=`INVALID_ARGUMENT`; no report=`NEEDS_INPUT`; unknown start=`NOT_FOUND`; dynamic/limited/cap path=`OUT_OF_COVERAGE`; RBAC/version=`BLOCKED`; timeout=`FAILED` after one retry.
 
 ## 8–15. Flow, Rules, Logic, LLM, Registry, Audit, Retry, Security
 
-Validate → allow-list/PBAC/version → category projection traversal → stable cap/terminal → coverage + deep privacy check → audit. Registry `DataPathTool`, `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, 3s/one retry/`NONE`. Model receives categories/roles/ref only and may inspect returned reference; forbidden: actual values, raw schemas, default values, source, prompt, secrets, AST or DB access. Audit shared fields/hashes/budget/refs.
+Validate → allow-list/RBAC/version → category projection traversal → stable cap/terminal → coverage + deep privacy check → audit. Registry `DataPathTool`, `LLM_CALLABLE`, `TECHNICAL_EVIDENCE_READ`, 3s/one retry/`NONE`. Model receives categories/roles/ref only and may inspect returned reference; forbidden: actual values, raw schemas, default values, source, prompt, secrets, AST or DB access. Audit shared fields/hashes/budget/refs.
 
 ## 16–18. Scenario, AC, Tests
 
-Model inspects a provider-adjacent symbol; `IDENTIFIER` category appears at ingress but dynamic terminal means it reports partial structural evidence. AC: cap/terminal explicit, categories only, strict/PBAC/audit/privacy.
+Model inspects a provider-adjacent symbol; `IDENTIFIER` category appears at ingress but dynamic terminal means it reports partial structural evidence. AC: cap/terminal explicit, categories only, strict/RBAC/audit/privacy.
 
 | ID | Scenario | Level |
 |---|---|---|
 | TC-01 | ingress-to-provider category trace | integration |
 | TC-02 | category/cap/extra input | contract |
-| TC-03 | dynamic/tenant/PBAC | integration |
+| TC-03 | dynamic/tenant/RBAC | integration |
 | TC-04 | PII value/schema leak | privacy |
 | TC-05 | timeout/audit | worker |
 
 ## 19–22. DoD, Files, Questions, Deliverables
 
-Implement contracts/registry/projection handler/normalizer/API audit/PBAC/tests. OQ-01: ratify category taxonomy ownership (Data governance, OPEN, blocks yes). Deliver definition/schema, mapper, audit/tests.
+Implement contracts/registry/projection handler/normalizer/API audit/RBAC/tests. OQ-01: ratify category taxonomy ownership (Data governance, OPEN, blocks yes). Deliver definition/schema, mapper, audit/tests.
 
 ## Source Authority
 

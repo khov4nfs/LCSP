@@ -8,7 +8,7 @@ epic_story: 3.3
 depends_on:
   - github-integration/03-pin-commit-snapshot-endpoint.md
   - platform/outbox/02-outbox-publisher.md
-  - platform/pbac/03-nestjs-guard.md
+  - platform/rbac/03-nestjs-guard.md
 ---
 
 # Scan Trigger Endpoint
@@ -75,14 +75,14 @@ model RepositoryScanJob {
 
 | HTTP | `error_code`               | Meaning                              |
 | ---- | -------------------------- | ------------------------------------ |
-| 403  | `PBAC_DENIED`              | Actor lacks `scan:trigger`           |
+| 403  | `RBAC_DENIED`              | Actor lacks `scan:trigger`           |
 | 404  | `SNAPSHOT_NOT_FOUND`       | Snapshot not found or not in org     |
 | 409  | `ASSESSMENT_STATE_INVALID` | Assessment state does not allow scan |
 | 400  | `SCAN_BLOCKED_MAPPING`     | Assessment context incomplete        |
 
 ## Business Rules
 
-1. PBAC guard: `action = scan:trigger` for manual triggers. Trusted triggers use `X-Worker-Api-Key`.
+1. RBAC guard: `action = scan:trigger` for manual triggers. Trusted triggers use `X-Worker-Api-Key`.
 2. Validate `snapshot.assessmentId = pathParam.assessmentId` and org-scoped.
 3. Validate `Assessment.status` permits scan trigger (e.g., `WIZARD_SUBMITTED` state).
 4. Idempotency: look up `RepositoryScanJob` by `idempotencyKey`. If found → return existing job (200, `is_new = false`).
@@ -107,7 +107,7 @@ model RepositoryScanJob {
 | T02 | Same `idempotency_key` sent twice                      | 200 existing job returned, `is_new = false` |
 | T03 | Assessment state invalid for scan                      | 409 `ASSESSMENT_STATE_INVALID`              |
 | T04 | Snapshot not in org                                    | 404 `SNAPSHOT_NOT_FOUND`                    |
-| T05 | Actor lacks `scan:trigger`                             | 403 `PBAC_DENIED`                           |
+| T05 | Actor lacks `scan:trigger`                             | 403 `RBAC_DENIED`                           |
 | T06 | Outbox message created                                 | `event.scan.triggered` in `OutboxMessage`   |
 | T07 | Re-run does not mutate prior `TechnicalEvidenceReport` | Prior artifacts untouched                   |
 
@@ -120,7 +120,7 @@ model RepositoryScanJob {
 
 ## Implementation Evidence
 
-- Manual triggers require PBAC `scan:trigger` plus Manager ownership; trusted triggers require a constant-time verified worker API key.
+- Manual triggers require RBAC `scan:trigger` plus Manager ownership; trusted triggers require a constant-time verified worker API key.
 - Snapshot tenant/scope, assessment state, and repository mapping are validated before durable enqueue.
 - Scan job and `scan.triggered` outbox command persist atomically; duplicate delivery returns the existing job with HTTP 200 and emits no second command.
 - Material idempotency conflicts are rejected, while retries can return an existing job after the assessment state advances.

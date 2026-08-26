@@ -5,7 +5,6 @@ import {
   sessionCookieOptions,
 } from "@/lib/session/session-store";
 import { isMockModeEnabled } from "@/lib/server/fixtures/response";
-import { MOCK_WORKSPACE_COOKIE_NAME } from "@/lib/server/fixtures/workspace";
 import { problemJson, successJson } from "@/lib/server/problem-json";
 import { upstreamRequest } from "@/lib/server/upstream-request";
 
@@ -20,10 +19,9 @@ export async function POST(request: Request) {
     const response = successJson({ authenticated: true }, { status: 201 });
     response.cookies.set(
       SESSION_COOKIE_NAME,
-      "mock-session:manager",
+      "mock-session:customer",
       sessionCookieOptions,
     );
-    response.cookies.delete(MOCK_WORKSPACE_COOKIE_NAME);
     return response;
   }
 
@@ -51,7 +49,6 @@ export async function POST(request: Request) {
     upstream.data.session_token,
     sessionCookieOptions,
   );
-  response.cookies.delete(MOCK_WORKSPACE_COOKIE_NAME);
   return response;
 }
 

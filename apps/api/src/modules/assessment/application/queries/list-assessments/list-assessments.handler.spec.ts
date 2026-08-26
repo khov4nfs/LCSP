@@ -3,7 +3,7 @@ import {
   ASSESSMENT_STATUS_CODES,
   WIZARD_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
-import { SUBJECT_ROLES, type SubjectRole } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
 import { UnprocessableEntityException } from "@nestjs/common";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -17,7 +17,6 @@ import { ListAssessmentsQuery } from "./list-assessments.query.js";
 
 function makeAssessment(name = "Assessment") {
   return Assessment.create({
-    organizationId: "org-1",
     ownerId: "user-1",
     name,
   });
@@ -50,7 +49,7 @@ function buildHandler(input: {
 
 function query(
   overrides: Partial<{
-    subjectRole: SubjectRole;
+    subjectRole: AuthUserRole;
     scope: string | null;
     page: number | undefined;
     pageSize: number | undefined;
@@ -58,9 +57,8 @@ function query(
   }> = {},
 ) {
   return new ListAssessmentsQuery(
-    "org-1",
     "user-1",
-    overrides.subjectRole ?? SUBJECT_ROLES.manager,
+    overrides.subjectRole ?? AUTH_USER_ROLES.customer,
     overrides.scope ?? null,
     overrides.page,
     overrides.pageSize,
@@ -101,13 +99,13 @@ describe("ListAssessmentsHandler", () => {
     expect(result.total).toBe(0);
   });
 
-  it("scopes the query to organizationId + ownerId for a Manager", async () => {
+  it("scopes the query to ownerId for a customer", async () => {
     const { handler, findMany } = buildHandler({});
 
-    await handler.execute(query({ subjectRole: SUBJECT_ROLES.manager }));
+    await handler.execute(query({ subjectRole: AUTH_USER_ROLES.customer }));
 
     expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: "org-1", ownerId: "user-1" }),
+      expect.objectContaining({ ownerId: "user-1" }),
     );
     const criteria = findMany.mock.calls[0][0];
     expect(criteria.assessmentId).toBeUndefined();
@@ -147,24 +145,23 @@ describe("ListAssessmentsHandler", () => {
     ).rejects.toThrow(UnprocessableEntityException);
   });
 
-  // T06
-  it("scopes a Developer to only their scoped assessment id", async () => {
-    const { handler, findMany } = buildHandler({});
-
-    await handler.execute(
-      query({ subjectRole: SUBJECT_ROLES.developer, scope: "assessment-42" }),
-    );
-
-    const criteria = findMany.mock.calls[0][0];
-    expect(criteria.assessmentId).toBe("assessment-42");
-    expect(criteria.ownerId).toBeUndefined();
-  });
-
-  it("returns an empty list without querying when a Developer has no scope", async () => {
+  it("returns an empty list without querying for an admin, even with scope", async () => {
     const { handler, findMany } = buildHandler({});
 
     const result = await handler.execute(
-      query({ subjectRole: SUBJECT_ROLES.developer, scope: null }),
+      query({ subjectRole: AUTH_USER_ROLES.admin, scope: "assessment-42" }),
+    );
+
+    expect(result.assessments).toEqual([]);
+    expect(result.total).toBe(0);
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
+  it("returns an empty list without querying when an admin has no scope", async () => {
+    const { handler, findMany } = buildHandler({});
+
+    const result = await handler.execute(
+      query({ subjectRole: AUTH_USER_ROLES.admin, scope: null }),
     );
 
     expect(result.assessments).toEqual([]);

@@ -115,7 +115,6 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
         id: true,
         assessmentId: true,
         snapshotId: true,
-        organizationId: true,
         status: true,
       },
     });
@@ -209,7 +208,6 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
             id: reportId,
             scanJobId: job.id,
             assessmentId: job.assessmentId,
-            organizationId: job.organizationId,
             snapshotId: job.snapshotId,
             toolsVersion: command.payload
               .tools_version as Prisma.InputJsonValue,
@@ -257,7 +255,6 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
             aggregateType: OUTBOX_AGGREGATE_TYPES.technicalEvidenceReport,
             aggregateId: reportId,
             eventType: SCAN_EVENT_TYPES.evidenceAccepted,
-            organizationId: job.organizationId,
             assessmentId: job.assessmentId,
             correlationId: command.correlationId,
             causationId: job.id,
@@ -289,7 +286,6 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
         const auditEvent = buildAuditEventInput({
           eventType: auditEventType,
           actorId: SCANNER_WORKER_ACTOR_ID,
-          organizationId: job.organizationId,
           assessmentId: job.assessmentId,
           resourceType: AUDIT_RESOURCE_TYPES.technicalEvidenceReport,
           resourceId: reportId,
@@ -316,7 +312,6 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
             id: crypto.randomUUID(),
             eventType: auditEvent.eventType,
             actorId: auditEvent.actorId,
-            organizationId: auditEvent.organizationId,
             resourceType: auditEvent.resourceType
               ? toPrismaAuditResourceType(auditEvent.resourceType)
               : null,
@@ -382,12 +377,10 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
     job: {
       id: string;
       assessmentId: string;
-      organizationId: string;
     },
     isRejected: boolean,
   ): Promise<void> {
     const baseEvent = {
-      organizationId: job.organizationId,
       assessmentId: job.assessmentId,
       runId: job.id,
       correlationId: command.correlationId,
@@ -447,7 +440,6 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
     job: {
       id: string;
       assessmentId: string;
-      organizationId: string;
     },
     error: unknown,
   ): Promise<void> {
@@ -456,7 +448,6 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
       buildAuditEventInput({
         eventType: SCAN_EVENT_TYPES.evidenceRejectedAudit,
         actorId: SCANNER_WORKER_ACTOR_ID,
-        organizationId: job.organizationId,
         assessmentId: job.assessmentId,
         resourceType: AUDIT_RESOURCE_TYPES.repositoryScanJob,
         resourceId: job.id,

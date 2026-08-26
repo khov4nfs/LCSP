@@ -7,14 +7,14 @@ status: READY_FOR_DEV
 epic_story: 2.3
 depends_on:
   - assessment/01-create-assessment-endpoint.md
-  - platform/pbac/03-nestjs-guard.md
+  - platform/rbac/03-nestjs-guard.md
 ---
 
 # Get Assessment Endpoint
 
 ## Outcome
 
-Return the full assessment state for a Manager or scoped Developer. Includes current status, WizardProfile completion state, readiness indicators, and next-action guidance. Never shows risk labels when classification is locked.
+Return the full assessment state for the owning Manager. Includes current status, WizardProfile completion state, readiness indicators, and next-action guidance. Never shows risk labels when classification is locked.
 
 ## Module Files
 
@@ -64,7 +64,7 @@ Return the full assessment state for a Manager or scoped Developer. Includes cur
 
 | HTTP | `error_code`           | Meaning                            |
 | ---- | ---------------------- | ---------------------------------- |
-| 403  | `PBAC_DENIED`          | Actor lacks `assessment:read`      |
+| 403  | `RBAC_DENIED`          | Actor lacks `assessment:read`      |
 | 404  | `ASSESSMENT_NOT_FOUND` | ID not found or not in session org |
 
 ## Prisma Models Used
@@ -77,9 +77,9 @@ Return the full assessment state for a Manager or scoped Developer. Includes cur
 
 ## Business Rules
 
-1. PBAC guard: `action = assessment:read`. Scoped Developer may have this action.
+1. RBAC guard: `action = assessment:read`.
 2. Verify `assessment.organizationId = session.organizationId`. If mismatch → `ASSESSMENT_NOT_FOUND`.
-3. If Manager's `ownerId ≠ session.userId` and actor is Manager → `ASSESSMENT_NOT_FOUND` (Managers see own assessments only). Developer sees only if scope allows.
+3. If Manager's `ownerId ≠ session.userId` → `ASSESSMENT_NOT_FOUND` (Managers see own assessments only).
 4. `classification_locked = true` when no accepted `TechnicalEvidenceReport` linked to assessment.
 5. `lock_reason = LOCKED_EVIDENCE_REQUIRED` when classification locked.
 6. `next_action` is a business-language string (never `HIGH/MEDIUM/LOW`, `risk`, `severity`, `violation`, `non-compliant`).
@@ -93,9 +93,9 @@ Return the full assessment state for a Manager or scoped Developer. Includes cur
 | T02 | No technical evidence → `classification_locked = true`     | `lock_reason = LOCKED_EVIDENCE_REQUIRED` |
 | T03 | Accepted evidence exists → `classification_locked = false` | Lock reason null                         |
 | T04 | Assessment not in session org                              | 404 `ASSESSMENT_NOT_FOUND`               |
-| T05 | Manager lacks `assessment:read`                            | 403 `PBAC_DENIED`                        |
+| T05 | Manager lacks `assessment:read`                            | 403 `RBAC_DENIED`                        |
 | T06 | Response has no risk/severity/non-compliant wording        | Verified by field inspection             |
-| T07 | Developer with `assessment:read` scope                     | 200 with scoped projection               |
+| T07 | Non-owner or non-Manager subject                           | 404 or RBAC denial                       |
 | T08 | `next_action` is business language                         | Verified by content                      |
 
 ## Definition of Done

@@ -21,7 +21,6 @@ export class AssessmentMapper {
       name: assessment.name,
       status: assessment.status,
       owner_id: assessment.ownerId,
-      organization_id: assessment.organizationId,
       created_at: assessment.createdAt.toISOString(),
       correlationId: correlationId,
     };

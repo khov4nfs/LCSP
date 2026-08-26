@@ -31,7 +31,7 @@ Missing manifest/Python files=`READY` empty with not-applicable limitation; miss
 
 ## 11–15. LLM, registry, audit and security
 
-`exposed_to_model:false`; a declared package is never an AI-use assertion. Registry `run_deptry_usage_analysis/1.0.0`, `SCAN_EXECUTE`, `SCAN_RUNNING`, action `SCAN_EXECUTE`, refs above, 60/90 s, no mutation/DLQ. Audit config/version/ref/count/result hash/status; redact stderr, temp path, source and environment. Fixed binary/no install/network; PBAC inherits trusted job and validates artifacts.
+`exposed_to_model:false`; a declared package is never an AI-use assertion. Registry `run_deptry_usage_analysis/1.0.0`, `SCAN_EXECUTE`, `SCAN_RUNNING`, action `SCAN_EXECUTE`, refs above, 60/90 s, no mutation/DLQ. Audit config/version/ref/count/result hash/status; redact stderr, temp path, source and environment. Fixed binary/no install/network; RBAC inherits trusted job and validates artifacts.
 
 ## 16–22. Scenario, AC, tests, files
 

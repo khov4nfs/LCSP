@@ -40,7 +40,7 @@ LCSP must verify Wizard targets and discover equivalent technical patterns witho
 
 ## Constraints
 
-- The Python Scanner Worker owns repository scan lifecycle; the API retains PBAC, artifact persistence, and trusted trigger boundaries.
+- The Python Scanner Worker owns repository scan lifecycle; the API retains RBAC, artifact persistence, and trusted trigger boundaries.
 - All model calls traverse the LLM Gateway and use sanitized, schema-constrained inputs.
 - Tools are versioned, allow-listed, bounded by scope/time/cost, and cannot execute customer source, install dependencies, or call arbitrary URLs.
 - Legal retrieval uses approved/active immutable corpus versions, stable hierarchical chunk IDs, and citation allowlists.
@@ -50,7 +50,7 @@ LCSP must verify Wizard targets and discover equivalent technical patterns witho
 
 - Allowing agents to run arbitrary shell commands, fetch arbitrary URLs, or read raw repository source.
 - Letting an LLM make a legal conclusion, activate a corpus, resolve a material conflict, or persist a final classification/gap decision.
-- Replacing deterministic scanner, citation, PBAC, or state-machine enforcement with an LLM.
+- Replacing deterministic scanner, citation, RBAC, or state-machine enforcement with an LLM.
 
 ## Success signal
 

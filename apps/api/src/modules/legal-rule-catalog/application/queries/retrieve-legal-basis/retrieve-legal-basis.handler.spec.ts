@@ -80,11 +80,10 @@ function createHandler(input?: {
 }
 
 function query(
-  input?: Partial<ConstructorParameters<typeof RetrieveLegalBasisQuery>[2]>,
+  input?: Partial<ConstructorParameters<typeof RetrieveLegalBasisQuery>[1]>,
 ) {
   return new RetrieveLegalBasisQuery(
     "assessment-1",
-    "organization-1",
     {
       corpusVersionId: "corpus_corpus-1",
       selectors: { chunkIds: ["chunk_primary1"] },
@@ -92,8 +91,6 @@ function query(
       ...input,
     },
     "user-1",
-    "policy-1",
-    "1",
     "correlation-1",
   );
 }
@@ -208,7 +205,7 @@ describe("RetrieveLegalBasisHandler", () => {
     });
   });
 
-  it("TC-04: fails closed before corpus retrieval for an assessment outside the caller organization", async () => {
+  it("TC-04: fails closed before corpus retrieval for an inaccessible assessment", async () => {
     const { handler, corpusFindFirst } = createHandler({ assessment: null });
 
     await expect(handler.execute(query())).rejects.toBeInstanceOf(

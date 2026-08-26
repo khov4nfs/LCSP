@@ -10,8 +10,6 @@ export const PROBLEM_KEYS = {
   invalidCredentialsDetail: "auth.errors.invalidCredentials.detail",
   invalidInviteStateTitle: "auth.errors.invalidInviteState.title",
   invalidInviteStateDetail: "auth.errors.invalidInviteState.detail",
-  membershipMissingTitle: "auth.errors.membershipMissing.title",
-  membershipMissingDetail: "auth.errors.membershipMissing.detail",
   emailVerificationRequiredTitle: "auth.errors.emailVerificationRequired.title",
   emailVerificationRequiredDetail:
     "auth.errors.emailVerificationRequired.detail",
@@ -19,12 +17,6 @@ export const PROBLEM_KEYS = {
   sessionInvalidDetail: "auth.errors.sessionInvalid.detail",
   temporaryLockTitle: "auth.errors.temporaryLock.title",
   temporaryLockDetail: "auth.errors.temporaryLock.detail",
-  authzPolicyUnavailableTitle: "auth.errors.authzPolicyUnavailable.title",
-  authzPolicyUnavailableDetail: "auth.errors.authzPolicyUnavailable.detail",
-  authzSubjectIncompleteTitle: "auth.errors.authzSubjectIncomplete.title",
-  authzSubjectIncompleteDetail: "auth.errors.authzSubjectIncomplete.detail",
-  authzTenantScopeMismatchTitle: "auth.errors.authzTenantScopeMismatch.title",
-  authzTenantScopeMismatchDetail: "auth.errors.authzTenantScopeMismatch.detail",
   authzStateGateBlockedTitle: "auth.errors.authzStateGateBlocked.title",
   authzStateGateBlockedDetail: "auth.errors.authzStateGateBlocked.detail",
   authzEvaluatorFailureTitle: "auth.errors.authzEvaluatorFailure.title",
@@ -41,8 +33,8 @@ export const PROBLEM_KEYS = {
   mfaRateLimitedDetail: "auth.errors.mfaRateLimited.detail",
   recoveryInvalidTitle: "auth.errors.recoveryInvalid.title",
   recoveryInvalidDetail: "auth.errors.recoveryInvalid.detail",
-  pbacDeniedTitle: "auth.errors.pbacDenied.title",
-  pbacDeniedDetail: "auth.errors.pbacDenied.detail",
+  rbacDeniedTitle: "auth.errors.rbacDenied.title",
+  rbacDeniedDetail: "auth.errors.rbacDenied.detail",
   unsupportedProviderTitle: "auth.errors.unsupportedProvider.title",
   unsupportedProviderDetail: "auth.errors.unsupportedProvider.detail",
   invalidRedirectUriTitle: "auth.errors.invalidRedirectUri.title",
@@ -79,5 +71,4 @@ export type SuccessResult<TData = unknown> = {
 };
 
 export type AppResult<TData = unknown, TCode extends string = AuthErrorCode> =
-  | SuccessResult<TData>
-  | ProblemResult<TCode>;
+  SuccessResult<TData> | ProblemResult<TCode>;

@@ -76,7 +76,7 @@ Describe safe actions. Do not include destructive commands unless separately app
 |---|---|
 | Product owner | User-visible product decision needed |
 | Architecture owner | Contract or authority ambiguity |
-| Security owner | PBAC, secret, raw source, or audit risk |
+| Security owner | RBAC, secret, raw source, or audit risk |
 | Legal domain owner | Corpus, citation, legal version, or allowlist risk |
 
 ## Post-Incident Evidence

@@ -4,7 +4,7 @@ import {
   ASSESSMENT_MISSING_EVIDENCE_CODES,
   WIZARD_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
-import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { CLASSIFICATION_GUARDRAIL_STATUSES } from "@lcsp/contracts/scan";
 import { NotFoundException } from "@nestjs/common";
 
@@ -20,13 +20,11 @@ function resolvedMock<T>(value: T) {
 
 function makeAssessment(
   overrides: Partial<{
-    organizationId: string;
     ownerId: string;
     name: string;
   }> = {},
 ) {
   return Assessment.create({
-    organizationId: overrides.organizationId ?? "org-1",
     ownerId: overrides.ownerId ?? "user-1",
     name: overrides.name ?? "Test Assessment",
   });
@@ -81,10 +79,10 @@ function buildHandler(input: {
 
 function query(
   assessmentId: string,
-  role: GetAssessmentQuery["subjectRole"] = SUBJECT_ROLES.manager,
+  role: GetAssessmentQuery["subjectRole"] = AUTH_USER_ROLES.customer,
   userId = "user-1",
 ) {
-  return new GetAssessmentQuery(assessmentId, "org-1", userId, role, "corr-1");
+  return new GetAssessmentQuery(assessmentId, userId, role, "corr-1");
 }
 
 describe("GetAssessmentHandler direct EngineeringRule runtime", () => {
@@ -330,26 +328,21 @@ describe("GetAssessmentHandler direct EngineeringRule runtime", () => {
     expect(result.readiness_state.missing_evidence).toEqual([]);
   });
 
-  it("hides cross-tenant and non-owned Manager assessments", async () => {
-    const crossTenant = makeAssessment({ organizationId: "org-2" });
-    await expect(
-      buildHandler({ assessment: crossTenant }).execute(query(crossTenant.id)),
-    ).rejects.toThrow(NotFoundException);
-
+  it("hides non-owned customer assessments", async () => {
     const nonOwned = makeAssessment({ ownerId: "user-2" });
     await expect(
       buildHandler({ assessment: nonOwned }).execute(query(nonOwned.id)),
     ).rejects.toThrow(NotFoundException);
   });
 
-  it("allows Developer read after PBAC without exposing removed Manager review chain", async () => {
+  it("rejects non-customer assessment reads after RBAC", async () => {
     const assessment = makeAssessment({ ownerId: "user-2" });
     const handler = buildHandler({ assessment });
 
-    const result = await handler.execute(
-      query(assessment.id, SUBJECT_ROLES.developer, "developer-1"),
-    );
-    expect(result.assessment_id).toBe(assessment.id);
-    expect(result.verified_profile_review).toBeNull();
+    await expect(
+      handler.execute(
+        query(assessment.id, AUTH_USER_ROLES.admin, "system-admin-1"),
+      ),
+    ).rejects.toThrow(NotFoundException);
   });
 });

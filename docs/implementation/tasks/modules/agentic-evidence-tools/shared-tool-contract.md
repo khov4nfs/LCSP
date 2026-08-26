@@ -3,7 +3,7 @@
 Status: DELIVERED
 Applies to: every capability in `docs/specs/spec-agentic-evidence-orchestration/tool-catalog.md`
 Primary runtime owner: `deepagents`
-Supporting boundary owner: `apps/api` for trusted trigger, PBAC, audit, and immutable artifact persistence
+Supporting boundary owner: `apps/api` for trusted trigger, RBAC, audit, and immutable artifact persistence
 
 ## Purpose
 
@@ -14,12 +14,12 @@ This is the executable contract shared by all 55 agentic capabilities. A per-too
 ```mermaid
 sequenceDiagram
   participant O as Orchestrator
-  participant A as API/PBAC boundary
+  participant A as API/RBAC boundary
   participant W as Worker tool registry
   participant R as Immutable read model
   participant L as LLM
   O->>A: typed ToolRequest + correlationId
-  A->>A: PBAC, state, tenant and budget preflight
+  A->>A: RBAC, state, tenant and budget preflight
   A->>W: authorized dispatch reference
   W->>R: bounded sanitized projection
   W->>W: validate/redact/result-limit/audit
@@ -47,7 +47,7 @@ Every request is validated before a worker starts. Fields use canonical contract
 ### Required Preflight
 
 1. Resolve `assessmentId`, organization, and resource ownership; deny on missing/mismatched scope.
-2. Evaluate PBAC with subject, organization, resource, action, runtime context, policy version, and state gate; default deny.
+2. Evaluate RBAC with subject, organization, resource, action, runtime context, policy version, and state gate; default deny.
 3. Verify every referenced artifact/corpus version is immutable, accessible, and valid for the requested workflow state.
 4. Enforce tool allow-list, tool-specific input schema, budget ceiling, and scope selector grammar.
 5. For a mutation, reserve or replay the idempotency record before dispatch; emit an audit event for denial, replay, or execution.
@@ -89,7 +89,7 @@ Every request is validated before a worker starts. Fields use canonical contract
 | Missing required artifact/input                                   | `NEEDS_INPUT`     | Typed requirement and permitted resolver ref.            |
 | Incomplete scanner/corpus coverage                                | `OUT_OF_COVERAGE` | Affected scope and known limitation IDs.                 |
 | Evidence/material state conflict                                  | `CONFLICT`        | Conflict refs; no automatic resolution.                  |
-| PBAC denial, inactive corpus, exhausted retry, invalid transition | `BLOCKED`         | Safe block reason and audit ref.                         |
+| RBAC denial, inactive corpus, exhausted retry, invalid transition | `BLOCKED`         | Safe block reason and audit ref.                         |
 | Unexpected worker/schema/persistence failure                      | `FAILED`          | Safe failure code; retry/DLQ only under severity policy. |
 
 ## Work-creating tool admission
@@ -123,15 +123,15 @@ The orchestrator may provide an LLM only this object: `{toolName, status, result
 
 1. Define the `ToolCapability` registration: exact name, version, action, input/result schema, allowed states, required artifact refs, maximum budget, and mutation flag.
 2. Implement a typed worker handler that accepts only the shared envelope plus tool extension.
-3. Reuse API/PBAC preflight and safe audit writer; do not duplicate authorization in prompt logic.
+3. Reuse API/RBAC preflight and safe audit writer; do not duplicate authorization in prompt logic.
 4. Query/build the named projection with deterministic sorting and server-side limit enforcement.
 5. Run deep privacy validation before response serialization; attach provenance, coverage, evidence refs, limitations, and output hash.
-6. Register the handler in the allow-list and add unit, contract, integration, PBAC, privacy, boundary, and failure/recovery tests.
+6. Register the handler in the allow-list and add unit, contract, integration, RBAC, privacy, boundary, and failure/recovery tests.
 
 ## Shared Definition of Done
 
 - Request/result schemas and canonical values are in `packages/contracts`; no ad hoc string union or TypeScript enum is introduced.
-- Handler rejects unregistered tool, invalid scope, over-budget request, unpinned/stale artifact, PBAC denial, and forbidden payload before LLM exposure.
+- Handler rejects unregistered tool, invalid scope, over-budget request, unpinned/stale artifact, RBAC denial, and forbidden payload before LLM exposure.
 - Every result is deterministic for the same pinned artifacts/config/scope and declares truncation/coverage limits explicitly.
 - Tests assert safe audit content and prove no raw source, secret, full prompt, or AST body crosses callback, persistence, or LLM boundaries.
 

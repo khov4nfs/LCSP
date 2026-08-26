@@ -4,7 +4,7 @@
 
 ## Goal
 
-Enable a Manager, or an optionally assigned Developer acting within explicit PBAC scope, to connect a selected GitHub repository read-only, pin an immutable commit, run or resume a trusted static scan, and review safe technical evidence. The epic produces a validated, versioned TechnicalEvidenceReport and an evidence-derived TechnicalProfile while protecting source and secrets, exposing limitations instead of unsupported certainty, and preserving every prior scan and profile version.
+Enable a Manager, or an optionally assigned Developer acting within explicit RBAC scope, to connect a selected GitHub repository read-only, pin an immutable commit, run or resume a trusted static scan, and review safe technical evidence. The epic produces a validated, versioned TechnicalEvidenceReport and an evidence-derived TechnicalProfile while protecting source and secrets, exposing limitations instead of unsupported certainty, and preserving every prior scan and profile version.
 
 ## Stories
 
@@ -22,14 +22,14 @@ Enable a Manager, or an optionally assigned Developer acting within explicit PBA
 
 ## Requirements & Constraints
 
-- GitHub App authorization must remain separate from OAuth/OIDC identity login, request only read access, and restrict selection and scanning to authorized repositories, branches, organizations, assessments, and PBAC scope. Repository tokens must never appear in UI, logs, audit records, or API responses.
+- GitHub App authorization must remain separate from OAuth/OIDC identity login, request only read access, and restrict selection and scanning to authorized repositories, branches, organizations, assessments, and RBAC scope. Repository tokens must never appear in UI, logs, audit records, or API responses.
 - Manager completion must not depend on Developer participation. Developer access is optional, assignment-specific, revocable, expiry-aware, server-enforced, and limited to permitted repository or redacted-finding tasks; inaccessible data must remain hidden.
 - Every scan must bind to an immutable RepositorySnapshot identified by repository, ref, commit SHA, provider metadata, assessment, actor, and timestamp. Unresolvable or out-of-scope refs must fail before any scan is queued.
 - Scanning is static-analysis only. It must not install dependencies, execute customer code, builds, tests, scripts, containers, or CI, or probe endpoints. Raw source may exist only temporarily in the restricted scanner workspace, must never go to an LLM, and must be verifiably cleaned after completion, failure, or timeout.
 - Scan execution must be bounded by file size, time, CPU, memory, output, and retry limits. Unsupported languages or tools and partial results must be represented as coverage limitations, not successful evidence.
 - Accepted evidence must pass schema, provenance, privacy, integrity, and quality gates. It must contain tool versions, configuration and ruleset hashes, snapshot provenance, finding references, confidence, privacy flags, coverage limitations, report hash, and generation time; raw source, secrets, full prompts, full AST dumps, unsafe identifiers, or missing provenance require rejection.
 - TechnicalProfile must be generated only from accepted technical evidence. Unknown, low-confidence, stale, insufficient, or coverage-limited dimensions must remain explicit; Manager declarations cannot substitute for scanner evidence. The profile is neither AIUsageFlow nor VerifiedProfile and must not express risk, legal conclusions, compliance status, or certification.
-- All protected reads, actions, triggers, state transitions, denials, gate failures, and evidence acceptance decisions require PBAC enforcement and append-oriented audit metadata including scope, identity, entity, action, outcome, correlation ID, and timestamp.
+- All protected reads, actions, triggers, state transitions, denials, gate failures, and evidence acceptance decisions require RBAC enforcement and append-oriented audit metadata including scope, identity, entity, action, outcome, correlation ID, and timestamp.
 - Manual technical-evidence JSON upload, Local/CI report upload as an MVP evidence path, structured technical attestation, and delegated free-form clarification must be absent or safely denied and must never create accepted evidence.
 
 ## Technical Decisions

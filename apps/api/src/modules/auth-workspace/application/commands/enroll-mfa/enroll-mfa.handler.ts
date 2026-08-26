@@ -107,7 +107,6 @@ export class EnrollMfaHandler {
       await this.support.recordAudit(this.repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRecoveryCodesGenerated,
         actor_id: session.userId,
-        organization_id: session.organizationId,
         resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
         resource_id: batchId,
         decision: AUDIT_DECISIONS.allow,
@@ -119,7 +118,6 @@ export class EnrollMfaHandler {
       await this.support.recordAudit(this.repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRecoveryCodeViewed,
         actor_id: session.userId,
-        organization_id: session.organizationId,
         resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
         resource_id: batchId,
         decision: AUDIT_DECISIONS.allow,
@@ -132,7 +130,6 @@ export class EnrollMfaHandler {
     await this.support.recordAudit(this.repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaEnrolled,
       actor_id: session.userId,
-      organization_id: session.organizationId,
       decision: AUDIT_DECISIONS.allow,
       correlationId: correlationId,
     });

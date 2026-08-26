@@ -1,14 +1,11 @@
 import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import { WIZARD_EVENT_TYPES } from "@lcsp/contracts/wizard";
-import { HttpStatus, Inject } from "@nestjs/common";
+import { Inject } from "@nestjs/common";
 import type { ICommandHandler } from "@nestjs/cqrs";
 import { CommandHandler } from "@nestjs/cqrs";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { WizardProfileEntity } from "../../../domain/entities/wizard-profile.entity.js";
 import {
   AssessmentNotFoundException,
@@ -34,14 +31,11 @@ export class SaveWizardDraftHandler implements ICommandHandler<
   async execute(
     command: SaveWizardDraftCommand,
   ): Promise<SaveWizardDraftResponse> {
-    const { assessmentId, organizationId, ownerId, answers, correlationId } =
-      command;
-    await this.assertManagerOnlyAction(command);
+    const { assessmentId, ownerId, answers, correlationId } = command;
 
     // 1. Verify assessment exists and is owned by caller
     const isOwned = await this.wizardRepository.verifyAssessmentOwnership(
       assessmentId,
-      organizationId,
       ownerId,
     );
     if (!isOwned) {
@@ -72,7 +66,6 @@ export class SaveWizardDraftHandler implements ICommandHandler<
     } else {
       profile = new WizardProfileEntity({
         assessmentId,
-        organizationId,
         ownerId,
         version: 1,
         status: WIZARD_STATUS_CODES.inProgress,
@@ -87,12 +80,9 @@ export class SaveWizardDraftHandler implements ICommandHandler<
     await this.auditWriter.write({
       eventType: WIZARD_EVENT_TYPES.draftSaved,
       actorId: ownerId,
-      organizationId,
       resourceType: AUDIT_RESOURCE_TYPES.wizardProfile,
       resourceId: savedProfile.id,
       decision: AUDIT_DECISIONS.allow,
-      policyId: command.authorization.policyId,
-      policyVersion: command.authorization.policyVersion,
       payload: {
         assessmentId,
         wizardProfileId: savedProfile.id,
@@ -109,39 +99,5 @@ export class SaveWizardDraftHandler implements ICommandHandler<
       updated_at: savedProfile.updatedAt.toISOString(),
       correlationId: correlationId,
     };
-  }
-
-  private async assertManagerOnlyAction(
-    command: SaveWizardDraftCommand,
-  ): Promise<void> {
-    const allowed =
-      command.authorization.subjectRole === SUBJECT_ROLES.manager &&
-      command.authorization.selectedAction === PBAC_ACTIONS.wizardWrite &&
-      command.authorization.policyId !== null &&
-      command.authorization.policyVersion !== null;
-
-    if (allowed) return;
-
-    await this.auditWriter.write({
-      eventType: WIZARD_EVENT_TYPES.draftSaved,
-      actorId: command.ownerId,
-      organizationId: command.organizationId,
-      resourceType: AUDIT_RESOURCE_TYPES.wizardProfile,
-      resourceId: null,
-      decision: AUDIT_DECISIONS.deny,
-      reasonCode: AUTH_ERROR_CODES.pbacDenied,
-      correlationId: command.correlationId,
-      policyId: command.authorization.policyId,
-      policyVersion: command.authorization.policyVersion,
-      payload: {
-        assessmentId: command.assessmentId,
-        action: PBAC_ACTIONS.wizardWrite,
-        result: AUDIT_DECISIONS.deny,
-      },
-    });
-
-    throw problemException(AUTH_ERROR_CODES.pbacDenied, command.correlationId, {
-      status: HttpStatus.FORBIDDEN,
-    });
   }
 }

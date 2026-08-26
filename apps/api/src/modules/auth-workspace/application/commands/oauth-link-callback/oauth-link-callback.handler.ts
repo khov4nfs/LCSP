@@ -143,7 +143,6 @@ export class OAuthLinkCallbackHandler {
     await this.support.recordAudit(this.repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLinkSucceeded,
       actor_id: command.userId,
-      organization_id: command.organizationId,
       decision: AUDIT_DECISIONS.allow,
       correlationId: correlationId,
       provider: oauthState.provider,
@@ -166,7 +165,6 @@ export class OAuthLinkCallbackHandler {
     await this.support.recordAudit(this.repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLinkFailed,
       actor_id: command.userId,
-      organization_id: command.organizationId,
       decision: AUDIT_DECISIONS.deny,
       reason_code: reasonCode,
       correlationId: correlationId,

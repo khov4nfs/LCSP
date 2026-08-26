@@ -17,7 +17,7 @@ Các ID cũ như `UC-MXX-XX`, `FR-E*`, `FR-057..FR-082`, `NFR-031`, `NFR-032` ch
 
 ### Danh tính và quản trị
 
-Đăng ký, đăng nhập, MFA, session, OAuth/OIDC, organization, membership, PBAC policy và scoped Developer policy. OAuth login và GitHub repository permission là hai quyền độc lập.
+Đăng ký, đăng nhập, MFA, session, OAuth/OIDC, organization, membership và PBAC policy. OAuth login và GitHub repository permission là hai quyền độc lập.
 
 ### Assessment và repository
 
@@ -63,7 +63,7 @@ Bài nghiệm thu chuẩn sử dụng hạ tầng thật:
 - LLM provider thật;
 - document artifact và audit export thật.
 
-Manager phải hoàn thành từ đăng nhập đến xuất audit mà không phụ thuộc Developer. Mock LLM không đủ điều kiện cho nghiệm thu A-to-Z.
+Manager phải hoàn thành từ đăng nhập đến xuất audit mà không phụ thuộc cộng tác viên bên ngoài. Mock LLM không đủ điều kiện cho nghiệm thu A-to-Z.
 
 ## Negative paths bắt buộc
 

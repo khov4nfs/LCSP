@@ -14,7 +14,7 @@ LCSP is an evidence-based compliance support platform for businesses using AI in
 
 ## Phase 5.2L Product Corrections
 
-- PBAC replaces RBAC as authorization source of truth. Roles are attributes/templates only.
+- RBAC replaces RBAC as authorization source of truth. Roles are attributes/templates only.
 - Structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP` and removed from active product scope.
 - Compliance certification, formal legal opinion, direct regulator submission, and manual technical evidence JSON upload (`FR-051`) are `REMOVED_FROM_PRODUCT`.
 - `FR-050` is `AUTOMATIC_TRUSTED_SCAN_INITIATION`, not Local/CI scanner report upload.
@@ -41,8 +41,7 @@ Manager intent
 
 - Manager-led assessment lifecycle.
 - OAuth/OIDC login separated from GitHub App repository authorization.
-- Optional Developer collaboration through scoped tasks.
-- Optional Developer collaboration through scoped tasks with independent product value.
+- Self-signup and Manager-owned workspace entry.
 - Read-only GitHub repository connection and commit-pinned Repository Scan.
 - Python Worker Platform-owned asynchronous domain work.
 - Python Scanner Worker static analysis with Syft, Knip, deptry, Python `ast`/`libcst`, bounded `ts-morph`, tree-sitter/custom parser, and Semgrep custom rules.
@@ -68,32 +67,31 @@ Manager intent
 
 ## Primary Product Actors
 
-| Actor | Responsibility | Key Tasks |
-|---|---|---|
-| Manager | Owns assessment, business/legal truth, final MVP conflict resolution, classification request, report generation, and audit review. | Create assessment, complete Wizard, connect repository, start scan, review evidence, resolve conflicts, request classification, generate/download report, export audit. |
-| Developer | Optional scoped technical collaborator. | Accept task, review redacted findings, support repository/evidence correction within PBAC policy scope. |
-| LCSP System | Enforces workflow gates, state transitions, evidence handling, queue choreography, retrieval, audit, and output guardrails. | Execute workers, persist domain objects, publish commands/events, block unsafe output. |
+| Actor       | Responsibility                                                                                                                     | Key Tasks                                                                                                                                                               |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Manager     | Owns assessment, business/legal truth, final MVP conflict resolution, classification request, report generation, and audit review. | Create assessment, complete Wizard, connect repository, start scan, review evidence, resolve conflicts, request classification, generate/download report, export audit. |
+| LCSP System | Enforces workflow gates, state transitions, evidence handling, queue choreography, retrieval, audit, and output guardrails.        | Execute workers, persist domain objects, publish commands/events, block unsafe output.                                                                                  |
 
-Manager can complete the active MVP golden path without Developer participation. Developer absence is never a workflow blocker.
+Manager can complete the active MVP golden path without external collaborator participation.
 
 ## Internal Operations Actor
 
-| Actor | Responsibility | UX Boundary |
-|---|---|---|
-| Internal Legal Operator | Validates official-source URLs, reviews normalized legal documents, approves or rejects corpus versions, and audits corpus changes. | Internal operations/API/CLI only for MVP. No Manager/Developer product screen is required by `bmad-ux`. |
+| Actor                   | Responsibility                                                                                                                      | UX Boundary                                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Internal Legal Operator | Validates official-source URLs, reviews normalized legal documents, approves or rejects corpus versions, and audits corpus changes. | Internal operations/API/CLI only for MVP. No Manager product screen is required by `bmad-ux`. |
 
 This boundary is locked for the MVP. A future dedicated Legal Operator web console would require a separate scope decision and stories.
 
 ## External Systems
 
-| System | Used For | Boundary |
-|---|---|---|
-| OAuth/OIDC Provider | User login and identity verification. | Does not grant repository access. |
-| GitHub App | Read-only selected repository access and commit snapshot. | Separate from user login. |
-| Official Legal Sources | Legal document ingestion and provenance. | Source candidates require validation before ingestion is accepted. |
-| Legal Corpus / ChromaDB Vectorless Retriever | Versioned legal retrieval and citation traceability. | Approved immutable corpus only; retrieval uses legal structure, metadata/full-text lookup, xref expansion and citation allowlists. |
-| LLM Provider | Structured assisted classification/generation. | No raw source, secrets, full prompts, or full AST bodies. |
-| Object Storage | Legal source snapshots and generated document artifacts. | Real S3-compatible storage for A-to-Z acceptance. |
+| System                                       | Used For                                                  | Boundary                                                                                                                           |
+| -------------------------------------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| OAuth/OIDC Provider                          | User login and identity verification.                     | Does not grant repository access.                                                                                                  |
+| GitHub App                                   | Read-only selected repository access and commit snapshot. | Separate from user login.                                                                                                          |
+| Official Legal Sources                       | Legal document ingestion and provenance.                  | Source candidates require validation before ingestion is accepted.                                                                 |
+| Legal Corpus / ChromaDB Vectorless Retriever | Versioned legal retrieval and citation traceability.      | Approved immutable corpus only; retrieval uses legal structure, metadata/full-text lookup, xref expansion and citation allowlists. |
+| LLM Provider                                 | Structured assisted classification/generation.            | No raw source, secrets, full prompts, or full AST bodies.                                                                          |
+| Object Storage                               | Legal source snapshots and generated document artifacts.  | Real S3-compatible storage for A-to-Z acceptance.                                                                                  |
 
 ## High-Level Manager Journey
 
@@ -112,16 +110,16 @@ Login
 -> Review and Export Audit Trail
 ```
 
-## Optional Developer Journey
+## Retired Developer Journey
 
 ```text
-Receive invitation/task
--> Accept scoped task
--> Review redacted technical findings
--> Stop at delegated scope
+Developer invitation
+-> invitation acceptance
+-> scoped task workspace
+-> membership revocation UI/API
 ```
 
-The active Developer path does not include a free-form clarification workflow or structured attestation. Any Developer collaboration must have independent product value and must not exist solely to preserve attestation.
+This path is retired from the active MVP. Historical `AUTH_INVITATION` audit resource values may remain for old audit records only.
 
 ## Internal Legal Operations Journey
 
@@ -136,7 +134,7 @@ Validate source URL
 -> Make approved version available to retrieval
 ```
 
-This journey is not part of the Manager/Developer product UX deliverable.
+This journey is not part of the Manager product UX deliverable.
 
 ## Assessment Lifecycle
 
@@ -185,4 +183,4 @@ A final report requires classification, gap analysis, evidence trace, legal cita
 
 ## UX Handoff Boundary
 
-`bmad-ux` must design Manager and optional Developer product flows only. It must represent blocked, failed, loading, retry, empty, and permission-denied states. Internal Legal Operator corpus administration remains outside the customer-facing UX scope for MVP.
+`bmad-ux` must design Manager product flows only. It must represent blocked, failed, loading, retry, empty, and permission-denied states. Developer invitations/tasks and Internal Legal Operator corpus administration remain outside the customer-facing UX scope for MVP.

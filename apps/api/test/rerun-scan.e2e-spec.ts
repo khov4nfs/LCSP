@@ -6,7 +6,6 @@ import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 
 import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
-import { PBAC_ACTIONS, PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
 import {
   GITHUB_INTEGRATION_ERROR_CODES,
   GITHUB_INTEGRATION_EVENT_TYPES,
@@ -23,6 +22,7 @@ import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
+  seedRepositorySnapshotGraph,
   TEST_DATABASE_URL,
 } from "./support/auth-workspace-test-helpers.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
@@ -60,7 +60,6 @@ describe("Re-Run Scan Endpoint (e2e) [MW-scan-003]", () => {
     await prisma.assessment.create({
       data: {
         id: "assessment-1",
-        organizationId: "org-1",
         ownerId: "user-1",
         name: "Scan assessment",
         status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
@@ -88,7 +87,6 @@ describe("Re-Run Scan Endpoint (e2e) [MW-scan-003]", () => {
         id: "prior-scan-job",
         assessmentId: "assessment-1",
         snapshotId: "snapshot-1",
-        organizationId: "org-1",
         idempotencyKey: "scan-request:assessment-1:snapshot-1:0",
         triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
         status: REPOSITORY_SCAN_JOB_STATUSES.completed,
@@ -148,27 +146,18 @@ describe("Re-Run Scan Endpoint (e2e) [MW-scan-003]", () => {
     assert.equal(await prisma.repositoryScanJob.count(), 1);
   });
 
-  it("T04: Actor lacks scan:trigger denies access", async () => {
-    await prisma.authPolicy.update({
-      where: {
-        id_version: {
-          id: "policy-manager-workspace",
-          version: "2026-06-26",
-        },
-      },
-      data: { actions: [PBAC_ACTIONS.workspaceRead] },
-    });
-
-    const response = await triggerRerun(app, managerToken);
-
-    assert.equal(response.status, 403);
-    assert.equal(problemCode(response), PBAC_REASON_CODE.denied);
-  });
-
   it("T05: Snapshot not in org returns 404", async () => {
+    await prisma.assessment.create({
+      data: {
+        id: "assessment-other",
+        ownerId: "user-2",
+        name: "Other assessment",
+        status: ASSESSMENT_STATUS_CODES.wizardSubmitted,
+      },
+    });
     await prisma.repositorySnapshot.update({
       where: { id: "snapshot-1" },
-      data: { organizationId: "org-other" },
+      data: { assessmentId: "assessment-other" },
     });
 
     const response = await triggerRerun(app, managerToken);
@@ -193,18 +182,19 @@ function triggerRerun(app: INestApplication, token: string) {
 }
 
 async function createSnapshot(prisma: PrismaClient, id: string): Promise<void> {
-  await prisma.repositorySnapshot.create({
+  await seedRepositorySnapshotGraph(prisma, {
+    assessmentId: "assessment-1",
+    userId: "user-1",
+    connectionId: "connection-1",
+    snapshotId: id,
+    repositoryId: "repo-1",
+  });
+  await prisma.repositorySnapshot.update({
+    where: { id },
     data: {
-      id,
-      assessmentId: "assessment-1",
-      organizationId: "org-1",
-      connectionId: "connection-1",
-      repositoryId: "repo-1",
-      repositoryFullName: "acme/example-repo",
       branch: "main",
       commitSha: "a".repeat(40),
       providerMetadata: { requestedRevision: "main" },
-      actorId: "user-1",
       status: REPOSITORY_SNAPSHOT_STATUSES.ready,
     },
   });

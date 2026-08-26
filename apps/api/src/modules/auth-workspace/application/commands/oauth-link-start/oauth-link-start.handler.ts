@@ -94,7 +94,6 @@ export class OAuthLinkStartHandler {
     await this.support.recordAudit(this.repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthStartSucceeded,
       actor_id: command.userId,
-      organization_id: null,
       decision: AUDIT_DECISIONS.allow,
       correlationId: correlationId,
       provider: providerName,
@@ -116,7 +115,6 @@ export class OAuthLinkStartHandler {
     await this.support.recordAudit(this.repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthStartFailed,
       actor_id: actorId,
-      organization_id: null,
       decision: AUDIT_DECISIONS.deny,
       reason_code: reasonCode,
       correlationId: correlationId,

@@ -79,7 +79,7 @@ As a Manager, I want an Evidence Readiness Report when final classification is u
 
 - Gap analysis, document generation và artifact persistence chạy ở async worker chain; API/Web chỉ request, track status và serve authorized downloads/views.
 - Document generation phải tiêu thụ Classification + GapAnalysis + citations/evidence appendix; không được chạy trực tiếp từ classification event.
-- Audit export là domain riêng, chịu PBAC + redaction policy rõ ràng trước khi download.
+- Audit export là domain riêng, chịu RBAC + redaction policy rõ ràng trước khi download.
 
 ### Functional and Domain Requirements
 
@@ -98,7 +98,7 @@ As a Manager, I want an Evidence Readiness Report when final classification is u
 
 - Final report chỉ hợp lệ khi `CLASSIFICATION_READY`, `GAP_ANALYSIS_READY`, citations valid và không còn unresolved material conflict.
 - Document blocked, readiness-generated, final generated và audit-export-generated đều phải có audit trail và status projection rõ.
-- Artifact downloads/exports phải tuân PBAC scope và giữ immutable history/superseded version semantics.
+- Artifact downloads/exports phải tuân RBAC scope và giữ immutable history/superseded version semantics.
 
 ### File Structure Notes
 

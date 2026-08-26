@@ -21,17 +21,17 @@ class ConflictDetectionBoundary(AgentBoundaryBase):
 
     boundary_source = "intelligence.ai-usage-flow-ready"
     source_event = "event.ai-usage-flow.ready.v1"
-    requires_pbac = False
+    requires_rbac = False
 
     def __init__(
         self,
         config,
-        pbac_client=None,
+        rbac_client=None,
         api_client: WorkerApiClient | None = None,
         detector: ConflictDetector | None = None,
     ) -> None:
         """Create the boundary with injectable API and conflict-detector adapters."""
-        super().__init__(config, pbac_client)
+        super().__init__(config, rbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
             config.worker_api_key,

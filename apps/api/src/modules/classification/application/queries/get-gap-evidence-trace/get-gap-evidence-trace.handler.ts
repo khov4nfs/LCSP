@@ -64,7 +64,7 @@ export class GetGapEvidenceTraceHandler implements IQueryHandler<
     query: GetGapEvidenceTraceQuery,
   ): Promise<GetGapEvidenceTraceResponse> {
     const assessment = await this.prisma.assessment.findFirst({
-      where: { id: query.assessmentId, organizationId: query.organizationId },
+      where: { id: query.assessmentId },
       select: { id: true },
     });
     if (!assessment) {
@@ -88,7 +88,6 @@ export class GetGapEvidenceTraceHandler implements IQueryHandler<
       where: {
         id: parsed.classificationId,
         assessmentId: assessment.id,
-        organizationId: query.organizationId,
         status: EvidenceAcceptanceStatus.ACCEPTED,
       },
       select: {
@@ -113,7 +112,6 @@ export class GetGapEvidenceTraceHandler implements IQueryHandler<
           where: {
             id: classification.legalRuleMatchId,
             assessmentId: assessment.id,
-            organizationId: query.organizationId,
             status: EvidenceAcceptanceStatus.ACCEPTED,
           },
           select: {
@@ -128,7 +126,6 @@ export class GetGapEvidenceTraceHandler implements IQueryHandler<
               where: {
                 id: classification.verifiedProfileId,
                 assessmentId: assessment.id,
-                organizationId: query.organizationId,
               },
               select: {
                 id: true,
@@ -139,7 +136,6 @@ export class GetGapEvidenceTraceHandler implements IQueryHandler<
         this.prisma.technicalEvidenceReport.findFirst({
           where: {
             assessmentId: assessment.id,
-            organizationId: query.organizationId,
             status: toPrismaEvidenceAcceptanceStatus(
               TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
             ),
@@ -191,7 +187,6 @@ export class GetGapEvidenceTraceHandler implements IQueryHandler<
     await this.auditWriter.write({
       eventType: AGENTIC_TOOL_EVENT_TYPES.gapEvidenceTraceRead,
       actorId: query.actorId,
-      organizationId: query.organizationId,
       assessmentId: assessment.id,
       resourceType: AUDIT_RESOURCE_TYPES.assessment,
       resourceId: assessment.id,

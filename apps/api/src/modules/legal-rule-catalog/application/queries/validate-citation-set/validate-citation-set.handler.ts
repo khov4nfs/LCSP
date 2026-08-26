@@ -45,7 +45,7 @@ export class ValidateCitationSetHandler implements IQueryHandler<
     query: ValidateCitationSetQuery,
   ): Promise<ValidateCitationSetResponse> {
     const assessment = await this.prisma.assessment.findFirst({
-      where: { id: query.assessmentId, organizationId: query.organizationId },
+      where: { id: query.assessmentId },
       select: { id: true },
     });
     if (!assessment) {
@@ -70,7 +70,6 @@ export class ValidateCitationSetHandler implements IQueryHandler<
         where: {
           id: matchId,
           assessmentId: assessment.id,
-          organizationId: query.organizationId,
           corpusVersionId: corpusId,
           status: EvidenceAcceptanceStatus.ACCEPTED,
           guardrailStatus: LegalRuleMatchGuardrailStatus.PASSED,
@@ -175,13 +174,10 @@ export class ValidateCitationSetHandler implements IQueryHandler<
     await this.auditWriter.write({
       eventType: AGENTIC_TOOL_EVENT_TYPES.citationSetValidated,
       actorId: query.actorId,
-      organizationId: query.organizationId,
       assessmentId,
       resourceType: AUDIT_RESOURCE_TYPES.assessment,
       resourceId: assessmentId,
       correlationId: query.correlationId,
-      policyId: query.policyId,
-      policyVersion: query.policyVersion,
       decision:
         response.status === AGENTIC_TOOL_STATUSES.ready
           ? AUDIT_DECISIONS.allow

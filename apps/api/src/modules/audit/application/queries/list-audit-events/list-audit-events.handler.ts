@@ -1,5 +1,4 @@
 import { AUDIT_ERROR_CODES } from "@lcsp/contracts/audit";
-import { ORGANIZATION_SCOPE_ERROR_CODES } from "@lcsp/contracts/auth";
 import { HttpStatus } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import type { Prisma } from "@prisma/client";
@@ -20,7 +19,7 @@ const MAX_PAGE_SIZE = 100;
 const MAX_DATE_RANGE_MS = 90 * 24 * 60 * 60 * 1_000;
 
 /**
- * Lists tenant-scoped audit events with bounded pagination/date filters and redacted payloads.
+ * Lists audit events with bounded pagination/date filters and redacted payloads.
  */
 @QueryHandler(ListAuditEventsQuery)
 export class ListAuditEventsHandler implements IQueryHandler<ListAuditEventsQuery> {
@@ -36,20 +35,13 @@ export class ListAuditEventsHandler implements IQueryHandler<ListAuditEventsQuer
   ) {}
 
   /**
-   * Validates tenant/filter inputs, retrieves a page of audit events, and redacts each payload.
+   * Validates filter inputs, retrieves a page of audit events, and redacts each payload.
    *
-   * @param query - Tenant scope, filters, pagination, and correlation context for the audit list request.
+   * @param query - Filters, pagination, and correlation context for the audit list request.
    * @returns Paginated audit event summaries with sanitized payloads.
-   * @throws When tenant scope, pagination, date syntax, or date-range constraints are invalid.
+   * @throws When pagination, date syntax, or date-range constraints are invalid.
    */
   async execute(query: ListAuditEventsQuery): Promise<AuditEventListDto> {
-    if (query.organizationId !== query.sessionOrganizationId) {
-      this.badRequest(
-        ORGANIZATION_SCOPE_ERROR_CODES.mismatch,
-        query.correlationId,
-      );
-    }
-
     const page = this.positiveInteger(
       query.page,
       DEFAULT_PAGE,
@@ -85,7 +77,6 @@ export class ListAuditEventsHandler implements IQueryHandler<ListAuditEventsQuer
     }
 
     const where: Prisma.AuthAuditEventWhereInput = {
-      organizationId: query.organizationId,
       ...(query.eventType ? { eventType: query.eventType } : {}),
       ...(query.actorId ? { actorId: query.actorId } : {}),
       ...(fromDate || toDate
@@ -109,7 +100,6 @@ export class ListAuditEventsHandler implements IQueryHandler<ListAuditEventsQuer
           id: true,
           eventType: true,
           actorId: true,
-          organizationId: true,
           decision: true,
           payload: true,
           createdAt: true,
@@ -121,7 +111,6 @@ export class ListAuditEventsHandler implements IQueryHandler<ListAuditEventsQuer
       event_id: row.id,
       event_type: row.eventType,
       actor_id: row.actorId,
-      organization_id: row.organizationId ?? query.organizationId,
       decision: row.decision ? fromPrismaAuthDecision(row.decision) : null,
       payload: this.redactor.redact(row.payload),
       occurred_at: row.createdAt.toISOString(),

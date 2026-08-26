@@ -29,7 +29,7 @@ Consume `ai-usage-flow-ready` events and detect reconciliation conflicts between
 |---|---|
 | Queue | `intelligence.ai-usage-flow-ready` |
 | Routing key | `ai-usage-flow-ready` |
-| PBAC preflight | No (system event) |
+| RBAC preflight | No (system event) |
 
 ## Conflict Detection Logic
 
@@ -86,7 +86,7 @@ conflict_score = (evidence_confidence_weight * contradiction_severity) / normali
 
 ## Implementation Evidence
 
-- Added `ConflictDetectionConsumer` for queue `intelligence.ai-usage-flow-ready`, routing key `ai-usage-flow-ready`, and no PBAC preflight.
+- Added `ConflictDetectionConsumer` for queue `intelligence.ai-usage-flow-ready`, routing key `ai-usage-flow-ready`, and no RBAC preflight.
 - Added deterministic `ConflictDetector` for:
   - `evidence_contradiction`
   - `scope_mismatch`

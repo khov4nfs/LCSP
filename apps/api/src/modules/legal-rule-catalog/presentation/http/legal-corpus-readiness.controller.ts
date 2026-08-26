@@ -11,11 +11,11 @@ import {
 } from "@nestjs/common";
 import { QueryBus } from "@nestjs/cqrs";
 import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { GetLegalCorpusReadinessQuery } from "../../application/queries/get-legal-corpus-readiness/get-legal-corpus-readiness.query.js";
@@ -32,8 +32,8 @@ export class LegalCorpusReadinessController {
   constructor(private readonly queryBus: QueryBus) {}
 
   @Get(":assessmentId/legal-corpus-readiness")
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.legalCorpusRead)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.admin)
   async getLegalCorpusReadiness(
     @Param("assessmentId") assessmentId: string,
     @Query() query: Record<string, unknown>,
@@ -45,12 +45,9 @@ export class LegalCorpusReadinessController {
       await this.queryBus.execute(
         new GetLegalCorpusReadinessQuery(
           assessmentId,
-          request.pbacContext.organizationId,
           input.effectiveDate,
           input.pinnedCorpusVersionId,
-          request.pbacContext.userId,
-          request.pbacContext.policyId,
-          request.pbacContext.policyVersion,
+          request.rbacContext.userId,
           correlationId,
         ),
       ),

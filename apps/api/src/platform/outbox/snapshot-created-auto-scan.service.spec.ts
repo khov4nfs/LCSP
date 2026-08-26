@@ -37,7 +37,6 @@ describe("SnapshotCreatedAutoScanService", () => {
       payload: {
         snapshotId: "snapshot-1",
         assessmentId: "assessment-1",
-        organizationId: "org-1",
         correlationId: "corr-1",
         actor: {
           id: "user-1",
@@ -58,7 +57,6 @@ describe("SnapshotCreatedAutoScanService", () => {
       "snapshot-auto:assessment-1:snapshot-1",
     );
     expect(command.actorId).toBe("user-1");
-    expect(command.organizationId).toBe("org-1");
   });
 
   it("uses a fallback trusted correlationId when the payload omits one", async () => {
@@ -71,7 +69,6 @@ describe("SnapshotCreatedAutoScanService", () => {
       payload: {
         snapshotId: "snapshot-1",
         assessmentId: "assessment-1",
-        organizationId: "org-1",
       },
     });
 
@@ -90,7 +87,6 @@ describe("SnapshotCreatedAutoScanService", () => {
       payload: {
         snapshotId: "snapshot-1",
         assessmentId: "assessment-1",
-        organizationId: "org-1",
       },
     });
 

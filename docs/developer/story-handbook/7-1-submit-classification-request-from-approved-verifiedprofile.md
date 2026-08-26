@@ -8,7 +8,7 @@ As a Manager, I want to request classification only after VerifiedProfile and le
 
 ## Acceptance Criteria
 
-1. **Given** Manager has PBAC permission and an approved VerifiedProfile exists
+1. **Given** Manager has RBAC permission and an approved VerifiedProfile exists
    **When** Manager requests classification
    **Then** LCSP validates assessment state, VerifiedProfile approval, LegalMatchingResult readiness, `classificationEligible=true`, citation coverage, blocking reasons, retrieval audit ID, and required evidence gates
    **And** creates a classification request with assessment ID, VerifiedProfile version, LegalMatchingResult version, linked LegalRuleMatch refs, actor, timestamp, and correlation ID.
@@ -52,7 +52,7 @@ As a Manager, I want to request classification only after VerifiedProfile and le
 ### Dependencies and Prerequisites
 
 - Epic 5 approved VerifiedProfile and Epic 6 current LegalMatchingResult.
-- PBAC permission for classification request.
+- RBAC permission for classification request.
 
 ### Explicit Non-Goals
 

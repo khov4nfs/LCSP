@@ -155,7 +155,7 @@ export function toConflictListOutcome(
   if (status === 401 || problemCode === AUTH_ERROR_CODES.sessionInvalid) {
     return { kind: API_OUTCOME_KINDS.redirect, location: "/sign-in" };
   }
-  if (status === 403 || problemCode === AUTH_ERROR_CODES.pbacDenied) {
+  if (status === 403 || problemCode === AUTH_ERROR_CODES.rbacDenied) {
     return { kind: API_OUTCOME_KINDS.accessRevoked };
   }
   if (status === 404 && problemCode === ASSESSMENT_ERROR_CODES.notFound) {
@@ -196,7 +196,7 @@ export function toResolveConflictOutcome(
   if (status === 401 || problemCode === AUTH_ERROR_CODES.sessionInvalid) {
     return { kind: API_OUTCOME_KINDS.redirect, location: "/sign-in" };
   }
-  if (status === 403 || problemCode === AUTH_ERROR_CODES.pbacDenied) {
+  if (status === 403 || problemCode === AUTH_ERROR_CODES.rbacDenied) {
     return { kind: API_OUTCOME_KINDS.accessRevoked };
   }
   if (

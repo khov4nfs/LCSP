@@ -1,10 +1,10 @@
 import { Controller, Get, Param, Query, Req, UseGuards } from "@nestjs/common";
 import { QueryBus } from "@nestjs/cqrs";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { CompareWizardClaimQuery } from "../../application/queries/compare-wizard-claim/compare-wizard-claim.query.js";
 import {
@@ -20,8 +20,8 @@ export class CompareWizardClaimController {
   constructor(private readonly queryBus: QueryBus) {}
 
   @Get(":assessmentId/wizard-claim-comparison")
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.assessmentRead)
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
   async compareWizardClaim(
     @Param("assessmentId") assessmentId: string,
     @Query("wizard_profile_id") wizardProfileId: string,
@@ -54,7 +54,6 @@ export class CompareWizardClaimController {
       await this.queryBus.execute(
         new CompareWizardClaimQuery(
           assessmentId,
-          request.pbacContext.organizationId,
           wizardProfileId,
           evidenceReportId,
           parsedTargetId,

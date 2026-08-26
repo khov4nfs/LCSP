@@ -7,7 +7,7 @@ from unittest.mock import patch
 from tools.common.capabilities.platform import tracing as tracing_module
 from tools.common.capabilities.platform.config import (
     AgenticRuntimeConfig,
-    PbacPreflightConfig,
+    RbacPreflightConfig,
     WorkerConfig,
     load_config,
     load_tracing_config,
@@ -28,7 +28,7 @@ def _worker_config() -> WorkerConfig:
         log_level="INFO",
         max_retries=3,
         agentic_runtime=AgenticRuntimeConfig(),
-        pbac_preflight=PbacPreflightConfig(),
+        rbac_preflight=RbacPreflightConfig(),
     )
 
 

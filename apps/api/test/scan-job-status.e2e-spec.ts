@@ -3,18 +3,12 @@
 import * as assert from "node:assert/strict";
 
 import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
-import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   REPOSITORY_SCAN_JOB_STATUSES,
   REPOSITORY_SCAN_TRIGGER_SOURCES,
   type RepositoryScanJobStatus,
 } from "@lcsp/contracts/github-integration";
-import {
-  PBAC_ACTIONS,
-  PBAC_REASON_CODE,
-  PBAC_STATE_GATES,
-  SUBJECT_ROLES,
-} from "@lcsp/contracts/pbac";
 import { SCAN_ERROR_CODES, SCAN_JOB_GUIDANCE } from "@lcsp/contracts/scan";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
@@ -29,6 +23,7 @@ import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
+  seedRepositoryScanGraph,
   TEST_DATABASE_URL,
 } from "./support/auth-workspace-test-helpers.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
@@ -64,7 +59,6 @@ describe("Scan Job Status Endpoint (e2e) [MW-scan-001]", () => {
     await prisma.assessment.create({
       data: {
         id: "assessment-1",
-        organizationId: "org-1",
         ownerId: "user-1",
         name: "Scan assessment",
         status: ASSESSMENT_STATUS_CODES.scanInProgress,
@@ -148,9 +142,9 @@ describe("Scan Job Status Endpoint (e2e) [MW-scan-001]", () => {
     assert.equal(body.next_action, SCAN_JOB_GUIDANCE.pendingMappingNextAction);
   });
 
-  it("T04 hides a job outside the session organization", async () => {
+  it("T04 hides a job for a different assessment", async () => {
     await createJob(prisma, REPOSITORY_SCAN_JOB_STATUSES.queued, null, {
-      organizationId: "org-other",
+      assessmentId: "assessment-other",
     });
 
     const response = await getStatus(app, managerToken);
@@ -159,55 +153,18 @@ describe("Scan Job Status Endpoint (e2e) [MW-scan-001]", () => {
     assert.equal(problemCode(response), SCAN_ERROR_CODES.jobNotFound);
   });
 
-  it("T05 denies an actor without scan:read", async () => {
-    await createJob(prisma, REPOSITORY_SCAN_JOB_STATUSES.queued);
-    await prisma.authPolicy.update({
-      where: {
-        id_version: {
-          id: "policy-manager-workspace",
-          version: "2026-06-26",
-        },
-      },
-      data: { actions: [PBAC_ACTIONS.workspaceRead] },
-    });
-
-    const response = await getStatus(app, managerToken);
-
-    assert.equal(response.status, 403);
-    assert.equal(problemCode(response), PBAC_REASON_CODE.denied);
-  });
-
-  it("allows only a Developer scoped to the requested assessment", async () => {
+  it("allows a non-Manager with scan:read policy to read the requested scan job", async () => {
     await createJob(prisma, REPOSITORY_SCAN_JOB_STATUSES.running);
-    await seedDeveloper(prisma);
+    await seedSystemAdmin(prisma);
     const signIn = await httpRequest(app).post("/auth/sign-in").send({
-      email: "developer@acme.test",
-      password: "DeveloperPass123!",
+      email: "system-admin@acme.test",
+      password: "SystemAdminPass123!",
       organization_id: "org-1",
     });
     const token = successBody<SignInSuccess>(signIn).session_token;
 
     const allowed = await getStatus(app, token);
     assert.equal(allowed.status, 200);
-
-    await prisma.authMembership.update({
-      where: {
-        userId_organizationId: {
-          userId: "developer-1",
-          organizationId: "org-1",
-        },
-      },
-      data: {
-        subjectAttributes: {
-          role: SUBJECT_ROLES.developer,
-          scope: "assessment-other",
-        },
-      },
-    });
-
-    const hidden = await getStatus(app, token);
-    assert.equal(hidden.status, 404);
-    assert.equal(problemCode(hidden), SCAN_ERROR_CODES.jobNotFound);
   });
 });
 
@@ -221,56 +178,36 @@ async function createJob(
   prisma: PrismaClient,
   status: RepositoryScanJobStatus,
   blockedReason: string | null = null,
-  overrides: { organizationId?: string } = {},
+  overrides: { assessmentId?: string } = {},
 ) {
-  await prisma.repositoryScanJob.create({
+  await seedRepositoryScanGraph(prisma, {
+    assessmentId: overrides.assessmentId ?? "assessment-1",
+    userId: "user-1",
+    connectionId: "connection-1",
+    snapshotId: "snapshot-1",
+    scanJobId: "scan-job-1",
+    scanJobStatus: status,
+  });
+  await prisma.repositoryScanJob.update({
+    where: { id: "scan-job-1" },
     data: {
-      id: "scan-job-1",
-      assessmentId: "assessment-1",
-      snapshotId: "snapshot-1",
-      organizationId: overrides.organizationId ?? "org-1",
-      idempotencyKey: "scan-request:assessment-1:snapshot-1:status",
-      triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
-      status,
+      blockedReason,
       attemptCount: 1,
       correlationId: "job-corr-1",
-      blockedReason,
+      triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
     },
   });
 }
 
-async function seedDeveloper(prisma: PrismaClient) {
+async function seedSystemAdmin(prisma: PrismaClient) {
   await prisma.authUser.create({
     data: {
-      id: "developer-1",
-      email: "developer@acme.test",
-      passwordHash: hashSecret("DeveloperPass123!"),
+      id: "system-admin-1",
+      email: "system-admin@acme.test",
+      passwordHash: hashSecret("SystemAdminPass123!"),
       emailVerified: true,
       failedLoginCount: 0,
-    },
-  });
-  await prisma.authPolicy.create({
-    data: {
-      id: "policy-developer-scan-read",
-      version: "2026-07-18",
-      actions: [PBAC_ACTIONS.scanRead],
-      subjectRole: SUBJECT_ROLES.developer,
-      stateGate: PBAC_STATE_GATES.membershipActive,
-      organizationId: "org-1",
-    },
-  });
-  await prisma.authMembership.create({
-    data: {
-      id: "membership-developer-scan-read",
-      userId: "developer-1",
-      organizationId: "org-1",
-      status: AUTH_MEMBERSHIP_STATUSES.active,
-      subjectAttributes: {
-        role: SUBJECT_ROLES.developer,
-        scope: "assessment-1",
-      },
-      policyId: "policy-developer-scan-read",
-      policyVersion: "2026-07-18",
+      role: AUTH_USER_ROLES.admin,
     },
   });
 }

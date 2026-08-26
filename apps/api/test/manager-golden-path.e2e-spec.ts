@@ -2,25 +2,24 @@
 
 import * as assert from "node:assert/strict";
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
-import type { INestApplication } from "@nestjs/common";
-import { Test, type TestingModule } from "@nestjs/testing";
 import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
-import { AUTH_INVITATION_STATES } from "@lcsp/contracts/auth";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { DOCUMENT_REQUEST_STATUSES } from "@lcsp/contracts/document";
 import {
   REPOSITORY_CONNECTION_STATUSES,
-  REPOSITORY_SNAPSHOT_STATUSES,
   REPOSITORY_SCAN_JOB_STATUSES,
   REPOSITORY_SCAN_TRIGGER_SOURCES,
+  REPOSITORY_SNAPSHOT_STATUSES,
 } from "@lcsp/contracts/github-integration";
-import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import {
   ASSESSMENT_RESULT_MODES,
   CLASSIFICATION_GUARDRAIL_STATUSES,
   SCAN_CALLBACK_STATUSES,
 } from "@lcsp/contracts/scan";
+import type { INestApplication } from "@nestjs/common";
+import { Test, type TestingModule } from "@nestjs/testing";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
 import { toPrismaDocumentRequestStatus } from "../src/infrastructure/prisma/prisma-enum-mappers.js";
@@ -55,7 +54,7 @@ describe("Manager Golden Path (e2e) [MW-qa-003]", () => {
     await resetDomainData(prisma);
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
-    await grantGoldenPathActions(prisma);
+    grantGoldenPathActions(prisma);
   });
 
   afterAll(async () => {
@@ -64,18 +63,9 @@ describe("Manager Golden Path (e2e) [MW-qa-003]", () => {
   });
 
   it("lets an approved Manager complete the direct assessment path without legacy profile stages", async () => {
-    const accepted = await httpRequest(app)
-      .post("/auth/register-approved-path")
-      .send({
-        invite_id: "invite-approved",
-        password: "DeveloperPass123!",
-      });
-    assert.equal(accepted.status, 201, JSON.stringify(accepted.body));
-    assert.equal((accepted.body as { ok?: boolean }).ok, true);
-
     const signIn = await httpRequest(app).post("/auth/sign-in").send({
-      email: "invitee@acme.test",
-      password: "DeveloperPass123!",
+      email: "manager@acme.test",
+      password: "CorrectHorseBatteryStaple!",
       organization_id: "org-1",
     });
     assert.equal(signIn.status, 200);
@@ -95,10 +85,6 @@ describe("Manager Golden Path (e2e) [MW-qa-003]", () => {
       created,
     ).assessment_id;
     assert.ok(assessmentId);
-    assert.doesNotMatch(
-      JSON.stringify(successBody<object>(created)),
-      /developer/i,
-    );
 
     const wizard = await httpRequest(app)
       .post(`/assessments/${assessmentId}/wizard/submit`)
@@ -227,19 +213,10 @@ describe("Manager Golden Path (e2e) [MW-qa-003]", () => {
       "https://example.test/files/manager-final-report.pdf",
     );
 
-    const [invitation, managerMembership] = await Promise.all([
-      prisma.authInvitation.findUniqueOrThrow({
-        where: { id: "invite-approved" },
-      }),
-      prisma.authMembership.findFirstOrThrow({
-        where: { user: { email: "invitee@acme.test" } },
-      }),
-    ]);
-    assert.equal(invitation.state, AUTH_INVITATION_STATES.consumed);
-    assert.equal(
-      (managerMembership.subjectAttributes as { role: string }).role,
-      SUBJECT_ROLES.manager,
-    );
+    const manager = await prisma.authUser.findUniqueOrThrow({
+      where: { email: "manager@acme.test" },
+    });
+    assert.equal(manager.role, AUTH_USER_ROLES.customer);
   });
 });
 
@@ -318,18 +295,8 @@ const validWizardAnswers = [
   },
 ];
 
-async function grantGoldenPathActions(prisma: PrismaClient): Promise<void> {
-  const policy = await prisma.authPolicy.findUniqueOrThrow({
-    where: {
-      id_version: { id: "policy-manager-workspace", version: "2026-06-26" },
-    },
-  });
-  await prisma.authPolicy.update({
-    where: { id_version: { id: policy.id, version: policy.version } },
-    data: {
-      actions: [...new Set([...policy.actions, PBAC_ACTIONS.documentRead])],
-    },
-  });
+function grantGoldenPathActions(prisma: PrismaClient): void {
+  void prisma;
 }
 
 async function seedRepositorySnapshot(
@@ -340,7 +307,6 @@ async function seedRepositorySnapshot(
     data: {
       id: "golden-connection",
       assessmentId,
-      organizationId: "org-1",
       userId: "user-1",
       installationId: "installation-1",
       repositoryId: "repo-1",
@@ -355,7 +321,6 @@ async function seedRepositorySnapshot(
     data: {
       id: "golden-snapshot",
       assessmentId,
-      organizationId: "org-1",
       connectionId: "golden-connection",
       repositoryId: "repo-1",
       repositoryFullName: "acme/example-repo",

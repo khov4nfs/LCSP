@@ -132,7 +132,7 @@ describe("RabbitMqClient", () => {
       "lcsp.events",
       ASSESSMENT_EVENT_TYPES.createdOutbox,
       { foo: "bar" },
-      { user_id: "user-1", organization_id: "org-1", action: "scan:trigger" },
+      { user_id: "user-1", action: "scan:trigger" },
     );
 
     expect(channel.publish).toHaveBeenCalledWith(
@@ -144,7 +144,6 @@ describe("RabbitMqClient", () => {
         persistent: true,
         headers: {
           user_id: "user-1",
-          organization_id: "org-1",
           action: "scan:trigger",
         },
       },

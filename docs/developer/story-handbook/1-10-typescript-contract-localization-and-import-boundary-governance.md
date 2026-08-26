@@ -23,7 +23,7 @@ As a developer, I want authentication and workspace-facing shared modules to use
 - Packet type: `planning-derived-developer-packet`
 - Story key: `1-10-typescript-contract-localization-and-import-boundary-governance`
 - Official execution artifact: `docs/implementation-artifacts/1-10-typescript-contract-localization-and-import-boundary-governance.md`
-- Epic: `Epic 1 - Secure Workspace and PBAC-Scoped Collaboration`
+- Epic: `Epic 1 - Secure Workspace and RBAC-Scoped Collaboration`
 - Runtime ownership: `apps/api`, `apps/web`, `packages/contracts`, `packages/i18n`, `tests`
 
 ### Current State and Scope Guardrails
@@ -76,7 +76,7 @@ As a developer, I want authentication and workspace-facing shared modules to use
 ### Architecture Compliance
 
 - Preserve retained runtime shape: `apps/web` is the web UX boundary, `apps/api` is the NestJS control-plane boundary, and shared semantics live in `packages/*`.
-- PBAC, session, and audit behavior remain server-authoritative; this story only hardens the contract and localization seam around those behaviors.
+- RBAC, session, and audit behavior remain server-authoritative; this story only hardens the contract and localization seam around those behaviors.
 - Public app/package imports must use approved exports; source-path coupling is forbidden.
 
 ### Functional and Domain Requirements
@@ -93,9 +93,9 @@ As a developer, I want authentication and workspace-facing shared modules to use
 
 ### State and Audit Requirements
 
-- Existing auth/session/PBAC audit semantics from Story `1.1` must remain intact; contract migration must not remove correlation IDs or safe blocked-action hints.
+- Existing auth/session/RBAC audit semantics from Story `1.1` must remain intact; contract migration must not remove correlation IDs or safe blocked-action hints.
 - Failures from import-policy or type-validation in CI are acceptance evidence, not runtime substitutions for backend enforcement.
-- Blocked-state rendering remains non-authoritative; authorization decisions still come from backend PBAC evaluation.
+- Blocked-state rendering remains non-authoritative; authorization decisions still come from backend RBAC evaluation.
 
 ### File Structure Notes
 

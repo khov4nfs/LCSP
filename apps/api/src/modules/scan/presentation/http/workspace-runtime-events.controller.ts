@@ -1,6 +1,6 @@
-import { Controller, Logger, Req, Sse, UseGuards } from "@nestjs/common";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type { MessageEvent } from "@nestjs/common";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { Controller, Logger, Sse, UseGuards } from "@nestjs/common";
 import {
   EMPTY,
   catchError,
@@ -11,17 +11,12 @@ import {
   startWith,
 } from "rxjs";
 
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
-import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
-import type { PbacRequestContext } from "../../../../platform/pbac/interfaces/pbac-request.interface.js";
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
-
-interface WorkspaceRuntimeRequest {
-  pbacContext: PbacRequestContext;
-}
 
 /**
- * Streams organization-scoped orchestration runtime snapshots to authorized workspace clients over Server-Sent Events.
+ * Streams orchestration runtime snapshots to authorized workspace clients over Server-Sent Events.
  */
 @Controller("workspace/runtime-events")
 export class WorkspaceRuntimeEventsController {
@@ -35,23 +30,19 @@ export class WorkspaceRuntimeEventsController {
   constructor(private readonly runtimeEvents: AssessmentRuntimeEventService) {}
 
   /**
-   * Emits an immediate workspace runtime snapshot and refreshes it every two seconds for the caller's organization.
+   * Emits an immediate workspace runtime snapshot and refreshes it every two seconds.
    *
-   * @param request - Authenticated request containing the organization-scoped PBAC context.
+   * @param request - Authenticated request containing the RBAC context.
    * @returns RxJS stream of `workspace.runtime` SSE messages.
    */
   @Sse()
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.workspaceRead)
-  stream(@Req() request: WorkspaceRuntimeRequest) {
-    const organizationId = request.pbacContext.organizationId;
-
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
+  stream() {
     return interval(2_000).pipe(
       startWith(0),
       exhaustMap(() =>
-        defer(() =>
-          this.runtimeEvents.buildWorkspaceSnapshot(organizationId),
-        ).pipe(
+        defer(() => this.runtimeEvents.buildWorkspaceSnapshot()).pipe(
           map((data): MessageEvent => ({
             type: "workspace.runtime",
             data: {
@@ -74,7 +65,6 @@ export class WorkspaceRuntimeEventsController {
                 event_id: event.eventId,
                 sequence: event.sequence,
                 emitted_at: event.emittedAt,
-                organization_id: event.organizationId,
                 assessment_id: event.assessmentId,
                 run_id: event.runId,
                 correlation_id: event.correlationId,

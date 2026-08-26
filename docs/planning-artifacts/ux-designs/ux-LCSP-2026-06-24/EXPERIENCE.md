@@ -187,7 +187,7 @@ Failure recovery: re-run after legal index/corpus issue is corrected by internal
 ### Flow 4 — Developer handles a scoped task
 
 1. An invited Developer opens a task link.
-2. LCSP shows organization, assessment label, granted PBAC scope, and hidden data boundaries.
+2. LCSP shows organization, assessment label, granted RBAC scope, and hidden data boundaries.
 3. Developer accepts and reviews assigned redacted technical findings.
 4. **Climax:** Developer can help inspect assigned findings without gaining Manager-only powers or creating structured attestation.
 5. Manager's golden path remains available whether Developer participates or not.

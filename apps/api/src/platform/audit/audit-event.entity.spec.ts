@@ -9,7 +9,6 @@ describe("AuditEventEntity", () => {
       {
         eventType: AUTH_AUDIT_EVENT_TYPES.authSignInSuccess,
         actorId: "user-1",
-        organizationId: "org-1",
         correlationId: "corr-1",
         decision: AUDIT_DECISIONS.allow,
         payload: { ip: "127.0.0.1" },
@@ -20,7 +19,6 @@ describe("AuditEventEntity", () => {
     expect(event.id).toEqual(expect.any(String));
     expect(event.eventType).toBe(AUTH_AUDIT_EVENT_TYPES.authSignInSuccess);
     expect(event.actorId).toBe("user-1");
-    expect(event.organizationId).toBe("org-1");
     expect(event.correlationId).toBe("corr-1");
     expect(event.decision).toBe(AUDIT_DECISIONS.allow);
     expect(event.payload).toEqual({ ip: "127.0.0.1" });
@@ -31,7 +29,6 @@ describe("AuditEventEntity", () => {
     const event = AuditEventEntity.create({
       eventType: AUTH_AUDIT_EVENT_TYPES.authOauthStart,
       actorId: null,
-      organizationId: "org-1",
       correlationId: "corr-2",
       decision: null,
     });
@@ -43,7 +40,6 @@ describe("AuditEventEntity", () => {
     const event = AuditEventEntity.create({
       eventType: AUTH_AUDIT_EVENT_TYPES.authSessionRevoked,
       actorId: "user-1",
-      organizationId: null,
       correlationId: "corr-3",
       decision: null,
     });
@@ -56,7 +52,6 @@ describe("AuditEventEntity", () => {
     const event = AuditEventEntity.create({
       eventType: AUTH_AUDIT_EVENT_TYPES.authMfaEnrolled,
       actorId: "user-1",
-      organizationId: "org-1",
       correlationId: "corr-4",
       decision: AUDIT_DECISIONS.allow,
     });
@@ -69,9 +64,8 @@ describe("AuditEventEntity", () => {
   it("rehydrates an event from persisted fields via fromPersistence", () => {
     const fields = {
       id: "audit-5",
-      eventType: AUTH_AUDIT_EVENT_TYPES.authDeveloperRevoked,
+      eventType: AUTH_AUDIT_EVENT_TYPES.authSessionRevoked,
       actorId: "user-2",
-      organizationId: "org-2",
       correlationId: "corr-5",
       decision: AUDIT_DECISIONS.deny,
       payload: { reason: "expired" },

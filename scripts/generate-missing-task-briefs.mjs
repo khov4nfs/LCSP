@@ -17,9 +17,18 @@ const tasks = [
     outcome:
       "Establish the relational schema baseline, migration ownership, and ChromaDB connectivity contract that every API and worker path depends on for the A-to-Z MVP.",
     sourceAuthority: [
-      ["Architecture", "`docs/architecture/architecture.md`; `docs/architecture/adr/adr-025-legal-corpus-source-architecture.md`; `docs/architecture/adr/adr-026-chromadb-vectorless-legal-retriever.md`"],
-      ["Implementation", "`docs/implementation/persistence-implementation.md`; `docs/implementation/backend-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`"],
-      ["Specs", "`docs/specs/domain-model.md`; `docs/specs/legal-matching-domain-spec.md`; `docs/specs/domain-state-machines.md`"],
+      [
+        "Architecture",
+        "`docs/architecture/architecture.md`; `docs/architecture/adr/adr-025-legal-corpus-source-architecture.md`; `docs/architecture/adr/adr-026-chromadb-vectorless-legal-retriever.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/persistence-implementation.md`; `docs/implementation/backend-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/domain-model.md`; `docs/specs/legal-matching-domain-spec.md`; `docs/specs/domain-state-machines.md`",
+      ],
     ],
     scope: [
       "Create the canonical PostgreSQL schema baseline used by NestJS API and Python workers.",
@@ -35,20 +44,48 @@ const tasks = [
       "No one-off local schema that bypasses the canonical migration path.",
     ],
     verification: [
-      ["schema baseline", "migration / local", "empty environment can initialize relational schema and required metadata tables deterministically"],
-      ["worker compatibility", "API / worker contract", "API and worker adapters point to the same schema and version metadata"],
-      ["legal index config", "config / doc", "Chroma connection and corpus-version binding rules are documented and testable"],
+      [
+        "schema baseline",
+        "migration / local",
+        "empty environment can initialize relational schema and required metadata tables deterministically",
+      ],
+      [
+        "worker compatibility",
+        "API / worker contract",
+        "API and worker adapters point to the same schema and version metadata",
+      ],
+      [
+        "legal index config",
+        "config / doc",
+        "Chroma connection and corpus-version binding rules are documented and testable",
+      ],
     ],
     failure: [
-      ["migration drift", "fail startup or migration command explicitly", "operator sees schema mismatch before feature run", "audit/log references migration version only"],
-      ["missing Chroma config", "block legal-index-dependent startup path", "operator gets actionable config error", "safe startup failure record"],
+      [
+        "migration drift",
+        "fail startup or migration command explicitly",
+        "operator sees schema mismatch before feature run",
+        "audit/log references migration version only",
+      ],
+      [
+        "missing Chroma config",
+        "block legal-index-dependent startup path",
+        "operator gets actionable config error",
+        "safe startup failure record",
+      ],
     ],
     definitionOfDone: [
       "Canonical migration baseline exists and is documented.",
       "ChromaDB configuration contract is documented next to relational schema ownership.",
       "Later tasks can reference one shared persistence baseline without redefining core tables.",
     ],
-    openDecisions: [["ChromaDB deployment topology for shared environments", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "ChromaDB deployment topology for shared environments",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-002",
@@ -61,8 +98,14 @@ const tasks = [
     outcome:
       "Create one validated configuration and secret-reference contract for API, workers, GitHub App, object storage, ChromaDB, and the mandatory real LLM provider path.",
     sourceAuthority: [
-      ["Architecture", "`docs/architecture/architecture.md`; `docs/architecture/multi-agent-system-architecture.md`"],
-      ["Implementation", "`docs/implementation/backend-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/llm-gateway-implementation.md`; `docs/implementation/queue-implementation.md`"],
+      [
+        "Architecture",
+        "`docs/architecture/architecture.md`; `docs/architecture/multi-agent-system-architecture.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/backend-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/llm-gateway-implementation.md`; `docs/implementation/queue-implementation.md`",
+      ],
       ["Decisions", "`docs/implementation/decisions/pbac-runtime-decision.md`"],
     ],
     scope: [
@@ -79,20 +122,48 @@ const tasks = [
       "No credentials stored in source control or ordinary logs.",
     ],
     verification: [
-      ["config validation", "startup / config", "invalid or missing required config fails fast with safe error output"],
-      ["secret handling", "security / doc", "sensitive values appear only as references, never committed defaults"],
-      ["LLM mode contract", "doc / integration", "provider vs mock rules are explicit for local, CI, and acceptance runs"],
+      [
+        "config validation",
+        "startup / config",
+        "invalid or missing required config fails fast with safe error output",
+      ],
+      [
+        "secret handling",
+        "security / doc",
+        "sensitive values appear only as references, never committed defaults",
+      ],
+      [
+        "LLM mode contract",
+        "doc / integration",
+        "provider vs mock rules are explicit for local, CI, and acceptance runs",
+      ],
     ],
     failure: [
-      ["missing required secret ref", "block startup", "operator gets exact missing key name", "safe startup failure record"],
-      ["malformed config", "reject boot with validation error", "developer sees schema mismatch early", "redacted log only"],
+      [
+        "missing required secret ref",
+        "block startup",
+        "operator gets exact missing key name",
+        "safe startup failure record",
+      ],
+      [
+        "malformed config",
+        "reject boot with validation error",
+        "developer sees schema mismatch early",
+        "redacted log only",
+      ],
     ],
     definitionOfDone: [
       "Cross-runtime config contract is documented and validated.",
       "Secret references exist for all third-party integrations and worker runtimes.",
       "Later platform and domain tasks can depend on one stable config vocabulary.",
     ],
-    openDecisions: [["Secret manager implementation detail by environment", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Secret manager implementation detail by environment",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-003",
@@ -105,9 +176,18 @@ const tasks = [
     outcome:
       "Provide the canonical `AuditEvent` write contract shared by API and workers so material actions are consistently attributable, redacted, and traceable across the full MVP pipeline.",
     sourceAuthority: [
-      ["Architecture", "`docs/architecture/architecture.md`; `docs/architecture/adr/architecture-decision-records.md`"],
-      ["Specs", "`docs/specs/event-catalog.md`; `docs/specs/domain-model.md`; `docs/specs/domain-state-machines.md`"],
-      ["Implementation", "`docs/implementation/backend-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/persistence-implementation.md`"],
+      [
+        "Architecture",
+        "`docs/architecture/architecture.md`; `docs/architecture/adr/architecture-decision-records.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/event-catalog.md`; `docs/specs/domain-model.md`; `docs/specs/domain-state-machines.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/backend-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/persistence-implementation.md`",
+      ],
     ],
     scope: [
       "Define the canonical `AuditEvent` persistence shape and write helper boundaries.",
@@ -122,20 +202,48 @@ const tasks = [
       "No business-specific event semantics outside the canonical audit contract.",
     ],
     verification: [
-      ["audit completeness", "API / worker contract", "material state transitions can write consistent audit records from both runtimes"],
-      ["redaction", "security / persistence", "secrets and sensitive payloads are removed or replaced before persistence"],
-      ["traceability", "integration", "correlation and causation IDs survive across sync and async boundaries"],
+      [
+        "audit completeness",
+        "API / worker contract",
+        "material state transitions can write consistent audit records from both runtimes",
+      ],
+      [
+        "redaction",
+        "security / persistence",
+        "secrets and sensitive payloads are removed or replaced before persistence",
+      ],
+      [
+        "traceability",
+        "integration",
+        "correlation and causation IDs survive across sync and async boundaries",
+      ],
     ],
     failure: [
-      ["audit payload build error", "fail closed for required material transitions", "operator sees safe failure reason", "audit write failure is itself observable"],
-      ["redaction mismatch", "reject persistence and block transition", "developer sees validation failure", "safe failure log only"],
+      [
+        "audit payload build error",
+        "fail closed for required material transitions",
+        "operator sees safe failure reason",
+        "audit write failure is itself observable",
+      ],
+      [
+        "redaction mismatch",
+        "reject persistence and block transition",
+        "developer sees validation failure",
+        "safe failure log only",
+      ],
     ],
     definitionOfDone: [
       "API and worker code paths share one audit write contract.",
       "Redaction rules are documented and testable.",
       "Downstream tasks can reference `AuditEvent` without inventing custom per-domain shapes.",
     ],
-    openDecisions: [["Audit storage retention policy by environment", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Audit storage retention policy by environment",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-004",
@@ -148,10 +256,22 @@ const tasks = [
     outcome:
       "Create the canonical outbox mechanism that turns durable domain state transitions into published commands/events with bounded retry and DLQ behavior.",
     sourceAuthority: [
-      ["Architecture", "`docs/architecture/architecture.md`; `docs/architecture/adr/architecture-decision-records.md`"],
-      ["Specs", "`docs/specs/event-catalog.md`; `docs/specs/domain-state-machines.md`"],
-      ["Implementation", "`docs/implementation/queue-implementation.md`; `docs/implementation/backend-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/persistence-implementation.md`"],
-      ["Decisions", "`docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`"],
+      [
+        "Architecture",
+        "`docs/architecture/architecture.md`; `docs/architecture/adr/architecture-decision-records.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/event-catalog.md`; `docs/specs/domain-state-machines.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/queue-implementation.md`; `docs/implementation/backend-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/persistence-implementation.md`",
+      ],
+      [
+        "Decisions",
+        "`docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`",
+      ],
     ],
     scope: [
       "Define the shared `OutboxEvent` record shape and transactional write rule.",
@@ -166,20 +286,48 @@ const tasks = [
       "No bypass around queue durability guarantees.",
     ],
     verification: [
-      ["transaction boundary", "persistence / queue", "domain mutation and outbox write succeed or fail together"],
-      ["retry and DLQ", "queue / operator", "retry budget and DLQ transition are explicit and reproducible"],
-      ["idempotency", "integration", "duplicate publisher runs do not duplicate published semantics"],
+      [
+        "transaction boundary",
+        "persistence / queue",
+        "domain mutation and outbox write succeed or fail together",
+      ],
+      [
+        "retry and DLQ",
+        "queue / operator",
+        "retry budget and DLQ transition are explicit and reproducible",
+      ],
+      [
+        "idempotency",
+        "integration",
+        "duplicate publisher runs do not duplicate published semantics",
+      ],
     ],
     failure: [
-      ["publisher outage", "retain outbox row and retry under policy", "operator sees lagging publication state", "safe publisher log/audit metadata"],
-      ["poison payload", "move to DLQ after bounded retries", "operator gets actionable failure class", "DLQ record retains correlation metadata"],
+      [
+        "publisher outage",
+        "retain outbox row and retry under policy",
+        "operator sees lagging publication state",
+        "safe publisher log/audit metadata",
+      ],
+      [
+        "poison payload",
+        "move to DLQ after bounded retries",
+        "operator gets actionable failure class",
+        "DLQ record retains correlation metadata",
+      ],
     ],
     definitionOfDone: [
       "Outbox semantics are documented for API and worker producers.",
       "Retry and DLQ behavior is consistent with queue implementation authority.",
       "Later tasks can enqueue commands/events without inventing new reliability rules.",
     ],
-    openDecisions: [["Operational replay tooling depth beyond MVP", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Operational replay tooling depth beyond MVP",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-006",
@@ -192,10 +340,22 @@ const tasks = [
     outcome:
       "Build the authentication and session baseline for approved LCSP account entry, including OAuth/OIDC login, MFA controls, session safety, and safe denied-state handling.",
     sourceAuthority: [
-      ["Epic / story", "`docs/planning-artifacts/epics.md` Epic 1 and Stories 1.1..1.4"],
-      ["Implementation", "`docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`"],
-      ["Specs", "`docs/specs/domain-model.md`; `docs/specs/domain-state-machines.md`; `docs/specs/user-task-flows.md`"],
-      ["Story packets", "`docs/implementation-artifacts/1-1-approved-account-entry-and-workspace-access.md`; `docs/implementation-artifacts/1-2-mfa-session-recovery-and-profile-safety.md`; `docs/implementation-artifacts/1-3-oauth-oidc-login-without-repository-authorization.md`; `docs/implementation-artifacts/1-4-organization-membership-and-manager-policy-scope.md`"],
+      [
+        "Epic / story",
+        "`docs/planning-artifacts/epics.md` Epic 1 and Stories 1.1..1.4",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/domain-model.md`; `docs/specs/domain-state-machines.md`; `docs/specs/user-task-flows.md`",
+      ],
+      [
+        "Story packets",
+        "`docs/implementation-artifacts/1-1-approved-account-entry-and-workspace-access.md`; `docs/implementation-artifacts/1-2-mfa-session-recovery-and-profile-safety.md`; `docs/implementation-artifacts/1-3-oauth-oidc-login-without-repository-authorization.md`; `docs/implementation-artifacts/1-4-organization-membership-and-manager-policy-scope.md`",
+      ],
     ],
     scope: [
       "Implement password/session or approved OAuth/OIDC identity entry under one LCSP session authority.",
@@ -210,20 +370,48 @@ const tasks = [
       "No delegated Developer final authority.",
     ],
     verification: [
-      ["approved entry", "auth / API", "valid approved user can obtain only an LCSP session scoped to authorized workspace context"],
-      ["safe denial", "auth / audit", "invalid or blocked auth states return safe messages and audit records without secrets"],
-      ["OAuth separation", "integration", "OIDC login cannot create repository authorization side effects"],
+      [
+        "approved entry",
+        "auth / API",
+        "valid approved user can obtain only an LCSP session scoped to authorized workspace context",
+      ],
+      [
+        "safe denial",
+        "auth / audit",
+        "invalid or blocked auth states return safe messages and audit records without secrets",
+      ],
+      [
+        "OAuth separation",
+        "integration",
+        "OIDC login cannot create repository authorization side effects",
+      ],
     ],
     failure: [
-      ["provider callback invalid", "deny login and preserve safe blocked state", "user sees actionable safe message", "audit contains failure reason only"],
-      ["session or MFA failure", "block continuation and require recovery action", "user gets required-action hint", "correlation ID present"],
+      [
+        "provider callback invalid",
+        "deny login and preserve safe blocked state",
+        "user sees actionable safe message",
+        "audit contains failure reason only",
+      ],
+      [
+        "session or MFA failure",
+        "block continuation and require recovery action",
+        "user gets required-action hint",
+        "correlation ID present",
+      ],
     ],
     definitionOfDone: [
       "Auth, session, OAuth, and MFA baseline is implemented under one API authority.",
       "Denied/blocked states use safe contract keys and audit.",
       "Later Epic 1 stories can extend policy and collaboration on top of this baseline.",
     ],
-    openDecisions: [["Exact OAuth provider roster for acceptance environment", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Exact OAuth provider roster for acceptance environment",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-007",
@@ -236,10 +424,22 @@ const tasks = [
     outcome:
       "Create the Manager-owned organization and assessment API baseline that establishes tenant scope, assessment creation, and workflow guards before Wizard or scan work begins.",
     sourceAuthority: [
-      ["Epic / story", "`docs/planning-artifacts/epics.md` Epic 2 and Story 2.1"],
-      ["Implementation", "`docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`"],
-      ["Specs", "`docs/specs/domain-model.md`; `docs/specs/domain-state-machines.md`; `docs/specs/user-task-flows.md`"],
-      ["Story packet", "`docs/implementation-artifacts/2-1-create-manager-owned-assessment.md`"],
+      [
+        "Epic / story",
+        "`docs/planning-artifacts/epics.md` Epic 2 and Story 2.1",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/domain-model.md`; `docs/specs/domain-state-machines.md`; `docs/specs/user-task-flows.md`",
+      ],
+      [
+        "Story packet",
+        "`docs/implementation-artifacts/2-1-create-manager-owned-assessment.md`",
+      ],
     ],
     scope: [
       "Implement organization-scoped assessment creation and retrieval APIs.",
@@ -254,20 +454,48 @@ const tasks = [
       "No classification or report generation.",
     ],
     verification: [
-      ["assessment ownership", "API / authz", "Manager-scoped create returns tenant-safe assessment and denies out-of-scope calls"],
-      ["neutral baseline", "state / UX", "new assessment does not imply legal readiness or risk output"],
-      ["auditability", "API / audit", "create and denial paths emit correlation-linked audit records"],
+      [
+        "assessment ownership",
+        "API / authz",
+        "Manager-scoped create returns tenant-safe assessment and denies out-of-scope calls",
+      ],
+      [
+        "neutral baseline",
+        "state / UX",
+        "new assessment does not imply legal readiness or risk output",
+      ],
+      [
+        "auditability",
+        "API / audit",
+        "create and denial paths emit correlation-linked audit records",
+      ],
     ],
     failure: [
-      ["PBAC deny", "reject action server-side", "user gets safe blocked response", "audit records deny outcome"],
-      ["state version mismatch", "reject conflicting mutation", "client sees retry/refresh guidance", "safe error log only"],
+      [
+        "PBAC deny",
+        "reject action server-side",
+        "user gets safe blocked response",
+        "audit records deny outcome",
+      ],
+      [
+        "state version mismatch",
+        "reject conflicting mutation",
+        "client sees retry/refresh guidance",
+        "safe error log only",
+      ],
     ],
     definitionOfDone: [
       "Assessment aggregate and workflow baseline are stable for downstream tasks.",
       "Manager-owned organization scope is enforced server-side.",
       "Neutral readiness projection exists without overclaiming downstream outputs.",
     ],
-    openDecisions: [["Assessment numbering and human-readable identifier format", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Assessment numbering and human-readable identifier format",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-008",
@@ -280,10 +508,22 @@ const tasks = [
     outcome:
       "Create the WizardProfile draft/submit/readiness API surface that captures business-language assessment facts and emits readiness-only states before technical evidence exists.",
     sourceAuthority: [
-      ["Epic / story", "`docs/planning-artifacts/epics.md` Epic 2 and Stories 2.2..2.4"],
-      ["UX / story", "`docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-26-wizard-epic-2/WIZARD-MAPPING.md`; `docs/implementation-artifacts/2-2-complete-wizardprofile-in-business-language.md`; `docs/implementation-artifacts/2-3-wizard-only-readiness-without-risk-level.md`; `docs/implementation-artifacts/2-4-wizard-readiness-export.md`"],
-      ["Implementation", "`docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`"],
-      ["Specs", "`docs/specs/user-task-flows.md`; `docs/specs/domain-state-machines.md`"],
+      [
+        "Epic / story",
+        "`docs/planning-artifacts/epics.md` Epic 2 and Stories 2.2..2.4",
+      ],
+      [
+        "UX / story",
+        "`docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-26-wizard-epic-2/WIZARD-MAPPING.md`; `docs/implementation-artifacts/2-2-complete-wizardprofile-in-business-language.md`; `docs/implementation-artifacts/2-3-wizard-only-readiness-without-risk-level.md`; `docs/implementation-artifacts/2-4-wizard-readiness-export.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/user-task-flows.md`; `docs/specs/domain-state-machines.md`",
+      ],
     ],
     scope: [
       "Implement WizardProfile draft/save/submit APIs with versioned persistence.",
@@ -298,20 +538,48 @@ const tasks = [
       "No direct developer attestation workflow.",
     ],
     verification: [
-      ["business-language capture", "API / UX contract", "wizard fields and responses align with canonical wizard mapping and safe unknown states"],
-      ["readiness-only behavior", "state / UX", "submit can create readiness guidance without risk level overclaim"],
-      ["version safety", "persistence", "draft and submit mutations preserve explicit versioned WizardProfile history"],
+      [
+        "business-language capture",
+        "API / UX contract",
+        "wizard fields and responses align with canonical wizard mapping and safe unknown states",
+      ],
+      [
+        "readiness-only behavior",
+        "state / UX",
+        "submit can create readiness guidance without risk level overclaim",
+      ],
+      [
+        "version safety",
+        "persistence",
+        "draft and submit mutations preserve explicit versioned WizardProfile history",
+      ],
     ],
     failure: [
-      ["invalid wizard submission", "reject with field-safe validation response", "user sees actionable correction path", "audit contains safe validation outcome"],
-      ["premature readiness export", "block when state preconditions fail", "user gets blocked-state explanation", "correlation-linked deny record"],
+      [
+        "invalid wizard submission",
+        "reject with field-safe validation response",
+        "user sees actionable correction path",
+        "audit contains safe validation outcome",
+      ],
+      [
+        "premature readiness export",
+        "block when state preconditions fail",
+        "user gets blocked-state explanation",
+        "correlation-linked deny record",
+      ],
     ],
     definitionOfDone: [
       "WizardProfile APIs support draft, submit, readiness state, and readiness export entry boundaries.",
       "Unknown/unclear facts are preserved explicitly rather than guessed.",
       "Frontend can bind against one stable API contract for Epic 2.",
     ],
-    openDecisions: [["Exact long-form export document layout for readiness-only output", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Exact long-form export document layout for readiness-only output",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-009",
@@ -324,10 +592,22 @@ const tasks = [
     outcome:
       "Create the GitHub App repository connection and commit-pinned snapshot API boundary that trusted scan orchestration depends on.",
     sourceAuthority: [
-      ["Epic / story", "`docs/planning-artifacts/epics.md` Epic 3 and Stories 3.1..3.2"],
-      ["Implementation", "`docs/implementation/backend-implementation.md`; `docs/implementation/scanner-worker-implementation.md`; `docs/implementation/persistence-implementation.md`"],
-      ["Specs", "`docs/specs/scanner-spec.md`; `docs/specs/user-task-flows.md`; `docs/specs/domain-state-machines.md`"],
-      ["Story packet", "`docs/implementation-artifacts/3-1-connect-read-only-github-repository.md`; `docs/implementation-artifacts/3-2-pin-commit-and-create-repositorysnapshot.md`"],
+      [
+        "Epic / story",
+        "`docs/planning-artifacts/epics.md` Epic 3 and Stories 3.1..3.2",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/backend-implementation.md`; `docs/implementation/scanner-worker-implementation.md`; `docs/implementation/persistence-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/scanner-spec.md`; `docs/specs/user-task-flows.md`; `docs/specs/domain-state-machines.md`",
+      ],
+      [
+        "Story packet",
+        "`docs/implementation-artifacts/3-1-connect-read-only-github-repository.md`; `docs/implementation-artifacts/3-2-pin-commit-and-create-repositorysnapshot.md`",
+      ],
     ],
     scope: [
       "Implement GitHub App installation binding and authorized read-only repository selection.",
@@ -342,20 +622,48 @@ const tasks = [
       "No manual evidence upload path as a substitute for trusted snapshots.",
     ],
     verification: [
-      ["read-only auth", "API / integration", "repository selection is limited to authorized installations and read-only scope"],
-      ["immutable snapshot", "API / persistence", "scan input pins a specific commit or branch resolution snapshot without later mutation"],
-      ["safe token handling", "security", "raw GitHub tokens are never exposed in UI, logs, or ordinary persistence"],
+      [
+        "read-only auth",
+        "API / integration",
+        "repository selection is limited to authorized installations and read-only scope",
+      ],
+      [
+        "immutable snapshot",
+        "API / persistence",
+        "scan input pins a specific commit or branch resolution snapshot without later mutation",
+      ],
+      [
+        "safe token handling",
+        "security",
+        "raw GitHub tokens are never exposed in UI, logs, or ordinary persistence",
+      ],
     ],
     failure: [
-      ["invalid installation scope", "deny selection and require reauthorization", "user sees safe repository authorization message", "audit records deny reason"],
-      ["snapshot resolution failure", "block downstream trigger", "operator gets actionable safe status", "audit and status projection capture failure"],
+      [
+        "invalid installation scope",
+        "deny selection and require reauthorization",
+        "user sees safe repository authorization message",
+        "audit records deny reason",
+      ],
+      [
+        "snapshot resolution failure",
+        "block downstream trigger",
+        "operator gets actionable safe status",
+        "audit and status projection capture failure",
+      ],
     ],
     definitionOfDone: [
       "Repository connection and snapshot contracts are stable for trusted trigger work.",
       "Read-only GitHub authorization is enforced server-side.",
       "Later scanner tasks can rely on immutable repository snapshot refs only.",
     ],
-    openDecisions: [["GitHub App webhook vs pull refresh strategy for installation sync", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "GitHub App webhook vs pull refresh strategy for installation sync",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-013",
@@ -369,9 +677,18 @@ const tasks = [
       "Execute the locked scanner toolchain inside the restricted Python worker runtime and normalize bounded tool output for downstream evidence generation.",
     sourceAuthority: [
       ["Specs", "`docs/specs/scanner-spec.md`"],
-      ["Implementation", "`docs/implementation/scanner-worker-implementation.md`; `docs/implementation/scanner-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`"],
-      ["Story / domain notes", "`docs-vn/05-python-scanner.md`; `docs/implementation-artifacts/3-4-static-scanner-workspace-and-sandbox.md`; `docs/implementation-artifacts/3-5-static-scanner-toolchain-execution.md`"],
-      ["Decisions", "`docs/implementation/decisions/scanner-severity-tool-provenance-decision.md`"],
+      [
+        "Implementation",
+        "`docs/implementation/scanner-worker-implementation.md`; `docs/implementation/scanner-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`",
+      ],
+      [
+        "Story / domain notes",
+        "`docs-vn/05-python-scanner.md`; `docs/implementation-artifacts/3-4-static-scanner-workspace-and-sandbox.md`; `docs/implementation-artifacts/3-5-static-scanner-toolchain-execution.md`",
+      ],
+      [
+        "Decisions",
+        "`docs/implementation/decisions/scanner-severity-tool-provenance-decision.md`",
+      ],
     ],
     scope: [
       "Run Syft, Knip, deptry, Semgrep, tree-sitter/custom parser augmentation, and bounded Python analysis under one restricted scanner workspace.",
@@ -386,20 +703,48 @@ const tasks = [
       "No installation of repository dependencies or execution of customer code.",
     ],
     verification: [
-      ["toolchain execution", "worker / integration", "scanner can run the required toolchain within bounded workspace and resource limits"],
-      ["provenance", "worker / persistence", "tool version, config hash, and failure class are recorded for downstream evidence gating"],
-      ["security boundary", "worker / security", "customer code is not executed and raw source is not persisted"],
+      [
+        "toolchain execution",
+        "worker / integration",
+        "scanner can run the required toolchain within bounded workspace and resource limits",
+      ],
+      [
+        "provenance",
+        "worker / persistence",
+        "tool version, config hash, and failure class are recorded for downstream evidence gating",
+      ],
+      [
+        "security boundary",
+        "worker / security",
+        "customer code is not executed and raw source is not persisted",
+      ],
     ],
     failure: [
-      ["tool timeout", "apply severity table and continue or fail closed as specified", "operator sees safe failure class", "audit/log contains bounded provenance only"],
-      ["unsafe output", "reject normalization and fail closed", "developer sees sanitized validation error", "safe failure record emitted"],
+      [
+        "tool timeout",
+        "apply severity table and continue or fail closed as specified",
+        "operator sees safe failure class",
+        "audit/log contains bounded provenance only",
+      ],
+      [
+        "unsafe output",
+        "reject normalization and fail closed",
+        "developer sees sanitized validation error",
+        "safe failure record emitted",
+      ],
     ],
     definitionOfDone: [
       "Locked scanner toolchain is executable inside the Python worker boundary.",
       "Every tool result has provenance and bounded failure semantics.",
       "Downstream evidence tasks consume normalized outputs, not raw tool data.",
     ],
-    openDecisions: [["Additional post-MVP analyzers beyond locked MVP toolchain", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Additional post-MVP analyzers beyond locked MVP toolchain",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-014",
@@ -413,9 +758,18 @@ const tasks = [
       "Define and implement the fixed TS/JS analyzer subprocess protocol so Python scanner lifecycle ownership can safely consume bounded TypeScript/JavaScript semantic output.",
     sourceAuthority: [
       ["Specs", "`docs/specs/scanner-spec.md`"],
-      ["Architecture / decisions", "`docs/architecture/adr/adr-023-python-worker-scanner-runtime.md`"],
-      ["Implementation", "`docs/implementation/scanner-worker-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`"],
-      ["Story packet", "`docs/implementation-artifacts/3-5-static-scanner-toolchain-execution.md`"],
+      [
+        "Architecture / decisions",
+        "`docs/architecture/adr/adr-023-python-worker-scanner-runtime.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/scanner-worker-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`",
+      ],
+      [
+        "Story packet",
+        "`docs/implementation-artifacts/3-5-static-scanner-toolchain-execution.md`",
+      ],
     ],
     scope: [
       "Define the versioned JSON request/response contract between Python worker and TS/JS analyzer CLI.",
@@ -430,64 +784,131 @@ const tasks = [
       "No repository dependency installation or code execution inside the analyzer.",
     ],
     verification: [
-      ["protocol validation", "worker / subprocess", "invalid analyzer output is rejected before normalization"],
-      ["failure mapping", "worker / integration", "timeout or non-zero exit becomes bounded coverage limitation or failure class"],
-      ["ownership boundary", "architecture / integration", "Python worker remains sole lifecycle owner of scan jobs"],
+      [
+        "protocol validation",
+        "worker / subprocess",
+        "invalid analyzer output is rejected before normalization",
+      ],
+      [
+        "failure mapping",
+        "worker / integration",
+        "timeout or non-zero exit becomes bounded coverage limitation or failure class",
+      ],
+      [
+        "ownership boundary",
+        "architecture / integration",
+        "Python worker remains sole lifecycle owner of scan jobs",
+      ],
     ],
     failure: [
-      ["analyzer non-zero exit", "record `TS_JS_ANALYZER_FAILED` and apply bounded downstream behavior", "operator sees affected-file limitation", "safe failure metadata only"],
-      ["schema mismatch", "reject output and fail closed", "developer gets protocol validation error", "sanitized log/audit metadata"],
+      [
+        "analyzer non-zero exit",
+        "record `TS_JS_ANALYZER_FAILED` and apply bounded downstream behavior",
+        "operator sees affected-file limitation",
+        "safe failure metadata only",
+      ],
+      [
+        "schema mismatch",
+        "reject output and fail closed",
+        "developer gets protocol validation error",
+        "sanitized log/audit metadata",
+      ],
     ],
     definitionOfDone: [
       "The TS/JS analyzer protocol is versioned and documented.",
       "Subprocess invocation is bounded, redacted, and shell-free.",
       "Python scanner can consume TS/JS semantics without ceding lifecycle ownership.",
     ],
-    openDecisions: [["Analyzer packaging form for production deploy image", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Analyzer packaging form for production deploy image",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-019",
-    slug: "optional-developer-scoped-task-without-attestation",
-    title: "Optional Developer scoped task without attestation",
-    status: "READY_FOR_PLANNING_REVIEW",
+    slug: "retired-developer-scoped-task-without-attestation",
+    title: "Retired Developer scoped task without attestation",
+    status: "RETIRED",
     priority: "P1",
     owner: "Assessment / Intelligence",
     runtime: "cross-runtime",
     outcome:
-      "Allow an optional scoped Developer to contribute technical review work inside LCSP without gaining attestation, compliance sign-off, or final workflow authority.",
+      "Record that scoped Developer task collaboration is retired from active LCSP scope and must not be regenerated as an active implementation task.",
     sourceAuthority: [
-      ["Epic / story", "`docs/planning-artifacts/epics.md` Epic 1 optional collaboration plus review surfaces in Epics 3, 4, 5, and 8"],
-      ["Story packet", "`docs/implementation-artifacts/1-5-optional-developer-invitation-and-scoped-task-acceptance.md`; `docs/implementation-artifacts/3-9-redacted-technical-findings-review-and-developer-scoped-view.md`; `docs/implementation-artifacts/4-6-aiusageflow-review-surface-without-final-authority.md`"],
-      ["Implementation", "`docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`"],
-      ["Specs", "`docs/specs/user-task-flows.md`; `docs/specs/domain-state-machines.md`"],
+      [
+        "Epic / story",
+        "`docs/planning-artifacts/epics.md` Epic 1 optional collaboration plus review surfaces in Epics 3, 4, 5, and 8",
+      ],
+      [
+        "Story packet",
+        "`docs/implementation-artifacts/1-5-optional-developer-invitation-and-scoped-task-acceptance.md`; `docs/implementation-artifacts/3-9-redacted-technical-findings-review-and-developer-scoped-view.md`; `docs/implementation-artifacts/4-6-aiusageflow-review-surface-without-final-authority.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/user-task-flows.md`; `docs/specs/domain-state-machines.md`",
+      ],
     ],
     scope: [
-      "Define scoped Developer invite/assignment semantics and permission boundaries.",
-      "Expose only the review/comment/technical confirmation surfaces explicitly allowed by PBAC and workflow state.",
-      "Prevent Developer actions from becoming final legal, compliance, or Manager-only decisions.",
-      "Audit assignment, acceptance, denied access, and scoped review actions.",
-      "Keep all collaboration scoped to explicit assessment/repository/task boundaries.",
+      "Do not generate Developer invitation, assignment, acceptance, revocation, or scoped workspace work.",
+      "Preserve historical references only as retired decision records.",
+      "Route active technical evidence through Manager-authorized repository scan.",
     ],
     nonGoals: [
+      "No Developer task workspace.",
       "No Developer attestation or final VerifiedProfile authority.",
       "No bypass around Manager conflict resolution or classification request gates.",
       "No broad organization-admin delegation.",
     ],
     verification: [
-      ["scoped collaboration", "authz / workflow", "Developer can access only explicitly delegated technical review surfaces"],
-      ["authority ceiling", "API / UX", "Developer cannot finalize Manager-only actions or legal/compliance outputs"],
-      ["auditability", "API / audit", "grant, accept, revoke, and deny paths emit safe audit records"],
+      [
+        "retired scope",
+        "planning / docs",
+        "no active Developer collaboration task is generated",
+      ],
+      [
+        "authority ceiling",
+        "API / UX",
+        "non-Manager subjects cannot finalize Manager-only actions or legal/compliance outputs",
+      ],
+      [
+        "audit compatibility",
+        "API / audit",
+        "historical invitation audit resource values remain read-compatible only",
+      ],
     ],
     failure: [
-      ["out-of-scope action", "deny server-side and preserve current workflow state", "Developer sees safe blocked response", "deny event audited"],
-      ["stale assignment", "reject action until scope is refreshed", "user gets refresh guidance", "correlation-linked safe failure"],
+      [
+        "out-of-scope action",
+        "deny server-side and preserve current workflow state",
+        "user sees safe blocked response",
+        "deny event audited",
+      ],
+      [
+        "stale assignment",
+        "reject action until scope is refreshed",
+        "user gets refresh guidance",
+        "correlation-linked safe failure",
+      ],
     ],
     definitionOfDone: [
-      "Optional Developer collaboration exists as a constrained technical path only.",
+      "Developer collaboration remains retired from active implementation scope.",
       "Manager remains final authority for conflict resolution, classification, and reporting outputs.",
       "Review surfaces are scoped, auditable, and tenant-safe.",
     ],
-    openDecisions: [["Granularity of delegated comment vs resolution permissions beyond MVP", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Whether delegated collaboration ever returns",
+        "`REQUIRES_NEW_SCOPE_DECISION`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-020",
@@ -500,10 +921,22 @@ const tasks = [
     outcome:
       "Implement the legal source validation and ingestion worker that fetches only approved official sources, stores immutable snapshots, and stages normalized legal corpus artifacts.",
     sourceAuthority: [
-      ["Architecture / decisions", "`docs/architecture/adr/adr-025-legal-corpus-source-architecture.md`"],
-      ["Implementation", "`docs/implementation/legal-corpus-ingestion-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/persistence-implementation.md`"],
-      ["Specs", "`docs/specs/legal-corpus-source-spec.md`; `docs/specs/legal-matching-domain-spec.md`; `docs/specs/event-catalog.md`"],
-      ["Epic / story", "`docs/planning-artifacts/epics.md` Epic 6 and Stories 6.1..6.2"],
+      [
+        "Architecture / decisions",
+        "`docs/architecture/adr/adr-025-legal-corpus-source-architecture.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/legal-corpus-ingestion-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/persistence-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/legal-corpus-source-spec.md`; `docs/specs/legal-matching-domain-spec.md`; `docs/specs/event-catalog.md`",
+      ],
+      [
+        "Epic / story",
+        "`docs/planning-artifacts/epics.md` Epic 6 and Stories 6.1..6.2",
+      ],
     ],
     scope: [
       "Consume legal-source ingestion commands from validated source definitions only.",
@@ -519,20 +952,48 @@ const tasks = [
       "No unrestricted crawling or arbitrary URL ingestion.",
     ],
     verification: [
-      ["source validation gate", "worker / security", "unvalidated or off-allowlist sources are rejected before fetch"],
-      ["immutable provenance", "worker / storage", "snapshot hash, source URL, and retrieval metadata are recorded for staged corpus items"],
-      ["normalization baseline", "worker / persistence", "draft legal document structure is persisted without auto-approval"],
+      [
+        "source validation gate",
+        "worker / security",
+        "unvalidated or off-allowlist sources are rejected before fetch",
+      ],
+      [
+        "immutable provenance",
+        "worker / storage",
+        "snapshot hash, source URL, and retrieval metadata are recorded for staged corpus items",
+      ],
+      [
+        "normalization baseline",
+        "worker / persistence",
+        "draft legal document structure is persisted without auto-approval",
+      ],
     ],
     failure: [
-      ["source unavailable", "bounded retry then fail closed", "operator sees safe unavailable state", "failure event and audit emitted"],
-      ["identity or structure extraction failure", "block approval eligibility and require review", "operator sees actionable review state", "safe failure metadata recorded"],
+      [
+        "source unavailable",
+        "bounded retry then fail closed",
+        "operator sees safe unavailable state",
+        "failure event and audit emitted",
+      ],
+      [
+        "identity or structure extraction failure",
+        "block approval eligibility and require review",
+        "operator sees actionable review state",
+        "safe failure metadata recorded",
+      ],
     ],
     definitionOfDone: [
       "Validated-source-only ingestion worker exists.",
       "Immutable legal source snapshots and normalized draft corpus artifacts are persisted.",
       "Approval and indexing can proceed from one staged source-of-truth path.",
     ],
-    openDecisions: [["Final validated official source host list for acceptance environment", "`CARRIED_FORWARD`", "yes"]],
+    openDecisions: [
+      [
+        "Final validated official source host list for acceptance environment",
+        "`CARRIED_FORWARD`",
+        "yes",
+      ],
+    ],
   },
   {
     id: "TASK-021",
@@ -545,10 +1006,22 @@ const tasks = [
     outcome:
       "Create the internal-only review and approval surface that turns draft legal corpus artifacts into immutable approved corpus versions eligible for index build and legal retrieval.",
     sourceAuthority: [
-      ["Architecture / decisions", "`docs/architecture/adr/adr-025-legal-corpus-source-architecture.md`"],
-      ["Implementation", "`docs/implementation/legal-corpus-ingestion-implementation.md`; `docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`"],
-      ["Epic / story", "`docs/planning-artifacts/epics.md` Epic 6 and Story 6.3"],
-      ["Story packet", "`docs/implementation-artifacts/6-3-approve-legalcorpusversion.md`"],
+      [
+        "Architecture / decisions",
+        "`docs/architecture/adr/adr-025-legal-corpus-source-architecture.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/legal-corpus-ingestion-implementation.md`; `docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`",
+      ],
+      [
+        "Epic / story",
+        "`docs/planning-artifacts/epics.md` Epic 6 and Story 6.3",
+      ],
+      [
+        "Story packet",
+        "`docs/implementation-artifacts/6-3-approve-legalcorpusversion.md`",
+      ],
     ],
     scope: [
       "Expose internal-only draft corpus review and approval operations for the Internal Legal Operator.",
@@ -563,20 +1036,48 @@ const tasks = [
       "No legal advice or certification semantics.",
     ],
     verification: [
-      ["approval gate", "API / workflow", "only reviewed draft corpus can transition to approved state"],
-      ["immutability", "persistence", "approved corpus version cannot be silently mutated in place"],
-      ["internal-only boundary", "authz / UX", "Manager/Developer surfaces do not expose corpus administration"],
+      [
+        "approval gate",
+        "API / workflow",
+        "only reviewed draft corpus can transition to approved state",
+      ],
+      [
+        "immutability",
+        "persistence",
+        "approved corpus version cannot be silently mutated in place",
+      ],
+      [
+        "internal-only boundary",
+        "authz / UX",
+        "Manager/Developer surfaces do not expose corpus administration",
+      ],
     ],
     failure: [
-      ["approval prerequisite missing", "reject approval and keep version in draft", "operator sees missing review basis", "audit records safe rejection reason"],
-      ["attempted update to approved version", "block mutation and require new draft", "operator sees immutable-version guidance", "safe audit event emitted"],
+      [
+        "approval prerequisite missing",
+        "reject approval and keep version in draft",
+        "operator sees missing review basis",
+        "audit records safe rejection reason",
+      ],
+      [
+        "attempted update to approved version",
+        "block mutation and require new draft",
+        "operator sees immutable-version guidance",
+        "safe audit event emitted",
+      ],
     ],
     definitionOfDone: [
       "Internal corpus approval path is documented and auditable.",
       "Approved corpus versions are immutable and index-build-ready only after explicit approval.",
       "Customer-facing roles cannot access this administration surface.",
     ],
-    openDecisions: [["CLI vs internal HTTP-first operator flow for MVP ergonomics", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "CLI vs internal HTTP-first operator flow for MVP ergonomics",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-022",
@@ -589,10 +1090,22 @@ const tasks = [
     outcome:
       "Build the worker that turns approved legal corpus versions into ChromaDB structure-first vectorless indexes with stable IDs, hierarchy metadata, and cross-reference integrity.",
     sourceAuthority: [
-      ["Architecture / decisions", "`docs/architecture/adr/adr-026-chromadb-vectorless-legal-retriever.md`"],
-      ["Implementation", "`docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/persistence-implementation.md`"],
-      ["Epic / story", "`docs/planning-artifacts/epics.md` Epic 6 and Story 6.4"],
-      ["Story packet", "`docs/implementation-artifacts/6-4-build-chromadb-structure-first-vectorless-legal-index.md`"],
+      [
+        "Architecture / decisions",
+        "`docs/architecture/adr/adr-026-chromadb-vectorless-legal-retriever.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/persistence-implementation.md`",
+      ],
+      [
+        "Epic / story",
+        "`docs/planning-artifacts/epics.md` Epic 6 and Story 6.4",
+      ],
+      [
+        "Story packet",
+        "`docs/implementation-artifacts/6-4-build-chromadb-structure-first-vectorless-legal-index.md`",
+      ],
     ],
     scope: [
       "Consume legal index build commands for approved corpus versions only.",
@@ -607,20 +1120,48 @@ const tasks = [
       "No retrieval request serving from this build task itself.",
     ],
     verification: [
-      ["stable IDs", "worker / index", "approved corpus builds deterministic hierarchical IDs inside the pinned version"],
-      ["metadata completeness", "worker / retrieval contract", "required retrieval metadata exists for all indexed chunks"],
-      ["readiness gate", "worker / workflow", "unusable or partial index does not become retrieval-eligible"],
+      [
+        "stable IDs",
+        "worker / index",
+        "approved corpus builds deterministic hierarchical IDs inside the pinned version",
+      ],
+      [
+        "metadata completeness",
+        "worker / retrieval contract",
+        "required retrieval metadata exists for all indexed chunks",
+      ],
+      [
+        "readiness gate",
+        "worker / workflow",
+        "unusable or partial index does not become retrieval-eligible",
+      ],
     ],
     failure: [
-      ["missing hierarchy metadata", "fail index build", "operator sees explicit build failure reason", "failure event and audit emitted"],
-      ["Chroma unavailable", "block completion and retry/fail under policy", "operator sees unavailable index state", "safe failure metadata only"],
+      [
+        "missing hierarchy metadata",
+        "fail index build",
+        "operator sees explicit build failure reason",
+        "failure event and audit emitted",
+      ],
+      [
+        "Chroma unavailable",
+        "block completion and retry/fail under policy",
+        "operator sees unavailable index state",
+        "safe failure metadata only",
+      ],
     ],
     definitionOfDone: [
       "Approved corpus versions can produce one validated ChromaDB legal index profile.",
       "Stable IDs and xref metadata are preserved.",
       "Legal matching can depend on explicit index completion records only.",
     ],
-    openDecisions: [["Chroma collection naming and retention strategy across environments", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Chroma collection naming and retention strategy across environments",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-023",
@@ -633,10 +1174,22 @@ const tasks = [
     outcome:
       "Implement the legal retriever that queries approved ChromaDB corpus versions with structure-first rules and persists sanitized retrieval audit evidence.",
     sourceAuthority: [
-      ["Architecture / decisions", "`docs/architecture/adr/adr-026-chromadb-vectorless-legal-retriever.md`"],
-      ["Implementation", "`docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`; `docs/implementation/persistence-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`"],
-      ["Specs", "`docs/specs/legal-matching-domain-spec.md`; `docs/specs/event-catalog.md`"],
-      ["Epic / story", "`docs/planning-artifacts/epics.md` Epic 6 and Stories 6.5..6.6"],
+      [
+        "Architecture / decisions",
+        "`docs/architecture/adr/adr-026-chromadb-vectorless-legal-retriever.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`; `docs/implementation/persistence-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/legal-matching-domain-spec.md`; `docs/specs/event-catalog.md`",
+      ],
+      [
+        "Epic / story",
+        "`docs/planning-artifacts/epics.md` Epic 6 and Stories 6.5..6.6",
+      ],
     ],
     scope: [
       "Retrieve legal candidates by approved corpus version, effective date, metadata filters, and stable ID lookups.",
@@ -651,20 +1204,48 @@ const tasks = [
       "No public search UI.",
     ],
     verification: [
-      ["retrieval roles", "worker / retrieval", "primary, parent, and referenced context remain distinguishable and reproducible"],
-      ["audit trail", "worker / persistence", "retrieval audit contains sanitized query metadata and matched IDs only"],
-      ["citation safety", "worker / guardrail", "out-of-allowlist or unreconstructable citations are rejected"],
+      [
+        "retrieval roles",
+        "worker / retrieval",
+        "primary, parent, and referenced context remain distinguishable and reproducible",
+      ],
+      [
+        "audit trail",
+        "worker / persistence",
+        "retrieval audit contains sanitized query metadata and matched IDs only",
+      ],
+      [
+        "citation safety",
+        "worker / guardrail",
+        "out-of-allowlist or unreconstructable citations are rejected",
+      ],
     ],
     failure: [
-      ["zero valid candidates", "block/degrade downstream by rule criticality", "operator sees explicit unavailable-basis state", "retrieval audit captures result class"],
-      ["allowlist reconstruction failure", "reject retrieval output", "developer/operator sees citation integrity failure", "safe failure metadata emitted"],
+      [
+        "zero valid candidates",
+        "block/degrade downstream by rule criticality",
+        "operator sees explicit unavailable-basis state",
+        "retrieval audit captures result class",
+      ],
+      [
+        "allowlist reconstruction failure",
+        "reject retrieval output",
+        "developer/operator sees citation integrity failure",
+        "safe failure metadata emitted",
+      ],
     ],
     definitionOfDone: [
       "Retriever obeys approved corpus, metadata, and citation safety rules.",
       "Retrieval audit is sanitized and reproducible.",
       "Legal matching can consume retrieval output without inventing citation provenance.",
     ],
-    openDecisions: [["Optional future reranker path beyond vectorless MVP retrieval", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Optional future reranker path beyond vectorless MVP retrieval",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-024",
@@ -677,10 +1258,22 @@ const tasks = [
     outcome:
       "Build the worker that turns approved `VerifiedProfile` facts plus approved legal retrieval output into `LegalMatchingResult` and `LegalRuleMatch` evidence.",
     sourceAuthority: [
-      ["Epic / story", "`docs/planning-artifacts/epics.md` Epic 6 and Story 6.7"],
-      ["Implementation", "`docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/persistence-implementation.md`; `docs/implementation/queue-implementation.md`"],
-      ["Specs", "`docs/specs/legal-matching-domain-spec.md`; `docs/specs/domain-state-machines.md`"],
-      ["Story packet", "`docs/implementation-artifacts/6-7-create-legalmatchingresult-and-legalrulematch-evidence.md`"],
+      [
+        "Epic / story",
+        "`docs/planning-artifacts/epics.md` Epic 6 and Story 6.7",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`; `docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/persistence-implementation.md`; `docs/implementation/queue-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/legal-matching-domain-spec.md`; `docs/specs/domain-state-machines.md`",
+      ],
+      [
+        "Story packet",
+        "`docs/implementation-artifacts/6-7-create-legalmatchingresult-and-legalrulematch-evidence.md`",
+      ],
     ],
     scope: [
       "Consume legal matching requests only from approved `VerifiedProfile` and approved corpus/index prerequisites.",
@@ -695,20 +1288,48 @@ const tasks = [
       "No bypass around corpus approval or retrieval allowlist gates.",
     ],
     verification: [
-      ["evidence contract", "worker / persistence", "material legal matches retain citation refs, retrieval audit refs, and blocking reasons"],
-      ["gate correctness", "worker / workflow", "missing prerequisites block matching instead of inventing legal basis"],
-      ["downstream safety", "worker / integration", "classification sees explicit coverage and block metadata only from legal matching output"],
+      [
+        "evidence contract",
+        "worker / persistence",
+        "material legal matches retain citation refs, retrieval audit refs, and blocking reasons",
+      ],
+      [
+        "gate correctness",
+        "worker / workflow",
+        "missing prerequisites block matching instead of inventing legal basis",
+      ],
+      [
+        "downstream safety",
+        "worker / integration",
+        "classification sees explicit coverage and block metadata only from legal matching output",
+      ],
     ],
     failure: [
-      ["missing approved corpus/index", "block matching", "operator sees explicit prerequisite failure", "safe failure event emitted"],
-      ["citation gap", "preserve blocking reason and refuse complete match output", "downstream sees blocked/degraded state", "retrieval/audit refs retained"],
+      [
+        "missing approved corpus/index",
+        "block matching",
+        "operator sees explicit prerequisite failure",
+        "safe failure event emitted",
+      ],
+      [
+        "citation gap",
+        "preserve blocking reason and refuse complete match output",
+        "downstream sees blocked/degraded state",
+        "retrieval/audit refs retained",
+      ],
     ],
     definitionOfDone: [
       "Legal matching output is immutable, citation-backed, and audit-traceable.",
       "Downstream classification depends on `LegalMatchingResult`, not ad hoc retrieval state.",
       "Missing or partial legal basis fails closed.",
     ],
-    openDecisions: [["Rule authoring workflow for legal matching rules beyond MVP seed set", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Rule authoring workflow for legal matching rules beyond MVP seed set",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-025",
@@ -721,9 +1342,18 @@ const tasks = [
     outcome:
       "Create the only allowed external model invocation boundary with real provider mode, schema validation, prompt-version tracking, retries, and privacy enforcement.",
     sourceAuthority: [
-      ["Architecture", "`docs/architecture/architecture.md`; `docs/architecture/multi-agent-system-architecture.md`"],
-      ["Implementation", "`docs/implementation/llm-gateway-implementation.md`; `docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`"],
-      ["Specs", "`docs/specs/legal-classification-spec.md`; `docs/specs/document-generation-spec.md`"],
+      [
+        "Architecture",
+        "`docs/architecture/architecture.md`; `docs/architecture/multi-agent-system-architecture.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/llm-gateway-implementation.md`; `docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/legal-classification-spec.md`; `docs/specs/document-generation-spec.md`",
+      ],
     ],
     scope: [
       "Define the shared gateway API/adapter contract used by classification and document-generation workloads.",
@@ -738,20 +1368,48 @@ const tasks = [
       "No embedding-retrieval responsibility.",
     ],
     verification: [
-      ["single invocation boundary", "integration / security", "classification and document paths call the external provider only through the gateway"],
-      ["provider mode rules", "config / acceptance", "real provider mode is mandatory for integrated acceptance runs and mock mode remains test-only"],
-      ["schema safety", "gateway / validation", "invalid provider output fails closed and is recorded with safe metadata"],
+      [
+        "single invocation boundary",
+        "integration / security",
+        "classification and document paths call the external provider only through the gateway",
+      ],
+      [
+        "provider mode rules",
+        "config / acceptance",
+        "real provider mode is mandatory for integrated acceptance runs and mock mode remains test-only",
+      ],
+      [
+        "schema safety",
+        "gateway / validation",
+        "invalid provider output fails closed and is recorded with safe metadata",
+      ],
     ],
     failure: [
-      ["provider outage", "retry within budget then return blocked/degraded result per caller policy", "operator sees provider-safe failure class", "gateway audit metadata recorded"],
-      ["disallowed input class", "reject request before provider call", "developer/operator sees input-policy failure", "security audit emitted"],
+      [
+        "provider outage",
+        "retry within budget then return blocked/degraded result per caller policy",
+        "operator sees provider-safe failure class",
+        "gateway audit metadata recorded",
+      ],
+      [
+        "disallowed input class",
+        "reject request before provider call",
+        "developer/operator sees input-policy failure",
+        "security audit emitted",
+      ],
     ],
     definitionOfDone: [
       "Gateway is the sole provider invocation boundary.",
       "Real provider mode is supported and documented for acceptance use.",
       "Prompt/version, model metadata, and output hash are auditable without leaking sensitive content.",
     ],
-    openDecisions: [["Final provider/model selection for acceptance environment", "`CARRIED_FORWARD`", "yes"]],
+    openDecisions: [
+      [
+        "Final provider/model selection for acceptance environment",
+        "`CARRIED_FORWARD`",
+        "yes",
+      ],
+    ],
   },
   {
     id: "TASK-026",
@@ -764,10 +1422,22 @@ const tasks = [
     outcome:
       "Generate citation-backed `RiskClassification` only from approved `VerifiedProfile`, approved legal matching evidence, and the LLM gateway under deterministic guardrails.",
     sourceAuthority: [
-      ["Epic / story", "`docs/planning-artifacts/epics.md` Epic 7 and Stories 7.1..7.6"],
-      ["Specs", "`docs/specs/legal-classification-spec.md`; `docs/specs/domain-state-machines.md`; `docs/specs/user-task-flows.md`"],
-      ["Implementation", "`docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/llm-gateway-implementation.md`; `docs/implementation/persistence-implementation.md`"],
-      ["Story packet", "`docs/implementation-artifacts/7-1-submit-classification-request-from-approved-verifiedprofile.md`; `docs/implementation-artifacts/7-3-use-real-llm-provider-with-schema-and-budget-guardrails.md`; `docs/implementation-artifacts/7-5-validate-classification-citations-against-legal-allowlist.md`"],
+      [
+        "Epic / story",
+        "`docs/planning-artifacts/epics.md` Epic 7 and Stories 7.1..7.6",
+      ],
+      [
+        "Specs",
+        "`docs/specs/legal-classification-spec.md`; `docs/specs/domain-state-machines.md`; `docs/specs/user-task-flows.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/llm-gateway-implementation.md`; `docs/implementation/persistence-implementation.md`",
+      ],
+      [
+        "Story packet",
+        "`docs/implementation-artifacts/7-1-submit-classification-request-from-approved-verifiedprofile.md`; `docs/implementation-artifacts/7-3-use-real-llm-provider-with-schema-and-budget-guardrails.md`; `docs/implementation-artifacts/7-5-validate-classification-citations-against-legal-allowlist.md`",
+      ],
     ],
     scope: [
       "Consume classification requests only after VerifiedProfile and LegalMatchingResult gates pass.",
@@ -782,20 +1452,48 @@ const tasks = [
       "No document generation in this worker.",
     ],
     verification: [
-      ["gated request", "worker / workflow", "classification cannot start before VerifiedProfile and legal evidence gates are satisfied"],
-      ["citation integrity", "worker / guardrail", "classification output cites only retrieved allowlist-backed legal references"],
-      ["provider guardrails", "worker / gateway", "schema-invalid or unsupported provider outputs return blocked/degraded state"],
+      [
+        "gated request",
+        "worker / workflow",
+        "classification cannot start before VerifiedProfile and legal evidence gates are satisfied",
+      ],
+      [
+        "citation integrity",
+        "worker / guardrail",
+        "classification output cites only retrieved allowlist-backed legal references",
+      ],
+      [
+        "provider guardrails",
+        "worker / gateway",
+        "schema-invalid or unsupported provider outputs return blocked/degraded state",
+      ],
     ],
     failure: [
-      ["missing legal basis", "block classification", "user/operator sees explicit missing-evidence state", "safe failure event emitted"],
-      ["gateway/schema failure", "retry within policy then degrade/block", "operator sees provider-safe failure reason", "audit records provider/model metadata only"],
+      [
+        "missing legal basis",
+        "block classification",
+        "user/operator sees explicit missing-evidence state",
+        "safe failure event emitted",
+      ],
+      [
+        "gateway/schema failure",
+        "retry within policy then degrade/block",
+        "operator sees provider-safe failure reason",
+        "audit records provider/model metadata only",
+      ],
     ],
     definitionOfDone: [
       "Classification is citation-backed and gate-checked.",
       "Provider use remains subordinate to deterministic legal and workflow guardrails.",
       "Gap analysis sees only safe final or blocked/degraded classification state.",
     ],
-    openDecisions: [["Risk taxonomy extensions beyond locked MVP classification set", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Risk taxonomy extensions beyond locked MVP classification set",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-027",
@@ -808,10 +1506,22 @@ const tasks = [
     outcome:
       "Generate `GapAnalysis` from approved classification state and upstream evidence chain so reporting surfaces can explain obligations, missing controls, and next actions without overclaiming.",
     sourceAuthority: [
-      ["Epic / story", "`docs/planning-artifacts/epics.md` Epic 8 and Stories 8.1..8.2"],
-      ["Implementation", "`docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/persistence-implementation.md`; `docs/implementation/llm-gateway-implementation.md`"],
-      ["Specs", "`docs/specs/document-generation-spec.md`; `docs/specs/domain-state-machines.md`"],
-      ["Story packet", "`docs/implementation-artifacts/8-1-generate-gapanalysis-from-classification-and-evidence.md`; `docs/implementation-artifacts/8-2-display-gap-analysis-with-evidence-and-priority.md`"],
+      [
+        "Epic / story",
+        "`docs/planning-artifacts/epics.md` Epic 8 and Stories 8.1..8.2",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/persistence-implementation.md`; `docs/implementation/llm-gateway-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/document-generation-spec.md`; `docs/specs/domain-state-machines.md`",
+      ],
+      [
+        "Story packet",
+        "`docs/implementation-artifacts/8-1-generate-gapanalysis-from-classification-and-evidence.md`; `docs/implementation-artifacts/8-2-display-gap-analysis-with-evidence-and-priority.md`",
+      ],
     ],
     scope: [
       "Consume gap-analysis commands only from approved or explicitly degraded classification states.",
@@ -826,20 +1536,48 @@ const tasks = [
       "No bypass around upstream blocked/degraded state semantics.",
     ],
     verification: [
-      ["upstream traceability", "worker / persistence", "gap analysis references exact classification/evidence versions"],
-      ["non-overclaiming output", "worker / content guardrail", "blocked or degraded upstream states remain explicit in gap output"],
-      ["priority/action semantics", "worker / UX contract", "results expose actionable but non-authoritative next-step structure"],
+      [
+        "upstream traceability",
+        "worker / persistence",
+        "gap analysis references exact classification/evidence versions",
+      ],
+      [
+        "non-overclaiming output",
+        "worker / content guardrail",
+        "blocked or degraded upstream states remain explicit in gap output",
+      ],
+      [
+        "priority/action semantics",
+        "worker / UX contract",
+        "results expose actionable but non-authoritative next-step structure",
+      ],
     ],
     failure: [
-      ["missing classification state", "block generation", "operator sees prerequisite failure", "safe failure event emitted"],
-      ["insufficient evidence coverage", "degrade or block output explicitly", "user sees evidence-gap state", "audit retains cause metadata"],
+      [
+        "missing classification state",
+        "block generation",
+        "operator sees prerequisite failure",
+        "safe failure event emitted",
+      ],
+      [
+        "insufficient evidence coverage",
+        "degrade or block output explicitly",
+        "user sees evidence-gap state",
+        "audit retains cause metadata",
+      ],
     ],
     definitionOfDone: [
       "GapAnalysis is versioned to upstream classification and evidence chain.",
       "Output explains gaps without inventing unsupported certainty.",
       "Document/report tasks can consume one stable gap-analysis artifact.",
     ],
-    openDecisions: [["Prompting vs deterministic template balance for gap narrative generation", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Prompting vs deterministic template balance for gap narrative generation",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-028",
@@ -852,10 +1590,22 @@ const tasks = [
     outcome:
       "Generate guarded report artifacts, store them in object storage, expose versioned status/download refs, and preserve audit-safe download behavior for final reporting flows.",
     sourceAuthority: [
-      ["Epic / story", "`docs/planning-artifacts/epics.md` Epic 8 and Stories 8.3..8.5"],
-      ["Implementation", "`docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`; `docs/implementation/llm-gateway-implementation.md`"],
-      ["Specs", "`docs/specs/document-generation-spec.md`; `docs/specs/domain-state-machines.md`"],
-      ["Story packet", "`docs/implementation-artifacts/8-3-generate-guarded-final-report.md`; `docs/implementation-artifacts/8-4-generate-evidence-readiness-report-when-final-evidence-is-missing.md`; `docs/implementation-artifacts/8-5-download-versioned-artifacts.md`"],
+      [
+        "Epic / story",
+        "`docs/planning-artifacts/epics.md` Epic 8 and Stories 8.3..8.5",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/python-worker-platform-implementation.md`; `docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`; `docs/implementation/llm-gateway-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/document-generation-spec.md`; `docs/specs/domain-state-machines.md`",
+      ],
+      [
+        "Story packet",
+        "`docs/implementation-artifacts/8-3-generate-guarded-final-report.md`; `docs/implementation-artifacts/8-4-generate-evidence-readiness-report-when-final-evidence-is-missing.md`; `docs/implementation-artifacts/8-5-download-versioned-artifacts.md`",
+      ],
     ],
     scope: [
       "Generate guarded final or readiness report artifacts from approved upstream inputs only.",
@@ -870,20 +1620,48 @@ const tasks = [
       "No mutation of already-issued artifact versions.",
     ],
     verification: [
-      ["artifact immutability", "worker / storage", "new generation creates versioned artifact refs rather than mutating prior versions"],
-      ["download safety", "API / authz", "only authorized users can access valid artifact versions and denials are audited"],
-      ["status projection", "API / worker integration", "generation and download states are visible without exposing raw storage details"],
+      [
+        "artifact immutability",
+        "worker / storage",
+        "new generation creates versioned artifact refs rather than mutating prior versions",
+      ],
+      [
+        "download safety",
+        "API / authz",
+        "only authorized users can access valid artifact versions and denials are audited",
+      ],
+      [
+        "status projection",
+        "API / worker integration",
+        "generation and download states are visible without exposing raw storage details",
+      ],
     ],
     failure: [
-      ["generation guard failure", "emit blocked/readiness state instead of final report", "user sees actionable blocked reason", "audit/status projection updated"],
-      ["storage failure", "block artifact availability", "operator sees storage-safe failure class", "safe event/audit metadata emitted"],
+      [
+        "generation guard failure",
+        "emit blocked/readiness state instead of final report",
+        "user sees actionable blocked reason",
+        "audit/status projection updated",
+      ],
+      [
+        "storage failure",
+        "block artifact availability",
+        "operator sees storage-safe failure class",
+        "safe event/audit metadata emitted",
+      ],
     ],
     definitionOfDone: [
       "Document generation, artifact storage, status, and download contracts are stable.",
       "Final/report readiness paths remain guardrailed by upstream evidence states.",
       "Artifact access is versioned, auditable, and tenant-safe.",
     ],
-    openDecisions: [["Long-term artifact retention lifecycle after MVP", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Long-term artifact retention lifecycle after MVP",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-029",
@@ -896,10 +1674,22 @@ const tasks = [
     outcome:
       "Expose the synchronous audit query and redacted export surface needed for reporting, review, and acceptance evidence without leaking secrets or out-of-scope data.",
     sourceAuthority: [
-      ["Epic / story", "`docs/planning-artifacts/epics.md` Epic 8 and Stories 8.6..8.7"],
-      ["Implementation", "`docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`"],
-      ["Specs", "`docs/specs/event-catalog.md`; `docs/specs/domain-state-machines.md`"],
-      ["Story packet", "`docs/implementation-artifacts/8-6-record-immutable-assessment-audit-trail.md`; `docs/implementation-artifacts/8-7-view-and-export-redacted-audit-trail.md`"],
+      [
+        "Epic / story",
+        "`docs/planning-artifacts/epics.md` Epic 8 and Stories 8.6..8.7",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/backend-implementation.md`; `docs/implementation/persistence-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/event-catalog.md`; `docs/specs/domain-state-machines.md`",
+      ],
+      [
+        "Story packet",
+        "`docs/implementation-artifacts/8-6-record-immutable-assessment-audit-trail.md`; `docs/implementation-artifacts/8-7-view-and-export-redacted-audit-trail.md`",
+      ],
     ],
     scope: [
       "Implement audit query read models for scoped review of material workflow history.",
@@ -914,20 +1704,44 @@ const tasks = [
       "No historical rewrite or mutable audit correction path.",
     ],
     verification: [
-      ["query redaction", "API / authz", "authorized users see only redacted audit fields in-scope for their role and tenant"],
-      ["export integrity", "API / artifact", "audit export includes filter/checksum/version metadata and omits hidden content"],
-      ["deny behavior", "API / audit", "out-of-scope requests are denied and auditable"],
+      [
+        "query redaction",
+        "API / authz",
+        "authorized users see only redacted audit fields in-scope for their role and tenant",
+      ],
+      [
+        "export integrity",
+        "API / artifact",
+        "audit export includes filter/checksum/version metadata and omits hidden content",
+      ],
+      [
+        "deny behavior",
+        "API / audit",
+        "out-of-scope requests are denied and auditable",
+      ],
     ],
     failure: [
-      ["out-of-scope request", "deny export/view server-side", "user sees safe blocked response", "deny event audited"],
-      ["export assembly failure", "return actionable failure state without partial unsafe artifact", "operator sees safe failure class", "safe audit metadata recorded"],
+      [
+        "out-of-scope request",
+        "deny export/view server-side",
+        "user sees safe blocked response",
+        "deny event audited",
+      ],
+      [
+        "export assembly failure",
+        "return actionable failure state without partial unsafe artifact",
+        "operator sees safe failure class",
+        "safe audit metadata recorded",
+      ],
     ],
     definitionOfDone: [
       "Audit query and export surfaces are synchronous, redacted, and scoped.",
       "Historical events remain immutable while review/export becomes usable.",
       "Acceptance and reporting flows can reference one canonical audit surface.",
     ],
-    openDecisions: [["Export file format mix beyond MVP baseline", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      ["Export file format mix beyond MVP baseline", "`CARRIED_FORWARD`", "no"],
+    ],
   },
   {
     id: "TASK-030",
@@ -940,9 +1754,18 @@ const tasks = [
     outcome:
       "Assemble the Manager-facing web happy path across the already-defined module surfaces so a primary user can move through authentication, assessment, wizard, evidence, classification, and reporting states coherently.",
     sourceAuthority: [
-      ["UX", "`docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-24/DESIGN.md`; `docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-24/EXPERIENCE.md`; `docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-26-wizard-epic-2/DESIGN.md`; `docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-26-wizard-epic-2/EXPERIENCE.md`"],
-      ["Execution guide", "`docs/developer/developer-implementation-guide.md`; `docs/developer/mvp-6-week-execution-board.md`"],
-      ["Stories", "`docs/implementation-artifacts/2-1-create-manager-owned-assessment.md`; `docs/implementation-artifacts/2-2-complete-wizardprofile-in-business-language.md`; `docs/implementation-artifacts/7-6-present-classification-blocked-or-degraded-state.md`; `docs/implementation-artifacts/8-3-generate-guarded-final-report.md`"],
+      [
+        "UX",
+        "`docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-24/DESIGN.md`; `docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-24/EXPERIENCE.md`; `docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-26-wizard-epic-2/DESIGN.md`; `docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-26-wizard-epic-2/EXPERIENCE.md`",
+      ],
+      [
+        "Execution guide",
+        "`docs/developer/developer-implementation-guide.md`; `docs/developer/mvp-6-week-execution-board.md`",
+      ],
+      [
+        "Stories",
+        "`docs/implementation-artifacts/2-1-create-manager-owned-assessment.md`; `docs/implementation-artifacts/2-2-complete-wizardprofile-in-business-language.md`; `docs/implementation-artifacts/7-6-present-classification-blocked-or-degraded-state.md`; `docs/implementation-artifacts/8-3-generate-guarded-final-report.md`",
+      ],
       ["Implementation", "`docs/implementation/backend-implementation.md`"],
     ],
     scope: [
@@ -958,42 +1781,75 @@ const tasks = [
       "No Developer-specific path ownership.",
     ],
     verification: [
-      ["state-driven UX", "UI / integration", "Manager screens follow real backend state transitions without unsupported shortcuts"],
-      ["cross-module continuity", "UI / API", "assessment, wizard, evidence, classification, and reporting surfaces connect coherently"],
-      ["safe blocked states", "UI / authz", "blocked/degraded reasons are rendered safely instead of hidden or guessed"],
+      [
+        "state-driven UX",
+        "UI / integration",
+        "Manager screens follow real backend state transitions without unsupported shortcuts",
+      ],
+      [
+        "cross-module continuity",
+        "UI / API",
+        "assessment, wizard, evidence, classification, and reporting surfaces connect coherently",
+      ],
+      [
+        "safe blocked states",
+        "UI / authz",
+        "blocked/degraded reasons are rendered safely instead of hidden or guessed",
+      ],
     ],
     failure: [
-      ["backend blocked state", "render safe recovery/next-step UX", "Manager sees what is missing without false success", "correlation-aware support signal available"],
-      ["stale UI assumptions", "force refresh from backend status", "user sees synchronized state rather than local phantom success", "no unsafe silent transition"],
+      [
+        "backend blocked state",
+        "render safe recovery/next-step UX",
+        "Manager sees what is missing without false success",
+        "correlation-aware support signal available",
+      ],
+      [
+        "stale UI assumptions",
+        "force refresh from backend status",
+        "user sees synchronized state rather than local phantom success",
+        "no unsafe silent transition",
+      ],
     ],
     definitionOfDone: [
       "Manager happy path is documented as a UI integration task over module APIs.",
       "Screens follow backend workflow authority.",
       "Blocked/degraded/ready states remain explicit and safe across the main path.",
     ],
-    openDecisions: [["Final visual polish and non-critical microcopy beyond MVP baseline", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Final visual polish and non-critical microcopy beyond MVP baseline",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-031",
-    slug: "optional-developer-web-path",
-    title: "Optional Developer web path",
-    status: "READY_FOR_PLANNING_REVIEW",
+    slug: "retired-developer-web-path",
+    title: "Retired Developer web path",
+    status: "RETIRED",
     priority: "P1",
     owner: "UX / Assessment",
     runtime: "apps-web",
     outcome:
-      "Provide the optional Developer-facing web path for scoped technical review and artifact visibility without granting final workflow or compliance authority.",
+      "Record that the Developer-facing web path is retired and must not be regenerated as an active web implementation task.",
     sourceAuthority: [
-      ["UX / execution", "`docs/developer/developer-implementation-guide.md`; `docs/developer/mvp-6-week-execution-board.md`"],
-      ["Stories", "`docs/implementation-artifacts/1-5-optional-developer-invitation-and-scoped-task-acceptance.md`; `docs/implementation-artifacts/3-9-redacted-technical-findings-review-and-developer-scoped-view.md`; `docs/implementation-artifacts/4-6-aiusageflow-review-surface-without-final-authority.md`; `docs/implementation-artifacts/8-7-view-and-export-redacted-audit-trail.md`"],
+      [
+        "UX / execution",
+        "`docs/developer/developer-implementation-guide.md`; `docs/developer/mvp-6-week-execution-board.md`",
+      ],
+      [
+        "Stories",
+        "`docs/implementation-artifacts/1-5-optional-developer-invitation-and-scoped-task-acceptance.md`; `docs/implementation-artifacts/3-9-redacted-technical-findings-review-and-developer-scoped-view.md`; `docs/implementation-artifacts/4-6-aiusageflow-review-surface-without-final-authority.md`; `docs/implementation-artifacts/8-7-view-and-export-redacted-audit-trail.md`",
+      ],
       ["Implementation", "`docs/implementation/backend-implementation.md`"],
     ],
     scope: [
-      "Render only the explicitly delegated technical surfaces available to a scoped Developer.",
-      "Support developer review of redacted findings, AI usage review context, and other approved technical artifacts.",
+      "Do not render Developer invitation, task selection, or scoped workspace surfaces.",
+      "Support Manager review of redacted findings, AI usage review context, and other approved technical artifacts.",
       "Surface blocked/denied states cleanly when Manager-only actions are attempted.",
-      "Respect assignment scope and revocation in navigation and data loading.",
-      "Treat this as a constrained collaboration UX, not a second primary product path.",
+      "Treat Developer web path references as retired historical context only.",
     ],
     nonGoals: [
       "No Manager-only decision UX.",
@@ -1001,20 +1857,48 @@ const tasks = [
       "No bypass around API scope checks.",
     ],
     verification: [
-      ["scoped navigation", "UI / authz", "Developer sees only delegated paths and cannot reach Manager-only flows"],
-      ["review-only behavior", "UI / workflow", "technical review surfaces do not imply final authority or attestation"],
-      ["revocation handling", "UI / integration", "revoked or expired scope removes access cleanly with safe messaging"],
+      [
+        "retired navigation",
+        "UI / authz",
+        "Developer scoped navigation is not generated",
+      ],
+      [
+        "review-only behavior",
+        "UI / workflow",
+        "technical review surfaces do not imply final authority or attestation",
+      ],
+      [
+        "revocation handling",
+        "UI / integration",
+        "revoked or expired scope removes access cleanly with safe messaging",
+      ],
     ],
     failure: [
-      ["out-of-scope route", "show denied state and redirect to allowed context", "Developer sees safe access message", "no hidden privilege escalation"],
-      ["missing delegated artifact", "show blocked or unavailable state", "user sees why the review surface is unavailable", "no fake fallback content"],
+      [
+        "out-of-scope route",
+        "show denied state and redirect to allowed context",
+        "user sees safe access message",
+        "no hidden privilege escalation",
+      ],
+      [
+        "missing delegated artifact",
+        "show blocked or unavailable state",
+        "user sees why the review surface is unavailable",
+        "no fake fallback content",
+      ],
     ],
     definitionOfDone: [
-      "Optional Developer web path is explicit, limited, and auditable.",
+      "Developer web path remains retired from active implementation scope.",
       "Manager authority boundaries stay visible in UX.",
       "Scoped review surfaces align with backend delegation and artifact availability.",
     ],
-    openDecisions: [["Whether to expose comment threads vs read-only review first in MVP", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Whether delegated web collaboration ever returns",
+        "`REQUIRES_NEW_SCOPE_DECISION`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-032",
@@ -1027,9 +1911,18 @@ const tasks = [
     outcome:
       "Normalize accessibility, blocked-state, and recovery-state behavior across the web experience so critical workflow failure modes remain understandable and usable.",
     sourceAuthority: [
-      ["UX", "`docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-24/EXPERIENCE.md`; `docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-26-wizard-epic-2/EXPERIENCE.md`"],
-      ["Execution guide", "`docs/developer/developer-implementation-guide.md`; `docs/developer/mvp-6-week-execution-board.md`"],
-      ["Stories", "`docs/implementation-artifacts/1-2-mfa-session-recovery-and-profile-safety.md`; `docs/implementation-artifacts/2-3-wizard-only-readiness-without-risk-level.md`; `docs/implementation-artifacts/7-6-present-classification-blocked-or-degraded-state.md`; `docs/implementation-artifacts/8-4-generate-evidence-readiness-report-when-final-evidence-is-missing.md`"],
+      [
+        "UX",
+        "`docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-24/EXPERIENCE.md`; `docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-26-wizard-epic-2/EXPERIENCE.md`",
+      ],
+      [
+        "Execution guide",
+        "`docs/developer/developer-implementation-guide.md`; `docs/developer/mvp-6-week-execution-board.md`",
+      ],
+      [
+        "Stories",
+        "`docs/implementation-artifacts/1-2-mfa-session-recovery-and-profile-safety.md`; `docs/implementation-artifacts/2-3-wizard-only-readiness-without-risk-level.md`; `docs/implementation-artifacts/7-6-present-classification-blocked-or-degraded-state.md`; `docs/implementation-artifacts/8-4-generate-evidence-readiness-report-when-final-evidence-is-missing.md`",
+      ],
       ["Implementation", "`docs/implementation/backend-implementation.md`"],
     ],
     scope: [
@@ -1045,20 +1938,48 @@ const tasks = [
       "No silent hiding of blocked/degraded causes.",
     ],
     verification: [
-      ["accessibility baseline", "UI / QA", "critical blocked and recovery states remain navigable and understandable with keyboard and semantics"],
-      ["backend contract fidelity", "UI / integration", "required-action and blocked reason rendering matches backend response contract"],
-      ["cross-surface consistency", "UI / design QA", "shared blocked/recovery states behave consistently across auth, wizard, classification, and reporting"],
+      [
+        "accessibility baseline",
+        "UI / QA",
+        "critical blocked and recovery states remain navigable and understandable with keyboard and semantics",
+      ],
+      [
+        "backend contract fidelity",
+        "UI / integration",
+        "required-action and blocked reason rendering matches backend response contract",
+      ],
+      [
+        "cross-surface consistency",
+        "UI / design QA",
+        "shared blocked/recovery states behave consistently across auth, wizard, classification, and reporting",
+      ],
     ],
     failure: [
-      ["unexpected backend error", "show safe recovery state with correlation hint", "user sees next-step guidance rather than raw error dump", "safe support signal available"],
-      ["stale local state", "reload from authoritative backend status", "user sees true workflow position", "no phantom progress UI"],
+      [
+        "unexpected backend error",
+        "show safe recovery state with correlation hint",
+        "user sees next-step guidance rather than raw error dump",
+        "safe support signal available",
+      ],
+      [
+        "stale local state",
+        "reload from authoritative backend status",
+        "user sees true workflow position",
+        "no phantom progress UI",
+      ],
     ],
     definitionOfDone: [
       "Critical blocked/degraded/recovery states are accessible and consistent.",
       "Backend required-action semantics are surfaced cleanly in web UX.",
       "QA can validate the main failure surfaces without ad hoc UI branches.",
     ],
-    openDecisions: [["Formal accessibility audit tooling depth for MVP vs post-MVP", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Formal accessibility audit tooling depth for MVP vs post-MVP",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
   {
     id: "TASK-033",
@@ -1071,9 +1992,18 @@ const tasks = [
     outcome:
       "Run and document the integrated A-to-Z happy path that proves the MVP can traverse from approved account entry through repository scan, evidence chain, legal matching, classification, gap analysis, and guarded reporting with a real LLM provider path.",
     sourceAuthority: [
-      ["Execution / readiness", "`docs/planning-artifacts/implementation-readiness-report-2026-06-25.md`; `docs/developer/mvp-6-week-execution-board.md`; `docs/implementation/tasks/README.md`"],
-      ["Implementation", "`docs/implementation/backend-implementation.md`; `docs/implementation/scanner-worker-implementation.md`; `docs/implementation/legal-corpus-ingestion-implementation.md`; `docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`; `docs/implementation/llm-gateway-implementation.md`"],
-      ["Specs", "`docs/specs/scanner-spec.md`; `docs/specs/legal-classification-spec.md`; `docs/specs/document-generation-spec.md`; `docs/specs/domain-state-machines.md`"],
+      [
+        "Execution / readiness",
+        "`docs/planning-artifacts/implementation-readiness-report-2026-06-25.md`; `docs/developer/mvp-6-week-execution-board.md`; `docs/implementation/tasks/README.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/backend-implementation.md`; `docs/implementation/scanner-worker-implementation.md`; `docs/implementation/legal-corpus-ingestion-implementation.md`; `docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`; `docs/implementation/llm-gateway-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/scanner-spec.md`; `docs/specs/legal-classification-spec.md`; `docs/specs/document-generation-spec.md`; `docs/specs/domain-state-machines.md`",
+      ],
     ],
     scope: [
       "Define the canonical integrated acceptance walkthrough over the full MVP pipeline.",
@@ -1088,20 +2018,48 @@ const tasks = [
       "No replacing module-level verification with one umbrella smoke test.",
     ],
     verification: [
-      ["integrated pipeline", "acceptance / cross-runtime", "one end-to-end run reaches final guarded output from approved entry through reporting"],
-      ["real provider rule", "acceptance / config", "run uses real provider mode where MVP acceptance requires it"],
-      ["artifact traceability", "acceptance / audit", "major artifacts retain version, provenance, and correlation linkage through the run"],
+      [
+        "integrated pipeline",
+        "acceptance / cross-runtime",
+        "one end-to-end run reaches final guarded output from approved entry through reporting",
+      ],
+      [
+        "real provider rule",
+        "acceptance / config",
+        "run uses real provider mode where MVP acceptance requires it",
+      ],
+      [
+        "artifact traceability",
+        "acceptance / audit",
+        "major artifacts retain version, provenance, and correlation linkage through the run",
+      ],
     ],
     failure: [
-      ["upstream gate failure", "stop acceptance and record exact blocking stage", "operator sees first failing domain boundary", "safe acceptance log/audit evidence retained"],
-      ["mock-only environment", "mark run non-qualifying", "team sees readiness gap explicitly", "no false MVP-pass claim"],
+      [
+        "upstream gate failure",
+        "stop acceptance and record exact blocking stage",
+        "operator sees first failing domain boundary",
+        "safe acceptance log/audit evidence retained",
+      ],
+      [
+        "mock-only environment",
+        "mark run non-qualifying",
+        "team sees readiness gap explicitly",
+        "no false MVP-pass claim",
+      ],
     ],
     definitionOfDone: [
       "A canonical A-to-Z acceptance runbook exists and is executable.",
       "Success criteria explicitly include real-provider and provenance rules.",
       "Acceptance evidence points back to the implemented module and task boundaries.",
     ],
-    openDecisions: [["Final acceptance dataset and fixture ownership by environment", "`CARRIED_FORWARD`", "yes"]],
+    openDecisions: [
+      [
+        "Final acceptance dataset and fixture ownership by environment",
+        "`CARRIED_FORWARD`",
+        "yes",
+      ],
+    ],
   },
   {
     id: "TASK-034",
@@ -1114,10 +2072,22 @@ const tasks = [
     outcome:
       "Validate that the MVP fails safely on the important negative paths: denied access, missing evidence, legal basis gaps, provider errors, redaction rules, and blocked report/export conditions.",
     sourceAuthority: [
-      ["Execution / readiness", "`docs/planning-artifacts/implementation-readiness-report-2026-06-25.md`; `docs/implementation/tasks/README.md`"],
-      ["Implementation", "`docs/implementation/backend-implementation.md`; `docs/implementation/scanner-worker-implementation.md`; `docs/implementation/legal-corpus-ingestion-implementation.md`; `docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`; `docs/implementation/llm-gateway-implementation.md`"],
-      ["Specs", "`docs/specs/scanner-spec.md`; `docs/specs/legal-classification-spec.md`; `docs/specs/document-generation-spec.md`; `docs/specs/domain-state-machines.md`; `docs/specs/event-catalog.md`"],
-      ["Story packets", "`docs/implementation-artifacts/7-4-reject-provider-only-or-unsupported-classification.md`; `docs/implementation-artifacts/8-4-generate-evidence-readiness-report-when-final-evidence-is-missing.md`; `docs/implementation-artifacts/8-7-view-and-export-redacted-audit-trail.md`"],
+      [
+        "Execution / readiness",
+        "`docs/planning-artifacts/implementation-readiness-report-2026-06-25.md`; `docs/implementation/tasks/README.md`",
+      ],
+      [
+        "Implementation",
+        "`docs/implementation/backend-implementation.md`; `docs/implementation/scanner-worker-implementation.md`; `docs/implementation/legal-corpus-ingestion-implementation.md`; `docs/implementation/chromadb-vectorless-legal-retriever-implementation.md`; `docs/implementation/llm-gateway-implementation.md`",
+      ],
+      [
+        "Specs",
+        "`docs/specs/scanner-spec.md`; `docs/specs/legal-classification-spec.md`; `docs/specs/document-generation-spec.md`; `docs/specs/domain-state-machines.md`; `docs/specs/event-catalog.md`",
+      ],
+      [
+        "Story packets",
+        "`docs/implementation-artifacts/7-4-reject-provider-only-or-unsupported-classification.md`; `docs/implementation-artifacts/8-4-generate-evidence-readiness-report-when-final-evidence-is-missing.md`; `docs/implementation-artifacts/8-7-view-and-export-redacted-audit-trail.md`",
+      ],
     ],
     scope: [
       "Enumerate and execute the negative paths that must fail closed for MVP credibility.",
@@ -1132,20 +2102,48 @@ const tasks = [
       "No manual patching of runtime behavior during acceptance execution.",
     ],
     verification: [
-      ["fail-closed semantics", "acceptance / cross-runtime", "critical missing-prerequisite and denied-action paths block safely instead of overclaiming success"],
-      ["privacy and redaction", "security / acceptance", "failure paths do not leak secrets, raw source, or out-of-scope audit content"],
-      ["recovery clarity", "UX / operator", "negative-path outputs provide safe next-step or operator guidance where appropriate"],
+      [
+        "fail-closed semantics",
+        "acceptance / cross-runtime",
+        "critical missing-prerequisite and denied-action paths block safely instead of overclaiming success",
+      ],
+      [
+        "privacy and redaction",
+        "security / acceptance",
+        "failure paths do not leak secrets, raw source, or out-of-scope audit content",
+      ],
+      [
+        "recovery clarity",
+        "UX / operator",
+        "negative-path outputs provide safe next-step or operator guidance where appropriate",
+      ],
     ],
     failure: [
-      ["negative test case missing prerequisite data", "mark case invalid and rerun with correct fixture", "operator sees fixture gap rather than product claim", "acceptance notes capture invalid setup"],
-      ["unsafe leakage detected", "treat as release-blocking failure", "team sees explicit severity", "security/audit evidence captured safely"],
+      [
+        "negative test case missing prerequisite data",
+        "mark case invalid and rerun with correct fixture",
+        "operator sees fixture gap rather than product claim",
+        "acceptance notes capture invalid setup",
+      ],
+      [
+        "unsafe leakage detected",
+        "treat as release-blocking failure",
+        "team sees explicit severity",
+        "security/audit evidence captured safely",
+      ],
     ],
     definitionOfDone: [
       "Critical negative paths are enumerated, executed, and evidenced.",
       "Fail-closed and redaction behavior is proven, not assumed.",
       "Release confidence includes both happy-path and negative-path acceptance coverage.",
     ],
-    openDecisions: [["Exact release-blocking threshold for non-critical UX polish failures", "`CARRIED_FORWARD`", "no"]],
+    openDecisions: [
+      [
+        "Exact release-blocking threshold for non-critical UX polish failures",
+        "`CARRIED_FORWARD`",
+        "no",
+      ],
+    ],
   },
 ];
 
@@ -1170,7 +2168,10 @@ function renderVerification(rows) {
     "",
     "| Requirement | Verification level | Evidence expected |",
     "|---|---|---|",
-    ...rows.map(([requirement, level, evidence]) => `| ${requirement} | ${level} | ${evidence} |`),
+    ...rows.map(
+      ([requirement, level, evidence]) =>
+        `| ${requirement} | ${level} | ${evidence} |`,
+    ),
     "",
   ].join("\n");
 }
@@ -1181,7 +2182,10 @@ function renderFailure(rows) {
     "",
     "| Failure | Expected behavior | User/operator signal | Audit/event |",
     "|---|---|---|---|",
-    ...rows.map(([failure, behavior, signal, audit]) => `| ${failure} | ${behavior} | ${signal} | ${audit} |`),
+    ...rows.map(
+      ([failure, behavior, signal, audit]) =>
+        `| ${failure} | ${behavior} | ${signal} | ${audit} |`,
+    ),
     "",
   ].join("\n");
 }
@@ -1192,13 +2196,20 @@ function renderOpenDecisions(rows) {
     "",
     "| Decision | Status | Blocks readiness? |",
     "|---|---|---|",
-    ...rows.map(([decision, status, blocks]) => `| ${decision} | ${status} | ${blocks} |`),
+    ...rows.map(
+      ([decision, status, blocks]) => `| ${decision} | ${status} | ${blocks} |`,
+    ),
     "",
   ].join("\n");
 }
 
 function renderDefinitionOfDone(items) {
-  return ["## Definition of Done", "", ...items.map((item) => `- ${item}`), ""].join("\n");
+  return [
+    "## Definition of Done",
+    "",
+    ...items.map((item) => `- ${item}`),
+    "",
+  ].join("\n");
 }
 
 function renderBrief(task) {
@@ -1269,7 +2280,10 @@ function updateTaskCatalog() {
   for (const task of tasks) {
     const fileLink = `[${task.id}-${task.slug}.md](${task.id}-${task.slug}.md)`;
     text = text.replace(
-      new RegExp(`(\\| ${task.id} \\| )\`CATALOGED\`( \\| .*? \\| .*? \\| )pending( \\|)`, "g"),
+      new RegExp(
+        `(\\| ${task.id} \\| )\`CATALOGED\`( \\| .*? \\| .*? \\| )pending( \\|)`,
+        "g",
+      ),
       `$1\`BRIEF_DRAFTED\`$2${fileLink}$3`,
     );
   }
@@ -1278,7 +2292,12 @@ function updateTaskCatalog() {
 }
 
 function updateDevCompendium() {
-  const compendiumPath = path.join(ROOT, "docs", "implementation", "dev-compendium.md");
+  const compendiumPath = path.join(
+    ROOT,
+    "docs",
+    "implementation",
+    "dev-compendium.md",
+  );
   let text = fs.readFileSync(compendiumPath, "utf8");
   const oldBlock = [
     "```text",

@@ -20,7 +20,7 @@ All cards read immutable sanitized `TechnicalEvidenceReport`/Evidence Graph proj
 | `TASK-AO-2-10-inspect-decision-path` / `inspect_decision_path` | Read normalized score/rank/recommend/approve/reject/status paths. | Structural decision evidence with confidence/limits. | No semantic overclaim and result cap. |
 | `TASK-AO-2-11-inspect-human-review-path` / `inspect_human_review_path` | Read queue/approval/assignment/state-gate evidence. | Review-path refs or `UNKNOWN`. | Missing dynamic workflow evidence remains unknown. |
 | `TASK-AO-2-12-inspect-deployment-context` / `inspect_deployment_context` | Read approved sanitized manifest/config metadata projection. | Deployment categories/refs; secret values prohibited. | Nested secret and arbitrary config rejection. |
-| `TASK-AO-2-13-request-targeted-reanalysis` / `request_targeted_reanalysis` | Validate PBAC, idempotency, analyzer allow-list and bounded scope; enqueue deterministic scan analyzer. | New immutable artifact ref/audit only; never execute source. | Duplicate request, denied scope, retry/DLQ, no source mutation. |
+| `TASK-AO-2-13-request-targeted-reanalysis` / `request_targeted_reanalysis` | Validate RBAC, idempotency, analyzer allow-list and bounded scope; enqueue deterministic scan analyzer. | New immutable artifact ref/audit only; never execute source. | Duplicate request, denied scope, retry/DLQ, no source mutation. |
 
 ## Definition of Done
 
@@ -52,5 +52,5 @@ All packets inherit [shared-tool-contract.md](shared-tool-contract.md). First bu
 
 - **Input:** `inputArtifactVersion`, allow-listed `analyzerId`, bounded `scope:{pathPrefixes|subjectRefs}`, `reasonRequirementId`, `idempotencyKey` and shared envelope.
 - **Output:** `{reanalysisRequestId,state:QUEUED|ALREADY_QUEUED,inputArtifactVersion,requestedAnalyzer,configVersion,auditRef}`; later completion links a new immutable report version.
-- **Execution/LLM:** PBAC, checkpoint, analyzer/scope allow-list, idempotency reservation, outbox command, deterministic worker analyzer against commit-pinned snapshot, policy retry/DLQ. LLM cannot choose shell/URL/analyzer or expect synchronous result.
-- **Failure/tests:** invalid analyzer/scope/PBAC blocks before command; duplicate returns replay state. Reuse trusted scan trigger/outbox/worker seams; test duplicate keys, retry/DLQ, source preservation, and no mutation of prior artifact.
+- **Execution/LLM:** RBAC, checkpoint, analyzer/scope allow-list, idempotency reservation, outbox command, deterministic worker analyzer against commit-pinned snapshot, policy retry/DLQ. LLM cannot choose shell/URL/analyzer or expect synchronous result.
+- **Failure/tests:** invalid analyzer/scope/RBAC blocks before command; duplicate returns replay state. Reuse trusted scan trigger/outbox/worker seams; test duplicate keys, retry/DLQ, source preservation, and no mutation of prior artifact.

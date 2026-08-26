@@ -39,7 +39,7 @@ AO-5 invokes after basis retrieval to learn required/missing/unknown facts. Miss
 {"status":"READY","toolName":"get_legal_rule_match","toolVersion":"1.0.0","configHash":"sha256:rule-match-v1","correlationId":"7ee8c969-5a66-456a-a8c3-af9060502a24","artifactVersions":{"profileId":"profile_01J9A","ruleId":"rule_01J9A"},"provenanceRef":"prov:rule-match:01J9","coverageState":"SUFFICIENT","evidenceRefs":["citation:chunk_01J9A","evidence:fact_01J9"],"limitations":[],"result":{"ruleId":"rule_01J9A","applicability":"CONDITIONAL","requiredFacts":["fact:workforce_size"],"knownFacts":[],"missingFacts":["fact:workforce_size"],"unknownFacts":[],"allowedCitationRefs":["citation:chunk_01J9A"]}}
 ```
 ## 7. Error Codes and Typed Outcomes
-`INVALID_ARGUMENT`, `NEEDS_INPUT` for absent verified facts, `CONFLICT` for contradictory facts, `OUT_OF_COVERAGE` for a limited fact/corpus, `BLOCKED` for PBAC/version, and transient `FAILED` are normalized; LLM must not replace any of these with applicability.
+`INVALID_ARGUMENT`, `NEEDS_INPUT` for absent verified facts, `CONFLICT` for contradictory facts, `OUT_OF_COVERAGE` for a limited fact/corpus, `BLOCKED` for RBAC/version, and transient `FAILED` are normalized; LLM must not replace any of these with applicability.
 ## 8. Tool Calling Flow
 ```mermaid
 sequenceDiagram
@@ -55,13 +55,13 @@ E-->>L: prerequisite ledger + audit
 ## 9. Business Rules
 Use only verified immutable profile facts and validated effective rule/citation versions; unknown/low-confidence material fact remains unknown; sort fact IDs; cap 30; rule evaluator does not call an LLM.
 ## 10. Execution Logic
-`validate → allow-list/PBAC/pin check → validate citation allowlist → load rule + verified facts → evaluate prerequisites/conflicts/coverage → normalize → privacy gate → audit`. Build `LegalRuleMatchTool`/`RuleMatchEvaluator`.
+`validate → allow-list/RBAC/pin check → validate citation allowlist → load rule + verified facts → evaluate prerequisites/conflicts/coverage → normalize → privacy gate → audit`. Build `LegalRuleMatchTool`/`RuleMatchEvaluator`.
 ## 11. LLM Tool Definition and Context Contract
 Strict §5 schema; max 8KB ledger. The model may request allowed missing input via AO-3 or validate citations; it may not assert applicability/final classification beyond returned state. Prompt version/output hash are audit metadata.
 ## 12. Tool Registry
 Handler `LegalRuleMatchTool`; action `LEGAL_RULE_MATCH_READ`; LLM allow-list; profile/rule/citation artifacts; 3s, one transient retry, read-only.
 ## 13–15. Audit, Retry, Security
-Audit IDs, hashes, rule/profile versions, evidence/limitation refs and duration; redact profile contents, legal text, prompts, secrets and traces. Gateway tenant/PBAC/state checks; evaluator accesses read projections only. Retry one 200ms projection outage; otherwise fail terminally.
+Audit IDs, hashes, rule/profile versions, evidence/limitation refs and duration; redact profile contents, legal text, prompts, secrets and traces. Gateway tenant/RBAC/state checks; evaluator accesses read projections only. Retry one 200ms projection outage; otherwise fail terminally.
 ## 16. Scenario
 Rule needs workforce size, but profile has no verified fact: return `CONDITIONAL` with `missingFacts`; orchestrator uses its typed resolver, not a guessed value.
 ## 17. Acceptance Criteria
@@ -75,7 +75,7 @@ Given valid immutable pins, deterministic prerequisite ledger returns; invalid a
 | TC-04 | citation mismatch | integration | block + audit |
 | TC-05 | forbidden nested text | privacy | rejection |
 ## 19. Definition of Done
-Strict contract, evaluator, registry, normalizer, PBAC/audit/privacy and tests pass.
+Strict contract, evaluator, registry, normalizer, RBAC/audit/privacy and tests pass.
 ## 20. Technical Notes and Files
 Add contracts, `legal_rule_match.py` worker service, API gateway/audit and fixtures. Authority: AO-5/SPEC/tool catalog.
 ## 21. Open Questions
@@ -83,4 +83,4 @@ Add contracts, `legal_rule_match.py` worker service, API gateway/audit and fixtu
 |---|---|---|---|---|
 | OQ-01 | Ratify material-fact confidence threshold | Legal Policy Owner | OPEN | yes |
 ## 22. Deliverables
-Definition/schema, deterministic evaluator, registry, audit/PBAC, fixtures and tests.
+Definition/schema, deterministic evaluator, registry, audit/RBAC, fixtures and tests.

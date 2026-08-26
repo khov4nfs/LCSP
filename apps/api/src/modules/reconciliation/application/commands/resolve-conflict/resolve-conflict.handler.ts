@@ -4,12 +4,10 @@ import {
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
-import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import {
   CONFLICT_RECORD_STATUSES,
   SCAN_ERROR_CODES,
@@ -50,7 +48,6 @@ export class ResolveConflictHandler implements ICommandHandler<ResolveConflictCo
   ) {}
 
   async execute(command: ResolveConflictCommand): Promise<ResolveConflictDto> {
-    await this.assertManagerOnly(command);
     const resolution = parseResolution(
       command.resolution,
       command.correlationId,
@@ -67,12 +64,10 @@ export class ResolveConflictHandler implements ICommandHandler<ResolveConflictCo
         where: {
           id: command.conflictId,
           assessmentId: command.assessmentId,
-          organizationId: command.organizationId,
         },
         select: {
           id: true,
           assessmentId: true,
-          organizationId: true,
           status: true,
         },
       });
@@ -109,7 +104,6 @@ export class ResolveConflictHandler implements ICommandHandler<ResolveConflictCo
       const remainingPending = await tx.conflictRecord.count({
         where: {
           assessmentId: command.assessmentId,
-          organizationId: command.organizationId,
           status: toPrismaConflictRecordStatus(
             CONFLICT_RECORD_STATUSES.pending,
           ),
@@ -124,7 +118,6 @@ export class ResolveConflictHandler implements ICommandHandler<ResolveConflictCo
               ? SCAN_EVENT_TYPES.conflictDismissedAudit
               : SCAN_EVENT_TYPES.conflictResolvedAudit,
           actorId: command.resolvedById,
-          organizationId: command.organizationId,
           assessmentId: command.assessmentId,
           resourceType: AUDIT_RESOURCE_TYPES.conflictRecord,
           resourceId: conflict.id,
@@ -133,8 +126,6 @@ export class ResolveConflictHandler implements ICommandHandler<ResolveConflictCo
           decision: AUDIT_DECISIONS.allow,
           result: resolution,
           redactionStatus: AUDIT_REDACTION_STATUSES.none,
-          policyId: command.authorization.policyId,
-          policyVersion: command.authorization.policyVersion,
           payload: {
             conflictId: conflict.id,
             assessmentId: command.assessmentId,
@@ -162,42 +153,6 @@ export class ResolveConflictHandler implements ICommandHandler<ResolveConflictCo
     };
   }
 
-  private async assertManagerOnly(
-    command: ResolveConflictCommand,
-  ): Promise<void> {
-    const allowed =
-      command.subjectRole === SUBJECT_ROLES.manager &&
-      command.authorization.selectedAction === PBAC_ACTIONS.conflictResolve &&
-      command.authorization.policyId !== null &&
-      command.authorization.policyVersion !== null;
-
-    if (allowed) return;
-
-    await this.auditWriter.write({
-      eventType: SCAN_EVENT_TYPES.conflictResolvedAudit,
-      actorId: command.resolvedById,
-      organizationId: command.organizationId,
-      assessmentId: command.assessmentId,
-      resourceType: AUDIT_RESOURCE_TYPES.conflictRecord,
-      resourceId: command.conflictId,
-      correlationId: command.correlationId,
-      decision: AUDIT_DECISIONS.deny,
-      reasonCode: AUTH_ERROR_CODES.pbacDenied,
-      policyId: command.authorization.policyId,
-      policyVersion: command.authorization.policyVersion,
-      payload: {
-        assessmentId: command.assessmentId,
-        conflictId: command.conflictId,
-        action: PBAC_ACTIONS.conflictResolve,
-        result: AUDIT_DECISIONS.deny,
-      },
-    });
-
-    throw problemException(AUTH_ERROR_CODES.pbacDenied, command.correlationId, {
-      status: HttpStatus.FORBIDDEN,
-    });
-  }
-
   private async enqueueAllResolvedEvent(
     command: ResolveConflictCommand,
     tx: Prisma.TransactionClient,
@@ -206,7 +161,6 @@ export class ResolveConflictHandler implements ICommandHandler<ResolveConflictCo
       aggregateType: OUTBOX_AGGREGATE_TYPES.assessment,
       aggregateId: command.assessmentId,
       eventType: SCAN_EVENT_TYPES.reconciliationAllConflictsResolved,
-      organizationId: command.organizationId,
       assessmentId: command.assessmentId,
       correlationId: command.correlationId,
       causationId: command.conflictId,

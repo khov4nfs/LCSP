@@ -36,7 +36,7 @@ Consume `legal-rule-match-ready` events and generate classification output using
 |---|---|
 | Queue | `classification.legal-rule-match-ready` |
 | Routing key | `legal-rule-match-ready` |
-| PBAC preflight | No (system event) |
+| RBAC preflight | No (system event) |
 
 ## Classification Data Schema
 

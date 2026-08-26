@@ -7,7 +7,7 @@ status: READY_FOR_DEV
 epic_story: 5.3
 depends_on:
   - reconciliation/02-list-conflicts-endpoint.md
-  - platform/pbac/03-nestjs-guard.md
+  - platform/rbac/03-nestjs-guard.md
   - platform/outbox/02-outbox-publisher.md
 ---
 
@@ -15,7 +15,7 @@ depends_on:
 
 ## Outcome
 
-Allow a Manager to resolve or dismiss a conflict. Resolution is audited and immutable — resolved conflicts cannot be re-opened. Resolution authority stays with Manager (Developer cannot resolve). After all conflicts resolved, emit event to allow VerifiedProfile creation to proceed.
+Allow a Manager to resolve or dismiss a conflict. Resolution is audited and immutable — resolved conflicts cannot be re-opened. Resolution authority stays with Manager. After all conflicts resolved, emit event to allow VerifiedProfile creation to proceed.
 
 ## Module Files
 
@@ -51,13 +51,13 @@ Allow a Manager to resolve or dismiss a conflict. Resolution is audited and immu
 
 | HTTP | `error_code`                | Meaning                        |
 | ---- | --------------------------- | ------------------------------ |
-| 403  | `PBAC_DENIED`               | Actor lacks `conflict:resolve` |
+| 403  | `RBAC_DENIED`               | Actor lacks `conflict:resolve` |
 | 404  | `CONFLICT_NOT_FOUND`        | Not found or not in org        |
 | 409  | `CONFLICT_ALREADY_RESOLVED` | Already resolved or dismissed  |
 
 ## Business Rules
 
-1. PBAC guard: `action = conflict:resolve`. Developer does NOT have this action.
+1. RBAC guard: `action = conflict:resolve`. Non-Manager subjects do not have this action in active MVP.
 2. Verify conflict exists and `assessmentId` and `organizationId` match session.
 3. If `status ≠ PENDING` → `CONFLICT_ALREADY_RESOLVED`.
 4. Update `ConflictRecord.status`, `resolvedAt`, `resolvedById`, `resolutionNote` atomically.
@@ -85,14 +85,14 @@ Allow a Manager to resolve or dismiss a conflict. Resolution is audited and immu
 | T02 | Manager dismisses conflict                  | 200 `status = DISMISSED`                              |
 | T03 | Last conflict resolved                      | `all_conflicts_resolved = true`, outbox event emitted |
 | T04 | Conflict already resolved                   | 409 `CONFLICT_ALREADY_RESOLVED`                       |
-| T05 | Developer attempts resolution               | 403 `PBAC_DENIED`                                     |
+| T05 | Non-Manager attempts resolution             | 403 `RBAC_DENIED`                                     |
 | T06 | Conflict not in org                         | 404 `CONFLICT_NOT_FOUND`                              |
 | T07 | Outbox event only emitted when all resolved | DB verified — no early emission                       |
 | T08 | Dismiss without reason                      | 422 `SCHEMA_INVALID`                                  |
 
 ## Definition of Done
 
-- Manager-only action (`conflict:resolve` not in Developer policy).
+- Manager-only action.
 - Conflict immutable once resolved/dismissed.
 - `all-conflicts-resolved` outbox event emitted only when all PENDING cleared.
 - Audit event written with resolution, resolver ID.

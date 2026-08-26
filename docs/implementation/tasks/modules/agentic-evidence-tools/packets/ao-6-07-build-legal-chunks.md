@@ -9,7 +9,7 @@ status: DONE
 
 ## Objective and tool definition
 
-Create versioned Article/Clause/Point chunks with stable hierarchical IDs, locators, citation, parent and one-hop cross-reference metadata. Clause is the base unit; it must not split inside a sentence merely for token size. `SYSTEM_ONLY` mutation, PBAC `LEGAL_CORPUS_BUILD`.
+Create versioned Article/Clause/Point chunks with stable hierarchical IDs, locators, citation, parent and one-hop cross-reference metadata. Clause is the base unit; it must not split inside a sentence merely for token size. `SYSTEM_ONLY` mutation, RBAC `LEGAL_CORPUS_BUILD`.
 
 ## Input
 

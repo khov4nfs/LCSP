@@ -122,6 +122,9 @@ cd "$APP"
 echo "==> Build API"
 dotenv -e .env.pm2 -- pnpm --filter @lcsp/api build
 
+echo "==> Apply database migrations"
+dotenv -e .env.pm2 -- pnpm --filter @lcsp/api prisma:migrate:deploy
+
 echo "==> Build Web"
 dotenv -e .env.pm2 -- pnpm --filter @lcsp/web build
 

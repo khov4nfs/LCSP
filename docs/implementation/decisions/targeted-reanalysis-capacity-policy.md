@@ -20,7 +20,7 @@ For `command.scan.targeted-reanalysis.v1`:
 - Start with **4 global scanner slots**, retaining `prefetch_count=1` in each consumer. This makes the 2-per-tenant cap a fair-share boundary. Capacity may only increase after measuring p95 queue wait, execution duration, timeouts and DLQ rate.
 - Publish through the API outbox once plus **3 retries** (4 attempts total) at `1s`, `2s`, and `4s` exponential backoff with jitter. Exhaustion writes DLQ and a failed request checkpoint.
 - Execute once plus **3 worker retries** (4 deliveries total) through delayed queues at `10s`, `60s`, `300s`. The existing worker `MAX_RETRIES=3` semantics match this retry count but require a delayed-retry transport for this command.
-- Retry only transient infrastructure failures. Validation, PBAC denial, immutable-pin mismatch, unsupported analyzer, and privacy/schema failures are terminal. A terminal request can never modify the original report; a successful request creates a new immutable report version.
+- Retry only transient infrastructure failures. Validation, RBAC denial, immutable-pin mismatch, unsupported analyzer, and privacy/schema failures are terminal. A terminal request can never modify the original report; a successful request creates a new immutable report version.
 
 ## Required persistence and dispatch behavior
 

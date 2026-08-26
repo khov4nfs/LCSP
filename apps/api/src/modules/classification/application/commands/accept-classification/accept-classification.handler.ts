@@ -93,7 +93,6 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
       select: {
         id: true,
         assessmentId: true,
-        organizationId: true,
         snapshotId: true,
       },
     });
@@ -107,7 +106,6 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
     const existingResults = await this.prisma.classificationResult.findMany({
       where: {
         assessmentId: evidenceReport.assessmentId,
-        organizationId: evidenceReport.organizationId,
         status: toPrismaEvidenceAcceptanceStatus(
           CLASSIFICATION_RESULT_STATUSES.accepted,
         ),
@@ -156,7 +154,6 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
           legalRuleMatchId: null,
           verifiedProfileId: null,
           assessmentId: evidenceReport.assessmentId,
-          organizationId: evidenceReport.organizationId,
           schemaVersion: payload.schema_version,
           classificationData: persistedData,
           guardrailStatus:
@@ -198,7 +195,6 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
       classificationData: payload.classification_data,
     });
     await this.runtimeEvents.recordToolCompleted({
-      organizationId: evidenceReport.organizationId,
       assessmentId: evidenceReport.assessmentId,
       runId,
       correlationId,
@@ -217,7 +213,6 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
       completedAt: new Date(),
     });
     await this.runtimeEvents.recordRunCompleted({
-      organizationId: evidenceReport.organizationId,
       assessmentId: evidenceReport.assessmentId,
       runId,
       correlationId,
@@ -270,7 +265,6 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
     evidenceReport: {
       id: string;
       assessmentId: string;
-      organizationId: string;
       snapshotId: string;
     },
     classificationResultId: string,
@@ -281,7 +275,6 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
       aggregateType: OUTBOX_AGGREGATE_TYPES.classificationResult,
       aggregateId: classificationResultId,
       eventType: SCAN_EVENT_TYPES.classificationResultReady,
-      organizationId: evidenceReport.organizationId,
       assessmentId: evidenceReport.assessmentId,
       correlationId,
       causationId: evidenceReport.id,
@@ -310,7 +303,6 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
     evidenceReport: {
       id: string;
       assessmentId: string;
-      organizationId: string;
       snapshotId: string;
     },
     classificationResultId: string,
@@ -328,7 +320,6 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
       {
         eventType: auditEventType,
         actorId: CLASSIFICATION_WORKER_ACTOR_ID,
-        organizationId: evidenceReport.organizationId,
         assessmentId: evidenceReport.assessmentId,
         resourceType: AUDIT_RESOURCE_TYPES.classificationResult,
         resourceId: classificationResultId,

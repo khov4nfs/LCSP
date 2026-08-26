@@ -120,7 +120,6 @@ function parseActivityItem(
     typeof item.event_id !== "string" ||
     typeof item.sequence !== "number" ||
     typeof item.emitted_at !== "string" ||
-    typeof item.organization_id !== "string" ||
     typeof item.assessment_id !== "string" ||
     typeof item.run_id !== "string" ||
     typeof item.correlation_id !== "string" ||
@@ -136,7 +135,6 @@ function parseActivityItem(
     eventId: item.event_id,
     sequence: item.sequence,
     emittedAt: item.emitted_at,
-    organizationId: item.organization_id,
     assessmentId: item.assessment_id,
     runId: item.run_id,
     correlationId: item.correlation_id,

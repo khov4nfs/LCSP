@@ -62,7 +62,6 @@ export class RecordMfaRecoveryCodeAccessHandler {
     await this.support.recordAudit(this.repositories, {
       event_type: eventType,
       actor_id: session.userId,
-      organization_id: session.organizationId,
       resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
       resource_id: session.userId,
       decision: AUDIT_DECISIONS.allow,

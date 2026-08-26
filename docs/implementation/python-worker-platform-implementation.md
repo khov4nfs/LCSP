@@ -127,7 +127,7 @@ Every worker writes redacted logs and audit records with:
 - aggregate reference;
 - actor/service identity;
 - worker name/version;
-- policy ID/version when PBAC is evaluated;
+- policy ID/version when RBAC is evaluated;
 - safe failure code and recovery hint when applicable.
 
 Raw source, secrets, full prompts, provider tokens, and unredacted tool output must not appear in logs, queues, audit, or ordinary persistence.

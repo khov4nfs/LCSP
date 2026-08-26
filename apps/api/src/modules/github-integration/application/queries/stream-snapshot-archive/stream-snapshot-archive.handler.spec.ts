@@ -34,14 +34,12 @@ type RepositoryScanJobStatus =
 type ScanJobFixture = {
   id: string;
   snapshotId: string;
-  organizationId: string;
   status: RepositoryScanJobStatus;
 };
 
 describe("StreamSnapshotArchiveHandler", () => {
   const snapshot = {
     id: "snapshot-1",
-    organizationId: "org-1",
     connectionId: "connection-1",
     repositoryFullName: "acme/example-repo",
     commitSha: "a".repeat(40),
@@ -51,14 +49,12 @@ describe("StreamSnapshotArchiveHandler", () => {
   const scanJob: ScanJobFixture = {
     id: "scan-job-1",
     snapshotId: "snapshot-1",
-    organizationId: "org-1",
     status: REPOSITORY_SCAN_JOB_STATUSES.queued,
   };
 
   const connection = {
     id: "connection-1",
     installationId: "installation-1",
-    organizationId: "org-1",
     status: REPOSITORY_CONNECTION_STATUSES.active,
   };
 

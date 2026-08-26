@@ -9,7 +9,7 @@ status: DONE
 
 ## Objective and tool definition
 
-Resume only durable orchestration runs waiting for the exact newly activated compatible corpus version. `SYSTEM_ONLY` mutation, PBAC `WORKFLOW_RESUME`, driven by activation outbox; it locks/idempotently enqueues checkpoint continuation and never lets an LLM select runs.
+Resume only durable orchestration runs waiting for the exact newly activated compatible corpus version. `SYSTEM_ONLY` mutation, RBAC `WORKFLOW_RESUME`, driven by activation outbox; it locks/idempotently enqueues checkpoint continuation and never lets an LLM select runs.
 
 ## Input
 

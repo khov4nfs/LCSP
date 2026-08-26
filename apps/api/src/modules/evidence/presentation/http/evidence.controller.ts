@@ -13,12 +13,12 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
-import { PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
-import { RequireAnyAction } from "../../../../platform/pbac/decorators/require-any-action.decorator.js";
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import { AcceptTechnicalProfileCommand } from "../../application/commands/accept-technical-profile/accept-technical-profile.command.js";
@@ -31,29 +31,20 @@ export class EvidenceController {
 
   /**
    * Return the persisted evidence/report view only.
-   *
-   * Technical graph search, traversal, provider discovery, decision/data-path
-   * inspection and remediation processing are Python-worker capabilities. The old
-   * NestJS HTTP/CQRS analysis surface was removed so there is one processing owner.
    */
   @Get(":assessmentId/evidence")
-  @UseGuards(PbacGuard)
-  @RequireAnyAction(
-    PBAC_ACTIONS.evidenceRead,
-    PBAC_ACTIONS.evidenceReadRedacted,
-  )
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
   async getEvidence(
     @Param("assessmentId") assessmentId: string,
     @Req() request: AuthenticatedRequest,
   ) {
-    const context = request.pbacContext;
+    const context = request.rbacContext;
     return resultEnvelope(
       await this.queryBus.execute(
         new GetEvidenceQuery(
           assessmentId,
-          context.organizationId,
-          context.scope,
-          context.selectedAction,
+          context.role,
           request.correlationId as string,
         ),
       ),
@@ -96,7 +87,6 @@ export class InternalEvidenceController {
         id: true,
         scanJobId: true,
         assessmentId: true,
-        organizationId: true,
         snapshotId: true,
         toolsVersion: true,
         configHash: true,
@@ -116,7 +106,6 @@ export class InternalEvidenceController {
       id: report.id,
       scan_job_id: report.scanJobId,
       assessment_id: report.assessmentId,
-      organization_id: report.organizationId,
       snapshot_id: report.snapshotId,
       tools_version: report.toolsVersion,
       config_hash: report.configHash,
@@ -140,7 +129,6 @@ export class InternalEvidenceController {
         id: true,
         evidenceReportId: true,
         assessmentId: true,
-        organizationId: true,
         schemaVersion: true,
         providerVersion: true,
         profileData: true,
@@ -163,7 +151,6 @@ export class InternalEvidenceController {
       technical_profile_id: profile.id,
       evidence_report_id: profile.evidenceReportId,
       assessment_id: profile.assessmentId,
-      organization_id: profile.organizationId,
       schema_version: profile.schemaVersion,
       provider_version: profile.providerVersion,
       privacy_flags: profile.privacyFlags,

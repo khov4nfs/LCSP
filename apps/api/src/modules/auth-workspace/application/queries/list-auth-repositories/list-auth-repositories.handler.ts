@@ -10,7 +10,6 @@ export class ListAuthRepositoriesHandler {
   ): Promise<AuthRepositoriesSuccess> {
     const connections = await this.prisma.repositoryConnection.findMany({
       where: {
-        organizationId: query.context.organizationId,
         userId: query.context.userId,
       },
       orderBy: [{ connectedAt: "desc" }, { repositoryFullName: "asc" }],

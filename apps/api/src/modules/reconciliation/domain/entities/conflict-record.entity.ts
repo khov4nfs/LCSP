@@ -8,7 +8,6 @@ export class ConflictRecordEntity {
   private constructor(
     readonly aiUsageFlowId: string,
     readonly assessmentId: string,
-    readonly organizationId: string,
     readonly conflictType: string,
     readonly conflictScore: number,
     readonly scoreExplanation: string,
@@ -20,7 +19,6 @@ export class ConflictRecordEntity {
   static pending(fields: {
     aiUsageFlowId: string;
     assessmentId: string;
-    organizationId: string;
     conflictType: string;
     conflictScore: number;
     scoreExplanation: string;
@@ -30,7 +28,6 @@ export class ConflictRecordEntity {
     return new ConflictRecordEntity(
       fields.aiUsageFlowId,
       fields.assessmentId,
-      fields.organizationId,
       fields.conflictType,
       fields.conflictScore,
       fields.scoreExplanation,

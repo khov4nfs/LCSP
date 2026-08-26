@@ -5,12 +5,12 @@ import {
   AUDIT_ACTOR_TYPES,
 } from "@lcsp/contracts/audit";
 import { AUTH_LEGACY_AUDIT_EVENT_TYPES } from "@lcsp/contracts/auth";
-import { PBAC_REASON_CODE } from "@lcsp/contracts/pbac";
 import { jest } from "@jest/globals";
 import type { Prisma } from "@prisma/client";
 import type { AuditEventInput } from "@lcsp/contracts/audit";
 
 import type { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
+import { LOCAL_RBAC_REASON_CODES } from "../rbac/rbac-reason-codes.js";
 import { AuditWriterService } from "./audit-writer.service.ts";
 
 type CreateFn = (args: { data: Record<string, unknown> }) => Promise<unknown>;
@@ -39,7 +39,6 @@ function makeEvent(overrides: Partial<AuditEventInput> = {}): AuditEventInput {
   return {
     eventType: AUTH_LEGACY_AUDIT_EVENT_TYPES.loginSucceeded,
     actorId: "user-1",
-    organizationId: "org-1",
     correlationId: "corr-1",
     decision: AUDIT_DECISIONS.allow,
     ...overrides,
@@ -61,7 +60,6 @@ describe("AuditWriterService", () => {
     expect(data).toMatchObject({
       eventType: event.eventType,
       actorId: event.actorId,
-      organizationId: event.organizationId,
       correlationId: event.correlationId,
       decision: event.decision,
       payload: {
@@ -169,16 +167,14 @@ describe("AuditWriterService", () => {
     );
   });
 
-  it("preserves optional auth audit metadata columns", async () => {
+  it("preserves optional auth audit reason and session metadata", async () => {
     const { client, create } = makePrisma();
     const service = new AuditWriterService(client);
 
     await service.write(
       makeEvent({
-        reasonCode: PBAC_REASON_CODE.authorized,
+        reasonCode: LOCAL_RBAC_REASON_CODES.authorized,
         sessionId: "session-1",
-        policyId: "policy-1",
-        policyVersion: "v1",
       }),
     );
 
@@ -186,10 +182,8 @@ describe("AuditWriterService", () => {
       { data: Record<string, unknown> },
     ];
     expect(data).toMatchObject({
-      reasonCode: PBAC_REASON_CODE.authorized,
+      reasonCode: LOCAL_RBAC_REASON_CODES.authorized,
       sessionId: "session-1",
-      policyId: "policy-1",
-      policyVersion: "v1",
     });
   });
 

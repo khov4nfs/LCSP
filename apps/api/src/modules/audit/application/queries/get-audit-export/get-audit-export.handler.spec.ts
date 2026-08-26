@@ -47,7 +47,7 @@ function buildHandler(
     prisma,
     new AuditExportStorageService(),
   );
-  const query = new GetAuditExportQuery("org-1", "org-1", "export-1", "corr-1");
+  const query = new GetAuditExportQuery("export-1", "corr-1");
 
   return { handler, query };
 }
@@ -60,7 +60,7 @@ describe("GetAuditExportHandler", () => {
 
     expect(result.status).toBe(AUDIT_EXPORT_STATUSES.ready);
     expect(result.download_url).toContain(
-      "/organizations/org-1/audit-events/export/export-1/download?token=",
+      "/audit-events/export/export-1/download?token=",
     );
     expect(result.download_url_expires_at).toBeTruthy();
   });

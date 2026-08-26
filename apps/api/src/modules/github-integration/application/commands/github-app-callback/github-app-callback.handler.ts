@@ -156,7 +156,6 @@ export class GitHubAppCallbackHandler implements ICommandHandler<GitHubAppCallba
     const connections = repositoriesToConnect.map((repository) =>
       RepositoryConnection.create({
         assessmentId: installState.assessmentId,
-        organizationId: installState.organizationId,
         userId: installState.userId,
         installationId: command.installationId,
         repositoryId: repository.id,
@@ -176,7 +175,6 @@ export class GitHubAppCallbackHandler implements ICommandHandler<GitHubAppCallba
     await this.auditWriter.write({
       eventType: GITHUB_INTEGRATION_EVENT_TYPES.appConnected,
       actorId: installState.userId,
-      organizationId: installState.organizationId,
       resourceType: AUDIT_RESOURCE_TYPES.repositoryConnection,
       resourceId: primaryConnection.id,
       correlationId: command.correlationId,
@@ -188,7 +186,6 @@ export class GitHubAppCallbackHandler implements ICommandHandler<GitHubAppCallba
         repositoryFullNames: connections.map(
           (connection) => connection.repositoryFullName,
         ),
-        organizationId: installState.organizationId,
         userId: installState.userId,
         correlationId: command.correlationId,
       },
@@ -215,7 +212,6 @@ export class GitHubAppCallbackHandler implements ICommandHandler<GitHubAppCallba
     installState?: {
       id: string;
       userId: string;
-      organizationId: string;
       assessmentId: string | null;
     };
     reasonCode: string;
@@ -223,7 +219,6 @@ export class GitHubAppCallbackHandler implements ICommandHandler<GitHubAppCallba
     await this.auditWriter.write({
       eventType: GITHUB_INTEGRATION_EVENT_TYPES.appConnectionRejected,
       actorId: input.installState?.userId ?? null,
-      organizationId: input.installState?.organizationId ?? null,
       assessmentId: input.installState?.assessmentId ?? null,
       resourceType: AUDIT_RESOURCE_TYPES.githubAppInstallState,
       resourceId: input.installState?.id ?? null,
@@ -232,7 +227,6 @@ export class GitHubAppCallbackHandler implements ICommandHandler<GitHubAppCallba
       decision: AUDIT_DECISIONS.deny,
       payload: {
         installationId: input.command.installationId,
-        organizationId: input.installState?.organizationId ?? null,
         userId: input.installState?.userId ?? null,
         assessmentId: input.installState?.assessmentId ?? null,
         reasonCode: input.reasonCode,

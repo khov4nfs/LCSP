@@ -63,7 +63,7 @@ LCSP handoff templates should assume a polyglot implementation stack rather than
 
 For LCSP, the primary language categories are:
 
-- TypeScript for API contracts, NestJS modules, Prisma-facing persistence, request validation, PBAC enforcement boundaries, route handlers, outbox writes, and status/read-model APIs.
+- TypeScript for API contracts, NestJS modules, Prisma-facing persistence, request validation, RBAC enforcement boundaries, route handlers, outbox writes, and status/read-model APIs.
 - Python for scan-trigger resolution, scanner runtime, TechnicalProfile, AIUsageFlow, reconciliation, legal ingestion/index/matching, classification, gap analysis, and document workers.
 - JavaScript/TypeScript subprocess analysis for repository scanning, especially `ts-morph`, Knip, and package/ecosystem evidence extraction.
 - SQL/schema language for PostgreSQL/Prisma migrations and persistence contracts.
@@ -241,12 +241,12 @@ For LCSP, API task briefs should include:
 - state transition guarded by the endpoint;
 - idempotency key behavior for mutating operations;
 - error response contract;
-- PBAC decision point;
+- RBAC decision point;
 - audit event emitted;
 - downstream command/outbox record, if any.
 
 _RESTful APIs:_ Use resource-oriented routes for API-owned status/read/write boundaries, with custom action routes only for domain transitions such as conflict resolution or document generation requests.
-_GraphQL APIs:_ Not recommended for MVP handoff templates because LCSP has state-machine, audit, and route-level PBAC requirements already represented as REST-style API contracts.
+_GraphQL APIs:_ Not recommended for MVP handoff templates because LCSP has state-machine, audit, and route-level RBAC requirements already represented as REST-style API contracts.
 _RPC and gRPC:_ Not active MVP route style. Could be future internal service transport, but current docs use NestJS API plus RabbitMQ commands/events.
 _Webhook Patterns:_ Trusted scan triggers should be documented as source-authenticated event ingress with mapping resolution, idempotency, blocked states, and audit, not as generic webhook handlers.
 _Source:_ https://google.aip.dev/121, `docs/implementation/backend-implementation.md`
@@ -296,7 +296,7 @@ _Sources:_ https://cloudevents.io/, https://www.rfc-editor.org/rfc/rfc7519
 LCSP integration docs should distinguish synchronous control-plane actions from asynchronous domain work:
 
 - API receives and validates user/system intent.
-- API applies PBAC and state guards.
+- API applies RBAC and state guards.
 - API writes durable state, audit, and outbox.
 - Outbox publisher emits a command.
 - Python worker consumes exactly one command family.
@@ -317,7 +317,7 @@ LCSP is service-split, but the current MVP is better described as an API plus Py
 
 Recommended LCSP microservice-style pattern usage:
 
-- **API boundary pattern:** NestJS API owns synchronous validation, PBAC, state guard, audit, and job enqueue.
+- **API boundary pattern:** NestJS API owns synchronous validation, RBAC, state guard, audit, and job enqueue.
 - **Worker command handler pattern:** each Python worker owns one command family, idempotency, terminal state, audit, and outbox event.
 - **Outbox pattern:** domain state and outbox event are stored durably before publication.
 - **Idempotent receiver pattern:** duplicate commands must resume/no-op rather than duplicate artifacts.
@@ -364,11 +364,11 @@ _Sources:_ https://cloudevents.io/, https://www.rabbitmq.com/tutorials/tutorial-
 
 LCSP is authorization-heavy. Task templates must require security and privacy fields for every API/worker/data integration.
 
-OWASP API Security Top 10 2023 highlights risks directly relevant to LCSP: broken object-level authorization, broken authentication, broken object property-level authorization, unrestricted resource consumption, broken function-level authorization, sensitive business-flow abuse, SSRF, security misconfiguration, improper inventory management, and unsafe consumption of APIs. LCSP task templates should translate these into concrete checks: tenant scoping, PBAC, DTO allowlists, rate/resource bounds, repository/source URL validation, route inventory, and third-party provider safety. Source: https://owasp.org/API-Security/editions/2023/en/0x11-t10/
+OWASP API Security Top 10 2023 highlights risks directly relevant to LCSP: broken object-level authorization, broken authentication, broken object property-level authorization, unrestricted resource consumption, broken function-level authorization, sensitive business-flow abuse, SSRF, security misconfiguration, improper inventory management, and unsafe consumption of APIs. LCSP task templates should translate these into concrete checks: tenant scoping, RBAC, DTO allowlists, rate/resource bounds, repository/source URL validation, route inventory, and third-party provider safety. Source: https://owasp.org/API-Security/editions/2023/en/0x11-t10/
 
-OAuth 2.0 is the baseline authorization framework for delegated authorization flows; JWT is a compact claims format used in many auth systems. LCSP docs already separate OAuth/OIDC identity from GitHub repository authorization. Task handoffs should preserve that separation and require explicit validation of issuer, audience, expiry, nonce/state where relevant, and PBAC as the final internal authorization authority. Sources: https://www.rfc-editor.org/rfc/rfc6749, https://www.rfc-editor.org/rfc/rfc7519
+OAuth 2.0 is the baseline authorization framework for delegated authorization flows; JWT is a compact claims format used in many auth systems. LCSP docs already separate OAuth/OIDC identity from GitHub repository authorization. Task handoffs should preserve that separation and require explicit validation of issuer, audience, expiry, nonce/state where relevant, and RBAC as the final internal authorization authority. Sources: https://www.rfc-editor.org/rfc/rfc6749, https://www.rfc-editor.org/rfc/rfc7519
 
-_OAuth 2.0 and JWT:_ Relevant to identity/session tasks, but PBAC remains LCSP authorization authority.
+_OAuth 2.0 and JWT:_ Relevant to identity/session tasks, but RBAC remains LCSP authorization authority.
 _API Key Management:_ Applicable to provider refs, GitHub App integration, object storage, ChromaDB, RabbitMQ, and LLM Gateway config.
 _Mutual TLS:_ Not active MVP unless deployment architecture adds it.
 _Data Encryption:_ Required as a security concern, but task docs should reference concrete storage/transport decisions rather than vague encryption claims.
@@ -412,13 +412,13 @@ For LCSP, this is non-negotiable because most product value flows across boundar
 
 ### System Architecture Patterns
 
-LCSP should be documented as a **web-queue-worker plus event-driven workflow architecture**, not as a pure microservices architecture and not as a monolith. Azure Architecture Center describes the Web-Queue-Worker style as a web front end that handles HTTP/user interactions and a worker that performs resource-intensive or long-running tasks through an asynchronous queue. This maps closely to LCSP: NestJS API owns request handling, PBAC, state validation and job enqueue; Python workers own scan, profile, AIUsageFlow, reconciliation, legal matching, classification, gap analysis and document generation. Source: https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/
+LCSP should be documented as a **web-queue-worker plus event-driven workflow architecture**, not as a pure microservices architecture and not as a monolith. Azure Architecture Center describes the Web-Queue-Worker style as a web front end that handles HTTP/user interactions and a worker that performs resource-intensive or long-running tasks through an asynchronous queue. This maps closely to LCSP: NestJS API owns request handling, RBAC, state validation and job enqueue; Python workers own scan, profile, AIUsageFlow, reconciliation, legal matching, classification, gap analysis and document generation. Source: https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/
 
 Azure also frames architecture styles as constraints that shape allowed elements and relationships. This is important for LCSP task templates: each task should declare which architectural style constraints it must preserve. For example, scanner tasks must preserve API/worker separation; legal tasks must preserve approved corpus/index boundaries; classification tasks must preserve VerifiedProfile plus LegalRuleMatch prerequisites. Source: https://learn.microsoft.com/en-us/azure/architecture/guide/architecture-styles/
 
 Recommended LCSP system architecture model:
 
-- **NestJS API boundary**: synchronous requests, identity/session, PBAC, state guards, audit, outbox writes, status projections.
+- **NestJS API boundary**: synchronous requests, identity/session, RBAC, state guards, audit, outbox writes, status projections.
 - **Python Worker Platform**: asynchronous domain workloads with one command family per worker.
 - **Event/outbox backbone**: durable handoff between state mutation and worker events.
 - **Legal retrieval subsystem**: ChromaDB vectorless legal index with citation allowlist and retrieval audit.
@@ -435,7 +435,7 @@ AWS Well-Architected identifies six pillars: operational excellence, security, r
 
 For LCSP, design principles should be:
 
-- **Deny by default**: PBAC/state/citation/evidence gates fail closed.
+- **Deny by default**: RBAC/state/citation/evidence gates fail closed.
 - **Reference-only async payloads**: queue messages carry IDs and safe refs, not raw source, secrets, or full prompts.
 - **Idempotent transitions**: duplicate commands must not duplicate artifacts.
 - **Version everything material**: profile, evidence, corpus, legal matching, classification, document, audit.
@@ -498,7 +498,7 @@ For LCSP, the security architecture section should require:
 
 - actor/service identity;
 - tenant/organization boundary;
-- PBAC decision and policy version;
+- RBAC decision and policy version;
 - secrets/config refs;
 - sensitive data entering/leaving the component;
 - redaction requirement;
@@ -550,7 +550,7 @@ LCSP task/handoff docs should not assume deployment authorization, but deployabl
 
 For LCSP, operational architecture differs by task type:
 
-- API tasks: route health, validation errors, status projection, audit, PBAC denial.
+- API tasks: route health, validation errors, status projection, audit, RBAC denial.
 - Worker tasks: queue binding, concurrency, retry/DLQ, idempotency, shutdown behavior.
 - Scanner tasks: workspace cleanup, resource bounds, tool failure severity.
 - Legal tasks: corpus approval, index build state, citation allowlist, retrieval audit.
@@ -597,7 +597,7 @@ For task docs, the most important rule is: no task may be "just implement X." It
 
 ### Technology Adoption Strategies
 
-LCSP should use incremental adoption by vertical domain slice rather than a big-bang implementation. The adoption sequence should move through explicit product and architecture boundaries: PBAC/authz, legal corpus, scanner, TechnicalProfile, AIUsageFlow, validation/reporting, document generation, and audit export. This matches the Strangler Fig pattern: replace specific functionality gradually, keep existing behavior stable while new pieces are introduced, and decommission older behavior only after validation.
+LCSP should use incremental adoption by vertical domain slice rather than a big-bang implementation. The adoption sequence should move through explicit product and architecture boundaries: RBAC/authz, legal corpus, scanner, TechnicalProfile, AIUsageFlow, validation/reporting, document generation, and audit export. This matches the Strangler Fig pattern: replace specific functionality gradually, keep existing behavior stable while new pieces are introduced, and decommission older behavior only after validation.
 
 For LCSP implementation tasks, this means every task must state:
 
@@ -635,7 +635,7 @@ The user has temporarily deferred test execution work, but implementation task d
 
 - API contract;
 - worker command/event behavior;
-- PBAC authorization;
+- RBAC authorization;
 - duplicate/out-of-order/idempotency behavior;
 - legal citation provenance and allowlist;
 - scanner evidence/confidence;
@@ -675,7 +675,7 @@ LCSP implementation tasks should be organized around ownership boundaries rather
 - scanner worker;
 - legal corpus and ChromaDB vectorless retrieval;
 - frontend UX;
-- PBAC/security;
+- RBAC/security;
 - persistence and migrations;
 - documentation and traceability.
 
@@ -767,7 +767,7 @@ LCSP implementation contributors need enough domain familiarity to distinguish:
 - TechnicalProfile from AIUsageFlow;
 - scanner evidence from human attestation;
 - ChromaDB vectorless legal retrieval from pgvector/embedding retrieval;
-- PBAC policy evaluation from role authority;
+- RBAC policy evaluation from role authority;
 - referenced legal context from primary match;
 - redirect/historical docs from active authority docs.
 
@@ -797,7 +797,7 @@ Recommended delivery metrics:
 
 ## Executive Summary
 
-LCSP needs implementation documentation that is stricter than a normal product backlog. The project has compliance, legal-citation, scanner-evidence, PBAC authorization, asynchronous workflow, and documentation-authority constraints. A task that only says "implement story X" is not sufficient because engineers and AI coding agents can otherwise infer behavior from stale docs, redirect files, or superseded concepts such as RBAC, structured attestation, pgvector legal retrieval, or ambiguous scanner authority.
+LCSP needs implementation documentation that is stricter than a normal product backlog. The project has compliance, legal-citation, scanner-evidence, RBAC authorization, asynchronous workflow, and documentation-authority constraints. A task that only says "implement story X" is not sufficient because engineers and AI coding agents can otherwise infer behavior from stale docs, redirect files, or superseded concepts such as RBAC, structured attestation, pgvector legal retrieval, or ambiguous scanner authority.
 
 The research supports a four-artifact implementation documentation model: implementation task template, engineering handoff template, operational runbook template, and generated task/handoff/runbook documents per wave or epic. These artifacts should be stored in the active `docs/implementation/` tree and should cite only active authority documents. Archive docs and redirect stubs must not be used as task authority.
 
@@ -874,7 +874,7 @@ Archive docs were not treated as authority. External sources were used to verify
 
 ### Current Technical Architecture Patterns
 
-LCSP should document implementation work as a `web + queue + worker` architecture. The NestJS/API boundary handles synchronous user/API workflows, request validation, state handoff, PBAC decision points, persistence writes, outbox records, and read/status projections. The Python Worker Platform owns asynchronous domain workloads such as scan triggers, scanner runtime, TechnicalProfile, AIUsageFlow, reconciliation, legal ingestion/index/matching, classification, gap analysis, document generation, and audit export if retained as a worker flow.
+LCSP should document implementation work as a `web + queue + worker` architecture. The NestJS/API boundary handles synchronous user/API workflows, request validation, state handoff, RBAC decision points, persistence writes, outbox records, and read/status projections. The Python Worker Platform owns asynchronous domain workloads such as scan triggers, scanner runtime, TechnicalProfile, AIUsageFlow, reconciliation, legal ingestion/index/matching, classification, gap analysis, document generation, and audit export if retained as a worker flow.
 
 _Dominant Patterns:_ event-driven workflow, transactional outbox, worker queue processing, structure-first legal retrieval, fail-closed compliance workflow.
 _Architectural Evolution:_ LCSP has moved away from Node worker ambiguity, pgvector legal retrieval, structured attestation, and duplicate scanner authority.
@@ -932,7 +932,7 @@ _Sources:_ https://docs.gitlab.com/user/project/description_templates/, https://
 
 LCSP task docs should assume a polyglot stack:
 
-- TypeScript/NestJS/Prisma for API, DTO, validation, persistence, PBAC, outbox, and status/read models.
+- TypeScript/NestJS/Prisma for API, DTO, validation, persistence, RBAC, outbox, and status/read models.
 - Python Worker Platform for asynchronous domain work.
 - RabbitMQ for command/event transport.
 - PostgreSQL for metadata, workflow state, audit, outbox, and idempotency.
@@ -992,7 +992,7 @@ _Source:_ https://learn.microsoft.com/en-us/azure/architecture/patterns/claim-ch
 
 ### Security Best Practices and Frameworks
 
-Task docs must include PBAC, audit, artifact access, redaction, provenance, and threat notes when security-sensitive behavior changes. OWASP API Security risks are relevant for API tasks, especially broken authorization, object/property-level authorization, unrestricted resource consumption, and unsafe consumption of APIs.
+Task docs must include RBAC, audit, artifact access, redaction, provenance, and threat notes when security-sensitive behavior changes. OWASP API Security risks are relevant for API tasks, especially broken authorization, object/property-level authorization, unrestricted resource consumption, and unsafe consumption of APIs.
 
 _Source:_ https://owasp.org/API-Security/editions/2023/en/0x11-t10/
 
@@ -1057,7 +1057,7 @@ Key risks:
 - task omits async retry/DLQ/idempotency;
 - legal task omits citation allowlist;
 - scanner task reintroduces duplicate Python spec authority;
-- UX task diverges from ChromaDB/PBAC/AIUsageFlow constraints;
+- UX task diverges from ChromaDB/RBAC/AIUsageFlow constraints;
 - task lacks verification intent and cannot be covered later by ATDD/automation.
 
 Mitigation: require source authority refs, non-goals, contracts, verification intent, and reviewer boundary in every task.
@@ -1134,7 +1134,7 @@ Non-Goals:
 Architecture Boundary:
 Contracts Changed:
 Data and State Ownership:
-Security / PBAC / Audit:
+Security / RBAC / Audit:
 Operational Behavior:
 Implementation Steps:
 Verification Intent:

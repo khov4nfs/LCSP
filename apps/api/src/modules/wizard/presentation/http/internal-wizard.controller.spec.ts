@@ -22,7 +22,6 @@ describe("InternalWizardController", () => {
     wizardProfileFindUnique.mockResolvedValue({
       id: "wizard-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       ownerId: "user-1",
       version: 2,
       status: "SUBMITTED",
@@ -41,7 +40,6 @@ describe("InternalWizardController", () => {
       select: {
         id: true,
         assessmentId: true,
-        organizationId: true,
         ownerId: true,
         version: true,
         status: true,
@@ -54,7 +52,6 @@ describe("InternalWizardController", () => {
     expect(result).toEqual({
       id: "wizard-1",
       assessment_id: "assessment-1",
-      organization_id: "org-1",
       owner_id: "user-1",
       version: 2,
       status: "submitted",

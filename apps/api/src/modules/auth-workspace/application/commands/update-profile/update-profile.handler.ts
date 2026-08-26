@@ -114,15 +114,7 @@ export class UpdateProfileHandler {
       this.repositories,
       session.userId,
     );
-    const organization = await this.support.resolveOrganizationById(
-      this.repositories,
-      session.organizationId,
-    );
-    const mfaRequired = this.support.isMfaRequired(
-      user,
-      organization,
-      mfaEnrollment,
-    );
+    const mfaRequired = this.support.isMfaRequired(user, mfaEnrollment);
     if (mfaRequired && !session.isMfaVerified()) {
       return createProblemResult(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
@@ -194,7 +186,6 @@ export class UpdateProfileHandler {
     await this.support.recordAudit(this.repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.profileUpdated,
       actor_id: user.id,
-      organization_id: session.organizationId,
       decision: AUDIT_DECISIONS.allow,
       updated_fields: updatedFields,
       correlationId: correlationId,

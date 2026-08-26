@@ -25,7 +25,6 @@ export class GetDocumentGenerationContextHandler implements IQueryHandler<GetDoc
       select: {
         id: true,
         assessmentId: true,
-        organizationId: true,
         classificationResultId: true,
         documentType: true,
       },
@@ -36,7 +35,6 @@ export class GetDocumentGenerationContextHandler implements IQueryHandler<GetDoc
       this.prisma.assessment.findFirst({
         where: {
           id: documentRequest.assessmentId,
-          organizationId: documentRequest.organizationId,
         },
         select: { id: true, name: true, description: true },
       }),
@@ -44,7 +42,6 @@ export class GetDocumentGenerationContextHandler implements IQueryHandler<GetDoc
         where: {
           id: documentRequest.classificationResultId,
           assessmentId: documentRequest.assessmentId,
-          organizationId: documentRequest.organizationId,
           status: EvidenceAcceptanceStatus.ACCEPTED,
         },
         select: {
@@ -70,7 +67,6 @@ export class GetDocumentGenerationContextHandler implements IQueryHandler<GetDoc
         where: {
           id: evidenceReportId,
           assessmentId: documentRequest.assessmentId,
-          organizationId: documentRequest.organizationId,
           status: EvidenceAcceptanceStatus.ACCEPTED,
         },
         select: {
@@ -87,7 +83,6 @@ export class GetDocumentGenerationContextHandler implements IQueryHandler<GetDoc
         where: {
           id: technicalEvidenceReport.snapshotId,
           assessmentId: documentRequest.assessmentId,
-          organizationId: documentRequest.organizationId,
         },
         select: { id: true, commitSha: true },
       }),
@@ -102,7 +97,6 @@ export class GetDocumentGenerationContextHandler implements IQueryHandler<GetDoc
       document_request: {
         id: documentRequest.id,
         assessment_id: documentRequest.assessmentId,
-        organization_id: documentRequest.organizationId,
         classification_result_id: documentRequest.classificationResultId,
         document_type: String(documentRequest.documentType),
       },

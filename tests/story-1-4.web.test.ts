@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import * as assert from "node:assert/strict";
 
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { PUBLIC_ENTRY_ROUTES } from "@lcsp/web/auth-entry";
 import {
   canCreateAssessment,
@@ -30,9 +30,9 @@ function problem(code: string, status: number) {
   };
 }
 
-test("workspace action projection shows create assessment only when backend grants it", () => {
-  assert.equal(canCreateAssessment(["assessment:create"]), true);
-  assert.equal(canCreateAssessment(["assessment:read"]), false);
+test("workspace role projection shows create assessment only for customer role", () => {
+  assert.equal(canCreateAssessment(AUTH_USER_ROLES.customer), true);
+  assert.equal(canCreateAssessment(AUTH_USER_ROLES.admin), false);
 });
 
 test("workspace redirects auth and mfa failures to safe routes", () => {
@@ -55,14 +55,13 @@ test("workspace redirects auth and mfa failures to safe routes", () => {
   );
 });
 
-test("workspace outcome normalizes the MW-auth-006 flat API contract", () => {
+test("workspace outcome normalizes the role-only flat API contract", () => {
   assert.deepEqual(
     toWorkspaceOutcome(
       {
-        organization_id: "org-1",
-        organization_name: "Acme Legal",
-        subject_role: "Manager",
-        granted_actions: ["assessment:create"],
+        user_id: "user-1",
+        display_name: "Acme Manager",
+        role: AUTH_USER_ROLES.customer,
       },
       true,
       200,
@@ -70,14 +69,11 @@ test("workspace outcome normalizes the MW-auth-006 flat API contract", () => {
     {
       kind: "loaded",
       workspace: {
-        organization: {
-          id: "org-1",
-          name: "Acme Legal",
+        user: {
+          id: "user-1",
+          display_name: "Acme Manager",
+          role: AUTH_USER_ROLES.customer,
         },
-        membership: {
-          role: "Manager",
-        },
-        granted_actions: ["assessment:create"],
       },
     },
   );

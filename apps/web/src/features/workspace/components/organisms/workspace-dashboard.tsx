@@ -2,21 +2,17 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { resolveMessage } from "@lcsp/i18n";
+import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  canCreateAssessment,
-} from "@/lib/api/workspace-client";
+import { canCreateAssessment } from "@/lib/api/workspace-client";
 import {
   useAssessmentsQuery,
   useWorkspaceQuery,
 } from "@/lib/api/workspace-queries";
 
 import { appLocale } from "@/lib/locale";
-import type {
-  WorkspaceErrorOutcome,
-} from "../../types/workspace.types";
+import type { WorkspaceErrorOutcome } from "../../types/workspace.types";
 import { WorkspaceHeader } from "../molecules/workspace-header";
 import { WorkspaceOverview } from "./workspace-overview";
 
@@ -68,21 +64,19 @@ export function WorkspaceDashboard() {
             )}
             organizationLabel={resolveMessage(
               appLocale,
-              "pages.workspace.organizationLabel",
+              "pages.workspace.organizationLabel" as MessageKey,
             )}
-            organizationName={workspace.organization.name}
+            organizationName={workspace.user.display_name}
             membershipRoleLabel={resolveMessage(
               appLocale,
-              "pages.workspace.membershipRoleLabel",
+              "pages.workspace.membershipRoleLabel" as MessageKey,
             )}
-            membershipRole={workspace.membership.role}
+            membershipRole={workspace.user.role}
             createAssessmentLabel={resolveMessage(
               appLocale,
               "pages.workspace.createAssessment",
             )}
-            showCreateAssessment={canCreateAssessment(
-              workspace.granted_actions,
-            )}
+            showCreateAssessment={canCreateAssessment(workspace.user.role)}
             onCreateAssessment={() => router.push("/assessments/new")}
           />
         ) : null}

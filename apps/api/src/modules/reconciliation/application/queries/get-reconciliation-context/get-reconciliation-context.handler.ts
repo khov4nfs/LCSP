@@ -42,7 +42,6 @@ export class GetReconciliationContextHandler implements IQueryHandler<
       query.aiUsageFlowId ??
       (await this.resolveFlowIdFromConflictIds(
         query.assessmentId,
-        query.organizationId,
         query.conflictIds,
       ));
     if (!flowId) {
@@ -65,7 +64,6 @@ export class GetReconciliationContextHandler implements IQueryHandler<
       where: {
         aiUsageFlowId: flowId,
         assessmentId: query.assessmentId,
-        organizationId: query.organizationId,
         ...(query.conflictIds.length > 0
           ? {
               id: {
@@ -148,7 +146,6 @@ export class GetReconciliationContextHandler implements IQueryHandler<
     await this.auditWriter.write({
       eventType: AGENTIC_TOOL_EVENT_TYPES.reconciliationContextRead,
       actorId: null,
-      organizationId: query.organizationId,
       assessmentId: query.assessmentId,
       resourceType: AUDIT_RESOURCE_TYPES.conflictRecord,
       resourceId: flowId,
@@ -167,7 +164,6 @@ export class GetReconciliationContextHandler implements IQueryHandler<
 
   private async resolveFlowIdFromConflictIds(
     assessmentId: string,
-    organizationId: string,
     conflictIds: string[],
   ): Promise<string | null> {
     if (conflictIds.length === 0) return null;
@@ -175,7 +171,6 @@ export class GetReconciliationContextHandler implements IQueryHandler<
       where: {
         id: { in: conflictIds },
         assessmentId,
-        organizationId,
       },
       select: { aiUsageFlowId: true },
       take: conflictIds.length,

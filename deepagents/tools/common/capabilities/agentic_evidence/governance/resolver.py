@@ -30,7 +30,7 @@ class AgenticToolResolver:
     """Bridge provider tool calls to the fail-closed agentic registry.
 
     Only catalog entries marked ``LLM_CALLABLE`` are exposed. Every request is
-    schema/budget validated before PBAC authorization and dispatches only to an
+    schema/budget validated before RBAC authorization and dispatches only to an
     explicitly registered read handler; mutation/system tools are never inferred
     or synthesized for a model.
     """
@@ -46,7 +46,7 @@ class AgenticToolResolver:
 
         Args:
             registry: Validated agentic capability registry.
-            authorizer: PBAC authorization adapter evaluated for every call.
+            authorizer: RBAC authorization adapter evaluated for every call.
             max_tool_calls: Maximum tool calls accepted in one model response.
 
         Raises:
@@ -76,7 +76,7 @@ class AgenticToolResolver:
     def _langchain_tool(self, name, description, schema, capability, context) -> BaseTool:
         @tool(name, description=description, args_schema=schema)
         def invoke_capability(**arguments: Any) -> dict[str, Any]:
-            """Run one PBAC-authorized evidence capability."""
+            """Run one RBAC-authorized evidence capability."""
             return self._invoke_capability(name, capability, arguments, context)
 
         return invoke_capability

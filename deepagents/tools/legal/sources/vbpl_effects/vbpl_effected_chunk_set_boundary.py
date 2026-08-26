@@ -36,7 +36,7 @@ class VbplEffectedChunkSetEnvelope:
 class VbplEffectedChunkSetBoundary(AgentBoundaryBase):
     boundary_source = VBPL_EFFECTED_CHUNK_SET_BOUNDARY_SOURCE
     source_event = VBPL_EFFECTED_CHUNK_SET_COMMAND
-    requires_pbac = False
+    requires_rbac = False
     retry_delays_seconds = ()
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:

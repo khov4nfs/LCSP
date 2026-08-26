@@ -6,7 +6,6 @@ import type {
 export class GetAssessmentContextQuery {
   constructor(
     public readonly assessmentId: string,
-    public readonly organizationId: string,
     public readonly wizardProfileId: string,
     public readonly includes: AssessmentContextInclude[],
     public readonly answerFields: AssessmentContextAnswerField[],

@@ -11,8 +11,8 @@ Canonical state transitions for the A-to-Z runnable MVP. Physical enums remain o
 - Completed and failed artifacts are immutable history.
 - Classification requires direct EngineeringRule evaluation with legal-rule provenance and evidence refs.
 - Final document requires classification, GapAnalysis, citations, and no unresolved conflict.
-- Manager completion never depends on Developer participation.
-- PBAC is the authorization source of truth for all user and service transitions.
+- Manager completion never depends on external collaborator participation.
+- RBAC is the authorization source of truth for all user and service transitions.
 - Structured attestation is `SUPERSEDED_FOR_ACTIVE_MVP` and has no active state machine.
 
 ## Assessment
@@ -35,34 +35,34 @@ CREATED
 -> DOCUMENT_GENERATED or DOCUMENT_BLOCKED
 ```
 
-| Current | Trigger | Guard | Next |
-|---|---|---|---|
-| none | assessment created | Manager authorized | CREATED |
-| CREATED | Wizard saved | required fields valid | WIZARD_PROFILE_READY |
-| CREATED | repository connected (Wizard not yet saved) | GitHub App scope valid | REPOSITORY_CONNECTED |
-| WIZARD_PROFILE_READY | repository connected | GitHub App scope valid | REPOSITORY_CONNECTED |
-| REPOSITORY_CONNECTED | Wizard saved | required fields valid | REPOSITORY_CONNECTED (WizardProfile attached; state unchanged, only linkage added) |
-| REPOSITORY_CONNECTED | trusted trigger received | verified source and PBAC allow | TRUSTED_SCAN_TRIGGERED |
-| TRUSTED_SCAN_TRIGGERED | mapping pending | required repository/account/assessment mapping missing | PENDING_MAPPING |
-| TRUSTED_SCAN_TRIGGERED | mapping blocked | ambiguous mapping or unsafe context | BLOCKED_MAPPING |
-| TRUSTED_SCAN_TRIGGERED | waiting | out-of-order event or incomplete context can safely wait | WAITING_FOR_CONTEXT |
-| TRUSTED_SCAN_TRIGGERED | snapshot created | complete tenant/repository/assessment/branch/commit context exists | SNAPSHOT_CREATED |
-| PENDING_MAPPING or WAITING_FOR_CONTEXT | context completed | mapping is unique and PBAC allows | SNAPSHOT_CREATED |
-| BLOCKED_MAPPING | Manager/system correction | mapping is resolved and audited | SNAPSHOT_CREATED |
-| SNAPSHOT_CREATED | scan requested | idempotent job/outbox exists | SCAN_REQUESTED |
-| SCAN_REQUESTED | scan started | Python Worker lock acquired | SCAN_RUNNING |
-| SCAN_RUNNING | scan completed event | quality-valid report and cleanup verification | SCAN_COMPLETED |
-| SCAN_COMPLETED | technical-profile completed | profile persisted | TECHNICAL_PROFILE_READY |
-| TECHNICAL_PROFILE_READY | AIUsageFlow completed | flow persisted | AI_USAGE_FLOW_READY |
-| AI_USAGE_FLOW_READY | conflict detected | material conflict exists (only possible when WizardProfile is linked) | RECONCILIATION_REQUIRED |
-| AI_USAGE_FLOW_READY | EngineeringRule assessment requested | no material conflict, or no WizardProfile linked | ENGINEERING_RULE_ASSESSMENT_REQUESTED |
-| RECONCILIATION_REQUIRED | EngineeringRule assessment requested | Manager resolved all conflicts | ENGINEERING_RULE_ASSESSMENT_REQUESTED |
-| ENGINEERING_RULE_ASSESSMENT_REQUESTED | classification completed | direct result persisted with provenance | CLASSIFICATION_READY |
-| ENGINEERING_RULE_ASSESSMENT_REQUESTED | classification blocked | guard failed | CLASSIFICATION_BLOCKED |
-| CLASSIFICATION_READY | gap completed | GapAnalysis persisted | GAP_ANALYSIS_READY |
-| CLASSIFICATION_READY | gap blocked or failed | gap unavailable | GAP_ANALYSIS_BLOCKED |
-| GAP_ANALYSIS_READY | document generated | artifact metadata persisted | DOCUMENT_GENERATED |
-| eligible blocked state | document blocked | output guard failed | DOCUMENT_BLOCKED |
+| Current                                | Trigger                                     | Guard                                                                 | Next                                                                               |
+| -------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| none                                   | assessment created                          | Manager authorized                                                    | CREATED                                                                            |
+| CREATED                                | Wizard saved                                | required fields valid                                                 | WIZARD_PROFILE_READY                                                               |
+| CREATED                                | repository connected (Wizard not yet saved) | GitHub App scope valid                                                | REPOSITORY_CONNECTED                                                               |
+| WIZARD_PROFILE_READY                   | repository connected                        | GitHub App scope valid                                                | REPOSITORY_CONNECTED                                                               |
+| REPOSITORY_CONNECTED                   | Wizard saved                                | required fields valid                                                 | REPOSITORY_CONNECTED (WizardProfile attached; state unchanged, only linkage added) |
+| REPOSITORY_CONNECTED                   | trusted trigger received                    | verified source and RBAC allow                                        | TRUSTED_SCAN_TRIGGERED                                                             |
+| TRUSTED_SCAN_TRIGGERED                 | mapping pending                             | required repository/account/assessment mapping missing                | PENDING_MAPPING                                                                    |
+| TRUSTED_SCAN_TRIGGERED                 | mapping blocked                             | ambiguous mapping or unsafe context                                   | BLOCKED_MAPPING                                                                    |
+| TRUSTED_SCAN_TRIGGERED                 | waiting                                     | out-of-order event or incomplete context can safely wait              | WAITING_FOR_CONTEXT                                                                |
+| TRUSTED_SCAN_TRIGGERED                 | snapshot created                            | complete tenant/repository/assessment/branch/commit context exists    | SNAPSHOT_CREATED                                                                   |
+| PENDING_MAPPING or WAITING_FOR_CONTEXT | context completed                           | mapping is unique and RBAC allows                                     | SNAPSHOT_CREATED                                                                   |
+| BLOCKED_MAPPING                        | Manager/system correction                   | mapping is resolved and audited                                       | SNAPSHOT_CREATED                                                                   |
+| SNAPSHOT_CREATED                       | scan requested                              | idempotent job/outbox exists                                          | SCAN_REQUESTED                                                                     |
+| SCAN_REQUESTED                         | scan started                                | Python Worker lock acquired                                           | SCAN_RUNNING                                                                       |
+| SCAN_RUNNING                           | scan completed event                        | quality-valid report and cleanup verification                         | SCAN_COMPLETED                                                                     |
+| SCAN_COMPLETED                         | technical-profile completed                 | profile persisted                                                     | TECHNICAL_PROFILE_READY                                                            |
+| TECHNICAL_PROFILE_READY                | AIUsageFlow completed                       | flow persisted                                                        | AI_USAGE_FLOW_READY                                                                |
+| AI_USAGE_FLOW_READY                    | conflict detected                           | material conflict exists (only possible when WizardProfile is linked) | RECONCILIATION_REQUIRED                                                            |
+| AI_USAGE_FLOW_READY                    | EngineeringRule assessment requested        | no material conflict, or no WizardProfile linked                      | ENGINEERING_RULE_ASSESSMENT_REQUESTED                                              |
+| RECONCILIATION_REQUIRED                | EngineeringRule assessment requested        | Manager resolved all conflicts                                        | ENGINEERING_RULE_ASSESSMENT_REQUESTED                                              |
+| ENGINEERING_RULE_ASSESSMENT_REQUESTED  | classification completed                    | direct result persisted with provenance                               | CLASSIFICATION_READY                                                               |
+| ENGINEERING_RULE_ASSESSMENT_REQUESTED  | classification blocked                      | guard failed                                                          | CLASSIFICATION_BLOCKED                                                             |
+| CLASSIFICATION_READY                   | gap completed                               | GapAnalysis persisted                                                 | GAP_ANALYSIS_READY                                                                 |
+| CLASSIFICATION_READY                   | gap blocked or failed                       | gap unavailable                                                       | GAP_ANALYSIS_BLOCKED                                                               |
+| GAP_ANALYSIS_READY                     | document generated                          | artifact metadata persisted                                           | DOCUMENT_GENERATED                                                                 |
+| eligible blocked state                 | document blocked                            | output guard failed                                                   | DOCUMENT_BLOCKED                                                                   |
 
 ## RepositoryScanJob
 
@@ -89,7 +89,7 @@ or REJECTED
 ```
 
 - Invalid signature or untrusted source moves to REJECTED and creates no scan.
-- PBAC denial moves to REJECTED and is audited.
+- RBAC denial moves to REJECTED and is audited.
 - Missing mapping moves to PENDING_MAPPING or WAITING_FOR_CONTEXT.
 - Ambiguous mapping moves to BLOCKED_MAPPING.
 - READY_TO_SNAPSHOT may create immutable RepositorySnapshot and RepositoryScanJob.
@@ -138,13 +138,13 @@ VerifiedProfile states: `NOT_CREATED`, `READY`, `STALE`. Open conflict prevents 
 
 Structured Developer attestation is `SUPERSEDED_FOR_ACTIVE_MVP` and cannot transition Conflict, VerifiedProfile, or Classification.
 
-## Developer Task and Removed Attestation
+## Retired Developer Task and Removed Attestation
 
-Developer task states: `INVITED`, `ACTIVE`, `REVOKED`, `EXPIRED`, `COMPLETED`.
+Developer task states are historical only: `INVITED`, `ACTIVE`, `REVOKED`, `EXPIRED`, `COMPLETED`.
 
 Attestation states are historical only: `SUBMITTED`, `ACCEPTED_AS_SUPPLEMENTAL`, `REJECTED`, `WITHDRAWN`.
 
-`FR-045/FR-046` structured attestation and `FR-052` delegated free-form clarification have no active MVP state machine.
+`FR-010`, `FR-011`, `FR-047`, `FR-045/FR-046` structured attestation and `FR-052` delegated free-form clarification have no active MVP state machine.
 
 ## Legal Source Ingestion
 

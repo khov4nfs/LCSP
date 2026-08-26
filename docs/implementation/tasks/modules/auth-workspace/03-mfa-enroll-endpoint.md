@@ -77,9 +77,9 @@ Allow an authenticated user to enroll TOTP MFA: generate a secret, return provis
 | `EnrollMfaCommand`              | App command      | `{ sessionToken, correlationId? }`            |
 | `event.auth.mfa-enroll-started` | `AuthAuditEvent` | `{ actorId, correlationId, decision: allow }` |
 
-## PBAC
+## RBAC
 
-Requires valid session. No additional PBAC check beyond active session. Any authenticated user can enroll their own MFA.
+Requires valid session. No additional RBAC check beyond active session. Any authenticated user can enroll their own MFA.
 
 ## Test Cases
 

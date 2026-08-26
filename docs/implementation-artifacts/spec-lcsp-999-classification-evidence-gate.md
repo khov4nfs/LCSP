@@ -23,7 +23,7 @@ context:
 
 **Ask First:** Changes to the classification state machine, worker queue choreography, database schema, or customer-facing translation copy.
 
-**Never:** Treat a scan callback, a technical profile alone, or an unaccepted/failed evidence report as sufficient evidence. Do not alter the real classification guard, fabricate evidence, mutate evidence history, or change PBAC policy.
+**Never:** Treat a scan callback, a technical profile alone, or an unaccepted/failed evidence report as sufficient evidence. Do not alter the real classification guard, fabricate evidence, mutate evidence history, or change RBAC policy.
 
 ## I/O & Edge-Case Matrix
 

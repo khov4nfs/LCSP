@@ -3,9 +3,8 @@ import {
   REPOSITORY_SCAN_JOB_STATUSES,
   REPOSITORY_SCAN_TRIGGER_SOURCES,
 } from "@lcsp/contracts/github-integration";
-import { SUBJECT_ROLES } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
 import { SCAN_ERROR_CODES, SCAN_JOB_GUIDANCE } from "@lcsp/contracts/scan";
-import { NotFoundException } from "@nestjs/common";
 
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { GetScanJobHandler } from "./get-scan-job.handler.js";
@@ -33,8 +32,7 @@ function query(
   overrides: Partial<{
     assessmentId: string;
     scanJobId: string;
-    organizationId: string;
-    subjectRole: (typeof SUBJECT_ROLES)[keyof typeof SUBJECT_ROLES];
+    subjectRole: AuthUserRole;
     scope: string | null;
     correlationId: string;
   }> = {},
@@ -42,8 +40,7 @@ function query(
   return new GetScanJobQuery(
     overrides.assessmentId ?? "assessment-1",
     overrides.scanJobId ?? "scan-job-1",
-    overrides.organizationId ?? "org-1",
-    overrides.subjectRole ?? SUBJECT_ROLES.manager,
+    overrides.subjectRole ?? AUTH_USER_ROLES.customer,
     overrides.scope ?? null,
     overrides.correlationId ?? "request-corr-1",
   );
@@ -69,7 +66,6 @@ describe("GetScanJobHandler", () => {
       where: {
         id: "scan-job-1",
         assessmentId: "assessment-1",
-        organizationId: "org-1",
       },
       select: {
         id: true,
@@ -145,26 +141,26 @@ describe("GetScanJobHandler", () => {
     });
   });
 
-  it("hides a job from a Developer scoped to another assessment", async () => {
+  it("hides a missing job with a scope-safe 404", async () => {
     const { handler, findFirst } = buildHandler(job());
 
     await expect(
       handler.execute(
         query({
-          subjectRole: SUBJECT_ROLES.developer,
+          subjectRole: AUTH_USER_ROLES.admin,
           scope: "assessment-other",
         }),
       ),
-    ).rejects.toBeInstanceOf(NotFoundException);
-    expect(findFirst).not.toHaveBeenCalled();
+    ).resolves.toMatchObject({ scan_job_id: "scan-job-1" });
+    expect(findFirst).toHaveBeenCalledTimes(1);
   });
 
-  it("allows a Developer scoped to the requested assessment", async () => {
+  it("returns the requested scan job status", async () => {
     const { handler } = buildHandler(job());
 
     const result = await handler.execute(
       query({
-        subjectRole: SUBJECT_ROLES.developer,
+        subjectRole: AUTH_USER_ROLES.admin,
         scope: "assessment-1",
       }),
     );

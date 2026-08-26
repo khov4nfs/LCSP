@@ -35,6 +35,7 @@ import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
+  seedRepositorySnapshotGraph,
   TEST_DATABASE_URL,
 } from "./support/auth-workspace-test-helpers.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
@@ -76,7 +77,6 @@ describe("Scan Job Callback Endpoint (e2e) [MW-scan-002]", () => {
     await prisma.assessment.create({
       data: {
         id: "assessment-1",
-        organizationId: "org-1",
         ownerId: "user-1",
         name: "Callback assessment",
         status: ASSESSMENT_STATUS_CODES.scanInProgress,
@@ -322,12 +322,12 @@ async function createJob(
   prisma: PrismaClient,
   status: RepositoryScanJobStatus,
 ) {
+  await seedRepositorySnapshotGraph(prisma, { snapshotId: "snapshot-1" });
   await prisma.repositoryScanJob.create({
     data: {
       id: "scan-job-1",
       assessmentId: "assessment-1",
       snapshotId: "snapshot-1",
-      organizationId: "org-1",
       idempotencyKey: "scan-request:assessment-1:snapshot-1:callback",
       triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
       status,

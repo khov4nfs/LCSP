@@ -1,18 +1,12 @@
 import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
-import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
-import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
-import { WIZARD_EVENT_TYPES, type WizardAnswer } from "@lcsp/contracts/wizard";
-import { HttpStatus } from "@nestjs/common";
+import { type WizardAnswer } from "@lcsp/contracts/wizard";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import {
   fromPrismaWizardStatus,
   toPrismaEvidenceAcceptanceStatus,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { AssessmentNotFoundException } from "../../../domain/exceptions/wizard.exceptions.js";
 import type { ReadinessResponse } from "../../contracts/wizard/readiness.contract.js";
 import { ReadinessEvaluatorService } from "../../services/wizard/readiness-evaluator.service.js";
@@ -25,20 +19,16 @@ export class GetReadinessHandler implements IQueryHandler<
 > {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditWriter: AuditWriterService,
     private readonly readinessEvaluator: ReadinessEvaluatorService,
   ) {}
 
   async execute(query: GetReadinessQuery): Promise<ReadinessResponse> {
-    await this.assertReadAction(query);
+    const { assessmentId } = query;
 
-    const { assessmentId, organizationId } = query;
-
-    // Verify assessment exists and belongs to organization
+    // Verify assessment exists.
     const assessment = await this.prisma.assessment.findFirst({
       where: {
         id: assessmentId,
-        organizationId,
       },
     });
 
@@ -92,43 +82,5 @@ export class GetReadinessHandler implements IQueryHandler<
       updated_at: new Date().toISOString(),
       correlationId: query.correlationId,
     };
-  }
-
-  private async assertReadAction(query: GetReadinessQuery): Promise<void> {
-    const { authorization } = query;
-    const isManagerOrDev =
-      authorization.subjectRole === SUBJECT_ROLES.manager ||
-      authorization.subjectRole === SUBJECT_ROLES.developer;
-    const hasReadAction =
-      authorization.selectedAction === PBAC_ACTIONS.assessmentRead;
-    const hasPolicy =
-      authorization.policyId !== null && authorization.policyVersion !== null;
-
-    if (isManagerOrDev && hasReadAction && hasPolicy) {
-      return;
-    }
-
-    // Write audit log on denial
-    await this.auditWriter.write({
-      eventType: WIZARD_EVENT_TYPES.readinessRead,
-      actorId: query.userId,
-      organizationId: query.organizationId,
-      resourceType: AUDIT_RESOURCE_TYPES.assessmentRecord,
-      resourceId: query.assessmentId,
-      decision: AUDIT_DECISIONS.deny,
-      reasonCode: AUTH_ERROR_CODES.pbacDenied,
-      correlationId: query.correlationId,
-      policyId: authorization.policyId,
-      policyVersion: authorization.policyVersion,
-      payload: {
-        assessmentId: query.assessmentId,
-        action: PBAC_ACTIONS.assessmentRead,
-        result: AUDIT_DECISIONS.deny,
-      },
-    });
-
-    throw problemException(AUTH_ERROR_CODES.pbacDenied, query.correlationId, {
-      status: HttpStatus.FORBIDDEN,
-    });
   }
 }

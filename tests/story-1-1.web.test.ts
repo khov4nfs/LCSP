@@ -74,17 +74,17 @@ test("blocked state copy stays safe and exposes a clear next action", () => {
   const viewModel = buildBlockedAuthViewModel({
     ok: false,
     problem: {
-      type: "auth/membership-missing",
+      type: "authz/rbac-denied",
       status: 403,
-      code: AUTH_ERROR_CODES.membershipMissing,
-      titleKey: "auth.errors.membershipMissing.title",
-      detailKey: "auth.errors.membershipMissing.detail",
+      code: AUTH_ERROR_CODES.rbacDenied,
+      titleKey: "auth.errors.rbacDenied.title",
+      detailKey: "auth.errors.rbacDenied.detail",
       requiredAction: "contact_organization_owner",
       correlationId: "corr-1",
     },
   });
 
-  assert.equal(viewModel.title, "Workspace chưa khả dụng");
+  assert.equal(viewModel.title, "Không có quyền thực hiện");
   assert.equal(viewModel.required_action, "contact_organization_owner");
   assert.doesNotMatch(JSON.stringify(viewModel), /policy|token|secret/i);
 });
@@ -118,11 +118,11 @@ test("authenticated blocked workspace state stays on page and surfaces required 
     apiWorkspaceResult: {
       ok: false,
       problem: {
-        type: "auth/membership-missing",
+        type: "authz/rbac-denied",
         status: 403,
-        code: AUTH_ERROR_CODES.membershipMissing,
-        titleKey: "auth.errors.membershipMissing.title",
-        detailKey: "auth.errors.membershipMissing.detail",
+        code: AUTH_ERROR_CODES.rbacDenied,
+        titleKey: "auth.errors.rbacDenied.title",
+        detailKey: "auth.errors.rbacDenied.detail",
         requiredAction: "contact_organization_owner",
         correlationId: "corr-2",
       },
@@ -134,7 +134,7 @@ test("authenticated blocked workspace state stays on page and surfaces required 
 
   assert.equal(route.redirect, null);
   assert.equal(route.render_workspace, false);
-  assert.equal(route.blocked_state.title, "Workspace chưa khả dụng");
+  assert.equal(route.blocked_state.title, "Không có quyền thực hiện");
   assert.equal(
     route.blocked_state.required_action,
     "contact_organization_owner",

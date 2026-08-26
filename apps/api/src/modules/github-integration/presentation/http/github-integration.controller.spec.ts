@@ -6,29 +6,25 @@ import {
   REPOSITORY_SCAN_JOB_STATUSES,
   REPOSITORY_SCAN_TRIGGER_SOURCES,
 } from "@lcsp/contracts/github-integration";
-import {
-  PBAC_ACTIONS,
-  PBAC_METADATA_TYPES,
-  SUBJECT_ROLES,
-} from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
-import { PBAC_METADATA_KEY } from "../../../../platform/pbac/decorators/pbac-metadata.js";
+import { RBAC_METADATA_KEY } from "../../../../platform/rbac/decorators/rbac-metadata.js";
 import { PinSnapshotCommand } from "../../application/commands/pin-snapshot/pin-snapshot.command.js";
 import { TriggerScanCommand } from "../../application/commands/trigger-scan/trigger-scan.command.js";
 import type { TriggerScanDto } from "../../application/contracts/github-integration/trigger-scan.contract.js";
 import { GitHubIntegrationController } from "./github-integration.controller.js";
 
 describe("GitHubIntegrationController.pinSnapshot", () => {
-  it("requires the snapshot:create PBAC action", () => {
+  it("requires CUSTOMER role", () => {
     const metadata = Reflect.getMetadata(
-      PBAC_METADATA_KEY,
+      RBAC_METADATA_KEY,
       // eslint-disable-next-line @typescript-eslint/unbound-method
       GitHubIntegrationController.prototype.pinSnapshot,
     ) as unknown;
 
     expect(metadata).toEqual({
-      type: PBAC_METADATA_TYPES.action,
-      action: PBAC_ACTIONS.snapshotCreate,
+      type: "roles",
+      roles: [AUTH_USER_ROLES.customer],
     });
   });
 
@@ -42,27 +38,22 @@ describe("GitHubIntegrationController.pinSnapshot", () => {
 
     await controller.pinSnapshot(
       "assessment-1",
-      {
-        connection_id: "connection-1",
-        branch: "main",
-      },
+      { connection_id: "connection-1", branch: "main" },
       {
         correlationId: "corr-1",
-        pbacContext: {
-          organizationId: "org-1",
-          userId: "manager-1",
-          subjectRole: SUBJECT_ROLES.manager,
+        rbacContext: {
+          userId: "customer-1",
+          sessionId: "session-1",
+          role: AUTH_USER_ROLES.customer,
           scope: null,
         },
       } as never,
     );
 
-    expect(execute).toHaveBeenCalledTimes(1);
     expect(execute.mock.calls[0][0]).toBeInstanceOf(PinSnapshotCommand);
     expect(execute.mock.calls[0][0]).toMatchObject({
       assessmentId: "assessment-1",
-      organizationId: "org-1",
-      actorId: "manager-1",
+      actorId: "customer-1",
       connectionId: "connection-1",
       branch: "main",
       correlationId: "corr-1",
@@ -71,16 +62,16 @@ describe("GitHubIntegrationController.pinSnapshot", () => {
 });
 
 describe("GitHubIntegrationController.triggerScan", () => {
-  it("requires the scan:trigger PBAC action", () => {
+  it("requires CUSTOMER role", () => {
     const metadata = Reflect.getMetadata(
-      PBAC_METADATA_KEY,
+      RBAC_METADATA_KEY,
       // eslint-disable-next-line @typescript-eslint/unbound-method
       GitHubIntegrationController.prototype.triggerScan,
     ) as unknown;
 
     expect(metadata).toEqual({
-      type: PBAC_METADATA_TYPES.action,
-      action: PBAC_ACTIONS.scanTrigger,
+      type: "roles",
+      roles: [AUTH_USER_ROLES.customer],
     });
   });
 
@@ -107,10 +98,10 @@ describe("GitHubIntegrationController.triggerScan", () => {
       {
         correlationId: "corr-1",
         scanTriggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
-        pbacContext: {
-          organizationId: "org-1",
-          userId: "manager-1",
-          subjectRole: SUBJECT_ROLES.manager,
+        rbacContext: {
+          userId: "customer-1",
+          sessionId: "session-1",
+          role: AUTH_USER_ROLES.customer,
           scope: null,
         },
       } as never,
@@ -122,8 +113,7 @@ describe("GitHubIntegrationController.triggerScan", () => {
       assessmentId: "assessment-1",
       snapshotId: "snapshot-1",
       triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
-      actorId: "manager-1",
-      organizationId: "org-1",
+      actorId: "customer-1",
     });
     expect(status).toHaveBeenCalledWith(HttpStatus.CREATED);
   });

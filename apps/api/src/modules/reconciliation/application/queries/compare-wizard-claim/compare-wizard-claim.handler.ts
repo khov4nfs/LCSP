@@ -49,7 +49,6 @@ export class CompareWizardClaimHandler implements IQueryHandler<
         where: {
           id: query.wizardProfileId,
           assessmentId: query.assessmentId,
-          organizationId: query.organizationId,
         },
         select: { id: true, status: true },
       }),
@@ -57,7 +56,6 @@ export class CompareWizardClaimHandler implements IQueryHandler<
         where: {
           id: query.evidenceReportId,
           assessmentId: query.assessmentId,
-          organizationId: query.organizationId,
           status: toPrismaEvidenceAcceptanceStatus(
             TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
           ),
@@ -169,7 +167,6 @@ export class CompareWizardClaimHandler implements IQueryHandler<
     await this.auditWriter.write({
       eventType: AGENTIC_TOOL_EVENT_TYPES.wizardClaimCompared,
       actorId: null,
-      organizationId: query.organizationId,
       assessmentId: query.assessmentId,
       resourceType: AUDIT_RESOURCE_TYPES.wizardProfile,
       resourceId: wizardId,

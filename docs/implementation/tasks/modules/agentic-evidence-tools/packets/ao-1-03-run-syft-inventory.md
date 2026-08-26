@@ -33,7 +33,7 @@ Unknown workspace/config=`BLOCKED`; missing workspace=`NEEDS_INPUT`; timeout/non
 
 ## 11–15. LLM, registry, audit and security
 
-`exposed_to_model:false`; only sanitized package facts may appear in later evidence context. Registry: `run_syft_inventory/1.0.0`, `SCAN_EXECUTE`, `SCAN_RUNNING`, requires workspace/snapshot ref, 120 s, retry above, no mutation. Audit command template ID—not command string—version/config hash, package count, hashes/refs, status/duration; exclude source, stderr, environment and absolute locations. PBAC/trusted worker verifies workspace ownership; subprocess uses fixed binary/environment/no network or install.
+`exposed_to_model:false`; only sanitized package facts may appear in later evidence context. Registry: `run_syft_inventory/1.0.0`, `SCAN_EXECUTE`, `SCAN_RUNNING`, requires workspace/snapshot ref, 120 s, retry above, no mutation. Audit command template ID—not command string—version/config hash, package count, hashes/refs, status/duration; exclude source, stderr, environment and absolute locations. RBAC/trusted worker verifies workspace ownership; subprocess uses fixed binary/environment/no network or install.
 
 ## 16–22. Scenario, AC, tests, files
 

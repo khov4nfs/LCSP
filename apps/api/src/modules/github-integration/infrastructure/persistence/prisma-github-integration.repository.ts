@@ -37,7 +37,6 @@ export class PrismaRepositoryConnectionRepository implements RepositoryConnectio
       create: {
         id: connection.id,
         assessmentId: connection.assessmentId,
-        organizationId: connection.organizationId,
         userId: connection.userId,
         installationId: connection.installationId,
         repositoryId: connection.repositoryId,
@@ -51,7 +50,6 @@ export class PrismaRepositoryConnectionRepository implements RepositoryConnectio
       },
       update: {
         assessmentId: connection.assessmentId,
-        organizationId: connection.organizationId,
         userId: connection.userId,
         repositoryName: connection.repositoryName,
         repositoryFullName: connection.repositoryFullName,
@@ -78,7 +76,6 @@ export class PrismaRepositoryConnectionRepository implements RepositoryConnectio
     return RepositoryConnection.rehydrate({
       id: row.id,
       assessmentId: row.assessmentId,
-      organizationId: row.organizationId,
       userId: row.userId,
       installationId: row.installationId,
       repositoryId: row.repositoryId,

@@ -9,13 +9,13 @@
     "build": "pnpm run prisma:generate && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "prisma:generate": "cross-env XDG_CACHE_HOME=.cache prisma generate",
+    "prisma:migrate:deploy": "cross-env XDG_CACHE_HOME=.cache prisma migrate deploy",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/src/main.js",
     "seed:google-admins": "cross-env DOTENV_CONFIG_PATH=../../.env tsx scripts/seed-google-admins.ts",
     "author:law-134-baseline-catalog": "tsx scripts/author-law-134-baseline-catalog.ts",
-    "sync:legal-corpus-manager-policy": "tsx scripts/sync-legal-corpus-manager-policy.ts",
     "demo:readiness-export-pdf": "pnpm run prisma:generate && cross-env DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public NODE_ENV=test node --loader ts-node/esm scripts/demo-readiness-export-pdf.ts",
     "lint": "eslint \"{src,test,scripts}/**/*.ts\"",
     "test": "cross-env NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config ./jest.config.ts",
@@ -23,7 +23,7 @@
     "test:cov": "cross-env NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config ./jest.config.ts --coverage",
     "test:debug": "cross-env NODE_OPTIONS=--experimental-vm-modules node --inspect-brk -r tsconfig-paths/register -r ts-node/register ../../node_modules/.bin/jest --config ./jest.config.ts --runInBand",
     "test:e2e": "cross-env DATABASE_URL=\"postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public\" pnpm run prisma:generate && node ./test/scripts/ensure-test-postgres.mjs && cross-env DATABASE_URL=\"postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public\" prisma db push --accept-data-loss --force-reset && cross-env DATABASE_URL=\"postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public\" NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config ./test/jest-e2e.ts",
-    "test:auth-integration": "node ./test/scripts/ensure-test-postgres.mjs && cross-env DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config ./test/jest-e2e.ts --runInBand --runTestsByPath test/auth-workspace.e2e-spec.ts test/oauth-login.e2e-spec.ts test/invite-developer.e2e-spec.ts test/accept-invitation.e2e-spec.ts test/revoke-membership.e2e-spec.ts test/developer-pbac.e2e-spec.ts test/audit-trail.e2e-spec.ts"
+    "test:auth-integration": "node ./test/scripts/ensure-test-postgres.mjs && cross-env DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config ./test/jest-e2e.ts --runInBand --runTestsByPath test/auth-workspace.e2e-spec.ts test/oauth-login.e2e-spec.ts test/audit-trail.e2e-spec.ts"
   },
   "exports": {
     ".": "./src/index.ts",

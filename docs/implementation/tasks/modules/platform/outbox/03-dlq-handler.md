@@ -25,7 +25,7 @@ Expose an internal admin endpoint and a scheduled job to inspect and replay DLQ 
 
 ## API Contract
 
-**Endpoints (internal admin — guarded by `INTERNAL_ADMIN` PBAC action):**
+**Endpoints (internal admin — guarded by `INTERNAL_ADMIN` RBAC action):**
 
 **`GET /internal/outbox/dlq`**
 
@@ -46,7 +46,7 @@ Permanently deletes DLQ message. Irreversible.
 
 | HTTP | `error_code` | Meaning |
 |---|---|---|
-| 403 | `PBAC_DENIED` | Not INTERNAL_ADMIN |
+| 403 | `RBAC_DENIED` | Not INTERNAL_ADMIN |
 | 404 | `MESSAGE_NOT_FOUND` | Message ID not in DLQ |
 
 ## Prisma Models Used
@@ -62,7 +62,7 @@ Permanently deletes DLQ message. Irreversible.
 1. Only messages with `status = 'dlq'` are visible via DLQ endpoint.
 2. Replay resets `status = 'pending'` and `attempts = 0`. Poller picks up on next cycle.
 3. Delete is a hard delete — no soft delete for DLQ messages.
-4. All DLQ actions require `INTERNAL_ADMIN` PBAC action (operator role only).
+4. All DLQ actions require `INTERNAL_ADMIN` RBAC action (operator role only).
 5. Replay emits an audit event `OUTBOX_DLQ_REPLAYED` with operator, message ID, event type.
 6. Delete emits `OUTBOX_DLQ_DISCARDED` audit event.
 
@@ -74,7 +74,7 @@ Permanently deletes DLQ message. Irreversible.
 | T02 | Replay DLQ message | `status = pending`, `attempts = 0` |
 | T03 | Replay non-DLQ message ID | 404 `MESSAGE_NOT_FOUND` |
 | T04 | Delete DLQ message | Message removed from DB |
-| T05 | Unauthorized access | 403 `PBAC_DENIED` |
+| T05 | Unauthorized access | 403 `RBAC_DENIED` |
 | T06 | Replay emits audit event | `OUTBOX_DLQ_REPLAYED` in `AuthAuditEvent` |
 
 ## Definition of Done

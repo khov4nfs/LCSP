@@ -9,7 +9,7 @@ status: DONE
 
 ## Objective and tool definition
 
-Atomically activate a `DRAFT` immutable corpus candidate once every hash-bound automated validation passes. This is `SYSTEM_ONLY`, never LLM-callable, mutation PBAC `LEGAL_CORPUS_ACTIVATE`; catalog membership removes manual source approval only, not any validation gate.
+Atomically activate a `DRAFT` immutable corpus candidate once every hash-bound automated validation passes. This is `SYSTEM_ONLY`, never LLM-callable, mutation RBAC `LEGAL_CORPUS_ACTIVATE`; catalog membership removes manual source approval only, not any validation gate.
 
 ## Input
 

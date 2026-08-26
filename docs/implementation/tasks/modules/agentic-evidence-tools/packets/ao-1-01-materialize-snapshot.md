@@ -54,7 +54,7 @@ Shared envelope: [shared-tool-contract.md](../shared-tool-contract.md). Tool inp
 ```mermaid
 sequenceDiagram
   participant C as ScanConsumer
-  participant P as PBAC/preflight
+  participant P as RBAC/preflight
   participant S as Snapshot store
   participant W as Restricted workspace
   C->>P: snapshotId + commitSha
@@ -67,7 +67,7 @@ Pseudocode: validate shared/schema and job binding; stream archive under restric
 
 ## 11–15. LLM, registry, audit, security
 
-`exposed_to_model:false`; only the scan consumer calls it because source retrieval is unsafe to delegate. Registry: name/version `materialize_snapshot/1.0.0`, action `SCAN_EXECUTE`, allowed state `SCAN_RUNNING`, required `snapshotId`, timeout/retry above, no persistent idempotency key. Audit `requestId,scanJobId,assessmentId,actor,commitSha,snapshotId,workspaceRef hash,status,duration,limitation refs`; never log archive name, token, absolute path, bytes or source. PBAC verifies tenant/job ownership before storage access; workspace has no network or host mounts; cleanup is mandatory.
+`exposed_to_model:false`; only the scan consumer calls it because source retrieval is unsafe to delegate. Registry: name/version `materialize_snapshot/1.0.0`, action `SCAN_EXECUTE`, allowed state `SCAN_RUNNING`, required `snapshotId`, timeout/retry above, no persistent idempotency key. Audit `requestId,scanJobId,assessmentId,actor,commitSha,snapshotId,workspaceRef hash,status,duration,limitation refs`; never log archive name, token, absolute path, bytes or source. RBAC verifies tenant/job ownership before storage access; workspace has no network or host mounts; cleanup is mandatory.
 
 ## 16–19. Scenario, AC and tests
 
@@ -76,7 +76,7 @@ Scenario: a scan for `snapshot:repo-42` calls the schema above; consumer receive
 - Given a valid pinned snapshot, when called, then manifest/commit binding and opaque result are deterministic.
 - Given every skipped/oversize file, then it has a relative-path limitation; no silent omission occurs.
 - Given invalid/extra input, cross-tenant job or unsafe archive, then no handler/source bytes reach a model.
-- Tests: unit archive traversal/link/bomb/size and cleanup; contract strict schema; integration job/commit/PBAC; privacy callback/log inspection; worker retry test.
+- Tests: unit archive traversal/link/bomb/size and cleanup; contract strict schema; integration job/commit/RBAC; privacy callback/log inspection; worker retry test.
 
 ## 20–22. Files, questions, deliverables
 

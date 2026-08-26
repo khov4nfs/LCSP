@@ -15,7 +15,6 @@ export type RepositorySnapshotProviderMetadata = {
 type RepositorySnapshotProps = {
   id: string;
   assessmentId: string;
-  organizationId: string;
   connectionId: string;
   repositoryId: string;
   repositoryFullName: string;
@@ -84,9 +83,6 @@ export class RepositorySnapshot {
   }
 
   /** @returns The organization that owns the snapshot. */
-  get organizationId(): string {
-    return this.props.organizationId;
-  }
 
   /** @returns The repository connection used to resolve the snapshot. */
   get connectionId(): string {

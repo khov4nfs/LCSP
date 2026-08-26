@@ -1,10 +1,10 @@
 import { AUDIT_ERROR_CODES } from "@lcsp/contracts/audit";
-import { PBAC_ACTIONS, PBAC_METADATA_TYPES } from "@lcsp/contracts/pbac";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { jest } from "@jest/globals";
 import type { CommandBus, QueryBus } from "@nestjs/cqrs";
 import type { Response } from "express";
 
-import { PBAC_METADATA_KEY } from "../../../../platform/pbac/decorators/pbac-metadata.js";
+import { RBAC_METADATA_KEY } from "../../../../platform/rbac/decorators/rbac-metadata.js";
 import { ExportAuditTrailCommand } from "../../application/commands/export-audit-trail/export-audit-trail.command.js";
 import { GetAuditExportArtifactQuery } from "../../application/queries/get-audit-export-artifact/get-audit-export-artifact.query.js";
 import { GetAuditExportQuery } from "../../application/queries/get-audit-export/get-audit-export.query.js";
@@ -13,21 +13,20 @@ import { AuditExportStorageService } from "../../infrastructure/storage/audit-ex
 import { AuditController } from "./audit.controller.js";
 
 describe("AuditController", () => {
-  it("requires the audit:read PBAC action", () => {
+  it("requires the ADMIN role to read audit events", () => {
     const metadata = Reflect.getMetadata(
-      PBAC_METADATA_KEY,
-      // Reading decorator metadata requires the unbound prototype method.
+      RBAC_METADATA_KEY,
       // eslint-disable-next-line @typescript-eslint/unbound-method
       AuditController.prototype.listAuditEvents,
     ) as unknown;
 
     expect(metadata).toEqual({
-      type: PBAC_METADATA_TYPES.action,
-      action: PBAC_ACTIONS.auditRead,
+      type: "roles",
+      roles: [AUTH_USER_ROLES.admin],
     });
   });
 
-  it("dispatches the organization-scoped list query", async () => {
+  it("dispatches the audit-event list query", async () => {
     const execute =
       jest.fn<(query: unknown) => Promise<{ events: unknown[] }>>();
     execute.mockResolvedValue({ events: [] });
@@ -38,7 +37,6 @@ describe("AuditController", () => {
     );
 
     await controller.listAuditEvents(
-      "org-1",
       "auth.sign_in",
       "user-1",
       "2026-07-01T00:00:00.000Z",
@@ -46,7 +44,7 @@ describe("AuditController", () => {
       "2",
       "10",
       {
-        pbacContext: { organizationId: "org-1" },
+        rbacContext: { userId: "user-1" },
         correlationId: "corr-1",
       } as never,
     );
@@ -54,8 +52,6 @@ describe("AuditController", () => {
     const dispatched = execute.mock.calls[0]?.[0];
     expect(dispatched).toBeInstanceOf(ListAuditEventsQuery);
     expect(dispatched).toMatchObject({
-      organizationId: "org-1",
-      sessionOrganizationId: "org-1",
       eventType: "auth.sign_in",
       actorId: "user-1",
       page: 2,
@@ -64,20 +60,20 @@ describe("AuditController", () => {
     });
   });
 
-  it("requires the audit:export PBAC action for export request", () => {
+  it("requires the ADMIN role to request an audit export", () => {
     const metadata = Reflect.getMetadata(
-      PBAC_METADATA_KEY,
+      RBAC_METADATA_KEY,
       // eslint-disable-next-line @typescript-eslint/unbound-method
       AuditController.prototype.exportAuditTrail,
     ) as unknown;
 
     expect(metadata).toEqual({
-      type: PBAC_METADATA_TYPES.action,
-      action: PBAC_ACTIONS.auditExport,
+      type: "roles",
+      roles: [AUTH_USER_ROLES.admin],
     });
   });
 
-  it("dispatches export command with organization scope", async () => {
+  it("dispatches export command with requester context", async () => {
     const execute = jest
       .fn<(command: unknown) => Promise<{ export_request_id: string }>>()
       .mockResolvedValue({ export_request_id: "export-1" });
@@ -88,21 +84,18 @@ describe("AuditController", () => {
     );
 
     await controller.exportAuditTrail(
-      "org-1",
       {
         from_date: "2026-07-01T00:00:00.000Z",
         to_date: "2026-07-31T23:59:59.999Z",
       },
       {
-        pbacContext: { organizationId: "org-1", userId: "user-1" },
+        rbacContext: { userId: "user-1" },
         correlationId: "corr-1",
       } as never,
     );
 
     expect(execute.mock.calls[0]?.[0]).toBeInstanceOf(ExportAuditTrailCommand);
     expect(execute.mock.calls[0]?.[0]).toMatchObject({
-      organizationId: "org-1",
-      sessionOrganizationId: "org-1",
       requestedById: "user-1",
       correlationId: "corr-1",
     });
@@ -118,8 +111,8 @@ describe("AuditController", () => {
       {} as AuditExportStorageService,
     );
 
-    await controller.getAuditExport("org-1", "export-1", {
-      pbacContext: { organizationId: "org-1" },
+    await controller.getAuditExport("export-1", {
+      rbacContext: { userId: "user-1" },
       correlationId: "corr-1",
     } as never);
 
@@ -134,12 +127,7 @@ describe("AuditController", () => {
     );
 
     await expect(
-      controller.downloadAuditExport(
-        "org-1",
-        "export-1",
-        undefined,
-        {} as Response,
-      ),
+      controller.downloadAuditExport("export-1", undefined, {} as Response),
     ).rejects.toMatchObject({
       response: {
         ok: false,
@@ -155,7 +143,6 @@ describe("AuditController", () => {
     const storage = new AuditExportStorageService();
     const token = storage
       .createSignedDownloadUrl({
-        organizationId: "org-1",
         exportRequestId: "export-1",
         expiresAt: new Date(Date.now() + 60_000),
       })
@@ -168,7 +155,7 @@ describe("AuditController", () => {
       storage,
     );
 
-    await controller.downloadAuditExport("org-1", "export-1", token, {
+    await controller.downloadAuditExport("export-1", token, {
       setHeader,
       send,
     } as never);

@@ -93,7 +93,7 @@ model AuthOAuthState {
 | `OAuthStartCommand`      | App command      | `{ provider, redirectUri, correlationId? }`    |
 | `event.auth.oauth-start` | `AuthAuditEvent` | `{ provider, correlationId }` — no state/nonce |
 
-## PBAC
+## RBAC
 
 Public endpoint. No authorization check.
 

@@ -42,7 +42,6 @@ describe("GetReconciliationContextHandler", () => {
     const response = await handler.execute(
       new GetReconciliationContextQuery(
         "assessment-1",
-        "org-1",
         "corr-1",
         "flow-1",
         [],
@@ -108,7 +107,6 @@ describe("GetReconciliationContextHandler", () => {
     const response = await handler.execute(
       new GetReconciliationContextQuery(
         "assessment-1",
-        "org-1",
         "corr-2",
         null,
         ["conflict-1", "conflict-2"],

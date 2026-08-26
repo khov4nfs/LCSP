@@ -10,70 +10,70 @@ Canonical IDs are `FR-001..FR-056`. Phase 5.2L supersedes the previous active/de
 - `FR-052` delegated free-form clarification remains inactive and is `DEFERRED_POST_MVP` unless separately approved.
 - Legacy `FR-E*` and `FR-057..FR-082` values are source aliases only.
 
-PBAC is the authorization source of truth for every active requirement. Role labels may appear only as subject attributes, grouping labels, or policy templates.
+RBAC is the authorization source of truth for every active requirement. Role labels may appear only as subject attributes, grouping labels, or policy templates.
 
 ## Catalog
 
-| ID | Requirement | MVP | UC | BR | AC | Dependencies |
-|---|---|---:|---|---|---|---|
-| FR-001 | Register account through approved path. | Y | UC-001 | BR-001, BR-002 | AC-021 | NFR-001 |
-| FR-002 | Authenticate before workspace access. | Y | UC-001 | BR-003 | AC-021 | NFR-001, NFR-002, NFR-004 |
-| FR-003 | Configure and enforce MFA. | Y | UC-001 | BR-006..BR-013 | AC-021 | NFR-001..NFR-004 |
-| FR-004 | Manage session, recovery, and profile. | Y | UC-001 | BR-004, BR-005, BR-074..BR-076 | AC-021, AC-022 | NFR-001, NFR-002, NFR-004 |
-| FR-005 | Support safe OAuth/OIDC login. | Y | UC-001 | BR-086, BR-087, BR-094 | AC-021, AC-023 | NFR-001, NFR-005 |
-| FR-006 | Separate OAuth identity from GitHub authorization. | Y | UC-001, UC-005 | BR-088 | AC-023 | NFR-006, NFR-007 |
-| FR-007 | Create organization. | Y | UC-002 | BR-014 | AC-024 | NFR-008 |
-| FR-008 | Manage organization members. | Y | UC-002 | BR-015 | AC-024 | NFR-008, NFR-009 |
-| FR-009 | Assign Manager subject attributes and policy templates. | Y | UC-002 | BR-016 | AC-024 | NFR-008, NFR-009 |
-| FR-010 | Invite optional Developer collaborator. | Y | UC-002 | BR-017, BR-020 | AC-025 | NFR-008, NFR-009 |
-| FR-011 | Assign/revoke Developer PBAC policy scope. | Y | UC-002 | BR-021, BR-022, BR-090..BR-092 | AC-025, AC-026 | NFR-008..NFR-010 |
-| FR-012 | Enforce PBAC-protected Manager-only actions. | Y | UC-002, UC-010, UC-011, UC-013, UC-014 | BR-018, BR-019, BR-089, BR-091 | AC-025, AC-026 | NFR-008, NFR-009 |
-| FR-013 | Create Manager-owned assessment. | Y | UC-003 | BR-018, BR-023, BR-024, BR-089 | AC-001 | NFR-008, NFR-010 |
-| FR-014 | Complete WizardProfile. | Y | UC-004 | BR-026..BR-029, BR-031 | AC-002 | NFR-028 |
-| FR-015 | Show readiness without risk level. | Y | UC-004, UC-014 | BR-030, BR-065 | AC-003 | NFR-018, NFR-020, NFR-022, NFR-028 |
-| FR-016 | Connect selected read-only GitHub repository. | Y | UC-005 | BR-032, BR-077, BR-088 | AC-004, AC-023 | NFR-006..NFR-009 |
-| FR-017 | Create commit-pinned snapshot. | Y | UC-006 | BR-032, BR-069, BR-077 | AC-004, AC-020 | FR-016, NFR-016, NFR-030 |
-| FR-018 | Run static scan through Python Worker. | Y | UC-007, UC-016 | BR-032, BR-077 | AC-004, AC-028, AC-029 | FR-017, NFR-007, NFR-013, NFR-014, NFR-023, NFR-035 |
-| FR-019 | Enforce scanner privacy and cleanup. | Y | UC-007, UC-017 | BR-057..BR-061 | AC-005, AC-022, AC-029, AC-030 | NFR-012..NFR-015, NFR-023, NFR-035 |
-| FR-020 | Validate evidence schema/privacy flags. | Y | UC-007, UC-008 | BR-036, BR-037 | AC-005 | FR-018, NFR-016 |
-| FR-021 | Evaluate evidence quality/actionability. | Y | UC-008 | BR-038, BR-040 | AC-006 | FR-020, NFR-018, NFR-022, NFR-026 |
-| FR-022 | Generate TechnicalProfile. | Y | UC-008 | BR-039, BR-080 | AC-007 | FR-021, NFR-016, NFR-029 |
-| FR-023 | Detect evidence-backed AI usage signals. | Y | UC-007, UC-008, UC-009 | BR-080 | AC-007, AC-031, AC-032 | FR-018, FR-022, NFR-023, NFR-029, NFR-035 |
-| FR-024 | Generate claim-level AIUsageFlow. | Y | UC-009 | BR-081 | AC-008 | FR-014, FR-022, FR-023, NFR-029 |
-| FR-025 | Preserve unknown/unclear usage. | Y | UC-009 | BR-081, BR-082 | AC-009, AC-031, AC-032 | FR-024, NFR-018, NFR-019 |
-| FR-026 | Detect material reconciliation conflict. | Y | UC-010 | BR-041, BR-083 | AC-010, AC-033 | FR-014, FR-022, FR-024, NFR-018 |
-| FR-027 | Calculate explanatory Conflict Score. | Y | UC-010 | BR-048, BR-085 | AC-011 | FR-026, NFR-028 |
-| FR-028 | Route conflicts to Manager. | Y | UC-010 | BR-042, BR-043, BR-072 | AC-012, AC-033 | FR-026, NFR-008, NFR-018 |
-| FR-029 | Resolve conflicts by Manager. | Y | UC-010 | BR-042, BR-043, BR-047, BR-093 | AC-012, AC-033 | FR-028, NFR-008, NFR-010, NFR-011, NFR-018 |
-| FR-030 | Preserve reconciled AIUsageFlow evidence context. | Y | UC-011 | BR-045, BR-078 | AC-014, AC-015 | FR-026, FR-029, NFR-016, NFR-018 |
-| FR-031 | Remove customer-facing VerifiedProfile approval as a classification gate. | Y | UC-011 | BR-078 | AC-015 | FR-030, NFR-008, NFR-010, NFR-018, NFR-022 |
-| FR-032 | Retrieve legal rules/citations from approved corpus. | Y | UC-012 | BR-050, BR-084 | AC-016, AC-035, AC-036 | FR-030, NFR-017, NFR-034 |
-| FR-033 | Compile and evaluate EngineeringRules by evidence-backed usage. | Y | UC-012 | BR-082, BR-084 | AC-016, AC-036 | FR-024, FR-032, NFR-029 |
-| FR-034 | Block/degrade output without citations. | Y | UC-012, UC-013 | BR-050, BR-051, BR-073 | AC-017, AC-034, AC-036 | FR-032, NFR-017, NFR-018, NFR-020 |
-| FR-035 | Run classification through direct EngineeringRule assessment. | Y | UC-013 | BR-049, BR-082, BR-084 | AC-016, AC-018, AC-037, AC-038 | FR-030, FR-032, FR-033, NFR-018, NFR-019 |
-| FR-036 | Produce cited result or blocked state. | Y | UC-013 | BR-049..BR-051 | AC-017, AC-018, AC-034 | FR-035, NFR-017, NFR-018, NFR-020 |
-| FR-037 | View classification status/result. | Y | UC-013 | BR-049, BR-073 | AC-018 | FR-036, NFR-022, NFR-028 |
-| FR-038 | Generate GapAnalysis. | Y | UC-014 | BR-062, BR-079 | AC-018 | FR-036, NFR-018, NFR-021 |
-| FR-039 | Generate guarded final report. | Y | UC-014 | BR-025, BR-063, BR-064 | AC-018, AC-019, AC-027, AC-041 | FR-038, NFR-018, NFR-020..NFR-022 |
-| FR-040 | Generate readiness-only export. | Y | UC-004, UC-014 | BR-065 | AC-003, AC-019 | FR-015, NFR-020, NFR-022 |
-| FR-041 | View/download document status/artifact. | Y | UC-014 | BR-066 | AC-019, AC-041 | FR-039, NFR-021, NFR-022 |
-| FR-042 | Write material audit events. | Y | UC-015, UC-017 | BR-024, BR-067, BR-094 | AC-020, AC-039, AC-040 | NFR-010, NFR-011, NFR-024, NFR-026 |
-| FR-043 | View/export redacted audit trail. | Y | UC-015 | BR-068 | AC-020, AC-022 | FR-042, NFR-010, NFR-015 |
-| FR-044 | Track immutable artifact versions. | Y | UC-015, UC-016 | BR-069 | AC-020, AC-039, AC-040 | NFR-016, NFR-030 |
-| FR-045 | Historical structured-attestation disclosure requirement. | N | — | — | — | `SUPERSEDED_FOR_ACTIVE_MVP` |
-| FR-046 | Historical structured supplemental attestation. | N | — | — | — | `SUPERSEDED_FOR_ACTIVE_MVP` |
-| FR-047 | Accept scoped Developer task with independent product value. | Y | UC-002 | BR-019, BR-021, BR-071 | AC-025, AC-026 | FR-010, FR-011, NFR-009 |
-| FR-048 | View redacted technical findings. | Y | UC-007 | BR-035 | AC-007, AC-022, AC-025 | FR-018, NFR-014, NFR-015 |
-| FR-049 | Re-run scan without mutating history. | Y | UC-016 | BR-040, BR-047, BR-069, BR-077 | AC-004, AC-020, AC-028, AC-039 | FR-017, FR-018, NFR-030 |
-| FR-050 | Automatic trusted scan initiation. | Y | UC-016 | BR-033 | AC-050A..AC-050F | NFR-008, NFR-010, NFR-016, NFR-024, NFR-026, NFR-030 |
-| FR-051 | Manual technical evidence JSON upload. | N | — | — | — | `REMOVED_FROM_PRODUCT` |
-| FR-052 | Delegated free-form clarification. | N | UC-010 | BR-044 | — | `DEFERRED_POST_MVP`; FR-011, FR-029 |
-| FR-053 | Ingest validated legal source snapshots. | Y | UC-012 | BR-050, BR-084 | AC-016 | NFR-017, NFR-034 |
-| FR-054 | Approve immutable LegalCorpusVersion. | Y | UC-012 | BR-050 | AC-016, AC-035 | NFR-017, NFR-034 |
-| FR-055 | Configure real LLM provider and budget controls. | Y | UC-013 | BR-049 | AC-018, AC-037, AC-038 | NFR-012, NFR-033 |
-| FR-056 | Run ChromaDB structure-first vectorless legal retrieval with xref expansion and citation allowlist validation. | Y | UC-012 | BR-050, BR-084 | AC-016, AC-035, AC-036 | NFR-017, NFR-034 |
+| ID     | Requirement                                                                                                    | MVP | UC                                     | BR                             | AC                             | Dependencies                                         |
+| ------ | -------------------------------------------------------------------------------------------------------------- | --: | -------------------------------------- | ------------------------------ | ------------------------------ | ---------------------------------------------------- |
+| FR-001 | Register account through self-signup or approved organization path.                                            |   Y | UC-001                                 | BR-001, BR-002                 | AC-021                         | NFR-001                                              |
+| FR-002 | Authenticate before workspace access.                                                                          |   Y | UC-001                                 | BR-003                         | AC-021                         | NFR-001, NFR-002, NFR-004                            |
+| FR-003 | Configure and enforce MFA.                                                                                     |   Y | UC-001                                 | BR-006..BR-013                 | AC-021                         | NFR-001..NFR-004                                     |
+| FR-004 | Manage session, recovery, and profile.                                                                         |   Y | UC-001                                 | BR-004, BR-005, BR-074..BR-076 | AC-021, AC-022                 | NFR-001, NFR-002, NFR-004                            |
+| FR-005 | Support safe OAuth/OIDC login.                                                                                 |   Y | UC-001                                 | BR-086, BR-087, BR-094         | AC-021, AC-023                 | NFR-001, NFR-005                                     |
+| FR-006 | Separate OAuth identity from GitHub authorization.                                                             |   Y | UC-001, UC-005                         | BR-088                         | AC-023                         | NFR-006, NFR-007                                     |
+| FR-007 | Create organization.                                                                                           |   Y | UC-002                                 | BR-014                         | AC-024                         | NFR-008                                              |
+| FR-008 | Manage organization members.                                                                                   |   Y | UC-002                                 | BR-015                         | AC-024                         | NFR-008, NFR-009                                     |
+| FR-009 | Assign Manager subject attributes and policy templates.                                                        |   Y | UC-002                                 | BR-016                         | AC-024                         | NFR-008, NFR-009                                     |
+| FR-010 | Historical Developer invitation flow.                                                                          |   N | —                                      | —                              | —                              | `RETIRED_FROM_ACTIVE_MVP`                            |
+| FR-011 | Historical Developer RBAC policy scope and revocation flow.                                                    |   N | —                                      | —                              | —                              | `RETIRED_FROM_ACTIVE_MVP`                            |
+| FR-012 | Enforce RBAC-protected Manager-only actions.                                                                   |   Y | UC-002, UC-010, UC-011, UC-013, UC-014 | BR-018, BR-019, BR-089, BR-091 | AC-025, AC-026                 | NFR-008, NFR-009                                     |
+| FR-013 | Create Manager-owned assessment.                                                                               |   Y | UC-003                                 | BR-018, BR-023, BR-024, BR-089 | AC-001                         | NFR-008, NFR-010                                     |
+| FR-014 | Complete WizardProfile.                                                                                        |   Y | UC-004                                 | BR-026..BR-029, BR-031         | AC-002                         | NFR-028                                              |
+| FR-015 | Show readiness without risk level.                                                                             |   Y | UC-004, UC-014                         | BR-030, BR-065                 | AC-003                         | NFR-018, NFR-020, NFR-022, NFR-028                   |
+| FR-016 | Connect selected read-only GitHub repository.                                                                  |   Y | UC-005                                 | BR-032, BR-077, BR-088         | AC-004, AC-023                 | NFR-006..NFR-009                                     |
+| FR-017 | Create commit-pinned snapshot.                                                                                 |   Y | UC-006                                 | BR-032, BR-069, BR-077         | AC-004, AC-020                 | FR-016, NFR-016, NFR-030                             |
+| FR-018 | Run static scan through Python Worker.                                                                         |   Y | UC-007, UC-016                         | BR-032, BR-077                 | AC-004, AC-028, AC-029         | FR-017, NFR-007, NFR-013, NFR-014, NFR-023, NFR-035  |
+| FR-019 | Enforce scanner privacy and cleanup.                                                                           |   Y | UC-007, UC-017                         | BR-057..BR-061                 | AC-005, AC-022, AC-029, AC-030 | NFR-012..NFR-015, NFR-023, NFR-035                   |
+| FR-020 | Validate evidence schema/privacy flags.                                                                        |   Y | UC-007, UC-008                         | BR-036, BR-037                 | AC-005                         | FR-018, NFR-016                                      |
+| FR-021 | Evaluate evidence quality/actionability.                                                                       |   Y | UC-008                                 | BR-038, BR-040                 | AC-006                         | FR-020, NFR-018, NFR-022, NFR-026                    |
+| FR-022 | Generate TechnicalProfile.                                                                                     |   Y | UC-008                                 | BR-039, BR-080                 | AC-007                         | FR-021, NFR-016, NFR-029                             |
+| FR-023 | Detect evidence-backed AI usage signals.                                                                       |   Y | UC-007, UC-008, UC-009                 | BR-080                         | AC-007, AC-031, AC-032         | FR-018, FR-022, NFR-023, NFR-029, NFR-035            |
+| FR-024 | Generate claim-level AIUsageFlow.                                                                              |   Y | UC-009                                 | BR-081                         | AC-008                         | FR-014, FR-022, FR-023, NFR-029                      |
+| FR-025 | Preserve unknown/unclear usage.                                                                                |   Y | UC-009                                 | BR-081, BR-082                 | AC-009, AC-031, AC-032         | FR-024, NFR-018, NFR-019                             |
+| FR-026 | Detect material reconciliation conflict.                                                                       |   Y | UC-010                                 | BR-041, BR-083                 | AC-010, AC-033                 | FR-014, FR-022, FR-024, NFR-018                      |
+| FR-027 | Calculate explanatory Conflict Score.                                                                          |   Y | UC-010                                 | BR-048, BR-085                 | AC-011                         | FR-026, NFR-028                                      |
+| FR-028 | Route conflicts to Manager.                                                                                    |   Y | UC-010                                 | BR-042, BR-043, BR-072         | AC-012, AC-033                 | FR-026, NFR-008, NFR-018                             |
+| FR-029 | Resolve conflicts by Manager.                                                                                  |   Y | UC-010                                 | BR-042, BR-043, BR-047, BR-093 | AC-012, AC-033                 | FR-028, NFR-008, NFR-010, NFR-011, NFR-018           |
+| FR-030 | Preserve reconciled AIUsageFlow evidence context.                                                              |   Y | UC-011                                 | BR-045, BR-078                 | AC-014, AC-015                 | FR-026, FR-029, NFR-016, NFR-018                     |
+| FR-031 | Remove customer-facing VerifiedProfile approval as a classification gate.                                      |   Y | UC-011                                 | BR-078                         | AC-015                         | FR-030, NFR-008, NFR-010, NFR-018, NFR-022           |
+| FR-032 | Retrieve legal rules/citations from approved corpus.                                                           |   Y | UC-012                                 | BR-050, BR-084                 | AC-016, AC-035, AC-036         | FR-030, NFR-017, NFR-034                             |
+| FR-033 | Compile and evaluate EngineeringRules by evidence-backed usage.                                                |   Y | UC-012                                 | BR-082, BR-084                 | AC-016, AC-036                 | FR-024, FR-032, NFR-029                              |
+| FR-034 | Block/degrade output without citations.                                                                        |   Y | UC-012, UC-013                         | BR-050, BR-051, BR-073         | AC-017, AC-034, AC-036         | FR-032, NFR-017, NFR-018, NFR-020                    |
+| FR-035 | Run classification through direct EngineeringRule assessment.                                                  |   Y | UC-013                                 | BR-049, BR-082, BR-084         | AC-016, AC-018, AC-037, AC-038 | FR-030, FR-032, FR-033, NFR-018, NFR-019             |
+| FR-036 | Produce cited result or blocked state.                                                                         |   Y | UC-013                                 | BR-049..BR-051                 | AC-017, AC-018, AC-034         | FR-035, NFR-017, NFR-018, NFR-020                    |
+| FR-037 | View classification status/result.                                                                             |   Y | UC-013                                 | BR-049, BR-073                 | AC-018                         | FR-036, NFR-022, NFR-028                             |
+| FR-038 | Generate GapAnalysis.                                                                                          |   Y | UC-014                                 | BR-062, BR-079                 | AC-018                         | FR-036, NFR-018, NFR-021                             |
+| FR-039 | Generate guarded final report.                                                                                 |   Y | UC-014                                 | BR-025, BR-063, BR-064         | AC-018, AC-019, AC-027, AC-041 | FR-038, NFR-018, NFR-020..NFR-022                    |
+| FR-040 | Generate readiness-only export.                                                                                |   Y | UC-004, UC-014                         | BR-065                         | AC-003, AC-019                 | FR-015, NFR-020, NFR-022                             |
+| FR-041 | View/download document status/artifact.                                                                        |   Y | UC-014                                 | BR-066                         | AC-019, AC-041                 | FR-039, NFR-021, NFR-022                             |
+| FR-042 | Write material audit events.                                                                                   |   Y | UC-015, UC-017                         | BR-024, BR-067, BR-094         | AC-020, AC-039, AC-040         | NFR-010, NFR-011, NFR-024, NFR-026                   |
+| FR-043 | View/export redacted audit trail.                                                                              |   Y | UC-015                                 | BR-068                         | AC-020, AC-022                 | FR-042, NFR-010, NFR-015                             |
+| FR-044 | Track immutable artifact versions.                                                                             |   Y | UC-015, UC-016                         | BR-069                         | AC-020, AC-039, AC-040         | NFR-016, NFR-030                                     |
+| FR-045 | Historical structured-attestation disclosure requirement.                                                      |   N | —                                      | —                              | —                              | `SUPERSEDED_FOR_ACTIVE_MVP`                          |
+| FR-046 | Historical structured supplemental attestation.                                                                |   N | —                                      | —                              | —                              | `SUPERSEDED_FOR_ACTIVE_MVP`                          |
+| FR-047 | Historical scoped Developer task acceptance.                                                                   |   N | —                                      | —                              | —                              | `RETIRED_FROM_ACTIVE_MVP`                            |
+| FR-048 | View redacted technical findings.                                                                              |   Y | UC-007                                 | BR-035                         | AC-007, AC-022, AC-025         | FR-018, NFR-014, NFR-015                             |
+| FR-049 | Re-run scan without mutating history.                                                                          |   Y | UC-016                                 | BR-040, BR-047, BR-069, BR-077 | AC-004, AC-020, AC-028, AC-039 | FR-017, FR-018, NFR-030                              |
+| FR-050 | Automatic trusted scan initiation.                                                                             |   Y | UC-016                                 | BR-033                         | AC-050A..AC-050F               | NFR-008, NFR-010, NFR-016, NFR-024, NFR-026, NFR-030 |
+| FR-051 | Manual technical evidence JSON upload.                                                                         |   N | —                                      | —                              | —                              | `REMOVED_FROM_PRODUCT`                               |
+| FR-052 | Delegated free-form clarification.                                                                             |   N | UC-010                                 | BR-044                         | —                              | `DEFERRED_POST_MVP`; FR-011, FR-029                  |
+| FR-053 | Ingest validated legal source snapshots.                                                                       |   Y | UC-012                                 | BR-050, BR-084                 | AC-016                         | NFR-017, NFR-034                                     |
+| FR-054 | Approve immutable LegalCorpusVersion.                                                                          |   Y | UC-012                                 | BR-050                         | AC-016, AC-035                 | NFR-017, NFR-034                                     |
+| FR-055 | Configure real LLM provider and budget controls.                                                               |   Y | UC-013                                 | BR-049                         | AC-018, AC-037, AC-038         | NFR-012, NFR-033                                     |
+| FR-056 | Run ChromaDB structure-first vectorless legal retrieval with xref expansion and citation allowlist validation. |   Y | UC-012                                 | BR-050, BR-084                 | AC-016, AC-035, AC-036         | NFR-017, NFR-034                                     |
 
-Historical alias resolution remains in `requirements-baseline.md`.
+Historical alias resolution remains in `requirements-baseline.md`. Developer invitation/task requirements are retained only as retired historical rows unless reopened by change control.
 
 ```text
 CANONICAL_FR_CATALOG_NORMALIZED

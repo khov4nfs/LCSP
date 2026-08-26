@@ -70,7 +70,7 @@ mkdir -p "$LCSP_CANDIDATE3_WORKTREE/apps/api/src/modules/classification/applicat
 mkdir -p "$LCSP_CANDIDATE3_WORKTREE/apps/api/src/modules/classification/presentation/http"
 mkdir -p "$LCSP_CANDIDATE3_WORKTREE/apps/api/src/modules/classification"
 mkdir -p "$LCSP_CANDIDATE3_WORKTREE/packages/contracts/src/evidence"
-mkdir -p "$LCSP_CANDIDATE3_WORKTREE/packages/contracts/src/pbac"
+mkdir -p "$LCSP_CANDIDATE3_WORKTREE/packages/contracts/src/rbac"
 ```
 
 ```bash
@@ -110,14 +110,14 @@ cp "$LCSP_REPO_ROOT/packages/contracts/src/evidence/agentic-tool.ts" \
   "$LCSP_CANDIDATE3_WORKTREE/packages/contracts/src/evidence/"
 cp "$LCSP_REPO_ROOT/packages/contracts/src/evidence/index.ts" \
   "$LCSP_CANDIDATE3_WORKTREE/packages/contracts/src/evidence/"
-cp "$LCSP_REPO_ROOT/packages/contracts/src/pbac/ao5-actions.ts" \
-  "$LCSP_CANDIDATE3_WORKTREE/packages/contracts/src/pbac/"
-cp "$LCSP_REPO_ROOT/packages/contracts/src/pbac/ao5-manager-policy.ts" \
-  "$LCSP_CANDIDATE3_WORKTREE/packages/contracts/src/pbac/"
-cp "$LCSP_REPO_ROOT/packages/contracts/src/pbac/actions.ts" \
-  "$LCSP_CANDIDATE3_WORKTREE/packages/contracts/src/pbac/"
-cp "$LCSP_REPO_ROOT/packages/contracts/src/pbac/manager-policy.ts" \
-  "$LCSP_CANDIDATE3_WORKTREE/packages/contracts/src/pbac/"
+cp "$LCSP_REPO_ROOT/packages/contracts/src/rbac/ao5-actions.ts" \
+  "$LCSP_CANDIDATE3_WORKTREE/packages/contracts/src/rbac/"
+cp "$LCSP_REPO_ROOT/packages/contracts/src/rbac/ao5-manager-policy.ts" \
+  "$LCSP_CANDIDATE3_WORKTREE/packages/contracts/src/rbac/"
+cp "$LCSP_REPO_ROOT/packages/contracts/src/rbac/actions.ts" \
+  "$LCSP_CANDIDATE3_WORKTREE/packages/contracts/src/rbac/"
+cp "$LCSP_REPO_ROOT/packages/contracts/src/rbac/manager-policy.ts" \
+  "$LCSP_CANDIDATE3_WORKTREE/packages/contracts/src/rbac/"
 ```
 
 ## Step 3 — remove foreign shared-hunk content from shared files
@@ -127,8 +127,8 @@ Open these scratch-worktree files:
 - [classification.module.ts](/home/khovan/Workplaces/LCSP-candidate-3/apps/api/src/modules/classification/classification.module.ts)
 - [agentic-tool.ts](/home/khovan/Workplaces/LCSP-candidate-3/packages/contracts/src/evidence/agentic-tool.ts)
 - [index.ts](/home/khovan/Workplaces/LCSP-candidate-3/packages/contracts/src/evidence/index.ts)
-- [actions.ts](/home/khovan/Workplaces/LCSP-candidate-3/packages/contracts/src/pbac/actions.ts)
-- [manager-policy.ts](/home/khovan/Workplaces/LCSP-candidate-3/packages/contracts/src/pbac/manager-policy.ts)
+- [actions.ts](/home/khovan/Workplaces/LCSP-candidate-3/packages/contracts/src/rbac/actions.ts)
+- [manager-policy.ts](/home/khovan/Workplaces/LCSP-candidate-3/packages/contracts/src/rbac/manager-policy.ts)
 
 Keep only Candidate 3 / AO-5 content:
 
@@ -141,7 +141,7 @@ Keep only Candidate 3 / AO-5 content:
 - `index.ts`
   - `export * from "./ao5-agentic-evidence.ts";`
 - `actions.ts`
-  - `AO5_PBAC_ACTIONS`
+  - `AO5_RBAC_ACTIONS`
 - `manager-policy.ts`
   - `AO5_MANAGER_ONLY_ACTION_VALUES`
 
@@ -178,10 +178,10 @@ git diff -- \
   packages/contracts/src/evidence/ao5-agentic-evidence.ts \
   packages/contracts/src/evidence/agentic-tool.ts \
   packages/contracts/src/evidence/index.ts \
-  packages/contracts/src/pbac/ao5-actions.ts \
-  packages/contracts/src/pbac/ao5-manager-policy.ts \
-  packages/contracts/src/pbac/actions.ts \
-  packages/contracts/src/pbac/manager-policy.ts
+  packages/contracts/src/rbac/ao5-actions.ts \
+  packages/contracts/src/rbac/ao5-manager-policy.ts \
+  packages/contracts/src/rbac/actions.ts \
+  packages/contracts/src/rbac/manager-policy.ts
 ```
 
 Verify:
@@ -213,10 +213,10 @@ git add \
   packages/contracts/src/evidence/ao5-agentic-evidence.ts \
   packages/contracts/src/evidence/agentic-tool.ts \
   packages/contracts/src/evidence/index.ts \
-  packages/contracts/src/pbac/ao5-actions.ts \
-  packages/contracts/src/pbac/ao5-manager-policy.ts \
-  packages/contracts/src/pbac/actions.ts \
-  packages/contracts/src/pbac/manager-policy.ts
+  packages/contracts/src/rbac/ao5-actions.ts \
+  packages/contracts/src/rbac/ao5-manager-policy.ts \
+  packages/contracts/src/rbac/actions.ts \
+  packages/contracts/src/rbac/manager-policy.ts
 ```
 
 Optional verification:

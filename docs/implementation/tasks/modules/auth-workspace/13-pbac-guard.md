@@ -8,11 +8,11 @@ epic_story: 1.6
 depends_on:
   - auth-workspace/01-sign-in-endpoint.md
   - auth-workspace/06-get-workspace-endpoint.md
-  - platform/pbac/02-evaluator-service.md
-  - platform/pbac/03-nestjs-guard.md
+  - platform/rbac/02-evaluator-service.md
+  - platform/rbac/03-nestjs-guard.md
 ---
 
-# PBAC Guard — NestJS Integration
+# RBAC Guard — NestJS Integration
 
 ## Outcome
 
@@ -22,15 +22,15 @@ Enforce Policy-Based Access Control on all protected endpoints via a reusable Ne
 
 | File                                                                                               | Action | Notes                                                            |
 | -------------------------------------------------------------------------------------------------- | ------ | ---------------------------------------------------------------- |
-| `apps/api/src/modules/auth-workspace/presentation/guards/pbac.guard.ts`                            | Create | NestJS `CanActivate` guard                                       |
+| `apps/api/src/modules/auth-workspace/presentation/guards/rbac.guard.ts`                            | Create | NestJS `CanActivate` guard                                       |
 | `apps/api/src/modules/auth-workspace/presentation/decorators/require-action.decorator.ts`          | Create | `@RequireAction('action:name')` endpoint decorator               |
 | `apps/api/src/modules/auth-workspace/presentation/decorators/require-session.decorator.ts`         | Create | `@RequireSession()` endpoint decorator                           |
-| `apps/api/src/modules/auth-workspace/application/services/auth-workspace/pbac-session.resolver.ts` | Create | Resolves `AuthSession` → `AuthMembership` → `AuthPolicy` context |
+| `apps/api/src/modules/auth-workspace/application/services/auth-workspace/rbac-session.resolver.ts` | Create | Resolves `AuthSession` → `AuthMembership` → `AuthPolicy` context |
 | `apps/api/src/modules/auth-workspace/auth-workspace.module.ts`                                     | Modify | Register guard and decorators globally or per-module             |
 
 ## Guard Behaviour
 
-**Invocation:** `@UseGuards(PbacGuard)` + `@RequireAction('action:name')` on controller method.
+**Invocation:** `@UseGuards(RbacGuard)` + `@RequireAction('action:name')` on controller method.
 
 **Evaluation steps (in order):**
 
@@ -39,10 +39,10 @@ Enforce Policy-Based Access Control on all protected endpoints via a reusable Ne
 3. Load `AuthMembership` for `(userId, session.organizationId, status = active)`. Missing → deny `MEMBERSHIP_MISSING`.
 4. Load `AuthPolicy` for `(policyId, policyVersion)` from membership. Missing or version mismatch → deny `POLICY_NOT_FOUND`.
 5. Check `policy.stateGate`. If `stateGate = membership_active` and membership not active → deny.
-6. Evaluate `action ∈ policy.actions`. PBAC is an allowlist — only explicitly granted actions are allowed.
+6. Evaluate `action ∈ policy.actions`. RBAC is an allowlist — only explicitly granted actions are allowed.
 7. Evaluate subject attributes: `policy.subjectRole == membership.subjectAttributes.role`.
 8. If all checks pass → allow. Log `AuthDecisionLog` with decision `allow`.
-9. On any deny → log `AuthDecisionLog` with decision `deny` + reason code. Return 403 `PBAC_DENIED` (no policy internals in response).
+9. On any deny → log `AuthDecisionLog` with decision `deny` + reason code. Return 403 `RBAC_DENIED` (no policy internals in response).
 
 **Default deny conditions:**
 
@@ -83,25 +83,25 @@ Enforce Policy-Based Access Control on all protected endpoints via a reusable Ne
 | Name                                   | Type              | Safe payload                                                                          |
 | -------------------------------------- | ----------------- | ------------------------------------------------------------------------------------- |
 | (No command — guard is infrastructure) | —                 | —                                                                                     |
-| `event.pbac.decision`                  | `AuthDecisionLog` | `{ decision, reasonCode, action, sessionId, userId, orgId, policyId, policyVersion }` |
+| `event.rbac.decision`                  | `AuthDecisionLog` | `{ decision, reasonCode, action, sessionId, userId, orgId, policyId, policyVersion }` |
 
-## PBAC
+## RBAC
 
-This file IS the PBAC implementation. No circular dependency.
+This file IS the RBAC implementation. No circular dependency.
 
 ## Test Cases
 
 | ID  | Scenario                                             | Expected                                        |
 | --- | ---------------------------------------------------- | ----------------------------------------------- |
 | T01 | Valid session + active membership + action in policy | Pass (200 from endpoint)                        |
-| T02 | Session expired                                      | 403 `PBAC_DENIED` + deny logged                 |
-| T03 | Session revoked                                      | 403 `PBAC_DENIED` + deny logged                 |
+| T02 | Session expired                                      | 403 `RBAC_DENIED` + deny logged                 |
+| T03 | Session revoked                                      | 403 `RBAC_DENIED` + deny logged                 |
 | T04 | MFA enrolled + not verified                          | 403 `MFA_REQUIRED` + deny logged                |
-| T05 | No active membership                                 | 403 `PBAC_DENIED` + deny logged                 |
-| T06 | Policy not found                                     | 403 `PBAC_DENIED` + deny logged                 |
-| T07 | Action not in `policy.actions`                       | 403 `PBAC_DENIED` + deny logged                 |
-| T08 | Subject role mismatch                                | 403 `PBAC_DENIED` + deny logged                 |
-| T09 | Evaluator throws (DB error)                          | 403 `PBAC_DENIED` + deny logged                 |
+| T05 | No active membership                                 | 403 `RBAC_DENIED` + deny logged                 |
+| T06 | Policy not found                                     | 403 `RBAC_DENIED` + deny logged                 |
+| T07 | Action not in `policy.actions`                       | 403 `RBAC_DENIED` + deny logged                 |
+| T08 | Subject role mismatch                                | 403 `RBAC_DENIED` + deny logged                 |
+| T09 | Evaluator throws (DB error)                          | 403 `RBAC_DENIED` + deny logged                 |
 | T10 | 403 response body has no policy internals            | Response only has `error_code`, `correlationId` |
 | T11 | `AuthDecisionLog` written for allow                  | DB row with `decision = allow`                  |
 | T12 | `AuthDecisionLog` written for deny                   | DB row with `decision = deny` + `reasonCode`    |

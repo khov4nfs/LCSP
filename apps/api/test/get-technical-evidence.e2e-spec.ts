@@ -1,15 +1,9 @@
 import * as assert from "node:assert/strict";
 
 import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
-import { AUTH_MEMBERSHIP_STATUSES } from "@lcsp/contracts/auth";
+import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { EVIDENCE_ERROR_CODES } from "@lcsp/contracts/evidence";
-import {
-  PBAC_ACTIONS,
-  PBAC_DECISION,
-  PBAC_REASON_CODE,
-  PBAC_STATE_GATES,
-  SUBJECT_ROLES,
-} from "@lcsp/contracts/pbac";
 import {
   TECHNICAL_EVIDENCE_REPORT_STATUSES,
   type TechnicalEvidenceReportStatus,
@@ -29,6 +23,7 @@ import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
+  seedRepositoryScanGraph,
 } from "./support/auth-workspace-test-helpers.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
@@ -68,14 +63,9 @@ describe("Get Technical Evidence Report Endpoint (e2e) [MW-evid-001]", () => {
     await prisma.assessment.deleteMany();
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
-    await prisma.authPolicy.updateMany({
-      where: { id: "policy-manager-workspace" },
-      data: { actions: [PBAC_ACTIONS.evidenceRead] },
-    });
     await prisma.assessment.create({
       data: {
         id: ASSESSMENT_ID,
-        organizationId: ORGANIZATION_ID,
         ownerId: "user-1",
         name: "Evidence assessment",
         status: ASSESSMENT_STATUS_CODES.evidenceRequired,
@@ -117,11 +107,11 @@ describe("Get Technical Evidence Report Endpoint (e2e) [MW-evid-001]", () => {
     assert.equal(body.correlationId, "corr-evidence-manager");
   });
 
-  it("T02: scoped Developer receives redacted file and line locations", async () => {
+  it("T02: scoped SystemAdmin receives redacted file and line locations", async () => {
     await createReport();
-    const developerToken = await seedDeveloper(ASSESSMENT_ID);
+    const systemAdminToken = await seedSystemAdmin();
 
-    const result = await getEvidence(developerToken, "corr-evidence-dev");
+    const result = await getEvidence(systemAdminToken, "corr-evidence-dev");
     const body = successBody<EvidenceDetailDto>(result);
 
     assert.equal(result.status, 200);
@@ -131,12 +121,10 @@ describe("Get Technical Evidence Report Endpoint (e2e) [MW-evid-001]", () => {
     const decision = await prisma.authDecisionLog.findFirstOrThrow({
       where: {
         correlationId: "corr-evidence-dev",
-        decision: PBAC_DECISION.allow,
+        decision: AUDIT_DECISIONS.allow,
       },
     });
-    assert.equal(decision.action, PBAC_ACTIONS.evidenceReadRedacted);
-    assert.equal(decision.policyId, "policy-evidence-developer");
-    assert.equal(decision.policyVersion, "2026-07-19");
+    assert.equal(decision.resourceId, `assessment:${ASSESSMENT_ID}`);
   });
 
   it("T03: missing accepted evidence returns safe EVIDENCE_NOT_FOUND", async () => {
@@ -144,45 +132,13 @@ describe("Get Technical Evidence Report Endpoint (e2e) [MW-evid-001]", () => {
     assertNotFound(result.status, result.body);
   });
 
-  it("T04: policy with neither evidence action is denied and audited", async () => {
+  it("T04: wrong assessment id is cloaked as the same 404", async () => {
     await createReport();
-    await prisma.authPolicy.updateMany({
-      where: { id: "policy-manager-workspace" },
-      data: { actions: [] },
-    });
-
-    const result = await getEvidence(managerToken, "corr-evidence-denied");
-    assert.equal(result.status, 403);
-    assert.equal(problemCode(result), PBAC_REASON_CODE.denied);
-    const decisions = await prisma.authDecisionLog.findMany({
-      where: { correlationId: "corr-evidence-denied" },
-      orderBy: { createdAt: "asc" },
-    });
-    assert.deepEqual(
-      decisions.map((decision) => decision.action),
-      [PBAC_ACTIONS.evidenceRead, PBAC_ACTIONS.evidenceReadRedacted],
-    );
-    assert.ok(decisions.every((decision) => decision.policyId));
-    assert.ok(decisions.every((decision) => decision.policyVersion));
-  });
-
-  it("T05: cross-organization and out-of-scope evidence are cloaked as the same 404", async () => {
-    await createReport({ organizationId: "org-other" });
-    const foreign = await getEvidence(managerToken, "corr-evidence-foreign");
+    const foreign = await httpRequest(app)
+      .get("/assessments/assessment-missing/evidence")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .set("x-correlation-id", "corr-evidence-foreign");
     assertNotFound(foreign.status, foreign.body);
-
-    await prisma.technicalEvidenceReport.deleteMany();
-    await createReport();
-    const developerToken = await seedDeveloper("assessment-not-assigned");
-    const outOfScope = await getEvidence(
-      developerToken,
-      "corr-evidence-out-of-scope",
-    );
-    assertNotFound(outOfScope.status, outOfScope.body);
-    assert.deepEqual(
-      Object.keys(foreign.body as object).sort(),
-      Object.keys(outOfScope.body as object).sort(),
-    );
   });
 
   it("T06: rejected evidence is never returned", async () => {
@@ -243,44 +199,23 @@ describe("Get Technical Evidence Report Endpoint (e2e) [MW-evid-001]", () => {
     return token;
   }
 
-  async function seedDeveloper(scope: string): Promise<string> {
-    await prisma.authPolicy.create({
-      data: {
-        id: "policy-evidence-developer",
-        version: "2026-07-19",
-        actions: [PBAC_ACTIONS.evidenceReadRedacted],
-        subjectRole: SUBJECT_ROLES.developer,
-        stateGate: PBAC_STATE_GATES.membershipActive,
-        organizationId: ORGANIZATION_ID,
-      },
-    });
+  async function seedSystemAdmin(): Promise<string> {
     await prisma.authUser.create({
       data: {
-        id: "user-evidence-developer",
-        email: "evidence-developer@acme.test",
-        passwordHash: hashSecret("DeveloperPassword123!"),
+        id: "user-evidence-systemAdmin",
+        email: "evidence-system-admin@acme.test",
+        passwordHash: hashSecret("SystemAdminPassword123!"),
         emailVerified: true,
         failedLoginCount: 0,
+        role: AUTH_USER_ROLES.admin,
       },
     });
-    await prisma.authMembership.create({
-      data: {
-        id: "membership-evidence-developer",
-        userId: "user-evidence-developer",
-        organizationId: ORGANIZATION_ID,
-        status: AUTH_MEMBERSHIP_STATUSES.active,
-        subjectAttributes: { role: SUBJECT_ROLES.developer, scope },
-        policyId: "policy-evidence-developer",
-        policyVersion: "2026-07-19",
-      },
-    });
-    return signIn("evidence-developer@acme.test", "DeveloperPassword123!");
+    return signIn("evidence-system-admin@acme.test", "SystemAdminPassword123!");
   }
 
   async function createReport(
     overrides: {
       id?: string;
-      organizationId?: string;
       status?: TechnicalEvidenceReportStatus;
       evidencePayload?: Prisma.InputJsonValue;
       configHash?: Prisma.InputJsonValue;
@@ -288,12 +223,18 @@ describe("Get Technical Evidence Report Endpoint (e2e) [MW-evid-001]", () => {
     } = {},
   ): Promise<void> {
     const id = overrides.id ?? "report-evidence-1";
+    await seedRepositoryScanGraph(prisma, {
+      assessmentId: ASSESSMENT_ID,
+      userId: "user-1",
+      connectionId: `connection-${id}`,
+      snapshotId: `snapshot-${id}`,
+      scanJobId: `scan-job-${id}`,
+    });
     await prisma.technicalEvidenceReport.create({
       data: {
         id,
         scanJobId: `scan-job-${id}`,
         assessmentId: ASSESSMENT_ID,
-        organizationId: overrides.organizationId ?? ORGANIZATION_ID,
         snapshotId: `snapshot-${id}`,
         toolsVersion: { semgrep: "1.80.0" },
         configHash: overrides.configHash ?? { semgrep: "sha256:rules" },

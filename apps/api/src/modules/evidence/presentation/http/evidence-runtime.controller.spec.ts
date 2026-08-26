@@ -65,7 +65,6 @@ describe("InternalEvidenceController runtime reads", () => {
       id: "report-1",
       scanJobId: "scan-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       snapshotId: "snapshot-1",
       toolsVersion: { semgrep: "1.0" },
       configHash: { semgrep: "sha256:test" },
@@ -92,7 +91,6 @@ describe("InternalEvidenceController runtime reads", () => {
       id: "profile-1",
       evidenceReportId: "report-1",
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       schemaVersion: "2.0.0",
       providerVersion: "technical-profile-worker@2",
       profileData: {
@@ -139,7 +137,6 @@ describe("InternalAgenticToolDispatchController CQRS boundary", () => {
     await controller.dispatch({
       tool_name: AGENTIC_TOOL_NAMES.getArtifactChain,
       assessment_id: "assessment-1",
-      organization_id: "org-1",
       user_id: "user-1",
       artifact_versions: {},
       input: { anchor: { assessmentId: "assessment:abcdefgh" } },
@@ -154,7 +151,6 @@ describe("InternalAgenticToolDispatchController CQRS boundary", () => {
       controller.dispatch({
         tool_name: AGENTIC_TOOL_NAMES.getScanCoverage,
         assessment_id: "assessment-1",
-        organization_id: "org-1",
         user_id: "user-1",
         artifact_versions: { technicalEvidenceReportId: "report-1" },
         input: { maxResults: 10 },

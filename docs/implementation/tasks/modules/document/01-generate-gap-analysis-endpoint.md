@@ -7,7 +7,7 @@ status: READY_FOR_DEV
 epic_story: 8.1
 depends_on:
   - classification/02-classification-result-callback-endpoint.md
-  - platform/pbac/03-nestjs-guard.md
+  - platform/rbac/03-nestjs-guard.md
   - platform/outbox/02-outbox-publisher.md
 ---
 
@@ -68,14 +68,14 @@ model DocumentRequest {
 
 | HTTP | `error_code`              | Meaning                               |
 | ---- | ------------------------- | ------------------------------------- |
-| 403  | `PBAC_DENIED`             | Actor lacks `document:generate`       |
+| 403  | `RBAC_DENIED`             | Actor lacks `document:generate`       |
 | 404  | `ASSESSMENT_NOT_FOUND`    |                                       |
 | 409  | `CLASSIFICATION_REQUIRED` | No accepted `ClassificationResult`    |
 | 409  | `DOCUMENT_ALREADY_QUEUED` | Existing QUEUED or GENERATING request |
 
 ## Business Rules
 
-1. PBAC guard: `action = document:generate`.
+1. RBAC guard: `action = document:generate`.
 2. Verify accepted `ClassificationResult` exists for assessment.
 3. No existing `DocumentRequest` with `status IN (QUEUED, GENERATING)` for same assessment + type.
 4. Create `DocumentRequest` with `status = QUEUED`, `documentType = GapAnalysis`.
@@ -99,7 +99,7 @@ model DocumentRequest {
 | T01 | Valid request with accepted classification | 202 QUEUED                    |
 | T02 | No accepted classification                 | 409 `CLASSIFICATION_REQUIRED` |
 | T03 | Existing QUEUED request                    | 409 `DOCUMENT_ALREADY_QUEUED` |
-| T04 | Actor lacks `document:generate`            | 403 `PBAC_DENIED`             |
+| T04 | Actor lacks `document:generate`            | 403 `RBAC_DENIED`             |
 | T05 | Outbox event created                       | DB verified                   |
 | T06 | Response is 202 (async)                    | HTTP status verified          |
 

@@ -2,7 +2,7 @@ import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
 
 import { AssessmentRuntimeEventService } from "../../platform/runtime-events/assessment-runtime-event.service.js";
-import { PbacModule } from "../../platform/pbac/pbac.module.js";
+import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guard.js";
 import { AcceptTechnicalProfileHandler } from "./application/commands/accept-technical-profile/accept-technical-profile.handler.js";
 import { GetEvidenceHandler } from "./application/queries/get-evidence/get-evidence.handler.js";
@@ -19,7 +19,7 @@ import {
  * Managed Deep Agent tools and therefore are intentionally not registered as Nest CQRS handlers.
  */
 @Module({
-  imports: [CqrsModule, PbacModule],
+  imports: [CqrsModule, RbacModule],
   controllers: [
     EvidenceController,
     InternalEvidenceController,

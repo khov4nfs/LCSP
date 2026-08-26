@@ -25,7 +25,6 @@ export interface AuditExportArtifactEvent {
   event_id: string;
   event_type: string;
   actor_id: string | null;
-  organization_id: string;
   decision: string | null;
   payload: Record<string, unknown> | null;
   occurred_at: string;
@@ -33,7 +32,6 @@ export interface AuditExportArtifactEvent {
 
 export interface AuditExportArtifact {
   export_request_id: string;
-  organization_id: string;
   version: number;
   generated_at: string;
   filter_criteria: {

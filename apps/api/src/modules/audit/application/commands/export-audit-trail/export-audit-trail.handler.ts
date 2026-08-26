@@ -5,7 +5,6 @@ import {
   AUDIT_EXPORT_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
-import { ORGANIZATION_SCOPE_ERROR_CODES } from "@lcsp/contracts/auth";
 import { HttpStatus } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import type { Prisma } from "@prisma/client";
@@ -29,7 +28,7 @@ import { ExportAuditTrailCommand } from "./export-audit-trail.command.js";
 const MAX_DATE_RANGE_MS = 365 * 24 * 60 * 60 * 1_000;
 
 /**
- * Builds immutable, redacted audit export artifacts for an organization and records the export action itself.
+ * Builds immutable, redacted audit export artifacts and records the export action itself.
  */
 @CommandHandler(ExportAuditTrailCommand)
 export class ExportAuditTrailHandler implements ICommandHandler<ExportAuditTrailCommand> {
@@ -47,22 +46,15 @@ export class ExportAuditTrailHandler implements ICommandHandler<ExportAuditTrail
   ) {}
 
   /**
-   * Validates tenant/date scope, creates a versioned SHA-256-protected export artifact, and persists its request record.
+   * Validates date scope, creates a versioned SHA-256-protected export artifact, and persists its request record.
    *
-   * @param command - Organization, requester, date range, and correlation context for the export.
+   * @param command - Requester, date range, and correlation context for the export.
    * @returns Export request metadata for the generated artifact.
-   * @throws When organization scope mismatches or the date range is invalid/too large.
+   * @throws When the date range is invalid or too large.
    */
   async execute(
     command: ExportAuditTrailCommand,
   ): Promise<AuditExportRequestDto> {
-    if (command.organizationId !== command.sessionOrganizationId) {
-      this.badRequest(
-        ORGANIZATION_SCOPE_ERROR_CODES.mismatch,
-        command.correlationId,
-      );
-    }
-
     const fromDate = this.parseDate(
       command.fromDate,
       "from_date",
@@ -89,13 +81,11 @@ export class ExportAuditTrailHandler implements ICommandHandler<ExportAuditTrail
 
     const [latest, rows] = await Promise.all([
       this.prisma.auditExportRequest.findFirst({
-        where: { organizationId: command.organizationId },
         orderBy: { version: "desc" },
         select: { version: true },
       }),
       this.prisma.authAuditEvent.findMany({
         where: {
-          organizationId: command.organizationId,
           createdAt: {
             gte: fromDate,
             lte: toDate,
@@ -106,7 +96,6 @@ export class ExportAuditTrailHandler implements ICommandHandler<ExportAuditTrail
           id: true,
           eventType: true,
           actorId: true,
-          organizationId: true,
           decision: true,
           payload: true,
           createdAt: true,
@@ -120,7 +109,6 @@ export class ExportAuditTrailHandler implements ICommandHandler<ExportAuditTrail
       event_id: row.id,
       event_type: row.eventType,
       actor_id: row.actorId,
-      organization_id: row.organizationId ?? command.organizationId,
       decision: row.decision ? fromPrismaAuthDecision(row.decision) : null,
       payload: this.redactor.redact(row.payload),
       occurred_at: row.createdAt.toISOString(),
@@ -128,7 +116,6 @@ export class ExportAuditTrailHandler implements ICommandHandler<ExportAuditTrail
 
     const baseArtifact = {
       export_request_id: crypto.randomUUID(),
-      organization_id: command.organizationId,
       version,
       generated_at: generatedAt.toISOString(),
       filter_criteria: {
@@ -149,7 +136,6 @@ export class ExportAuditTrailHandler implements ICommandHandler<ExportAuditTrail
     await this.prisma.auditExportRequest.create({
       data: {
         id: artifact.export_request_id,
-        organizationId: command.organizationId,
         requestedById: command.requestedById,
         fromDate,
         toDate,
@@ -166,7 +152,6 @@ export class ExportAuditTrailHandler implements ICommandHandler<ExportAuditTrail
     await this.auditWriter.write({
       eventType: AUDIT_EVENT_TYPES.exportGenerated,
       actorId: command.requestedById,
-      organizationId: command.organizationId,
       resourceType: AUDIT_RESOURCE_TYPES.auditExportRequest,
       resourceId: artifact.export_request_id,
       correlationId: command.correlationId,

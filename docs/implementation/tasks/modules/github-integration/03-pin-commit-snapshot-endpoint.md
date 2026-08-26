@@ -7,7 +7,7 @@ status: DONE
 epic_story: 3.2
 depends_on:
   - github-integration/02-github-app-callback-endpoint.md
-  - platform/pbac/03-nestjs-guard.md
+  - platform/rbac/03-nestjs-guard.md
   - platform/outbox/02-outbox-publisher.md
 ---
 
@@ -15,7 +15,7 @@ depends_on:
 
 ## Outcome
 
-Allow a Manager or scoped Developer to pin a branch/ref/commit SHA to create an immutable `RepositorySnapshot`. Downstream scan jobs reference the snapshot — not the mutable branch. Raw source is not persisted. Failure is audited and safe.
+Allow the owning Manager to pin a branch/ref/commit SHA to create an immutable `RepositorySnapshot`. Downstream scan jobs reference the snapshot — not the mutable branch. Raw source is not persisted. Failure is audited and safe.
 
 ## Module Files
 
@@ -79,14 +79,14 @@ model RepositorySnapshot {
 
 | HTTP | `error_code`           | Meaning                                             |
 | ---- | ---------------------- | --------------------------------------------------- |
-| 403  | `PBAC_DENIED`          | Actor lacks `snapshot:create`                       |
+| 403  | `RBAC_DENIED`          | Actor lacks `snapshot:create`                       |
 | 404  | `CONNECTION_NOT_FOUND` | Connection not found or not in org                  |
 | 400  | `REF_NOT_RESOLVABLE`   | Branch/ref/commit cannot be resolved via GitHub API |
 | 400  | `REF_OUT_OF_SCOPE`     | Ref outside connection's repository scope           |
 
 ## Business Rules
 
-1. PBAC guard: `action = snapshot:create`.
+1. RBAC guard: `action = snapshot:create`.
 2. Load `RepositoryConnection` by `connection_id`. Verify `organizationId = session.organizationId` and `status = active`.
 3. Resolve commit SHA via GitHub API using installation access token (fetched per-request, not stored).
 4. If resolution fails → `REF_NOT_RESOLVABLE`. Audit failure.
@@ -112,10 +112,10 @@ model RepositorySnapshot {
 | T02 | Specific `commit_sha` provided            | 201 snapshot with that SHA                     |
 | T03 | Branch not resolvable                     | 400 `REF_NOT_RESOLVABLE`, failure audited      |
 | T04 | Connection not in session org             | 404 `CONNECTION_NOT_FOUND`                     |
-| T05 | Actor lacks `snapshot:create`             | 403 `PBAC_DENIED`                              |
+| T05 | Actor lacks `snapshot:create`             | 403 `RBAC_DENIED`                              |
 | T06 | No raw source in DB                       | `RepositorySnapshot` has no source code fields |
 | T07 | Outbox message created                    | `event.snapshot.created` in `OutboxMessage`    |
-| T08 | Manager can snapshot without Developer    | Manager flow independent                       |
+| T08 | Manager can snapshot without collaborator | Manager flow independent                       |
 
 ## Definition of Done
 
@@ -127,5 +127,5 @@ model RepositorySnapshot {
 ## Implementation Evidence
 
 - API build, TypeScript, ESLint, import policy, and contract-literal policy pass.
-- Unit coverage verifies ref precedence, repository scope, metadata-only persistence, ephemeral installation token use, PBAC decorator metadata, and atomic snapshot/outbox persistence.
-- E2E coverage verifies success, explicit SHA, resolution failure, organization isolation, PBAC denial, audit events, and absence of raw source persistence.
+- Unit coverage verifies ref precedence, repository scope, metadata-only persistence, ephemeral installation token use, RBAC decorator metadata, and atomic snapshot/outbox persistence.
+- E2E coverage verifies success, explicit SHA, resolution failure, organization isolation, RBAC denial, audit events, and absence of raw source persistence.

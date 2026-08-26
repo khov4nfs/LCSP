@@ -3,8 +3,11 @@ import {
   WIZARD_STATUS_CODES,
   type WizardStatusCode,
 } from "@lcsp/contracts/assessment";
-import { AUTH_ERROR_CODES, WORKSPACE_ERROR_CODES } from "@lcsp/contracts/auth";
-import { canUseManagerOnlyAction, PBAC_ACTIONS } from "@lcsp/contracts/pbac";
+import {
+  AUTH_ERROR_CODES,
+  AUTH_USER_ROLES,
+  type AuthUserRole,
+} from "@lcsp/contracts/auth";
 import type { MessageKey } from "@lcsp/i18n";
 
 import { PUBLIC_ENTRY_ROUTES } from "../../auth-entry.ts";
@@ -26,7 +29,6 @@ import { getMfaRedirectLocation, getProblemCode } from "./problem-envelope.ts";
 
 export const WORKSPACE_ROUTES = Object.freeze({
   mfaVerify: "/mfa/verify",
-  workspaceSelect: "/workspace/select",
 });
 
 const workspaceApiPaths = Object.freeze({
@@ -35,10 +37,9 @@ const workspaceApiPaths = Object.freeze({
 });
 
 type WorkspaceApiPayload = {
-  organization_id: string;
-  organization_name: string;
-  subject_role: string;
-  granted_actions: string[];
+  user_id: string;
+  display_name: string;
+  role: AuthUserRole;
 };
 
 export type WorkspaceSelectionOption = {
@@ -54,8 +55,8 @@ export type WorkspaceSelectionPayload = {
   selected_workspace_id?: string;
 };
 
-export function canCreateAssessment(grantedActions: readonly string[]) {
-  return canUseManagerOnlyAction(grantedActions, PBAC_ACTIONS.assessmentCreate);
+export function canCreateAssessment(role: AuthUserRole) {
+  return role === AUTH_USER_ROLES.customer;
 }
 
 export function getAssessmentStatusLabelKey(
@@ -219,13 +220,6 @@ export function toWorkspaceOutcome(
     };
   }
 
-  if (problemCode === WORKSPACE_ERROR_CODES.selectionRequired) {
-    return {
-      kind: API_OUTCOME_KINDS.redirect,
-      location: WORKSPACE_ROUTES.workspaceSelect,
-    };
-  }
-
   return {
     kind: API_OUTCOME_KINDS.error,
     titleKey: "pages.workspace.errors.workspaceUnavailableTitle",
@@ -269,9 +263,11 @@ function normalizeWorkspacePayload(
   payload: WorkspaceContext,
 ): WorkspaceContext {
   return {
-    organization: payload.organization,
-    membership: payload.membership,
-    granted_actions: payload.granted_actions,
+    user: {
+      id: payload.user.id,
+      display_name: payload.user.display_name,
+      role: payload.user.role,
+    },
   };
 }
 
@@ -279,14 +275,11 @@ function normalizeWorkspaceApiPayload(
   payload: WorkspaceApiPayload,
 ): WorkspaceContext {
   return {
-    organization: {
-      id: payload.organization_id,
-      name: payload.organization_name,
+    user: {
+      id: payload.user_id,
+      display_name: payload.display_name,
+      role: payload.role,
     },
-    membership: {
-      role: payload.subject_role,
-    },
-    granted_actions: payload.granted_actions,
   };
 }
 
@@ -299,11 +292,9 @@ function isWorkspaceContextPayload(
 
   const candidate = payload as WorkspaceContext;
   return (
-    typeof candidate.organization?.id === "string" &&
-    typeof candidate.organization.name === "string" &&
-    typeof candidate.membership?.role === "string" &&
-    Array.isArray(candidate.granted_actions) &&
-    candidate.granted_actions.every((action) => typeof action === "string")
+    typeof candidate.user?.id === "string" &&
+    typeof candidate.user.display_name === "string" &&
+    isAuthUserRole(candidate.user.role)
   );
 }
 
@@ -314,13 +305,18 @@ function isWorkspaceApiPayload(
     return false;
   }
 
-  const candidate = payload as WorkspaceApiPayload;
+  const candidate = payload as Record<string, unknown>;
   return (
-    typeof candidate.organization_id === "string" &&
-    typeof candidate.organization_name === "string" &&
-    typeof candidate.subject_role === "string" &&
-    Array.isArray(candidate.granted_actions) &&
-    candidate.granted_actions.every((action) => typeof action === "string")
+    typeof candidate.user_id === "string" &&
+    typeof candidate.display_name === "string" &&
+    isAuthUserRole(candidate.role)
+  );
+}
+
+function isAuthUserRole(role: unknown): role is AuthUserRole {
+  return (
+    typeof role === "string" &&
+    Object.values(AUTH_USER_ROLES).some((knownRole) => knownRole === role)
   );
 }
 

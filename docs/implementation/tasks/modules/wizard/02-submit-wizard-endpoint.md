@@ -56,7 +56,7 @@ Allow a Manager to submit a completed WizardProfile. All critical fields must be
 
 | HTTP | `error_code`               | Meaning                                              |
 | ---- | -------------------------- | ---------------------------------------------------- |
-| 403  | `PBAC_DENIED`              | Actor lacks `wizard:submit`                          |
+| 403  | `RBAC_DENIED`              | Actor lacks `wizard:submit`                          |
 | 404  | `ASSESSMENT_NOT_FOUND`     | Assessment not found or not owned                    |
 | 409  | `WIZARD_ALREADY_SUBMITTED` | Already submitted                                    |
 | 422  | `WIZARD_VALIDATION_FAILED` | Missing critical fields — business-language messages |
@@ -72,7 +72,7 @@ Allow a Manager to submit a completed WizardProfile. All critical fields must be
 
 ## Business Rules
 
-1. PBAC guard: `action = wizard:submit`.
+1. RBAC guard: `action = wizard:submit`.
 2. Verify assessment exists, org-scoped, owned by Manager.
 3. If `WizardProfile.status = SUBMITTED` → `WIZARD_ALREADY_SUBMITTED`.
 4. Validate all critical fields present and non-empty. Use business-language validation messages — no code-centric terms.

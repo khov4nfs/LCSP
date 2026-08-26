@@ -8,7 +8,6 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { appLocale } from "@/lib/locale";
 
 import {
-  developerNavigation,
   getAssessmentNavigation,
   primaryNavigation,
 } from "../../config/app-shell-navigation";
@@ -40,14 +39,6 @@ export function AppShell({ children }: AppShellProps) {
     assessmentId,
     items: localizeNavigation(getAssessmentNavigation(assessmentId)),
   });
-
-  if (pathname.startsWith("/developer")) {
-    sections.push({
-      label: t("pages.appShell.developerNavigation"),
-      kind: "developer",
-      items: localizeNavigation(developerNavigation),
-    });
-  }
 
   return (
     <SidebarProvider

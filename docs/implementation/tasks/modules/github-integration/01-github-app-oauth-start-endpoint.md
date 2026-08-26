@@ -7,7 +7,7 @@ status: READY_FOR_DEV
 epic_story: 3.1
 depends_on:
   - auth-workspace/08-oauth-oidc-start-endpoint.md
-  - platform/pbac/03-nestjs-guard.md
+  - platform/rbac/03-nestjs-guard.md
   - platform/audit-writer/02-audit-writer-service.md
 ---
 
@@ -48,7 +48,7 @@ model GitHubAppInstallState {
 ## API Contract
 
 **Endpoint:** `GET /github/app/start`
-**Auth required:** Yes — `@RequireAction('github:connect')` (authenticated Manager or scoped Developer)
+**Auth required:** Yes — `@RequireAction('github:connect')` (authenticated owning Manager)
 
 **Query parameters:**
 
@@ -71,7 +71,7 @@ model GitHubAppInstallState {
 
 | HTTP | `error_code`           | Meaning                                                               |
 | ---- | ---------------------- | --------------------------------------------------------------------- |
-| 403  | `PBAC_DENIED`          | Actor lacks `github:connect`                                          |
+| 403  | `RBAC_DENIED`          | Actor lacks `github:connect`                                          |
 | 403  | `REAUTH_REQUIRED`      | Current session has not confirmed access recently                     |
 | 400  | `INVALID_REDIRECT_URI` | Not in server allowlist                                               |
 | 400  | `ASSESSMENT_NOT_FOUND` | `assessment_id` not owned by org                                      |
@@ -79,7 +79,7 @@ model GitHubAppInstallState {
 
 ## Business Rules
 
-1. PBAC guard: `action = github:connect`.
+1. RBAC guard: `action = github:connect`.
 2. Validate `redirect_uri` against server-side allowlist.
 3. Require recent session sensitive-action verification (`sensitiveActionVerifiedAt`) within the server TTL before generating state.
 4. Generate `state = crypto.randomBytes(32).toString('hex')`. Store in `GitHubAppInstallState` with 10-min expiry.
@@ -102,7 +102,7 @@ model GitHubAppInstallState {
 | ID  | Scenario                                              | Expected                                |
 | --- | ----------------------------------------------------- | --------------------------------------- |
 | T01 | Valid actor + allowlisted redirect_uri                | 200 with `installation_url`             |
-| T02 | Actor lacks `github:connect`                          | 403 `PBAC_DENIED`                       |
+| T02 | Actor lacks `github:connect`                          | 403 `RBAC_DENIED`                       |
 | T03 | Redirect URI not in allowlist                         | 400 `INVALID_REDIRECT_URI`              |
 | T04 | `assessment_id` not in org                            | 400 `ASSESSMENT_NOT_FOUND`              |
 | T05 | `GitHubAppInstallState` created with 10-min expiry    | DB row verified                         |

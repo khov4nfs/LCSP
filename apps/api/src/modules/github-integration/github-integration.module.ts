@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
 
-import { PbacModule } from "../../platform/pbac/pbac.module.js";
+import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guard.js";
 import { GitHubAppCallbackHandler } from "./application/commands/github-app-callback/github-app-callback.handler.js";
 import { GitHubAppStartHandler } from "./application/commands/github-app-start/github-app-start.handler.js";
@@ -26,7 +26,7 @@ import { ScanTriggerGuard } from "./presentation/http/scan-trigger.guard.js";
  * Wires GitHub App connectivity, immutable snapshot pinning/streaming, and repository scan triggering across HTTP, CQRS, and Prisma adapters.
  */
 @Module({
-  imports: [CqrsModule, PbacModule],
+  imports: [CqrsModule, RbacModule],
   controllers: [GitHubIntegrationController, InternalSnapshotController],
   providers: [
     GitHubAppStartHandler,

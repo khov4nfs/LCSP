@@ -7,7 +7,6 @@ import {
 type RepositoryConnectionProps = {
   id: string;
   assessmentId: string | null;
-  organizationId: string;
   userId: string;
   installationId: string;
   repositoryId: string;
@@ -45,7 +44,6 @@ export class RepositoryConnection {
    */
   static create(input: {
     assessmentId: string | null;
-    organizationId: string;
     userId: string;
     installationId: string;
     repositoryId: string;
@@ -56,7 +54,6 @@ export class RepositoryConnection {
   }): RepositoryConnection {
     return new RepositoryConnection({
       assessmentId: input.assessmentId,
-      organizationId: input.organizationId,
       userId: input.userId,
       installationId: input.installationId,
       repositoryId: input.repositoryId,
@@ -93,9 +90,6 @@ export class RepositoryConnection {
   }
 
   /** @returns The organization that owns the connection. */
-  get organizationId(): string {
-    return this.props.organizationId;
-  }
 
   /** @returns The user that established the connection. */
   get userId(): string {

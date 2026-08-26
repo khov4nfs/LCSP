@@ -54,12 +54,12 @@ Gate decision is `CONCERNS` because trace rows now exist, but executable test ar
 | FR-004 | P0 | 1.2 | S1.2-AC02 | API/security | Platform | session revoke/expiry tests |
 | FR-005 | P0 | 1.3 | S1.3-AC01 | API/security | Platform | OAuth callback contract tests |
 | FR-006 | P0 | 1.3 | S1.3-AC02 | API/security | Platform | OAuth/GitHub separation test |
-| FR-007 | P0 | 1.4 | S1.4-AC01 | API/PBAC | Platform | organization create/read tests |
-| FR-008 | P0 | 1.4 | S1.4-AC02 | API/PBAC | Platform | membership scope tests |
-| FR-009 | P0 | 1.4 / 1.7 | S1.7-AC01 | API/PBAC | Platform | policy template assignment test |
+| FR-007 | P0 | 1.4 | S1.4-AC01 | API/RBAC | Platform | organization create/read tests |
+| FR-008 | P0 | 1.4 | S1.4-AC02 | API/RBAC | Platform | membership scope tests |
+| FR-009 | P0 | 1.4 / 1.7 | S1.7-AC01 | API/RBAC | Platform | policy template assignment test |
 | FR-010 | P1 | 1.5 | S1.5-AC01 | API/UI | Assessment | Developer invite tests |
-| FR-011 | P0 | 1.5 / 1.7 | S1.5-AC02 | API/PBAC | Platform | grant/revoke negative tests |
-| FR-012 | P0 | 1.6 / 1.7 | S1.6-AC01 | API/PBAC/security | Platform | Manager-only denial tests |
+| FR-011 | P0 | 1.5 / 1.7 | S1.5-AC02 | API/RBAC | Platform | grant/revoke negative tests |
+| FR-012 | P0 | 1.6 / 1.7 | S1.6-AC01 | API/RBAC/security | Platform | Manager-only denial tests |
 | FR-013 | P0 | 2.1 | S2.1-AC01 | API/E2E | Assessment | assessment creation test |
 | FR-014 | P0 | 2.2 | S2.2-AC01 | API/UI/E2E | Assessment | WizardProfile submit test |
 | FR-015 | P0 | 2.3 | S2.3-AC01 | UI/E2E | UX / Assessment | no-risk-label readiness test |
@@ -76,9 +76,9 @@ Gate decision is `CONCERNS` because trace rows now exist, but executable test ar
 | FR-026 | P0 | 4.5 / 5.1 | S5.1-AC01 | worker/contract | Intelligence | conflict candidate detection test |
 | FR-027 | P1 | 5.2 | S5.2-AC01 | UI/API | Intelligence / UX | Conflict Score explanation test |
 | FR-028 | P0 | 5.3 | S5.3-AC01 | API/UI/E2E | Assessment | Manager conflict task routing test |
-| FR-029 | P0 | 5.3 / 5.4 | S5.3-AC02 | API/PBAC | Assessment | Manager resolution audit test |
+| FR-029 | P0 | 5.3 / 5.4 | S5.3-AC02 | API/RBAC | Assessment | Manager resolution audit test |
 | FR-030 | P0 | 5.5 | S5.5-AC01 | worker/contract | Intelligence | VerifiedProfile creation gate test |
-| FR-031 | P1 | 5.6 | S5.6-AC02 | API/UI/PBAC | Assessment | VerifiedProfile approval test |
+| FR-031 | P1 | 5.6 | S5.6-AC02 | API/UI/RBAC | Assessment | VerifiedProfile approval test |
 | FR-032 | P0 | 6.5 / 6.7 | S6.5-AC01 | worker/integration | Legal | legal retrieval primary-context test |
 | FR-033 | P0 | 6.7 | S6.7-AC01 | worker/contract | Legal | LegalRuleMatch generation test |
 | FR-034 | P0 | 6.6 / 7.4 | S6.6-AC02 | worker/security | Legal | citation allowlist rejection test |
@@ -88,13 +88,13 @@ Gate decision is `CONCERNS` because trace rows now exist, but executable test ar
 | FR-038 | P1 | 8.1 / 8.2 | S8.1-AC01 | worker/UI | Reporting | GapAnalysis generation/display test |
 | FR-039 | P0 | 8.3 | S8.3-AC01 | worker/document | Reporting | final report guard test |
 | FR-040 | P1 | 2.4 / 8.4 | S8.4-AC01 | worker/document/UI | Reporting / UX | readiness-only export test |
-| FR-041 | P1 | 8.5 | S8.5-AC02 | API/PBAC | Reporting | artifact download authorization test |
+| FR-041 | P1 | 8.5 | S8.5-AC02 | API/RBAC | Reporting | artifact download authorization test |
 | FR-042 | P0 | 1.8 / 8.6 | S8.6-AC01 | API/worker/audit | Platform | material audit event tests |
 | FR-043 | P1 | 8.7 | S8.7-AC02 | API/security | Platform | redacted audit export test |
 | FR-044 | P0 | 8.5 | S8.5-AC04 | persistence/audit | Platform | immutable artifact version test |
 | FR-045 | P0 | 3.11 | S3.11-AC03 | negative/API/UI | Scanner / QA | structured attestation absent test |
 | FR-046 | P0 | 3.11 | S3.11-AC03 | negative/API/UI | Scanner / QA | supplemental attestation absent test |
-| FR-047 | P1 | 1.5 / 3.9 | S3.9-AC03 | API/UI/PBAC | Assessment | scoped Developer task test |
+| FR-047 | P1 | 1.5 / 3.9 | S3.9-AC03 | API/UI/RBAC | Assessment | scoped Developer task test |
 | FR-048 | P1 | 3.9 | S3.9-AC01 | API/UI/security | Scanner / UX | redacted findings view test |
 | FR-049 | P0 | 3.10 | S3.10-AC01 | API/worker/persistence | Scanner | scan rerun immutable history test |
 | FR-050 | P0 | 3.3 | S3.3-AC01 | API/worker/integration | Scanner | trusted trigger idempotency test |
@@ -109,7 +109,7 @@ Gate decision is `CONCERNS` because trace rows now exist, but executable test ar
 
 | Criterion | Priority | Story | AC ID | Test level | Owner | Evidence artifact |
 |---|---:|---|---|---|---|---|
-| NFR-008 PBAC deny-by-default | P0 | 1.7 | S1.7-AC02 | API/PBAC/security | Platform | denied action matrix |
+| NFR-008 RBAC deny-by-default | P0 | 1.7 | S1.7-AC02 | API/RBAC/security | Platform | denied action matrix |
 | NFR-010 material audit | P0 | 1.8 / 8.6 | S1.8-AC01 | API/worker/audit | Platform | audit event fixture suite |
 | NFR-012 raw source not sent to LLM | P0 | 3.4 / 7.3 | S3.4-AC02 | security/worker | Scanner / Platform | prompt payload inspection |
 | NFR-015 secret redaction | P0 | 1.8 / 3.7 / 8.6 | S1.8-AC02 | security | Platform / Scanner | secret fixture test |
@@ -129,7 +129,7 @@ Gate decision is `CONCERNS` because trace rows now exist, but executable test ar
 | UX-DR11 scan status | P1 | 3.3 / 3.10 | UX-AC-SCAN-01 | UI/E2E | UX / Scanner | scan status/retry screen test |
 | UX-DR17 citation drawer | P1 | 6.7 / 7.6 | UX-AC-CITE-01 | UI/component | UX / Legal | citation drawer fixture |
 | UX-DR21 readiness vs final report | P1 | 2.4 / 8.4 | UX-AC-DOC-01 | UI/document | UX / Reporting | readiness-only labeling test |
-| CONTROL-PBAC-RUNTIME | P0 | 1.7 | DEC-PBAC-AC01 | API/worker/security | Platform | `pbac-runtime-decision.md` conformance tests |
+| CONTROL-RBAC-RUNTIME | P0 | 1.7 | DEC-RBAC-AC01 | API/worker/security | Platform | `rbac-runtime-decision.md` conformance tests |
 | CONTROL-TRIGGER-REPLAY | P0 | 3.3 / 1.9 | DEC-TRIGGER-AC01 | API/worker/queue | Platform / Scanner | trigger replay/DLQ test suite |
 | CONTROL-SCANNER-SEVERITY | P0 | 3.6 / 3.7 | DEC-SCANNER-AC01 | worker/security | Scanner | severity/provenance fixture suite |
 | CONTROL-STATE-TRANSITIONS | P0 | cross-epic | STATE-AC01 | API/worker/E2E | Platform / QA | state transition table conformance |

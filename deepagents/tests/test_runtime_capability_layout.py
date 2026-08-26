@@ -44,7 +44,7 @@ def test_dispatch_runtime_groups_support_capabilities() -> None:
         "logging_config.py",
         "logging_path.py",
         "orchestration_logging.py",
-        "pbac_client.py",
+        "rbac_client.py",
         "tracing.py",
         "wizard_clarification.py",
     }

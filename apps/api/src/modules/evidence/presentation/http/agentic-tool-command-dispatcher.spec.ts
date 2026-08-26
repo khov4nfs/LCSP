@@ -5,7 +5,6 @@ import {
 
 const baseArgs = {
   assessmentId: "assessment-1",
-  organizationId: "org-1",
   userId: "user-1",
   policyId: "policy-1",
   policyVersion: "version-1",

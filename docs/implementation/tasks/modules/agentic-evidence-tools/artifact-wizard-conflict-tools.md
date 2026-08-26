@@ -8,7 +8,7 @@ Template: `agentic-tool-implementation-task-template.md`
 
 | Task ID / tool | Implementation instruction | Typed result and safety boundary | Required verification |
 |---|---|---|---|
-| `TASK-AO-4-01-get-assessment-context` / `get_assessment_context` | Read submitted wizard answers, target IDs, and pinned artifact versions within assessment scope. | User-owned input projection; no autonomous update. | PBAC, version pin, redacted fields. |
+| `TASK-AO-4-01-get-assessment-context` / `get_assessment_context` | Read submitted wizard answers, target IDs, and pinned artifact versions within assessment scope. | User-owned input projection; no autonomous update. | RBAC, version pin, redacted fields. |
 | `TASK-AO-4-02-compare-wizard-claim` / `compare_wizard_claim` | Compare one typed target against bounded AO-2 evidence and coverage. | `SUPPORTED`/`CONTRADICTED`/`NOT_FOUND`/`UNKNOWN`/`OUT_OF_COVERAGE` with refs. | Golden verdicts; no inference when coverage is limited. |
 | `TASK-AO-4-03-propose-missing-targets` / `propose_missing_targets` | Produce bounded evidence-backed candidates from verified patterns. | Proposal only; distinct from target/claim. | Candidate limit, no wizard mutation, evidence trace. |
 | `TASK-AO-4-04-get-artifact-chain` / `get_artifact_chain` | Resolve immutable EvidenceReport → profile → flow → conflict → verified-profile refs. | Version chain/ref integrity only. | Missing/stale link becomes typed limitation. |
@@ -22,7 +22,7 @@ Template: `agentic-tool-implementation-task-template.md`
 
 ## Executable Tool Packets
 
-All packets inherit [shared-tool-contract.md](shared-tool-contract.md). They read `WizardProfile`, accepted evidence projections, `AIUsageFlow`, `ConflictRecord`, and `VerifiedProfile` through the API PBAC boundary; UI is presentation-only.
+All packets inherit [shared-tool-contract.md](shared-tool-contract.md). They read `WizardProfile`, accepted evidence projections, `AIUsageFlow`, `ConflictRecord`, and `VerifiedProfile` through the API RBAC boundary; UI is presentation-only.
 
 ### `get_assessment_context`
 
@@ -52,7 +52,7 @@ All packets inherit [shared-tool-contract.md](shared-tool-contract.md). They rea
 
 - **Input/output:** `{aiUsageFlowId|conflictIds,statuses?,maxResults}` → bounded conflict `{id,type,score,explanation,evidenceRefs,status}`, allowed resolution paths, artifact refs.
 - **Execution/LLM:** query scoped conflicts and policy-approved paths only. LLM may emit `CONFLICT` and route; it cannot resolve material conflict or read sensitive notes.
-- **Failure/tests:** unknown/out-of-scope conflict is non-leaking. Test state/path filtering, open conflict blocks verified profile, pagination and PBAC.
+- **Failure/tests:** unknown/out-of-scope conflict is non-leaking. Test state/path filtering, open conflict blocks verified profile, pagination and RBAC.
 
 ### `get_verified_profile`
 

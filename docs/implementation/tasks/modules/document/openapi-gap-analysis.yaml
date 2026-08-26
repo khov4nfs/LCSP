@@ -34,7 +34,7 @@ paths:
                   correlationId:
                     type: string
         "403":
-          description: PBAC denied
+          description: RBAC denied
           content:
             application/json:
               schema:

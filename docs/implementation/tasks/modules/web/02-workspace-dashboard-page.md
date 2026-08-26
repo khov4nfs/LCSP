@@ -40,7 +40,7 @@ Show the Manager's organization workspace: org name, membership role, assessment
 ## Business Rules
 
 1. Fetch workspace context and assessment list on page mount.
-2. Show `granted_actions` from workspace response to conditionally render "Create Assessment" button. This is UI-only hint — button click is still PBAC-gated at server.
+2. Show `granted_actions` from workspace response to conditionally render "Create Assessment" button. This is UI-only hint — button click is still RBAC-gated at server.
 3. Assessment cards: show `status` and `wizard_status` in business language (not enum values).
 4. Status labels shown in business language per the Status Label Mapping table below (e.g. `WIZARD_IN_PROGRESS` → "In Progress", `WIZARD_SUBMITTED` → "Wizard Complete").
 5. Redirect to `/sign-in` if workspace fetch returns 401.
@@ -74,4 +74,4 @@ Show the Manager's organization workspace: org name, membership role, assessment
 - Workspace and assessment list rendered.
 - Status labels use business language.
 - Auth error redirects handled.
-- `granted_actions` used for UI-only conditional rendering (server enforces PBAC independently).
+- `granted_actions` used for UI-only conditional rendering (server enforces RBAC independently).

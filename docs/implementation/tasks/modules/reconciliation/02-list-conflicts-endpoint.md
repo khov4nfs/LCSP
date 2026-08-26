@@ -7,7 +7,7 @@ status: DONE
 epic_story: 5.2
 depends_on:
   - reconciliation/01-conflict-detection-callback-endpoint.md
-  - platform/pbac/03-nestjs-guard.md
+  - platform/rbac/03-nestjs-guard.md
 ---
 
 # List Conflicts Endpoint
@@ -64,12 +64,12 @@ Return all pending conflicts for an assessment for Manager review. Includes conf
 
 | HTTP | `error_code`           | Meaning                     |
 | ---- | ---------------------- | --------------------------- |
-| 403  | `PBAC_DENIED`          | Actor lacks `conflict:read` |
+| 403  | `RBAC_DENIED`          | Actor lacks `conflict:read` |
 | 404  | `ASSESSMENT_NOT_FOUND` | Not found or not in org     |
 
 ## Business Rules
 
-1. PBAC guard: `action = conflict:read`.
+1. RBAC guard: `action = conflict:read`.
 2. Org-scope guard on assessment.
 3. Default filter: `status = PENDING`.
 4. `evidence_refs` contains reference IDs only — not the actual finding content.
@@ -88,7 +88,7 @@ Return all pending conflicts for an assessment for Manager review. Includes conf
 | T01 | PENDING conflicts exist             | 200 list returned          |
 | T02 | No conflicts                        | 200 empty list             |
 | T03 | Filter by `status = RESOLVED`       | Only resolved returned     |
-| T04 | Actor lacks `conflict:read`         | 403 `PBAC_DENIED`          |
+| T04 | Actor lacks `conflict:read`         | 403 `RBAC_DENIED`          |
 | T05 | Assessment not in org               | 404 `ASSESSMENT_NOT_FOUND` |
 | T06 | `evidence_refs` are IDs not content | Field inspection           |
 
@@ -100,8 +100,8 @@ Return all pending conflicts for an assessment for Manager review. Includes conf
 
 ## Implementation Evidence
 
-- Added `GET /assessments/:assessmentId/conflicts` in the reconciliation HTTP surface, guarded by `PbacGuard` and `PBAC_ACTIONS.conflictRead`.
-- Added `conflict:read` to PBAC action contracts and Manager-only action coverage.
+- Added `GET /assessments/:assessmentId/conflicts` in the reconciliation HTTP surface, guarded by `RbacGuard` and `RBAC_ACTIONS.conflictRead`.
+- Added `conflict:read` to RBAC action contracts and Manager-only action coverage.
 - Added `ListConflictsQuery`, `ListConflictsHandler`, and `ConflictListDto` contract.
 - Handler verifies the assessment belongs to the caller's organization before reading conflicts.
 - Handler defaults `status` to `PENDING`, clamps pagination to `page >= 1` and `page_size <= 100`, and validates known conflict statuses.
@@ -118,8 +118,8 @@ Return all pending conflicts for an assessment for Manager review. Includes conf
 - `apps/api/src/modules/reconciliation/application/queries/list-conflicts/list-conflicts.query.ts`
 - `apps/api/src/modules/reconciliation/application/queries/list-conflicts/list-conflicts.handler.ts`
 - `apps/api/test/list-conflicts.e2e-spec.ts`
-- `packages/contracts/src/pbac/actions.ts`
-- `packages/contracts/src/pbac/manager-policy.ts`
+- `packages/contracts/src/rbac/actions.ts`
+- `packages/contracts/src/rbac/manager-policy.ts`
 - `tests/story-1-6.web.test.ts`
 - `apps/api/src/modules/document/application/commands/request-final-report/request-final-report.handler.spec.ts`
 - `apps/api/test/document-final-report.e2e-spec.ts`

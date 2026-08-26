@@ -13,13 +13,6 @@ export const signUpFields: readonly SignUpFieldDefinition[] = [
     descriptionKey: "pages.signUp.displayNameDescription",
   },
   {
-    name: "organization_name",
-    labelKey: "pages.signUp.organizationNameLabel",
-    type: SIGN_UP_FIELD_TYPES.text,
-    autoComplete: SIGN_UP_FIELD_AUTOCOMPLETE.organization,
-    descriptionKey: "pages.signUp.organizationNameDescription",
-  },
-  {
     name: "email",
     labelKey: "pages.signUp.emailLabel",
     type: SIGN_UP_FIELD_TYPES.email,

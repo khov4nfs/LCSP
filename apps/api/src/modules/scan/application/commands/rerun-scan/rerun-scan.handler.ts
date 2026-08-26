@@ -9,7 +9,7 @@ import {
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   GITHUB_INTEGRATION_ERROR_CODES,
   GITHUB_INTEGRATION_EVENT_TYPES,
@@ -20,7 +20,6 @@ import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
-import { PBAC_ACTIONS, SUBJECT_ROLES } from "@lcsp/contracts/pbac";
 import { SCAN_ERROR_CODES, SCAN_EVENT_TYPES } from "@lcsp/contracts/scan";
 
 import {
@@ -58,13 +57,13 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
   /**
    * Deduplicates, authorizes, validates, and queues a new manual scan job for an existing pinned snapshot.
    *
-   * @param command - Assessment/snapshot identity, idempotency key, PBAC context, correlation ID, and optional reason.
+   * @param command - Assessment/snapshot identity, idempotency key, RBAC context, correlation ID, and optional reason.
    * @returns Rerun scan job metadata, including the prior job identifier when available.
    * @throws When the idempotency key conflicts, snapshot/assessment is unavailable, manager ownership fails, or assessment state is ineligible.
    */
   async execute(command: RerunScanCommand): Promise<RerunScanResponseDto> {
-    const pbac = command.pbacContext;
-    // Basic org validation and PBAC was handled by the guard, but we still ensure assessment belongs to org
+    const rbac = command.rbacContext;
+    // Basic org validation and RBAC was handled by the guard, but we still ensure assessment belongs to org
 
     if (!command.idempotencyKey) {
       throw problemException(
@@ -81,8 +80,7 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
     if (existing) {
       if (
         existing.assessmentId !== command.assessmentId ||
-        existing.snapshotId !== command.snapshotId ||
-        existing.organizationId !== pbac.organizationId
+        existing.snapshotId !== command.snapshotId
       ) {
         throw problemException(
           GITHUB_INTEGRATION_ERROR_CODES.scanIdempotencyConflict,
@@ -103,16 +101,11 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
       select: {
         id: true,
         assessmentId: true,
-        organizationId: true,
         commitSha: true,
       },
     });
 
-    if (
-      !snapshot ||
-      snapshot.organizationId !== pbac.organizationId ||
-      snapshot.assessmentId !== command.assessmentId
-    ) {
+    if (!snapshot || snapshot.assessmentId !== command.assessmentId) {
       throw problemException(
         GITHUB_INTEGRATION_ERROR_CODES.snapshotNotFound,
         command.correlationId,
@@ -122,10 +115,10 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
 
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: command.assessmentId },
-      select: { id: true, organizationId: true, ownerId: true, status: true },
+      select: { id: true, ownerId: true, status: true },
     });
 
-    if (!assessment || assessment.organizationId !== pbac.organizationId) {
+    if (!assessment) {
       throw problemException(
         GITHUB_INTEGRATION_ERROR_CODES.snapshotNotFound,
         command.correlationId,
@@ -134,12 +127,12 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
     }
 
     const isManagerOwner =
-      pbac.subjectRole === SUBJECT_ROLES.manager &&
-      pbac.userId === assessment.ownerId;
+      rbac.role === AUTH_USER_ROLES.customer &&
+      rbac.userId === assessment.ownerId;
 
     if (!isManagerOwner) {
       throw problemException(
-        AUTH_ERROR_CODES.pbacDenied,
+        AUTH_ERROR_CODES.rbacDenied,
         command.correlationId,
         {
           status: HttpStatus.FORBIDDEN,
@@ -210,21 +203,18 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
           aggregateType: OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
           aggregateId: newScanJobId,
           eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered,
-          organizationId: pbac.organizationId,
           assessmentId: command.assessmentId,
           correlationId: command.correlationId,
           causationId: command.correlationId,
-          actor: { id: pbac.userId, type: AUDIT_ACTOR_TYPES.user },
+          actor: { id: rbac.userId, type: AUDIT_ACTOR_TYPES.user },
           result: SCAN_EVENT_TYPES.scanRerunTriggeredAudit,
           redactionStatus: AUDIT_REDACTION_STATUSES.none,
-          authorizationAction: PBAC_ACTIONS.scanTrigger,
           idempotencyKey: command.idempotencyKey,
           payload: {
             scanJobId: newScanJobId,
             assessmentId: command.assessmentId,
             snapshotId: command.snapshotId,
             commitSha: snapshot.commitSha,
-            organizationId: pbac.organizationId,
             triggerSource,
             idempotencyKey: command.idempotencyKey,
             correlationId: command.correlationId,
@@ -237,7 +227,6 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
             id: newScanJobId,
             assessmentId: command.assessmentId,
             snapshotId: command.snapshotId,
-            organizationId: pbac.organizationId,
             idempotencyKey: command.idempotencyKey,
             triggerSource: toPrismaRepositoryScanTriggerSource(triggerSource),
             status: toPrismaRepositoryScanJobStatus(status),
@@ -264,8 +253,7 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
 
     await this.auditWriter.write({
       eventType: SCAN_EVENT_TYPES.scanRerunTriggeredAudit,
-      actorId: pbac.userId,
-      organizationId: pbac.organizationId,
+      actorId: rbac.userId,
       assessmentId: command.assessmentId,
       resourceType: AUDIT_RESOURCE_TYPES.repositoryScanJob,
       resourceId: newScanJobId,

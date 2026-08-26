@@ -63,7 +63,6 @@ function createHandler(input?: {
 function query(input?: { evidenceRefs?: string[]; matrixRef?: string }) {
   return new EvaluateGapMatrixQuery(
     "assessment-1",
-    "organization-1",
     {
       matrixRef: input?.matrixRef ?? "matrix:classification-1",
       evidenceRefs: input?.evidenceRefs ?? ["citation:chunk_allow_1"],
@@ -244,7 +243,7 @@ describe("EvaluateGapMatrixHandler", () => {
     );
   });
 
-  it("TC-08: rejects cross-tenant assessment access before reading matrix projections", async () => {
+  it("TC-08: rejects inaccessible assessments before reading matrix projections", async () => {
     const { handler } = createHandler({ assessment: null });
 
     await expect(handler.execute(query())).rejects.toBeInstanceOf(

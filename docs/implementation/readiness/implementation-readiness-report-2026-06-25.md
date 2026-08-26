@@ -182,8 +182,8 @@ The PRD states that `FR-001..FR-056` are the canonical functional requirement id
 | FR-008 | Manage organization members. | Active |
 | FR-009 | Assign Manager subject attributes and policy templates. | Active |
 | FR-010 | Invite optional Developer collaborator. | Active |
-| FR-011 | Assign/revoke Developer PBAC policy scope. | Active |
-| FR-012 | Enforce PBAC-protected Manager-only actions. | Active |
+| FR-011 | Assign/revoke Developer RBAC policy scope. | Active |
+| FR-012 | Enforce RBAC-protected Manager-only actions. | Active |
 | FR-013 | Create Manager-owned assessment. | Active |
 | FR-014 | Complete WizardProfile. | Active |
 | FR-015 | Show readiness without risk level. | Active |
@@ -242,9 +242,9 @@ Total FRs extracted: 56 canonical FR IDs. Active MVP implementation requirements
 | NFR-005 | Security | OAuth/OIDC callback handling must validate redirect URI, state, nonce, issuer, audience, expiry and safe account linking. |
 | NFR-006 | Security | OAuth/OIDC login must remain separate from GitHub App repository authorization. |
 | NFR-007 | Security | GitHub App access must be read-only and limited to selected repositories for MVP. |
-| NFR-008 | Security | PBAC must enforce organization-scoped authorization for customer APIs, internal APIs, worker identities, repository access, scan triggers, assessment transitions, legal operations, document downloads, audit exports and administrative operations. |
-| NFR-009 | Security | Developer access must be scoped to assigned PBAC policy scope and revocable. |
-| NFR-010 | Auditability | Material workflow, auth, PBAC decisions, delegation, evidence, scan trigger, conflict, classification and document events must be audited. |
+| NFR-008 | Security | RBAC must enforce organization-scoped authorization for customer APIs, internal APIs, worker identities, repository access, scan triggers, assessment transitions, legal operations, document downloads, audit exports and administrative operations. |
+| NFR-009 | Security | Developer access must be scoped to assigned RBAC policy scope and revocable. |
+| NFR-010 | Auditability | Material workflow, auth, RBAC decisions, delegation, evidence, scan trigger, conflict, classification and document events must be audited. |
 | NFR-011 | Auditability | Audit trail must be append-oriented with controlled correction model. |
 | NFR-012 | Privacy | Raw source code must never be sent to an LLM provider. |
 | NFR-013 | Privacy | Raw source code must not be stored long term in persistent stores. |
@@ -273,7 +273,7 @@ Total active NFRs extracted: 33. `NFR-031` and `NFR-032` are legacy aliases only
 
 ### Additional Requirements
 
-- PBAC is the authorization source of truth. Role labels are subject attributes, grouping labels, or policy templates only.
+- RBAC is the authorization source of truth. Role labels are subject attributes, grouping labels, or policy templates only.
 - Risk classification cannot run before WizardProfile, accepted technical evidence, evidence gates, reconciliation, and VerifiedProfile.
 - Wizard-only outputs must remain readiness-only and must not show final risk or HIGH/MEDIUM/LOW labels.
 - Structured attestation, Local/CI scanner report upload as an MVP evidence path, manual technical evidence JSON upload, and delegated free-form clarification screens must not reappear in active MVP scope.
@@ -281,11 +281,11 @@ Total active NFRs extracted: 33. `NFR-031` and `NFR-032` are legacy aliases only
 - Python Worker Platform owns asynchronous domain workloads; scanner runtime is Python-worker based.
 - Legal retrieval is ChromaDB structure-first vectorless, with stable hierarchy IDs, parent context, one-hop xref expansion, and citation allowlist validation.
 - Real LLM provider integration is required for happy-path classification and document generation; deterministic mock mode is only suitable for tests/offline CI/dev without configured key.
-- Audit trail must preserve wizard answers, evidence metadata, PBAC/trigger decisions, conflict resolution, VerifiedProfile, classification, legal citation trace, gap analysis, and generated document versions.
+- Audit trail must preserve wizard answers, evidence metadata, RBAC/trigger decisions, conflict resolution, VerifiedProfile, classification, legal citation trace, gap analysis, and generated document versions.
 
 ### PRD Completeness Assessment
 
-The PRD and canonical catalogs provide complete identifier coverage for readiness validation. The PRD remains explicitly conditional and carries high-risk validation requirements around Wizard wording/completeness, legal corpus/rule reliability, PBAC and trusted-trigger abuse prevention, trusted-trigger idempotency/retry/DLQ/replay, scanner failure severity, and readiness-only report contents.
+The PRD and canonical catalogs provide complete identifier coverage for readiness validation. The PRD remains explicitly conditional and carries high-risk validation requirements around Wizard wording/completeness, legal corpus/rule reliability, RBAC and trusted-trigger abuse prevention, trusted-trigger idempotency/retry/DLQ/replay, scanner failure severity, and readiness-only report contents.
 
 ## Epic Coverage Validation
 
@@ -297,18 +297,18 @@ Epics/stories source read completely:
 
 | FR | Epic Coverage | Story / Guardrail Coverage | Status |
 | --- | --- | --- | --- |
-| FR-001 | Epic 1 - Secure Workspace and PBAC-Scoped Collaboration | Story 1.1 | Covered |
-| FR-002 | Epic 1 - Secure Workspace and PBAC-Scoped Collaboration | Story 1.1 | Covered |
-| FR-003 | Epic 1 - Secure Workspace and PBAC-Scoped Collaboration | Story 1.2 | Covered |
-| FR-004 | Epic 1 - Secure Workspace and PBAC-Scoped Collaboration | Story 1.2 | Covered |
-| FR-005 | Epic 1 - Secure Workspace and PBAC-Scoped Collaboration | Story 1.3 | Covered |
-| FR-006 | Epic 1 - Secure Workspace and PBAC-Scoped Collaboration | Story 1.3 | Covered |
-| FR-007 | Epic 1 - Secure Workspace and PBAC-Scoped Collaboration | Stories 1.4, 1.7 | Covered |
-| FR-008 | Epic 1 - Secure Workspace and PBAC-Scoped Collaboration | Stories 1.4, 1.7 | Covered |
-| FR-009 | Epic 1 - Secure Workspace and PBAC-Scoped Collaboration | Stories 1.4, 1.7 | Covered |
-| FR-010 | Epic 1 - Secure Workspace and PBAC-Scoped Collaboration | Story 1.5 | Covered |
-| FR-011 | Epic 1 - Secure Workspace and PBAC-Scoped Collaboration | Story 1.5 | Covered |
-| FR-012 | Epic 1 - Secure Workspace and PBAC-Scoped Collaboration | Stories 1.6, 1.7 | Covered |
+| FR-001 | Epic 1 - Secure Workspace and RBAC-Scoped Collaboration | Story 1.1 | Covered |
+| FR-002 | Epic 1 - Secure Workspace and RBAC-Scoped Collaboration | Story 1.1 | Covered |
+| FR-003 | Epic 1 - Secure Workspace and RBAC-Scoped Collaboration | Story 1.2 | Covered |
+| FR-004 | Epic 1 - Secure Workspace and RBAC-Scoped Collaboration | Story 1.2 | Covered |
+| FR-005 | Epic 1 - Secure Workspace and RBAC-Scoped Collaboration | Story 1.3 | Covered |
+| FR-006 | Epic 1 - Secure Workspace and RBAC-Scoped Collaboration | Story 1.3 | Covered |
+| FR-007 | Epic 1 - Secure Workspace and RBAC-Scoped Collaboration | Stories 1.4, 1.7 | Covered |
+| FR-008 | Epic 1 - Secure Workspace and RBAC-Scoped Collaboration | Stories 1.4, 1.7 | Covered |
+| FR-009 | Epic 1 - Secure Workspace and RBAC-Scoped Collaboration | Stories 1.4, 1.7 | Covered |
+| FR-010 | Epic 1 - Secure Workspace and RBAC-Scoped Collaboration | Story 1.5 | Covered |
+| FR-011 | Epic 1 - Secure Workspace and RBAC-Scoped Collaboration | Story 1.5 | Covered |
+| FR-012 | Epic 1 - Secure Workspace and RBAC-Scoped Collaboration | Stories 1.6, 1.7 | Covered |
 | FR-013 | Epic 2 - Manager Assessment and Wizard Readiness | Story 2.1 | Covered |
 | FR-014 | Epic 2 - Manager Assessment and Wizard Readiness | Story 2.2 | Covered |
 | FR-015 | Epic 2 - Manager Assessment and Wizard Readiness | Story 2.3 | Covered |
@@ -391,7 +391,7 @@ Found. Active UX authority is the rebased pair `DESIGN.md` and `EXPERIENCE.md`, 
 
 | UX Requirement Area | PRD / Requirement Alignment | Status |
 | --- | --- | --- |
-| Manager-owned A-to-Z path without mandatory Developer participation | PRD user journeys, PBAC model, and FR-010/FR-047 keep Developer optional. | Aligned |
+| Manager-owned A-to-Z path without mandatory Developer participation | PRD user journeys, RBAC model, and FR-010/FR-047 keep Developer optional. | Aligned |
 | Readiness-only state before evidence with no risk label | PRD goals, FR-015, FR-040, NFR-020/NFR-028. | Aligned |
 | Read-only GitHub repository connection and trusted scan initiation | PRD FR-016..FR-020, FR-049, FR-050. | Aligned |
 | Evidence review with redacted findings, confidence, limitations, and refs | PRD FR-020..FR-023, FR-048, NFR-012..NFR-016. | Aligned |
@@ -410,7 +410,7 @@ Found. Active UX authority is the rebased pair `DESIGN.md` and `EXPERIENCE.md`, 
 | Scan progress, retry/re-run, redacted evidence review | Repository Integration, Python Scanner Worker, queue boundary, persistence, audit. | Supported, pending scanner severity decision |
 | Legal citation inspection, corpus version, context roles, allowlist validation | ChromaDB Legal Retriever, Citation Guardrail, Legal Matching Worker. | Supported |
 | Real LLM provider metadata and guarded output states | LLM Gateway, Classification Worker, Document Worker. | Supported |
-| Developer task workspace with PBAC-scoped data boundaries | PBAC enforcement boundary and optional Developer collaboration invariant. | Supported, pending PBAC runtime decision |
+| Developer task workspace with RBAC-scoped data boundaries | RBAC enforcement boundary and optional Developer collaboration invariant. | Supported, pending RBAC runtime decision |
 | Audit trail filters by actor/action/correlation/policy/evidence/citation refs | Audit component plus material event invariant. | Supported |
 
 ### Alignment Issues
@@ -420,7 +420,7 @@ No critical UX/PRD/Architecture contradiction found in the active docs.
 ### Warnings
 
 - UX approval still carries open dependencies: final Vietnamese microcopy, exact readiness-only export contents, Manager-visible wording for automatic trusted trigger mapping states, frontend component library choice, and whether key rendered screen mockups are required.
-- Architecture support for PBAC-heavy UX and trusted-trigger UX is conditional on open technical decisions for PBAC runtime and trusted scan trigger idempotency/retry/DLQ/replay.
+- Architecture support for RBAC-heavy UX and trusted-trigger UX is conditional on open technical decisions for RBAC runtime and trusted scan trigger idempotency/retry/DLQ/replay.
 - Scanner UX for failed/partial evidence depends on the unresolved scanner failure severity table and tool version/config/ruleset hash policy.
 
 ## Epic Quality Review
@@ -433,8 +433,8 @@ Epics/stories source reviewed:
 
 | Epic | User Value / Outcome | Independence Assessment | Result |
 | --- | --- | --- | --- |
-| Epic 1 - Secure Workspace and PBAC-Scoped Collaboration | Users can authenticate, enter workspace, and act within PBAC scope. | Stands alone as workspace/security foundation. | Pass |
-| Epic 2 - Manager Assessment and Wizard Readiness | Manager can create assessment, complete Wizard, and receive readiness-only guidance. | Depends only on Epic 1 workspace/auth/PBAC. | Pass |
+| Epic 1 - Secure Workspace and RBAC-Scoped Collaboration | Users can authenticate, enter workspace, and act within RBAC scope. | Stands alone as workspace/security foundation. | Pass |
+| Epic 2 - Manager Assessment and Wizard Readiness | Manager can create assessment, complete Wizard, and receive readiness-only guidance. | Depends only on Epic 1 workspace/auth/RBAC. | Pass |
 | Epic 3 - Trusted Repository Evidence and TechnicalProfile | Manager/scoped Developer can connect repository, scan, review redacted findings, and produce TechnicalProfile. | Depends on Epic 1 and can enhance Epic 2 output; no dependency on later epics. | Pass with technical-decision gates |
 | Epic 4 - AIUsageFlow Claims and Uncertainty | LCSP creates evidence-backed business usage claims from Wizard/technical inputs. | Depends on Epic 2/3 outputs; no forward dependency. | Pass |
 | Epic 5 - Reconciliation and VerifiedProfile | Manager resolves conflicts and VerifiedProfile is created. | Depends on Wizard, TechnicalProfile, AIUsageFlow; no forward dependency. | Pass |
@@ -455,12 +455,12 @@ Epics/stories source reviewed:
 
 None found.
 
-No technical epic was found that is merely “setup database”, “API development”, or “infrastructure setup” without domain value. Some stories are system/control stories using “As LCSP”, but they produce required compliance-control artifacts such as PBAC contract, audit/outbox contract, worker contract, evidence gates, citation guardrails, and output guardrails. These are acceptable because the product is gate-driven and compliance-critical, provided each remains independently testable.
+No technical epic was found that is merely “setup database”, “API development”, or “infrastructure setup” without domain value. Some stories are system/control stories using “As LCSP”, but they produce required compliance-control artifacts such as RBAC contract, audit/outbox contract, worker contract, evidence gates, citation guardrails, and output guardrails. These are acceptable because the product is gate-driven and compliance-critical, provided each remains independently testable.
 
 ### Major Issues
 
 1. Required decision artifacts were unresolved at initial assessment time.
-   - PBAC runtime is now resolved by `docs/implementation/decisions/pbac-runtime-decision.md`.
+   - RBAC runtime is now resolved by `docs/implementation/decisions/rbac-runtime-decision.md`.
    - Automatic trusted scan trigger behavior is now resolved by `docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`.
    - Scanner severity/provenance is now resolved by `docs/implementation/decisions/scanner-severity-tool-provenance-decision.md`.
    - Impact: these areas can proceed to sprint planning review with the decision artifacts cited.
@@ -502,7 +502,7 @@ No technical epic was found that is merely “setup database”, “API developm
 ### Remediation Guidance
 
 - Use the companion traceability artifact for sprint planning and test task generation.
-- Use the PBAC runtime decision artifact before implementing protected surfaces.
+- Use the RBAC runtime decision artifact before implementing protected surfaces.
 - Use the trusted scan trigger replay/retry/DLQ decision artifact before implementing scan orchestration.
 - Use the scanner severity/tool-hash decision artifact before implementing TechnicalEvidenceReport readiness gates.
 - Use the state-transition authority for evidence, reconciliation, legal matching, classification, and document flows.
@@ -519,7 +519,7 @@ LCSP documentation is now ready for sprint planning review after remediation. Th
 ### Resolved Remediation Items
 
 1. Required decision artifacts are now created.
-   - PBAC runtime: `docs/implementation/decisions/pbac-runtime-decision.md`
+   - RBAC runtime: `docs/implementation/decisions/rbac-runtime-decision.md`
    - Trusted scan trigger idempotency/retry/DLQ/replay/operator recovery: `docs/implementation/decisions/trusted-scan-trigger-retry-dlq-replay-decision.md`
    - Scanner severity and tool version/config/ruleset hash policy: `docs/implementation/decisions/scanner-severity-tool-provenance-decision.md`
 

@@ -20,28 +20,16 @@ import {
   MFA_RECOVERY_CODE_ACCESS_ACTIONS,
   type MfaRecoveryCodeAccessAction,
 } from "@lcsp/contracts/auth";
-import {
-  DEVELOPER_ALLOWED_ACTION_VALUES,
-  PBAC_ACTIONS,
-  SUBJECT_ROLES,
-} from "@lcsp/contracts/pbac";
 
-import { REVOKE_MEMBERSHIP_ERROR_CODES } from "@lcsp/contracts/auth";
-import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
-import { AllowPendingMfa } from "../../../../platform/pbac/decorators/allow-pending-mfa.decorator.js";
-import { RequireAction } from "../../../../platform/pbac/decorators/require-action.decorator.js";
-import { RequireAnyActionAsPbac } from "../../../../platform/pbac/decorators/require-any-action-as-pbac.decorator.js";
-import { RequireSession } from "../../../../platform/pbac/decorators/require-session.decorator.js";
-import { PbacGuard } from "../../../../platform/pbac/pbac.guard.js";
+import { AllowPendingMfa } from "../../../../platform/rbac/decorators/allow-pending-mfa.decorator.js";
+import { RequireSession } from "../../../../platform/rbac/decorators/require-session.decorator.js";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { ReAuthForSensitiveRoute } from "../../../../platform/security/decorators/re-auth-for-sensitive-route.decorator.js";
 import { SENSITIVE_ROUTE_IDS } from "../../../../platform/security/sensitive-route-policy.js";
 import type { UpdateProfilePayload } from "../../application/commands/update-profile/update-profile.command.ts";
-import type { AcceptInvitationRequest } from "../../application/contracts/auth-workspace/accept-invitation.contract.ts";
 import type { RequestMeta } from "../../application/contracts/auth-workspace/common.contract.ts";
-import type { InvitationPreviewRequest } from "../../application/contracts/auth-workspace/invitation-preview.contract.ts";
-import type { InviteDeveloperRequest } from "../../application/contracts/auth-workspace/invitation.contract.ts";
 import type {
   OAuthCallbackPayload,
   OAuthLinkCallbackPayload,
@@ -53,7 +41,6 @@ import type {
   ConfirmRecoveryPayload,
   RequestRecoveryPayload,
 } from "../../application/contracts/auth-workspace/recovery.contract.ts";
-import type { RegisterPayload } from "../../application/contracts/auth-workspace/register-approved-path.contract.ts";
 import type { SensitiveRouteCheckDto } from "../../application/contracts/auth-workspace/sensitive-route.contract.ts";
 import type { CredentialPayload } from "../../application/contracts/auth-workspace/sign-in.contract.ts";
 import type { SignUpPayload } from "../../application/contracts/auth-workspace/sign-up.contract.ts";
@@ -82,205 +69,8 @@ const MFA_RECOVERY_CODE_ACCESS_ACTION_VALUES = Object.values(
 export class AuthWorkspaceController {
   constructor(
     private readonly authWorkspaceFacade: AuthWorkspaceFacade,
-    private readonly prisma: PrismaService,
     private readonly queryBus: QueryBus,
   ) {}
-
-  @Get("workspace/developers")
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.inviteDeveloper)
-  async listWorkspaceDevelopers(@Req() request: AuthenticatedRequest) {
-    const orgId = request.pbacContext.organizationId;
-    const memberships = await this.prisma.authMembership.findMany({
-      where: {
-        organizationId: orgId,
-        policy: { subjectRole: SUBJECT_ROLES.developer },
-      },
-      include: {
-        user: { select: { id: true, email: true, displayName: true } },
-        policy: { select: { actions: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-    return resultEnvelope(
-      memberships.map((membership) => ({
-        user_id: membership.user.id,
-        email: membership.user.email,
-        display_name: membership.user.displayName,
-        status: membership.status,
-        allowed_actions: membership.policy.actions,
-        subject_attributes: membership.subjectAttributes,
-        revoked_at: membership.revokedAt,
-      })),
-    );
-  }
-
-  @Post("workspace/invitations")
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.inviteDeveloper)
-  async inviteWorkspaceDeveloper(
-    @Body() payload: InviteDeveloperRequest,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    const pbacContext = request.pbacContext;
-    return resultEnvelope(
-      await this.authWorkspaceFacade.inviteDeveloper(
-        pbacContext.organizationId,
-        pbacContext.userId,
-        payload,
-        requestMeta(request.correlationId),
-      ),
-    );
-  }
-
-  @Delete("workspace/memberships/:userId")
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.membershipRevoke)
-  async revokeWorkspaceMembership(
-    @Param("userId") userId: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    const pbacContext = request.pbacContext;
-    return resultEnvelope(
-      await this.authWorkspaceFacade.revokeMembership(
-        pbacContext.organizationId,
-        pbacContext.userId,
-        userId,
-        requestMeta(request.correlationId),
-      ),
-    );
-  }
-
-  @Get("organizations/:orgId/developers")
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.inviteDeveloper)
-  async listDevelopers(
-    @Param("orgId") orgId: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    if (request.pbacContext.organizationId !== orgId) {
-      throw problemException(
-        AUTH_ERROR_CODES.pbacDenied,
-        request.correlationId as string,
-        { status: HttpStatus.FORBIDDEN },
-      );
-    }
-    const memberships = await this.prisma.authMembership.findMany({
-      where: {
-        organizationId: orgId,
-        policy: { subjectRole: SUBJECT_ROLES.developer },
-      },
-      include: {
-        user: { select: { id: true, email: true, displayName: true } },
-        policy: { select: { actions: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-    return resultEnvelope(
-      memberships.map((membership) => ({
-        user_id: membership.user.id,
-        email: membership.user.email,
-        display_name: membership.user.displayName,
-        status: membership.status,
-        allowed_actions: membership.policy.actions,
-        subject_attributes: membership.subjectAttributes,
-        revoked_at: membership.revokedAt,
-      })),
-    );
-  }
-
-  @Post("organizations/:orgId/invitations")
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.inviteDeveloper)
-  async inviteDeveloper(
-    @Param("orgId") orgId: string,
-    @Body() payload: InviteDeveloperRequest,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    const pbacContext = request.pbacContext;
-    if (pbacContext.organizationId !== orgId) {
-      throw problemException(
-        AUTH_ERROR_CODES.pbacDenied,
-        request.correlationId as string,
-        { status: HttpStatus.FORBIDDEN },
-      );
-    }
-
-    return resultEnvelope(
-      await this.authWorkspaceFacade.inviteDeveloper(
-        orgId,
-        pbacContext.userId,
-        payload,
-        requestMeta(request.correlationId),
-      ),
-    );
-  }
-
-  @Delete("organizations/:orgId/memberships/:userId")
-  @UseGuards(PbacGuard)
-  @RequireAction(PBAC_ACTIONS.membershipRevoke)
-  async revokeMembership(
-    @Param("orgId") orgId: string,
-    @Param("userId") userId: string,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    const pbacContext = request.pbacContext;
-    if (pbacContext.organizationId !== orgId) {
-      const errorCode = REVOKE_MEMBERSHIP_ERROR_CODES.organizationScopeMismatch;
-      throw problemException(errorCode, request.correlationId as string, {
-        status: HttpStatus.BAD_REQUEST,
-      });
-    }
-
-    return resultEnvelope(
-      await this.authWorkspaceFacade.revokeMembership(
-        orgId,
-        pbacContext.userId,
-        userId,
-        requestMeta(request.correlationId),
-      ),
-    );
-  }
-
-  @Post("auth/register-approved-path")
-  async registerApprovedPath(
-    @Body() payload: RegisterPayload,
-    @Headers("x-correlation-id") correlationId?: string,
-  ) {
-    return resultEnvelope(
-      await this.authWorkspaceFacade.registerApprovedPath(
-        payload,
-        requestMeta(correlationId),
-      ),
-    );
-  }
-
-  @Post("auth/accept-invitation")
-  async acceptInvitation(
-    @Body() payload: AcceptInvitationRequest,
-    @Headers("x-correlation-id") correlationId?: string,
-  ) {
-    return resultEnvelope(
-      await this.authWorkspaceFacade.acceptInvitation(
-        payload,
-        requestMeta(correlationId),
-      ),
-    );
-  }
-
-  @Post("auth/invitations/preview")
-  @HttpCode(HttpStatus.OK)
-  async previewInvitation(
-    @Body() payload: InvitationPreviewRequest,
-    @Headers("x-correlation-id") correlationId?: string,
-  ) {
-    return resultEnvelope(
-      await this.authWorkspaceFacade.previewInvitation(
-        payload,
-        requestMeta(correlationId),
-      ),
-    );
-  }
 
   @Post("auth/sign-in")
   @HttpCode(HttpStatus.OK)
@@ -323,15 +113,13 @@ export class AuthWorkspaceController {
   }
 
   @Get("workspace")
-  @UseGuards(PbacGuard)
+  @UseGuards(RbacGuard)
   @RequireSession()
   async getWorkspace(
     @Req() request: AuthenticatedRequest,
-    @Query("organization_id") organizationId?: string,
     @Headers("authorization") authorization?: string,
   ) {
     const workspaceRequest: WorkspaceRequest = {
-      organization_id: organizationId,
       session_token: bearerToken(authorization),
       correlationId: request.correlationId,
     };
@@ -340,20 +128,8 @@ export class AuthWorkspaceController {
     );
   }
 
-  @Get("workspace/developer-task")
-  @UseGuards(PbacGuard)
-  @RequireAnyActionAsPbac(...DEVELOPER_ALLOWED_ACTION_VALUES)
-  async getDeveloperTaskContext(@Req() request: AuthenticatedRequest) {
-    return resultEnvelope(
-      await this.authWorkspaceFacade.getDeveloperTaskContext(
-        request.pbacContext,
-        request.correlationId!,
-      ),
-    );
-  }
-
   @Post("auth/mfa/enroll")
-  @UseGuards(PbacGuard)
+  @UseGuards(RbacGuard)
   @RequireSession()
   @AllowPendingMfa()
   async enrollMfa(
@@ -370,7 +146,7 @@ export class AuthWorkspaceController {
   }
 
   @Delete("auth/mfa")
-  @UseGuards(PbacGuard)
+  @UseGuards(RbacGuard)
   @RequireSession()
   async disableMfa(
     @Body() body: { session_token?: string },
@@ -414,7 +190,7 @@ export class AuthWorkspaceController {
   }
 
   @Post("auth/mfa/recovery-codes")
-  @UseGuards(PbacGuard)
+  @UseGuards(RbacGuard)
   @RequireSession()
   @ReAuthForSensitiveRoute({
     routeId: SENSITIVE_ROUTE_IDS.mfaRecoveryCodesGenerate,
@@ -436,7 +212,7 @@ export class AuthWorkspaceController {
   }
 
   @Post("auth/mfa/recovery-codes/access")
-  @UseGuards(PbacGuard)
+  @UseGuards(RbacGuard)
   @RequireSession()
   async recordMfaRecoveryCodeAccess(
     @Body() body: MfaRecoveryCodeAccessPayload,
@@ -469,7 +245,7 @@ export class AuthWorkspaceController {
   }
 
   @Post("auth/re-auth/password")
-  @UseGuards(PbacGuard)
+  @UseGuards(RbacGuard)
   @RequireSession()
   @AllowPendingMfa()
   async reauthenticatePassword(
@@ -490,7 +266,7 @@ export class AuthWorkspaceController {
 
   @Post("auth/sensitive-route/check")
   @HttpCode(HttpStatus.OK)
-  @UseGuards(PbacGuard)
+  @UseGuards(RbacGuard)
   @RequireSession()
   @AllowPendingMfa()
   async checkSensitiveRoute(
@@ -519,7 +295,7 @@ export class AuthWorkspaceController {
         SensitiveRouteCheckDto
       >(
         new CheckSensitiveRouteQuery(
-          request.pbacContext.sessionId,
+          request.rbacContext.sessionId,
           method,
           route,
         ),
@@ -528,7 +304,7 @@ export class AuthWorkspaceController {
   }
 
   @Patch("auth/profile")
-  @UseGuards(PbacGuard)
+  @UseGuards(RbacGuard)
   @RequireSession()
   async updateProfile(
     @Body() body: UpdateProfilePayload & { session_token?: string },
@@ -546,28 +322,28 @@ export class AuthWorkspaceController {
   }
 
   @Get("auth/profile")
-  @UseGuards(PbacGuard)
+  @UseGuards(RbacGuard)
   @RequireSession()
   async getProfile(@Req() request: AuthenticatedRequest) {
     return resultEnvelope(
       await this.authWorkspaceFacade.getProfile(
-        request.pbacContext,
+        request.rbacContext,
         request.correlationId!,
       ),
     );
   }
 
   @Get("auth/sessions")
-  @UseGuards(PbacGuard)
+  @UseGuards(RbacGuard)
   @RequireSession()
   async listSessions(@Req() request: AuthenticatedRequest) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.listSessions(request.pbacContext),
+      await this.authWorkspaceFacade.listSessions(request.rbacContext),
     );
   }
 
   @Delete("auth/sessions/:sessionId")
-  @UseGuards(PbacGuard)
+  @UseGuards(RbacGuard)
   @RequireSession()
   async revokeOwnedSession(
     @Param("sessionId") sessionId: string,
@@ -576,18 +352,18 @@ export class AuthWorkspaceController {
     return resultEnvelope(
       await this.authWorkspaceFacade.revokeOwnedSession(
         sessionId,
-        request.pbacContext,
+        request.rbacContext,
         requestMeta(request.correlationId),
       ),
     );
   }
 
   @Get("auth/repositories")
-  @UseGuards(PbacGuard)
+  @UseGuards(RbacGuard)
   @RequireSession()
   async listRepositories(@Req() request: AuthenticatedRequest) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.listRepositories(request.pbacContext),
+      await this.authWorkspaceFacade.listRepositories(request.rbacContext),
     );
   }
 
@@ -653,7 +429,7 @@ export class AuthWorkspaceController {
   }
 
   @Get("auth/oauth/link/start")
-  @UseGuards(PbacGuard)
+  @UseGuards(RbacGuard)
   @RequireSession()
   async oauthLinkStart(
     @Req() request: AuthenticatedRequest,
@@ -668,14 +444,14 @@ export class AuthWorkspaceController {
     return resultEnvelope(
       await this.authWorkspaceFacade.oauthLinkStart(
         payload,
-        request.pbacContext,
+        request.rbacContext,
         requestMeta(correlationId),
       ),
     );
   }
 
   @Get("auth/oauth/link/callback")
-  @UseGuards(PbacGuard)
+  @UseGuards(RbacGuard)
   @RequireSession()
   async oauthLinkCallback(
     @Req() request: AuthenticatedRequest,
@@ -688,7 +464,7 @@ export class AuthWorkspaceController {
     return resultEnvelope(
       await this.authWorkspaceFacade.oauthLinkCallback(
         payload,
-        request.pbacContext,
+        request.rbacContext,
         requestMeta(correlationId),
       ),
     );

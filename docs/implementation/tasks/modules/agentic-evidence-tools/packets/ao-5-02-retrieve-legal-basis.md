@@ -11,7 +11,7 @@ status: DONE
 |---|---|
 | Story / priority | AO-5 / P0 |
 | Exposure / mutation | `LLM_CALLABLE` / `READ` |
-| Runtime | worker retrieval handler behind PBAC/audit gateway |
+| Runtime | worker retrieval handler behind RBAC/audit gateway |
 ## 2. Objective
 Retrieve a bounded, citation-safe primary clause with its parent and one-hop reference from a pinned validated corpus; it does not answer a legal question or return a document.
 ## 3. Use Cases
@@ -38,12 +38,12 @@ After readiness is `READY`, an AO-5 agent requests exact rule/chunk selectors. I
 ```
 Limited result uses `OUT_OF_COVERAGE` with `NO_EFFECTIVE_CHUNK_FOR_SELECTOR`, never an invented excerpt.
 ## 7. Error Codes and Typed Outcomes
-`INVALID_ARGUMENT` forbids arbitrary query/URL; `NEEDS_INPUT` requires a validated pin; `NOT_FOUND` is exhaustive exact selector miss; `OUT_OF_COVERAGE` records corpus/date limitation; `BLOCKED` covers PBAC/index/status; transient index timeout retries once then `FAILED`.
+`INVALID_ARGUMENT` forbids arbitrary query/URL; `NEEDS_INPUT` requires a validated pin; `NOT_FOUND` is exhaustive exact selector miss; `OUT_OF_COVERAGE` records corpus/date limitation; `BLOCKED` covers RBAC/index/status; transient index timeout retries once then `FAILED`.
 ## 8. Tool Calling Flow
 ```mermaid
 sequenceDiagram
 participant L as LLM
-participant G as PBAC gateway
+participant G as RBAC gateway
 participant H as Retrieval handler
 participant I as Pinned index
 L->>G: exact selectors
@@ -54,7 +54,7 @@ H-->>L: capped citations + audit ref
 ## 9. Business Rules
 Only exact stable IDs; structure-first primary, parent, then one-hop xref; exclude repealed/non-effective chunks for date; sort primary/parent/xref then locator; no dense free-text search, arbitrary corpus version, more than 15 excerpts, or legal conclusion.
 ## 10. Execution Logic
-`validate → allow-list/PBAC/version → index readiness → exact retrieve → effect-status filter → attach parent/xref → cap/sort → redact → provenance/audit → response`. Build `LegalBasisRetrievalTool` over version-scoped retrieval index.
+`validate → allow-list/RBAC/version → index readiness → exact retrieve → effect-status filter → attach parent/xref → cap/sort → redact → provenance/audit → response`. Build `LegalBasisRetrievalTool` over version-scoped retrieval index.
 ## 11. LLM Tool Definition and Context Contract
 Expose strict function with §5 schema. Model gets max 12 KB citations/locators/hashes and may call `get_legal_rule_match` or `validate_citation_set`; it must cite refs and cannot treat excerpts as full corpus or final advice. Store template version/output hash only.
 ## 12. Tool Registry
@@ -64,14 +64,14 @@ Log shared safe fields plus selector hash, selected IDs and cap use; never log r
 ## 16. Scenario
 The agent requests rule `rule_01J9A`; it receives Article 12 primary and allowed context, then validates those citation refs. A repealed clause yields explicit `OUT_OF_COVERAGE`, not a substitute rule.
 ## 17. Acceptance Criteria
-Exact authorized selectors return stable capped citations; extra/free-text input dispatches nowhere; effect filtering distinguishes miss from coverage limits; PBAC denies safely; excerpts never exceed caps or expose full documents.
+Exact authorized selectors return stable capped citations; extra/free-text input dispatches nowhere; effect filtering distinguishes miss from coverage limits; RBAC denies safely; excerpts never exceed caps or expose full documents.
 ## 18. Test Matrix
 | ID | Scenario | Level | Evidence |
 |---|---|---|---|
 | TC-01 | primary + parent + xref | integration | ordered bounded citations |
 | TC-02 | free-text/extra selector | contract | rejection |
 | TC-03 | repealed/date/index mismatch | integration | typed limitation/block |
-| TC-04 | tenant/PBAC denial | integration | audit |
+| TC-04 | tenant/RBAC denial | integration | audit |
 | TC-05 | overlong text/document field | privacy | response blocked |
 | TC-06 | index outage | worker | one retry/failed audit |
 ## 19. Definition of Done
@@ -83,4 +83,4 @@ Contracts `packages/contracts/src/evidence`; worker retrieval under `deepagents/
 |---|---|---|---|---|
 | OQ-01 | Ratify 15 citations/800-char excerpt cap | Legal + Tech Lead | OPEN | yes |
 ## 22. Deliverables
-Registry definition, strict schema, pinned index adapter, response normalizer, audit/PBAC and tests.
+Registry definition, strict schema, pinned index adapter, response normalizer, audit/RBAC and tests.

@@ -41,7 +41,7 @@ Recounted 2026-07-05 directly from `docs/implementation/tasks/modules/**` frontm
 | `platform/audit-writer` | nestjs-api | 2 | 0 | 0 | 2 | 2 |
 | `platform/config` | nestjs-api | 1 | 0 | 0 | 1 | 1 |
 | `platform/outbox` | nestjs-api | 2 | 1 | 0 | 3 | 3 |
-| `platform/pbac` | nestjs-api<br>nestjs-api + python-workers | 3 | 1 | 0 | 4 | 4 |
+| `platform/rbac` | nestjs-api<br>nestjs-api + python-workers | 3 | 1 | 0 | 4 | 4 |
 | `python-workers/classification` | deepagents | 1 | 0 | 0 | 1 | 1 |
 | `python-workers/intelligence` | deepagents | 4 | 0 | 0 | 4 | 4 |
 | `python-workers/legal` | deepagents | 1 | 0 | 0 | 1 | 1 |
@@ -67,7 +67,7 @@ Recounted 2026-07-05 directly from `docs/implementation/tasks/modules/**` frontm
 | `1.4` | Story 1.4: Organization Membership and Manager Policy Scope | 1 | 0 | 1 | 2 |
 | `1.5` | Story 1.5: Optional Developer Invitation and Scoped Task Acceptance | 3 | 0 | 0 | 3 |
 | `1.6` | Story 1.6: Manager-Only Action Enforcement | 4 | 0 | 0 | 4 |
-| `1.7` | Story 1.7: PBAC Policy Runtime and Deny-on-Failure Contract | 0 | 1 | 0 | 1 |
+| `1.7` | Story 1.7: RBAC Policy Runtime and Deny-on-Failure Contract | 0 | 1 | 0 | 1 |
 | `1.8` | Story 1.8: Foundational Audit, Outbox, and Event Contract | 3 | 0 | 0 | 3 |
 | `2.1` | Story 2.1: Create Manager-Owned Assessment | 4 | 2 | 0 | 6 |
 | `2.2` | Story 2.2: Complete WizardProfile in Business Language | 3 | 0 | 0 | 3 |

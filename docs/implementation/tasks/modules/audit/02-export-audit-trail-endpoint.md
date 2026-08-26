@@ -73,13 +73,13 @@ Returns same fields as `document:read` — `status`, `download_url` (pre-signed,
 
 | HTTP | `error_code`           | Meaning                    |
 | ---- | ---------------------- | -------------------------- |
-| 403  | `PBAC_DENIED`          | Actor lacks `audit:export` |
+| 403  | `RBAC_DENIED`          | Actor lacks `audit:export` |
 | 400  | `DATE_RANGE_TOO_LARGE` | Range > 365 days           |
 | 400  | `ORG_SCOPE_MISMATCH`   |                            |
 
 ## Business Rules
 
-1. PBAC guard: `action = audit:export`.
+1. RBAC guard: `action = audit:export`.
 2. Org-scope guard: `orgId = session.organizationId`.
 3. Max date range: 365 days.
 4. Create `AuditExportRequest` + emit outbox `audit.export-requested`.
@@ -102,7 +102,7 @@ Returns same fields as `document:read` — `status`, `download_url` (pre-signed,
 | --- | ------------------------------------ | -------------------------- |
 | T01 | Valid date range                     | 202 QUEUED                 |
 | T02 | Date range > 365 days                | 400 `DATE_RANGE_TOO_LARGE` |
-| T03 | Actor lacks `audit:export`           | 403 `PBAC_DENIED`          |
+| T03 | Actor lacks `audit:export`           | 403 `RBAC_DENIED`          |
 | T04 | org scope mismatch                   | 400 `ORG_SCOPE_MISMATCH`   |
 | T05 | Export download has redacted payload | Sensitive fields stripped  |
 | T06 | Download URL is pre-signed 5-min TTL | URL verified               |

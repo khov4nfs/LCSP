@@ -30,7 +30,7 @@ class OcrQualityEnvelope:
 class OcrQualityBoundary(AgentBoundaryBase):
     boundary_source = OCR_QUALITY_BOUNDARY_SOURCE
     source_event = OCR_QUALITY_COMMAND
-    requires_pbac = False
+    requires_rbac = False
     retry_delays_seconds = ()
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:

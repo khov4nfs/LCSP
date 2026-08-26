@@ -33,7 +33,7 @@ Missing/stale report or same-scan mismatch=`NEEDS_INPUT`/`BLOCKED`; node/edge ca
 
 ## 11–15. LLM, registry, audit and security
 
-`exposed_to_model:false`; AO-2 provides bounded graph queries only. Registry `build_evidence_graph/1.0.0`, `SCAN_EXECUTE`, `SCAN_ASSEMBLING`, requires report/artifact-set refs, 60/120 s, immutable artifact idempotency keyed by scan/config. Audit graph/report IDs/hash/counts/caps/status/duration, no nodes with raw source/prompt/AST. PBAC validates scan ownership; no old graph mutation or uncited edge allowed.
+`exposed_to_model:false`; AO-2 provides bounded graph queries only. Registry `build_evidence_graph/1.0.0`, `SCAN_EXECUTE`, `SCAN_ASSEMBLING`, requires report/artifact-set refs, 60/120 s, immutable artifact idempotency keyed by scan/config. Audit graph/report IDs/hash/counts/caps/status/duration, no nodes with raw source/prompt/AST. RBAC validates scan ownership; no old graph mutation or uncited edge allowed.
 
 ## 16–22. Scenario, AC, tests, files
 

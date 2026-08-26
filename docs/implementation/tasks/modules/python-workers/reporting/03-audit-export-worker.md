@@ -28,7 +28,7 @@ Consume `audit.export-requested` events and generate a pre-redacted audit trail 
 |---|---|
 | Queue | `reporting.audit-export-requested` |
 | Routing key | `audit.export-requested` |
-| PBAC preflight | No (system event) |
+| RBAC preflight | No (system event) |
 
 ## Business Rules
 

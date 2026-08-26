@@ -24,12 +24,12 @@ import { GitHubAppStartCommand } from "./github-app-start.command.js";
 const INSTALL_STATE_TTL_MS = 10 * 60_000;
 
 /**
- * Starts a GitHub App installation flow after validating redirect, tenant, assessment, and optional reconnect context.
+ * Starts a GitHub App installation flow after validating redirect, assessment, and optional reconnect context.
  */
 @CommandHandler(GitHubAppStartCommand)
 export class GitHubAppStartHandler implements ICommandHandler<GitHubAppStartCommand> {
   /**
-   * Creates the handler with installation-state persistence, GitHub URL construction, audit, configuration, and tenant lookup dependencies.
+   * Creates the handler with installation-state persistence, GitHub URL construction, audit, configuration, and assessment lookup dependencies.
    *
    * @param installStateRepository - Repository used to persist the short-lived opaque installation state.
    * @param githubAppClient - GitHub App client used to construct the installation authorization URL.
@@ -49,9 +49,9 @@ export class GitHubAppStartHandler implements ICommandHandler<GitHubAppStartComm
   /**
    * Validates the installation request, persists expiring state, builds the GitHub URL, and records the start audit event.
    *
-   * @param command - Organization/user/session, redirect, optional assessment, reconnect installation, and correlation context.
+   * @param command - User/session, redirect, optional assessment, reconnect installation, and correlation context.
    * @returns GitHub installation URL and correlation identifier.
-   * @throws When the redirect URI is not allowlisted, reconnect installation is unavailable, or the assessment is outside the organization.
+   * @throws When the redirect URI is not allowlisted, reconnect installation is unavailable, or the assessment cannot be found.
    */
   async execute(command: GitHubAppStartCommand): Promise<GitHubAppStartDto> {
     const redirectUri = command.redirectUri?.trim();
@@ -72,7 +72,6 @@ export class GitHubAppStartHandler implements ICommandHandler<GitHubAppStartComm
       ? await this.prisma.repositoryConnection.findFirst({
           where: {
             installationId: command.installationId,
-            organizationId: command.organizationId,
             userId: command.userId,
             revokedAt: null,
           },
@@ -96,7 +95,7 @@ export class GitHubAppStartHandler implements ICommandHandler<GitHubAppStartComm
         where: { id: assessmentId },
       });
 
-      if (!assessment || assessment.organizationId !== command.organizationId) {
+      if (!assessment) {
         throw problemException(
           ASSESSMENT_ERROR_CODES.notFound,
           command.correlationId,
@@ -106,7 +105,6 @@ export class GitHubAppStartHandler implements ICommandHandler<GitHubAppStartComm
     }
 
     const installState = GitHubAppInstallState.create({
-      organizationId: command.organizationId,
       userId: command.userId,
       redirectUri,
       assessmentId: assessmentId ?? null,
@@ -122,7 +120,6 @@ export class GitHubAppStartHandler implements ICommandHandler<GitHubAppStartComm
     await this.auditWriter.write({
       eventType: GITHUB_INTEGRATION_EVENT_TYPES.appInstallStarted,
       actorId: command.userId,
-      organizationId: command.organizationId,
       resourceType: AUDIT_RESOURCE_TYPES.githubAppInstallState,
       resourceId: installState.id,
       correlationId: command.correlationId,
@@ -130,7 +127,6 @@ export class GitHubAppStartHandler implements ICommandHandler<GitHubAppStartComm
       decision: AUDIT_DECISIONS.allow,
       payload: {
         userId: command.userId,
-        organizationId: command.organizationId,
         assessmentId: assessmentId ?? null,
         installationId: command.installationId ?? null,
         correlationId: command.correlationId,

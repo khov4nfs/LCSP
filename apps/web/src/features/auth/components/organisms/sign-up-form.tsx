@@ -46,7 +46,6 @@ export function SignUpForm() {
     resolver: zodResolver(signUpSchema),
     defaultValues: {
       display_name: "",
-      organization_name: "",
       email: "",
       password: "",
       confirm_password: "",
@@ -58,7 +57,6 @@ export function SignUpForm() {
     const outcome = await signUpMutation
       .mutateAsync({
         display_name: values.display_name.trim(),
-        organization_name: values.organization_name.trim(),
         email: values.email.trim().toLowerCase(),
         password: values.password,
       })

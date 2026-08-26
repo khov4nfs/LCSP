@@ -13,9 +13,7 @@ import { CompareWizardClaimController } from "./compare-wizard-claim.controller.
 function request(): AuthenticatedRequest {
   return {
     correlationId: "corr-1",
-    pbacContext: {
-      organizationId: "org-1",
-    },
+    rbacContext: {},
   } as AuthenticatedRequest;
 }
 
@@ -49,7 +47,6 @@ describe("CompareWizardClaimController.compareWizardClaim", () => {
     expect(queryBus.execute).toHaveBeenCalledWith(
       new CompareWizardClaimQuery(
         "assessment-1",
-        "org-1",
         "wizard-1",
         "report-1",
         "target:provider_openai",

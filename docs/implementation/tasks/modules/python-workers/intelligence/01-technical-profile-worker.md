@@ -31,7 +31,7 @@ Consume `scan.evidence-accepted` events and produce a `TechnicalProfile` from th
 |---|---|
 | Queue | `intelligence.evidence-accepted` |
 | Routing key | `scan.evidence-accepted` |
-| PBAC preflight | No (system event, no user context) |
+| RBAC preflight | No (system event, no user context) |
 
 ## TechnicalProfile Schema
 
@@ -91,7 +91,7 @@ class TechnicalProfile:
 ## Implementation Evidence
 
 - Added deterministic intelligence package under `deepagents/tools/engineer_rule/intelligence/`.
-- Added `TechnicalProfileConsumer` as a `ConsumerBase` subclass for queue `intelligence.evidence-accepted`, routing key `scan.evidence-accepted`, with `requires_pbac = False` for system event processing.
+- Added `TechnicalProfileConsumer` as a `ConsumerBase` subclass for queue `intelligence.evidence-accepted`, routing key `scan.evidence-accepted`, with `requires_rbac = False` for system event processing.
 - Added `TechnicalProfileBuilder` and `EvidenceQualityEvaluator` for evidence-only profile derivation; no LLM gateway/provider calls are used.
 - Updated worker callback schema/API client to submit `TechnicalProfile` payloads to `POST /internal/evidence/technical-profile-callback`.
 - Added unit coverage in `deepagents/tests/test_technical_profile_worker.py` for T01–T07 and consumer callback behavior.

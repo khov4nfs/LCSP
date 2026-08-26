@@ -25,7 +25,6 @@ describe("PrismaRepositorySnapshotRepository", () => {
     } as unknown as OutboxRepository);
     const snapshot = RepositorySnapshot.create({
       assessmentId: "assessment-1",
-      organizationId: "org-1",
       connectionId: "connection-1",
       repositoryId: "repo-1",
       repositoryFullName: "acme/example-repo",

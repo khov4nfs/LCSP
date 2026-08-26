@@ -38,19 +38,19 @@ class TechnicalProfileBoundary(AgentBoundaryBase):
 
     boundary_source = "intelligence.evidence-accepted"
     source_event = "event.technical-evidence.accepted.v1"
-    requires_pbac = False
+    requires_rbac = False
     retry_delays_seconds = (30, 120, 600)
 
     def __init__(
         self,
         config,
-        pbac_client=None,
+        rbac_client=None,
         api_client: WorkerApiClient | None = None,
         profile_builder: TechnicalProfileBuilder | None = None,
         investigation_pipeline: EngineeringInvestigationPipeline | None = None,
     ) -> None:
         """Create the boundary and its deterministic/profile investigation dependencies."""
-        super().__init__(config, pbac_client)
+        super().__init__(config, rbac_client)
         self._api_client = api_client or WorkerApiClient(
             config.nestjs_api_base_url,
             config.worker_api_key,

@@ -122,7 +122,11 @@ function splitList(value) {
 }
 
 function compactUnique(values) {
-  return [...new Set(values.map((value) => String(value ?? "").trim()).filter(Boolean))];
+  return [
+    ...new Set(
+      values.map((value) => String(value ?? "").trim()).filter(Boolean),
+    ),
+  ];
 }
 
 function sortStoryRefs(storyRefs) {
@@ -159,13 +163,17 @@ function toGithubReferenceUrl(relativePath) {
   const absolutePath = path.join(ROOT, relativePath);
   const normalizedPath = relativePath.replace(/\\/g, "/");
   if (fs.existsSync(absolutePath) && fs.statSync(absolutePath).isFile()) {
-    return REPO_TREE_BASE.replace("/tree/", "/blob/").concat(`/${normalizedPath}`);
+    return REPO_TREE_BASE.replace("/tree/", "/blob/").concat(
+      `/${normalizedPath}`,
+    );
   }
   return `${REPO_TREE_BASE}/${normalizedPath}`;
 }
 
 function normalizeRepoFolderToken(token) {
-  const clean = String(token ?? "").trim().replace(/[`]/g, "");
+  const clean = String(token ?? "")
+    .trim()
+    .replace(/[`]/g, "");
   const mapped = {
     "apps/api": ["apps/api/src/modules"],
     "apps/web": ["apps/web/src"],
@@ -276,7 +284,14 @@ function preferredRepoFoldersForDomain(domain) {
     ],
   };
 
-  return compactUnique((folderMap[domain] ?? ["apps/api/src/modules", "packages/contracts/src/shared"]).filter(repoPathExists));
+  return compactUnique(
+    (
+      folderMap[domain] ?? [
+        "apps/api/src/modules",
+        "packages/contracts/src/shared",
+      ]
+    ).filter(repoPathExists),
+  );
 }
 
 function fallbackRepoFoldersForDomain(domain) {
@@ -298,14 +313,21 @@ function refineAuthContractReferencePaths(text, artifactPath) {
     ) ||
     slug.includes("typescript-contract-localization")
   ) {
-    references.push("packages/contracts/src/auth/index.ts", "packages/contracts/src/index.ts");
+    references.push(
+      "packages/contracts/src/auth/index.ts",
+      "packages/contracts/src/index.ts",
+    );
   }
 
   if (/(redact|redaction|secret|token|password|audit)/.test(lower)) {
     references.push("packages/contracts/src/auth/redact.ts");
   }
 
-  if (/(required action|contact owner|verify email|accept invite|wait and retry)/.test(lower)) {
+  if (
+    /(required action|contact owner|verify email|accept invite|wait and retry)/.test(
+      lower,
+    )
+  ) {
     references.push("packages/contracts/src/auth/actions.ts");
   }
 
@@ -371,15 +393,25 @@ function refineContractReferencePaths(paths, text, domain, artifactPath) {
     }
 
     if (pathValue === "packages/contracts/src/shared") {
-      const sharedRefs = refineSharedContractReferencePaths(text, artifactPath, domain);
+      const sharedRefs = refineSharedContractReferencePaths(
+        text,
+        artifactPath,
+        domain,
+      );
       refinedPaths.push(...(sharedRefs.length > 0 ? sharedRefs : [pathValue]));
       continue;
     }
 
     if (pathValue === "packages/contracts/src") {
       const rootRefs = compactUnique([
-        ...refineAuthContractReferencePaths(text, artifactPath).filter((item) => item.endsWith("/index.ts")),
-        ...refineSharedContractReferencePaths(text, artifactPath, domain).filter((item) => item === "packages/contracts/src/index.ts"),
+        ...refineAuthContractReferencePaths(text, artifactPath).filter((item) =>
+          item.endsWith("/index.ts"),
+        ),
+        ...refineSharedContractReferencePaths(
+          text,
+          artifactPath,
+          domain,
+        ).filter((item) => item === "packages/contracts/src/index.ts"),
       ]);
       refinedPaths.push(...(rootRefs.length > 0 ? rootRefs : [pathValue]));
       continue;
@@ -394,7 +426,12 @@ function refineContractReferencePaths(paths, text, domain, artifactPath) {
 function extractRepoReferencePaths(artifactPath, domain) {
   const preferredPaths = preferredRepoFoldersForDomain(domain);
   if (useStrictPreferredRepoReferences(domain) && preferredPaths.length > 0) {
-    return refineContractReferencePaths(preferredPaths, "", domain, artifactPath);
+    return refineContractReferencePaths(
+      preferredPaths,
+      "",
+      domain,
+      artifactPath,
+    );
   }
 
   if (!artifactPath) {
@@ -408,7 +445,9 @@ function extractRepoReferencePaths(artifactPath, domain) {
 
   const text = fs.readFileSync(absolutePath, "utf8");
   const runtimeLine = text.match(/^- Runtime ownership:\s*(.+)$/m)?.[1] ?? "";
-  const runtimeTokens = [...runtimeLine.matchAll(/`([^`]+)`/g)].map((match) => match[1]);
+  const runtimeTokens = [...runtimeLine.matchAll(/`([^`]+)`/g)].map(
+    (match) => match[1],
+  );
 
   let fileStructureSection = "";
   const fileStructureStart = text.indexOf("### File Structure Notes");
@@ -419,27 +458,35 @@ function extractRepoReferencePaths(artifactPath, domain) {
       nextSectionStart === -1 ? text.length : nextSectionStart,
     );
   }
-  const fileStructureTokens = [...fileStructureSection.matchAll(/`([^`]+)`/g)].map((match) => match[1]);
+  const fileStructureTokens = [
+    ...fileStructureSection.matchAll(/`([^`]+)`/g),
+  ].map((match) => match[1]);
 
   const paths = compactUnique(
-    [...runtimeTokens, ...fileStructureTokens].flatMap((token) => normalizeRepoFolderToken(token)),
+    [...runtimeTokens, ...fileStructureTokens].flatMap((token) =>
+      normalizeRepoFolderToken(token),
+    ),
   );
 
   if (preferredPaths.length > 0) {
     const narrowedPaths = compactUnique(
-      preferredPaths.filter(
-        (preferredPath) =>
-          paths.some(
-            (pathValue) =>
-              preferredPath === pathValue ||
-              preferredPath.startsWith(`${pathValue}/`) ||
-              pathValue.startsWith(`${preferredPath}/`),
-          ),
+      preferredPaths.filter((preferredPath) =>
+        paths.some(
+          (pathValue) =>
+            preferredPath === pathValue ||
+            preferredPath.startsWith(`${pathValue}/`) ||
+            pathValue.startsWith(`${preferredPath}/`),
+        ),
       ),
     );
 
     if (narrowedPaths.length > 0) {
-      return refineContractReferencePaths(narrowedPaths, text, domain, artifactPath);
+      return refineContractReferencePaths(
+        narrowedPaths,
+        text,
+        domain,
+        artifactPath,
+      );
     }
   }
 
@@ -447,7 +494,12 @@ function extractRepoReferencePaths(artifactPath, domain) {
     return refineContractReferencePaths(paths, text, domain, artifactPath);
   }
 
-  return refineContractReferencePaths(fallbackRepoFoldersForDomain(domain), text, domain, artifactPath);
+  return refineContractReferencePaths(
+    fallbackRepoFoldersForDomain(domain),
+    text,
+    domain,
+    artifactPath,
+  );
 }
 
 const epics = [
@@ -576,20 +628,6 @@ const legacyCapabilityTasks = [
     domain: "auth",
     targetWindow: "D6-D10",
     dependencies: ["E1-T1"],
-    externalDependencies: [],
-  },
-  {
-    code: "E1-T4",
-    epic: "E1",
-    summary: "Developer Invitation and Scoped Task Acceptance",
-    stories: ["1.5"],
-    owner: "A",
-    priority: "Medium",
-    points: 3,
-    runtime: "cross-runtime",
-    domain: "auth",
-    targetWindow: "D6-D10",
-    dependencies: ["E1-T3"],
     externalDependencies: [],
   },
   {
@@ -1028,7 +1066,10 @@ const legacyCapabilityTasks = [
     targetWindow: "D1-D5; D16-D20",
     dependencies: [],
     externalDependencies: ["Provider credentials", "Provider SDK access"],
-    extraReferences: ["TASK-025", "docs/implementation/llm-gateway-implementation.md"],
+    extraReferences: [
+      "TASK-025",
+      "docs/implementation/llm-gateway-implementation.md",
+    ],
   },
   {
     code: "E7-T4",
@@ -1153,7 +1194,9 @@ for (const row of storyRows) {
   }
 }
 
-const legacyTaskByCode = new Map(legacyCapabilityTasks.map((task) => [task.code, task]));
+const legacyTaskByCode = new Map(
+  legacyCapabilityTasks.map((task) => [task.code, task]),
+);
 const storyLegacyDefaults = new Map();
 for (const task of legacyCapabilityTasks) {
   for (const storyRef of task.stories) {
@@ -1172,13 +1215,17 @@ for (const task of legacyCapabilityTasks) {
 
 function storyTargetWindows(storyRefs) {
   return compactUnique(
-    storyRefs.flatMap((storyRef) => splitList(storyByRef.get(storyRef)?.["Target Window"])),
+    storyRefs.flatMap((storyRef) =>
+      splitList(storyByRef.get(storyRef)?.["Target Window"]),
+    ),
   );
 }
 
 function storyArtifactPaths(storyRefs) {
   return compactUnique(
-    storyRefs.map((storyRef) => storyByRef.get(storyRef)?.["Artifact Path"]).filter(Boolean),
+    storyRefs
+      .map((storyRef) => storyByRef.get(storyRef)?.["Artifact Path"])
+      .filter(Boolean),
   );
 }
 
@@ -1193,7 +1240,10 @@ function storyDependencies(storyRefs) {
     const depStoryRef =
       storyRefBySlug.get(depValue) ??
       depValue.match(/^(\d+\.\d+)/)?.[1] ??
-      depValue.match(/^(\d+)-(\d+)/)?.slice(1, 3).join(".");
+      depValue
+        .match(/^(\d+)-(\d+)/)
+        ?.slice(1, 3)
+        .join(".");
     if (depStoryRef) {
       deps.push(depStoryRef);
     }
@@ -1230,9 +1280,9 @@ function normalizeStoryDependency(value) {
       .filter(Boolean),
   );
 
-  return sortStoryRefs(
-    normalized.filter((item) => /^\d+\.\d+$/.test(item)),
-  ).concat(normalized.filter((item) => !/^\d+\.\d+$/.test(item))).join("; ");
+  return sortStoryRefs(normalized.filter((item) => /^\d+\.\d+$/.test(item)))
+    .concat(normalized.filter((item) => !/^\d+\.\d+$/.test(item)))
+    .join("; ");
 }
 
 function extractStoryChecklistTasks(artifactPath) {
@@ -1255,7 +1305,10 @@ function extractStoryChecklistTasks(artifactPath) {
 
   const sectionStart = startIndex + startMarker.length;
   const endIndex = text.indexOf(endMarker, sectionStart);
-  const section = text.slice(sectionStart, endIndex === -1 ? text.length : endIndex);
+  const section = text.slice(
+    sectionStart,
+    endIndex === -1 ? text.length : endIndex,
+  );
 
   const rawLines = section.split("\n");
   const normalizeChecklistLine = (line) =>
@@ -1336,7 +1389,10 @@ for (const row of storyRows) {
   const legacyDefaults = storyLegacyDefaults.get(storyRef);
   const targetWindow = String(row["Target Window"] || "").trim();
   const schedule = deriveSchedule(targetWindow);
-  const repoReferenceUrls = extractRepoReferencePaths(row["Artifact Path"], row.Domain).map(toGithubReferenceUrl);
+  const repoReferenceUrls = extractRepoReferencePaths(
+    row["Artifact Path"],
+    row.Domain,
+  ).map(toGithubReferenceUrl);
   storyRepoReferenceUrls.set(storyRef, repoReferenceUrls);
 
   storyImportRows.push({
@@ -1367,12 +1423,18 @@ for (const row of storyRows) {
 
   const checklistTasks = extractStoryChecklistTasks(row["Artifact Path"]);
   const featureTexts =
-    checklistTasks.length > 0 ? checklistTasks : [fallbackStoryTaskText(row, storyRef)];
+    checklistTasks.length > 0
+      ? checklistTasks
+      : [fallbackStoryTaskText(row, storyRef)];
   const taskRowsForStory = [];
 
   for (const [index, featureText] of featureTexts.entries()) {
     const code = storyTaskCode(epicCode, storyRef, index);
-    const points = estimateFeaturePoints(featureText, index, featureTexts.length);
+    const points = estimateFeaturePoints(
+      featureText,
+      index,
+      featureTexts.length,
+    );
     const summary = featureText;
     const dependencies = [];
     const references = repoReferenceUrls;
@@ -1385,12 +1447,18 @@ for (const row of storyRows) {
       owner: row["Owner Hint"] || legacyDefaults?.owner || "",
       priority: row.Priority || legacyDefaults?.priority || "Medium",
       points,
-      runtime: row.Runtime || legacyDefaults?.runtime || epic?.domain || "cross-runtime",
+      runtime:
+        row.Runtime ||
+        legacyDefaults?.runtime ||
+        epic?.domain ||
+        "cross-runtime",
       domain: row.Domain || legacyDefaults?.domain || epic?.domain || "",
       targetWindow,
       dependencies,
       externalDependencies:
-        index === 0 ? compactUnique(legacyDefaults?.externalDependencies ?? []) : [],
+        index === 0
+          ? compactUnique(legacyDefaults?.externalDependencies ?? [])
+          : [],
       references,
       artifactPath: row["Artifact Path"],
       storySummary: row.Summary,
@@ -1402,12 +1470,17 @@ for (const row of storyRows) {
   }
 
   featureTasksByStory.set(storyRef, taskRowsForStory);
-  storyLastFeatureCode.set(storyRef, taskRowsForStory[taskRowsForStory.length - 1]?.code ?? "");
+  storyLastFeatureCode.set(
+    storyRef,
+    taskRowsForStory[taskRowsForStory.length - 1]?.code ?? "",
+  );
 }
 
 for (const [storyRef, tasks] of featureTasksByStory.entries()) {
   const storyRow = storyByRef.get(storyRef);
-  const upstreamStoryRefs = splitList(normalizeStoryDependency(storyRow?.Dependency ?? ""))
+  const upstreamStoryRefs = splitList(
+    normalizeStoryDependency(storyRow?.Dependency ?? ""),
+  )
     .map((value) => {
       const exact = value.match(/^(\d+\.\d+)$/)?.[1];
       if (exact) {
@@ -1421,7 +1494,9 @@ for (const [storyRef, tasks] of featureTasksByStory.entries()) {
     })
     .filter(Boolean);
   const upstreamTaskCodes = compactUnique(
-    upstreamStoryRefs.map((value) => storyLastFeatureCode.get(value)).filter(Boolean),
+    upstreamStoryRefs
+      .map((value) => storyLastFeatureCode.get(value))
+      .filter(Boolean),
   );
 
   for (const [index, task] of tasks.entries()) {
@@ -1462,7 +1537,9 @@ for (const task of featureTasks) {
   const storyRefs = [task.storyRef];
   const references = compactUnique(task.references);
   const dependencyCodes = compactUnique(task.dependencies ?? []);
-  const targetWindow = task.targetWindow || String(storyByRef.get(task.storyRef)?.["Target Window"] || "");
+  const targetWindow =
+    task.targetWindow ||
+    String(storyByRef.get(task.storyRef)?.["Target Window"] || "");
   const schedule = deriveSchedule(targetWindow);
   const labels = compactUnique([
     "task",
@@ -1491,7 +1568,9 @@ for (const task of featureTasks) {
     Reference: references.join("; "),
     "Artifact Path": task.artifactPath,
     Dependency: dependencyCodes.join("; "),
-    "External Dependency": compactUnique(task.externalDependencies ?? []).join("; "),
+    "External Dependency": compactUnique(task.externalDependencies ?? []).join(
+      "; ",
+    ),
     "Start date": schedule.startDate,
     "Due date": schedule.dueDate,
     "Target Window": targetWindow,
@@ -1555,7 +1634,11 @@ const workItemHeader = [
   "Block Reason",
 ];
 
-writeCsv(path.join(DEV_DIR, "jira-lcsp-epics-import.csv"), epicHeader, epicRows);
+writeCsv(
+  path.join(DEV_DIR, "jira-lcsp-epics-import.csv"),
+  epicHeader,
+  epicRows,
+);
 writeCsv(
   path.join(DEV_DIR, "jira-lcsp-stories-import.csv"),
   [...workItemHeader, "Story Ref"],
@@ -1586,7 +1669,10 @@ writeCsv(
 
 const ownerTotals = new Map();
 for (const task of featureTasks) {
-  ownerTotals.set(task.owner, (ownerTotals.get(task.owner) ?? 0) + Number(task.points));
+  ownerTotals.set(
+    task.owner,
+    (ownerTotals.get(task.owner) ?? 0) + Number(task.points),
+  );
 }
 
 const lines = [];
@@ -1597,8 +1683,12 @@ lines.push("");
 lines.push("## Operating Model");
 lines.push("");
 lines.push("- `Epic` = business module.");
-lines.push("- `Story` = acceptance and traceability anchor linked to an implementation artifact.");
-lines.push("- `Task` = smallest shippable feature slice under one story, assigned directly to a dev owner.");
+lines.push(
+  "- `Story` = acceptance and traceability anchor linked to an implementation artifact.",
+);
+lines.push(
+  "- `Task` = smallest shippable feature slice under one story, assigned directly to a dev owner.",
+);
 lines.push("- `Sub-task` = removed from this operating model.");
 lines.push("");
 lines.push("## Summary");
@@ -1608,7 +1698,9 @@ lines.push("|---|---:|---|---:|---|");
 
 for (const epic of epics) {
   const epicTasks = featureTasks.filter((task) => task.epic === epic.code);
-  const storyRefs = sortStoryRefs(compactUnique(epicTasks.map((task) => task.storyRef)));
+  const storyRefs = sortStoryRefs(
+    compactUnique(epicTasks.map((task) => task.storyRef)),
+  );
   const owners = compactUnique(epicTasks.map((task) => task.owner));
   const points = epicTasks.reduce((sum, task) => sum + Number(task.points), 0);
   lines.push(
@@ -1634,9 +1726,9 @@ for (const epic of epics) {
   lines.push(`## ${epic.name}`);
   lines.push("");
   lines.push(
-    `Stories: \`${sortStoryRefs(compactUnique(epicTasks.map((task) => task.storyRef))).join(
-      "`, `",
-    )}\``,
+    `Stories: \`${sortStoryRefs(
+      compactUnique(epicTasks.map((task) => task.storyRef)),
+    ).join("`, `")}\``,
   );
   lines.push("");
   lines.push("| Task | Pts | Owner | Story | Dependency | Window |");
@@ -1652,9 +1744,13 @@ lines.push("");
 lines.push("## Practical Jira Rule");
 lines.push("");
 lines.push("- Import `Epic` first, then `Story`, then `Task`.");
-lines.push("- Fill `Epic Link` in story/task CSV after Jira returns new epic issue keys.");
+lines.push(
+  "- Fill `Epic Link` in story/task CSV after Jira returns new epic issue keys.",
+);
 lines.push("- Use `Task` as the only dev-assigned implementation item.");
-lines.push("- Keep `Story` open until all mapped `Task` items are done and acceptance passes.");
+lines.push(
+  "- Keep `Story` open until all mapped `Task` items are done and acceptance passes.",
+);
 lines.push("- Do not create `Sub-task` items in the new project.");
 
 fs.writeFileSync(

@@ -119,7 +119,7 @@ As a Manager, I want to generate a Wizard Readiness Export before technical evid
 ### File Structure Notes
 
 - `apps/web` cho assessment dashboard, wizard screens, readiness-only status và export entry points.
-- `apps/api` cho assessment/wizard DTOs, state guards, PBAC checks và audit emission.
+- `apps/api` cho assessment/wizard DTOs, state guards, RBAC checks và audit emission.
 - `packages/*` cho section schema, validation contract và export/read-model types.
 
 ### Implementation Guidance for the Dev Agent
@@ -174,7 +174,7 @@ GPT-5 Codex
 - Source packet: `docs/developer/story-handbook/2-4-wizard-readiness-export.md`.
 - Canonical title/source alignment: `docs/planning-artifacts/epics.md`.
 - Captured baseline commit `a56969fdf6ea7616b8f12fcad37d32659549e15f` before implementation.
-- Added failing e2e coverage for readiness export generation, blocked preconditions, PBAC denial, and immutable versioning before implementation.
+- Added failing e2e coverage for readiness export generation, blocked preconditions, RBAC denial, and immutable versioning before implementation.
 - Validation passed: focused guardrail unit, focused readiness export e2e, full API unit, full API e2e, root lint/typecheck contract checks, web tests, API build, and `git diff --check`.
 - PDF follow-up validation: `git diff --check` and contract value-set scan passed; automated test/typecheck could not run because `pnpm` attempted to recreate `node_modules` and registry access was unavailable in the sandbox.
 - Completion re-audit on 2026-08-05 found and closed the missing Manager-facing web entry point, authenticated BFF PDF proxy, canonical export metadata, safe blocked-response contract, and misleading unlocked-readiness copy.
@@ -189,10 +189,10 @@ GPT-5 Codex
 - Converted planning-derived developer packet into official execution artifact for dev cycle.
 - Status set to `ready-for-dev` in `docs/implementation-artifacts/sprint-status.yaml`.
 - Story retains planning authority references and scope guardrails for downstream `dev-story` work.
-- Implemented `POST /assessments/:assessmentId/wizard/readiness-export` with Manager PBAC, ownership/org checks, submitted-wizard gate, and missing-technical-evidence lock gate.
+- Implemented `POST /assessments/:assessmentId/wizard/readiness-export` with Manager RBAC, ownership/org checks, submitted-wizard gate, and missing-technical-evidence lock gate.
 - Added readiness-only export contracts, guardrail service, append-only persistence, versioning, and safe audit events for generated/blocked export outcomes.
 - Export content now carries readiness-only labels, missing evidence checklist, unresolved unknown items, preparation guidance, version, timestamp, owner, assessment ID, and wizard profile version without final risk/classification/legal conclusion wording.
-- Updated PBAC/action and wizard event contracts so Manager policy and existing auth/readiness tests include the new export action and event types.
+- Updated RBAC/action and wizard event contracts so Manager policy and existing auth/readiness tests include the new export action and event types.
 - Added versioned PDF download metadata and a protected download endpoint that renders the persisted readiness snapshot as `application/pdf` without adding a runtime dependency.
 - Refined the dependency-free PDF into an institutional readiness brief with a clear metadata grid, printable section cards, page continuation, and readiness-only guardrail copy.
 - Added a Docker-backed demo command that exercises real sign-in, generation, binary download, and PDF-content validation before writing `output/readiness-export-demo.pdf`.
@@ -246,8 +246,8 @@ GPT-5 Codex
 - apps/web/tests/readiness-client.test.ts
 - docs/implementation-artifacts/2-4-wizard-readiness-export.md
 - docs/implementation-artifacts/sprint-status.yaml
-- packages/contracts/src/pbac/actions.ts
-- packages/contracts/src/pbac/manager-policy.ts
+- packages/contracts/src/rbac/actions.ts
+- packages/contracts/src/rbac/manager-policy.ts
 - packages/contracts/src/wizard/events.ts
 - packages/i18n/src/locales/en/pages.ts
 - packages/i18n/src/locales/vi/pages.ts
@@ -256,7 +256,7 @@ GPT-5 Codex
 
 ### Change Log
 
-- 2026-07-26: Implemented Wizard Readiness Export API slice with readiness-only contracts, guardrails, persistence, audit events, PBAC wiring, and focused/full validation coverage.
+- 2026-07-26: Implemented Wizard Readiness Export API slice with readiness-only contracts, guardrails, persistence, audit events, RBAC wiring, and focused/full validation coverage.
 - 2026-08-04: Added immutable Wizard Readiness Export PDF download generation and e2e coverage.
 - 2026-08-05: Closed Story 2.4 browser-flow and guardrail completion gaps; added BFF generation/download routes, readiness-page PDF action, canonical metadata, safe blocked responses, and expanded validation.
 - 2026-08-05: Refined the generated PDF into an institutional readiness brief and added a real API-to-PDF demo command with focused content checks.
