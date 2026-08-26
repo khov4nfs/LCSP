@@ -1,3 +1,4 @@
+# one-off migration trigger v2
 name: Remap PR milestones once
 
 on:
