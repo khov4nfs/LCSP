@@ -1,0 +1,147 @@
+name: Remap PR milestones once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/remap-pr-milestones-once.yml
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  remap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remap every pull request to delivery milestone
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const expected = {
+              foundation: ['Foundation & Assessment Baseline', 6],
+              evidence: ['Evidence & Legal Baseline', 7],
+              architecture: ['Architecture Stabilization & Repository Integration', 8],
+              workflow: ['End-to-End Compliance Workflow', 9],
+              reassessment: ['Reassessment & Automated Updates', 10],
+              release: ['Capstone Release Candidate', 11],
+              agentic: ['Agentic Compliance Runtime', 12],
+            };
+
+            const milestones = await github.paginate(github.rest.issues.listMilestones, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100,
+            });
+
+            const milestoneByTitle = new Map(milestones.map(m => [m.title, m.number]));
+            for (const [key, [title, expectedNumber]] of Object.entries(expected)) {
+              const actual = milestoneByTitle.get(title);
+              if (actual !== expectedNumber) {
+                core.setFailed(`Milestone mismatch for ${key}: expected ${title}=#${expectedNumber}, got #${actual ?? 'missing'}`);
+                return;
+              }
+            }
+
+            const pulls = await github.paginate(github.rest.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              sort: 'created',
+              direction: 'asc',
+              per_page: 100,
+            });
+
+            const keySet = (text) => new Set(
+              [...text.matchAll(/LCSP-(\d+)/gi)].map(m => Number(m[1]))
+            );
+            const hasAnyKey = (keys, candidates) => candidates.some(k => keys.has(k));
+            const hasAny = (text, terms) => terms.some(t => text.includes(t));
+
+            function chooseMilestone(pr) {
+              const text = `${pr.title || ''}\n${pr.body || ''}\n${pr.head?.ref || ''}`.toLowerCase();
+              const keys = keySet(text);
+
+              // Current architecture/repository stabilization work gets an explicit override.
+              if (hasAnyKey(keys, [232, 236, 240, 245, 246]) || hasAny(text, [
+                'architecture stabilization', 'repository provider adapter', 'github cli repository access',
+                'replace policy by role access', 'user.role rbac', 'program evidence graph ui',
+                'multi repo with technical declaration'
+              ])) return expected.architecture[1];
+
+              // Reassessment and automated legal/rule refresh are separate from initial legal baseline.
+              if (hasAnyKey(keys, [187, 188, 189, 190, 231]) || hasAny(text, [
+                'reassessment', 're-assessment', 'reanalysis', 're-analysis', 'source version comparison',
+                'source version reassessment', 'incremental context update', 'incremental legal',
+                'legal detect change', 'legal change detection', 'scheduled legal', 'scheduled corpus',
+                'cronjob legal', 'corpus change detection'
+              ])) return expected.reassessment[1];
+
+              // Controlled agent runtime / EngineeringRule investigation.
+              if (hasAnyKey(keys, [157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 241, 244]) || hasAny(text, [
+                'deep agent', 'deep-agent', 'agentic evidence', 'agentic:', 'agentic)', 'managed runtime',
+                'engineeringrule', 'engineering rule', 'investigation planner', 'controlled investigation',
+                'llm investigation', 'native tools', 'planner scope', 'langgraph', 'tool packet',
+                'evidence tool', 'agent orchestration'
+              ])) return expected.agentic[1];
+
+              // User-visible compliance workflow after evidence/legal baselines.
+              if (hasAny(text, [
+                'gap analysis', 'final report', 'compliance report', 'classification result',
+                'classification worker', 'classification status', 'risk classification',
+                'conflict resolution', 'conflict detection', 'list conflicts', 'resolve conflict',
+                'reconciliation', 'verified profile', 'human review', 'independent review',
+                'audit export', 'assessment audit trail', 'redacted audit trail'
+              ])) return expected.workflow[1];
+
+              // Source analysis, technical evidence, Program Evidence Graph and initial legal baseline.
+              if (hasAny(text, [
+                'scanner', 'scan job', 'scan trigger', 'technical evidence', 'evidence report',
+                'evidence graph', 'program evidence graph', 'legal corpus', 'legal source',
+                'legal rule', 'legal matching', 'legal-rule', 'sbom', 'syft', 'semgrep',
+                'ast/cst', 'python ast', 'ts-morph', 'tree-sitter', 'tree sitter', 'chromadb',
+                'citation retrieval', 'citation allowlist', 'technical profile', 'ai usage flow',
+                'dependency usage analysis', 'manifest and config parser', 'signal fusion'
+              ])) return expected.evidence[1];
+
+              // Release engineering and formal Capstone packaging.
+              if (hasAny(text, [
+                'capstone', 'release candidate', 'release engineering', 'deployment', 'deploy ',
+                'docker', 'github actions', 'workflow', 'ci:', 'fix(ci)', 'chore(ci)',
+                'branch naming', 'branch guard', 'commit message guard', 'husky',
+                'landing page', 'report 1', 'report 2', 'report 3', 'report1_', 'report2_', 'report3_'
+              ])) return expected.release[1];
+
+              // Remaining auth/session/RBAC foundations, assessment/wizard, repository baseline,
+              // shared platform plumbing and early product/UX baseline belong to Foundation.
+              return expected.foundation[1];
+            }
+
+            const counts = new Map();
+            const changed = [];
+            for (const pr of pulls) {
+              const milestone = chooseMilestone(pr);
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                milestone,
+              });
+              counts.set(milestone, (counts.get(milestone) || 0) + 1);
+              changed.push(`#${pr.number}->${milestone}`);
+            }
+
+            core.info(`Updated ${pulls.length} pull requests.`);
+            for (const [name, [title, number]] of Object.entries(expected)) {
+              core.info(`${title} (#${number}): ${counts.get(number) || 0} PRs`);
+            }
+            core.summary
+              .addHeading('LCSP PR milestone remap')
+              .addTable([
+                [{data:'Milestone',header:true},{data:'Number',header:true},{data:'PRs',header:true}],
+                ...Object.values(expected).map(([title, number]) => [title, String(number), String(counts.get(number) || 0)])
+              ])
+              .addRaw(`\nTotal PRs updated: ${pulls.length}\n`)
+              .write();
