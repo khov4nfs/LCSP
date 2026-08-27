@@ -1,0 +1,43 @@
+name: Main Flow Gate
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  main-flow-gate:
+    name: Main Flow Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate pull request source
+        shell: bash
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          echo "Target branch: main"
+          echo "Source branch: ${HEAD_REF}"
+          echo "Source repository: ${HEAD_REPO}"
+
+          if [[ "${HEAD_REPO}" != "${BASE_REPO}" ]]; then
+            echo "::error::Pull requests into main must originate from the LCSP repository."
+            exit 1
+          fi
+
+          case "${HEAD_REF}" in
+            develop|release/*|hotfix/*)
+              echo "Allowed main flow source: ${HEAD_REF}"
+              ;;
+            *)
+              echo "::error::Invalid source branch '${HEAD_REF}'. Pull requests into main are allowed only from develop, release/*, or hotfix/*."
+              exit 1
+              ;;
+          esac
