@@ -11,15 +11,15 @@ from tools.legal.retrieval.index.legal_retrieval_index_builder import (
 )
 
 
-def test_default_legal_chroma_path_uses_project_root_chorma(
+def test_default_legal_chroma_path_uses_project_root_chroma(
     monkeypatch, tmp_path: Path
 ):
     monkeypatch.delenv("LEGAL_CHROMA_PATH", raising=False)
     monkeypatch.setattr(chroma_path, "get_repo_root", lambda: str(tmp_path))
 
-    assert chroma_path.default_legal_chroma_path() == tmp_path / ".chorma"
-    assert ChromaDbCitationRetriever()._chroma_path == str(tmp_path / ".chorma")
-    assert EngineeringRuleCache()._chroma_path == str(tmp_path / ".chorma")
+    assert chroma_path.default_legal_chroma_path() == tmp_path / ".chroma"
+    assert ChromaDbCitationRetriever()._chroma_path == str(tmp_path / ".chroma")
+    assert EngineeringRuleCache()._chroma_path == str(tmp_path / ".chroma")
 
     builder = LegalRetrievalIndexBuilder(
         storage_root=tmp_path / "storage",
@@ -28,7 +28,7 @@ def test_default_legal_chroma_path_uses_project_root_chorma(
     )
 
     assert isinstance(builder._index_store, ChromaLegalIndexStore)
-    assert builder._index_store._chroma_path == tmp_path / ".chorma"
+    assert builder._index_store._chroma_path == tmp_path / ".chroma"
 
 
 def test_legal_chroma_path_env_override_remains_repo_relative(monkeypatch, tmp_path: Path):

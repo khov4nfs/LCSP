@@ -15,6 +15,7 @@ import {
 } from "@lcsp/contracts/audit";
 import {
   LEGAL_MATCHING_REQUEST_COMMAND,
+  LEGAL_CORPUS_TRUST_POLICIES,
   LEGAL_RULE_EVENT_TYPES,
   LEGAL_RULE_ERROR_CODES,
   LEGAL_RULE_LIFECYCLE_STATUSES,
@@ -1020,7 +1021,23 @@ export class LegalCorpusService {
       );
     };
 
-    if (!isRecord(sourceManifest) || sourceManifest.reviewRequired !== true) {
+    if (!isRecord(sourceManifest)) {
+      return invalid("legal_operator_signoff_required");
+    }
+    if (
+      sourceManifest.reviewRequired === false &&
+      sourceManifest.trustPolicy ===
+        LEGAL_CORPUS_TRUST_POLICIES.officialSourceAutoTrusted
+    ) {
+      return {
+        state: "APPROVED",
+        reviewedBy: LEGAL_CORPUS_TRUST_POLICIES.officialSourceAutoTrusted,
+        identityPolicy: null,
+        approvalActorMayDiffer: false,
+        documents: [],
+      };
+    }
+    if (sourceManifest.reviewRequired !== true) {
       return invalid("legal_operator_signoff_required");
     }
     const warnings = sourceManifest.normalizationWarnings;

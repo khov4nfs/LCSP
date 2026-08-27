@@ -1,7 +1,7 @@
 """Bounded implementation for the legal-catalog maintenance tool.
 
-Only approved source manifests are discovered from the corpus store.  Agent
-input cannot add source URLs or bypass the governed recovery pipeline.
+Existing official-source crawl metadata is used only to derive bounded refresh
+requests. Recovery itself always rebuilds through sourceCrawlRequests.
 """
 
 from __future__ import annotations
@@ -15,10 +15,13 @@ from typing import Any
 from uuid import uuid4
 
 from tools.common.capabilities.platform.api_client import WorkerApiClient
+from tools.common.capabilities.platform.config import default_legal_source_storage_root
 from tools.legal.corpus.partial_update.partial_update_context_builder import (
     build_partial_update_context,
 )
-from tools.legal.sources.recovery.legal_corpus_recovery_driver import LegalCorpusRecoveryDriver
+from tools.legal.sources.recovery.legal_corpus_recovery_driver import (
+    LegalCorpusRecoveryDriver,
+)
 from tools.legal.sources.scripts.crawl_vbpl_document import VbplDocumentCrawler
 
 
@@ -27,14 +30,19 @@ class MaintainLegalCatalogService:
 
     def __init__(self, *, api_client: WorkerApiClient | None = None) -> None:
         self.storage_root = Path(
-            os.getenv("LEGAL_SOURCE_STORAGE_ROOT", ".corpus")
+            os.getenv("LEGAL_SOURCE_STORAGE_ROOT", default_legal_source_storage_root())
         ).resolve()
         self.api_client = api_client or WorkerApiClient(
             os.environ["NESTJS_API_BASE_URL"],
             os.environ["WORKER_API_KEY"],
         )
 
-    def run(self, *, max_runs: int = 500, correlation_id: str | None = None) -> dict[str, Any]:
+    def run(
+        self,
+        *,
+        max_runs: int = 500,
+        correlation_id: str | None = None,
+    ) -> dict[str, Any]:
         """Crawl approved manifests and recover only changed documents."""
         manifests = sorted(
             path
@@ -53,16 +61,26 @@ class MaintainLegalCatalogService:
         changed_documents: list[str] = []
         affected_rule_ids: list[str] = []
         partial_contexts: list[dict[str, Any]] = []
+        source_crawl_requests: list[dict[str, Any]] = []
         limitations: list[str] = []
 
         for manifest_path in manifests:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             document_id = str(manifest.get("documentId") or "").strip()
+            catalog_source_ref = str(manifest.get("catalogSourceRef") or "").strip()
             source_url = str(manifest.get("sourceUrl") or "").strip()
             gateway_id = str(manifest.get("gatewayDocumentId") or "").strip()
             html_file = str(manifest.get("htmlFile") or "").strip()
-            if not document_id or not source_url or not gateway_id or not html_file:
-                limitations.append(f"UNSUPPORTED_OR_INCOMPLETE_SOURCE:{manifest_path.name}")
+            if (
+                not document_id
+                or not catalog_source_ref
+                or not source_url
+                or not gateway_id
+                or not html_file
+            ):
+                limitations.append(
+                    f"UNSUPPORTED_OR_INCOMPLETE_SOURCE:{manifest_path.name}"
+                )
                 continue
 
             old_html_path = manifest_path.parent / html_file
@@ -79,7 +97,9 @@ class MaintainLegalCatalogService:
                     source_url=source_url,
                     output_dir=temp_dir,
                 )
-                refreshed = json.loads(refreshed_manifest_path.read_text(encoding="utf-8"))
+                refreshed = json.loads(
+                    refreshed_manifest_path.read_text(encoding="utf-8")
+                )
                 if refreshed.get("htmlSha256") == manifest.get("htmlSha256"):
                     continue
 
@@ -104,6 +124,16 @@ class MaintainLegalCatalogService:
                 payload = context.to_dict()
                 partial_contexts.append(payload)
                 changed_documents.append(document_id)
+                source_crawl_requests.append(
+                    {
+                        "documentId": document_id,
+                        "catalogSourceRef": catalog_source_ref,
+                        "sourceUrl": source_url,
+                        "gatewayDocumentId": gateway_id,
+                        "sourceEffectStatus": manifest.get("sourceEffectStatus"),
+                        "expectedDocumentNumber": manifest.get("documentNumber"),
+                    }
+                )
                 affected_rule_ids.extend(
                     str(value)
                     for value in (payload.get("affectedRuleIds") or [])
@@ -126,6 +156,7 @@ class MaintainLegalCatalogService:
                 "idempotencyKey": idempotency_key,
                 "storageRoot": str(self.storage_root),
                 "maxRuns": max(0, min(int(max_runs), 500)),
+                "sourceCrawlRequests": source_crawl_requests,
             },
             correlation_id or idempotency_key,
         )

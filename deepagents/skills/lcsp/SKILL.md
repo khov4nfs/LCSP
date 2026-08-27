@@ -20,6 +20,14 @@ bounded, schema-compatible outputs.
 - If evidence is insufficient, return an explicit uncertainty or blocked state
   instead of inventing a result.
 
+## Specialized Skills
+
+- For approved LegalRule chunk classification and Candidate-to-EngineeringRule
+  preparation, use the `legal-rule-triage` skill. It owns the reasoning boundary
+  between legal context and reusable technical investigation rules.
+- Keep LegalRule triage independent from any customer Assessment. Assessment
+  agents consume already-prepared EngineeringRules and must not create replacements.
+
 ## Retrieval Strategy
 
 - Prefer LCSP retrieval tools over memorized legal knowledge.

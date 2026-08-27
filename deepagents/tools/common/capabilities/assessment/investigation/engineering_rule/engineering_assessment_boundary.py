@@ -95,6 +95,7 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
                 correlation_id=correlationId,
                 wizard_context=wizard_context,
                 workspace_path=workspace_path,
+                recovery_source_crawl_requests=self._source_crawl_requests(message),
             )
         finally:
             if workspace_path is not None:
@@ -151,6 +152,18 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
             observability=result_data.get("observability") or {},
             correlationId=correlationId,
         )
+
+    @staticmethod
+    def _source_crawl_requests(message: dict[str, Any]) -> list[dict[str, Any]] | None:
+        """Forward bounded legal-source crawl requests to corpus recovery."""
+        value = message.get("sourceCrawlRequests", message.get("source_crawl_requests"))
+        if value is None:
+            return None
+        if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
+            raise NonRetryableAgentBoundaryError(
+                "sourceCrawlRequests must be a list of objects"
+            )
+        return value
 
     def _materialize_code_workspace(
         self,

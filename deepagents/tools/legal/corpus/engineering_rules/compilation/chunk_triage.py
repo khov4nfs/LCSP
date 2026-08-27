@@ -9,6 +9,7 @@ from langchain.agents import create_agent
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from model_policy import TRIAGE_MODEL_SPEC
+from tools.common.capabilities.managed.skill_loader import load_project_skill
 from tools.legal.retrieval.legal_basis.normative_chunk_filter import (
     CHUNK_NORMATIVE_CLASSES,
     is_engineering_rule_source_chunk,
@@ -20,7 +21,8 @@ CHUNK_TRIAGE_VERDICTS = {
     "context_only": "CONTEXT_ONLY",
     "reject": "REJECT",
 }
-TRIAGE_PROMPT_VERSION = "legal-chunk-triage/v1"
+TRIAGE_SKILL_NAME = "legal-rule-triage"
+TRIAGE_PROMPT_VERSION = "legal-chunk-triage/v2"
 
 
 @dataclass(frozen=True)
@@ -55,11 +57,15 @@ class LegalChunkEngineeringRuleTriage:
                 if chunk.get("id")
             )
         )
+        triage_skill = load_project_skill(TRIAGE_SKILL_NAME)
         agent = create_agent(
             model=self._model,
             system_prompt=(
-                "Classify approved legal chunks only. Do not make legal conclusions "
-                "or invent repository evidence."
+                "Classify approved legal chunks only. Do not make legal applicability, "
+                "compliance, or customer-specific conclusions and do not invent repository "
+                "evidence. Follow the checked-in legal-rule-triage skill below as the "
+                "reasoning policy for classification and candidate handoff.\n\n"
+                f"{triage_skill}"
             ),
             response_format=_triage_response_schema(chunk_ids),
             middleware=MODEL_GOVERNANCE_MIDDLEWARE,
@@ -72,6 +78,8 @@ class LegalChunkEngineeringRuleTriage:
                     "workflow_run_id": workflow_run_id,
                     "node_name": "triage_legal_chunks_for_engineering_rules",
                     "correlationId": correlation_id,
+                    "skill": TRIAGE_SKILL_NAME,
+                    "promptVersion": TRIAGE_PROMPT_VERSION,
                 },
                 "configurable": {"thread_id": workflow_run_id},
             },
@@ -106,11 +114,17 @@ class LegalChunkEngineeringRuleTriage:
             )
             engineering_obligation = str(raw.get("engineeringObligation") or "").strip()
             reason = str(raw.get("reason") or "").strip()
+            if not reason:
+                raise ValueError("legal chunk triage decision must include grounded reason")
             if verdict == CHUNK_TRIAGE_VERDICTS["engineering_rule_candidate"]:
                 if not engineering_obligation or not verification_targets:
                     raise ValueError(
                         "engineering-rule candidate chunk must include obligation and verification targets"
                     )
+            elif engineering_obligation or verification_targets:
+                raise ValueError(
+                    "non-candidate legal chunk must not include engineering obligation or verification targets"
+                )
             decisions[chunk_id] = LegalChunkTriageDecision(
                 chunk_id=chunk_id,
                 verdict=verdict,
@@ -146,6 +160,7 @@ class LegalChunkEngineeringRuleTriage:
                 {
                     **chunk,
                     "engineeringRuleTriage": {
+                        "skill": TRIAGE_SKILL_NAME,
                         "promptVersion": TRIAGE_PROMPT_VERSION,
                         "verdict": decision.verdict,
                         "reason": decision.reason,
@@ -163,6 +178,12 @@ class LegalChunkEngineeringRuleTriage:
                 "Analyze each approved legal chunk and decide whether it is a direct "
                 "source for EngineeringRule compilation."
             ),
+            "decisionOrder": [
+                "Identify the actor, modality, required/prohibited action, trigger/timing, and object actually stated by the chunk.",
+                "Apply the concreteness test: the chunk must imply bounded observable technical or operational evidence without using Assessment-specific facts.",
+                "Classify only after separating operative obligation from definition, scope, principle, background, and document structure.",
+                "For a Candidate, preserve legal strength and timing in one engineering obligation and name concrete evidence surfaces as verification targets.",
+            ],
             "guardrails": [
                 "Return one analysis for every chunkId.",
                 "ENGINEERING_RULE_CANDIDATE only when the chunk imposes an operational or technical obligation that can be verified from repository evidence.",
@@ -173,6 +194,8 @@ class LegalChunkEngineeringRuleTriage:
                 "Treat deterministicNormativeClass as a lower-bound gate: if it is CONTEXT_ONLY or EXCLUDE_FROM_DATABASE, do not promote the chunk to ENGINEERING_RULE_CANDIDATE.",
                 "Prefer clause/point chunks over broad article chunks. Article-level chunks should be candidates only when the whole article itself is a concrete technical obligation.",
                 "Definitions can supply vocabulary for later rules, but must not become EngineeringRules by themselves.",
+                "Do not use customer source code, repository evidence, Assessment business context, or prior compliance outcomes to make the triage decision.",
+                "If the supplied legal text is too ambiguous for a reliable final classification, do not manufacture a Candidate; preserve the limitation in the grounded reason so the governed workflow can route it for review.",
             ],
             "legalRule": legal_rule,
             "chunks": [
@@ -209,7 +232,7 @@ class LegalChunkEngineeringRuleTriage:
                     {
                         "chunkId": "exact chunk id",
                         "verdict": list(CHUNK_TRIAGE_VERDICTS.values()),
-                        "reason": "short reason",
+                        "reason": "short grounded reason",
                         "engineeringObligation": "empty unless candidate",
                         "verificationTargets": ["empty unless candidate"],
                     }
@@ -257,6 +280,7 @@ def _triage_response_schema(chunk_ids: tuple[str, ...]) -> dict[str, Any]:
                         },
                         "reason": {
                             "type": "string",
+                            "minLength": 1,
                             "description": "Short grounded reason for the verdict.",
                         },
                         "engineeringObligation": {

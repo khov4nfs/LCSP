@@ -720,6 +720,131 @@ def test_planned_pipeline_waits_when_catalog_has_no_source_rules_after_recovery(
     investigator.investigate.assert_not_called()
 
 
+def test_planned_pipeline_recovers_missing_active_catalog_from_active_corpus() -> None:
+    recovery_driver = MagicMock()
+    recovery_driver.run.return_value = {
+        "status": "READY",
+        "corpusVersionId": "corpus-v1",
+        "legalRuleCatalogVersionId": "catalog-v1",
+        "legalRuleOnly": True,
+    }
+    pipeline = PlannedEngineeringInvestigationPipeline(
+        api_client=MagicMock(),
+        model="test:model",
+        retriever=MagicMock(),
+        rule_service=MagicMock(),
+        query_executor=MagicMock(),
+        investigator=MagicMock(),
+        evaluator=MagicMock(),
+        planner=MagicMock(),
+        corpus_recovery_driver=recovery_driver,
+    )
+
+    recovered = pipeline._recover_legal_rule_sources(
+        workflow_run_id="workflow-1",
+        correlation_id="corr-1",
+        reason="LEGAL_RULE_SOURCE_LOAD_FAILED",
+    )
+
+    assert recovered is True
+    recovery_driver.run.assert_called_once_with(
+        {
+            "idempotencyKey": "workflow-1:engineering-rule-source-recovery",
+            "maxRuns": 0,
+            "recoverLegalRulesOnly": True,
+        },
+        "corr-1",
+    )
+
+
+def test_planned_pipeline_rebuilds_corpus_when_active_corpus_recovery_fails() -> None:
+    recovery_driver = MagicMock()
+    recovery_driver.run.side_effect = [
+        RuntimeError("APPROVED_CORPUS_NOT_FOUND"),
+        {
+            "status": "READY",
+            "corpusVersionId": "corpus-rebuilt",
+            "legalRuleCatalogVersionId": "catalog-v1",
+        },
+    ]
+    pipeline = PlannedEngineeringInvestigationPipeline(
+        api_client=MagicMock(),
+        model="test:model",
+        retriever=MagicMock(),
+        rule_service=MagicMock(),
+        query_executor=MagicMock(),
+        investigator=MagicMock(),
+        evaluator=MagicMock(),
+        planner=MagicMock(),
+        corpus_recovery_driver=recovery_driver,
+    )
+
+    recovered = pipeline._recover_legal_rule_sources(
+        workflow_run_id="workflow-1",
+        correlation_id="corr-1",
+        reason="LEGAL_RULE_SOURCE_LOAD_FAILED",
+    )
+
+    assert recovered is True
+    assert recovery_driver.run.call_args_list[0].args == (
+        {
+            "idempotencyKey": "workflow-1:engineering-rule-source-recovery",
+            "maxRuns": 0,
+            "recoverLegalRulesOnly": True,
+        },
+        "corr-1",
+    )
+    assert recovery_driver.run.call_args_list[1].args == (
+        {
+            "idempotencyKey": "workflow-1:engineering-rule-source-recovery",
+            "maxRuns": 0,
+            "recoverLegalRulesOnly": False,
+        },
+        "corr-1",
+    )
+
+
+def test_planned_pipeline_forwards_source_crawl_requests_to_recovery_modes() -> None:
+    recovery_driver = MagicMock()
+    recovery_driver.run.side_effect = [
+        RuntimeError("APPROVED_CORPUS_NOT_FOUND"),
+        {
+            "status": "READY",
+            "corpusVersionId": "corpus-rebuilt",
+            "legalRuleCatalogVersionId": "catalog-v1",
+        },
+    ]
+    pipeline = PlannedEngineeringInvestigationPipeline(
+        api_client=MagicMock(),
+        model="test:model",
+        retriever=MagicMock(),
+        rule_service=MagicMock(),
+        query_executor=MagicMock(),
+        investigator=MagicMock(),
+        evaluator=MagicMock(),
+        planner=MagicMock(),
+        corpus_recovery_driver=recovery_driver,
+    )
+    source_crawl_requests = [
+        {
+            "documentId": "LAW-TEST",
+            "catalogSourceRef": "catalog-source:vbpl.vn:law:law-test",
+            "sourceUrl": "https://vbpl.vn/test",
+        }
+    ]
+
+    recovered = pipeline._recover_legal_rule_sources(
+        workflow_run_id="workflow-1",
+        correlation_id="corr-1",
+        reason="NO_ACTIVE_LEGAL_RULE_CATALOG",
+        source_crawl_requests=source_crawl_requests,
+    )
+
+    assert recovered is True
+    for call in recovery_driver.run.call_args_list:
+        assert call.args[0]["sourceCrawlRequests"] == source_crawl_requests
+
+
 def test_planned_pipeline_stops_before_planner_when_engineering_rule_triage_finds_none(
     tmp_path,
 ) -> None:

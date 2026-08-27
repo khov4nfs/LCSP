@@ -36,6 +36,14 @@ from .selected_rule_orchestration import augment_selected_rule_packet
 
 logger = get_logger(__name__)
 
+LEGAL_RULE_ONLY_RECOVERY_REASONS = frozenset(
+    {
+        "LEGAL_RULE_SOURCE_LOAD_FAILED",
+        "NO_ACTIVE_LEGAL_RULE_CATALOG",
+        "NO_APPROVED_ENGINEERING_RULE_SOURCE_RULES",
+    }
+)
+
 
 class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
     """Plan once, validate deterministically, then investigate selected rules only."""
@@ -79,6 +87,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         correlation_id: str | None = None,
         wizard_context: dict[str, Any] | None = None,
         workspace_path: str | Path | None = None,
+        recovery_source_crawl_requests: list[dict[str, Any]] | None = None,
     ) -> EngineeringInvestigationResult:
         raw_graph = self._graph(evidence_report)
         graph = filter_program_evidence_graph(raw_graph)
@@ -104,6 +113,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             workflow_run_id=workflow_run_id,
             correlation_id=correlation_id,
             reason="LEGAL_RULE_SOURCE_LOAD_FAILED",
+            source_crawl_requests=recovery_source_crawl_requests,
         )
         if not catalog_version_id:
             return self._blocked_before_llm(
@@ -123,6 +133,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 workflow_run_id=workflow_run_id,
                 correlation_id=correlation_id,
                 reason="NO_ACTIVE_LEGAL_CORPUS_SOURCE",
+                source_crawl_requests=recovery_source_crawl_requests,
             )
             if recovered:
                 (
@@ -153,6 +164,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 workflow_run_id=workflow_run_id,
                 correlation_id=correlation_id,
                 reason="NO_APPROVED_ENGINEERING_RULE_SOURCE_RULES",
+                source_crawl_requests=recovery_source_crawl_requests,
             )
             if recovered:
                 (
@@ -199,6 +211,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 workflow_run_id=workflow_run_id,
                 correlation_id=correlation_id,
                 reason="NO_ENGINEERING_RULE_CANDIDATES_AFTER_TRIAGE",
+                source_crawl_requests=recovery_source_crawl_requests,
             )
             if recovered:
                 (
@@ -663,6 +676,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         workflow_run_id: str,
         correlation_id: str | None,
         reason: str,
+        source_crawl_requests: list[dict[str, Any]] | None = None,
     ) -> tuple[str, str, list[dict[str, Any]], list[dict[str, Any]]]:
         try:
             return self._load_legal_rule_sources()
@@ -679,6 +693,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 workflow_run_id=workflow_run_id,
                 correlation_id=correlation_id,
                 reason=reason,
+                source_crawl_requests=source_crawl_requests,
             )
             if recovered:
                 try:
@@ -920,6 +935,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         workflow_run_id: str,
         correlation_id: str | None,
         reason: str,
+        source_crawl_requests: list[dict[str, Any]] | None = None,
     ) -> bool:
         logger.info(
             "ENGINEERING_RULE_SOURCE_RECOVERY_REQUESTED",
@@ -927,44 +943,58 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             workflow_run_id=workflow_run_id,
             correlationId=correlation_id,
         )
-        try:
-            driver = self._corpus_recovery_driver
-            if driver is None:
-                from tools.legal.sources.recovery.legal_corpus_recovery_driver import (
-                    LegalCorpusRecoveryDriver,
-                )
+        driver = self._corpus_recovery_driver
+        if driver is None:
+            from tools.legal.sources.recovery.legal_corpus_recovery_driver import (
+                LegalCorpusRecoveryDriver,
+            )
 
-                driver = LegalCorpusRecoveryDriver(api_client=self._api_client)
-            response = driver.run(
-                {
+            driver = LegalCorpusRecoveryDriver(api_client=self._api_client)
+
+        recovery_modes = (
+            (True, "legal-rules-only"),
+            (False, "corpus-rebuild"),
+        ) if reason in LEGAL_RULE_ONLY_RECOVERY_REASONS else (
+            (False, "corpus-rebuild"),
+        )
+        for recover_legal_rules_only, recovery_mode in recovery_modes:
+            try:
+                payload: dict[str, Any] = {
                     "idempotencyKey": (
                         f"{workflow_run_id}:engineering-rule-source-recovery"
                     ),
                     "maxRuns": 0,
-                    "recoverLegalRulesOnly": (
-                        reason == "NO_APPROVED_ENGINEERING_RULE_SOURCE_RULES"
-                    ),
-                },
-                correlation_id or workflow_run_id,
-            )
-        except Exception as error:
-            logger.warning(
-                "ENGINEERING_RULE_SOURCE_RECOVERY_FAILED",
+                    "recoverLegalRulesOnly": recover_legal_rules_only,
+                }
+                if source_crawl_requests:
+                    payload["sourceCrawlRequests"] = source_crawl_requests
+                response = driver.run(
+                    payload,
+                    correlation_id or workflow_run_id,
+                )
+            except Exception as error:
+                logger.warning(
+                    "ENGINEERING_RULE_SOURCE_RECOVERY_FAILED",
+                    reason=reason,
+                    recovery_mode=recovery_mode,
+                    error_type=type(error).__name__,
+                    error_message=str(error)[:500],
+                    workflow_run_id=workflow_run_id,
+                    correlationId=correlation_id,
+                )
+                continue
+            logger.info(
+                "ENGINEERING_RULE_SOURCE_RECOVERY_COMPLETED",
                 reason=reason,
-                error_type=type(error).__name__,
-                error_message=str(error)[:500],
+                recovery_mode=recovery_mode,
+                status=response.get("status") if isinstance(response, dict) else None,
+                corpus_version_id=(
+                    response.get("corpusVersionId")
+                    if isinstance(response, dict)
+                    else None
+                ),
                 workflow_run_id=workflow_run_id,
                 correlationId=correlation_id,
             )
-            return False
-        logger.info(
-            "ENGINEERING_RULE_SOURCE_RECOVERY_COMPLETED",
-            reason=reason,
-            status=response.get("status") if isinstance(response, dict) else None,
-            corpus_version_id=(
-                response.get("corpusVersionId") if isinstance(response, dict) else None
-            ),
-            workflow_run_id=workflow_run_id,
-            correlationId=correlation_id,
-        )
-        return True
+            return True
+        return False

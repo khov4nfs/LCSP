@@ -1,4 +1,4 @@
-"""Rebuild, validate, activate, and resume workflows for the reviewed legal corpus."""
+"""Rebuild, validate, activate, and resume workflows for the legal corpus."""
 
 from __future__ import annotations
 
@@ -6,7 +6,6 @@ import hashlib
 import importlib.util
 import json
 import os
-import shutil
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -23,6 +22,10 @@ from tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoin
 )
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.config import default_legal_source_storage_root
+from tools.legal.corpus.artifact_store import write_recovery_artifact
+from tools.legal.corpus.partial_update.partial_update_context_builder import (
+    build_partial_update_context,
+)
 
 logger = get_logger(__name__)
 
@@ -32,6 +35,8 @@ DEFAULT_VERSION_PREFIX = "VN-LEGAL-CORPUS"
 DEFAULT_INDEX_CONFIG = "chromadb-vectorless-legal-retriever-v1"
 SOURCE_CRAWL_DIR = "source-crawl"
 RECOVERY_LOCK_FILE = "legal-corpus-recovery.lock"
+DEFAULT_SOURCE_CRAWL_MAX_BYTES = 20 * 1024 * 1024
+OFFICIAL_SOURCE_AUTO_TRUSTED_POLICY = "OFFICIAL_SOURCE_AUTO_TRUSTED"
 
 
 @dataclass(frozen=True)
@@ -45,13 +50,12 @@ class LegalCorpusRecoveryResult:
 
 
 class LegalCorpusRecoveryDriver:
-    """Run the reviewed legal-corpus recovery pipeline with integrity validation.
+    """Run the official-source legal-corpus recovery pipeline.
 
-    Recovery rebuilds a deterministic version from source manifests/reviewed
-    artifacts, ingests the validated draft, verifies exact retrieval coverage,
-    registers the retrieval index, activates the corpus, then resumes workflows
-    waiting for the newly active version. Canonical legal corpus validation and activation
-    are forced through ``LegalToolDispatcher`` rather than invoked directly.
+    Recovery crawls bounded official-source requests, builds legal chunks from
+    crawler text artifacts, ingests the validated draft, verifies exact retrieval
+    coverage, registers the retrieval index, activates the corpus, then resumes
+    workflows waiting for the newly active version.
     """
 
     def __init__(
@@ -59,15 +63,11 @@ class LegalCorpusRecoveryDriver:
         *,
         api_client: WorkerApiClient,
         chroma_path: str | None = None,
-        source_manifest_paths: list[Path] | None = None,
-        reviewed_dir: Path | None = None,
         legal_dispatcher: LegalToolDispatcher | None = None,
     ) -> None:
         """Create the recovery driver with optional storage/source overrides."""
         self._api_client = api_client
         self._chroma_path = chroma_path or os.getenv("LEGAL_CHROMA_PATH")
-        self._source_manifest_paths = source_manifest_paths
-        self._reviewed_dir = reviewed_dir
         self._legal_dispatcher = legal_dispatcher or LegalToolDispatcher(
             LegalToolExecutionContext(
                 api_client=self._api_client,
@@ -96,20 +96,25 @@ class LegalCorpusRecoveryDriver:
                 correlationId=correlationId,
                 idempotency_key=idempotency_key,
             )
-        manifests = self._resolve_source_manifests(message)
-        reviewed_dir = self._resolve_reviewed_dir(message)
-        builder = _load_script_module("build_reviewed_legal_corpus.py")
-        orchestrator = _load_script_module("orchestrate_reviewed_legal_corpus.py")
-        version = self._corpus_version(manifests, reviewed_dir)
-        reviewed_dir = self._prepare_reviewed_dir(
-            manifests=manifests,
-            reviewed_dir=reviewed_dir,
-            storage_root=self._resolve_storage_root(message),
-            version=version,
+        storage_root = self._resolve_storage_root(message)
+        manifests = self._resolve_source_manifests(message, storage_root=storage_root)
+        version = self._corpus_version(manifests)
+        partial_update_contexts = self._build_partial_update_contexts(
+            manifests,
+            storage_root=storage_root,
         )
-        payload = builder.build_payload(manifests, version, reviewed_dir=reviewed_dir)
-        signoff = orchestrator.build_review_signoff(payload, reviewed_dir=reviewed_dir)
-        enriched_payload = orchestrator.enrich_payload_with_signoff(payload, signoff)
+        enriched_payload = self._build_official_source_payload(
+            manifests,
+            version,
+            partial_update_contexts=partial_update_contexts,
+        )
+        self._store_corpus_recovery_artifact(
+            version=version,
+            payload=enriched_payload,
+            manifests=manifests,
+            partial_update_contexts=partial_update_contexts,
+            storage_root=storage_root,
+        )
 
         draft = self._api_client.ingest_validated_legal_corpus_draft(enriched_payload)
         corpus_id = required_response_string(draft, "id", "corpus ingest response")
@@ -118,6 +123,7 @@ class LegalCorpusRecoveryDriver:
                 idempotency_key=idempotency_key,
                 version=version,
                 correlationId=correlationId,
+                storage_root=storage_root,
             )
             resumed = self._api_client.resume_waiting_runs(
                 corpus_id,
@@ -153,15 +159,23 @@ class LegalCorpusRecoveryDriver:
         validation_ref = f"retrieval-validation:{_safe_ref(version)}"
         integrity_ref = f"integrity-manifest:{_safe_ref(version)}"
         self._validate_retrieval_index(corpus_id, enriched_payload)
+        index_payload = {
+            "version": f"index-{version}",
+            "configHash": _sha256_text(DEFAULT_INDEX_CONFIG),
+            "contentHash": _sha256_json(enriched_payload.get("documents") or []),
+            "validationManifestRef": validation_ref,
+            "validatedAt": datetime.now(UTC).isoformat(),
+        }
         index = self._api_client.register_validated_retrieval_index(
             corpus_id,
-            {
-                "version": f"index-{version}",
-                "configHash": _sha256_text(DEFAULT_INDEX_CONFIG),
-                "contentHash": _sha256_json(enriched_payload.get("documents") or []),
-                "validationManifestRef": validation_ref,
-                "validatedAt": datetime.now(UTC).isoformat(),
-            },
+            index_payload,
+        )
+        self._store_retrieval_index_artifact(
+            version=version,
+            corpus_id=corpus_id,
+            payload=index_payload,
+            index=index,
+            storage_root=storage_root,
         )
 
         approved = self._legal_dispatcher.dispatch(
@@ -172,8 +186,8 @@ class LegalCorpusRecoveryDriver:
                 "retrievalValidationRef": validation_ref,
                 "idempotencyKey": f"{idempotency_key}:activate:{version}",
                 "scopeDescription": (
-                    "Automatic AO-6 activation after official-source, "
-                    "reviewed-text, chunk-integrity and retrieval-index validation"
+                    "Automatic AO-6 activation after official-source crawl, "
+                    "chunk-integrity and retrieval-index validation"
                 ),
                 "comments": "Triggered by legal-corpus readiness recovery.",
             },
@@ -182,10 +196,17 @@ class LegalCorpusRecoveryDriver:
             str((approved.get("artifactVersions") or {}).get("corpusVersionId") or "")
             or corpus_id
         )
+        self._store_corpus_activation_artifact(
+            version=version,
+            corpus_id=active_corpus_id,
+            activation=approved,
+            storage_root=storage_root,
+        )
         catalog = self._recover_legal_rule_catalog(
             idempotency_key=idempotency_key,
             version=version,
             correlationId=correlationId,
+            storage_root=storage_root,
         )
         resumed = self._api_client.resume_waiting_runs(
             active_corpus_id,
@@ -239,6 +260,7 @@ class LegalCorpusRecoveryDriver:
             idempotency_key=idempotency_key,
             version="active-corpus",
             correlationId=correlationId,
+            storage_root=self._resolve_storage_root(message),
         )
         corpus_id = str(catalog.get("corpusVersionId") or "")
         resumed_count = 0
@@ -278,6 +300,7 @@ class LegalCorpusRecoveryDriver:
         idempotency_key: str,
         version: str,
         correlationId: str,
+        storage_root: Path | None = None,
     ) -> dict[str, Any]:
         """Recover approved LegalRule source rows after corpus chunks are ready."""
         response = self._api_client.recover_legal_rules_from_active_corpus(
@@ -298,110 +321,104 @@ class LegalCorpusRecoveryDriver:
             no_changes=bool(response.get("noChanges")),
             correlationId=correlationId,
         )
+        self._store_legal_rule_catalog_artifact(
+            version=version,
+            catalog=response,
+            storage_root=storage_root,
+        )
         return response
 
-    def _resolve_source_manifests(self, message: dict[str, Any]) -> list[Path]:
-        """Resolve official-source manifests from runtime crawl artifacts."""
-        if self._source_manifest_paths:
-            return self._source_manifest_paths
-        message_paths = message.get("sourceManifestPaths")
-        if isinstance(message_paths, list):
-            paths = [
-                Path(str(part).strip())
-                for part in message_paths
-                if isinstance(part, str) and part.strip()
-            ]
-            if paths:
-                return paths
-        storage_root = self._resolve_storage_root(message)
-        paths = sorted(
-            path
-            for path in (storage_root / SOURCE_CRAWL_DIR).glob("**/*.source.json")
-            if path.is_file()
-        )
-        if paths:
-            logger.info(
-                "LEGAL_CORPUS_RECOVERY_USING_CRAWL_ARTIFACTS",
-                source_manifest_count=len(paths),
-                storage_root=str(storage_root),
-            )
-            return paths
-        raise RuntimeError(
-            "reviewed legal corpus recovery has no source manifests from the crawl "
-            "pipeline. Provide sourceManifestPaths in the recovery command."
-        )
-
-    def _resolve_reviewed_dir(self, message: dict[str, Any]) -> Path:
-        """Resolve the reviewed legal artifact directory from runtime crawl artifacts."""
-        if self._reviewed_dir is not None:
-            return self._reviewed_dir
-        message_reviewed_dir = message.get("reviewedDir")
-        if isinstance(message_reviewed_dir, str) and message_reviewed_dir.strip():
-            path = Path(message_reviewed_dir.strip())
-            if not path.is_dir():
-                raise RuntimeError(
-                    "reviewed legal corpus recovery reviewedDir does not exist: "
-                    f"{message_reviewed_dir}"
-                )
-            return path
-        storage_root = self._resolve_storage_root(message)
-        crawl_root = storage_root / SOURCE_CRAWL_DIR
-        if crawl_root.is_dir():
-            return crawl_root
-        raise RuntimeError(
-            "reviewed legal corpus recovery has no reviewed artifact directory from the "
-            "crawl pipeline. Provide reviewedDir in the recovery command."
-        )
-
-    def _corpus_version(self, manifests: list[Path], reviewed_dir: Path) -> str:
-        """Derive a content-addressed corpus version from manifests and reviewed files."""
-        digest = hashlib.sha256()
-        for path in sorted(manifests):
-            digest.update(path.read_bytes())
-        for path in self._review_artifact_paths(manifests, reviewed_dir):
-            digest.update(path.read_bytes())
-        return f"{DEFAULT_VERSION_PREFIX}-{digest.hexdigest()[:16]}"
-
-    def _review_artifact_paths(
+    def _resolve_source_manifests(
         self,
-        manifests: list[Path],
-        reviewed_dir: Path,
+        message: dict[str, Any],
+        *,
+        storage_root: Path,
     ) -> list[Path]:
-        """Resolve reviewed artifacts declared by crawl manifests plus flat fallback files."""
-        paths: list[Path] = []
-        for manifest_path in sorted(manifests):
-            try:
-                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            except json.JSONDecodeError as exc:
-                raise RuntimeError(
-                    f"{manifest_path}: invalid source manifest JSON"
-                ) from exc
-            for key in ("reviewedTextFile", "hierarchyReviewFile"):
-                declared = manifest.get(key)
-                if isinstance(declared, str) and declared.strip():
-                    paths.append((manifest_path.parent / declared).resolve())
-        paths.extend(path.resolve() for path in reviewed_dir.glob("*.reviewed.txt"))
-        paths.extend(
-            path.resolve() for path in reviewed_dir.glob("*.hierarchy-review.json")
+        """Resolve official-source manifests by running source crawl requests."""
+        crawled_paths = self._run_source_crawl_pipeline(
+            message=message,
+            storage_root=storage_root,
         )
-        return sorted(dict.fromkeys(paths))
+        if crawled_paths:
+            return crawled_paths
+        raise RuntimeError(
+            "legal corpus recovery requires sourceCrawlRequests in the recovery "
+            "command or LEGAL_SOURCE_CRAWL_REQUESTS in the environment."
+        )
 
-    def _prepare_reviewed_dir(
+    def _run_source_crawl_pipeline(
         self,
         *,
-        manifests: list[Path],
-        reviewed_dir: Path,
+        message: dict[str, Any],
         storage_root: Path,
+    ) -> list[Path]:
+        """Run bounded official-source crawlers when recovery has no manifests."""
+        requests = _source_crawl_requests(message)
+        if not requests:
+            return []
+
+        manifest_paths: list[Path] = []
+        corpus_version = str(
+            message.get("corpusVersionId")
+            or message.get("corpus_version_id")
+            or "corpus-recovery"
+        ).strip()
+        crawl_root = storage_root / SOURCE_CRAWL_DIR / _safe_ref(corpus_version)
+        for index, request in enumerate(requests, start=1):
+            document_id = required_string(request, "documentId")
+            catalog_source_ref = required_string(request, "catalogSourceRef")
+            source_url = required_string(request, "sourceUrl")
+            output_dir = crawl_root / _safe_ref(document_id)
+            result = self._legal_dispatcher.dispatch(
+                "fetch_official_source_snapshot",
+                document_id=document_id,
+                catalog_source_ref=catalog_source_ref,
+                source_url=source_url,
+                output_dir=output_dir,
+                max_bytes=_positive_int(
+                    request.get("maxBytes", request.get("max_bytes")),
+                    default=DEFAULT_SOURCE_CRAWL_MAX_BYTES,
+                ),
+                gateway_document_id=_optional_string(
+                    request, "gatewayDocumentId", "gateway_document_id"
+                ),
+                source_effect_status=_optional_string(
+                    request, "sourceEffectStatus", "source_effect_status"
+                ),
+                expected_document_number=_optional_string(
+                    request, "expectedDocumentNumber", "expected_document_number"
+                ),
+            )
+            manifest_path = getattr(result, "manifest_path", None)
+            if not isinstance(manifest_path, Path) or not manifest_path.is_file():
+                fallback = output_dir / f"{document_id}.source.json"
+                if not fallback.is_file():
+                    raise RuntimeError(
+                        "source crawl pipeline did not produce a source manifest "
+                        f"for request #{index}: {document_id}"
+                    )
+                manifest_path = fallback
+            manifest_paths.append(manifest_path.resolve())
+
+        logger.info(
+            "LEGAL_CORPUS_RECOVERY_RAN_SOURCE_CRAWL_PIPELINE",
+            source_manifest_count=len(manifest_paths),
+            storage_root=str(storage_root),
+        )
+        return sorted(dict.fromkeys(manifest_paths))
+
+    def _build_official_source_payload(
+        self,
+        manifests: list[Path],
         version: str,
-    ) -> Path:
-        """Build a flat reviewed artifact view for canonical review signoff."""
-        if (
-            self._reviewed_dir is not None
-            or reviewed_dir != storage_root / SOURCE_CRAWL_DIR
-        ):
-            return reviewed_dir
-        staging_dir = storage_root / "recovery-input" / _safe_ref(version)
-        staging_dir.mkdir(parents=True, exist_ok=True)
+        *,
+        partial_update_contexts: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        """Build an ingest payload directly from official crawler artifacts."""
+        builder = _load_script_module("build_reviewed_legal_corpus.py")
+        documents: list[dict[str, Any]] = []
+        source_artifacts: list[dict[str, Any]] = []
+        document_ids: set[str] = set()
         for manifest_path in manifests:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             document_id = required_manifest_string(
@@ -409,18 +426,287 @@ class LegalCorpusRecoveryDriver:
                 "documentId",
                 source=str(manifest_path),
             )
-            for key, suffix in (
-                ("reviewedTextFile", "reviewed.txt"),
-                ("hierarchyReviewFile", "hierarchy-review.json"),
-            ):
-                declared = manifest.get(key)
-                if not isinstance(declared, str) or not declared.strip():
-                    continue
-                source_path = (manifest_path.parent / declared).resolve()
-                target_path = staging_dir / f"{document_id}.{suffix}"
-                if source_path != target_path:
-                    shutil.copy2(source_path, target_path)
-        return staging_dir
+            if document_id in document_ids:
+                raise RuntimeError(f"duplicate source crawl document {document_id}")
+            document_ids.add(document_id)
+            text_path = self._source_text_path(manifest_path, manifest)
+            text = text_path.read_text(encoding="utf-8")
+            source_artifact_ref, source_artifact_sha = self._source_artifact(
+                manifest_path,
+                manifest,
+            )
+            chunks = [
+                chunk
+                for chunk in builder.parse_chunks(document_id, text, None)
+                if chunk.get("content")
+            ]
+            if not chunks:
+                raise RuntimeError(f"{document_id}: source crawl produced no chunks")
+            source_effect_status = builder.normalize_source_effect_status(
+                document_id,
+                required_manifest_string(
+                    manifest,
+                    "sourceEffectStatus",
+                    source=str(manifest_path),
+                ),
+            )
+            documents.append(
+                {
+                    "documentId": document_id,
+                    "title": required_manifest_string(
+                        manifest,
+                        "title",
+                        source=str(manifest_path),
+                    ),
+                    "sourceUrl": required_manifest_string(
+                        manifest,
+                        "sourceUrl",
+                        source=str(manifest_path),
+                    ),
+                    "sourceSha256": source_artifact_sha,
+                    "sourceEffectStatus": source_effect_status,
+                    "effectiveDate": manifest.get("effectiveFrom")
+                    or manifest.get("effectiveDate"),
+                    "snapshotPath": source_artifact_ref,
+                    "chunks": chunks,
+                }
+            )
+            source_artifacts.append(
+                {
+                    "documentId": document_id,
+                    "sourceManifest": str(manifest_path),
+                    "sourceManifestSha256": _sha256_bytes(manifest_path.read_bytes()),
+                    "sourceArtifact": source_artifact_ref,
+                    "sourceArtifactSha256": source_artifact_sha,
+                    "textArtifact": str(text_path),
+                    "textArtifactSha256": _sha256_bytes(text_path.read_bytes()),
+                }
+            )
+
+        return {
+            "version": version,
+            "sourceManifest": {
+                "reviewRequired": False,
+                "trustPolicy": OFFICIAL_SOURCE_AUTO_TRUSTED_POLICY,
+                "normalizationWarnings": [],
+                "materializedRelationships": [],
+                "sourceArtifacts": source_artifacts,
+                "partialUpdateContexts": partial_update_contexts or [],
+            },
+            "documents": documents,
+        }
+
+    def _build_partial_update_contexts(
+        self,
+        manifests: list[Path],
+        *,
+        storage_root: Path,
+    ) -> list[dict[str, Any]]:
+        """Compare freshly crawled snapshots with stored snapshots."""
+        contexts: list[dict[str, Any]] = []
+        manifest_set = {path.resolve() for path in manifests}
+        for manifest_path in manifests:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            document_id = required_manifest_string(
+                manifest,
+                "documentId",
+                source=str(manifest_path),
+            )
+            previous_path = self._previous_source_manifest(
+                document_id,
+                storage_root=storage_root,
+                exclude=manifest_set,
+            )
+            if previous_path is None:
+                continue
+            previous = json.loads(previous_path.read_text(encoding="utf-8"))
+            old_html_path = self._optional_artifact_path(previous_path, previous, "htmlFile")
+            new_html_path = self._optional_artifact_path(manifest_path, manifest, "htmlFile")
+            if old_html_path is None or new_html_path is None:
+                continue
+            context = build_partial_update_context(
+                document_id=document_id,
+                source_url=required_manifest_string(
+                    manifest,
+                    "sourceUrl",
+                    source=str(manifest_path),
+                ),
+                base_snapshot_ref=f"source-manifest:{previous.get('htmlSha256')}",
+                new_snapshot_ref=f"source-manifest:{manifest.get('htmlSha256')}",
+                old_html=old_html_path.read_text(encoding="utf-8"),
+                new_html=new_html_path.read_text(encoding="utf-8"),
+            )
+            if context is None:
+                continue
+            contexts.append(json.loads(context.to_json()))
+        return contexts
+
+    def _store_corpus_recovery_artifact(
+        self,
+        *,
+        version: str,
+        payload: dict[str, Any],
+        manifests: list[Path],
+        partial_update_contexts: list[dict[str, Any]],
+        storage_root: Path,
+    ) -> None:
+        """Store the full ingest payload needed to restore corpus rows."""
+        write_recovery_artifact(
+            "legal-corpus",
+            version,
+            {
+                "version": version,
+                "ingestPayload": payload,
+                "sourceManifests": [str(path) for path in manifests],
+                "partialUpdateContexts": partial_update_contexts,
+            },
+            storage_root=storage_root,
+        )
+
+    def _store_retrieval_index_artifact(
+        self,
+        *,
+        version: str,
+        corpus_id: str,
+        payload: dict[str, Any],
+        index: dict[str, Any],
+        storage_root: Path,
+    ) -> None:
+        """Store retrieval-index metadata needed for DB rehydration."""
+        write_recovery_artifact(
+            "legal-retrieval-index",
+            version,
+            {
+                "corpusVersionId": corpus_id,
+                "registerPayload": payload,
+                "index": index,
+            },
+            storage_root=storage_root,
+        )
+
+    def _store_corpus_activation_artifact(
+        self,
+        *,
+        version: str,
+        corpus_id: str,
+        activation: dict[str, Any],
+        storage_root: Path,
+    ) -> None:
+        """Store activation metadata needed for DB rehydration."""
+        write_recovery_artifact(
+            "legal-corpus-activation",
+            version,
+            {
+                "corpusVersionId": corpus_id,
+                "activation": activation,
+            },
+            storage_root=storage_root,
+        )
+
+    def _store_legal_rule_catalog_artifact(
+        self,
+        *,
+        version: str,
+        catalog: dict[str, Any],
+        storage_root: Path | None,
+    ) -> None:
+        """Store recovered LegalRule catalog data needed after DB reset."""
+        payload = {"recoveryVersion": version, "catalog": catalog}
+        try:
+            active_catalog = self._api_client.get_active_legal_rule_catalog()
+        except Exception:
+            active_catalog = None
+        if isinstance(active_catalog, dict):
+            payload["activeCatalog"] = active_catalog
+        write_recovery_artifact(
+            "legal-rule-catalog",
+            str(catalog.get("version") or catalog.get("id") or version),
+            payload,
+            storage_root=storage_root,
+        )
+
+    @staticmethod
+    def _previous_source_manifest(
+        document_id: str,
+        *,
+        storage_root: Path,
+        exclude: set[Path],
+    ) -> Path | None:
+        """Find the most recent stored source manifest for a document."""
+        candidates: list[Path] = []
+        for path in (storage_root / SOURCE_CRAWL_DIR).glob("**/*.source.json"):
+            resolved = path.resolve()
+            if resolved in exclude or not path.is_file():
+                continue
+            try:
+                manifest = json.loads(path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                continue
+            if manifest.get("documentId") == document_id:
+                candidates.append(path)
+        if not candidates:
+            return None
+        return max(candidates, key=lambda path: path.stat().st_mtime).resolve()
+
+    @staticmethod
+    def _optional_artifact_path(
+        manifest_path: Path,
+        manifest: dict[str, Any],
+        key: str,
+    ) -> Path | None:
+        """Resolve an optional artifact path declared by a source manifest."""
+        value = manifest.get(key)
+        if not isinstance(value, str) or not value.strip():
+            return None
+        path = manifest_path.parent / value
+        if not path.is_file():
+            return None
+        return path
+
+    @staticmethod
+    def _source_text_path(manifest_path: Path, manifest: dict[str, Any]) -> Path:
+        """Resolve the canonical text file produced by the official crawler."""
+        text_file = required_manifest_string(
+            manifest,
+            "textFile",
+            source=str(manifest_path),
+        )
+        text_path = manifest_path.parent / text_file
+        if not text_path.is_file():
+            raise RuntimeError(f"{manifest_path}: textFile does not exist: {text_file}")
+        return text_path
+
+    @staticmethod
+    def _source_artifact(
+        manifest_path: Path,
+        manifest: dict[str, Any],
+    ) -> tuple[str, str]:
+        """Resolve the official source artifact and its declared hash."""
+        for file_key, hash_key in (
+            ("sourceFile", "sourceSha256"),
+            ("htmlFile", "htmlSha256"),
+            ("textFile", "textSha256"),
+        ):
+            value = manifest.get(file_key)
+            digest = manifest.get(hash_key)
+            if not isinstance(value, str) or not value.strip():
+                continue
+            path = manifest_path.parent / value
+            if not path.is_file():
+                continue
+            if isinstance(digest, str) and digest.strip():
+                return value, digest.strip()
+            return value, _sha256_bytes(path.read_bytes())
+        raise RuntimeError(f"{manifest_path}: no source artifact is available")
+
+    def _corpus_version(self, manifests: list[Path]) -> str:
+        """Derive a content-addressed corpus version from crawl artifacts."""
+        digest = hashlib.sha256()
+        for path in sorted(manifests):
+            digest.update(path.read_bytes())
+            manifest = json.loads(path.read_text(encoding="utf-8"))
+            digest.update(self._source_text_path(path, manifest).read_bytes())
+        return f"{DEFAULT_VERSION_PREFIX}-{digest.hexdigest()[:16]}"
 
     def _resolve_storage_root(self, message: dict[str, Any]) -> Path:
         """Resolve the runtime corpus artifact root used by crawl/recovery."""
@@ -457,6 +743,44 @@ def required_manifest_string(values: dict[str, Any], key: str, source: str) -> s
     return value.strip()
 
 
+def _optional_string(values: dict[str, Any], *keys: str) -> str | None:
+    """Read the first non-empty optional string from a crawl request."""
+    for key in keys:
+        value = values.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _positive_int(value: Any, *, default: int) -> int:
+    """Normalize optional crawl byte limits without accepting unsafe values."""
+    if value is None:
+        return default
+    if not isinstance(value, int) or value < 1:
+        raise RuntimeError("source crawl request maxBytes must be a positive integer")
+    return value
+
+
+def _source_crawl_requests(message: dict[str, Any]) -> list[dict[str, Any]]:
+    """Normalize recovery-command crawl requests into bounded request objects."""
+    value = message.get("sourceCrawlRequests", message.get("source_crawl_requests"))
+    if value is None:
+        env_value = os.getenv("LEGAL_SOURCE_CRAWL_REQUESTS")
+        if env_value and env_value.strip():
+            try:
+                value = json.loads(env_value)
+            except json.JSONDecodeError as exc:
+                raise RuntimeError("LEGAL_SOURCE_CRAWL_REQUESTS must be JSON") from exc
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise RuntimeError("sourceCrawlRequests must be a list")
+    requests = [item for item in value if isinstance(item, dict)]
+    if len(requests) != len(value):
+        raise RuntimeError("sourceCrawlRequests entries must be objects")
+    return requests
+
+
 def _load_script_module(filename: str):
     """Load an AO-6 corpus build/orchestration script from the legal source tools."""
     path = Path(__file__).resolve().parents[1] / "scripts" / filename
@@ -476,6 +800,11 @@ def _worker_root() -> Path:
 def _sha256_text(value: str) -> str:
     """Return a tagged SHA-256 digest for deterministic text configuration."""
     return f"sha256:{hashlib.sha256(value.encode()).hexdigest()}"
+
+
+def _sha256_bytes(value: bytes) -> str:
+    """Return a tagged SHA-256 digest for source artifact bytes."""
+    return f"sha256:{hashlib.sha256(value).hexdigest()}"
 
 
 def _sha256_json(value: Any) -> str:
