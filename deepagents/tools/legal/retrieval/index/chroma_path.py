@@ -5,7 +5,7 @@ from pathlib import Path
 
 from tools.common.capabilities.platform.logging_path import get_repo_root
 
-DEFAULT_LEGAL_CHROMA_DIR = ".chorma"
+DEFAULT_LEGAL_CHROMA_DIR = ".chroma"
 
 
 def default_legal_chroma_path() -> Path:

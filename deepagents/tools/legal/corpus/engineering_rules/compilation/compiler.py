@@ -9,8 +9,9 @@ from langchain.agents import create_agent
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from model_policy import PLANNER_MODEL_SPEC
 from tools.common.capabilities.evidence.graph.schema.vocabulary import EDGE_TYPES, NODE_TYPES
+from tools.common.capabilities.managed.skill_loader import load_project_skill
 
-from .chunk_triage import LegalChunkEngineeringRuleTriage
+from .chunk_triage import LegalChunkEngineeringRuleTriage, TRIAGE_SKILL_NAME
 from ..contract.models import (
     ENGINEERING_RULE_SCHEMA_VERSION,
     EngineeringRule,
@@ -20,7 +21,7 @@ from ..contract.validator import ALLOWED_DIRECTIONS, validate_engineering_rule
 
 
 COMPILER_VERSION = "engineering-rule-compiler/1.0.0"
-PROMPT_VERSION = "legal-to-engineering/v1"
+PROMPT_VERSION = "legal-to-engineering/v2"
 
 
 class EngineeringRuleCompiler:
@@ -51,11 +52,16 @@ class EngineeringRuleCompiler:
         )
         if not compile_context:
             return []
+        triage_skill = load_project_skill(TRIAGE_SKILL_NAME)
         agent = create_agent(
             model=self._model,
             system_prompt=(
-                "Compile approved legal evidence into bounded EngineeringRules only. "
-                "Do not make compliance or legal applicability decisions."
+                "Compile only triage-approved legal evidence into bounded, reusable "
+                "EngineeringRules. Preserve the legal obligation and its timing/conditions; "
+                "do not make compliance, risk, or legal-applicability decisions. Follow the "
+                "checked-in legal-rule-triage skill below for Candidate-to-EngineeringRule "
+                "conversion and evidence reasoning.\n\n"
+                f"{triage_skill}"
             ),
             response_format=_engineering_rules_response_schema(),
             middleware=MODEL_GOVERNANCE_MIDDLEWARE,
@@ -68,6 +74,8 @@ class EngineeringRuleCompiler:
                     "workflow_run_id": workflow_run_id,
                     "node_name": "compile_engineering_rules",
                     "correlationId": correlation_id,
+                    "skill": TRIAGE_SKILL_NAME,
+                    "promptVersion": PROMPT_VERSION,
                 },
                 "configurable": {"thread_id": workflow_run_id},
             },
@@ -132,14 +140,24 @@ class EngineeringRuleCompiler:
     def _prompt(rule: dict[str, Any], context: list[dict[str, Any]]) -> str:
         contract = {
             "task": (
-                "Translate approved legal applicability logic into engineering "
-                "evidence investigation rules."
+                "Translate only triage-approved legal obligations into reusable "
+                "engineering evidence investigation rules."
             ),
+            "decisionInputs": [
+                "Treat engineeringRuleTriage.engineeringObligation as the bounded legal-to-engineering bridge for each Candidate chunk.",
+                "Treat engineeringRuleTriage.verificationTargets as evidence-surface hints, not as proof or mandatory implementation technologies.",
+                "Preserve the source actor, modality, condition, timing, and required control; do not strengthen or weaken them.",
+                "Split only independently testable controls; do not multiply rules from keyword variants.",
+            ],
             "constraints": [
                 "Do not decide compliance or risk level.",
-                "Do not invent requirements outside supplied legal context.",
-                "Keywords are discovery hints only, never proof.",
-                "Split distinct technical controls into separate rules.",
+                "Do not decide legal applicability for a customer Assessment.",
+                "Do not invent requirements outside supplied triage-approved legal context.",
+                "Do not inspect or assume customer repository evidence during rule creation.",
+                "Keywords, common APIs, common libraries, and patterns are discovery hints only, never proof.",
+                "Required evidence must describe facts necessary to evaluate the control; supporting evidence is corroboration; negative evidence must remain bounded and must not turn missing search results into proof of absence.",
+                "Put unresolved dynamic behavior, external systems, configuration, runtime state, or legal ambiguity in unresolvedConditions instead of guessing.",
+                "Split distinct technical controls into separate rules only when they are independently investigable.",
                 (
                     "Use only exact nodeTypes values for startingNodeTypes, "
                     "targetNodeTypes, graphQueries.startNodeTypes, and "

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from tools.common.capabilities.platform.env import load_runtime_env
+from tools.common.capabilities.platform.logging_path import get_repo_root
 
 
 @dataclass(frozen=True)
@@ -52,8 +53,8 @@ class WorkerConfig:
 
 
 def default_legal_source_storage_root() -> str:
-    """Return the repo-local runtime corpus artifact root."""
-    return str(Path(__file__).resolve().parents[4] / ".corpus")
+    """Return the repository-level runtime corpus artifact root."""
+    return str(Path(get_repo_root()) / ".corpus")
 
 
 def load_config() -> WorkerConfig:

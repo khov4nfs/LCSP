@@ -175,3 +175,56 @@ def test_waiting_investigation_submits_blocked_classification_callback() -> None
     assert payload.classification_data["limitations"] == [
         "NO_ENGINEERING_RULE_SOURCE_RULES"
     ]
+
+
+def test_boundary_forwards_source_crawl_requests_to_pipeline() -> None:
+    api_client = MagicMock()
+    api_client.get_accepted_technical_evidence_report.return_value = {
+        "id": "ter-1",
+        "assessment_id": "assessment-1",
+        "snapshot_id": "snapshot-1",
+        "scan_job_id": "scan-1",
+    }
+    api_client.get_wizard_profile_for_assessment.return_value = None
+
+    result = MagicMock()
+    result.status = "COMPLETE"
+    result.to_assessment_data.return_value = {
+        "mode": "ENGINEERING_RULE_EVALUATION",
+        "status": "COMPLETE",
+        "summary": {"compliant": 0, "non_compliant": 0, "unknown": 0, "total": 0},
+        "evaluations": [],
+        "claims": [],
+        "limitations": [],
+    }
+    pipeline = MagicMock()
+    pipeline.run.return_value = result
+
+    boundary = EngineeringAssessmentBoundary(
+        _config(),
+        api_client=api_client,
+        investigation_pipeline=pipeline,
+        snapshot_client=_snapshot_client_unavailable(),
+    )
+    source_crawl_requests = [
+        {
+            "documentId": "LAW-TEST",
+            "catalogSourceRef": "catalog-source:vbpl.vn:law:law-test",
+            "sourceUrl": "https://vbpl.vn/test",
+            "gatewayDocumentId": "123",
+        }
+    ]
+
+    boundary.handle(
+        {
+            "evidenceReportId": "ter-1",
+            "workflowRunId": "scan-1",
+            "sourceCrawlRequests": source_crawl_requests,
+        },
+        "corr-1",
+    )
+
+    assert pipeline.run.call_args.kwargs["recovery_source_crawl_requests"] == (
+        source_crawl_requests
+    )
+    api_client.post_classification_callback.assert_called_once()

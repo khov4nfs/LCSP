@@ -5,6 +5,49 @@ do not rewrite older entries unless correcting a factual error.
 
 ## Unreleased
 
+### 2026-08-27 - Legal Corpus Recovery and Artifact Management
+
+#### Added
+
+- Added bounded official-source crawl recovery driven by `sourceCrawlRequests` / `LEGAL_SOURCE_CRAWL_REQUESTS` instead of relying on pre-reviewed local files.
+- Added content-addressed legal corpus versioning from crawler manifests and source text artifacts.
+- Added the `OFFICIAL_SOURCE_AUTO_TRUSTED` corpus trust policy for verified official-source recovery payloads.
+- Added partial-update context generation by comparing freshly crawled source snapshots with previously stored snapshots.
+- Added durable `.corpus` recovery artifacts for legal corpus ingest payloads, retrieval index metadata, corpus activation metadata, legal rule catalog state, and EngineeringRule bundles.
+- Added API and worker recovery utilities for restoring legal corpus, catalog, retrieval index, and EngineeringRule state after database/runtime loss.
+- Added the canonical `deepagents/skills/legal-rule-triage/SKILL.md` reasoning skill for approved LegalRule chunk classification and Candidate-to-EngineeringRule conversion.
+- Added a checked-in project skill loader so governed triage and compiler agents use the same skill policy instead of disconnected inline prompts.
+
+#### Changed
+
+- Refactored legal corpus recovery to build ingest payloads directly from official crawler manifests and text artifacts.
+- Moved recovery artifact ownership into `deepagents/tools/legal/sources/recovery` so recovery implementation stays inside the legal-source recovery capability boundary.
+- Updated legal corpus activation scope and recovery tests for the official-source crawl path.
+- Standardized Managed Deep Agent skill discovery on canonical project-level skill directories: `deepagents/skills/lcsp` and `deepagents/skills/legal-rule-triage`.
+- Updated the Triage subagent to use the legal-rule-triage skill as its decision framework while deterministic runtime continues to own persisted compilation and activation.
+- Updated legal chunk triage to require grounded reasons, Candidate obligations, bounded verification targets, and fail-closed non-promotion of definitions, broad principles, or weak keyword matches.
+- Updated EngineeringRule compilation to consume the same triage skill and Candidate handoff metadata, preserving legal modality, conditions, timing, evidence distinctions, and exact source traceability.
+- Bumped legal chunk triage and EngineeringRule compiler prompt versions to `legal-chunk-triage/v2` and `legal-to-engineering/v2` so rules prepared under the old reasoning policy are not silently reused from cache.
+
+#### Removed
+
+- Removed the duplicate legacy `deepagents/skills/deep_agent_skills/lcsp` skill tree and stale test references to that path.
+- Removed the root `deepagents/scripts` recovery utility location; the EngineeringRule restore utility now lives under the legal recovery capability.
+- Removed the root-level `deepagents/tools/legal/corpus/artifact_store.py` implementation in favor of the recovery-owned module.
+
+#### Fixed
+
+- Restored the canonical LCSP Managed Deep Agent skill contract after the recovery refactor.
+- Added project-layout coverage so `deepagents/skills` is constrained to the canonical `lcsp` and `legal-rule-triage` skill directories and duplicate skill trees cannot be reintroduced silently.
+- Added skill-specific tests covering triage verdict semantics, concreteness reasoning, Assessment independence, Candidate-to-EngineeringRule conversion, and source traceability.
+
+#### Verification
+
+- GitHub Actions `EngineeringRule managed runtime` ✅
+- GitHub Actions `autofix.ci` / import-policy checks rerun for the skill loader and prompt wiring.
+- GitHub Actions `Jira PR Link` ✅
+- GitHub Actions `Tests` rerun on the latest PR head for API, Web, and Python worker coverage.
+
 ### 2026-08-25 - Remove Legacy User Table
 
 #### Removed

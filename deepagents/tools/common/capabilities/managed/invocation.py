@@ -17,6 +17,9 @@ from tools.common.capabilities.platform.rbac_client import RbacClient
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.config import load_config
 from tools.common.capabilities.managed.boundary import AgentBoundaryBase
+from tools.legal.sources.recovery.legal_corpus_recovery_driver import (
+    LEGAL_CORPUS_RECOVERY_COMMAND,
+)
 
 
 @dataclass(frozen=True)
@@ -58,7 +61,7 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
         "legal_corpus_recovery_requested",
         "tools.legal.sources.recovery.legal_corpus_recovery_boundary:LegalCorpusRecoveryBoundary",
         "legal.legal-corpus-recovery",
-        "command.legal-corpus.recover.v1",
+        LEGAL_CORPUS_RECOVERY_COMMAND,
     ),
     AgentInvocationBoundary(
         "legal_source_ingest_requested",

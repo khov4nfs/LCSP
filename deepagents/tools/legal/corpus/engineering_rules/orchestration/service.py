@@ -6,6 +6,7 @@ from typing import Any
 
 from tools.legal.retrieval.legal_basis.chromadb_citation_retriever import ChromaDbCitationRetriever
 from tools.common.capabilities.platform.logging import get_logger
+from tools.legal.corpus.artifact_store import write_recovery_artifact
 
 from ..registry.cache import EngineeringRuleCache
 from ..compilation.compiler import COMPILER_VERSION, PROMPT_VERSION, EngineeringRuleCompiler
@@ -127,6 +128,13 @@ class EngineeringRuleService:
                 source_fingerprint=fingerprint,
             )
             self.cache.put(fingerprint, recovered)
+            self._store_engineering_rule_artifact(
+                fingerprint=fingerprint,
+                rules=recovered,
+                legal_rule=legal_rule,
+                legal_rule_catalog_version_id=legal_rule_catalog_version_id,
+                legal_corpus_version_id=legal_corpus_version_id,
+            )
             logger.info(
                 "ENGINEERING_RULE_PRECOMPILED_CACHE_RECOVERED",
                 legal_rule_id=legal_rule_id,
@@ -157,6 +165,13 @@ class EngineeringRuleService:
             )
             return [], False
         self.cache.put(fingerprint, compiled)
+        self._store_engineering_rule_artifact(
+            fingerprint=fingerprint,
+            rules=compiled,
+            legal_rule=legal_rule,
+            legal_rule_catalog_version_id=legal_rule_catalog_version_id,
+            legal_corpus_version_id=legal_corpus_version_id,
+        )
         return compiled, False
 
     @staticmethod
@@ -226,3 +241,32 @@ class EngineeringRuleService:
             if identity and locator:
                 result.append(f"{identity}:{locator}")
         return list(dict.fromkeys(result))
+
+    @staticmethod
+    def _store_engineering_rule_artifact(
+        *,
+        fingerprint: str,
+        rules: list[EngineeringRule],
+        legal_rule: dict[str, Any],
+        legal_rule_catalog_version_id: str,
+        legal_corpus_version_id: str,
+    ) -> None:
+        """Persist compiled EngineeringRule contracts outside Chroma/DB."""
+        legal_rule_id = str(
+            legal_rule.get("legalRuleId")
+            or legal_rule.get("legal_rule_id")
+            or legal_rule.get("id")
+            or "unknown"
+        )
+        write_recovery_artifact(
+            "engineering-rules",
+            fingerprint,
+            {
+                "sourceFingerprint": fingerprint,
+                "legalRuleId": legal_rule_id,
+                "legalRuleCatalogVersionId": legal_rule_catalog_version_id,
+                "legalCorpusVersionId": legal_corpus_version_id,
+                "legalRule": legal_rule,
+                "engineeringRules": [rule.to_dict() for rule in rules],
+            },
+        )

@@ -51,4 +51,4 @@ def test_legacy_model_runtime_is_removed() -> None:
     assert not (orchestration / "deep_agent_client.py").exists()
     assert not (orchestration / "provider_fallback.py").exists()
     assert not (orchestration / "model_runtime.py").exists()
-    assert (PROJECT_ROOT / "skills" / "deep_agent_skills" / "lcsp" / "SKILL.md").is_file()
+    assert (PROJECT_ROOT / "skills" / "lcsp" / "SKILL.md").is_file()

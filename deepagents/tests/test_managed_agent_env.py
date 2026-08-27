@@ -1,5 +1,6 @@
 import os
 
+from tools.common.capabilities.platform import config
 from tools.common.capabilities.platform.env import load_runtime_env
 
 
@@ -39,3 +40,9 @@ def test_runtime_env_returns_none_when_no_dotenv_exists(monkeypatch, tmp_path):
     loaded = load_runtime_env()
 
     assert loaded is None
+
+
+def test_default_legal_source_storage_root_uses_project_root(monkeypatch, tmp_path):
+    monkeypatch.setattr(config, "get_repo_root", lambda: str(tmp_path))
+
+    assert config.default_legal_source_storage_root() == str(tmp_path / ".corpus")

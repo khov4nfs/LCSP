@@ -15,7 +15,10 @@ import {
 } from "./support/auth-workspace-test-helpers.js";
 
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
+import {
+  LEGAL_CORPUS_TRUST_POLICIES,
+  LEGAL_RULE_LIFECYCLE_STATUSES,
+} from "@lcsp/contracts/legal-rule-catalog";
 
 describe("Legal Rule Catalog Endpoints (e2e)", () => {
   const WORKER_KEY = "worker-api-key-for-legal-corpus-123";
@@ -279,6 +282,49 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
         });
 
       assert.equal(response.status, 422);
+    });
+
+    it("accepts official-source auto-trusted corpus without Legal Operator sign-off", async () => {
+      const content = "Điều 1. Auto trusted official corpus content.";
+      const response = await httpRequest(app)
+        .post("/internal/legal-rule-catalog/corpus")
+        .set("Authorization", `Bearer ${authorToken}`)
+        .send({
+          version: "corpus-official-auto-trusted-v1",
+          sourceManifest: {
+            reviewRequired: false,
+            trustPolicy: LEGAL_CORPUS_TRUST_POLICIES.officialSourceAutoTrusted,
+            normalizationWarnings: [],
+            sourceArtifacts: [],
+          },
+          documents: [
+            {
+              documentId: "LAW-OFFICIAL-AUTO-TRUSTED",
+              title: "Official auto trusted legal source",
+              sourceUrl: "https://vbpl.vn/test",
+              sourceSha256: sha256("official-auto-trusted-source"),
+              sourceEffectStatus: "ACTIVE",
+              chunks: [
+                {
+                  id: "chunk-official-auto-trusted-v1",
+                  locator: "art-1",
+                  content,
+                  contentSha256: sha256(content),
+                  hierarchy: { article: "1" },
+                  legalStatus: "ACTIVE",
+                },
+              ],
+            },
+          ],
+        });
+
+      assert.equal(response.status, 201);
+      const draft = successBody<{ id: string; status: string }>(response);
+      assert.equal(draft.status, LEGAL_RULE_LIFECYCLE_STATUSES.draft);
+      const stored = await prisma.legalDocumentChunk.findUnique({
+        where: { id: "chunk-official-auto-trusted-v1" },
+      });
+      assert.equal(stored?.contentSha256, sha256(content));
     });
 
     it("fails closed when a document omits its chunk list", async () => {
