@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+
+# Refresh generated Prisma types after switching branches so local TypeScript
+# never compiles against a client generated from a different schema revision.
+if [ "${3:-0}" != "1" ]; then
+  exit 0
+fi
+
+if ! command -v pnpm >/dev/null 2>&1 || [ ! -d node_modules ]; then
+  exit 0
+fi
+
+DATABASE_URL="${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public}" \
+  pnpm run prisma:generate || {
+    echo "warning: Prisma client refresh failed after checkout; run 'pnpm run prisma:generate' before typecheck" >&2
+    exit 0
+  }

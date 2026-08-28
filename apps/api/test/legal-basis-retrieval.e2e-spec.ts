@@ -102,7 +102,7 @@ describe("Legal basis retrieval endpoint (e2e)", () => {
       false,
     );
 
-    const audit = await prisma.authAuditEvent.findFirst({
+    const audit = await prisma.auditEvent.findFirst({
       where: { eventType: "AGENTIC_TOOL_LEGAL_BASIS_RETRIEVED" },
       orderBy: { createdAt: "desc" },
     });

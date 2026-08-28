@@ -20,7 +20,7 @@ function makePrisma(
 ) {
   const create = overrides.create ?? jest.fn<CreateFn>().mockResolvedValue({});
   const client = {
-    authAuditEvent: { create },
+    auditEvent: { create },
   };
   return { client: client as unknown as PrismaService, create };
 }
@@ -30,7 +30,7 @@ function makeTx(
 ) {
   const create = overrides.create ?? jest.fn<CreateFn>().mockResolvedValue({});
   const tx = {
-    authAuditEvent: { create },
+    auditEvent: { create },
   };
   return { tx: tx as unknown as Prisma.TransactionClient, create };
 }

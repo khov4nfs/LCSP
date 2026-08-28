@@ -15,7 +15,7 @@ import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import { AuditSanitizer } from "./audit-sanitizer.js";
 
 /**
- * Persists normalized and sanitized audit events through Prisma.
+ * Persists normalized and sanitized audit events to the canonical AuditEvent store through Prisma.
  */
 @Injectable()
 export class AuditWriterService {
@@ -24,7 +24,7 @@ export class AuditWriterService {
   /**
    * Creates an audit writer backed by the application Prisma client.
    *
-   * @param prisma - Prisma service used for non-transactional audit writes.
+   * @param prisma - Prisma service used for non-transactional AuditEvent writes.
    */
   constructor(private readonly prisma: PrismaService) {}
 
@@ -42,7 +42,7 @@ export class AuditWriterService {
    * Persists an audit event within an existing Prisma transaction.
    *
    * @param event - Audit event to sanitize, normalize, and persist.
-   * @param tx - Active Prisma transaction client that owns the write.
+   * @param tx - Active Prisma transaction client that owns the AuditEvent write.
    * @returns A promise that resolves after the audit event has been stored.
    */
   async writeInTx(
@@ -55,7 +55,7 @@ export class AuditWriterService {
   /**
    * Sanitizes an audit event, enriches its payload envelope, and writes it using the supplied client.
    *
-   * @param client - Prisma transaction-compatible client used for persistence.
+   * @param client - Prisma transaction-compatible client used to persist the canonical AuditEvent record.
    * @param event - Audit event to normalize and persist.
    * @returns A promise that resolves when persistence completes.
    */
@@ -88,7 +88,7 @@ export class AuditWriterService {
     }
 
     try {
-      await client.authAuditEvent.create({
+      await client.auditEvent.create({
         data: {
           id: crypto.randomUUID(),
           eventType: event.eventType,

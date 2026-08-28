@@ -80,7 +80,7 @@ describe("Citation set validation endpoint (e2e)", () => {
     assert.equal(data.status, "READY");
     assert.equal(data.result.valid, true);
     assert.equal(data.result.items[0]?.validity, "VALID");
-    const audit = await prisma.authAuditEvent.findFirst({
+    const audit = await prisma.auditEvent.findFirst({
       where: { eventType: "AGENTIC_TOOL_CITATION_SET_VALIDATED" },
       orderBy: { createdAt: "desc" },
     });

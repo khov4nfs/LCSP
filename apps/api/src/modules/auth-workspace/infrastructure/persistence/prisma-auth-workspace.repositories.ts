@@ -14,7 +14,6 @@ import {
   toPrismaAuthBackupEmailPolicy,
   toPrismaAuthDecision,
   toPrismaAuthUserRole,
-  toPrismaAuthorizationReasonCode,
   toPrismaAuthPrimaryEmailAddressPolicy,
 } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
@@ -45,6 +44,11 @@ import type {
   User,
 } from "../../domain/models/auth-workspace.models.ts";
 import {
+  AUTH_RECORD_TYPES,
+  authRecordDateMetadata,
+  authRecordLookupKey,
+} from "./auth-record.persistence.ts";
+import {
   dateFromEpochMs,
   dateFromEpochMsRequired,
   mapMfaEnrollmentRecord,
@@ -66,7 +70,7 @@ export class PrismaUserRepository implements UserRepository {
 
   async save(user: User): Promise<void> {
     try {
-      await this.prisma.authUser.upsert({
+      await this.prisma.user.upsert({
         where: { id: user.id },
         create: {
           id: user.id,
@@ -113,30 +117,27 @@ export class PrismaUserRepository implements UserRepository {
   }
 
   async findById(id: string): Promise<User | null> {
-    const record = await this.prisma.authUser.findUnique({ where: { id } });
-
+    const record = await this.prisma.user.findUnique({ where: { id } });
     return record ? mapUserRecord(record) : null;
   }
 
   async findByEmail(email: string): Promise<User | null> {
-    const record = await this.prisma.authUser.findUnique({
+    const record = await this.prisma.user.findUnique({
       where: { email: email.trim().toLowerCase() },
     });
-
     return record ? mapUserRecord(record) : null;
   }
 
   async findByRecoveryEmail(email: string): Promise<User | null> {
-    const record = await this.prisma.authUser.findFirst({
+    const record = await this.prisma.user.findFirst({
       where: { recoveryEmail: email.trim().toLowerCase() },
     });
-
     return record ? mapUserRecord(record) : null;
   }
 
   async findByPrimaryEmail(email: string): Promise<User | null> {
     const normalizedEmail = email.trim().toLowerCase();
-    const record = await this.prisma.authUser.findFirst({
+    const record = await this.prisma.user.findFirst({
       where: {
         OR: [
           { email: normalizedEmail },
@@ -147,7 +148,6 @@ export class PrismaUserRepository implements UserRepository {
         ],
       },
     });
-
     return record ? mapUserRecord(record) : null;
   }
 }
@@ -163,60 +163,75 @@ export class PrismaSessionRepository implements SessionRepository {
   async save(session: Session, fingerprint?: string): Promise<void> {
     const tokenFingerprint =
       fingerprint ?? (await this.resolveFingerprint(session));
-    await this.prisma.authSession.upsert({
+    const metadata = {
+      tokenFingerprint,
+      mfaVerifiedAt: authRecordDateMetadata(session.mfaVerifiedAt),
+      sensitiveActionVerifiedAt: authRecordDateMetadata(
+        session.sensitiveActionVerifiedAt,
+      ),
+    } satisfies Prisma.InputJsonObject;
+
+    await this.prisma.authRecord.upsert({
       where: { id: session.id },
       create: {
         id: session.id,
         userId: session.userId,
-        tokenHash: session.tokenHash,
-        tokenFingerprint,
+        type: AUTH_RECORD_TYPES.session,
+        lookupKey: authRecordLookupKey(
+          AUTH_RECORD_TYPES.session,
+          tokenFingerprint,
+        ),
+        secretHash: session.tokenHash,
         expiresAt: dateFromEpochMsRequired(session.expiresAt),
         revokedAt: dateFromEpochMs(session.revokedAt),
-        mfaVerifiedAt: dateFromEpochMs(session.mfaVerifiedAt),
-        sensitiveActionVerifiedAt: dateFromEpochMs(
-          session.sensitiveActionVerifiedAt,
-        ),
+        metadata,
       },
       update: {
         userId: session.userId,
-        tokenHash: session.tokenHash,
-        tokenFingerprint,
+        lookupKey: authRecordLookupKey(
+          AUTH_RECORD_TYPES.session,
+          tokenFingerprint,
+        ),
+        secretHash: session.tokenHash,
         expiresAt: dateFromEpochMsRequired(session.expiresAt),
         revokedAt: dateFromEpochMs(session.revokedAt),
-        mfaVerifiedAt: dateFromEpochMs(session.mfaVerifiedAt),
-        sensitiveActionVerifiedAt: dateFromEpochMs(
-          session.sensitiveActionVerifiedAt,
-        ),
+        metadata,
       },
     });
   }
 
   async findByFingerprint(fingerprint: string): Promise<Session | null> {
-    const record = await this.prisma.authSession.findUnique({
-      where: { tokenFingerprint: fingerprint },
+    const record = await this.prisma.authRecord.findUnique({
+      where: {
+        lookupKey: authRecordLookupKey(AUTH_RECORD_TYPES.session, fingerprint),
+      },
     });
-
-    return record ? mapSessionRecord(record) : null;
+    return record?.type === AUTH_RECORD_TYPES.session
+      ? mapSessionRecord(record)
+      : null;
   }
 
   private async resolveFingerprint(session: Session): Promise<string> {
-    const existing = await this.prisma.authSession.findUnique({
+    const existing = await this.prisma.authRecord.findUnique({
       where: { id: session.id },
-      select: { tokenFingerprint: true },
+      select: { type: true, lookupKey: true },
     });
-
-    if (!existing) {
+    if (!existing || existing.type !== AUTH_RECORD_TYPES.session) {
       throw new Error(
         `Session fingerprint is required for new session ${session.id}`,
       );
     }
-
-    return existing.tokenFingerprint;
+    return existing.lookupKey.slice(`${AUTH_RECORD_TYPES.session}:`.length);
   }
 
   async revokeAllForUser(userId: string, now: number): Promise<void> {
-    await this.prisma.authSession.updateMany({
-      where: { userId, revokedAt: null, expiresAt: { gt: new Date(now) } },
+    await this.prisma.authRecord.updateMany({
+      where: {
+        userId,
+        type: AUTH_RECORD_TYPES.session,
+        revokedAt: null,
+        expiresAt: { gt: new Date(now) },
+      },
       data: { revokedAt: new Date(now) },
     });
   }
@@ -227,10 +242,7 @@ export class PrismaAuditEventRepository implements AuditEventRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async append(event: AuditEvent): Promise<void> {
-    const record = normalizeAuditEvent(event);
-    await this.prisma.authAuditEvent.create({
-      data: record,
-    });
+    await this.prisma.auditEvent.create({ data: normalizeAuditEvent(event) });
   }
 }
 
@@ -239,15 +251,16 @@ export class PrismaAuthorizationDecisionRepository implements AuthorizationDecis
   constructor(private readonly prisma: PrismaService) {}
 
   async append(decision: AuthorizationDecision): Promise<void> {
-    await this.prisma.authDecisionLog.create({
+    await this.prisma.auditEvent.create({
       data: {
         id: crypto.randomUUID(),
+        eventType: "AUTHORIZATION_DECISION",
         actorId: decision.actor_id ?? null,
         sessionId: decision.session_id ?? null,
         resourceType: toPrismaAuditResourceType(decision.resource_type),
         resourceId: decision.resource_id,
         decision: toPrismaAuthDecision(decision.decision),
-        reasonCode: toPrismaAuthorizationReasonCode(decision.reason_code),
+        reasonCode: decision.reason_code,
         correlationId: decision.correlationId,
         payload: decision,
       },
@@ -260,31 +273,33 @@ export class PrismaMfaEnrollmentRepository implements MfaEnrollmentRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findByUserId(userId: string): Promise<MfaEnrollment | null> {
-    const record = await this.prisma.authUserMfa.findUnique({
-      where: { userId },
-    });
-    return record ? mapMfaEnrollmentRecord(record) : null;
+    const record = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!record?.mfaEncryptedSecret || !record.mfaEnrolledAt) {
+      return null;
+    }
+    return mapMfaEnrollmentRecord(record);
   }
 
   async save(enrollment: MfaEnrollment): Promise<void> {
-    await this.prisma.authUserMfa.upsert({
-      where: { userId: enrollment.userId },
-      create: {
-        userId: enrollment.userId,
-        encryptedSecret: enrollment.encryptedSecret,
-        enrolledAt: new Date(enrollment.enrolledAt),
-        verifiedAt: dateFromEpochMs(enrollment.verifiedAt),
-      },
-      update: {
-        encryptedSecret: enrollment.encryptedSecret,
-        enrolledAt: new Date(enrollment.enrolledAt),
-        verifiedAt: dateFromEpochMs(enrollment.verifiedAt),
+    await this.prisma.user.update({
+      where: { id: enrollment.userId },
+      data: {
+        mfaEncryptedSecret: enrollment.encryptedSecret,
+        mfaEnrolledAt: new Date(enrollment.enrolledAt),
+        mfaVerifiedAt: dateFromEpochMs(enrollment.verifiedAt),
       },
     });
   }
 
   async deleteByUserId(userId: string): Promise<void> {
-    await this.prisma.authUserMfa.deleteMany({ where: { userId } });
+    await this.prisma.user.updateMany({
+      where: { id: userId },
+      data: {
+        mfaEncryptedSecret: null,
+        mfaEnrolledAt: null,
+        mfaVerifiedAt: null,
+      },
+    });
   }
 }
 
@@ -293,30 +308,27 @@ export class PrismaMfaRateLimitRepository implements MfaRateLimitRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findByUserId(userId: string): Promise<MfaRateLimit | null> {
-    const record = await this.prisma.authMfaRateLimit.findUnique({
-      where: { userId },
-    });
-    return record ? mapMfaRateLimitRecord(record) : null;
+    const record = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!record || (record.mfaFailedCount === 0 && !record.mfaLockedUntil)) {
+      return null;
+    }
+    return mapMfaRateLimitRecord(record);
   }
 
   async save(rateLimit: MfaRateLimit): Promise<void> {
-    await this.prisma.authMfaRateLimit.upsert({
-      where: { userId: rateLimit.userId },
-      create: {
-        userId: rateLimit.userId,
-        failedCount: rateLimit.failedCount,
-        lockedUntil: dateFromEpochMs(rateLimit.lockedUntil),
-      },
-      update: {
-        failedCount: rateLimit.failedCount,
-        lockedUntil: dateFromEpochMs(rateLimit.lockedUntil),
+    await this.prisma.user.update({
+      where: { id: rateLimit.userId },
+      data: {
+        mfaFailedCount: rateLimit.failedCount,
+        mfaLockedUntil: dateFromEpochMs(rateLimit.lockedUntil),
       },
     });
   }
 
   async resetByUserId(userId: string): Promise<void> {
-    await this.prisma.authMfaRateLimit.deleteMany({
-      where: { userId },
+    await this.prisma.user.updateMany({
+      where: { id: userId },
+      data: { mfaFailedCount: 0, mfaLockedUntil: null },
     });
   }
 
@@ -327,30 +339,25 @@ export class PrismaMfaRateLimitRepository implements MfaRateLimitRepository {
     lockWindowMs: number,
   ): Promise<MfaRateLimit> {
     const nowDate = new Date(now);
-
-    // Best-effort reset of a naturally-expired lock before incrementing.
-    await this.prisma.authMfaRateLimit.updateMany({
-      where: { userId, lockedUntil: { lte: nowDate } },
-      data: { failedCount: 0, lockedUntil: null },
+    await this.prisma.user.updateMany({
+      where: { id: userId, mfaLockedUntil: { lte: nowDate } },
+      data: { mfaFailedCount: 0, mfaLockedUntil: null },
     });
 
-    // Atomic increment avoids lost updates under concurrent failed attempts.
-    let updated = await this.prisma.authMfaRateLimit.upsert({
-      where: { userId },
-      create: { userId, failedCount: 1 },
-      update: { failedCount: { increment: 1 } },
+    let updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { mfaFailedCount: { increment: 1 } },
     });
 
     if (
-      updated.failedCount >= limit &&
-      (!updated.lockedUntil || updated.lockedUntil <= nowDate)
+      updated.mfaFailedCount >= limit &&
+      (!updated.mfaLockedUntil || updated.mfaLockedUntil <= nowDate)
     ) {
-      updated = await this.prisma.authMfaRateLimit.update({
-        where: { userId },
-        data: { lockedUntil: new Date(now + lockWindowMs) },
+      updated = await this.prisma.user.update({
+        where: { id: userId },
+        data: { mfaLockedUntil: new Date(now + lockWindowMs) },
       });
     }
-
     return mapMfaRateLimitRecord(updated);
   }
 }
@@ -360,16 +367,35 @@ export class PrismaMfaOtpUsedRepository implements MfaOtpUsedRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async isUsed(userId: string, otpCode: string): Promise<boolean> {
-    const record = await this.prisma.authMfaOtpUsed.findUnique({
-      where: { userId_otpCode: { userId, otpCode } },
-    });
-    return record !== null;
+    return (
+      (await this.prisma.authRecord.findUnique({
+        where: {
+          lookupKey: authRecordLookupKey(
+            AUTH_RECORD_TYPES.mfaOtpUse,
+            userId,
+            otpCode,
+          ),
+        },
+        select: { id: true },
+      })) !== null
+    );
   }
 
   async tryMarkUsed(userId: string, otpCode: string): Promise<boolean> {
     try {
-      await this.prisma.authMfaOtpUsed.create({
-        data: { userId, otpCode },
+      await this.prisma.authRecord.create({
+        data: {
+          id: crypto.randomUUID(),
+          userId,
+          type: AUTH_RECORD_TYPES.mfaOtpUse,
+          lookupKey: authRecordLookupKey(
+            AUTH_RECORD_TYPES.mfaOtpUse,
+            userId,
+            otpCode,
+          ),
+          usedAt: new Date(),
+          metadata: { otpCode },
+        },
       });
       return true;
     } catch (error) {
@@ -381,14 +407,17 @@ export class PrismaMfaOtpUsedRepository implements MfaOtpUsedRepository {
   }
 
   async deleteByUserId(userId: string): Promise<void> {
-    await this.prisma.authMfaOtpUsed.deleteMany({
-      where: { userId },
+    await this.prisma.authRecord.deleteMany({
+      where: { userId, type: AUTH_RECORD_TYPES.mfaOtpUse },
     });
   }
 
   async pruneOlderThan(cutoffMs: number): Promise<void> {
-    await this.prisma.authMfaOtpUsed.deleteMany({
-      where: { usedAt: { lt: new Date(cutoffMs) } },
+    await this.prisma.authRecord.deleteMany({
+      where: {
+        type: AUTH_RECORD_TYPES.mfaOtpUse,
+        usedAt: { lt: new Date(cutoffMs) },
+      },
     });
   }
 }
@@ -406,9 +435,10 @@ export class PrismaMfaRecoveryCodeRepository implements MfaRecoveryCodeRepositor
   }
 
   async hasActiveForUser(userId: string): Promise<boolean> {
-    const count = await this.prisma.authMfaRecoveryCode.count({
+    const count = await this.prisma.authRecord.count({
       where: {
         userId,
+        type: AUTH_RECORD_TYPES.mfaRecoveryCode,
         usedAt: null,
         revokedAt: null,
       },
@@ -424,25 +454,41 @@ export class PrismaMfaRecoveryCodeRepository implements MfaRecoveryCodeRepositor
   ): Promise<void> {
     const nowDate = new Date(now);
     await this.prisma.$transaction(async (tx) => {
-      await tx.authMfaRecoveryCode.updateMany({
-        where: { userId, revokedAt: null, usedAt: null },
+      await tx.authRecord.updateMany({
+        where: {
+          userId,
+          type: AUTH_RECORD_TYPES.mfaRecoveryCode,
+          revokedAt: null,
+          usedAt: null,
+        },
         data: { revokedAt: nowDate },
       });
-      await tx.authMfaRecoveryCode.createMany({
+      await tx.authRecord.createMany({
         data: codeRecords.map((record) => ({
           id: record.id,
           userId,
-          codeHash: record.codeHash,
-          batchId,
-          generatedAt: nowDate,
+          type: AUTH_RECORD_TYPES.mfaRecoveryCode,
+          lookupKey: authRecordLookupKey(
+            AUTH_RECORD_TYPES.mfaRecoveryCode,
+            userId,
+            record.codeHash,
+          ),
+          secretHash: record.codeHash,
+          metadata: { batchId },
+          createdAt: nowDate,
         })),
       });
     });
   }
 
   async revokeActiveForUser(userId: string, now: number): Promise<void> {
-    await this.prisma.authMfaRecoveryCode.updateMany({
-      where: { userId, revokedAt: null, usedAt: null },
+    await this.prisma.authRecord.updateMany({
+      where: {
+        userId,
+        type: AUTH_RECORD_TYPES.mfaRecoveryCode,
+        revokedAt: null,
+        usedAt: null,
+      },
       data: { revokedAt: new Date(now) },
     });
   }
@@ -452,10 +498,15 @@ export class PrismaMfaRecoveryCodeRepository implements MfaRecoveryCodeRepositor
     codeHash: string,
     now: number,
   ): Promise<boolean> {
-    const result = await this.prisma.authMfaRecoveryCode.updateMany({
+    const result = await this.prisma.authRecord.updateMany({
       where: {
         userId,
-        codeHash,
+        type: AUTH_RECORD_TYPES.mfaRecoveryCode,
+        lookupKey: authRecordLookupKey(
+          AUTH_RECORD_TYPES.mfaRecoveryCode,
+          userId,
+          codeHash,
+        ),
         usedAt: null,
         revokedAt: null,
       },
@@ -476,21 +527,30 @@ export class PrismaRecoveryRequestRepository implements RecoveryRequestRepositor
   async save(request: RecoveryRequest, fingerprint?: string): Promise<void> {
     const tokenFingerprint =
       fingerprint ?? (await this.resolveFingerprint(request));
-    await this.prisma.authRecoveryRequest.upsert({
+    await this.prisma.authRecord.upsert({
       where: { id: request.id },
       create: {
         id: request.id,
         userId: request.userId,
-        tokenHash: request.tokenHash,
-        tokenFingerprint,
+        type: AUTH_RECORD_TYPES.recoveryRequest,
+        lookupKey: authRecordLookupKey(
+          AUTH_RECORD_TYPES.recoveryRequest,
+          tokenFingerprint,
+        ),
+        secretHash: request.tokenHash,
         expiresAt: dateFromEpochMsRequired(request.expiresAt),
-        consumedAt: dateFromEpochMs(request.consumedAt),
+        usedAt: dateFromEpochMs(request.consumedAt),
+        metadata: { tokenFingerprint },
       },
       update: {
-        tokenHash: request.tokenHash,
-        tokenFingerprint,
+        lookupKey: authRecordLookupKey(
+          AUTH_RECORD_TYPES.recoveryRequest,
+          tokenFingerprint,
+        ),
+        secretHash: request.tokenHash,
         expiresAt: dateFromEpochMsRequired(request.expiresAt),
-        consumedAt: dateFromEpochMs(request.consumedAt),
+        usedAt: dateFromEpochMs(request.consumedAt),
+        metadata: { tokenFingerprint },
       },
     });
   }
@@ -498,25 +558,32 @@ export class PrismaRecoveryRequestRepository implements RecoveryRequestRepositor
   async findByFingerprint(
     fingerprint: string,
   ): Promise<RecoveryRequest | null> {
-    const record = await this.prisma.authRecoveryRequest.findUnique({
-      where: { tokenFingerprint: fingerprint },
+    const record = await this.prisma.authRecord.findUnique({
+      where: {
+        lookupKey: authRecordLookupKey(
+          AUTH_RECORD_TYPES.recoveryRequest,
+          fingerprint,
+        ),
+      },
     });
-    return record ? mapRecoveryRequestRecord(record) : null;
+    return record?.type === AUTH_RECORD_TYPES.recoveryRequest
+      ? mapRecoveryRequestRecord(record)
+      : null;
   }
 
   private async resolveFingerprint(request: RecoveryRequest): Promise<string> {
-    const existing = await this.prisma.authRecoveryRequest.findUnique({
+    const existing = await this.prisma.authRecord.findUnique({
       where: { id: request.id },
-      select: { tokenFingerprint: true },
+      select: { type: true, lookupKey: true },
     });
-
-    if (!existing) {
+    if (!existing || existing.type !== AUTH_RECORD_TYPES.recoveryRequest) {
       throw new Error(
         `Recovery request fingerprint is required for new request ${request.id}`,
       );
     }
-
-    return existing.tokenFingerprint;
+    return existing.lookupKey.slice(
+      `${AUTH_RECORD_TYPES.recoveryRequest}:`.length,
+    );
   }
 }
 
@@ -529,26 +596,37 @@ export class PrismaOAuthStateRepository implements OAuthStateRepository {
   }
 
   async save(state: OAuthState): Promise<void> {
-    await this.prisma.authOAuthState.create({
+    await this.prisma.authRecord.create({
       data: {
         id: state.id,
-        state: state.state,
-        nonce: state.nonce,
-        provider: state.provider,
-        redirectUri: state.redirectUri,
-        expiresAt: dateFromEpochMsRequired(state.expiresAt),
         userId: state.userId,
-        sessionId: state.sessionId,
+        type: AUTH_RECORD_TYPES.oauthState,
+        lookupKey: authRecordLookupKey(
+          AUTH_RECORD_TYPES.oauthState,
+          state.state,
+        ),
+        expiresAt: dateFromEpochMsRequired(state.expiresAt),
+        metadata: {
+          state: state.state,
+          nonce: state.nonce,
+          provider: state.provider,
+          redirectUri: state.redirectUri,
+          sessionId: state.sessionId,
+        },
       },
     });
   }
 
   async consumeByState(state: string): Promise<OAuthState | null> {
     try {
-      const record = await this.prisma.authOAuthState.delete({
-        where: { state },
+      const record = await this.prisma.authRecord.delete({
+        where: {
+          lookupKey: authRecordLookupKey(AUTH_RECORD_TYPES.oauthState, state),
+        },
       });
-      return mapOAuthStateRecord(record);
+      return record.type === AUTH_RECORD_TYPES.oauthState
+        ? mapOAuthStateRecord(record)
+        : null;
     } catch (error) {
       if (isRecordNotFoundError(error)) {
         return null;
@@ -566,11 +644,18 @@ export class PrismaOAuthIdentityRepository implements OAuthIdentityRepository {
     provider: string,
     providerAccountId: string,
   ): Promise<OAuthIdentity | null> {
-    const record = await this.prisma.authOAuthIdentity.findUnique({
-      where: { provider_providerAccountId: { provider, providerAccountId } },
+    const record = await this.prisma.authRecord.findUnique({
+      where: {
+        lookupKey: authRecordLookupKey(
+          AUTH_RECORD_TYPES.oauthIdentity,
+          provider,
+          providerAccountId,
+        ),
+      },
     });
-
-    return record ? mapOAuthIdentityRecord(record) : null;
+    return record?.type === AUTH_RECORD_TYPES.oauthIdentity
+      ? mapOAuthIdentityRecord(record)
+      : null;
   }
 
   async linkToUser(
@@ -578,17 +663,22 @@ export class PrismaOAuthIdentityRepository implements OAuthIdentityRepository {
     providerAccountId: string,
     userId: string,
   ): Promise<OAuthIdentity> {
-    const record = await this.prisma.authOAuthIdentity.upsert({
-      where: { provider_providerAccountId: { provider, providerAccountId } },
+    const lookupKey = authRecordLookupKey(
+      AUTH_RECORD_TYPES.oauthIdentity,
+      provider,
+      providerAccountId,
+    );
+    const record = await this.prisma.authRecord.upsert({
+      where: { lookupKey },
       create: {
         id: crypto.randomUUID(),
-        provider,
-        providerAccountId,
         userId,
+        type: AUTH_RECORD_TYPES.oauthIdentity,
+        lookupKey,
+        metadata: { provider, providerAccountId },
       },
       update: {},
     });
-
     return mapOAuthIdentityRecord(record);
   }
 }
@@ -613,7 +703,7 @@ function isRecordNotFoundError(error: unknown): boolean {
 
 function normalizeAuditEvent(
   event: AuditEvent,
-): Prisma.AuthAuditEventUncheckedCreateInput {
+): Prisma.AuditEventUncheckedCreateInput {
   const payload = event as Prisma.InputJsonValue;
   const rawEventType = authAuditReadString(event, "event_type");
   return {

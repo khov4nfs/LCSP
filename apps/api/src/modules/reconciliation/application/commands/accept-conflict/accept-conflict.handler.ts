@@ -292,7 +292,7 @@ export class AcceptConflictHandler implements ICommandHandler<AcceptConflictComm
       },
       payload: input.payload,
     });
-    await tx.authAuditEvent.create({
+    await tx.auditEvent.create({
       data: {
         id: crypto.randomUUID(),
         eventType: auditEvent.eventType,

@@ -10,6 +10,10 @@ import * as crypto from "node:crypto";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.ts";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import {
+  AUTH_RECORD_TYPES,
+  authRecordLookupKey,
+} from "../../../infrastructure/persistence/auth-record.persistence.ts";
+import {
   createCorrelationId,
   fingerprintToken,
   hashSecret,
@@ -68,8 +72,9 @@ export class SignUpHandler {
     const role = AUTH_USER_ROLES.customer;
     const newUserId = crypto.randomUUID();
     const newSessionId = crypto.randomUUID();
+    const tokenFingerprint = fingerprintToken(sessionToken);
 
-    const existingUser = await this.prisma.authUser.findUnique({
+    const existingUser = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
     if (existingUser) {
@@ -88,7 +93,7 @@ export class SignUpHandler {
     let sessionId = "";
     try {
       await this.prisma.$transaction(async (tx) => {
-        const user = await tx.authUser.create({
+        const user = await tx.user.create({
           data: {
             id: newUserId,
             email: normalizedEmail,
@@ -102,14 +107,23 @@ export class SignUpHandler {
         });
         userId = user.id;
 
-        const session = await tx.authSession.create({
+        const session = await tx.authRecord.create({
           data: {
             id: newSessionId,
             userId,
-            tokenHash: hashSecret(sessionToken),
-            tokenFingerprint: fingerprintToken(sessionToken),
+            type: AUTH_RECORD_TYPES.session,
+            lookupKey: authRecordLookupKey(
+              AUTH_RECORD_TYPES.session,
+              tokenFingerprint,
+            ),
+            secretHash: hashSecret(sessionToken),
             expiresAt: sessionExpiresAt,
             revokedAt: null,
+            metadata: {
+              tokenFingerprint,
+              mfaVerifiedAt: null,
+              sensitiveActionVerifiedAt: null,
+            },
           },
         });
         sessionId = session.id;

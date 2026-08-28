@@ -96,7 +96,7 @@ model {
 
     auditService = service 'AuditService' {
       technology 'apps/api/src/modules/audit/infrastructure/audit.service.ts'
-      description 'Writes sanitized AuthAuditEvent records without raw source or secrets.'
+      description 'Writes sanitized AuditEvent records without raw source or secrets.'
     }
 
     outboxPublisherService = service 'OutboxPublisherService' {

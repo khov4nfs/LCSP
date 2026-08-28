@@ -30,6 +30,11 @@ import {
 
 type FakeFetchResponse = { ok: boolean; json: () => Promise<unknown> };
 
+import {
+  countAuthSessions,
+  setSessionSensitiveActionVerifiedAt,
+} from "./support/auth-record-test-helpers.js";
+
 const ALLOWED_REDIRECT_URI = "http://localhost:3000/api/github/app/callback";
 const LEAKED_TOKEN_MARKER = "ghs_should_never_leak_this_value";
 const INSTALLATION_ID = "installation-42";
@@ -78,10 +83,7 @@ describe("GitHub App Callback Endpoint (e2e) [MW-gh-002]", () => {
     });
     const signInBody = successBody<SignInSuccess>(signIn);
     managerToken = signInBody?.session_token ?? "";
-    await prisma.authSession.updateMany({
-      where: { userId: "user-1" },
-      data: { sensitiveActionVerifiedAt: new Date() },
-    });
+    await setSessionSensitiveActionVerifiedAt(prisma, "user-1", new Date());
   });
 
   afterEach(() => {
@@ -392,13 +394,13 @@ describe("GitHub App Callback Endpoint (e2e) [MW-gh-002]", () => {
   it("T07: no LCSP session created as a side effect", async () => {
     const state = await startInstallFlow();
     mockGithubAppFetch();
-    const before = await prisma.authSession.count();
+    const before = await countAuthSessions(prisma);
 
     await httpRequest(app)
       .get("/github/app/callback")
       .query({ installation_id: INSTALLATION_ID, code: "good-code", state });
 
-    const after = await prisma.authSession.count();
+    const after = await countAuthSessions(prisma);
     assert.equal(after, before);
   });
 
@@ -426,7 +428,7 @@ describe("GitHub App Callback Endpoint (e2e) [MW-gh-002]", () => {
       .get("/github/app/callback")
       .query({ installation_id: INSTALLATION_ID, code: "good-code", state });
 
-    const audit = await prisma.authAuditEvent.findFirst({
+    const audit = await prisma.auditEvent.findFirst({
       where: { eventType: GITHUB_INTEGRATION_EVENT_TYPES.appConnected },
       orderBy: { createdAt: "desc" },
     });
@@ -446,7 +448,7 @@ describe("GitHub App Callback Endpoint (e2e) [MW-gh-002]", () => {
       .get("/github/app/callback")
       .query({ installation_id: INSTALLATION_ID, code: "good-code", state });
 
-    const audit = await prisma.authAuditEvent.findFirst({
+    const audit = await prisma.auditEvent.findFirst({
       where: {
         eventType: GITHUB_INTEGRATION_EVENT_TYPES.appConnectionRejected,
       },

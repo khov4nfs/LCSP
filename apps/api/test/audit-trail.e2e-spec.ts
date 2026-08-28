@@ -3,7 +3,7 @@ import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 /**
  * AC-020: Complete audit trail for all state-changing operations.
  *
- * Every state-changing operation must write an AuthAuditEvent with:
+ * Every state-changing operation must write an AuditEvent with:
  * - eventType (machine-readable)
  * - actorId (user who performed action)
  * - resourceType + resourceId
@@ -72,7 +72,7 @@ describe("Audit trail completeness (e2e) [AC-020]", () => {
       .set("Authorization", `Bearer ${managerToken}`)
       .send({ name: "Audit Coverage Test", organization_id: orgId });
 
-    const audit = await prisma.authAuditEvent.findFirst({
+    const audit = await prisma.auditEvent.findFirst({
       where: { eventType: ASSESSMENT_EVENT_TYPES.created },
       orderBy: { createdAt: "desc" },
     });
@@ -89,7 +89,7 @@ describe("Audit trail completeness (e2e) [AC-020]", () => {
   });
 
   it("AC-020: Sign-in writes audit event", async () => {
-    const audit = await prisma.authAuditEvent.findFirst({
+    const audit = await prisma.auditEvent.findFirst({
       where: {
         eventType: { in: ["SIGN_IN", "USER_SIGNED_IN", "LOGIN_SUCCESS"] },
       },
@@ -99,7 +99,7 @@ describe("Audit trail completeness (e2e) [AC-020]", () => {
     assert.doesNotMatch(JSON.stringify(audit), SENSITIVE_PATTERNS);
   });
 
-  it("AC-020: RBAC denial writes AuthDecisionLog with decision=deny", async () => {
+  it("AC-020: RBAC denial writes authorization AuditEvent with decision=deny", async () => {
     if (!managerToken) return;
     // Make a request that will be denied (attempt something not in Manager policy)
     await httpRequest(app)
@@ -107,7 +107,7 @@ describe("Audit trail completeness (e2e) [AC-020]", () => {
       .set("Authorization", `Bearer ${managerToken}`)
       .send({});
 
-    const decisionLog = await prisma.authDecisionLog.findFirst({
+    const decisionLog = await prisma.auditEvent.findFirst({
       where: { decision: AUDIT_DECISIONS.deny },
       orderBy: { createdAt: "desc" },
     });
@@ -118,9 +118,9 @@ describe("Audit trail completeness (e2e) [AC-020]", () => {
     }
   });
 
-  it("AC-020: AuthAuditEvent payload never contains plaintext password", async () => {
+  it("AC-020: AuditEvent payload never contains plaintext password", async () => {
     // Check all existing audit events for password leakage
-    const allEvents = await prisma.authAuditEvent.findMany({
+    const allEvents = await prisma.auditEvent.findMany({
       take: 50,
       orderBy: { createdAt: "desc" },
     });
@@ -134,7 +134,7 @@ describe("Audit trail completeness (e2e) [AC-020]", () => {
     }
   });
 
-  it("AC-020: AuthDecisionLog never exposes policyId or policy internals in user-facing response", async () => {
+  it("AC-020: authorization AuditEvent never exposes policyId or policy internals in user-facing response", async () => {
     // The RBAC response to end user must not leak policy details
     // This tests the boundary between internal logging (OK to have policyId) and API response (NOT OK)
     if (!managerToken) return;
@@ -168,7 +168,7 @@ describe("Audit trail completeness (e2e) [AC-020]", () => {
       createResult,
     ).assessment_id;
 
-    const events = await prisma.authAuditEvent.findMany({
+    const events = await prisma.auditEvent.findMany({
       where: { eventType: ASSESSMENT_EVENT_TYPES.created },
       orderBy: { createdAt: "desc" },
       take: 10,
