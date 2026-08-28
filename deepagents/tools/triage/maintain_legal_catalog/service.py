@@ -1,7 +1,9 @@
 """Bounded implementation for the legal-catalog maintenance tool.
 
 Existing official-source crawl metadata is used only to derive bounded refresh
-requests. Recovery itself always rebuilds through sourceCrawlRequests.
+requests. Recovery itself always rebuilds through sourceCrawlRequests. Assessment
+resume is intentionally deferred until Legal Rule Triage has prepared READY
+EngineeringRules.
 """
 
 from __future__ import annotations
@@ -25,6 +27,28 @@ from tools.legal.sources.recovery.legal_corpus_recovery_driver import (
 from tools.legal.sources.scripts.crawl_vbpl_document import VbplDocumentCrawler
 
 
+class _DeferredResumeApiClient:
+    """Delegate legal recovery API calls while suppressing premature run resume."""
+
+    def __init__(self, delegate: WorkerApiClient) -> None:
+        self._delegate = delegate
+
+    def __getattr__(self, name: str):
+        return getattr(self._delegate, name)
+
+    def resume_waiting_runs(self, corpus_version_id: str, payload: dict) -> dict:
+        _ = corpus_version_id, payload
+        return {
+            "status": "READY",
+            "result": {
+                "eligibleRunCount": 0,
+                "resumedRunCount": 0,
+                "skippedRunCount": 0,
+                "skips": [],
+            },
+        }
+
+
 class MaintainLegalCatalogService:
     """Refresh approved sources and recover changed legal corpus artifacts."""
 
@@ -40,10 +64,17 @@ class MaintainLegalCatalogService:
     def run(
         self,
         *,
-        max_runs: int = 500,
+        max_runs: int = 0,
         correlation_id: str | None = None,
     ) -> dict[str, Any]:
-        """Crawl approved manifests and recover only changed documents."""
+        """Crawl approved manifests and recover only changed documents.
+
+        ``max_runs`` remains accepted for compatibility but legal maintenance never
+        resumes assessment work directly. Triage must first persist READY
+        EngineeringRules; assessment orchestration then re-checks readiness and resumes
+        the same waiting checkpoint automatically.
+        """
+        _ = max_runs
         manifests = sorted(
             path
             for path in (self.storage_root / "source-crawl").glob("**/*.source.json")
@@ -55,6 +86,7 @@ class MaintainLegalCatalogService:
                 "changed": False,
                 "changedDocuments": [],
                 "affectedRuleIds": [],
+                "assessmentResumeDeferred": True,
                 "limitations": ["NO_APPROVED_SOURCE_MANIFESTS"],
             }
 
@@ -147,15 +179,18 @@ class MaintainLegalCatalogService:
                 "changedDocuments": [],
                 "affectedRuleIds": [],
                 "partialUpdateContexts": [],
+                "assessmentResumeDeferred": True,
                 "limitations": limitations,
             }
 
         idempotency_key = f"legal-triage-{uuid4()}"
-        recovery = LegalCorpusRecoveryDriver(api_client=self.api_client).run(
+        recovery = LegalCorpusRecoveryDriver(
+            api_client=_DeferredResumeApiClient(self.api_client)
+        ).run(
             {
                 "idempotencyKey": idempotency_key,
                 "storageRoot": str(self.storage_root),
-                "maxRuns": max(0, min(int(max_runs), 500)),
+                "maxRuns": 0,
                 "sourceCrawlRequests": source_crawl_requests,
             },
             correlation_id or idempotency_key,
@@ -168,7 +203,8 @@ class MaintainLegalCatalogService:
             "partialUpdateContexts": partial_contexts,
             "corpusVersionId": recovery.get("corpusVersionId"),
             "legalRuleCatalogVersionId": recovery.get("legalRuleCatalogVersionId"),
-            "resumedRunCount": recovery.get("resumedRunCount", 0),
+            "resumedRunCount": 0,
+            "assessmentResumeDeferred": True,
             "engineeringRuleUpdateMode": "AFFECTED_CHUNK_FINGERPRINT",
             "limitations": limitations,
         }

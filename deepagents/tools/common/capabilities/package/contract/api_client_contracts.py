@@ -19,7 +19,7 @@ class CallbackPath(StrEnum):
 
 
 class InternalPath(StrEnum):
-    AUDIT_EVENTS = "/internal/organizations/{organization_id}/audit-events"
+    AUDIT_EVENTS = "/internal/audit-events"
     TECHNICAL_EVIDENCE_REPORT = "/internal/evidence/reports/{evidence_report_id}"
     TECHNICAL_PROFILE = "/internal/evidence/technical-profiles/{technical_profile_id}"
     AGENTIC_TOOL_DISPATCH = "/internal/evidence/agentic-tools/dispatch"

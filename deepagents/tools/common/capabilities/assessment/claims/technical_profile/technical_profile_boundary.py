@@ -151,7 +151,6 @@ class TechnicalProfileBoundary(AgentBoundaryBase):
             "provider_version": profile_data.get("provider_version"),
             "evidence_report_id": profile_data.get("evidence_report_id"),
             "assessment_id": profile_data.get("assessment_id"),
-            "organization_id": profile_data.get("organization_id"),
             "evidence_quality": profile_data.get("evidence_quality"),
             "tool_coverage": profile_data.get("tool_coverage", {}),
             "ai_usage_signal_count": profile_data.get("ai_usage_signal_count", 0),

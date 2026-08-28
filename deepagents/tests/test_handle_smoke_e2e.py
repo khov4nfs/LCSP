@@ -23,7 +23,6 @@ def _technical_profile() -> dict:
         "id": "tp-smoke-1",
         "technical_profile_id": "tp-smoke-1",
         "assessment_id": "assessment-smoke-1",
-        "organization_id": "org-1",
         "evidence_report_id": "ter-smoke-1",
         "status": "accepted",
         "schema_version": "1.0.0",
@@ -48,7 +47,6 @@ def _evidence_report() -> dict:
         "id": "ter-smoke-1",
         "status": "accepted",
         "assessment_id": "assessment-smoke-1",
-        "organization_id": "org-1",
         "evidence_payload": {
             "ai_usage_signals": [
                 {

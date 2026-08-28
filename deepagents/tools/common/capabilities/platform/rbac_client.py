@@ -31,7 +31,6 @@ class RbacClient:
     def check(
         self,
         user_id: str,
-        organization_id: str,
         required_roles: Sequence[str],
         correlationId: str,
     ) -> Literal["allow", "deny"]:
@@ -43,7 +42,6 @@ class RbacClient:
 
         Args:
             user_id: User or technical principal requesting the action.
-            organization_id: Tenant boundary for the authorization decision.
             required_roles: Roles that may execute the worker operation.
             correlationId: Correlation identifier propagated to the API.
 
@@ -59,7 +57,6 @@ class RbacClient:
             request = {
                 "json": {
                     "user_id": user_id,
-                    "organization_id": organization_id,
                     "required_roles": list(required_roles),
                     "correlationId": correlationId,
                 },

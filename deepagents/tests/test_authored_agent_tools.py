@@ -16,7 +16,6 @@ def test_search_program_graph_posts_direct_agentic_tool_contract(monkeypatch) ->
     result = search_program_graph_code.search_program_graph.invoke(
         {
             "assessment_id": "assessment-1",
-            "organization_id": "organization-1",
             "user_id": "user-1",
             "workflow_run_id": "run-1",
             "correlation_id": "correlation-1",
@@ -36,7 +35,6 @@ def test_search_program_graph_posts_direct_agentic_tool_contract(monkeypatch) ->
         "request_id": kwargs["json"]["request_id"],
         "assessment_id": "assessment-1",
         "workflow_run_id": "run-1",
-        "organization_id": "organization-1",
         "user_id": "user-1",
         "artifact_versions": {"technicalEvidenceReportId": "report-1"},
         "scope": {},

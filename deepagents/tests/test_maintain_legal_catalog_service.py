@@ -37,7 +37,7 @@ class FakeCrawler:
         return manifest_path
 
 
-def test_maintain_legal_catalog_passes_source_crawl_requests_to_recovery(
+def test_maintain_legal_catalog_passes_source_crawl_requests_without_resuming_assessment(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
@@ -62,6 +62,7 @@ def test_maintain_legal_catalog_passes_source_crawl_requests_to_recovery(
         encoding="utf-8",
     )
     recovery_messages: list[dict] = []
+    delegated_resume_counts: list[int] = []
 
     class FakeRecoveryDriver:
         def __init__(self, *, api_client) -> None:
@@ -69,11 +70,18 @@ def test_maintain_legal_catalog_passes_source_crawl_requests_to_recovery(
 
         def run(self, message: dict, correlation_id: str) -> dict:
             recovery_messages.append(message)
+            resume = self.api_client.resume_waiting_runs(
+                "corpus-v2",
+                {"maxRuns": 500, "idempotencyKey": "premature-resume"},
+            )
+            delegated_resume_counts.append(
+                int((resume.get("result") or {}).get("resumedRunCount") or 0)
+            )
             return {
                 "status": "READY",
                 "corpusVersionId": "corpus-v2",
                 "legalRuleCatalogVersionId": "catalog-v2",
-                "resumedRunCount": 1,
+                "resumedRunCount": 99,
             }
 
     monkeypatch.setattr(maintain_service, "VbplDocumentCrawler", FakeCrawler)
@@ -93,6 +101,10 @@ def test_maintain_legal_catalog_passes_source_crawl_requests_to_recovery(
     result = service.run(max_runs=25, correlation_id="corr-1")
 
     assert result["status"] == "READY"
+    assert result["resumedRunCount"] == 0
+    assert result["assessmentResumeDeferred"] is True
+    assert delegated_resume_counts == [0]
+    assert recovery_messages[0]["maxRuns"] == 0
     assert recovery_messages[0]["sourceCrawlRequests"] == [
         {
             "documentId": "LAW-TEST",

@@ -98,7 +98,6 @@ class VerifiedProfileCallbackPayload(BaseModel):
     technical_evidence_report_id: str
     reconciliation_decision_refs: List[str]
     idempotency_key: str
-    organization_id: str
 
 
 class LegalRuleMatchCallbackPayload(BaseModel):

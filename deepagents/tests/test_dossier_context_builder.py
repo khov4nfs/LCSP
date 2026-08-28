@@ -6,7 +6,6 @@ def _context() -> dict:
         "document_request": {
             "id": "doc-1",
             "assessment_id": "assessment-1",
-            "organization_id": "org-1",
             "classification_result_id": "classification-1",
             "document_type": "FINAL_REPORT",
         },

@@ -336,7 +336,6 @@ def test_dispatch_agentic_tool_uses_internal_runtime_endpoint(client):
             {
                 "tool_name": "get_scan_coverage",
                 "assessment_id": "assessment-1",
-                "organization_id": "org-1",
                 "user_id": "user-1",
                 "artifact_versions": {"technicalEvidenceReportId": "report-1"},
                 "input": {"maxResults": 10},

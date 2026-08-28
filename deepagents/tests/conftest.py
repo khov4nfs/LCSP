@@ -125,6 +125,5 @@ def scan_job_payload() -> dict:
         "snapshot_id": "snap-test-001",
         "workspace_path": "/tmp/lcsp-test-workspace",
         "config_hash": "sha256:abc123def456",
-        "organization_id": "org-1",
         "policy_token": "internal-policy-test-token",
     }

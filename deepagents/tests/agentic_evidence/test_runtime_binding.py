@@ -12,7 +12,7 @@ def _request(tool_name: str):
 
 def test_runtime_registry_binds_python_local_model_tools() -> None:
     registry = build_engineering_rule_agentic_registry(); api = MagicMock(); api.get_accepted_technical_evidence_report.return_value = {"evidence_payload": {"evidence_graph": _graph()}}
-    bind_runtime_handlers(registry, api_client=api, user_id="user-1", organization_id="org-1")
+    bind_runtime_handlers(registry, api_client=api, user_id="user-1")
     response = registry.invoke_model_tool(_request("get_scan_coverage"))
     assert response["coverageState"] == "SUFFICIENT"
     api.dispatch_agentic_tool.assert_not_called()
@@ -20,7 +20,7 @@ def test_runtime_registry_binds_python_local_model_tools() -> None:
 
 def test_runtime_registry_still_dispatches_cqrs_tools_to_nest() -> None:
     registry = build_engineering_rule_agentic_registry(); api = MagicMock(); api.dispatch_agentic_tool.return_value = {"status": "READY"}
-    bind_runtime_handlers(registry, api_client=api, user_id="user-1", organization_id="org-1")
+    bind_runtime_handlers(registry, api_client=api, user_id="user-1")
     request = _request("get_artifact_chain"); request.input.clear(); request.input.update({"anchor": {"assessmentId": "assessment:abcdefgh"}})
     assert registry.invoke_model_tool(request) == {"status": "READY"}
     assert api.dispatch_agentic_tool.call_count == 1

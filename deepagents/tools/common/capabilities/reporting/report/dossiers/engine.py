@@ -38,7 +38,6 @@ class DossierEngine:
         self,
         *,
         assessment_id: str,
-        organization_id: str,
         version: int,
         source_artifacts: DossierSourceArtifacts,
         context: dict[str, Any],
@@ -64,7 +63,6 @@ class DossierEngine:
         seed = json.dumps(
             {
                 "assessment": assessment_id,
-                "organization": organization_id,
                 "version": version,
                 "type": AI_RISK_CLASSIFICATION,
                 "sources": source_payload,
@@ -90,7 +88,6 @@ class DossierEngine:
             dossier_id=dossier_id,
             dossier_type=AI_RISK_CLASSIFICATION,
             assessment_id=assessment_id,
-            organization_id=organization_id,
             version=version,
             status="INCOMPLETE" if missing else "COMPLETE",
             source_artifacts=source_artifacts,

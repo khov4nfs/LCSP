@@ -22,7 +22,6 @@ class TechnicalProfile:
     provider_version: str
     evidence_report_id: str
     assessment_id: str
-    organization_id: str
     evidence_quality: str
     coverage_notes: list[str]
     tool_coverage: dict[str, bool]
@@ -76,7 +75,6 @@ class TechnicalProfileBuilder:
             provider_version=self._provider_version,
             evidence_report_id=self._read_required_id(evidence_report, "id"),
             assessment_id=self._read_required_id(evidence_report, "assessment_id"),
-            organization_id=self._read_required_id(evidence_report, "organization_id"),
             evidence_quality=quality.evidence_quality,
             coverage_notes=sorted(set([*quality.coverage_notes, *graph_summary["coverage_notes"]])),
             tool_coverage=quality.tool_coverage,

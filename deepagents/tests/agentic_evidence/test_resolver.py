@@ -22,11 +22,9 @@ class AllowAuthorizer:
         *,
         tool_name: str,
         user_id: str,
-        organization_id: str,
         correlationId: UUID,
     ) -> AgenticAuthorizationResult:
         assert user_id == "user-1"
-        assert organization_id == "org-1"
         assert isinstance(correlationId, UUID)
         self.calls.append(tool_name)
         return AgenticAuthorizationResult(role="CUSTOMER")
@@ -38,7 +36,6 @@ def context() -> AgenticInvocationContext:
         workflow_run_id=uuid4(),
         correlationId=uuid4(),
         user_id="user-1",
-        organization_id="org-1",
         artifact_versions={"technicalEvidenceReportId": "ter-1"},
         scope={"pathPrefixes": ["apps/api/"]},
     )

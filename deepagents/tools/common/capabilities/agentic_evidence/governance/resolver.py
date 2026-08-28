@@ -21,7 +21,6 @@ class AgenticInvocationContext:
     workflow_run_id: UUID
     correlationId: UUID
     user_id: str
-    organization_id: str
     artifact_versions: dict[str, str]
     scope: dict[str, Any]
 
@@ -90,7 +89,7 @@ class AgenticToolResolver:
             "input": arguments,
         })
         self._registry.validate_model_request(request)
-        self._authorizer.authorize(tool_name=name, user_id=context.user_id, organization_id=context.organization_id, correlationId=context.correlationId)
+        self._authorizer.authorize(tool_name=name, user_id=context.user_id, correlationId=context.correlationId)
         return self._registry.invoke_model_tool(request)
 
 def _requested_max_items(arguments: dict[str, Any], server_cap: int) -> int:

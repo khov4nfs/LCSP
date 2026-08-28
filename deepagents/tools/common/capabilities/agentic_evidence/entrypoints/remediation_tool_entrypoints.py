@@ -46,7 +46,6 @@ def _cqrs_trace_payload(request: AgenticToolRequest, context, row_ref: str) -> d
         "request_id": str(request.request_id),
         "assessment_id": str(request.assessment_id),
         "workflow_run_id": str(request.workflow_run_id),
-        "organization_id": context.organization_id,
         "user_id": context.user_id,
         "artifact_versions": request.artifact_versions,
         "scope": request.scope,
