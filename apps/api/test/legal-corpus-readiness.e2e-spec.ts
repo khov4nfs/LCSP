@@ -90,7 +90,7 @@ describe("Legal corpus readiness endpoint (e2e)", () => {
       false,
     );
 
-    const audit = await prisma.authAuditEvent.findFirst({
+    const audit = await prisma.auditEvent.findFirst({
       where: { eventType: "AGENTIC_TOOL_LEGAL_CORPUS_READINESS_READ" },
       orderBy: { createdAt: "desc" },
     });

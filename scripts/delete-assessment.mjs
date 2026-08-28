@@ -346,16 +346,16 @@ function deletionSteps(assessmentId, relatedIds, repositoryConnectionIds) {
         }),
     ],
     [
-      "AuthAuditEvent",
+      "AuditEvent",
       (tx) =>
-        tx.authAuditEvent.deleteMany({
+        tx.auditEvent.deleteMany({
           where: { resourceId: { in: relatedIds } },
         }),
     ],
     [
-      "AuthDecisionLog",
+      "authorization AuditEvent",
       (tx) =>
-        tx.authDecisionLog.deleteMany({
+        tx.auditEvent.deleteMany({
           where: { resourceId: { in: relatedIds } },
         }),
     ],

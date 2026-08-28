@@ -274,7 +274,7 @@ function enableManagerDocumentRead(prisma: PrismaClient) {
 }
 
 async function seedSystemAdmin(prisma: PrismaClient) {
-  await prisma.authUser.create({
+  await prisma.user.create({
     data: {
       id: "system-admin-1",
       email: "system-admin@acme.test",

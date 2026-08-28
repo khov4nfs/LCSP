@@ -307,7 +307,7 @@ export class ProcessScanCallbackHandler implements ICommandHandler<ProcessScanCa
             correlationId: command.correlationId,
           },
         });
-        await tx.authAuditEvent.create({
+        await tx.auditEvent.create({
           data: {
             id: crypto.randomUUID(),
             eventType: auditEvent.eventType,

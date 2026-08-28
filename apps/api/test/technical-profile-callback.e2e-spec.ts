@@ -97,7 +97,7 @@ describe("TechnicalProfile Callback Endpoint (e2e) [MW-evid-002]", () => {
       prisma.outboxMessage.findFirst({
         where: { eventType: SCAN_EVENT_TYPES.technicalProfileReady },
       }),
-      prisma.authAuditEvent.findFirst({
+      prisma.auditEvent.findFirst({
         where: { eventType: SCAN_EVENT_TYPES.technicalProfileAcceptedAudit },
       }),
     ]);

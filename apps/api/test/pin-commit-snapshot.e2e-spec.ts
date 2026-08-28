@@ -165,7 +165,7 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
       (event.payload as { correlationId?: string }).correlationId,
       body.correlationId,
     );
-    const audit = await prisma.authAuditEvent.findFirst({
+    const audit = await prisma.auditEvent.findFirst({
       where: {
         eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreatedAudit,
         resourceId: body.snapshot_id,
@@ -212,7 +212,7 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
     assert.equal(await prisma.repositorySnapshot.count(), 0);
     assert.equal(await prisma.outboxMessage.count(), beforeOutbox);
     assert.ok(
-      await prisma.authAuditEvent.findFirst({
+      await prisma.auditEvent.findFirst({
         where: {
           eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotPinFailedAudit,
         },

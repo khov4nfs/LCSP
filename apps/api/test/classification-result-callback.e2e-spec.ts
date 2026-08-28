@@ -86,7 +86,7 @@ describe("Direct EngineeringRule Result Callback (e2e)", () => {
       prisma.outboxMessage.findFirst({
         where: { eventType: SCAN_EVENT_TYPES.classificationResultReady },
       }),
-      prisma.authAuditEvent.findFirst({
+      prisma.auditEvent.findFirst({
         where: { eventType: SCAN_EVENT_TYPES.classificationAcceptedAudit },
       }),
     ]);
@@ -179,7 +179,7 @@ describe("Direct EngineeringRule Result Callback (e2e)", () => {
       CLASSIFICATION_GUARDRAIL_STATUSES.blocked,
     );
 
-    const audit = await prisma.authAuditEvent.findFirst({
+    const audit = await prisma.auditEvent.findFirst({
       where: { eventType: SCAN_EVENT_TYPES.classificationBlockedAudit },
     });
     assert.ok(audit);

@@ -6,25 +6,16 @@ model {
     authOrganizationEntity = entity 'AuthOrganization' {
       description 'Tenant organization unit owning assessments, memberships, and PBAC policies.'
     }
-
-    authUserEntity = entity 'AuthUser' {
-      description 'Authenticated user account (Manager or Developer).'
+    userEntity = entity 'User' {
+      description 'Account, role, profile and singleton MFA state.'
     }
 
-    authPolicyEntity = entity 'AuthPolicy' {
-      description 'Versioned PBAC policy rules specifying actions, roles, and state gates.'
+    authRecordEntity = entity 'AuthRecord' {
+      description 'Session, OAuth, recovery and MFA multi-row records.'
     }
 
-    authMembershipEntity = entity 'AuthMembership' {
-      description 'User membership binding AuthUser to AuthOrganization with PBAC policy.'
-    }
-
-    authSessionEntity = entity 'AuthSession' {
-      description 'Active user session bound to user, tenant organization, and MFA state.'
-    }
-
-    authAuditEventEntity = entity 'AuthAuditEvent' {
-      description 'Immutable audit log recording state-changing & auth events.'
+    auditEventEntity = entity 'AuditEvent' {
+      description 'Platform audit trail, including authorization decisions.'
     }
 
     // ----------------------------------------------------
@@ -115,11 +106,11 @@ model {
   // ERD RELATIONSHIPS
   // ----------------------------------------------------
   lcsp.database.authOrganizationEntity -> lcsp.database.authMembershipEntity '1:N Memberships'
-  lcsp.database.authUserEntity -> lcsp.database.authMembershipEntity '1:N Memberships'
+  lcsp.database.userEntity -> lcsp.database.authMembershipEntity '1:N Memberships'
   lcsp.database.authPolicyEntity -> lcsp.database.authMembershipEntity '1:N Applied Policies'
-  lcsp.database.authOrganizationEntity -> lcsp.database.authSessionEntity '1:N Active Sessions'
-  lcsp.database.authUserEntity -> lcsp.database.authSessionEntity '1:N Active Sessions'
-  lcsp.database.authOrganizationEntity -> lcsp.database.authAuditEventEntity '1:N Audit Events'
+  lcsp.database.authOrganizationEntity -> lcsp.database.authRecordEntity '1:N Active Sessions'
+  lcsp.database.userEntity -> lcsp.database.authRecordEntity '1:N Active Sessions'
+  lcsp.database.authOrganizationEntity -> lcsp.database.auditEventEntity '1:N Audit Events'
 
   lcsp.database.authOrganizationEntity -> lcsp.database.assessmentEntity '1:N Assessments'
   lcsp.database.assessmentEntity -> lcsp.database.wizardProfileEntity '1:1 Wizard Profile'
@@ -154,14 +145,14 @@ views {
 
   view erd_auth_domain of lcsp.database {
     title 'ERD - Auth & PBAC Authorization Domain'
-    description 'AuthOrganization, AuthUser, AuthPolicy, AuthMembership, AuthSession, and AuthAuditEvent entities.'
+    description 'Optimized User, AuthRecord, and platform AuditEvent entities.'
     include
       lcsp.database.authOrganizationEntity,
-      lcsp.database.authUserEntity,
+      lcsp.database.userEntity,
       lcsp.database.authPolicyEntity,
       lcsp.database.authMembershipEntity,
-      lcsp.database.authSessionEntity,
-      lcsp.database.authAuditEventEntity
+      lcsp.database.authRecordEntity,
+      lcsp.database.auditEventEntity
   }
 
   view erd_assessment_evidence_domain of lcsp.database {

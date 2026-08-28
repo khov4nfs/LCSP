@@ -65,7 +65,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
     const passwordHash = hashFn("CorrectHorseBatteryStaple!");
 
     const authorUserId = "user-author";
-    await prisma.authUser.create({
+    await prisma.user.create({
       data: {
         id: authorUserId,
         email: "author@acme.test",
@@ -85,7 +85,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
     );
 
     const approverUserId = "user-approver";
-    await prisma.authUser.create({
+    await prisma.user.create({
       data: {
         id: approverUserId,
         email: "approver@acme.test",
@@ -106,7 +106,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
     );
 
     const restrictedUserId = "user-restricted";
-    await prisma.authUser.create({
+    await prisma.user.create({
       data: {
         id: restrictedUserId,
         email: "restricted@acme.test",

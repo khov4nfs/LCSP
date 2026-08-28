@@ -64,7 +64,7 @@ describe("Worker runtime input endpoints (e2e) [LCSP-155]", () => {
     await prisma.repositorySnapshot.deleteMany();
     await prisma.repositoryConnection.deleteMany();
     await prisma.assessment.deleteMany();
-    await prisma.authUser.deleteMany();
+    await prisma.user.deleteMany();
 
     await seedRepositoryScanGraph(prisma, {
       assessmentId: "assessment-runtime-1",

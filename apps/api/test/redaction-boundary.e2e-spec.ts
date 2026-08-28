@@ -117,30 +117,30 @@ describe("Redaction boundary (e2e) [AC-022]", () => {
     );
   });
 
-  it("AC-022: AuthAuditEvent records contain no raw secret material", async () => {
-    const events = await prisma.authAuditEvent.findMany({ take: 100 });
+  it("AC-022: AuditEvent records contain no raw secret material", async () => {
+    const events = await prisma.auditEvent.findMany({ take: 100 });
     for (const event of events) {
       const serialized = JSON.stringify(event);
       assert.doesNotMatch(
         serialized,
         SECRET_PATTERNS,
-        `AuthAuditEvent ${event.id} must not contain raw secret material`,
+        `AuditEvent ${event.id} must not contain raw secret material`,
       );
       assert.doesNotMatch(
         serialized,
         PLAINTEXT_SECRET,
-        `AuthAuditEvent ${event.id} must not contain plaintext password`,
+        `AuditEvent ${event.id} must not contain plaintext password`,
       );
     }
   });
 
-  it("AC-022: AuthDecisionLog records contain no raw secret material", async () => {
-    const logs = await prisma.authDecisionLog.findMany({ take: 100 });
+  it("AC-022: authorization AuditEvent records contain no raw secret material", async () => {
+    const logs = await prisma.auditEvent.findMany({ take: 100 });
     for (const log of logs) {
       assert.doesNotMatch(
         JSON.stringify(log),
         SECRET_PATTERNS,
-        `AuthDecisionLog ${log.id} must not contain secret material`,
+        `authorization AuditEvent ${log.id} must not contain secret material`,
       );
     }
   });

@@ -101,7 +101,7 @@ export class ProcessDocumentCallbackHandler implements ICommandHandler<ProcessDo
       payload: payload as unknown as Record<string, unknown>,
     });
 
-    await this.prisma.authAuditEvent.create({
+    await this.prisma.auditEvent.create({
       data: {
         id: crypto.randomUUID(),
         eventType: auditEvent.eventType,

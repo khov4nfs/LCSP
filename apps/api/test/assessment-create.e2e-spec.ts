@@ -148,7 +148,7 @@ describe("Create Assessment Endpoint (e2e) [MW-asmt-001]", () => {
         description: "Sensitive detail",
       });
 
-    const audit = await prisma.authAuditEvent.findFirst({
+    const audit = await prisma.auditEvent.findFirst({
       where: { eventType: ASSESSMENT_EVENT_TYPES.created },
       orderBy: { createdAt: "desc" },
     });

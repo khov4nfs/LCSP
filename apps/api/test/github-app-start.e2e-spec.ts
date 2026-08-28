@@ -27,6 +27,11 @@ import {
   seedAuthWorkspaceFixture,
 } from "./support/auth-workspace-test-helpers.js";
 
+import {
+  countAuthSessions,
+  setSessionSensitiveActionVerifiedAt,
+} from "./support/auth-record-test-helpers.js";
+
 const ALLOWED_REDIRECT_URI = "http://localhost:3000/api/github/app/callback";
 
 describe("GitHub App OAuth Start Endpoint (e2e) [MW-gh-001]", () => {
@@ -62,10 +67,7 @@ describe("GitHub App OAuth Start Endpoint (e2e) [MW-gh-001]", () => {
     });
     const signInBody = successBody<SignInSuccess>(signIn);
     managerToken = signInBody?.session_token ?? "";
-    await prisma.authSession.updateMany({
-      where: { userId: "user-1" },
-      data: { sensitiveActionVerifiedAt: new Date() },
-    });
+    await setSessionSensitiveActionVerifiedAt(prisma, "user-1", new Date());
   });
 
   afterAll(async () => {
@@ -107,10 +109,7 @@ describe("GitHub App OAuth Start Endpoint (e2e) [MW-gh-001]", () => {
   });
 
   it("rejects a direct GitHub App start request without recent re-authentication", async () => {
-    await prisma.authSession.updateMany({
-      where: { userId: "user-1" },
-      data: { sensitiveActionVerifiedAt: null },
-    });
+    await setSessionSensitiveActionVerifiedAt(prisma, "user-1", null);
 
     const result = await httpRequest(app)
       .get("/github/app/start")
@@ -168,14 +167,14 @@ describe("GitHub App OAuth Start Endpoint (e2e) [MW-gh-001]", () => {
 
   // T07
   it("T07: no LCSP session created as a side effect", async () => {
-    const before = await prisma.authSession.count();
+    const before = await countAuthSessions(prisma);
 
     await httpRequest(app)
       .get("/github/app/start")
       .query({ redirect_uri: ALLOWED_REDIRECT_URI })
       .set("Authorization", `Bearer ${managerToken}`);
 
-    const after = await prisma.authSession.count();
+    const after = await countAuthSessions(prisma);
     assert.equal(after, before);
   });
 
@@ -186,7 +185,7 @@ describe("GitHub App OAuth Start Endpoint (e2e) [MW-gh-001]", () => {
       .query({ redirect_uri: ALLOWED_REDIRECT_URI })
       .set("Authorization", `Bearer ${managerToken}`);
 
-    const audit = await prisma.authAuditEvent.findFirst({
+    const audit = await prisma.auditEvent.findFirst({
       where: { eventType: GITHUB_INTEGRATION_EVENT_TYPES.appInstallStarted },
       orderBy: { createdAt: "desc" },
     });

@@ -29,18 +29,16 @@ function buildHandler(
   const outboxMessage = {
     create: jest.fn().mockImplementation(() => Promise.resolve()),
   };
-  const authAuditEvent = {
+  const auditEvent = {
     create: jest.fn().mockImplementation(() => Promise.resolve()),
   };
   const prisma = {
     technicalEvidenceReport,
     technicalProfile,
     outboxMessage,
-    authAuditEvent,
+    auditEvent,
     $transaction: jest.fn((handler: (tx: any) => unknown) =>
-      Promise.resolve(
-        handler({ technicalProfile, outboxMessage, authAuditEvent }),
-      ),
+      Promise.resolve(handler({ technicalProfile, outboxMessage, auditEvent })),
     ),
   };
   const storageService = {

@@ -2,9 +2,9 @@ name: autofix.ci
 
 on:
   pull_request:
-    branches: [develop, main]
+    branches: ["**"]
   push:
-    branches: [main]
+    branches: ["**"]
   workflow_dispatch:
 
 permissions:

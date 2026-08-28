@@ -44,6 +44,13 @@ import {
   totpForTime,
 } from "./support/auth-workspace-test-helpers.js";
 
+import {
+  AUTH_RECORD_TYPE,
+  authRecordMetadataString,
+  createAuthSessionRecord,
+  findLatestAuthSession,
+} from "./support/auth-record-test-helpers.js";
+
 describe("Auth workspace (e2e)", () => {
   let app: INestApplication;
   let prisma: PrismaClient;
@@ -177,13 +184,12 @@ describe("Auth workspace (e2e)", () => {
     const body = successBody<PasswordReauthSuccess>(result);
     assert.equal(body.verified, true);
 
-    const session = await prisma.authSession.findFirst({
-      where: {
-        userId: fixture.approvedUser.id,
-      },
-      orderBy: { createdAt: "desc" },
-    });
-    assert.ok(session?.sensitiveActionVerifiedAt);
+    const session = await findLatestAuthSession(
+      prisma,
+      fixture.approvedUser.id,
+    );
+    assert.ok(session);
+    assert.ok(authRecordMetadataString(session, "sensitiveActionVerifiedAt"));
 
     const afterCheck = await httpRequest(app)
       .post("/auth/sensitive-route/check")
@@ -269,8 +275,11 @@ describe("Auth workspace (e2e)", () => {
     assert.equal(problemCode(result), AUTH_ERROR_CODES.sessionInvalid);
     assert.equal("workspace" in result.body, false);
 
-    const decision = await prisma.authDecisionLog.findFirstOrThrow({
-      where: { correlationId: "corr-workspace-no-session" },
+    const decision = await prisma.auditEvent.findFirstOrThrow({
+      where: {
+        eventType: "AUTHORIZATION_DECISION",
+        correlationId: "corr-workspace-no-session",
+      },
     });
     assert.equal(decision.decision, AUDIT_DECISIONS.deny);
   });
@@ -349,8 +358,9 @@ describe("Auth workspace (e2e)", () => {
     assert.equal("policyVersion" in body, false);
     assert.equal("tokenHash" in body, false);
 
-    const decision = await prisma.authDecisionLog.findFirstOrThrow({
+    const decision = await prisma.auditEvent.findFirstOrThrow({
       where: {
+        eventType: "AUTHORIZATION_DECISION",
         correlationId: "corr-manager-workspace-context",
         resourceType: AUDIT_RESOURCE_TYPES.workspace,
       },
@@ -407,8 +417,11 @@ describe("Auth workspace (e2e)", () => {
       .set("x-correlation-id", "corr-workspace-allow")
       .expect(200);
 
-    const allowDecision = await prisma.authDecisionLog.findFirstOrThrow({
-      where: { correlationId: "corr-workspace-allow" },
+    const allowDecision = await prisma.auditEvent.findFirstOrThrow({
+      where: {
+        eventType: "AUTHORIZATION_DECISION",
+        correlationId: "corr-workspace-allow",
+      },
     });
     assert.equal(allowDecision.decision, AUDIT_DECISIONS.allow);
 
@@ -417,7 +430,7 @@ describe("Auth workspace (e2e)", () => {
       .send({ session_token: signIn.session_token })
       .expect(201);
 
-    const auditEvents = await prisma.authAuditEvent.findMany({
+    const auditEvents = await prisma.auditEvent.findMany({
       orderBy: { createdAt: "asc" },
     });
     const serializedAudit = JSON.stringify(
@@ -470,8 +483,12 @@ describe("Auth workspace (e2e)", () => {
       .expect(403);
     assert.equal(problemCode(replay), AUTH_ERROR_CODES.mfaInvalid);
 
-    const usedCodes = await prisma.authMfaRecoveryCode.findMany({
-      where: { userId: fixture.approvedUser.id, usedAt: { not: null } },
+    const usedCodes = await prisma.authRecord.findMany({
+      where: {
+        userId: fixture.approvedUser.id,
+        type: AUTH_RECORD_TYPE.mfaRecoveryCode,
+        usedAt: { not: null },
+      },
     });
     assert.equal(usedCodes.length, 1);
   });
@@ -527,7 +544,7 @@ describe("Auth workspace (e2e)", () => {
   });
 
   it("MFA enrollment labels the TOTP URI with the effective primary email address", async () => {
-    await prisma.authUser.update({
+    await prisma.user.update({
       where: { id: fixture.approvedUser.id },
       data: {
         recoveryEmail: "security@acme.test",
@@ -614,7 +631,7 @@ describe("Auth workspace (e2e)", () => {
     const failure = expectFailure(result.body);
     assert.equal(failure.problem.code, AUTH_ERROR_CODES.mfaInvalid);
 
-    const auditEvents = await prisma.authAuditEvent.findMany();
+    const auditEvents = await prisma.auditEvent.findMany();
     const mfaFailed = auditEvents.find(
       (e) =>
         (e.payload as Record<string, unknown>)["event_type"] ===
@@ -646,7 +663,7 @@ describe("Auth workspace (e2e)", () => {
     const failure = expectFailure(replay.body);
     assert.equal(failure.problem.code, AUTH_ERROR_CODES.mfaInvalid);
 
-    const auditEvents = await prisma.authAuditEvent.findMany({
+    const auditEvents = await prisma.auditEvent.findMany({
       orderBy: { createdAt: "asc" },
     });
     const replayFailed = [...auditEvents]
@@ -732,17 +749,12 @@ describe("Auth workspace (e2e)", () => {
 
   it("expired session is denied access with audit event recorded", async () => {
     const expiredToken = "expired-session-token";
-    const { hashSecret, fingerprintToken } =
-      await import("../src/modules/auth-workspace/infrastructure/security/security.utils.js");
-    await prisma.authSession.create({
-      data: {
-        id: "session-expired",
-        userId: fixture.approvedUser.id,
-        tokenHash: hashSecret(expiredToken),
-        tokenFingerprint: fingerprintToken(expiredToken),
-        expiresAt: new Date(Date.now() - 1000),
-        revokedAt: null,
-      },
+    await createAuthSessionRecord(prisma, {
+      id: "session-expired",
+      userId: fixture.approvedUser.id,
+      token: expiredToken,
+      expiresAt: new Date(Date.now() - 1000),
+      revokedAt: null,
     });
 
     const result = await httpRequest(app)
@@ -770,7 +782,7 @@ describe("Auth workspace (e2e)", () => {
 
     assert.equal(problemCode(workspace), AUTH_ERROR_CODES.sessionInvalid);
 
-    const auditEvents = await prisma.authAuditEvent.findMany();
+    const auditEvents = await prisma.auditEvent.findMany();
     const revoked = auditEvents.find(
       (e) =>
         (e.payload as Record<string, unknown>)["event_type"] ===
@@ -827,7 +839,7 @@ describe("Auth workspace (e2e)", () => {
       })
       .expect(200);
 
-    const auditEvents = await prisma.authAuditEvent.findMany();
+    const auditEvents = await prisma.auditEvent.findMany();
     const profileUpdated = auditEvents.find(
       (e) =>
         (e.payload as Record<string, unknown>)["event_type"] ===
@@ -1111,8 +1123,13 @@ describe("Auth workspace (e2e)", () => {
   }
 
   async function signInAndVerifyApprovedUser() {
-    await prisma.authUserMfa.deleteMany({
-      where: { userId: fixture.approvedUser.id },
+    await prisma.user.update({
+      where: { id: fixture.approvedUser.id },
+      data: {
+        mfaEncryptedSecret: null,
+        mfaEnrolledAt: null,
+        mfaVerifiedAt: null,
+      },
     });
     const signIn = await signInApprovedUser();
     const mfa = await seedMfaEnrollment(prisma, fixture.approvedUser.id);

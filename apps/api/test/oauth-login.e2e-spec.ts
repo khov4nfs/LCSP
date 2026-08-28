@@ -22,6 +22,14 @@ import {
   resetAuthWorkspaceDatabase,
 } from "./support/auth-workspace-test-helpers.js";
 
+import {
+  AUTH_RECORD_TYPE,
+  authRecordMetadataString,
+  createOAuthIdentityRecord,
+  createOAuthStateRecord,
+  findOAuthStateRecord,
+} from "./support/auth-record-test-helpers.js";
+
 const ALLOWED_REDIRECT_URI = "http://localhost:3000/auth/callback";
 const GOOGLE_ID_TOKEN_MARKER = "google_id_token_should_never_leak_this_value";
 
@@ -151,18 +159,25 @@ describe("OAuth login (e2e)", () => {
     assert.equal("state" in success, false);
     assert.equal("nonce" in success, false);
 
-    const stateRow = await prisma.authOAuthState.findFirst();
-    assert.ok(stateRow, "expected an AuthOAuthState row to be persisted");
+    const stateRow = await findOAuthStateRecord(prisma);
+    assert.ok(stateRow, "expected an OAuth state AuthRecord to be persisted");
+    assert.ok(stateRow.expiresAt);
     const ttlMs = stateRow.expiresAt.getTime() - Date.now();
     assert.ok(
       ttlMs > 9 * 60_000 && ttlMs <= 10 * 60_000,
       `unexpected TTL: ${ttlMs}ms`,
     );
 
-    const auditEvents = await prisma.authAuditEvent.findMany();
+    const auditEvents = await prisma.auditEvent.findMany();
     const serialized = JSON.stringify(auditEvents.map((e) => e.payload));
-    assert.doesNotMatch(serialized, new RegExp(stateRow.state));
-    assert.doesNotMatch(serialized, new RegExp(stateRow.nonce));
+    assert.doesNotMatch(
+      serialized,
+      new RegExp(authRecordMetadataString(stateRow, "state") ?? ""),
+    );
+    assert.doesNotMatch(
+      serialized,
+      new RegExp(authRecordMetadataString(stateRow, "nonce") ?? ""),
+    );
     assert.match(serialized, /auth\.oauth\.start\.succeeded/);
   });
 
@@ -224,8 +239,8 @@ describe("OAuth login (e2e)", () => {
     assert.equal(success.mfa_required, false);
     assert.ok(success.expires_at > Date.now());
 
-    const session = await prisma.authSession.findFirst({
-      where: { userId },
+    const session = await prisma.authRecord.findFirst({
+      where: { userId, type: AUTH_RECORD_TYPE.session },
     });
     assert.ok(session, "expected a session to be created");
   });
@@ -246,15 +261,13 @@ describe("OAuth login (e2e)", () => {
   });
 
   it("rejects a callback with an expired state", async () => {
-    await prisma.authOAuthState.create({
-      data: {
-        id: "state-expired",
-        state: "expired-state-value",
-        nonce: "expired-nonce-value",
-        provider: "google",
-        redirectUri: ALLOWED_REDIRECT_URI,
-        expiresAt: new Date(Date.now() - 1000),
-      },
+    await createOAuthStateRecord(prisma, {
+      id: "state-expired",
+      state: "expired-state-value",
+      nonce: "expired-nonce-value",
+      provider: "google",
+      redirectUri: ALLOWED_REDIRECT_URI,
+      expiresAt: new Date(Date.now() - 1000),
     });
     mockGoogleFetch("333");
 
@@ -309,7 +322,7 @@ describe("OAuth login (e2e)", () => {
     assert.equal(failure.problem.code, AUTH_ERROR_CODES.oauthCallbackInvalid);
     assert.doesNotMatch(JSON.stringify(failure), /bad_verification_code/);
 
-    const auditEvents = await prisma.authAuditEvent.findMany();
+    const auditEvents = await prisma.auditEvent.findMany();
     assert.doesNotMatch(
       JSON.stringify(auditEvents.map((e) => e.payload)),
       new RegExp(GOOGLE_ID_TOKEN_MARKER),
@@ -359,7 +372,7 @@ describe("OAuth login (e2e)", () => {
       .query({ code: "good-code", state, provider: "google" })
       .expect(200);
 
-    const auditEvents = await prisma.authAuditEvent.findMany();
+    const auditEvents = await prisma.auditEvent.findMany();
     const serialized = JSON.stringify(auditEvents.map((e) => e.payload));
     assert.match(serialized, /auth\.oauth\.login\.succeeded/);
     assert.doesNotMatch(serialized, new RegExp(GOOGLE_ID_TOKEN_MARKER));
@@ -374,11 +387,9 @@ describe("OAuth login (e2e)", () => {
     const url = new URL(success.authorization_url);
     const state = url.searchParams.get("state");
     assert.ok(state, "expected a state param on the authorization URL");
-    const stateRow = await prisma.authOAuthState.findFirst({
-      where: { state },
-    });
+    const stateRow = await findOAuthStateRecord(prisma, state);
     assert.ok(stateRow, "expected a state row for the returned state");
-    oauthNonceForMock = stateRow.nonce;
+    oauthNonceForMock = authRecordMetadataString(stateRow, "nonce") ?? "";
     return state;
   }
 
@@ -412,7 +423,7 @@ describe("OAuth login (e2e)", () => {
     providerAccountId: string;
   }): Promise<string> {
     const userId = `user-oauth-${input.providerAccountId}`;
-    await prisma.authUser.create({
+    await prisma.user.create({
       data: {
         id: userId,
         email: `oauth-${input.providerAccountId}@acme.test`,
@@ -422,13 +433,11 @@ describe("OAuth login (e2e)", () => {
         role: AUTH_USER_ROLES.customer,
       },
     });
-    await prisma.authOAuthIdentity.create({
-      data: {
-        id: `identity-${input.providerAccountId}`,
-        userId,
-        provider: "google",
-        providerAccountId: input.providerAccountId,
-      },
+    await createOAuthIdentityRecord(prisma, {
+      id: `identity-${input.providerAccountId}`,
+      userId,
+      provider: "google",
+      providerAccountId: input.providerAccountId,
     });
     return userId;
   }

@@ -7,7 +7,7 @@ datasource db {
   // Safe schema comment to force PR webhook build trigger
 }
 
-model AuthUser {
+model User {
   id                        String                        @id
   email                     String                        @unique
   passwordHash              String
@@ -20,50 +20,53 @@ model AuthUser {
   backupEmailPolicy         AuthBackupEmailPolicy         @default(RECOVERY_EMAIL)
   role                      AuthUserRole                  @default(CUSTOMER)
   mfaRequired               Boolean                       @default(false)
+  mfaEncryptedSecret        String?
+  mfaEnrolledAt             DateTime?
+  mfaVerifiedAt             DateTime?
+  mfaFailedCount            Int                           @default(0)
+  mfaLockedUntil            DateTime?
   createdAt                 DateTime                      @default(now())
   updatedAt                 DateTime                      @updatedAt
   approvedVerifiedProfiles  VerifiedProfile[]             @relation("VerifiedProfileApprover")
   assessmentOwners          Assessment[]                  @relation("AssessmentOwner")
   auditExportRequests       AuditExportRequest[]          @relation("AuditExportRequester")
+  authRecords               AuthRecord[]
   classificationReviews     ClassificationReviewRequest[] @relation("ClassificationReviewRequester")
   documentRequests          DocumentRequest[]             @relation("DocumentRequestRequester")
   gitHubAppInstallStates    GitHubAppInstallState[]       @relation("GitHubAppInstallStateUser")
-  mfaEnrollment             AuthUserMfa?
-  mfaOtpUses                AuthMfaOtpUsed[]
-  mfaRateLimit              AuthMfaRateLimit?
-  mfaRecoveryCodes          AuthMfaRecoveryCode[]
-  oauthIdentities           AuthOAuthIdentity[]
-  oauthStates               AuthOAuthState[]              @relation("AuthOAuthStateUser")
   readinessExports          ReadinessExport[]             @relation("ReadinessExportOwner")
-  recoveryRequests          AuthRecoveryRequest[]
   repositoryConnections     RepositoryConnection[]        @relation("RepositoryConnectionUser")
   repositorySnapshots       RepositorySnapshot[]          @relation("RepositorySnapshotActor")
   resolvedConflicts         ConflictRecord[]              @relation("ConflictRecordResolver")
-  sessions                  AuthSession[]
   wizardProfiles            WizardProfile[]               @relation("WizardProfileOwner")
 }
 
-model AuthSession {
-  id                        String           @id
-  userId                    String
-  tokenHash                 String
-  tokenFingerprint          String           @unique
-  expiresAt                 DateTime
-  revokedAt                 DateTime?
-  mfaVerifiedAt             DateTime?
-  sensitiveActionVerifiedAt DateTime?
-  createdAt                 DateTime         @default(now())
-  updatedAt                 DateTime         @updatedAt
-  oauthStates               AuthOAuthState[]
-  user                      AuthUser         @relation(fields: [userId], references: [id], onDelete: Cascade)
+model AuthRecord {
+  id         String         @id
+  userId     String?
+  type       AuthRecordType
+  lookupKey  String         @unique
+  secretHash String?
+  expiresAt  DateTime?
+  usedAt     DateTime?
+  revokedAt  DateTime?
+  metadata   Json?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  user       User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@index([type, expiresAt])
+  @@index([userId, type, revokedAt, usedAt])
 }
 
-model AuthUserMfa {
-  userId          String    @id
-  encryptedSecret String
-  enrolledAt      DateTime  @default(now())
-  verifiedAt      DateTime?
-  user            AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+enum AuthRecordType {
+  SESSION
+  MFA_OTP_USE
+  MFA_RECOVERY_CODE
+  RECOVERY_REQUEST
+  OAUTH_IDENTITY
+  OAUTH_STATE
 }
 
 enum AuthBackupEmailPolicy {
@@ -76,81 +79,7 @@ enum AuthPrimaryEmailAddressPolicy {
   RECOVERY_EMAIL
 }
 
-model AuthMfaOtpUsed {
-  userId  String
-  otpCode String
-  usedAt  DateTime @default(now())
-  user    AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([userId, otpCode])
-  @@index([userId, usedAt])
-}
-
-model AuthMfaRateLimit {
-  userId      String    @id
-  failedCount Int       @default(0)
-  lockedUntil DateTime?
-  updatedAt   DateTime  @updatedAt
-  user        AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model AuthMfaRecoveryCode {
-  id          String    @id
-  userId      String
-  codeHash    String
-  batchId     String
-  generatedAt DateTime  @default(now())
-  usedAt      DateTime?
-  revokedAt   DateTime?
-  user        AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, codeHash])
-  @@index([userId, batchId])
-  @@index([userId, revokedAt, usedAt])
-}
-
-model AuthRecoveryRequest {
-  id               String    @id
-  userId           String
-  tokenHash        String
-  tokenFingerprint String    @unique
-  expiresAt        DateTime
-  consumedAt       DateTime?
-  createdAt        DateTime  @default(now())
-  user             AuthUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-model AuthOAuthState {
-  id          String       @id
-  state       String       @unique
-  nonce       String
-  provider    String
-  redirectUri String
-  expiresAt   DateTime
-  userId      String?
-  sessionId   String?
-  createdAt   DateTime     @default(now())
-  session     AuthSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  user        AuthUser?    @relation("AuthOAuthStateUser", fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, sessionId])
-}
-
-model AuthOAuthIdentity {
-  id                String   @id
-  userId            String
-  provider          String
-  providerAccountId String
-  createdAt         DateTime @default(now())
-  user              AuthUser @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-  @@index([userId])
-}
-
-model AuthAuditEvent {
+model AuditEvent {
   id            String             @id
   eventType     String
   actorId       String?
@@ -166,22 +95,6 @@ model AuthAuditEvent {
   @@index([correlationId])
   @@index([actorId, createdAt])
   @@index([eventType, createdAt])
-}
-
-model AuthDecisionLog {
-  id            String                  @id
-  actorId       String?
-  sessionId     String?
-  resourceType  AuditResourceType
-  resourceId    String
-  decision      AuthDecision
-  reasonCode    AuthorizationReasonCode
-  correlationId String
-  payload       Json
-  createdAt     DateTime                @default(now())
-
-  @@index([actorId])
-  @@index([correlationId])
 }
 
 model OutboxMessage {
@@ -217,7 +130,7 @@ model Assessment {
   documentRequests           DocumentRequest[]
   gitHubAppInstallStates     GitHubAppInstallState[]
   legalRuleMatches           LegalRuleMatch[]
-  owner                      AuthUser                      @relation("AssessmentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  owner                      User                          @relation("AssessmentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   readinessExports           ReadinessExport[]
   repositoryConnections      RepositoryConnection[]
   repositoryScanJobs         RepositoryScanJob[]
@@ -243,7 +156,7 @@ model WizardProfile {
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
   assessment       Assessment          @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  owner            AuthUser            @relation("WizardProfileOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  owner            User                @relation("WizardProfileOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   verifiedProfiles VerifiedProfile[]
 
   @@index([assessmentId])
@@ -259,7 +172,7 @@ model ReadinessExport {
   blockedReason String?
   generatedAt   DateTime              @default(now())
   assessment    Assessment            @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  owner         AuthUser              @relation("ReadinessExportOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  owner         User                  @relation("ReadinessExportOwner", fields: [ownerId], references: [id], onDelete: Restrict)
 
   @@index([assessmentId])
   @@index([assessmentId, version])
@@ -277,7 +190,7 @@ model AuditExportRequest {
   correlationId  String
   createdAt      DateTime          @default(now())
   completedAt    DateTime?
-  requestedBy    AuthUser          @relation("AuditExportRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  requestedBy    User              @relation("AuditExportRequester", fields: [requestedById], references: [id], onDelete: Restrict)
 }
 
 enum AuthDecision {
@@ -436,7 +349,7 @@ model RepositoryConnection {
   revokedAt          DateTime?
   assessment         Assessment?                @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
   snapshots          RepositorySnapshot[]
-  user               AuthUser                   @relation("RepositoryConnectionUser", fields: [userId], references: [id], onDelete: Restrict)
+  user               User                       @relation("RepositoryConnectionUser", fields: [userId], references: [id], onDelete: Restrict)
 
   @@unique([installationId, repositoryId])
   @@index([assessmentId])
@@ -455,7 +368,7 @@ model RepositorySnapshot {
   actorId                    String
   status                     RepositorySnapshotStatus    @default(READY)
   createdAt                  DateTime                    @default(now())
-  actor                      AuthUser                    @relation("RepositorySnapshotActor", fields: [actorId], references: [id], onDelete: Restrict)
+  actor                      User                        @relation("RepositorySnapshotActor", fields: [actorId], references: [id], onDelete: Restrict)
   assessment                 Assessment                  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   connection                 RepositoryConnection        @relation(fields: [connectionId], references: [id], onDelete: Cascade)
   scanJobs                   RepositoryScanJob[]
@@ -615,7 +528,7 @@ model ConflictRecord {
   createdAt        DateTime             @default(now())
   aiUsageFlow      AIUsageFlow          @relation(fields: [aiUsageFlowId], references: [id], onDelete: Cascade)
   assessment       Assessment           @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  resolvedBy       AuthUser?            @relation("ConflictRecordResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedBy       User?                @relation("ConflictRecordResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
 
   @@index([assessmentId, status])
 }
@@ -665,7 +578,7 @@ model VerifiedProfile {
   approvedById               String?
   createdAt                  DateTime                 @default(now())
   aiUsageFlow                AIUsageFlow              @relation(fields: [aiUsageFlowId], references: [id], onDelete: Cascade)
-  approvedBy                 AuthUser?                @relation("VerifiedProfileApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedBy                 User?                    @relation("VerifiedProfileApprover", fields: [approvedById], references: [id], onDelete: SetNull)
   assessment                 Assessment               @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   classificationResults      ClassificationResult[]
   legalRuleMatches           LegalRuleMatch[]
@@ -712,7 +625,7 @@ model ClassificationReviewRequest {
   createdAt        DateTime                          @default(now())
   assessment       Assessment                        @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   legalRuleMatch   LegalRuleMatch                    @relation(fields: [legalRuleMatchId], references: [id], onDelete: Cascade)
-  requestedBy      AuthUser                          @relation("ClassificationReviewRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  requestedBy      User                              @relation("ClassificationReviewRequester", fields: [requestedById], references: [id], onDelete: Restrict)
 
   @@index([assessmentId, status])
   @@index([legalRuleMatchId])
@@ -732,7 +645,7 @@ model DocumentRequest {
   updatedAt              DateTime              @updatedAt
   assessment             Assessment            @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   classificationResult   ClassificationResult  @relation(fields: [classificationResultId], references: [id], onDelete: Cascade)
-  requestedBy            AuthUser              @relation("DocumentRequestRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  requestedBy            User                  @relation("DocumentRequestRequester", fields: [requestedById], references: [id], onDelete: Restrict)
 }
 
 model GitHubAppInstallState {
@@ -744,7 +657,7 @@ model GitHubAppInstallState {
   expiresAt    DateTime
   createdAt    DateTime    @default(now())
   assessment   Assessment? @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
-  user         AuthUser    @relation("GitHubAppInstallStateUser", fields: [userId], references: [id], onDelete: Restrict)
+  user         User        @relation("GitHubAppInstallStateUser", fields: [userId], references: [id], onDelete: Restrict)
 }
 
 model LegalRuleCatalogVersion {

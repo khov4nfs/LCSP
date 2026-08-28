@@ -95,7 +95,7 @@ describe("Conflict Detection Callback Endpoint (e2e) [MW-rec-001]", () => {
       prisma.outboxMessage.findFirst({
         where: { eventType: SCAN_EVENT_TYPES.reconciliationConflictsDetected },
       }),
-      prisma.authAuditEvent.findMany({
+      prisma.auditEvent.findMany({
         where: { eventType: SCAN_EVENT_TYPES.conflictDetectedAudit },
       }),
     ]);
@@ -150,7 +150,7 @@ describe("Conflict Detection Callback Endpoint (e2e) [MW-rec-001]", () => {
           eventType: SCAN_EVENT_TYPES.reconciliationAllConflictsResolved,
         },
       }),
-      prisma.authAuditEvent.findFirst({
+      prisma.auditEvent.findFirst({
         where: { eventType: SCAN_EVENT_TYPES.noConflictsDetectedAudit },
       }),
     ]);

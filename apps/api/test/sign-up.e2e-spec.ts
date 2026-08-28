@@ -74,7 +74,7 @@ describe("Self sign-up endpoint (e2e)", () => {
     assert.ok(body.session_token);
     assert.equal(Number.isNaN(Date.parse(body.expires_at)), false);
 
-    const user = await prisma.authUser.findUniqueOrThrow({
+    const user = await prisma.user.findUniqueOrThrow({
       where: { id: body.user_id },
     });
     assert.equal(user.email, "new.manager@example.test");
@@ -82,12 +82,13 @@ describe("Self sign-up endpoint (e2e)", () => {
     assert.equal(user.emailVerified, true);
     assert.equal(user.role, AUTH_USER_ROLES.customer);
 
-    const session = await prisma.authSession.findFirstOrThrow({
+    const session = await prisma.authRecord.findFirstOrThrow({
       where: {
         userId: body.user_id,
         revokedAt: null,
       },
     });
+    assert.ok(session.expiresAt);
     assert.equal(Number.isNaN(session.expiresAt.getTime()), false);
 
     const workspace = await httpRequest(app)

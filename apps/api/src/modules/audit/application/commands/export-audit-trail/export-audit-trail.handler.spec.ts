@@ -47,7 +47,7 @@ function buildHandler(options?: {
   >(() => ({ id: "export-1" }));
   const prisma = {
     auditExportRequest: { findFirst: findLatest, create },
-    authAuditEvent: { findMany },
+    auditEvent: { findMany },
   } as unknown as PrismaService;
 
   const write = jest

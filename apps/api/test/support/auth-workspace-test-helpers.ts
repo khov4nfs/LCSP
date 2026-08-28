@@ -21,11 +21,12 @@ import {
 
 import {
   encryptMfaSecret,
-  fingerprintToken,
   generateTotpSecret,
   hashSecret,
   totpForTime,
 } from "../../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+
+import { createAuthSessionRecord } from "./auth-record-test-helpers.js";
 
 const testSupportDir = dirname(fileURLToPath(import.meta.url));
 const apiRoot = resolve(testSupportDir, "../..");
@@ -91,7 +92,7 @@ async function ensureAuthUser(
     displayName?: string;
   },
 ): Promise<void> {
-  await prisma.authUser.upsert({
+  await prisma.user.upsert({
     where: { id: input.userId },
     update: {
       emailVerified: true,
@@ -444,17 +445,9 @@ export async function resetAuthWorkspaceDatabase(
   await prisma.classificationResult.deleteMany();
   await prisma.legalRuleMatch.deleteMany();
   await prisma.assessment.deleteMany();
-  await prisma.authDecisionLog.deleteMany();
-  await prisma.authAuditEvent.deleteMany();
-  await prisma.authRecoveryRequest.deleteMany();
-  await prisma.authMfaOtpUsed.deleteMany();
-  await prisma.authMfaRateLimit.deleteMany();
-  await prisma.authUserMfa.deleteMany();
-  await prisma.authMfaRecoveryCode.deleteMany();
-  await prisma.authOAuthState.deleteMany();
-  await prisma.authOAuthIdentity.deleteMany();
-  await prisma.authSession.deleteMany();
-  await prisma.authUser.deleteMany();
+  await prisma.auditEvent.deleteMany();
+  await prisma.authRecord.deleteMany();
+  await prisma.user.deleteMany();
 }
 
 export async function seedMfaEnrollment(
@@ -462,11 +455,12 @@ export async function seedMfaEnrollment(
   userId: string,
 ): Promise<MfaFixture> {
   const totpSecret = generateTotpSecret();
-  await prisma.authUserMfa.create({
+  await prisma.user.update({
+    where: { id: userId },
     data: {
-      userId,
-      encryptedSecret: encryptMfaSecret(totpSecret),
-      enrolledAt: new Date(),
+      mfaEncryptedSecret: encryptMfaSecret(totpSecret),
+      mfaEnrolledAt: new Date(),
+      mfaVerifiedAt: null,
     },
   });
   return { userId, totpSecret };
@@ -481,7 +475,7 @@ export async function seedAuthWorkspaceFixture(
   const noMembershipUserId = "user-3";
   const revokedMembershipUserId = "user-4";
 
-  await prisma.authUser.createMany({
+  await prisma.user.createMany({
     data: [
       {
         id: approvedUserId,
@@ -520,15 +514,12 @@ export async function seedAuthWorkspaceFixture(
   });
 
   const revokedSessionToken = "revoked-session-token";
-  await prisma.authSession.create({
-    data: {
-      id: "session-0",
-      userId: approvedUserId,
-      tokenHash: hashSecret(revokedSessionToken),
-      tokenFingerprint: fingerprintToken(revokedSessionToken),
-      expiresAt: new Date(Date.now() + 30 * 60_000),
-      revokedAt: new Date(),
-    },
+  await createAuthSessionRecord(prisma, {
+    id: "session-0",
+    userId: approvedUserId,
+    token: revokedSessionToken,
+    expiresAt: new Date(Date.now() + 30 * 60_000),
+    revokedAt: new Date(),
   });
 
   return {

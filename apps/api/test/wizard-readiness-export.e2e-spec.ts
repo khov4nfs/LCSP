@@ -120,7 +120,7 @@ describe("Wizard Readiness Export Endpoint (e2e) [MW-wiz-004]", () => {
 
     const [exportRecord, audit] = await Promise.all([
       prisma.readinessExport.findUnique({ where: { id: body.export_id } }),
-      prisma.authAuditEvent.findFirst({
+      prisma.auditEvent.findFirst({
         where: { eventType: WIZARD_EVENT_TYPES.readinessExportGenerated },
       }),
     ]);

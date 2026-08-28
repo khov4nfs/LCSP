@@ -118,7 +118,7 @@ describe("Get Technical Evidence Report Endpoint (e2e) [MW-evid-001]", () => {
     assert.deepEqual(body.findings, [
       { ...SAFE_FINDING, file_path: null, line_number: null },
     ]);
-    const decision = await prisma.authDecisionLog.findFirstOrThrow({
+    const decision = await prisma.auditEvent.findFirstOrThrow({
       where: {
         correlationId: "corr-evidence-dev",
         decision: AUDIT_DECISIONS.allow,
@@ -200,7 +200,7 @@ describe("Get Technical Evidence Report Endpoint (e2e) [MW-evid-001]", () => {
   }
 
   async function seedSystemAdmin(): Promise<string> {
-    await prisma.authUser.create({
+    await prisma.user.create({
       data: {
         id: "user-evidence-systemAdmin",
         email: "evidence-system-admin@acme.test",

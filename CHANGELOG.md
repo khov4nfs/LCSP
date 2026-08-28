@@ -5,6 +5,35 @@ do not rewrite older entries unless correcting a factual error.
 
 ## Unreleased
 
+### 2026-08-28 - Optimized Authentication ERD
+
+#### Changed
+
+- Renamed the active Prisma account model from `AuthUser` to `User` and updated account ownership relations to use the canonical user model.
+- Collapsed authentication persistence into `User` plus a generic `AuthRecord` store while preserving session, MFA OTP/recovery, password recovery, and OAuth state/identity behavior.
+- Moved MFA enrollment and rate-limit state onto `User`, while repeatable authentication records are represented by `AuthRecordType` and indexed `AuthRecord` rows.
+- Generalized `AuthAuditEvent` to the platform-level `AuditEvent` store and aligned audit readers/writers, fixtures, and JSDoc with the canonical audit model.
+
+#### Removed
+
+- Removed the legacy auth persistence models `AuthSession`, `AuthUserMfa`, `AuthMfaOtpUsed`, `AuthMfaRateLimit`, `AuthMfaRecoveryCode`, `AuthRecoveryRequest`, `AuthOAuthIdentity`, and `AuthOAuthState` after migrating their data into `User` / `AuthRecord`.
+- Removed `AuthDecisionLog`; authorization decision records are now stored in `AuditEvent` with `eventType = AUTHORIZATION_DECISION`.
+
+#### Migration
+
+- Added `20260828170000_optimize_auth_erd` to rename `AuthUser` to `User`, backfill MFA state, migrate session/MFA/recovery/OAuth records into `AuthRecord`, merge authorization decisions into `AuditEvent`, and drop the retired auth tables.
+
+#### Verification
+
+- `pnpm --filter @lcsp/api lint`
+- `pnpm --filter @lcsp/api test`
+- `pnpm --filter @lcsp/api test:e2e`
+- `pnpm exec tsc -b packages/contracts packages/i18n apps/api`
+- GitHub Actions `Jira PR Link` ✅
+- GitHub Actions `EngineeringRule managed runtime` ✅
+- GitHub Actions `autofix.ci` ✅
+- GitHub Actions `Tests` ✅
+
 ### 2026-08-27 - Legal Corpus Recovery and Artifact Management
 
 #### Added

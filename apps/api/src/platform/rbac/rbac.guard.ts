@@ -278,7 +278,7 @@ export class RbacGuard implements CanActivate {
       });
     } catch (error) {
       this.logger.error(
-        `Failed to write AuthDecisionLog (decision=${input.decision}): ${(error as Error).message}`,
+        `Failed to write authorization AuditEvent (decision=${input.decision}): ${(error as Error).message}`,
       );
     }
   }

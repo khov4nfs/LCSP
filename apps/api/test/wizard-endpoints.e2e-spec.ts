@@ -622,7 +622,7 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
           ],
         });
 
-      const audit = await prisma.authAuditEvent.findFirst({
+      const audit = await prisma.auditEvent.findFirst({
         where: { eventType: WIZARD_EVENT_TYPES.draftSaved },
         orderBy: { createdAt: "desc" },
       });
@@ -902,7 +902,7 @@ describe("Wizard Endpoints (e2e) [MW-wiz-001, MW-wiz-002, MW-wiz-003]", () => {
         .set("Authorization", `Bearer ${managerToken}`)
         .send({ answers: validAnswers });
 
-      const audit = await prisma.authAuditEvent.findFirst({
+      const audit = await prisma.auditEvent.findFirst({
         where: { eventType: WIZARD_EVENT_TYPES.submitted },
         orderBy: { createdAt: "desc" },
       });

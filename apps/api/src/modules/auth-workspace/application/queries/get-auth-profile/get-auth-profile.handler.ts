@@ -1,14 +1,18 @@
-import { HttpStatus } from "@nestjs/common";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import { HttpStatus } from "@nestjs/common";
 
 import {
   fromPrismaAuthBackupEmailPolicy,
   fromPrismaAuthPrimaryEmailAddressPolicy,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
+import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import {
+  AUTH_RECORD_TYPES,
+  authRecordMetadataDate,
+} from "../../../infrastructure/persistence/auth-record.persistence.ts";
 import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { AuthProfileSuccess } from "../../contracts/auth-workspace/settings.contract.ts";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { GetAuthProfileQuery } from "./get-auth-profile.query.ts";
 
 export class GetAuthProfileHandler {
@@ -18,34 +22,18 @@ export class GetAuthProfileHandler {
     query: GetAuthProfileQuery,
   ): Promise<AuthProblemResult | AuthProfileSuccess> {
     const [user, session] = await Promise.all([
-      this.prisma.authUser.findUnique({
+      this.prisma.user.findUnique({
         where: { id: query.context.userId },
-        select: {
-          id: true,
-          email: true,
-          emailVerified: true,
-          displayName: true,
-          recoveryEmail: true,
-          primaryEmailAddressPolicy: true,
-          backupEmailPolicy: true,
-          createdAt: true,
-          updatedAt: true,
-          mfaEnrollment: { select: { enrolledAt: true, verifiedAt: true } },
-        },
       }),
-      this.prisma.authSession.findUnique({
-        where: { id: query.context.sessionId },
-        select: {
-          id: true,
-          mfaVerifiedAt: true,
-          createdAt: true,
-          updatedAt: true,
-          expiresAt: true,
+      this.prisma.authRecord.findFirst({
+        where: {
+          id: query.context.sessionId,
+          type: AUTH_RECORD_TYPES.session,
         },
       }),
     ]);
 
-    if (!user || !session) {
+    if (!user || !session || !session.expiresAt) {
       throw problemException(
         AUTH_ERROR_CODES.sessionInvalid,
         query.correlationId,
@@ -56,10 +44,11 @@ export class GetAuthProfileHandler {
     }
 
     const mfaEnrolled =
-      user.mfaEnrollment !== null && user.mfaEnrollment.verifiedAt !== null;
-    const mfaEnrolledAt = mfaEnrolled
-      ? (user.mfaEnrollment?.verifiedAt?.toISOString() ?? null)
-      : null;
+      user.mfaEncryptedSecret !== null && user.mfaVerifiedAt !== null;
+    const sessionMfaVerifiedAt = authRecordMetadataDate(
+      session,
+      "mfaVerifiedAt",
+    );
 
     return {
       ok: true,
@@ -78,9 +67,11 @@ export class GetAuthProfileHandler {
       updated_at: user.updatedAt.toISOString(),
       role: query.context.role,
       mfa_enrolled: mfaEnrolled,
-      mfa_enrolled_at: mfaEnrolledAt,
-      mfa_verified: session.mfaVerifiedAt !== null,
-      mfa_verified_at: session.mfaVerifiedAt?.toISOString() ?? null,
+      mfa_enrolled_at: mfaEnrolled
+        ? (user.mfaVerifiedAt?.toISOString() ?? null)
+        : null,
+      mfa_verified: sessionMfaVerifiedAt !== null,
+      mfa_verified_at: sessionMfaVerifiedAt?.toISOString() ?? null,
       current_session_id: session.id,
       current_session_created_at: session.createdAt.toISOString(),
       current_session_updated_at: session.updatedAt.toISOString(),

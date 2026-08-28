@@ -125,7 +125,7 @@ describe("Re-Run Scan Endpoint (e2e) [MW-scan-003]", () => {
       "prior-scan-job",
     );
 
-    const audit = await prisma.authAuditEvent.findFirst({
+    const audit = await prisma.auditEvent.findFirst({
       where: {
         eventType: SCAN_EVENT_TYPES.scanRerunTriggeredAudit,
         resourceId: body.scan_job_id,

@@ -69,7 +69,7 @@ describe("Request Gap Analysis Endpoint (e2e) [LCSP-80]", () => {
   });
 
   beforeEach(async () => {
-    await prisma.authAuditEvent.deleteMany({
+    await prisma.auditEvent.deleteMany({
       where: { eventType: DOCUMENT_EVENT_TYPES.gapAnalysisRequestedAudit },
     });
     await prisma.outboxMessage.deleteMany({
@@ -130,7 +130,7 @@ describe("Request Gap Analysis Endpoint (e2e) [LCSP-80]", () => {
           aggregateId: body.document_request_id,
         },
       }),
-      prisma.authAuditEvent.count({
+      prisma.auditEvent.count({
         where: {
           eventType: DOCUMENT_EVENT_TYPES.gapAnalysisRequestedAudit,
           correlationId: body.correlationId,

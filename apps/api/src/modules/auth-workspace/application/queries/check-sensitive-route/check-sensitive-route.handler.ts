@@ -6,8 +6,12 @@ import {
   matchSensitiveRoute,
   sensitiveActionVerificationExpiresAt,
 } from "../../../../../platform/security/sensitive-route-policy.js";
+import {
+  AUTH_RECORD_TYPES,
+  authRecordMetadataDate,
+} from "../../../infrastructure/persistence/auth-record.persistence.ts";
 import type { SensitiveRouteCheckDto } from "../../contracts/auth-workspace/sensitive-route.contract.js";
-import { CheckSensitiveRouteQuery } from "./check-sensitive-route.query.js";
+import { CheckSensitiveRouteQuery } from "./check-sensitive-route.query.ts";
 
 @QueryHandler(CheckSensitiveRouteQuery)
 export class CheckSensitiveRouteHandler implements IQueryHandler<
@@ -21,24 +25,21 @@ export class CheckSensitiveRouteHandler implements IQueryHandler<
   ): Promise<SensitiveRouteCheckDto> {
     const routeMatch = matchSensitiveRoute(query.method, query.route);
     const isSensitive = routeMatch !== null;
-    const session = await this.prisma.authSession.findUnique({
-      where: { id: query.sessionId },
-      select: { sensitiveActionVerifiedAt: true },
+    const session = await this.prisma.authRecord.findFirst({
+      where: { id: query.sessionId, type: AUTH_RECORD_TYPES.session },
     });
-    const expiresAt = sensitiveActionVerificationExpiresAt(
-      session?.sensitiveActionVerifiedAt,
-    );
+    const verifiedAt = session
+      ? authRecordMetadataDate(session, "sensitiveActionVerifiedAt")
+      : null;
+    const expiresAt = sensitiveActionVerificationExpiresAt(verifiedAt);
 
     return {
       is_sensitive: isSensitive,
       route_id: routeMatch?.routeId ?? null,
       reauth_required:
         isSensitive &&
-        !isSensitiveActionVerificationFresh(
-          session?.sensitiveActionVerifiedAt,
-          Date.now(),
-        ),
-      verified_at: session?.sensitiveActionVerifiedAt?.toISOString() ?? null,
+        !isSensitiveActionVerificationFresh(verifiedAt, Date.now()),
+      verified_at: verifiedAt?.toISOString() ?? null,
       expires_at: expiresAt?.toISOString() ?? null,
     };
   }

@@ -88,7 +88,7 @@ describe("Resolve Conflict Endpoint (e2e) [MW-rec-003]", () => {
 
     const [record, audit] = await Promise.all([
       prisma.conflictRecord.findUniqueOrThrow({ where: { id: "conflict-1" } }),
-      prisma.authAuditEvent.findFirstOrThrow({
+      prisma.auditEvent.findFirstOrThrow({
         where: { eventType: SCAN_EVENT_TYPES.conflictResolvedAudit },
       }),
     ]);

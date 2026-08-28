@@ -84,7 +84,7 @@ export class ExportAuditTrailHandler implements ICommandHandler<ExportAuditTrail
         orderBy: { version: "desc" },
         select: { version: true },
       }),
-      this.prisma.authAuditEvent.findMany({
+      this.prisma.auditEvent.findMany({
         where: {
           createdAt: {
             gte: fromDate,

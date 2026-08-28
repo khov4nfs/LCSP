@@ -63,7 +63,7 @@ describe("Request Final Report Endpoint (e2e) [LCSP-81]", () => {
   });
 
   beforeEach(async () => {
-    await prisma.authAuditEvent.deleteMany({
+    await prisma.auditEvent.deleteMany({
       where: { eventType: DOCUMENT_EVENT_TYPES.finalReportRequestedAudit },
     });
     await prisma.outboxMessage.deleteMany({
@@ -120,7 +120,7 @@ describe("Request Final Report Endpoint (e2e) [LCSP-81]", () => {
           aggregateId: body.document_request_id,
         },
       }),
-      prisma.authAuditEvent.count({
+      prisma.auditEvent.count({
         where: {
           eventType: DOCUMENT_EVENT_TYPES.finalReportRequestedAudit,
           correlationId: body.correlationId,

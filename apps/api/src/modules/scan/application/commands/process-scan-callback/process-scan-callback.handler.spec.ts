@@ -54,7 +54,7 @@ function buildHandler() {
   const outboxMessage = {
     create: jest.fn().mockImplementation(() => Promise.resolve()),
   };
-  const authAuditEvent = {
+  const auditEvent = {
     create: jest.fn().mockImplementation(() => Promise.resolve()),
   };
   const transaction = {
@@ -63,7 +63,7 @@ function buildHandler() {
     targetedReanalysisRequest,
     targetedReanalysisCheckpoint,
     outboxMessage,
-    authAuditEvent,
+    auditEvent,
   };
   const prisma = {
     repositoryScanJob,
