@@ -105,7 +105,7 @@ export class RbacPreflightService {
       });
     } catch (error) {
       this.logger.error(
-        `Failed to write AuthDecisionLog for worker preflight (requiredRoles=${input.requiredRoles.join(",")}): ${(error as Error).message}`,
+        `Failed to write authorization AuditEvent for worker preflight (requiredRoles=${input.requiredRoles.join(",")}): ${(error as Error).message}`,
       );
     }
   }

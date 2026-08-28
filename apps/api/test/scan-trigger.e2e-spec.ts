@@ -122,7 +122,7 @@ describe("Scan Trigger Endpoint (e2e) [MW-gh-004]", () => {
       (event.payload as { causationId?: string }).causationId,
       body.correlationId,
     );
-    const audit = await prisma.authAuditEvent.findFirst({
+    const audit = await prisma.auditEvent.findFirst({
       where: {
         eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanJobTriggeredAudit,
         resourceId: body.scan_job_id,

@@ -169,7 +169,7 @@ describe("Outbox and consumer idempotency (e2e) [AC-039, AC-040]", () => {
       assert.ok(outbox, "OutboxMessage still exists after processing");
       // publishedAt must be set exactly once
       if (outbox?.publishedAt) {
-        const events = await prisma.authAuditEvent.findMany({
+        const events = await prisma.auditEvent.findMany({
           where: { resourceId: "assessment-idempotent" },
         });
         // At most one event for idempotent processing

@@ -123,8 +123,8 @@ views {
     lcsp.web.signInRoute -> lcsp.web.upstreamRequestHelper '4. BFF Route delegates to upstreamRequest helper'
     lcsp.web.upstreamRequestHelper -> lcsp.api.authWorkspaceController '5. Proxies request to NestJS AuthWorkspaceController'
     lcsp.api.authWorkspaceController -> lcsp.api.pbacService '6. Evaluates user authentication & tenant policy scope'
-    lcsp.api.authWorkspaceController -> lcsp.api.prismaDataMapper '7. Verifies password hash & creates AuthSession record in PostgreSQL'
-    lcsp.api.authWorkspaceController -> lcsp.api.auditService '8. Writes AuthAuditEvent (redacted metadata)'
+    lcsp.api.authWorkspaceController -> lcsp.api.prismaDataMapper '7. Verifies password hash & creates AuthRecord(type=SESSION) record in PostgreSQL'
+    lcsp.api.authWorkspaceController -> lcsp.api.auditService '8. Writes AuditEvent (redacted metadata)'
     lcsp.api.authWorkspaceController -> lcsp.web.signInRoute '9. Returns success envelope { ok: true, data: session }'
     lcsp.web.signInRoute -> lcsp.web.signInForm '10. Sets HTTP-only session cookie & redirects to /workspace'
   }

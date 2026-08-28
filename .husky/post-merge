@@ -1,0 +1,14 @@
+#!/usr/bin/env sh
+
+# Pull/merge may change prisma/schema.prisma without reinstalling node_modules.
+# Regenerate the client so editors and direct TypeScript invocations see the
+# current User/AuthRecord/AuditEvent models immediately.
+if ! command -v pnpm >/dev/null 2>&1 || [ ! -d node_modules ]; then
+  exit 0
+fi
+
+DATABASE_URL="${DATABASE_URL:-postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public}" \
+  pnpm run prisma:generate || {
+    echo "warning: Prisma client refresh failed after merge; run 'pnpm run prisma:generate' before typecheck" >&2
+    exit 0
+  }

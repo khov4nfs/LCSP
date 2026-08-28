@@ -29,7 +29,7 @@ async function main() {
     const adminPassword = process.env.ADMIN_SEED_PASSWORD ?? "Admin@123";
 
     for (const email of ADMIN_EMAILS) {
-      await prisma.authUser.upsert({
+      await prisma.user.upsert({
         where: { email },
         create: {
           id: randomUUID(),

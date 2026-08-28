@@ -2,7 +2,7 @@ name: EngineeringRule managed runtime
 
 on:
   pull_request:
-    branches: [develop, main]
+    branches: ["**"]
     paths:
       - "apps/api/src/modules/evidence/**"
       - "apps/api/src/modules/classification/**"

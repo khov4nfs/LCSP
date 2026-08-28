@@ -90,7 +90,7 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
       .set("Authorization", `Bearer ${managerToken}`)
       .send({ name: "Audit Test Assessment", organization_id: orgId });
 
-    const audit = await prisma.authAuditEvent.findFirst({
+    const audit = await prisma.auditEvent.findFirst({
       where: { eventType: ASSESSMENT_EVENT_TYPES.created },
     });
     assert.ok(audit, "ASSESSMENT_CREATED audit event must be written");

@@ -106,7 +106,7 @@ describe("Scan Job Callback Endpoint (e2e) [MW-scan-002]", () => {
       prisma.outboxMessage.findFirst({
         where: { eventType: SCAN_EVENT_TYPES.evidenceAccepted },
       }),
-      prisma.authAuditEvent.findFirst({
+      prisma.auditEvent.findFirst({
         where: { eventType: SCAN_EVENT_TYPES.evidenceAcceptedAudit },
       }),
     ]);
@@ -228,7 +228,7 @@ describe("Scan Job Callback Endpoint (e2e) [MW-scan-002]", () => {
       prisma.outboxMessage.findFirst({
         where: { eventType: SCAN_EVENT_TYPES.evidenceAccepted },
       }),
-      prisma.authAuditEvent.findFirst({
+      prisma.auditEvent.findFirst({
         where: { eventType: SCAN_EVENT_TYPES.evidenceRejectedAudit },
       }),
     ]);

@@ -34,7 +34,7 @@ function buildHandler(options?: {
 
   const prisma = {
     documentRequest: { findUnique, update },
-    authAuditEvent: { create: createAuthAudit },
+    auditEvent: { create: createAuthAudit },
   } as unknown as PrismaService;
 
   const auditWriter = {} as unknown as AuditWriterService;

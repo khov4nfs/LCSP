@@ -26,7 +26,7 @@ export class ListAuditEventsHandler implements IQueryHandler<ListAuditEventsQuer
   /**
    * Creates the list handler with audit persistence and payload redaction dependencies.
    *
-   * @param prisma - Prisma service used for filtered audit event queries.
+   * @param prisma - Prisma service used for filtered AuditEvent queries.
    * @param redactor - Service used to remove sensitive audit payload content before response serialization.
    */
   constructor(
@@ -76,7 +76,7 @@ export class ListAuditEventsHandler implements IQueryHandler<ListAuditEventsQuer
       }
     }
 
-    const where: Prisma.AuthAuditEventWhereInput = {
+    const where: Prisma.AuditEventWhereInput = {
       ...(query.eventType ? { eventType: query.eventType } : {}),
       ...(query.actorId ? { actorId: query.actorId } : {}),
       ...(fromDate || toDate
@@ -90,8 +90,8 @@ export class ListAuditEventsHandler implements IQueryHandler<ListAuditEventsQuer
     };
 
     const [total, rows] = await this.prisma.$transaction([
-      this.prisma.authAuditEvent.count({ where }),
-      this.prisma.authAuditEvent.findMany({
+      this.prisma.auditEvent.count({ where }),
+      this.prisma.auditEvent.findMany({
         where,
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,

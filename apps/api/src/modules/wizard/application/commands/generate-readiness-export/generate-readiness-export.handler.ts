@@ -103,7 +103,7 @@ export class GenerateReadinessExportHandler implements ICommandHandler<
         orderBy: { version: "desc" },
         select: { version: true },
       }),
-      this.prisma.authUser.findUnique({
+      this.prisma.user.findUnique({
         where: { id: command.ownerId },
         select: { displayName: true, email: true },
       }),

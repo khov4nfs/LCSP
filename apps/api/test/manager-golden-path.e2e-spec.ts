@@ -213,7 +213,7 @@ describe("Manager Golden Path (e2e) [MW-qa-003]", () => {
       "https://example.test/files/manager-final-report.pdf",
     );
 
-    const manager = await prisma.authUser.findUniqueOrThrow({
+    const manager = await prisma.user.findUniqueOrThrow({
       where: { email: "manager@acme.test" },
     });
     assert.equal(manager.role, AUTH_USER_ROLES.customer);

@@ -94,7 +94,7 @@ describe("AIUsageFlow Callback Endpoint (e2e) [MW-aiuf-001]", () => {
       prisma.outboxMessage.findFirst({
         where: { eventType: SCAN_EVENT_TYPES.aiUsageFlowReady },
       }),
-      prisma.authAuditEvent.findFirst({
+      prisma.auditEvent.findFirst({
         where: { eventType: SCAN_EVENT_TYPES.aiUsageFlowAcceptedAudit },
       }),
     ]);
