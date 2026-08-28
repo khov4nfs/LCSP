@@ -19,7 +19,6 @@ def inject_lcsp_runtime_context(
     """Append immutable pipeline identifiers without copying governed evidence into prompts."""
     context = request.runtime.context
     if context is not None and not isinstance(context, LCSPRunContext):
-        # Managed runtimes may deserialize dataclass-shaped context as a mapping.
         if isinstance(context, dict):
             context = LCSPRunContext(**context)
         else:
@@ -29,11 +28,23 @@ def inject_lcsp_runtime_context(
     if not lines:
         return handler(request)
 
+    routing_rule = ""
+    if context is not None and context.idempotency_key:
+        routing_rule = (
+            "\nThis invocation is automatic ENGINEERING_RULE_NOT_READY legal preparation. "
+            "Route it to LEGAL_MAINTENANCE and delegate to the `triage` subagent using only "
+            "the supplied legal_rule_ids (or full legal backlog when none are supplied). "
+            "assessment_id is correlation metadata for the supervisor only; do not pass it to "
+            "Triage tools, enter the Assessment reasoning workflow, or use customer context as "
+            "Triage evidence."
+        )
+
     context_block = (
         "LCSP runtime context (immutable identifiers; not evidence):\n"
         + "\n".join(f"- {line}" for line in lines)
         + "\nUse these identifiers when delegating and calling governed tools. "
         "Do not alter them or treat them as proof of compliance."
+        + routing_rule
     )
     new_content: list[Any] = list(request.system_message.content_blocks)
     new_content.append({"type": "text", "text": context_block})

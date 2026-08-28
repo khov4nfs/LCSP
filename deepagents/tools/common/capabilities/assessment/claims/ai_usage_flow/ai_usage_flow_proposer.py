@@ -41,7 +41,6 @@ class AIUsageFlowModelAssistedProposer:
         validated_claims: list[dict[str, Any]],
         assessment_id: str,
         evidence_report_id: str,
-        organization_id: str | None,
         workflow_run_id: str,
         node_name: str,
         correlationId: str | None = None,
@@ -54,7 +53,6 @@ class AIUsageFlowModelAssistedProposer:
             validated_claims: Evidence-backed claims available as context only.
             assessment_id: Assessment identifier used for tool scoping.
             evidence_report_id: Pinned technical evidence artifact reference.
-            organization_id: Optional tenant identifier for tool authorization.
             workflow_run_id: Workflow identifier used for LLM/tool telemetry.
             node_name: Graph node issuing the model request.
             correlationId: Optional end-to-end trace identifier.
@@ -75,7 +73,6 @@ class AIUsageFlowModelAssistedProposer:
             validated_claims=validated_claims,
             assessment_id=assessment_id,
             evidence_report_id=evidence_report_id,
-            organization_id=organization_id,
             workflow_run_id=workflow_run_id,
             node_name=node_name,
             correlationId=correlationId,
@@ -173,7 +170,6 @@ class AIUsageFlowModelAssistedProposer:
         validated_claims: list[dict[str, Any]],
         assessment_id: str,
         evidence_report_id: str,
-        organization_id: str | None,
         workflow_run_id: str,
         node_name: str,
         correlationId: str | None,
@@ -190,7 +186,6 @@ class AIUsageFlowModelAssistedProposer:
                 tools = self.agentic_tool_resolver.as_langchain_tools(context=self._tool_context(
                     assessment_id=assessment_id,
                     evidence_report_id=evidence_report_id,
-                    organization_id=organization_id,
                     workflow_run_id=workflow_run_id,
                     correlationId=correlationId,
                 ))
@@ -232,7 +227,6 @@ class AIUsageFlowModelAssistedProposer:
         *,
         assessment_id: str,
         evidence_report_id: str,
-        organization_id: str | None,
         workflow_run_id: str,
         correlationId: str | None,
     ) -> AgenticInvocationContext:
@@ -242,7 +236,6 @@ class AIUsageFlowModelAssistedProposer:
             workflow_run_id=_stable_uuid(f"workflow:{workflow_run_id}"),
             correlationId=_stable_uuid(f"correlation:{correlationId or workflow_run_id}"),
             user_id="worker-runtime",
-            organization_id=organization_id or "worker-runtime",
             artifact_versions={"technicalEvidenceReportId": evidence_report_id},
             scope={},
         )

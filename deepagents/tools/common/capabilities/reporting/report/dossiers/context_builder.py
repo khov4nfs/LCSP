@@ -117,7 +117,6 @@ class ClassificationDossierBuilder:
         }
         return self._engine.build_classification_dossier(
             assessment_id=self._required(request, "assessment_id"),
-            organization_id=self._required(request, "organization_id"),
             version=max(1, int(verified.get("version") or 1)),
             source_artifacts=source_artifacts,
             context=context,

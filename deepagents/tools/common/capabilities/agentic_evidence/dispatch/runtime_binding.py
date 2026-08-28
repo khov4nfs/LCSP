@@ -14,7 +14,6 @@ def bind_runtime_handlers(
     *,
     api_client: WorkerApiClient,
     user_id: str,
-    organization_id: str,
 ) -> None:
     """Bind every model-callable tool through the single runtime dispatcher.
 
@@ -26,7 +25,6 @@ def bind_runtime_handlers(
         AgenticToolExecutionContext(
             api_client=api_client,
             user_id=user_id,
-            organization_id=organization_id,
         )
     )
 

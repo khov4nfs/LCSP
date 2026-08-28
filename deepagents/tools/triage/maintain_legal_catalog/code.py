@@ -13,13 +13,13 @@ class MaintainLegalCatalogInput(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    max_runs: int = Field(default=500, ge=0, le=500)
+    max_runs: int = Field(default=0, ge=0, le=500)
     correlation_id: str | None = Field(default=None, max_length=160)
 
 
 @tool(args_schema=MaintainLegalCatalogInput)
-def maintain_legal_catalog(max_runs: int = 500, correlation_id: str | None = None) -> dict:
-    """Refresh only approved legal sources and run governed recovery when they changed."""
+def maintain_legal_catalog(max_runs: int = 0, correlation_id: str | None = None) -> dict:
+    """Refresh approved legal sources without resuming assessments before triage."""
     return MaintainLegalCatalogService().run(
         max_runs=max_runs,
         correlation_id=correlation_id,

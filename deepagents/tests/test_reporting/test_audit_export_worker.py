@@ -38,11 +38,10 @@ def test_t01_valid_date_range_export_generated(generator, mock_api_client, mock_
         mock_open.return_value.__enter__.return_value = file_handle
 
         with patch("os.remove") as mock_remove:
-            export_url = generator.generate_export("req_123", "org_1", "2023-01-01", "2023-01-31")
+            export_url = generator.generate_export("req_123", "2023-01-01", "2023-01-31")
 
     # API was called
     mock_api_client.get_audit_events.assert_called_once_with(
-        organization_id="org_1",
         from_date="2023-01-01",
         to_date="2023-01-31"
     )
@@ -50,8 +49,8 @@ def test_t01_valid_date_range_export_generated(generator, mock_api_client, mock_
     # S3 was called
     mock_s3_client.upload_file.assert_called_once()
     assert mock_s3_client.upload_file.call_args[0][1] == "test-bucket"
-    assert mock_s3_client.upload_file.call_args[0][2] == "exports/org_1/audit_export_req_123.jsonl"
-    assert export_url == "s3://test-bucket/exports/org_1/audit_export_req_123.jsonl"
+    assert mock_s3_client.upload_file.call_args[0][2] == "exports/req_123/audit_export_req_123.jsonl"
+    assert export_url == "s3://test-bucket/exports/req_123/audit_export_req_123.jsonl"
 
 def test_t02_all_event_payloads_redacted(generator, mock_api_client, mock_s3_client):
     """T02: All event payloads redacted -> Sensitive fields removed"""
@@ -65,7 +64,7 @@ def test_t02_all_event_payloads_redacted(generator, mock_api_client, mock_s3_cli
         mock_open.return_value.__enter__.return_value = file_handle
 
         with patch("os.remove"):
-            generator.generate_export("req_123", "org_1", "2023-01-01", "2023-01-31")
+            generator.generate_export("req_123", "2023-01-01", "2023-01-31")
 
     # Verify write was called with stripped secret values
     write_call_args = file_handle.write.call_args_list
@@ -87,7 +86,7 @@ def test_t03_json_lines_format(generator, mock_api_client, mock_s3_client):
         mock_open.return_value.__enter__.return_value = file_handle
 
         with patch("os.remove"):
-            generator.generate_export("req_123", "org_1", "2023-01-01", "2023-01-31")
+            generator.generate_export("req_123", "2023-01-01", "2023-01-31")
 
     write_call_args = file_handle.write.call_args_list
     assert len(write_call_args) == 2
@@ -117,7 +116,6 @@ def test_t04_upload_fails_consumer_behavior():
             
             message = {
                 "exportRequestId": "req_123",
-                "organizationId": "org_1",
                 "fromDate": "2023-01-01",
                 "toDate": "2023-01-31"
             }

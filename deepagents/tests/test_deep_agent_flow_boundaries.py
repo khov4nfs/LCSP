@@ -25,7 +25,16 @@ from subagents import (
 )
 
 
-TRIAGE_TOOL_NAMES: tuple[str, ...] = ("maintain_legal_catalog",)
+TRIAGE_TOOL_NAMES: tuple[str, ...] = (
+    "maintain_legal_catalog",
+    "get_legal_rule_triage_work_items",
+    "persist_legal_rule_triage_result",
+    "finish_legal_rule_triage_execution",
+)
+TRIAGE_TOOL_PACKAGES: set[str] = {
+    "maintain_legal_catalog",
+    "legal_rule_triage",
+}
 COMMON_TOOL_NAMES: tuple[str, ...] = (
     "get_assessment_context",
     "get_legal_corpus_readiness",
@@ -115,8 +124,10 @@ def test_triage_is_specialist_not_assessment_pipeline_node() -> None:
     triage_prompt = str(
         next(item for item in FLOW_SUBAGENTS if item["name"] == "triage")["system_prompt"]
     )
-    assert "LEGAL_MAINTENANCE" in triage_prompt
-    assert "Never select law for a customer assessment" in triage_prompt
+    assert "business owner of Legal Rule Triage" in triage_prompt
+    assert "ENGINEERING_RULE_CANDIDATE" in triage_prompt
+    assert "persist_legal_rule_triage_result" in triage_prompt
+    assert "Never use Assessment business context" in triage_prompt
 
 
 def test_subagent_definitions_are_owned_by_role_directories() -> None:
@@ -161,6 +172,9 @@ def test_agent_facing_assessment_tools_follow_node_tool_code_layout() -> None:
     assert (
         PROJECT_ROOT / "tools" / "triage" / "maintain_legal_catalog" / "code.py"
     ).is_file()
+    assert (
+        PROJECT_ROOT / "tools" / "triage" / "legal_rule_triage" / "code.py"
+    ).is_file()
 
 
 def test_assessment_authored_tool_modules_own_their_agentic_port_calls() -> None:
@@ -193,6 +207,38 @@ def test_triage_tool_is_bounded_to_approved_legal_sources() -> None:
 
     module = importlib.import_module("tools.triage.maintain_legal_catalog.code")
     assert getattr(module.maintain_legal_catalog, "name") == "maintain_legal_catalog"
+
+
+def test_triage_rule_tools_are_bounded_to_authoritative_legal_inputs() -> None:
+    code_path = PROJECT_ROOT / "tools" / "triage" / "legal_rule_triage" / "code.py"
+    source = code_path.read_text(encoding="utf-8")
+
+    assert "GetLegalRuleTriageWorkItemsInput" in source
+    assert "PersistLegalRuleTriageResultInput" in source
+    assert "FinishLegalRuleTriageExecutionInput" in source
+    assert "affected_rule_ids" in source
+    assert "legal_rule_id" in source
+    assert "legal_rule_catalog_version_id" in source
+    assert "legal_corpus_version_id" in source
+    assert "triage_execution_id" in source
+    assert "idempotency_key" in source
+    assert "assessment_id" in source
+    assert "source_code" not in source
+    assert "repository" not in source
+
+    module = importlib.import_module("tools.triage.legal_rule_triage.code")
+    assert (
+        getattr(module.get_legal_rule_triage_work_items, "name")
+        == "get_legal_rule_triage_work_items"
+    )
+    assert (
+        getattr(module.persist_legal_rule_triage_result, "name")
+        == "persist_legal_rule_triage_result"
+    )
+    assert (
+        getattr(module.finish_legal_rule_triage_execution, "name")
+        == "finish_legal_rule_triage_execution"
+    )
 
 
 def test_tools_tree_contains_only_authored_agent_capabilities() -> None:
@@ -232,7 +278,7 @@ def test_tools_tree_contains_only_authored_agent_capabilities() -> None:
     assert _directory_names(PROJECT_ROOT / "tools" / "orchestration") == set(
         ORCHESTRATION_TOOL_NAMES
     )
-    assert _directory_names(PROJECT_ROOT / "tools" / "triage") == set(TRIAGE_TOOL_NAMES)
+    assert _directory_names(PROJECT_ROOT / "tools" / "triage") == TRIAGE_TOOL_PACKAGES
 
 
 def test_common_tools_own_non_model_callable_implementation_domains() -> None:
@@ -334,6 +380,13 @@ def test_common_tools_own_non_model_callable_implementation_domains() -> None:
         / "tools"
         / "triage"
         / "maintain_legal_catalog"
+        / "service.py"
+    ).is_file()
+    assert (
+        PROJECT_ROOT
+        / "tools"
+        / "triage"
+        / "legal_rule_triage"
         / "service.py"
     ).is_file()
     assert (

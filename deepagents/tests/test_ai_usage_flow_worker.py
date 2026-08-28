@@ -32,7 +32,6 @@ def _technical_profile(**overrides: object) -> dict:
         "id": "tp-1",
         "technical_profile_id": "tp-1",
         "assessment_id": "assessment-1",
-        "organization_id": "org-1",
         "evidence_report_id": "ter-1",
         "status": "accepted",
         "schema_version": "1.0.0",
@@ -59,7 +58,6 @@ def _evidence_report(*, findings: list[dict] | None = None) -> dict:
         "id": "ter-1",
         "status": "accepted",
         "assessment_id": "assessment-1",
-        "organization_id": "org-1",
         "evidence_payload": {
             "ai_usage_signals": findings
             if findings is not None
@@ -407,7 +405,6 @@ def test_consumer_rejects_summary_proposal_that_conflicts_with_wizard_authority(
 def test_consumer_routes_summary_proposal_through_agentic_tool_resolver() -> None:
     api_client = MagicMock()
     api_client.get_accepted_technical_profile.return_value = _technical_profile(
-        organization_id="org-1"
     )
     api_client.get_accepted_technical_evidence_report.return_value = _evidence_report()
     api_client.get_wizard_profile_for_assessment.return_value = _wizard_profile(
@@ -445,7 +442,6 @@ def test_consumer_routes_summary_proposal_through_agentic_tool_resolver() -> Non
 
     resolver.as_langchain_tools.assert_called_once()
     context = resolver.as_langchain_tools.call_args.kwargs["context"]
-    assert context.organization_id == "org-1"
     assert context.artifact_versions == {"technicalEvidenceReportId": "ter-1"}
     payload = api_client.post_ai_usage_flow_callback.call_args.args[0]
     assert payload.flow_data["summary"]["businessProcess"] == "loan_approval"

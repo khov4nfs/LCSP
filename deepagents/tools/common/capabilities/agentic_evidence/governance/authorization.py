@@ -48,10 +48,9 @@ class AgenticToolAuthorizer(Protocol):
         *,
         tool_name: str,
         user_id: str,
-        organization_id: str,
         correlationId: UUID,
     ) -> AgenticAuthorizationResult:
-        """Authorize one tool request within a user/organization context."""
+        """Authorize one tool request within a user/RBAC context."""
         ...
 
 
@@ -75,7 +74,6 @@ class ApiRbacToolAuthorizer:
         *,
         tool_name: str,
         user_id: str,
-        organization_id: str,
         correlationId: UUID,
     ) -> AgenticAuthorizationResult:
         """Authorize a cataloged model-callable tool through RBAC.
@@ -87,7 +85,6 @@ class ApiRbacToolAuthorizer:
         Args:
             tool_name: Registered agentic tool name.
             user_id: User/principal requesting the tool call.
-            organization_id: Tenant boundary for the request.
             correlationId: End-to-end trace identifier.
 
         Returns:
@@ -100,13 +97,12 @@ class ApiRbacToolAuthorizer:
         required_roles = TOOL_RBAC_ROLES.get(tool_name)
         if not required_roles:
             raise AgenticToolValidationError("AGENTIC_TOOL_RBAC_ROLE_UNREGISTERED")
-        if not user_id.strip() or not organization_id.strip():
+        if not user_id.strip():
             raise AgenticToolValidationError("AGENTIC_TOOL_RBAC_CONTEXT_REQUIRED")
 
         try:
             decision = self._rbac_client.check(
                 user_id=user_id,
-                organization_id=organization_id,
                 required_roles=required_roles,
                 correlationId=str(correlationId),
             )

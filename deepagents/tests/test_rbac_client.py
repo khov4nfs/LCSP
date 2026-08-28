@@ -10,7 +10,6 @@ def test_check_reads_allow_decision_from_api_result_envelope():
     with patch("tools.common.capabilities.platform.rbac_client.httpx.post", return_value=response):
         decision = RbacClient("http://api", "worker-key").check(
             user_id="user-1",
-            organization_id="org-1",
             required_roles=("CUSTOMER",),
             correlationId="corr-1",
         )
@@ -26,7 +25,6 @@ def test_check_denies_missing_or_non_allow_decision():
     with patch("tools.common.capabilities.platform.rbac_client.httpx.post", return_value=response):
         decision = RbacClient("http://api", "worker-key").check(
             user_id="user-1",
-            organization_id="org-1",
             required_roles=("CUSTOMER",),
             correlationId="corr-1",
         )

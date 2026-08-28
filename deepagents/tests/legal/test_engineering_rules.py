@@ -1,21 +1,18 @@
 from __future__ import annotations
+
 import sys
 from types import SimpleNamespace
+
 import pytest
 
 from tools.common.capabilities.evidence.graph.schema.vocabulary import EDGE_TYPES, NODE_TYPES
-from tools.legal.corpus.engineering_rules.compilation.compiler import (
-    EngineeringRuleCompiler,
-    _engineering_rules_response_schema,
-)
 from tools.legal.corpus.engineering_rules.compilation.chunk_triage import (
     LegalChunkEngineeringRuleTriage,
     _triage_response_schema,
 )
-from tools.legal.corpus.engineering_rules.contract.models import (
-    ENGINEERING_RULE_SCHEMA_VERSION,
-    EngineeringRule,
-    build_legal_reasoning_contract,
+from tools.legal.corpus.engineering_rules.compilation.compiler import (
+    EngineeringRuleCompiler,
+    _engineering_rules_response_schema,
 )
 from tools.legal.corpus.engineering_rules.contract.legal_reasoning_contract import (
     LEGAL_REASONING_PLANNER_AUTHORITY,
@@ -23,12 +20,18 @@ from tools.legal.corpus.engineering_rules.contract.legal_reasoning_contract impo
     LegalReasoningContractValidationError,
     validate_legal_reasoning_contract,
 )
-from tools.legal.corpus.engineering_rules.orchestration.service import EngineeringRuleService
+from tools.legal.corpus.engineering_rules.contract.models import (
+    ENGINEERING_RULE_SCHEMA_VERSION,
+    EngineeringRule,
+    build_legal_reasoning_contract,
+)
 from tools.legal.corpus.engineering_rules.contract.validator import (
     ALLOWED_DIRECTIONS,
     EngineeringRuleValidationError,
     validate_engineering_rule,
 )
+from tools.legal.corpus.engineering_rules.orchestration.service import EngineeringRuleService
+
 
 LEGAL_RULE = {
     "legalRuleId": "VN-AI-134-14-HUMAN-OVERSIGHT",
@@ -52,8 +55,11 @@ CONTEXT = [
     }
 ]
 
+
 class FakeLlm:
-    def __init__(self) -> None: self.calls = 0
+    def __init__(self) -> None:
+        self.calls = 0
+
     def complete_structured(self, **kwargs):
         self.calls += 1
         if kwargs.get("node_name") == "triage_legal_chunks_for_engineering_rules":
@@ -68,9 +74,71 @@ class FakeLlm:
                     }
                 ]
             }
-            return SimpleNamespace(structured_response=payload, content="", model="fake-llm")
-        payload = {"engineeringRules": [{"engineeringRuleId": "VN-AI-134-14-HUMAN-OVERSIGHT::ENG::1", "concept": "HUMAN_OVERSIGHT", "legalIntent": {"requirement": "HUMAN_MONITORING_AND_INTERVENTION"}, "investigationGoals": ["Trace AI output to consequential business action", "Find human review or override before final action"], "startingNodeTypes": ["AI_MODEL_INVOCATION"], "targetNodeTypes": ["HUMAN_REVIEW", "HUMAN_OVERRIDE", "REJECTION", "APPROVAL"], "edgeStrategies": ["CALLS", "RETURNS", "ASSIGNS", "PASSES_ARGUMENT", "BRANCHES_ON", "REVIEWED_BY", "OVERRIDDEN_BY"], "graphQueries": [{"name": "trace_ai_to_action", "startNodeTypes": ["AI_MODEL_INVOCATION"], "direction": "FORWARD", "followEdges": ["CALLS", "RETURNS", "ASSIGNS", "PASSES_ARGUMENT", "BRANCHES_ON"], "stopNodeTypes": ["REJECTION", "APPROVAL"], "semanticTypes": []}], "keywords": ["review", "approve", "override"], "requiredEvidence": ["AI_OUTPUT_PATH", "DOWNSTREAM_BUSINESS_ACTION"], "supportingEvidence": ["HUMAN_REVIEW_PATH"], "negativeEvidence": ["NO_HUMAN_CONTROL_ON_BOUNDED_PATH"], "unresolvedConditions": ["DYNAMIC_DISPATCH"]}]}
-        return SimpleNamespace(structured_response=payload, content="", model="fake-llm")
+            return SimpleNamespace(
+                structured_response=payload,
+                content="",
+                model="fake-llm",
+            )
+        payload = {
+            "engineeringRules": [
+                {
+                    "engineeringRuleId": "VN-AI-134-14-HUMAN-OVERSIGHT::ENG::1",
+                    "concept": "HUMAN_OVERSIGHT",
+                    "legalIntent": {
+                        "requirement": "HUMAN_MONITORING_AND_INTERVENTION"
+                    },
+                    "investigationGoals": [
+                        "Trace AI output to consequential business action",
+                        "Find human review or override before final action",
+                    ],
+                    "startingNodeTypes": ["AI_MODEL_INVOCATION"],
+                    "targetNodeTypes": [
+                        "HUMAN_REVIEW",
+                        "HUMAN_OVERRIDE",
+                        "REJECTION",
+                        "APPROVAL",
+                    ],
+                    "edgeStrategies": [
+                        "CALLS",
+                        "RETURNS",
+                        "ASSIGNS",
+                        "PASSES_ARGUMENT",
+                        "BRANCHES_ON",
+                        "REVIEWED_BY",
+                        "OVERRIDDEN_BY",
+                    ],
+                    "graphQueries": [
+                        {
+                            "name": "trace_ai_to_action",
+                            "startNodeTypes": ["AI_MODEL_INVOCATION"],
+                            "direction": "FORWARD",
+                            "followEdges": [
+                                "CALLS",
+                                "RETURNS",
+                                "ASSIGNS",
+                                "PASSES_ARGUMENT",
+                                "BRANCHES_ON",
+                            ],
+                            "stopNodeTypes": ["REJECTION", "APPROVAL"],
+                            "semanticTypes": [],
+                        }
+                    ],
+                    "keywords": ["review", "approve", "override"],
+                    "requiredEvidence": [
+                        "AI_OUTPUT_PATH",
+                        "DOWNSTREAM_BUSINESS_ACTION",
+                    ],
+                    "supportingEvidence": ["HUMAN_REVIEW_PATH"],
+                    "negativeEvidence": ["NO_HUMAN_CONTROL_ON_BOUNDED_PATH"],
+                    "unresolvedConditions": ["DYNAMIC_DISPATCH"],
+                }
+            ]
+        }
+        return SimpleNamespace(
+            structured_response=payload,
+            content="",
+            model="fake-llm",
+        )
 
 
 class FakeAgent:
@@ -99,30 +167,76 @@ def native_agent(monkeypatch):
     )
     return llm
 
+
 class FakeRetriever:
-    def __init__(self, context=None) -> None: self.context = list(context or CONTEXT); self.calls = 0
-    def retrieve_exact_context(self, corpus_version_id, chunk_ids): self.calls += 1; return list(self.context)
+    def __init__(self, context=None) -> None:
+        self.context = list(context or CONTEXT)
+        self.calls = 0
+
+    def retrieve_exact_context(self, corpus_version_id, chunk_ids):
+        self.calls += 1
+        return list(self.context)
+
 
 class FakeCache:
-    def __init__(self) -> None: self.values = {}; self.get_calls = 0; self.put_calls = 0
-    def get(self, fingerprint): self.get_calls += 1; return list(self.values.get(fingerprint, []))
-    def put(self, fingerprint, rules): self.put_calls += 1; self.values[fingerprint] = list(rules)
+    def __init__(self) -> None:
+        self.values = {}
+        self.get_calls = 0
+        self.put_calls = 0
+        self.get_keys: list[str] = []
+
+    def get(self, fingerprint):
+        self.get_calls += 1
+        self.get_keys.append(fingerprint)
+        return list(self.values.get(fingerprint, []))
+
+    def put(self, fingerprint, rules):
+        self.put_calls += 1
+        self.values[fingerprint] = list(rules)
 
 
-def test_cache_miss_compiles_once_then_same_law_is_token_free(native_agent) -> None:
+def test_assessment_cache_miss_never_calls_legacy_llm_agents(native_agent) -> None:
     llm, cache, retriever = native_agent, FakeCache(), FakeRetriever()
-    service = EngineeringRuleService(compiler=EngineeringRuleCompiler(), retriever=retriever, cache=cache)
-    first, first_cached = service.get_or_compile(legal_rule=LEGAL_RULE, legal_rule_catalog_version_id="catalog-v1", legal_corpus_version_id="corpus-v1", workflow_run_id="run-1")
-    second, second_cached = service.get_or_compile(legal_rule=LEGAL_RULE, legal_rule_catalog_version_id="catalog-v1", legal_corpus_version_id="corpus-v1", workflow_run_id="run-2")
-    assert first_cached is False and second_cached is True
-    assert llm.calls == 2 and cache.put_calls == 1
-    assert [r.engineering_rule_id for r in first] == [r.engineering_rule_id for r in second]
+    service = EngineeringRuleService(
+        compiler=EngineeringRuleCompiler(),
+        retriever=retriever,
+        cache=cache,
+    )
+
+    first, first_cached = service.get_or_compile(
+        legal_rule=LEGAL_RULE,
+        legal_rule_catalog_version_id="catalog-v1",
+        legal_corpus_version_id="corpus-v1",
+        workflow_run_id="run-1",
+    )
+    second, second_cached = service.get_or_compile(
+        legal_rule=LEGAL_RULE,
+        legal_rule_catalog_version_id="catalog-v1",
+        legal_corpus_version_id="corpus-v1",
+        workflow_run_id="run-2",
+    )
+
+    assert first == [] and second == []
+    assert first_cached is False and second_cached is False
+    assert llm.calls == 0
+    assert cache.put_calls == 0
 
 
-def test_changed_legal_chunk_hash_invalidates_fingerprint(native_agent) -> None:
+def test_changed_legal_chunk_hash_changes_ready_lookup_without_llm(native_agent) -> None:
     llm, cache, retriever = native_agent, FakeCache(), FakeRetriever()
-    service = EngineeringRuleService(compiler=EngineeringRuleCompiler(), retriever=retriever, cache=cache)
-    service.get_or_compile(legal_rule=LEGAL_RULE, legal_rule_catalog_version_id="catalog-v1", legal_corpus_version_id="corpus-v1", workflow_run_id="run-1")
+    service = EngineeringRuleService(
+        compiler=EngineeringRuleCompiler(),
+        retriever=retriever,
+        cache=cache,
+    )
+
+    service.get_or_compile(
+        legal_rule=LEGAL_RULE,
+        legal_rule_catalog_version_id="catalog-v1",
+        legal_corpus_version_id="corpus-v1",
+        workflow_run_id="run-1",
+    )
+    first_fingerprint = cache.get_keys[-1]
     retriever.context[0] = {
         **retriever.context[0],
         "contentSha256": "sha256:changed",
@@ -131,52 +245,71 @@ def test_changed_legal_chunk_hash_invalidates_fingerprint(native_agent) -> None:
             "và duy trì cơ chế con người can thiệp."
         ),
     }
-    _, cached = service.get_or_compile(legal_rule=LEGAL_RULE, legal_rule_catalog_version_id="catalog-v1", legal_corpus_version_id="corpus-v2", workflow_run_id="run-2")
-    assert cached is False and llm.calls == 4
+    _, cached = service.get_or_compile(
+        legal_rule=LEGAL_RULE,
+        legal_rule_catalog_version_id="catalog-v1",
+        legal_corpus_version_id="corpus-v2",
+        workflow_run_id="run-2",
+    )
+    second_fingerprint = cache.get_keys[-1]
+
+    assert cached is False
+    assert first_fingerprint != second_fingerprint
+    assert llm.calls == 0
+    assert cache.put_calls == 0
 
 
-def test_same_legal_chunk_hash_reuses_cache_across_corpus_versions(native_agent) -> None:
+def test_same_legal_chunk_hash_stays_ready_only_across_corpus_versions(
+    native_agent,
+) -> None:
     llm, cache, retriever = native_agent, FakeCache(), FakeRetriever()
-    service = EngineeringRuleService(compiler=EngineeringRuleCompiler(), retriever=retriever, cache=cache)
-    service.get_or_compile(legal_rule=LEGAL_RULE, legal_rule_catalog_version_id="catalog-v1", legal_corpus_version_id="corpus-v1", workflow_run_id="run-1")
-    rules, cached = service.get_or_compile(legal_rule=LEGAL_RULE, legal_rule_catalog_version_id="catalog-v1", legal_corpus_version_id="corpus-v2", workflow_run_id="run-2")
-    assert cached is True
-    assert llm.calls == 2
-    assert rules[0].legal_corpus_version_id == "corpus-v2"
-    assert rules[0].legal_reasoning_contract is not None
-    assert rules[0].legal_reasoning_contract.legal_corpus_version_id == "corpus-v2"
+    service = EngineeringRuleService(
+        compiler=EngineeringRuleCompiler(),
+        retriever=retriever,
+        cache=cache,
+    )
+
+    first, first_cached = service.get_or_compile(
+        legal_rule=LEGAL_RULE,
+        legal_rule_catalog_version_id="catalog-v1",
+        legal_corpus_version_id="corpus-v1",
+        workflow_run_id="run-1",
+    )
+    second, second_cached = service.get_or_compile(
+        legal_rule=LEGAL_RULE,
+        legal_rule_catalog_version_id="catalog-v1",
+        legal_corpus_version_id="corpus-v2",
+        workflow_run_id="run-2",
+    )
+
+    assert first == [] and second == []
+    assert first_cached is False and second_cached is False
+    assert cache.get_keys[0] == cache.get_keys[1]
+    assert llm.calls == 0
+    assert cache.put_calls == 0
 
 
 def test_repealed_legal_context_blocks_compilation(native_agent) -> None:
-    retriever = FakeRetriever([{**CONTEXT[0], "legalStatus": "REPEALED"}]); llm = native_agent
-    service = EngineeringRuleService(compiler=EngineeringRuleCompiler(), retriever=retriever, cache=FakeCache())
-    with pytest.raises(ValueError, match="repealed"): service.get_or_compile(legal_rule=LEGAL_RULE, legal_rule_catalog_version_id="catalog-v1", legal_corpus_version_id="corpus-v1", workflow_run_id="run-1")
+    retriever = FakeRetriever([{**CONTEXT[0], "legalStatus": "REPEALED"}])
+    llm = native_agent
+    service = EngineeringRuleService(
+        compiler=EngineeringRuleCompiler(),
+        retriever=retriever,
+        cache=FakeCache(),
+    )
+
+    with pytest.raises(ValueError, match="repealed"):
+        service.get_or_compile(
+            legal_rule=LEGAL_RULE,
+            legal_rule_catalog_version_id="catalog-v1",
+            legal_corpus_version_id="corpus-v1",
+            workflow_run_id="run-1",
+        )
     assert llm.calls == 0
 
 
-def test_context_only_chunk_is_skipped_without_compilation_failure(native_agent) -> None:
+def test_context_only_chunk_is_not_triaged_inside_assessment(native_agent) -> None:
     llm = native_agent
-    original_complete = llm.complete_structured
-
-    def overeager_complete(**kwargs):
-        if kwargs.get("node_name") == "triage_legal_chunks_for_engineering_rules":
-            llm.calls += 1
-            return SimpleNamespace(
-                structured_response={
-                    "chunkAnalyses": [{
-                        "chunkId": "LAW134:art-3",
-                        "verdict": "ENGINEERING_RULE_CANDIDATE",
-                        "reason": "Mentions AI system definition.",
-                        "engineeringObligation": "Treat definition as control.",
-                        "verificationTargets": ["AI system"],
-                    }]
-                },
-                content="",
-                model="fake-llm",
-            )
-        return original_complete(**kwargs)
-
-    llm.complete_structured = overeager_complete
     context = [
         {
             "id": "LAW134:art-3",
@@ -198,7 +331,10 @@ def test_context_only_chunk_is_skipped_without_compilation_failure(native_agent)
     )
 
     rules, cached = service.get_or_compile(
-        legal_rule={**LEGAL_RULE, "citationLocatorRefs": [{"chunkId": "LAW134:art-3"}]},
+        legal_rule={
+            **LEGAL_RULE,
+            "citationLocatorRefs": [{"chunkId": "LAW134:art-3"}],
+        },
         legal_rule_catalog_version_id="catalog-v1",
         legal_corpus_version_id="corpus-v1",
         workflow_run_id="run-1",
@@ -206,14 +342,18 @@ def test_context_only_chunk_is_skipped_without_compilation_failure(native_agent)
 
     assert rules == []
     assert cached is False
-    assert llm.calls == 1
+    assert llm.calls == 0
     assert service.cache.put_calls == 0
 
 
 def test_chunk_triage_rejects_invalid_structured_response(native_agent) -> None:
     def invalid_complete(**_kwargs):
         native_agent.calls += 1
-        return SimpleNamespace(structured_response={"unexpected": []}, content="", model="fake-llm")
+        return SimpleNamespace(
+            structured_response={"unexpected": []},
+            content="",
+            model="fake-llm",
+        )
 
     native_agent.complete_structured = invalid_complete
     with pytest.raises(ValueError, match="chunkAnalyses"):
@@ -231,7 +371,11 @@ def test_compiler_empty_rule_output_is_skipped_without_failure(native_agent) -> 
     def empty_compiler_complete(**kwargs):
         if kwargs.get("node_name") == "compile_engineering_rules":
             llm.calls += 1
-            return SimpleNamespace(structured_response={"engineeringRules": []}, content="", model="fake-llm")
+            return SimpleNamespace(
+                structured_response={"engineeringRules": []},
+                content="",
+                model="fake-llm",
+            )
         return original_complete(**kwargs)
 
     llm.complete_structured = empty_compiler_complete
@@ -250,6 +394,7 @@ def test_compiler_empty_rule_output_is_skipped_without_failure(native_agent) -> 
 
     assert rules == []
     assert cached is False
+    assert llm.calls == 0
     assert service.cache.put_calls == 0
 
 
@@ -304,8 +449,39 @@ def test_chunk_triage_schema_requires_one_decision_per_input_chunk() -> None:
 
 
 def test_validator_rejects_hallucinated_graph_vocabulary() -> None:
-    base = EngineeringRule.from_dict({"engineeringRuleId": "bad", "legalRuleId": LEGAL_RULE["legalRuleId"], "legalRuleCatalogVersionId": "catalog-v1", "legalCorpusVersionId": "corpus-v1", "concept": "TEST", "legalIntent": {}, "investigationGoals": ["test"], "startingNodeTypes": ["HUMAN_MIND_LINK"], "targetNodeTypes": [], "edgeStrategies": [], "graphQueries": [], "requiredEvidence": ["x"], "sourceChunkIds": ["LAW134:art-14::cl-1::pt-d"], "sourceFingerprint": "sha256:test", "legalReasoningContract": build_legal_reasoning_contract(legal_rule=LEGAL_RULE, legal_rule_catalog_version_id="catalog-v1", legal_corpus_version_id="corpus-v1", legal_context=CONTEXT, required_evidence=("x",), supporting_evidence=(), negative_evidence=()), "schemaVersion": ENGINEERING_RULE_SCHEMA_VERSION})
-    with pytest.raises(EngineeringRuleValidationError, match="unknown graph node types"): validate_engineering_rule(base)
+    base = EngineeringRule.from_dict(
+        {
+            "engineeringRuleId": "bad",
+            "legalRuleId": LEGAL_RULE["legalRuleId"],
+            "legalRuleCatalogVersionId": "catalog-v1",
+            "legalCorpusVersionId": "corpus-v1",
+            "concept": "TEST",
+            "legalIntent": {},
+            "investigationGoals": ["test"],
+            "startingNodeTypes": ["HUMAN_MIND_LINK"],
+            "targetNodeTypes": [],
+            "edgeStrategies": [],
+            "graphQueries": [],
+            "requiredEvidence": ["x"],
+            "sourceChunkIds": ["LAW134:art-14::cl-1::pt-d"],
+            "sourceFingerprint": "sha256:test",
+            "legalReasoningContract": build_legal_reasoning_contract(
+                legal_rule=LEGAL_RULE,
+                legal_rule_catalog_version_id="catalog-v1",
+                legal_corpus_version_id="corpus-v1",
+                legal_context=CONTEXT,
+                required_evidence=("x",),
+                supporting_evidence=(),
+                negative_evidence=(),
+            ),
+            "schemaVersion": ENGINEERING_RULE_SCHEMA_VERSION,
+        }
+    )
+    with pytest.raises(
+        EngineeringRuleValidationError,
+        match="unknown graph node types",
+    ):
+        validate_engineering_rule(base)
 
 
 def test_structured_response_schema_constrains_graph_vocabulary() -> None:
@@ -325,8 +501,30 @@ def test_structured_response_schema_constrains_graph_vocabulary() -> None:
 
 
 def test_validator_rejects_engineering_rule_without_legal_reasoning_contract() -> None:
-    base = EngineeringRule.from_dict({"engineeringRuleId": "missing-contract", "legalRuleId": LEGAL_RULE["legalRuleId"], "legalRuleCatalogVersionId": "catalog-v1", "legalCorpusVersionId": "corpus-v1", "concept": "TEST", "legalIntent": {}, "investigationGoals": ["test"], "startingNodeTypes": ["AI_MODEL_INVOCATION"], "targetNodeTypes": [], "edgeStrategies": [], "graphQueries": [], "requiredEvidence": ["x"], "sourceChunkIds": ["LAW134:art-14::cl-1::pt-d"], "sourceFingerprint": "sha256:test", "schemaVersion": ENGINEERING_RULE_SCHEMA_VERSION})
-    with pytest.raises(EngineeringRuleValidationError, match="legal reasoning contract required"): validate_engineering_rule(base)
+    base = EngineeringRule.from_dict(
+        {
+            "engineeringRuleId": "missing-contract",
+            "legalRuleId": LEGAL_RULE["legalRuleId"],
+            "legalRuleCatalogVersionId": "catalog-v1",
+            "legalCorpusVersionId": "corpus-v1",
+            "concept": "TEST",
+            "legalIntent": {},
+            "investigationGoals": ["test"],
+            "startingNodeTypes": ["AI_MODEL_INVOCATION"],
+            "targetNodeTypes": [],
+            "edgeStrategies": [],
+            "graphQueries": [],
+            "requiredEvidence": ["x"],
+            "sourceChunkIds": ["LAW134:art-14::cl-1::pt-d"],
+            "sourceFingerprint": "sha256:test",
+            "schemaVersion": ENGINEERING_RULE_SCHEMA_VERSION,
+        }
+    )
+    with pytest.raises(
+        EngineeringRuleValidationError,
+        match="legal reasoning contract required",
+    ):
+        validate_engineering_rule(base)
 
 
 def test_legal_reasoning_contract_is_the_mandatory_llm_boundary() -> None:
@@ -344,8 +542,14 @@ def test_legal_reasoning_contract_is_the_mandatory_llm_boundary() -> None:
     assert prompt_contract["validationPolicy"]["noCitationNoLegalClaim"] is True
     assert prompt_contract["validationPolicy"]["noSourceAnchorNoRepoClaim"] is True
     assert prompt_contract["validationPolicy"]["failClosedOnMissingEvidence"] is True
-    assert prompt_contract["validationPolicy"]["plannerAuthority"] == LEGAL_REASONING_PLANNER_AUTHORITY
-    assert prompt_contract["citationSet"][0]["chunkId"] == "LAW134:art-14::cl-1::pt-d"
+    assert (
+        prompt_contract["validationPolicy"]["plannerAuthority"]
+        == LEGAL_REASONING_PLANNER_AUTHORITY
+    )
+    assert (
+        prompt_contract["citationSet"][0]["chunkId"]
+        == "LAW134:art-14::cl-1::pt-d"
+    )
     assert prompt_contract["legalCorpusVersionId"] == "corpus-v1"
     assert prompt_contract["legalRuleCatalogVersionId"] == "catalog-v1"
     assert prompt_contract["acceptedEvidenceTypes"] == [

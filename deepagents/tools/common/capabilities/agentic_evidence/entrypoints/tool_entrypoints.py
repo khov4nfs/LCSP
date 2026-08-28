@@ -14,12 +14,11 @@ from ..governance.registry import AgenticToolRequest
 class AgenticToolExecutionContext:
     api_client: WorkerApiClient
     user_id: str
-    organization_id: str
     policy_id: str | None = None
     policy_version: str | None = None
 
 def _dispatch_via_internal_api(tool_name: str, request: AgenticToolRequest, context: AgenticToolExecutionContext) -> Mapping[str, Any]:
-    payload: dict[str, Any] = {"tool_name": tool_name, "request_id": str(request.request_id), "assessment_id": str(request.assessment_id), "workflow_run_id": str(request.workflow_run_id), "organization_id": context.organization_id, "user_id": context.user_id, "artifact_versions": request.artifact_versions, "scope": request.scope, "budget": {"maxItems": request.budget.max_items, "maxDepth": request.budget.max_depth, "maxBytes": request.budget.max_bytes, "maxDurationMs": request.budget.max_duration_ms}, "input": request.input, "correlationId": str(request.correlationId)}
+    payload: dict[str, Any] = {"tool_name": tool_name, "request_id": str(request.request_id), "assessment_id": str(request.assessment_id), "workflow_run_id": str(request.workflow_run_id), "user_id": context.user_id, "artifact_versions": request.artifact_versions, "scope": request.scope, "budget": {"maxItems": request.budget.max_items, "maxDepth": request.budget.max_depth, "maxBytes": request.budget.max_bytes, "maxDurationMs": request.budget.max_duration_ms}, "input": request.input, "correlationId": str(request.correlationId)}
     if context.policy_id: payload["policy_id"] = context.policy_id
     if context.policy_version: payload["policy_version"] = context.policy_version
     return context.api_client.dispatch_agentic_tool(payload)
