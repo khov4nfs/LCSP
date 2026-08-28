@@ -27,7 +27,6 @@ class Dossier:
     dossier_id: str
     dossier_type: str
     assessment_id: str
-    organization_id: str
     version: int
     status: str
     source_artifacts: DossierSourceArtifacts

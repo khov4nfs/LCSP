@@ -13,6 +13,7 @@ from managed_deepagents import define_deep_agent
 from harness import LCSP_FILESYSTEM_PERMISSIONS, LCSP_MODEL_SPEC, configure_lcsp_harness
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.runtime_context import inject_lcsp_runtime_context
+from middleware.triage_singleton import guard_triage_singleton_task
 from orchestration.context import LCSPRunContext
 from subagents import FLOW_SUBAGENTS
 from tools.common.capabilities.platform.logging import suppress_langgraph_heartbeat_logs
@@ -43,6 +44,7 @@ agent = define_deep_agent(
     model=LCSP_MODEL_SPEC,
     tools=ROOT_TOOLS,
     middleware=[
+        guard_triage_singleton_task,
         inject_lcsp_runtime_context,
         *MODEL_GOVERNANCE_MIDDLEWARE,
         TodoListMiddleware(),

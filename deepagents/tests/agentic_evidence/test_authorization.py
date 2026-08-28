@@ -46,7 +46,6 @@ def test_technical_tool_authorizes_customer_role() -> None:
     result = authorizer.authorize(
         tool_name="get_scan_coverage",
         user_id="user-1",
-        organization_id="org-1",
         correlationId=uuid4(),
     )
 
@@ -72,7 +71,6 @@ def test_rbac_denial_is_safe_and_terminal() -> None:
         authorizer.authorize(
             tool_name="propose_gap_remediation",
             user_id="user-1",
-            organization_id="org-1",
             correlationId=uuid4(),
         )
 
@@ -101,7 +99,6 @@ def test_unregistered_rbac_role_fails_closed_without_network_call() -> None:
         authorizer.authorize(
             tool_name="resume_waiting_runs",
             user_id="user-1",
-            organization_id="org-1",
             correlationId=uuid4(),
         )
     assert called is False
@@ -127,6 +124,5 @@ def test_rbac_network_failure_does_not_dispatch_as_allow() -> None:
         authorizer.authorize(
             tool_name="get_scan_coverage",
             user_id="user-1",
-            organization_id="org-1",
             correlationId=uuid4(),
         )

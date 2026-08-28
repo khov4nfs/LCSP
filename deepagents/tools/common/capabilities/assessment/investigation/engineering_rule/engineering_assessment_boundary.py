@@ -1,22 +1,27 @@
 """Consume accepted repository evidence and persist direct EngineeringRule evaluation results."""
 from __future__ import annotations
 
+import hashlib
+import json
+import os
+from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
+
+import pika
 
 from model_policy import INVESTIGATOR_MODEL_SPEC, PLANNER_MODEL_SPEC
 from tools.common.capabilities.platform.api_client import WorkerApiClient, WorkerCallbackError
 from tools.common.capabilities.platform.callback_schemas import ClassificationCallbackPayload
 from tools.common.capabilities.platform.logging import get_logger
 from tools.common.capabilities.managed.boundary import AgentBoundaryBase, NonRetryableAgentBoundaryError
-from tools.common.capabilities.platform.wizard_clarification import (
-    engineering_rule_source_clarification_summary,
-)
 from tools.common.capabilities.evidence.scanner.snapshot.snapshot_service_client import (
     SnapshotArchiveRequest,
     SnapshotServiceClient,
 )
 from tools.common.capabilities.evidence.scanner.snapshot.workspace import ScannerWorkspace
+from tools.triage.legal_rule_triage.contracts import LEGAL_RULE_TRIAGE_REQUEST_COMMAND
 
 from .pipeline import EngineeringInvestigationPipeline
 from .planned_pipeline import PlannedEngineeringInvestigationPipeline
@@ -24,6 +29,17 @@ from .planned_pipeline import PlannedEngineeringInvestigationPipeline
 
 logger = get_logger(__name__)
 WAITING_ENGINEERING_INVESTIGATION_STATUSES = {"WAITING"}
+
+
+class _AssessmentLegalPreparationDeferredDriver:
+    """Prevent Assessment from performing legal preparation inside its reasoning path."""
+
+    def run(self, message: dict[str, Any], correlation_id: str) -> dict[str, Any]:
+        _ = message, correlation_id
+        return {
+            "status": "DEFERRED_TO_TRIAGE",
+            "resumedRunCount": 0,
+        }
 
 
 class EngineeringAssessmentBoundary(AgentBoundaryBase):
@@ -44,6 +60,7 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         investigation_pipeline: EngineeringInvestigationPipeline | None = None,
         snapshot_client: SnapshotServiceClient | None = None,
         code_workspace: ScannerWorkspace | None = None,
+        triage_trigger_publisher: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         super().__init__(config, rbac_client)
         self._api_client = api_client or WorkerApiClient(
@@ -55,6 +72,9 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
             config.worker_api_key,
         )
         self._code_workspace = code_workspace or ScannerWorkspace()
+        self._triage_trigger_publisher = (
+            triage_trigger_publisher or self._publish_legal_triage_command
+        )
         if investigation_pipeline is not None:
             self._pipeline = investigation_pipeline
         else:
@@ -62,6 +82,7 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
                 api_client=self._api_client,
                 model=model,
                 planner_model=planner_model,
+                corpus_recovery_driver=_AssessmentLegalPreparationDeferredDriver(),
             )
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
@@ -79,6 +100,9 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         if not assessment_id:
             raise ValueError("accepted evidence report is missing assessment_id")
 
+        workflow_run_id = self._workflow_run_id(
+            message, evidence_report, evidence_report_id
+        )
         wizard_context = self._wizard_context(assessment_id, correlationId)
         workspace_job_id = f"investigation-{correlationId}"
         workspace_path = self._materialize_code_workspace(
@@ -89,9 +113,7 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         try:
             result = self._pipeline.run(
                 evidence_report=evidence_report,
-                workflow_run_id=self._workflow_run_id(
-                    message, evidence_report, evidence_report_id
-                ),
+                workflow_run_id=workflow_run_id,
                 correlation_id=correlationId,
                 wizard_context=wizard_context,
                 workspace_path=workspace_path,
@@ -100,6 +122,8 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         finally:
             if workspace_path is not None:
                 self._code_workspace.cleanup(workspace_job_id)
+
+        result = self._as_waiting_for_triage(result)
         if result.status in WAITING_ENGINEERING_INVESTIGATION_STATUSES:
             self._emit_investigation_waiting_runtime_event(
                 scan_job_id=str(
@@ -108,6 +132,8 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
                     or ""
                 )
                 or None,
+                evidence_report_id=evidence_report_id,
+                workflow_run_id=workflow_run_id,
                 result=result,
                 correlation_id=correlationId,
             )
@@ -143,6 +169,19 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
             if self._is_terminal_callback_client_error(error):
                 raise NonRetryableAgentBoundaryError(str(error)) from error
             raise
+
+        # Do not start legal reasoning until the WAITING classification has been
+        # durably submitted. The command contains no Assessment/customer content;
+        # only the resume evidence reference stays in the orchestration envelope and
+        # is never passed into Triage reasoning/tools.
+        if result.status in WAITING_ENGINEERING_INVESTIGATION_STATUSES:
+            self._dispatch_legal_triage_request(
+                evidence_report_id=evidence_report_id,
+                workflow_run_id=workflow_run_id,
+                result=result,
+                correlation_id=correlationId,
+            )
+
         logger.info(
             "ENGINEERING_ASSESSMENT_SUBMITTED",
             assessment_id=assessment_id,
@@ -155,7 +194,7 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
 
     @staticmethod
     def _source_crawl_requests(message: dict[str, Any]) -> list[dict[str, Any]] | None:
-        """Forward bounded legal-source crawl requests to corpus recovery."""
+        """Retain input compatibility without allowing Assessment to run legal recovery."""
         value = message.get("sourceCrawlRequests", message.get("source_crawl_requests"))
         if value is None:
             return None
@@ -271,10 +310,44 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
             return "DEGRADED"
         return "BLOCKED"
 
+    @staticmethod
+    def _missing_legal_rule_ids(result) -> tuple[str, ...]:
+        observability = getattr(result, "observability", {}) or {}
+        preparation = (
+            observability.get("engineering_rule_preparation")
+            if isinstance(observability, dict)
+            else None
+        )
+        if not isinstance(preparation, dict):
+            return ()
+        values = preparation.get("compile_skipped_legal_rule_ids") or []
+        if not isinstance(values, list):
+            return ()
+        return tuple(dict.fromkeys(str(value) for value in values if str(value)))
+
+    @classmethod
+    def _as_waiting_for_triage(cls, result):
+        missing_rule_ids = cls._missing_legal_rule_ids(result)
+        if not missing_rule_ids:
+            return result
+        observability = dict(getattr(result, "observability", {}) or {})
+        observability["legal_preparation"] = {
+            "status": "WAITING",
+            "reason": "ENGINEERING_RULE_NOT_READY",
+            "trigger": "ENGINEERING_RULE_NOT_READY",
+            "automatic": True,
+            "missing_legal_rule_ids": list(missing_rule_ids),
+        }
+        if str(getattr(result, "status", "")).upper() == "WAITING":
+            return replace(result, observability=observability)
+        return replace(result, status="WAITING", observability=observability)
+
     def _emit_investigation_waiting_runtime_event(
         self,
         *,
         scan_job_id: str | None,
+        evidence_report_id: str,
+        workflow_run_id: str,
         result,
         correlation_id: str,
     ) -> None:
@@ -283,33 +356,162 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         post_runtime_event = getattr(self._api_client, "post_scan_runtime_event", None)
         if post_runtime_event is None:
             return
+
+        trigger = self._legal_triage_trigger(result)
+        output_summary: dict[str, Any] = {
+            "kind": "LEGAL_PREPARATION_REQUEST",
+            "scope": "LEGAL_MAINTENANCE",
+            "requestedBy": "ASSESSMENT_READINESS_GATE",
+            "reasonCode": trigger["reason"],
+            "status": str(getattr(result, "status", "WAITING")),
+            "legalRuleCatalogVersionId": trigger["legalRuleCatalogVersionId"],
+            "legalCorpusVersionId": trigger["legalCorpusVersionId"],
+            "limitations": list(getattr(result, "limitations", ())),
+            "correlationId": correlation_id,
+            "resumeEvidenceReportId": evidence_report_id,
+            "resumeWorkflowRunId": workflow_run_id,
+            "triageTrigger": {
+                key: value
+                for key, value in trigger.items()
+                if key != "reason"
+            },
+        }
+        if trigger["affectedLegalRuleIds"]:
+            output_summary["missingLegalRuleIds"] = list(
+                trigger["affectedLegalRuleIds"]
+            )
+
         post_runtime_event(
             scan_job_id,
             {
+                # The shared runtime vocabulary currently models WAITING transitions as
+                # TOOL_WAITING_INPUT. This payload explicitly marks this wait as
+                # automatic/system-owned; no user/admin input is required.
                 "event_type": "TOOL_WAITING_INPUT",
                 "run_status": "WAITING",
-                "stage": "SCAN",
-                "tool_name": "engineering_rule_planner",
+                "stage": "LEGAL_RETRIEVAL",
+                "tool_name": "engineering_rule_readiness",
                 "summary": (
-                    "Engineering rule source catalog is empty; waiting for "
-                    "corpus chunk triage and EngineeringRule rebuild"
+                    "Assessment is waiting for READY EngineeringRules; automatic "
+                    "Legal Rule Triage was requested."
                 ),
-                "waiting_reason": "NO_ENGINEERING_RULE_SOURCE_RULES",
-                "output_summary": engineering_rule_source_clarification_summary(
-                    base_summary={
-                        "status": str(getattr(result, "status", "WAITING")),
-                        "legalRuleCatalogVersionId": str(
-                            getattr(result, "legal_rule_catalog_version_id", "")
-                        ),
-                        "legalCorpusVersionId": str(
-                            getattr(result, "legal_corpus_version_id", "")
-                        ),
-                        "limitations": list(getattr(result, "limitations", ())),
-                        "correlationId": correlation_id,
-                    },
-                ),
+                "waiting_reason": trigger["reason"],
+                "output_summary": output_summary,
             },
         )
+
+    def _dispatch_legal_triage_request(
+        self,
+        *,
+        evidence_report_id: str,
+        workflow_run_id: str,
+        result,
+        correlation_id: str,
+    ) -> None:
+        trigger = self._legal_triage_trigger(result)
+        command = {
+            "trigger": "ENGINEERING_RULE_NOT_READY",
+            "affectedLegalRuleIds": trigger["affectedLegalRuleIds"],
+            "legalRuleCatalogVersionId": trigger["legalRuleCatalogVersionId"],
+            "legalCorpusVersionId": trigger["legalCorpusVersionId"],
+            "idempotencyKey": trigger["idempotencyKey"],
+            # Resume references are orchestration-only. LegalRuleTriageBoundary strips
+            # them from the model/tool boundary and uses them only after Triage ends.
+            "resumeEvidenceReportId": evidence_report_id,
+            "resumeWorkflowRunId": workflow_run_id,
+            "correlationId": correlation_id,
+        }
+        self._triage_trigger_publisher(command)
+        logger.info(
+            "LEGAL_RULE_TRIAGE_AUTOMATIC_TRIGGER_PUBLISHED",
+            affected_rule_count=len(trigger["affectedLegalRuleIds"]),
+            full_backlog=trigger["fullBacklog"],
+            correlationId=correlation_id,
+        )
+
+    @classmethod
+    def _legal_triage_trigger(cls, result) -> dict[str, Any]:
+        missing_rule_ids = cls._missing_legal_rule_ids(result)
+        reason = (
+            "ENGINEERING_RULE_NOT_READY"
+            if missing_rule_ids
+            else "NO_ENGINEERING_RULE_SOURCE_RULES"
+        )
+        catalog_version_id = str(
+            getattr(result, "legal_rule_catalog_version_id", "")
+        )
+        corpus_version_id = str(getattr(result, "legal_corpus_version_id", ""))
+        return {
+            "reason": reason,
+            "mode": "LEGAL_MAINTENANCE",
+            "trigger": "ENGINEERING_RULE_NOT_READY",
+            "automatic": True,
+            "affectedLegalRuleIds": list(missing_rule_ids),
+            "fullBacklog": not bool(missing_rule_ids),
+            "refreshLegalCatalog": not bool(missing_rule_ids),
+            "legalRuleCatalogVersionId": catalog_version_id,
+            "legalCorpusVersionId": corpus_version_id,
+            "idempotencyKey": cls._triage_trigger_idempotency_key(
+                reason=reason,
+                catalog_version_id=catalog_version_id,
+                corpus_version_id=corpus_version_id,
+                legal_rule_ids=missing_rule_ids,
+            ),
+        }
+
+    @staticmethod
+    def _triage_trigger_idempotency_key(
+        *,
+        reason: str,
+        catalog_version_id: str,
+        corpus_version_id: str,
+        legal_rule_ids: tuple[str, ...],
+    ) -> str:
+        # Assessment identity is deliberately excluded: legal preparation is reusable
+        # and keyed only by governed legal scope/version state.
+        payload = "|".join(
+            [
+                reason,
+                catalog_version_id,
+                corpus_version_id,
+                *sorted(legal_rule_ids),
+            ]
+        )
+        return "legal-triage:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _publish_legal_triage_command(message: dict[str, Any]) -> None:
+        rabbitmq_url = os.getenv("RABBITMQ_URL")
+        if not rabbitmq_url:
+            raise RuntimeError(
+                "RABBITMQ_URL is required for automatic Legal Rule Triage dispatch"
+            )
+        exchange = os.getenv("RABBITMQ_EXCHANGE", "lcsp.events")
+        connection = pika.BlockingConnection(pika.URLParameters(rabbitmq_url))
+        try:
+            channel = connection.channel()
+            channel.exchange_declare(
+                exchange=exchange,
+                exchange_type="topic",
+                durable=True,
+            )
+            channel.confirm_delivery()
+            published = channel.basic_publish(
+                exchange=exchange,
+                routing_key=LEGAL_RULE_TRIAGE_REQUEST_COMMAND,
+                body=json.dumps(message, ensure_ascii=False, sort_keys=True).encode("utf-8"),
+                properties=pika.BasicProperties(
+                    content_type="application/json",
+                    delivery_mode=2,
+                    correlation_id=str(message.get("correlationId") or ""),
+                ),
+                mandatory=True,
+            )
+            if published is False:
+                raise RuntimeError("RabbitMQ did not confirm Legal Rule Triage command")
+        finally:
+            if connection.is_open:
+                connection.close()
 
     @staticmethod
     def _evidence_report_id(message: dict[str, Any]) -> str:

@@ -27,6 +27,34 @@ def recovery_artifact_root(storage_root: Path | None = None) -> Path:
     return root.resolve() / RECOVERY_ARTIFACT_ROOT
 
 
+def recovery_artifact_path(
+    category: str,
+    name: str,
+    *,
+    storage_root: Path | None = None,
+) -> Path:
+    """Resolve one content-addressed recovery artifact path without mutating storage."""
+    return (
+        recovery_artifact_root(storage_root)
+        / _safe_part(category)
+        / f"{_safe_part(name)}.json"
+    )
+
+
+def recovery_artifact_exists(
+    category: str,
+    name: str,
+    *,
+    storage_root: Path | None = None,
+) -> bool:
+    """Return whether one exact recovery artifact has already been persisted."""
+    return recovery_artifact_path(
+        category,
+        name,
+        storage_root=storage_root,
+    ).is_file()
+
+
 def write_recovery_artifact(
     category: str,
     name: str,
@@ -35,9 +63,13 @@ def write_recovery_artifact(
     storage_root: Path | None = None,
 ) -> Path:
     """Persist one recovery artifact and update the category latest pointer."""
-    directory = recovery_artifact_root(storage_root) / _safe_part(category)
+    path = recovery_artifact_path(
+        category,
+        name,
+        storage_root=storage_root,
+    )
+    directory = path.parent
     directory.mkdir(parents=True, exist_ok=True)
-    path = directory / f"{_safe_part(name)}.json"
     enriched = {
         "schemaVersion": "1.0.0",
         "category": category,

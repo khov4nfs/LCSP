@@ -28,7 +28,6 @@ def _evidence_report(
     evidence_report_id: str = "ter-1",
     scan_job_id: str = "scan-job-1",
     assessment_id: str = "assessment-1",
-    organization_id: str = "org-1",
     status: str = "accepted",
     tool_failures: list[dict] | None = None,
     ai_usage_signals: list[dict] | None = None,
@@ -40,7 +39,6 @@ def _evidence_report(
         "id": evidence_report_id,
         "scan_job_id": scan_job_id,
         "assessment_id": assessment_id,
-        "organization_id": organization_id,
         "status": status,
         "tools_version": {
             "syft": "syft v1.0.0",

@@ -654,10 +654,10 @@ class WorkerApiClient:
         return CallbackResponse(**resp_data)
 
     def get_audit_events(
-        self, organization_id: str, from_date: str, to_date: str
+        self, from_date: str, to_date: str
     ) -> list[dict]:
         """Fetch organization audit events for an inclusive export date range."""
-        path = InternalPath.AUDIT_EVENTS.format(organization_id=organization_id)
+        path = InternalPath.AUDIT_EVENTS
         params = {"from_date": from_date, "to_date": to_date}
         data = self._get_with_retry(path, params=params)
         if not isinstance(data, list):

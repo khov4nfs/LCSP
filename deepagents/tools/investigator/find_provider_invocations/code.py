@@ -18,7 +18,6 @@ class AgenticToolRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     assessment_id: str = Field(description="LCSP assessment UUID.")
-    organization_id: str = Field(description="LCSP organization/workspace UUID.")
     user_id: str = Field(description="User UUID responsible for this run.")
     workflow_run_id: str | None = Field(default=None, description="Durable workflow run ID.")
     correlation_id: str | None = Field(default=None, description="Correlation ID for tracing.")
@@ -42,7 +41,6 @@ def _dispatch_agentic_tool(tool_name: str, request: AgenticToolRequest) -> dict[
         "request_id": str(uuid4()),
         "assessment_id": request.assessment_id,
         "workflow_run_id": request.workflow_run_id or correlation_id,
-        "organization_id": request.organization_id,
         "user_id": request.user_id,
         "artifact_versions": request.artifact_versions,
         "scope": {},

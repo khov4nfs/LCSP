@@ -84,7 +84,6 @@ def test_exact_named_entrypoint_dispatches_through_internal_api() -> None:
     context = AgenticToolExecutionContext(
         api_client=api_client,
         user_id="user-1",
-        organization_id="org-1",
     )
     request = _request("get_assessment_context")
 
@@ -94,4 +93,3 @@ def test_exact_named_entrypoint_dispatches_through_internal_api() -> None:
     payload = api_client.dispatch_agentic_tool.call_args.args[0]
     assert payload["tool_name"] == "get_assessment_context"
     assert payload["assessment_id"] == str(request.assessment_id)
-    assert payload["organization_id"] == "org-1"

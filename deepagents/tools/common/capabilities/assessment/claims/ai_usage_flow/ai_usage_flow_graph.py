@@ -280,7 +280,6 @@ class AIUsageFlowGraph:
             validated_claims=validated_claims,
             assessment_id=flow.assessment_id,
             evidence_report_id=state["evidence_report_id"],
-            organization_id=state["technical_profile"].get("organization_id"),
             workflow_run_id=proposer_context.workflow_run_id,
             node_name=proposer_context.node_name,
             correlationId=proposer_context.correlationId,
