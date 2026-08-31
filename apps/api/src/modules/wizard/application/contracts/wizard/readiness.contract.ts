@@ -21,5 +21,13 @@ export interface ReadinessResponse {
   completed_steps: string[];
   next_action: string;
   updated_at: string;
+  repository_connection: {
+    connection_id: string;
+    provider: string;
+    repository_id: string;
+    repository_full_name: string;
+    default_branch: string;
+    status: string;
+  } | null;
   correlationId: string;
 }

@@ -40,7 +40,7 @@ export class RepositoryScanJob {
   /**
    * Creates a standard queued scan job with zero attempts and no blocked reason.
    *
-   * @param input - Assessment/snapshot/tenant identity, trigger provenance, idempotency key, and correlation ID.
+   * @param input - Assessment/snapshot identity, trigger provenance, idempotency key, and correlation ID.
    * @returns Newly queued repository scan job.
    */
   static create(

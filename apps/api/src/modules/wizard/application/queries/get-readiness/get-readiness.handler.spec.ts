@@ -10,11 +10,7 @@ import { GetReadinessQuery } from "./get-readiness.query.js";
 import { AssessmentNotFoundException } from "../../../domain/exceptions/wizard.exceptions.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { ReadinessEvaluatorService } from "../../services/wizard/readiness-evaluator.service.js";
-import type {
-  Assessment,
-  RepositorySnapshot,
-  WizardProfile,
-} from "@prisma/client";
+import type { Assessment, WizardProfile } from "@prisma/client";
 import { WizardProfileStatus as PrismaWizardProfileStatus } from "@prisma/client";
 import { jest } from "@jest/globals";
 
@@ -27,7 +23,7 @@ describe("GetReadinessHandler", () => {
     prismaService = {
       assessment: { findFirst: jest.fn() },
       wizardProfile: { findUnique: jest.fn() },
-      repositorySnapshot: { findFirst: jest.fn() },
+      repositoryConnection: { findFirst: jest.fn() },
       technicalEvidenceReport: { findFirst: jest.fn() },
     } as unknown as jest.Mocked<PrismaService>;
 
@@ -73,9 +69,9 @@ describe("GetReadinessHandler", () => {
       status: PrismaWizardProfileStatus.SUBMITTED,
       answers: [],
     } as unknown as WizardProfile);
-    prismaService.repositorySnapshot.findFirst.mockResolvedValue({
-      id: "snapshot-1",
-    } as RepositorySnapshot);
+    prismaService.repositoryConnection.findFirst.mockResolvedValue({
+      id: "connection-1",
+    } as never);
     prismaService.technicalEvidenceReport.findFirst.mockResolvedValue(null);
 
     const result = await handler.execute(query);
@@ -86,8 +82,17 @@ describe("GetReadinessHandler", () => {
       wizardStatus: WIZARD_STATUS_CODES.submitted,
       wizardAnswers: [],
     });
-    expect(prismaService.repositorySnapshot.findFirst).toHaveBeenCalledWith({
-      where: { assessmentId: "assessment-123" },
+    expect(prismaService.repositoryConnection.findFirst).toHaveBeenCalledWith({
+      where: { assessmentId: "assessment-123", userId: "user-1" },
+      orderBy: { connectedAt: "desc" },
+      select: {
+        id: true,
+        provider: true,
+        repositoryId: true,
+        repositoryFullName: true,
+        defaultBranch: true,
+        status: true,
+      },
     });
     expect(result.assessment_id).toBe("assessment-123");
     expect(result.wizard_status).toBe(WIZARD_STATUS_CODES.submitted);

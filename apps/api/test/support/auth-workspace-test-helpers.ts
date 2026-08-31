@@ -31,9 +31,16 @@ import { createAuthSessionRecord } from "./auth-record-test-helpers.js";
 const testSupportDir = dirname(fileURLToPath(import.meta.url));
 const apiRoot = resolve(testSupportDir, "../..");
 
-export const TEST_DATABASE_URL =
-  process.env.DATABASE_URL ??
-  "postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public";
+const configuredTestDatabaseUrl =
+  process.env.DATABASE_URL ?? process.env.PHASE25_DATABASE_URL;
+
+if (!configuredTestDatabaseUrl) {
+  throw new Error(
+    "E2E/integration tests require an explicit disposable DATABASE_URL (or PHASE25_DATABASE_URL)",
+  );
+}
+
+export const TEST_DATABASE_URL = configuredTestDatabaseUrl;
 
 export type AuthFixture = {
   organizationId: string;

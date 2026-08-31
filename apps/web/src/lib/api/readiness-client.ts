@@ -20,6 +20,14 @@ export type ReadinessStatusViewModel = {
   completedSteps: string[];
   nextAction: string;
   updatedAt: string;
+  repositoryConnection: {
+    connectionId: string;
+    provider: string;
+    repositoryId: string;
+    repositoryFullName: string;
+    defaultBranch: string;
+    status: string;
+  } | null;
 };
 
 type ReadinessStatusOutcome =
@@ -55,6 +63,16 @@ type ReadinessPayload = {
   completed_steps?: unknown;
   next_action?: unknown;
   updated_at?: unknown;
+  repository_connection?: ReadinessConnectionPayload | null;
+};
+
+type ReadinessConnectionPayload = {
+  connection_id: string;
+  provider: string;
+  repository_id: string;
+  repository_full_name: string;
+  default_branch: string;
+  status: string;
 };
 
 type ReadinessExportPayload = {
@@ -86,6 +104,17 @@ export async function getReadinessStatus(
         completedSteps: payload.completed_steps,
         nextAction: payload.next_action,
         updatedAt: payload.updated_at,
+        repositoryConnection: payload.repository_connection
+          ? {
+              connectionId: payload.repository_connection.connection_id,
+              provider: payload.repository_connection.provider,
+              repositoryId: payload.repository_connection.repository_id,
+              repositoryFullName:
+                payload.repository_connection.repository_full_name,
+              defaultBranch: payload.repository_connection.default_branch,
+              status: payload.repository_connection.status,
+            }
+          : null,
       },
     };
   }
@@ -124,6 +153,14 @@ export function isReadinessPayload(payload: unknown): payload is {
   completed_steps: string[];
   next_action: string;
   updated_at: string;
+  repository_connection?: {
+    connection_id: string;
+    provider: string;
+    repository_id: string;
+    repository_full_name: string;
+    default_branch: string;
+    status: string;
+  } | null;
 } {
   if (typeof payload !== "object" || payload === null) {
     return false;
@@ -155,7 +192,13 @@ export function isReadinessPayload(payload: unknown): payload is {
     Array.isArray(candidate.completed_steps) &&
     candidate.completed_steps.every((item) => typeof item === "string") &&
     typeof candidate.next_action === "string" &&
-    typeof candidate.updated_at === "string"
+    typeof candidate.updated_at === "string" &&
+    (candidate.repository_connection === undefined ||
+      candidate.repository_connection === null ||
+      (typeof candidate.repository_connection === "object" &&
+        typeof candidate.repository_connection.connection_id === "string" &&
+        typeof candidate.repository_connection.repository_full_name ===
+          "string"))
   );
 }
 

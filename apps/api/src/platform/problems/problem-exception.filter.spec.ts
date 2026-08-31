@@ -36,6 +36,34 @@ describe("ProblemExceptionFilter", () => {
     expect(status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
     expect(json).toHaveBeenCalledWith(problem);
   });
+
+  it("does not classify unknown internal failures as sign-in actions", () => {
+    const filter = new ProblemExceptionFilter();
+    const json = jest.fn();
+    const status = jest.fn(() => ({ json }));
+    const response = { locals: {}, status };
+
+    filter.catch(
+      new Error("credential_store_operation_failed"),
+      createArgumentsHost(
+        { method: "POST", url: "/provider-credentials", headers: {} },
+        response,
+      ),
+    );
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: false,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        problem: expect.objectContaining({
+          code: "INTERNAL_ERROR",
+          requiredAction: "none",
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+        }),
+      }),
+    );
+  });
 });
 
 function createArgumentsHost(

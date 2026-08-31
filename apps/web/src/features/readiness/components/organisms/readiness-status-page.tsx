@@ -101,6 +101,11 @@ export function ReadinessStatusPage({
   const needsRepositoryConnection = viewModel.missingEvidence.some(
     (item) => item.type === "repository_connection",
   );
+  const needsRepositoryAnalysis = viewModel.missingEvidence.some(
+    (item) => item.type === "technical_evidence",
+  );
+  const shouldShowRepositoryAction =
+    needsRepositoryConnection || needsRepositoryAnalysis;
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 lg:px-6">
@@ -189,8 +194,11 @@ export function ReadinessStatusPage({
           </p>
         </section>
 
-        {needsRepositoryConnection ? (
-          <RepositoryReadinessAction assessmentId={assessmentId} />
+        {shouldShowRepositoryAction ? (
+          <RepositoryReadinessAction
+            assessmentId={assessmentId}
+            repositoryConnection={viewModel.repositoryConnection}
+          />
         ) : null}
 
         <div className="flex flex-wrap gap-3">

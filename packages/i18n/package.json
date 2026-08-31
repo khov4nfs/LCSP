@@ -2,17 +2,20 @@
   "name": "@lcsp/i18n",
   "private": true,
   "type": "module",
+  "scripts": {
+    "build": "tsc -b tsconfig.json --force"
+  },
   "exports": {
-    ".": "./src/index.ts",
-    "./resolver": "./src/resolver.ts",
-    "./schema": "./src/schema.ts",
-    "./types": "./src/types.ts",
-    "./locales/en": "./src/locales/en/index.ts",
-    "./locales/en/auth": "./src/locales/en/auth.ts",
-    "./locales/en/common": "./src/locales/en/common.ts",
-    "./locales/vi": "./src/locales/vi/index.ts",
-    "./locales/vi/auth": "./src/locales/vi/auth.ts",
-    "./locales/vi/common": "./src/locales/vi/common.ts"
+    ".": "./dist/index.js",
+    "./resolver": "./dist/resolver.js",
+    "./schema": "./dist/schema.js",
+    "./types": "./dist/types.js",
+    "./locales/en": "./dist/locales/en/index.js",
+    "./locales/en/auth": "./dist/locales/en/auth.js",
+    "./locales/en/common": "./dist/locales/en/common.js",
+    "./locales/vi": "./dist/locales/vi/index.js",
+    "./locales/vi/auth": "./dist/locales/vi/auth.js",
+    "./locales/vi/common": "./dist/locales/vi/common.js"
   },
   "dependencies": {
     "@lcsp/contracts": "file:../contracts"

@@ -1,4 +1,13 @@
 import { Injectable } from "@nestjs/common";
+import {
+  CredentialProvider as PrismaCredentialProvider,
+  RepositoryAuthenticationMode as PrismaRepositoryAuthenticationMode,
+} from "@prisma/client";
+import {
+  CREDENTIAL_PROVIDERS,
+  REPOSITORY_AUTHENTICATION_MODES,
+  type RepositoryAuthenticationMode,
+} from "@lcsp/contracts/github-integration";
 
 import {
   fromPrismaRepositoryConnectionStatus,
@@ -38,7 +47,16 @@ export class PrismaRepositoryConnectionRepository implements RepositoryConnectio
         id: connection.id,
         assessmentId: connection.assessmentId,
         userId: connection.userId,
+        provider: PrismaCredentialProvider.GITHUB,
         installationId: connection.installationId,
+        authenticationMode: PrismaRepositoryAuthenticationMode.GITHUB_APP,
+        providerCredentialId: connection.providerCredentialId,
+        credentialVersion: connection.credentialVersion,
+        credentialAuthorizedByUserId: connection.credentialAuthorizedByUserId,
+        credentialAuthorizationStatus: connection.credentialAuthorizationStatus
+          ? (connection.credentialAuthorizationStatus as never)
+          : null,
+        credentialValidatedAt: connection.credentialValidatedAt,
         repositoryId: connection.repositoryId,
         repositoryName: connection.repositoryName,
         repositoryFullName: connection.repositoryFullName,
@@ -46,6 +64,7 @@ export class PrismaRepositoryConnectionRepository implements RepositoryConnectio
         permissions: connection.permissions,
         status: toPrismaRepositoryConnectionStatus(connection.status),
         connectedAt: connection.connectedAt,
+        credentialRevokedAt: connection.credentialRevokedAt,
         revokedAt: connection.revokedAt,
       },
       update: {
@@ -56,6 +75,14 @@ export class PrismaRepositoryConnectionRepository implements RepositoryConnectio
         defaultBranch: connection.defaultBranch,
         permissions: connection.permissions,
         status: toPrismaRepositoryConnectionStatus(connection.status),
+        providerCredentialId: connection.providerCredentialId,
+        credentialVersion: connection.credentialVersion,
+        credentialAuthorizedByUserId: connection.credentialAuthorizedByUserId,
+        credentialAuthorizationStatus: connection.credentialAuthorizationStatus
+          ? (connection.credentialAuthorizationStatus as never)
+          : null,
+        credentialValidatedAt: connection.credentialValidatedAt,
+        credentialRevokedAt: connection.credentialRevokedAt,
         revokedAt: connection.revokedAt,
       },
     });
@@ -77,7 +104,17 @@ export class PrismaRepositoryConnectionRepository implements RepositoryConnectio
       id: row.id,
       assessmentId: row.assessmentId,
       userId: row.userId,
+      provider: fromPrismaCredentialProvider(row.provider),
       installationId: row.installationId,
+      authenticationMode: fromPrismaAuthenticationMode(row.authenticationMode),
+      providerCredentialId: row.providerCredentialId,
+      credentialVersion: row.credentialVersion,
+      credentialAuthorizedByUserId: row.credentialAuthorizedByUserId,
+      credentialAuthorizationStatus: row.credentialAuthorizationStatus
+        ? row.credentialAuthorizationStatus
+        : null,
+      credentialValidatedAt: row.credentialValidatedAt,
+      credentialRevokedAt: row.credentialRevokedAt,
       repositoryId: row.repositoryId,
       repositoryName: row.repositoryName,
       repositoryFullName: row.repositoryFullName,
@@ -107,4 +144,25 @@ export class PrismaRepositoryConnectionRepository implements RepositoryConnectio
 
     return result.count === 1;
   }
+}
+
+function fromPrismaAuthenticationMode(
+  mode: PrismaRepositoryAuthenticationMode,
+): RepositoryAuthenticationMode {
+  switch (mode) {
+    case PrismaRepositoryAuthenticationMode.GITHUB_APP:
+      return REPOSITORY_AUTHENTICATION_MODES.githubApp;
+    case PrismaRepositoryAuthenticationMode.GITLAB_CLI_CREDENTIAL:
+      return REPOSITORY_AUTHENTICATION_MODES.gitlabCliCredential;
+    default:
+      return REPOSITORY_AUTHENTICATION_MODES.githubCliCredential;
+  }
+}
+
+function fromPrismaCredentialProvider(
+  provider: PrismaCredentialProvider,
+): (typeof CREDENTIAL_PROVIDERS)[keyof typeof CREDENTIAL_PROVIDERS] {
+  return provider === PrismaCredentialProvider.GITLAB
+    ? CREDENTIAL_PROVIDERS.gitlab
+    : CREDENTIAL_PROVIDERS.github;
 }

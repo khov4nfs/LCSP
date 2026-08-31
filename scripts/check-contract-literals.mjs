@@ -37,11 +37,7 @@ import {
   OUTBOX_AUDIT_EVENT_TYPES,
   OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
-import {
-  RBAC_ACTIONS,
-  RBAC_DECISION,
-  RBAC_REASON_CODE,
-} from "@lcsp/contracts/rbac";
+import { RBAC_REASON_CODE } from "@lcsp/contracts/rbac";
 import { SERVICE_HEALTH_STATUSES } from "@lcsp/contracts/shared";
 import {
   SCAN_CALLBACK_STATUSES,
@@ -75,8 +71,6 @@ const canonicalValues = new Set(
     ORGANIZATION_SCOPE_ERROR_CODES,
     OUTBOX_AUDIT_EVENT_TYPES,
     OUTBOX_STATUSES,
-    RBAC_ACTIONS,
-    RBAC_DECISION,
     RBAC_REASON_CODE,
     REPOSITORY_CONNECTION_STATUSES,
     REPOSITORY_SCAN_JOB_STATUSES,
