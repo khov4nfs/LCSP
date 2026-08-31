@@ -1,10 +1,11 @@
 "use client";
-
+import { REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
+import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
 import { resolveMessage } from "@lcsp/i18n";
-import { RefreshCwIcon } from "lucide-react";
-
+import React from "react";
+import { useMemo, useState } from "react";
+import { KeyRoundIcon } from "lucide-react";
 import { SectionHeading } from "@/components/molecules/section-heading";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,25 +14,56 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { useConfigureProviderCredentialMutation } from "@/lib/api/github-repository-queries";
 import { appLocale } from "@/lib/locale";
-import { GitHubRepositoryConnectCard } from "../molecules/github-repository-connect-card";
 import type { RepositoriesSettingsSectionProps } from "../../types/settings-page.types";
-import { formatDateTime } from "../../utils/settings-page.utils";
-
 export function RepositoriesSettingsSection({
-  repositories,
-  repositoryCount,
-  githubConnectionStatus,
-  onConnectGitHub,
-  onManageGitHubInstallation,
+  providerCredentialStatuses = [],
+  onReauthenticate,
 }: RepositoriesSettingsSectionProps) {
+  const [provider, setProvider] = useState(CREDENTIAL_PROVIDERS.github);
+  const [credential, setCredential] = useState("");
+  const [reauthRequired, setReauthRequired] = useState(false);
+  const mutation = useConfigureProviderCredentialMutation();
+  const status = useMemo(
+    () => providerCredentialStatuses.find((item) => item.provider === provider),
+    [providerCredentialStatuses, provider],
+  );
+  function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!credential.trim() || mutation.isPending) return;
+    mutation.mutate(
+      { provider, credential },
+      {
+        onSuccess: () => {
+          setCredential("");
+          setReauthRequired(false);
+        },
+        onError: (error) => {
+          if (
+            error instanceof Error &&
+            "requiredAction" in error &&
+            error.requiredAction === REQUIRED_ACTIONS.reauthenticate
+          ) {
+            setCredential("");
+            setReauthRequired(true);
+            onReauthenticate?.(() => {
+              queueMicrotask(() => {
+                mutation.mutate({ provider, credential });
+              });
+            });
+          }
+        },
+      },
+    );
+  }
+  const providerLabel = resolveMessage(
+    appLocale,
+    provider === CREDENTIAL_PROVIDERS.github
+      ? "pages.workspace.settingsHub.repositories.githubProvider"
+      : "pages.workspace.settingsHub.repositories.gitlabProvider",
+  );
   return (
     <section className="flex flex-col gap-4">
       <SectionHeading
@@ -43,154 +75,82 @@ export function RepositoriesSettingsSection({
           appLocale,
           "pages.workspace.settingsHub.repositories.description",
         )}
-        icon={<RefreshCwIcon className="size-4" />}
-      />
-      <GitHubRepositoryConnectCard
-        title={resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.repositories.connectTitle",
-        )}
-        description={resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.repositories.connectDescription",
-        )}
-        actionLabel={resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.actions.connectGitHubRepository",
-        )}
-        successTitle={resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.repositories.connectSuccessTitle",
-        )}
-        successDescription={resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.repositories.connectSuccessDescription",
-        )}
-        failedTitle={resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.repositories.connectFailedTitle",
-        )}
-        failedDescription={resolveMessage(
-          appLocale,
-          "pages.workspace.settingsHub.repositories.connectFailedDescription",
-        )}
-        status={githubConnectionStatus}
-        onConnect={onConnectGitHub}
+        icon={<KeyRoundIcon className="size-4" />}
       />
       <Card>
         <CardHeader>
-          <CardTitle>
-            {resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.repositories.listTitle",
-            )}
-          </CardTitle>
+          <CardTitle>{providerLabel}</CardTitle>
           <CardDescription>
-            {resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.repositories.listDescription",
-            )}
+            {status?.configured
+              ? resolveMessage(
+                  appLocale,
+                  "pages.workspace.settingsHub.badges.configured",
+                )
+              : resolveMessage(
+                  appLocale,
+                  "pages.workspace.settingsHub.states.notConfigured",
+                )}
+            {status?.account?.username ? ` · ${status.account.username}` : ""}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <div className="text-sm text-muted-foreground">
-            {resolveMessage(
-              appLocale,
-              "pages.workspace.settingsHub.repositories.summary",
-            )}
-            : {repositoryCount}
-          </div>
-          {repositories.length === 0 ? (
-            <Empty className="rounded-xl border">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <RefreshCwIcon className="size-4" />
-                </EmptyMedia>
-                <EmptyTitle>
-                  {resolveMessage(
-                    appLocale,
-                    "pages.workspace.settingsHub.repositories.listTitle",
-                  )}
-                </EmptyTitle>
-                <EmptyDescription>
-                  {resolveMessage(
-                    appLocale,
-                    "pages.workspace.settingsHub.states.noRepositories",
-                  )}
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {repositories.map((repository) => (
-                <div
-                  key={repository.id}
-                  className="rounded-xl border px-4 py-3"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium">
-                          {repository.repository_full_name}
-                        </p>
-                        <Badge variant="outline">
-                          {resolveMessage(
-                            appLocale,
-                            repository.revoked_at
-                              ? "pages.workspace.settingsHub.badges.revoked"
-                              : "pages.workspace.settingsHub.badges.active",
-                          )}
-                        </Badge>
-                      </div>
-                      <div className="grid gap-1 text-sm text-muted-foreground">
-                        <span>
-                          {resolveMessage(
-                            appLocale,
-                            "pages.workspace.settingsHub.labels.defaultBranch",
-                          )}
-                          : {repository.default_branch}
-                        </span>
-                        <span>
-                          {resolveMessage(
-                            appLocale,
-                            "pages.workspace.settingsHub.labels.linkedAssessment",
-                          )}
-                          :{" "}
-                          {repository.assessment_name ??
-                            resolveMessage(
-                              appLocale,
-                              "pages.workspace.settingsHub.states.noAssessmentLinked",
-                            )}
-                        </span>
-                        <span>
-                          {resolveMessage(
-                            appLocale,
-                            "pages.workspace.settingsHub.labels.connectedAt",
-                          )}
-                          : {formatDateTime(repository.connected_at)}
-                        </span>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        onManageGitHubInstallation(repository.installation_id)
-                      }
-                    >
-                      {resolveMessage(
-                        appLocale,
-                        "pages.workspace.settingsHub.actions.manageGitHubRepositoryAccess",
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        <CardContent>
+          <form className="grid gap-4" onSubmit={submit}>
+            <label htmlFor="repository-provider">
+              {resolveMessage(
+                appLocale,
+                "pages.workspace.settingsHub.repositories.providerLabel",
+              )}
+              <select
+                id="repository-provider"
+                value={provider}
+                onChange={(event) =>
+                  (() => {
+                    setProvider(event.target.value as typeof provider);
+                    setCredential("");
+                  })()
+                }
+              >
+                <option value={CREDENTIAL_PROVIDERS.github}>GitHub</option>
+                <option value={CREDENTIAL_PROVIDERS.gitlab}>GitLab</option>
+              </select>
+            </label>
+            <label htmlFor="provider-credential">
+              {resolveMessage(
+                appLocale,
+                provider === CREDENTIAL_PROVIDERS.github
+                  ? "pages.workspace.settingsHub.repositories.credentialLabel"
+                  : "pages.workspace.settingsHub.repositories.gitlabCredentialLabel",
+              )}
+              <Input
+                id="provider-credential"
+                type="password"
+                autoComplete="new-password"
+                value={credential}
+                onChange={(event) => setCredential(event.target.value)}
+              />
+            </label>
+            <Button
+              type="submit"
+              disabled={mutation.isPending || credential.trim().length === 0}
+            >
+              {resolveMessage(
+                appLocale,
+                status?.configured
+                  ? "pages.workspace.settingsHub.actions.edit"
+                  : "pages.workspace.settingsHub.actions.setUp",
+              )}
+            </Button>
+          </form>
         </CardContent>
       </Card>
+      {reauthRequired ? (
+        <p role="status" className="text-sm text-muted-foreground">
+          {resolveMessage(
+            appLocale,
+            "pages.workspace.settingsHub.reauth.description",
+          )}
+        </p>
+      ) : null}
     </section>
   );
 }

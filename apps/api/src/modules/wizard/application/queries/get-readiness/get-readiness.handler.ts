@@ -37,13 +37,22 @@ export class GetReadinessHandler implements IQueryHandler<
     }
 
     // Run parallel checks for related states
-    const [wizardProfile, repositorySnapshot, evidenceReport] =
+    const [wizardProfile, repositoryConnection, evidenceReport] =
       await Promise.all([
         this.prisma.wizardProfile.findUnique({
           where: { assessmentId },
         }),
-        this.prisma.repositorySnapshot.findFirst({
-          where: { assessmentId },
+        this.prisma.repositoryConnection.findFirst({
+          where: { assessmentId, userId: query.userId },
+          orderBy: { connectedAt: "desc" },
+          select: {
+            id: true,
+            provider: true,
+            repositoryId: true,
+            repositoryFullName: true,
+            defaultBranch: true,
+            status: true,
+          },
         }),
         this.prisma.technicalEvidenceReport.findFirst({
           where: {
@@ -61,7 +70,7 @@ export class GetReadinessHandler implements IQueryHandler<
 
     // Evaluate readiness logic
     const evaluation = this.readinessEvaluator.evaluate({
-      hasRepositoryConnection: !!repositorySnapshot,
+      hasRepositoryConnection: !!repositoryConnection,
       hasAcceptedTechnicalEvidence: !!evidenceReport,
       wizardStatus,
       wizardAnswers: Array.isArray(wizardProfile?.answers)
@@ -80,6 +89,16 @@ export class GetReadinessHandler implements IQueryHandler<
       completed_steps: evaluation.completed_steps,
       next_action: evaluation.next_action,
       updated_at: new Date().toISOString(),
+      repository_connection: repositoryConnection
+        ? {
+            connection_id: repositoryConnection.id,
+            provider: repositoryConnection.provider,
+            repository_id: repositoryConnection.repositoryId,
+            repository_full_name: repositoryConnection.repositoryFullName,
+            default_branch: repositoryConnection.defaultBranch,
+            status: repositoryConnection.status,
+          }
+        : null,
       correlationId: query.correlationId,
     };
   }

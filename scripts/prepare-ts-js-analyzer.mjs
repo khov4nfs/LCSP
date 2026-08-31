@@ -84,7 +84,9 @@ function runNpm(args) {
     cwd: analyzerRoot,
     env: process.env,
     stdio: "inherit",
-    shell: false,
+    // Windows command shims such as npm.cmd must be launched through cmd.exe.
+    // Spawning the shim directly can fail with EINVAL on Node.js 22.
+    shell: process.platform === "win32",
   });
 
   if (result.error) {

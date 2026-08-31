@@ -38,7 +38,7 @@ jobs:
           # Pull-request mode normally calls the changed-files REST API. Use
           # the checked-out git history instead so transient GitHub API 5xx
           # responses cannot fail change detection.
-          token: ''
+          token: ""
           list-files: shell
           filters: |
             api:
@@ -168,6 +168,9 @@ jobs:
       - name: Check import policy
         run: pnpm run check:imports
 
+      - name: Build runtime contracts
+        run: pnpm --filter @lcsp/contracts build
+
       - name: Generate Prisma client
         run: pnpm --filter @lcsp/api prisma:generate
         env:
@@ -212,6 +215,9 @@ jobs:
 
       - name: Check import policy
         run: pnpm run check:imports
+
+      - name: Build runtime contracts
+        run: pnpm --filter @lcsp/contracts build
 
       - name: Lint web
         run: |

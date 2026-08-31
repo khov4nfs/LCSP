@@ -6,6 +6,8 @@ type SensitiveRouteDefinition = {
 
 export const SENSITIVE_ROUTE_IDS = {
   githubAppStart: "GITHUB_APP_START",
+  githubCliRepositoryDiscovery: "GITHUB_CLI_REPOSITORY_DISCOVERY",
+  githubCliRepositoryConnect: "GITHUB_CLI_REPOSITORY_CONNECT",
   mfaRecoveryCodesGenerate: "MFA_RECOVERY_CODES_GENERATE",
 } as const;
 

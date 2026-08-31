@@ -397,7 +397,7 @@ export const viPages = {
         updatePassword: "Cập nhật mật khẩu",
         revoke: "Thu hồi",
         linkGoogle: "Liên kết Google",
-        connectGitHubRepository: "Kết nối GitHub repository",
+        connectGitHubRepository: "Kết nối repository",
         manageGitHubRepositoryAccess: "Quản lý quyền",
       },
       account: {
@@ -526,15 +526,45 @@ export const viPages = {
         title: "Repository",
         description:
           "Xem các repository đã liên kết với tài khoản này thông qua tích hợp GitHub hiện tại của LCSP.",
-        connectTitle: "Kết nối GitHub App",
+        connectTitle: "Kết nối repository",
         connectDescription:
-          "Bắt đầu flow GitHub App read-only và chọn repository được ủy quyền cho bằng chứng scan tin cậy.",
+          "Chọn provider, nhập URL repository và xác minh quyền đọc cho bằng chứng scan tin cậy.",
         connectSuccessTitle: "Đã kết nối repository",
         connectSuccessDescription:
           "LCSP đã lưu metadata repository mà không lưu raw GitHub token.",
         connectFailedTitle: "Kết nối repository thất bại",
         connectFailedDescription:
           "Không thể hoàn tất ủy quyền GitHub App cho workspace này.",
+        dialogTitle: "Kết nối repository",
+        dialogClose: "Đóng hộp thoại kết nối repository",
+        discoveryDescription:
+          "Chọn provider, nhập URL repository và cung cấp credential chỉ đọc để xác minh truy cập.",
+        connectCredentialDescription:
+          "Chọn repository, sau đó nhập lại credential để cấp quyền cho kết nối này.",
+        providerLabel: "Provider",
+        githubProvider: "GitHub",
+        gitlabProvider: "GitLab",
+        repositoryUrlLabel: "URL repository",
+        repositoryUrlPlaceholder: "https://github.com/owner/repository",
+        gitlabRepositoryUrlPlaceholder: "https://gitlab.com/group/project",
+        repositoryUrlRequired: "Hãy nhập URL repository GitHub HTTPS hợp lệ.",
+        credentialLabel: "GitHub personal access token",
+        gitlabCredentialLabel: "GitLab access token",
+        credentialRequired: "Hãy nhập GitHub personal access token.",
+        repositoryLabel: "Repository",
+        discoverAction: "Xác thực và tìm repository",
+        connectAction: "Kết nối repository",
+        requestFailedTitle: "Không thể kết nối GitHub",
+        requestFailedDescription:
+          "Hãy kiểm tra credential và quyền truy cập repository rồi thử lại.",
+        credentialInvalidDescription:
+          "GitHub credential không hợp lệ hoặc đã hết hạn. Hãy nhập credential còn hiệu lực.",
+        approvalRequiredDescription:
+          "Credential này cần được tổ chức GitHub hoặc SSO phê duyệt trước khi truy cập repository.",
+        repositoryDeniedDescription:
+          "Credential không có quyền đọc repository đã chọn.",
+        serviceUnavailableDescription:
+          "Dịch vụ truy cập GitHub tạm thời không khả dụng. Hãy thử lại sau.",
         listTitle: "Repository đã liên kết",
         listDescription:
           "Mỗi repository được hiển thị cạnh assessment đang sử dụng nó.",
@@ -995,6 +1025,33 @@ export const viPages = {
     updatedAtLabel: "Cập nhật",
     noMissingEvidence: "Hiện không còn mục readiness nào bị thiếu.",
     noCompletedSteps: "Chưa có mốc readiness nào được xác nhận.",
+    repositoryConnectedTitle: "Đã kết nối repository",
+    snapshotReady: "Snapshot đã sẵn sàng cho assessment này.",
+    repository: {
+      title: "Phân tích repository",
+      urlLabel: "URL repository",
+      urlPlaceholder: "https://github.com/to-chuc/repository",
+      urlDescription: "Nhập URL repository GitHub hoặc GitLab.",
+      urlRequired: "URL repository là bắt buộc.",
+      urlInvalid: "Hãy nhập URL repository hợp lệ.",
+      connectAndAnalyze: "Kết nối và phân tích",
+      connecting: "Đang kết nối repository...",
+      startingAnalysis: "Đang bắt đầu phân tích repository...",
+      connected: "Đã kết nối repository",
+      retryAnalysis: "Thử lại phân tích",
+      analysisStarted:
+        "Phân tích repository đã bắt đầu. Readiness sẽ tự động cập nhật.",
+      connectFailedTitle: "Không thể kết nối repository",
+      analysisFailedTitle: "Không thể bắt đầu phân tích repository",
+      credentialRequired:
+        "Repository này yêu cầu Provider Credential phù hợp.",
+      configureCredential: "Cấu hình credential trong Repository Settings",
+      unsupportedUrl: "URL repository hoặc provider này chưa được hỗ trợ.",
+      accessFailed:
+        "Không thể truy cập repository. Hãy kiểm tra credential và quyền repository.",
+      analysisFailed:
+        "Phân tích repository thất bại. Bạn có thể thử lại với connection hiện tại.",
+    },
     unresolvedTitle: "Bối cảnh nghiệp vụ chưa rõ",
     unresolvedDescription:
       "Những mục này cần được làm rõ thêm trước khi có thể phân loại.",

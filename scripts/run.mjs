@@ -164,8 +164,11 @@ const targets = {
   },
   managed_agent: {
     cwd: workerRoot,
-    cmd: existsSync(workerMda) ? workerMda : "uv",
-    args: existsSync(workerMda)
+    // On Windows, invoke the managed CLI through uv so its Python runtime is
+    // on PATH.  Calling the venv-installed mda.exe directly makes mda dev
+    // probe for a `python3` executable that Windows does not provide.
+    cmd: existsSync(workerMda) && !isWindows ? workerMda : "uv",
+    args: existsSync(workerMda) && !isWindows
       ? ["dev", "--no-reload", "."]
       : ["run", "mda", "dev", "--no-reload", "."],
     env: {
@@ -300,7 +303,7 @@ function prepareTsJsAnalyzer() {
       cwd: tsJsAnalyzerRoot,
       env: process.env,
       stdio: "inherit",
-      shell: false,
+      shell: isWindows,
     });
     if (result.status !== 0) {
       process.exit(result.status ?? 1);

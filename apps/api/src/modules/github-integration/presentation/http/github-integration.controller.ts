@@ -1,8 +1,12 @@
 import {
   Body,
   Controller,
+  Inject,
+  Optional,
   Get,
   Headers,
+  HttpCode,
+  HttpStatus,
   Param,
   Post,
   Query,
@@ -12,6 +16,7 @@ import {
 } from "@nestjs/common";
 import { CommandBus } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
 import type { Response } from "express";
 
 import { createCorrelationId } from "../../../auth-workspace/infrastructure/security/security.utils.js";
@@ -29,6 +34,21 @@ import type { PinSnapshotDto } from "../../application/contracts/github-integrat
 import type { TriggerScanDto } from "../../application/contracts/github-integration/trigger-scan.contract.js";
 import { PinSnapshotRequest } from "./dto/pin-snapshot.request.js";
 import { TriggerScanRequest } from "./dto/trigger-scan.request.js";
+import {
+  GitHubCliRepositoryConnectionRequest,
+  GitHubRepositoryDiscoveryRequest,
+} from "./dto/github-credential.request.js";
+import { GitHubCredentialRequestGuard } from "./github-credential-request.guard.js";
+import { DiscoverGitHubRepositoriesCommand } from "../../application/commands/discover-github-repositories/discover-github-repositories.command.js";
+import { ConnectGitHubCliRepositoryCommand } from "../../application/commands/connect-github-cli-repository/connect-github-cli-repository.command.js";
+import { ConfigureProviderCredentialCommand } from "../../application/commands/configure-provider-credential/configure-provider-credential.command.js";
+import { ProviderCredentialRequest } from "./dto/provider-credential.request.js";
+import { AssessmentRepositoryConnectionRequest } from "./dto/assessment-repository-connection.request.js";
+import { ConnectAssessmentRepositoryCommand } from "../../application/commands/connect-assessment-repository/connect-assessment-repository.command.js";
+import {
+  ACTIVE_PROVIDER_CREDENTIAL_RESOLVER,
+  type ActiveProviderCredentialResolver,
+} from "../../application/ports/security/active-provider-credential.resolver.js";
 import {
   ScanTriggerGuard,
   type ScanTriggerRequestContext,
@@ -49,7 +69,162 @@ export class GitHubIntegrationController {
    *
    * @param commandBus - Command bus used to start/complete App installation, pin snapshots, and trigger scans.
    */
-  constructor(private readonly commandBus: CommandBus) {}
+  constructor(
+    private readonly commandBus: CommandBus,
+    @Optional()
+    @Inject(ACTIVE_PROVIDER_CREDENTIAL_RESOLVER)
+    private readonly activeCredentials?: ActiveProviderCredentialResolver,
+  ) {}
+
+  @Get("provider-credentials")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async listProviderCredentials(@Req() request: GitHubIntegrationRequest) {
+    const context = request.rbacContext as RbacRequestContext;
+    if (!this.activeCredentials)
+      throw new Error("provider_credentials_unavailable");
+    const activeCredentials = this.activeCredentials;
+    const providers = [
+      CREDENTIAL_PROVIDERS.github,
+      CREDENTIAL_PROVIDERS.gitlab,
+    ];
+    return resultEnvelope(
+      await Promise.all(
+        providers.map(async (provider) => {
+          const metadata = await activeCredentials.findMetadata({
+            userId: context.userId,
+            provider,
+          });
+          return {
+            provider,
+            configured: metadata !== null,
+            account: metadata
+              ? {
+                  id: metadata.providerAccountId,
+                  username: metadata.providerLogin,
+                }
+              : null,
+          };
+        }),
+      ),
+    );
+  }
+
+  @Post("github/repository-discoveries")
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RbacGuard, GitHubCredentialRequestGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  @ReAuthForSensitiveRoute({
+    routeId: SENSITIVE_ROUTE_IDS.githubCliRepositoryDiscovery,
+    method: "POST",
+    pathTemplate: "/github/repository-discoveries",
+    aliases: [
+      { method: "POST", pathTemplate: "/api/github/repository-discoveries" },
+    ],
+  })
+  async discoverRepositories(
+    @Body() body: GitHubRepositoryDiscoveryRequest,
+    @Req() request: GitHubIntegrationRequest,
+  ) {
+    const context = request.rbacContext as RbacRequestContext;
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new DiscoverGitHubRepositoriesCommand(
+          context.userId,
+          context.role,
+          context.sessionId,
+          body.credential,
+          body.limit,
+          body.cursor,
+          request.correlationId as string,
+        ),
+      ),
+    );
+  }
+
+  @Post("github/repository-connections")
+  @UseGuards(RbacGuard, GitHubCredentialRequestGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  @ReAuthForSensitiveRoute({
+    routeId: SENSITIVE_ROUTE_IDS.githubCliRepositoryConnect,
+    method: "POST",
+    pathTemplate: "/github/repository-connections",
+    aliases: [
+      { method: "POST", pathTemplate: "/api/github/repository-connections" },
+    ],
+  })
+  async connectCliRepository(
+    @Body() body: GitHubCliRepositoryConnectionRequest,
+    @Req() request: GitHubIntegrationRequest,
+  ) {
+    const context = request.rbacContext as RbacRequestContext;
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new ConnectGitHubCliRepositoryCommand(
+          context.userId,
+          context.role,
+          context.sessionId,
+          body.credential,
+          body.repository_full_name,
+          body.assessment_id,
+          body.credential_expires_at,
+          request.correlationId as string,
+          body.provider ?? CREDENTIAL_PROVIDERS.github,
+          body.repository_url,
+        ),
+      ),
+    );
+  }
+
+  @Post("provider-credentials")
+  @UseGuards(RbacGuard, GitHubCredentialRequestGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  @ReAuthForSensitiveRoute({
+    routeId: SENSITIVE_ROUTE_IDS.githubCliRepositoryConnect,
+    method: "POST",
+    pathTemplate: "/provider-credentials",
+    aliases: [{ method: "POST", pathTemplate: "/api/provider-credentials" }],
+  })
+  async configureProviderCredential(
+    @Body() body: ProviderCredentialRequest,
+    @Req() request: GitHubIntegrationRequest,
+  ) {
+    const context = request.rbacContext as RbacRequestContext;
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new ConfigureProviderCredentialCommand(
+          context.userId,
+          context.role,
+          context.sessionId,
+          body.provider,
+          body.credential,
+          request.correlationId as string,
+        ),
+      ),
+    );
+  }
+
+  @Post("assessments/:assessmentId/repository-connection")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async connectAssessmentRepository(
+    @Param("assessmentId") assessmentId: string,
+    @Body() body: AssessmentRepositoryConnectionRequest,
+    @Req() request: GitHubIntegrationRequest,
+  ) {
+    const context = request.rbacContext as RbacRequestContext;
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new ConnectAssessmentRepositoryCommand(
+          assessmentId,
+          context.userId,
+          context.role,
+          body.repositoryUrl,
+          request.correlationId as string,
+        ),
+      ),
+    );
+  }
 
   /**
    * Starts or resumes the sensitive GitHub App installation flow for the authenticated organization/user.
@@ -57,7 +232,7 @@ export class GitHubIntegrationController {
    * @param redirectUri - Allowlisted client redirect URI to restore after GitHub callback.
    * @param assessmentId - Optional assessment to bind to the resulting repository connection.
    * @param installationId - Optional existing installation identifier for reconnect/resume flows.
-   * @param request - RBAC-authenticated request containing tenant, user, session, and correlation context.
+   * @param request - RBAC-authenticated request containing user, session, and correlation context.
    * @returns Standard result envelope containing the GitHub installation URL.
    */
   @Get("github/app/start")

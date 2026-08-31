@@ -32,6 +32,29 @@ test("readiness payload rejects missing unknown-state projection", () => {
   );
 });
 
+test("readiness payload preserves the safe connected repository projection", () => {
+  assert.equal(
+    isReadinessPayload({
+      classification_locked: true,
+      missing_evidence: [],
+      unresolved_unknown_items: [],
+      readiness_mode: null,
+      completed_steps: ["repository_connected"],
+      next_action: "Wait for the repository scan to complete.",
+      updated_at: "2026-08-26T00:00:00.000Z",
+      repository_connection: {
+        connection_id: "connection-1",
+        provider: "GITLAB",
+        repository_id: "project-1",
+        repository_full_name: "group/project",
+        default_branch: "main",
+        status: "ACTIVE",
+      },
+    }),
+    true,
+  );
+});
+
 test("readiness export payload requires a readiness-only PDF download", () => {
   assert.equal(
     isReadinessExportPayload({

@@ -1,3 +1,4 @@
+import React from "react";
 import type { SectionHeadingProps } from "@/components/types/section-heading.types";
 
 export function SectionHeading({

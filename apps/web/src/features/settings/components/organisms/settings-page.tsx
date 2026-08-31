@@ -17,7 +17,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { appLocale } from "@/lib/locale";
 import {
   useDisableMfaMutation,
-  useAuthRepositoriesQuery,
   useAuthSessionsQuery,
   useAuthSettingsProfileQuery,
   useMfaEnrollMutation,
@@ -27,7 +26,7 @@ import {
   useRevokeAuthSessionMutation,
   useUpdateProfileMutation,
 } from "@/lib/api/auth-queries";
-import { runSensitiveRouteAction } from "@/lib/api/sensitive-route-action";
+import { useProviderCredentialStatusesQuery } from "@/lib/api/github-repository-queries";
 import {
   API_OUTCOME_KINDS,
   API_REDIRECT_LOCATIONS,
@@ -45,6 +44,7 @@ import { EmailSettingsSection } from "./email-settings-section";
 import { NotificationsSettingsSection } from "./notifications-settings-section";
 import { PasswordAuthenticationSettingsSection } from "./password-authentication-settings-section";
 import { RepositoriesSettingsSection } from "./repositories-settings-section";
+import { GitHubRepositoryConnectDialog } from "./github-repository-connect-dialog";
 import { SessionsSettingsSection } from "./sessions-settings-section";
 import { useQrCode } from "../../hooks/use-qr-code";
 import { SETTINGS_SECTION_IDS } from "../../types/settings.types";
@@ -52,7 +52,6 @@ import type {
   RecoveryEmailFormValues,
   SettingsAlertMessage,
 } from "../../types/settings-page.types";
-import { GITHUB_CONNECTION_STATUSES } from "../../types/settings-page.types";
 import { isSettingsSectionId } from "../../utils/settings-page.utils";
 
 const SETTINGS_SENSITIVE_ACTIONS = {
@@ -64,6 +63,7 @@ const SETTINGS_SENSITIVE_ACTIONS = {
   revokeSession: "revoke_session",
   connectGitHubRepository: "connect_github_repository",
   manageGitHubInstallation: "manage_github_installation",
+  reauthenticateProviderCredential: "reauthenticate_provider_credential",
 } as const;
 
 type SettingsSensitiveAction = {
@@ -98,6 +98,10 @@ type SettingsSensitiveAction = {
       kind: typeof SETTINGS_SENSITIVE_ACTIONS.manageGitHubInstallation;
       installationId: string;
     }
+  | {
+      kind: typeof SETTINGS_SENSITIVE_ACTIONS.reauthenticateProviderCredential;
+      retry: () => void;
+    }
 );
 
 export function SettingsPage() {
@@ -105,19 +109,12 @@ export function SettingsPage() {
   const searchParams = useSearchParams();
   const requestedSection = searchParams.get("section");
   const oauthLinkStatus = searchParams.get("oauth_link");
-  const githubConnectionParam = searchParams.get("github_connection");
-  const githubConnectionStatus =
-    githubConnectionParam === GITHUB_CONNECTION_STATUSES.success ||
-    githubConnectionParam === GITHUB_CONNECTION_STATUSES.failed
-      ? githubConnectionParam
-      : null;
   const activeSection = isSettingsSectionId(requestedSection)
     ? requestedSection
     : SETTINGS_SECTION_IDS.passwordAndAuthentication;
 
   const profileQuery = useAuthSettingsProfileQuery();
   const sessionsQuery = useAuthSessionsQuery();
-  const repositoriesQuery = useAuthRepositoriesQuery();
   const updateProfileMutation = useUpdateProfileMutation();
   const enrollMutation = useMfaEnrollMutation();
   const disableMfaMutation = useDisableMfaMutation();
@@ -125,6 +122,7 @@ export function SettingsPage() {
   const passwordReauthMutation = usePasswordReauthMutation();
   const revokeSessionMutation = useRevokeAuthSessionMutation();
   const requestRecoveryMutation = useRequestRecoveryMutation();
+  const providerCredentialStatusesQuery = useProviderCredentialStatusesQuery();
 
   const [totpUri, setTotpUri] = useState<string | null>(null);
   const [mfaEditorOpen, setMfaEditorOpen] = useState(false);
@@ -137,6 +135,7 @@ export function SettingsPage() {
     useState<SettingsAlertMessage | null>(null);
   const [confirmAccessPasswordError, setConfirmAccessPasswordError] =
     useState<SettingsAlertMessage | null>(null);
+  const [githubConnectOpen, setGitHubConnectOpen] = useState(false);
 
   const recoveryForm = useForm<RecoveryEmailFormValues>({
     resolver: zodResolver(profileSafetySchema),
@@ -149,9 +148,6 @@ export function SettingsPage() {
 
   const profile = profileQuery.data;
   const sessions = sessionsQuery.data ?? [];
-  const repositories = repositoriesQuery.data ?? [];
-
-  const repositoryCount = repositories.length;
   const activeSessionsCount = sessions.filter(
     (session) => session.revoked_at === null,
   ).length;
@@ -159,8 +155,7 @@ export function SettingsPage() {
     ? "pages.workspace.settingsHub.badges.verified"
     : "pages.workspace.settingsHub.badges.unverified";
 
-  const profileLoadFailed =
-    profileQuery.isError || sessionsQuery.isError || repositoriesQuery.isError;
+  const profileLoadFailed = profileQuery.isError || sessionsQuery.isError;
 
   function openSensitiveAction(action: SettingsSensitiveAction) {
     setConfirmAccessMfaError(null);
@@ -351,38 +346,6 @@ export function SettingsPage() {
     window.location.href = startUrl;
   }
 
-  async function confirmSensitiveRouteBeforeRedirect(
-    path: string,
-    action: SettingsSensitiveAction,
-  ) {
-    await runSensitiveRouteAction({
-      method: "GET",
-      path,
-      onReauthRequired: () => {
-        openSensitiveAction(action);
-      },
-      onAllowed: async () => {
-        await executeSensitiveAction(action);
-      },
-    });
-  }
-
-  function handleConnectGitHubRepository() {
-    void confirmSensitiveRouteBeforeRedirect("/api/github/app/start", {
-      kind: SETTINGS_SENSITIVE_ACTIONS.connectGitHubRepository,
-    });
-  }
-
-  function handleManageGitHubInstallation(installationId: string) {
-    const startPath = `/api/github/app/start?installation_id=${encodeURIComponent(
-      installationId,
-    )}`;
-    void confirmSensitiveRouteBeforeRedirect(startPath, {
-      kind: SETTINGS_SENSITIVE_ACTIONS.manageGitHubInstallation,
-      installationId,
-    });
-  }
-
   async function executeSensitiveAction(
     action: SettingsSensitiveAction,
   ): Promise<boolean> {
@@ -400,10 +363,13 @@ export function SettingsPage() {
       case SETTINGS_SENSITIVE_ACTIONS.revokeSession:
         return executeRevokeSession(action.sessionId);
       case SETTINGS_SENSITIVE_ACTIONS.connectGitHubRepository:
-        redirectToGitHubAppStart();
+        setGitHubConnectOpen(true);
         return true;
       case SETTINGS_SENSITIVE_ACTIONS.manageGitHubInstallation:
         redirectToGitHubAppStart(action.installationId);
+        return true;
+      case SETTINGS_SENSITIVE_ACTIONS.reauthenticateProviderCredential:
+        action.retry();
         return true;
       default:
         return false;
@@ -701,54 +667,61 @@ export function SettingsPage() {
 
         <div className="flex flex-col gap-6">
           {profile ? (
-            <ConfirmAccessDialog
-              open={confirmAccessOpen}
-              onOpenChange={(open) => {
-                if (open) {
-                  setConfirmAccessOpen(true);
-                  return;
-                }
-                closeConfirmAccessDialog(true);
-              }}
-              onPasswordSubmit={handleConfirmAccessPasswordSubmit}
-              accountLabelKey="pages.workspace.settingsHub.reauth.accountLabel"
-              accountHandle={profile.email}
-              avatarFallback={profile.email.slice(0, 1).toUpperCase()}
-              titleKey="pages.workspace.settingsHub.reauth.title"
-              descriptionKey="pages.workspace.settingsHub.reauth.description"
-              passwordLabelKey="pages.signIn.passwordLabel"
-              passwordPlaceholderKey="pages.workspace.settingsHub.reauth.passwordPlaceholder"
-              forgotPasswordHref={API_REDIRECT_LOCATIONS.recoveryRequest}
-              forgotPasswordLabelKey="pages.signIn.forgotPassword"
-              supportTitleKey="pages.workspace.settingsHub.reauth.supportTitle"
-              confirmLabelKey="pages.workspace.settingsHub.reauth.confirm"
-              confirmingLabelKey="pages.workspace.settingsHub.reauth.confirming"
-              closeLabelKey="pages.workspace.settingsHub.reauth.close"
-              errorTitleKey={confirmAccessPasswordError?.titleKey}
-              errorKey={confirmAccessPasswordError?.detailKey ?? null}
-              mfa={{
-                isEnabled: profile.mfa_enrolled,
-                isConfigured: profile.mfa_enrolled,
-                onSubmit: handleConfirmAccessOtpSubmit,
-                otpLabelKey: "pages.mfaVerify.otpLabel",
-                otpDescriptionKey: "pages.mfaVerify.otpDescription",
-                otpPlaceholderKey:
-                  "pages.workspace.settingsHub.reauth.otpPlaceholder",
-                verifyLabelKey: "pages.workspace.settingsHub.reauth.verify",
-                verifyingLabelKey:
-                  "pages.workspace.settingsHub.reauth.verifying",
-                switchToMfaLabelKey: profile.mfa_enrolled
-                  ? "pages.workspace.settingsHub.reauth.useAuthenticator"
-                  : "pages.workspace.settingsHub.reauth.setUpMfa",
-                switchToPasswordLabelKey:
-                  "pages.workspace.settingsHub.reauth.usePassword",
-                onSetupRequest: () => {
-                  router.push(API_REDIRECT_LOCATIONS.mfaEnroll);
-                },
-                errorTitleKey: confirmAccessMfaError?.titleKey,
-                errorKey: confirmAccessMfaError?.detailKey ?? null,
-              }}
-            />
+            <>
+              <ConfirmAccessDialog
+                open={confirmAccessOpen}
+                onOpenChange={(open) => {
+                  if (open) {
+                    setConfirmAccessOpen(true);
+                    return;
+                  }
+                  closeConfirmAccessDialog(true);
+                }}
+                onPasswordSubmit={handleConfirmAccessPasswordSubmit}
+                accountLabelKey="pages.workspace.settingsHub.reauth.accountLabel"
+                accountHandle={profile.email}
+                avatarFallback={profile.email.slice(0, 1).toUpperCase()}
+                titleKey="pages.workspace.settingsHub.reauth.title"
+                descriptionKey="pages.workspace.settingsHub.reauth.description"
+                passwordLabelKey="pages.signIn.passwordLabel"
+                passwordPlaceholderKey="pages.workspace.settingsHub.reauth.passwordPlaceholder"
+                forgotPasswordHref={API_REDIRECT_LOCATIONS.recoveryRequest}
+                forgotPasswordLabelKey="pages.signIn.forgotPassword"
+                supportTitleKey="pages.workspace.settingsHub.reauth.supportTitle"
+                confirmLabelKey="pages.workspace.settingsHub.reauth.confirm"
+                confirmingLabelKey="pages.workspace.settingsHub.reauth.confirming"
+                closeLabelKey="pages.workspace.settingsHub.reauth.close"
+                errorTitleKey={confirmAccessPasswordError?.titleKey}
+                errorKey={confirmAccessPasswordError?.detailKey ?? null}
+                mfa={{
+                  isEnabled: profile.mfa_enrolled,
+                  isConfigured: profile.mfa_enrolled,
+                  onSubmit: handleConfirmAccessOtpSubmit,
+                  otpLabelKey: "pages.mfaVerify.otpLabel",
+                  otpDescriptionKey: "pages.mfaVerify.otpDescription",
+                  otpPlaceholderKey:
+                    "pages.workspace.settingsHub.reauth.otpPlaceholder",
+                  verifyLabelKey: "pages.workspace.settingsHub.reauth.verify",
+                  verifyingLabelKey:
+                    "pages.workspace.settingsHub.reauth.verifying",
+                  switchToMfaLabelKey: profile.mfa_enrolled
+                    ? "pages.workspace.settingsHub.reauth.useAuthenticator"
+                    : "pages.workspace.settingsHub.reauth.setUpMfa",
+                  switchToPasswordLabelKey:
+                    "pages.workspace.settingsHub.reauth.usePassword",
+                  onSetupRequest: () => {
+                    router.push(API_REDIRECT_LOCATIONS.mfaEnroll);
+                  },
+                  errorTitleKey: confirmAccessMfaError?.titleKey,
+                  errorKey: confirmAccessMfaError?.detailKey ?? null,
+                }}
+              />
+              <GitHubRepositoryConnectDialog
+                open={githubConnectOpen}
+                onOpenChange={setGitHubConnectOpen}
+                onConnected={() => undefined}
+              />
+            </>
           ) : null}
 
           <Card className="border-border/70">
@@ -849,11 +822,15 @@ export function SettingsPage() {
 
           {activeSection === SETTINGS_SECTION_IDS.repositories ? (
             <RepositoriesSettingsSection
-              repositories={repositories}
-              repositoryCount={repositoryCount}
-              githubConnectionStatus={githubConnectionStatus}
-              onConnectGitHub={handleConnectGitHubRepository}
-              onManageGitHubInstallation={handleManageGitHubInstallation}
+              providerCredentialStatuses={
+                providerCredentialStatusesQuery.data ?? []
+              }
+              onReauthenticate={(retry) =>
+                openSensitiveAction({
+                  kind: SETTINGS_SENSITIVE_ACTIONS.reauthenticateProviderCredential,
+                  retry,
+                })
+              }
             />
           ) : null}
         </div>

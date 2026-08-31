@@ -1,6 +1,7 @@
 import {
   GITHUB_REPOSITORY_PERMISSION_LEVELS,
   REPOSITORY_CONNECTION_STATUSES,
+  REPOSITORY_AUTHENTICATION_MODES,
 } from "@lcsp/contracts/github-integration";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { describe, expect, it, jest } from "@jest/globals";
@@ -11,6 +12,8 @@ import { RepositoryConnection } from "../../../domain/entities/repository-connec
 import type { GitHubAppClient } from "../../../infrastructure/github/github-app.client.js";
 import type { RepositoryConnectionRepository } from "../../ports/persistence/repository-connection.repository.js";
 import type { RepositorySnapshotRepository } from "../../ports/persistence/repository-snapshot.repository.js";
+import type { CredentialAuthorizationResolverPort } from "../../ports/security/credential-authorization-resolver.port.js";
+import type { GitHubRepositoryProviderPort } from "../../ports/github-repository-provider.port.js";
 import { PinSnapshotCommand } from "./pin-snapshot.command.js";
 import { PinSnapshotHandler } from "./pin-snapshot.handler.js";
 
@@ -21,6 +24,7 @@ describe("PinSnapshotHandler repository reuse", () => {
       assessmentId: null,
       userId: "manager-1",
       installationId: "installation-1",
+      authenticationMode: REPOSITORY_AUTHENTICATION_MODES.githubApp,
       repositoryId: "repo-1",
       repositoryName: "example-repo",
       repositoryFullName: "acme/example-repo",
@@ -89,6 +93,12 @@ describe("PinSnapshotHandler repository reuse", () => {
       connectionRepository,
       snapshotRepository,
       githubAppClient,
+      {
+        resolveForConnection: jest.fn(),
+        markInvalid: jest.fn(),
+      } as unknown as CredentialAuthorizationResolverPort,
+      { resolveCommit: jest.fn() } as unknown as GitHubRepositoryProviderPort,
+      { get: jest.fn(() => ({ snapshotPinningEnabled: false })) } as never,
       prisma,
       auditWriter,
     );

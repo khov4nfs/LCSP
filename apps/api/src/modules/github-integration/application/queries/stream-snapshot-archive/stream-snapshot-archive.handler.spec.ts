@@ -7,8 +7,13 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Readable } from "node:stream";
+import {
+  RepositoryScanJobStatus,
+  RepositoryAuthenticationMode,
+} from "@prisma/client";
 
 import {
+  CREDENTIAL_PROVIDERS,
   REPOSITORY_CONNECTION_STATUSES,
   REPOSITORY_SCAN_JOB_STATUSES,
   REPOSITORY_SNAPSHOT_STATUSES,
@@ -28,9 +33,6 @@ import type {
 import { StreamSnapshotArchiveHandler } from "./stream-snapshot-archive.handler.js";
 import { StreamSnapshotArchiveQuery } from "./stream-snapshot-archive.query.js";
 
-type RepositoryScanJobStatus =
-  (typeof REPOSITORY_SCAN_JOB_STATUSES)[keyof typeof REPOSITORY_SCAN_JOB_STATUSES];
-
 type ScanJobFixture = {
   id: string;
   snapshotId: string;
@@ -41,6 +43,8 @@ describe("StreamSnapshotArchiveHandler", () => {
   const snapshot = {
     id: "snapshot-1",
     connectionId: "connection-1",
+    assessmentId: "assessment-1",
+    repositoryId: "repository-1",
     repositoryFullName: "acme/example-repo",
     commitSha: "a".repeat(40),
     status: REPOSITORY_SNAPSHOT_STATUSES.ready,
@@ -54,8 +58,13 @@ describe("StreamSnapshotArchiveHandler", () => {
 
   const connection = {
     id: "connection-1",
+    userId: "user-1",
+    provider: CREDENTIAL_PROVIDERS.github,
     installationId: "installation-1",
     status: REPOSITORY_CONNECTION_STATUSES.active,
+    authenticationMode: RepositoryAuthenticationMode.GITHUB_APP,
+    repositoryId: "repository-1",
+    repositoryFullName: "acme/example-repo",
   };
 
   function buildHandler(options?: {
@@ -140,12 +149,23 @@ describe("StreamSnapshotArchiveHandler", () => {
       get: cacheGetMock,
       capture: cacheCaptureMock,
     } as unknown as SnapshotArchiveCache;
+    const credentialResolver = {
+      resolveForConnection: jest.fn(),
+      markInvalid: jest.fn(),
+    };
+    const githubArchiveTransport = { downloadArchive: jest.fn() };
+    const configService = {
+      get: jest.fn(() => ({ archiveRetrievalEnabled: false })),
+    };
 
     return {
       handler: new StreamSnapshotArchiveHandler(
         prisma,
         githubAppClient,
         snapshotArchiveCache,
+        credentialResolver as never,
+        githubArchiveTransport as never,
+        configService as never,
       ),
       downloadRepositoryArchiveMock,
       cacheGetMock,
@@ -222,7 +242,7 @@ describe("StreamSnapshotArchiveHandler", () => {
     const { handler, claimScanJobMock } = buildHandler({
       scanJob: {
         ...scanJob,
-        status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+        status: RepositoryScanJobStatus.COMPLETED,
       },
     });
 
@@ -260,6 +280,32 @@ describe("StreamSnapshotArchiveHandler", () => {
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it.each([
+    RepositoryAuthenticationMode.GITHUB_CLI_CREDENTIAL,
+    undefined,
+    "UNKNOWN_MODE",
+  ])(
+    "fails closed for non-App archive authentication mode %s",
+    async (mode) => {
+      const fixture = buildHandler({
+        connection: {
+          ...connection,
+          authenticationMode: mode,
+        } as typeof connection,
+      });
+      await expect(
+        fixture.handler.execute(
+          new StreamSnapshotArchiveQuery(
+            "snapshot-1",
+            "scan-job-1",
+            "corr-mode",
+          ),
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(fixture.downloadRepositoryArchiveMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("maps archive retrieval failure to bad gateway", async () => {
     const loggerError = jest

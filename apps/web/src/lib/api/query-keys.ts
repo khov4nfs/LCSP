@@ -6,6 +6,9 @@ export const apiQueryKeys = {
     sessions: () => ["auth", "sessions"] as const,
     repositories: () => ["auth", "repositories"] as const,
   },
+  githubIntegration: {
+    providerCredentials: () => ["provider-credentials"] as const,
+  },
   workspace: {
     detail: () => ["workspace"] as const,
     assessments: () => ["assessments"] as const,

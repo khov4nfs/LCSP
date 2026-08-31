@@ -54,6 +54,12 @@ jobs:
     needs: changes
     if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
+    env:
+      LCSP_TEST_POSTGRES_PORT: 55435
+      LCSP_TEST_POSTGRES_DB: lcsp_api_test
+      LCSP_TEST_POSTGRES_USER: postgres
+      LCSP_TEST_POSTGRES_PASSWORD: postgres
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55435/lcsp_api_test?schema=public
     steps:
       - uses: actions/checkout@v4
 
@@ -69,8 +75,12 @@ jobs:
 
       - name: Generate Prisma client
         run: pnpm --filter @lcsp/api prisma:generate
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public
+
+      - name: Start PostgreSQL test database
+        run: node apps/api/test/scripts/ensure-test-postgres.mjs
+
+      - name: Apply Prisma migrations
+        run: pnpm --filter @lcsp/api exec prisma migrate deploy
 
       - name: Test API
         run: pnpm --filter @lcsp/api test

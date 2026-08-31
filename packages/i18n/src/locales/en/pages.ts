@@ -399,7 +399,7 @@ export const enPages = {
         updatePassword: "Update password",
         revoke: "Revoke",
         linkGoogle: "Link Google",
-        connectGitHubRepository: "Connect GitHub repository",
+        connectGitHubRepository: "Connect repository",
         manageGitHubRepositoryAccess: "Manage access",
       },
       account: {
@@ -525,22 +525,52 @@ export const enPages = {
         revokedTitle: "Session revoked",
       },
       repositories: {
-        title: "Repositories",
+        title: "Repository credentials",
         description:
-          "Review repositories linked to this account through the current LCSP GitHub integration.",
-        connectTitle: "GitHub App connection",
+          "Configure the provider credentials used to access repositories.",
+        connectTitle: "Connect Repository",
         connectDescription:
-          "Start the read-only GitHub App flow and select repositories authorized for trusted scan evidence.",
+          "Choose a provider, enter a repository URL, and validate read access for trusted source evidence.",
         connectSuccessTitle: "Repository connected",
         connectSuccessDescription:
           "LCSP stored the repository metadata without storing raw GitHub tokens.",
         connectFailedTitle: "Repository connection failed",
         connectFailedDescription:
-          "The GitHub App authorization could not be completed for this workspace.",
+          "The repository connection could not be completed for this workspace.",
         listTitle: "Linked repositories",
         listDescription:
           "Each linked repository is shown beside the assessment that currently uses it.",
         summary: "Linked repositories",
+        dialogTitle: "Connect Repository",
+        dialogClose: "Close repository connection dialog",
+        discoveryDescription:
+          "Select a provider, enter the repository URL, and provide a read-only credential to validate access.",
+        connectCredentialDescription:
+          "Select a repository, then enter the credential again to authorize this connection.",
+        providerLabel: "Provider",
+        githubProvider: "GitHub",
+        gitlabProvider: "GitLab",
+        repositoryUrlLabel: "Repository URL",
+        repositoryUrlPlaceholder: "https://github.com/owner/repository",
+        gitlabRepositoryUrlPlaceholder: "https://gitlab.com/group/project",
+        repositoryUrlRequired: "Enter a valid HTTPS GitHub repository URL.",
+        credentialLabel: "GitHub personal access token",
+        gitlabCredentialLabel: "GitLab access token",
+        credentialRequired: "Enter a GitHub personal access token.",
+        repositoryLabel: "Repository",
+        discoverAction: "Validate and discover repositories",
+        connectAction: "Connect repository",
+        requestFailedTitle: "Unable to connect GitHub",
+        requestFailedDescription:
+          "Check the credential and repository access, then try again.",
+        credentialInvalidDescription:
+          "The GitHub credential is invalid or expired. Enter a current credential and try again.",
+        approvalRequiredDescription:
+          "This credential requires GitHub organization or SSO approval before it can access repositories.",
+        repositoryDeniedDescription:
+          "The credential cannot read the selected repository.",
+        serviceUnavailableDescription:
+          "GitHub repository access is temporarily unavailable. Try again later.",
       },
       errors: {
         profileLoadTitle: "Unable to load settings",
@@ -1001,6 +1031,33 @@ export const enPages = {
     updatedAtLabel: "Updated",
     noMissingEvidence: "There are no missing readiness items at the moment.",
     noCompletedSteps: "No readiness milestones have been confirmed yet.",
+    repositoryConnectedTitle: "Repository connected",
+    snapshotReady: "Snapshot is ready for this assessment.",
+    repository: {
+      title: "Repository analysis",
+      urlLabel: "Repository URL",
+      urlPlaceholder: "https://github.com/organization/repository",
+      urlDescription: "Enter a GitHub or GitLab repository URL.",
+      urlRequired: "Repository URL is required.",
+      urlInvalid: "Enter a valid repository URL.",
+      connectAndAnalyze: "Connect and analyze",
+      connecting: "Connecting repository...",
+      startingAnalysis: "Starting repository analysis...",
+      connected: "Repository connected",
+      retryAnalysis: "Retry analysis",
+      analysisStarted:
+        "Repository analysis has started. Readiness will update automatically.",
+      connectFailedTitle: "Unable to connect repository",
+      analysisFailedTitle: "Unable to start repository analysis",
+      credentialRequired:
+        "A provider credential is required for this repository.",
+      configureCredential: "Configure repository credential in Settings",
+      unsupportedUrl: "This repository URL or provider is not supported.",
+      accessFailed:
+        "Repository access failed. Check the configured credential and repository permissions.",
+      analysisFailed:
+        "Repository analysis failed. You can retry with the same connection.",
+    },
     unresolvedTitle: "Unresolved Business Context",
     unresolvedDescription:
       "These items need further clarification before classification can proceed.",

@@ -335,24 +335,68 @@ enum AuditExportStatus {
 }
 
 model RepositoryConnection {
-  id                 String                     @id
-  assessmentId       String?
-  userId             String
-  installationId     String
-  repositoryId       String
-  repositoryName     String
-  repositoryFullName String
-  defaultBranch      String
-  permissions        Json
-  status             RepositoryConnectionStatus @default(ACTIVE)
-  connectedAt        DateTime                   @default(now())
-  revokedAt          DateTime?
-  assessment         Assessment?                @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
-  snapshots          RepositorySnapshot[]
-  user               User                       @relation("RepositoryConnectionUser", fields: [userId], references: [id], onDelete: Restrict)
+  id                        String                       @id
+  assessmentId              String?
+  userId                    String
+  provider                  CredentialProvider           @default(GITHUB)
+  installationId            String?
+  authenticationMode        RepositoryAuthenticationMode @default(GITHUB_APP)
+  providerCredentialId     String?
+  credentialVersion        Int?
+  credentialAuthorizedByUserId String?
+  credentialAuthorizationStatus CredentialAuthorizationStatus?
+  credentialValidatedAt     DateTime?
+  credentialRevokedAt       DateTime?
+  repositoryId              String
+  repositoryName            String
+  repositoryFullName        String
+  defaultBranch             String
+  permissions               Json
+  status                    RepositoryConnectionStatus   @default(ACTIVE)
+  connectedAt               DateTime                     @default(now())
+  revokedAt                 DateTime?
+  assessment                Assessment?                  @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+  providerCredential        ProviderCredential?          @relation(fields: [providerCredentialId], references: [id], onDelete: Restrict)
+  snapshots                 RepositorySnapshot[]
+  user                      User                         @relation("RepositoryConnectionUser", fields: [userId], references: [id], onDelete: Restrict)
 
   @@unique([installationId, repositoryId])
   @@index([assessmentId])
+  @@index([userId, provider, status])
+  @@index([providerCredentialId])
+}
+
+model ProviderCredential {
+  id                    String                     @id
+  provider              CredentialProvider
+  ownerUserId           String
+  providerAccountId     BigInt
+  providerLogin         String
+  status                ProviderCredentialStatus
+  currentVersion        Int
+  isActive              Boolean                    @default(true)
+  declaredExpiresAt     DateTime?
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  validatedAt           DateTime?
+  lastUsedAt            DateTime?
+  invalidatedAt         DateTime?
+  revocationRequestedAt DateTime?
+  revokedAt             DateTime?
+  lastFailureCode       String?
+  envelopeVersion             Int?
+  encryptionAlgorithm         String?
+  ciphertext                  Bytes?
+  credentialNonce             Bytes?
+  credentialAuthenticationTag Bytes?
+  wrappedDekCiphertext        Bytes?
+  wrappingNonce               Bytes?
+  wrappingAuthenticationTag   Bytes?
+  kekVersion                  String?
+  repositoryConnections RepositoryConnection[]
+
+  @@index([ownerUserId, provider, isActive])
+  @@index([ownerUserId, provider, providerAccountId])
 }
 
 model RepositorySnapshot {
@@ -847,6 +891,33 @@ model LegalRuleMatch {
 enum RepositoryConnectionStatus {
   ACTIVE
   REVOKED
+}
+
+enum CredentialProvider {
+  GITHUB
+  GITLAB
+}
+
+enum ProviderCredentialStatus {
+  PENDING
+  ACTIVE
+  INVALID
+  EXPIRED
+  REVOKING
+  REVOKED
+  STORAGE_ERROR
+}
+
+enum CredentialAuthorizationStatus {
+  ACTIVE
+  REVOKING
+  REVOKED
+}
+
+enum RepositoryAuthenticationMode {
+  GITHUB_APP
+  GITHUB_CLI_CREDENTIAL
+  GITLAB_CLI_CREDENTIAL
 }
 
 enum RepositorySnapshotStatus {

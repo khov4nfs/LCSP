@@ -1,4 +1,5 @@
 import { config, configValidationSchema } from "./config.js";
+import { resolve } from "node:path";
 
 const VALID_ENV = {
   NODE_ENV: "test",
@@ -17,6 +18,7 @@ const VALID_ENV = {
     "http://localhost:3000/api/github/app/callback",
   GITHUB_APP_CLIENT_ID: "gh-app-client-id",
   GITHUB_APP_CLIENT_SECRET: "gh-app-client-secret",
+  GITHUB_CLI_EXECUTABLE_PATH: resolve("tools", "gh"),
   RABBITMQ_URL: "amqp://guest:guest@localhost:5672",
   RABBITMQ_EXCHANGE: "lcsp.events",
   OUTBOX_ENABLED: "true",
@@ -92,6 +94,85 @@ describe("configValidationSchema", () => {
     const { error } = validate({ ...VALID_ENV, AUTH_BCRYPT_COST: "9" });
 
     expect(error?.message).toContain("AUTH_BCRYPT_COST");
+  });
+
+  it("rejects a relative GitHub CLI executable path", () => {
+    const result = validate({
+      ...VALID_ENV,
+      GITHUB_CLI_EXECUTABLE_PATH: "tools/gh",
+    });
+
+    expect(result.error?.message).toContain("GITHUB_CLI_EXECUTABLE_PATH");
+  });
+
+  it("allows App-only startup without credential KEK configuration", () => {
+    const result = validate({
+      ...VALID_ENV,
+      NODE_ENV: "production",
+      GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED: "false",
+    });
+    expect(result.error).toBeUndefined();
+  });
+
+  it("fails closed when credential persistence lacks a valid KEK keyring", () => {
+    const recognizableKey = "recognizable-invalid-kek";
+    const result = validate({
+      ...VALID_ENV,
+      NODE_ENV: "production",
+      GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED: "true",
+      GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: "kek-v1",
+      GITHUB_CLI_CREDENTIAL_KEK_KEYRING: recognizableKey,
+    });
+    expect(result.error?.message).toContain("valid 32-byte base64 KEK keyring");
+    expect(result.error?.message).not.toContain(recognizableKey);
+  });
+
+  it("allows credential persistence without an explicit CLI executable path", () => {
+    const result = validate({
+      ...VALID_ENV,
+      GITHUB_CLI_EXECUTABLE_PATH: "",
+      GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED: "true",
+      GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: "kek-v1",
+      GITHUB_CLI_CREDENTIAL_KEK_KEYRING: JSON.stringify({
+        "kek-v1": Buffer.alloc(32, 1).toString("base64"),
+      }),
+    });
+
+    expect(result.error).toBeUndefined();
+  });
+
+  it("accepts a versioned 32-byte keyring when persistence is enabled", () => {
+    const result = validate({
+      ...VALID_ENV,
+      GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED: "true",
+      GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: "kek-v2",
+      GITHUB_CLI_CREDENTIAL_KEK_KEYRING: JSON.stringify({
+        "kek-v1": Buffer.alloc(32, 1).toString("base64"),
+        "kek-v2": Buffer.alloc(32, 2).toString("base64"),
+      }),
+    });
+    expect(result.error).toBeUndefined();
+  });
+
+  it("rejects CLI snapshot pinning when credential persistence is disabled", () => {
+    const result = validate({
+      ...VALID_ENV,
+      GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED: "false",
+      GITHUB_CLI_SNAPSHOT_PINNING_ENABLED: "true",
+    });
+    expect(result.error?.message).toContain(
+      "snapshot pinning requires credential persistence",
+    );
+  });
+
+  it("rejects CLI archive retrieval unless persistence and snapshot pinning are enabled", () => {
+    const result = validate({
+      ...VALID_ENV,
+      GITHUB_CLI_ARCHIVE_RETRIEVAL_ENABLED: "true",
+    });
+    expect(result.error?.message).toContain(
+      "archive retrieval requires credential persistence and snapshot pinning",
+    );
   });
 
   it("allows SMTP_FROM to be blank or whitespace when SMTP is disabled", () => {
@@ -196,6 +277,24 @@ describe("config()", () => {
         clientSecret: VALID_ENV.GITHUB_APP_CLIENT_SECRET,
         privateKey: VALID_ENV.GITHUB_APP_PRIVATE_KEY,
       },
+      githubCli: {
+        executablePath: VALID_ENV.GITHUB_CLI_EXECUTABLE_PATH,
+        metadataTimeoutMs: 15000,
+        discoveryTimeoutMs: 30000,
+        archiveTimeoutMs: 120000,
+        maxJsonOutputBytes: 1048576,
+        maxDiscoveryOutputBytes: 10485760,
+        maxStderrBytes: 8192,
+        maxArchiveBytes: 104857600,
+        maxConcurrentMetadataProcesses: 8,
+        maxConcurrentArchiveProcesses: 2,
+      },
+      gitlabCli: {
+        executablePath: "",
+        timeoutMs: 30000,
+        maxJsonOutputBytes: 1048576,
+        enabled: false,
+      },
       rabbitmq: {
         url: VALID_ENV.RABBITMQ_URL,
         exchange: VALID_ENV.RABBITMQ_EXCHANGE,
@@ -207,6 +306,13 @@ describe("config()", () => {
         maxAttempts: 5,
       },
       crypto: { mfaSecretEncryptionKey: VALID_ENV.MFA_SECRET_ENCRYPTION_KEY },
+      githubCredentialPersistence: {
+        enabled: false,
+        snapshotPinningEnabled: false,
+        archiveRetrievalEnabled: false,
+        activeKekVersion: "",
+        encodedKekKeyring: "{}",
+      },
       email: {
         smtpHost: VALID_ENV.SMTP_HOST,
         smtpPort: 587,

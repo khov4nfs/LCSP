@@ -1,134 +1,215 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  GITHUB_CREDENTIAL_ERROR_CODES,
+  GITHUB_INTEGRATION_ERROR_CODES,
+} from "@lcsp/contracts/github-integration";
+import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { REPOSITORY_CONNECTION_STATUSES } from "@lcsp/contracts/github-integration";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useAuthRepositoriesQuery } from "@/lib/api/auth-queries";
-import { useStartRepositoryAnalysisMutation } from "@/lib/api/assessment-queries";
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
+import {
+  useConnectAssessmentRepositoryMutation,
+  useStartRepositoryAnalysisMutation,
+} from "@/lib/api/assessment-queries";
+import type { AssessmentRepositoryConnection } from "@/lib/api/repository-analysis-client";
+import { appLocale } from "@/lib/locale";
+
+import {
+  repositoryConnectionSchema,
+  type RepositoryConnectionValues,
+} from "../../schemas/repository-connection.schema";
+import { runRepositoryReadinessAnalysis } from "../../utils/repository-readiness-analysis";
 
 type RepositoryReadinessActionProps = {
   assessmentId: string;
+  repositoryConnection: AssessmentRepositoryConnection | null;
 };
 
 export function RepositoryReadinessAction({
   assessmentId,
+  repositoryConnection,
 }: RepositoryReadinessActionProps) {
-  const repositoriesQuery = useAuthRepositoriesQuery();
+  const connectMutation = useConnectAssessmentRepositoryMutation(assessmentId);
   const analysisMutation = useStartRepositoryAnalysisMutation(assessmentId);
-  const [selectedRepositoryId, setSelectedRepositoryId] = useState("");
+  const [connectedDuringSession, setConnectedDuringSession] =
+    useState<AssessmentRepositoryConnection | null>(null);
+  const activeConnection = connectedDuringSession ?? repositoryConnection;
+  const form = useForm<RepositoryConnectionValues>({
+    resolver: zodResolver(repositoryConnectionSchema),
+    defaultValues: { repositoryUrl: "" },
+  });
 
-  const availableRepositories = useMemo(
-    () =>
-      (repositoriesQuery.data ?? []).filter(
-        (repository) =>
-          repository.status === REPOSITORY_CONNECTION_STATUSES.active &&
-          repository.revoked_at === null,
-      ),
-    [repositoriesQuery.data],
-  );
+  const pending = connectMutation.isPending || analysisMutation.isPending;
+  const requestError = connectMutation.error ?? analysisMutation.error;
+  const credentialActionRequired = isCredentialActionRequired(requestError);
 
-  const selectedRepository = availableRepositories.find(
-    (repository) => repository.id === selectedRepositoryId,
-  );
-
-  if (repositoriesQuery.isLoading) {
-    return (
-      <section className="rounded-lg border border-dashed p-4">
-        <h2 className="text-sm font-medium">Repository cho assessment</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Đang tải các repository đã kết nối trong Settings...
-        </p>
-      </section>
-    );
-  }
-
-  if (repositoriesQuery.isError || availableRepositories.length === 0) {
-    return (
-      <section className="rounded-lg border border-dashed p-4">
-        <h2 className="text-sm font-medium">Repository cho assessment</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Chưa có repository khả dụng. Hãy kết nối repository trong Settings.
-        </p>
-        <Button
-          className="mt-3"
-          render={<Link href="/workspace/settings?section=repositories" />}
-          variant="outline"
-          nativeButton={false}
-        >
-          Mở cài đặt Repository
-        </Button>
-      </section>
-    );
+  async function analyze(repositoryUrl?: string) {
+    connectMutation.reset();
+    analysisMutation.reset();
+    await runRepositoryReadinessAnalysis(
+      { connection: activeConnection, repositoryUrl },
+      {
+        connect: (url) => connectMutation.mutateAsync(url),
+        analyze: (input) => analysisMutation.mutateAsync(input),
+        onConnected: (connection) => {
+          setConnectedDuringSession(connection);
+          form.reset();
+        },
+      },
+    ).catch(() => undefined);
   }
 
   return (
     <section className="rounded-lg border border-dashed p-4">
-      <h2 className="text-sm font-medium">Repository cho assessment</h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Chọn repository đã kết nối trong Settings. LCSP sẽ pin commit mới nhất
-        của branch mặc định cho assessment này và bắt đầu scan.
-      </p>
+      <h2 className="text-sm font-medium">
+        {t("pages.readiness.repository.title")}
+      </h2>
 
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div className="min-w-0 flex-1">
-          <Select
-            value={selectedRepositoryId}
-            onValueChange={(value) => setSelectedRepositoryId(value ?? "")}
-            disabled={analysisMutation.isPending}
-          >
-            <SelectTrigger className="w-full bg-background">
-              <SelectValue>
-                {selectedRepository
-                  ? `${selectedRepository.repository_full_name} · ${selectedRepository.default_branch}`
-                  : "Chọn repository đã kết nối"}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {availableRepositories.map((repository) => (
-                <SelectItem key={repository.id} value={repository.id}>
-                  {repository.repository_full_name} · {repository.default_branch}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {activeConnection ? (
+        <div className="mt-3 flex flex-col gap-3">
+          <div>
+            <p className="text-sm font-medium">
+              {t("pages.readiness.repository.connected")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {activeConnection.repositoryFullName} ·{" "}
+              {activeConnection.defaultBranch}
+            </p>
+          </div>
+          {!analysisMutation.isSuccess ? (
+            <Button
+              type="button"
+              className="w-fit"
+              disabled={pending}
+              onClick={() => void analyze()}
+            >
+              {analysisMutation.isPending ? (
+                <Spinner data-icon="inline-start" />
+              ) : null}
+              {analysisMutation.isPending
+                ? t("pages.readiness.repository.startingAnalysis")
+                : t("pages.readiness.repository.retryAnalysis")}
+            </Button>
+          ) : null}
         </div>
-
-        <Button
-          type="button"
-          disabled={!selectedRepository || analysisMutation.isPending}
-          onClick={() => {
-            if (!selectedRepository) return;
-            analysisMutation.mutate({
-              connectionId: selectedRepository.id,
-              branch: selectedRepository.default_branch,
-            });
-          }}
+      ) : (
+        <form
+          className="mt-3"
+          onSubmit={form.handleSubmit((values) =>
+            analyze(values.repositoryUrl),
+          )}
+          noValidate
         >
-          {analysisMutation.isPending
-            ? "Đang tạo snapshot và bắt đầu scan..."
-            : "Chọn repository"}
-        </Button>
-      </div>
+          <FieldGroup>
+            <Field
+              data-invalid={
+                Boolean(form.formState.errors.repositoryUrl) || undefined
+              }
+            >
+              <FieldLabel htmlFor="readiness-repository-url">
+                {t("pages.readiness.repository.urlLabel")}
+              </FieldLabel>
+              <Input
+                id="readiness-repository-url"
+                type="url"
+                autoComplete="url"
+                placeholder={t("pages.readiness.repository.urlPlaceholder")}
+                disabled={pending}
+                {...form.register("repositoryUrl")}
+              />
+              <FieldDescription>
+                {t("pages.readiness.repository.urlDescription")}
+              </FieldDescription>
+              {form.formState.errors.repositoryUrl?.message ? (
+                <FieldError>
+                  {t(form.formState.errors.repositoryUrl.message as MessageKey)}
+                </FieldError>
+              ) : null}
+            </Field>
+            <Button type="submit" className="w-fit" disabled={pending}>
+              {pending ? <Spinner data-icon="inline-start" /> : null}
+              {connectMutation.isPending
+                ? t("pages.readiness.repository.connecting")
+                : analysisMutation.isPending
+                  ? t("pages.readiness.repository.startingAnalysis")
+                  : t("pages.readiness.repository.connectAndAnalyze")}
+            </Button>
+          </FieldGroup>
+        </form>
+      )}
 
-      {analysisMutation.isError ? (
+      {analysisMutation.isSuccess ? (
+        <p role="status" className="mt-4 text-sm text-muted-foreground">
+          {t("pages.readiness.repository.analysisStarted")}
+        </p>
+      ) : null}
+
+      {requestError ? (
         <Alert variant="destructive" className="mt-4">
-          <AlertTitle>Không thể bắt đầu phân tích repository</AlertTitle>
+          <AlertTitle>
+            {t(
+              activeConnection
+                ? "pages.readiness.repository.analysisFailedTitle"
+                : "pages.readiness.repository.connectFailedTitle",
+            )}
+          </AlertTitle>
           <AlertDescription>
-            Không thể tạo snapshot hoặc khởi chạy scan. Hãy kiểm tra quyền truy
-            cập repository và thử lại.
+            <p>{t(repositoryProblemMessageKey(requestError))}</p>
+            {credentialActionRequired ? (
+              <Link
+                className="mt-2 inline-block underline underline-offset-4"
+                href={`/workspace/settings?section=repositories&assessment_id=${encodeURIComponent(assessmentId)}`}
+              >
+                {t("pages.readiness.repository.configureCredential")}
+              </Link>
+            ) : null}
           </AlertDescription>
         </Alert>
       ) : null}
     </section>
   );
+}
+
+function repositoryProblemMessageKey(error: unknown): MessageKey {
+  const code = error instanceof Error ? error.message : undefined;
+  switch (code) {
+    case GITHUB_CREDENTIAL_ERROR_CODES.credentialRequired:
+      return "pages.readiness.repository.credentialRequired";
+    case GITHUB_INTEGRATION_ERROR_CODES.credentialRequestInvalid:
+      return "pages.readiness.repository.unsupportedUrl";
+    case GITHUB_CREDENTIAL_ERROR_CODES.credentialInvalid:
+    case GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired:
+    case GITHUB_CREDENTIAL_ERROR_CODES.repositoryAccessDenied:
+    case GITHUB_CREDENTIAL_ERROR_CODES.repositoryUnavailable:
+      return "pages.readiness.repository.accessFailed";
+    default:
+      return "pages.readiness.repository.analysisFailed";
+  }
+}
+
+function isCredentialActionRequired(error: unknown): boolean {
+  const code = error instanceof Error ? error.message : undefined;
+  return (
+    code === GITHUB_CREDENTIAL_ERROR_CODES.credentialRequired ||
+    code === GITHUB_CREDENTIAL_ERROR_CODES.credentialInvalid ||
+    code === GITHUB_CREDENTIAL_ERROR_CODES.credentialExpired
+  );
+}
+
+function t(key: MessageKey) {
+  return resolveMessage(appLocale, key);
 }

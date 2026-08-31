@@ -1,11 +1,14 @@
 import { execFileSync } from "node:child_process";
 import net from "node:net";
 
-const containerName = "lcsp-api-test-postgres";
 const image = "postgres:16-alpine";
 const host = "127.0.0.1";
-const hostPort = 55432;
+const hostPort = Number(process.env.LCSP_TEST_POSTGRES_PORT ?? 55432);
+const databaseName = process.env.LCSP_TEST_POSTGRES_DB ?? "lcsp_api_test";
+const databaseUser = process.env.LCSP_TEST_POSTGRES_USER ?? "postgres";
+const databasePassword = process.env.LCSP_TEST_POSTGRES_PASSWORD ?? "postgres";
 const containerPort = 5432;
+const containerName = `lcsp-api-test-postgres-${hostPort}-${databaseName}`;
 
 /**
  * @param {string[]} args
@@ -42,11 +45,11 @@ function ensureContainer() {
       "--name",
       containerName,
       "-e",
-      "POSTGRES_USER=postgres",
+      `POSTGRES_USER=${databaseUser}`,
       "-e",
-      "POSTGRES_PASSWORD=postgres",
+      `POSTGRES_PASSWORD=${databasePassword}`,
       "-e",
-      "POSTGRES_DB=lcsp_api_test",
+      `POSTGRES_DB=${databaseName}`,
       "-p",
       `${host}:${hostPort}:${containerPort}`,
       "-d",
@@ -58,6 +61,40 @@ function ensureContainer() {
   if (!status.startsWith("Up ")) {
     run(["start", containerName]);
   }
+}
+
+function isAuthenticated() {
+  try {
+    run([
+      "exec",
+      "-e",
+      `PGPASSWORD=${databasePassword}`,
+      containerName,
+      "psql",
+      "-h",
+      host,
+      "-U",
+      databaseUser,
+      "-d",
+      databaseName,
+      "-w",
+      "-c",
+      "SELECT 1",
+    ]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function waitForAuthentication() {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    if (isAuthenticated()) {
+      return true;
+    }
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);
+  }
+  return false;
 }
 
 /**
@@ -85,9 +122,9 @@ function waitUntilReady() {
         containerName,
         "pg_isready",
         "-U",
-        "postgres",
+        databaseUser,
         "-d",
-        "lcsp_api_test",
+        databaseName,
       ]);
       return;
     } catch {
@@ -100,6 +137,15 @@ function waitUntilReady() {
 
 ensureContainer();
 waitUntilReady();
+
+if (!waitForAuthentication()) {
+  run(["rm", "-f", containerName]);
+  ensureContainer();
+  waitUntilReady();
+  if (!waitForAuthentication()) {
+    throw new Error(`PostgreSQL test container authentication failed for ${host}:${hostPort}/${databaseName} as postgres`);
+  }
+}
 
 if (!(await isPortOpen(hostPort, host))) {
   throw new Error(

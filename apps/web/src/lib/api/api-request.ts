@@ -17,6 +17,7 @@ export type ApiRequestResult = {
   ok: boolean;
   status: number;
   problemCode?: string;
+  requiredAction?: RequiredAction;
 };
 
 export async function apiRequest(
@@ -32,6 +33,14 @@ export async function apiRequest(
   const problemCode = getProblemCode(result);
   const requiredAction = getProblemRequiredAction(result);
 
+  traceAuthRequest({
+    input,
+    status: response.status,
+    problemCode,
+    requiredAction,
+    correlationId: getProblemCorrelationId(result),
+  });
+
   redirectToSignInOnExpiredSession(input, problemCode, requiredAction);
 
   return {
@@ -40,6 +49,7 @@ export async function apiRequest(
     ok: response.ok && result?.ok === true,
     status: response.status,
     problemCode,
+    requiredAction,
   };
 }
 
@@ -117,9 +127,65 @@ function redirectToSignInOnExpiredSession(
   }
 
   const destination = signInRedirectForCurrentLocation(window.location);
+  traceAuthRedirect({
+    input,
+    problemCode,
+    requiredAction,
+    destination,
+  });
   if (window.location.pathname !== API_REDIRECT_LOCATIONS.signIn) {
     window.location.assign(destination);
   }
+}
+
+function traceAuthRequest(input: {
+  input: RequestInfo | URL;
+  status: number;
+  problemCode: string | undefined;
+  requiredAction: RequiredAction | undefined;
+  correlationId: string | undefined;
+}) {
+  if (process.env.NODE_ENV !== "development" || typeof window === "undefined") {
+    return;
+  }
+  if (
+    input.status < 400 &&
+    input.problemCode !== AUTH_ERROR_CODES.sessionInvalid &&
+    input.problemCode !== AUTH_ERROR_CODES.authRequired
+  ) {
+    return;
+  }
+  console.debug("[auth-trace] request", {
+    route: requestPath(input.input),
+    status: input.status,
+    problemCode: input.problemCode,
+    requiredAction: input.requiredAction,
+    correlationId: input.correlationId,
+  });
+}
+
+function traceAuthRedirect(input: {
+  input: RequestInfo | URL;
+  problemCode: string | undefined;
+  requiredAction: RequiredAction | undefined;
+  destination: string;
+}) {
+  if (process.env.NODE_ENV !== "development" || typeof window === "undefined") {
+    return;
+  }
+  console.debug("[auth-trace] redirect", {
+    route: requestPath(input.input),
+    problemCode: input.problemCode,
+    requiredAction: input.requiredAction,
+    destination: input.destination,
+  });
+}
+
+function getProblemCorrelationId(
+  payload: AppResult | null,
+): string | undefined {
+  if (!payload || payload.ok || !payload.problem) return undefined;
+  return payload.problem.correlationId;
 }
 
 function requestPath(input: RequestInfo | URL): string {
