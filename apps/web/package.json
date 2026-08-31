@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "prebuild": "pnpm --dir ../../packages/contracts run build && pnpm --dir ../../packages/i18n run build",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

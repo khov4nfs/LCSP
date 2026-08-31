@@ -8,6 +8,7 @@ import {
 import { randomUUID } from "node:crypto";
 
 import { setProblemResponseMetadata } from "./problem-response-metadata.js";
+import { internalServerProblem } from "./problem-factory.js";
 
 type HttpResponse = {
   locals?: Record<string, unknown>;
@@ -112,6 +113,10 @@ function toProblemResult(
         correlationId: body.problem.correlationId || correlationId,
       },
     };
+  }
+
+  if (status >= Number(HttpStatus.INTERNAL_SERVER_ERROR)) {
+    return internalServerProblem(correlationId);
   }
 
   return createProblemResult(AUTH_ERROR_CODES.validationFailed, correlationId, {

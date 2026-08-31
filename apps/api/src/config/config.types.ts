@@ -24,6 +24,34 @@ export interface GithubConfig {
   privateKey: string;
 }
 
+export interface GithubCliConfig {
+  executablePath: string;
+  metadataTimeoutMs: number;
+  discoveryTimeoutMs: number;
+  archiveTimeoutMs: number;
+  maxJsonOutputBytes: number;
+  maxDiscoveryOutputBytes: number;
+  maxStderrBytes: number;
+  maxArchiveBytes: number;
+  maxConcurrentMetadataProcesses: number;
+  maxConcurrentArchiveProcesses: number;
+}
+
+export interface GitlabCliConfig {
+  enabled: boolean;
+  executablePath: string;
+  timeoutMs: number;
+  maxJsonOutputBytes: number;
+}
+
+export interface GithubCredentialPersistenceConfig {
+  enabled: boolean;
+  snapshotPinningEnabled: boolean;
+  archiveRetrievalEnabled: boolean;
+  activeKekVersion: string;
+  encodedKekKeyring: string;
+}
+
 export interface RabbitMqConfig {
   url: string;
   exchange: string;
@@ -75,6 +103,9 @@ export interface AppConfig {
   auth: AuthConfig;
   oauth: OAuthConfig;
   github: GithubConfig;
+  githubCli: GithubCliConfig;
+  gitlabCli: GitlabCliConfig;
+  githubCredentialPersistence: GithubCredentialPersistenceConfig;
   rabbitmq: RabbitMqConfig;
   outbox: OutboxConfig;
   crypto: CryptoConfig;

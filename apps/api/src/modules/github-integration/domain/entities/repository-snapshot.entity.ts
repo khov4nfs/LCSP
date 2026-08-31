@@ -47,7 +47,7 @@ export class RepositorySnapshot {
   /**
    * Creates a ready repository snapshot for an exact resolved commit.
    *
-   * @param input - Assessment/tenant/connection/repository identity, requested revision metadata, commit SHA, and actor.
+   * @param input - Assessment/connection/repository identity, requested revision metadata, commit SHA, and actor.
    * @returns Newly created repository snapshot in the ready lifecycle state.
    */
   static create(

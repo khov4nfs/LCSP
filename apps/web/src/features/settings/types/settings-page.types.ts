@@ -4,11 +4,18 @@ import type { MessageKey } from "@lcsp/i18n";
 import type { UseFormReturn } from "react-hook-form";
 
 import type {
-  AuthRepositorySummary,
   AuthSessionSummary,
   AuthSettingsProfile,
 } from "@/lib/api/auth-client";
 import type { MfaVerifyFormValues } from "@/features/auth/schemas/mfa-verify.schema";
+import type { ProviderCredentialStatus } from "@/lib/api/github-repository-client";
+
+export const GITHUB_CONNECTION_STATUSES = {
+  success: "success",
+  failed: "failed",
+} as const;
+export type GitHubConnectionStatus =
+  (typeof GITHUB_CONNECTION_STATUSES)[keyof typeof GITHUB_CONNECTION_STATUSES];
 
 export type RecoveryEmailFormValues = {
   recovery_email: string;
@@ -18,14 +25,6 @@ export type SettingsAlertMessage = {
   titleKey: MessageKey;
   detailKey: MessageKey;
 };
-
-export const GITHUB_CONNECTION_STATUSES = {
-  success: "success",
-  failed: "failed",
-} as const;
-
-export type GitHubConnectionStatus =
-  (typeof GITHUB_CONNECTION_STATUSES)[keyof typeof GITHUB_CONNECTION_STATUSES];
 
 export type SettingsSectionSharedProps = {
   profile: AuthSettingsProfile | undefined;
@@ -70,9 +69,6 @@ export type SessionsSettingsSectionProps = {
 };
 
 export type RepositoriesSettingsSectionProps = {
-  repositories: AuthRepositorySummary[];
-  repositoryCount: number;
-  githubConnectionStatus: GitHubConnectionStatus | null;
-  onConnectGitHub: () => void;
-  onManageGitHubInstallation: (installationId: string) => void;
+  providerCredentialStatuses?: ProviderCredentialStatus[];
+  onReauthenticate?: (retry: () => void) => void;
 };

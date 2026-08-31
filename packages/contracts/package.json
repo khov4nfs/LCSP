@@ -2,6 +2,9 @@
   "name": "@lcsp/contracts",
   "private": true,
   "type": "module",
+  "scripts": {
+    "build": "tsc -b tsconfig.json --force"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./assessment": "./src/assessment/index.ts",

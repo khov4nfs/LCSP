@@ -11,6 +11,12 @@ import {
   PROBLEM_KEYS,
   SIGN_UP_ERROR_CODES,
 } from "@lcsp/contracts/auth";
+import {
+  CREDENTIAL_PROVIDERS,
+  REPOSITORY_AUTHENTICATION_MODES,
+  type CredentialProvider,
+  type RepositoryAuthenticationMode,
+} from "@lcsp/contracts/github-integration";
 import type { MessageKey } from "@lcsp/i18n";
 
 import type {
@@ -199,7 +205,9 @@ export type AuthSessionSummary = {
 
 export type AuthRepositorySummary = {
   id: string;
-  installation_id: string;
+  provider: CredentialProvider;
+  authentication_mode: RepositoryAuthenticationMode;
+  installation_id: string | null;
   repository_name: string;
   repository_full_name: string;
   default_branch: string;
@@ -843,6 +851,9 @@ function isAuthSessionsPayload(
       const candidate = session as Record<string, unknown>;
       return (
         typeof candidate.id === "string" &&
+        Object.values(CREDENTIAL_PROVIDERS).includes(
+          candidate.provider as CredentialProvider,
+        ) &&
         typeof candidate.created_at === "string" &&
         typeof candidate.updated_at === "string" &&
         typeof candidate.expires_at === "string" &&
@@ -874,7 +885,11 @@ function isAuthRepositoriesPayload(
       const candidate = repository as Record<string, unknown>;
       return (
         typeof candidate.id === "string" &&
-        typeof candidate.installation_id === "string" &&
+        Object.values(REPOSITORY_AUTHENTICATION_MODES).includes(
+          candidate.authentication_mode as RepositoryAuthenticationMode,
+        ) &&
+        (typeof candidate.installation_id === "string" ||
+          candidate.installation_id === null) &&
         typeof candidate.repository_name === "string" &&
         typeof candidate.repository_full_name === "string" &&
         typeof candidate.default_branch === "string" &&

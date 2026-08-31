@@ -23,6 +23,7 @@ import {
   getReadinessStatus,
 } from "./readiness-client";
 import {
+  connectAssessmentRepository,
   rerunRepositoryScan,
   startRepositoryAnalysis,
   type RerunRepositoryScanInput,
@@ -36,6 +37,13 @@ import {
 } from "./wizard-client";
 import { apiQueryKeys } from "./query-keys";
 import type { WizardAnswer } from "@lcsp/contracts/wizard";
+
+export function useConnectAssessmentRepositoryMutation(assessmentId: string) {
+  return useMutation({
+    mutationFn: (repositoryUrl: string) =>
+      connectAssessmentRepository(assessmentId, repositoryUrl),
+  });
+}
 
 export function useClassificationStatusQuery(assessmentId: string) {
   return useQuery({

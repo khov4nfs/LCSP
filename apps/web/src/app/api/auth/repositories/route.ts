@@ -1,4 +1,7 @@
-import { REPOSITORY_CONNECTION_STATUSES } from "@lcsp/contracts/github-integration";
+import {
+  REPOSITORY_AUTHENTICATION_MODES,
+  REPOSITORY_CONNECTION_STATUSES,
+} from "@lcsp/contracts/github-integration";
 import { NextRequest } from "next/server";
 
 import { isMockModeEnabled } from "@/lib/server/fixtures/response";
@@ -17,9 +20,10 @@ export async function GET(request: NextRequest) {
     return successJson({
       repositories: [
         {
-	          id: "repo-connection-1",
-	          installation_id: "mock-install-123",
-	          repository_name: "lcsp-platform",
+          id: "repo-connection-1",
+          authentication_mode: REPOSITORY_AUTHENTICATION_MODES.githubApp,
+          installation_id: "mock-install-123",
+          repository_name: "lcsp-platform",
           repository_full_name: "khovan123/LCSP",
           default_branch: "main",
           status: REPOSITORY_CONNECTION_STATUSES.active,
@@ -55,9 +59,13 @@ function sanitizeRepositoriesPayload(data: unknown) {
 
     const candidate = repository as Record<string, unknown>;
     return (
-	      typeof candidate.id === "string" &&
-	      typeof candidate.installation_id === "string" &&
-	      typeof candidate.repository_name === "string" &&
+      typeof candidate.id === "string" &&
+      Object.values(REPOSITORY_AUTHENTICATION_MODES).includes(
+        candidate.authentication_mode as (typeof REPOSITORY_AUTHENTICATION_MODES)[keyof typeof REPOSITORY_AUTHENTICATION_MODES],
+      ) &&
+      (typeof candidate.installation_id === "string" ||
+        candidate.installation_id === null) &&
+      typeof candidate.repository_name === "string" &&
       typeof candidate.repository_full_name === "string" &&
       typeof candidate.default_branch === "string" &&
       typeof candidate.status === "string" &&

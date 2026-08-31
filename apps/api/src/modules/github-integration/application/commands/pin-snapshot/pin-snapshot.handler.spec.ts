@@ -4,6 +4,7 @@ import {
   GITHUB_INTEGRATION_EVENT_TYPES,
   GITHUB_REPOSITORY_PERMISSION_LEVELS,
   REPOSITORY_SNAPSHOT_STATUSES,
+  REPOSITORY_AUTHENTICATION_MODES,
 } from "@lcsp/contracts/github-integration";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
@@ -25,6 +26,8 @@ import {
 } from "../../../infrastructure/github/github-app.client.js";
 import type { RepositoryConnectionRepository } from "../../ports/persistence/repository-connection.repository.js";
 import type { RepositorySnapshotRepository } from "../../ports/persistence/repository-snapshot.repository.js";
+import type { CredentialAuthorizationResolverPort } from "../../ports/security/credential-authorization-resolver.port.js";
+import type { GitHubRepositoryProviderPort } from "../../ports/github-repository-provider.port.js";
 import { PinSnapshotCommand } from "./pin-snapshot.command.js";
 import { PinSnapshotHandler } from "./pin-snapshot.handler.js";
 
@@ -39,6 +42,7 @@ function connection(overrides?: {
     assessmentId: overrides?.assessmentId ?? "assessment-1",
     userId: "manager-1",
     installationId: "installation-1",
+    authenticationMode: REPOSITORY_AUTHENTICATION_MODES.githubApp,
     repositoryId: "repo-1",
     repositoryName: "example-repo",
     repositoryFullName: "acme/example-repo",
@@ -106,6 +110,16 @@ function buildHandler(options?: {
       });
     });
   const githubAppClient = { resolveCommit } as unknown as GitHubAppClient;
+  const credentialResolver = {
+    resolveForConnection: jest.fn(),
+    markInvalid: jest.fn(),
+  } as unknown as CredentialAuthorizationResolverPort;
+  const githubRepositoryProvider = {
+    resolveCommit: jest.fn(),
+  } as unknown as GitHubRepositoryProviderPort;
+  const configService = {
+    get: jest.fn(() => ({ snapshotPinningEnabled: false })),
+  };
 
   const findUnique = jest
     .fn<
@@ -131,6 +145,9 @@ function buildHandler(options?: {
       connectionRepository,
       snapshotRepository,
       githubAppClient,
+      credentialResolver,
+      githubRepositoryProvider,
+      configService as never,
       prisma,
       auditWriter,
     ),
