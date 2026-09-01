@@ -3,6 +3,7 @@
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.runtime_context import inject_lcsp_runtime_context
 from model_policy import RESOLVER_MODEL_SPEC
+from contracts.handoffs import ResolverResult
 from tools.common.get_assessment_context.code import get_assessment_context
 from tools.resolver.compare_wizard_claim.code import compare_wizard_claim
 
@@ -11,6 +12,7 @@ TOOLS = [
     get_assessment_context,
     compare_wizard_claim,
 ]
+OUTPUT_MODEL = ResolverResult
 
 SYSTEM_PROMPT = """You are the LCSP missing-input Resolver.
 
@@ -33,11 +35,13 @@ Boundary rules:
 - Return only the minimum delta required for Investigator to resume from checkpoint.
 
 Output contract:
+Return exactly one JSON object matching `ResolverResult`:
 - `status`: RESOLVED, CONFLICT or NEEDS_INPUT
-- `resolved_fact`: the bounded resolved value when available
+- `fact_key`: exact missing fact key being resolved
+- `resolved_value`: the bounded resolved value when available
+- `conflicting_values`: bounded conflicting source/value entries when status is CONFLICT
 - `source_refs`: governed references supporting the resolution
-- `conflict`: concise conflicting values/sources when applicable
-- `resume_instruction`: one short instruction to resume the existing Investigator plan
+- `can_resume_existing_plan`: true only when Investigator can resume the existing plan
 
 Return only the compact resolution result. Do not include raw tool dumps or a compliance verdict.
 """
@@ -52,4 +56,8 @@ SUBAGENT = {
     "tools": TOOLS,
     "model": RESOLVER_MODEL_SPEC,
     "middleware": [inject_lcsp_runtime_context, *MODEL_GOVERNANCE_MIDDLEWARE],
+    "response_format": OUTPUT_MODEL,
 }
+
+
+__all__ = ["OUTPUT_MODEL", "SUBAGENT", "SYSTEM_PROMPT", "TOOLS"]

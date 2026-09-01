@@ -3,6 +3,7 @@ import { AGENTIC_TOOL_NAMES } from "@lcsp/contracts/evidence";
 import { GetGapRequirementsQuery } from "../../../classification/application/queries/get-gap-requirements/get-gap-requirements.query.js";
 import { GetAdminSourceCatalogQuery } from "../../../legal-rule-catalog/application/queries/get-admin-source-catalog/get-admin-source-catalog.query.js";
 import { CompareWizardClaimQuery } from "../../../reconciliation/application/queries/compare-wizard-claim/compare-wizard-claim.query.js";
+import { RetrieveVerifiedAgentEpisodesQuery } from "../../application/queries/retrieve-verified-agent-episodes/retrieve-verified-agent-episodes.query.js";
 import * as queryEntrypoints from "./agentic-tool-query-dispatcher.js";
 import { buildAgenticToolQuery } from "./agentic-tool-query-dispatcher.js";
 
@@ -28,6 +29,7 @@ const CQRS_ENTRYPOINTS = [
   "get_legal_corpus_readiness",
   "retrieve_legal_basis",
   "validate_citation_set",
+  "retrieve_verified_episodes",
 ] as const;
 
 const RETIRED_CQRS_ENTRYPOINTS = [
@@ -127,6 +129,16 @@ describe("buildAgenticToolQuery", () => {
         input: { catalogId: "catalog_vbpl" },
       }),
     ).toBeInstanceOf(GetAdminSourceCatalogQuery);
+  });
+
+  it("routes retrieve_verified_episodes through RetrieveVerifiedAgentEpisodesQuery", () => {
+    expect(
+      buildAgenticToolQuery({
+        ...baseArgs,
+        toolName: AGENTIC_TOOL_NAMES.retrieveVerifiedEpisodes,
+        input: { ownerAgent: "planner", engineeringRuleIds: ["ENG-1"] },
+      }),
+    ).toBeInstanceOf(RetrieveVerifiedAgentEpisodesQuery);
   });
 
   it("fails closed for an unregistered tool name", () => {

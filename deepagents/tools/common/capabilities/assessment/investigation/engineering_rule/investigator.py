@@ -33,6 +33,7 @@ MAX_GRAPH_TOOL_STEPS = 4
 MAX_WORKING_RESULTS = 4
 MAX_WORKING_RESULT_CHARS = 24_000
 MAX_PROMPT_CHARS = 110_000
+INVESTIGATION_PROMPT_VERSION = "engineering-rule-investigation.v1"
 GRAPH_TOOL_NAMES = (
     "search_nodes",
     "trace_static_flow",

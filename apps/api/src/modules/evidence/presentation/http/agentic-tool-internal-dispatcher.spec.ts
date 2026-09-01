@@ -4,6 +4,7 @@ import type { CommandBus } from "@nestjs/cqrs";
 
 import {
   dispatchAgenticToolInternalCommand,
+  consolidate_verified_episodes,
   request_targeted_reanalysis,
   resume_waiting_runs,
 } from "./agentic-tool-internal-dispatcher.js";
@@ -20,6 +21,9 @@ describe("agentic internal command dispatcher", () => {
       "request_targeted_reanalysis",
     );
     expect(resume_waiting_runs.name).toBe("resume_waiting_runs");
+    expect(consolidate_verified_episodes.name).toBe(
+      "consolidate_verified_episodes",
+    );
   });
 
   it("routes request_targeted_reanalysis through CommandBus", async () => {
@@ -53,6 +57,21 @@ describe("agentic internal command dispatcher", () => {
         maxRuns: 25,
         idempotencyKey: "resume-12345678",
       },
+    };
+
+    await dispatchAgenticToolInternalCommand(args, commandBus);
+
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes consolidate_verified_episodes through CommandBus", async () => {
+    const execute = jest.fn(() => Promise.resolve({ status: "READY" }));
+    const commandBus = { execute } as unknown as CommandBus;
+    const args = {
+      ...baseArgs,
+      toolName: AGENTIC_TOOL_NAMES.consolidateVerifiedEpisodes,
+      artifactVersions: {},
+      input: {},
     };
 
     await dispatchAgenticToolInternalCommand(args, commandBus);

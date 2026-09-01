@@ -135,6 +135,10 @@ function waitUntilReady() {
   throw new Error("PostgreSQL test container did not become ready in time");
 }
 
+if (await isPortOpen(hostPort, host)) {
+  process.exit(0);
+}
+
 ensureContainer();
 waitUntilReady();
 

@@ -25,6 +25,13 @@ from model_policy import (
 )
 from subagents import FLOW_SUBAGENTS
 from subagents.context_wizard.definition import ContextWizardQuestionRound, OUTPUT_MODEL
+from contracts.handoffs import (
+    InvestigatorResult,
+    PlannerResult,
+    ProvenanceRef,
+    ResolverResult,
+    TriageResult,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -61,6 +68,7 @@ def test_subagents_follow_deep_agents_dictionary_contract() -> None:
             "middleware",
         } <= set(subagent)
         assert subagent["model"] == expected_models[name]
+        assert "response_format" in subagent
         assert "Tool guidance:" in str(subagent["system_prompt"])
         assert "Output contract:" in str(subagent["system_prompt"])
         assert len(str(subagent["description"])) >= 80
@@ -88,11 +96,13 @@ def test_pipeline_roles_do_not_bypass_context_wizard_hydration() -> None:
         "retrieve_legal_basis",
     )
     assert _tool_names(by_name["planner"]) == (
+        "retrieve_verified_episodes",
         "search_program_graph",
         "get_scan_coverage",
     )
     assert "retrieve_legal_basis" not in _tool_names(by_name["investigator"])
     assert "get_assessment_context" not in _tool_names(by_name["investigator"])
+    assert "retrieve_verified_episodes" in _tool_names(by_name["investigator"])
     assert _tool_names(by_name["resolver"]) == (
         "get_assessment_context",
         "compare_wizard_claim",
@@ -168,12 +178,84 @@ def test_context_wizard_output_is_typed_ready_or_needs_input_question_round() ->
             next_step="PLAN",
         )
 
+
+def test_all_specialists_expose_pydantic_response_formats() -> None:
+    by_name = {item["name"]: item for item in FLOW_SUBAGENTS}
+
+    assert by_name["triage"]["response_format"] is TriageResult
+    assert by_name["context_wizard"]["response_format"] is ContextWizardQuestionRound
+    assert by_name["planner"]["response_format"] is PlannerResult
+    assert by_name["investigator"]["response_format"] is InvestigatorResult
+    assert by_name["resolver"]["response_format"] is ResolverResult
+
     with pytest.raises(ValidationError):
         ContextWizardQuestionRound(
             status="NEEDS_INPUT",
             unresolved_facts=["missing fact"],
             questions=[],
             next_step="WIZARD_NEEDS_INPUT",
+        )
+
+
+def test_structured_handoffs_match_deep_research_report_fields() -> None:
+    provenance = ProvenanceRef(
+        ref="evidence:1",
+        source_kind="PROGRAM_GRAPH",
+        artifact_version="ter-1",
+    )
+    assert provenance.ref == "evidence:1"
+
+    with pytest.raises(ValidationError):
+        ProvenanceRef(
+            ref="evidence:1",
+            source_kind="PROGRAM_GRAPH_NODE",
+        )
+
+    planner = PlannerResult(
+        status="INVESTIGATE",
+        engineering_rule_ids=["ENG-1"],
+        artifact_versions={"technicalEvidenceReportId": "ter-1"},
+        coverage_state="COMPLETE",
+        selected_scope=[
+            {
+                "ref": "node:ai",
+                "criterion": "AI invocation exists",
+            }
+        ],
+        unresolved_facts=[],
+        next_step="INVESTIGATE",
+    )
+    assert planner.coverage_state == "COMPLETE"
+
+    resolver = ResolverResult(
+        status="CONFLICT",
+        fact_key="humanReviewOwner",
+        resolved_value=None,
+        conflicting_values=[
+            {
+                "source": "WIZARD",
+                "value": "Legal",
+                "source_refs": ["wizard:humanReviewOwner"],
+            },
+            {
+                "source": "REPOSITORY",
+                "value": "Risk",
+                "source_refs": ["node:review-owner"],
+            },
+        ],
+        source_refs=["wizard:humanReviewOwner", "node:review-owner"],
+        can_resume_existing_plan=False,
+    )
+    assert resolver.fact_key == "humanReviewOwner"
+
+    with pytest.raises(ValidationError):
+        ResolverResult(
+            status="RESOLVED",
+            fact_key="humanReviewOwner",
+            resolved_value=None,
+            conflicting_values=[],
+            source_refs=[],
+            can_resume_existing_plan=True,
         )
 
 
@@ -234,6 +316,7 @@ def test_root_agent_uses_managed_instructions_context_and_todos() -> None:
     assert "context_schema=LCSPRunContext" in source
     assert "TodoListMiddleware()" in source
     assert "inject_lcsp_runtime_context" in source
+    assert "validate_lcsp_specialist_task_handoff" in source
     assert "MODEL_GOVERNANCE_MIDDLEWARE" in source
 
     assert "LEGAL_MAINTENANCE" in instructions

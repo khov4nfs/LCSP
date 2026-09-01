@@ -38,6 +38,7 @@ TRIAGE_TOOL_PACKAGES: set[str] = {
 COMMON_TOOL_NAMES: tuple[str, ...] = (
     "get_assessment_context",
     "get_legal_corpus_readiness",
+    "retrieve_verified_episodes",
     "retrieve_legal_basis",
     "search_program_graph",
 )
@@ -48,8 +49,9 @@ EXPECTED_ROLE_TOOL_NAMES: dict[str, tuple[str, ...]] = {
         "get_legal_corpus_readiness",
         "retrieve_legal_basis",
     ),
-    "planner": ("search_program_graph", "get_scan_coverage"),
+    "planner": ("retrieve_verified_episodes", "search_program_graph", "get_scan_coverage"),
     "investigator": (
+        "retrieve_verified_episodes",
         "search_program_graph",
         "trace_static_flow",
         "inspect_data_path",
@@ -148,6 +150,7 @@ def test_common_and_orchestration_tools_are_classified_explicitly() -> None:
     assert COMMON_TOOL_NAMES == (
         "get_assessment_context",
         "get_legal_corpus_readiness",
+        "retrieve_verified_episodes",
         "retrieve_legal_basis",
         "search_program_graph",
     )
@@ -185,8 +188,15 @@ def test_assessment_authored_tool_modules_own_their_agentic_port_calls() -> None
             assert "dispatch_lcsp_tool" not in source
             assert "from runtime" not in source
             assert "AgenticToolPort" not in source
-            assert "_dispatch_agentic_tool" in source
-            assert "AgenticToolRequest" in source
+            if tool_name == "retrieve_verified_episodes":
+                assert "retrieve_verified_episodes_from_gateway" in source
+                assert "episode_retrieval_enabled" in source
+                assert "artifact_versions" not in source.partition("class RetrieveVerifiedEpisodesRequest")[2].partition("def _runtime_context")[0]
+            else:
+                assert "dispatch_agentic_tool" in source
+                assert "_dispatch_agentic_tool" not in source
+                assert "trusted_request_from_model_input" in source
+                assert "AgenticToolRequest" not in source
 
             module = importlib.import_module(f"tools.{node}.{tool_name}.code")
             authored_tool = getattr(module, tool_name)

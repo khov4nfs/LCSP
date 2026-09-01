@@ -2,6 +2,7 @@
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from model_policy import TRIAGE_MODEL_SPEC
+from contracts.handoffs import TriageResult
 from tools.common.capabilities.managed.skill_loader import load_project_skill
 from tools.triage.legal_rule_triage.code import (
     finish_legal_rule_triage_execution,
@@ -18,6 +19,7 @@ TOOLS = [
     finish_legal_rule_triage_execution,
 ]
 TRIAGE_SKILL = load_project_skill("legal-rule-triage")
+OUTPUT_MODEL = TriageResult
 
 SYSTEM_PROMPT = f"""You are the LCSP Legal Rule Triage subagent.
 
@@ -151,4 +153,8 @@ SUBAGENT = {
     # Deliberately omit inject_lcsp_runtime_context. The supervisor/singleton middleware
     # transfers only the legal scope and execution ownership needed by Triage.
     "middleware": [*MODEL_GOVERNANCE_MIDDLEWARE],
+    "response_format": OUTPUT_MODEL,
 }
+
+
+__all__ = ["OUTPUT_MODEL", "SUBAGENT", "SYSTEM_PROMPT", "TOOLS", "TRIAGE_SKILL"]

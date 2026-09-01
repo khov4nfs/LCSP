@@ -89,6 +89,10 @@ export interface OrchestrationConfig {
   debug: boolean;
 }
 
+export interface VerifiedEpisodesConfig {
+  consolidationIntervalMs: number;
+}
+
 export const NODE_ENVS = {
   development: "development",
   production: "production",
@@ -113,4 +117,5 @@ export interface AppConfig {
   internal: InternalConfig;
   email: EmailConfig;
   orchestration: OrchestrationConfig;
+  verifiedEpisodes: VerifiedEpisodesConfig;
 }
