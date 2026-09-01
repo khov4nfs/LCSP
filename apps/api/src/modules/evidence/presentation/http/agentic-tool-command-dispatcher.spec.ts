@@ -1,6 +1,10 @@
+import { AGENTIC_TOOL_NAMES } from "@lcsp/contracts/evidence";
+
+import { CaptureVerifiedAgentEpisodeCommand } from "../../application/commands/capture-verified-agent-episode/capture-verified-agent-episode.command.js";
 import {
   buildAgenticToolCommand,
   isAgenticToolCommand,
+  isAgenticToolProtectedCommand,
 } from "./agentic-tool-command-dispatcher.js";
 
 const baseArgs = {
@@ -36,6 +40,22 @@ describe("agentic protected command dispatcher", () => {
         RETIRED_AGENTIC_COMMAND_TOOL_NAMES.resolveIndependentClassificationReview,
       ),
     ).toBe(false);
+  });
+
+  it("routes verified episode capture as an unprotected internal app command", () => {
+    expect(
+      isAgenticToolCommand(AGENTIC_TOOL_NAMES.captureVerifiedEpisode),
+    ).toBe(true);
+    expect(
+      isAgenticToolProtectedCommand(AGENTIC_TOOL_NAMES.captureVerifiedEpisode),
+    ).toBe(false);
+    expect(
+      buildAgenticToolCommand({
+        ...baseArgs,
+        toolName: AGENTIC_TOOL_NAMES.captureVerifiedEpisode,
+        input: { record_id: "episode:1" },
+      }),
+    ).toBeInstanceOf(CaptureVerifiedAgentEpisodeCommand);
   });
 
   it("fails closed for retired command dispatch", () => {

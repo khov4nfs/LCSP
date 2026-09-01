@@ -1,12 +1,15 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "allowJs": true,
     "noEmit": true
   },
   "include": [
     "src/**/*.ts",
     "test/**/*.ts",
+    "test/**/*.mjs",
     "scripts/**/*.ts",
+    "scripts/**/*.mjs",
     "jest.config.ts",
     "prisma.config.ts"
   ],

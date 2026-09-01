@@ -99,6 +99,13 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         )
         if not assessment_id:
             raise ValueError("accepted evidence report is missing assessment_id")
+        user_id = str(
+            evidence_report.get("user_id")
+            or evidence_report.get("userId")
+            or message.get("userId")
+            or message.get("user_id")
+            or ""
+        )
 
         workflow_run_id = self._workflow_run_id(
             message, evidence_report, evidence_report_id
@@ -118,6 +125,8 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
                 wizard_context=wizard_context,
                 workspace_path=workspace_path,
                 recovery_source_crawl_requests=self._source_crawl_requests(message),
+                assessment_id=assessment_id,
+                user_id=user_id or None,
             )
         finally:
             if workspace_path is not None:

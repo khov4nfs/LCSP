@@ -3,91 +3,35 @@
 from __future__ import annotations
 
 from typing import Any
-import os
-import time
-from uuid import uuid4
 
-import httpx
-from langchain.tools import tool
-from pydantic import BaseModel, ConfigDict, Field
-
-
-class AgenticToolRequest(BaseModel):
-    """Identity, pinned artifacts, and bounded input required by this tool."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    assessment_id: str = Field(description="LCSP assessment UUID.")
-    user_id: str = Field(description="User UUID responsible for this run.")
-    workflow_run_id: str | None = Field(default=None, description="Durable workflow run ID.")
-    correlation_id: str | None = Field(default=None, description="Correlation ID for tracing.")
-    artifact_versions: dict[str, Any] = Field(default_factory=dict, description="Pinned artifact references.")
-    input: dict[str, Any] = Field(default_factory=dict, description="Tool-specific input object.")
+from langchain.tools import ToolRuntime, tool
+from pydantic import Field
+from tools.common.runtime_envelope import (
+    CorrelatedToolInput,
+    dispatch_agentic_tool,
+    trusted_request_from_model_input,
+)
 
 
-class AgenticToolInvocationError(RuntimeError):
-    """Raised when the trusted internal tool port cannot complete a request."""
+class InspectDecisionPathRequest(CorrelatedToolInput):
+    subject_ref: str = Field(alias="subjectRef", min_length=1, max_length=240)
+    decision_ref: str | None = Field(default=None, alias="decisionRef")
+    influence_refs: list[str] = Field(default_factory=list, alias="influenceRefs", max_length=50)
+    max_depth: int = Field(default=5, alias="maxDepth", ge=1, le=20)
+    max_results: int = Field(default=20, alias="maxResults", ge=1, le=100)
 
 
-def _dispatch_agentic_tool(tool_name: str, request: AgenticToolRequest) -> dict[str, Any]:
-    base_url = (os.environ.get("NESTJS_API_BASE_URL") or "").rstrip("/")
-    api_key = os.environ.get("WORKER_API_KEY") or ""
-    if not base_url or not api_key:
-        raise AgenticToolInvocationError("NESTJS_API_BASE_URL and WORKER_API_KEY are required for agentic tools.")
-
-    correlation_id = request.correlation_id or str(uuid4())
-    payload = {
-        "tool_name": tool_name,
-        "request_id": str(uuid4()),
-        "assessment_id": request.assessment_id,
-        "workflow_run_id": request.workflow_run_id or correlation_id,
-        "user_id": request.user_id,
-        "artifact_versions": request.artifact_versions,
-        "scope": {},
-        "budget": {"maxItems": 50, "maxDepth": 5, "maxBytes": 262144, "maxDurationMs": 30000},
-        "input": request.input,
-        "correlationId": correlation_id,
-    }
-    headers = {"X-Worker-Api-Key": api_key, "X-Correlation-Id": correlation_id}
-
-    for attempt in range(3):
-        try:
-            response = httpx.post(
-                f"{base_url}/internal/evidence/agentic-tools/dispatch",
-                json=payload,
-                headers=headers,
-                timeout=30.0,
-            )
-        except httpx.RequestError as exc:
-            if attempt == 2:
-                raise AgenticToolInvocationError("Agentic tool request failed after 3 attempts.") from exc
-            time.sleep(2**attempt)
-            continue
-
-        if response.status_code >= 500:
-            if attempt == 2:
-                raise AgenticToolInvocationError(f"Agentic tool returned server error {response.status_code}.")
-            time.sleep(2**attempt)
-            continue
-        if response.status_code >= 400:
-            raise AgenticToolInvocationError(f"Agentic tool returned client error {response.status_code}.")
-
-        data = response.json()
-        if isinstance(data, dict) and data.get("ok") is True:
-            data = data.get("data")
-        if not isinstance(data, dict):
-            raise AgenticToolInvocationError("Agentic tool response was invalid.")
-        return data
-
-    raise AgenticToolInvocationError("Agentic tool request failed unexpectedly.")
-
-
-
-@tool(args_schema=AgenticToolRequest, parse_docstring=True)
-def inspect_decision_path(**request: Any) -> dict[str, Any]:
+@tool(args_schema=InspectDecisionPathRequest)
+def inspect_decision_path(runtime: ToolRuntime | None = None, **request: Any) -> dict[str, Any]:
     """Inspect structural decision influence evidence without producing a legal conclusion.
 
     Args:
-        request: LCSP server-authorized tool envelope fields.
+        request: Domain-specific decision-path references and bounds.
     """
-    return _dispatch_agentic_tool("inspect_decision_path", AgenticToolRequest.model_validate(request))
+    return dispatch_agentic_tool(
+        "inspect_decision_path",
+        trusted_request_from_model_input(
+            InspectDecisionPathRequest.model_validate(request),
+            runtime,
+        ),
+    )

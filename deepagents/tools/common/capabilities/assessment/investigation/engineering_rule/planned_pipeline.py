@@ -88,6 +88,8 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         wizard_context: dict[str, Any] | None = None,
         workspace_path: str | Path | None = None,
         recovery_source_crawl_requests: list[dict[str, Any]] | None = None,
+        assessment_id: str | None = None,
+        user_id: str | None = None,
     ) -> EngineeringInvestigationResult:
         raw_graph = self._graph(evidence_report)
         graph = filter_program_evidence_graph(raw_graph)
@@ -321,6 +323,9 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             correlation_id=correlation_id,
             wizard_context=wizard_context,
             workspace_path=workspace_path,
+            evidence_report=evidence_report,
+            assessment_id=assessment_id,
+            user_id=user_id,
         )
 
     def _run_planned_investigation(
@@ -339,6 +344,9 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         correlation_id: str | None,
         wizard_context: dict[str, Any] | None,
         workspace_path: str | Path | None,
+        evidence_report: dict[str, Any],
+        assessment_id: str | None,
+        user_id: str | None,
     ) -> EngineeringInvestigationResult:
         # Planner does not receive every broad start-node hit. Each packet is projected
         # into rule-specific material production signals first. A single graph projector
@@ -435,6 +443,9 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             workflow_run_id=workflow_run_id,
             correlation_id=correlation_id,
             observability=observability,
+            evidence_report=evidence_report,
+            assessment_id=assessment_id,
+            user_id=user_id,
         )
 
     def _finish_planned_investigation(
@@ -453,6 +464,9 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         workflow_run_id: str,
         correlation_id: str | None,
         observability: dict[str, Any],
+        evidence_report: dict[str, Any],
+        assessment_id: str | None,
+        user_id: str | None,
     ) -> EngineeringInvestigationResult:
         selected_ids = set(plan.selected_rule_ids)
         observability = {
@@ -599,11 +613,30 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                     ENGINEERING_LIMITATION_CODES["engineering_investigation_failed"]
                 )
 
-            claims.extend(rule_claims)
-            evaluation = self._evaluator.evaluate(engineering_rule, rule_claims)
+            validated_rule_claims = self._validated_claims_for_evaluation(
+                rule_claims,
+                graph,
+            )
+            claims.extend(validated_rule_claims)
+            evaluation = self._evaluator.evaluate(
+                engineering_rule,
+                validated_rule_claims,
+            )
             evaluations.append(evaluation)
             technical_evidence_by_rule[evaluation.engineering_rule_id] = tuple(
                 self._technical_evidence_displays(graph, evaluation.evidence_refs)
+            )
+            self._capture_verified_episode_after_evaluation(
+                engineering_rule=engineering_rule,
+                claims=validated_rule_claims,
+                raw_claim_count=len(rule_claims),
+                evaluation=evaluation,
+                evidence_report=evidence_report,
+                workflow_run_id=workflow_run_id,
+                assessment_id=assessment_id,
+                user_id=user_id,
+                legal_rule_catalog_version_id=catalog_version_id,
+                legal_corpus_version_id=corpus_version_id,
             )
             executed += 1
 

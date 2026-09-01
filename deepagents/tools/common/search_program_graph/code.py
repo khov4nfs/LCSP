@@ -3,91 +3,33 @@
 from __future__ import annotations
 
 from typing import Any
-import os
-import time
-from uuid import uuid4
 
-import httpx
-from langchain.tools import tool
-from pydantic import BaseModel, ConfigDict, Field
-
-
-class AgenticToolRequest(BaseModel):
-    """Identity, pinned artifacts, and bounded input required by this tool."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    assessment_id: str = Field(description="LCSP assessment UUID.")
-    user_id: str = Field(description="User UUID responsible for this run.")
-    workflow_run_id: str | None = Field(default=None, description="Durable workflow run ID.")
-    correlation_id: str | None = Field(default=None, description="Correlation ID for tracing.")
-    artifact_versions: dict[str, Any] = Field(default_factory=dict, description="Pinned artifact references.")
-    input: dict[str, Any] = Field(default_factory=dict, description="Tool-specific input object.")
+from langchain.tools import ToolRuntime, tool
+from pydantic import Field
+from tools.common.runtime_envelope import (
+    CorrelatedToolInput,
+    dispatch_agentic_tool,
+    trusted_request_from_model_input,
+)
 
 
-class AgenticToolInvocationError(RuntimeError):
-    """Raised when the trusted internal tool port cannot complete a request."""
+class SearchProgramGraphRequest(CorrelatedToolInput):
+    query: str | None = Field(default=None, max_length=1_000)
+    subject_ref: str | None = Field(default=None, alias="subjectRef")
+    subject_refs: list[str] = Field(default_factory=list, alias="subjectRefs", max_length=50)
+    node_types: list[str] = Field(default_factory=list, alias="nodeTypes", max_length=50)
+    path_prefixes: list[str] = Field(default_factory=list, alias="pathPrefixes", max_length=50)
+    max_results: int = Field(default=10, alias="maxResults", ge=1, le=50)
 
 
-def _dispatch_agentic_tool(tool_name: str, request: AgenticToolRequest) -> dict[str, Any]:
-    base_url = (os.environ.get("NESTJS_API_BASE_URL") or "").rstrip("/")
-    api_key = os.environ.get("WORKER_API_KEY") or ""
-    if not base_url or not api_key:
-        raise AgenticToolInvocationError("NESTJS_API_BASE_URL and WORKER_API_KEY are required for agentic tools.")
-
-    correlation_id = request.correlation_id or str(uuid4())
-    payload = {
-        "tool_name": tool_name,
-        "request_id": str(uuid4()),
-        "assessment_id": request.assessment_id,
-        "workflow_run_id": request.workflow_run_id or correlation_id,
-        "user_id": request.user_id,
-        "artifact_versions": request.artifact_versions,
-        "scope": {},
-        "budget": {"maxItems": 50, "maxDepth": 5, "maxBytes": 262144, "maxDurationMs": 30000},
-        "input": request.input,
-        "correlationId": correlation_id,
-    }
-    headers = {"X-Worker-Api-Key": api_key, "X-Correlation-Id": correlation_id}
-
-    for attempt in range(3):
-        try:
-            response = httpx.post(
-                f"{base_url}/internal/evidence/agentic-tools/dispatch",
-                json=payload,
-                headers=headers,
-                timeout=30.0,
-            )
-        except httpx.RequestError as exc:
-            if attempt == 2:
-                raise AgenticToolInvocationError("Agentic tool request failed after 3 attempts.") from exc
-            time.sleep(2**attempt)
-            continue
-
-        if response.status_code >= 500:
-            if attempt == 2:
-                raise AgenticToolInvocationError(f"Agentic tool returned server error {response.status_code}.")
-            time.sleep(2**attempt)
-            continue
-        if response.status_code >= 400:
-            raise AgenticToolInvocationError(f"Agentic tool returned client error {response.status_code}.")
-
-        data = response.json()
-        if isinstance(data, dict) and data.get("ok") is True:
-            data = data.get("data")
-        if not isinstance(data, dict):
-            raise AgenticToolInvocationError("Agentic tool response was invalid.")
-        return data
-
-    raise AgenticToolInvocationError("Agentic tool request failed unexpectedly.")
-
-
-
-@tool(args_schema=AgenticToolRequest, parse_docstring=True)
-def search_program_graph(**request: Any) -> dict[str, Any]:
+@tool(args_schema=SearchProgramGraphRequest)
+def search_program_graph(runtime: ToolRuntime | None = None, **request: Any) -> dict[str, Any]:
     """Search the pinned Program Evidence Graph and return bounded provenance-backed nodes.
 
     Args:
-        request: LCSP server-authorized tool envelope fields.
+        request: Domain-specific Program Evidence Graph search fields.
     """
-    return _dispatch_agentic_tool("search_evidence", AgenticToolRequest.model_validate(request))
+    return dispatch_agentic_tool(
+        "search_evidence",
+        trusted_request_from_model_input(SearchProgramGraphRequest.model_validate(request), runtime),
+    )

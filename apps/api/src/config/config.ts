@@ -157,6 +157,10 @@ export const configValidationSchema = Joi.object({
     }),
   WORKER_API_KEY: Joi.string().min(32).required(),
   ORCHESTRATION_DEBUG: Joi.boolean().default(false),
+  VERIFIED_EPISODE_CONSOLIDATION_INTERVAL_MS: Joi.number()
+    .integer()
+    .min(0)
+    .default(0),
 })
   .unknown(true)
   .custom((env: Record<string, unknown>, helpers) => {
@@ -359,6 +363,11 @@ export function config(): AppConfig {
     },
     orchestration: {
       debug: (env.ORCHESTRATION_DEBUG ?? "false").toLowerCase() === "true",
+    },
+    verifiedEpisodes: {
+      consolidationIntervalMs: Number(
+        env.VERIFIED_EPISODE_CONSOLIDATION_INTERVAL_MS ?? 0,
+      ),
     },
   };
 }

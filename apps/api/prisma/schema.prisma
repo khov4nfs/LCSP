@@ -139,6 +139,7 @@ model Assessment {
   targetedReanalysisRequests TargetedReanalysisRequest[]
   technicalEvidenceReports   TechnicalEvidenceReport[]
   technicalProfiles          TechnicalProfile[]
+  verifiedAgentEpisodes      VerifiedAgentEpisode[]
   verifiedProfiles           VerifiedProfile[]
   wizardProfile              WizardProfile?
 
@@ -604,6 +605,36 @@ model AssessmentRuntimeEvent {
   @@index([runId, sequence])
 }
 
+model VerifiedAgentEpisode {
+  id                 String     @id
+  assessmentId       String
+  ownerAgent         String
+  workflowRunId      String?
+  engineeringRuleIds String[]
+  artifactVersions   Json
+  trustLevel         String
+  validationStatus   VerifiedAgentEpisodeValidationStatus
+  schemaVersion      String
+  contentHash        String
+  domainKey          String
+  inputSignature     String
+  successfulStrategySummary String
+  evidenceRefs       String[]
+  promptVersion      String
+  modelId            String
+  summary            String
+  handoffJson        Json
+  status             String     @default("ACTIVE")
+  expiresAt          DateTime?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  assessment         Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, contentHash])
+  @@index([assessmentId, ownerAgent, status, createdAt])
+  @@index([assessmentId, ownerAgent, contentHash])
+}
+
 model VerifiedProfile {
   id                         String                   @id @default(uuid())
   aiUsageFlowId              String
@@ -989,6 +1020,10 @@ enum VerifiedProfileStatus {
   APPROVED
   AUTO_APPROVED
   STALE
+}
+
+enum VerifiedAgentEpisodeValidationStatus {
+  VERIFIED
 }
 
 enum ClassificationGuardrailStatus {
