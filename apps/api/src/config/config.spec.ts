@@ -324,6 +324,9 @@ describe("config()", () => {
       worker: { apiKey: VALID_ENV.WORKER_API_KEY },
       internal: { apiToken: "test-internal-token" },
       orchestration: { debug: false },
+      verifiedEpisodes: {
+        consolidationIntervalMs: 0,
+      },
     });
   });
 

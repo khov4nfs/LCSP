@@ -7,6 +7,7 @@ import { HttpStatus } from "@nestjs/common";
 import type { CommandBus } from "@nestjs/cqrs";
 
 import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { ConsolidateVerifiedAgentEpisodesCommand } from "../../application/commands/consolidate-verified-agent-episodes/consolidate-verified-agent-episodes.command.js";
 import { ResumeWaitingRunsCommand } from "../../../legal-rule-catalog/application/commands/resume-waiting-runs/resume-waiting-runs.command.js";
 import { RequestTargetedReanalysisCommand } from "../../../scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.js";
 
@@ -22,6 +23,7 @@ export type AgenticToolInternalDispatchArgs = {
 const INTERNAL_COMMAND_TOOL_NAMES = new Set<string>([
   AGENTIC_TOOL_NAMES.requestTargetedReanalysis,
   AGENTIC_TOOL_NAMES.resumeWaitingRuns,
+  AGENTIC_TOOL_NAMES.consolidateVerifiedEpisodes,
 ]);
 
 const AGENT_RUNTIME_SESSION_ID = "managed-deep-agent-runtime";
@@ -44,6 +46,8 @@ export async function dispatchAgenticToolInternalCommand(
       return request_targeted_reanalysis(args, commandBus);
     case AGENTIC_TOOL_NAMES.resumeWaitingRuns:
       return resume_waiting_runs(args, commandBus);
+    case AGENTIC_TOOL_NAMES.consolidateVerifiedEpisodes:
+      return consolidate_verified_episodes(args, commandBus);
     default:
       throw problemException(
         EVIDENCE_ERROR_CODES.notFound,
@@ -105,6 +109,20 @@ export function resume_waiting_runs(
       ),
       numberWithDefault(args.input.maxRuns, 25),
       requiredString(args.input.idempotencyKey, args.correlationId),
+      args.correlationId,
+    ),
+  );
+}
+
+/** Canonical execution adapter for `consolidate_verified_episodes`. */
+export function consolidate_verified_episodes(
+  args: AgenticToolInternalDispatchArgs,
+  commandBus: CommandBus,
+): Promise<unknown> {
+  return commandBus.execute(
+    new ConsolidateVerifiedAgentEpisodesCommand(
+      args.assessmentId,
+      args.userId,
       args.correlationId,
     ),
   );

@@ -1,3 +1,4 @@
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   AGENTIC_TOOL_NAMES,
   ARTIFACT_CHAIN_STAGES,
@@ -5,7 +6,6 @@ import {
   ASSESSMENT_CONTEXT_INCLUDES,
   EVIDENCE_ERROR_CODES,
 } from "@lcsp/contracts/evidence";
-import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { HttpStatus } from "@nestjs/common";
 
 import { problemException } from "../../../../platform/problems/problem-factory.js";
@@ -28,6 +28,7 @@ import {
   parseWizardClaimField,
   parseWizardClaimMaxEvidenceRefs,
 } from "../../../reconciliation/presentation/http/compare-wizard-claim.request.js";
+import { RetrieveVerifiedAgentEpisodesQuery } from "../../application/queries/retrieve-verified-agent-episodes/retrieve-verified-agent-episodes.query.js";
 
 export type AgenticToolQueryDispatchArgs = {
   toolName: string;
@@ -66,6 +67,8 @@ export function buildAgenticToolQuery(args: AgenticToolQueryDispatchArgs) {
       return retrieve_legal_basis(args);
     case AGENTIC_TOOL_NAMES.validateCitationSet:
       return validate_citation_set(args);
+    case AGENTIC_TOOL_NAMES.retrieveVerifiedEpisodes:
+      return retrieve_verified_episodes(args);
     default:
       throw problemException(
         EVIDENCE_ERROR_CODES.notFound,
@@ -208,6 +211,14 @@ export function validate_citation_set(args: AgenticToolQueryDispatchArgs) {
   return new ValidateCitationSetQuery(
     args.assessmentId,
     args.input as never,
+    args.userId,
+    args.correlationId,
+  );
+}
+export function retrieve_verified_episodes(args: AgenticToolQueryDispatchArgs) {
+  return new RetrieveVerifiedAgentEpisodesQuery(
+    args.assessmentId,
+    args.input,
     args.userId,
     args.correlationId,
   );

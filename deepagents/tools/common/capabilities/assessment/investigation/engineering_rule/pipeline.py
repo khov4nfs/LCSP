@@ -13,11 +13,19 @@ from model_policy import INVESTIGATOR_MODEL_SPEC, PLANNER_MODEL_SPEC
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.logging import get_logger
 from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
+from memory_policy.episodes import capture_verified_episode
 
 from tools.common.capabilities.assessment.investigation.engineering_rule.code_context import CodeContextSession
 from tools.common.capabilities.assessment.investigation.engineering_rule.code_context_investigator import CodeContextLawGuidedInvestigator
 from tools.common.capabilities.assessment.investigation.engineering_rule.initial_query_executor import InitialQueryExecutor
-from tools.common.capabilities.assessment.investigation.engineering_rule.investigator import LawGuidedInvestigator
+from tools.common.capabilities.assessment.investigation.engineering_rule.investigator import (
+    INVESTIGATION_PROMPT_VERSION,
+    LawGuidedInvestigator,
+)
+from tools.common.capabilities.assessment.claims.evidence_claim.evidence_claim_validator import (
+    EvidenceClaimValidationError,
+    EvidenceClaimValidator,
+)
 from tools.common.capabilities.assessment.claims.evidence_claim.models import (
     ENGINEERING_EVIDENCE_CLAIM_TYPES,
     ENGINEERING_LIMITATION_CODES,
@@ -147,6 +155,7 @@ class EngineeringInvestigationPipeline:
         evaluator: EngineeringRuleEvaluator | None = None,
     ) -> None:
         self._api_client = api_client
+        self._investigator_model = model
         self._retriever = retriever or ChromaDbCitationRetriever()
         self._rule_service = rule_service or EngineeringRuleService(
             compiler=EngineeringRuleCompiler(compiler_model),
@@ -164,6 +173,8 @@ class EngineeringInvestigationPipeline:
         correlation_id: str | None = None,
         wizard_context: dict[str, Any] | None = None,
         workspace_path: str | Path | None = None,
+        assessment_id: str | None = None,
+        user_id: str | None = None,
     ) -> EngineeringInvestigationResult:
         graph = self._graph(evidence_report)
         code_context = CodeContextSession(graph, workspace_path=workspace_path)
@@ -312,11 +323,30 @@ class EngineeringInvestigationPipeline:
                             ]
                         )
 
-                    claims.extend(rule_claims)
-                    evaluation = self._evaluator.evaluate(engineering_rule, rule_claims)
+                    validated_rule_claims = self._validated_claims_for_evaluation(
+                        rule_claims,
+                        graph,
+                    )
+                    claims.extend(validated_rule_claims)
+                    evaluation = self._evaluator.evaluate(
+                        engineering_rule,
+                        validated_rule_claims,
+                    )
                     evaluations.append(evaluation)
                     technical_evidence_by_rule[evaluation.engineering_rule_id] = tuple(
                         self._technical_evidence_displays(graph, evaluation.evidence_refs)
+                    )
+                    self._capture_verified_episode_after_evaluation(
+                        engineering_rule=engineering_rule,
+                        claims=validated_rule_claims,
+                        raw_claim_count=len(rule_claims),
+                        evaluation=evaluation,
+                        evidence_report=evidence_report,
+                        workflow_run_id=workflow_run_id,
+                        assessment_id=assessment_id,
+                        user_id=user_id,
+                        legal_rule_catalog_version_id=catalog_version_id,
+                        legal_corpus_version_id=corpus_version_id,
                     )
                     executed += 1
 
@@ -342,6 +372,127 @@ class EngineeringInvestigationPipeline:
             limitations=tuple(dict.fromkeys(limitations)),
             technical_evidence_by_rule=technical_evidence_by_rule,
         )
+
+    def _capture_verified_episode_after_evaluation(
+        self,
+        *,
+        engineering_rule: Any,
+        claims: tuple[EvidenceClaim, ...],
+        raw_claim_count: int,
+        evaluation: EngineeringRuleEvaluation,
+        evidence_report: dict[str, Any],
+        workflow_run_id: str,
+        assessment_id: str | None,
+        user_id: str | None,
+        legal_rule_catalog_version_id: str,
+        legal_corpus_version_id: str,
+    ) -> None:
+        """Capture reusable memory only after deterministic rule evaluation succeeds."""
+        evidence_report_id = str(
+            evidence_report.get("id")
+            or evidence_report.get("technicalEvidenceReportId")
+            or evidence_report.get("technical_evidence_report_id")
+            or ""
+        )
+        if (
+            not assessment_id
+            or not user_id
+            or not evidence_report_id
+            or not claims
+        ):
+            return
+        evidence_refs = self._episode_evidence_refs(claims)
+        try:
+            capture_verified_episode(
+                owner_agent="investigator",
+                handoff={
+                    "status": "DETERMINISTIC_OUTCOME_READY",
+                    "engineering_rule_id": evaluation.engineering_rule_id,
+                    "legal_rule_id": evaluation.legal_rule_id,
+                    "concept": evaluation.concept,
+                    "claims": [claim.to_dict() for claim in claims],
+                    "omitted_unvalidated_claim_count": (
+                        raw_claim_count - len(claims)
+                    ),
+                    "evaluation": evaluation.to_dict(),
+                },
+                workflow_run_id=workflow_run_id,
+                assessment_id=assessment_id,
+                user_id=user_id,
+                engineering_rule_ids=(str(engineering_rule.engineering_rule_id),),
+                artifact_versions={
+                    "technicalEvidenceReportId": evidence_report_id,
+                    "legalRuleCatalogVersionId": legal_rule_catalog_version_id,
+                    "legalCorpusVersionId": legal_corpus_version_id,
+                },
+                domain_key=(
+                    f"investigator:{engineering_rule.engineering_rule_id}:"
+                    f"{legal_rule_catalog_version_id}:{legal_corpus_version_id}"
+                ),
+                input_signature=(
+                    f"{evidence_report_id}:"
+                    f"{engineering_rule.engineering_rule_id}:"
+                    f"{legal_rule_catalog_version_id}:{legal_corpus_version_id}"
+                ),
+                successful_strategy_summary=(
+                    "validated engineering investigation "
+                    f"rule={evaluation.engineering_rule_id} "
+                    f"outcome={evaluation.status} "
+                    f"validated_claims={len(claims)} "
+                    f"evidence_refs={len(evidence_refs)}"
+                ),
+                evidence_refs=evidence_refs,
+                prompt_version=INVESTIGATION_PROMPT_VERSION,
+                model_id=self._investigator_model,
+            )
+        except Exception as error:
+            logger.warning(
+                "VERIFIED_EPISODE_CAPTURE_SKIPPED",
+                engineering_rule_id=evaluation.engineering_rule_id,
+                error_type=type(error).__name__,
+                workflow_run_id=workflow_run_id,
+            )
+
+    @staticmethod
+    def _validated_claims_for_evaluation(
+        claims: list[EvidenceClaim],
+        graph: ProgramEvidenceGraph,
+    ) -> tuple[EvidenceClaim, ...]:
+        failed_code = ENGINEERING_LIMITATION_CODES["engineering_investigation_failed"]
+        validator = EvidenceClaimValidator()
+        result: list[EvidenceClaim] = []
+        for claim in claims:
+            if claim.claim_id.startswith("claim:failed:"):
+                continue
+            if failed_code in claim.limitations:
+                continue
+            try:
+                validated = validator.validate(claim, graph)
+            except EvidenceClaimValidationError:
+                continue
+            if (
+                validated.evidence_refs
+                or validated.graph_path_refs
+                or validated.source_anchor_refs
+            ):
+                result.append(validated)
+        return tuple(result)
+
+    @staticmethod
+    def _episode_evidence_refs(
+        claims: tuple[EvidenceClaim, ...],
+    ) -> tuple[str, ...]:
+        refs = {
+            ref
+            for claim in claims
+            for ref in (
+                *claim.evidence_refs,
+                *claim.graph_path_refs,
+                *claim.source_anchor_refs,
+            )
+            if ref
+        }
+        return tuple(sorted(refs))
 
     @staticmethod
     def _technical_evidence_displays(

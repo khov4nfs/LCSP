@@ -8,6 +8,7 @@ from tools.common.capabilities.assessment.claims.evidence_claim.models import (
     EvidenceClaim,
     InvestigationPacket,
 )
+from tools.common.capabilities.assessment.investigation.engineering_rule import pipeline
 from tools.common.capabilities.assessment.investigation.engineering_rule.pipeline import EngineeringInvestigationPipeline
 from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
 
@@ -20,9 +21,23 @@ def _evidence_report() -> dict:
                 "graph_id": "graph-1",
                 "snapshot_id": "snapshot-1",
                 "commit_sha": "abc123",
-                "node_count": 0,
+                "node_count": 1,
                 "edge_count": 0,
-                "nodes": [],
+                "nodes": [
+                    {
+                        "node_id": "node:review-control",
+                        "node_type": "CONTROL",
+                        "label": "human oversight review controls",
+                        "source": {
+                            "file_path": "app/review.py",
+                            "start_line": 10,
+                            "end_line": 20,
+                            "symbol_ref": "review_control",
+                            "source_hash": "sha256:source",
+                        },
+                        "evidence_refs": ["evidence:finding-1"],
+                    }
+                ],
                 "edges": [],
                 "source_anchors": [],
                 "indexes": {},
@@ -30,7 +45,7 @@ def _evidence_report() -> dict:
                 "coverage_state": "SUFFICIENT",
                 "coverage_notes": [],
                 "provenance": {"scan_job_id": "scan-1"},
-                "evidence_refs": [],
+                "evidence_refs": ["evidence:finding-1"],
                 "graph_hash": "sha256:graph",
                 "schema_version": "2.0.0",
             }
@@ -84,6 +99,7 @@ def test_pipeline_returns_direct_compliant_rule_evaluation() -> None:
         value=True,
         evidence_refs=("evidence:finding-1",),
         confidence=0.95,
+        criterion="HUMAN_OVERSIGHT",
     )
     investigator = MagicMock()
     investigator.investigate.return_value = [claim]
@@ -113,6 +129,198 @@ def test_pipeline_returns_direct_compliant_rule_evaluation() -> None:
         "unknown": 0,
         "total": 1,
     }
+
+
+def test_pipeline_captures_verified_episode_after_deterministic_evaluation(
+    monkeypatch,
+) -> None:
+    captured = []
+    monkeypatch.setattr(
+        pipeline,
+        "capture_verified_episode",
+        lambda **kwargs: captured.append(kwargs),
+    )
+    api_client = _api_client()
+    engineering_rule = _rule()
+    rule_service = MagicMock()
+    rule_service.get_or_compile.return_value = ([engineering_rule], True)
+    query_executor = MagicMock()
+    query_executor.execute.return_value = InvestigationPacket(
+        engineering_rule_id="eng-1",
+        concept="HUMAN_OVERSIGHT",
+        investigation_goals=("Find review controls",),
+        initial_results=(),
+    )
+    claim = EvidenceClaim(
+        claim_id="claim-1",
+        engineering_rule_id="eng-1",
+        claim_type="RULE_REQUIREMENT_MET",
+        value=True,
+        evidence_refs=("evidence:finding-1",),
+        confidence=0.95,
+        criterion="HUMAN_OVERSIGHT",
+    )
+    invalid_claim = EvidenceClaim(
+        claim_id="claim-invalid-ref",
+        engineering_rule_id="eng-1",
+        claim_type="RULE_REQUIREMENT_NOT_MET",
+        value=False,
+        evidence_refs=("evidence:invented",),
+        confidence=0.99,
+        criterion="HUMAN_OVERSIGHT",
+    )
+    investigator = MagicMock()
+    investigator.investigate.return_value = [claim, invalid_claim]
+
+    result = EngineeringInvestigationPipeline(
+        api_client=api_client,
+        model="test:model",
+        retriever=MagicMock(),
+        rule_service=rule_service,
+        query_executor=query_executor,
+        investigator=investigator,
+    ).run(
+        evidence_report=_evidence_report(),
+        workflow_run_id="workflow-1",
+        assessment_id="assessment-1",
+        user_id="user-1",
+    )
+
+    assert result.claims == (claim,)
+    assert result.evaluations[0].status == "COMPLIANT"
+    assert result.evaluations[0].evidence_refs == ("evidence:finding-1",)
+    assert len(captured) == 1
+    assert captured[0]["owner_agent"] == "investigator"
+    assert captured[0]["assessment_id"] == "assessment-1"
+    assert captured[0]["user_id"] == "user-1"
+    assert captured[0]["engineering_rule_ids"] == ("eng-1",)
+    assert captured[0]["artifact_versions"] == {
+        "technicalEvidenceReportId": "ter-1",
+        "legalRuleCatalogVersionId": "catalog-v1",
+        "legalCorpusVersionId": "corpus-v1",
+    }
+    assert captured[0]["handoff"]["status"] == "DETERMINISTIC_OUTCOME_READY"
+    assert [item["claim_id"] for item in captured[0]["handoff"]["claims"]] == [
+        "claim-1"
+    ]
+    assert captured[0]["handoff"]["omitted_unvalidated_claim_count"] == 1
+    assert captured[0]["handoff"]["evaluation"]["status"] == "COMPLIANT"
+    assert captured[0]["handoff"]["evaluation"]["evidence_refs"] == (
+        "evidence:finding-1",
+    )
+    assert "evidence:invented" not in str(captured[0])
+    assert captured[0]["prompt_version"] == "engineering-rule-investigation.v1"
+    assert captured[0]["model_id"] == "test:model"
+    assert captured[0]["successful_strategy_summary"] == (
+        "validated engineering investigation rule=eng-1 outcome=COMPLIANT "
+        "validated_claims=1 evidence_refs=1"
+    )
+    assert captured[0]["evidence_refs"] == ("evidence:finding-1",)
+
+
+def test_pipeline_does_not_capture_episode_after_investigator_failure(
+    monkeypatch,
+) -> None:
+    captured = []
+    monkeypatch.setattr(
+        pipeline,
+        "capture_verified_episode",
+        lambda **kwargs: captured.append(kwargs),
+    )
+    api_client = _api_client()
+    engineering_rule = _rule()
+    rule_service = MagicMock()
+    rule_service.get_or_compile.return_value = ([engineering_rule], True)
+    query_executor = MagicMock()
+    query_executor.execute.return_value = InvestigationPacket(
+        engineering_rule_id="eng-1",
+        concept="HUMAN_OVERSIGHT",
+        investigation_goals=("Find review controls",),
+        initial_results=(),
+    )
+    investigator = MagicMock()
+    investigator.investigate.side_effect = RuntimeError("model failed")
+    evaluator = MagicMock()
+    evaluator.evaluate.return_value = SimpleNamespace(
+        engineering_rule_id="eng-1",
+        status="UNKNOWN",
+        evidence_refs=(),
+    )
+
+    result = EngineeringInvestigationPipeline(
+        api_client=api_client,
+        model="test:model",
+        retriever=MagicMock(),
+        rule_service=rule_service,
+        query_executor=query_executor,
+        investigator=investigator,
+        evaluator=evaluator,
+    ).run(
+        evidence_report=_evidence_report(),
+        workflow_run_id="workflow-1",
+        assessment_id="assessment-1",
+        user_id="user-1",
+    )
+
+    assert result.status == "PARTIAL"
+    assert result.claims == ()
+    assert result.limitations == (
+        ENGINEERING_LIMITATION_CODES["engineering_investigation_failed"],
+    )
+    assert captured == []
+
+
+def test_pipeline_does_not_capture_episode_without_validated_claim_provenance(
+    monkeypatch,
+) -> None:
+    captured = []
+    monkeypatch.setattr(
+        pipeline,
+        "capture_verified_episode",
+        lambda **kwargs: captured.append(kwargs),
+    )
+    api_client = _api_client()
+    engineering_rule = _rule()
+    rule_service = MagicMock()
+    rule_service.get_or_compile.return_value = ([engineering_rule], True)
+    query_executor = MagicMock()
+    query_executor.execute.return_value = InvestigationPacket(
+        engineering_rule_id="eng-1",
+        concept="HUMAN_OVERSIGHT",
+        investigation_goals=("Find review controls",),
+        initial_results=(),
+    )
+    investigator = MagicMock()
+    investigator.investigate.return_value = [
+        EvidenceClaim(
+            claim_id="claim-unresolved",
+            engineering_rule_id="eng-1",
+            claim_type="UNRESOLVED_ENGINEERING_FACT",
+            value=None,
+            evidence_refs=(),
+            graph_path_refs=(),
+            source_anchor_refs=(),
+            confidence=0.0,
+        )
+    ]
+
+    result = EngineeringInvestigationPipeline(
+        api_client=api_client,
+        model="test:model",
+        retriever=MagicMock(),
+        rule_service=rule_service,
+        query_executor=query_executor,
+        investigator=investigator,
+    ).run(
+        evidence_report=_evidence_report(),
+        workflow_run_id="workflow-1",
+        assessment_id="assessment-1",
+        user_id="user-1",
+    )
+
+    assert result.status == "COMPLETE"
+    assert result.evaluations[0].status == "UNKNOWN"
+    assert captured == []
 
 
 def test_pipeline_treats_unknown_as_valid_complete_evaluation() -> None:
@@ -185,13 +393,14 @@ def test_pipeline_keeps_other_rules_when_one_compilation_fails() -> None:
     investigator.investigate.return_value = [
         EvidenceClaim(
             claim_id="claim-good",
-            engineering_rule_id="eng-good",
-            claim_type="RULE_REQUIREMENT_NOT_MET",
-            value=False,
-            evidence_refs=("graph:path:1",),
-            confidence=0.9,
-        )
-    ]
+                engineering_rule_id="eng-good",
+                claim_type="RULE_REQUIREMENT_NOT_MET",
+                value=False,
+                evidence_refs=("evidence:finding-1",),
+                confidence=0.9,
+                criterion="HUMAN_OVERSIGHT",
+            )
+        ]
 
     result = EngineeringInvestigationPipeline(
         api_client=api_client,

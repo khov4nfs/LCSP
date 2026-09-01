@@ -41,6 +41,7 @@ import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-ke
 import {
   buildAgenticToolCommand,
   isAgenticToolCommand,
+  isAgenticToolProtectedCommand,
 } from "./agentic-tool-command-dispatcher.js";
 import {
   dispatchAgenticToolInternalCommand,
@@ -217,7 +218,9 @@ export class InternalAgenticToolDispatchController {
     }
 
     if (isAgenticToolCommand(args.toolName)) {
-      await this.authorizeProtectedCommand(args);
+      if (isAgenticToolProtectedCommand(args.toolName)) {
+        await this.authorizeProtectedCommand(args);
+      }
       return this.requireCommandBus(args.correlationId).execute(
         buildAgenticToolCommand({
           toolName: args.toolName,
@@ -443,6 +446,9 @@ const TECHNICAL_EVIDENCE_TOOL_NAMES = new Set<string>([
   AGENTIC_TOOL_NAMES.findSimilarSymbols,
   AGENTIC_TOOL_NAMES.inspectDeploymentContext,
   AGENTIC_TOOL_NAMES.requestTargetedReanalysis,
+  AGENTIC_TOOL_NAMES.retrieveVerifiedEpisodes,
+  AGENTIC_TOOL_NAMES.captureVerifiedEpisode,
+  AGENTIC_TOOL_NAMES.consolidateVerifiedEpisodes,
 ]);
 
 const RECONCILIATION_TOOL_NAMES = new Set<string>([

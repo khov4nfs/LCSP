@@ -148,6 +148,7 @@ SUBAGENT = {
     "tools": TOOLS,
     "model": CONTEXT_WIZARD_MODEL_SPEC,
     "middleware": [inject_lcsp_runtime_context, *MODEL_GOVERNANCE_MIDDLEWARE],
+    "response_format": OUTPUT_MODEL,
 }
 
 

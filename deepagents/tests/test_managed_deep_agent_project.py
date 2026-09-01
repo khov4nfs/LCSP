@@ -64,8 +64,12 @@ def test_authored_managed_tools_have_explicit_input_schema() -> None:
     for managed_tool in authored_tools:
         schema = managed_tool.args_schema.model_json_schema()
         assert schema["additionalProperties"] is False
-        assert "assessment_id" in schema["properties"]
-        assert "input" in schema["properties"]
+        assert "assessment_id" not in schema["properties"]
+        assert "user_id" not in schema["properties"]
+        assert "workflow_run_id" not in schema["properties"]
+        assert "artifact_versions" not in schema["properties"]
+        assert "input" not in schema["properties"]
+        assert set(schema["properties"]) - {"correlationId", "correlation_id"}
 
 
 def test_managed_project_separates_authored_tools_from_runtime() -> None:
