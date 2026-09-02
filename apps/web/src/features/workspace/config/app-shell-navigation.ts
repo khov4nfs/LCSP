@@ -1,13 +1,7 @@
 import {
-  ActivityIcon,
-  FileCheck2Icon,
-  FileTextIcon,
-  GaugeIcon,
   LayoutDashboardIcon,
   ListChecksIcon,
   LibraryBigIcon,
-  ScaleIcon,
-  ShieldCheckIcon,
 } from "lucide-react";
 
 type NavigationDefinition = {
@@ -51,42 +45,6 @@ export function getAssessmentNavigation(
       labelKey: "pages.appShell.overview",
       icon: LayoutDashboardIcon,
       exact: true,
-      disabled,
-    },
-    {
-      href: `${basePath}/wizard`,
-      labelKey: "pages.appShell.wizard",
-      icon: FileCheck2Icon,
-      disabled,
-    },
-    {
-      href: `${basePath}/readiness`,
-      labelKey: "pages.appShell.readiness",
-      icon: GaugeIcon,
-      disabled,
-    },
-    {
-      href: `${basePath}/technical-evidence`,
-      labelKey: "pages.appShell.technicalEvidence",
-      icon: ActivityIcon,
-      disabled,
-    },
-    {
-      href: `${basePath}/classification`,
-      labelKey: "pages.appShell.classification",
-      icon: ShieldCheckIcon,
-      disabled,
-    },
-    {
-      href: `${basePath}/documents`,
-      labelKey: "pages.appShell.documents",
-      icon: FileTextIcon,
-      disabled,
-    },
-    {
-      href: `${basePath}/conflicts`,
-      labelKey: "pages.appShell.conflicts",
-      icon: ScaleIcon,
       disabled,
     },
   ];

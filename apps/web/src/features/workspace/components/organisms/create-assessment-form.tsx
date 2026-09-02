@@ -40,7 +40,7 @@ export function CreateAssessmentForm() {
       description: description.trim() || undefined,
     });
     if (outcome.kind === "created") {
-      router.push(`/assessments/${outcome.assessmentId}/wizard`);
+      router.push(`/assessments/${outcome.assessmentId}`);
       return;
     }
     setHasError(true);
