@@ -33,6 +33,7 @@ export const API_VALIDATION_REASONS = {
 
 export const API_REDIRECT_LOCATIONS = {
   mfaVerify: "/mfa/verify",
+  mfaRecoveryCode: "/mfa/verify?method=recovery-code",
   mfaEnroll: "/mfa/enroll",
   recoveryRequest: "/recovery/request",
   signIn: "/sign-in",

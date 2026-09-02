@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { ProductMarketingPage } from "@/features/marketing/components/marketing-pages";
 
 export default function Home() {
-  redirect("/sign-in");
+  return <ProductMarketingPage />;
 }

@@ -1,24 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { resolveMessage } from "@lcsp/i18n";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FormProvider, useForm, useFormContext } from "react-hook-form";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
-import { FormCard } from "@/components/organisms/form-card";
 import { appLocale } from "@/lib/locale";
 import { useSignUpMutation } from "@/lib/api/auth-queries";
 import {
@@ -36,6 +26,14 @@ import {
   type SignUpFieldProps,
   type SignUpSubmissionError,
 } from "../../types/sign-up.types";
+import {
+  AuthFormSurface,
+  AuthHeading,
+  AuthInlineLink,
+  AuthNote,
+  AuthPrimaryButton,
+  AuthTextField,
+} from "../molecules/auth-form-primitives";
 
 export function SignUpForm() {
   const router = useRouter();
@@ -85,47 +83,19 @@ export function SignUpForm() {
   }
 
   return (
-    <FormProvider {...form}>
-      <FormCard
+    <AuthFormSurface className="pt-[104px]" data-figma-node="925:31277">
+      <AuthHeading
         title={resolveMessage(appLocale, "pages.signUp.formTitle")}
         description={resolveMessage(appLocale, "pages.signUp.formDescription")}
-        footer={
-          <>
-            <Button
-              className="w-full"
-              type="submit"
-              form="sign-up-form"
-              disabled={form.formState.isSubmitting}
-              aria-busy={form.formState.isSubmitting}
-            >
-              {form.formState.isSubmitting ? (
-                <Spinner data-icon="inline-start" />
-              ) : null}
-              {resolveMessage(
-                appLocale,
-                form.formState.isSubmitting
-                  ? "pages.signUp.submitting"
-                  : "pages.signUp.submit",
-              )}
-            </Button>
-            <p className="text-center text-xs leading-relaxed text-muted-foreground">
-              {resolveMessage(appLocale, "pages.signUp.alreadyHaveAccount")}{" "}
-              <Link
-                className="text-primary underline-offset-4 hover:underline"
-                href={API_REDIRECT_LOCATIONS.signIn}
-              >
-                {resolveMessage(appLocale, "pages.signUp.signInInstead")}
-              </Link>
-            </p>
-          </>
-        }
-      >
+      />
+      <FormProvider {...form}>
         <form
           id="sign-up-form"
           onSubmit={form.handleSubmit(onSubmit)}
           noValidate
+          className="mt-[30px] flex flex-col"
         >
-          <FieldGroup>
+          <FieldGroup className="gap-3">
             {submissionError ? (
               <SignUpErrorAlert submissionError={submissionError} />
             ) : null}
@@ -133,9 +103,35 @@ export function SignUpForm() {
               <SignUpField key={field.name} field={field} />
             ))}
           </FieldGroup>
+          <AuthPrimaryButton
+            className="mt-5"
+            type="submit"
+            form="sign-up-form"
+            disabled={form.formState.isSubmitting}
+            aria-busy={form.formState.isSubmitting}
+          >
+            {form.formState.isSubmitting ? (
+              <Spinner data-icon="inline-start" />
+            ) : null}
+            {resolveMessage(
+              appLocale,
+              form.formState.isSubmitting
+                ? "pages.signUp.submitting"
+                : "pages.signUp.submit",
+            )}
+          </AuthPrimaryButton>
         </form>
-      </FormCard>
-    </FormProvider>
+        <p className="mt-[18px] text-center text-[11px] leading-4 text-[#7a7a74]">
+          {resolveMessage(appLocale, "pages.signUp.alreadyHaveAccount")}{" "}
+          <AuthInlineLink href={API_REDIRECT_LOCATIONS.signIn}>
+            {resolveMessage(appLocale, "pages.signUp.signInInstead")}
+          </AuthInlineLink>
+        </p>
+        <AuthNote className="mt-[18px]">
+          {resolveMessage(appLocale, "pages.signUp.accessHelp")}
+        </AuthNote>
+      </FormProvider>
+    </AuthFormSurface>
   );
 }
 
@@ -144,31 +140,28 @@ function SignUpField({ field }: SignUpFieldProps) {
   const error = formState.errors[field.name]?.message;
 
   return (
-    <Field data-invalid={Boolean(error) || undefined}>
-      <FieldLabel htmlFor={field.name}>
-        {resolveMessage(appLocale, field.labelKey)}
-      </FieldLabel>
-      <Input
-        id={field.name}
-        type={field.type}
-        autoComplete={field.autoComplete}
-        disabled={formState.isSubmitting}
-        aria-invalid={Boolean(error)}
-        {...register(field.name)}
-      />
-      {error ? (
-        <FieldError>
-          {resolveMessage(
-            appLocale,
-            error as Parameters<typeof resolveMessage>[1],
-          )}
-        </FieldError>
-      ) : (
-        <FieldDescription>
-          {resolveMessage(appLocale, field.descriptionKey)}
-        </FieldDescription>
-      )}
-    </Field>
+    <AuthTextField
+      id={field.name}
+      type={field.type}
+      autoComplete={field.autoComplete}
+      disabled={formState.isSubmitting}
+      label={resolveMessage(appLocale, field.labelKey)}
+      description={resolveMessage(appLocale, field.descriptionKey)}
+      trailing={
+        field.name === "password"
+          ? resolveMessage(appLocale, "pages.signUp.passwordMinHint")
+          : undefined
+      }
+      error={
+        error
+          ? resolveMessage(
+              appLocale,
+              error as Parameters<typeof resolveMessage>[1],
+            )
+          : undefined
+      }
+      {...register(field.name)}
+    />
   );
 }
 
@@ -185,9 +178,9 @@ function SignUpErrorAlert({
         </AlertTitle>
         <AlertDescription>
           {resolveMessage(appLocale, "pages.signUp.errors.emailExistsDetail")}{" "}
-          <Link className="underline" href={API_REDIRECT_LOCATIONS.signIn}>
+          <AuthInlineLink href={API_REDIRECT_LOCATIONS.signIn}>
             {resolveMessage(appLocale, "pages.signUp.signInInstead")}
-          </Link>
+          </AuthInlineLink>
         </AlertDescription>
       </Alert>
     );
