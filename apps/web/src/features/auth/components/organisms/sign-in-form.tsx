@@ -1,19 +1,16 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FormProvider, useForm } from "react-hook-form";
-import { useState } from "react";
+import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { resolveMessage, type MessageKey } from "@lcsp/i18n";
-import Link from "next/link";
+import { useState, type ReactNode } from "react";
+import { FormProvider, useForm } from "react-hook-form";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { FieldGroup } from "@/components/ui/field";
-import { LabeledSeparator } from "@/components/molecules/labeled-separator";
-import { FormCard } from "@/components/organisms/form-card";
 import { Spinner } from "@/components/ui/spinner";
+import { appLocale } from "@/lib/locale";
 import { useSignInMutation } from "@/lib/api/auth-queries";
 import {
   API_OUTCOME_KINDS,
@@ -22,9 +19,19 @@ import {
 import googleIcon from "@/public/assets/icons/google.svg";
 
 import { signInFields } from "../../config/sign-in-fields";
-import { appLocale } from "@/lib/locale";
-import { signInSchema } from "../../schemas/sign-in.schema";
-import type { SignInFormValues } from "../../schemas/sign-in.schema";
+import {
+  signInSchema,
+  type SignInFormValues,
+} from "../../schemas/sign-in.schema";
+import {
+  AuthDivider,
+  AuthFormSurface,
+  AuthHeading,
+  AuthInlineLink,
+  AuthNote,
+  AuthPrimaryButton,
+  AuthSecondaryButton,
+} from "../molecules/auth-form-primitives";
 import { CredentialField } from "../molecules/credential-field";
 
 type SignInErrorOutcome = {
@@ -76,14 +83,57 @@ export function SignInForm() {
   }
 
   return (
-    <FormProvider {...form}>
-      <FormCard
+    <AuthFormSurface className="pt-[132px]" data-figma-node="924:31258">
+      <AuthHeading
         title={resolveMessage(appLocale, "pages.signIn.formTitle")}
         description={resolveMessage(appLocale, "pages.signIn.formDescription")}
-        footer={
-          <>
-            <Button
-              className="w-full"
+      />
+      <FormProvider {...form}>
+        <div className="mt-[34px] flex flex-col gap-[22px]">
+          <OAuthButton provider="google" icon={<GoogleIcon />}>
+            {resolveMessage(appLocale, "pages.signIn.oauthGoogle")}
+          </OAuthButton>
+          <AuthDivider
+            label={resolveMessage(appLocale, "pages.signIn.divider")}
+          />
+          <form
+            id="sign-in-form"
+            onSubmit={form.handleSubmit(onSubmit)}
+            noValidate
+            className="flex flex-col"
+          >
+            <FieldGroup className="gap-[18px]">
+              {signInFields.map((field) => (
+                <CredentialField key={field.name} field={field} />
+              ))}
+              {signInError ? (
+                <Alert variant="destructive">
+                  <AlertTitle>
+                    {resolveMessage(appLocale, signInError.titleKey)}
+                  </AlertTitle>
+                  <AlertDescription>
+                    <p>{resolveMessage(appLocale, signInError.detailKey)}</p>
+                    {signInError.lockedUntil ? (
+                      <p>
+                        {resolveMessage(
+                          appLocale,
+                          "pages.signIn.errors.retryAtLabel",
+                        )}{" "}
+                        {formatRetryTime(signInError.lockedUntil)}
+                      </p>
+                    ) : null}
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+            </FieldGroup>
+            <AuthInlineLink
+              href={API_REDIRECT_LOCATIONS.recoveryRequest}
+              className="mt-[14px] self-end"
+            >
+              {resolveMessage(appLocale, "pages.signIn.forgotPassword")}
+            </AuthInlineLink>
+            <AuthPrimaryButton
+              className="mt-5"
               type="submit"
               form="sign-in-form"
               disabled={form.formState.isSubmitting}
@@ -95,69 +145,20 @@ export function SignInForm() {
               {form.formState.isSubmitting
                 ? resolveMessage(appLocale, "pages.signIn.submitting")
                 : resolveMessage(appLocale, "pages.signIn.submit")}
-            </Button>
-            <LabeledSeparator
-              label={resolveMessage(appLocale, "pages.signIn.divider")}
-            />
-            <div>
-              <OAuthButton provider="google" icon={<GoogleIcon />}>
-                {resolveMessage(appLocale, "pages.signIn.oauthGoogle")}
-              </OAuthButton>
-            </div>
-            <p className="text-center text-xs leading-relaxed text-muted-foreground">
-              {resolveMessage(appLocale, "pages.signIn.accessHelp")}
-            </p>
-            <p className="text-center text-xs">
-              <Link
-                className="text-primary underline-offset-4 hover:underline"
-                href={API_REDIRECT_LOCATIONS.signUp}
-              >
-                {resolveMessage(appLocale, "pages.signIn.createAccount")}
-              </Link>
-            </p>
-            <p className="text-center text-xs">
-              <Link
-                className="text-primary underline-offset-4 hover:underline"
-                href={API_REDIRECT_LOCATIONS.recoveryRequest}
-              >
-                {resolveMessage(appLocale, "pages.signIn.forgotPassword")}
-              </Link>
-            </p>
-          </>
-        }
-      >
-        <form
-          id="sign-in-form"
-          onSubmit={form.handleSubmit(onSubmit)}
-          noValidate
-        >
-          <FieldGroup>
-            {signInFields.map((field) => (
-              <CredentialField key={field.name} field={field} />
-            ))}
-            {signInError ? (
-              <Alert variant="destructive">
-                <AlertTitle>
-                  {resolveMessage(appLocale, signInError.titleKey)}
-                </AlertTitle>
-                <AlertDescription>
-                  <p>{resolveMessage(appLocale, signInError.detailKey)}</p>
-                  {signInError.lockedUntil ? (
-                    <p>
-                      {resolveMessage(
-                        appLocale,
-                        "pages.signIn.errors.retryAtLabel",
-                      )}{" "}
-                      {formatRetryTime(signInError.lockedUntil)}
-                    </p>
-                  ) : null}
-                </AlertDescription>
-              </Alert>
-            ) : null}
-          </FieldGroup>
-        </form>
-      </FormCard>
-    </FormProvider>
+            </AuthPrimaryButton>
+          </form>
+          <AuthNote className="-mt-0.5">
+            {resolveMessage(appLocale, "pages.signIn.accessHelp")}
+          </AuthNote>
+          <p className="mt-2 text-center text-[11px] leading-4 text-[#7a7a74]">
+            {resolveMessage(appLocale, "pages.signIn.newToLcsp")}{" "}
+            <AuthInlineLink href={API_REDIRECT_LOCATIONS.signUp}>
+              {resolveMessage(appLocale, "pages.signIn.createAccount")}
+            </AuthInlineLink>
+          </p>
+        </div>
+      </FormProvider>
+    </AuthFormSurface>
   );
 }
 
@@ -179,19 +180,17 @@ function OAuthButton({
   children,
 }: {
   provider: "google";
-  icon: React.ReactNode;
-  children: React.ReactNode;
+  icon: ReactNode;
+  children: ReactNode;
 }) {
   return (
-    <Button
-      className="w-full"
-      variant="outline"
+    <AuthSecondaryButton
       nativeButton={false}
       render={<a href={`/api/auth/oauth/start?provider=${provider}`} />}
     >
       {icon}
       {children}
-    </Button>
+    </AuthSecondaryButton>
   );
 }
 

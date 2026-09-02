@@ -1,22 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { resolveMessage } from "@lcsp/i18n";
+import { useRouter } from "next/navigation";
 import { FormProvider, useForm } from "react-hook-form";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { FormCard } from "@/components/organisms/form-card";
+import { FieldGroup } from "@/components/ui/field";
 import { appLocale } from "@/lib/locale";
 import { useConfirmRecoveryMutation } from "@/lib/api/auth-queries";
 import {
@@ -29,6 +19,14 @@ import {
   type RecoveryConfirmFormValues,
 } from "../../schemas/recovery-confirm.schema";
 import type { RecoveryConfirmFormProps } from "../../types/recovery-confirm.types";
+import {
+  AuthFormSurface,
+  AuthHeading,
+  AuthInlineLink,
+  AuthNote,
+  AuthPrimaryButton,
+  AuthTextField,
+} from "../molecules/auth-form-primitives";
 
 export function RecoveryConfirmForm({ token }: RecoveryConfirmFormProps) {
   const router = useRouter();
@@ -65,107 +63,70 @@ export function RecoveryConfirmForm({ token }: RecoveryConfirmFormProps) {
   const rootError = form.formState.errors.root?.message;
 
   return (
-    <FormProvider {...form}>
-      <FormCard
-        eyebrow={resolveMessage(appLocale, "pages.recoveryConfirm.formEyebrow")}
+    <AuthFormSurface className="pt-[168px]" data-figma-node="925:31334">
+      <AuthHeading
         title={resolveMessage(appLocale, "pages.recoveryConfirm.formTitle")}
         description={resolveMessage(
           appLocale,
           "pages.recoveryConfirm.formDescription",
         )}
-        footer={
-          <>
-            <Button
-              className="w-full"
-              type="submit"
-              form="recovery-confirm-form"
-              disabled={form.formState.isSubmitting}
-              aria-busy={form.formState.isSubmitting}
-            >
-              {resolveMessage(
-                appLocale,
-                form.formState.isSubmitting
-                  ? "pages.recoveryConfirm.submitting"
-                  : "pages.recoveryConfirm.submit",
-              )}
-            </Button>
-            <Button
-              render={<Link href={API_REDIRECT_LOCATIONS.recoveryRequest} />}
-              variant="ghost"
-            >
-              {resolveMessage(
-                appLocale,
-                "pages.recoveryConfirm.requestAnother",
-              )}
-            </Button>
-          </>
-        }
-      >
+      />
+      <FormProvider {...form}>
         <form
           id="recovery-confirm-form"
           onSubmit={form.handleSubmit(onSubmit)}
           noValidate
+          className="mt-[38px] flex flex-col"
         >
-          <FieldGroup>
-            <Field
-              data-invalid={Boolean(tokenError) || undefined}
-              className="hidden"
-            >
-              <FieldLabel htmlFor="token">
-                {resolveMessage(appLocale, "pages.recoveryConfirm.tokenLabel")}
-              </FieldLabel>
-              <Input
-                id="token"
-                autoComplete="one-time-code"
-                aria-invalid={Boolean(tokenError)}
-                {...form.register("token")}
-              />
-              {tokenError ? (
-                <FieldError>
+          <input
+            type="hidden"
+            autoComplete="one-time-code"
+            {...form.register("token")}
+          />
+          <FieldGroup className="gap-[18px]">
+            <AuthTextField
+              id="new_password"
+              type="password"
+              autoComplete="new-password"
+              disabled={form.formState.isSubmitting}
+              label={resolveMessage(
+                appLocale,
+                "pages.recoveryConfirm.passwordLabel",
+              )}
+              description={resolveMessage(
+                appLocale,
+                "pages.recoveryConfirm.passwordDescription",
+              )}
+              trailing={resolveMessage(
+                appLocale,
+                "pages.recoveryConfirm.passwordMinHint",
+              )}
+              error={
+                passwordError
+                  ? resolveMessage(
+                      appLocale,
+                      passwordError as Parameters<typeof resolveMessage>[1],
+                    )
+                  : undefined
+              }
+              {...form.register("new_password")}
+            />
+            {tokenError ? (
+              <Alert variant="destructive">
+                <AlertTitle>
+                  {resolveMessage(
+                    appLocale,
+                    "pages.recoveryConfirm.errors.requestFailedTitle",
+                  )}
+                </AlertTitle>
+                <AlertDescription>
                   {resolveMessage(
                     appLocale,
                     tokenError as Parameters<typeof resolveMessage>[1],
                   )}
-                </FieldError>
-              ) : (
-                <FieldDescription>
-                  {resolveMessage(
-                    appLocale,
-                    "pages.recoveryConfirm.tokenDescription",
-                  )}
-                </FieldDescription>
-              )}
-            </Field>
-            <Field data-invalid={Boolean(passwordError) || undefined}>
-              <FieldLabel htmlFor="new_password">
-                {resolveMessage(
-                  appLocale,
-                  "pages.recoveryConfirm.passwordLabel",
-                )}
-              </FieldLabel>
-              <Input
-                id="new_password"
-                type="password"
-                autoComplete="new-password"
-                aria-invalid={Boolean(passwordError)}
-                {...form.register("new_password")}
-              />
-              {passwordError ? (
-                <FieldError>
-                  {resolveMessage(
-                    appLocale,
-                    passwordError as Parameters<typeof resolveMessage>[1],
-                  )}
-                </FieldError>
-              ) : (
-                <FieldDescription>
-                  {resolveMessage(
-                    appLocale,
-                    "pages.recoveryConfirm.passwordDescription",
-                  )}
-                </FieldDescription>
-              )}
-            </Field>
+                </AlertDescription>
+              </Alert>
+            ) : null}
             {rootError ? (
               <Alert variant="destructive">
                 <AlertTitle>
@@ -183,8 +144,31 @@ export function RecoveryConfirmForm({ token }: RecoveryConfirmFormProps) {
               </Alert>
             ) : null}
           </FieldGroup>
+          <AuthPrimaryButton
+            className="mt-6"
+            type="submit"
+            form="recovery-confirm-form"
+            disabled={form.formState.isSubmitting}
+            aria-busy={form.formState.isSubmitting}
+          >
+            {resolveMessage(
+              appLocale,
+              form.formState.isSubmitting
+                ? "pages.recoveryConfirm.submitting"
+                : "pages.recoveryConfirm.submit",
+            )}
+          </AuthPrimaryButton>
         </form>
-      </FormCard>
-    </FormProvider>
+        <AuthInlineLink
+          href={API_REDIRECT_LOCATIONS.recoveryRequest}
+          className="mt-[22px] self-start"
+        >
+          {resolveMessage(appLocale, "pages.recoveryConfirm.requestAnother")}
+        </AuthInlineLink>
+        <AuthNote className="mt-[34px]">
+          {resolveMessage(appLocale, "pages.recoveryConfirm.accessHelp")}
+        </AuthNote>
+      </FormProvider>
+    </AuthFormSurface>
   );
 }
