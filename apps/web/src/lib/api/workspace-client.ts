@@ -1,5 +1,4 @@
 import {
-  ASSESSMENT_STATUS_CODES,
   WIZARD_STATUS_CODES,
   type WizardStatusCode,
 } from "@lcsp/contracts/assessment";
@@ -77,30 +76,6 @@ export function getAssessmentActiveHref(assessment: {
   wizard_status: string;
 }): string {
   const encodedId = encodeURIComponent(assessment.id);
-
-  if (
-    assessment.wizard_status === WIZARD_STATUS_CODES.notStarted ||
-    assessment.wizard_status === WIZARD_STATUS_CODES.inProgress ||
-    assessment.status === ASSESSMENT_STATUS_CODES.wizardInProgress
-  ) {
-    return `/assessments/${encodedId}/wizard`;
-  }
-
-  if (
-    assessment.status === ASSESSMENT_STATUS_CODES.wizardSubmitted ||
-    assessment.status === ASSESSMENT_STATUS_CODES.evidenceRequired ||
-    assessment.status === ASSESSMENT_STATUS_CODES.scanInProgress
-  ) {
-    return `/assessments/${encodedId}/readiness`;
-  }
-
-  if (
-    assessment.status === ASSESSMENT_STATUS_CODES.classificationLocked ||
-    assessment.status === ASSESSMENT_STATUS_CODES.readyForReview
-  ) {
-    return `/assessments/${encodedId}/classification`;
-  }
-
   return `/assessments/${encodedId}`;
 }
 

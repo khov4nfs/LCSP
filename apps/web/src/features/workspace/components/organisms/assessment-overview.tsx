@@ -6,7 +6,6 @@ import {
   ScaleIcon,
   ShieldCheckIcon,
 } from "lucide-react";
-import Link from "next/link";
 
 import {
   Card,
@@ -52,13 +51,12 @@ const modules = [
   },
 ] as const;
 
-export function AssessmentOverview({
-  assessmentId,
-}: AssessmentOverviewProps) {
-  const basePath = `/assessments/${encodeURIComponent(assessmentId)}`;
-
+export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 lg:px-6">
+    <main
+      className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 lg:px-6"
+      data-assessment-id={assessmentId}
+    >
       <header className="flex flex-col gap-2">
         <p className="text-sm font-medium text-primary">
           {resolveMessage(appLocale, "pages.assessment.eyebrow")}
@@ -79,20 +77,18 @@ export function AssessmentOverview({
         )}
       >
         {modules.map(({ segment, labelKey, descriptionKey, icon: Icon }) => (
-          <Link key={segment} href={`${basePath}/${segment}`} className="group">
-            <Card className="h-full transition-[border-color,box-shadow,transform] group-hover:-translate-y-0.5 group-hover:border-primary/30 group-hover:shadow-md">
-              <CardHeader>
-                <Icon className="size-5 text-primary" aria-hidden="true" />
-                <CardTitle>{resolveMessage(appLocale, labelKey)}</CardTitle>
-                <CardDescription>
-                  {resolveMessage(appLocale, descriptionKey)}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-sm font-medium text-primary">
-                {resolveMessage(appLocale, "pages.assessment.openModule")}
-              </CardContent>
-            </Card>
-          </Link>
+          <Card key={segment} className="h-full">
+            <CardHeader>
+              <Icon className="size-5 text-primary" aria-hidden="true" />
+              <CardTitle>{resolveMessage(appLocale, labelKey)}</CardTitle>
+              <CardDescription>
+                {resolveMessage(appLocale, descriptionKey)}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm font-medium text-muted-foreground">
+              {resolveMessage(appLocale, "pages.assessment.openModule")}
+            </CardContent>
+          </Card>
         ))}
       </section>
     </main>

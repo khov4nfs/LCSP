@@ -5,7 +5,6 @@ import {
   CornerDownLeftIcon,
   FileTextIcon,
   GitBranchIcon,
-  PanelLeftIcon,
   SearchIcon,
   SquareIcon,
 } from "lucide-react";
@@ -23,7 +22,10 @@ const productQuickActions = [
 ] as const;
 
 const productProof = [
-  ["pages.marketing.home.valuePinned", "pages.marketing.home.valuePinnedDetail"],
+  [
+    "pages.marketing.home.valuePinned",
+    "pages.marketing.home.valuePinnedDetail",
+  ],
   [
     "pages.marketing.home.valueTargeted",
     "pages.marketing.home.valueTargetedDetail",
@@ -51,15 +53,38 @@ const modes = [
 ] as const;
 
 const lifecycleSteps = [
-  ["01", "pages.marketing.home.lifecycleConnect", "pages.marketing.home.lifecycleConnectDetail"],
-  ["02", "pages.marketing.home.lifecycleScan", "pages.marketing.home.lifecycleScanDetail"],
-  ["03", "pages.marketing.home.lifecycleContext", "pages.marketing.home.lifecycleContextDetail"],
-  ["04", "pages.marketing.home.lifecycleReview", "pages.marketing.home.lifecycleReviewDetail"],
-  ["05", "pages.marketing.home.lifecycleVerify", "pages.marketing.home.lifecycleVerifyDetail"],
+  [
+    "01",
+    "pages.marketing.home.lifecycleConnect",
+    "pages.marketing.home.lifecycleConnectDetail",
+  ],
+  [
+    "02",
+    "pages.marketing.home.lifecycleScan",
+    "pages.marketing.home.lifecycleScanDetail",
+  ],
+  [
+    "03",
+    "pages.marketing.home.lifecycleContext",
+    "pages.marketing.home.lifecycleContextDetail",
+  ],
+  [
+    "04",
+    "pages.marketing.home.lifecycleReview",
+    "pages.marketing.home.lifecycleReviewDetail",
+  ],
+  [
+    "05",
+    "pages.marketing.home.lifecycleVerify",
+    "pages.marketing.home.lifecycleVerifyDetail",
+  ],
 ] as const;
 
 const evidencePrinciples = [
-  ["pages.marketing.home.principlePinnedTitle", "pages.marketing.home.principlePinned"],
+  [
+    "pages.marketing.home.principlePinnedTitle",
+    "pages.marketing.home.principlePinned",
+  ],
   [
     "pages.marketing.home.principleTargetedTitle",
     "pages.marketing.home.principleTargeted",
@@ -96,22 +121,67 @@ const workspaceCapabilities = [
 ] as const;
 
 const topUps = [
-  ["$50", "pages.marketing.pricing.save10", "pages.marketing.pricing.topUp50Description", "pages.marketing.pricing.topUp50Balance", "pages.marketing.pricing.topUp50Saving", "pages.marketing.pricing.add50"],
-  ["$250", "pages.marketing.pricing.save20", "pages.marketing.pricing.topUp250Description", "pages.marketing.pricing.topUp250Balance", "pages.marketing.pricing.topUp250Saving", "pages.marketing.pricing.add250"],
-  ["$1,000", "pages.marketing.pricing.save30", "pages.marketing.pricing.topUp1000Description", "pages.marketing.pricing.topUp1000Balance", "pages.marketing.pricing.topUp1000Saving", "pages.marketing.pricing.add1000"],
+  [
+    "$50",
+    "pages.marketing.pricing.save10",
+    "pages.marketing.pricing.topUp50Description",
+    "pages.marketing.pricing.topUp50Balance",
+    "pages.marketing.pricing.topUp50Saving",
+    "pages.marketing.pricing.add50",
+  ],
+  [
+    "$250",
+    "pages.marketing.pricing.save20",
+    "pages.marketing.pricing.topUp250Description",
+    "pages.marketing.pricing.topUp250Balance",
+    "pages.marketing.pricing.topUp250Saving",
+    "pages.marketing.pricing.add250",
+  ],
+  [
+    "$1,000",
+    "pages.marketing.pricing.save30",
+    "pages.marketing.pricing.topUp1000Description",
+    "pages.marketing.pricing.topUp1000Balance",
+    "pages.marketing.pricing.topUp1000Saving",
+    "pages.marketing.pricing.add1000",
+  ],
 ] as const;
 
 const creditSteps = [
-  ["01", "pages.marketing.pricing.stepTopUpTitle", "pages.marketing.pricing.stepTopUpDescription"],
-  ["02", "pages.marketing.pricing.stepUseTitle", "pages.marketing.pricing.stepUseDescription"],
-  ["03", "pages.marketing.pricing.stepReloadTitle", "pages.marketing.pricing.stepReloadDescription"],
+  [
+    "01",
+    "pages.marketing.pricing.stepTopUpTitle",
+    "pages.marketing.pricing.stepTopUpDescription",
+  ],
+  [
+    "02",
+    "pages.marketing.pricing.stepUseTitle",
+    "pages.marketing.pricing.stepUseDescription",
+  ],
+  [
+    "03",
+    "pages.marketing.pricing.stepReloadTitle",
+    "pages.marketing.pricing.stepReloadDescription",
+  ],
 ] as const;
 
 const faqItems = [
-  ["pages.marketing.pricing.faqPayGoQuestion", "pages.marketing.pricing.faqPayGoAnswer"],
-  ["pages.marketing.pricing.faqCustomQuestion", "pages.marketing.pricing.faqCustomAnswer"],
-  ["pages.marketing.pricing.faqDiscountQuestion", "pages.marketing.pricing.faqDiscountAnswer"],
-  ["pages.marketing.pricing.faqReloadQuestion", "pages.marketing.pricing.faqReloadAnswer"],
+  [
+    "pages.marketing.pricing.faqPayGoQuestion",
+    "pages.marketing.pricing.faqPayGoAnswer",
+  ],
+  [
+    "pages.marketing.pricing.faqCustomQuestion",
+    "pages.marketing.pricing.faqCustomAnswer",
+  ],
+  [
+    "pages.marketing.pricing.faqDiscountQuestion",
+    "pages.marketing.pricing.faqDiscountAnswer",
+  ],
+  [
+    "pages.marketing.pricing.faqReloadQuestion",
+    "pages.marketing.pricing.faqReloadAnswer",
+  ],
 ] as const;
 
 export function ProductMarketingPage() {
@@ -190,10 +260,14 @@ export function ProductMarketingPage() {
                 )}
               >
                 <div className="flex items-start">
-                  <span className="text-[11px] font-medium leading-5">{number}</span>
+                  <span className="text-[11px] font-medium leading-5">
+                    {number}
+                  </span>
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold leading-7">{t(title)}</h3>
+                  <h3 className="text-xl font-semibold leading-7">
+                    {t(title)}
+                  </h3>
                   <p className="mt-2 max-w-[400px] text-[13px] leading-[25px] text-[#5f5f5a]">
                     {t(description)}
                   </p>
@@ -640,7 +714,10 @@ function AppShellPreview() {
             </p>
             <div className="mt-7 space-y-3">
               {scannerSteps.map(([icon, label]) => (
-                <div key={label} className="grid grid-cols-[20px_1fr_52px] items-center gap-3">
+                <div
+                  key={label}
+                  className="grid grid-cols-[20px_1fr_52px] items-center gap-3"
+                >
                   {icon === "github" ? (
                     <GitBranchIcon className="size-4" strokeWidth={1.75} />
                   ) : icon === "search" ? (
@@ -676,10 +753,26 @@ function AppShellPreview() {
               </div>
               <div className="grid grid-cols-2 gap-x-10 gap-y-4 pt-4">
                 {[
-                  ["27", "pages.marketing.home.showcaseMetricServices", "pages.marketing.home.showcaseMetricServicesDetail"],
-                  ["148", "pages.marketing.home.showcaseMetricSymbols", "pages.marketing.home.showcaseMetricSymbolsDetail"],
-                  ["9", "pages.marketing.home.showcaseMetricCalls", "pages.marketing.home.showcaseMetricCallsDetail"],
-                  ["84%", "pages.marketing.home.showcaseMetricScope", "pages.marketing.home.showcaseMetricScopeDetail"],
+                  [
+                    "27",
+                    "pages.marketing.home.showcaseMetricServices",
+                    "pages.marketing.home.showcaseMetricServicesDetail",
+                  ],
+                  [
+                    "148",
+                    "pages.marketing.home.showcaseMetricSymbols",
+                    "pages.marketing.home.showcaseMetricSymbolsDetail",
+                  ],
+                  [
+                    "9",
+                    "pages.marketing.home.showcaseMetricCalls",
+                    "pages.marketing.home.showcaseMetricCallsDetail",
+                  ],
+                  [
+                    "84%",
+                    "pages.marketing.home.showcaseMetricScope",
+                    "pages.marketing.home.showcaseMetricScopeDetail",
+                  ],
                 ].map(([value, label, detail]) => (
                   <div key={label} className="grid grid-cols-[64px_1fr] gap-3">
                     <span className="text-xl font-semibold">{value}</span>
@@ -724,7 +817,10 @@ function AppShellPreview() {
             <div className="mt-2 rounded-lg border border-[#e3e3de] bg-white p-4">
               <div className="space-y-4">
                 {workflowSteps.map(([label, status, active]) => (
-                  <div key={label} className="grid grid-cols-[12px_1fr_70px] items-center gap-2 text-[12px]">
+                  <div
+                    key={label}
+                    className="grid grid-cols-[12px_1fr_70px] items-center gap-2 text-[12px]"
+                  >
                     <span
                       className={cn(
                         "size-2 rounded-full",
@@ -779,8 +875,13 @@ function AppShellPreview() {
                       {t(description)}
                     </span>
                   </span>
-                  <span className="text-[11px] text-[#10a37f]">{t(status)}</span>
-                  <ChevronRightIcon className="size-4 text-[#85857f]" strokeWidth={1.75} />
+                  <span className="text-[11px] text-[#10a37f]">
+                    {t(status)}
+                  </span>
+                  <ChevronRightIcon
+                    className="size-4 text-[#85857f]"
+                    strokeWidth={1.75}
+                  />
                 </div>
               ))}
             </div>
@@ -907,7 +1008,9 @@ function RepositoryEvidencePreview() {
         {t("pages.marketing.features.pinnedRepo")}
       </p>
       <div className="mt-4 rounded-2xl border border-[#e3e3de] bg-[#f7f7f5] p-4 font-mono text-[13px] leading-normal">
-        <p className="text-[#5f5f5a]">184&nbsp;&nbsp;if (riskScore &gt; threshold) {"{"}</p>
+        <p className="text-[#5f5f5a]">
+          184&nbsp;&nbsp;if (riskScore &gt; threshold) {"{"}
+        </p>
         <p>185&nbsp;&nbsp;&nbsp;&nbsp;decision = provider.score(tx)</p>
         <p className="text-[#5f5f5a]">186&nbsp;&nbsp;{"}"}</p>
       </div>
@@ -1015,9 +1118,18 @@ function RemediationPreview() {
       </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         {[
-          ["pages.marketing.features.verificationSource", "pages.marketing.features.verificationPinned"],
-          ["pages.marketing.features.verificationFinding", "pages.marketing.features.verificationResolved"],
-          ["pages.marketing.features.verificationGate", "pages.marketing.features.verificationPassed"],
+          [
+            "pages.marketing.features.verificationSource",
+            "pages.marketing.features.verificationPinned",
+          ],
+          [
+            "pages.marketing.features.verificationFinding",
+            "pages.marketing.features.verificationResolved",
+          ],
+          [
+            "pages.marketing.features.verificationGate",
+            "pages.marketing.features.verificationPassed",
+          ],
         ].map(([label, value]) => (
           <div key={label}>
             <p className="text-[11px] font-medium text-[#5f5f5a]">{t(label)}</p>
@@ -1111,7 +1223,9 @@ function FinalCta({
       </p>
       <div className="mt-9 flex gap-3">
         <SmallPrimaryLink href={primaryHref}>{primaryLabel}</SmallPrimaryLink>
-        <SmallSecondaryLink href={secondaryHref}>{secondaryLabel}</SmallSecondaryLink>
+        <SmallSecondaryLink href={secondaryHref}>
+          {secondaryLabel}
+        </SmallSecondaryLink>
       </div>
     </section>
   );

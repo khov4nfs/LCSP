@@ -1,4 +1,4 @@
-import { WizardFormPage } from "@/features/wizard/components/organisms/wizard-form-page";
+import { redirect } from "next/navigation";
 
 export default async function AssessmentWizardPage({
   params,
@@ -6,6 +6,5 @@ export default async function AssessmentWizardPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <WizardFormPage assessmentId={id} />;
+  redirect(`/assessments/${encodeURIComponent(id)}`);
 }
-

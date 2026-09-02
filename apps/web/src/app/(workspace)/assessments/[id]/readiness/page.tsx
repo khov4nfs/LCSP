@@ -1,4 +1,4 @@
-import { ReadinessStatusPage } from "@/features/readiness/components/organisms/readiness-status-page";
+import { redirect } from "next/navigation";
 
 export default async function AssessmentReadinessPage({
   params,
@@ -6,6 +6,5 @@ export default async function AssessmentReadinessPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <ReadinessStatusPage assessmentId={id} />;
+  redirect(`/assessments/${encodeURIComponent(id)}`);
 }
-
