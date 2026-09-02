@@ -1,7 +1,6 @@
 "use client";
 
 import { resolveMessage } from "@lcsp/i18n";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -20,7 +19,6 @@ import {
 } from "../../utils/assessment-runtime-formatter.ts";
 
 export function AssessmentRuntimeSidebarPanel({
-  assessmentId,
   timeline,
 }: {
   assessmentId: string;
@@ -81,7 +79,9 @@ export function AssessmentRuntimeSidebarPanel({
                 )}`}
           </p>
         </div>
-        <Badge variant={connectionBadgeVariant(effectiveTimeline.connectionState)}>
+        <Badge
+          variant={connectionBadgeVariant(effectiveTimeline.connectionState)}
+        >
           {connectionLabel(effectiveTimeline.connectionState)}
         </Badge>
       </div>
@@ -103,12 +103,13 @@ export function AssessmentRuntimeSidebarPanel({
       </div>
 
       <div className="mt-3">
-        <Link
-          className="text-xs font-medium text-sidebar-primary underline-offset-4 hover:underline"
-          href={`/assessments/${assessmentId}/technical-evidence`}
+        <button
+          type="button"
+          disabled
+          className="text-xs font-medium text-sidebar-foreground/55"
         >
           {t("pages.appShell.runtimePanelViewFull")}
-        </Link>
+        </button>
       </div>
     </div>
   );

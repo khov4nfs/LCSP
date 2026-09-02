@@ -18,21 +18,23 @@ export function FormCard({
   footer,
 }: FormCardProps) {
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader>
+    <Card className="w-full max-w-none border-0 bg-transparent py-0 shadow-none">
+      <CardHeader className="px-0 text-center">
         {eyebrow ? (
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.13em] text-primary">
+          <p className="text-xs font-semibold tracking-[0.08em] text-muted-foreground uppercase">
             {eyebrow}
           </p>
         ) : null}
-        <CardTitle className="text-xl">{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
+        <CardTitle className="text-2xl tracking-tight">{title}</CardTitle>
+        <CardDescription className="mx-auto max-w-sm leading-6">
+          {description}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-6">
+      <CardContent className="flex flex-col gap-5 px-0">
         {leading}
         {children}
       </CardContent>
-      <CardFooter className="flex-col gap-2">{footer}</CardFooter>
+      <CardFooter className="flex-col gap-3 px-0">{footer}</CardFooter>
     </Card>
   );
 }

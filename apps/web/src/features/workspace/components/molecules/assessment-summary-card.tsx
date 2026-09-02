@@ -1,12 +1,5 @@
 import { resolveMessage } from "@lcsp/i18n";
 import Link from "next/link";
-import {
-  FileCheck2Icon,
-  FileTextIcon,
-  GaugeIcon,
-  ScaleIcon,
-  ShieldCheckIcon,
-} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -24,7 +17,6 @@ import { appLocale } from "@/lib/locale";
 import { getAssessmentProgress } from "../../config/assessment-progress";
 import type {
   AssessmentFactProps,
-  AssessmentModuleLinkProps,
   AssessmentSummaryCardProps,
 } from "../../types/assessment-summary-card.types";
 
@@ -90,59 +82,8 @@ export function AssessmentSummaryCard({
             />
           </div>
         </div>
-        {href ? (
-          <nav
-            className="relative z-10 mt-5 grid grid-cols-2 gap-2 border-t pt-4 text-sm"
-            aria-label={resolveMessage(
-              appLocale,
-              "pages.assessment.moduleNavigation",
-            )}
-          >
-            <AssessmentModuleLink
-              href={`${href}/wizard`}
-              labelKey="pages.appShell.wizard"
-              icon={FileCheck2Icon}
-            />
-            <AssessmentModuleLink
-              href={`${href}/readiness`}
-              labelKey="pages.appShell.readiness"
-              icon={GaugeIcon}
-            />
-            <AssessmentModuleLink
-              href={`${href}/classification`}
-              labelKey="pages.appShell.classification"
-              icon={ShieldCheckIcon}
-            />
-            <AssessmentModuleLink
-              href={`${href}/documents`}
-              labelKey="pages.appShell.documents"
-              icon={FileTextIcon}
-            />
-            <AssessmentModuleLink
-              href={`${href}/conflicts`}
-              labelKey="pages.appShell.conflicts"
-              icon={ScaleIcon}
-            />
-          </nav>
-        ) : null}
       </CardContent>
     </Card>
-  );
-}
-
-function AssessmentModuleLink({
-  href,
-  labelKey,
-  icon: Icon,
-}: AssessmentModuleLinkProps) {
-  return (
-    <Link
-      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-      href={href}
-    >
-      <Icon className="size-4" aria-hidden="true" />
-      <span>{resolveMessage(appLocale, labelKey)}</span>
-    </Link>
   );
 }
 

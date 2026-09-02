@@ -1,4 +1,4 @@
-import { TechnicalEvidenceRuntimePage } from "@/features/evidence/components/organisms/technical-evidence-runtime-page";
+import { redirect } from "next/navigation";
 
 export default async function TechnicalEvidencePage({
   params,
@@ -6,5 +6,5 @@ export default async function TechnicalEvidencePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <TechnicalEvidenceRuntimePage assessmentId={id} />;
+  redirect(`/assessments/${encodeURIComponent(id)}`);
 }
