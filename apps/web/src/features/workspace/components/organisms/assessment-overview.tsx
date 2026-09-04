@@ -18,13 +18,19 @@ import {
 import { appLocale } from "@/lib/locale";
 
 import type { AssessmentOverviewProps } from "../../types/assessment-overview.types";
-import { TOOL_ACTIVITY_STATUSES } from "../../types/assessment-chat.types";
-import { AgentTurn } from "../molecules/agent-turn";
+import {
+  ASSESSMENT_CHAT_ROLES,
+  TOOL_ACTIVITY_STATUSES,
+} from "../../types/assessment-chat.types";
+import { AgentMessage, AgentTurn } from "../molecules/agent-turn";
 import {
   AssessmentQuestionTurn,
   type AssessmentQuestionAnswerInput,
 } from "../molecules/assessment-question-turn";
-import { ToolActivityRow } from "../molecules/tool-activity-row";
+import {
+  ToolActivityList,
+  ToolActivityRow,
+} from "../molecules/tool-activity-row";
 import { AssessmentComposer } from "./assessment-composer";
 import { AssessmentTranscript } from "./assessment-transcript";
 import { useWorkspaceRuntime } from "./workspace-runtime-provider";
@@ -37,11 +43,26 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
     useAssessmentInterviewBlockedActionMutation(assessmentId);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [lastSavedMessage, setLastSavedMessage] = useState<string | null>(null);
-  const interviewState: AssessmentInterviewRuntimeState = interviewQuery.data ?? {
-    outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
-  };
+  const interviewState: AssessmentInterviewRuntimeState =
+    interviewQuery.data ?? {
+      outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+    };
   const draft = drafts[assessmentId] ?? interviewState.pendingDraft ?? "";
   const answerHistory = interviewState.answerHistory ?? [];
+  const autoScrollKey = [
+    assessmentId,
+    runtime.latestRunId,
+    runtime.currentRun?.status,
+    runtime.currentRun?.updatedAt,
+    runtime.currentRun?.activeTools
+      .map((tool) => `${tool.toolName}:${tool.status}:${tool.startedAt ?? ""}`)
+      .join("|"),
+    runtime.recentActivity.map((event) => event.eventId).join("|"),
+    interviewQuery.dataUpdatedAt,
+    interviewState.activeQuestion?.id,
+    answerHistory.length,
+    lastSavedMessage,
+  ].join("::");
 
   function persistDraft(value: string) {
     setDrafts((current) => ({ ...current, [assessmentId]: value }));
@@ -102,22 +123,22 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
       data-assessment-id={assessmentId}
       data-surface="workflow-run"
     >
-      <AssessmentTranscript autoScrollKey={assessmentId}>
+      <AssessmentTranscript autoScrollKey={autoScrollKey}>
         <AgentTurn
           content={
-            <>
+            <AgentMessage>
               <p className="font-medium">
                 {t("pages.assessment.workflowRunTitle")}
               </p>
               <p className="mt-1 text-muted-foreground">
                 {t("pages.assessment.workflowRunDescription")}
               </p>
-            </>
+            </AgentMessage>
           }
         />
 
         <AgentTurn>
-          <div className="space-y-2">
+          <ToolActivityList>
             {runtime.currentRun?.activeTools.length ? (
               runtime.currentRun.activeTools.map((tool) => (
                 <ToolActivityRow
@@ -132,17 +153,22 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
                 status={TOOL_ACTIVITY_STATUSES.pending}
               />
             )}
-          </div>
+          </ToolActivityList>
         </AgentTurn>
 
         {runtime.recentActivity.slice(0, 4).map((event) => (
           <AgentTurn key={event.eventId}>
-            <p className="text-sm text-muted-foreground">{event.summary}</p>
+            <AgentMessage className="text-muted-foreground">
+              {event.summary}
+            </AgentMessage>
           </AgentTurn>
         ))}
 
         {answerHistory.map((answer) => (
-          <AgentTurn key={`${answer.questionId}:${answer.answeredAt}`}>
+          <AgentTurn
+            key={`${answer.questionId}:${answer.answeredAt}`}
+            role={ASSESSMENT_CHAT_ROLES.user}
+          >
             <p className="text-sm text-muted-foreground">
               {t("pages.assessment.answerHistoryPrefix")} {answer.summary}
             </p>
@@ -150,31 +176,35 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
         ))}
 
         {interviewState.activeQuestion ? (
-          <AgentTurn>
-            <AssessmentQuestionTurn
-              question={interviewState.activeQuestion}
-              blockedActions={interviewState.blockedActions ?? []}
-              initialDraft={draft}
-              onDraftChange={persistDraft}
-              onSubmitAnswer={handleQuestionAnswer}
-              onBlockedAction={handleBlockedAction}
-            />
-          </AgentTurn>
+          <AgentTurn
+            terminalAction={
+              <AssessmentQuestionTurn
+                question={interviewState.activeQuestion}
+                blockedActions={interviewState.blockedActions ?? []}
+                initialDraft={draft}
+                onDraftChange={persistDraft}
+                onSubmitAnswer={handleQuestionAnswer}
+                onBlockedAction={handleBlockedAction}
+              />
+            }
+          />
         ) : (
           <AgentTurn>
-            <p className="text-sm text-muted-foreground">
+            <AgentMessage className="text-muted-foreground">
               {interviewQuery.isLoading
                 ? t("pages.assessment.loadingInterviewState")
                 : interviewState.orchestrationRequested
                   ? t("pages.assessment.runtimeWaitingForAgent")
                   : t("pages.assessment.noActiveInterviewQuestion")}
-            </p>
+            </AgentMessage>
           </AgentTurn>
         )}
 
         {lastSavedMessage ? (
           <AgentTurn>
-            <p className="text-sm text-muted-foreground">{lastSavedMessage}</p>
+            <AgentMessage className="text-muted-foreground">
+              {lastSavedMessage}
+            </AgentMessage>
           </AgentTurn>
         ) : null}
       </AssessmentTranscript>

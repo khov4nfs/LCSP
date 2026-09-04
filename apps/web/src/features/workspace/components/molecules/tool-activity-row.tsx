@@ -5,6 +5,7 @@ import {
   CircleXIcon,
   LoaderCircleIcon,
 } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,12 @@ type ToolActivityRowProps = {
   label: string;
   detail?: string;
   status: ToolActivityStatus;
+  icon?: ReactNode;
+  className?: string;
+};
+
+type ToolActivityListProps = {
+  children: ReactNode;
   className?: string;
 };
 
@@ -25,18 +32,26 @@ const statusConfig = {
   [TOOL_ACTIVITY_STATUSES.pending]: {
     icon: CircleDashedIcon,
     labelKey: "pages.appShell.chatActivityStatuses.pending",
+    textClassName: "text-muted-foreground",
+    iconClassName: "text-muted-foreground",
   },
   [TOOL_ACTIVITY_STATUSES.running]: {
     icon: LoaderCircleIcon,
     labelKey: "pages.appShell.chatActivityStatuses.running",
+    textClassName: "text-primary",
+    iconClassName: "text-primary",
   },
   [TOOL_ACTIVITY_STATUSES.completed]: {
     icon: CheckCircle2Icon,
     labelKey: "pages.appShell.chatActivityStatuses.completed",
+    textClassName: "text-brand",
+    iconClassName: "text-muted-foreground",
   },
   [TOOL_ACTIVITY_STATUSES.failed]: {
     icon: CircleXIcon,
     labelKey: "pages.appShell.chatActivityStatuses.failed",
+    textClassName: "text-destructive",
+    iconClassName: "text-destructive",
   },
 } as const;
 
@@ -44,6 +59,7 @@ export function ToolActivityRow({
   label,
   detail,
   status,
+  icon,
   className,
 }: ToolActivityRowProps) {
   const config = statusConfig[status];
@@ -53,25 +69,33 @@ export function ToolActivityRow({
     <div
       data-slot="tool-activity-row"
       className={cn(
-        "flex max-w-full min-w-0 items-start gap-2.5 overflow-hidden rounded-lg px-2 py-2 text-sm",
+        "grid min-h-6 max-w-full min-w-0 grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-3 overflow-hidden text-[13px] leading-4.5",
         className,
       )}
     >
-      <Icon
-        aria-hidden="true"
-        className={cn(
-          "mt-0.5 size-4 shrink-0 text-muted-foreground",
-          status === TOOL_ACTIVITY_STATUSES.running &&
-            "animate-spin motion-reduce:animate-none",
+      <span className="flex size-4 items-center justify-center">
+        {icon ?? (
+          <Icon
+            aria-hidden="true"
+            className={cn(
+              "size-4 shrink-0",
+              config.iconClassName,
+              status === TOOL_ACTIVITY_STATUSES.running &&
+                "animate-spin motion-reduce:animate-none",
+            )}
+          />
         )}
-      />
+      </span>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <span className="min-w-0 wrap-break-word font-medium text-foreground">
+        <div className="flex min-w-0 flex-col">
+          <span
+            className={cn(
+              "min-w-0 truncate text-muted-foreground",
+              status === TOOL_ACTIVITY_STATUSES.running &&
+                "font-medium text-foreground",
+            )}
+          >
             {label}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {t(config.labelKey)}
           </span>
         </div>
         {detail ? (
@@ -80,6 +104,23 @@ export function ToolActivityRow({
           </p>
         ) : null}
       </div>
+      <span className={cn("text-right text-[11px]", config.textClassName)}>
+        {t(config.labelKey)}
+      </span>
+    </div>
+  );
+}
+
+export function ToolActivityList({
+  children,
+  className,
+}: ToolActivityListProps) {
+  return (
+    <div
+      data-slot="tool-activity-list"
+      className={cn("grid max-w-full min-w-0 gap-1", className)}
+    >
+      {children}
     </div>
   );
 }
