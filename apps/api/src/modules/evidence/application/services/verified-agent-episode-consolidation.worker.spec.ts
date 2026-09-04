@@ -1,7 +1,7 @@
 import { jest } from "@jest/globals";
 import { VERIFIED_AGENT_EPISODE_RECORD_STATUSES } from "@lcsp/contracts/evidence";
+import { isRecord } from "../../../../common/utils/index.js";
 import { ConfigService } from "@nestjs/config";
-
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { VerifiedAgentEpisodeConsolidationWorker } from "./verified-agent-episode-consolidation.worker.js";
 import type { VerifiedAgentEpisodeDeduplicationService } from "./verified-agent-episode-deduplication.service.js";
@@ -73,10 +73,6 @@ function recordField(
     throw new Error(`Expected ${field} to be an object`);
   }
   return result;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function prisma(result: { count: number }): PrismaService {

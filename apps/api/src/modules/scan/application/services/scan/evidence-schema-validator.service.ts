@@ -6,6 +6,7 @@ import {
 } from "@lcsp/contracts/scan";
 
 import type { ScanCallbackRequest } from "../../contracts/scan/scan-callback.contract.js";
+import { isRecord } from "../../../../../common/utils/index.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
 
 const FORBIDDEN_EVIDENCE_KEYS = new Set([
@@ -97,16 +98,6 @@ export class EvidenceSchemaValidatorService {
       status: HttpStatus.UNPROCESSABLE_ENTITY,
     });
   }
-}
-
-/**
- * Checks whether an unknown value is a non-array object record.
- *
- * @param value - Unknown value to inspect.
- * @returns True when the value is record-like.
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /**

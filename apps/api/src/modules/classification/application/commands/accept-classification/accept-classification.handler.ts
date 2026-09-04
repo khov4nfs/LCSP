@@ -34,6 +34,8 @@ import {
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import type { Prisma } from "@prisma/client";
 
+import { isRecord } from "../../../../../common/utils/index.js";
+
 import {
   toPrismaClassificationGuardrailStatus,
   toPrismaEvidenceAcceptanceStatus,
@@ -397,10 +399,6 @@ function isMachineLimitationArray(value: unknown): boolean {
         typeof item === "string" && ENGINEERING_LIMITATION_CODE_SET.has(item),
     )
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function clean(value: unknown): string | null {

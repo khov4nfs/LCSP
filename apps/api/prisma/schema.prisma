@@ -94,6 +94,7 @@ model AuditEvent {
   @@index([correlationId])
   @@index([actorId, createdAt])
   @@index([eventType, createdAt])
+  @@index([resourceId, eventType, createdAt])
 }
 
 model OutboxMessage {

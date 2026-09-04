@@ -122,6 +122,31 @@ describe("AuditWriterService", () => {
     });
   });
 
+  it("marks free-text value redaction before persisting audit payloads", async () => {
+    const { client, create } = makePrisma();
+    const service = new AuditWriterService(client);
+
+    await service.write(
+      makeEvent({
+        redactionStatus: AUDIT_REDACTION_STATUSES.none,
+        payload: {
+          statementValue: "Customer pasted api_key=super-secret-value",
+        },
+      }),
+    );
+
+    const [{ data }] = create.mock.calls[0] as [
+      { data: Record<string, unknown> },
+    ];
+    expect(data.payload).toMatchObject({
+      schemaVersion: AUDIT_EVENT_SCHEMA_VERSION,
+      actor: { id: "user-1", type: AUDIT_ACTOR_TYPES.user },
+      redactionStatus: AUDIT_REDACTION_STATUSES.redacted,
+      result: AUDIT_DECISIONS.allow,
+      statementValue: "Customer pasted api_key=[REDACTED]",
+    });
+  });
+
   it("T04: write() rejects when the DB write fails, and logs the error", async () => {
     const { client, create } = makePrisma({
       create: jest

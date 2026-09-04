@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import { Readable, Transform, type TransformCallback } from "node:stream";
 
+import { isRecord } from "../../../../common/utils/index.js";
 import {
   GITHUB_ARCHIVE_REDIRECT_VALIDATION_STATUSES,
   GITHUB_CREDENTIAL_ERROR_CODES,
@@ -698,10 +699,6 @@ function projectRepository(value: unknown): GitHubRepositorySummary {
     defaultBranch: value.default_branch,
     private: value.private,
   };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 function isProviderId(value: unknown): value is string | number {

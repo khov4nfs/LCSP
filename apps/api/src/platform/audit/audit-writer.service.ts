@@ -65,10 +65,9 @@ export class AuditWriterService {
   ): Promise<void> {
     const { payload, removedKeys } = AuditSanitizer.sanitize(event.payload);
     const redactionStatus =
-      event.redactionStatus ??
-      (removedKeys.length > 0
+      removedKeys.length > 0
         ? AUDIT_REDACTION_STATUSES.redacted
-        : AUDIT_REDACTION_STATUSES.none);
+        : (event.redactionStatus ?? AUDIT_REDACTION_STATUSES.none);
     const actor = event.actor ?? {
       id: event.actorId,
       type: event.actorId ? AUDIT_ACTOR_TYPES.user : AUDIT_ACTOR_TYPES.system,
@@ -84,7 +83,9 @@ export class AuditWriterService {
     };
 
     for (const key of removedKeys) {
-      this.logger.warn(`Audit payload field removed by sanitizer: ${key}`);
+      this.logger.warn(
+        `Audit payload field redacted, truncated, or removed by sanitizer: ${key}`,
+      );
     }
 
     try {

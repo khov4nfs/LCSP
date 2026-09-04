@@ -5,6 +5,7 @@ import {
   VERIFIED_AGENT_EPISODE_VALIDATION_STATUSES,
 } from "@lcsp/contracts/evidence";
 
+import { isRecord } from "../../../../../common/utils/index.js";
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { RetrieveVerifiedAgentEpisodesHandler } from "./retrieve-verified-agent-episodes.handler.js";
 import { RetrieveVerifiedAgentEpisodesQuery } from "./retrieve-verified-agent-episodes.query.js";
@@ -101,10 +102,6 @@ function firstMockArg(
     throw new Error("Expected Prisma mock to receive an object argument");
   }
   return arg;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function episode(overrides: Partial<ReturnType<typeof baseEpisode>>) {

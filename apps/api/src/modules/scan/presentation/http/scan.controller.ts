@@ -15,6 +15,8 @@ import {
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+
+import { isRecord } from "../../../../common/utils/index.js";
 import {
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
@@ -477,16 +479,6 @@ function parseTargetedReanalysisInput(
     reasonRequirementId,
     idempotencyKey,
   };
-}
-
-/**
- * Checks whether an unknown request value is a non-array object record.
- *
- * @param value - Unknown value to inspect.
- * @returns True when the value is record-like.
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 /**
