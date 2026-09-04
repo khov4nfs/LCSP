@@ -1,304 +1,179 @@
 "use client";
 
-import { resolveMessage } from "@lcsp/i18n";
-import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import {
-  ChevronDownIcon,
-  LogOutIcon,
-  SettingsIcon,
-  ShieldCheckIcon,
-} from "lucide-react";
-import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { Fragment, useEffect, useState } from "react";
-import { toast } from "sonner";
+import { BoxesIcon, PlusIcon } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+
+import { getAssessmentActiveHref } from "@/lib/api/workspace-client";
+import { resolveAppMessage } from "@/lib/i18n";
 
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-} from "@/components/ui/sidebar";
-import { useSignOutMutation } from "@/lib/api/auth-queries";
-import {
-  useAssessmentsQuery,
-  useWorkspaceQuery,
-} from "@/lib/api/workspace-queries";
-import { appLocale } from "@/lib/locale";
-import { settingsNavigationItems } from "@/features/settings/config/settings-navigation";
-import {
-  SETTINGS_SECTION_IDS,
-  type SettingsSectionId,
-} from "@/features/settings/types/settings.types";
-
-import type { AppShellNavigationSection } from "../../types/app-shell.types";
+  DEFAULT_RECENT_FILTERS,
+  SIDEBAR_NAV_ITEM_VARIANTS,
+  SIDEBAR_RECENT_LOAD_STATES,
+  type RecentFilterKey,
+  type RecentFilters,
+  type SidebarRecentLoadState,
+} from "../../types/recent-filter.types";
 import type { AssessmentSummary } from "../../types/workspace.types";
-import { useWorkspaceRuntime } from "./workspace-runtime-provider";
-import { AssessmentRuntimeSidebarPanel } from "./assessment-runtime-sidebar-panel";
-import { SidebarAssessmentList } from "../molecules/sidebar-assessment-list";
-import { WorkspaceSwitcher } from "../molecules/workspace-switcher";
+import { getVisibleRecentAssessments } from "../../utils/recent-filter-utils";
+import { RecentAssessmentItem } from "../molecules/recent-assessment-item";
+import { RecentEmptyMessage } from "../molecules/recent-empty-message";
+import { RecentFilterPopover } from "../molecules/recent-filter-popover";
+import { SidebarAccountMount } from "../molecules/sidebar-account-mount";
+import { SidebarHeaderControls } from "../molecules/sidebar-header-controls";
+import { SidebarNavItem } from "../molecules/sidebar-nav-item";
+
+export { SIDEBAR_RECENT_LOAD_STATES } from "../../types/recent-filter.types";
+
+type AppSidebarProps = {
+  assessments: AssessmentSummary[];
+  onNavigate?: () => void;
+  onBack: () => void;
+  onForward: () => void;
+  onSignOut: () => void;
+  onSearch: () => void;
+  onToggleCollapse: () => void;
+  pathname: string;
+  recentLoadState?: SidebarRecentLoadState;
+  signOutPending: boolean;
+  userName?: string;
+  accountControl?: ReactNode;
+};
 
 export function AppSidebar({
-  sections,
-}: {
-  sections: AppShellNavigationSection[];
-}) {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [currentHash, setCurrentHash] = useState("");
-  const signOutMutation = useSignOutMutation();
-  const workspaceQuery = useWorkspaceQuery();
-  const assessmentsQuery = useAssessmentsQuery();
-  const workspace =
-    workspaceQuery.data?.kind === "loaded"
-      ? workspaceQuery.data.workspace
-      : undefined;
-  const assessments =
-    assessmentsQuery.data?.kind === "loaded"
-      ? assessmentsQuery.data.assessments
-      : undefined;
-  const isSettingsRoute = pathname === "/workspace/settings";
-  const requestedSettingsSection = searchParams.get("section");
-  const activeSettingsSection = isSettingsSectionId(requestedSettingsSection)
-    ? requestedSettingsSection
-    : SETTINGS_SECTION_IDS.passwordAndAuthentication;
-  const [settingsOpenOverride, setSettingsOpenOverride] = useState<
-    boolean | null
-  >(null);
-  const settingsOpen = settingsOpenOverride ?? isSettingsRoute;
-  const runtime = useWorkspaceRuntime();
+  accountControl,
+  assessments,
+  onBack,
+  onForward,
+  onNavigate,
+  onSignOut,
+  onSearch,
+  onToggleCollapse,
+  pathname,
+  recentLoadState = SIDEBAR_RECENT_LOAD_STATES.idle,
+  signOutPending,
+  userName,
+}: AppSidebarProps) {
+  const [filters, setFilters] = useState<RecentFilters>(DEFAULT_RECENT_FILTERS);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const resolvedUserName =
+    userName?.trim() || resolveAppMessage("pages.appShell.productName");
+  const userInitial = resolvedUserName.slice(0, 1).toUpperCase();
+  const recentAssessments = useMemo(
+    () => getVisibleRecentAssessments(assessments, filters),
+    [assessments, filters],
+  );
+  const newActive = pathname === "/assessments/new";
 
-  async function handleSignOut() {
-    await signOutMutation.mutateAsync();
-    window.location.assign("/sign-in");
+  function updateFilter<Value extends string>(
+    key: RecentFilterKey,
+    value: Value,
+  ) {
+    setFilters((current) => ({
+      ...current,
+      [key]: value,
+    }));
   }
 
-  useEffect(() => {
-    function syncHash() {
-      setCurrentHash(window.location.hash);
-    }
-
-    syncHash();
-    window.addEventListener("hashchange", syncHash);
-    window.addEventListener("popstate", syncHash);
-
-    return () => {
-      window.removeEventListener("hashchange", syncHash);
-      window.removeEventListener("popstate", syncHash);
-    };
-  }, []);
+  function navigateTo(href: string) {
+    onNavigate?.();
+    window.location.assign(href);
+  }
 
   return (
-    <Sidebar
-      collapsible="offcanvas"
-      variant="inset"
-      mobileTitle={t("pages.appShell.mobileTitle")}
-      mobileDescription={t("pages.appShell.mobileDescription")}
+    <nav
+      aria-label={resolveAppMessage("pages.appShell.workspaceNavigation")}
+      className="flex min-h-0 w-full flex-col bg-sidebar text-sidebar-foreground"
+      data-component="AppSidebar"
     >
-      <SidebarHeader className="border-b border-sidebar-border/70">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              render={<Link href="/workspace" />}
-              tooltip={t("pages.appShell.productName")}
-            >
-              <span className="flex size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-                <ShieldCheckIcon className="size-4" />
-              </span>
-              <span className="grid flex-1 text-left leading-tight">
-                <span className="truncate font-semibold">
-                  {t("pages.appShell.productName")}
-                </span>
-                <span className="truncate text-xs text-sidebar-foreground/65">
-                  {t("pages.appShell.productTagline")}
-                </span>
-              </span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-        {workspace && workspace.user.role !== AUTH_USER_ROLES.customer ? (
-          <div className="px-2 pb-2">
-            <p className="mb-1 px-2 text-xs font-semibold tracking-widest text-sidebar-foreground/55 uppercase">
-              {t("pages.appShell.currentWorkspace")}
-            </p>
-            <WorkspaceSwitcher placement="sidebar" />
-          </div>
-        ) : null}
-      </SidebarHeader>
+      <SidebarHeaderControls
+        onBack={onBack}
+        onForward={onForward}
+        onSearch={onSearch}
+        onToggleCollapse={onToggleCollapse}
+      />
 
-      <SidebarContent>
-        {sections.map((section, index) => (
-          <Fragment key={section.label}>
-            <SidebarGroup>
-              <SidebarGroupLabel>
-                {resolveSectionLabel(section, assessments)}
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {section.items.map((item) => {
-                    const Icon = item.icon;
-                    const [itemPath, itemHash = ""] = item.href.split("#");
-                    const active = itemHash
-                      ? pathname === itemPath && currentHash === `#${itemHash}`
-                      : item.exact
-                        ? pathname === itemPath && currentHash === ""
-                        : pathname.startsWith(itemPath);
+      <div className="shrink-0 px-2.5 pt-2">
+        <SidebarNavItem
+          active={newActive}
+          href="/assessments/new"
+          icon={
+            <span className="flex size-4.5 items-center justify-center rounded-[10px] border border-sidebar-border">
+              <PlusIcon className="size-3" />
+            </span>
+          }
+          label={resolveAppMessage("pages.appShell.new")}
+          onNavigate={onNavigate}
+          variant={SIDEBAR_NAV_ITEM_VARIANTS.new}
+        />
+        <SidebarNavItem
+          ariaLabel={resolveAppMessage("pages.appShell.artifactsUnavailable")}
+          className="mt-3"
+          disabled
+          icon={<BoxesIcon className="size-4" />}
+          label={resolveAppMessage("pages.appShell.artifacts")}
+          tooltip={resolveAppMessage("pages.appShell.artifactsUnavailable")}
+          variant={SIDEBAR_NAV_ITEM_VARIANTS.nav}
+        />
+      </div>
 
-                    return (
-                      <SidebarMenuItem key={item.href}>
-                        <SidebarMenuButton
-                          isActive={active}
-                          render={<Link href={item.href} />}
-                          tooltip={item.disabledReason ?? item.label}
-                          onClick={(event) => {
-                            if (!item.disabled) return;
-                            event.preventDefault();
-                            toast.error(item.disabledReason);
-                          }}
-                          className={
-                            item.disabled
-                              ? "cursor-not-allowed opacity-55"
-                              : undefined
-                          }
-                        >
-                          <Icon />
-                          <span>{item.label}</span>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-                {section.kind === "assessment" && section.assessmentId ? (
-                  <AssessmentRuntimeSidebarPanel
-                    assessmentId={section.assessmentId}
-                    timeline={{
-                      ...runtime.getAssessmentRuntime(section.assessmentId),
-                      connectionState: runtime.connectionState,
-                    }}
-                  />
-                ) : null}
-              </SidebarGroupContent>
-            </SidebarGroup>
-            {index === 0 ? <SidebarAssessmentList /> : null}
-          </Fragment>
-        ))}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <Collapsible
-                open={settingsOpen}
-                onOpenChange={setSettingsOpenOverride}
-              >
-                <SidebarMenuItem>
-                  <CollapsibleTrigger
-                    render={
-                      <SidebarMenuButton
-                        isActive={isSettingsRoute}
-                        tooltip={t("pages.appShell.settings")}
-                      />
-                    }
-                  >
-                    <SettingsIcon />
-                    <span>{t("pages.appShell.settings")}</span>
-                    <ChevronDownIcon
-                      className={`ml-auto size-4 transition-transform ${
-                        settingsOpen ? "rotate-180" : ""
-                      }`}
-                    />
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <SidebarMenuSub>
-                      {settingsNavigationItems.map((item) => (
-                        <SidebarMenuSubItem key={item.id}>
-                          <SidebarMenuSubButton
-                            isActive={activeSettingsSection === item.id}
-                            render={
-                              <Link
-                                href={`/workspace/settings?section=${item.id}`}
-                              />
-                            }
-                          >
-                            <span>
-                              {resolveMessage(appLocale, item.labelKey)}
-                            </span>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                </SidebarMenuItem>
-              </Collapsible>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-
-      <SidebarFooter className="border-t border-sidebar-border/70">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              type="button"
-              onClick={() => void handleSignOut()}
-              disabled={signOutMutation.isPending}
-              tooltip={t("pages.appShell.signOut")}
-              className="cursor-pointer"
-            >
-              <LogOutIcon className="text-destructive" />
-              <span className="text-destructive">
-                {t("pages.appShell.signOut")}
-              </span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-        <div className="flex items-center gap-2 px-2 py-1 text-xs text-sidebar-foreground/65">
-          <ShieldCheckIcon className="size-4 text-sidebar-primary" />
-          <span>{t("pages.appShell.secureWorkspace")}</span>
+      <section className="mt-3.5 min-h-0 flex-1 overflow-y-auto px-2.5 pb-12">
+        <div className="flex h-7 items-center">
+          <h2 className="ml-2 flex-1 text-[13px] leading-none font-medium text-sidebar-foreground/60">
+            {resolveAppMessage("pages.appShell.recents")}
+          </h2>
+          <RecentFilterPopover
+            filters={filters}
+            onOpenChange={setFilterOpen}
+            onUpdateFilter={updateFilter}
+            open={filterOpen}
+          />
         </div>
-      </SidebarFooter>
-    </Sidebar>
-  );
-}
 
-function t(key: string) {
-  return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
-}
+        {recentLoadState === SIDEBAR_RECENT_LOAD_STATES.loading ? (
+          <RecentEmptyMessage
+            open={filterOpen}
+            text={resolveAppMessage("pages.appShell.recentFilter.loading")}
+          />
+        ) : recentLoadState === SIDEBAR_RECENT_LOAD_STATES.error ? (
+          <RecentEmptyMessage
+            open={filterOpen}
+            text={resolveAppMessage("pages.appShell.recentFilter.error")}
+          />
+        ) : recentAssessments.length > 0 ? (
+          <div className="mt-4 flex flex-col gap-1">
+            {recentAssessments.map((assessment) => (
+              <RecentAssessmentItem
+                key={assessment.id}
+                active={pathname === getAssessmentActiveHref(assessment)}
+                assessment={assessment}
+                onNavigate={onNavigate}
+                suppressHover={filterOpen}
+              />
+            ))}
+          </div>
+        ) : (
+          <RecentEmptyMessage
+            open={filterOpen}
+            text={resolveAppMessage("pages.appShell.recentFilter.empty")}
+          />
+        )}
+      </section>
 
-function resolveSectionLabel(
-  section: AppShellNavigationSection,
-  assessments?: AssessmentSummary[],
-) {
-  if (section.kind !== "assessment") {
-    return section.label;
-  }
-
-  if (!section.assessmentId) {
-    return t("pages.appShell.chooseAssessmentToView");
-  }
-
-  return (
-    assessments?.find((assessment) => assessment.id === section.assessmentId)
-      ?.name ?? section.label
-  );
-}
-
-function isSettingsSectionId(value: string | null): value is SettingsSectionId {
-  return (
-    value !== null &&
-    (Object.values(SETTINGS_SECTION_IDS) as string[]).includes(value)
+      <div
+        className="mt-auto shrink-0 px-2.5 pb-2.5"
+        data-lcsp268-account-mount="true"
+      >
+        {accountControl ?? (
+          <SidebarAccountMount
+            navigateTo={navigateTo}
+            onSignOut={onSignOut}
+            signOutPending={signOutPending}
+            userInitial={userInitial}
+            userName={resolvedUserName}
+          />
+        )}
+      </div>
+    </nav>
   );
 }

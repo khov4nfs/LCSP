@@ -74,7 +74,41 @@ export type PagesMessages = {
     moreAssessments: string;
     allAssessments: string;
     searchAssessments: string;
+    back: string;
+    forward: string;
     noAssessmentMatches: string;
+    recentFilter: {
+      trigger: string;
+      empty: string;
+      loading: string;
+      error: string;
+      labels: {
+        type: string;
+        status: string;
+        lastActivity: string;
+        groupBy: string;
+        sortBy: string;
+      };
+      options: {
+        all: string;
+        active: string;
+        archived: string;
+        chat: string;
+        task: string;
+        oneDay: string;
+        threeDays: string;
+        sevenDays: string;
+        thirtyDays: string;
+        date: string;
+        unread: string;
+        state: string;
+        customGroups: string;
+        none: string;
+        name: string;
+        dateCreated: string;
+        lastActivity: string;
+      };
+    };
     settings: string;
     readiness: string;
     technicalEvidence: string;
@@ -727,6 +761,17 @@ export type PagesMessages = {
         description: string;
         shellTitle: string;
         shellDescription: string;
+        themeControlLabel: string;
+        themeOptions: {
+          light: string;
+          dark: string;
+          system: string;
+        };
+        resolvedThemeLabel: string;
+        resolvedThemeOptions: {
+          light: string;
+          dark: string;
+        };
       };
       notifications: {
         title: string;

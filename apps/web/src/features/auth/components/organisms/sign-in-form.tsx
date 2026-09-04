@@ -150,7 +150,7 @@ export function SignInForm() {
           <AuthNote className="-mt-0.5">
             {resolveMessage(appLocale, "pages.signIn.accessHelp")}
           </AuthNote>
-          <p className="mt-2 text-center text-[11px] leading-4 text-[#7a7a74]">
+          <p className="mt-2 text-center text-[11px] leading-4 text-muted-foreground">
             {resolveMessage(appLocale, "pages.signIn.newToLcsp")}{" "}
             <AuthInlineLink href={API_REDIRECT_LOCATIONS.signUp}>
               {resolveMessage(appLocale, "pages.signIn.createAccount")}

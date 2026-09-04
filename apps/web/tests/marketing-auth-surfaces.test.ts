@@ -136,7 +136,7 @@ test("auth uses the Figma centered surface instead of the old split visual", asy
   const shellSource = await readFile(authShell, "utf8");
   const primitiveSource = await readFile(authPrimitives, "utf8");
 
-  assert.match(shellSource, /bg-\[#f7f7f5\]/);
+  assert.match(shellSource, /bg-background text-foreground/);
   assert.match(shellSource, /backToWebsite/);
   assert.match(shellSource, /href="\/"/);
   assert.doesNotMatch(
@@ -146,6 +146,7 @@ test("auth uses the Figma centered surface instead of the old split visual", asy
   assert.match(primitiveSource, /max-w-\[360px\]/);
   assert.match(primitiveSource, /h-10 rounded-lg/);
   assert.match(primitiveSource, /h-9 w-full/);
+  assert.match(primitiveSource, /text-muted-foreground/);
   assert.doesNotMatch(shellSource, /FormCard/);
 });
 
