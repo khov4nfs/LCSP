@@ -1,5 +1,27 @@
-const SAFE_CODE_KEYS = new Set(["reason_code", "reasonCode"]);
+import { isRecord } from "../../common/utils/index.js";
+
+const SAFE_CODE_KEYS = new Set([
+  "reason_code",
+  "reasonCode",
+  "statement_key",
+  "statementKey",
+  "claim_key",
+  "claimKey",
+  "idempotency_key",
+  "idempotencyKey",
+]);
 const SENSITIVE_KEY_PATTERN = /password|token|secret|key|nonce|code|hash/i;
+const MAX_AUDIT_STRING_LENGTH = 4096;
+const REDACTED_VALUE = "[REDACTED]";
+const TRUNCATED_VALUE = "...[TRUNCATED]";
+const SENSITIVE_VALUE_PATTERNS = [
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/gi,
+  /\bBearer\s+[A-Za-z0-9._~+/=-]+/gi,
+  /\bAKIA[0-9A-Z]{16}\b/g,
+  /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
+  /((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis):\/\/[^:\s/@]+:)[^@\s/]+@/gi,
+  /((?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*)[^\s,;]+/gi,
+] as const;
 
 export interface SanitizeResult {
   payload: Record<string, unknown> | undefined;
@@ -70,23 +92,29 @@ function sanitizeValue(
   path: string,
   removedKeys: string[],
 ): unknown {
+  if (typeof value === "string") {
+    let sanitized = value;
+    for (const pattern of SENSITIVE_VALUE_PATTERNS) {
+      pattern.lastIndex = 0;
+      sanitized = sanitized.replace(pattern, (match, prefix?: string) =>
+        typeof prefix === "string" && prefix.length > 0
+          ? `${prefix}${REDACTED_VALUE}${match.endsWith("@") ? "@" : ""}`
+          : REDACTED_VALUE,
+      );
+    }
+    if (sanitized.length > MAX_AUDIT_STRING_LENGTH) {
+      sanitized = `${sanitized.slice(0, MAX_AUDIT_STRING_LENGTH)}${TRUNCATED_VALUE}`;
+    }
+    if (sanitized !== value) {
+      removedKeys.push(path);
+    }
+    return sanitized;
+  }
   if (Array.isArray(value)) {
     const items: unknown[] = value;
     return items.map((item, index) =>
-      isRecord(item)
-        ? sanitizeRecord(item, `${path}[${index}]`, removedKeys)
-        : item,
+      sanitizeValue(item, `${path}[${index}]`, removedKeys),
     );
   }
   return isRecord(value) ? sanitizeRecord(value, path, removedKeys) : value;
-}
-
-/**
- * Determines whether a value is a non-array object that can be sanitized as a record.
- *
- * @param value - Value to inspect.
- * @returns True when the value is a record-like object.
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

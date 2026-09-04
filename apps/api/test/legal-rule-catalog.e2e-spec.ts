@@ -45,6 +45,11 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
     await app.init();
   });
 
+  afterAll(async () => {
+    await app.close();
+    await prisma.$disconnect();
+  });
+
   beforeEach(async () => {
     await prisma.outboxMessage.deleteMany();
     await prisma.legalRetrievalIndex.deleteMany();

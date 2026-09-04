@@ -28,6 +28,8 @@ import {
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { Prisma } from "@prisma/client";
 
+import { isRecord } from "../../../../../common/utils/index.js";
+
 import {
   toPrismaAuditResourceType,
   toPrismaAuthDecision,
@@ -336,10 +338,6 @@ function isConflictType(value: unknown): value is ConflictType {
 
 function isValidScore(value: number): boolean {
   return value >= 0 && value <= 1;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function clean(value: unknown): string | null {

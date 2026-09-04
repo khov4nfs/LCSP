@@ -5,10 +5,15 @@ import {
 import {
   AUDIT_ACTOR_TYPES,
   AUDIT_REDACTION_STATUSES,
+  INTERVIEW_TECHNICAL_COVERAGE_STATES,
+  type InterviewAuditActorRef,
+  type InterviewSourceSnapshotRef,
+  type InterviewTechnicalCoverageState,
 } from "@lcsp/contracts/audit";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   ASSESSMENT_CONTEXT_AUTHORITY_STATUSES,
+  ASSESSMENT_INTERVIEW_ANSWER_ACTIONS,
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
@@ -37,6 +42,7 @@ import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.
 import { problemException } from "../../../../platform/problems/problem-factory.js";
 import { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
+import { InterviewAuditService } from "../../../audit/application/services/interview-audit.service.js";
 
 const INTERVIEW_TOOL_NAME = "assessment_interview";
 const INTERVIEW_SOURCE_VERSION = "assessment-interview-runtime-v1";
@@ -138,6 +144,7 @@ export class AssessmentInterviewRuntimeService {
     private readonly prisma: PrismaService,
     private readonly runtimeEvents: AssessmentRuntimeEventService,
     private readonly outboxRepository: OutboxRepository,
+    private readonly interviewAudit: InterviewAuditService,
   ) {}
 
   async getState(
@@ -262,6 +269,72 @@ export class AssessmentInterviewRuntimeService {
         }),
         tx,
       );
+
+      const sourceSnapshot: InterviewSourceSnapshotRef = {
+        snapshotId: provenance.snapshotId,
+        commitSha: provenance.commitSha,
+        sourceVersion: provenance.sourceVersion,
+        pgeVersion: provenance.pgeVersion,
+        technicalCoverageState: provenance.technicalCoverageState,
+        coverageLimitations: provenance.coverageLimitations,
+      };
+      const responseMode = thread.state.activeQuestion.control;
+      const responseAction = answer.confirmed
+        ? ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.confirm
+        : answer.adjusted
+          ? ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.adjust
+          : undefined;
+      const answerValue =
+        answer.freeText ??
+        answer.otherText ??
+        answer.selectedChoiceIds ??
+        (answer.confirmed ? true : answer.adjusted ? false : null);
+
+      const respondentRef: InterviewAuditActorRef = {
+        id: input.actor.userId,
+        role: input.actor.role,
+        authenticated: true as const,
+      };
+
+      await this.interviewAudit.recordCustomerAnswer(
+        {
+          assessmentId: input.assessmentId,
+          respondentRef,
+          questionId: answer.questionId,
+          questionIntent: thread.state.activeQuestion.intent,
+          responseMode,
+          responseAction,
+          answerValue,
+          interviewContextRevision: String(nextRevision),
+          sessionId: this.threadId(input.assessmentId),
+          threadId: this.threadId(input.assessmentId),
+          turnId: nextRevision,
+          sourceSnapshot,
+          evidenceRefs: provenance.governedEvidenceRefs,
+          correlationId: input.correlationId,
+        },
+        tx,
+      );
+
+      await this.interviewAudit.recordContextRevisionCreated(
+        {
+          assessmentId: input.assessmentId,
+          respondentRef,
+          contextRevision: nextRevision,
+          priorRevision,
+          authority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
+          statementKey: answer.questionId,
+          statementValue: answerValue,
+          sessionId: this.threadId(input.assessmentId),
+          threadId: this.threadId(input.assessmentId),
+          turnId: nextRevision,
+          sourceSnapshot,
+          governedEvidenceRefs: provenance.governedEvidenceRefs,
+          correlationId: input.correlationId,
+        },
+        tx,
+      );
+
       return {
         state: nextState,
         revision: nextRevision,
@@ -285,6 +358,7 @@ export class AssessmentInterviewRuntimeService {
       waitingReason: INTERVIEW_AGENT_DECISION_REQUIRED,
       startedAt: new Date(),
     });
+
     return next.state;
   }
 
@@ -351,6 +425,26 @@ export class AssessmentInterviewRuntimeService {
           tx,
         );
       }
+
+      const respondentRef: InterviewAuditActorRef = {
+        id: input.actor.userId,
+        role: input.actor.role,
+        authenticated: true as const,
+      };
+      await this.interviewAudit.recordInterviewOutcome(
+        {
+          assessmentId: input.assessmentId,
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved,
+          respondentRef,
+          summary: `Customer chose blocked action: ${blocked.action}`,
+          contextRevision: current.contextRevision,
+          sessionId: this.threadId(input.assessmentId),
+          threadId: this.threadId(input.assessmentId),
+          correlationId: input.correlationId,
+        },
+        tx,
+      );
+
       return nextState;
     });
 
@@ -374,6 +468,7 @@ export class AssessmentInterviewRuntimeService {
       waitingReason: blocked.action,
       startedAt: now,
     });
+
     return result;
   }
 
@@ -429,7 +524,7 @@ export class AssessmentInterviewRuntimeService {
     target: TargetedNeedRegistrationInput;
   }): Promise<AssessmentInterviewRuntimeState> {
     const target = parseTargetedNeedRegistration(input.target);
-    return this.prisma.$transaction(async (tx) => {
+    const targetResult = await this.prisma.$transaction(async (tx) => {
       const thread = await this.readThread(input.assessmentId, tx);
       if (thread.state.outcome !== ASSESSMENT_INTERVIEW_OUTCOMES.contextReady) {
         throw problemException(
@@ -506,8 +601,33 @@ export class AssessmentInterviewRuntimeService {
         }),
         tx,
       );
+      await this.interviewAudit.recordTargetedClarification(
+        {
+          assessmentId: input.assessmentId,
+          originatingInvestigationReference:
+            target.originatingInvestigationReference,
+          interviewContextRevision: String(thread.contextRevision ?? 0),
+          sessionId: this.threadId(input.assessmentId),
+          threadId: this.threadId(input.assessmentId),
+          runId: target.workflowRunId,
+          stage: "TARGETED_INTERVIEW",
+          sourceSnapshot: {
+            snapshotId: provenance.snapshotId,
+            commitSha: provenance.commitSha,
+            sourceVersion: thread.sourceVersion ?? undefined,
+            pgeVersion: thread.pgeVersion ?? undefined,
+            technicalCoverageState: provenance.technicalCoverageState,
+            coverageLimitations: provenance.coverageLimitations,
+          },
+          correlationId: input.correlationId,
+        },
+        tx,
+      );
+
       return nextState;
     });
+
+    return targetResult;
   }
 
   async getWorkerStateForWorker(
@@ -612,6 +732,70 @@ export class AssessmentInterviewRuntimeService {
           { status: HttpStatus.CONFLICT },
         );
       }
+
+      await this.interviewAudit.recordInterviewOutcome(
+        {
+          assessmentId: input.assessmentId,
+          outcome: state.outcome,
+          activeQuestionId: state.activeQuestion?.id,
+          contextRevision: decision.expectedContextRevision,
+          sessionId: this.threadId(input.assessmentId),
+          threadId: this.threadId(input.assessmentId),
+          correlationId: input.correlationId,
+        },
+        tx,
+      );
+
+      if (state.activeQuestion) {
+        await this.interviewAudit.recordQuestionPersisted(
+          {
+            assessmentId: input.assessmentId,
+            questionId: state.activeQuestion.id,
+            questionIntent: state.activeQuestion.intent,
+            prompt: state.activeQuestion.prompt,
+            control: state.activeQuestion.control,
+            choices: state.activeQuestion.choices,
+            whyEvidenceRefs: state.activeQuestion.whyEvidenceRefs,
+            sessionId: this.threadId(input.assessmentId),
+            threadId: this.threadId(input.assessmentId),
+            turnId: decision.expectedContextRevision,
+            sourceSnapshot: {
+              snapshotId: authoritative.snapshotId,
+              commitSha: authoritative.commitSha,
+              sourceVersion: authoritative.sourceVersion,
+              pgeVersion: authoritative.pgeVersion,
+              technicalCoverageState: authoritative.technicalCoverageState,
+              coverageLimitations: authoritative.coverageLimitations,
+            },
+            correlationId: input.correlationId,
+          },
+          tx,
+        );
+      }
+
+      if (decision.flags?.includes("DOWNSTREAM_IMPACT")) {
+        await this.interviewAudit.recordDownstreamImpact(
+          {
+            assessmentId: input.assessmentId,
+            interviewContextRevision: String(decision.expectedContextRevision),
+            summary: "Context changes impact downstream evaluation.",
+            sessionId: this.threadId(input.assessmentId),
+            threadId: this.threadId(input.assessmentId),
+            runId: `run:${input.assessmentId}:${decision.expectedContextRevision}`,
+            sourceSnapshot: {
+              snapshotId: authoritative.snapshotId,
+              commitSha: authoritative.commitSha,
+              sourceVersion: authoritative.sourceVersion,
+              pgeVersion: authoritative.pgeVersion,
+              technicalCoverageState: authoritative.technicalCoverageState,
+              coverageLimitations: authoritative.coverageLimitations,
+            },
+            correlationId: input.correlationId,
+          },
+          tx,
+        );
+      }
+
       return {
         state,
         continuation:
@@ -638,6 +822,7 @@ export class AssessmentInterviewRuntimeService {
           : null,
       startedAt: new Date(),
     });
+
     return result.continuation
       ? { ...result.state, continuation: result.continuation }
       : result.state;
@@ -663,21 +848,56 @@ export class AssessmentInterviewRuntimeService {
       );
     }
     const activeQuestionId = state.activeQuestion.id;
-    const provenance = await this.assessmentProvenance(input.assessmentId);
-    const nextState: AssessmentInterviewRuntimeState = {
-      ...state,
-      threadId: this.threadId(input.assessmentId),
-      contextRevision: state.contextRevision ?? 0,
-      orchestrationRequested: false,
-    };
-    await this.persistThreadState(input.assessmentId, nextState, undefined, {
-      contextRevision: nextState.contextRevision ?? 0,
-      activeQuestionId,
-      processedRevision: 0,
-      privateStore: { revisions: [] },
-      sourceVersion: provenance.sourceVersion,
-      pgeVersion: provenance.pgeVersion,
+    const nextState = await this.prisma.$transaction(async (tx) => {
+      const provenance = await this.assessmentProvenance(
+        input.assessmentId,
+        tx,
+      );
+      const computedState: AssessmentInterviewRuntimeState = {
+        ...state,
+        threadId: this.threadId(input.assessmentId),
+        contextRevision: state.contextRevision ?? 0,
+        orchestrationRequested: false,
+      };
+      await this.persistThreadState(input.assessmentId, computedState, tx, {
+        contextRevision: computedState.contextRevision ?? 0,
+        activeQuestionId,
+        processedRevision: 0,
+        privateStore: { revisions: [] },
+        sourceVersion: provenance.sourceVersion,
+        pgeVersion: provenance.pgeVersion,
+      });
+
+      if (state.activeQuestion) {
+        await this.interviewAudit.recordQuestionPersisted(
+          {
+            assessmentId: input.assessmentId,
+            questionId: activeQuestionId,
+            questionIntent: state.activeQuestion.intent,
+            prompt: state.activeQuestion.prompt,
+            control: state.activeQuestion.control,
+            choices: state.activeQuestion.choices,
+            whyEvidenceRefs: state.activeQuestion.whyEvidenceRefs,
+            sessionId: this.threadId(input.assessmentId),
+            threadId: this.threadId(input.assessmentId),
+            turnId: 0,
+            sourceSnapshot: {
+              snapshotId: provenance.snapshotId,
+              commitSha: provenance.commitSha,
+              sourceVersion: provenance.sourceVersion,
+              pgeVersion: provenance.pgeVersion,
+              technicalCoverageState: provenance.technicalCoverageState,
+              coverageLimitations: provenance.coverageLimitations,
+            },
+            correlationId: input.correlationId,
+          },
+          tx,
+        );
+      }
+
+      return computedState;
     });
+
     await this.runtimeEvents.recordToolWaitingInput({
       assessmentId: input.assessmentId,
       runId: this.threadId(input.assessmentId),
@@ -689,6 +909,7 @@ export class AssessmentInterviewRuntimeService {
       waitingReason: "WAITING_FOR_CUSTOMER",
       startedAt: new Date(),
     });
+
     return nextState;
   }
 
@@ -875,6 +1096,10 @@ export class AssessmentInterviewRuntimeService {
   ): Promise<{
     sourceVersion: string;
     pgeVersion: string;
+    snapshotId?: string;
+    commitSha?: string;
+    technicalCoverageState: InterviewTechnicalCoverageState;
+    coverageLimitations: string[];
     governedEvidenceRefs: string[];
   }> {
     const client = tx ?? this.prisma;
@@ -887,16 +1112,41 @@ export class AssessmentInterviewRuntimeService {
       client.technicalEvidenceReport.findFirst({
         where: { assessmentId },
         orderBy: { createdAt: "desc" },
-        select: { id: true, schemaVersion: true },
+        select: { id: true, schemaVersion: true, evidencePayload: true },
       }),
     ]);
+    const evidencePayload = objectRecord(report?.evidencePayload);
+    const technicalCoverageState: InterviewTechnicalCoverageState =
+      readTechnicalCoverageState(
+        evidencePayload?.technicalCoverageState ??
+          evidencePayload?.coverageState,
+      ) ??
+      (report
+        ? INTERVIEW_TECHNICAL_COVERAGE_STATES.ready
+        : INTERVIEW_TECHNICAL_COVERAGE_STATES.unavailable);
+    const coverageLimitations = Array.isArray(
+      evidencePayload?.coverageLimitations,
+    )
+      ? evidencePayload.coverageLimitations.filter(
+          (item): item is string => typeof item === "string",
+        )
+      : Array.isArray(evidencePayload?.limitations)
+        ? evidencePayload.limitations.filter(
+            (item): item is string => typeof item === "string",
+          )
+        : [];
+
     return {
+      snapshotId: snapshot?.id,
+      commitSha: snapshot?.commitSha,
       sourceVersion: snapshot
         ? `${snapshot.id}:${snapshot.commitSha}`
         : MISSING_SOURCE_VERSION,
       pgeVersion: report
         ? `${report.id}:${report.schemaVersion}`
         : MISSING_PGE_VERSION,
+      technicalCoverageState,
+      coverageLimitations,
       governedEvidenceRefs: [
         ...(snapshot ? [`repositorySnapshot:${snapshot.id}`] : []),
         ...(report ? [`technicalEvidenceReport:${report.id}`] : []),
@@ -1460,4 +1710,18 @@ function objectRecord(value: unknown): Record<string, unknown> | null {
 
 function toJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
+}
+
+function readTechnicalCoverageState(
+  value: unknown,
+): InterviewTechnicalCoverageState | undefined {
+  if (
+    typeof value === "string" &&
+    Object.values(INTERVIEW_TECHNICAL_COVERAGE_STATES).includes(
+      value as InterviewTechnicalCoverageState,
+    )
+  ) {
+    return value as InterviewTechnicalCoverageState;
+  }
+  return undefined;
 }
