@@ -15,6 +15,7 @@
 - Keep feature-specific composition in `apps/web/src/features/<feature>/components/{molecules,organisms}`. Do not place feature components directly under `features/<feature>/molecules` or `features/<feature>/organisms`.
 - Put schemas, types, and static configuration in sibling `schemas/`, `types/`, and `config/` directories, never inline in a component.
 - All customer-facing copy, including labels, helper text, validation messages, alerts, metadata, and accessible labels, must be represented by keys and resolved from `@lcsp/i18n`; never hardcode display strings in `apps/web`.
+- Do not add HTML `title` attributes for hover hints or truncated text. Use the existing shadcn `Tooltip`, `TooltipTrigger`, and `TooltipContent` primitives while preserving semantic labels with visible text or `aria-label`.
 
 ## Frontend form architecture
 

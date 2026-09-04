@@ -121,7 +121,7 @@ export function SignUpForm() {
             )}
           </AuthPrimaryButton>
         </form>
-        <p className="mt-[18px] text-center text-[11px] leading-4 text-[#7a7a74]">
+        <p className="mt-[18px] text-center text-[11px] leading-4 text-muted-foreground">
           {resolveMessage(appLocale, "pages.signUp.alreadyHaveAccount")}{" "}
           <AuthInlineLink href={API_REDIRECT_LOCATIONS.signIn}>
             {resolveMessage(appLocale, "pages.signUp.signInInstead")}

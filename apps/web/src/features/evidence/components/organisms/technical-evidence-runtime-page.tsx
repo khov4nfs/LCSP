@@ -82,8 +82,8 @@ function SemanticSummary({
     <p
       className={
         expanded
-          ? "mt-0.5 font-mono text-xs leading-relaxed text-zinc-500"
-          : "mt-0.5 truncate font-mono text-xs text-zinc-400"
+          ? "mt-0.5 font-mono text-xs leading-relaxed text-muted-foreground"
+          : "mt-0.5 truncate font-mono text-xs text-muted-foreground"
       }
     >
       {summary}
@@ -464,9 +464,9 @@ function RuntimeConsole({
   }, [model.steps.length]);
 
   return (
-    <div className="bg-white text-zinc-800">
+    <div className="bg-card text-card-foreground">
       {/* Status bar */}
-      <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-3">
+      <div className="border-b border-border bg-muted px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <span
@@ -477,12 +477,12 @@ function RuntimeConsole({
               }
             />
             <div className="min-w-0">
-              <p className="truncate font-mono text-sm font-semibold text-zinc-800">
+              <p className="truncate font-mono text-sm font-semibold text-foreground">
                 {activeTitle}
                 {model.activeStep !== null ? <AnimatedDots /> : null}
               </p>
               {activeSummary !== null ? (
-                <p className="mt-0.5 truncate font-mono text-xs text-zinc-500">
+                <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
                   {activeSummary}
                 </p>
               ) : null}
@@ -501,7 +501,7 @@ function RuntimeConsole({
                 {t("pages.technicalEvidence.waitingStepsLabel")}
               </span>
             ) : null}
-            <span className="text-zinc-400">
+            <span className="text-muted-foreground">
               {model.completedCount}{" "}
               {t("pages.technicalEvidence.completedStepsLabel")}
             </span>
@@ -512,7 +512,7 @@ function RuntimeConsole({
               </span>
             ) : null}
             {model.skippedCount > 0 ? (
-              <span className="text-zinc-400">
+              <span className="text-muted-foreground">
                 {model.skippedCount}{" "}
                 {t("pages.technicalEvidence.skippedStepsLabel")}
               </span>
@@ -524,11 +524,11 @@ function RuntimeConsole({
       {/* Fixed-height scrollable log area — new entries appear at bottom */}
       <div className="relative">
         {/* Fade-out at top to hint scrollability */}
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-white to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-6 bg-gradient-to-b from-card to-transparent" />
         <div
           className="h-96 overflow-y-auto scroll-smooth py-2"
           style={{
-            scrollbarColor: "#d4d4d8 transparent",
+            scrollbarColor: "var(--border) transparent",
             scrollbarWidth: "thin",
           }}
         >
@@ -559,13 +559,13 @@ function RuntimeConsoleStepItem({ step }: { step: RuntimeConsoleStep }) {
     ? "text-emerald-600"
     : step.isFailed
       ? "text-amber-600"
-      : "text-zinc-400";
+      : "text-muted-foreground";
 
   const titleColor = step.isActive
-    ? "text-zinc-900 font-semibold"
+    ? "text-foreground font-semibold"
     : step.isFailed
       ? "text-amber-700"
-      : "text-zinc-500";
+      : "text-muted-foreground";
 
   let badgeStatus: string;
   if (item.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped) {
@@ -600,22 +600,22 @@ function RuntimeConsoleStepItem({ step }: { step: RuntimeConsoleStep }) {
           ? "border-l-2 border-emerald-500 bg-emerald-50"
           : step.isFailed
             ? "border-l-2 border-amber-400/60 bg-amber-50/40"
-            : "border-l-2 border-transparent bg-white"
+            : "border-l-2 border-transparent bg-card"
       }
     >
       <button
         aria-expanded={expanded}
-        className="group flex w-full items-start gap-3 px-4 py-2 text-left transition-colors hover:bg-zinc-50"
+        className="group flex w-full items-start gap-3 px-4 py-2 text-left transition-colors hover:bg-muted"
         onClick={() => setExpanded((current) => !current)}
         type="button"
       >
         {/* Timestamp column */}
-        <span className="mt-0.5 shrink-0 font-mono text-xs tabular-nums text-zinc-400">
+        <span className="mt-0.5 shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
           {formatTime(item.emittedAt)}
         </span>
 
         {/* Stage pill */}
-        <span className="mt-0.5 shrink-0 rounded bg-zinc-100 px-1.5 py-px font-mono text-xs text-zinc-500">
+        <span className="mt-0.5 shrink-0 rounded bg-muted px-1.5 py-px font-mono text-xs text-muted-foreground">
           {runtimeStageLabel(item.stage)}
         </span>
 
@@ -630,14 +630,14 @@ function RuntimeConsoleStepItem({ step }: { step: RuntimeConsoleStep }) {
               {step.isActive ? <AnimatedDots /> : null}
             </span>
             {durationLabel !== null ? (
-              <span className="shrink-0 font-mono text-xs text-zinc-400">
+              <span className="shrink-0 font-mono text-xs text-muted-foreground">
                 [{durationLabel}]
               </span>
             ) : null}
           </div>
           <SemanticSummary item={item} expanded={expanded} />
           {!expanded && detailCount > 0 ? (
-            <p className="mt-0.5 font-mono text-xs text-zinc-400">
+            <p className="mt-0.5 font-mono text-xs text-muted-foreground">
               {t("pages.technicalEvidence.logDetailsHint")}
             </p>
           ) : null}
@@ -708,20 +708,20 @@ function RuntimeDetailList({ item }: { item: WorkspaceRuntimeActivityItem }) {
 
   return (
     <div className="px-4 pb-3 md:pl-36">
-      <dl className="grid gap-2 border-l border-zinc-200 pl-4 font-mono text-xs">
+      <dl className="grid gap-2 border-l border-border pl-4 font-mono text-xs">
         {details.map((detail) => (
           <div className="grid gap-1.5" key={detail.label}>
-            <dt className="text-zinc-400">{detail.label}</dt>
+            <dt className="text-muted-foreground">{detail.label}</dt>
             <dd className="grid gap-1">
               {detail.values.map((entry) => (
                 <div
-                  className="grid gap-1 rounded bg-zinc-50 px-2 py-1.5 sm:flex sm:items-start"
+                  className="grid gap-1 rounded bg-muted px-2 py-1.5 sm:flex sm:items-start"
                   key={`${detail.label}-${entry.label}`}
                 >
-                  <span className="truncate text-zinc-400 sm:w-40 sm:shrink-0">
+                  <span className="truncate text-muted-foreground sm:w-40 sm:shrink-0">
                     {entry.label}
                   </span>
-                  <span className="break-words text-zinc-700">
+                  <span className="break-words text-foreground">
                     {entry.value}
                   </span>
                 </div>

@@ -193,10 +193,10 @@ export function ProductMarketingPage() {
           className="mx-auto min-h-[828px] w-full max-w-[1440px] px-8 pt-[92px] md:px-[120px]"
         >
           <div className="mx-auto max-w-[920px] text-center">
-            <h1 className="whitespace-pre-line text-[44px] font-semibold leading-[48px] text-[#2d2d2a] md:text-[60px] md:leading-[64px]">
+            <h1 className="whitespace-pre-line text-[44px] font-semibold leading-[48px] text-foreground md:text-[60px] md:leading-[64px]">
               {t("pages.marketing.home.title")}
             </h1>
-            <p className="mx-auto mt-8 max-w-[720px] text-[18px] leading-[27px] text-[#5f5f5a]">
+            <p className="mx-auto mt-8 max-w-[720px] text-[18px] leading-[27px] text-muted-foreground">
               {t("pages.marketing.home.description")}
             </p>
             <div className="mt-6 flex justify-center gap-3">
@@ -220,7 +220,7 @@ export function ProductMarketingPage() {
           <h2 className="max-w-[720px] whitespace-pre-line text-[36px] font-semibold leading-[44px] md:text-[44px] md:leading-[64px]">
             {t("pages.marketing.home.modesTitle")}
           </h2>
-          <p className="mt-4 max-w-[660px] text-[17px] leading-[25px] text-[#5f5f5a]">
+          <p className="mt-4 max-w-[660px] text-[17px] leading-[25px] text-muted-foreground">
             {t("pages.marketing.home.modesDescription")}
           </p>
           <div className="mt-8 grid gap-8 md:grid-cols-3 md:gap-[60px]">
@@ -246,7 +246,7 @@ export function ProductMarketingPage() {
             <h2 className="max-w-[560px] whitespace-pre-line text-[36px] font-semibold leading-[44px] md:text-[44px] md:leading-[64px]">
               {t("pages.marketing.home.lifecycleTitle")}
             </h2>
-            <p className="mt-6 max-w-[500px] text-[17px] leading-[25px] text-[#5f5f5a]">
+            <p className="mt-6 max-w-[500px] text-[17px] leading-[25px] text-muted-foreground">
               {t("pages.marketing.home.lifecycleDescription")}
             </p>
           </div>
@@ -255,7 +255,7 @@ export function ProductMarketingPage() {
               <div
                 key={number}
                 className={cn(
-                  "grid grid-cols-[36px_1fr] gap-0 border-[#e3e3de] pb-11",
+                  "grid grid-cols-[36px_1fr] gap-0 border-border pb-11",
                   index < lifecycleSteps.length - 1 && "border-b mb-[51px]",
                 )}
               >
@@ -268,7 +268,7 @@ export function ProductMarketingPage() {
                   <h3 className="text-xl font-semibold leading-7">
                     {t(title)}
                   </h3>
-                  <p className="mt-2 max-w-[400px] text-[13px] leading-[25px] text-[#5f5f5a]">
+                  <p className="mt-2 max-w-[400px] text-[13px] leading-[25px] text-muted-foreground">
                     {t(description)}
                   </p>
                 </div>
@@ -284,19 +284,19 @@ export function ProductMarketingPage() {
           <h2 className="max-w-[700px] whitespace-pre-line text-[36px] font-semibold leading-[44px] md:text-[44px] md:leading-[64px]">
             {t("pages.marketing.home.principlesTitle")}
           </h2>
-          <p className="mt-4 max-w-[610px] text-[17px] leading-[25px] text-[#5f5f5a]">
+          <p className="mt-4 max-w-[610px] text-[17px] leading-[25px] text-muted-foreground">
             {t("pages.marketing.home.principlesDescription")}
           </p>
-          <div className="mt-16 grid border-t border-[#e3e3de] pt-14 md:grid-cols-2 md:gap-x-[76px]">
+          <div className="mt-16 grid border-t border-border pt-14 md:grid-cols-2 md:gap-x-[76px]">
             {evidencePrinciples.map(([title, description]) => (
-              <article key={title} className="border-b border-[#e3e3de] pb-8">
+              <article key={title} className="border-b border-border pb-8">
                 <div className="flex gap-4">
-                  <span className="mt-2 size-2 shrink-0 rounded-full bg-[#0e7c66]" />
+                  <span className="mt-2 size-2 shrink-0 rounded-full bg-brand" />
                   <div>
                     <h3 className="text-xl font-semibold leading-7">
                       {t(title)}
                     </h3>
-                    <p className="mt-2 max-w-[500px] text-[13px] leading-[25px] text-[#5f5f5a]">
+                    <p className="mt-2 max-w-[500px] text-[13px] leading-[25px] text-muted-foreground">
                       {t(description)}
                     </p>
                   </div>
@@ -367,25 +367,25 @@ export function FeaturesMarketingPage() {
           <h2 className="max-w-[760px] text-4xl font-semibold leading-[44px]">
             {t("pages.marketing.features.capabilitiesTitle")}
           </h2>
-          <p className="mt-[14px] max-w-[780px] text-[17px] leading-[27px] text-[#5f5f5a]">
+          <p className="mt-[14px] max-w-[780px] text-[17px] leading-[27px] text-muted-foreground">
             {t("pages.marketing.features.capabilitiesDescription")}
           </p>
           <div className="mt-[46px] grid gap-6 lg:grid-cols-3">
             {workspaceCapabilities.map(([number, title, description, meta]) => (
               <article
                 key={number}
-                className="min-h-[280px] rounded-3xl border border-[#e3e3de] bg-[#f2f2ef] p-[22px]"
+                className="min-h-[280px] rounded-3xl border border-border bg-muted p-[22px]"
               >
-                <p className="text-xs font-semibold leading-normal text-[#10a37f]">
+                <p className="text-xs font-semibold leading-normal text-brand">
                   {number}
                 </p>
                 <h3 className="mt-[14px] max-w-[330px] text-[22px] font-semibold leading-[30px]">
                   {t(title)}
                 </h3>
-                <p className="mt-[14px] max-w-[330px] text-sm leading-[22px] text-[#5f5f5a]">
+                <p className="mt-[14px] max-w-[330px] text-sm leading-[22px] text-muted-foreground">
                   {t(description)}
                 </p>
-                <div className="my-[14px] h-px w-full bg-[#e3e3de]" />
+                <div className="my-[14px] h-px w-full bg-border" />
                 <p className="max-w-[330px] text-xs font-medium leading-[18px]">
                   {t(meta)}
                 </p>
@@ -396,12 +396,12 @@ export function FeaturesMarketingPage() {
 
         <section
           data-section="final-cta"
-          className="mx-auto mb-10 min-h-[280px] w-full max-w-[1200px] rounded-[28px] border border-[#e3e3de] bg-[#f2f2ef] px-8 pt-[52px] text-center"
+          className="mx-auto mb-10 min-h-[280px] w-full max-w-[1200px] rounded-[28px] border border-border bg-muted px-8 pt-[52px] text-center"
         >
           <h2 className="mx-auto max-w-[760px] text-[34px] font-semibold leading-[42px]">
             {t("pages.marketing.features.ctaTitle")}
           </h2>
-          <p className="mx-auto mt-[18px] max-w-[700px] text-base leading-[25px] text-[#5f5f5a]">
+          <p className="mx-auto mt-[18px] max-w-[700px] text-base leading-[25px] text-muted-foreground">
             {t("pages.marketing.features.ctaDescription")}
           </p>
           <div className="mt-[18px] flex justify-center gap-3">
@@ -436,7 +436,7 @@ export function PricingMarketingPage() {
           <h2 className="text-[28px] font-semibold leading-9">
             {t("pages.marketing.pricing.topUpsTitle")}
           </h2>
-          <p className="mt-1 text-[15px] leading-[22px] text-[#5f5f5a]">
+          <p className="mt-1 text-[15px] leading-[22px] text-muted-foreground">
             {t("pages.marketing.pricing.topUpsDescription")}
           </p>
           <div className="mt-8 grid gap-9 lg:grid-cols-3">
@@ -456,19 +456,19 @@ export function PricingMarketingPage() {
           </div>
           <div
             data-section="custom-amount"
-            className="mt-[26px] flex min-h-[76px] flex-col gap-5 rounded-2xl border border-[#e3e3de] bg-[#f2f2ef] p-[22px] lg:flex-row lg:items-center lg:justify-between lg:px-[23px] lg:py-[15px]"
+            className="mt-[26px] flex min-h-[76px] flex-col gap-5 rounded-2xl border border-border bg-muted p-[22px] lg:flex-row lg:items-center lg:justify-between lg:px-[23px] lg:py-[15px]"
           >
             <div>
               <h3 className="text-[15px] font-medium leading-[22px]">
                 {t("pages.marketing.pricing.customAmount")}
               </h3>
-              <p className="mt-0.5 text-[13px] leading-[18px] text-[#5f5f5a]">
+              <p className="mt-0.5 text-[13px] leading-[18px] text-muted-foreground">
                 {t("pages.marketing.pricing.customDetail")}
               </p>
             </div>
             <Link
               href="/sign-up"
-              className="inline-flex h-11 w-44 items-center justify-center rounded-[10px] border border-[#e3e3de] bg-[#f7f7f5] text-sm font-medium"
+              className="inline-flex h-11 w-44 items-center justify-center rounded-[10px] border border-border bg-background text-sm font-medium"
             >
               {t("pages.marketing.pricing.customPlaceholder")}
             </Link>
@@ -482,22 +482,20 @@ export function PricingMarketingPage() {
           <h2 className="text-[40px] font-semibold leading-[48px]">
             {t("pages.marketing.pricing.howCreditsTitle")}
           </h2>
-          <p className="mt-4 max-w-[760px] text-base leading-6 text-[#5f5f5a]">
+          <p className="mt-4 max-w-[760px] text-base leading-6 text-muted-foreground">
             {t("pages.marketing.pricing.howCreditsDescription")}
           </p>
           <div className="mt-[60px] grid gap-9 lg:grid-cols-3">
             {creditSteps.map(([number, title, description]) => (
               <article
                 key={number}
-                className="min-h-[220px] rounded-[18px] border border-[#e3e3de] bg-[#f7f7f5] p-[23px]"
+                className="min-h-[220px] rounded-[18px] border border-border bg-background p-[23px]"
               >
-                <p className="text-[13px] font-medium text-[#10a37f]">
-                  {number}
-                </p>
+                <p className="text-[13px] font-medium text-brand">{number}</p>
                 <h3 className="mt-6 text-[22px] font-semibold leading-7">
                   {t(title)}
                 </h3>
-                <p className="mt-[18px] max-w-[310px] text-sm leading-[21px] text-[#5f5f5a]">
+                <p className="mt-[18px] max-w-[310px] text-sm leading-[21px] text-muted-foreground">
                   {t(description)}
                 </p>
               </article>
@@ -512,16 +510,16 @@ export function PricingMarketingPage() {
           <h2 className="text-[42px] font-semibold leading-[58px]">
             {t("pages.marketing.pricing.faqTitle")}
           </h2>
-          <div className="mt-[46px] border-t border-[#e3e3de]">
+          <div className="mt-[46px] border-t border-border">
             {faqItems.map(([question, answer]) => (
               <article
                 key={question}
-                className="grid border-b border-[#e3e3de] py-[30px] lg:grid-cols-[430px_590px] lg:gap-[70px]"
+                className="grid border-b border-border py-[30px] lg:grid-cols-[430px_590px] lg:gap-[70px]"
               >
                 <h3 className="text-[19px] font-semibold leading-[30px]">
                   {t(question)}
                 </h3>
-                <p className="text-[13px] leading-6 text-[#5f5f5a]">
+                <p className="text-[13px] leading-6 text-muted-foreground">
                   {t(answer)}
                 </p>
               </article>
@@ -544,7 +542,7 @@ export function PricingMarketingPage() {
 
 function AssessmentPromptPreview() {
   return (
-    <div className="mx-auto mt-[33px] flex h-auto max-w-[800px] flex-col gap-3 rounded-[28px] border border-[#e3e3de] bg-white px-[22px] py-[18px] shadow-[0_8px_28px_rgba(0,0,0,0.05)] md:h-[156px]">
+    <div className="mx-auto mt-[33px] flex h-auto max-w-[800px] flex-col gap-3 rounded-[28px] border border-border bg-card px-[22px] py-[18px] shadow-[0_8px_28px_rgba(0,0,0,0.05)] md:h-[156px]">
       <div className="flex min-h-[52px] items-center">
         <p className="flex-1 text-xl leading-7">
           {t("pages.marketing.home.promptTitle")}
@@ -552,7 +550,7 @@ function AssessmentPromptPreview() {
         <Link
           href="/sign-up"
           aria-label={t("pages.marketing.home.primaryCta")}
-          className="flex size-[42px] shrink-0 items-center justify-center rounded-full bg-[#292927] text-lg font-semibold text-white"
+          className="flex size-[42px] shrink-0 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground"
         >
           <CornerDownLeftIcon
             aria-hidden="true"
@@ -566,7 +564,7 @@ function AssessmentPromptPreview() {
           <Link
             key={label}
             href="/sign-up"
-            className="rounded-full border border-[#e3e3de] bg-[#f7f7f5] px-4 py-2.5 text-[13px] font-medium leading-none text-[#5f5f5a]"
+            className="rounded-full border border-border bg-background px-4 py-2.5 text-[13px] font-medium leading-none text-muted-foreground"
           >
             {t(label)}
           </Link>
@@ -578,14 +576,14 @@ function AssessmentPromptPreview() {
 
 function ProofStrip() {
   return (
-    <div className="mt-[139px] grid border-t border-[#e3e3de] pt-6 md:grid-cols-4">
+    <div className="mt-[139px] grid border-t border-border pt-6 md:grid-cols-4">
       {productProof.map(([title, detail]) => (
         <article key={title} className="min-h-[110px]">
-          <span className="block size-1.5 rounded-full bg-[#0e7c66]" />
+          <span className="block size-1.5 rounded-full bg-brand" />
           <h2 className="mt-2 text-[28px] font-semibold leading-normal">
             {t(title)}
           </h2>
-          <p className="mt-1 max-w-[250px] text-xs font-medium leading-normal text-[#5f5f5a]">
+          <p className="mt-1 max-w-[250px] text-xs font-medium leading-normal text-muted-foreground">
             {t(detail)}
           </p>
         </article>
@@ -653,18 +651,18 @@ function AppShellPreview() {
   ] as const;
 
   return (
-    <div className="mt-12 overflow-hidden bg-[#f7f7f5] md:h-[860px]">
-      <div className="grid h-full min-w-0 border border-[#e3e3de] bg-[#fbfbfa] lg:grid-cols-[228px_minmax(0,1fr)_388px]">
-        <aside className="hidden min-w-0 border-r border-[#e3e3de] bg-[#f7f7f5] lg:flex lg:flex-col">
+    <div className="mt-12 overflow-hidden bg-background md:h-[860px]">
+      <div className="grid h-full min-w-0 border border-border bg-card lg:grid-cols-[228px_minmax(0,1fr)_388px]">
+        <aside className="hidden min-w-0 border-r border-border bg-background lg:flex lg:flex-col">
           <div className="flex-1 px-5 py-5 text-[13px] leading-5">
             <div className="flex items-center gap-2 font-medium">
               <GitBranchIcon className="size-4" strokeWidth={1.75} />
               {t("pages.marketing.home.showcaseArtifacts")}
             </div>
-            <p className="mt-8 text-[13px] font-medium text-[#85857f]">
+            <p className="mt-8 text-[13px] font-medium text-muted-foreground">
               {t("pages.marketing.home.showcaseRecents")}
             </p>
-            <div className="mt-4 space-y-3 text-[13px] text-[#6a6a64]">
+            <div className="mt-4 space-y-3 text-[13px] text-muted-foreground">
               {[
                 "pages.marketing.home.showcaseRecentPayment",
                 "pages.marketing.home.showcaseRecentRetention",
@@ -674,32 +672,32 @@ function AppShellPreview() {
                   key={item}
                   className={cn(
                     "flex items-center gap-2 rounded-lg py-2",
-                    index === 0 ? "bg-[#eeeeeb] px-3" : "px-1",
+                    index === 0 ? "bg-accent px-3" : "px-1",
                   )}
                 >
-                  <span className="size-1.5 shrink-0 rounded-full border border-[#c9c9c3]" />
+                  <span className="size-1.5 shrink-0 rounded-full border border-border" />
                   <span className="truncate">{t(item)}</span>
                 </div>
               ))}
             </div>
           </div>
         </aside>
-        <div className="min-w-0 border-r border-[#e3e3de] bg-[#fbfbfa]">
-          <div className="flex h-[52px] items-center justify-between border-b border-[#e3e3de] px-7">
+        <div className="min-w-0 border-r border-border bg-card">
+          <div className="flex h-[52px] items-center justify-between border-b border-border px-7">
             <p className="text-[15px] font-semibold">
               {t("pages.marketing.home.showcaseReviewTitle")}
             </p>
-            <span className="size-7 rounded-md bg-[#0e7c66]" />
+            <span className="size-7 rounded-md bg-brand" />
           </div>
-          <div className="relative mx-auto h-[806px] max-w-[680px] px-8 pt-9 text-[13px] leading-5 text-[#2d2d2a]">
+          <div className="relative mx-auto h-[806px] max-w-[680px] px-8 pt-9 text-[13px] leading-5 text-foreground">
             <p className="text-[12px] font-semibold">
               {t("pages.marketing.home.showcaseThoughtShort")}
             </p>
             <p className="mt-3 text-[15px] leading-6">
               {t("pages.marketing.home.showcaseConnected")}
             </p>
-            <div className="mt-8 flex items-center gap-3 text-[13px] text-[#5f5f5a]">
-              <span className="size-2 rounded-full bg-[#0e7c66]" />
+            <div className="mt-8 flex items-center gap-3 text-[13px] text-muted-foreground">
+              <span className="size-2 rounded-full bg-brand" />
               {t("pages.marketing.home.showcaseRepositoryLine")}
             </div>
             <div className="mt-5 flex items-center gap-5 text-[12px]">
@@ -727,27 +725,27 @@ function AppShellPreview() {
                   ) : (
                     <FileTextIcon className="size-4" strokeWidth={1.75} />
                   )}
-                  <span className="text-[#85857f]">{t(label)}</span>
-                  <span className="text-[11px] font-medium text-[#10a37f]">
+                  <span className="text-muted-foreground">{t(label)}</span>
+                  <span className="text-[11px] font-medium text-brand">
                     {t("pages.marketing.home.showcaseStatusDone")}
                   </span>
                 </div>
               ))}
             </div>
-            <div className="mt-5 rounded-xl border border-[#e3e3de] bg-[#f7f7f5] px-5 py-4">
-              <div className="flex items-start justify-between border-b border-[#e3e3de] pb-3">
+            <div className="mt-5 rounded-xl border border-border bg-background px-5 py-4">
+              <div className="flex items-start justify-between border-b border-border pb-3">
                 <div className="flex gap-4">
                   <GitBranchIcon className="mt-1 size-4" strokeWidth={1.75} />
                   <div>
                     <p className="font-semibold">
                       {t("pages.marketing.home.showcaseEvidenceTitle")}
                     </p>
-                    <p className="mt-1 text-[12px] text-[#5f5f5a]">
+                    <p className="mt-1 text-[12px] text-muted-foreground">
                       {t("pages.marketing.home.showcaseEvidenceSubtitle")}
                     </p>
                   </div>
                 </div>
-                <span className="rounded-full bg-[#edf6f3] px-4 py-2 text-[11px] font-medium text-[#10a37f]">
+                <span className="rounded-full bg-brand/10 px-4 py-2 text-[11px] font-medium text-brand">
                   {t("pages.marketing.home.showcaseStatusReady")}
                 </span>
               </div>
@@ -778,12 +776,12 @@ function AppShellPreview() {
                     <span className="text-xl font-semibold">{value}</span>
                     <span className="text-[12px] leading-4">
                       <strong className="block font-medium">{t(label)}</strong>
-                      <span className="text-[#5f5f5a]">{t(detail)}</span>
+                      <span className="text-muted-foreground">{t(detail)}</span>
                     </span>
                   </div>
                 ))}
               </div>
-              <p className="mt-6 text-[12px] font-medium text-[#0e7c66]">
+              <p className="mt-6 text-[12px] font-medium text-brand">
                 {t("pages.marketing.home.showcaseViewGraph")} -&gt;
               </p>
             </div>
@@ -792,29 +790,29 @@ function AppShellPreview() {
             </p>
           </div>
         </div>
-        <aside className="hidden min-w-0 bg-[#fbfbfa] lg:block">
-          <div className="flex h-[52px] items-center border-b border-[#e3e3de] px-5">
+        <aside className="hidden min-w-0 bg-card lg:block">
+          <div className="flex h-[52px] items-center border-b border-border px-5">
             <p className="text-[15px] font-semibold">
               {t("pages.marketing.home.showcasePanelTitle")}
             </p>
           </div>
           <div className="px-5 py-5">
-            <p className="text-[12px] font-semibold text-[#6a6a64]">
+            <p className="text-[12px] font-semibold text-muted-foreground">
               {t("pages.marketing.home.showcaseRepositoryContext")}
             </p>
-            <div className="mt-3 rounded-lg border border-[#e3e3de] bg-white p-4 text-[13px]">
+            <div className="mt-3 rounded-lg border border-border bg-card p-4 text-[13px]">
               <p className="font-semibold">payment-service</p>
-              <p className="mt-1 text-[11px] text-[#85857f]">
+              <p className="mt-1 text-[11px] text-muted-foreground">
                 feat/payment-risk-controls
               </p>
-              <p className="mt-1 text-[11px] text-[#85857f]">
+              <p className="mt-1 text-[11px] text-muted-foreground">
                 Pinned commit - 9f31ca2
               </p>
             </div>
-            <p className="mt-5 text-[12px] font-semibold text-[#6a6a64]">
+            <p className="mt-5 text-[12px] font-semibold text-muted-foreground">
               {t("pages.marketing.home.showcaseWorkflow")}
             </p>
-            <div className="mt-2 rounded-lg border border-[#e3e3de] bg-white p-4">
+            <div className="mt-2 rounded-lg border border-border bg-card p-4">
               <div className="space-y-4">
                 {workflowSteps.map(([label, status, active]) => (
                   <div
@@ -824,7 +822,7 @@ function AppShellPreview() {
                     <span
                       className={cn(
                         "size-2 rounded-full",
-                        active ? "bg-[#0e7c66]" : "bg-[#c9c9c3]",
+                        active ? "bg-brand" : "bg-muted-foreground/30",
                       )}
                     />
                     <span
@@ -840,8 +838,8 @@ function AppShellPreview() {
                       className={cn(
                         "text-[11px]",
                         status === "pages.marketing.home.showcaseStatusQueued"
-                          ? "text-[#85857f]"
-                          : "text-[#10a37f]",
+                          ? "text-muted-foreground"
+                          : "text-brand",
                       )}
                     >
                       {t(status)}
@@ -851,10 +849,10 @@ function AppShellPreview() {
               </div>
             </div>
             <div className="mt-5 flex items-center justify-between text-[12px]">
-              <p className="font-semibold text-[#6a6a64]">
+              <p className="font-semibold text-muted-foreground">
                 {t("pages.marketing.home.showcaseArtifactsEvidence")}
               </p>
-              <p className="text-[11px] text-[#85857f]">
+              <p className="text-[11px] text-muted-foreground">
                 {t("pages.marketing.home.showcaseArtifactsMeta")}
               </p>
             </div>
@@ -862,24 +860,22 @@ function AppShellPreview() {
               {artifacts.map(([title, description, status]) => (
                 <div
                   key={title}
-                  className="grid grid-cols-[28px_1fr_64px_12px] items-center gap-3 rounded-lg border border-[#e3e3de] bg-white p-3"
+                  className="grid grid-cols-[28px_1fr_64px_12px] items-center gap-3 rounded-lg border border-border bg-card p-3"
                 >
-                  <span className="flex size-7 items-center justify-center rounded-md border border-[#e3e3de] bg-[#f2f2ef]">
+                  <span className="flex size-7 items-center justify-center rounded-md border border-border bg-muted">
                     <SquareIcon className="size-3" strokeWidth={1.75} />
                   </span>
                   <span className="min-w-0">
                     <strong className="block truncate text-[12px] font-medium">
                       {t(title)}
                     </strong>
-                    <span className="block truncate text-[11px] text-[#85857f]">
+                    <span className="block truncate text-[11px] text-muted-foreground">
                       {t(description)}
                     </span>
                   </span>
-                  <span className="text-[11px] text-[#10a37f]">
-                    {t(status)}
-                  </span>
+                  <span className="text-[11px] text-brand">{t(status)}</span>
                   <ChevronRightIcon
-                    className="size-4 text-[#85857f]"
+                    className="size-4 text-muted-foreground"
                     strokeWidth={1.75}
                   />
                 </div>
@@ -918,13 +914,13 @@ function MarketingHero({
       )}
     >
       {eyebrow ? (
-        <p className="mb-[22px] text-xs font-semibold uppercase leading-normal text-[#10a37f]">
+        <p className="mb-[22px] text-xs font-semibold uppercase leading-normal text-brand">
           {eyebrow}
         </p>
       ) : null}
       <h1
         className={cn(
-          "mx-auto font-semibold text-[#2d2d2a]",
+          "mx-auto font-semibold text-foreground",
           compact
             ? "max-w-[920px] text-[44px] leading-[52px] md:text-[52px] md:leading-[58px]"
             : "max-w-[900px] text-[44px] leading-[50px] md:text-[56px] md:leading-[62px]",
@@ -932,7 +928,7 @@ function MarketingHero({
       >
         {title}
       </h1>
-      <p className="mx-auto mt-[22px] max-w-[800px] text-lg leading-7 text-[#5f5f5a]">
+      <p className="mx-auto mt-[22px] max-w-[800px] text-lg leading-7 text-muted-foreground">
         {description}
       </p>
       {detail ? (
@@ -941,7 +937,7 @@ function MarketingHero({
         </p>
       ) : null}
       {badge ? (
-        <p className="mx-auto mt-[14px] w-max rounded-full border border-[#e3e3de] bg-[#f2f2ef] px-[14px] py-2 text-[12.5px] font-medium text-[#5f5f5a]">
+        <p className="mx-auto mt-[14px] w-max rounded-full border border-border bg-muted px-[14px] py-2 text-[12.5px] font-medium text-muted-foreground">
           {badge}
         </p>
       ) : null}
@@ -975,11 +971,11 @@ function FeatureBand({
           reverse && "lg:order-2",
         )}
       >
-        <p className="w-[200px] rounded-full bg-[#f2f2ef] px-3 py-[7px] text-xs font-medium leading-normal text-[#10a37f]">
+        <p className="w-[200px] rounded-full bg-muted px-3 py-[7px] text-xs font-medium leading-normal text-brand">
           {eyebrow}
         </p>
         <h2 className="text-4xl font-semibold leading-[44px]">{title}</h2>
-        <p className="text-[17px] leading-[27px] text-[#5f5f5a]">
+        <p className="text-[17px] leading-[27px] text-muted-foreground">
           {description}
         </p>
       </div>
@@ -992,7 +988,7 @@ function FeatureBand({
 
 function PreviewPanel({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-[400px] rounded-3xl border border-[#e3e3de] bg-[#f2f2ef] p-6">
+    <div className="min-h-[400px] rounded-3xl border border-border bg-muted p-6">
       {children}
     </div>
   );
@@ -1001,18 +997,18 @@ function PreviewPanel({ children }: { children: ReactNode }) {
 function RepositoryEvidencePreview() {
   return (
     <PreviewPanel>
-      <p className="text-xs font-semibold text-[#10a37f]">
+      <p className="text-xs font-semibold text-brand">
         {t("pages.marketing.features.pinnedSource")}
       </p>
       <p className="mt-4 text-[13px] font-medium">
         {t("pages.marketing.features.pinnedRepo")}
       </p>
-      <div className="mt-4 rounded-2xl border border-[#e3e3de] bg-[#f7f7f5] p-4 font-mono text-[13px] leading-normal">
-        <p className="text-[#5f5f5a]">
+      <div className="mt-4 rounded-2xl border border-border bg-background p-4 font-mono text-[13px] leading-normal">
+        <p className="text-muted-foreground">
           184&nbsp;&nbsp;if (riskScore &gt; threshold) {"{"}
         </p>
         <p>185&nbsp;&nbsp;&nbsp;&nbsp;decision = provider.score(tx)</p>
-        <p className="text-[#5f5f5a]">186&nbsp;&nbsp;{"}"}</p>
+        <p className="text-muted-foreground">186&nbsp;&nbsp;{"}"}</p>
       </div>
       <div className="mt-4 grid gap-2 sm:grid-cols-4">
         {[
@@ -1024,8 +1020,8 @@ function RepositoryEvidencePreview() {
           <div
             key={item}
             className={cn(
-              "rounded-[10px] bg-[#f7f7f5] px-3 py-[7px] text-xs font-medium",
-              index === 0 ? "text-[#10a37f]" : "text-[#2d2d2a]",
+              "rounded-[10px] bg-background px-3 py-[7px] text-xs font-medium",
+              index === 0 ? "text-brand" : "text-foreground",
             )}
           >
             {t(item)}
@@ -1039,7 +1035,7 @@ function RepositoryEvidencePreview() {
 function HumanContextPreview() {
   return (
     <PreviewPanel>
-      <p className="text-xs font-semibold text-[#10a37f]">
+      <p className="text-xs font-semibold text-brand">
         {t("pages.marketing.features.contextNeeded")}
       </p>
       <p className="mt-4 max-w-[500px] text-lg font-medium leading-[26px]">
@@ -1056,8 +1052,8 @@ function HumanContextPreview() {
             className={cn(
               "flex h-12 items-center rounded-[14px] border px-3.5 text-[13px]",
               selected
-                ? "border-[#10a37f] bg-[#f2f2ef]"
-                : "border-[#e3e3de] bg-[#f7f7f5]",
+                ? "border-brand bg-muted"
+                : "border-border bg-background",
             )}
           >
             {t(String(label))}
@@ -1071,28 +1067,28 @@ function HumanContextPreview() {
 function FindingPreview() {
   return (
     <PreviewPanel>
-      <p className="text-xs font-semibold text-[#10a37f]">
+      <p className="text-xs font-semibold text-brand">
         {t("pages.marketing.features.findingLabel")}
       </p>
       <h3 className="mt-4 text-xl font-semibold leading-7">
         {t("pages.marketing.features.findingPreviewTitle")}
       </h3>
-      <p className="mt-2 text-[13px] text-[#5f5f5a]">
+      <p className="mt-2 text-[13px] text-muted-foreground">
         {t("pages.marketing.features.findingMeta")}
       </p>
-      <div className="mt-4 rounded-2xl border border-[#e3e3de] bg-[#f7f7f5] p-4">
+      <div className="mt-4 rounded-2xl border border-border bg-background p-4">
         <p className="text-xs font-semibold">
           {t("pages.marketing.features.evidenceLabel")}
         </p>
-        <p className="mt-2 text-[13px] leading-5 text-[#5f5f5a]">
+        <p className="mt-2 text-[13px] leading-5 text-muted-foreground">
           {t("pages.marketing.features.findingEvidence")}
         </p>
       </div>
       <div className="mt-4 flex gap-2.5">
-        <span className="inline-flex h-10 w-[148px] items-center rounded-[10px] border border-[#e3e3de] bg-[#f7f7f5] px-3.5 text-xs font-medium">
+        <span className="inline-flex h-10 w-[148px] items-center rounded-[10px] border border-border bg-background px-3.5 text-xs font-medium">
           {t("pages.marketing.features.openSource")}
         </span>
-        <span className="inline-flex h-10 w-[148px] items-center rounded-[10px] border border-[#2d2d2a] bg-[#2d2d2a] px-3.5 text-xs font-medium text-[#f7f7f5]">
+        <span className="inline-flex h-10 w-[148px] items-center rounded-[10px] border border-primary bg-primary px-3.5 text-xs font-medium text-primary-foreground">
           {t("pages.marketing.features.reviewFinding")}
         </span>
       </div>
@@ -1103,16 +1099,16 @@ function FindingPreview() {
 function RemediationPreview() {
   return (
     <PreviewPanel>
-      <p className="text-xs font-semibold text-[#10a37f]">
+      <p className="text-xs font-semibold text-brand">
         {t("pages.marketing.features.proposedChange")}
       </p>
       <p className="mt-3 text-[13px] font-medium">risk-policy.ts</p>
-      <div className="mt-4 rounded-2xl border border-[#e3e3de] bg-[#f7f7f5] p-3.5 font-mono text-[13px] leading-normal">
-        <p className="text-[#5f5f5a]">- return blockPayment</p>
-        <p className="text-[#10a37f]">
+      <div className="mt-4 rounded-2xl border border-border bg-background p-3.5 font-mono text-[13px] leading-normal">
+        <p className="text-muted-foreground">- return blockPayment</p>
+        <p className="text-brand">
           + const review = await requireHumanReview(tx)
         </p>
-        <p className="text-[#10a37f]">
+        <p className="text-brand">
           + return review.approved ? blockPayment : continueFlow
         </p>
       </div>
@@ -1132,8 +1128,10 @@ function RemediationPreview() {
           ],
         ].map(([label, value]) => (
           <div key={label}>
-            <p className="text-[11px] font-medium text-[#5f5f5a]">{t(label)}</p>
-            <p className="mt-1 text-[13px] font-semibold text-[#10a37f]">
+            <p className="text-[11px] font-medium text-muted-foreground">
+              {t(label)}
+            </p>
+            <p className="mt-1 text-[13px] font-semibold text-brand">
               {t(value)}
             </p>
           </div>
@@ -1159,26 +1157,26 @@ function CreditTopUpCard({
   cta: string;
 }) {
   return (
-    <article className="relative min-h-[560px] rounded-[18px] border border-[#e3e3de] bg-[#f7f7f5] p-[27px]">
-      <p className="text-base font-semibold leading-[22px] text-[#5f5f5a]">
+    <article className="relative min-h-[560px] rounded-[18px] border border-border bg-background p-[27px]">
+      <p className="text-base font-semibold leading-[22px] text-muted-foreground">
         {t("pages.marketing.pricing.creditTopUp")}
       </p>
-      <span className="absolute right-[39px] top-[37px] rounded-full bg-[#f2f2ef] px-2.5 py-1.5 text-xs font-medium leading-4 text-[#10a37f]">
+      <span className="absolute right-[39px] top-[37px] rounded-full bg-muted px-2.5 py-1.5 text-xs font-medium leading-4 text-brand">
         {saving}
       </span>
       <p className="mt-3 text-[44px] font-semibold leading-[52px]">{amount}</p>
-      <p className="text-xs leading-5 text-[#666661]">
+      <p className="text-xs leading-5 text-muted-foreground">
         {t("pages.marketing.pricing.usdCredits")}
       </p>
-      <p className="mt-3 max-w-[312px] text-[15px] leading-[22px] text-[#5f5f5a]">
+      <p className="mt-3 max-w-[312px] text-[15px] leading-[22px] text-muted-foreground">
         {description}
       </p>
-      <div className="mt-10 border-t border-[#e3e3de]">
+      <div className="mt-10 border-t border-border">
         {[balance, savingRow, t("pages.marketing.pricing.cardPayment")].map(
           (item) => (
             <p
               key={item}
-              className="border-b border-[#e3e3de] py-5 text-sm leading-5"
+              className="border-b border-border py-5 text-sm leading-5"
             >
               {item}
             </p>
@@ -1187,7 +1185,7 @@ function CreditTopUpCard({
       </div>
       <Link
         href="/sign-up"
-        className="absolute bottom-[29px] left-[27px] flex h-12 w-[calc(100%-54px)] items-center justify-center rounded-xl bg-[#2d2d2a] text-[15px] font-medium leading-5 text-[#f7f7f5]"
+        className="absolute bottom-[29px] left-[27px] flex h-12 w-[calc(100%-54px)] items-center justify-center rounded-xl bg-primary text-[15px] font-medium leading-5 text-primary-foreground"
       >
         {cta}
       </Link>
@@ -1218,7 +1216,7 @@ function FinalCta({
       <h2 className="max-w-[760px] whitespace-pre-line text-[40px] font-semibold leading-[54px] md:text-[46px] md:leading-[64px]">
         {title}
       </h2>
-      <p className="mt-8 max-w-[650px] text-[17px] leading-6 text-[#5f5f5a]">
+      <p className="mt-8 max-w-[650px] text-[17px] leading-6 text-muted-foreground">
         {description}
       </p>
       <div className="mt-9 flex gap-3">
@@ -1241,7 +1239,7 @@ function SmallPrimaryLink({
   return (
     <Link
       href={href}
-      className="inline-flex h-9 w-[126px] items-center justify-center rounded-lg border border-[#2d2d2a] bg-[#2d2d2a] text-[13px] font-medium text-white"
+      className="inline-flex h-9 w-[126px] items-center justify-center rounded-lg border border-primary bg-primary text-[13px] font-medium text-primary-foreground"
     >
       {children}
     </Link>
@@ -1258,7 +1256,7 @@ function SmallSecondaryLink({
   return (
     <Link
       href={href}
-      className="inline-flex h-9 w-[136px] items-center justify-center rounded-lg border border-[#e3e3de] bg-[#e8e8e3] text-[13px] font-medium"
+      className="inline-flex h-9 w-[136px] items-center justify-center rounded-lg border border-border bg-secondary text-[13px] font-medium"
     >
       {children}
     </Link>
@@ -1275,7 +1273,7 @@ function LargePrimaryLink({
   return (
     <Link
       href={href}
-      className="inline-flex h-11 w-[166px] items-center justify-center rounded-xl border border-[#2d2d2a] bg-[#2d2d2a] text-[13px] font-medium text-[#f7f7f5]"
+      className="inline-flex h-11 w-[166px] items-center justify-center rounded-xl border border-primary bg-primary text-[13px] font-medium text-primary-foreground"
     >
       {children}
     </Link>
@@ -1292,7 +1290,7 @@ function LargeSecondaryLink({
   return (
     <Link
       href={href}
-      className="inline-flex h-11 w-[166px] items-center justify-center rounded-xl border border-[#e3e3de] bg-[#f7f7f5] text-[13px] font-medium"
+      className="inline-flex h-11 w-[166px] items-center justify-center rounded-xl border border-border bg-background text-[13px] font-medium"
     >
       {children}
     </Link>
