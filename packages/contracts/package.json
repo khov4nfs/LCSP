@@ -15,6 +15,7 @@
     "./assessment/types": "./src/assessment/types.ts",
     "./audit": "./src/audit/index.ts",
     "./audit/audit-event.types": "./src/audit/audit-event.types.ts",
+    "./audit/interview-audit": "./src/audit/interview-audit.ts",
     "./document": "./src/document/index.ts",
     "./document/actions": "./src/document/actions.ts",
     "./document/codes": "./src/document/codes.ts",

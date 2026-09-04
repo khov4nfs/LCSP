@@ -7,6 +7,7 @@ import {
 import { HttpStatus } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
+import { isRecord } from "../../../../../common/utils/index.js";
 import { toPrismaEvidenceAcceptanceStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
@@ -91,10 +92,6 @@ export class GetEvidenceHandler implements IQueryHandler<GetEvidenceQuery> {
       status: HttpStatus.NOT_FOUND,
     });
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function stringRecord(value: unknown): Record<string, string> | null {

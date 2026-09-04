@@ -26,10 +26,12 @@ export type AuditActorType =
   (typeof AUDIT_ACTOR_TYPES)[keyof typeof AUDIT_ACTOR_TYPES];
 
 export const AUDIT_ACTOR_IDS = {
+  assessmentOrchestrator: "assessment-orchestrator",
   aiUsageFlowWorker: "ai-usage-flow-worker",
   classificationResultWorker: "classification-result-worker",
   conflictDetectionWorker: "conflict-detection-worker",
   documentWorker: "document-worker",
+  interviewAgent: "interview-agent",
   legalRuleMatchWorker: "legal-rule-match-worker",
   scannerWorker: "scanner-worker",
   technicalProfileWorker: "technical-profile-worker",

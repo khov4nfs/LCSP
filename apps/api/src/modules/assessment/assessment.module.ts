@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
 
+import { AuditModule } from "../audit/audit.module.js";
 import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { AssessmentRuntimeEventService } from "../../platform/runtime-events/assessment-runtime-event.service.js";
 import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guard.js";
@@ -19,7 +20,7 @@ import {
  * Wires RBAC-protected assessment commands and queries to Prisma-backed persistence and HTTP endpoints.
  */
 @Module({
-  imports: [CqrsModule, RbacModule],
+  imports: [CqrsModule, RbacModule, AuditModule],
   controllers: [AssessmentController, InternalAssessmentInterviewController],
   providers: [
     AssessmentInterviewRuntimeService,

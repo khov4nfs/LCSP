@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 
+import { cleanString, isRecord } from "../../../../../common/utils/index.js";
 import type {
   EvidenceFindingDto,
   EvidenceSeverity,
@@ -73,14 +74,6 @@ export class EvidenceRedactorService {
       line_number: redactLocations ? null : lineNumber,
     };
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function cleanString(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function cleanSeverity(value: unknown): EvidenceSeverity | null {

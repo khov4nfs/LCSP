@@ -8,6 +8,7 @@ import { RBAC_METADATA_KEY } from "../../../../platform/rbac/decorators/rbac-met
 import { ExportAuditTrailCommand } from "../../application/commands/export-audit-trail/export-audit-trail.command.js";
 import { GetAuditExportArtifactQuery } from "../../application/queries/get-audit-export-artifact/get-audit-export-artifact.query.js";
 import { GetAuditExportQuery } from "../../application/queries/get-audit-export/get-audit-export.query.js";
+import { GetInterviewAuditTrailQuery } from "../../application/queries/get-interview-audit-trail/get-interview-audit-trail.query.js";
 import { ListAuditEventsQuery } from "../../application/queries/list-audit-events/list-audit-events.query.js";
 import { AuditExportStorageService } from "../../infrastructure/storage/audit-export-storage.service.js";
 import { AuditController } from "./audit.controller.js";
@@ -166,5 +167,68 @@ describe("AuditController", () => {
     expect(send).toHaveBeenCalledWith(
       JSON.stringify({ export_request_id: "export-1", events: [] }, null, 2),
     );
+  });
+
+  it("requires CUSTOMER or ADMIN role to retrieve assessment interview audit trail", () => {
+    const metadata = Reflect.getMetadata(
+      RBAC_METADATA_KEY,
+      // eslint-disable-next-line @typescript-eslint/unbound-method
+      AuditController.prototype.getAssessmentInterviewAudit,
+    ) as unknown;
+
+    expect(metadata).toEqual({
+      type: "roles",
+      roles: [AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin],
+    });
+  });
+
+  it("dispatches the interview audit trail query with rbac context", async () => {
+    const execute = jest
+      .fn<
+        (
+          query: unknown,
+        ) => Promise<{ assessmentId: string; events: unknown[]; total: number }>
+      >()
+      .mockResolvedValue({
+        assessmentId: "assessment-42",
+        events: [],
+        total: 0,
+      });
+    const controller = new AuditController(
+      {} as CommandBus,
+      { execute } as unknown as QueryBus,
+      {} as AuditExportStorageService,
+    );
+
+    const result = await controller.getAssessmentInterviewAudit(
+      "assessment-42",
+      {
+        rbacContext: {
+          userId: "user-42",
+          role: AUTH_USER_ROLES.customer,
+          scope: "assessment:assessment-42",
+        },
+        correlationId: "corr-interview-audit-42",
+      } as never,
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      data: {
+        assessmentId: "assessment-42",
+        events: [],
+        total: 0,
+      },
+    });
+
+    const dispatched = execute.mock.calls[0]?.[0];
+    expect(dispatched).toBeInstanceOf(GetInterviewAuditTrailQuery);
+    expect(dispatched).toMatchObject({
+      assessmentId: "assessment-42",
+      sessionUserId: "user-42",
+      subjectRole: AUTH_USER_ROLES.customer,
+      subjectScope: "assessment:assessment-42",
+      correlationId: "corr-interview-audit-42",
+    });
   });
 });

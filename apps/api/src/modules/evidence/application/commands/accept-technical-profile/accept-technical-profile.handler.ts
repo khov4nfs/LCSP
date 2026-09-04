@@ -29,6 +29,8 @@ import {
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { Prisma } from "@prisma/client";
 
+import { isRecord } from "../../../../../common/utils/index.js";
+
 import {
   toPrismaAuditResourceType,
   toPrismaAuthDecision,
@@ -316,10 +318,6 @@ export class AcceptTechnicalProfileHandler implements ICommandHandler<AcceptTech
       status,
     });
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function clean(value: unknown): string | null {

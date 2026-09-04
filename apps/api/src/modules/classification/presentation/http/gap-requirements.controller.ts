@@ -15,6 +15,8 @@ import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import type { GetGapRequirementsInput } from "@lcsp/contracts/evidence";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
+import { isRecord } from "../../../../common/utils/index.js";
+
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
@@ -75,10 +77,6 @@ function parseInput(
     invalidRequest(correlationId);
   }
   return { classificationRef, policyProfileVersionId };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function invalidRequest(correlationId: string): never {

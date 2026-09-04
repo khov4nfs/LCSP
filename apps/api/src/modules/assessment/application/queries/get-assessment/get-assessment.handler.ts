@@ -20,6 +20,7 @@ import {
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { cleanString, isRecord } from "../../../../../common/utils/index.js";
 import type {
   AssessmentDetailDto,
   ClassificationResultSummaryDto,
@@ -266,18 +267,8 @@ function collectSourceChunkIds(value: unknown): string[] {
   return Array.from(ids);
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function recordArray(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value) ? value.filter(isRecord) : [];
-}
-
-function cleanString(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : null;
 }
 
 function stringArray(value: unknown): string[] {

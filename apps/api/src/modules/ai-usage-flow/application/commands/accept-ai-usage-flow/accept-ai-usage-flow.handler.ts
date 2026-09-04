@@ -28,6 +28,8 @@ import {
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import { Prisma } from "@prisma/client";
 
+import { isRecord } from "../../../../../common/utils/index.js";
+
 import {
   toPrismaAuditResourceType,
   toPrismaAuthDecision,
@@ -458,16 +460,6 @@ function isMaterialClaimMissingEvidence(
   claim: AIUsageFlowClaimRequest,
 ): boolean {
   return claim.is_material && claim.evidence_refs.length === 0;
-}
-
-/**
- * Checks whether an unknown runtime value is a non-array object record.
- *
- * @param value - Unknown value to inspect.
- * @returns True when the value is a record-like object.
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 /**

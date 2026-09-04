@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import { HttpStatus, Injectable } from "@nestjs/common";
+import { isRecord } from "../../../../common/utils/index.js";
 import {
   ACTIVATE_VALIDATED_CORPUS_VERSION_LIMITATION_CODES,
   ACTIVATE_VALIDATED_CORPUS_VERSION_TOOL,
@@ -1163,10 +1164,6 @@ function isLegalPreambleOnly(content: string): boolean {
   return /quốc hội|cộng hòa xã hội chủ nghĩa việt nam|độc lập\s*-\s*tự do|luật số|căn cứ hiến pháp|quốc hội ban hành|chủ tịch quốc hội/iu.test(
     lines.join(" "),
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function stringValue(value: unknown): string {

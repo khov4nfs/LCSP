@@ -3,6 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { isAbsolute } from "node:path";
 
+import { isRecord } from "../../../../common/utils/index.js";
 import {
   GITHUB_CREDENTIAL_ERROR_CODES,
   type GitHubCredentialErrorCode,
@@ -293,10 +294,6 @@ function validateRevision(value: string): string {
     );
   }
   return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function isId(value: unknown): value is string | number {

@@ -8,6 +8,7 @@ import {
   toPrismaConflictRecordStatus,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
+import { isRecord } from "../../../../../common/utils/index.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import type {
   ConflictEvidenceContext,
@@ -223,8 +224,4 @@ function readStringRecord(value: unknown): Record<string, string> {
       .map(([key, entry]) => [key, readNullableString(entry)] as const)
       .filter((entry): entry is readonly [string, string] => entry[1] !== null),
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }

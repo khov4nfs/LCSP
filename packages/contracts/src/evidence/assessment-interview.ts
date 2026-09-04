@@ -28,6 +28,14 @@ export const ASSESSMENT_INTERVIEW_CONTROLS = {
 export type AssessmentInterviewControl =
   (typeof ASSESSMENT_INTERVIEW_CONTROLS)[keyof typeof ASSESSMENT_INTERVIEW_CONTROLS];
 
+export const ASSESSMENT_INTERVIEW_ANSWER_ACTIONS = {
+  confirm: "CONFIRM",
+  adjust: "ADJUST",
+} as const;
+
+export type AssessmentInterviewAnswerAction =
+  (typeof ASSESSMENT_INTERVIEW_ANSWER_ACTIONS)[keyof typeof ASSESSMENT_INTERVIEW_ANSWER_ACTIONS];
+
 export const ASSESSMENT_TECHNICAL_COVERAGE_STATES = {
   ready: "READY",
   partial: "PARTIAL",

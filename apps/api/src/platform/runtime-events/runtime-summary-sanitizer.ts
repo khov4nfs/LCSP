@@ -1,5 +1,7 @@
 import type { AssessmentRuntimeSummaryValue } from "@lcsp/contracts/evidence";
 
+import { isRecord } from "../../common/utils/index.js";
+
 const FALLBACK_SUMMARY = "Summary unavailable due to privacy policy";
 
 type SummaryOptions = {
@@ -139,16 +141,6 @@ function sanitizeValue(
  */
 function truncate(value: string, maxLength: number): string {
   return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
-}
-
-/**
- * Determines whether a runtime value can be traversed as a non-array record.
- *
- * @param value - Value to inspect.
- * @returns True for non-null object values that are not arrays.
- */
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 export { FALLBACK_SUMMARY };

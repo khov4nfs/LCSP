@@ -2,6 +2,7 @@ import { NotFoundException } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import { EvidenceAcceptanceStatus } from "@prisma/client";
 
+import { cleanString, isRecord } from "../../../../../common/utils/index.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { DocumentGenerationContextDto } from "../../contracts/document/document-generation-context.contract.js";
 import { GetDocumentGenerationContextQuery } from "./get-document-generation-context.query.js";
@@ -122,12 +123,4 @@ export class GetDocumentGenerationContextHandler implements IQueryHandler<GetDoc
   private notFound(artifact: string): never {
     throw new NotFoundException(`${artifact} generation context not found`);
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function cleanString(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
