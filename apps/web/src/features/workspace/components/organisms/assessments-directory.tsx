@@ -53,10 +53,6 @@ export function AssessmentsDirectory() {
           "pages.workspace.loadingAssessments",
         )}
         statusLabel={resolveMessage(appLocale, "pages.workspace.statusLabel")}
-        wizardStatusLabel={resolveMessage(
-          appLocale,
-          "pages.workspace.wizardStatusLabel",
-        )}
         createdAtLabel={resolveMessage(
           appLocale,
           "pages.workspace.createdAtLabel",

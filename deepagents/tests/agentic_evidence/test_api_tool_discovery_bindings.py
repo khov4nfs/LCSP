@@ -12,11 +12,12 @@ from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import (
 )
 from tools.common.capabilities.agentic_evidence.governance.registry import AgenticToolRequest
 from tools.common.capabilities.agentic_evidence.entrypoints.tool_entrypoints import AgenticToolExecutionContext
+from tools.common.capabilities.agentic_evidence.governance.registry import (
+    AgenticToolValidationError,
+)
 
 
 EXPECTED_NEST_DISCOVERY_TOOLS = {
-    "get_assessment_context": "GetAssessmentContextQuery",
-    "compare_wizard_claim": "CompareWizardClaimQuery",
     "get_gap_requirements": "GetGapRequirementsQuery",
     "evaluate_gap_matrix": "EvaluateGapMatrixQuery",
     "get_admin_source_catalog": "GetAdminSourceCatalogQuery",
@@ -67,15 +68,22 @@ def test_runtime_binding_resolves_existing_nest_query_without_guessing() -> None
     assert binding.entrypoint.__name__ == "retrieve_legal_basis"
     assert binding.downstream_target == "RetrieveLegalBasisQuery"
 
-    compare = runtime_binding("compare_wizard_claim")
-    assert compare.entrypoint.__name__ == "compare_wizard_claim"
-    assert compare.downstream_target == "CompareWizardClaimQuery"
-
     gap_requirements = runtime_binding("get_gap_requirements")
     assert gap_requirements.downstream_target == "GetGapRequirementsQuery"
 
     source_catalog = runtime_binding("get_admin_source_catalog")
     assert source_catalog.downstream_target == "GetAdminSourceCatalogQuery"
+
+
+def test_retired_customer_context_bindings_are_not_runtime_bound() -> None:
+    for tool_name in ("get_assessment_context",):
+        try:
+            runtime_binding(tool_name)
+        except AgenticToolValidationError as exc:
+            assert str(exc) == "TOOL_RUNTIME_BINDING_NOT_FOUND"
+        else:
+            raise AssertionError(f"{tool_name} must not have a runtime binding")
+        assert not hasattr(tool_entrypoints, tool_name)
 
 
 def test_exact_named_entrypoint_dispatches_through_internal_api() -> None:
@@ -85,11 +93,11 @@ def test_exact_named_entrypoint_dispatches_through_internal_api() -> None:
         api_client=api_client,
         user_id="user-1",
     )
-    request = _request("get_assessment_context")
+    request = _request("get_gap_requirements")
 
-    response = tool_entrypoints.get_assessment_context(request, context)
+    response = tool_entrypoints.get_gap_requirements(request, context)
 
     assert response == {"status": "READY"}
     payload = api_client.dispatch_agentic_tool.call_args.args[0]
-    assert payload["tool_name"] == "get_assessment_context"
+    assert payload["tool_name"] == "get_gap_requirements"
     assert payload["assessment_id"] == str(request.assessment_id)

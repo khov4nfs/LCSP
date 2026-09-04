@@ -24,7 +24,6 @@ import { HealthModule } from "./modules/health/health.module.js";
 import { LegalRuleCatalogModule } from "./modules/legal-rule-catalog/legal-rule-catalog.module.js";
 import { ReconciliationModule } from "./modules/reconciliation/reconciliation.module.js";
 import { ScanModule } from "./modules/scan/scan.module.js";
-import { WizardModule } from "./modules/wizard/wizard.module.js";
 import { AuditModule as AuditPlatformModule } from "./platform/audit/audit.module.js";
 import { LoggingContextMiddleware } from "./platform/logging/logging-context.middleware.js";
 import { DevUnsafeHttpTraceMiddleware } from "./platform/logging/dev-unsafe-http-trace.middleware.js";
@@ -112,7 +111,6 @@ function findUpwards(
     ScanModule,
     ClassificationModule,
     AuditFeatureModule,
-    WizardModule,
     LegalRuleCatalogModule,
     HealthModule,
   ],

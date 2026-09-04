@@ -3,7 +3,6 @@ import {
   ASSESSMENT_LOCK_REASONS,
   ASSESSMENT_MISSING_EVIDENCE_CODES,
   ASSESSMENT_STATUS_CODES,
-  WIZARD_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 /**
  * MW-asmt-002: Get Assessment Endpoint.
@@ -55,7 +54,6 @@ describe("Get Assessment Endpoint (e2e) [MW-asmt-002]", () => {
     await prisma.repositoryScanJob.deleteMany();
     await prisma.repositorySnapshot.deleteMany();
     await prisma.repositoryConnection.deleteMany();
-    await prisma.wizardProfile.deleteMany();
     await prisma.assessment.deleteMany();
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
@@ -93,7 +91,7 @@ describe("Get Assessment Endpoint (e2e) [MW-asmt-002]", () => {
     assert.equal(body.name, "Detail Test Assessment");
     assert.equal(body.status, ASSESSMENT_STATUS_CODES.wizardInProgress);
     assert.equal(body.owner_id, "user-1");
-    assert.equal(body.wizard_status, WIZARD_STATUS_CODES.notStarted);
+    assert.equal(typeof body.status, "string");
     assert.ok(body.created_at);
     assert.ok(body.updated_at);
     assert.ok(body.correlationId);

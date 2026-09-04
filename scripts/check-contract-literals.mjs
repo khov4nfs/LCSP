@@ -12,7 +12,6 @@ import {
   ASSESSMENT_MISSING_EVIDENCE_CODES,
   ASSESSMENT_NEXT_ACTION_KEYS,
   ASSESSMENT_STATUS_CODES,
-  WIZARD_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
@@ -37,7 +36,7 @@ import {
   OUTBOX_AUDIT_EVENT_TYPES,
   OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
-import { RBAC_REASON_CODE } from "@lcsp/contracts/rbac";
+import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 import { SERVICE_HEALTH_STATUSES } from "@lcsp/contracts/shared";
 import {
   SCAN_CALLBACK_STATUSES,
@@ -46,7 +45,6 @@ import {
   SCAN_JOB_GUIDANCE,
   TECHNICAL_EVIDENCE_REPORT_STATUSES,
 } from "@lcsp/contracts/scan";
-import { WIZARD_EVENT_TYPES } from "@lcsp/contracts/wizard";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const sourceRoots = ["apps/api/src", "apps/web/src"];
@@ -71,7 +69,7 @@ const canonicalValues = new Set(
     ORGANIZATION_SCOPE_ERROR_CODES,
     OUTBOX_AUDIT_EVENT_TYPES,
     OUTBOX_STATUSES,
-    RBAC_REASON_CODE,
+    RBAC_REASON_CODES,
     REPOSITORY_CONNECTION_STATUSES,
     REPOSITORY_SCAN_JOB_STATUSES,
     REPOSITORY_SCAN_TRIGGER_SOURCES,
@@ -83,8 +81,6 @@ const canonicalValues = new Set(
     SCAN_JOB_GUIDANCE,
     SERVICE_HEALTH_STATUSES,
     TECHNICAL_EVIDENCE_REPORT_STATUSES,
-    WIZARD_EVENT_TYPES,
-    WIZARD_STATUS_CODES,
     WORKSPACE_CAPABILITY_SOURCES,
   ].flatMap(Object.values),
 );

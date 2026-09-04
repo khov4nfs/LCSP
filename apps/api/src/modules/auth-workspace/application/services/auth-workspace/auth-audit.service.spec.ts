@@ -7,7 +7,7 @@ import {
 import type { Prisma } from "@prisma/client";
 
 import type { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { LOCAL_RBAC_REASON_CODES } from "../../../../../platform/rbac/rbac-reason-codes.js";
+import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 import { AuthAuditService } from "./auth-audit.service.ts";
 
 function makeService(
@@ -170,7 +170,7 @@ describe("AuthAuditService", () => {
       actor_id: "user-1",
       decision: AUDIT_DECISIONS.allow,
       correlationId: "corr-1",
-      reason_code: LOCAL_RBAC_REASON_CODES.authorized,
+      reason_code: RBAC_REASON_CODES.authorized,
       session_id: "session-1",
       session_token: "must-strip",
       email_domain: "example.test",
@@ -181,7 +181,7 @@ describe("AuthAuditService", () => {
       actorId: "user-1",
       resourceType: null,
       resourceId: null,
-      reasonCode: LOCAL_RBAC_REASON_CODES.authorized,
+      reasonCode: RBAC_REASON_CODES.authorized,
       correlationId: "corr-1",
       sessionId: "session-1",
       decision: AUDIT_DECISIONS.allow,
@@ -190,7 +190,7 @@ describe("AuthAuditService", () => {
         actor_id: "user-1",
         decision: AUDIT_DECISIONS.allow,
         correlationId: "corr-1",
-        reason_code: LOCAL_RBAC_REASON_CODES.authorized,
+        reason_code: RBAC_REASON_CODES.authorized,
         session_id: "session-1",
         email_domain: "example.test",
       },

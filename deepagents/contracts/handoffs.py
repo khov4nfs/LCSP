@@ -23,9 +23,91 @@ class ProvenanceRef(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     ref: str = Field(min_length=1, max_length=240)
-    source_kind: Literal["PROGRAM_GRAPH", "SOURCE_ANCHOR", "WIZARD", "LEGAL_CHUNK", "SYSTEM"]
+    source_kind: Literal["PROGRAM_GRAPH", "SOURCE_ANCHOR", "CUSTOMER_CONTEXT", "LEGAL_CHUNK", "SYSTEM"]
     artifact_version: str | None = Field(default=None, max_length=240)
     source_anchor_ref: str | None = Field(default=None, max_length=240)
+
+
+class InterviewQuestionChoice(BaseModel):
+    """One bounded Customer-facing Interview choice."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1, max_length=160)
+    label: str = Field(min_length=1, max_length=500)
+    description: str | None = Field(default=None, max_length=1_000)
+    requiresFreeText: bool = False
+
+
+class InterviewQuestionResult(BaseModel):
+    """Interview Agent-authored bounded Customer-facing question."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(min_length=1, max_length=240)
+    intent: Literal["ASK", "CLARIFY"]
+    control: Literal["FREE_TEXT", "BOOLEAN", "SINGLE_SELECT", "MULTI_SELECT", "CONFIRM_ADJUST"]
+    prompt: str = Field(min_length=1, max_length=2_000)
+    choices: list[InterviewQuestionChoice] = Field(default_factory=list, max_length=20)
+    priorAnswerSummary: str | None = Field(default=None, max_length=1_000)
+    whyEvidenceRefs: list[str] = Field(default_factory=list, max_length=50)
+    needId: str | None = Field(default=None, max_length=240)
+
+    @model_validator(mode="after")
+    def validate_control_shape(self) -> Self:
+        if self.control in {"SINGLE_SELECT", "MULTI_SELECT"} and not self.choices:
+            raise ValueError("select Interview controls require choices")
+        if self.control == "BOOLEAN" and self.choices:
+            raise ValueError("BOOLEAN Interview controls must not carry custom choices")
+        return self
+
+
+class InterviewResult(BaseModel):
+    """Typed Interview Agent candidate decision before protected API guard persistence."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    expectedContextRevision: int = Field(ge=0)
+    mode: Literal["INITIAL_INTERVIEW", "TARGETED_INTERVIEW"] = "INITIAL_INTERVIEW"
+    outcome: Literal[
+        "WAITING_FOR_CUSTOMER",
+        "CONTEXT_READY",
+        "CONTEXT_RESOLVED",
+        "BLOCKED_OR_UNRESOLVED",
+        "FAILED",
+    ]
+    activeQuestion: InterviewQuestionResult | None = None
+    contextAuthority: Literal[
+        "CUSTOMER_STATED",
+        "UNCERTAIN",
+        "CONFLICTED",
+        "CUSTOMER_CONFIRMED",
+        "CONFIRMED",
+        "SUPERSEDED",
+    ] | None = None
+    confirmedContext: dict[str, Any] = Field(default_factory=dict)
+    flags: list[Literal["DOWNSTREAM_IMPACT"]] = Field(default_factory=list, max_length=10)
+    blockedActions: list[
+        Literal["PROVIDE_MORE_CONTEXT", "CHECK_INTERNALLY", "SAVE_AND_EXIT"]
+    ] = Field(default_factory=list, max_length=3)
+    targetedResolution: dict[str, Any] = Field(default_factory=dict)
+    rationale: str | None = Field(default=None, max_length=2_000)
+
+    @model_validator(mode="after")
+    def validate_transition_shape(self) -> Self:
+        if self.activeQuestion is not None and self.outcome != "WAITING_FOR_CUSTOMER":
+            raise ValueError("activeQuestion requires WAITING_FOR_CUSTOMER outcome")
+        if self.outcome == "WAITING_FOR_CUSTOMER" and self.activeQuestion is None:
+            raise ValueError("WAITING_FOR_CUSTOMER requires activeQuestion")
+        if self.outcome == "BLOCKED_OR_UNRESOLVED" and not self.blockedActions:
+            self.blockedActions = [
+                "PROVIDE_MORE_CONTEXT",
+                "CHECK_INTERNALLY",
+                "SAVE_AND_EXIT",
+            ]
+        if self.outcome == "CONTEXT_RESOLVED" and self.mode != "TARGETED_INTERVIEW":
+            raise ValueError("CONTEXT_RESOLVED is only valid for TARGETED_INTERVIEW")
+        return self
 
 
 class PlannerResult(BaseModel):
@@ -91,6 +173,16 @@ class InvestigatorClaim(BaseModel):
         )
 
 
+class BusinessContextNeed(BaseModel):
+    """Bounded Investigator-authored business-context need for Targeted Interview."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    need_id: str = Field(min_length=1, max_length=240)
+    business_context_need: str = Field(min_length=1, max_length=2_000)
+    resolution_criteria: list[str] = Field(min_length=1, max_length=20)
+
+
 class InvestigatorResult(BaseModel):
     """Typed Investigator-to-deterministic-gate handoff."""
 
@@ -101,6 +193,7 @@ class InvestigatorResult(BaseModel):
     claims: list[InvestigatorClaim] = Field(default_factory=list, max_length=200)
     limitations: list[str] = Field(default_factory=list, max_length=100)
     missing_input: str | None = Field(default=None, max_length=1_000)
+    business_context_need: BusinessContextNeed | None = None
     next_step: Literal["GATE", "RESOLVE"]
 
     @model_validator(mode="after")
@@ -110,46 +203,46 @@ class InvestigatorResult(BaseModel):
                 raise ValueError("READY Investigator output must transition to GATE")
             if not self.claims:
                 raise ValueError("READY Investigator output requires claims")
-            if self.missing_input:
-                raise ValueError("READY Investigator output cannot carry missing_input")
+            if self.missing_input or self.business_context_need is not None:
+                raise ValueError("READY Investigator output cannot carry business-context input")
             return self
         if self.next_step != "RESOLVE":
             raise ValueError("NEEDS_INPUT Investigator output must transition to RESOLVE")
-        if not self.missing_input:
-            raise ValueError("NEEDS_INPUT Investigator output requires missing_input")
+        if not self.missing_input or self.business_context_need is None:
+            raise ValueError("NEEDS_INPUT Investigator output requires a bounded business_context_need")
         return self
 
 
-class ResolverConflict(BaseModel):
+class ResolverConflictValue(BaseModel):
+    """One source value participating in a Resolver handoff."""
+
     model_config = ConfigDict(extra="forbid")
 
-    source: Literal["WIZARD", "REPOSITORY", "USER_CONFIRMATION", "UNKNOWN"]
-    value: Any | None = None
-    source_refs: list[str] = Field(default_factory=list, max_length=50)
+    source: Literal["CUSTOMER_CONTEXT", "PROGRAM_GRAPH", "INVESTIGATOR", "UNKNOWN"]
+    value: Any = None
+    source_refs: list[str] = Field(default_factory=list, max_length=100)
 
 
 class ResolverResult(BaseModel):
-    """Typed Resolver-to-root handoff."""
+    """Typed Resolver-to-root handoff for pre-Interview unresolved context."""
 
     model_config = ConfigDict(extra="forbid")
 
     status: Literal["RESOLVED", "CONFLICT", "NEEDS_INPUT"]
     fact_key: str = Field(min_length=1, max_length=240)
-    resolved_value: Any | None = None
-    conflicting_values: list[ResolverConflict] = Field(default_factory=list, max_length=20)
-    source_refs: list[str] = Field(default_factory=list, max_length=50)
-    can_resume_existing_plan: bool
+    resolved_value: Any = None
+    conflicting_values: list[ResolverConflictValue] = Field(default_factory=list, max_length=50)
+    source_refs: list[str] = Field(default_factory=list, max_length=100)
+    can_resume_existing_plan: bool = False
 
     @model_validator(mode="after")
-    def validate_resolution(self) -> Self:
-        if self.status == "RESOLVED" and self.resolved_value is None:
-            raise ValueError("RESOLVED Resolver output requires resolved_value")
-        if self.status == "RESOLVED" and not self.can_resume_existing_plan:
-            raise ValueError("RESOLVED Resolver output must resume the existing plan")
+    def validate_transition(self) -> Self:
         if self.status == "CONFLICT" and not self.conflicting_values:
             raise ValueError("CONFLICT Resolver output requires conflicting_values")
+        if self.status == "RESOLVED" and self.resolved_value is None:
+            raise ValueError("RESOLVED Resolver output requires resolved_value")
         if self.status == "NEEDS_INPUT" and self.can_resume_existing_plan:
-            raise ValueError("NEEDS_INPUT Resolver output cannot resume the existing plan")
+            raise ValueError("NEEDS_INPUT Resolver output cannot resume existing plan")
         return self
 
 
@@ -183,20 +276,24 @@ class TriageResult(BaseModel):
 
 
 SPECIALIST_RESPONSE_FORMATS: dict[str, type[BaseModel]] = {
+    "interview": InterviewResult,
     "planner": PlannerResult,
     "investigator": InvestigatorResult,
-    "resolver": ResolverResult,
     "triage": TriageResult,
 }
 
 
 __all__ = [
+    "BusinessContextNeed",
     "GraphSeed",
+    "InterviewQuestionChoice",
+    "InterviewQuestionResult",
+    "InterviewResult",
     "InvestigatorClaim",
     "InvestigatorResult",
     "PlannerResult",
     "ProvenanceRef",
-    "ResolverConflict",
+    "ResolverConflictValue",
     "ResolverResult",
     "SPECIALIST_RESPONSE_FORMATS",
     "TriageResult",

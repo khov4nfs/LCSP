@@ -81,10 +81,8 @@ expectContains(
 );
 
 const cqrsTools = [
-  "get_assessment_context",
   "get_artifact_chain",
   "get_reconciliation_context",
-  "compare_wizard_claim",
   "get_gap_requirements",
   "get_gap_evidence_trace",
   "evaluate_gap_matrix",

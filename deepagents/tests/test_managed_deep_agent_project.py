@@ -9,7 +9,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from tools.common.capabilities.managed.invocation import invocation_boundary_manifest
-from tools.common.get_assessment_context.code import get_assessment_context
 from tools.common.get_legal_corpus_readiness.code import get_legal_corpus_readiness
 from tools.common.retrieve_legal_basis.code import retrieve_legal_basis
 from tools.orchestration.request_targeted_reanalysis.code import (
@@ -55,7 +54,6 @@ def test_managed_schedule_exports_static_schedule_declaration() -> None:
 
 def test_authored_managed_tools_have_explicit_input_schema() -> None:
     authored_tools = (
-        get_assessment_context,
         get_legal_corpus_readiness,
         retrieve_legal_basis,
         request_targeted_reanalysis,
@@ -83,7 +81,6 @@ def test_managed_project_separates_authored_tools_from_runtime() -> None:
         "legal",
         "planner",
         "investigator",
-        "resolver",
         "orchestration",
         "triage",
     }
@@ -125,10 +122,11 @@ def test_managed_project_separates_authored_tools_from_runtime() -> None:
 def test_all_former_consumers_remain_internal_managed_invocation_boundaries() -> None:
     manifest = invocation_boundary_manifest()
 
-    assert len(manifest) == 18
+    assert len(manifest) == 19
     assert {entry["name"] for entry in manifest} >= {
         "scan_requested",
         "engineering_assessment_requested",
+        "assessment_interview_resume_requested",
         "legal_rule_triage_requested",
         "legal_change_detection_requested",
         "final_report_requested",

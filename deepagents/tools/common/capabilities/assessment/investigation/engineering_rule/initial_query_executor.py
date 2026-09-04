@@ -23,7 +23,7 @@ class InitialQueryExecutor:
         rule: EngineeringRule,
         graph,
         *,
-        wizard_context: dict | None = None,
+        confirmed_customer_context: dict | None = None,
     ) -> InvestigationPacket:
         engine = ProgramGraphQueryEngine(graph)
         rows: list[dict] = []
@@ -71,7 +71,7 @@ class InitialQueryExecutor:
             patterns=rule.patterns,
             unresolved_frontiers=(),
             evidence_refs=tuple(sorted(refs)),
-            wizard_context=dict(wizard_context or {}),
+            confirmed_customer_context=dict(confirmed_customer_context or {}),
             required_evidence=rule.required_evidence,
             supporting_evidence=rule.supporting_evidence,
             negative_evidence=rule.negative_evidence,

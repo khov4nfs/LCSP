@@ -1,4 +1,5 @@
 import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import { RBAC_DECISIONS } from "@lcsp/contracts/rbac";
 import {
   AGENTIC_TOOL_NAMES,
   AGENTIC_TOOL_STATUSES,
@@ -7,10 +8,6 @@ import {
   type AssessmentRuntimeStageCode,
   EVIDENCE_ERROR_CODES,
 } from "@lcsp/contracts/evidence";
-const RBAC_DECISION = {
-  allow: "ALLOW",
-  deny: "DENY",
-} as const;
 import {
   Body,
   Controller,
@@ -254,7 +251,7 @@ export class InternalAgenticToolDispatchController {
       correlationId: args.correlationId,
     });
 
-    if (authorization.decision !== RBAC_DECISION.allow) {
+    if (authorization.decision !== RBAC_DECISIONS.allow) {
       throw problemException(AUTH_ERROR_CODES.rbacDenied, args.correlationId, {
         status: HttpStatus.FORBIDDEN,
       });
@@ -452,11 +449,9 @@ const TECHNICAL_EVIDENCE_TOOL_NAMES = new Set<string>([
 ]);
 
 const RECONCILIATION_TOOL_NAMES = new Set<string>([
-  AGENTIC_TOOL_NAMES.getAssessmentContext,
   AGENTIC_TOOL_NAMES.getArtifactChain,
   AGENTIC_TOOL_NAMES.proposeMissingTargets,
   AGENTIC_TOOL_NAMES.getReconciliationContext,
-  AGENTIC_TOOL_NAMES.compareWizardClaim,
 ]);
 
 const CLASSIFICATION_TOOL_NAMES = new Set<string>([

@@ -21,11 +21,6 @@ plan that drives specialized subagents through one canonical assessment pipeline
                          assessment pipeline
                                 │
                                 ▼
-                        context_wizard
-                                │
-          pinned EngineeringRules + Wizard/assessment context
-                                │
-                                ▼
                              planner
                                 │
                                 ▼
@@ -39,7 +34,7 @@ plan that drives specialized subagents through one canonical assessment pipeline
                  NEEDS_INPUT       deterministic gate
                       │                    │
                       ▼                    ▼
-                   resolver               gap
+             targeted Interview           gap
                       │                    │
                       ▼                    ▼
              resume investigator          report
@@ -47,8 +42,8 @@ plan that drives specialized subagents through one canonical assessment pipeline
 
 The important boundary is that **EngineeringRules are prepared/pinned inputs to
 the pipeline**. Planner and Investigator do not discover legal rules themselves.
-Context Wizard hydrates only the already-selected rule identifiers from the
-approved corpus before technical planning begins.
+Runtime Interview gathers Customer-confirmed context before technical planning
+begins and handles targeted clarification only through Orchestration.
 
 ## Root supervisor concerns
 
@@ -73,7 +68,7 @@ memory for the current run and resume point.
 
 LCSP authoritative data remains in the API/database:
 
-- Wizard answers;
+- Customer-confirmed Interview context;
 - assessment state;
 - repository/Program Evidence Graph evidence;
 - approved legal corpus and EngineeringRules;
@@ -97,10 +92,11 @@ root updates the supervisor todo state.
 ## Canonical flow
 
 ```text
-context_wizard
+initial_interview
+→ CONTEXT_READY
 → plan
 → investigate
-→ [NEEDS_INPUT → resolve → resume → investigate]*
+→ [NEEDS_BUSINESS_CONTEXT → targeted_interview → orchestration validation → resume investigator]*
 → deterministic gate
 → gap
 → report
@@ -110,8 +106,8 @@ The supervisor follows this sequence through `instructions.md` and delegates wit
 Deep Agents' native `task` tool. LCSP does not maintain a second transition engine
 beside the Deep Agent/LangGraph runtime.
 
-`NEEDS_INPUT` and `resume` are orchestration states. The deterministic gate is not
-a subagent and cannot be called as a model tool.
+`NEEDS_BUSINESS_CONTEXT` and `resume` are orchestration states. The deterministic
+gate is not a subagent and cannot be called as a model tool.
 
 ## Specialized subagents
 
@@ -119,13 +115,9 @@ Each subagent has an independently reviewable definition:
 
 ```text
 subagents/
-├── context_wizard/
-│   └── definition.py
 ├── planner/
 │   └── definition.py
-├── investigator/
-│   └── definition.py
-└── resolver/
+└── investigator/
     └── definition.py
 ```
 
@@ -138,30 +130,9 @@ Every definition declares its own:
 - runtime-context middleware;
 - output contract.
 
-### Context Wizard
-
-First model stage for every new assessment cycle.
-
-Tools:
-
-- `get_assessment_context`
-- `get_legal_corpus_readiness`
-- `retrieve_legal_basis`
-
-Responsibilities:
-
-- hydrate pinned Wizard/assessment context;
-- hydrate approved legal basis only for the EngineeringRule IDs already supplied
-  by LCSP authority;
-- preserve conflicts and missing inputs;
-- return one compact `PipelineContext` to Planner.
-
-It cannot search the Program Evidence Graph, select replacement EngineeringRules,
-or decide legal/compliance outcomes.
-
 ### Planner
 
-Runs only after Context Wizard.
+Runs only after runtime Interview produces `CONTEXT_READY`.
 
 Tools:
 
@@ -175,12 +146,13 @@ Responsibilities:
 - identify graph seeds and coverage limitations;
 - return `INVESTIGATE` or a precise `NEEDS_INPUT`.
 
-Planner cannot retrieve legal basis, reload Wizard context, change the active rule
+Planner cannot retrieve legal basis, reload Interview context, change the active rule
 set, or decide compliance.
 
 ### Investigator
 
-Runs after Planner, or after Resolver when resuming the same plan.
+Runs after Planner, or after Orchestration validates a targeted Interview
+continuation for the same plan.
 
 Tools:
 
@@ -198,27 +170,10 @@ Responsibilities:
 - preserve Program Evidence Graph provenance;
 - produce criterion-scoped evidence claims;
 - surface truncation/frontier/coverage limitations;
-- return one exact `NEEDS_INPUT` when required.
+- return one exact `NEEDS_BUSINESS_CONTEXT` when required.
 
-Investigator cannot fetch Wizard/legal context, change EngineeringRules, or emit
+Investigator cannot fetch Interview/legal context, change EngineeringRules, or emit
 `COMPLIANT`, `NON_COMPLIANT`, or `UNKNOWN`.
-
-### Resolver
-
-Runs only after `NEEDS_INPUT`.
-
-Tools:
-
-- `get_assessment_context`
-- `compare_wizard_claim`
-
-Responsibilities:
-
-- resolve the exact missing Wizard/business fact;
-- preserve repository/Wizard conflicts;
-- return only the context delta needed to resume the same Investigator plan.
-
-Resolver cannot start a new repository investigation or change the active rule set.
 
 ## Model policy
 
@@ -227,10 +182,8 @@ Defaults live in `model_policy.py` and can be overridden by deployment env vars.
 | Role | Default model | Workload |
 | --- | --- | --- |
 | Root orchestrator | `openai:gpt-5.6-terra` | coordination, delegation, todo/state management |
-| Context Wizard | `openai:gpt-5.6-luna` | bounded context/legal hydration |
 | Planner | `openai:gpt-5.6-sol` | highest-reasoning scope construction |
 | Investigator | `openai:gpt-5.6-terra` | repeated tool-heavy technical investigation |
-| Resolver | `openai:gpt-5.6-luna` | narrow missing-context reconciliation |
 
 All role models receive the same LCSP harness profile.
 
@@ -243,7 +196,6 @@ tools/
 ├── common/
 ├── planner/
 ├── investigator/
-├── resolver/
 └── orchestration/
 ```
 
@@ -271,7 +223,7 @@ restricting the rest of the harness:
 The model pipeline ends after validated investigation claims.
 
 ```text
-Context Wizard → Planner → Investigator/Resolver
+Interview → Planner → Investigator
                          │
                          ▼
                  validated EvidenceClaim
@@ -284,6 +236,7 @@ Context Wizard → Planner → Investigator/Resolver
         COMPLIANT  NON_COMPLIANT   UNKNOWN
 ```
 
-LLM agents plan, investigate, and resolve missing context. Deterministic LCSP code
-owns claim validation, EngineeringRule evaluation, gap derivation boundaries, and
-the final authority trail.
+LLM agents plan and investigate. Runtime Interview and Orchestration own Customer
+context clarification. Deterministic LCSP code owns claim validation,
+EngineeringRule evaluation, gap derivation boundaries, and the final authority
+trail.

@@ -3,13 +3,13 @@
 from langchain.agents import create_agent
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from model_policy import RESOLVER_MODEL_SPEC
+from model_policy import INVESTIGATOR_MODEL_SPEC
 
 
 class RationaleNarrator:
     """Use an LLM only to explain deterministic classification results."""
 
-    def __init__(self, model: str = RESOLVER_MODEL_SPEC):
+    def __init__(self, model: str = INVESTIGATOR_MODEL_SPEC):
         """Create a narrator backed by LangChain's standard agent runtime."""
         self._model = model
 

@@ -106,10 +106,10 @@ def test_planner_selects_only_relevant_rules(native_agent) -> None:
                 "engineeringRuleId": "eng-general",
                 "decision": ENGINEERING_RULE_PLAN_DECISIONS["select"],
                 "reasonCode": ENGINEERING_RULE_PLAN_REASON_CODES[
-                    "wizard_and_source_match"
+                    "customer_context_and_source_match"
                 ],
                 "basis": [
-                    ENGINEERING_RULE_PLAN_BASIS["wizard"],
+                    ENGINEERING_RULE_PLAN_BASIS["customer_context"],
                     ENGINEERING_RULE_PLAN_BASIS["source"],
                 ],
             },
@@ -117,9 +117,9 @@ def test_planner_selects_only_relevant_rules(native_agent) -> None:
                 "engineeringRuleId": "eng-health",
                 "decision": ENGINEERING_RULE_PLAN_DECISIONS["skip"],
                 "reasonCode": ENGINEERING_RULE_PLAN_REASON_CODES[
-                    "wizard_scope_excludes"
+                    "customer_context_scope_excludes"
                 ],
-                "basis": [ENGINEERING_RULE_PLAN_BASIS["wizard"]],
+                "basis": [ENGINEERING_RULE_PLAN_BASIS["customer_context"]],
             },
         ]
     )
@@ -129,7 +129,7 @@ def test_planner_selects_only_relevant_rules(native_agent) -> None:
             _candidate("eng-general", source_hits=2),
             _candidate("eng-health", source_hits=0),
         ),
-        wizard_context={"sector": "GENERAL_BUSINESS"},
+        confirmed_customer_context={"sector": "GENERAL_BUSINESS"},
         graph=_graph(),
         workflow_run_id="workflow-1",
     )
@@ -147,15 +147,15 @@ def test_planner_cannot_skip_source_backed_rule_using_wizard_only(native_agent) 
                 "engineeringRuleId": "eng-source-conflict",
                 "decision": ENGINEERING_RULE_PLAN_DECISIONS["skip"],
                 "reasonCode": ENGINEERING_RULE_PLAN_REASON_CODES[
-                    "wizard_scope_excludes"
+                    "customer_context_scope_excludes"
                 ],
-                "basis": [ENGINEERING_RULE_PLAN_BASIS["wizard"]],
+                "basis": [ENGINEERING_RULE_PLAN_BASIS["customer_context"]],
             },
             {
                 "engineeringRuleId": "eng-other",
                 "decision": ENGINEERING_RULE_PLAN_DECISIONS["skip"],
                 "reasonCode": ENGINEERING_RULE_PLAN_REASON_CODES["no_scope_signal"],
-                "basis": [ENGINEERING_RULE_PLAN_BASIS["wizard"]],
+                "basis": [ENGINEERING_RULE_PLAN_BASIS["customer_context"]],
             },
         ]
     )
@@ -165,7 +165,7 @@ def test_planner_cannot_skip_source_backed_rule_using_wizard_only(native_agent) 
             _candidate("eng-source-conflict", source_hits=1),
             _candidate("eng-other", source_hits=0),
         ),
-        wizard_context={"highImpactIndicators": ["NONE"]},
+        confirmed_customer_context={"highImpactIndicators": ["NONE"]},
         graph=_graph(),
         workflow_run_id="workflow-1",
     )
@@ -193,7 +193,7 @@ def test_invalid_plan_falls_back_to_all_candidates(native_agent) -> None:
             _candidate("eng-1", source_hits=0),
             _candidate("eng-2", source_hits=0),
         ),
-        wizard_context={},
+        confirmed_customer_context={},
         graph=_graph(),
         workflow_run_id="workflow-1",
     )
@@ -206,7 +206,7 @@ def test_invalid_plan_falls_back_to_all_candidates(native_agent) -> None:
 def test_planner_prompt_contains_legal_reasoning_contract() -> None:
     prompt = EngineeringRulePlanner._prompt(
         (_candidate("eng-contract", source_hits=0),),
-        wizard_context={"sector": "GENERAL_BUSINESS"},
+        confirmed_customer_context={"sector": "GENERAL_BUSINESS"},
         graph=_graph(),
     )
 
@@ -219,7 +219,7 @@ def test_planner_prompt_contains_legal_reasoning_contract() -> None:
 def test_planner_prompt_treats_openwiki_as_unverified_hint_only() -> None:
     prompt = EngineeringRulePlanner._prompt(
         (_candidate("eng-contract", source_hits=0),),
-        wizard_context={"sector": "GENERAL_BUSINESS"},
+        confirmed_customer_context={"sector": "GENERAL_BUSINESS"},
         graph=_graph(),
         openwiki_context={
             "source": "openwiki",
@@ -352,7 +352,7 @@ def test_planned_pipeline_investigates_only_selected_rule(tmp_path) -> None:
     result = pipeline.run(
         evidence_report=evidence_report,
         workflow_run_id="workflow-1",
-        wizard_context={"sector": "GENERAL_BUSINESS"},
+        confirmed_customer_context={"sector": "GENERAL_BUSINESS"},
         workspace_path=tmp_path,
     )
 
@@ -447,7 +447,7 @@ def test_planned_pipeline_falls_back_all_when_openwiki_runtime_context_missing(
     result = pipeline.run(
         evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
         workflow_run_id="workflow-1",
-        wizard_context={"sector": "GENERAL_BUSINESS"},
+        confirmed_customer_context={"sector": "GENERAL_BUSINESS"},
         workspace_path=tmp_path,
     )
 

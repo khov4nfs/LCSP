@@ -43,7 +43,7 @@ class AIUsageFlowLangGraphState(TypedDict, total=False):
     technical_profile: dict[str, Any]
     evidence_report_id: str
     evidence_report: dict[str, Any]
-    wizard_profile: dict[str, Any] | None
+    confirmed_customer_context: dict[str, Any] | None
     flow: AIUsageFlow
     callback_payload: AIUsageFlowCallbackPayload
 
@@ -52,8 +52,8 @@ class AIUsageFlowGraph:
     """Build AI usage claims with deterministic rules and bounded summary assistance.
 
     The rule engine owns claim creation and lifecycle decisions. Optional LLM
-    assistance may update only wizard-authoritative summary fields and is rejected
-    when it disagrees with the canonical wizard profile.
+    assistance may update only customer-authoritative summary fields and is rejected
+    when it disagrees with the canonical customer_context.
     """
 
     def __init__(
@@ -161,7 +161,7 @@ class AIUsageFlowGraph:
         return self._build_graph(checkpointer=checkpointer)
 
     def _node_load_inputs(self, state: AIUsageFlowLangGraphState):
-        """Load canonical technical evidence and optional wizard context from API."""
+        """Load canonical technical evidence without customer-context hydration."""
         technical_profile = self._api_client.get_accepted_technical_profile(
             state["technical_profile_id"]
         )
@@ -185,18 +185,11 @@ class AIUsageFlowGraph:
         evidence_report = self._api_client.get_accepted_technical_evidence_report(
             str(evidence_report_id)
         )
-        wizard_profile = self._api_client.get_wizard_profile_for_assessment(
-            state["assessment_id"]
-        )
-        if isinstance(wizard_profile, dict) and wizard_profile.get("id"):
-            graph_state.record_input_version(
-                "wizard_profile_id", str(wizard_profile["id"])
-            )
         return {
             "technical_profile": technical_profile,
             "evidence_report_id": str(evidence_report_id),
             "evidence_report": evidence_report,
-            "wizard_profile": wizard_profile,
+            "confirmed_customer_context": None,
         }
 
     def _node_rule_engine(self, state: AIUsageFlowLangGraphState):
@@ -204,7 +197,7 @@ class AIUsageFlowGraph:
         flow = self._rule_engine.generate(
             technical_profile=state["technical_profile"],
             evidence_report=state["evidence_report"],
-            wizard_profile=state["wizard_profile"],
+            confirmed_customer_context=state["confirmed_customer_context"],
         )
         graph_state = state["graph_state"]
         graph_state.record_node(
@@ -255,10 +248,10 @@ class AIUsageFlowGraph:
         *,
         state: AIUsageFlowLangGraphState,
     ):
-        """Apply optional LLM summary updates only when wizard authority agrees."""
+        """Apply optional LLM summary updates only when customer authority agrees."""
         flow = state["flow"]
-        wizard_profile = state.get("wizard_profile")
-        if not self._proposer or not wizard_profile or flow.status == "BLOCKED":
+        confirmed_customer_context = state.get("confirmed_customer_context")
+        if not self._proposer or not confirmed_customer_context or flow.status == "BLOCKED":
             state["graph_state"].record_node(
                 node_name="ai_usage_flow.summary_proposal",
                 status="skipped",
@@ -276,7 +269,7 @@ class AIUsageFlowGraph:
         )
         proposal = self._proposer.generate_summary_proposal(
             baseline_summary=flow.summary,
-            wizard_profile=wizard_profile,
+            confirmed_customer_context=confirmed_customer_context,
             validated_claims=validated_claims,
             assessment_id=flow.assessment_id,
             evidence_report_id=state["evidence_report_id"],
@@ -291,7 +284,7 @@ class AIUsageFlowGraph:
             )
             return {}
         summary_updates = proposal.get("summary_updates", {})
-        if not self.summary_updates_match_authority(summary_updates, wizard_profile):
+        if not self.summary_updates_match_authority(summary_updates, confirmed_customer_context):
             state["graph_state"].record_node(
                 node_name=proposer_context.node_name,
                 status="rejected",
@@ -391,10 +384,10 @@ class AIUsageFlowGraph:
     @staticmethod
     def summary_updates_match_authority(
         summary_updates: dict[str, Any],
-        wizard_profile: dict[str, Any],
+        confirmed_customer_context: dict[str, Any],
     ) -> bool:
-        """Accept proposed summary values only when identical to wizard authority."""
-        answers = wizard_profile.get("answers")
+        """Accept proposed summary values only when identical to customer authority."""
+        answers = confirmed_customer_context.get("answers")
         if not isinstance(answers, dict):
             return False
         authoritative_map = {

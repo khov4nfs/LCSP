@@ -199,7 +199,6 @@ export function sanitizeAssessmentDetailPayload(
   return {
     assessment_id: optionalString(payload.assessment_id),
     name: optionalString(payload.name),
-    wizard_status: optionalString(payload.wizard_status),
     readiness_state: recordValue(readiness)
       ? {
           classification_locked: classificationLocked as boolean | undefined,
@@ -395,7 +394,6 @@ type ClassificationObservabilityPayload = {
 type AssessmentDetailPayload = {
   assessment_id?: string;
   name?: string;
-  wizard_status?: string;
   readiness_state?: {
     classification_locked?: boolean;
     lock_reason?: string | null;

@@ -25,8 +25,12 @@ class InternalPath(StrEnum):
     AGENTIC_TOOL_DISPATCH = "/internal/evidence/agentic-tools/dispatch"
     TARGETED_REANALYSIS_CREATE = "/internal/scan-jobs/targeted-reanalysis"
     AI_USAGE_FLOW = "/internal/ai-usage-flow/{ai_usage_flow_id}"
-    WIZARD_PROFILE = "/internal/assessments/{assessment_id}/wizard-profile"
     TARGETED_REANALYSIS_REQUEST = "/internal/targeted-reanalysis/{request_id}"
+    INTERVIEW_WORKER_STATE = "/internal/assessment-interviews/{assessment_id}/state"
+    INTERVIEW_PRIVATE_CONTEXT = "/internal/assessment-interviews/{assessment_id}/private-context/{context_revision}"
+    INTERVIEW_AGENT_DECISION = "/internal/assessment-interviews/{assessment_id}/agent-decisions"
+    INTERVIEW_INITIAL_QUESTION = "/internal/assessment-interviews/{assessment_id}/initial-question"
+    INTERVIEW_TARGETED_NEED = "/internal/assessment-interviews/{assessment_id}/targeted-needs"
     LEGAL_SOURCE_SNAPSHOTS = "/internal/legal-rule-catalog/source-snapshots"
 
 

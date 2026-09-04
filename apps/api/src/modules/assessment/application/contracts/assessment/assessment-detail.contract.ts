@@ -1,7 +1,6 @@
 export { ASSESSMENT_ERROR_CODES as ASSESSMENT_DETAIL_ERROR_CODES } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_ERROR_CODES as ASSESSMENT_DETAIL_ERROR_CODES,
-  WIZARD_STATUS_CODES,
   type AssessmentLockReason,
   type AssessmentMissingEvidenceCode,
   type AssessmentNextActionKey,
@@ -14,9 +13,6 @@ import type {
 
 export type AssessmentDetailErrorCode =
   (typeof ASSESSMENT_DETAIL_ERROR_CODES)[keyof typeof ASSESSMENT_DETAIL_ERROR_CODES];
-
-export type WizardStatus =
-  (typeof WIZARD_STATUS_CODES)[keyof typeof WIZARD_STATUS_CODES];
 
 export interface ReadinessState {
   classification_locked: boolean;
@@ -85,7 +81,6 @@ export interface AssessmentDetailDto {
   name: string;
   status: AssessmentStatusCode;
   owner_id: string;
-  wizard_status: WizardStatus;
   readiness_state: ReadinessState;
   guardrail_status: ClassificationGuardrailStatus | null;
   classification_result: ClassificationResultSummaryDto | null;

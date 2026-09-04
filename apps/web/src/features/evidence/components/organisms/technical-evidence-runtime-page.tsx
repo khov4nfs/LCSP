@@ -7,28 +7,12 @@ import {
 } from "@lcsp/contracts/evidence";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
-import {
-  WIZARD_CLARIFICATION_QUESTION_IDS,
-  WIZARD_CLARIFICATION_QUESTIONS,
-  WIZARD_CLARIFICATION_REQUEST_KIND,
-  WIZARD_CLARIFICATION_REQUESTERS,
-  WIZARD_CLARIFICATION_SCOPES,
-} from "@lcsp/contracts/wizard";
-import type {
-  WizardClarificationAgentQuestion,
-  WizardClarificationQuestion,
-  WizardClarificationQuestionId,
-  WizardClarificationRequester,
-  WizardClarificationRequest,
-  WizardClarificationScope,
-} from "@lcsp/contracts/wizard";
 import { resolveMessage } from "@lcsp/i18n";
 import { ActivityIcon, BotIcon, RotateCcwIcon } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   buildRuntimeConsoleModel,
   isActiveRuntimeStatus,
@@ -59,14 +43,6 @@ type SummaryRecord = {
   tool_call_count?: number;
   tool_names?: string[];
   [key: string]: unknown;
-};
-
-type RuntimeClarificationRequest = Omit<
-  WizardClarificationRequest,
-  "questionIds"
-> & {
-  questionIds: WizardClarificationQuestionId[];
-  questions: WizardClarificationAgentQuestion[];
 };
 
 const RUNTIME_STEP_STATUS_SKIPPED = "skipped";
@@ -122,16 +98,6 @@ function SemanticRuntimeDetails({
 }) {
   const input = (item.inputSummary || {}) as SummaryRecord;
   const output = (item.outputSummary || {}) as SummaryRecord;
-  const clarificationRequest = parseClarificationRequest(item);
-
-  if (clarificationRequest !== null) {
-    return (
-      <RuntimeClarificationRequestCard
-        item={item}
-        request={clarificationRequest}
-      />
-    );
-  }
 
   const isLlm =
     input.operation === "complete_with_tools" ||
@@ -272,100 +238,6 @@ function SemanticRuntimeDetails({
 
   // Fallback
   return <RuntimeDetailList item={item} />;
-}
-
-function RuntimeClarificationRequestCard({
-  item,
-  request,
-}: {
-  item: WorkspaceRuntimeActivityItem;
-  request: RuntimeClarificationRequest;
-}) {
-  const questions = request.questionIds
-    .map(findClarificationQuestion)
-    .filter(isClarificationQuestion);
-  const agentQuestions = request.questions;
-
-  return (
-    <div className="px-4 pb-3 md:pl-36">
-      <div className="rounded-md border border-sky-200 bg-sky-50/70 p-3 font-mono text-xs text-sky-950 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 font-semibold">
-              <ActivityIcon className="size-4 text-sky-600" />
-              <span>
-                {t("pages.technicalEvidence.clarificationRequestTitle")}
-              </span>
-            </div>
-            <p className="mt-1 max-w-3xl text-sky-900/80">
-              {t("pages.technicalEvidence.clarificationRequestDescription")}
-            </p>
-          </div>
-          <Link
-            className={buttonVariants({ size: "sm", variant: "outline" })}
-            href={`/assessments/${encodeURIComponent(item.assessmentId)}/wizard`}
-          >
-            {t("pages.technicalEvidence.clarificationRequestOpenWizard")}
-          </Link>
-        </div>
-        <dl className="mt-3 grid gap-1.5 text-sky-900/90 sm:grid-cols-2">
-          <div className="grid gap-0.5">
-            <dt className="text-sky-700/80">
-              {t("pages.technicalEvidence.clarificationRequestScopeLabel")}
-            </dt>
-            <dd>{request.scope}</dd>
-          </div>
-          <div className="grid gap-0.5">
-            <dt className="text-sky-700/80">
-              {t("pages.technicalEvidence.clarificationRequestReasonLabel")}
-            </dt>
-            <dd>{request.reasonCode}</dd>
-          </div>
-        </dl>
-        {questions.length > 0 ? (
-          <ul className="mt-3 grid gap-2">
-            {questions.map((question) => (
-              <li
-                className="rounded border border-sky-200 bg-white/80 px-3 py-2"
-                key={question.id}
-              >
-                <p className="font-semibold text-sky-950">
-                  {t(question.labelKey)}
-                </p>
-                <p className="mt-1 text-sky-900/80">{t(question.detailKey)}</p>
-                <p className="mt-2 text-sky-700/80">
-                  {t(
-                    "pages.technicalEvidence.clarificationCollectionRuleLabel",
-                  )}
-                  : {t(question.collectionRuleKey)}
-                </p>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {agentQuestions.length > 0 ? (
-          <ul className="mt-3 grid gap-2">
-            {agentQuestions.map((question) => (
-              <li
-                className="rounded border border-sky-200 bg-white/80 px-3 py-2"
-                key={question.id}
-              >
-                <p className="font-semibold text-sky-950">{question.text}</p>
-                <p className="mt-1 text-sky-900/80">
-                  {t("pages.technicalEvidence.clarificationRequestReasonLabel")}
-                  : {question.reasonCode}
-                </p>
-                <p className="mt-1 text-sky-700/80">
-                  {question.targetFieldName ?? question.targetKind} ·{" "}
-                  {Math.round(question.routingConfidence * 100)}%
-                </p>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-    </div>
-  );
 }
 
 export function TechnicalEvidenceRuntimePage({
@@ -860,125 +732,6 @@ function RuntimeDetailList({ item }: { item: WorkspaceRuntimeActivityItem }) {
       </dl>
     </div>
   );
-}
-
-function parseClarificationRequest(
-  item: WorkspaceRuntimeActivityItem,
-): RuntimeClarificationRequest | null {
-  const candidates = [item.outputSummary, item.inputSummary];
-  for (const candidate of candidates) {
-    if (!isSummaryRecord(candidate)) {
-      continue;
-    }
-    if (candidate.kind !== WIZARD_CLARIFICATION_REQUEST_KIND) {
-      continue;
-    }
-    if (!isClarificationScope(candidate.scope)) {
-      continue;
-    }
-    if (!isClarificationRequester(candidate.requestedBy)) {
-      continue;
-    }
-    if (typeof candidate.reasonCode !== "string") {
-      continue;
-    }
-    const questionIds = Array.isArray(candidate.questionIds)
-      ? candidate.questionIds.filter(isClarificationQuestionId)
-      : [];
-    const questions = Array.isArray(candidate.questions)
-      ? candidate.questions.filter(isAgentQuestion)
-      : [];
-
-    if (questionIds.length === 0 && questions.length === 0) {
-      continue;
-    }
-
-    return {
-      kind: WIZARD_CLARIFICATION_REQUEST_KIND,
-      scope: candidate.scope,
-      requestedBy: candidate.requestedBy,
-      reasonCode: candidate.reasonCode,
-      questionIds,
-      questions,
-    };
-  }
-
-  return null;
-}
-
-function isSummaryRecord(
-  value: WorkspaceRuntimeSummaryValue | null,
-): value is Record<string, WorkspaceRuntimeSummaryValue> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
-function isClarificationQuestionId(
-  value: WorkspaceRuntimeSummaryValue,
-): value is WizardClarificationQuestionId {
-  return (
-    typeof value === "string" &&
-    Object.values(WIZARD_CLARIFICATION_QUESTION_IDS).includes(
-      value as WizardClarificationQuestionId,
-    )
-  );
-}
-
-function isClarificationScope(
-  value: WorkspaceRuntimeSummaryValue,
-): value is WizardClarificationScope {
-  return (
-    typeof value === "string" &&
-    Object.values(WIZARD_CLARIFICATION_SCOPES).includes(
-      value as WizardClarificationScope,
-    )
-  );
-}
-
-function isClarificationRequester(
-  value: WorkspaceRuntimeSummaryValue,
-): value is WizardClarificationRequester {
-  return (
-    typeof value === "string" &&
-    Object.values(WIZARD_CLARIFICATION_REQUESTERS).includes(
-      value as WizardClarificationRequester,
-    )
-  );
-}
-
-function isAgentQuestion(
-  value: WorkspaceRuntimeSummaryValue,
-): value is WizardClarificationAgentQuestion {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-  return (
-    typeof value.id === "string" &&
-    typeof value.text === "string" &&
-    typeof value.language === "string" &&
-    typeof value.targetKind === "string" &&
-    typeof value.severity === "string" &&
-    typeof value.reasonCode === "string" &&
-    Array.isArray(value.evidenceRefs) &&
-    value.evidenceRefs.every((item) => typeof item === "string") &&
-    typeof value.status === "string" &&
-    typeof value.routingMethod === "string" &&
-    typeof value.routingConfidence === "number" &&
-    typeof value.answerControl === "string"
-  );
-}
-
-function findClarificationQuestion(
-  questionId: WizardClarificationQuestionId,
-): WizardClarificationQuestion | undefined {
-  return WIZARD_CLARIFICATION_QUESTIONS.find(
-    (question) => question.id === questionId,
-  );
-}
-
-function isClarificationQuestion(
-  value: WizardClarificationQuestion | undefined,
-): value is WizardClarificationQuestion {
-  return value !== undefined;
 }
 
 function AnimatedDots() {

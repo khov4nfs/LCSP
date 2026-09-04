@@ -2,8 +2,6 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   AGENTIC_TOOL_NAMES,
   ARTIFACT_CHAIN_STAGES,
-  ASSESSMENT_CONTEXT_ANSWER_FIELDS,
-  ASSESSMENT_CONTEXT_INCLUDES,
   EVIDENCE_ERROR_CODES,
 } from "@lcsp/contracts/evidence";
 import { HttpStatus } from "@nestjs/common";
@@ -17,17 +15,8 @@ import { GetLegalCorpusReadinessQuery } from "../../../legal-rule-catalog/applic
 import { RetrieveLegalBasisQuery } from "../../../legal-rule-catalog/application/queries/retrieve-legal-basis/retrieve-legal-basis.query.js";
 import { ValidateCitationSetQuery } from "../../../legal-rule-catalog/application/queries/validate-citation-set/validate-citation-set.query.js";
 import { RECONCILIATION_CONTEXT_STATUSES } from "../../../reconciliation/application/contracts/reconciliation/reconciliation-context.contract.js";
-import { CompareWizardClaimQuery } from "../../../reconciliation/application/queries/compare-wizard-claim/compare-wizard-claim.query.js";
 import { GetArtifactChainQuery } from "../../../reconciliation/application/queries/get-artifact-chain/get-artifact-chain.query.js";
-import { GetAssessmentContextQuery } from "../../../reconciliation/application/queries/get-assessment-context/get-assessment-context.query.js";
 import { GetReconciliationContextQuery } from "../../../reconciliation/application/queries/get-reconciliation-context/get-reconciliation-context.query.js";
-import {
-  parseSingleTargetId,
-  parseWizardClaimComparisonScope,
-  parseWizardClaimExpectedValue,
-  parseWizardClaimField,
-  parseWizardClaimMaxEvidenceRefs,
-} from "../../../reconciliation/presentation/http/compare-wizard-claim.request.js";
 import { RetrieveVerifiedAgentEpisodesQuery } from "../../application/queries/retrieve-verified-agent-episodes/retrieve-verified-agent-episodes.query.js";
 
 export type AgenticToolQueryDispatchArgs = {
@@ -45,14 +34,10 @@ export type AgenticToolQueryDispatchArgs = {
  */
 export function buildAgenticToolQuery(args: AgenticToolQueryDispatchArgs) {
   switch (args.toolName) {
-    case AGENTIC_TOOL_NAMES.getAssessmentContext:
-      return get_assessment_context(args);
     case AGENTIC_TOOL_NAMES.getArtifactChain:
       return get_artifact_chain(args);
     case AGENTIC_TOOL_NAMES.getReconciliationContext:
       return get_reconciliation_context(args);
-    case AGENTIC_TOOL_NAMES.compareWizardClaim:
-      return compare_wizard_claim(args);
     case AGENTIC_TOOL_NAMES.getGapRequirements:
       return get_gap_requirements(args);
     case AGENTIC_TOOL_NAMES.getGapEvidenceTrace:
@@ -78,20 +63,6 @@ export function buildAgenticToolQuery(args: AgenticToolQueryDispatchArgs) {
         },
       );
   }
-}
-
-export function get_assessment_context(args: AgenticToolQueryDispatchArgs) {
-  const { input, artifactVersions } = args;
-  return new GetAssessmentContextQuery(
-    args.assessmentId,
-    requiredArtifactVersion(artifactVersions, "wizardProfileId"),
-    typedStringArray(input.include, Object.values(ASSESSMENT_CONTEXT_INCLUDES)),
-    typedStringArray(
-      input.answerFields,
-      Object.values(ASSESSMENT_CONTEXT_ANSWER_FIELDS),
-    ),
-    args.correlationId,
-  );
 }
 
 export function get_artifact_chain(args: AgenticToolQueryDispatchArgs) {
@@ -123,36 +94,6 @@ export function get_reconciliation_context(args: AgenticToolQueryDispatchArgs) {
       input.statuses,
       Object.values(RECONCILIATION_CONTEXT_STATUSES),
     ),
-  );
-}
-
-export function compare_wizard_claim(args: AgenticToolQueryDispatchArgs) {
-  const { input, artifactVersions } = args;
-  const claimField = parseWizardClaimField(
-    optionalString(input.claimField) ?? undefined,
-    args.correlationId,
-  );
-  const rawMaxEvidenceRefs =
-    typeof input.maxEvidenceRefs === "number"
-      ? String(input.maxEvidenceRefs)
-      : (optionalString(input.maxEvidenceRefs) ?? undefined);
-  return new CompareWizardClaimQuery(
-    args.assessmentId,
-    requiredArtifactVersion(artifactVersions, "wizardProfileId"),
-    requiredArtifactVersion(artifactVersions, "technicalEvidenceReportId"),
-    parseSingleTargetId(requiredString(input.targetId), args.correlationId),
-    claimField,
-    parseWizardClaimExpectedValue(
-      optionalString(input.expectedValue) ?? undefined,
-      claimField,
-      args.correlationId,
-    ),
-    parseWizardClaimComparisonScope(
-      optionalString(input.comparisonScope) ?? undefined,
-      args.correlationId,
-    ),
-    parseWizardClaimMaxEvidenceRefs(rawMaxEvidenceRefs, args.correlationId),
-    args.correlationId,
   );
 }
 
@@ -224,12 +165,6 @@ export function retrieve_verified_episodes(args: AgenticToolQueryDispatchArgs) {
   );
 }
 
-function requiredArtifactVersion(
-  input: Record<string, unknown>,
-  key: string,
-): string {
-  return requiredString(input[key]);
-}
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)

@@ -5,7 +5,7 @@ import type { UserRepository } from "../../modules/auth-workspace/application/po
 import type { AuthorizationDecisionRepository } from "../../modules/auth-workspace/application/ports/persistence/authorization-decision.repository.js";
 import { User } from "../../modules/auth-workspace/domain/entities/user.entity.js";
 import type { AuthorizationDecision } from "../../modules/auth-workspace/domain/models/auth-workspace.models.js";
-import { LOCAL_RBAC_REASON_CODES } from "./rbac-reason-codes.js";
+import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 import {
   RbacPreflightService,
   type RbacPreflightInput,
@@ -85,7 +85,7 @@ describe("RbacPreflightService", () => {
         session_id: null,
         resource_id: AUTH_USER_ROLES.customer,
         decision: "ALLOW",
-        reason_code: LOCAL_RBAC_REASON_CODES.authorized,
+        reason_code: RBAC_REASON_CODES.authorized,
       }),
     );
   });
@@ -97,14 +97,14 @@ describe("RbacPreflightService", () => {
       service.evaluate(makeInput({ requiredRoles: [AUTH_USER_ROLES.admin] })),
     ).resolves.toEqual({
       decision: "DENY",
-      reasonCode: LOCAL_RBAC_REASON_CODES.denied,
+      reasonCode: RBAC_REASON_CODES.denied,
       correlationId: "corr-1",
     });
     expect(append).toHaveBeenCalledWith(
       expect.objectContaining({
         resource_id: AUTH_USER_ROLES.admin,
         decision: "DENY",
-        reason_code: LOCAL_RBAC_REASON_CODES.denied,
+        reason_code: RBAC_REASON_CODES.denied,
       }),
     );
   });
@@ -132,7 +132,7 @@ describe("RbacPreflightService", () => {
 
     await expect(service.evaluate(makeInput())).resolves.toEqual({
       decision: "DENY",
-      reasonCode: LOCAL_RBAC_REASON_CODES.loadError,
+      reasonCode: RBAC_REASON_CODES.loadError,
       correlationId: "corr-1",
     });
   });
@@ -144,7 +144,7 @@ describe("RbacPreflightService", () => {
 
     await expect(service.evaluate(makeInput())).resolves.toEqual({
       decision: "DENY",
-      reasonCode: LOCAL_RBAC_REASON_CODES.loadError,
+      reasonCode: RBAC_REASON_CODES.loadError,
       correlationId: "corr-1",
     });
   });

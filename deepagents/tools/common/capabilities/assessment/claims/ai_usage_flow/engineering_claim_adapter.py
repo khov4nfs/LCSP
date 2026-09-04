@@ -161,12 +161,12 @@ class EngineeringAwareAIUsageFlowRuleEngine:
         *,
         technical_profile: dict[str, Any] | None,
         evidence_report: dict[str, Any] | None,
-        wizard_profile: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
     ) -> AIUsageFlow:
         flow = self._base_engine.generate(
             technical_profile=technical_profile,
             evidence_report=evidence_report,
-            wizard_profile=wizard_profile,
+            confirmed_customer_context=confirmed_customer_context,
         )
         if not technical_profile:
             return flow

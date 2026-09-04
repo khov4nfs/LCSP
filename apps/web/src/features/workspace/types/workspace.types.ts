@@ -1,7 +1,4 @@
-import type {
-  AssessmentStatusCode,
-  WizardStatusCode,
-} from "@lcsp/contracts/assessment";
+import type { AssessmentStatusCode } from "@lcsp/contracts/assessment";
 import type { AuthUserRole } from "@lcsp/contracts/auth";
 import type { MessageKey } from "@lcsp/i18n";
 
@@ -21,7 +18,6 @@ export type AssessmentSummary = {
   id: string;
   name: string;
   status: AssessmentStatus;
-  wizard_status: WizardStatusCode;
   created_at: string;
 };
 

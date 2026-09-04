@@ -1,7 +1,7 @@
 """Canonical routing targets: the only locations a free-form question may land on.
 
-Field names mirror the Wizard clarification fields declared in
-``packages/contracts/src/wizard/clarification.ts`` and the wizard answer shape.
+Field names mirror the customer context clarification fields declared in
+``packages/contracts/src/evidence/assessment-interview.ts`` and the customer context answer shape.
 Descriptors/keywords feed both the embedding router and the deterministic
 keyword fallback, in Vietnamese and English because assessments run in either.
 """
@@ -14,7 +14,7 @@ from tools.common.capabilities.workflow.recovery.clarification.models import (
 
 ROUTING_TARGETS: tuple[ClarificationRoutingTarget, ...] = (
     ClarificationRoutingTarget(
-        target_kind=CLARIFICATION_TARGET_KINDS["wizard_field"],
+        target_kind=CLARIFICATION_TARGET_KINDS["customer_context_field"],
         field_name="businessProcess",
         display_name="Business process",
         descriptor=(
@@ -34,7 +34,7 @@ ROUTING_TARGETS: tuple[ClarificationRoutingTarget, ...] = (
         ),
     ),
     ClarificationRoutingTarget(
-        target_kind=CLARIFICATION_TARGET_KINDS["wizard_field"],
+        target_kind=CLARIFICATION_TARGET_KINDS["customer_context_field"],
         field_name="useCase",
         display_name="Use case",
         descriptor=(
@@ -54,7 +54,7 @@ ROUTING_TARGETS: tuple[ClarificationRoutingTarget, ...] = (
         ),
     ),
     ClarificationRoutingTarget(
-        target_kind=CLARIFICATION_TARGET_KINDS["wizard_field"],
+        target_kind=CLARIFICATION_TARGET_KINDS["customer_context_field"],
         field_name="primaryActors",
         display_name="Primary actors",
         descriptor=(
@@ -77,7 +77,7 @@ ROUTING_TARGETS: tuple[ClarificationRoutingTarget, ...] = (
         ),
     ),
     ClarificationRoutingTarget(
-        target_kind=CLARIFICATION_TARGET_KINDS["wizard_field"],
+        target_kind=CLARIFICATION_TARGET_KINDS["customer_context_field"],
         field_name="businessTrigger",
         display_name="Business trigger",
         descriptor=(
@@ -99,7 +99,7 @@ ROUTING_TARGETS: tuple[ClarificationRoutingTarget, ...] = (
         ),
     ),
     ClarificationRoutingTarget(
-        target_kind=CLARIFICATION_TARGET_KINDS["wizard_field"],
+        target_kind=CLARIFICATION_TARGET_KINDS["customer_context_field"],
         field_name="expectedOutcome",
         display_name="Expected outcome",
         descriptor=(
@@ -120,7 +120,7 @@ ROUTING_TARGETS: tuple[ClarificationRoutingTarget, ...] = (
         ),
     ),
     ClarificationRoutingTarget(
-        target_kind=CLARIFICATION_TARGET_KINDS["wizard_field"],
+        target_kind=CLARIFICATION_TARGET_KINDS["customer_context_field"],
         field_name="autonomyLevel",
         display_name="Autonomy level",
         descriptor=(
@@ -148,7 +148,7 @@ ROUTING_TARGETS: tuple[ClarificationRoutingTarget, ...] = (
         option_set="autonomyLevel",
     ),
     ClarificationRoutingTarget(
-        target_kind=CLARIFICATION_TARGET_KINDS["wizard_field"],
+        target_kind=CLARIFICATION_TARGET_KINDS["customer_context_field"],
         field_name="aiPurpose",
         display_name="AI purpose",
         descriptor=(
@@ -170,7 +170,7 @@ ROUTING_TARGETS: tuple[ClarificationRoutingTarget, ...] = (
         ),
     ),
     ClarificationRoutingTarget(
-        target_kind=CLARIFICATION_TARGET_KINDS["wizard_field"],
+        target_kind=CLARIFICATION_TARGET_KINDS["customer_context_field"],
         field_name="sector",
         display_name="Sector",
         descriptor=(
@@ -290,7 +290,7 @@ GENERAL_CONTEXT_TARGET = ClarificationRoutingTarget(
     field_name="generalContext",
     display_name="General context",
     descriptor=(
-        "General business context that does not map to a single wizard field."
+        "General business context that does not map to a single customer context field."
     ),
     keywords=(),
 )
@@ -299,7 +299,7 @@ _ROUTING_TARGET_INDEX = {target.field_name: target for target in ROUTING_TARGETS
 
 
 def routing_target_by_field_name(field_name: str) -> ClarificationRoutingTarget | None:
-    """Return the canonical routing target for a wizard field name, if any."""
+    """Return the canonical routing target for a customer context field name, if any."""
     if not isinstance(field_name, str):
         return None
     return _ROUTING_TARGET_INDEX.get(field_name.strip())

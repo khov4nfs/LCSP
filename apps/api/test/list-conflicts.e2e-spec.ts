@@ -230,7 +230,7 @@ describe("List Conflicts Endpoint (e2e) [MW-rec-002]", () => {
             technical_evidence: "External model invocation detected",
           },
           source_refs: {
-            wizard_answer: "answers.external_llm_usage",
+            customer_context_answer: "answers.external_llm_usage",
             ai_usage_flow_claim: "claim-1",
           },
           evidence_context: [

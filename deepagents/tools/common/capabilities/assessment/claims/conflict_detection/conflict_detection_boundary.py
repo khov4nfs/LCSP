@@ -1,4 +1,4 @@
-"""Consume AIUsageFlow events and persist wizard/evidence conflict records."""
+"""Consume AIUsageFlow events and persist customer_context/evidence conflict records."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ logger = get_logger(__name__)
 
 
 class ConflictDetectionBoundary(AgentBoundaryBase):
-    """Compare accepted AI usage flow facts with the assessment wizard profile."""
+    """Compare accepted AI usage flow facts with the assessment customer_context."""
 
     boundary_source = "intelligence.ai-usage-flow-ready"
     source_event = "event.ai-usage-flow.ready.v1"
@@ -59,12 +59,9 @@ class ConflictDetectionBoundary(AgentBoundaryBase):
         )
         if not assessment_id:
             raise ValueError("missing assessmentId")
-        wizard_profile = self._api_client.get_wizard_profile_for_assessment(
-            str(assessment_id)
-        )
         callback_data = self._detector.to_callback_payload(
             ai_usage_flow=ai_usage_flow,
-            wizard_profile=wizard_profile,
+            confirmed_customer_context=None,
         )
         callback_payload = ConflictDetectionCallbackPayload(**callback_data)
         if callback_payload.privacy_flags.get("containsSourceCode") is not False:

@@ -38,7 +38,6 @@ def _api_client() -> MagicMock:
         "snapshot_id": "snapshot-1",
         "scan_job_id": "scan-1",
     }
-    api_client.get_wizard_profile_for_assessment.return_value = None
     return api_client
 
 
@@ -54,9 +53,6 @@ def _boundary(*, api_client, pipeline, publisher=None) -> EngineeringAssessmentB
 
 def test_classification_callback_4xx_is_terminal_and_not_outer_retryable() -> None:
     api_client = _api_client()
-    api_client.get_wizard_profile_for_assessment.side_effect = RuntimeError(
-        "optional wizard unavailable"
-    )
     api_client.post_classification_callback.side_effect = WorkerCallbackError(
         "CLASSIFICATION_OVERCLAIM: Callback failed with client error 422."
     )

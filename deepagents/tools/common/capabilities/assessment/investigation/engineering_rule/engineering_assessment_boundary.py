@@ -110,7 +110,6 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         workflow_run_id = self._workflow_run_id(
             message, evidence_report, evidence_report_id
         )
-        wizard_context = self._wizard_context(assessment_id, correlationId)
         workspace_job_id = f"investigation-{correlationId}"
         workspace_path = self._materialize_code_workspace(
             evidence_report=evidence_report,
@@ -122,7 +121,7 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
                 evidence_report=evidence_report,
                 workflow_run_id=workflow_run_id,
                 correlation_id=correlationId,
-                wizard_context=wizard_context,
+                confirmed_customer_context=None,
                 workspace_path=workspace_path,
                 recovery_source_crawl_requests=self._source_crawl_requests(message),
                 assessment_id=assessment_id,
@@ -159,8 +158,6 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         )
         if snapshot_id:
             result_data["snapshot_id"] = str(snapshot_id)
-        if wizard_context:
-            result_data["wizard_context_used"] = True
 
         payload = ClassificationCallbackPayload(
             technical_evidence_report_id=evidence_report_id,
@@ -277,38 +274,6 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
                 correlationId=correlation_id,
             )
             return None
-
-    def _wizard_context(
-        self,
-        assessment_id: str,
-        correlation_id: str,
-    ) -> dict[str, Any] | None:
-        try:
-            profile = self._api_client.get_wizard_profile_for_assessment(assessment_id)
-        except Exception as error:
-            logger.info(
-                "OPTIONAL_WIZARD_CONTEXT_UNAVAILABLE",
-                assessment_id=assessment_id,
-                error_type=type(error).__name__,
-                correlationId=correlation_id,
-            )
-            return None
-
-        if not isinstance(profile, dict):
-            return None
-        answers = profile.get("answers")
-        if isinstance(answers, dict):
-            return dict(answers)
-        if isinstance(answers, list):
-            result: dict[str, Any] = {}
-            for row in answers:
-                if not isinstance(row, dict):
-                    continue
-                question_id = row.get("questionId") or row.get("question_id")
-                if question_id:
-                    result[str(question_id)] = row.get("value")
-            return result or None
-        return None
 
     @staticmethod
     def _guardrail_status(status: str) -> str:

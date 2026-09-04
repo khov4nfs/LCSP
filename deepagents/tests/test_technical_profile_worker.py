@@ -259,7 +259,7 @@ def test_consumer_waits_without_callback_when_engineering_rules_are_rebuilding()
 
     api_client.post_scan_runtime_event.assert_called_once()
     runtime_payload = api_client.post_scan_runtime_event.call_args.args[1]
-    assert runtime_payload["output_summary"]["kind"] == "WIZARD_CONTEXT_REQUEST"
+    assert runtime_payload["output_summary"]["kind"] == "SOURCE_CONTEXT_REQUEST"
     assert runtime_payload["output_summary"]["scope"] == "POST_GRAPH"
     assert runtime_payload["output_summary"]["requestedBy"] == "PLANNER"
     assert runtime_payload["output_summary"]["reasonCode"] == (

@@ -2,10 +2,7 @@ import * as assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
-import {
-  isReadinessExportPayload,
-  isReadinessPayload,
-} from "../src/lib/api/readiness-client.ts";
+import { isReadinessPayload } from "../src/lib/api/readiness-client.ts";
 
 test("readiness mock fixture satisfies the client payload contract", async () => {
   const fixture = JSON.parse(
@@ -55,26 +52,13 @@ test("readiness payload preserves the safe connected repository projection", () 
   );
 });
 
-test("readiness export payload requires a readiness-only PDF download", () => {
-  assert.equal(
-    isReadinessExportPayload({
-      export_id: "export-1",
-      file_name: "wizard-readiness-export-v1.pdf",
-      download_url:
-        "/assessments/assessment-1/wizard/readiness-exports/export-1/download",
-      media_type: "application/pdf",
-      readiness_only: true,
-    }),
-    true,
+test("readiness client no longer exposes wizard readiness export helpers", async () => {
+  const source = await readFile(
+    new URL("../src/lib/api/readiness-client.ts", import.meta.url),
+    "utf8",
   );
-  assert.equal(
-    isReadinessExportPayload({
-      export_id: "export-1",
-      file_name: "wizard-readiness-export-v1.json",
-      download_url: "/download",
-      media_type: "application/json",
-      readiness_only: true,
-    }),
-    false,
-  );
+
+  assert.doesNotMatch(source, /generateReadinessExport/);
+  assert.doesNotMatch(source, /isReadinessExportPayload/);
+  assert.doesNotMatch(source, /wizard\/readiness-export/);
 });

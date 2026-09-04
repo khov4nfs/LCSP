@@ -27,13 +27,13 @@ class ClassificationDossierBuilder:
         snapshot = self._record(generation_context, "repository_snapshot")
         legal_match = self._record(generation_context, "legal_rule_match")
         ai_usage_flow = self._record(generation_context, "ai_usage_flow")
-        wizard = generation_context.get("wizard_profile")
-        wizard = wizard if isinstance(wizard, dict) else {}
-
+        confirmed_context = self._json_record(
+            generation_context.get("confirmed_customer_context")
+        )
+        answers = self._json_record(confirmed_context.get("answers"))
         technical_data = self._json_record(technical.get("profile_data"))
         verified_data = self._json_record(verified.get("profile_data"))
         merged = self._json_record(verified_data.get("merged_profile"))
-        answers = self._json_record(wizard.get("answers"))
         classification_data = self._json_record(classification.get("classification_data"))
         evidence_payload = self._json_record(evidence_report.get("evidence_payload"))
         graph = self._json_record(
@@ -45,7 +45,6 @@ class ClassificationDossierBuilder:
             repository_snapshot_id=self._required(snapshot, "id"),
             program_evidence_graph_id=self._required_program_graph_id(graph, technical_data),
             technical_evidence_report_id=self._required(evidence_report, "id"),
-            wizard_profile_id=str(wizard.get("id") or "TECHNICAL_ONLY"),
             verified_profile_id=self._required(verified, "id"),
             legal_corpus_version_id=self._required(legal_match, "corpus_version_id"),
             legal_rule_catalog_version_id=self._required(
@@ -64,8 +63,6 @@ class ClassificationDossierBuilder:
                 "commitSha": snapshot.get("commit_sha"),
             },
             "intendedUse": self._first_non_empty(
-                answers.get("intendedUse"),
-                answers.get("intended_use"),
                 merged.get("intendedUse"),
                 merged.get("intended_use"),
                 answers.get("aiPurpose"),

@@ -1,6 +1,6 @@
 """Value sets and dataclasses for the autonomous clarification layer.
 
-Values mirror ``packages/contracts/src/wizard/clarification.ts`` exactly; the
+Values mirror ``packages/contracts/src/evidence/assessment-interview.ts`` exactly; the
 contract file is the canonical source and these constants must never drift.
 """
 from __future__ import annotations
@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 CLARIFICATION_TARGET_KINDS = {
-    "wizard_field": "WIZARD_FIELD",
+    "customer_context_field": "CUSTOMER_CONTEXT_FIELD",
     "post_graph_context": "POST_GRAPH_CONTEXT",
     "planner_scope": "PLANNER_SCOPE",
     "general_context": "GENERAL_CONTEXT",
@@ -36,10 +36,10 @@ CLARIFICATION_ROUTING_METHODS = {
     "agent_hint": "AGENT_HINT",
 }
 
-CLARIFICATION_REQUEST_KIND = "WIZARD_CONTEXT_REQUEST"
+CLARIFICATION_REQUEST_KIND = "SOURCE_CONTEXT_REQUEST"
 
 CLARIFICATION_REQUESTERS = {
-    "wizard": "WIZARD",
+    "interview": "INTERVIEW",
     "scanner": "SCANNER",
     "planner": "PLANNER",
 }

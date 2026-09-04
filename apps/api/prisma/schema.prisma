@@ -38,7 +38,6 @@ model User {
   repositoryConnections     RepositoryConnection[]        @relation("RepositoryConnectionUser")
   repositorySnapshots       RepositorySnapshot[]          @relation("RepositorySnapshotActor")
   resolvedConflicts         ConflictRecord[]              @relation("ConflictRecordResolver")
-  wizardProfiles            WizardProfile[]               @relation("WizardProfileOwner")
 }
 
 model AuthRecord {
@@ -136,31 +135,14 @@ model Assessment {
   repositoryScanJobs         RepositoryScanJob[]
   repositorySnapshots        RepositorySnapshot[]
   runtimeEvents              AssessmentRuntimeEvent[]
+  interviewThreads           AssessmentInterviewThread[]
   targetedReanalysisRequests TargetedReanalysisRequest[]
   technicalEvidenceReports   TechnicalEvidenceReport[]
   technicalProfiles          TechnicalProfile[]
   verifiedAgentEpisodes      VerifiedAgentEpisode[]
   verifiedProfiles           VerifiedProfile[]
-  wizardProfile              WizardProfile?
 
   @@index([ownerId])
-}
-
-model WizardProfile {
-  id               String              @id
-  assessmentId     String              @unique
-  ownerId          String
-  version          Int                 @default(1)
-  status           WizardProfileStatus @default(IN_PROGRESS)
-  answers          Json
-  submittedAt      DateTime?
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  assessment       Assessment          @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  owner            User                @relation("WizardProfileOwner", fields: [ownerId], references: [id], onDelete: Restrict)
-  verifiedProfiles VerifiedProfile[]
-
-  @@index([assessmentId])
 }
 
 model ReadinessExport {
@@ -231,7 +213,6 @@ enum AuditResourceType {
   VERIFIED_PROFILE
   WORKER_TASK
   WORKSPACE
-  WIZARD_PROFILE
 }
 
 enum AuthorizationReasonCode {
@@ -279,7 +260,6 @@ enum OutboxAggregateType {
   TECHNICAL_PROFILE
   TARGETED_REANALYSIS_REQUEST
   VERIFIED_PROFILE
-  WIZARD_PROFILE
 }
 
 enum TargetedReanalysisRequestState {
@@ -315,12 +295,6 @@ enum AssessmentStatus {
   SCAN_IN_PROGRESS
   CLASSIFICATION_LOCKED
   READY_FOR_REVIEW
-}
-
-enum WizardProfileStatus {
-  NOT_STARTED
-  IN_PROGRESS
-  SUBMITTED
 }
 
 enum ReadinessExportStatus {
@@ -578,6 +552,26 @@ model ConflictRecord {
   @@index([assessmentId, status])
 }
 
+model AssessmentInterviewThread {
+  id                 String     @id
+  assessmentId       String
+  stateJson          Json
+  privateContextJson Json       @default("[]")
+  contextRevision    Int        @default(0)
+  activeQuestionId   String?
+  processedRevision  Int        @default(0)
+  sourceVersion      String?
+  pgeVersion         String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  assessment         Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId])
+  @@index([assessmentId, contextRevision])
+  @@index([assessmentId, activeQuestionId, contextRevision])
+  @@index([assessmentId, updatedAt])
+}
+
 model AssessmentRuntimeEvent {
   id                String                     @id @default(uuid())
   assessmentId      String
@@ -639,7 +633,6 @@ model VerifiedProfile {
   id                         String                   @id @default(uuid())
   aiUsageFlowId              String
   version                    Int                      @default(1)
-  wizardProfileId            String?
   technicalEvidenceReportId  String?
   reconciliationDecisionRefs Json?
   idempotencyKey             String?
@@ -658,7 +651,6 @@ model VerifiedProfile {
   classificationResults      ClassificationResult[]
   legalRuleMatches           LegalRuleMatch[]
   technicalEvidenceReport    TechnicalEvidenceReport? @relation(fields: [technicalEvidenceReportId], references: [id], onDelete: SetNull)
-  wizardProfile              WizardProfile?           @relation(fields: [wizardProfileId], references: [id], onDelete: SetNull)
 
   @@unique([assessmentId, version])
   @@index([aiUsageFlowId])
@@ -998,6 +990,7 @@ enum AssessmentRuntimeStage {
   TECHNICAL_PROFILE
   AI_USAGE_FLOW
   RECONCILIATION
+  INTERVIEW
   CLASSIFICATION
   CONFLICTS
   DOCUMENTS

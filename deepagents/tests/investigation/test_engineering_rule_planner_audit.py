@@ -32,14 +32,14 @@ def test_plan_audit_records_requested_and_final_decision() -> None:
                 {
                     "engineeringRuleId": "eng-1",
                     "decision": "SELECT",
-                    "reasonCode": "WIZARD_SCOPE_MATCH",
-                    "basis": ["WIZARD"],
+                    "reasonCode": "CUSTOMER_CONTEXT_SCOPE_MATCH",
+                    "basis": ["CUSTOMER_CONTEXT"],
                 },
                 {
                     "engineeringRuleId": "eng-2",
                     "decision": "SKIP",
-                    "reasonCode": "NO_WIZARD_OR_SOURCE_SCOPE_SIGNAL",
-                    "basis": ["WIZARD", "RULE_CONTRACT"],
+                    "reasonCode": "NO_CUSTOMER_CONTEXT_OR_SOURCE_SCOPE_SIGNAL",
+                    "basis": ["CUSTOMER_CONTEXT", "RULE_CONTRACT"],
                 },
             ]
         },
@@ -51,7 +51,7 @@ def test_plan_audit_records_requested_and_final_decision() -> None:
         ("SELECT", "SELECT"),
         ("SKIP", "SKIP"),
     ]
-    assert plan.decision_audit[1].reason_code == "NO_WIZARD_OR_SOURCE_SCOPE_SIGNAL"
+    assert plan.decision_audit[1].reason_code == "NO_CUSTOMER_CONTEXT_OR_SOURCE_SCOPE_SIGNAL"
     assert plan.decision_audit[1].validation_override is None
 
 
@@ -63,8 +63,8 @@ def test_plan_audit_explains_source_backed_skip_override() -> None:
                 {
                     "engineeringRuleId": "eng-source",
                     "decision": "SKIP",
-                    "reasonCode": "WIZARD_SCOPE_EXCLUDES_RULE",
-                    "basis": ["WIZARD"],
+                    "reasonCode": "CUSTOMER_CONTEXT_SCOPE_EXCLUDES_RULE",
+                    "basis": ["CUSTOMER_CONTEXT"],
                 },
                 {
                     "engineeringRuleId": "eng-other",

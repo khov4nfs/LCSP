@@ -203,7 +203,6 @@ async function collectRelatedIds(prisma, assessmentId) {
   }
 
   const [
-    wizardProfiles,
     readinessExports,
     snapshots,
     scanJobs,
@@ -222,10 +221,6 @@ async function collectRelatedIds(prisma, assessmentId) {
     installStates,
     repositoryConnections,
   ] = await Promise.all([
-    prisma.wizardProfile.findMany({
-      where: { assessmentId },
-      select: { id: true },
-    }),
     prisma.readinessExport.findMany({
       where: { assessmentId },
       select: { id: true },
@@ -306,7 +301,6 @@ async function collectRelatedIds(prisma, assessmentId) {
   };
 
   for (const rows of [
-    wizardProfiles,
     readinessExports,
     snapshots,
     scanJobs,
@@ -436,10 +430,6 @@ function deletionSteps(assessmentId, relatedIds, repositoryConnectionIds) {
     [
       "ReadinessExport",
       (tx) => tx.readinessExport.deleteMany({ where: { assessmentId } }),
-    ],
-    [
-      "WizardProfile",
-      (tx) => tx.wizardProfile.deleteMany({ where: { assessmentId } }),
     ],
     [
       "Assessment",

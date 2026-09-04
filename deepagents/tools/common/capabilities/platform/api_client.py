@@ -62,7 +62,7 @@ class WorkerApiClient:
         self._timeout = 30.0
         self._max_retries = 3
 
-    def _post_with_retry(self, path: str, payload: dict) -> dict:
+    def _post_with_retry(self, path: str, payload: dict, *, redact: bool = True) -> dict:
         """POST a sanitized payload with exponential retry for network/5xx failures.
 
         Known 409 duplicate codes are treated as idempotent success. Other 4xx
@@ -75,7 +75,7 @@ class WorkerApiClient:
             WORKER_API_KEY_HEADER: self._api_key,
             correlationId_HEADER: cid,
         }
-        safe_payload = self._redact_callback_payload(payload)
+        safe_payload = self._redact_callback_payload(payload) if redact else dict(payload)
 
         for attempt in range(self._max_retries):
             try:
@@ -512,6 +512,68 @@ class WorkerApiClient:
                     pass
         return data
 
+    def get_interview_worker_state(self, assessment_id: str) -> dict:
+        """Fetch private worker Interview state, including guarded confirmed context."""
+        path = InternalPath.INTERVIEW_WORKER_STATE.format(assessment_id=assessment_id)
+        data = self._get_with_retry(path)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Interview worker state response was invalid.")
+        return data
+
+    def get_interview_private_context(
+        self,
+        assessment_id: str,
+        context_revision: int,
+        *,
+        source_version: str | None = None,
+        pge_version: str | None = None,
+    ) -> dict:
+        """Fetch governed private Interview context for a worker resume command."""
+        path = InternalPath.INTERVIEW_PRIVATE_CONTEXT.format(
+            assessment_id=assessment_id,
+            context_revision=context_revision,
+        )
+        params = {
+            key: value
+            for key, value in {
+                "source_version": source_version,
+                "pge_version": pge_version,
+            }.items()
+            if value
+        }
+        data = self._get_with_retry(path, params=params)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Interview private context response was invalid.")
+        return data
+
+    def post_interview_agent_decision(self, assessment_id: str, payload: dict) -> dict:
+        """Persist a guarded Interview Agent decision through the internal API."""
+        path = InternalPath.INTERVIEW_AGENT_DECISION.format(
+            assessment_id=assessment_id,
+        )
+        data = self._post_with_retry(path, payload, redact=False)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Interview Agent decision response was invalid.")
+        return data
+
+    def post_interview_initial_question(self, assessment_id: str, payload: dict) -> dict:
+        """Persist an Interview Agent-authored initial question through the internal API."""
+        path = InternalPath.INTERVIEW_INITIAL_QUESTION.format(
+            assessment_id=assessment_id,
+        )
+        data = self._post_with_retry(path, payload, redact=False)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Interview initial question response was invalid.")
+        return data
+
+    def post_interview_targeted_need(self, assessment_id: str, payload: dict) -> dict:
+        """Persist a server-guarded Targeted Interview need and opaque continuation."""
+        path = InternalPath.INTERVIEW_TARGETED_NEED.format(assessment_id=assessment_id)
+        data = self._post_with_retry(path, payload, redact=False)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Interview targeted need response was invalid.")
+        return data
+
     def dispatch_agentic_tool(self, payload: dict) -> dict:
         """Dispatch one already validated/authorized agentic tool to the trusted API."""
         path = InternalPath.AGENTIC_TOOL_DISPATCH
@@ -589,21 +651,6 @@ class WorkerApiClient:
         )
         if not isinstance(data, dict):
             raise WorkerCallbackError("Legal corpus activation response was invalid.")
-        return data
-
-    def get_wizard_profile_for_assessment(self, assessment_id: str) -> dict | None:
-        """Fetch an assessment wizard profile, treating 404 as an optional absence."""
-        path = InternalPath.WIZARD_PROFILE.format(assessment_id=assessment_id)
-        try:
-            data = self._get_with_retry(path)
-        except WorkerCallbackError as exc:
-            if "client error 404" in str(exc):
-                return None
-            raise
-        if data is None:
-            return None
-        if not isinstance(data, dict):
-            raise WorkerCallbackError("Wizard profile response was invalid.")
         return data
 
     def get_active_legal_rule_catalog(self) -> dict:

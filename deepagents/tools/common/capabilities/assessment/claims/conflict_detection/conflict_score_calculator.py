@@ -1,4 +1,4 @@
-"""Score and explain wizard/evidence conflicts using deterministic weights."""
+"""Score and explain customer-context/evidence conflicts using deterministic weights."""
 
 from __future__ import annotations
 

@@ -15,7 +15,7 @@ from tools.common.capabilities.assessment.investigation.engineering_rule.pipelin
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.callback_schemas import TechnicalProfileCallbackPayload
 from tools.common.capabilities.managed.boundary import AgentBoundaryBase
-from tools.common.capabilities.platform.wizard_clarification import (
+from tools.common.capabilities.platform.source_clarification import (
     engineering_rule_source_clarification_summary,
 )
 

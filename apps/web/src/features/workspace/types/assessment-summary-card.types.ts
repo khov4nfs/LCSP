@@ -5,7 +5,6 @@ import type { AssessmentSummary } from "./workspace.types";
 export type AssessmentSummaryCardProps = {
   assessment: AssessmentSummary;
   statusLabel: string;
-  wizardStatusLabel: string;
   createdAtLabel: string;
   href?: string;
   openAssessmentLabel?: string;

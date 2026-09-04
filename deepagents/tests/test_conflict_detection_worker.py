@@ -52,11 +52,11 @@ def _ai_usage_flow(*, claims: list[dict] | None = None, **overrides: object) -> 
     return flow
 
 
-def _wizard_profile(**answers: object) -> dict:
+def _confirmed_customer_context(**answers: object) -> dict:
     return {
-        "id": "wizard-1",
+        "id": "customer_context-1",
         "assessment_id": "assessment-1",
-        "version": "wizard-v1",
+        "version": "customer_context-v1",
         "answers": {
             "external_llm_usage": True,
             "decision_role": "human_decision_support",
@@ -69,7 +69,7 @@ def _wizard_profile(**answers: object) -> dict:
 def test_t01_external_llm_mismatch_creates_evidence_contradiction() -> None:
     conflicts = ConflictDetector().detect(
         ai_usage_flow=_ai_usage_flow(),
-        wizard_profile=_wizard_profile(external_llm_usage=False),
+        confirmed_customer_context=_confirmed_customer_context(external_llm_usage=False),
     )
 
     assert [conflict.conflict_type for conflict in conflicts] == [
@@ -77,7 +77,7 @@ def test_t01_external_llm_mismatch_creates_evidence_contradiction() -> None:
     ]
     assert conflicts[0].conflict_score == 1.0
     assert conflicts[0].evidence_refs == ["finding-invocation"]
-    assert conflicts[0].conflicting_source_refs["wizard_answer"] == (
+    assert conflicts[0].conflicting_source_refs["customer_context_answer"] == (
         "answers.external_llm_usage"
     )
     assert conflicts[0].explanation_basis["affected_field"] == "model_invocation"
@@ -103,7 +103,7 @@ def test_t02_agent_pattern_vs_no_autonomous_decision_creates_scope_mismatch() ->
                 )
             ]
         ),
-        wizard_profile=_wizard_profile(decision_role="no_autonomous_decision"),
+        confirmed_customer_context=_confirmed_customer_context(decision_role="no_autonomous_decision"),
     )
 
     assert [conflict.conflict_type for conflict in conflicts] == ["scope_mismatch"]
@@ -126,7 +126,7 @@ def test_t03_high_confidence_low_coverage_claim_creates_unverifiable() -> None:
                 )
             ]
         ),
-        wizard_profile=_wizard_profile(),
+        confirmed_customer_context=_confirmed_customer_context(),
     )
 
     assert [conflict.conflict_type for conflict in conflicts] == ["unverifiable"]
@@ -153,7 +153,7 @@ def test_t04_no_conflicts_is_explicit_empty_callback_payload() -> None:
                 )
             ]
         ),
-        wizard_profile=_wizard_profile(external_llm_usage=True),
+        confirmed_customer_context=_confirmed_customer_context(external_llm_usage=True),
     )
 
     callback_payload = ConflictDetectionCallbackPayload(**payload)
@@ -186,7 +186,7 @@ def test_t06_detector_makes_no_network_or_llm_calls() -> None:
     with patch("httpx.post") as http_post, patch("httpx.get") as http_get:
         ConflictDetector().detect(
             ai_usage_flow=_ai_usage_flow(),
-            wizard_profile=_wizard_profile(external_llm_usage=False),
+            confirmed_customer_context=_confirmed_customer_context(external_llm_usage=False),
         )
 
     http_post.assert_not_called()
@@ -197,7 +197,7 @@ def test_t06_detector_makes_no_network_or_llm_calls() -> None:
 def test_t07_score_explanation_uses_business_language() -> None:
     conflict = ConflictDetector().detect(
         ai_usage_flow=_ai_usage_flow(),
-        wizard_profile=_wizard_profile(external_llm_usage=False),
+        confirmed_customer_context=_confirmed_customer_context(external_llm_usage=False),
     )[0]
 
     explanation = conflict.score_explanation.lower()
@@ -210,12 +210,9 @@ def test_t07_score_explanation_uses_business_language() -> None:
 
 
 @pytest.mark.p0
-def test_consumer_fetches_ai_usage_flow_and_wizard_profile_then_posts_callback() -> None:
+def test_consumer_fetches_ai_usage_flow_without_customer_context_hydration() -> None:
     api_client = MagicMock()
     api_client.get_accepted_ai_usage_flow.return_value = _ai_usage_flow()
-    api_client.get_wizard_profile_for_assessment.return_value = _wizard_profile(
-        external_llm_usage=False
-    )
     boundary = ConflictDetectionBoundary(_config(), api_client=api_client)
 
     boundary.handle(
@@ -224,11 +221,12 @@ def test_consumer_fetches_ai_usage_flow_and_wizard_profile_then_posts_callback()
     )
 
     api_client.get_accepted_ai_usage_flow.assert_called_once_with("auf-1")
-    api_client.get_wizard_profile_for_assessment.assert_called_once_with(
-        "assessment-1"
+    assert not any(
+        call[0] == "get_confirmed_customer_context_for_assessment"
+        for call in api_client.mock_calls
     )
     api_client.post_reconciliation_conflict_callback.assert_called_once()
     payload = api_client.post_reconciliation_conflict_callback.call_args.args[0]
     assert isinstance(payload, ConflictDetectionCallbackPayload)
     assert payload.ai_usage_flow_id == "auf-1"
-    assert payload.conflicts[0]["conflict_type"] == "evidence_contradiction"
+    assert payload.conflicts == []

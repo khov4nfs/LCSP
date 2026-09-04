@@ -2,6 +2,7 @@ import {
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
+  ASSESSMENT_RUNTIME_SYNTHETIC_TOOL_NAMES,
   type AssessmentRuntimeEventType,
   type AssessmentRuntimeActiveTool,
   type AssessmentRuntimeActivityEvent,
@@ -712,7 +713,7 @@ function evidenceReportToSyntheticRuntimeActivity(
       ? ASSESSMENT_RUNTIME_RUN_STATUSES.failed
       : ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
     stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-    toolName: "technical_evidence_report",
+    toolName: ASSESSMENT_RUNTIME_SYNTHETIC_TOOL_NAMES.technicalEvidenceReport,
     summary: failed
       ? "Technical evidence report was rejected"
       : "Technical evidence report was accepted",

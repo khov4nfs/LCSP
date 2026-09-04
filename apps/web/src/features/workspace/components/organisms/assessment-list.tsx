@@ -22,7 +22,6 @@ type AssessmentListProps = {
   emptyDescription: string;
   loadingLabel: string;
   statusLabel: string;
-  wizardStatusLabel: string;
   createdAtLabel: string;
   getAssessmentHref?: (assessment: AssessmentSummary) => string;
   openAssessmentLabel?: string;
@@ -37,7 +36,6 @@ export function AssessmentList({
   emptyDescription,
   loadingLabel,
   statusLabel,
-  wizardStatusLabel,
   createdAtLabel,
   getAssessmentHref,
   openAssessmentLabel,
@@ -87,7 +85,6 @@ export function AssessmentList({
               key={assessment.id}
               assessment={assessment}
               statusLabel={statusLabel}
-              wizardStatusLabel={wizardStatusLabel}
               createdAtLabel={createdAtLabel}
               href={getAssessmentHref?.(assessment)}
               openAssessmentLabel={openAssessmentLabel}
@@ -98,4 +95,3 @@ export function AssessmentList({
     </section>
   );
 }
-

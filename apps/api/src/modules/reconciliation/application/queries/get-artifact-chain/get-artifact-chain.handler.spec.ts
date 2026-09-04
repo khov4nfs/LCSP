@@ -7,7 +7,6 @@ import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   EvidenceAcceptanceStatus,
   VerifiedProfileStatus,
-  WizardProfileStatus,
 } from "@prisma/client";
 import { jest } from "@jest/globals";
 
@@ -34,22 +33,6 @@ describe("GetArtifactChainHandler", () => {
             id: "report-1",
             schemaVersion: "1.0.0",
             status: EvidenceAcceptanceStatus.ACCEPTED,
-          }),
-        ),
-      },
-      wizardProfile: {
-        findUnique: jest.fn().mockImplementation(() =>
-          Promise.resolve({
-            id: "wizard-1",
-            version: 2,
-            status: WizardProfileStatus.SUBMITTED,
-          }),
-        ),
-        findFirst: jest.fn().mockImplementation(() =>
-          Promise.resolve({
-            id: "wizard-1",
-            version: 2,
-            status: WizardProfileStatus.SUBMITTED,
           }),
         ),
       },
@@ -80,7 +63,6 @@ describe("GetArtifactChainHandler", () => {
             id: "verified-1",
             schemaVersion: "1.0.0",
             status: VerifiedProfileStatus.APPROVED,
-            wizardProfileId: "wizard-1",
             aiUsageFlowId: "flow-1",
           }),
         ),
@@ -110,7 +92,6 @@ describe("GetArtifactChainHandler", () => {
     expect(response.result.integrity).toBe(ARTIFACT_CHAIN_INTEGRITY.valid);
     expect(response.result.links.map((link) => link.stage)).toEqual([
       ARTIFACT_CHAIN_STAGES.technicalEvidence,
-      ARTIFACT_CHAIN_STAGES.wizardProfile,
       ARTIFACT_CHAIN_STAGES.aiUsageFlow,
       ARTIFACT_CHAIN_STAGES.verifiedProfile,
     ]);

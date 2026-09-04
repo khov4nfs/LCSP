@@ -47,7 +47,6 @@ export const OUTBOX_AGGREGATE_TYPES = {
   technicalProfile: "TECHNICAL_PROFILE",
   targetedReanalysisRequest: "TARGETED_REANALYSIS_REQUEST",
   verifiedProfile: "VERIFIED_PROFILE",
-  wizardProfile: "WIZARD_PROFILE",
 } as const;
 
 export type OutboxStatus =

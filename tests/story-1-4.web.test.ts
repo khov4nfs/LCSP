@@ -6,7 +6,6 @@ import { PUBLIC_ENTRY_ROUTES } from "@lcsp/web/auth-entry";
 import {
   canCreateAssessment,
   getAssessmentStatusLabelKey,
-  getWizardStatusLabelKey,
   toAssessmentsOutcome,
   toWorkspaceOutcome,
   WORKSPACE_ROUTES,
@@ -106,21 +105,6 @@ test("assessment status values resolve to business-language i18n keys", () => {
   );
 });
 
-test("wizard status values resolve independently from assessment lifecycle", () => {
-  assert.equal(
-    getWizardStatusLabelKey("NOT_STARTED"),
-    "pages.workspace.wizardStatuses.NOT_STARTED",
-  );
-  assert.equal(
-    getWizardStatusLabelKey("IN_PROGRESS"),
-    "pages.workspace.wizardStatuses.IN_PROGRESS",
-  );
-  assert.equal(
-    getWizardStatusLabelKey("SUBMITTED"),
-    "pages.workspace.wizardStatuses.SUBMITTED",
-  );
-});
-
 test("assessment list outcome accepts only array payloads", () => {
   assert.deepEqual(
     toAssessmentsOutcome(
@@ -130,7 +114,6 @@ test("assessment list outcome accepts only array payloads", () => {
             id: "assessment-1",
             name: "EU AI Act readiness",
             status: "WIZARD_IN_PROGRESS",
-            wizard_status: "IN_PROGRESS",
             created_at: "2026-07-12T01:00:00.000Z",
           },
         ],
@@ -144,7 +127,6 @@ test("assessment list outcome accepts only array payloads", () => {
           id: "assessment-1",
           name: "EU AI Act readiness",
           status: "WIZARD_IN_PROGRESS",
-          wizard_status: "IN_PROGRESS",
           created_at: "2026-07-12T01:00:00.000Z",
         },
       ],

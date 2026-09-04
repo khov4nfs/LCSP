@@ -5,7 +5,6 @@ import {
   CredentialProvider,
   PrismaClient,
   RepositoryAuthenticationMode,
-  WizardProfileStatus,
 } from "@prisma/client";
 import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
@@ -68,9 +67,6 @@ run("ConnectAssessmentRepository credential provenance", () => {
     await prisma.$connect();
     await prisma.repositoryConnection.deleteMany({
       where: { userId: "provenance-user" },
-    });
-    await prisma.wizardProfile.deleteMany({
-      where: { ownerId: "provenance-user" },
     });
     await prisma.assessment.deleteMany({
       where: { ownerId: "provenance-user" },
@@ -182,16 +178,6 @@ run("ConnectAssessmentRepository credential provenance", () => {
         ownerId,
         name: id,
         status: AssessmentStatus.WIZARD_SUBMITTED,
-      },
-    });
-    await prisma.wizardProfile.create({
-      data: {
-        id: `${id}-wizard`,
-        assessmentId: id,
-        ownerId,
-        status: WizardProfileStatus.SUBMITTED,
-        answers: {},
-        submittedAt: new Date(),
       },
     });
   };

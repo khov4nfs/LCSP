@@ -38,7 +38,6 @@ export const enPages = {
     searchAssessments: "Search assessments",
     noAssessmentMatches: "No matching assessments found.",
     settings: "Settings",
-    wizard: "Intake wizard",
     readiness: "Readiness",
     technicalEvidence: "Technical evidence",
     classification: "Classification",
@@ -645,10 +644,9 @@ export const enPages = {
     createAssessment: "Create Assessment",
     newAssessmentName: "New assessment",
     openConflictResolution: "Open conflict resolution",
-    openWizard: "Open Wizard",
     assessmentsTitle: "Assessments",
     assessmentsDescription:
-      "Track assessment progress from wizard intake through review.",
+      "Track assessment progress from interview through review.",
     overviewAssessmentsTitle: "Manage assessments",
     overviewAssessmentsDescription:
       "Open the full list to track progress and continue each assessment.",
@@ -667,28 +665,18 @@ export const enPages = {
     emptyDescription: "Create your first assessment.",
     loadingAssessments: "Loading assessments",
     statusLabel: "Status",
-    wizardStatusLabel: "Wizard status",
     createdAtLabel: "Created",
     progressLabel: "Assessment progress",
     statuses: {
       WIZARD_IN_PROGRESS: "In Progress",
-      WIZARD_SUBMITTED: "Wizard Complete",
+      WIZARD_SUBMITTED: "Interview Complete",
       EVIDENCE_REQUIRED: "Evidence Needed",
       SCAN_IN_PROGRESS: "Scan Running",
       CLASSIFICATION_LOCKED: "Classification Locked",
       READY_FOR_REVIEW: "Ready for Review",
     },
-    wizardStatuses: {
-      NOT_STARTED: "Not Started",
-      IN_PROGRESS: "In Progress",
-      SUBMITTED: "Submitted",
-    },
     nextActions: {
-      wizardNotStarted:
-        "Start the Wizard to describe how this AI system is used.",
-      wizardInProgress: "Continue the Wizard to complete your assessment.",
-      wizardSubmitted:
-        "Waiting for technical evidence before classification can proceed.",
+      workflowRun: "Open the Workflow Run to continue the current assessment activity.",
     },
     security: {
       title: "Account protection",
@@ -969,14 +957,45 @@ export const enPages = {
   },
   assessment: {
     eyebrow: "Assessment workflow",
-    pageTitle: "Assessment overview",
+    pageTitle: "Workflow Run",
     pageDescription:
-      "Open the right workflow step to complete intake, check readiness, review classification, and manage compliance records.",
+      "Current stage, customer context, evidence-linked activity, and resumed investigation stay in one assessment surface.",
     openOverview: "Open assessment overview",
     moduleNavigation: "Assessment workflow steps",
     openModule: "Open this step",
+    workflowRunTitle: "Payment AI compliance review",
+    workflowRunDescription:
+      "Repository connected. The assessment is locked to the selected repository and pinned commit.",
+    repositoryConnected:
+      "Connected · GitHub · payment-service · pinned commit 9f31ca2",
+    scannerComplete:
+      "Scanner complete. Program evidence is indexed with partial coverage limitations preserved.",
+    interviewPrompt:
+      "Describe this project or system: what it does, who uses it, and where AI is involved.",
+    targetedClarificationPriorAnswer:
+      "Customer-stated review exists, but reviewer authority and timing are ambiguous.",
+    targetedClarificationBeforeDecision: "Before final AI decision",
+    targetedClarificationAfterDecision: "After final AI decision",
+    confirm: "Confirm",
+    adjust: "Adjust",
+    otherDescribe: "Other / describe",
+    booleanYes: "Yes",
+    booleanNo: "No",
+    blockedProvideMoreContext: "Provide more context",
+    blockedCheckInternally: "I need to check internally",
+    blockedSaveExit: "Save & Exit",
+    whyAsking: "Why are we asking?",
+    whyAskingDetail: "The Interview Agent linked this question to evidence refs:",
+    submitAnswer: "Send answer",
+    answerSavedForRuntime:
+      "Answer captured for the runtime thread. The Interview Agent will evaluate sufficiency before downstream resume.",
+    draftSavedForResume: "Draft saved. Return to this assessment to resume the same interview thread.",
+    blockedActionRecorded: "Choice recorded for the unresolved interview thread.",
+    runtimeWaitingForAgent: "Waiting for runtime activity for this assessment.",
+    noActiveInterviewQuestion: "No active Interview Agent question is waiting right now.",
+    loadingInterviewState: "Loading Interview Agent state.",
+    answerHistoryPrefix: "Prior answer:",
     modules: {
-      wizard: "Describe the business context and how the AI system is used.",
       readiness: "Review completed conditions and the evidence still needed.",
       classification:
         "Review the classification state and available next actions.",
@@ -986,7 +1005,7 @@ export const enPages = {
   },
   assessmentForm: {
     pageTitle: "Create assessment",
-    pageDescription: "Enter the basics before starting the Wizard intake.",
+    pageDescription: "Enter the basics before starting the assessment workflow.",
     formTitle: "Assessment details",
     formDescription: "You can add more detail in the next workflow steps.",
     nameLabel: "Assessment name",
@@ -994,400 +1013,18 @@ export const enPages = {
     descriptionLabel: "Description",
     descriptionPlaceholder: "Briefly describe the AI system to assess.",
     cancel: "Cancel",
-    submit: "Create and start Wizard",
+    submit: "Create assessment",
     submitting: "Creating assessment",
-  },
-  wizard: {
-    metadataTitle: "Assessment Wizard | LCSP",
-    metadataDescription:
-      "Describe the business context of this AI system in guided steps.",
-    pageTitle: "Assessment Wizard",
-    pageDescription:
-      "Describe how this AI system is used before technical evidence is reviewed.",
-    loading: "Loading wizard",
-    loadingDetail: "Checking the current assessment state.",
-    preScreenBadge: "Pre-screen",
-    detailedBadge: "Detailed intake",
-    progressLabel: "Progress",
-    draftSaved: "Draft saved",
-    draftSaving: "Saving draft",
-    draftDirty: "Draft has unsaved changes",
-    helperButton: "Why are we asking this?",
-    helperClose: "Close helper",
-    readOnlyBadge: "Read-only",
-    landingTitle: "Start with the business context",
-    landingDescription:
-      "This step collects self-declared context in business language. It does not create a final legal conclusion.",
-    timeEstimate: "Estimated time: about 10 minutes",
-    readinessOnlyHint:
-      "After submission, LCSP will keep this assessment in a readiness-only state until technical evidence is available.",
-    preScreenTitle: "Quick pre-screen",
-    preScreenDescription:
-      "These opening questions help LCSP show the right detailed sections next.",
-    readOnlyTitle: "This Wizard has already been submitted",
-    readOnlyDescription:
-      "The submitted profile cannot be edited from this page. Review the captured summary or continue with the next assessment step.",
-    readOnlyEmpty:
-      "No local summary is available on this device. The submitted Wizard remains locked.",
-    summaryTitle: "Draft summary",
-    summaryDescription:
-      "Use this view to confirm what has been captured in the current browser session.",
-    clearForm: "Clear form",
-    helperTitle: "Guidance",
-    helperDescription:
-      "Examples and plain-language explanations for the current question.",
-    actions: {
-      backToWorkspace: "Back to workspace",
-      previous: "Previous",
-      saveAndContinue: "Save and continue",
-      continueToDeepResearch: "Continue to deep research",
-      continueToDetailed: "Continue to detailed intake",
-      submit: "Submit Wizard",
-      openClassification: "Open next step",
-    },
-    sections: {
-      purpose: "System purpose",
-      dataUsers: "Data and affected people",
-      decision: "Decision making",
-      provider: "External AI usage",
-      deployment: "Deployment context",
-      risk: "Special risk signals",
-      deepResearch: "Deep research",
-    },
-    fields: {
-      preAiScopeLabel:
-        "Does this system use AI or generate AI-based suggestions or content?",
-      preAiScopeDescription:
-        "Choose the option that best matches the role of AI in this workflow today.",
-      preAffectedPeopleLabel:
-        "Could the result affect customers, staff, applicants, students, patients, or other people?",
-      preAffectedPeopleDescription:
-        "This helps LCSP understand who may be directly affected.",
-      prePersonalDataLabel:
-        "Does the system handle personal, sensitive, or biometric data?",
-      prePersonalDataDescription:
-        "If you are unsure, choose the option that keeps review cautious.",
-      preDecisionImportanceLabel:
-        "Could the AI result influence an important decision about a person?",
-      preDecisionImportanceDescription:
-        "For example: hiring, access, eligibility, pricing, or service outcomes.",
-      businessProcessLabel: "What business process does this system support?",
-      businessProcessDescription:
-        "Describe the main business process, compliance/risk goal, and business users who benefit.",
-      businessProcessPlaceholder:
-        "Example: Help an organization assess AI-system compliance and risk before production use.",
-      useCaseLabel: "What is the primary use case?",
-      useCaseDescription:
-        "Describe the actor goal, main flow, and boundary of this use case without listing implementation details.",
-      useCasePlaceholder:
-        "Example: A support agent opens a customer request, reviews suggested context, edits a draft reply, and sends it.",
-      primaryActorsLabel: "Who participates in this use case?",
-      primaryActorsDescription:
-        "Name the human actors, system actors, and affected people involved in the workflow.",
-      primaryActorsPlaceholder:
-        "Example: Support agent, customer, customer support system, AI drafting service.",
-      businessTriggerLabel: "What starts this workflow?",
-      businessTriggerDescription:
-        "Describe the event, user action, or scheduled condition that begins the use case.",
-      businessTriggerPlaceholder:
-        "Example: A customer submits a new support request or reopens an existing case.",
-      expectedOutcomeLabel: "What outcome should the workflow produce?",
-      expectedOutcomeDescription:
-        "Describe the business result after the workflow completes, including what must not be decided by the AI.",
-      expectedOutcomePlaceholder:
-        "Example: The customer receives a staff-approved response; the AI does not close the case by itself.",
-      aiPurposeLabel: "What role does the AI play in this process?",
-      aiPurposeDescription:
-        "Describe what the AI is used for and which decisions it must not approve by itself.",
-      aiPurposePlaceholder:
-        "Example: Support investigation planning, interpret evidence against approved rules, and propose cited conclusions.",
-      autonomyLevelLabel: "How autonomous is the system in this use case?",
-      autonomyLevelDescription:
-        "Choose the strongest option that still matches the real workflow.",
-      sectorLabel: "Which business context fits this system best?",
-      sectorDescription:
-        "Choose the closest sector; LCSP usually fits governance, risk and compliance.",
-      dataTypeLabel: "What kinds of data does the system use or analyze?",
-      dataTypeDescription:
-        "Select every category that applies to the AI workflow.",
-      affectedSubjectsLabel: "Who is directly affected by the result?",
-      affectedSubjectsDescription:
-        "Choose the group most directly affected by the system outcome.",
-      userImpactLabel: "How strong is the impact on those people?",
-      userImpactDescription:
-        "Think about whether the output changes access, treatment, opportunities, or service quality.",
-      decisionRoleLabel:
-        "What role does the AI output play in the final decision?",
-      decisionRoleDescription:
-        "Choose the option that best reflects how much the result influences the outcome.",
-      decisionRoleExamples:
-        "Example: a suggestion for staff review is different from an output that directly determines an outcome.",
-      humanReviewLabel:
-        "Where does a person review the result before it takes effect?",
-      humanReviewDescription:
-        "This question appears when the AI output goes beyond simple background support.",
-      externalLlmUsageLabel:
-        "Does the system call an external AI provider such as OpenAI, Anthropic, Google, or another vendor?",
-      externalLlmUsageDescription:
-        "Select yes when prompts or content leave your environment for an outside provider.",
-      biometricIndicatorLabel:
-        "Does the system use biometric data for recognition, verification, or scoring?",
-      biometricIndicatorDescription:
-        "Examples include face, voice, fingerprint, or similar identity signals.",
-      highImpactIndicatorLabel:
-        "Does this workflow relate to hiring, education, credit, healthcare, public services, or another important life context?",
-      highImpactIndicatorDescription:
-        "This helps LCSP flag workflows that may need closer follow-up later.",
-      deploymentContextLabel:
-        "Who is the intended audience for this application?",
-      deploymentContextDescription:
-        "Identify whether the application is used internally or provided externally to other users.",
-      specialCategoryDataLabel:
-        "Does the data contain particularly sensitive special categories?",
-      specialCategoryDataDescription:
-        "For example: political opinions, religious beliefs, trade union membership, etc.",
-      transparencyIndicatorsLabel:
-        "Are there direct interactions or AI-generated content?",
-      transparencyIndicatorsDescription:
-        "Indicate if users know they are interacting with AI or AI-generated content.",
-      prohibitedRiskSignalsLabel: "Are there any unacceptable risk signals?",
-      prohibitedRiskSignalsDescription:
-        "Social scoring, subliminal manipulation, or inferring sensitive traits are prohibited.",
-    },
-    options: {
-      yes: "Yes",
-      no: "No",
-      unknown: "I am not sure yet",
-      sectorGeneral: "General business operations",
-      sectorHr: "Employment or HR",
-      sectorFinance: "Finance, credit, or insurance",
-      sectorEducation: "Education or training",
-      sectorHealthcare: "Healthcare or wellness",
-      sectorPublicServices: "Public services or regulated access",
-      sectorGovernanceRiskCompliance:
-        "Governance, Risk and Compliance / Legal-tech",
-      dataTypePersonal: "Personal profile data",
-      dataTypeSensitive: "Sensitive or special-category data",
-      dataTypeBiometric: "Biometric data",
-      dataTypeBehavioral: "Behavior or usage data",
-      dataTypeOperational: "Operational or product data",
-      userGroupCustomers: "Customers or end users",
-      userGroupEmployees: "Employees or internal staff",
-      userGroupApplicants: "Applicants or candidates",
-      userGroupStudents: "Students or learners",
-      userGroupPatients: "Patients or care recipients",
-      userImpactLow: "Low impact",
-      userImpactModerate: "Moderate impact",
-      userImpactSignificant: "Significant impact",
-      decisionRoleNoAutonomousDecision:
-        "It supports background work only and does not shape a final decision",
-      decisionRoleSupportsDecision:
-        "It supports a person who still decides the outcome",
-      decisionRoleInformsDecision:
-        "It informs a person who still decides the outcome",
-      decisionRoleRecommendsOutcome:
-        "It recommends an outcome that people usually follow",
-      decisionRoleDirectlyDrivesOutcome:
-        "It directly drives the outcome with little or no review",
-      humanOversightPresent:
-        "A person reviews and can change the result before it takes effect",
-      humanOversightLimited:
-        "A person reviews some cases, but not every result",
-      humanOversightAbsent:
-        "The result usually takes effect without meaningful review",
-      humanOversightNotApplicable:
-        "Not applicable because the AI does not influence a final decision",
-      autonomyHumanAssisted:
-        "Human-assisted only; people decide and execute the outcome",
-      autonomyHumanApprovalRequired:
-        "Automation prepares an outcome, but human approval is required",
-      autonomyConditionalAutomation:
-        "Automation can act in defined conditions or low-risk cases",
-      autonomyFullAutomation:
-        "The system can complete the outcome without human approval",
-      externalNone: "No external calls",
-      externalPossible: "Possible external service calls",
-      externalConfirmed: "Confirmed external AI usage",
-      deploymentInternal: "Internal use",
-      deploymentExternal: "External deployment",
-      highImpactRecruiting: "Recruiting and HR",
-      highImpactCredit: "Credit and finance",
-      highImpactEducation: "Education",
-      highImpactHealthcare: "Healthcare",
-      transparencyDirectInteraction: "Direct interaction (Chatbots, etc.)",
-      transparencyContentGeneration: "Content generation (Text, Images, etc.)",
-      prohibitedTracking: "Non-transparent tracking",
-      prohibitedManipulation: "Behavioral manipulation",
-      prohibitedScoring: "Social scoring",
-      prohibitedSensitiveInference: "Inferring sensitive traits",
-    },
-    clarification: {
-      title: "Context needed before scan",
-      description:
-        "Answer these bounded questions so later agents use supplied facts instead of inferring business intent from code names.",
-      badge: "Ask mode",
-      askAction: "Ask follow-up",
-      askRunning: "Asking",
-      askReady: "Follow-up questions ready",
-      approveAction: "Approve",
-      approveDescription:
-        "Approve this question batch after all answers are complete so Deep Agents can continue analysis.",
-      approveIncomplete:
-        "Answer every question in the current batch before approving.",
-      approveReady:
-        "Question batch approved. Deep Agents will continue analysis.",
-      noMoreQuestions: "Deep Agents have no new deep research questions.",
-      agentTitle: "Follow-up questions from the agent",
-      agentDescription:
-        "These questions were generated from the current assessment context and routed to the matching Wizard fields.",
-      agentBadge: "Agent ask",
-      agentReasonLabel: "Reason",
-      agentAnswerLabel: "Answer",
-      agentAnswerDescription:
-        "Answer with business context only. Do not paste source code or prompts.",
-      agentAnswerPlaceholder:
-        "Add the missing context needed to continue planning or investigation.",
-      rules: {
-        businessProcess:
-          "Collect the everyday business workflow in user language, not code structure.",
-        useCase:
-          "Collect one primary actor goal, main flow, and boundary for this assessment.",
-        primaryActors:
-          "Collect only roles that act in or are affected by the use case.",
-        businessTrigger:
-          "Collect the business event that starts the flow; do not infer it from route names alone.",
-        expectedOutcome:
-          "Collect the intended business output and any decision that needs human authority.",
-        autonomyLevel:
-          "Collect one bounded automation level from the approved option set.",
-        aiPurpose:
-          "Collect what AI is used for and what it must not decide alone.",
-        sector: "Collect the closest sector from the approved option set.",
-        postGraphContext:
-          "Ask only for missing domain context that the code graph cannot prove.",
-        postGraphRuleScope:
-          "Ask only which business scope or rule area should be evaluated next.",
-        postGraphHumanReview:
-          "Ask only where human review or approval sits in the business flow.",
-      },
-      useCaseQuestion: "What is the primary use case?",
-      useCaseDetail:
-        "Include the actor goal, main flow, and boundary. Do not include source code or implementation details.",
-      primaryActorsQuestion: "List the actors involved.",
-      primaryActorsDetail:
-        "Include human actors, system actors, and affected people. Use plain role names.",
-      businessTriggerQuestion: "What starts this flow?",
-      businessTriggerDetail:
-        "Name the user action, event, queue message, schedule, or external condition that begins the use case.",
-      expectedOutcomeQuestion: "What outcome should this flow produce?",
-      expectedOutcomeDetail:
-        "State the business result and call out decisions that AI must not make alone.",
-      autonomyLevelQuestion: "How autonomous is the system in this use case?",
-      autonomyLevelDetail:
-        "Select whether the AI only assists, needs approval, can act conditionally, or fully automates the result.",
-      postGraphContextQuestion:
-        "What business context is missing from the code graph?",
-      postGraphContextDetail:
-        "Add only domain facts needed to interpret the scanned technical evidence.",
-      postGraphContextPlaceholder:
-        "Example: This route is used only by compliance operators during evidence review.",
-      postGraphRuleScopeQuestion:
-        "Which rule area should the planner evaluate next?",
-      postGraphRuleScopeDetail:
-        "Name the business obligation, control area, or approved corpus scope that should guide the next investigation.",
-      postGraphRuleScopePlaceholder:
-        "Example: Human oversight and auditability for AI-assisted classification.",
-      postGraphHumanReviewQuestion:
-        "Where does human review happen in this flow?",
-      postGraphHumanReviewDetail:
-        "State who reviews, when the review happens, and what authority they have.",
-      postGraphHumanReviewPlaceholder:
-        "Example: Legal Operator reviews blocked classifications before final approval.",
-    },
-    deepResearch: {
-      badge: "Deep Agents",
-      description:
-        "Deep Agents automatically generate questions after the sections above are complete, based on existing answers and without routing back into existing Wizard fields.",
-      lockedDescription:
-        "Complete every section above so Deep Agents can start deep research automatically.",
-      lockedError:
-        "Complete every section above before asking Deep Agents for deep research.",
-      agentTitle: "Automatic deep research",
-      agentDescription:
-        "Deep Agents read the current Wizard context and add post-scan questions when no generated question is waiting for an answer.",
-      askAction: "Generate questions",
-    },
-    helpers: {
-      decisionTitle: "How to answer the decision question",
-      decisionBody:
-        "Choose the strongest statement that still feels true. If the AI output can approve, reject, rank, or gate people with limited review, select a stronger decision role.",
-      humanOversightTitle: "What counts as meaningful human review",
-      humanOversightBody:
-        "A meaningful review happens before the result takes effect and gives a person real authority to question, change, or stop it.",
-      providerTitle: "When external provider usage matters",
-      providerBody:
-        "Select yes when your team sends prompts, documents, or user content to a third-party AI service outside your controlled environment.",
-    },
-    errors: {
-      loadTitle: "Unable to load this Wizard",
-      loadDetail: "The assessment state could not be loaded right now.",
-      clarificationFailed:
-        "Follow-up questions could not be generated. Try again.",
-      saveFailed: "The draft could not be saved. Try again.",
-      submitFailed:
-        "The Wizard could not be submitted. Review the highlighted answers and try again.",
-      alreadySubmitted:
-        "This Wizard has already been submitted and is now read-only.",
-      preAiScopeRequired:
-        "Please indicate whether this system uses AI before continuing.",
-      preAffectedPeopleRequired:
-        "Please select who might be affected before continuing.",
-      prePersonalDataRequired:
-        "Please indicate whether personal data is processed before continuing.",
-      preDecisionImportanceRequired:
-        "Please indicate whether the AI output affects an important decision before continuing.",
-      businessProcessRequired:
-        "Describe the main business process before continuing.",
-      useCaseRequired: "Describe the primary use case before continuing.",
-      primaryActorsRequired: "Describe the actors involved before continuing.",
-      businessTriggerRequired:
-        "Describe what starts the workflow before continuing.",
-      expectedOutcomeRequired:
-        "Describe the expected outcome before continuing.",
-      aiPurposeRequired: "Describe the AI purpose before continuing.",
-      autonomyLevelRequired: "Choose the autonomy boundary before continuing.",
-      sectorRequired: "Choose the primary business context before continuing.",
-      dataTypesRequired: "Select at least one data category before continuing.",
-      affectedSubjectsRequired:
-        "Choose who is directly affected before continuing.",
-      userImpactRequired: "Choose the level of impact before continuing.",
-      decisionRoleRequired:
-        "Choose how strongly the AI output affects the final decision.",
-      humanReviewRequired:
-        "Describe where a person reviews the result before continuing.",
-      externalLlmUsageRequired:
-        "Confirm whether the system uses an external AI provider before continuing.",
-      deploymentContextRequired:
-        "Select the intended audience before continuing.",
-      specialCategoryDataRequired:
-        "Indicate whether special category data is processed before continuing.",
-      biometricDataRequired:
-        "Indicate whether biometric data is processed before continuing.",
-      highImpactIndicatorsRequired:
-        "Select any high impact indicators before continuing.",
-      prohibitedRiskSignalsRequired:
-        "Select any prohibited risk signals before continuing.",
-    },
   },
   readiness: {
     metadataTitle: "Readiness status | LCSP",
     metadataDescription:
-      "Review the readiness-only handoff after the Wizard is submitted.",
+      "Review the readiness-only handoff after the interview context is ready.",
     pageTitle: "Readiness status",
     pageDescription:
       "This view shows what is ready, what is still missing, and the next safe step before classification can proceed.",
     loading: "Loading readiness status",
-    loadingDetail: "Checking the latest Wizard and evidence state.",
+    loadingDetail: "Checking the latest interview and evidence state.",
     errorTitle: "Unable to load readiness status",
     errorDetail: "Please try again in a moment.",
     badgeReadinessOnly: "Readiness only",
@@ -1395,12 +1032,12 @@ export const enPages = {
     badgeReady: "Ready for the next gate",
     summaryTitle: "Current handoff",
     summaryDescription:
-      "The Wizard is complete, but LCSP still treats this assessment as readiness-only until technical evidence is available.",
+      "The interview context is ready, but LCSP still treats this assessment as readiness-only until technical evidence is available.",
     summaryDescriptionReady:
       "The required technical evidence is available and this assessment can proceed to the next controlled gate.",
     exportErrorTitle: "Unable to generate readiness export",
     exportErrorDetail:
-      "The PDF could not be generated. Confirm that the Wizard is submitted and technical evidence is still unavailable.",
+      "The PDF could not be generated. Confirm that interview context is ready and technical evidence is still unavailable.",
     completedTitle: "Completed steps",
     missingTitle: "Still missing",
     nextActionTitle: "Next action",
@@ -1451,7 +1088,6 @@ export const enPages = {
     classificationLockedReason:
       "Repository evidence is required before classification can be performed.",
     completedSteps: {
-      wizardProfile: "Wizard profile submitted",
       repositoryConnected: "Repository connected",
       technicalEvidenceAccepted: "Technical evidence accepted",
     },
@@ -1465,8 +1101,6 @@ export const enPages = {
       openClassification: "Open classification status",
       openDocuments: "Open documents",
       connectRepository: "Connect Repository",
-      editWizard: "Update Wizard",
-      downloadPdf: "Download Wizard Readiness PDF",
       exportingPdf: "Preparing PDF...",
     },
   },
@@ -1511,13 +1145,6 @@ export const enPages = {
     rerunScan: "Run scan again",
     rerunningScan: "Creating new scan",
     rerunError: "Unable to create a new scan. Please try again.",
-    clarificationRequestTitle: "Additional context requested",
-    clarificationRequestDescription:
-      "The pipeline has paused on bounded questions. Answer them in the Wizard so later agents use supplied facts.",
-    clarificationRequestScopeLabel: "Scope",
-    clarificationRequestReasonLabel: "Reason",
-    clarificationRequestOpenWizard: "Open Wizard",
-    clarificationCollectionRuleLabel: "Collection rule",
     scanStatuses: {
       queued: "Queued",
       running: "Analyzing",
@@ -1582,7 +1209,6 @@ export const enPages = {
       getArtifactChain: "Read artifact chain",
       proposeMissingTargets: "Propose missing targets",
       getReconciliationContext: "Read reconciliation context",
-      compareWizardClaim: "Compare wizard claim",
       getGapRequirements: "Read gap requirements",
       evaluateGapMatrix: "Evaluate gap matrix",
       getGapEvidenceTrace: "Read gap evidence trace",
@@ -1757,7 +1383,8 @@ export const enPages = {
       evidenceChainNeedsReview: "Needs review",
       providerVersionLabel: "Provider version",
       verificationSources: {
-        TECHNICAL_PLUS_WIZARD: "Technical evidence and wizard answers",
+        TECHNICAL_PLUS_CUSTOMER_CONTEXT:
+          "Technical evidence and confirmed customer context",
         UNKNOWN: "Not provided",
       },
       factsTitle: "Assessment facts",

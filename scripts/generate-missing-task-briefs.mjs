@@ -422,7 +422,7 @@ const tasks = [
     owner: "Assessment",
     runtime: "nestjs-api",
     outcome:
-      "Create the Manager-owned organization and assessment API baseline that establishes tenant scope, assessment creation, and workflow guards before Wizard or scan work begins.",
+      "Create the Manager-owned organization and assessment API baseline that establishes tenant scope, assessment creation, and workflow guards before Interview or scan work begins.",
     sourceAuthority: [
       [
         "Epic / story",
@@ -446,10 +446,10 @@ const tasks = [
       "Persist owner, organization, workflow state, and neutral readiness projection without implying legal or risk output.",
       "Enforce PBAC and tenant scope on all assessment operations.",
       "Emit audit events for create and denied actions.",
-      "Provide the durable aggregate and state version used by Wizard, repository, reconciliation, and downstream workflows.",
+      "Provide the durable aggregate and state version used by Interview, repository, reconciliation, and downstream workflows.",
     ],
     nonGoals: [
-      "No Wizard question flow.",
+      "No Interview question flow.",
       "No repository connection or scan trigger.",
       "No classification or report generation.",
     ],
@@ -499,14 +499,14 @@ const tasks = [
   },
   {
     id: "TASK-008",
-    slug: "wizardprofile-readiness-apis",
-    title: "WizardProfile/readiness APIs",
+    slug: "interview-context-readiness-apis",
+    title: "InterviewContext/readiness APIs",
     status: "READY_FOR_PLANNING_REVIEW",
     priority: "P0",
     owner: "Assessment",
     runtime: "nestjs-api",
     outcome:
-      "Create the WizardProfile draft/submit/readiness API surface that captures business-language assessment facts and emits readiness-only states before technical evidence exists.",
+      "Create the InterviewContext draft/submit/readiness API surface that captures business-language assessment facts and emits readiness-only states before technical evidence exists.",
     sourceAuthority: [
       [
         "Epic / story",
@@ -514,7 +514,7 @@ const tasks = [
       ],
       [
         "UX / story",
-        "`docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-26-wizard-epic-2/WIZARD-MAPPING.md`; `docs/implementation-artifacts/2-2-complete-wizardprofile-in-business-language.md`; `docs/implementation-artifacts/2-3-wizard-only-readiness-without-risk-level.md`; `docs/implementation-artifacts/2-4-wizard-readiness-export.md`",
+        "`docs/planning-artifacts/ux-designs/ux-LCSP-2026-06-26-wizard-epic-2/WIZARD-MAPPING.md`; `docs/implementation-artifacts/2-2-complete-interview-context-in-business-language.md`; `docs/implementation-artifacts/2-3-interview-only-readiness-without-risk-level.md`; `docs/implementation-artifacts/2-4-wizard-readiness-export.md`",
       ],
       [
         "Implementation",
@@ -526,14 +526,14 @@ const tasks = [
       ],
     ],
     scope: [
-      "Implement WizardProfile draft/save/submit APIs with versioned persistence.",
+      "Implement InterviewContext draft/save/submit APIs with versioned persistence.",
       "Use business-language structure and explicit unknown/unclear states instead of code-centric fields.",
       "Project readiness-only output and readiness export entry points before scan evidence exists.",
       "Validate workflow/state guards and Manager authorization for submit/export actions.",
       "Expose API contracts that frontend can bind to the wizard mapping and readiness UX.",
     ],
     nonGoals: [
-      "No technical evidence inference from wizard-only data.",
+      "No technical evidence inference from interview-only data.",
       "No legal classification or final report generation.",
       "No direct developer attestation workflow.",
     ],
@@ -541,7 +541,7 @@ const tasks = [
       [
         "business-language capture",
         "API / UX contract",
-        "wizard fields and responses align with canonical wizard mapping and safe unknown states",
+        "interview fields and responses align with canonical interview contract and safe unknown states",
       ],
       [
         "readiness-only behavior",
@@ -551,12 +551,12 @@ const tasks = [
       [
         "version safety",
         "persistence",
-        "draft and submit mutations preserve explicit versioned WizardProfile history",
+        "draft and submit mutations preserve explicit versioned InterviewContext history",
       ],
     ],
     failure: [
       [
-        "invalid wizard submission",
+        "invalid interview context submission",
         "reject with field-safe validation response",
         "user sees actionable correction path",
         "audit contains safe validation outcome",
@@ -569,7 +569,7 @@ const tasks = [
       ],
     ],
     definitionOfDone: [
-      "WizardProfile APIs support draft, submit, readiness state, and readiness export entry boundaries.",
+      "InterviewContext APIs support draft, submit, readiness state, and readiness export entry boundaries.",
       "Unknown/unclear facts are preserved explicitly rather than guessed.",
       "Frontend can bind against one stable API contract for Epic 2.",
     ],
@@ -1447,7 +1447,7 @@ const tasks = [
       "Emit status that downstream gap analysis can consume safely.",
     ],
     nonGoals: [
-      "No classification from wizard-only or provider-only evidence.",
+      "No classification from interview-only or provider-only evidence.",
       "No bypass around legal citation allowlist.",
       "No document generation in this worker.",
     ],
@@ -1752,7 +1752,7 @@ const tasks = [
     owner: "UX / Assessment",
     runtime: "apps-web",
     outcome:
-      "Assemble the Manager-facing web happy path across the already-defined module surfaces so a primary user can move through authentication, assessment, wizard, evidence, classification, and reporting states coherently.",
+      "Assemble the Manager-facing web happy path across the already-defined module surfaces so a primary user can move through authentication, assessment, interview, evidence, classification, and reporting states coherently.",
     sourceAuthority: [
       [
         "UX",
@@ -1764,13 +1764,13 @@ const tasks = [
       ],
       [
         "Stories",
-        "`docs/implementation-artifacts/2-1-create-manager-owned-assessment.md`; `docs/implementation-artifacts/2-2-complete-wizardprofile-in-business-language.md`; `docs/implementation-artifacts/7-6-present-classification-blocked-or-degraded-state.md`; `docs/implementation-artifacts/8-3-generate-guarded-final-report.md`",
+        "`docs/implementation-artifacts/2-1-create-manager-owned-assessment.md`; `docs/implementation-artifacts/2-2-complete-interview-context-in-business-language.md`; `docs/implementation-artifacts/7-6-present-classification-blocked-or-degraded-state.md`; `docs/implementation-artifacts/8-3-generate-guarded-final-report.md`",
       ],
       ["Implementation", "`docs/implementation/backend-implementation.md`"],
     ],
     scope: [
       "Compose the Manager happy path using existing module APIs and story-level behavior contracts.",
-      "Cover sign-in, assessment creation, wizard progression, readiness/evidence states, classification visibility, and report/download entry points.",
+      "Cover sign-in, assessment creation, interview progression, readiness/evidence states, classification visibility, and report/download entry points.",
       "Keep screen transitions aligned with workflow state instead of client-side assumptions.",
       "Display blocked/degraded reasons safely when backend state requires them.",
       "Treat this as cross-module UX integration, not a new domain-authority layer.",
@@ -1789,7 +1789,7 @@ const tasks = [
       [
         "cross-module continuity",
         "UI / API",
-        "assessment, wizard, evidence, classification, and reporting surfaces connect coherently",
+        "assessment, interview, evidence, classification, and reporting surfaces connect coherently",
       ],
       [
         "safe blocked states",
@@ -1921,7 +1921,7 @@ const tasks = [
       ],
       [
         "Stories",
-        "`docs/implementation-artifacts/1-2-mfa-session-recovery-and-profile-safety.md`; `docs/implementation-artifacts/2-3-wizard-only-readiness-without-risk-level.md`; `docs/implementation-artifacts/7-6-present-classification-blocked-or-degraded-state.md`; `docs/implementation-artifacts/8-4-generate-evidence-readiness-report-when-final-evidence-is-missing.md`",
+        "`docs/implementation-artifacts/1-2-mfa-session-recovery-and-profile-safety.md`; `docs/implementation-artifacts/2-3-interview-only-readiness-without-risk-level.md`; `docs/implementation-artifacts/7-6-present-classification-blocked-or-degraded-state.md`; `docs/implementation-artifacts/8-4-generate-evidence-readiness-report-when-final-evidence-is-missing.md`",
       ],
       ["Implementation", "`docs/implementation/backend-implementation.md`"],
     ],

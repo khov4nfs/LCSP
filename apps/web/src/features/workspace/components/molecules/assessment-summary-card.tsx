@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import {
   getAssessmentStatusLabelKey,
-  getWizardStatusLabelKey,
 } from "@/lib/api/workspace-client";
 import { appLocale } from "@/lib/locale";
 import { getAssessmentProgress } from "../../config/assessment-progress";
@@ -23,7 +22,6 @@ import type {
 export function AssessmentSummaryCard({
   assessment,
   statusLabel,
-  wizardStatusLabel,
   createdAtLabel,
   href,
   openAssessmentLabel,
@@ -31,10 +29,6 @@ export function AssessmentSummaryCard({
   const status = resolveMessage(
     appLocale,
     getAssessmentStatusLabelKey(assessment.status),
-  );
-  const wizardStatus = resolveMessage(
-    appLocale,
-    getWizardStatusLabelKey(assessment.wizard_status),
   );
   const progress = getAssessmentProgress(assessment.status);
 
@@ -56,7 +50,6 @@ export function AssessmentSummaryCard({
       <CardContent>
         <dl className="flex flex-col gap-3 text-sm">
           <AssessmentFact label={statusLabel} value={status} />
-          <AssessmentFact label={wizardStatusLabel} value={wizardStatus} />
         </dl>
         <div className="mt-5 flex flex-col gap-2">
           <div className="flex items-center justify-between text-sm">

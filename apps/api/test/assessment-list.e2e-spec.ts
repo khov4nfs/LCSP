@@ -1,7 +1,6 @@
 import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_STATUS_CODES,
-  WIZARD_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 /**
  * MW-asmt-003: List Assessments Endpoint.
@@ -46,7 +45,6 @@ describe("List Assessments Endpoint (e2e) [MW-asmt-003]", () => {
   });
 
   beforeEach(async () => {
-    await prisma.wizardProfile.deleteMany();
     await prisma.assessment.deleteMany();
     await resetAuthWorkspaceDatabase(prisma);
     await seedAuthWorkspaceFixture(prisma);
@@ -87,7 +85,7 @@ describe("List Assessments Endpoint (e2e) [MW-asmt-003]", () => {
     assert.equal(body.page_size, 20);
     assert.ok(body.correlationId);
     body.assessments.forEach((item) => {
-      assert.equal(item.wizard_status, WIZARD_STATUS_CODES.notStarted);
+      assert.equal(typeof item.status, "string");
       assert.ok(item.assessment_id);
       assert.ok(item.created_at);
       assert.ok(item.updated_at);

@@ -11,9 +11,7 @@ export const ASSESSMENT_MISSING_EVIDENCE_CODES = {
 } as const;
 
 export const ASSESSMENT_NEXT_ACTION_KEYS = {
-  wizardNotStarted: "pages.workspace.nextActions.wizardNotStarted",
-  wizardInProgress: "pages.workspace.nextActions.wizardInProgress",
-  wizardSubmitted: "pages.workspace.nextActions.wizardSubmitted",
+  workflowRun: "pages.workspace.nextActions.workflowRun",
 } as const;
 
 export const READINESS_MODES = {

@@ -1,8 +1,8 @@
-"""Derive AIUsageFlow claims deterministically from technical evidence and bounded wizard context.
+"""Derive AIUsageFlow claims deterministically from technical evidence and bounded customer context.
 
 The rule engine is the authoritative claim-construction layer. It never uses an
 LLM, requires evidence references for material claims, degrades lifecycle/status
-when coverage is incomplete, and treats wizard data as business context rather
+when coverage is incomplete, and treats customer context data as business context rather
 than a substitute for technical evidence.
 """
 
@@ -20,7 +20,7 @@ from .conflict_candidate_builder import ConflictCandidateBuilder
 SCHEMA_VERSION = "1.0.0"
 DEFAULT_PROVIDER_VERSION = "lcsp.ai-usage-flow-worker.v1"
 TECHNICAL_ONLY = "TECHNICAL_ONLY"
-TECHNICAL_PLUS_WIZARD = "TECHNICAL_PLUS_WIZARD"
+TECHNICAL_PLUS_CUSTOMER_CONTEXT = "TECHNICAL_PLUS_CUSTOMER_CONTEXT"
 SYNTHETIC_OUTPUT_CATEGORIES = {"audio", "image", "video", "synthetic_media"}
 DOCUMENT_OUTPUT_CATEGORIES = {
     "document",
@@ -94,7 +94,7 @@ class AIUsageFlowClaim:
 
 @dataclass(frozen=True)
 class AIUsageFlow:
-    """Governed AI usage artifact produced from technical evidence and optional wizard context."""
+    """Governed AI usage artifact produced from technical evidence and optional customer context."""
 
     ai_usage_flow_id: str
     assessment_id: str
@@ -137,14 +137,14 @@ class AIUsageFlowRuleEngine:
         *,
         technical_profile: dict[str, Any] | None,
         evidence_report: dict[str, Any] | None,
-        wizard_profile: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
     ) -> AIUsageFlow:
         """Generate the authoritative AIUsageFlow from accepted technical evidence.
 
         Args:
             technical_profile: Accepted technical profile summarized from scanner evidence.
             evidence_report: Accepted technical evidence report containing findings/signals.
-            wizard_profile: Optional manager profile used for business context/conflict checks.
+            confirmed_customer_context: Optional confirmed customer_context used for business context/conflict checks.
 
         Returns:
             Deterministic AIUsageFlow with claims, confidence, status, and privacy flags.
@@ -399,7 +399,7 @@ class AIUsageFlowRuleEngine:
 
         conflict_candidates = self._conflict_builder.build(
             technical_profile=technical_profile,
-            wizard_profile=wizard_profile,
+            confirmed_customer_context=confirmed_customer_context,
             has_validated_invocation=any(
                 claim.claim_category == "MODEL_INVOCATION"
                 and claim.lifecycle_state == "VALIDATED"
@@ -416,7 +416,7 @@ class AIUsageFlowRuleEngine:
 
         summary = self._summary(
             technical_profile=technical_profile,
-            wizard_profile=wizard_profile,
+            confirmed_customer_context=confirmed_customer_context,
             claims=claims,
             findings=findings,
             uncertainty_reasons=uncertainty_reasons,
@@ -434,8 +434,8 @@ class AIUsageFlowRuleEngine:
             schema_version=SCHEMA_VERSION,
             provider_version=self._provider_version,
             status=status,
-            verification_source=TECHNICAL_PLUS_WIZARD
-            if wizard_profile
+            verification_source=TECHNICAL_PLUS_CUSTOMER_CONTEXT
+            if confirmed_customer_context
             else TECHNICAL_ONLY,
             summary=summary,
             claims=claims,
@@ -466,7 +466,7 @@ class AIUsageFlowRuleEngine:
             required_evidence_present=not missing_refs,
             optional_signal_count=optional_signal_count,
             material_coverage_limitations=material_coverage_limitations,
-            has_wizard_conflict=False,
+            has_customer_context_conflict=False,
             missing_required_evidence_class=missing_refs,
         )
         uncertainty = ["MISSING_EVIDENCE_REF"] if missing_refs else []
@@ -766,7 +766,7 @@ class AIUsageFlowRuleEngine:
             required_evidence_present=bool(claim.evidence_refs),
             optional_signal_count=0,
             material_coverage_limitations=0,
-            has_wizard_conflict=True,
+            has_customer_context_conflict=True,
             missing_required_evidence_class=False,
         )
         return AIUsageFlowClaim(
@@ -816,18 +816,18 @@ class AIUsageFlowRuleEngine:
         self,
         *,
         technical_profile: dict[str, Any],
-        wizard_profile: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
         claims: list[AIUsageFlowClaim],
         findings: list[dict[str, Any]],
         uncertainty_reasons: list[str],
     ) -> dict[str, Any]:
-        """Build the business-facing summary from claims plus wizard-authoritative context.
+        """Build the business-facing summary from claims plus customer-confirmed context.
 
-        Wizard answers provide business-process/purpose/affected-subject context;
+        Customer-confirmed answers provide business-process/purpose/affected-subject context;
         technical facts such as automation, review, controls, and evidence-backed
         material claim references remain derived from scanner claims.
         """
-        answers = wizard_profile.get("answers") if wizard_profile else {}
+        answers = confirmed_customer_context.get("answers") if confirmed_customer_context else {}
         answers = answers if isinstance(answers, dict) else {}
         material_claim_refs = [
             claim.claim_id

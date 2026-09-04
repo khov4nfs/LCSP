@@ -104,7 +104,7 @@ def test_rule_engine_consumes_semgrep_and_technical_findings_for_full_taxonomy()
     flow = AIUsageFlowRuleEngine().generate(
         technical_profile=_technical_profile(),
         evidence_report=_evidence_report(),
-        wizard_profile=None,
+        confirmed_customer_context=None,
     )
 
     categories = {claim.claim_category for claim in flow.claims}
@@ -122,7 +122,7 @@ def test_automated_decision_abstains_when_dynamic_path_is_unresolved() -> None:
     flow = AIUsageFlowRuleEngine().generate(
         technical_profile=_technical_profile(),
         evidence_report=_evidence_report(dynamic=True),
-        wizard_profile=None,
+        confirmed_customer_context=None,
     )
 
     automated = next(

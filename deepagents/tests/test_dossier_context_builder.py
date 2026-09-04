@@ -62,8 +62,8 @@ def _context() -> dict:
             },
         },
         "repository_snapshot": {"id": "snapshot-1", "commit_sha": "abc123"},
-        "wizard_profile": {
-            "id": "wizard-1",
+        "confirmed_customer_context": {
+            "id": "customer_context-1",
             "version": 1,
             "answers": {"intendedUse": "assist credit review"},
         },

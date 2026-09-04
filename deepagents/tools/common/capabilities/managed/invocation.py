@@ -50,9 +50,15 @@ AGENT_INVOCATION_BOUNDARIES: tuple[AgentInvocationBoundary, ...] = (
     ),
     AgentInvocationBoundary(
         "engineering_assessment_requested",
-        "tools.common.capabilities.assessment.investigation.engineering_rule.engineering_assessment_boundary:EngineeringAssessmentBoundary",
+        "tools.common.capabilities.assessment.investigation.engineering_rule.interview_gated_boundary:InterviewGatedEngineeringAssessmentBoundary",
         "investigation.evidence-accepted",
         "event.technical-evidence.accepted.v1",
+    ),
+    AgentInvocationBoundary(
+        "assessment_interview_resume_requested",
+        "tools.common.capabilities.workflow.recovery.interview_boundary:AssessmentInterviewResumeBoundary",
+        "assessment.interview-answer-submitted",
+        "command.assessment-interview.resume-agent.v1",
     ),
     AgentInvocationBoundary(
         "legal_rule_triage_requested",
@@ -205,6 +211,12 @@ def build_boundary(target: str) -> AgentBoundaryBase:
 
     if "rbac_client" in constructor.parameters:
         kwargs["rbac_client"] = RbacClient(
+            config.nestjs_api_base_url,
+            config.worker_api_key,
+        )
+
+    if "api_client" in constructor.parameters:
+        kwargs["api_client"] = WorkerApiClient(
             config.nestjs_api_base_url,
             config.worker_api_key,
         )

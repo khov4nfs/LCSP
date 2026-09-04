@@ -39,22 +39,6 @@ type ReadinessStatusOutcome =
       detailKey: string;
     };
 
-export type ReadinessExportOutcome =
-  | {
-      kind: typeof API_OUTCOME_KINDS.created;
-      data: {
-        exportId: string;
-        fileName: string;
-        downloadUrl: string;
-      };
-    }
-  | { kind: typeof API_OUTCOME_KINDS.redirect; location: string }
-  | {
-      kind: typeof API_OUTCOME_KINDS.error;
-      titleKey: string;
-      detailKey: string;
-    };
-
 type ReadinessPayload = {
   classification_locked?: unknown;
   missing_evidence?: unknown;
@@ -73,14 +57,6 @@ type ReadinessConnectionPayload = {
   repository_full_name: string;
   default_branch: string;
   status: string;
-};
-
-type ReadinessExportPayload = {
-  export_id?: unknown;
-  file_name?: unknown;
-  download_url?: unknown;
-  media_type?: unknown;
-  readiness_only?: unknown;
 };
 
 export async function getReadinessStatus(
@@ -199,60 +175,5 @@ export function isReadinessPayload(payload: unknown): payload is {
         typeof candidate.repository_connection.connection_id === "string" &&
         typeof candidate.repository_connection.repository_full_name ===
           "string"))
-  );
-}
-
-export async function generateReadinessExport(
-  assessmentId: string,
-): Promise<ReadinessExportOutcome> {
-  const { payload, ok, status, problemCode } = await apiRequest(
-    `/api/assessments/${encodeURIComponent(assessmentId)}/wizard/readiness-export`,
-    { method: "POST" },
-  );
-
-  if (ok && isReadinessExportPayload(payload)) {
-    return {
-      kind: API_OUTCOME_KINDS.created,
-      data: {
-        exportId: payload.export_id,
-        fileName: payload.file_name,
-        downloadUrl: `/api${payload.download_url}`,
-      },
-    };
-  }
-
-  if (
-    status === 401 ||
-    problemCode === AUTH_ERROR_CODES.authRequired ||
-    problemCode === AUTH_ERROR_CODES.sessionInvalid
-  ) {
-    return {
-      kind: API_OUTCOME_KINDS.redirect,
-      location: PUBLIC_ENTRY_ROUTES.signIn,
-    };
-  }
-
-  return {
-    kind: API_OUTCOME_KINDS.error,
-    titleKey: "pages.readiness.exportErrorTitle",
-    detailKey: "pages.readiness.exportErrorDetail",
-  };
-}
-
-export function isReadinessExportPayload(payload: unknown): payload is {
-  export_id: string;
-  file_name: string;
-  download_url: string;
-  media_type: "application/pdf";
-  readiness_only: true;
-} {
-  if (typeof payload !== "object" || payload === null) return false;
-  const candidate = payload as ReadinessExportPayload;
-  return (
-    typeof candidate.export_id === "string" &&
-    typeof candidate.file_name === "string" &&
-    typeof candidate.download_url === "string" &&
-    candidate.media_type === "application/pdf" &&
-    candidate.readiness_only === true
   );
 }

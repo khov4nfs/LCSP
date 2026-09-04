@@ -25,33 +25,33 @@ ENGINEERING_RULE_PLAN_DECISIONS = {
 }
 
 ENGINEERING_RULE_PLAN_REASON_CODES = {
-    "wizard_scope_match": "WIZARD_SCOPE_MATCH",
+    "customer_context_scope_match": "CUSTOMER_CONTEXT_SCOPE_MATCH",
     "source_scope_match": "SOURCE_SCOPE_MATCH",
-    "wizard_and_source_match": "WIZARD_AND_SOURCE_MATCH",
+    "customer_context_and_source_match": "CUSTOMER_CONTEXT_AND_SOURCE_MATCH",
     "baseline_control_relevant": "BASELINE_CONTROL_RELEVANT",
     "uncertain_scope_investigate": "UNCERTAIN_SCOPE_INVESTIGATE",
-    "no_scope_signal": "NO_WIZARD_OR_SOURCE_SCOPE_SIGNAL",
-    "wizard_scope_excludes": "WIZARD_SCOPE_EXCLUDES_RULE",
+    "no_scope_signal": "NO_CUSTOMER_CONTEXT_OR_SOURCE_SCOPE_SIGNAL",
+    "customer_context_scope_excludes": "CUSTOMER_CONTEXT_SCOPE_EXCLUDES_RULE",
     "source_signal_not_material": "SOURCE_SIGNAL_NOT_MATERIAL",
     "rule_scope_not_applicable": "RULE_SCOPE_NOT_APPLICABLE",
 }
 
 ENGINEERING_RULE_PLAN_BASIS = {
-    "wizard": "WIZARD",
+    "customer_context": "CUSTOMER_CONTEXT",
     "source": "SOURCE",
     "rule_contract": "RULE_CONTRACT",
 }
 
 _SELECT_REASONS = {
-    ENGINEERING_RULE_PLAN_REASON_CODES["wizard_scope_match"],
+    ENGINEERING_RULE_PLAN_REASON_CODES["customer_context_scope_match"],
     ENGINEERING_RULE_PLAN_REASON_CODES["source_scope_match"],
-    ENGINEERING_RULE_PLAN_REASON_CODES["wizard_and_source_match"],
+    ENGINEERING_RULE_PLAN_REASON_CODES["customer_context_and_source_match"],
     ENGINEERING_RULE_PLAN_REASON_CODES["baseline_control_relevant"],
     ENGINEERING_RULE_PLAN_REASON_CODES["uncertain_scope_investigate"],
 }
 _SKIP_REASONS = {
     ENGINEERING_RULE_PLAN_REASON_CODES["no_scope_signal"],
-    ENGINEERING_RULE_PLAN_REASON_CODES["wizard_scope_excludes"],
+    ENGINEERING_RULE_PLAN_REASON_CODES["customer_context_scope_excludes"],
     ENGINEERING_RULE_PLAN_REASON_CODES["source_signal_not_material"],
     ENGINEERING_RULE_PLAN_REASON_CODES["rule_scope_not_applicable"],
 }
@@ -180,7 +180,7 @@ class EngineeringRulePlanner:
         self,
         *,
         candidates: Iterable[EngineeringRulePlanningCandidate],
-        wizard_context: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
         graph: ProgramEvidenceGraph,
         workflow_run_id: str,
         correlation_id: str | None = None,
@@ -217,7 +217,19 @@ class EngineeringRulePlanner:
                 name="lcsp-engineering-rule-planner",
             )
             response = agent.invoke(
-                {"messages": [{"role": "user", "content": self._prompt(rows, wizard_context, graph, openwiki_context)}]},
+                {
+                    "messages": [
+                        {
+                            "role": "user",
+                            "content": self._prompt(
+                                rows,
+                                confirmed_customer_context,
+                                graph,
+                                openwiki_context,
+                            ),
+                        }
+                    ]
+                },
                 config={
                     "metadata": {
                         "workflow_run_id": workflow_run_id,
@@ -398,7 +410,7 @@ class EngineeringRulePlanner:
 
             # A rule with repository seed hits may be skipped only when the plan
             # explicitly considered SOURCE evidence. This catches the dangerous
-            # case where Wizard declarations alone suppress contradictory code facts.
+            # case where Customer context alone suppresses contradictory code facts.
             if (
                 candidate.source_hit_count > 0
                 and ENGINEERING_RULE_PLAN_BASIS["source"] not in decision_basis
@@ -415,7 +427,9 @@ class EngineeringRulePlanner:
             if (
                 candidate.source_hit_count > 0
                 and reason_code
-                == ENGINEERING_RULE_PLAN_REASON_CODES["wizard_scope_excludes"]
+                == ENGINEERING_RULE_PLAN_REASON_CODES[
+                    "customer_context_scope_excludes"
+                ]
             ):
                 choose(
                     rule_id=rule_id,
@@ -423,7 +437,7 @@ class EngineeringRulePlanner:
                     final="SELECT",
                     reason_code=reason_code,
                     basis=decision_basis,
-                    override="SOURCE_CONTRADICTS_WIZARD_EXCLUSION",
+                    override="SOURCE_CONTRADICTS_CUSTOMER_CONTEXT_EXCLUSION",
                 )
                 continue
             choose(
@@ -490,12 +504,12 @@ class EngineeringRulePlanner:
     def _prompt(
         cls,
         candidates: tuple[EngineeringRulePlanningCandidate, ...],
-        wizard_context: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
         graph: ProgramEvidenceGraph,
         openwiki_context: dict[str, Any] | None = None,
     ) -> str:
         payload = {
-            "wizardContext": wizard_context or {},
+            "confirmedCustomerContext": confirmed_customer_context or {},
             "repositoryEvidenceSummary": cls._graph_summary(graph),
             "openWikiArchitectureHints": openwiki_context or {
                 "source": "openwiki",
@@ -513,9 +527,9 @@ class EngineeringRulePlanner:
         return (
             "You are the LCSP EngineeringRule Planner. Select only the technical "
             "EngineeringRules that should be investigated for this assessment using "
-            "both Wizard declarations and repository evidence summaries. This is an "
+            "both Customer-confirmed context and repository evidence summaries. This is an "
             "investigation-scope plan, not a legal applicability or legal risk-tier "
-            "decision. Never invent rule IDs. Never treat a Wizard answer as stronger "
+            "decision. Never invent rule IDs. Never treat Customer context as stronger "
             "than contradictory repository evidence. If scope is uncertain, SELECT "
             "the rule. Treat LegalReasoningContract as the only legal authority: "
             "citationSet, version IDs, jurisdiction, applicabilityCriteria, "
@@ -526,7 +540,7 @@ class EngineeringRulePlanner:
             "only; they are not SOURCE basis, citation evidence, source anchors, "
             "and not proof of compliance. Domain-specific "
             "rules such as healthcare, education, public-sector, high-risk, or "
-            "medium-risk should be SKIP only when neither Wizard context nor source "
+            "medium-risk should be SKIP only when neither Customer context nor source "
             "signals make their technical requirement materially relevant. For every "
             "rule submit one decision and use only the declared reason codes/basis.\n\n"
             + json.dumps(payload, ensure_ascii=False, separators=(",", ":"))

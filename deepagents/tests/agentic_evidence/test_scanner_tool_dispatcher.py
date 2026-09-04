@@ -22,7 +22,11 @@ def test_global_runtime_index_places_technical_query_in_python() -> None:
     names = [b.tool_name for b in ALL_TOOL_BINDINGS]; assert len(names) == len(set(names))
     assert runtime_binding("run_syft_inventory").runtime_target == ToolRuntimeTarget.PYTHON_LOCAL
     evidence = runtime_binding("search_evidence"); assert evidence.runtime_target == ToolRuntimeTarget.PYTHON_LOCAL; assert "ProgramGraphQueryEngine" in evidence.downstream_target
-    assert runtime_binding("get_assessment_context").runtime_target == ToolRuntimeTarget.NEST_CQRS
+    with pytest.raises(
+        AgenticToolValidationError,
+        match="TOOL_RUNTIME_BINDING_NOT_FOUND",
+    ):
+        runtime_binding("get_assessment_context")
 
 def test_manifest_is_deterministic() -> None:
     manifest = tool_runtime_manifest(); assert len(manifest) == len(ALL_TOOL_BINDINGS); assert [r["tool_name"] for r in manifest] == sorted(b.tool_name for b in ALL_TOOL_BINDINGS)

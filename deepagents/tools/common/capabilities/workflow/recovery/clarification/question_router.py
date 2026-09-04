@@ -1,4 +1,4 @@
-"""Route free-form agent questions to canonical wizard/pipeline locations.
+"""Route free-form agent questions to canonical customer-context/pipeline locations.
 
 Two routing engines, in priority order:
 

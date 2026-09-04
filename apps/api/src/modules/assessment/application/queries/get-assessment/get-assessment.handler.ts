@@ -3,8 +3,6 @@ import {
   ASSESSMENT_LOCK_REASONS,
   ASSESSMENT_MISSING_EVIDENCE_CODES,
   ASSESSMENT_NEXT_ACTION_KEYS,
-  WIZARD_STATUS_CODES,
-  type AssessmentNextActionKey,
 } from "@lcsp/contracts/assessment";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
@@ -18,7 +16,6 @@ import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
 import {
   fromPrismaClassificationGuardrailStatus,
-  fromPrismaWizardStatus,
   toPrismaEvidenceAcceptanceStatus,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
@@ -28,7 +25,6 @@ import type {
   ClassificationResultSummaryDto,
   EngineeringRuleEvaluationDto,
   ReadinessState,
-  WizardStatus,
 } from "../../contracts/assessment/assessment-detail.contract.js";
 import {
   ASSESSMENT_REPOSITORY,
@@ -67,13 +63,6 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
     ) {
       this.throwNotFound(query.correlationId);
     }
-
-    const wizardProfile = await this.prisma.wizardProfile.findUnique({
-      where: { assessmentId: assessment.id },
-    });
-    const wizardStatus: WizardStatus = wizardProfile
-      ? fromPrismaWizardStatus(wizardProfile.status)
-      : WIZARD_STATUS_CODES.notStarted;
 
     const acceptedEvidenceReport =
       await this.prisma.technicalEvidenceReport.findFirst({
@@ -126,7 +115,6 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
       name: assessment.name,
       status: assessment.status,
       owner_id: assessment.ownerId,
-      wizard_status: wizardStatus,
       readiness_state: readinessState,
       guardrail_status: classificationResult
         ? fromPrismaClassificationGuardrailStatus(
@@ -144,7 +132,7 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
       legal_rule_match_diagnostics: null,
       verified_profile_review: null,
       can_rerun_classification: acceptedEvidenceReport !== null,
-      next_action: nextActionFor(wizardStatus),
+      next_action: ASSESSMENT_NEXT_ACTION_KEYS.workflowRun,
       created_at: assessment.createdAt.toISOString(),
       updated_at: assessment.updatedAt.toISOString(),
       correlationId: query.correlationId,
@@ -176,19 +164,6 @@ export class GetAssessmentHandler implements IQueryHandler<GetAssessmentQuery> {
     throw problemException(ASSESSMENT_ERROR_CODES.notFound, correlationId, {
       status: HttpStatus.NOT_FOUND,
     });
-  }
-}
-
-function nextActionFor(wizardStatus: WizardStatus): AssessmentNextActionKey {
-  switch (wizardStatus) {
-    case WIZARD_STATUS_CODES.notStarted:
-      return ASSESSMENT_NEXT_ACTION_KEYS.wizardNotStarted;
-    case WIZARD_STATUS_CODES.inProgress:
-      return ASSESSMENT_NEXT_ACTION_KEYS.wizardInProgress;
-    case WIZARD_STATUS_CODES.submitted:
-      return ASSESSMENT_NEXT_ACTION_KEYS.wizardSubmitted;
-    default:
-      return ASSESSMENT_NEXT_ACTION_KEYS.wizardInProgress;
   }
 }
 

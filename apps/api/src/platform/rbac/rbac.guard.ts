@@ -2,6 +2,13 @@ import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import type { AuthErrorCode } from "@lcsp/contracts/auth";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
+  RBAC_DECISIONS,
+  RBAC_REASON_CODES,
+  type RbacContextDenialReason,
+  type RbacDecision,
+  type RbacReasonCode,
+} from "@lcsp/contracts/rbac";
+import {
   HttpStatus,
   Inject,
   Injectable,
@@ -25,17 +32,10 @@ import {
   type RbacMetadata,
 } from "./decorators/rbac-metadata.js";
 import { RbacContextLoader } from "./rbac-context.loader.js";
-import {
-  LOCAL_RBAC_REASON_CODES,
-  type RbacContextDenialReason,
-} from "./rbac-reason-codes.js";
 
 const DECISION_LOG_RESOURCE_TYPE = AUDIT_RESOURCE_TYPES.httpRoute;
 
-export const LOCAL_RBAC_DECISIONS = {
-  allow: "ALLOW",
-  deny: "DENY",
-} as const;
+export const LOCAL_RBAC_DECISIONS = RBAC_DECISIONS;
 
 @Injectable()
 export class RbacGuard implements CanActivate {
@@ -68,7 +68,7 @@ export class RbacGuard implements CanActivate {
         sessionId: null,
         resourceId,
         decision: LOCAL_RBAC_DECISIONS.deny,
-        reasonCode: LOCAL_RBAC_REASON_CODES.metadataMissing,
+        reasonCode: RBAC_REASON_CODES.metadataMissing,
         correlationId,
       });
       throw this.rbacDenied(correlationId);
@@ -82,7 +82,7 @@ export class RbacGuard implements CanActivate {
         sessionId: null,
         resourceId,
         decision: LOCAL_RBAC_DECISIONS.deny,
-        reasonCode: LOCAL_RBAC_REASON_CODES.sessionInvalid,
+        reasonCode: RBAC_REASON_CODES.sessionInvalid,
         correlationId,
       });
       throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId, {
@@ -135,7 +135,7 @@ export class RbacGuard implements CanActivate {
         sessionId: session.id,
         resourceId,
         decision: LOCAL_RBAC_DECISIONS.allow,
-        reasonCode: LOCAL_RBAC_REASON_CODES.authorized,
+        reasonCode: RBAC_REASON_CODES.authorized,
         correlationId,
       });
       return true;
@@ -151,7 +151,7 @@ export class RbacGuard implements CanActivate {
         sessionId: session.id,
         resourceId,
         decision: LOCAL_RBAC_DECISIONS.deny,
-        reasonCode: LOCAL_RBAC_REASON_CODES.denied,
+        reasonCode: RBAC_REASON_CODES.denied,
         correlationId,
       });
       throw this.rbacDenied(correlationId);
@@ -174,7 +174,7 @@ export class RbacGuard implements CanActivate {
       sessionId: session.id,
       resourceId,
       decision: LOCAL_RBAC_DECISIONS.allow,
-      reasonCode: LOCAL_RBAC_REASON_CODES.authorized,
+      reasonCode: RBAC_REASON_CODES.authorized,
       correlationId,
     });
     return true;
@@ -231,13 +231,13 @@ export class RbacGuard implements CanActivate {
   ): HttpException {
     const reason = typeof denial === "string" ? denial : denial.reason;
     switch (reason) {
-      case LOCAL_RBAC_REASON_CODES.sessionInvalid:
+      case RBAC_REASON_CODES.sessionInvalid:
         return problemException(
           AUTH_ERROR_CODES.sessionInvalid,
           correlationId,
           { status: HttpStatus.UNAUTHORIZED },
         );
-      case LOCAL_RBAC_REASON_CODES.mfaRequired:
+      case RBAC_REASON_CODES.mfaRequired:
         return problemException(AUTH_ERROR_CODES.mfaRequired, correlationId, {
           meta:
             typeof denial === "string"
@@ -245,7 +245,7 @@ export class RbacGuard implements CanActivate {
               : { mfaEnrolled: denial.mfaEnrolled === true },
           status: HttpStatus.UNAUTHORIZED,
         });
-      case LOCAL_RBAC_REASON_CODES.loadError:
+      case RBAC_REASON_CODES.loadError:
         return this.rbacDenied(correlationId);
     }
   }
@@ -260,10 +260,8 @@ export class RbacGuard implements CanActivate {
     actorId: string | null;
     sessionId: string | null;
     resourceId: string;
-    decision: (typeof LOCAL_RBAC_DECISIONS)[keyof typeof LOCAL_RBAC_DECISIONS];
-    reasonCode:
-      | AuthErrorCode
-      | (typeof LOCAL_RBAC_REASON_CODES)[keyof typeof LOCAL_RBAC_REASON_CODES];
+    decision: RbacDecision;
+    reasonCode: AuthErrorCode | RbacReasonCode;
     correlationId: string;
   }): Promise<void> {
     try {

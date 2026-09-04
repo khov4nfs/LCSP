@@ -66,7 +66,6 @@ export const AUDIT_RESOURCE_TYPES = {
   verifiedProfile: "VERIFIED_PROFILE",
   workerTask: "WORKER_TASK",
   workspace: "WORKSPACE",
-  wizardProfile: "WIZARD_PROFILE",
 } as const;
 
 export type AuditResourceType =

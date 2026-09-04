@@ -4,15 +4,7 @@ import {
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
   createProblemResult,
 } from "@lcsp/contracts/auth";
-
-const RBAC_DECISION = {
-  allow: "ALLOW",
-  deny: "DENY",
-} as const;
-
-const RBAC_REASON_CODE = {
-  authorized: "AUTHORIZED",
-} as const;
+import { RBAC_DECISIONS, RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 
 import type {
   AuditEvent,
@@ -184,7 +176,7 @@ export class AuthWorkspaceSupportService {
         session_id: null,
         resource_type: AUDIT_RESOURCE_TYPES.workspace,
         resource_id: resourceId,
-        decision: RBAC_DECISION.deny,
+        decision: RBAC_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.sessionInvalid,
         correlationId: correlationId,
       });
@@ -196,8 +188,8 @@ export class AuthWorkspaceSupportService {
       session_id: null,
       resource_type: AUDIT_RESOURCE_TYPES.workspace,
       resource_id: resourceId,
-      decision: RBAC_DECISION.allow,
-      reason_code: RBAC_REASON_CODE.authorized,
+      decision: RBAC_DECISIONS.allow,
+      reason_code: RBAC_REASON_CODES.authorized,
       correlationId: correlationId,
     };
     await this.recordDecision(repositories, allowed);

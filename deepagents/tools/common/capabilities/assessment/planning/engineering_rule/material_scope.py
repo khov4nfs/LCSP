@@ -305,7 +305,7 @@ class MaterialEngineeringRulePlanner(EngineeringRulePlanner):
     def _prompt(
         cls,
         candidates: tuple[EngineeringRulePlanningCandidate, ...],
-        wizard_context: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
         graph: ProgramEvidenceGraph,
         openwiki_context: dict[str, Any] | None = None,
     ) -> str:
@@ -325,7 +325,7 @@ class MaterialEngineeringRulePlanner(EngineeringRulePlanner):
             }
             rules.append(item)
         payload = {
-            "wizardContext": wizard_context or {},
+            "confirmedCustomerContext": confirmed_customer_context or {},
             "repositoryEvidenceSummary": cls._graph_summary(graph),
             "openWikiArchitectureHints": openwiki_context or {
                 "source": "openwiki",
@@ -342,15 +342,15 @@ class MaterialEngineeringRulePlanner(EngineeringRulePlanner):
         }
         return (
             "You are the LCSP EngineeringRule Planner. Plan technical investigation scope only; "
-            "do not decide legal applicability, legal risk tier, or compliance outcome. Use Wizard "
+            "do not decide legal applicability, legal risk tier, or compliance outcome. Use Customer-confirmed "
             "facts plus each rule's materialSourceSignal. repositoryEvidenceSummary is broad context "
             "and MUST NOT by itself make a domain/tier-specific rule source-backed. A zero material "
             "hit count means LCSP found no rule-specific trustworthy production trigger; generic AI "
-            "presence or INFERRED sensitive-data taxonomy is not a contradiction to Wizard scope. "
-            "SELECT when Wizard scope matches, when a material source signal exists, or when a "
+            "presence or INFERRED sensitive-data taxonomy is not a contradiction to Customer context. "
+            "SELECT when Customer context matches, when a material source signal exists, or when a "
             "concrete unresolved scope fact requires investigation. SKIP healthcare, education, "
             "public-sector, high-risk, medium-risk, prohibited-practice, or other domain-specific "
-            "controls when Wizard excludes/does not indicate that scope and materialSourceSignal.hitCount "
+            "controls when Customer context excludes/does not indicate that scope and materialSourceSignal.hitCount "
             "is zero. OpenWiki architecture hints are unverified documentation hints for "
             "prioritizing search only; they are not SOURCE basis, citation evidence, "
             "source anchors, and not proof of compliance. Never invent rule IDs. Return exactly one decision per rule using only the "
