@@ -9,17 +9,17 @@ from tools.common.capabilities.workflow.recovery.clarification.models import Age
 MAX_ANSWER_TEXT_LENGTH = 2_000
 
 
-def merge_clarification_answers_into_wizard_context(
-    wizard_context: Mapping[str, Any] | None,
+def merge_clarification_answers_into_customer_context(
+    customer_context: Mapping[str, Any] | None,
     answers: Sequence[AgentClarificationAnswer | Mapping[str, Any]],
 ) -> dict[str, Any]:
     """Return planner context enriched with user clarification answers.
 
-    The canonical Wizard answers remain untouched. Clarifications are stored in
+    The canonical Customer-confirmed answers remain untouched. Clarifications are stored in
     a separate namespace so planner/investigation can use them without
     accidentally treating them as original questionnaire answers.
     """
-    result: dict[str, Any] = dict(wizard_context or {})
+    result: dict[str, Any] = dict(customer_context or {})
     normalized_answers = [
         normalized
         for answer in answers

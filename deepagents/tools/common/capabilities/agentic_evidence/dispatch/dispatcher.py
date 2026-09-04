@@ -13,8 +13,8 @@ from ..entrypoints.program_graph_tool_entrypoints import (
 )
 from ..entrypoints.remediation_tool_entrypoints import propose_gap_remediation
 from ..entrypoints.tool_entrypoints import (
-    AgenticToolExecutionContext, compare_wizard_claim, evaluate_gap_matrix,
-    get_admin_source_catalog, get_artifact_chain, get_assessment_context,
+    AgenticToolExecutionContext, evaluate_gap_matrix,
+    get_admin_source_catalog, get_artifact_chain,
     get_gap_evidence_trace, get_gap_requirements, get_legal_corpus_readiness,
     get_reconciliation_context, request_targeted_reanalysis,
     resume_waiting_runs, retrieve_legal_basis, validate_citation_set,
@@ -74,8 +74,6 @@ ENGINEERING_RULE_AGENTIC_TOOL_BINDINGS = (
 )
 
 NEST_CQRS_DISCOVERY_BINDINGS = (
-    _binding("get_assessment_context", ToolRuntimeTarget.NEST_CQRS, get_assessment_context, "GetAssessmentContextQuery"),
-    _binding("compare_wizard_claim", ToolRuntimeTarget.NEST_CQRS, compare_wizard_claim, "CompareWizardClaimQuery"),
     _binding("get_gap_requirements", ToolRuntimeTarget.NEST_CQRS, get_gap_requirements, "GetGapRequirementsQuery"),
     _binding("evaluate_gap_matrix", ToolRuntimeTarget.NEST_CQRS, evaluate_gap_matrix, "EvaluateGapMatrixQuery"),
     _binding("get_admin_source_catalog", ToolRuntimeTarget.NEST_CQRS, get_admin_source_catalog, "GetAdminSourceCatalogQuery"),

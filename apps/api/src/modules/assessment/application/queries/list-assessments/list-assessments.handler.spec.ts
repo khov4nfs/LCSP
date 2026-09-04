@@ -1,12 +1,8 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import {
-  ASSESSMENT_STATUS_CODES,
-  WIZARD_STATUS_CODES,
-} from "@lcsp/contracts/assessment";
+import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
 import { UnprocessableEntityException } from "@nestjs/common";
 
-import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { Assessment } from "../../../domain/entities/assessment.entity.js";
 import type {
   AssessmentListResult,
@@ -22,10 +18,7 @@ function makeAssessment(name = "Assessment") {
   });
 }
 
-function buildHandler(input: {
-  result?: AssessmentListResult;
-  wizardProfiles?: Array<{ assessmentId: string; status: string }>;
-}) {
+function buildHandler(input: { result?: AssessmentListResult }) {
   const findMany = jest
     .fn<AssessmentRepository["findMany"]>()
     .mockResolvedValue(input.result ?? { items: [], total: 0 });
@@ -36,15 +29,8 @@ function buildHandler(input: {
     findMany,
   };
 
-  const wizardFindMany = jest
-    .fn<() => Promise<Array<{ assessmentId: string; status: string }>>>()
-    .mockResolvedValue(input.wizardProfiles ?? []);
-  const prisma = {
-    wizardProfile: { findMany: wizardFindMany },
-  } as unknown as PrismaService;
-
-  const handler = new ListAssessmentsHandler(repository, prisma);
-  return { handler, findMany, wizardFindMany };
+  const handler = new ListAssessmentsHandler(repository);
+  return { handler, findMany };
 }
 
 function query(
@@ -80,9 +66,7 @@ describe("ListAssessmentsHandler", () => {
     expect(result.assessments).toHaveLength(1);
     expect(result.assessments[0].assessment_id).toBe(assessment.id);
     expect(result.assessments[0].name).toBe("First");
-    expect(result.assessments[0].wizard_status).toBe(
-      WIZARD_STATUS_CODES.notStarted,
-    );
+    expect(result.assessments[0]?.status).toBeDefined();
     expect(result.total).toBe(1);
     expect(result.page).toBe(1);
     expect(result.page_size).toBe(20);
@@ -202,19 +186,14 @@ describe("ListAssessmentsHandler", () => {
     expect(serialized).not.toMatch(/\brisk\b|\bseverity\b|classification/);
   });
 
-  it("resolves wizard_status per assessment from WizardProfile rows", async () => {
+  it("does not read legacy customer-context rows for assessment summaries", async () => {
     const assessment = makeAssessment();
     const { handler } = buildHandler({
       result: { items: [assessment], total: 1 },
-      wizardProfiles: [
-        { assessmentId: assessment.id, status: WIZARD_STATUS_CODES.submitted },
-      ],
     });
 
     const result = await handler.execute(query());
 
-    expect(result.assessments[0].wizard_status).toBe(
-      WIZARD_STATUS_CODES.submitted,
-    );
+    expect(result.assessments[0]?.status).toBeDefined();
   });
 });

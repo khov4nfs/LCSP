@@ -1,4 +1,3 @@
-import { WIZARD_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AGENTIC_TOOL_COVERAGE_STATES,
@@ -10,10 +9,7 @@ import {
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import { HttpStatus } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
-import {
-  fromPrismaWizardStatus,
-  toPrismaEvidenceAcceptanceStatus,
-} from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { toPrismaEvidenceAcceptanceStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
@@ -42,27 +38,18 @@ export class ProposeMissingTargetsHandler implements IQueryHandler<
   async execute(
     query: ProposeMissingTargetsQuery,
   ): Promise<MissingTargetProposalResponse> {
-    const [wizard, report] = await Promise.all([
-      this.prisma.wizardProfile.findFirst({
-        where: {
-          id: query.wizardProfileId,
-          assessmentId: query.assessmentId,
-        },
-        select: { id: true, status: true },
-      }),
-      this.prisma.technicalEvidenceReport.findFirst({
-        where: {
-          id: query.evidenceReportId,
-          assessmentId: query.assessmentId,
-          status: toPrismaEvidenceAcceptanceStatus(
-            TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
-          ),
-        },
-        select: { id: true, evidencePayload: true },
-      }),
-    ]);
+    const report = await this.prisma.technicalEvidenceReport.findFirst({
+      where: {
+        id: query.evidenceReportId,
+        assessmentId: query.assessmentId,
+        status: toPrismaEvidenceAcceptanceStatus(
+          TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+        ),
+      },
+      select: { id: true, evidencePayload: true },
+    });
 
-    if (!wizard || !report) {
+    if (!report) {
       throw problemException(
         EVIDENCE_ERROR_CODES.notFound,
         query.correlationId,
@@ -70,22 +57,6 @@ export class ProposeMissingTargetsHandler implements IQueryHandler<
           status: HttpStatus.NOT_FOUND,
         },
       );
-    }
-
-    const wizardStatus = fromPrismaWizardStatus(wizard.status);
-    if (wizardStatus !== WIZARD_STATUS_CODES.submitted) {
-      const response = this.buildResponse(
-        query,
-        wizard.id,
-        report.id,
-        AGENTIC_TOOL_STATUSES.needsInput,
-        AGENTIC_TOOL_COVERAGE_STATES.unavailable,
-        [TARGET_CANDIDATE_LIMITATION_CODES.submittedTargetIdsUnavailable],
-        [],
-        false,
-      );
-
-      return this.writeAndReturn(query, wizard.id, response);
     }
 
     const explicitExcludes = new Set(query.excludeTargetIds);
@@ -105,7 +76,6 @@ export class ProposeMissingTargetsHandler implements IQueryHandler<
 
     const response = this.buildResponse(
       query,
-      wizard.id,
       report.id,
       limitations.length > 0
         ? AGENTIC_TOOL_STATUSES.outOfCoverage
@@ -118,12 +88,11 @@ export class ProposeMissingTargetsHandler implements IQueryHandler<
       providerCandidates.length > query.maxResults,
     );
 
-    return this.writeAndReturn(query, wizard.id, response);
+    return this.writeAndReturn(query, response);
   }
 
   private buildResponse(
     query: ProposeMissingTargetsQuery,
-    wizardId: string,
     reportId: string,
     status: MissingTargetProposalResponse["status"],
     coverageState: MissingTargetProposalResponse["coverage_state"],
@@ -138,7 +107,6 @@ export class ProposeMissingTargetsHandler implements IQueryHandler<
       config_hash: TOOL_CONFIG_HASH,
       correlationId: query.correlationId,
       artifact_versions: {
-        wizard_profile_id: wizardId,
         technical_evidence_report_id: reportId,
       },
       provenance_ref: `tool-execution:${query.correlationId}`,
@@ -157,15 +125,14 @@ export class ProposeMissingTargetsHandler implements IQueryHandler<
 
   private async writeAndReturn(
     query: ProposeMissingTargetsQuery,
-    wizardId: string,
     response: MissingTargetProposalResponse,
   ): Promise<MissingTargetProposalResponse> {
     await this.auditWriter.write({
       eventType: AGENTIC_TOOL_EVENT_TYPES.missingTargetProposalRead,
       actorId: null,
       assessmentId: query.assessmentId,
-      resourceType: AUDIT_RESOURCE_TYPES.wizardProfile,
-      resourceId: wizardId,
+      resourceType: AUDIT_RESOURCE_TYPES.assessment,
+      resourceId: query.assessmentId,
       correlationId: query.correlationId,
       decision: AUDIT_DECISIONS.allow,
       result: response.status,

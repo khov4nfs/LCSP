@@ -16,9 +16,9 @@ import type { MfaEnrollmentRepository } from "../../modules/auth-workspace/appli
 import type { SessionRepository } from "../../modules/auth-workspace/application/ports/persistence/session.repository.js";
 import type { UserRepository } from "../../modules/auth-workspace/application/ports/persistence/user.repository.js";
 import {
-  LOCAL_RBAC_REASON_CODES,
+  RBAC_REASON_CODES,
   type RbacContextDenialReason,
-} from "./rbac-reason-codes.js";
+} from "@lcsp/contracts/rbac";
 
 export type RbacContextResult =
   | {
@@ -59,7 +59,7 @@ export class RbacContextLoader {
         !verifySecret(token, session.tokenHash) ||
         !session.isActive(now)
       ) {
-        return { ok: false, reason: LOCAL_RBAC_REASON_CODES.sessionInvalid };
+        return { ok: false, reason: RBAC_REASON_CODES.sessionInvalid };
       }
 
       const mfaEnrollment = await this.mfaEnrollments.findByUserId(
@@ -73,14 +73,14 @@ export class RbacContextLoader {
       ) {
         return {
           ok: false,
-          reason: LOCAL_RBAC_REASON_CODES.mfaRequired,
+          reason: RBAC_REASON_CODES.mfaRequired,
           mfaEnrolled: true,
         };
       }
 
       const user = await this.users.findById(session.userId);
       if (!user) {
-        return { ok: false, reason: LOCAL_RBAC_REASON_CODES.loadError };
+        return { ok: false, reason: RBAC_REASON_CODES.loadError };
       }
 
       return {
@@ -89,7 +89,7 @@ export class RbacContextLoader {
         user,
       };
     } catch {
-      return { ok: false, reason: LOCAL_RBAC_REASON_CODES.loadError };
+      return { ok: false, reason: RBAC_REASON_CODES.loadError };
     }
   }
 }

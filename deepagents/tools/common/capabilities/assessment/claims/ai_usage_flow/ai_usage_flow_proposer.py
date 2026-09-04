@@ -9,7 +9,7 @@ from langchain.agents import create_agent
 from langchain.agents.middleware import ToolCallLimitMiddleware
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from model_policy import RESOLVER_MODEL_SPEC
+from model_policy import INVESTIGATOR_MODEL_SPEC
 from tools.common.capabilities.agentic_evidence import AgenticInvocationContext, AgenticToolResolver
 
 
@@ -27,7 +27,7 @@ class AIUsageFlowModelAssistedProposer:
     def __init__(
         self,
         agentic_tool_resolver: AgenticToolResolver | None = None,
-        model: str = RESOLVER_MODEL_SPEC,
+        model: str = INVESTIGATOR_MODEL_SPEC,
     ):
         """Create the proposer with optional read-only agentic evidence tools."""
         self.agentic_tool_resolver = agentic_tool_resolver
@@ -37,7 +37,7 @@ class AIUsageFlowModelAssistedProposer:
         self,
         *,
         baseline_summary: dict[str, Any],
-        wizard_profile: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
         validated_claims: list[dict[str, Any]],
         assessment_id: str,
         evidence_report_id: str,
@@ -49,7 +49,7 @@ class AIUsageFlowModelAssistedProposer:
 
         Args:
             baseline_summary: Deterministically constructed summary to preserve by default.
-            wizard_profile: Optional manager-authoritative business context.
+            confirmed_customer_context: Optional manager-authoritative business context.
             validated_claims: Evidence-backed claims available as context only.
             assessment_id: Assessment identifier used for tool scoping.
             evidence_report_id: Pinned technical evidence artifact reference.
@@ -63,13 +63,13 @@ class AIUsageFlowModelAssistedProposer:
         """
         prompt = self._build_initial_prompt(
             baseline_summary=baseline_summary,
-            wizard_profile=wizard_profile,
+            confirmed_customer_context=confirmed_customer_context,
             validated_claims=validated_claims,
         )
         response = self._complete(
             prompt=prompt,
             baseline_summary=baseline_summary,
-            wizard_profile=wizard_profile,
+            confirmed_customer_context=confirmed_customer_context,
             validated_claims=validated_claims,
             assessment_id=assessment_id,
             evidence_report_id=evidence_report_id,
@@ -85,7 +85,7 @@ class AIUsageFlowModelAssistedProposer:
         self,
         *,
         baseline_summary: dict[str, Any],
-        wizard_profile: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
         validated_claims: list[dict[str, Any]],
     ) -> str:
         """Build the first prompt from bounded structured context only."""
@@ -96,8 +96,8 @@ class AIUsageFlowModelAssistedProposer:
         BASELINE_SUMMARY:
         {baseline_summary}
 
-        WIZARD_PROFILE:
-        {wizard_profile or {}}
+        CONFIRMED_CUSTOMER_CONTEXT:
+        {confirmed_customer_context or {}}
 
         VALIDATED_CLAIMS:
         {validated_claims}
@@ -114,7 +114,7 @@ class AIUsageFlowModelAssistedProposer:
 
         RULES:
         - Only include keys that should change.
-        - Do not propose values outside the wizard-authoritative business context.
+        - Do not propose values outside the customer-authoritative business context.
         - Do not invent claims, evidence refs, confidence, or privacy flags.
         - If you need more evidence, call only the provided read-only tools.
         """
@@ -123,7 +123,7 @@ class AIUsageFlowModelAssistedProposer:
         self,
         *,
         baseline_summary: dict[str, Any],
-        wizard_profile: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
         validated_claims: list[dict[str, Any]],
         tool_results: list[dict[str, Any]],
     ) -> str:
@@ -135,8 +135,8 @@ class AIUsageFlowModelAssistedProposer:
         BASELINE_SUMMARY:
         {baseline_summary}
 
-        WIZARD_PROFILE:
-        {wizard_profile or {}}
+        CONFIRMED_CUSTOMER_CONTEXT:
+        {confirmed_customer_context or {}}
 
         VALIDATED_CLAIMS:
         {validated_claims}
@@ -157,7 +157,7 @@ class AIUsageFlowModelAssistedProposer:
         RULES:
         - Only include keys that should change.
         - Use TOOL_RESULTS only as bounded supporting evidence.
-        - Do not propose values outside the wizard-authoritative business context.
+        - Do not propose values outside the customer-authoritative business context.
         - Do not invent claims, evidence refs, confidence, or privacy flags.
         """
 
@@ -166,7 +166,7 @@ class AIUsageFlowModelAssistedProposer:
         *,
         prompt: str,
         baseline_summary: dict[str, Any],
-        wizard_profile: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
         validated_claims: list[dict[str, Any]],
         assessment_id: str,
         evidence_report_id: str,

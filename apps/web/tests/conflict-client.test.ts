@@ -50,7 +50,7 @@ test("conflict list payload sanitizer accepts valid shape", () => {
             technical_evidence: "Agent-like workflow detected",
           },
           source_refs: {
-            wizard_answer: "answers.decision_role",
+            customer_context_answer: "answers.decision_role",
             ai_usage_flow_claim: "claim-agent",
           },
           evidence_context: [

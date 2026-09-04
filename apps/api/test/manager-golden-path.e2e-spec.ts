@@ -86,16 +86,10 @@ describe("Manager Golden Path (e2e) [MW-qa-003]", () => {
     ).assessment_id;
     assert.ok(assessmentId);
 
-    const wizard = await httpRequest(app)
-      .post(`/assessments/${assessmentId}/wizard/submit`)
-      .set("Authorization", `Bearer ${token}`)
-      .send({ answers: validWizardAnswers });
-    assert.equal(wizard.status, 200);
-    assert.equal(
-      successBody<{ assessment_status: string }>(wizard).assessment_status,
-      ASSESSMENT_STATUS_CODES.wizardSubmitted,
-    );
-
+    await prisma.assessment.update({
+      where: { id: assessmentId },
+      data: { status: ASSESSMENT_STATUS_CODES.wizardSubmitted },
+    });
     await seedRepositorySnapshot(prisma, assessmentId);
     const scan = await httpRequest(app)
       .post(`/assessments/${assessmentId}/scan-jobs`)
@@ -220,81 +214,6 @@ describe("Manager Golden Path (e2e) [MW-qa-003]", () => {
   });
 });
 
-const validWizardAnswers = [
-  {
-    questionId: "businessProcess",
-    value: "Assess an internal AI system",
-    answerState: "ANSWERED",
-    updatedAt: "2026-07-31T00:00:00.000Z",
-  },
-  {
-    questionId: "useCase",
-    value: "Manager assesses an internal AI workflow before classification",
-    answerState: "ANSWERED",
-    updatedAt: "2026-07-31T00:00:00.000Z",
-  },
-  {
-    questionId: "primaryActors",
-    value: "Manager, internal user, AI system",
-    answerState: "ANSWERED",
-    updatedAt: "2026-07-31T00:00:00.000Z",
-  },
-  {
-    questionId: "businessTrigger",
-    value: "Manager submits the assessment intake",
-    answerState: "ANSWERED",
-    updatedAt: "2026-07-31T00:00:00.000Z",
-  },
-  {
-    questionId: "expectedOutcome",
-    value: "Assessment is ready for evidence-based classification",
-    answerState: "ANSWERED",
-    updatedAt: "2026-07-31T00:00:00.000Z",
-  },
-  {
-    questionId: "aiPurpose",
-    value: "Finance",
-    answerState: "ANSWERED",
-    updatedAt: "2026-07-31T00:00:00.000Z",
-  },
-  {
-    questionId: "autonomyLevel",
-    value: "HUMAN_APPROVAL_REQUIRED",
-    answerState: "ANSWERED",
-    updatedAt: "2026-07-31T00:00:00.000Z",
-  },
-  {
-    questionId: "dataTypes",
-    value: ["PII"],
-    answerState: "ANSWERED",
-    updatedAt: "2026-07-31T00:00:00.000Z",
-  },
-  {
-    questionId: "affectedSubjects",
-    value: ["Internal employees"],
-    answerState: "ANSWERED",
-    updatedAt: "2026-07-31T00:00:00.000Z",
-  },
-  {
-    questionId: "decisionRole",
-    value: "Advisory",
-    answerState: "ANSWERED",
-    updatedAt: "2026-07-31T00:00:00.000Z",
-  },
-  {
-    questionId: "humanReview",
-    value: "Manager review",
-    answerState: "ANSWERED",
-    updatedAt: "2026-07-31T00:00:00.000Z",
-  },
-  {
-    questionId: "externalLlmUsage",
-    value: "no",
-    answerState: "ANSWERED",
-    updatedAt: "2026-07-31T00:00:00.000Z",
-  },
-];
-
 function grantGoldenPathActions(prisma: PrismaClient): void {
   void prisma;
 }
@@ -345,7 +264,6 @@ async function resetDomainData(prisma: PrismaClient): Promise<void> {
   await prisma.repositoryScanJob.deleteMany();
   await prisma.repositorySnapshot.deleteMany();
   await prisma.repositoryConnection.deleteMany();
-  await prisma.wizardProfile.deleteMany();
   await prisma.outboxMessage.deleteMany();
   await prisma.assessment.deleteMany();
 }

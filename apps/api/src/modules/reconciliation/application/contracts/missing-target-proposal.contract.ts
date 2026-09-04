@@ -37,7 +37,6 @@ export type MissingTargetProposalResponse = {
   config_hash: string;
   correlationId: string;
   artifact_versions: {
-    wizard_profile_id: string;
     technical_evidence_report_id: string;
   };
   provenance_ref: string;

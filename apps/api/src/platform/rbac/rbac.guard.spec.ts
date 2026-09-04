@@ -18,7 +18,7 @@ import type {
   RbacContextLoader,
   RbacContextResult,
 } from "./rbac-context.loader.js";
-import { LOCAL_RBAC_REASON_CODES } from "./rbac-reason-codes.js";
+import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 import { RbacGuard } from "./rbac.guard.js";
 
 class DummyController {
@@ -127,7 +127,7 @@ describe("RbacGuard", () => {
         actor_id: "user-1",
         session_id: "session-1",
         decision: "ALLOW",
-        reason_code: LOCAL_RBAC_REASON_CODES.authorized,
+        reason_code: RBAC_REASON_CODES.authorized,
       }),
     );
     expect(
@@ -150,14 +150,14 @@ describe("RbacGuard", () => {
     expect(error.getStatus()).toBe(HttpStatus.UNAUTHORIZED);
     expect(error.getResponse()).toMatchObject({
       ok: false,
-      problem: { code: LOCAL_RBAC_REASON_CODES.sessionInvalid },
+      problem: { code: RBAC_REASON_CODES.sessionInvalid },
     });
     expect(load).not.toHaveBeenCalled();
   });
 
   it("returns 401 SESSION_INVALID when the loader rejects the session", async () => {
     const { guard } = makeGuard({
-      loadResult: { ok: false, reason: LOCAL_RBAC_REASON_CODES.sessionInvalid },
+      loadResult: { ok: false, reason: RBAC_REASON_CODES.sessionInvalid },
     });
     const { context } = makeContext({
       handler: DummyController.prototype.customerOnly,
@@ -169,7 +169,7 @@ describe("RbacGuard", () => {
     expect(error.getStatus()).toBe(HttpStatus.UNAUTHORIZED);
     expect(error.getResponse()).toMatchObject({
       ok: false,
-      problem: { code: LOCAL_RBAC_REASON_CODES.sessionInvalid },
+      problem: { code: RBAC_REASON_CODES.sessionInvalid },
     });
   });
 
@@ -177,7 +177,7 @@ describe("RbacGuard", () => {
     const { guard } = makeGuard({
       loadResult: {
         ok: false,
-        reason: LOCAL_RBAC_REASON_CODES.mfaRequired,
+        reason: RBAC_REASON_CODES.mfaRequired,
         mfaEnrolled: true,
       },
     });
@@ -192,7 +192,7 @@ describe("RbacGuard", () => {
     expect(error.getResponse()).toMatchObject({
       ok: false,
       problem: {
-        code: LOCAL_RBAC_REASON_CODES.mfaRequired,
+        code: RBAC_REASON_CODES.mfaRequired,
         meta: { mfaEnrolled: true },
       },
     });
@@ -200,7 +200,7 @@ describe("RbacGuard", () => {
 
   it("returns 403 RBAC_DENIED on loader load errors", async () => {
     const { guard } = makeGuard({
-      loadResult: { ok: false, reason: LOCAL_RBAC_REASON_CODES.loadError },
+      loadResult: { ok: false, reason: RBAC_REASON_CODES.loadError },
     });
     const { context } = makeContext({
       handler: DummyController.prototype.customerOnly,
@@ -212,7 +212,7 @@ describe("RbacGuard", () => {
     expect(error.getStatus()).toBe(HttpStatus.FORBIDDEN);
     expect(error.getResponse()).toMatchObject({
       ok: false,
-      problem: { code: LOCAL_RBAC_REASON_CODES.denied },
+      problem: { code: RBAC_REASON_CODES.denied },
     });
   });
 
@@ -228,12 +228,12 @@ describe("RbacGuard", () => {
     expect(error.getStatus()).toBe(HttpStatus.FORBIDDEN);
     expect(error.getResponse()).toMatchObject({
       ok: false,
-      problem: { code: LOCAL_RBAC_REASON_CODES.denied },
+      problem: { code: RBAC_REASON_CODES.denied },
     });
     expect(append).toHaveBeenCalledWith(
       expect.objectContaining({
         decision: "DENY",
-        reason_code: LOCAL_RBAC_REASON_CODES.denied,
+        reason_code: RBAC_REASON_CODES.denied,
       }),
     );
   });
@@ -277,7 +277,7 @@ describe("RbacGuard", () => {
     expect(append).toHaveBeenCalledWith(
       expect.objectContaining({
         decision: "DENY",
-        reason_code: LOCAL_RBAC_REASON_CODES.metadataMissing,
+        reason_code: RBAC_REASON_CODES.metadataMissing,
       }),
     );
   });
@@ -303,7 +303,7 @@ describe("RbacGuard", () => {
     expect(append).toHaveBeenCalledWith(
       expect.objectContaining({
         decision: "ALLOW",
-        reason_code: LOCAL_RBAC_REASON_CODES.authorized,
+        reason_code: RBAC_REASON_CODES.authorized,
       }),
     );
   });

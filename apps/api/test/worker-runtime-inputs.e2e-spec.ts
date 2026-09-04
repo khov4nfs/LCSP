@@ -1,11 +1,7 @@
 import * as assert from "node:assert/strict";
 
 import { PrismaPg } from "@prisma/adapter-pg";
-import {
-  EvidenceAcceptanceStatus,
-  PrismaClient,
-  WizardProfileStatus,
-} from "@prisma/client";
+import { EvidenceAcceptanceStatus, PrismaClient } from "@prisma/client";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 
@@ -22,6 +18,7 @@ const WORKER_KEY = "test-only-worker-api-key-at-least-32-chars";
 type ReportRuntimeBody = {
   status: string;
   assessment_id: string;
+  user_id: string;
   evidence_payload: {
     technical_findings: Array<{ finding_type: string }>;
   };
@@ -31,11 +28,6 @@ type TechnicalProfileRuntimeBody = {
   technical_profile_id: string;
   evidence_report_id: string;
   dependency_ai_packages: string[];
-};
-
-type WizardRuntimeBody = {
-  id: string;
-  answers: { businessProcess: string };
 };
 
 describe("Worker runtime input endpoints (e2e) [LCSP-155]", () => {
@@ -57,7 +49,6 @@ describe("Worker runtime input endpoints (e2e) [LCSP-155]", () => {
   });
 
   beforeEach(async () => {
-    await prisma.wizardProfile.deleteMany();
     await prisma.technicalProfile.deleteMany();
     await prisma.technicalEvidenceReport.deleteMany();
     await prisma.repositoryScanJob.deleteMany();
@@ -118,20 +109,6 @@ describe("Worker runtime input endpoints (e2e) [LCSP-155]", () => {
         status: EvidenceAcceptanceStatus.ACCEPTED,
       },
     });
-    await prisma.wizardProfile.create({
-      data: {
-        id: "wizard-runtime-1",
-        assessmentId: "assessment-runtime-1",
-        ownerId: "user-runtime-1",
-        version: 1,
-        status: WizardProfileStatus.SUBMITTED,
-        answers: {
-          businessProcess: "loan_approval",
-          aiPurpose: "decision_support",
-        },
-        submittedAt: new Date("2026-08-08T01:00:00.000Z"),
-      },
-    });
   });
 
   afterAll(async () => {
@@ -147,6 +124,7 @@ describe("Worker runtime input endpoints (e2e) [LCSP-155]", () => {
     assert.equal(report.status, 200);
     assert.equal(reportBody.status, "accepted");
     assert.equal(reportBody.assessment_id, "assessment-runtime-1");
+    assert.equal(reportBody.user_id, "user-runtime-1");
     assert.equal(
       reportBody.evidence_payload.technical_findings[0]?.finding_type,
       "STATUS_UPDATE_SIGNAL",
@@ -160,14 +138,6 @@ describe("Worker runtime input endpoints (e2e) [LCSP-155]", () => {
     assert.equal(profileBody.technical_profile_id, "profile-runtime-1");
     assert.equal(profileBody.evidence_report_id, "report-runtime-1");
     assert.deepEqual(profileBody.dependency_ai_packages, ["openai"]);
-
-    const wizard = await workerGet(
-      "/internal/assessments/assessment-runtime-1/wizard-profile",
-    );
-    const wizardBody = wizard.body as WizardRuntimeBody;
-    assert.equal(wizard.status, 200);
-    assert.equal(wizardBody.id, "wizard-runtime-1");
-    assert.equal(wizardBody.answers.businessProcess, "loan_approval");
   });
 
   it("rejects worker runtime reads without the worker API key", async () => {

@@ -6,8 +6,6 @@ from .handoffs import (
     InvestigatorResult,
     PlannerResult,
     ProvenanceRef,
-    ResolverConflict,
-    ResolverResult,
     SPECIALIST_RESPONSE_FORMATS,
     TriageResult,
 )
@@ -18,8 +16,6 @@ __all__ = [
     "InvestigatorResult",
     "PlannerResult",
     "ProvenanceRef",
-    "ResolverConflict",
-    "ResolverResult",
     "SPECIALIST_RESPONSE_FORMATS",
     "TriageResult",
 ]

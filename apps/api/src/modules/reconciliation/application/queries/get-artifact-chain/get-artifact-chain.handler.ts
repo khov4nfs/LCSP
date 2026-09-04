@@ -18,7 +18,6 @@ import type {
 import {
   fromPrismaEvidenceAcceptanceStatus,
   fromPrismaVerifiedProfileStatus,
-  fromPrismaWizardStatus,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
@@ -55,7 +54,6 @@ type ArtifactChainVerifiedProfileRecord = {
   id: string;
   schemaVersion: string;
   status: PrismaVerifiedProfileStatus;
-  wizardProfileId: string | null;
   aiUsageFlowId: string;
 };
 
@@ -92,7 +90,7 @@ export class GetArtifactChainHandler implements IQueryHandler<
           query.correlationId,
         )
       : await this.resolveLatestChain(assessment.id);
-    const { report, wizardProfile, flow, conflicts, verifiedProfile } = chain;
+    const { report, flow, conflicts, verifiedProfile } = chain;
 
     const links: ArtifactChainLink[] = [];
     const presentStages = new Set<ArtifactChainStage>();
@@ -118,13 +116,6 @@ export class GetArtifactChainHandler implements IQueryHandler<
         `ter:${report.id}`,
         report.schemaVersion,
         fromPrismaEvidenceAcceptanceStatus(report.status),
-      );
-    if (wizardProfile)
-      add(
-        ARTIFACT_CHAIN_STAGES.wizardProfile,
-        `wizard:${wizardProfile.id}`,
-        String(wizardProfile.version),
-        fromPrismaWizardStatus(wizardProfile.status),
       );
     if (flow)
       add(
@@ -208,19 +199,13 @@ export class GetArtifactChainHandler implements IQueryHandler<
   }
 
   private async resolveLatestChain(assessmentId: string) {
-    const [report, wizardProfile] = await Promise.all([
-      this.prisma.technicalEvidenceReport.findFirst({
-        where: {
-          assessmentId,
-        },
-        orderBy: { createdAt: "desc" },
-        select: { id: true, schemaVersion: true, status: true },
-      }),
-      this.prisma.wizardProfile.findUnique({
-        where: { assessmentId },
-        select: { id: true, version: true, status: true },
-      }),
-    ]);
+    const report = await this.prisma.technicalEvidenceReport.findFirst({
+      where: {
+        assessmentId,
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, schemaVersion: true, status: true },
+    });
 
     const profile = report
       ? await this.prisma.technicalProfile.findFirst({
@@ -264,14 +249,13 @@ export class GetArtifactChainHandler implements IQueryHandler<
               id: true,
               schemaVersion: true,
               status: true,
-              wizardProfileId: true,
               aiUsageFlowId: true,
             },
           }),
         ])
       : [[], null];
 
-    return { report, wizardProfile, flow, conflicts, verifiedProfile };
+    return { report, flow, conflicts, verifiedProfile };
   }
 
   private async resolveExactChainFromArtifactRef(
@@ -385,7 +369,6 @@ export class GetArtifactChainHandler implements IQueryHandler<
           schemaVersion: true,
           status: true,
           aiUsageFlowId: true,
-          wizardProfileId: true,
         },
       });
       if (!verifiedProfile) {
@@ -437,20 +420,12 @@ export class GetArtifactChainHandler implements IQueryHandler<
           id: true,
           schemaVersion: true,
           status: true,
-          wizardProfileId: true,
           aiUsageFlowId: true,
         },
       });
     }
 
-    const wizardProfile = verifiedProfile?.wizardProfileId
-      ? await this.prisma.wizardProfile.findFirst({
-          where: { id: verifiedProfile.wizardProfileId, assessmentId },
-          select: { id: true, version: true, status: true },
-        })
-      : null;
-
-    return { report, wizardProfile, flow, conflicts, verifiedProfile };
+    return { report, flow, conflicts, verifiedProfile };
   }
 }
 

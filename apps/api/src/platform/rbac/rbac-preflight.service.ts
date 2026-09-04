@@ -1,5 +1,11 @@
 import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import { type AuthUserRole } from "@lcsp/contracts/auth";
+import {
+  RBAC_DECISIONS,
+  RBAC_REASON_CODES,
+  type RbacDecision,
+  type RbacReasonCode,
+} from "@lcsp/contracts/rbac";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 
 import type { AuthorizationDecisionRepository } from "../../modules/auth-workspace/application/ports/persistence/authorization-decision.repository.js";
@@ -8,11 +14,6 @@ import {
   PrismaAuthorizationDecisionRepository,
   PrismaUserRepository,
 } from "../../modules/auth-workspace/infrastructure/persistence/prisma-auth-workspace.repositories.js";
-import {
-  LOCAL_RBAC_REASON_CODES,
-  type LocalRbacReasonCode,
-} from "./rbac-reason-codes.js";
-
 export interface RbacPreflightInput {
   userId: string;
   requiredRoles: readonly AuthUserRole[];
@@ -20,8 +21,8 @@ export interface RbacPreflightInput {
 }
 
 export interface RbacPreflightResult {
-  decision: "ALLOW" | "DENY";
-  reasonCode: LocalRbacReasonCode | null;
+  decision: RbacDecision;
+  reasonCode: RbacReasonCode | null;
   correlationId: string;
 }
 
@@ -42,20 +43,20 @@ export class RbacPreflightService {
     try {
       const user = await this.users.findById(input.userId);
       if (!user) {
-        return this.deny(input, LOCAL_RBAC_REASON_CODES.loadError);
+        return this.deny(input, RBAC_REASON_CODES.loadError);
       }
 
       if (!input.requiredRoles.includes(user.role)) {
-        return this.deny(input, LOCAL_RBAC_REASON_CODES.denied);
+        return this.deny(input, RBAC_REASON_CODES.denied);
       }
 
       await this.recordDecision(
         input,
-        "ALLOW",
-        LOCAL_RBAC_REASON_CODES.authorized,
+        RBAC_DECISIONS.allow,
+        RBAC_REASON_CODES.authorized,
       );
       return {
-        decision: "ALLOW",
+        decision: RBAC_DECISIONS.allow,
         reasonCode: null,
         correlationId: input.correlationId,
       };
@@ -65,12 +66,12 @@ export class RbacPreflightService {
       );
       await this.recordDecision(
         input,
-        "DENY",
-        LOCAL_RBAC_REASON_CODES.loadError,
+        RBAC_DECISIONS.deny,
+        RBAC_REASON_CODES.loadError,
       );
       return {
-        decision: "DENY",
-        reasonCode: LOCAL_RBAC_REASON_CODES.loadError,
+        decision: RBAC_DECISIONS.deny,
+        reasonCode: RBAC_REASON_CODES.loadError,
         correlationId: input.correlationId,
       };
     }
@@ -78,11 +79,11 @@ export class RbacPreflightService {
 
   private async deny(
     input: RbacPreflightInput,
-    reasonCode: LocalRbacReasonCode,
+    reasonCode: RbacReasonCode,
   ): Promise<RbacPreflightResult> {
-    await this.recordDecision(input, "DENY", reasonCode);
+    await this.recordDecision(input, RBAC_DECISIONS.deny, reasonCode);
     return {
-      decision: "DENY",
+      decision: RBAC_DECISIONS.deny,
       reasonCode,
       correlationId: input.correlationId,
     };
@@ -90,8 +91,8 @@ export class RbacPreflightService {
 
   private async recordDecision(
     input: RbacPreflightInput,
-    decision: "ALLOW" | "DENY",
-    reasonCode: LocalRbacReasonCode,
+    decision: RbacDecision,
+    reasonCode: RbacReasonCode,
   ): Promise<void> {
     try {
       await this.decisions.append({

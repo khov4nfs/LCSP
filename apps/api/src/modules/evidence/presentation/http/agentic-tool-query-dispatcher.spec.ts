@@ -2,7 +2,6 @@ import { AGENTIC_TOOL_NAMES } from "@lcsp/contracts/evidence";
 
 import { GetGapRequirementsQuery } from "../../../classification/application/queries/get-gap-requirements/get-gap-requirements.query.js";
 import { GetAdminSourceCatalogQuery } from "../../../legal-rule-catalog/application/queries/get-admin-source-catalog/get-admin-source-catalog.query.js";
-import { CompareWizardClaimQuery } from "../../../reconciliation/application/queries/compare-wizard-claim/compare-wizard-claim.query.js";
 import { RetrieveVerifiedAgentEpisodesQuery } from "../../application/queries/retrieve-verified-agent-episodes/retrieve-verified-agent-episodes.query.js";
 import * as queryEntrypoints from "./agentic-tool-query-dispatcher.js";
 import { buildAgenticToolQuery } from "./agentic-tool-query-dispatcher.js";
@@ -12,16 +11,13 @@ const baseArgs = {
   userId: "user-1",
   correlationId: "correlation-1",
   artifactVersions: {
-    wizardProfileId: "wizard-1",
     technicalEvidenceReportId: "ter-1",
   },
 };
 
 const CQRS_ENTRYPOINTS = [
-  "get_assessment_context",
   "get_artifact_chain",
   "get_reconciliation_context",
-  "compare_wizard_claim",
   "get_gap_requirements",
   "get_gap_evidence_trace",
   "evaluate_gap_matrix",
@@ -37,6 +33,7 @@ const RETIRED_CQRS_ENTRYPOINTS = [
   "get_classification_baseline",
   "validate_classification_proposal",
   "get_legal_rule_match",
+  "get_assessment_context",
 ] as const;
 
 const PYTHON_PROCESSING_TOOLS = [
@@ -91,21 +88,6 @@ describe("buildAgenticToolQuery", () => {
       ).toThrow();
     },
   );
-
-  it("routes compare_wizard_claim through the CQRS table", () => {
-    const query = buildAgenticToolQuery({
-      ...baseArgs,
-      toolName: AGENTIC_TOOL_NAMES.compareWizardClaim,
-      input: {
-        targetId: "target:abcdefgh",
-        claimField: "PROVIDER",
-        expectedValue: "OPENAI",
-        comparisonScope: "TARGET",
-        maxEvidenceRefs: 10,
-      },
-    });
-    expect(query).toBeInstanceOf(CompareWizardClaimQuery);
-  });
 
   it("routes get_gap_requirements through GetGapRequirementsQuery", () => {
     const input = {

@@ -4,7 +4,7 @@ from tools.common.capabilities.workflow.recovery.clarification import (
     AgentClarificationQuestion,
     AgentClarificationQuestionGenerator,
     ClarificationQuestionRouter,
-    merge_clarification_answers_into_wizard_context,
+    merge_clarification_answers_into_customer_context,
 )
 
 
@@ -66,10 +66,10 @@ def test_generator_fallback_for_missing_rule_source_is_bounded() -> None:
     assert all(question.answer_control == "textarea" for question in result.questions)
 
 
-def test_merge_clarification_answers_keeps_original_wizard_fields() -> None:
+def test_merge_clarification_answers_keeps_original_customer_context_fields() -> None:
     context = {"useCase": "Original use case"}
 
-    merged = merge_clarification_answers_into_wizard_context(
+    merged = merge_clarification_answers_into_customer_context(
         context,
         [
             {

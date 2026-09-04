@@ -142,7 +142,7 @@ class ScopedMaterialEngineeringRulePlanner(MaterialEngineeringRulePlanner):
     def _prompt(
         cls,
         candidates: tuple[EngineeringRulePlanningCandidate, ...],
-        wizard_context: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
         graph: ProgramEvidenceGraph,
         openwiki_context: dict[str, Any] | None = None,
     ) -> str:
@@ -151,5 +151,10 @@ class ScopedMaterialEngineeringRulePlanner(MaterialEngineeringRulePlanner):
             "scanner limitations, unrelated unresolved framework boundaries, and global LIMITED "
             "state are diagnostics and MUST NOT justify SELECT/UNCERTAIN_SCOPE_INVESTIGATE for "
             "another rule. A scopeCoverage.state of UNRESOLVED is relevant only for that rule.\n\n"
-            + super()._prompt(candidates, wizard_context, graph, openwiki_context)
+            + super()._prompt(
+                candidates,
+                confirmed_customer_context,
+                graph,
+                openwiki_context,
+            )
         )

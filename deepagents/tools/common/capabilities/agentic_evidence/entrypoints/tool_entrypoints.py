@@ -30,8 +30,6 @@ def request_targeted_reanalysis(request, context): return _adapter("request_targ
 def get_gap_evidence_trace(request, context): return _adapter("get_gap_evidence_trace", request, context)
 def get_reconciliation_context(request, context): return _adapter("get_reconciliation_context", request, context)
 def get_artifact_chain(request, context): return _adapter("get_artifact_chain", request, context)
-def get_assessment_context(request, context): return _adapter("get_assessment_context", request, context)
-def compare_wizard_claim(request, context): return _adapter("compare_wizard_claim", request, context)
 def get_gap_requirements(request, context): return _adapter("get_gap_requirements", request, context)
 def evaluate_gap_matrix(request, context): return _adapter("evaluate_gap_matrix", request, context)
 def get_admin_source_catalog(request, context): return _adapter("get_admin_source_catalog", request, context)

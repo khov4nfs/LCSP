@@ -120,8 +120,8 @@ class LawGuidedInvestigator:
         ledger = EvidenceLedger()
         for item in packet.initial_results:
             ledger.add(source="engineering_rule_seed_query", result=item)
-        if packet.wizard_context:
-            ledger.add(source="wizard_context", result=dict(packet.wizard_context))
+        if packet.confirmed_customer_context:
+            ledger.add(source="confirmed_customer_context", result=dict(packet.confirmed_customer_context))
 
         native_tools = self._native_tools(engine=engine, ledger=ledger)
         agent = create_agent(
@@ -783,7 +783,7 @@ class LawGuidedInvestigator:
                 "seedContext": {
                     "seedEvidenceRefCount": len(packet.evidence_refs),
                     "unresolvedFrontierCount": len(packet.unresolved_frontiers),
-                    "wizardContextStored": bool(packet.wizard_context),
+                    "confirmedCustomerContextStored": bool(packet.confirmed_customer_context),
                 },
                 "recentToolResults": working_results[-MAX_WORKING_RESULTS:],
                 "nativeToolStep": step + 1,
@@ -802,7 +802,7 @@ class LawGuidedInvestigator:
                     "Use only result.truncated to decide whether a bounded search is exhaustive. truncated=true is not an unresolved engineering fact by itself.",
                     "If required evidence is still missing after truncated=true, continue or narrow the search from continuationFrontiers before finishing.",
                     "Treat dynamic or external uncertainty as UNRESOLVED only when the relevant observation contains an actual unresolvedFrontier or boundary that can affect the required criterion.",
-                    "Every EvidenceLedger summary advertises availableSections. Never guess section names across graph, wizard, repo-map, or code-search observations.",
+                    "Every EvidenceLedger summary advertises availableSections. Never guess section names across graph, customer context, repo-map, or code-search observations.",
                 ],
             }
         )

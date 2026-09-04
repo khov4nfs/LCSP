@@ -421,7 +421,6 @@ AGENTIC_TOOL_SPECS: tuple[AgenticToolSpec, ...] = (
                         "type": "string",
                         "enum": [
                             "TECHNICAL_EVIDENCE",
-                            "WIZARD_PROFILE",
                             "AI_USAGE_FLOW",
                             "CONFLICT",
                             "VERIFIED_PROFILE",

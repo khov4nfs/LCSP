@@ -11,7 +11,6 @@ dotenv.config({ path: path.join(workspaceRoot, ".env") });
 if (process.env.NODE_ENV === "test") {
   dotenv.config({
     path: path.join(workspaceRoot, ".env.test"),
-    override: true,
   });
 }
 

@@ -14,7 +14,10 @@ import {
   AGENTIC_TOOL_EVENT_TYPES,
   AGENTIC_TOOL_NAMES,
   AGENTIC_TOOL_STATUSES,
+  CITATION_SET_REASON_CODES,
   CITATION_SET_VALIDITY,
+  LEGAL_BASIS_RETRIEVABLE_CHUNK_STATUSES,
+  LEGAL_BASIS_RETRIEVABLE_SOURCE_EFFECT_STATUSES,
   VALIDATE_CITATION_SET_TOOL,
   type CitationSetValidity,
   type ValidateCitationSetResponse,
@@ -25,10 +28,13 @@ import { AuditWriterService } from "../../../../../platform/audit/audit-writer.s
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { ValidateCitationSetQuery } from "./validate-citation-set.query.js";
 
-const RETRIEVABLE_LEGAL_STATUSES = new Set(["ACTIVE", "AMENDED"]);
-const RETRIEVABLE_SOURCE_EFFECTS = new Set([
-  "CON_HIEU_LUC",
-  "HET_HIEU_LUC_MOT_PHAN",
+const RETRIEVABLE_LEGAL_STATUSES: ReadonlySet<string> = new Set([
+  LEGAL_BASIS_RETRIEVABLE_CHUNK_STATUSES.active,
+  LEGAL_BASIS_RETRIEVABLE_CHUNK_STATUSES.amended,
+]);
+const RETRIEVABLE_SOURCE_EFFECTS: ReadonlySet<string> = new Set([
+  LEGAL_BASIS_RETRIEVABLE_SOURCE_EFFECT_STATUSES.effective,
+  LEGAL_BASIS_RETRIEVABLE_SOURCE_EFFECT_STATUSES.partiallyExpired,
 ]);
 
 @QueryHandler(ValidateCitationSetQuery)
@@ -206,7 +212,7 @@ function validateCitation(
   if (!chunk)
     return {
       validity: CITATION_SET_VALIDITY.absent,
-      reasonCode: "CITATION_ABSENT",
+      reasonCode: CITATION_SET_REASON_CODES.absent,
     };
   if (
     !RETRIEVABLE_LEGAL_STATUSES.has(chunk.legalStatus) ||
@@ -214,13 +220,13 @@ function validateCitation(
   ) {
     return {
       validity: CITATION_SET_VALIDITY.repealed,
-      reasonCode: "CITATION_REPEALED_OR_INEFFECTIVE",
+      reasonCode: CITATION_SET_REASON_CODES.repealedOrIneffective,
     };
   }
   if (!allowlist.has(citationRef))
     return {
       validity: CITATION_SET_VALIDITY.outOfAllowlist,
-      reasonCode: "CITATION_OUT_OF_ALLOWLIST",
+      reasonCode: CITATION_SET_REASON_CODES.outOfAllowlist,
     };
   return { validity: CITATION_SET_VALIDITY.valid, reasonCode: null };
 }

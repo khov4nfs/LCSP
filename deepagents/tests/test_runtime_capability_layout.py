@@ -45,8 +45,8 @@ def test_dispatch_runtime_groups_support_capabilities() -> None:
         "logging_path.py",
         "orchestration_logging.py",
         "rbac_client.py",
+        "source_clarification.py",
         "tracing.py",
-        "wizard_clarification.py",
     }
 
 
@@ -63,7 +63,7 @@ def test_flat_dispatch_observability_import_is_not_supported() -> None:
 
 
 def test_flat_dispatch_clarification_import_is_not_supported() -> None:
-    _assert_import_blocked("runtime.infrastructure.dispatch.wizard_clarification")
+    _assert_import_blocked("runtime.infrastructure.dispatch.source_clarification")
 
 
 def test_program_graph_runtime_groups_owned_capabilities() -> None:

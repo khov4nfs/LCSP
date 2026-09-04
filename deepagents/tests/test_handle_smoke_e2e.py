@@ -3,7 +3,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
-from langchain.messages import AIMessage
 
 from tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_boundary import AIUsageFlowBoundary
 from tools.common.capabilities.platform.config import WorkerConfig
@@ -62,30 +61,16 @@ def _evidence_report() -> dict:
     }
 
 
-def _wizard_profile() -> dict:
-    return {
-        "id": "wizard-smoke-1",
-        "answers": {
-            "businessProcess": "loan_approval",
-            "aiPurpose": "credit_scoring_decision_support",
-            "humanReview": "present",
-            "affectedSubjects": ["loan_applicant"],
-            "dataTypes": ["personal_data"],
-        },
-    }
-
-
 @pytest.mark.integration
 @pytest.mark.e2e
 def test_ai_usage_flow_handle_smoke_e2e_runs_graph_and_submits_callback() -> None:
     api_client = MagicMock()
     api_client.get_accepted_technical_profile.return_value = _technical_profile()
     api_client.get_accepted_technical_evidence_report.return_value = _evidence_report()
-    api_client.get_wizard_profile_for_assessment.return_value = _wizard_profile()
 
     proposal_agent = MagicMock()
     proposal_agent.invoke.return_value = {
-        "messages": [AIMessage(content="")],
+        "messages": [],
         "structured_response": {
             "summary_updates": {
                 "businessProcess": "loan_approval",
@@ -115,17 +100,6 @@ def test_ai_usage_flow_handle_smoke_e2e_runs_graph_and_submits_callback() -> Non
     callback_payload = api_client.post_ai_usage_flow_callback.call_args.args[0]
     assert callback_payload.technical_profile_id == "tp-smoke-1"
     assert callback_payload.assessment_id == "assessment-smoke-1"
-    assert callback_payload.flow_data["summary"]["businessProcess"] == "loan_approval"
+    assert callback_payload.flow_data["summary"]["businessProcess"] == "UNKNOWN"
     assert callback_payload.privacy_flags["containsSourceCode"] is False
-
-    invoke_kwargs = proposal_agent.invoke.call_args.kwargs
-    assert invoke_kwargs["config"]["metadata"]["workflow_run_id"] == "ai-usage-flow:tp-smoke-1:corr-smoke-ai-1"
-    assert invoke_kwargs["config"]["metadata"]["node_name"] == "ai_usage_flow.summary_proposal"
-
-    proposal_agent.invoke.assert_called_once()
-    llm_kwargs = proposal_agent.invoke.call_args.kwargs["config"]
-    assert (
-        llm_kwargs["metadata"]["workflow_run_id"]
-        == "ai-usage-flow:tp-smoke-1:corr-smoke-ai-1"
-    )
-    assert llm_kwargs["metadata"]["node_name"] == "ai_usage_flow.summary_proposal"
+    proposal_agent.invoke.assert_not_called()

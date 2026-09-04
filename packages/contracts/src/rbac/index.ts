@@ -1,4 +1,12 @@
-export const RBAC_REASON_CODE = {
+export const RBAC_DECISIONS = {
+  allow: "ALLOW",
+  deny: "DENY",
+} as const;
+
+export type RbacDecision =
+  (typeof RBAC_DECISIONS)[keyof typeof RBAC_DECISIONS];
+
+export const RBAC_REASON_CODES = {
   authorized: "AUTHORIZED",
   denied: "RBAC_DENIED",
   loadError: "LOAD_ERROR",
@@ -8,4 +16,9 @@ export const RBAC_REASON_CODE = {
 } as const;
 
 export type RbacReasonCode =
-  (typeof RBAC_REASON_CODE)[keyof typeof RBAC_REASON_CODE];
+  (typeof RBAC_REASON_CODES)[keyof typeof RBAC_REASON_CODES];
+
+export type RbacContextDenialReason =
+  | typeof RBAC_REASON_CODES.sessionInvalid
+  | typeof RBAC_REASON_CODES.mfaRequired
+  | typeof RBAC_REASON_CODES.loadError;

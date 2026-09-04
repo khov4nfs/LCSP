@@ -15,6 +15,12 @@ export const CITATION_SET_VALIDITY = {
 export type CitationSetValidity =
   (typeof CITATION_SET_VALIDITY)[keyof typeof CITATION_SET_VALIDITY];
 
+export const CITATION_SET_REASON_CODES = {
+  absent: "CITATION_ABSENT",
+  repealedOrIneffective: "CITATION_REPEALED_OR_INEFFECTIVE",
+  outOfAllowlist: "CITATION_OUT_OF_ALLOWLIST",
+} as const;
+
 export const VALIDATE_CITATION_SET_TOOL = {
   name: "validate_citation_set",
   version: "1.0.0",

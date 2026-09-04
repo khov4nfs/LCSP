@@ -1,4 +1,4 @@
-"""Detect deterministic conflicts between AI usage evidence and wizard answers."""
+"""Detect deterministic conflicts between AI usage evidence and customer_context answers."""
 
 from __future__ import annotations
 
@@ -54,27 +54,27 @@ class ConflictDetector:
         self,
         *,
         ai_usage_flow: dict[str, Any] | None,
-        wizard_profile: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
     ) -> list[ConflictRecord]:
         """Detect supported contradiction, scope-mismatch, and unverifiable conflicts.
 
         Args:
             ai_usage_flow: Accepted AIUsageFlow artifact containing evidence claims.
-            wizard_profile: Manager/wizard answers for the same assessment.
+            confirmed_customer_context: Confirmed customer answers for the same assessment.
 
         Returns:
             Deterministically constructed conflict records; empty when either
             comparison source is absent or no supported conflict is detected.
         """
-        if not ai_usage_flow or not wizard_profile:
+        if not ai_usage_flow or not confirmed_customer_context:
             return []
 
         flow_data = self._flow_data(ai_usage_flow)
         claims = self._claims(ai_usage_flow)
-        answers = self._answers(wizard_profile)
+        answers = self._answers(confirmed_customer_context)
         conflicts: list[ConflictRecord] = []
 
-        if self._wizard_external_llm_usage_is_false(answers):
+        if self._customer_context_external_llm_usage_is_false(answers):
             for claim in claims:
                 if self._claim_says_external_llm_usage(claim):
                     conflicts.append(
@@ -82,13 +82,13 @@ class ConflictDetector:
                             conflict_type="evidence_contradiction",
                             claim=claim,
                             ai_usage_flow=flow_data,
-                            wizard_profile=wizard_profile,
-                            wizard_answer_ref="answers.external_llm_usage",
+                            confirmed_customer_context=confirmed_customer_context,
+                            customer_context_answer_ref="answers.external_llm_usage",
                             severity="direct",
                         )
                     )
 
-        if self._wizard_says_no_autonomous_decision(answers):
+        if self._customer_context_says_no_autonomous_decision(answers):
             for claim in claims:
                 if self._claim_says_agent_pattern(claim):
                     conflicts.append(
@@ -96,8 +96,8 @@ class ConflictDetector:
                             conflict_type="scope_mismatch",
                             claim=claim,
                             ai_usage_flow=flow_data,
-                            wizard_profile=wizard_profile,
-                            wizard_answer_ref="answers.decision_role",
+                            confirmed_customer_context=confirmed_customer_context,
+                            customer_context_answer_ref="answers.decision_role",
                             severity="scope_only",
                         )
                     )
@@ -109,8 +109,8 @@ class ConflictDetector:
                         conflict_type="unverifiable",
                         claim=claim,
                         ai_usage_flow=flow_data,
-                        wizard_profile=wizard_profile,
-                        wizard_answer_ref="coverage_limitations",
+                        confirmed_customer_context=confirmed_customer_context,
+                        customer_context_answer_ref="coverage_limitations",
                         severity="partial",
                     )
                 )
@@ -121,20 +121,20 @@ class ConflictDetector:
         self,
         *,
         ai_usage_flow: dict[str, Any],
-        wizard_profile: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
     ) -> dict[str, Any]:
         """Build the privacy-safe reconciliation callback around detected conflicts."""
         flow_data = self._flow_data(ai_usage_flow)
         return {
             "ai_usage_flow_id": self._flow_id(flow_data),
-            "assessment_id": self._assessment_id(flow_data, wizard_profile),
+            "assessment_id": self._assessment_id(flow_data, confirmed_customer_context),
             "schema_version": SCHEMA_VERSION,
             "provider_version": self.provider_version,
             "conflicts": [
                 conflict.to_dict()
                 for conflict in self.detect(
                     ai_usage_flow=ai_usage_flow,
-                    wizard_profile=wizard_profile,
+                    confirmed_customer_context=confirmed_customer_context,
                 )
             ],
             "privacy_flags": {
@@ -149,8 +149,8 @@ class ConflictDetector:
         conflict_type: str,
         claim: dict[str, Any],
         ai_usage_flow: dict[str, Any],
-        wizard_profile: dict[str, Any],
-        wizard_answer_ref: str,
+        confirmed_customer_context: dict[str, Any],
+        customer_context_answer_ref: str,
         severity: str,
     ) -> ConflictRecord:
         """Create one conflict record with stable IDs, score, and source versions."""
@@ -167,15 +167,15 @@ class ConflictDetector:
             conflict_id=f"{flow_id}:{conflict_type}:{claim_id}",
             conflict_type=conflict_type,
             ai_usage_flow_id=flow_id,
-            assessment_id=self._assessment_id(ai_usage_flow, wizard_profile),
+            assessment_id=self._assessment_id(ai_usage_flow, confirmed_customer_context),
             affected_claim_id=claim_id,
             affected_claim_field=str(
                 claim.get("claim_field") or claim.get("claimField") or "unknown"
             ),
             conflicting_source_refs={
                 "ai_usage_flow_claim": claim_id,
-                "wizard_profile": wizard_profile.get("id") or wizard_profile.get("wizard_profile_id"),
-                "wizard_answer": wizard_answer_ref,
+                "confirmed_customer_context": confirmed_customer_context.get("id") or confirmed_customer_context.get("confirmed_customer_context_id"),
+                "customer_context_answer": customer_context_answer_ref,
             },
             evidence_refs=evidence_refs,
             conflict_score=score,
@@ -196,7 +196,7 @@ class ConflictDetector:
                 ),
                 "source_values": {
                     "manager_answer": self._manager_answer_summary(
-                        wizard_profile, wizard_answer_ref
+                        confirmed_customer_context, customer_context_answer_ref
                     ),
                     "technical_evidence": self._technical_evidence_summary(
                         conflict_type, claim
@@ -204,12 +204,12 @@ class ConflictDetector:
                 },
                 "source_refs": {
                     "ai_usage_flow_claim": claim_id,
-                    "wizard_profile": str(
-                        wizard_profile.get("id")
-                        or wizard_profile.get("wizard_profile_id")
-                        or "wizard_profile"
+                    "confirmed_customer_context": str(
+                        confirmed_customer_context.get("id")
+                        or confirmed_customer_context.get("confirmed_customer_context_id")
+                        or "confirmed_customer_context"
                     ),
-                    "wizard_answer": wizard_answer_ref,
+                    "customer_context_answer": customer_context_answer_ref,
                 },
                 "evidence_context": evidence_context,
             },
@@ -218,9 +218,9 @@ class ConflictDetector:
             source_versions={
                 "ai_usage_flow_schema_version": ai_usage_flow.get("schema_version")
                 or ai_usage_flow.get("schemaVersion"),
-                "wizard_profile_version": wizard_profile.get("version")
-                or wizard_profile.get("schema_version")
-                or wizard_profile.get("schemaVersion"),
+                "confirmed_customer_context_version": confirmed_customer_context.get("version")
+                or confirmed_customer_context.get("schema_version")
+                or confirmed_customer_context.get("schemaVersion"),
             },
         )
 
@@ -239,12 +239,12 @@ class ConflictDetector:
         raw_claims = ai_usage_flow.get("claims") or flow_data.get("claims") or []
         return [claim for claim in raw_claims if isinstance(claim, dict)]
 
-    def _answers(self, wizard_profile: dict[str, Any]) -> dict[str, Any]:
-        """Return wizard answers only when represented as a dictionary."""
-        answers = wizard_profile.get("answers")
+    def _answers(self, confirmed_customer_context: dict[str, Any]) -> dict[str, Any]:
+        """Return customer_context answers only when represented as a dictionary."""
+        answers = confirmed_customer_context.get("answers")
         return answers if isinstance(answers, dict) else {}
 
-    def _wizard_external_llm_usage_is_false(self, answers: dict[str, Any]) -> bool:
+    def _customer_context_external_llm_usage_is_false(self, answers: dict[str, Any]) -> bool:
         """Recognize supported answer aliases that explicitly deny external AI use."""
         values = [
             answers.get("external_llm_usage"),
@@ -256,8 +256,8 @@ class ConflictDetector:
         ]
         return any(self._is_false(value) for value in values)
 
-    def _wizard_says_no_autonomous_decision(self, answers: dict[str, Any]) -> bool:
-        """Return whether the wizard explicitly denies autonomous decision-making."""
+    def _customer_context_says_no_autonomous_decision(self, answers: dict[str, Any]) -> bool:
+        """Return whether the customer_context explicitly denies autonomous decision-making."""
         value = answers.get("decision_role") or answers.get("decisionRole")
         return str(value or "").lower() == "no_autonomous_decision"
 
@@ -374,14 +374,14 @@ class ConflictDetector:
     def _assessment_id(
         self,
         ai_usage_flow: dict[str, Any],
-        wizard_profile: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
     ) -> str:
-        """Resolve the assessment ID from flow data then wizard context."""
+        """Resolve the assessment ID from flow data then customer_context."""
         return str(
             ai_usage_flow.get("assessment_id")
             or ai_usage_flow.get("assessmentId")
-            or (wizard_profile or {}).get("assessment_id")
-            or (wizard_profile or {}).get("assessmentId")
+            or (confirmed_customer_context or {}).get("assessment_id")
+            or (confirmed_customer_context or {}).get("assessmentId")
             or "assessment"
         )
 
@@ -413,11 +413,11 @@ class ConflictDetector:
         )
 
     def _manager_answer_summary(
-        self, wizard_profile: dict[str, Any], wizard_answer_ref: str
+        self, confirmed_customer_context: dict[str, Any], customer_context_answer_ref: str
     ) -> str | None:
-        """Summarize the relevant wizard answer without copying free-form content."""
-        answers = self._answers(wizard_profile)
-        if wizard_answer_ref == "answers.external_llm_usage":
+        """Summarize the relevant customer_context answer without copying free-form content."""
+        answers = self._answers(confirmed_customer_context)
+        if customer_context_answer_ref == "answers.external_llm_usage":
             value = (
                 answers["external_llm_usage"]
                 if "external_llm_usage" in answers
@@ -427,7 +427,7 @@ class ConflictDetector:
                 return "No external AI use"
             if self._is_true(value):
                 return "External AI use"
-        if wizard_answer_ref == "answers.decision_role":
+        if customer_context_answer_ref == "answers.decision_role":
             value = answers.get("decision_role") or answers.get("decisionRole")
             if str(value or "").lower() == "no_autonomous_decision":
                 return "No autonomous decisions"

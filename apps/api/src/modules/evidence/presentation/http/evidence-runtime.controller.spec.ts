@@ -11,17 +11,21 @@ function buildEvidenceController() {
     jest.fn<(args?: unknown) => Promise<Record<string, unknown> | null>>();
   const technicalProfileFindUnique =
     jest.fn<(args?: unknown) => Promise<Record<string, unknown> | null>>();
+  const assessmentFindUnique =
+    jest.fn<(args?: unknown) => Promise<Record<string, unknown> | null>>();
   const commandBus = {
     execute: jest.fn<(query?: unknown) => Promise<{ status: string }>>(),
   };
   const prisma = {
     technicalEvidenceReport: { findUnique: technicalEvidenceReportFindUnique },
     technicalProfile: { findUnique: technicalProfileFindUnique },
+    assessment: { findUnique: assessmentFindUnique },
   } as unknown as PrismaService;
   return {
     controller: new InternalEvidenceController(commandBus as never, prisma),
     technicalEvidenceReportFindUnique,
     technicalProfileFindUnique,
+    assessmentFindUnique,
   };
 }
 
@@ -59,8 +63,11 @@ function buildAgenticController() {
 
 describe("InternalEvidenceController runtime reads", () => {
   it("returns accepted evidence report in worker snake_case shape", async () => {
-    const { controller, technicalEvidenceReportFindUnique } =
-      buildEvidenceController();
+    const {
+      controller,
+      technicalEvidenceReportFindUnique,
+      assessmentFindUnique,
+    } = buildEvidenceController();
     technicalEvidenceReportFindUnique.mockResolvedValue({
       id: "report-1",
       scanJobId: "scan-1",
@@ -75,10 +82,12 @@ describe("InternalEvidenceController runtime reads", () => {
       rejectionReason: null,
       createdAt: new Date("2026-08-08T00:00:00.000Z"),
     });
+    assessmentFindUnique.mockResolvedValue({ ownerId: "owner-1" });
     const result = await controller.getTechnicalEvidenceReport("report-1");
     expect(result).toMatchObject({
       id: "report-1",
       assessment_id: "assessment-1",
+      user_id: "owner-1",
       evidence_payload: { evidence_graph: { schema_version: "2.0.0" } },
       status: "accepted",
     });

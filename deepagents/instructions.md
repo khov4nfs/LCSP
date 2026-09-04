@@ -27,7 +27,7 @@ Before delegating work, maintain three supervisor concerns:
    already-selected EngineeringRule identifiers. These identifiers are not evidence
    and must never be rewritten by the model.
 2. **Thread/checkpoint memory** — Managed Deep Agents/LangGraph checkpointer state
-   preserves the current run and resume point. Authoritative assessment, Wizard,
+   preserves the current run and resume point. Authoritative assessment, Interview,
    legal, repository-evidence and report state remains in LCSP API/database storage.
    Never copy tenant/customer evidence into deployment-shared memory.
 3. **Todos** — use `write_todos` to mirror the active workflow. Keep one stage in
@@ -42,8 +42,8 @@ permissions, replace pinned artifacts, or bypass deterministic/approval gates.
 
 Use this workflow for a scheduled/source-change legal maintenance invocation, newly
 approved LegalRules, changed legal content, incomplete triage backlog, or an automatic
-ENGINEERING_RULE_NOT_READY readiness handoff. Delegate to `triage`; do not run Context
-Wizard, Planner, Investigator, or Resolver inside Legal Triage.
+ENGINEERING_RULE_NOT_READY readiness handoff. Delegate to `triage`; do not run
+assessment planning, investigation, or customer Interview activity inside Legal Triage.
 
 ```text
 scheduled/source-change/approved-rule maintenance
@@ -128,18 +128,24 @@ pipeline.
                   pinned assessment inputs
                            │
                            ▼
-                     context_wizard
+               orchestration recovery
                       /           \
-                  READY          NEEDS_INPUT
+               READY/PARTIAL   UNAVAILABLE
                     │                 │
                     │                 ▼
-                    │          wizard_needs_input
+                    │              WAITING
+                    │          recovery activity
                     │                 │
-                    │           wait for user answer
+                    │                 └──→ revalidate
+                    ▼
+              initial Interview
+                      /           \
+             CONTEXT_READY   WAITING/BLOCKED
                     │                 │
-                    │           wizard_resume
+                    │                 ▼
+                    │          customer response
                     │                 │
-                    │                 └──→ context_wizard
+                    │                 └──→ Interview
                     ▼
            EngineeringRule readiness
                 /               \
@@ -167,10 +173,10 @@ pipeline.
                   yes               no
                    │                 │
                    ▼                 ▼
-              NEEDS_INPUT      deterministic gate
+      NEEDS_BUSINESS_CONTEXT   deterministic gate
                    │                 │
                    ▼                 ▼
-                resolver             gap
+              targeted Interview     gap
                    │                 │
                    ▼                 ▼
           resume investigator       report
@@ -179,15 +185,18 @@ pipeline.
 Canonical assessment flow:
 
 ```text
-context_wizard
-→ [wizard_needs_input → wizard_resume → context_wizard]*
+technical_coverage
+→ [UNAVAILABLE → orchestration recovery → revalidate]*
+→ initial_interview
+→ [WAITING_FOR_CUSTOMER → customer response → initial_interview]*
+→ CONTEXT_READY
 → engineering_rule_readiness
 → [WAITING / ENGINEERING_RULE_NOT_READY
    → automatic LEGAL_MAINTENANCE handoff to triage
    → re-check the same engineering_rule_readiness checkpoint]*
 → plan
 → investigate
-→ [NEEDS_INPUT → resolve → resume → investigate]*
+→ [NEEDS_BUSINESS_CONTEXT → targeted_interview → orchestration validation → resume exact investigator]*
 → deterministic gate
 → gap
 → report
@@ -195,34 +204,29 @@ context_wizard
 
 The waiting loops have different meanings and must not be conflated:
 
-- **pre-Planner Wizard loop** gathers missing, user-answerable business context;
+- **Interview loop** gathers Customer-confirmed, user-answerable business context;
 - **EngineeringRule readiness loop** is system/legal preparation and requires no admin
   or user action; it automatically hands bounded missing LegalRule IDs to Triage and
   resumes from the same readiness checkpoint after READY;
-- **investigation Resolver loop** resolves one precise fact discovered while executing
-  an already-existing investigation plan.
+- **targeted Interview loop** resolves one precise business-context need discovered
+  while executing an already-existing investigation plan.
 
-### 1. Context Wizard
+### 1. Interview context gate
 
-The first assessment-model delegation is `context_wizard`, never Planner. Delegate
-immutable runtime identifiers and the already-selected EngineeringRule IDs. Context
-Wizard hydrates bounded assessment/Wizard context and only the approved basis for those
-supplied rule IDs.
+The first assessment context stage is Interview, orchestrated by runtime before Planner.
+The root delegates only immutable runtime identifiers and already-selected
+EngineeringRule IDs. Interview gathers bounded Customer-confirmed context and never
+receives EngineeringRule details, opaque continuations, checkpoints, or raw technical
+evidence.
 
-It must return the typed `ContextWizardQuestionRound` contract:
+Interview outcomes are limited to `WAITING_FOR_CUSTOMER`, `CONTEXT_READY`,
+`CONTEXT_RESOLVED`, `BLOCKED_OR_UNRESOLVED`, and `FAILED`. Active questions imply
+`WAITING_FOR_CUSTOMER`. `FAILED` is runtime/system failure, while
+`BLOCKED_OR_UNRESOLVED` is valid-runtime unresolved business reality.
 
-- `status=READY`, `questions=[]`, `next_step=PLAN`; or
-- `status=NEEDS_INPUT`, exact `unresolved_facts`, a bounded `questions` round, and
-  `next_step=WIZARD_NEEDS_INPUT`.
-
-If `NEEDS_INPUT`, persist the question round through the existing Wizard clarification
-workflow, checkpoint the assessment, and wait for the user answer. After the answer is
-saved, transition `wizard_needs_input → wizard_resume → context_wizard`. Re-hydrate the
-same pinned assessment inputs; do not skip directly to Planner.
-
-Context Wizard must not discover replacement EngineeringRules, search the Program
-Evidence Graph, decide compliance, or use the investigation Resolver for pre-Planner
-question collection.
+The root must not invent a fixed questionnaire, derive readiness from transcript text,
+or treat missing Program Evidence Graph evidence as proof that a business behavior does
+not exist.
 
 ### 2. EngineeringRule readiness gate
 
@@ -234,18 +238,18 @@ READY for the active legal catalog/corpus version.
   `WAITING / ENGINEERING_RULE_NOT_READY` and automatically emit one bounded legal-
   preparation handoff containing only the missing LegalRule IDs, active legal
   catalog/corpus versions, and stable idempotency metadata.
-- Do not put `assessment_id`, Wizard/business answers, repository findings, source code,
+- Do not put `assessment_id`, Interview/business answers, repository findings, source code,
   or prior compliance outcomes into the Legal Rule Triage tool payload.
 - Do not require an admin/operator/manual trigger.
 - If Triage is already RUNNING, preserve WAITING and re-check readiness only after a
   later orchestration attempt; never broaden the active Triage scope.
 - After the required EngineeringRules become READY, resume this same readiness
-  checkpoint. Do not restart the Assessment from creation, scan, or Context Wizard
+  checkpoint. Do not restart the Assessment from creation, scan, or Interview
   unless its pinned inputs changed independently.
 
 ### 3. Planner
 
-Delegate the READY Context Wizard handoff and READY EngineeringRules to `planner`.
+Delegate Initial Interview and Targeted business-context clarification to `interview`; guarded API persistence must accept the Interview candidate before any EngineeringRule, Planner or Investigator continuation. Delegate the READY Interview context and READY EngineeringRules to `planner`.
 Planner receives the fixed EngineeringRules and produces only the smallest technical
 Program Evidence Graph investigation scope. Planner must not fetch legal context,
 change the rule set, decide legal applicability, or issue a compliance verdict.
@@ -253,22 +257,24 @@ change the rule set, decide legal applicability, or issue a compliance verdict.
 ### 4. Investigator
 
 Delegate the plan to `investigator`. Investigator uses governed Program Evidence Graph
-tools to establish provenance-backed technical claims. It does not fetch Wizard/legal
+tools to establish provenance-backed technical claims. It does not fetch Interview/legal
 context and does not decide compliance.
 
-### 5. Investigation NEEDS_INPUT / Resolver / Resume
+### 5. Targeted business-context clarification / Resume
 
-If Planner or Investigator returns investigation-time `NEEDS_INPUT`:
+If Planner or Investigator returns investigation-time `NEEDS_BUSINESS_CONTEXT`:
 
 1. keep the existing plan/checkpoint in supervisor memory;
-2. record the exact missing fact in todos;
-3. delegate only that fact to `resolver`;
-4. preserve Wizard/repository conflict explicitly;
-5. when resolved, resume the same Investigator plan from checkpoint.
+2. record the exact business-context need, resolution criteria and safe evidence refs in
+   todos;
+3. send only that bounded need to Interview;
+4. preserve Customer/repository conflict explicitly;
+5. resume the same Investigator plan only after Orchestration validates the origin and
+   opaque continuation.
 
-Do not restart from Context Wizard or Planner unless pinned inputs changed and
-runtime explicitly begins a new planning cycle. Do not use this Resolver loop for
-pre-Planner Wizard question rounds or EngineeringRule legal preparation.
+Do not restart from Interview or Planner unless pinned inputs changed and runtime
+explicitly begins a new planning cycle. Interview flags downstream impact only;
+Orchestration decides selective rerun or rescope.
 
 ### 6. Deterministic gate
 
@@ -279,7 +285,8 @@ owns gap/report generation.
 ## Authority rules
 
 - Repository evidence and approved legal-corpus artifacts are authoritative inputs.
-- Wizard answers provide business context but never overwrite repository evidence.
+- Customer-confirmed Interview context provides business context but never overwrites
+  repository evidence.
 - EngineeringRules are prepared by Legal Rule Triage and must be READY before Planner;
   assessment subagents cannot create, broaden, reinterpret, or compile them.
 - Assessment may automatically request legal preparation at its readiness boundary,

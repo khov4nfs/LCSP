@@ -254,7 +254,7 @@ const md = [
   "## Rules",
   "",
   "- `Khovan` owns the critical/main flow and integration seams.",
-  "- `nhibao08`, `Nta1210`, `DthuyInk`, `anhtunguyen05` rotate across every module (auth, web, wizard, scanner, legal RAG, reconciliation, classification, reporting, audit, etc.) so no single module has one fixed owner and everyone builds context on the whole system.",
+  "- `nhibao08`, `Nta1210`, `DthuyInk`, `anhtunguyen05` rotate across every module (auth, web, interview, scanner, legal RAG, reconciliation, classification, reporting, audit, etc.) so no single module has one fixed owner and everyone builds context on the whole system.",
   "- Within a module, pipeline-adjacent tasks are kept in contiguous segments (max 5 tasks) rather than interleaved task-by-task, so a dependent chain of steps stays with one person instead of forcing a handoff after every single task.",
   "- Segments are bin-packed onto whichever rotating member currently carries the least load, so total workload stays balanced across the 4 members even though segment sizes vary.",
   "- Rotation and balancing are computed by `scripts/generate-local-assignments.mjs`; re-run it whenever `jira-lcsp-tasks-import.csv` changes.",

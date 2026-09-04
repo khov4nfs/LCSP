@@ -15,7 +15,7 @@
           "technical_evidence": "Retention behavior detected"
         },
         "source_refs": {
-          "wizard_answer": "answers.data_retention",
+          "customer_context_answer": "answers.data_retention",
           "ai_usage_flow_claim": "claim-retention"
         },
         "evidence_context": [
@@ -50,7 +50,7 @@
           "technical_evidence": "Escalation ownership unclear"
         },
         "source_refs": {
-          "wizard_answer": "answers.human_oversight",
+          "customer_context_answer": "answers.human_oversight",
           "ai_usage_flow_claim": "claim-oversight"
         },
         "evidence_context": [

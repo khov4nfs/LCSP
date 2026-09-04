@@ -12,7 +12,6 @@ class DossierSourceArtifacts:
     repository_snapshot_id: str
     program_evidence_graph_id: str
     technical_evidence_report_id: str
-    wizard_profile_id: str
     verified_profile_id: str
     legal_corpus_version_id: str
     legal_rule_catalog_version_id: str

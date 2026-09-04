@@ -1,8 +1,8 @@
 """Per-run context contract for the LCSP root orchestrator.
 
 Only stable identifiers and pinned artifact metadata belong here. Repository,
-Wizard and legal contents stay behind governed LCSP tools and are hydrated by the
-context-wizard pipeline stage.
+Customer context and legal contents stay behind governed LCSP tools and are
+hydrated by the runtime stages that own those data boundaries.
 """
 
 from __future__ import annotations
