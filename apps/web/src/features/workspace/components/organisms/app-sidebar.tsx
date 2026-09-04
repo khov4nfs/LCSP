@@ -1,6 +1,6 @@
 "use client";
 
-import { BoxesIcon, PlusIcon } from "lucide-react";
+import { PlusIcon, SwatchBookIcon } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { getAssessmentActiveHref } from "@/lib/api/workspace-client";
@@ -110,7 +110,7 @@ export function AppSidebar({
           ariaLabel={resolveAppMessage("pages.appShell.artifactsUnavailable")}
           className="mt-3"
           disabled
-          icon={<BoxesIcon className="size-4" />}
+          icon={<SwatchBookIcon className="size-4" />}
           label={resolveAppMessage("pages.appShell.artifacts")}
           tooltip={resolveAppMessage("pages.appShell.artifactsUnavailable")}
           variant={SIDEBAR_NAV_ITEM_VARIANTS.nav}

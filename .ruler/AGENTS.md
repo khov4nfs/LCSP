@@ -72,6 +72,18 @@ Rules:
 - Type definitions, fixture readers, cookie constants, and mock-mode helpers may live under server/helper folders, but they must not embed mock payload objects that should be JSON assets.
 - Do not add mock JSON, fixture payloads, or seed-like web data outside `apps/web/src/public/assets/mocks`.
 
+## Frontend Atomic Design boundaries
+
+- Split reusable UI behavior into the smallest existing Atomic Design primitive that owns it; do not place an entire interaction surface, visual fixture, or multi-step workflow in one large page/component when existing atoms, molecules, or organisms can compose it.
+
+## Brand invariant
+
+- The approved product brand source is the Figma DS Brand system: DS Brand `1104:31791`, Logo Mark `1105:31795`, Logo Lockup `1106:31809`, and usage notes `1107:31803`.
+- Whenever an approved screen contains product branding, reuse the shared production `LCSPLogo` component backed by the exact Figma asset.
+- Use the Logo Lockup for navigation, auth, admin, and footer surfaces where space permits.
+- Use the Logo Mark only for constrained icon contexts such as favicon and app icon.
+- Never recreate, approximate, replace with Lucide, or render plain `LCSP` text when the approved lockup is required.
+
 ## Frontend form architecture
 
 - In `apps/web`, non-trivial forms must use `react-hook-form` for form state and `zod` for validation. Do not introduce new manual form state stacks built from scattered `useState`, bespoke field error maps, and per-field submit plumbing when a form abstraction is appropriate.

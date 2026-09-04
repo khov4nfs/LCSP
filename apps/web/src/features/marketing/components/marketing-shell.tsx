@@ -2,6 +2,7 @@ import { resolveMessage } from "@lcsp/i18n";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { LCSPLogo } from "@/components/atoms/lcsp-logo";
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 
@@ -38,9 +39,9 @@ export function MarketingShell({ active, children }: MarketingShellProps) {
           <Link
             href="/"
             aria-label={t("pages.marketing.brandHomeLabel")}
-            className="absolute left-8 top-6 text-[15px] font-semibold leading-none"
+            className="absolute left-8 top-5 inline-flex h-8 items-center"
           >
-            LCSP
+            <LCSPLogo variant="lockup" size="md" />
           </Link>
 
           <nav
@@ -112,7 +113,13 @@ function MarketingFooter({ active }: { active: MarketingPageKey }) {
     <footer className="bg-background">
       <div className="relative mx-auto h-[220px] w-full max-w-[1440px] border-t border-border px-8 md:px-[120px]">
         <div className="pt-12">
-          <p className="text-[15px] font-semibold leading-6">LCSP</p>
+          <Link
+            href="/"
+            aria-label={t("pages.marketing.brandHomeLabel")}
+            className="inline-flex h-6 items-center"
+          >
+            <LCSPLogo variant="lockup" size="sm" />
+          </Link>
           <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
             {t("pages.marketing.footerTagline")}
           </p>

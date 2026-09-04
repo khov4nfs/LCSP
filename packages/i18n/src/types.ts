@@ -63,6 +63,8 @@ export type PagesMessages = {
     chatTranscriptLabel: string;
     chatComposerPlaceholder: string;
     chatSend: string;
+    chatCopy: string;
+    chatThinking: string;
     chatOptionsLabel: string;
     chatActivityStatuses: {
       pending: string;

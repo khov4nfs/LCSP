@@ -21,6 +21,7 @@ export type ChatSingleSelectOption = {
   label: string;
   description?: string;
   disabled?: boolean;
+  assistiveText?: string;
 };
 
 export type TurnFooterAction = {

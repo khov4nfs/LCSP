@@ -1,7 +1,7 @@
 "use client";
 
 import { resolveMessage } from "@lcsp/i18n";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode, type UIEvent } from "react";
 
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,13 @@ type AssessmentTranscriptProps = {
   className?: string;
 };
 
+type ChatRailProps = {
+  children: ReactNode;
+  className?: string;
+};
+
+const AUTO_FOLLOW_THRESHOLD_PX = 80;
+
 export function AssessmentTranscript({
   children,
   autoScrollKey,
@@ -22,6 +29,11 @@ export function AssessmentTranscript({
   className,
 }: AssessmentTranscriptProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const isFollowingLatestRef = useRef(true);
+
+  function handleScroll(event: UIEvent<HTMLDivElement>) {
+    isFollowingLatestRef.current = isNearLatest(event.currentTarget);
+  }
 
   useEffect(() => {
     if (autoScrollKey === undefined) {
@@ -30,6 +42,10 @@ export function AssessmentTranscript({
 
     const viewport = viewportRef.current;
     if (!viewport) {
+      return;
+    }
+
+    if (!isFollowingLatestRef.current && !isNearLatest(viewport)) {
       return;
     }
 
@@ -49,12 +65,35 @@ export function AssessmentTranscript({
       role="log"
       aria-live="polite"
       aria-label={ariaLabel}
-      className={cn("min-h-0 flex-1 overflow-y-auto", className)}
+      onScroll={handleScroll}
+      className={cn(
+        "min-h-0 flex-1 overflow-x-hidden overflow-y-auto",
+        className,
+      )}
     >
-      <div className="mx-auto flex min-h-full w-full max-w-[760px] flex-col gap-4 px-4 py-6 sm:px-0">
-        {children}
-      </div>
+      <ChatRail className="min-h-full gap-4 py-6">{children}</ChatRail>
     </div>
+  );
+}
+
+export function ChatRail({ children, className }: ChatRailProps) {
+  return (
+    <div
+      data-slot="chat-rail"
+      className={cn(
+        "mx-auto flex w-full max-w-170 min-w-0 flex-col px-4 sm:px-0",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+function isNearLatest(viewport: HTMLDivElement) {
+  return (
+    viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <=
+    AUTO_FOLLOW_THRESHOLD_PX
   );
 }
 

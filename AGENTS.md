@@ -13,9 +13,18 @@
 
 - Keep shadcn primitives in `apps/web/src/components/ui`. Keep reusable Atomic Design components in `apps/web/src/components/{atoms,molecules,organisms}`; they must remain domain-neutral and reusable across features.
 - Keep feature-specific composition in `apps/web/src/features/<feature>/components/{molecules,organisms}`. Do not place feature components directly under `features/<feature>/molecules` or `features/<feature>/organisms`.
+- Split reusable UI behavior into the smallest existing Atomic Design primitive that owns it; do not place an entire interaction surface, visual fixture, or multi-step workflow in one large page/component when existing atoms, molecules, or organisms can compose it.
 - Put schemas, types, and static configuration in sibling `schemas/`, `types/`, and `config/` directories, never inline in a component.
 - All customer-facing copy, including labels, helper text, validation messages, alerts, metadata, and accessible labels, must be represented by keys and resolved from `@lcsp/i18n`; never hardcode display strings in `apps/web`.
 - Do not add HTML `title` attributes for hover hints or truncated text. Use the existing shadcn `Tooltip`, `TooltipTrigger`, and `TooltipContent` primitives while preserving semantic labels with visible text or `aria-label`.
+
+## Brand invariant
+
+- The approved product brand source is the Figma DS Brand system: DS Brand `1104:31791`, Logo Mark `1105:31795`, Logo Lockup `1106:31809`, and usage notes `1107:31803`.
+- Whenever an approved screen contains product branding, reuse the shared production `LCSPLogo` component backed by the exact Figma asset.
+- Use the Logo Lockup for navigation, auth, admin, and footer surfaces where space permits.
+- Use the Logo Mark only for constrained icon contexts such as favicon and app icon.
+- Never recreate, approximate, replace with Lucide, or render plain `LCSP` text when the approved lockup is required.
 
 ## Frontend form architecture
 

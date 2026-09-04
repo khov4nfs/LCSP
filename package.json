@@ -29,7 +29,7 @@
     "prepare": "husky",
     "test": "pnpm run test:web && pnpm --filter @lcsp/api test:e2e",
     "pretest:web": "pnpm run build:runtime-packages",
-    "test:web": "node --experimental-strip-types --test tests/*.web.test.ts apps/web/tests/*.test.ts",
+    "test:web": "pnpm exec tsx --test tests/*.web.test.ts && pnpm --dir apps/web exec tsx --test 'tests/*.test.ts'",
     "prisma:generate": "pnpm --filter @lcsp/api prisma:generate",
     "typecheck": "pnpm run prisma:generate && pnpm exec tsc -b",
     "seed:legal-corpus:dev:dry": "node scripts/seed-legal-dev.mjs corpus --dry-run",
