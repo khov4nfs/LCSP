@@ -21,6 +21,27 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "LCSP",
   description: "Legal Compliance Support Platform",
+  icons: {
+    icon: [
+      {
+        url: "/brand/lcsp-mark-light.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/brand/lcsp-mark-dark.svg",
+        type: "image/svg+xml",
+        media: "(prefers-color-scheme: dark)",
+      },
+    ],
+    apple: [
+      {
+        url: "/brand/lcsp-apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
 };
 
 export default function RootLayout({
