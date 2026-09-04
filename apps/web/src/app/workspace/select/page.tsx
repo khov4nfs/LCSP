@@ -145,7 +145,7 @@ export default function SelectWorkspacePage() {
                   disabled={selectWorkspace.isPending}
                   className="flex w-full items-center gap-4 px-8 py-5 text-left transition hover:bg-muted/45 disabled:cursor-wait disabled:opacity-80"
                 >
-                  <span className="flex size-12 shrink-0 items-center justify-center rounded-sm bg-zinc-600 text-xl font-bold text-white">
+                  <span className="flex size-12 shrink-0 items-center justify-center rounded-sm bg-primary text-xl font-bold text-primary-foreground">
                     {getWorkspaceInitials(workspace.name)}
                   </span>
                   <span className="min-w-0 flex-1">

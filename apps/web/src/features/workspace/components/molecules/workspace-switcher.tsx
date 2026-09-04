@@ -12,6 +12,11 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useWorkspaceUiStore } from "@/features/workspace/stores/workspace-ui-store";
 import {
   usePersistWorkspaceSelectionMutation,
@@ -70,10 +75,7 @@ export function WorkspaceSwitcher({
 
     function handlePointerDown(event: PointerEvent) {
       const target = event.target;
-      if (
-        target instanceof Node &&
-        switcherRef.current?.contains(target)
-      ) {
+      if (target instanceof Node && switcherRef.current?.contains(target)) {
         return;
       }
       setIsOpen(false);
@@ -105,27 +107,35 @@ export function WorkspaceSwitcher({
       ref={switcherRef}
       className={cn("relative", placement === "header" ? "ml-auto" : "w-full")}
     >
-      <CollapsibleTrigger
-        render={
-          <Button
-            type="button"
-            variant={placement === "header" ? "outline" : "ghost"}
-            size={placement === "header" ? "sm" : "default"}
-            className={
-              placement === "header"
-                ? "max-w-56 justify-between"
-                : "w-full justify-between px-2"
-            }
-            title={t("pages.appShell.switchWorkspace")}
-          />
-        }
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          <Building2Icon className="size-4 shrink-0" />
-          <span className="truncate">{label}</span>
-        </span>
-        <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
-      </CollapsibleTrigger>
+      <Tooltip>
+        <CollapsibleTrigger
+          render={
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant={placement === "header" ? "outline" : "ghost"}
+                  size={placement === "header" ? "sm" : "default"}
+                  className={
+                    placement === "header"
+                      ? "max-w-56 justify-between"
+                      : "w-full justify-between px-2"
+                  }
+                />
+              }
+            />
+          }
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <Building2Icon className="size-4 shrink-0" />
+            <span className="truncate">{label}</span>
+          </span>
+          <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
+        </CollapsibleTrigger>
+        <TooltipContent side={placement === "header" ? "bottom" : "right"}>
+          {t("pages.appShell.switchWorkspace")}
+        </TooltipContent>
+      </Tooltip>
       <CollapsibleContent
         className={cn(
           "absolute top-full z-50 mt-2 w-72 rounded-lg border bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10",

@@ -11,15 +11,14 @@ export function LeftSidebarSlot({
   children: ReactNode;
   collapsed: boolean;
 }) {
+  if (collapsed) return null;
+
   return (
     <aside
       data-slot="assessment-left-sidebar"
-      data-state={collapsed ? "collapsed" : "open"}
+      data-state="open"
       className={cn(
-        "hidden shrink-0 overflow-hidden bg-sidebar text-sidebar-foreground transition-[width,border-color] duration-200 motion-reduce:transition-none lg:flex",
-        collapsed
-          ? "w-14 border-r border-border/70"
-          : "w-55 border-r border-border/70",
+        "hidden w-55 shrink-0 overflow-hidden border-r border-border/70 bg-sidebar text-sidebar-foreground transition-[width,border-color] duration-200 motion-reduce:transition-none lg:flex",
       )}
     >
       {children}

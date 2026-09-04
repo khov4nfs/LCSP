@@ -197,7 +197,7 @@ function OtpForm({
           >
             <FieldLabel
               htmlFor="otp"
-              className="text-xs font-medium text-[#2d2d2a]"
+              className="text-xs font-medium text-foreground"
             >
               {resolveMessage(appLocale, "pages.mfaVerify.otpLabel")}
             </FieldLabel>
@@ -220,7 +220,7 @@ function OtpForm({
                     <AuthOtpSlot index={1} invalid={Boolean(otpError)} />
                     <AuthOtpSlot index={2} invalid={Boolean(otpError)} />
                   </InputOTPGroup>
-                  <InputOTPSeparator className="text-[#7a7a74] [&_svg]:size-3" />
+                  <InputOTPSeparator className="text-muted-foreground [&_svg]:size-3" />
                   <InputOTPGroup className="gap-2 rounded-none">
                     <AuthOtpSlot index={3} invalid={Boolean(otpError)} />
                     <AuthOtpSlot index={4} invalid={Boolean(otpError)} />
@@ -237,7 +237,7 @@ function OtpForm({
                 )}
               </FieldError>
             ) : (
-              <FieldDescription className="text-[11px] leading-normal text-[#7a7a74]">
+              <FieldDescription className="text-[11px] leading-normal text-muted-foreground">
                 {resolveMessage(appLocale, "pages.mfaVerify.otpDescription")}
               </FieldDescription>
             )}
@@ -372,7 +372,7 @@ function AuthOtpSlot({ index, invalid }: { index: number; invalid: boolean }) {
     <InputOTPSlot
       index={index}
       aria-invalid={invalid}
-      className="h-12 w-11 rounded-lg border border-[#e3e3de] bg-[#ecece8] text-base font-medium text-[#2d2d2a] first:rounded-lg first:border last:rounded-lg data-[active=true]:border-[#0e7c66] data-[active=true]:ring-2 data-[active=true]:ring-[#0e7c66]/20"
+      className="h-12 w-11 rounded-lg border border-border bg-muted text-base font-medium text-foreground first:rounded-lg first:border last:rounded-lg data-[active=true]:border-ring data-[active=true]:ring-2 data-[active=true]:ring-ring/20"
     />
   );
 }

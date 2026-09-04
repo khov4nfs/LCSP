@@ -32,8 +32,8 @@ type MarketingShellProps = {
 
 export function MarketingShell({ active, children }: MarketingShellProps) {
   return (
-    <main className="min-h-dvh bg-[#f7f7f5] text-[#2d2d2a]">
-      <header className="sticky top-0 z-50 h-18 border-b border-[#f2f2ef] bg-[#f7f7f5]">
+    <main className="min-h-dvh bg-background text-foreground">
+      <header className="sticky top-0 z-50 h-18 border-b border-border bg-background">
         <div className="relative mx-auto h-18 w-full max-w-[1440px]">
           <Link
             href="/"
@@ -53,8 +53,8 @@ export function MarketingShell({ active, children }: MarketingShellProps) {
                 href={item.href}
                 aria-current={active === item.key ? "page" : undefined}
                 className={cn(
-                  "flex h-10 items-center px-4 text-xs font-medium text-[#2d2d2a] transition-colors hover:text-[#0e7c66]",
-                  active === item.key && "text-[#0e7c66]",
+                  "flex h-10 items-center px-4 text-xs font-medium text-foreground transition-colors hover:text-brand",
+                  active === item.key && "text-brand",
                 )}
               >
                 {t(item.labelKey)}
@@ -65,13 +65,13 @@ export function MarketingShell({ active, children }: MarketingShellProps) {
           <div className="absolute right-8 top-[18px] flex h-9 items-center gap-2.5">
             <Link
               href="/sign-in"
-              className="inline-flex h-9 w-24 items-center justify-center rounded-lg border border-[#e3e3de] bg-[#e8e8e3] text-[13px] font-medium text-[#2d2d2a] transition-colors hover:bg-[#ddddd8]"
+              className="inline-flex h-9 w-24 items-center justify-center rounded-lg border border-border bg-secondary text-[13px] font-medium text-foreground transition-colors hover:bg-muted"
             >
               {t("pages.marketing.nav.signIn")}
             </Link>
             <Link
               href="/sign-up"
-              className="inline-flex h-9 w-[122px] items-center justify-center rounded-lg border border-[#2d2d2a] bg-[#2d2d2a] text-[13px] font-medium text-white transition-opacity hover:opacity-85"
+              className="inline-flex h-9 w-[122px] items-center justify-center rounded-lg border border-primary bg-primary text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-85"
             >
               {t("pages.marketing.nav.createAccount")}
             </Link>
@@ -80,7 +80,7 @@ export function MarketingShell({ active, children }: MarketingShellProps) {
 
         <nav
           aria-label={t("pages.marketing.nav.mobileLabel")}
-          className="absolute inset-x-0 top-18 flex gap-1 overflow-x-auto border-b border-[#f2f2ef] bg-[#f7f7f5] px-5 py-2 md:hidden"
+          className="absolute inset-x-0 top-18 flex gap-1 overflow-x-auto border-b border-border bg-background px-5 py-2 md:hidden"
         >
           {navigation.map((item) => (
             <Link
@@ -88,8 +88,8 @@ export function MarketingShell({ active, children }: MarketingShellProps) {
               href={item.href}
               aria-current={active === item.key ? "page" : undefined}
               className={cn(
-                "shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-[#5f5f5a]",
-                active === item.key && "bg-[#e8e8e3] text-[#2d2d2a]",
+                "shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground",
+                active === item.key && "bg-secondary text-foreground",
               )}
             >
               {t(item.labelKey)}
@@ -109,15 +109,17 @@ function MarketingFooter({ active }: { active: MarketingPageKey }) {
   const footer = t("pages.marketing.footer");
 
   return (
-    <footer className="bg-[#f7f7f5]">
-      <div className="relative mx-auto h-[220px] w-full max-w-[1440px] border-t border-[#e3e3de] px-8 md:px-[120px]">
+    <footer className="bg-background">
+      <div className="relative mx-auto h-[220px] w-full max-w-[1440px] border-t border-border px-8 md:px-[120px]">
         <div className="pt-12">
           <p className="text-[15px] font-semibold leading-6">LCSP</p>
-          <p className="mt-2 text-[11px] leading-5 text-[#5f5f5a]">
+          <p className="mt-2 text-[11px] leading-5 text-muted-foreground">
             {t("pages.marketing.footerTagline")}
           </p>
           {footer ? (
-            <p className="mt-11 text-[10px] leading-5 text-[#5f5f5a]">{footer}</p>
+            <p className="mt-11 text-[10px] leading-5 text-muted-foreground">
+              {footer}
+            </p>
           ) : null}
         </div>
         <nav
@@ -130,8 +132,8 @@ function MarketingFooter({ active }: { active: MarketingPageKey }) {
               href={item.href}
               aria-current={active === item.key ? "page" : undefined}
               className={cn(
-                "px-3 py-3 text-xs font-medium text-[#2d2d2a] transition-colors hover:text-[#0e7c66]",
-                active === item.key && "text-[#0e7c66]",
+                "px-3 py-3 text-xs font-medium text-foreground transition-colors hover:text-brand",
+                active === item.key && "text-brand",
               )}
             >
               {t(item.labelKey)}
