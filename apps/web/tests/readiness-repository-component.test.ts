@@ -190,10 +190,14 @@ test("credential-required failures provide a Settings recovery action", async ()
   assert.match(source, /configureCredential/);
 });
 
-test("Readiness keeps repository recovery visible while technical evidence is missing", async () => {
+test("Readiness page is disconnected from the legacy step UI after workflow-run cutover", async () => {
   const source = await readFile(pagePath, "utf8");
-  assert.match(source, /item\.type === "technical_evidence"/);
   assert.match(
+    source,
+    /router\.replace\(`\/assessments\/\$\{encodeURIComponent\(assessmentId\)\}`\)/,
+  );
+  assert.doesNotMatch(source, /item\.type === "technical_evidence"/);
+  assert.doesNotMatch(
     source,
     /repositoryConnection={viewModel\.repositoryConnection}/,
   );

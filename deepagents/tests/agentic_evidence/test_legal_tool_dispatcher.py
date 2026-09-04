@@ -89,7 +89,7 @@ def test_global_binding_index_covers_all_canonical_tools() -> None:
     names = [binding.tool_name for binding in ALL_TOOL_BINDINGS]
 
     assert len(names) == len(set(names))
-    assert len(names) == 49
+    assert len(names) == 47
     assert runtime_binding("build_legal_chunks").downstream_target == "LegalChunkBuilder.build"
     assert (
         runtime_binding("activate_validated_corpus_version").runtime_target

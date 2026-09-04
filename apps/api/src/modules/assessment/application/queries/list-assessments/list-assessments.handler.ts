@@ -5,13 +5,9 @@ import { QueryHandler } from "@nestjs/cqrs";
 import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_STATUS_CODES,
-  WIZARD_STATUS_CODES,
 } from "@lcsp/contracts";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import { fromPrismaWizardStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
-import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
-import type { WizardStatus } from "../../contracts/assessment/assessment-detail.contract.js";
 import type {
   AssessmentListDto,
   AssessmentSummary,
@@ -28,20 +24,18 @@ const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
 /**
- * Produces the caller-visible assessment list with fail-closed RBAC scope filtering and wizard-status enrichment.
+ * Produces the caller-visible assessment list with fail-closed RBAC scope filtering.
  */
 @QueryHandler(ListAssessmentsQuery)
 export class ListAssessmentsHandler implements IQueryHandler<ListAssessmentsQuery> {
   /**
-   * Creates the list handler with assessment persistence and wizard-profile access.
+   * Creates the list handler with assessment persistence access.
    *
    * @param assessmentRepository - Repository used for paginated assessment filtering.
-   * @param prisma - Prisma service used to load wizard status for returned assessments.
    */
   constructor(
     @Inject(ASSESSMENT_REPOSITORY)
     private readonly assessmentRepository: AssessmentRepository,
-    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -95,16 +89,10 @@ export class ListAssessmentsHandler implements IQueryHandler<ListAssessmentsQuer
       return emptyResult();
     }
 
-    const wizardStatuses = await this.loadWizardStatuses(
-      items.map((item) => item.id),
-    );
-
     const assessments: AssessmentSummary[] = items.map((item) => ({
       assessment_id: item.id,
       name: item.name,
       status: item.status,
-      wizard_status:
-        wizardStatuses.get(item.id) ?? WIZARD_STATUS_CODES.notStarted,
       created_at: item.createdAt.toISOString(),
       updated_at: item.updatedAt.toISOString(),
     }));
@@ -116,25 +104,6 @@ export class ListAssessmentsHandler implements IQueryHandler<ListAssessmentsQuer
       page_size: pageSize,
       correlationId: query.correlationId,
     };
-  }
-
-  /**
-   * Loads wizard status for a returned assessment page in one query.
-   *
-   * @param assessmentIds - Assessment identifiers whose wizard statuses should be resolved.
-   * @returns Map from assessment identifier to normalized wizard status.
-   */
-  private async loadWizardStatuses(
-    assessmentIds: string[],
-  ): Promise<Map<string, WizardStatus>> {
-    const rows = await this.prisma.wizardProfile.findMany({
-      where: { assessmentId: { in: assessmentIds } },
-      select: { assessmentId: true, status: true },
-    });
-
-    return new Map(
-      rows.map((row) => [row.assessmentId, fromPrismaWizardStatus(row.status)]),
-    );
   }
 }
 

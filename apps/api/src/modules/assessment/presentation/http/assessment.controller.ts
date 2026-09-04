@@ -19,6 +19,8 @@ import type { AuthenticatedRequest } from "../../../../common/interfaces/authent
 import { CreateAssessmentCommand } from "../../application/commands/create-assessment/create-assessment.command.js";
 import { GetAssessmentQuery } from "../../application/queries/get-assessment/get-assessment.query.js";
 import { ListAssessmentsQuery } from "../../application/queries/list-assessments/list-assessments.query.js";
+import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
+import { AssessmentInterviewRuntimeService } from "../../application/services/assessment-interview-runtime.service.js";
 import { CreateAssessmentRequest } from "./dto/create-assessment.request.js";
 
 /**
@@ -35,6 +37,7 @@ export class AssessmentController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
+    private readonly interviewRuntime: AssessmentInterviewRuntimeService,
   ) {}
 
   /**
@@ -59,7 +62,7 @@ export class AssessmentController {
           rbacContext.userId,
           body.name,
           body.description,
-          request.correlationId as string,
+          request.correlationId ?? "worker-interview-context",
         ),
       ),
     );
@@ -94,7 +97,7 @@ export class AssessmentController {
           page !== undefined ? Number(page) : undefined,
           pageSize !== undefined ? Number(pageSize) : undefined,
           status,
-          request.correlationId as string,
+          request.correlationId ?? "worker-interview-context",
         ),
       ),
     );
@@ -107,6 +110,54 @@ export class AssessmentController {
    * @param request - Authenticated request containing user, role, and correlation context.
    * @returns The standard result envelope containing assessment readiness and pipeline detail.
    */
+  @Get(":assessmentId/interview")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
+  async getInterviewState(
+    @Param("assessmentId") assessmentId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.interviewRuntime.getState(assessmentId, request.rbacContext),
+    );
+  }
+
+  @Post(":assessmentId/interview/answers")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async submitInterviewAnswer(
+    @Param("assessmentId") assessmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.interviewRuntime.submitAnswer({
+        assessmentId,
+        actor: request.rbacContext,
+        correlationId: request.correlationId ?? "worker-interview-context",
+        answer: body as never,
+      }),
+    );
+  }
+
+  @Post(":assessmentId/interview/blocked-actions")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async recordInterviewBlockedAction(
+    @Param("assessmentId") assessmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.interviewRuntime.recordBlockedAction({
+        assessmentId,
+        actor: request.rbacContext,
+        correlationId: request.correlationId ?? "worker-interview-context",
+        blocked: body as never,
+      }),
+    );
+  }
+
   @Get(":assessmentId")
   @UseGuards(RbacGuard)
   @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
@@ -122,9 +173,86 @@ export class AssessmentController {
           assessmentId,
           rbacContext.userId,
           rbacContext.role,
-          request.correlationId as string,
+          request.correlationId ?? "worker-interview-context",
         ),
       ),
+    );
+  }
+}
+
+@Controller("internal/assessment-interviews")
+@UseGuards(WorkerApiKeyGuard)
+export class InternalAssessmentInterviewController {
+  constructor(
+    private readonly interviewRuntime: AssessmentInterviewRuntimeService,
+  ) {}
+
+  @Get(":assessmentId/state")
+  async getWorkerState(@Param("assessmentId") assessmentId: string) {
+    return resultEnvelope(
+      await this.interviewRuntime.getWorkerStateForWorker(assessmentId),
+    );
+  }
+
+  @Get(":assessmentId/private-context/:contextRevision")
+  async getPrivateContext(
+    @Param("assessmentId") assessmentId: string,
+    @Param("contextRevision") contextRevision: string,
+    @Query("source_version") sourceVersion: string | undefined,
+    @Query("pge_version") pgeVersion: string | undefined,
+  ) {
+    return resultEnvelope(
+      await this.interviewRuntime.getPrivateContextForWorker({
+        assessmentId,
+        contextRevision: Number(contextRevision),
+        sourceVersion,
+        pgeVersion,
+      }),
+    );
+  }
+
+  @Post(":assessmentId/targeted-needs")
+  async registerTargetedNeed(
+    @Param("assessmentId") assessmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.interviewRuntime.registerTargetedNeedForWorker({
+        assessmentId,
+        correlationId: request.correlationId ?? "worker-interview-context",
+        target: body as never,
+      }),
+    );
+  }
+
+  @Post(":assessmentId/agent-decisions")
+  async recordAgentDecision(
+    @Param("assessmentId") assessmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.interviewRuntime.recordAgentDecision({
+        assessmentId,
+        correlationId: request.correlationId ?? "worker-interview-context",
+        decision: body as never,
+      }),
+    );
+  }
+
+  @Post(":assessmentId/initial-question")
+  async seedInitialQuestion(
+    @Param("assessmentId") assessmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.interviewRuntime.seedInitialQuestionForWorker({
+        assessmentId,
+        correlationId: request.correlationId ?? "worker-interview-context",
+        state: body as never,
+      }),
     );
   }
 }

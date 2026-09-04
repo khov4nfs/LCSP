@@ -26,10 +26,5 @@ export interface DocumentGenerationContextDto {
     id: string;
     commit_sha: string;
   };
-  wizard_profile: {
-    id: string;
-    version: number;
-    answers: unknown;
-  } | null;
   matrix_ref: string;
 }

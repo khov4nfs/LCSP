@@ -2,7 +2,7 @@
 
 The LLM may propose free-form questions, but this module owns the contract:
 questions are bounded, routed to approved targets, normalized, and emitted with
-UI control metadata before they reach runtime events or the Wizard.
+UI control metadata before they reach runtime events or the Interview.
 """
 from __future__ import annotations
 

@@ -64,7 +64,7 @@ const sprintDefinitions = [
   {
     sprint: "LCSP Sprint 1",
     sequence: 1,
-    theme: "Foundation, auth, assessment, wizard entry",
+    theme: "Foundation, auth, assessment, interview entry",
     start: "2026-07-04T22:45:00+07:00",
     end: "2026-07-18T23:59:59+07:00",
     stories: new Set(["1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "2.1", "2.2", "2.3", "2.4"]),

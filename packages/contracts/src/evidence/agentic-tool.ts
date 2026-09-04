@@ -1,8 +1,4 @@
 import {
-  WIZARD_AGENTIC_TOOL_EVENT_TYPES,
-  WIZARD_AGENTIC_TOOL_NAMES,
-} from "./agentic-tool-wizard.ts";
-import {
   GAP_REQUIREMENTS_AGENTIC_TOOL_EVENT_TYPES,
   GAP_REQUIREMENTS_AGENTIC_TOOL_NAMES,
 } from "./agentic-tool-gap-requirements.ts";
@@ -13,7 +9,6 @@ import {
 
 /** Shared value sets for the first protected agentic-evidence tools. */
 export const AGENTIC_TOOL_NAMES = {
-  getAssessmentContext: "get_assessment_context",
   getScanCoverage: "get_scan_coverage",
   getArtifactChain: "get_artifact_chain",
   getFindingDetail: "get_finding_detail",
@@ -47,7 +42,6 @@ export const AGENTIC_TOOL_NAMES = {
   retrieveVerifiedEpisodes: "retrieve_verified_episodes",
   consolidateVerifiedEpisodes: "consolidate_verified_episodes",
   ...ADMIN_SOURCE_CATALOG_AGENTIC_TOOL_NAMES,
-  ...WIZARD_AGENTIC_TOOL_NAMES,
   ...GAP_REQUIREMENTS_AGENTIC_TOOL_NAMES,
 } as const;
 
@@ -78,7 +72,6 @@ export type AgenticToolCoverageState =
 
 export const ARTIFACT_CHAIN_STAGES = {
   technicalEvidence: "TECHNICAL_EVIDENCE",
-  wizardProfile: "WIZARD_PROFILE",
   aiUsageFlow: "AI_USAGE_FLOW",
   conflict: "CONFLICT",
   verifiedProfile: "VERIFIED_PROFILE",
@@ -96,7 +89,6 @@ export type ArtifactChainIntegrity =
   (typeof ARTIFACT_CHAIN_INTEGRITY)[keyof typeof ARTIFACT_CHAIN_INTEGRITY];
 
 export const AGENTIC_TOOL_EVENT_TYPES = {
-  assessmentContextRead: "AGENTIC_TOOL_ASSESSMENT_CONTEXT_READ",
   scanCoverageRead: "AGENTIC_TOOL_SCAN_COVERAGE_READ",
   artifactChainRead: "AGENTIC_TOOL_ARTIFACT_CHAIN_READ",
   reconciliationContextRead: "AGENTIC_TOOL_RECONCILIATION_CONTEXT_READ",
@@ -130,6 +122,5 @@ export const AGENTIC_TOOL_EVENT_TYPES = {
   deploymentContextRead: "AGENTIC_TOOL_DEPLOYMENT_CONTEXT_READ",
   missingTargetProposalRead: "AGENTIC_TOOL_MISSING_TARGET_PROPOSAL_READ",
   ...ADMIN_SOURCE_CATALOG_AGENTIC_TOOL_EVENT_TYPES,
-  ...WIZARD_AGENTIC_TOOL_EVENT_TYPES,
   ...GAP_REQUIREMENTS_AGENTIC_TOOL_EVENT_TYPES,
 } as const;

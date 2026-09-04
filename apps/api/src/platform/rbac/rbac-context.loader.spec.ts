@@ -9,7 +9,7 @@ import { Session } from "../../modules/auth-workspace/domain/entities/session.en
 import { User } from "../../modules/auth-workspace/domain/entities/user.entity.js";
 import { hashSecret } from "../../modules/auth-workspace/infrastructure/security/security.utils.js";
 import { RbacContextLoader } from "./rbac-context.loader.js";
-import { LOCAL_RBAC_REASON_CODES } from "./rbac-reason-codes.js";
+import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 
 const NOW = 1_700_000_000_000;
 
@@ -112,7 +112,7 @@ describe("RbacContextLoader", () => {
 
     await expect(loader.load("raw-token", NOW)).resolves.toEqual({
       ok: false,
-      reason: LOCAL_RBAC_REASON_CODES.sessionInvalid,
+      reason: RBAC_REASON_CODES.sessionInvalid,
     });
   });
 
@@ -132,7 +132,7 @@ describe("RbacContextLoader", () => {
 
       await expect(loader.load("raw-token", NOW)).resolves.toEqual({
         ok: false,
-        reason: LOCAL_RBAC_REASON_CODES.sessionInvalid,
+        reason: RBAC_REASON_CODES.sessionInvalid,
       });
     }
   });
@@ -175,7 +175,7 @@ describe("RbacContextLoader", () => {
 
     await expect(loader.load("raw-token", NOW)).resolves.toEqual({
       ok: false,
-      reason: LOCAL_RBAC_REASON_CODES.mfaRequired,
+      reason: RBAC_REASON_CODES.mfaRequired,
       mfaEnrolled: true,
     });
   });
@@ -215,7 +215,7 @@ describe("RbacContextLoader", () => {
 
     await expect(loader.load("raw-token", NOW)).resolves.toEqual({
       ok: false,
-      reason: LOCAL_RBAC_REASON_CODES.loadError,
+      reason: RBAC_REASON_CODES.loadError,
     });
   });
 
@@ -230,7 +230,7 @@ describe("RbacContextLoader", () => {
 
     await expect(loader.load("raw-token", NOW)).resolves.toEqual({
       ok: false,
-      reason: LOCAL_RBAC_REASON_CODES.loadError,
+      reason: RBAC_REASON_CODES.loadError,
     });
   });
 });

@@ -1,4 +1,4 @@
-"""Autonomous Wizard clarification: free-form agent questions, routed to canonical targets."""
+"""Autonomous customer context clarification: free-form agent questions, routed to canonical targets."""
 from tools.common.capabilities.workflow.recovery.clarification.generator import (
     AgentClarificationQuestionGenerator,
     ClarificationGenerationResult,
@@ -10,7 +10,7 @@ from tools.common.capabilities.workflow.recovery.clarification.models import (
     RoutedClarificationQuestion,
 )
 from tools.common.capabilities.workflow.recovery.clarification.planner_context import (
-    merge_clarification_answers_into_wizard_context,
+    merge_clarification_answers_into_customer_context,
 )
 from tools.common.capabilities.workflow.recovery.clarification.question_router import (
     ClarificationQuestionRouter,
@@ -29,6 +29,6 @@ __all__ = [
     "ClarificationRoutingTarget",
     "ROUTING_TARGETS",
     "RoutedClarificationQuestion",
-    "merge_clarification_answers_into_wizard_context",
+    "merge_clarification_answers_into_customer_context",
     "routing_target_by_field_name",
 ]

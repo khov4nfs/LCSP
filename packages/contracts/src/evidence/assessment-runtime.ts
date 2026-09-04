@@ -30,6 +30,7 @@ export const ASSESSMENT_RUNTIME_STAGE_CODES = {
   technicalProfile: "TECHNICAL_PROFILE",
   aiUsageFlow: "AI_USAGE_FLOW",
   reconciliation: "RECONCILIATION",
+  interview: "INTERVIEW",
   classification: "CLASSIFICATION",
   conflicts: "CONFLICTS",
   documents: "DOCUMENTS",
@@ -38,6 +39,11 @@ export const ASSESSMENT_RUNTIME_STAGE_CODES = {
 
 export type AssessmentRuntimeStageCode =
   (typeof ASSESSMENT_RUNTIME_STAGE_CODES)[keyof typeof ASSESSMENT_RUNTIME_STAGE_CODES];
+
+export const ASSESSMENT_RUNTIME_SYNTHETIC_TOOL_NAMES = {
+  repositoryScan: "repository_scan",
+  technicalEvidenceReport: "technical_evidence_report",
+} as const;
 
 export type AssessmentRuntimeSummaryValue =
   | string

@@ -453,7 +453,7 @@ class BusinessAwareScopedMaterialEngineeringRulePlanner(
     def _prompt(
         cls,
         candidates,
-        wizard_context: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
         graph: ProgramEvidenceGraph,
         openwiki_context: dict[str, Any] | None = None,
     ) -> str:
@@ -467,5 +467,10 @@ class BusinessAwareScopedMaterialEngineeringRulePlanner(
             "not generalize one process/domain signal to unrelated rules. Empty fields are "
             "not proof of absence when planningBusinessScope.unresolvedFrontiers is non-empty "
             "or scopeCoverage is UNRESOLVED.\n\n"
-            + super()._prompt(candidates, wizard_context, graph, openwiki_context)
+            + super()._prompt(
+                candidates,
+                confirmed_customer_context,
+                graph,
+                openwiki_context,
+            )
         )

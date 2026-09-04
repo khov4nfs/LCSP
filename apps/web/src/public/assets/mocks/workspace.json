@@ -5,8 +5,6 @@
     "assessment:create",
     "assessment:list",
     "assessment:read",
-    "wizard:write",
-    "wizard:submit",
     "conflict:read",
     "conflict:resolve",
     "evidence:read",

@@ -1,5 +1,5 @@
 import { jest } from "@jest/globals";
-import { EvidenceAcceptanceStatus, WizardProfileStatus } from "@prisma/client";
+import { EvidenceAcceptanceStatus } from "@prisma/client";
 import {
   AGENTIC_TOOL_COVERAGE_STATES,
   AGENTIC_TOOL_STATUSES,
@@ -17,14 +17,6 @@ import { ProposeMissingTargetsQuery } from "./propose-missing-targets.query.js";
 describe("ProposeMissingTargetsHandler", () => {
   it("returns OUT_OF_COVERAGE with evidence-backed proposals when submitted target ids are unavailable", async () => {
     const prisma = {
-      wizardProfile: {
-        findFirst: jest.fn().mockImplementation(() =>
-          Promise.resolve({
-            id: "wizard-1",
-            status: WizardProfileStatus.SUBMITTED,
-          }),
-        ),
-      },
       technicalEvidenceReport: {
         findFirst: jest.fn().mockImplementation(() =>
           Promise.resolve({
@@ -53,7 +45,6 @@ describe("ProposeMissingTargetsHandler", () => {
     ).execute(
       new ProposeMissingTargetsQuery(
         "assessment-1",
-        "wizard-1",
         "report-1",
         [TARGET_CANDIDATE_KINDS.providerUsage],
         [],
@@ -81,14 +72,6 @@ describe("ProposeMissingTargetsHandler", () => {
 
   it("proposes provider candidates when caller supplies explicit excludes", async () => {
     const prisma = {
-      wizardProfile: {
-        findFirst: jest.fn().mockImplementation(() =>
-          Promise.resolve({
-            id: "wizard-1",
-            status: WizardProfileStatus.SUBMITTED,
-          }),
-        ),
-      },
       technicalEvidenceReport: {
         findFirst: jest.fn().mockImplementation(() =>
           Promise.resolve({
@@ -114,7 +97,6 @@ describe("ProposeMissingTargetsHandler", () => {
     ).execute(
       new ProposeMissingTargetsQuery(
         "assessment-1",
-        "wizard-1",
         "report-1",
         [TARGET_CANDIDATE_KINDS.providerUsage],
         [],
@@ -139,49 +121,28 @@ describe("ProposeMissingTargetsHandler", () => {
     expect(response.evidence_refs).toEqual(["finding:finding_03"]);
   });
 
-  it("returns NEEDS_INPUT when wizard profile is not submitted", async () => {
+  it("returns NOT_FOUND when the requested technical evidence report is unavailable", async () => {
     const prisma = {
-      wizardProfile: {
-        findFirst: jest.fn().mockImplementation(() =>
-          Promise.resolve({
-            id: "wizard-1",
-            status: WizardProfileStatus.IN_PROGRESS,
-          }),
-        ),
-      },
       technicalEvidenceReport: {
-        findFirst: jest.fn().mockImplementation(() =>
-          Promise.resolve({
-            id: "report-1",
-            status: EvidenceAcceptanceStatus.ACCEPTED,
-            evidencePayload: {},
-          }),
-        ),
+        findFirst: jest.fn().mockImplementation(() => Promise.resolve(null)),
       },
     } as unknown as PrismaService;
     const audit = {
       write: jest.fn<AuditWriterService["write"]>(),
     } as unknown as jest.Mocked<AuditWriterService>;
 
-    const response = await new ProposeMissingTargetsHandler(
-      prisma,
-      audit,
-    ).execute(
-      new ProposeMissingTargetsQuery(
-        "assessment-1",
-        "wizard-1",
-        "report-1",
-        [TARGET_CANDIDATE_KINDS.providerUsage],
-        [],
-        ["target:provider_openai"],
-        25,
-        "corr-1",
+    await expect(
+      new ProposeMissingTargetsHandler(prisma, audit).execute(
+        new ProposeMissingTargetsQuery(
+          "assessment-1",
+          "report-1",
+          [TARGET_CANDIDATE_KINDS.providerUsage],
+          [],
+          ["target:provider_openai"],
+          25,
+          "corr-1",
+        ),
       ),
-    );
-
-    expect(response.status).toBe(AGENTIC_TOOL_STATUSES.needsInput);
-    expect(response.coverage_state).toBe(
-      AGENTIC_TOOL_COVERAGE_STATES.unavailable,
-    );
+    ).rejects.toThrow();
   });
 });

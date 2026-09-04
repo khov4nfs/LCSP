@@ -1,8 +1,4 @@
 import {
-  WIZARD_STATUS_CODES,
-  type WizardStatusCode,
-} from "@lcsp/contracts/assessment";
-import {
   AUTH_ERROR_CODES,
   AUTH_USER_ROLES,
   type AuthUserRole,
@@ -12,7 +8,6 @@ import type { MessageKey } from "@lcsp/i18n";
 import { PUBLIC_ENTRY_ROUTES } from "../../auth-entry.ts";
 import {
   assessmentStatusLabelKeys,
-  wizardStatusLabelKeys,
 } from "../../features/workspace/config/status-labels.ts";
 import type {
   AssessmentStatus,
@@ -64,16 +59,9 @@ export function getAssessmentStatusLabelKey(
   return assessmentStatusLabelKeys[status];
 }
 
-export function getWizardStatusLabelKey(
-  status: keyof typeof wizardStatusLabelKeys,
-): MessageKey {
-  return wizardStatusLabelKeys[status];
-}
-
 export function getAssessmentActiveHref(assessment: {
   id: string;
   status: string;
-  wizard_status: string;
 }): string {
   const encodedId = encodeURIComponent(assessment.id);
   return `/assessments/${encodedId}`;
@@ -215,7 +203,6 @@ export function toAssessmentsOutcome(
           id: (candidate.id ?? candidate.assessment_id) as string,
           name: candidate.name as string,
           status: candidate.status as AssessmentStatus,
-          wizard_status: candidate.wizard_status as WizardStatusCode,
           created_at: candidate.created_at as string,
         };
       },
@@ -321,7 +308,6 @@ function isAssessmentSummary(payload: unknown): boolean {
     typeof id === "string" &&
     typeof candidate.name === "string" &&
     isAssessmentStatus(candidate.status) &&
-    isWizardStatus(candidate.wizard_status) &&
     typeof candidate.created_at === "string"
   );
 }
@@ -333,15 +319,6 @@ function isCreatedAssessmentPayload(
     typeof payload === "object" &&
     payload !== null &&
     typeof (payload as { assessment_id?: unknown }).assessment_id === "string"
-  );
-}
-
-function isWizardStatus(status: unknown): boolean {
-  return (
-    typeof status === "string" &&
-    Object.values(WIZARD_STATUS_CODES).some(
-      (knownStatus) => knownStatus === status,
-    )
   );
 }
 

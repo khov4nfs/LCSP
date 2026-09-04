@@ -18,9 +18,6 @@
     "sourceMap": true,
     "outDir": "./dist",
     "rootDir": ".",
-    "paths": {
-      "@lcsp/contracts/rbac": ["../../packages/contracts/src/rbac/index.ts"]
-    },
     "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": true,

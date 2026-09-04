@@ -171,7 +171,7 @@ class EngineeringInvestigationPipeline:
         evidence_report: dict[str, Any],
         workflow_run_id: str,
         correlation_id: str | None = None,
-        wizard_context: dict[str, Any] | None = None,
+        confirmed_customer_context: dict[str, Any] | None = None,
         workspace_path: str | Path | None = None,
         assessment_id: str | None = None,
         user_id: str | None = None,
@@ -270,7 +270,7 @@ class EngineeringInvestigationPipeline:
                     packet = self._query_executor.execute(
                         engineering_rule,
                         graph,
-                        wizard_context=wizard_context,
+                        confirmed_customer_context=confirmed_customer_context,
                     )
                     try:
                         if isinstance(

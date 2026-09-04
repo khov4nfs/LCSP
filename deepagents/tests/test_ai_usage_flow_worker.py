@@ -75,9 +75,9 @@ def _evidence_report(*, findings: list[dict] | None = None) -> dict:
     }
 
 
-def _wizard_profile(**answers: object) -> dict:
+def _confirmed_customer_context(**answers: object) -> dict:
     return {
-        "id": "wizard-1",
+        "id": "customer_context-1",
         "answers": {
             "businessProcess": "loan_approval",
             "aiPurpose": "credit_scoring_decision_support",
@@ -94,7 +94,7 @@ def test_t01_model_invocation_finding_creates_validated_claim_with_formula() -> 
     flow = AIUsageFlowRuleEngine(provider_version="test-worker").generate(
         technical_profile=_technical_profile(),
         evidence_report=_evidence_report(),
-        wizard_profile=None,
+        confirmed_customer_context=None,
     )
 
     claim = next(
@@ -105,7 +105,7 @@ def test_t01_model_invocation_finding_creates_validated_claim_with_formula() -> 
         required_evidence_present=True,
         optional_signal_count=1,
         material_coverage_limitations=0,
-        has_wizard_conflict=False,
+        has_customer_context_conflict=False,
         missing_required_evidence_class=False,
     )
 
@@ -133,7 +133,7 @@ def test_t02_provider_only_signal_does_not_create_material_invocation() -> None:
                 }
             ]
         ),
-        wizard_profile=None,
+        confirmed_customer_context=None,
     )
 
     provider_claim = next(
@@ -146,11 +146,11 @@ def test_t02_provider_only_signal_does_not_create_material_invocation() -> None:
 
 
 @pytest.mark.p0
-def test_t03_missing_wizard_profile_sets_technical_only_not_blocked() -> None:
+def test_t03_missing_confirmed_customer_context_sets_technical_only_not_blocked() -> None:
     flow = AIUsageFlowRuleEngine().generate(
         technical_profile=_technical_profile(),
         evidence_report=_evidence_report(),
-        wizard_profile=None,
+        confirmed_customer_context=None,
     )
 
     assert flow.verification_source == "TECHNICAL_ONLY"
@@ -158,11 +158,11 @@ def test_t03_missing_wizard_profile_sets_technical_only_not_blocked() -> None:
 
 
 @pytest.mark.p0
-def test_t04_wizard_no_ai_conflicts_with_confirmed_invocation() -> None:
+def test_t04_customer_context_no_ai_conflicts_with_confirmed_invocation() -> None:
     flow = AIUsageFlowRuleEngine().generate(
         technical_profile=_technical_profile(ai_detected="confirmed"),
         evidence_report=_evidence_report(),
-        wizard_profile=_wizard_profile(aiUse=False),
+        confirmed_customer_context=_confirmed_customer_context(aiUse=False),
     )
 
     conflicts = [
@@ -172,7 +172,7 @@ def test_t04_wizard_no_ai_conflicts_with_confirmed_invocation() -> None:
         claim for claim in flow.claims if claim.claim_category == "MODEL_INVOCATION"
     )
 
-    assert "WIZARD_NO_AI_BUT_INVOCATION_EXISTS" in conflicts
+    assert "CUSTOMER_CONTEXT_NO_AI_BUT_INVOCATION_EXISTS" in conflicts
     assert claim.lifecycle_state == "CONFLICTED"
 
 
@@ -191,7 +191,7 @@ def test_t05_synthetic_output_without_labeling_marks_absent() -> None:
                 }
             ]
         ),
-        wizard_profile=None,
+        confirmed_customer_context=None,
     )
 
     claim = next(
@@ -217,7 +217,7 @@ def test_t06_raw_source_content_blocks_generation() -> None:
                     }
                 ]
             ),
-            wizard_profile=None,
+            confirmed_customer_context=None,
         )
 
 
@@ -229,7 +229,7 @@ def test_t07_confidence_uses_exact_base_score_table_not_llm() -> None:
         required_evidence_present=True,
         optional_signal_count=1,
         material_coverage_limitations=1,
-        has_wizard_conflict=True,
+        has_customer_context_conflict=True,
         missing_required_evidence_class=False,
     )
 
@@ -249,7 +249,7 @@ def test_t08_missing_technical_profile_blocks_generation() -> None:
     flow = AIUsageFlowRuleEngine().generate(
         technical_profile=None,
         evidence_report=_evidence_report(),
-        wizard_profile=None,
+        confirmed_customer_context=None,
     )
 
     assert flow.status == "BLOCKED"
@@ -269,7 +269,7 @@ def test_t09_material_claim_missing_evidence_refs_is_rejected() -> None:
                 }
             ]
         ),
-        wizard_profile=None,
+        confirmed_customer_context=None,
     )
 
     claim = next(
@@ -286,7 +286,7 @@ def test_t10_coverage_limitations_are_preserved() -> None:
             coverage_limitations=["dynamic output-to-action path"]
         ),
         evidence_report=_evidence_report(),
-        wizard_profile=None,
+        confirmed_customer_context=None,
     )
 
     assert flow.coverage_limitations == ["dynamic output-to-action path"]
@@ -298,7 +298,6 @@ def test_consumer_fetches_inputs_and_posts_callback() -> None:
     api_client = MagicMock()
     api_client.get_accepted_technical_profile.return_value = _technical_profile()
     api_client.get_accepted_technical_evidence_report.return_value = _evidence_report()
-    api_client.get_wizard_profile_for_assessment.return_value = None
     boundary = AIUsageFlowBoundary(_config(), api_client=api_client)
 
     boundary.handle(
@@ -312,7 +311,10 @@ def test_consumer_fetches_inputs_and_posts_callback() -> None:
 
     api_client.get_accepted_technical_profile.assert_called_once_with("tp-1")
     api_client.get_accepted_technical_evidence_report.assert_called_once_with("ter-1")
-    api_client.get_wizard_profile_for_assessment.assert_called_once_with("assessment-1")
+    assert not any(
+        call[0] == "get_confirmed_customer_context_for_assessment"
+        for call in api_client.mock_calls
+    )
     api_client.post_ai_usage_flow_callback.assert_called_once()
     payload = api_client.post_ai_usage_flow_callback.call_args.args[0]
     assert isinstance(payload, AIUsageFlowCallbackPayload)
@@ -326,7 +328,7 @@ def test_rule_engine_makes_no_network_or_llm_calls() -> None:
         AIUsageFlowRuleEngine().generate(
             technical_profile=_technical_profile(),
             evidence_report=_evidence_report(),
-            wizard_profile=None,
+            confirmed_customer_context=None,
         )
 
     http_post.assert_not_called()
@@ -334,125 +336,10 @@ def test_rule_engine_makes_no_network_or_llm_calls() -> None:
 
 
 @pytest.mark.p0
-def test_consumer_accepts_summary_proposal_that_matches_wizard_authority() -> None:
-    api_client = MagicMock()
-    api_client.get_accepted_technical_profile.return_value = _technical_profile()
-    api_client.get_accepted_technical_evidence_report.return_value = _evidence_report()
-    api_client.get_wizard_profile_for_assessment.return_value = _wizard_profile(
-        businessProcess="loan_approval",
-        aiPurpose="credit_scoring_decision_support",
-        affectedSubjects=["loan_applicant"],
-        humanReview="present",
-    )
-    agent = MagicMock()
-    agent.invoke.return_value = {"structured_response": {
-        "summary_updates": {
-            "businessProcess": "loan_approval",
-            "aiPurpose": "credit_scoring_decision_support",
-            "affectedSubjects": ["loan_applicant"],
-            "humanReview": "present",
-        }
-    }}
-    boundary = AIUsageFlowBoundary(_config(), api_client=api_client)
-
-    with patch("tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_proposer.create_agent", return_value=agent): boundary.handle(
-        {
-            "technicalProfileId": "tp-1",
-            "assessmentId": "assessment-1",
-            "evidenceReportId": "ter-1",
-        },
-        correlationId="corr-2",
-    )
-
-    payload = api_client.post_ai_usage_flow_callback.call_args.args[0]
-    assert payload.flow_data["summary"]["businessProcess"] == "loan_approval"
-    assert payload.flow_data["summary"]["aiPurpose"] == "credit_scoring_decision_support"
-    assert agent.invoke.call_args.kwargs["config"]["metadata"]["workflow_run_id"] == "ai-usage-flow:tp-1:corr-2"
-    assert agent.invoke.call_args.kwargs["config"]["metadata"]["node_name"] == "ai_usage_flow.summary_proposal"
-
-
-@pytest.mark.p0
-def test_consumer_rejects_summary_proposal_that_conflicts_with_wizard_authority() -> None:
-    api_client = MagicMock()
-    api_client.get_accepted_technical_profile.return_value = _technical_profile()
-    api_client.get_accepted_technical_evidence_report.return_value = _evidence_report()
-    api_client.get_wizard_profile_for_assessment.return_value = _wizard_profile(
-        businessProcess="loan_approval",
-        aiPurpose="credit_scoring_decision_support",
-        affectedSubjects=["loan_applicant"],
-        humanReview="present",
-    )
-    agent = MagicMock()
-    agent.invoke.return_value = {"structured_response": {
-        "summary_updates": {"businessProcess": "fraud_detection"}
-    }}
-    boundary = AIUsageFlowBoundary(_config(), api_client=api_client)
-
-    with patch("tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_proposer.create_agent", return_value=agent): boundary.handle(
-        {
-            "technicalProfileId": "tp-1",
-            "assessmentId": "assessment-1",
-            "evidenceReportId": "ter-1",
-        },
-        correlationId="corr-3",
-    )
-
-    payload = api_client.post_ai_usage_flow_callback.call_args.args[0]
-    assert payload.flow_data["summary"]["businessProcess"] == "loan_approval"
-
-
-@pytest.mark.p0
-def test_consumer_routes_summary_proposal_through_agentic_tool_resolver() -> None:
-    api_client = MagicMock()
-    api_client.get_accepted_technical_profile.return_value = _technical_profile(
-    )
-    api_client.get_accepted_technical_evidence_report.return_value = _evidence_report()
-    api_client.get_wizard_profile_for_assessment.return_value = _wizard_profile(
-        businessProcess="loan_approval",
-        aiPurpose="credit_scoring_decision_support",
-        affectedSubjects=["loan_applicant"],
-        humanReview="present",
-    )
-    agent = MagicMock()
-    agent.invoke.return_value = {"structured_response": {
-        "summary_updates": {
-            "businessProcess": "loan_approval",
-            "aiPurpose": "credit_scoring_decision_support",
-        }
-    }}
-
-    resolver = MagicMock()
-    resolver.as_langchain_tools.return_value = [MagicMock(name="get_scan_coverage")]
-    resolver.max_tool_calls = 4
-
-    boundary = AIUsageFlowBoundary(
-        _config(),
-        api_client=api_client,
-        agentic_tool_resolver=resolver,
-    )
-
-    with patch("tools.common.capabilities.assessment.claims.ai_usage_flow.ai_usage_flow_proposer.create_agent", return_value=agent): boundary.handle(
-        {
-            "technicalProfileId": "tp-1",
-            "assessmentId": "assessment-1",
-            "evidenceReportId": "ter-1",
-        },
-        correlationId="corr-tools",
-    )
-
-    resolver.as_langchain_tools.assert_called_once()
-    context = resolver.as_langchain_tools.call_args.kwargs["context"]
-    assert context.artifact_versions == {"technicalEvidenceReportId": "ter-1"}
-    payload = api_client.post_ai_usage_flow_callback.call_args.args[0]
-    assert payload.flow_data["summary"]["businessProcess"] == "loan_approval"
-
-
-@pytest.mark.p0
 def test_graph_derives_workflow_context_and_callback_payload() -> None:
     api_client = MagicMock()
     api_client.get_accepted_technical_profile.return_value = _technical_profile()
     api_client.get_accepted_technical_evidence_report.return_value = _evidence_report()
-    api_client.get_wizard_profile_for_assessment.return_value = None
     graph = AIUsageFlowGraph(api_client=api_client, rule_engine=AIUsageFlowRuleEngine())
 
     result = graph.run(

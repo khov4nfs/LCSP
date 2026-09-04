@@ -16,11 +16,10 @@ from harness import (
     LCSP_HARNESS_PROFILE,
 )
 from subagents import (
-    CONTEXT_WIZARD_TOOLS,
     FLOW_SUBAGENTS,
+    INTERVIEW_TOOLS,
     INVESTIGATOR_TOOLS,
     PLANNER_TOOLS,
-    RESOLVER_TOOLS,
     TRIAGE_TOOLS,
 )
 
@@ -36,7 +35,6 @@ TRIAGE_TOOL_PACKAGES: set[str] = {
     "legal_rule_triage",
 }
 COMMON_TOOL_NAMES: tuple[str, ...] = (
-    "get_assessment_context",
     "get_legal_corpus_readiness",
     "retrieve_verified_episodes",
     "retrieve_legal_basis",
@@ -44,11 +42,6 @@ COMMON_TOOL_NAMES: tuple[str, ...] = (
 )
 ORCHESTRATION_TOOL_NAMES: tuple[str, ...] = ("request_targeted_reanalysis",)
 EXPECTED_ROLE_TOOL_NAMES: dict[str, tuple[str, ...]] = {
-    "context_wizard": (
-        "get_assessment_context",
-        "get_legal_corpus_readiness",
-        "retrieve_legal_basis",
-    ),
     "planner": ("retrieve_verified_episodes", "search_program_graph", "get_scan_coverage"),
     "investigator": (
         "retrieve_verified_episodes",
@@ -60,7 +53,6 @@ EXPECTED_ROLE_TOOL_NAMES: dict[str, tuple[str, ...]] = {
         "get_symbol_context",
         "find_provider_invocations",
     ),
-    "resolver": ("get_assessment_context", "compare_wizard_claim"),
 }
 
 
@@ -96,28 +88,26 @@ def _assessment_authored_tool_layout() -> dict[str, tuple[str, ...]]:
             "get_symbol_context",
             "find_provider_invocations",
         ),
-        "resolver": ("compare_wizard_claim",),
         "orchestration": ORCHESTRATION_TOOL_NAMES,
     }
 
 
 def test_subagents_receive_fixed_minimal_tool_surfaces() -> None:
     assert _names(TRIAGE_TOOLS) == TRIAGE_TOOL_NAMES
-    assert _names(CONTEXT_WIZARD_TOOLS) == EXPECTED_ROLE_TOOL_NAMES["context_wizard"]
+    assert _names(INTERVIEW_TOOLS) == ()
     assert _names(PLANNER_TOOLS) == EXPECTED_ROLE_TOOL_NAMES["planner"]
     assert _names(INVESTIGATOR_TOOLS) == EXPECTED_ROLE_TOOL_NAMES["investigator"]
-    assert _names(RESOLVER_TOOLS) == EXPECTED_ROLE_TOOL_NAMES["resolver"]
 
     by_name = {item["name"]: item for item in FLOW_SUBAGENTS}
     assert tuple(by_name) == (
         "triage",
-        "context_wizard",
+        "interview",
         "planner",
         "investigator",
-        "resolver",
     )
     assert _names(by_name["triage"]["tools"]) == TRIAGE_TOOL_NAMES
-    for role in ("context_wizard", "planner", "investigator", "resolver"):
+    assert _names(by_name["interview"]["tools"]) == ()
+    for role in ("planner", "investigator"):
         assert _names(by_name[role]["tools"]) == EXPECTED_ROLE_TOOL_NAMES[role]
 
 
@@ -136,19 +126,17 @@ def test_subagent_definitions_are_owned_by_role_directories() -> None:
     subagents_root = PROJECT_ROOT / "subagents"
     assert _directory_names(subagents_root) == {
         "triage",
-        "context_wizard",
+        "interview",
         "planner",
         "investigator",
-        "resolver",
     }
     assert not (PROJECT_ROOT / "subagents.py").exists()
-    for role in ("triage", "context_wizard", "planner", "investigator", "resolver"):
+    for role in ("triage", "interview", "planner", "investigator"):
         assert (subagents_root / role / "definition.py").is_file()
 
 
 def test_common_and_orchestration_tools_are_classified_explicitly() -> None:
     assert COMMON_TOOL_NAMES == (
-        "get_assessment_context",
         "get_legal_corpus_readiness",
         "retrieve_verified_episodes",
         "retrieve_legal_basis",
@@ -160,11 +148,11 @@ def test_common_and_orchestration_tools_are_classified_explicitly() -> None:
 
 
 def test_legal_hydration_stops_before_planner_and_investigator() -> None:
-    assert "retrieve_legal_basis" in EXPECTED_ROLE_TOOL_NAMES["context_wizard"]
     assert "retrieve_legal_basis" not in EXPECTED_ROLE_TOOL_NAMES["planner"]
     assert "retrieve_legal_basis" not in EXPECTED_ROLE_TOOL_NAMES["investigator"]
     assert "get_assessment_context" not in EXPECTED_ROLE_TOOL_NAMES["planner"]
     assert "get_assessment_context" not in EXPECTED_ROLE_TOOL_NAMES["investigator"]
+    assert not (PROJECT_ROOT / "tools" / "common" / "get_assessment_context").exists()
 
 
 def test_agent_facing_assessment_tools_follow_node_tool_code_layout() -> None:
@@ -257,7 +245,6 @@ def test_tools_tree_contains_only_authored_agent_capabilities() -> None:
         "legal",
         "planner",
         "investigator",
-        "resolver",
         "orchestration",
         "triage",
     }
@@ -284,7 +271,7 @@ def test_tools_tree_contains_only_authored_agent_capabilities() -> None:
         "get_symbol_context",
         "find_provider_invocations",
     }
-    assert _directory_names(PROJECT_ROOT / "tools" / "resolver") == {"compare_wizard_claim"}
+    assert not (PROJECT_ROOT / "tools" / "resolver").exists()
     assert _directory_names(PROJECT_ROOT / "tools" / "orchestration") == set(
         ORCHESTRATION_TOOL_NAMES
     )

@@ -101,11 +101,21 @@ export class InternalEvidenceController {
     if (!report) {
       throw new NotFoundException("TechnicalEvidenceReport not found");
     }
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: report.assessmentId },
+      select: { ownerId: true },
+    });
+    if (!assessment) {
+      throw new NotFoundException(
+        "Assessment not found for TechnicalEvidenceReport",
+      );
+    }
 
     return {
       id: report.id,
       scan_job_id: report.scanJobId,
       assessment_id: report.assessmentId,
+      user_id: assessment.ownerId,
       snapshot_id: report.snapshotId,
       tools_version: report.toolsVersion,
       config_hash: report.configHash,

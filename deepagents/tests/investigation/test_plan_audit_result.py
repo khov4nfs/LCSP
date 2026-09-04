@@ -19,8 +19,8 @@ def test_planner_decision_rationale_is_persisted_in_assessment_data() -> None:
                 "engineering_rule_id": "eng-selected",
                 "requested_decision": "SKIP",
                 "final_decision": "SELECT",
-                "reason_code": "WIZARD_SCOPE_EXCLUDES_RULE",
-                "basis": ["WIZARD"],
+                "reason_code": "CUSTOMER_CONTEXT_SCOPE_EXCLUDES_RULE",
+                "basis": ["CUSTOMER_CONTEXT"],
                 "validation_override": "SOURCE_BASIS_REQUIRED",
                 "material_source_hit_count": 2,
                 "material_source_evidence_count": 2,
@@ -33,8 +33,8 @@ def test_planner_decision_rationale_is_persisted_in_assessment_data() -> None:
                 "engineering_rule_id": "eng-skipped",
                 "requested_decision": "SKIP",
                 "final_decision": "SKIP",
-                "reason_code": "NO_WIZARD_OR_SOURCE_SCOPE_SIGNAL",
-                "basis": ["WIZARD", "RULE_CONTRACT"],
+                "reason_code": "NO_CUSTOMER_CONTEXT_OR_SOURCE_SCOPE_SIGNAL",
+                "basis": ["CUSTOMER_CONTEXT", "RULE_CONTRACT"],
                 "validation_override": None,
                 "material_source_hit_count": 0,
                 "material_source_evidence_count": 0,
@@ -58,4 +58,4 @@ def test_planner_decision_rationale_is_persisted_in_assessment_data() -> None:
     }
     assert payload["planner_decisions"][0]["engineering_rule_id"] == "eng-selected"
     assert payload["planner_decisions"][0]["validation_override"] == "SOURCE_BASIS_REQUIRED"
-    assert payload["planner_decisions"][1]["reason_code"] == "NO_WIZARD_OR_SOURCE_SCOPE_SIGNAL"
+    assert payload["planner_decisions"][1]["reason_code"] == "NO_CUSTOMER_CONTEXT_OR_SOURCE_SCOPE_SIGNAL"

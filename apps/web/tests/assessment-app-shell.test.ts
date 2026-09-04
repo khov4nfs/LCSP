@@ -31,7 +31,6 @@ const summaryCardPath = new URL(
   import.meta.url,
 );
 const legacyRoutePaths = [
-  "../src/app/(workspace)/assessments/[id]/wizard/page.tsx",
   "../src/app/(workspace)/assessments/[id]/readiness/page.tsx",
   "../src/app/(workspace)/assessments/[id]/technical-evidence/page.tsx",
   "../src/app/(workspace)/assessments/[id]/classification/page.tsx",
@@ -126,4 +125,17 @@ test("deprecated assessment step routes redirect back to the shared shell", asyn
       /WizardFormPage|ReadinessStatusPage|TechnicalEvidenceRuntimePage|ClassificationStatusPage|DocumentsPageClient|ConflictResolutionPage/,
     );
   }
+});
+
+test("wizard assessment route is removed from production routing", async () => {
+  await assert.rejects(
+    readFile(
+      new URL(
+        "../src/app/(workspace)/assessments/[id]/wizard/page.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+    /ENOENT/,
+  );
 });

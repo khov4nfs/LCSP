@@ -27,7 +27,7 @@ def calculate_claim_confidence(
     required_evidence_present: bool,
     optional_signal_count: int,
     material_coverage_limitations: int,
-    has_wizard_conflict: bool,
+    has_customer_context_conflict: bool,
     missing_required_evidence_class: bool,
 ) -> tuple[float, dict[str, float]]:
     """Calculate a bounded confidence score from deterministic evidence factors.
@@ -37,7 +37,7 @@ def calculate_claim_confidence(
         required_evidence_present: Whether mandatory evidence exists for the claim.
         optional_signal_count: Number of corroborating optional signals.
         material_coverage_limitations: Count of material scan-coverage limitations.
-        has_wizard_conflict: Whether manager/wizard input contradicts the evidence.
+        has_customer_context_conflict: Whether confirmed customer context contradicts the evidence.
         missing_required_evidence_class: Whether a required evidence class is absent.
 
     Returns:
@@ -51,7 +51,7 @@ def calculate_claim_confidence(
     d_bonus = 0.10 if required_evidence_present else 0.0
     o_bonus = min(optional_signal_count * 0.05, 0.10)
     c_penalty = min(material_coverage_limitations * 0.15, 0.30)
-    k_penalty = 0.20 if has_wizard_conflict else 0.0
+    k_penalty = 0.20 if has_customer_context_conflict else 0.0
     m_penalty = 0.35 if missing_required_evidence_class else 0.0
     raw = base + d_bonus + o_bonus - c_penalty - k_penalty - m_penalty
     confidence = max(0.00, min(1.00, raw))

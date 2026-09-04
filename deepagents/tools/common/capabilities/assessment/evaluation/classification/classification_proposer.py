@@ -5,7 +5,7 @@ from typing import Any
 from langchain.agents import create_agent
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from model_policy import RESOLVER_MODEL_SPEC
+from model_policy import INVESTIGATOR_MODEL_SPEC
 
 
 ALLOWED_RISK_LEVELS = {"LOW", "MEDIUM", "HIGH", "BLOCKED"}
@@ -15,7 +15,7 @@ ALLOWED_APPLICABILITY = {"applicable", "partially_applicable", "not_applicable"}
 class ModelAssistedClassificationProposer:
     """Ask an LLM for a structured proposal without granting final authority."""
 
-    def __init__(self, model: str = RESOLVER_MODEL_SPEC):
+    def __init__(self, model: str = INVESTIGATOR_MODEL_SPEC):
         """Create the proposer with a LangChain provider:model specification."""
         self._model = model
 

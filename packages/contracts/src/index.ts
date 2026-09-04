@@ -8,4 +8,3 @@ export * from "./legal-rule-catalog/index.ts";
 export * from "./outbox/index.ts";
 export * from "./scan/index.ts";
 export * from "./shared/index.ts";
-export * from "./wizard/index.ts";

@@ -17,20 +17,15 @@ import {
   OverallCoverageStatus as PrismaOverallCoverageStatus,
   OutboxAggregateType as PrismaOutboxAggregateType,
   OutboxStatus as PrismaOutboxStatus,
-  ReadinessExportStatus as PrismaReadinessExportStatus,
   RepositoryConnectionStatus as PrismaRepositoryConnectionStatus,
   RepositoryScanTriggerSource as PrismaRepositoryScanTriggerSource,
   RepositoryScanJobStatus as PrismaRepositoryScanJobStatus,
   RepositorySnapshotStatus as PrismaRepositorySnapshotStatus,
   VerifiedProfileStatus as PrismaVerifiedProfileStatus,
-  WizardProfileStatus as PrismaWizardProfileStatus,
 } from "@prisma/client";
 import {
   ASSESSMENT_STATUS_CODES,
-  WIZARD_STATUS_CODES,
   type AssessmentStatusCode,
-  type PersistedWizardStatusCode,
-  type WizardStatusCode,
 } from "@lcsp/contracts/assessment";
 import {
   AUDIT_EXPORT_STATUSES,
@@ -74,8 +69,7 @@ import {
   OUTBOX_STATUSES,
   type OutboxStatus,
 } from "@lcsp/contracts/outbox";
-import { LOCAL_RBAC_REASON_CODES as RBAC_REASON_CODE } from "../../platform/rbac/rbac-reason-codes.js";
-type RbacReasonCode = (typeof RBAC_REASON_CODE)[keyof typeof RBAC_REASON_CODE];
+import { RBAC_REASON_CODES, type RbacReasonCode } from "@lcsp/contracts/rbac";
 import {
   CONFLICT_RECORD_STATUSES,
   CLASSIFICATION_GUARDRAIL_STATUSES,
@@ -94,10 +88,6 @@ import {
   type TechnicalProfileStatus,
   type VerifiedProfileStatus,
 } from "@lcsp/contracts/scan";
-import {
-  READINESS_EXPORT_STATUSES,
-  type ReadinessExportStatus,
-} from "@lcsp/contracts/wizard";
 
 type AuthorizationReasonCode = AuthErrorCode | RbacReasonCode;
 type EvidenceAcceptanceContractStatus =
@@ -181,30 +171,6 @@ const PRISMA_ASSESSMENT_STATUS_TO_CONTRACT = {
     ASSESSMENT_STATUS_CODES.readyForReview,
 } as const satisfies Record<PrismaAssessmentStatus, AssessmentStatusCode>;
 
-const WIZARD_STATUS_TO_PRISMA = {
-  [WIZARD_STATUS_CODES.inProgress]: PrismaWizardProfileStatus.IN_PROGRESS,
-  [WIZARD_STATUS_CODES.submitted]: PrismaWizardProfileStatus.SUBMITTED,
-} as const satisfies Record<
-  PersistedWizardStatusCode,
-  PrismaWizardProfileStatus
->;
-
-const PRISMA_WIZARD_STATUS_TO_CONTRACT = {
-  [PrismaWizardProfileStatus.NOT_STARTED]: WIZARD_STATUS_CODES.notStarted,
-  [PrismaWizardProfileStatus.IN_PROGRESS]: WIZARD_STATUS_CODES.inProgress,
-  [PrismaWizardProfileStatus.SUBMITTED]: WIZARD_STATUS_CODES.submitted,
-} as const satisfies Record<PrismaWizardProfileStatus, WizardStatusCode>;
-
-const READINESS_EXPORT_STATUS_TO_PRISMA = {
-  [READINESS_EXPORT_STATUSES.generated]: PrismaReadinessExportStatus.GENERATED,
-  [READINESS_EXPORT_STATUSES.blocked]: PrismaReadinessExportStatus.BLOCKED,
-} as const satisfies Record<ReadinessExportStatus, PrismaReadinessExportStatus>;
-
-const PRISMA_READINESS_EXPORT_STATUS_TO_CONTRACT = {
-  [PrismaReadinessExportStatus.GENERATED]: READINESS_EXPORT_STATUSES.generated,
-  [PrismaReadinessExportStatus.BLOCKED]: READINESS_EXPORT_STATUSES.blocked,
-} as const satisfies Record<PrismaReadinessExportStatus, ReadinessExportStatus>;
-
 const AUDIT_EXPORT_STATUS_TO_PRISMA = {
   [AUDIT_EXPORT_STATUSES.queued]: PrismaAuditExportStatus.QUEUED,
   [AUDIT_EXPORT_STATUSES.generating]: PrismaAuditExportStatus.GENERATING,
@@ -232,7 +198,7 @@ const PRISMA_AUTH_USER_ROLE_TO_CONTRACT = {
 const AUTHORIZATION_REASON_CODE_TO_PRISMA = {
   [AUTH_ERROR_CODES.accountNotFound]:
     PrismaAuthorizationReasonCode.ACCOUNT_NOT_FOUND,
-  [RBAC_REASON_CODE.authorized]: PrismaAuthorizationReasonCode.AUTHORIZED,
+  [RBAC_REASON_CODES.authorized]: PrismaAuthorizationReasonCode.AUTHORIZED,
   [AUTH_ERROR_CODES.authzEvaluatorFailure]:
     PrismaAuthorizationReasonCode.AUTHZ_EVALUATOR_FAILURE,
   [AUTH_ERROR_CODES.authzStateGateBlocked]:
@@ -246,7 +212,7 @@ const AUTHORIZATION_REASON_CODE_TO_PRISMA = {
     PrismaAuthorizationReasonCode.INVALID_INVITE_STATE,
   [AUTH_ERROR_CODES.invalidRedirectUri]:
     PrismaAuthorizationReasonCode.INVALID_REDIRECT_URI,
-  [RBAC_REASON_CODE.loadError]: PrismaAuthorizationReasonCode.LOAD_ERROR,
+  [RBAC_REASON_CODES.loadError]: PrismaAuthorizationReasonCode.LOAD_ERROR,
   [AUTH_ERROR_CODES.mfaRequired]: PrismaAuthorizationReasonCode.MFA_REQUIRED,
   [AUTH_ERROR_CODES.mfaInvalid]: PrismaAuthorizationReasonCode.MFA_INVALID,
   [AUTH_ERROR_CODES.mfaRateLimited]:
@@ -255,14 +221,14 @@ const AUTHORIZATION_REASON_CODE_TO_PRISMA = {
     PrismaAuthorizationReasonCode.OAUTH_CALLBACK_INVALID,
   [AUTH_ERROR_CODES.oauthStateInvalid]:
     PrismaAuthorizationReasonCode.OAUTH_STATE_INVALID,
-  [RBAC_REASON_CODE.denied]: PrismaAuthorizationReasonCode.RBAC_DENIED,
-  [RBAC_REASON_CODE.metadataMissing]:
+  [RBAC_REASON_CODES.denied]: PrismaAuthorizationReasonCode.RBAC_DENIED,
+  [RBAC_REASON_CODES.metadataMissing]:
     PrismaAuthorizationReasonCode.RBAC_METADATA_MISSING,
   [AUTH_ERROR_CODES.reauthRequired]:
     PrismaAuthorizationReasonCode.REAUTH_REQUIRED,
   [AUTH_ERROR_CODES.recoveryInvalid]:
     PrismaAuthorizationReasonCode.RECOVERY_INVALID,
-  [RBAC_REASON_CODE.sessionInvalid]:
+  [RBAC_REASON_CODES.sessionInvalid]:
     PrismaAuthorizationReasonCode.SESSION_INVALID,
   [AUTH_ERROR_CODES.temporaryLock]:
     PrismaAuthorizationReasonCode.TEMPORARY_LOCKED,
@@ -276,10 +242,10 @@ const AUTHORIZATION_REASON_CODE_TO_PRISMA = {
 >;
 
 const PRISMA_AUTHORIZATION_REASON_CODE_TO_CONTRACT = {
-  [PrismaAuthorizationReasonCode.ACTION_NOT_GRANTED]: RBAC_REASON_CODE.denied,
+  [PrismaAuthorizationReasonCode.ACTION_NOT_GRANTED]: RBAC_REASON_CODES.denied,
   [PrismaAuthorizationReasonCode.ACCOUNT_NOT_FOUND]:
     AUTH_ERROR_CODES.accountNotFound,
-  [PrismaAuthorizationReasonCode.AUTHORIZED]: RBAC_REASON_CODE.authorized,
+  [PrismaAuthorizationReasonCode.AUTHORIZED]: RBAC_REASON_CODES.authorized,
   [PrismaAuthorizationReasonCode.AUTHZ_EVALUATOR_FAILURE]:
     AUTH_ERROR_CODES.authzEvaluatorFailure,
   [PrismaAuthorizationReasonCode.AUTHZ_STATE_GATE_BLOCKED]:
@@ -287,14 +253,14 @@ const PRISMA_AUTHORIZATION_REASON_CODE_TO_CONTRACT = {
   [PrismaAuthorizationReasonCode.AUTH_REQUIRED]: AUTH_ERROR_CODES.authRequired,
   [PrismaAuthorizationReasonCode.EMAIL_VERIFICATION_REQUIRED]:
     AUTH_ERROR_CODES.emailVerificationRequired,
-  [PrismaAuthorizationReasonCode.EVALUATOR_ERROR]: RBAC_REASON_CODE.loadError,
+  [PrismaAuthorizationReasonCode.EVALUATOR_ERROR]: RBAC_REASON_CODES.loadError,
   [PrismaAuthorizationReasonCode.INVALID_CREDENTIALS]:
     AUTH_ERROR_CODES.invalidCredentials,
   [PrismaAuthorizationReasonCode.INVALID_INVITE_STATE]:
     AUTH_ERROR_CODES.invalidInviteState,
   [PrismaAuthorizationReasonCode.INVALID_REDIRECT_URI]:
     AUTH_ERROR_CODES.invalidRedirectUri,
-  [PrismaAuthorizationReasonCode.LOAD_ERROR]: RBAC_REASON_CODE.loadError,
+  [PrismaAuthorizationReasonCode.LOAD_ERROR]: RBAC_REASON_CODES.loadError,
   [PrismaAuthorizationReasonCode.MFA_REQUIRED]: AUTH_ERROR_CODES.mfaRequired,
   [PrismaAuthorizationReasonCode.MFA_INVALID]: AUTH_ERROR_CODES.mfaInvalid,
   [PrismaAuthorizationReasonCode.MFA_RATE_LIMITED]:
@@ -303,18 +269,18 @@ const PRISMA_AUTHORIZATION_REASON_CODE_TO_CONTRACT = {
     AUTH_ERROR_CODES.oauthCallbackInvalid,
   [PrismaAuthorizationReasonCode.OAUTH_STATE_INVALID]:
     AUTH_ERROR_CODES.oauthStateInvalid,
-  [PrismaAuthorizationReasonCode.RBAC_DENIED]: RBAC_REASON_CODE.denied,
+  [PrismaAuthorizationReasonCode.RBAC_DENIED]: RBAC_REASON_CODES.denied,
   [PrismaAuthorizationReasonCode.RBAC_METADATA_MISSING]:
-    RBAC_REASON_CODE.metadataMissing,
+    RBAC_REASON_CODES.metadataMissing,
   [PrismaAuthorizationReasonCode.REAUTH_REQUIRED]:
     AUTH_ERROR_CODES.reauthRequired,
   [PrismaAuthorizationReasonCode.RECOVERY_INVALID]:
     AUTH_ERROR_CODES.recoveryInvalid,
   [PrismaAuthorizationReasonCode.SESSION_INVALID]:
-    RBAC_REASON_CODE.sessionInvalid,
-  [PrismaAuthorizationReasonCode.STATE_GATE_FAILED]: RBAC_REASON_CODE.denied,
+    RBAC_REASON_CODES.sessionInvalid,
+  [PrismaAuthorizationReasonCode.STATE_GATE_FAILED]: RBAC_REASON_CODES.denied,
   [PrismaAuthorizationReasonCode.SUBJECT_ROLE_MISMATCH]:
-    RBAC_REASON_CODE.denied,
+    RBAC_REASON_CODES.denied,
   [PrismaAuthorizationReasonCode.TEMPORARY_LOCKED]:
     AUTH_ERROR_CODES.temporaryLock,
   [PrismaAuthorizationReasonCode.UNSUPPORTED_PROVIDER]:
@@ -371,7 +337,6 @@ const AUDIT_RESOURCE_TYPE_TO_PRISMA = {
     PrismaAuditResourceType.VERIFIED_PROFILE,
   [AUDIT_RESOURCE_TYPES.workerTask]: PrismaAuditResourceType.WORKER_TASK,
   [AUDIT_RESOURCE_TYPES.workspace]: PrismaAuditResourceType.WORKSPACE,
-  [AUDIT_RESOURCE_TYPES.wizardProfile]: PrismaAuditResourceType.WIZARD_PROFILE,
 } as const satisfies Record<AuditResourceType, PrismaAuditResourceType>;
 
 const PRISMA_AUDIT_RESOURCE_TYPE_TO_CONTRACT = {
@@ -419,8 +384,9 @@ const PRISMA_AUDIT_RESOURCE_TYPE_TO_CONTRACT = {
     AUDIT_RESOURCE_TYPES.verifiedProfile,
   [PrismaAuditResourceType.WORKER_TASK]: AUDIT_RESOURCE_TYPES.workerTask,
   [PrismaAuditResourceType.WORKSPACE]: AUDIT_RESOURCE_TYPES.workspace,
-  [PrismaAuditResourceType.WIZARD_PROFILE]: AUDIT_RESOURCE_TYPES.wizardProfile,
-} as const satisfies Record<PrismaAuditResourceType, AuditResourceType>;
+} as const satisfies Partial<
+  Record<PrismaAuditResourceType, AuditResourceType>
+>;
 
 const OUTBOX_AGGREGATE_TYPE_TO_PRISMA = {
   [OUTBOX_AGGREGATE_TYPES.aiUsageFlow]: PrismaOutboxAggregateType.AI_USAGE_FLOW,
@@ -448,8 +414,6 @@ const OUTBOX_AGGREGATE_TYPE_TO_PRISMA = {
     PrismaOutboxAggregateType.TARGETED_REANALYSIS_REQUEST,
   [OUTBOX_AGGREGATE_TYPES.verifiedProfile]:
     PrismaOutboxAggregateType.VERIFIED_PROFILE,
-  [OUTBOX_AGGREGATE_TYPES.wizardProfile]:
-    PrismaOutboxAggregateType.WIZARD_PROFILE,
 } as const satisfies Record<OutboxAggregateType, PrismaOutboxAggregateType>;
 
 const PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT = {
@@ -478,9 +442,9 @@ const PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT = {
     OUTBOX_AGGREGATE_TYPES.targetedReanalysisRequest,
   [PrismaOutboxAggregateType.VERIFIED_PROFILE]:
     OUTBOX_AGGREGATE_TYPES.verifiedProfile,
-  [PrismaOutboxAggregateType.WIZARD_PROFILE]:
-    OUTBOX_AGGREGATE_TYPES.wizardProfile,
-} as const satisfies Record<PrismaOutboxAggregateType, OutboxAggregateType>;
+} as const satisfies Partial<
+  Record<PrismaOutboxAggregateType, OutboxAggregateType>
+>;
 
 const OUTBOX_STATUS_TO_PRISMA = {
   [OUTBOX_STATUSES.pending]: PrismaOutboxStatus.PENDING,
@@ -828,34 +792,6 @@ export function fromPrismaAssessmentStatus(
   return PRISMA_ASSESSMENT_STATUS_TO_CONTRACT[status];
 }
 
-/** Maps persisted wizard status from the contract layer to Prisma. @param status - Persisted contract wizard status. @returns Prisma wizard status. */
-export function toPrismaWizardStatus(
-  status: PersistedWizardStatusCode,
-): PrismaWizardProfileStatus {
-  return WIZARD_STATUS_TO_PRISMA[status];
-}
-
-/** Maps wizard status from Prisma to the public contract status. @param status - Prisma wizard status. @returns Contract wizard status. */
-export function fromPrismaWizardStatus(
-  status: PrismaWizardProfileStatus,
-): WizardStatusCode {
-  return PRISMA_WIZARD_STATUS_TO_CONTRACT[status];
-}
-
-/** Maps readiness-export status from the contract layer to Prisma. @param status - Contract export status. @returns Prisma export status. */
-export function toPrismaReadinessExportStatus(
-  status: ReadinessExportStatus,
-): PrismaReadinessExportStatus {
-  return READINESS_EXPORT_STATUS_TO_PRISMA[status];
-}
-
-/** Maps readiness-export status from Prisma to the contract layer. @param status - Prisma export status. @returns Contract export status. */
-export function fromPrismaReadinessExportStatus(
-  status: PrismaReadinessExportStatus,
-): ReadinessExportStatus {
-  return PRISMA_READINESS_EXPORT_STATUS_TO_CONTRACT[status];
-}
-
 /** Maps audit-export status from the contract layer to Prisma. @param status - Contract audit-export status. @returns Prisma audit-export status. */
 export function toPrismaAuditExportStatus(
   status: AuditExportStatus,
@@ -903,7 +839,11 @@ export function toPrismaAuditResourceType(
 export function fromPrismaAuditResourceType(
   resourceType: PrismaAuditResourceType,
 ): AuditResourceType {
-  return PRISMA_AUDIT_RESOURCE_TYPE_TO_CONTRACT[resourceType];
+  const mapped = PRISMA_AUDIT_RESOURCE_TYPE_TO_CONTRACT[resourceType];
+  if (!mapped) {
+    throw new Error(`Unsupported legacy audit resource type: ${resourceType}`);
+  }
+  return mapped;
 }
 
 /** Maps an outbox aggregate type from the contract layer to Prisma. @param aggregateType - Contract outbox aggregate type. @returns Prisma aggregate type. */
@@ -917,7 +857,13 @@ export function toPrismaOutboxAggregateType(
 export function fromPrismaOutboxAggregateType(
   aggregateType: PrismaOutboxAggregateType,
 ): OutboxAggregateType {
-  return PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT[aggregateType];
+  const mapped = PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT[aggregateType];
+  if (!mapped) {
+    throw new Error(
+      `Unsupported legacy outbox aggregate type: ${aggregateType}`,
+    );
+  }
+  return mapped;
 }
 
 /** Maps outbox delivery status from the contract layer to Prisma. @param status - Contract outbox status. @returns Prisma outbox status. */

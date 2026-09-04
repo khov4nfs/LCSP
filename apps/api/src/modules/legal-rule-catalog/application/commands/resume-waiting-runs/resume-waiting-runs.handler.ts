@@ -15,10 +15,12 @@ import {
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
+  OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
 import {
   LEGAL_MATCHING_REQUEST_COMMAND,
   LEGAL_RULE_LIFECYCLE_STATUSES,
+  RESUME_WAITING_RUNS_BLOCK_CODES,
   RESUME_WAITING_RUNS_TOOL,
 } from "@lcsp/contracts/legal-rule-catalog";
 import { VERIFIED_PROFILE_STATUSES } from "@lcsp/contracts/scan";
@@ -58,13 +60,11 @@ type ResumeWaitingRunsResponse = {
   };
 };
 
-const BLOCK_CODES = {
-  corpusNotApproved: "CORPUS_VERSION_NOT_APPROVED",
-  indexNotReady: "CORPUS_INDEX_NOT_READY",
-  ruleCatalogNotApproved: "LEGAL_RULE_CATALOG_NOT_APPROVED",
-} as const;
-
-const OUTBOX_VISIBLE_STATUSES = ["PENDING", "PUBLISHED", "FAILED"] as const;
+const OUTBOX_VISIBLE_STATUSES = [
+  OUTBOX_STATUSES.pending,
+  OUTBOX_STATUSES.published,
+  OUTBOX_STATUSES.failed,
+] as const;
 
 @CommandHandler(ResumeWaitingRunsCommand)
 export class ResumeWaitingRunsHandler implements ICommandHandler<
@@ -97,7 +97,7 @@ export class ResumeWaitingRunsHandler implements ICommandHandler<
     if (!corpus) {
       return this.blockedResponse(
         command,
-        BLOCK_CODES.corpusNotApproved,
+        RESUME_WAITING_RUNS_BLOCK_CODES.corpusNotApproved,
         "The requested corpus version is not approved.",
       );
     }
@@ -115,7 +115,7 @@ export class ResumeWaitingRunsHandler implements ICommandHandler<
     if (!index) {
       return this.blockedResponse(
         command,
-        BLOCK_CODES.indexNotReady,
+        RESUME_WAITING_RUNS_BLOCK_CODES.indexNotReady,
         "The approved corpus version does not have a validated retrieval index.",
       );
     }
@@ -133,7 +133,7 @@ export class ResumeWaitingRunsHandler implements ICommandHandler<
     if (!catalog) {
       return this.blockedResponse(
         command,
-        BLOCK_CODES.ruleCatalogNotApproved,
+        RESUME_WAITING_RUNS_BLOCK_CODES.ruleCatalogNotApproved,
         "No approved legal rule catalog is available for legal matching.",
       );
     }

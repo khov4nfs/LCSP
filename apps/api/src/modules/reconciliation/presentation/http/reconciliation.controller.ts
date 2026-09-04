@@ -4,11 +4,7 @@ import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   ARTIFACT_CHAIN_STAGES,
-  ASSESSMENT_CONTEXT_ANSWER_FIELDS,
-  ASSESSMENT_CONTEXT_INCLUDES,
   type ArtifactChainStage,
-  type AssessmentContextAnswerField,
-  type AssessmentContextInclude,
 } from "@lcsp/contracts/evidence";
 import {
   Body,
@@ -41,7 +37,6 @@ import {
   type ReconciliationContextStatus,
 } from "../../application/contracts/reconciliation/reconciliation-context.contract.js";
 import { GetArtifactChainQuery } from "../../application/queries/get-artifact-chain/get-artifact-chain.query.js";
-import { GetAssessmentContextQuery } from "../../application/queries/get-assessment-context/get-assessment-context.query.js";
 import { GetReconciliationContextQuery } from "../../application/queries/get-reconciliation-context/get-reconciliation-context.query.js";
 import { ListConflictsQuery } from "../../application/queries/list-conflicts/list-conflicts.query.js";
 import { ProposeMissingTargetsQuery } from "../../application/queries/propose-missing-targets/propose-missing-targets.query.js";
@@ -181,7 +176,6 @@ export class ReconciliationController {
   @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
   async proposeMissingTargets(
     @Param("assessmentId") assessmentId: string,
-    @Query("wizard_profile_id") wizardProfileId: string,
     @Query("evidence_report_id") evidenceReportId: string,
     @Query("candidate_kinds") candidateKindsRaw: string | undefined,
     @Query("seed_refs") seedRefsRaw: string | undefined,
@@ -202,42 +196,11 @@ export class ReconciliationController {
       await this.queryBus.execute(
         new ProposeMissingTargetsQuery(
           assessmentId,
-          wizardProfileId,
           evidenceReportId,
           candidateKinds,
           seedRefs,
           excludeTargetIds,
           maxResults,
-          correlationId,
-        ),
-      ),
-    );
-  }
-
-  @Get(":assessmentId/assessment-context")
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
-  async getAssessmentContext(
-    @Param("assessmentId") assessmentId: string,
-    @Query("wizard_profile_id") wizardProfileId: string,
-    @Query("include") includeRaw: string | undefined,
-    @Query("answer_fields") answerFieldsRaw: string | undefined,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    const correlationId = request.correlationId as string;
-    const includes = parseAssessmentContextIncludes(includeRaw, correlationId);
-    const answerFields = parseAssessmentContextAnswerFields(
-      answerFieldsRaw,
-      correlationId,
-    );
-
-    return resultEnvelope(
-      await this.queryBus.execute(
-        new GetAssessmentContextQuery(
-          assessmentId,
-          wizardProfileId,
-          includes,
-          answerFields,
           correlationId,
         ),
       ),
@@ -369,53 +332,6 @@ function parseMaxResults(
     throwInvalidRequest(correlationId);
   }
   return maxResults;
-}
-
-function parseAssessmentContextIncludes(
-  raw: string | undefined,
-  correlationId: string,
-): AssessmentContextInclude[] {
-  const values = splitCsv(raw);
-  if (values.length === 0) {
-    throw problemException(
-      ASSESSMENT_ERROR_CODES.invalidRequest,
-      correlationId,
-      {
-        status: HttpStatus.BAD_REQUEST,
-      },
-    );
-  }
-  const allowed = new Set(Object.values(ASSESSMENT_CONTEXT_INCLUDES));
-  if (values.some((value) => !allowed.has(value as AssessmentContextInclude))) {
-    throw problemException(
-      ASSESSMENT_ERROR_CODES.invalidRequest,
-      correlationId,
-      {
-        status: HttpStatus.BAD_REQUEST,
-      },
-    );
-  }
-  return values as AssessmentContextInclude[];
-}
-
-function parseAssessmentContextAnswerFields(
-  raw: string | undefined,
-  correlationId: string,
-): AssessmentContextAnswerField[] {
-  const values = splitCsv(raw);
-  const allowed = new Set(Object.values(ASSESSMENT_CONTEXT_ANSWER_FIELDS));
-  if (
-    values.some((value) => !allowed.has(value as AssessmentContextAnswerField))
-  ) {
-    throw problemException(
-      ASSESSMENT_ERROR_CODES.invalidRequest,
-      correlationId,
-      {
-        status: HttpStatus.BAD_REQUEST,
-      },
-    );
-  }
-  return values as AssessmentContextAnswerField[];
 }
 
 function splitCsv(raw: string | undefined): string[] {

@@ -11,3 +11,9 @@ export const LEGAL_RULE_ERROR_CODES = {
   corpusVersionAlreadyApproved: "CORPUS_VERSION_ALREADY_APPROVED",
   corpusIngestInvalid: "CORPUS_INGEST_INVALID",
 } as const;
+
+export const RESUME_WAITING_RUNS_BLOCK_CODES = {
+  corpusNotApproved: "CORPUS_VERSION_NOT_APPROVED",
+  indexNotReady: "CORPUS_INDEX_NOT_READY",
+  ruleCatalogNotApproved: "LEGAL_RULE_CATALOG_NOT_APPROVED",
+} as const;

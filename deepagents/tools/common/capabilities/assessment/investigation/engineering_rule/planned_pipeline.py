@@ -85,7 +85,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         evidence_report: dict[str, Any],
         workflow_run_id: str,
         correlation_id: str | None = None,
-        wizard_context: dict[str, Any] | None = None,
+        confirmed_customer_context: dict[str, Any] | None = None,
         workspace_path: str | Path | None = None,
         recovery_source_crawl_requests: list[dict[str, Any]] | None = None,
         assessment_id: str | None = None,
@@ -203,7 +203,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             catalog_version_id=catalog_version_id,
             corpus_version_id=corpus_version_id,
             graph=graph,
-            wizard_context=wizard_context,
+            confirmed_customer_context=confirmed_customer_context,
             workflow_run_id=workflow_run_id,
             correlation_id=correlation_id,
         )
@@ -282,7 +282,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                     catalog_version_id=catalog_version_id,
                     corpus_version_id=corpus_version_id,
                     graph=graph,
-                    wizard_context=wizard_context,
+                    confirmed_customer_context=confirmed_customer_context,
                     workflow_run_id=workflow_run_id,
                     correlation_id=correlation_id,
                 )
@@ -321,7 +321,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             corpus_version_id=corpus_version_id,
             workflow_run_id=workflow_run_id,
             correlation_id=correlation_id,
-            wizard_context=wizard_context,
+            confirmed_customer_context=confirmed_customer_context,
             workspace_path=workspace_path,
             evidence_report=evidence_report,
             assessment_id=assessment_id,
@@ -342,7 +342,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         corpus_version_id: str,
         workflow_run_id: str,
         correlation_id: str | None,
-        wizard_context: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
         workspace_path: str | Path | None,
         evidence_report: dict[str, Any],
         assessment_id: str | None,
@@ -390,7 +390,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             )
             plan = self._planner.plan(
                 candidates=candidates,
-                wizard_context=wizard_context,
+                confirmed_customer_context=confirmed_customer_context,
                 graph=graph,
                 workflow_run_id=workflow_run_id,
                 correlation_id=correlation_id,
@@ -500,9 +500,9 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
 
         # P0 observability: persist and log one decision row per EngineeringRule. This
         # answers not only which rules were SELECTed, but whether SELECT came from the
-        # model, a deterministic fail-closed override, material source evidence, Wizard
-        # scope, scoped uncertainty, or the provenance-gated business scope supplied to
-        # the model. This metadata is investigation-scope diagnostics, never legal
+        # model, a deterministic fail-closed override, material source evidence,
+        # confirmed customer context, scoped uncertainty, or the provenance-gated
+        # business scope supplied to the model. This metadata is investigation-scope diagnostics, never legal
         # applicability/risk/compliance authority.
         candidate_by_id = {
             candidate.engineering_rule_id: candidate for candidate in candidates
@@ -833,7 +833,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         catalog_version_id: str,
         corpus_version_id: str,
         graph,
-        wizard_context: dict[str, Any] | None,
+        confirmed_customer_context: dict[str, Any] | None,
         workflow_run_id: str,
         correlation_id: str | None,
     ) -> tuple[list[str], int, list[tuple[Any, Any]], dict[str, Any]]:
@@ -897,7 +897,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 packet = self._query_executor.execute(
                     engineering_rule,
                     graph,
-                    wizard_context=wizard_context,
+                    confirmed_customer_context=confirmed_customer_context,
                 )
                 prepared.append((engineering_rule, packet))
 

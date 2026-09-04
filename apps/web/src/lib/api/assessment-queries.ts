@@ -3,6 +3,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  getAssessmentInterviewState,
+  recordAssessmentInterviewBlockedAction,
+  submitAssessmentInterviewAnswer,
+} from "./assessment-interview-client";
+import {
   getClassificationStatus,
   rerunClassification,
 } from "./classification-client";
@@ -18,10 +23,7 @@ import {
   requestGapAnalysis,
 } from "./document-client";
 import { getTechnicalEvidence } from "./evidence-client";
-import {
-  generateReadinessExport,
-  getReadinessStatus,
-} from "./readiness-client";
+import { getReadinessStatus } from "./readiness-client";
 import {
   connectAssessmentRepository,
   rerunRepositoryScan,
@@ -29,14 +31,47 @@ import {
   type RerunRepositoryScanInput,
   type StartRepositoryAnalysisInput,
 } from "./repository-analysis-client";
-import {
-  generateWizardClarificationQuestions,
-  getWizardAssessment,
-  saveWizardDraft,
-  submitWizard,
-} from "./wizard-client";
 import { apiQueryKeys } from "./query-keys";
-import type { WizardAnswer } from "@lcsp/contracts/wizard";
+import type {
+  AssessmentInterviewAnswerInput,
+  AssessmentInterviewBlockedInput,
+} from "@lcsp/contracts/evidence";
+
+export function useAssessmentInterviewStateQuery(assessmentId: string) {
+  return useQuery({
+    queryKey: apiQueryKeys.assessment.interview(assessmentId),
+    queryFn: () => getAssessmentInterviewState(assessmentId),
+    enabled: assessmentId.length > 0,
+  });
+}
+
+export function useSubmitAssessmentInterviewAnswerMutation(assessmentId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: AssessmentInterviewAnswerInput) =>
+      submitAssessmentInterviewAnswer(assessmentId, input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: apiQueryKeys.assessment.interview(assessmentId),
+      });
+    },
+  });
+}
+
+export function useAssessmentInterviewBlockedActionMutation(assessmentId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: AssessmentInterviewBlockedInput) =>
+      recordAssessmentInterviewBlockedAction(assessmentId, input),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: apiQueryKeys.assessment.interview(assessmentId),
+      });
+    },
+  });
+}
 
 export function useConnectAssessmentRepositoryMutation(assessmentId: string) {
   return useMutation({
@@ -109,43 +144,6 @@ export function useRerunRepositoryScanMutation(assessmentId: string) {
         }),
       ]);
     },
-  });
-}
-
-export function useGenerateReadinessExportMutation(assessmentId: string) {
-  return useMutation({
-    mutationFn: () => generateReadinessExport(assessmentId),
-  });
-}
-
-export function useWizardAssessmentQuery(assessmentId: string) {
-  return useQuery({
-    queryKey: apiQueryKeys.assessment.wizard(assessmentId),
-    queryFn: () => getWizardAssessment(assessmentId),
-    enabled: assessmentId.length > 0,
-  });
-}
-
-export function useSaveWizardDraftMutation(assessmentId: string) {
-  return useMutation({
-    mutationFn: (answers: WizardAnswer[]) =>
-      saveWizardDraft(assessmentId, answers),
-  });
-}
-
-export function useSubmitWizardMutation(assessmentId: string) {
-  return useMutation({
-    mutationFn: (answers: WizardAnswer[]) =>
-      submitWizard(assessmentId, answers),
-  });
-}
-
-export function useGenerateWizardClarificationQuestionsMutation(
-  assessmentId: string,
-) {
-  return useMutation({
-    mutationFn: (answers: WizardAnswer[]) =>
-      generateWizardClarificationQuestions(assessmentId, answers),
   });
 }
 

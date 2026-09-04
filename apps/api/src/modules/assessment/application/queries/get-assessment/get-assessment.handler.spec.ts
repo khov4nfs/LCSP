@@ -2,7 +2,6 @@ import { describe, expect, it, jest } from "@jest/globals";
 import {
   ASSESSMENT_LOCK_REASONS,
   ASSESSMENT_MISSING_EVIDENCE_CODES,
-  WIZARD_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { CLASSIFICATION_GUARDRAIL_STATUSES } from "@lcsp/contracts/scan";
@@ -40,7 +39,6 @@ type LegalChunkFixture = {
 
 function buildHandler(input: {
   assessment: Assessment | null;
-  wizardProfile?: { status: string } | null;
   acceptedEvidenceReport?: { id: string; evidencePayload?: unknown } | null;
   classificationResult?: {
     guardrailStatus: string;
@@ -61,9 +59,6 @@ function buildHandler(input: {
       .mockResolvedValue({ items: [], total: 0 }),
   };
   const prisma = {
-    wizardProfile: {
-      findUnique: resolvedMock(input.wizardProfile ?? null),
-    },
     technicalEvidenceReport: {
       findFirst: resolvedMock(input.acceptedEvidenceReport ?? null),
     },
@@ -92,7 +87,7 @@ describe("GetAssessmentHandler direct EngineeringRule runtime", () => {
 
     const result = await handler.execute(query(assessment.id));
 
-    expect(result.wizard_status).toBe(WIZARD_STATUS_CODES.notStarted);
+    expect(result.status).toBeDefined();
     expect(result.readiness_state).toEqual({
       classification_locked: true,
       lock_reason: ASSESSMENT_LOCK_REASONS.evidenceRequired,
@@ -110,7 +105,6 @@ describe("GetAssessmentHandler direct EngineeringRule runtime", () => {
     const assessment = makeAssessment();
     const handler = buildHandler({
       assessment,
-      wizardProfile: { status: WIZARD_STATUS_CODES.submitted },
       acceptedEvidenceReport: { id: "ter-1" },
     });
 
