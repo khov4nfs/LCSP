@@ -7,6 +7,12 @@
       "skillPath": "skills/agentic-harness-patterns/SKILL.md",
       "computedHash": "7e6348ca9530bcd37f34c214bdc56e93d3969b4d52dadef44dab349decbdc50d"
     },
+    "atomic-design-integration": {
+      "source": "thebushidocollective/han",
+      "sourceType": "github",
+      "skillPath": "plugins/patterns/atomic-design/skills/atomic-design-integration/SKILL.md",
+      "computedHash": "c612fd1ffaddab909f5da5dbcd87a408948ad225ad840222c10aa5d49f46f0e1"
+    },
     "context-engineering": {
       "source": "addyosmani/agent-skills",
       "sourceType": "github",
@@ -95,7 +101,7 @@
       "source": "shadcn-ui/ui",
       "sourceType": "github",
       "skillPath": "skills/shadcn/SKILL.md",
-      "computedHash": "a86630dd9b32722a4ea6846abc6756d5da8f06bdc2343dbc625923cc5c7a758b"
+      "computedHash": "f615de216e085a84e31593ad0fa9062232adc40cd87b7c7ab2b8e49abf6500be"
     },
     "webapp-testing": {
       "source": "anthropics/skills",

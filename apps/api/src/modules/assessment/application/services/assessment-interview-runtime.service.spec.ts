@@ -429,15 +429,54 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           needId: "need-data-residency",
           businessContextNeed: "Clarify cloud provider region",
           resolutionCriteria: ["Customer specifies AWS or GCP region"],
+          whyNeeded: "This determines the operational deployment location.",
+          governedEvidenceRefs: ["evidence:region-config"],
           originatingInvestigationReference: "inv-ref-404",
           investigatorExecutionId: "exec-1",
           workflowRunId: "run-10",
           checkpointId: "cp-1",
           affectedRuleIds: ["rule-1"],
-          artifactVersions: { "artifact-1": "v1" },
+          artifactVersions: {
+            technicalEvidenceReportId: "report-1",
+            repositorySnapshotId: "snap-1",
+            legalRuleCatalogVersionId: "catalog-1",
+            legalCorpusVersionId: "corpus-1",
+          },
         },
       });
 
+      expect(
+        mockTx.assessmentInterviewThread.upsert as jest.Mock<
+          (input: unknown) => Promise<Record<string, unknown>>
+        >,
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({
+            privateContextJson: expect.objectContaining({
+              targetedNeed: expect.objectContaining({
+                needId: "need-data-residency",
+                businessContextNeed: "Clarify cloud provider region",
+                resolutionCriteria: ["Customer specifies AWS or GCP region"],
+                whyNeeded:
+                  "This determines the operational deployment location.",
+                governedEvidenceRefs: ["evidence:region-config"],
+              }),
+              targetedContinuation: expect.objectContaining({
+                investigatorExecutionId: "exec-1",
+                workflowRunId: "run-10",
+                checkpointId: "cp-1",
+                affectedRuleIds: ["rule-1"],
+                artifactVersions: {
+                  technicalEvidenceReportId: "report-1",
+                  repositorySnapshotId: "snap-1",
+                  legalRuleCatalogVersionId: "catalog-1",
+                  legalCorpusVersionId: "corpus-1",
+                },
+              }),
+            }),
+          }),
+        }),
+      );
       expect(mockOutboxRepository.enqueue).toHaveBeenCalledTimes(1);
       expect(mockOutboxRepository.enqueue).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -466,6 +505,76 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         }),
         mockTx,
       );
+    });
+
+    it("rejects incomplete targeted needs and missing immutable artifact pins", async () => {
+      const readyState: AssessmentInterviewRuntimeState = {
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
+        contextRevision: 2,
+      };
+
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        assessmentId: "assessment-1",
+        contextRevision: 2,
+        processedRevision: 2,
+        activeQuestionId: null,
+        stateJson: readyState,
+        privateContextJson: { revisions: [] },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      await expect(
+        service.registerTargetedNeedForWorker({
+          assessmentId: "assessment-1",
+          correlationId: "corr-target-invalid",
+          target: {
+            actorId: "investigator-1",
+            needId: "need-invalid",
+            businessContextNeed: "Clarify deployment owner",
+            resolutionCriteria: ["deployment_owner"],
+            originatingInvestigationReference: "inv-ref-invalid",
+            investigatorExecutionId: "exec-invalid",
+            workflowRunId: "run-invalid",
+            checkpointId: "cp-invalid",
+            affectedRuleIds: ["rule-1"],
+            artifactVersions: {
+              technicalEvidenceReportId: "report-1",
+              repositorySnapshotId: "snap-1",
+            },
+          },
+        }),
+      ).rejects.toMatchObject({
+        response: { code: "INTERVIEW_TARGETED_NEED_INVALID" },
+      });
+    });
+
+    it("rejects non-neutral customer-facing targeted need text", async () => {
+      await expect(
+        service.registerTargetedNeedForWorker({
+          assessmentId: "assessment-1",
+          correlationId: "corr-target-leak",
+          target: {
+            actorId: "investigator-1",
+            needId: "need-leak",
+            businessContextNeed: "Clarify EngineeringRule ENG-7 handling",
+            resolutionCriteria: ["risk category for EU AI Act"],
+            originatingInvestigationReference: "inv-ref-leak",
+            investigatorExecutionId: "exec-leak",
+            workflowRunId: "run-leak",
+            checkpointId: "cp-leak",
+            affectedRuleIds: ["ENG-7"],
+            artifactVersions: {
+              technicalEvidenceReportId: "report-1",
+              repositorySnapshotId: "snap-1",
+              legalRuleCatalogVersionId: "catalog-1",
+              legalCorpusVersionId: "corpus-1",
+            },
+          },
+        }),
+      ).rejects.toMatchObject({
+        response: { code: "INTERVIEW_TARGETED_NEED_NON_NEUTRAL" },
+      });
     });
   });
 
@@ -557,6 +666,201 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         }),
         mockTx,
       );
+    });
+
+    it("rejects CONTEXT_RESOLVED outside targeted Interview mode", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        assessmentId: "assessment-1",
+        contextRevision: 2,
+        processedRevision: 1,
+        activeQuestionId: null,
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 2,
+        },
+        privateContextJson: {
+          revisions: [
+            {
+              questionId: "q-1",
+              answer: { questionId: "q-1", selectedChoiceIds: ["yes"] },
+              actorId: "user-1",
+              answeredAt: new Date().toISOString(),
+              contextRevision: 2,
+              priorRevision: 1,
+              authority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
+              questionIntent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+              questionControl: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+              sourceVersion: "snap-1:sha-123456",
+              pgeVersion: "report-1:v1",
+              governedEvidenceRefs: [],
+            },
+          ],
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      await expect(
+        service.recordAgentDecision({
+          assessmentId: "assessment-1",
+          correlationId: "corr-resolve-initial",
+          decision: {
+            expectedContextRevision: 2,
+            mode: "INITIAL_INTERVIEW",
+            outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
+            contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
+            confirmedContext: { decision_authority: "human" },
+          },
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          ok: false,
+          problem: {
+            code: "INTERVIEW_CONTEXT_RESOLVED_REQUIRES_TARGETED_MODE",
+          },
+        },
+      });
+    });
+
+    it("rejects targeted bootstrap questions that escape the registered need", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        assessmentId: "assessment-1",
+        contextRevision: 2,
+        processedRevision: 2,
+        activeQuestionId: null,
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 2,
+        },
+        privateContextJson: {
+          revisions: [],
+          targetedNeed: {
+            needId: "need-1",
+            businessContextNeed: "Who approves this action?",
+            resolutionCriteria: ["decision_authority"],
+            originatingInvestigationReference: "inv-ref-1",
+            sourceVersion: "snap-1:sha-123456",
+            pgeVersion: "report-1:v1",
+          },
+          targetedContinuation: {
+            originatingInvestigationReference: "inv-ref-1",
+            investigatorExecutionId: "exec-1",
+            workflowRunId: "run-1",
+            checkpointId: "cp-1",
+            affectedRuleIds: ["ENG-1"],
+            artifactVersions: {
+              technicalEvidenceReportId: "report-1",
+              repositorySnapshotId: "snap-1",
+              legalRuleCatalogVersionId: "catalog-1",
+              legalCorpusVersionId: "corpus-1",
+            },
+            sourceVersion: "snap-1:sha-123456",
+            pgeVersion: "report-1:v1",
+          },
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      await expect(
+        service.recordAgentDecision({
+          assessmentId: "assessment-1",
+          correlationId: "corr-target-question",
+          decision: {
+            expectedContextRevision: 2,
+            mode: "TARGETED_INTERVIEW",
+            outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+            activeQuestion: {
+              id: "q-escape",
+              needId: "need-other",
+              intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
+              control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+              prompt: "Who approves this action?",
+            },
+          },
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          ok: false,
+          problem: { code: "INTERVIEW_TARGETED_QUESTION_NEED_MISMATCH" },
+        },
+      });
+    });
+
+    it("rejects targeted resolution without satisfied criteria", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        assessmentId: "assessment-1",
+        contextRevision: 2,
+        processedRevision: 1,
+        activeQuestionId: null,
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 2,
+        },
+        privateContextJson: {
+          revisions: [
+            {
+              questionId: "q-1",
+              answer: { questionId: "q-1", confirmed: true },
+              actorId: "user-1",
+              answeredAt: new Date().toISOString(),
+              contextRevision: 2,
+              priorRevision: 1,
+              authority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
+              questionIntent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
+              questionControl: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+              sourceVersion: "snap-1:sha-123456",
+              pgeVersion: "report-1:v1",
+              governedEvidenceRefs: [],
+            },
+          ],
+          targetedNeed: {
+            needId: "need-1",
+            businessContextNeed: "Who approves this action?",
+            resolutionCriteria: ["decision_authority"],
+            originatingInvestigationReference: "inv-ref-1",
+            sourceVersion: "snap-1:sha-123456",
+            pgeVersion: "report-1:v1",
+          },
+          targetedContinuation: {
+            originatingInvestigationReference: "inv-ref-1",
+            investigatorExecutionId: "exec-1",
+            workflowRunId: "run-1",
+            checkpointId: "cp-1",
+            affectedRuleIds: ["ENG-1"],
+            artifactVersions: {
+              technicalEvidenceReportId: "report-1",
+              repositorySnapshotId: "snap-1",
+              legalRuleCatalogVersionId: "catalog-1",
+              legalCorpusVersionId: "corpus-1",
+            },
+            sourceVersion: "snap-1:sha-123456",
+            pgeVersion: "report-1:v1",
+          },
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      await expect(
+        service.recordAgentDecision({
+          assessmentId: "assessment-1",
+          correlationId: "corr-target-unsatisfied",
+          decision: {
+            expectedContextRevision: 2,
+            mode: "TARGETED_INTERVIEW",
+            outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
+            contextAuthority:
+              ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
+            confirmedContext: { unrelated: "human" },
+          },
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          ok: false,
+          problem: { code: "INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED" },
+        },
+      });
     });
   });
 

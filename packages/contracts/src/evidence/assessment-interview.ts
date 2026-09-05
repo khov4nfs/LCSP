@@ -90,6 +90,7 @@ export type AssessmentInterviewQuestionChoice = {
 
 export type AssessmentInterviewQuestion = {
   id: string;
+  needId?: string;
   intent: AssessmentInterviewQuestionIntent;
   control: AssessmentInterviewControl;
   prompt: string;

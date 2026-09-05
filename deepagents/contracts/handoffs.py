@@ -2,11 +2,40 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from tools.common.capabilities.assessment.claims.evidence_claim.models import EvidenceClaim
+
+
+_TARGETED_TEXT_LEAK_PATTERNS = (
+    re.compile(r"\bEngineeringRule\b", re.IGNORECASE),
+    re.compile(r"\bLegalRule\b", re.IGNORECASE),
+    re.compile(r"\bcompliance classification\b", re.IGNORECASE),
+    re.compile(r"\bEU AI Act\b", re.IGNORECASE),
+    re.compile(r"\brisk category\b", re.IGNORECASE),
+    re.compile(r"\b(?:ENG|ER|LR)-\d+\b", re.IGNORECASE),
+    re.compile(r"\bcheckpoint(?:Id)?\b", re.IGNORECASE),
+    re.compile(r"\bcontinuation(?: token)?\b", re.IGNORECASE),
+    re.compile(r"\bLangGraph\b", re.IGNORECASE),
+    re.compile(r"\bthread(?:Id)?\b", re.IGNORECASE),
+    re.compile(
+        r"\b[a-z0-9_.-]+/[a-z0-9_./-]+\.(?:ts|tsx|js|jsx|py|java|go|rs)\b",
+        re.IGNORECASE,
+    ),
+)
+
+
+def _assert_neutral_targeted_text(*values: str | None) -> None:
+    for value in values:
+        if not value:
+            continue
+        if any(pattern.search(value) for pattern in _TARGETED_TEXT_LEAK_PATTERNS):
+            raise ValueError(
+                "targeted business-context text must not expose internal rule, legal, or checkpoint details"
+            )
 
 
 class GraphSeed(BaseModel):
@@ -181,6 +210,17 @@ class BusinessContextNeed(BaseModel):
     need_id: str = Field(min_length=1, max_length=240)
     business_context_need: str = Field(min_length=1, max_length=2_000)
     resolution_criteria: list[str] = Field(min_length=1, max_length=20)
+    why_needed: str | None = Field(default=None, max_length=1_000)
+    governed_evidence_refs: list[str] = Field(default_factory=list, max_length=50)
+
+    @model_validator(mode="after")
+    def validate_customer_safe_text(self) -> Self:
+        _assert_neutral_targeted_text(
+            self.business_context_need,
+            self.why_needed,
+            *self.resolution_criteria,
+        )
+        return self
 
 
 class InvestigatorResult(BaseModel):

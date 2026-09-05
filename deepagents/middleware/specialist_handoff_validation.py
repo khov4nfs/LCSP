@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -15,6 +16,30 @@ from langgraph.types import Command
 from orchestration.context import LCSPRunContext
 from orchestration.result_validation import validate_specialist_handoff
 from tools.common.capabilities.platform.api_client import WorkerApiClient
+
+
+_TARGETED_TEXT_LEAK_PATTERNS = (
+    re.compile(r"\bEngineeringRule\b", re.IGNORECASE),
+    re.compile(r"\bLegalRule\b", re.IGNORECASE),
+    re.compile(r"\bcompliance classification\b", re.IGNORECASE),
+    re.compile(r"\bEU AI Act\b", re.IGNORECASE),
+    re.compile(r"\brisk category\b", re.IGNORECASE),
+    re.compile(r"\b(?:ENG|ER|LR)-\d+\b", re.IGNORECASE),
+    re.compile(r"\bcheckpoint(?:Id)?\b", re.IGNORECASE),
+    re.compile(r"\bcontinuation(?: token)?\b", re.IGNORECASE),
+    re.compile(r"\bLangGraph\b", re.IGNORECASE),
+    re.compile(r"\bthread(?:Id)?\b", re.IGNORECASE),
+    re.compile(
+        r"\b[a-z0-9_.-]+/[a-z0-9_./-]+\.(?:ts|tsx|js|jsx|py|java|go|rs)\b",
+        re.IGNORECASE,
+    ),
+)
+_TARGETED_ARTIFACT_PIN_KEYS = (
+    "technicalEvidenceReportId",
+    "repositorySnapshotId",
+    "legalRuleCatalogVersionId",
+    "legalCorpusVersionId",
+)
 
 
 @wrap_tool_call
@@ -82,11 +107,17 @@ def _persist_targeted_interview_need(
     if subagent_type != "investigator" or payload.get("status") != "NEEDS_INPUT":
         return
     if context is None or not context.assessment_id or not context.user_id:
-        raise RuntimeError("Targeted Interview registration requires trusted assessment/user context")
+        raise RuntimeError(
+            "Targeted Interview registration requires trusted assessment/user context"
+        )
     if not execution_id:
-        raise RuntimeError("Targeted Interview registration requires the original Investigator task execution id")
+        raise RuntimeError(
+            "Targeted Interview registration requires the original Investigator task execution id"
+        )
     if not context.workflow_run_id or not context.checkpoint_id:
-        raise RuntimeError("Targeted Interview registration requires original workflow and checkpoint pins")
+        raise RuntimeError(
+            "Targeted Interview registration requires original workflow and checkpoint pins"
+        )
     affected_rule_ids = tuple(context.engineering_rule_ids)
     if not affected_rule_ids:
         raise RuntimeError("Targeted Interview registration requires pinned EngineeringRule scope")
@@ -96,8 +127,24 @@ def _persist_targeted_interview_need(
     need_id = str(need.get("need_id") or "").strip()
     business_need = str(need.get("business_context_need") or "").strip()
     criteria = need.get("resolution_criteria")
-    if not need_id or not business_need or not isinstance(criteria, list) or not criteria:
+    if (
+        not need_id
+        or not business_need
+        or not isinstance(criteria, list)
+        or not criteria
+    ):
         raise RuntimeError("Investigator business_context_need is incomplete")
+    normalized_criteria = [
+        str(item).strip() for item in criteria if str(item).strip()
+    ]
+    if not normalized_criteria:
+        raise RuntimeError("Investigator business_context_need is incomplete")
+    why_needed = str(need.get("why_needed") or "").strip() or None
+    _assert_neutral_targeted_text(
+        business_need,
+        why_needed,
+        *normalized_criteria,
+    )
     api_client = metadata.get("api_client") or _worker_api_client_from_env()
     if api_client is None:
         raise RuntimeError("Targeted Interview registration requires WorkerApiClient")
@@ -106,7 +153,18 @@ def _persist_targeted_interview_need(
         raise RuntimeError("WorkerApiClient cannot register Targeted Interview needs")
     artifact_versions = payload.get("artifact_versions")
     if not isinstance(artifact_versions, dict) or not artifact_versions:
-        raise RuntimeError("Targeted Interview registration requires validated Investigator artifact pins")
+        raise RuntimeError(
+            "Targeted Interview registration requires validated Investigator artifact pins"
+        )
+    missing_artifact_pins = [
+        key
+        for key in _TARGETED_ARTIFACT_PIN_KEYS
+        if not str(artifact_versions.get(key) or "").strip()
+    ]
+    if missing_artifact_pins:
+        raise RuntimeError(
+            f"Targeted Interview registration requires immutable artifact pins: {missing_artifact_pins}"
+        )
     if dict(artifact_versions) != dict(context.artifact_versions):
         raise RuntimeError("Investigator artifact pins drifted from immutable runtime context")
     originating_reference = f"investigator:{execution_id}:{need_id}"
@@ -116,7 +174,15 @@ def _persist_targeted_interview_need(
             "actorId": context.user_id,
             "needId": need_id,
             "businessContextNeed": business_need,
-            "resolutionCriteria": [str(item) for item in criteria],
+            "resolutionCriteria": normalized_criteria,
+            "whyNeeded": why_needed,
+            "governedEvidenceRefs": [
+                str(item).strip()
+                for item in need.get("governed_evidence_refs", [])
+                if str(item).strip()
+            ]
+            if isinstance(need.get("governed_evidence_refs"), list)
+            else [],
             "originatingInvestigationReference": originating_reference,
             "investigatorExecutionId": execution_id,
             "workflowRunId": context.workflow_run_id,
@@ -125,6 +191,16 @@ def _persist_targeted_interview_need(
             "artifactVersions": dict(artifact_versions),
         },
     )
+
+
+def _assert_neutral_targeted_text(*values: str | None) -> None:
+    for value in values:
+        if not value:
+            continue
+        if any(pattern.search(value) for pattern in _TARGETED_TEXT_LEAK_PATTERNS):
+            raise RuntimeError(
+                "Targeted Interview registration text must not expose internal rule, legal, or checkpoint details"
+            )
 
 
 def _task_tool_message_content(result: ToolMessage | Command) -> str | None:

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from middleware.specialist_handoff_validation import _persist_targeted_interview_need
 from orchestration.context import LCSPRunContext
 
@@ -24,6 +26,8 @@ def test_investigator_needs_input_persists_trusted_target_before_root() -> None:
         artifact_versions={
             "technicalEvidenceReportId": "ter-1",
             "repositorySnapshotId": "snapshot-1",
+            "legalRuleCatalogVersionId": "catalog-1",
+            "legalCorpusVersionId": "corpus-1",
         },
     )
     _persist_targeted_interview_need(
@@ -55,6 +59,76 @@ def test_investigator_needs_input_persists_trusted_target_before_root() -> None:
         == "investigator:task-call-investigator-17:need-1"
     )
     assert payload["artifactVersions"] == context.artifact_versions
+
+
+def test_investigator_needs_input_rejects_incomplete_artifact_pins() -> None:
+    api = RecordingApi()
+    context = LCSPRunContext(
+        assessment_id="assessment-1",
+        user_id="user-1",
+        workflow_run_id="workflow-1",
+        checkpoint_id="checkpoint-7",
+        engineering_rule_ids=("ENG-1",),
+        artifact_versions={
+            "technicalEvidenceReportId": "ter-1",
+            "repositorySnapshotId": "snapshot-1",
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="immutable artifact pins"):
+        _persist_targeted_interview_need(
+            subagent_type="investigator",
+            payload={
+                "status": "NEEDS_INPUT",
+                "business_context_need": {
+                    "need_id": "need-1",
+                    "business_context_need": "Who approves this action?",
+                    "resolution_criteria": ["decision_authority"],
+                },
+                "artifact_versions": dict(context.artifact_versions),
+            },
+            context=context,
+            metadata={"api_client": api},
+            execution_id="task-call-investigator-17",
+        )
+
+    assert api.calls == []
+
+
+def test_investigator_needs_input_rejects_customer_facing_internal_leakage() -> None:
+    api = RecordingApi()
+    context = LCSPRunContext(
+        assessment_id="assessment-1",
+        user_id="user-1",
+        workflow_run_id="workflow-1",
+        checkpoint_id="checkpoint-7",
+        engineering_rule_ids=("ENG-1",),
+        artifact_versions={
+            "technicalEvidenceReportId": "ter-1",
+            "repositorySnapshotId": "snapshot-1",
+            "legalRuleCatalogVersionId": "catalog-1",
+            "legalCorpusVersionId": "corpus-1",
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="must not expose internal"):
+        _persist_targeted_interview_need(
+            subagent_type="investigator",
+            payload={
+                "status": "NEEDS_INPUT",
+                "business_context_need": {
+                    "need_id": "need-1",
+                    "business_context_need": "Explain EU AI Act risk category for ENG-1",
+                    "resolution_criteria": ["checkpoint must satisfy LegalRule"],
+                },
+                "artifact_versions": dict(context.artifact_versions),
+            },
+            context=context,
+            metadata={"api_client": api},
+            execution_id="task-call-investigator-17",
+        )
+
+    assert api.calls == []
 
 
 def test_non_investigator_or_ready_handoff_does_not_register_target() -> None:

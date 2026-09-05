@@ -53,6 +53,25 @@ const PUBLIC_REDACTED_ANSWER_SUMMARY =
 const PUBLIC_REDACTED_DRAFT_SUMMARY =
   "Customer draft persisted for Interview resume.";
 const INTERVIEW_AGENT_DECISION_REQUIRED = "INTERVIEW_AGENT_DECISION_REQUIRED";
+const TARGETED_ARTIFACT_PIN_KEYS = [
+  "technicalEvidenceReportId",
+  "repositorySnapshotId",
+  "legalRuleCatalogVersionId",
+  "legalCorpusVersionId",
+] as const;
+const TARGETED_TEXT_LEAK_PATTERNS = [
+  /\bEngineeringRule\b/iu,
+  /\bLegalRule\b/iu,
+  /\bcompliance classification\b/iu,
+  /\bEU AI Act\b/iu,
+  /\brisk category\b/iu,
+  /\b(?:ENG|ER|LR)-\d+\b/iu,
+  /\bcheckpoint(?:Id)?\b/iu,
+  /\bcontinuation(?: token)?\b/iu,
+  /\bLangGraph\b/iu,
+  /\bthread(?:Id)?\b/iu,
+  /\b[a-z0-9_.-]+\/[a-z0-9_./-]+\.(?:ts|tsx|js|jsx|py|java|go|rs)\b/iu,
+] as const;
 
 export type PrivateInterviewAnswerRevision = {
   questionId: string;
@@ -78,6 +97,8 @@ type TargetedInterviewNeed = {
   needId: string;
   businessContextNeed: string;
   resolutionCriteria: string[];
+  whyNeeded?: string;
+  governedEvidenceRefs?: string[];
   originatingInvestigationReference: string;
   sourceVersion: string;
   pgeVersion: string;
@@ -105,6 +126,8 @@ type TargetedNeedRegistrationInput = {
   needId: string;
   businessContextNeed: string;
   resolutionCriteria: string[];
+  whyNeeded?: string;
+  governedEvidenceRefs?: string[];
   originatingInvestigationReference: string;
   investigatorExecutionId: string;
   workflowRunId: string;
@@ -553,6 +576,8 @@ export class AssessmentInterviewRuntimeService {
         needId: target.needId,
         businessContextNeed: target.businessContextNeed,
         resolutionCriteria: target.resolutionCriteria,
+        whyNeeded: target.whyNeeded,
+        governedEvidenceRefs: target.governedEvidenceRefs,
         originatingInvestigationReference:
           target.originatingInvestigationReference,
         sourceVersion: thread.sourceVersion,
@@ -1203,48 +1228,74 @@ function parseTargetedNeedRegistration(
 ): TargetedNeedRegistrationInput {
   const record = objectRecord(value);
   const criteria = Array.isArray(record?.resolutionCriteria)
-    ? record.resolutionCriteria.filter(
-        (item): item is string =>
-          typeof item === "string" && item.trim().length > 0,
-      )
+    ? record.resolutionCriteria
+        .filter(
+          (item): item is string =>
+            typeof item === "string" && item.trim().length > 0,
+        )
+        .map((item) => item.trim())
     : [];
   const affectedRuleIds = Array.isArray(record?.affectedRuleIds)
-    ? record.affectedRuleIds.filter(
-        (item): item is string =>
-          typeof item === "string" && item.trim().length > 0,
-      )
+    ? record.affectedRuleIds
+        .filter(
+          (item): item is string =>
+            typeof item === "string" && item.trim().length > 0,
+        )
+        .map((item) => item.trim())
     : [];
+  const governedEvidenceRefs = Array.isArray(record?.governedEvidenceRefs)
+    ? record.governedEvidenceRefs
+        .filter(
+          (item): item is string =>
+            typeof item === "string" && item.trim().length > 0,
+        )
+        .map((item) => item.trim())
+    : undefined;
   const rawArtifactVersions = objectRecord(record?.artifactVersions);
   const artifactVersions = Object.fromEntries(
-    Object.entries(rawArtifactVersions ?? {}).filter(
-      (entry): entry is [string, string] =>
-        typeof entry[1] === "string" && entry[1].trim().length > 0,
-    ),
+    Object.entries(rawArtifactVersions ?? {})
+      .filter(
+        (entry): entry is [string, string] =>
+          typeof entry[1] === "string" && entry[1].trim().length > 0,
+      )
+      .map(([key, item]) => [key, item.trim()]),
   );
   if (
     !record ||
-    typeof record.actorId !== "string" ||
-    typeof record.needId !== "string" ||
-    typeof record.businessContextNeed !== "string" ||
+    !nonEmptyString(record.actorId) ||
+    !nonEmptyString(record.needId) ||
+    !nonEmptyString(record.businessContextNeed) ||
     !criteria.length ||
-    typeof record.originatingInvestigationReference !== "string" ||
-    typeof record.investigatorExecutionId !== "string" ||
-    typeof record.workflowRunId !== "string" ||
-    typeof record.checkpointId !== "string" ||
+    !nonEmptyString(record.originatingInvestigationReference) ||
+    !nonEmptyString(record.investigatorExecutionId) ||
+    !nonEmptyString(record.workflowRunId) ||
+    !nonEmptyString(record.checkpointId) ||
     !affectedRuleIds.length ||
-    !Object.keys(artifactVersions).length
+    !hasRequiredTargetedArtifactPins(artifactVersions)
   ) {
     throw new BadRequestException({ code: "INTERVIEW_TARGETED_NEED_INVALID" });
   }
-  return {
-    actorId: record.actorId,
-    needId: record.needId,
+  assertNeutralTargetedText({
     businessContextNeed: record.businessContextNeed,
     resolutionCriteria: criteria,
-    originatingInvestigationReference: record.originatingInvestigationReference,
-    investigatorExecutionId: record.investigatorExecutionId,
-    workflowRunId: record.workflowRunId,
-    checkpointId: record.checkpointId,
+    whyNeeded:
+      typeof record.whyNeeded === "string" ? record.whyNeeded : undefined,
+  });
+  return {
+    actorId: record.actorId.trim(),
+    needId: record.needId.trim(),
+    businessContextNeed: record.businessContextNeed.trim(),
+    resolutionCriteria: criteria,
+    whyNeeded:
+      typeof record.whyNeeded === "string" && record.whyNeeded.trim()
+        ? record.whyNeeded.trim()
+        : undefined,
+    governedEvidenceRefs,
+    originatingInvestigationReference:
+      record.originatingInvestigationReference.trim(),
+    investigatorExecutionId: record.investigatorExecutionId.trim(),
+    workflowRunId: record.workflowRunId.trim(),
+    checkpointId: record.checkpointId.trim(),
     affectedRuleIds,
     artifactVersions,
   };
@@ -1339,7 +1390,23 @@ function parseStoredTargetedNeed(
   ) {
     return undefined;
   }
-  return record as TargetedInterviewNeed;
+  return {
+    needId: record.needId,
+    businessContextNeed: record.businessContextNeed,
+    resolutionCriteria: record.resolutionCriteria.filter(
+      (item): item is string => typeof item === "string",
+    ),
+    whyNeeded:
+      typeof record.whyNeeded === "string" ? record.whyNeeded : undefined,
+    governedEvidenceRefs: Array.isArray(record.governedEvidenceRefs)
+      ? record.governedEvidenceRefs.filter(
+          (item): item is string => typeof item === "string",
+        )
+      : undefined,
+    originatingInvestigationReference: record.originatingInvestigationReference,
+    sourceVersion: record.sourceVersion,
+    pgeVersion: record.pgeVersion,
+  };
 }
 
 function parseStoredTargetedContinuation(
@@ -1436,6 +1503,28 @@ function assertGuardedDecision(
     privateRevision,
     correlationId,
   );
+  if (thread.privateStore.targetedNeed) {
+    if (decision.mode !== "TARGETED_INTERVIEW") {
+      throw problemException(
+        "INTERVIEW_TARGETED_MODE_REQUIRED",
+        correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+    const targetedOutcomes = new Set<string>([
+      ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+      ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
+      ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved,
+    ]);
+    if (!targetedOutcomes.has(decision.outcome)) {
+      throw problemException(
+        "INTERVIEW_TARGETED_OUTCOME_INVALID",
+        correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+  }
+  assertTargetedQuestionBounded(decision, thread, correlationId);
   if (
     decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.contextReady &&
     !isAuthoritative(decision.contextAuthority)
@@ -1499,6 +1588,13 @@ function assertGuardedDecision(
       { status: HttpStatus.CONFLICT },
     );
   }
+  if (!hasRequiredTargetedArtifactPins(continuation.artifactVersions)) {
+    throw problemException(
+      "INTERVIEW_CONTINUATION_ARTIFACT_PINS_REQUIRED",
+      correlationId,
+      { status: HttpStatus.CONFLICT },
+    );
+  }
   const context = decision.confirmedContext ?? {};
   const missing = target.resolutionCriteria.filter(
     (criterion) => !(criterion in context),
@@ -1512,6 +1608,88 @@ function assertGuardedDecision(
         meta: { missing: missing.join(",") },
       },
     );
+  }
+}
+
+function assertTargetedQuestionBounded(
+  decision: AgentDecisionInput,
+  thread: {
+    privateStore: PrivateInterviewStore;
+  },
+  correlationId: string,
+): void {
+  if (
+    decision.mode !== "TARGETED_INTERVIEW" ||
+    decision.outcome !== ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer ||
+    !decision.activeQuestion
+  ) {
+    return;
+  }
+  const target = thread.privateStore.targetedNeed;
+  if (!target) {
+    throw problemException(
+      "INTERVIEW_TARGETED_CONTEXT_NOT_REGISTERED",
+      correlationId,
+      { status: HttpStatus.CONFLICT },
+    );
+  }
+  const questionNeedId = (decision.activeQuestion as { needId?: unknown })
+    .needId;
+  if (
+    typeof questionNeedId === "string" &&
+    questionNeedId.trim() &&
+    questionNeedId !== target.needId
+  ) {
+    throw problemException(
+      "INTERVIEW_TARGETED_QUESTION_NEED_MISMATCH",
+      correlationId,
+      {
+        status: HttpStatus.CONFLICT,
+      },
+    );
+  }
+  assertNeutralTargetedText({
+    businessContextNeed: decision.activeQuestion.prompt,
+    resolutionCriteria: [
+      decision.activeQuestion.priorAnswerSummary,
+      ...(decision.activeQuestion.choices ?? []).flatMap((choice) => [
+        choice.label,
+        choice.description,
+      ]),
+    ].filter((item): item is string => typeof item === "string"),
+    whyNeeded: undefined,
+  });
+}
+
+function nonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function hasRequiredTargetedArtifactPins(
+  artifactVersions: Record<string, string>,
+): boolean {
+  return TARGETED_ARTIFACT_PIN_KEYS.every((key) =>
+    Boolean(artifactVersions[key]?.trim()),
+  );
+}
+
+function assertNeutralTargetedText(input: {
+  businessContextNeed: string;
+  resolutionCriteria: string[];
+  whyNeeded?: string;
+}): void {
+  const texts = [
+    input.businessContextNeed,
+    ...input.resolutionCriteria,
+    input.whyNeeded,
+  ].filter((item): item is string => typeof item === "string");
+  const leaked = texts.find((text) =>
+    TARGETED_TEXT_LEAK_PATTERNS.some((pattern) => pattern.test(text)),
+  );
+  if (leaked) {
+    throw new BadRequestException({
+      code: "INTERVIEW_TARGETED_NEED_NON_NEUTRAL",
+    });
   }
 }
 
