@@ -60,6 +60,7 @@ jobs:
       LCSP_TEST_POSTGRES_USER: postgres
       LCSP_TEST_POSTGRES_PASSWORD: postgres
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55435/lcsp_api_test?schema=public
+      INTERVIEW_GUIDANCE_VERSION: interview-guidance-ci-v1
     steps:
       - uses: actions/checkout@v4
 
@@ -90,6 +91,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
+    env:
+      INTERVIEW_GUIDANCE_VERSION: interview-guidance-ci-v1
     services:
       postgres:
         image: postgres:16
@@ -220,6 +223,7 @@ jobs:
       MFA_SECRET_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       LEGAL_CHROMA_PATH: /tmp/lcsp-278-release-chroma
       LCSP_SNAPSHOT_ARCHIVE_CACHE_DIR: /tmp/lcsp-278-release-snapshot-cache
+      INTERVIEW_GUIDANCE_VERSION: interview-guidance-ci-v1
     steps:
       - uses: actions/checkout@v4
 
