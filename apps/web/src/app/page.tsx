@@ -1,5 +1,5 @@
 import { ProductMarketingPage } from "@/features/marketing/components/marketing-pages";
 
 export default function Home() {
-  return <ProductMarketingPage />;
+  return <ProductMarketingPage locale="vi" />;
 }

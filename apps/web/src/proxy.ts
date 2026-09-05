@@ -9,8 +9,36 @@ import { SESSION_COOKIE_NAME } from "./lib/session/session-store";
 import { upstreamRequest } from "./lib/server/upstream-request.ts";
 import { getProblemRequiredAction } from "./lib/api/problem-envelope.ts";
 import { getWorkspaceRouteRedirectPath } from "./workspace-route-middleware.ts";
+import {
+  getMarketingLocale,
+  localizedMarketingPath,
+  MARKETING_LOCALE_COOKIE,
+} from "./features/marketing/config/marketing-routing";
 
 export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const publicPath =
+    pathname === "/" || pathname === "/features" || pathname === "/pricing";
+  if (publicPath) {
+    const locale = getMarketingLocale(
+      request.cookies.get(MARKETING_LOCALE_COOKIE)?.value,
+    );
+    return NextResponse.redirect(
+      new URL(localizedMarketingPath(locale, pathname), request.url),
+    );
+  }
+
+  const localeMatch = pathname.match(/^\/(en|vi)(?=\/|$)/);
+  if (localeMatch) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-lcsp-locale", localeMatch[1]);
+    return continueProxy(request, requestHeaders);
+  }
+
+  return continueProxy(request, request.headers);
+}
+
+async function continueProxy(request: NextRequest, requestHeaders: Headers) {
   const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const redirectPath = getWorkspaceRouteRedirectPath({
     pathname: request.nextUrl.pathname,
@@ -23,7 +51,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!sessionToken) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   const verification = await upstreamRequest("/auth/profile", {
@@ -48,7 +76,7 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  return NextResponse.next();
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 function isExpiredSessionVerification(
@@ -67,5 +95,14 @@ function isExpiredSessionVerification(
 }
 
 export const config = {
-  matcher: ["/workspace/:path*", "/assessments/:path*", "/laws/:path*"],
+  matcher: [
+    "/",
+    "/features",
+    "/pricing",
+    "/en/:path*",
+    "/vi/:path*",
+    "/workspace/:path*",
+    "/assessments/:path*",
+    "/laws/:path*",
+  ],
 };
