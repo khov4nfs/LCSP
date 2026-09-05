@@ -346,6 +346,11 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             raise ValueError(
                 "guarded CONTEXT_RESOLVED is missing server-owned continuation"
             )
+        _validate_guarded_continuation_pins(
+            continuation,
+            source_version=source_version,
+            pge_version=pge_version,
+        )
         confirmed_context = guarded_state.get("confirmedContext")
         if not isinstance(confirmed_context, dict):
             raise ValueError(
@@ -585,6 +590,26 @@ def _same_revision_resume_materialized(context: dict[str, Any]) -> bool:
 def _has_downstream_impact(state: dict[str, Any]) -> bool:
     flags = state.get("flags")
     return isinstance(flags, list) and _DOWNSTREAM_IMPACT_FLAG in flags
+
+
+def _validate_guarded_continuation_pins(
+    continuation: dict[str, Any],
+    *,
+    source_version: str,
+    pge_version: str,
+) -> None:
+    if str(continuation.get("sourceVersion") or "") != source_version:
+        raise RuntimeError("guarded continuation source version is stale")
+    if str(continuation.get("pgeVersion") or "") != pge_version:
+        raise RuntimeError("guarded continuation PGE version is stale")
+    if not str(continuation.get("originatingInvestigationReference") or "").strip():
+        raise RuntimeError("guarded continuation is missing origin")
+    affected_rule_ids = continuation.get("affectedRuleIds")
+    if not isinstance(affected_rule_ids, list) or not affected_rule_ids:
+        raise RuntimeError("guarded continuation is missing affectedRuleIds")
+    artifact_versions = continuation.get("artifactVersions")
+    if not isinstance(artifact_versions, dict) or not artifact_versions:
+        raise RuntimeError("guarded continuation is missing artifactVersions")
 
 
 def _continuation_store_payload(state: dict[str, Any]) -> dict[str, Any]:

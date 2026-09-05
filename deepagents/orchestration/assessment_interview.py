@@ -8,6 +8,7 @@ states, stale continuation tokens, and Root-owned recovery boundaries.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
@@ -29,6 +30,23 @@ ContextAuthority = Literal[
     "CONFIRMED",
     "SUPERSEDED",
 ]
+_DOWNSTREAM_IMPACT_FLAG = "DOWNSTREAM_IMPACT"
+_TARGETED_TEXT_LEAK_PATTERNS = (
+    re.compile(r"\bEngineeringRule\b", re.IGNORECASE),
+    re.compile(r"\bLegalRule\b", re.IGNORECASE),
+    re.compile(r"\bcompliance classification\b", re.IGNORECASE),
+    re.compile(r"\bEU AI Act\b", re.IGNORECASE),
+    re.compile(r"\brisk category\b", re.IGNORECASE),
+    re.compile(r"\b(?:ENG|ER|LR)-\d+\b", re.IGNORECASE),
+    re.compile(r"\bcheckpoint(?:Id)?\b", re.IGNORECASE),
+    re.compile(r"\bcontinuation(?: token)?\b", re.IGNORECASE),
+    re.compile(r"\bLangGraph\b", re.IGNORECASE),
+    re.compile(r"\bthread(?:Id)?\b", re.IGNORECASE),
+    re.compile(
+        r"\b[a-z0-9_.-]+/[a-z0-9_./-]+\.(?:ts|tsx|js|jsx|py|java|go|rs)\b",
+        re.IGNORECASE,
+    ),
+)
 
 
 @dataclass(frozen=True)
@@ -62,6 +80,23 @@ class BusinessContextNeed:
     resolution_criteria: tuple[str, ...]
     originating_investigation_reference: str
     affected_rule_ids: tuple[str, ...]
+    why_needed: str | None = None
+    governed_evidence_refs: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.need_id.strip() or not self.business_context_need.strip():
+            raise ValueError(
+                "targeted Interview need requires a non-empty need id and business need"
+            )
+        if not self.resolution_criteria or any(
+            not str(item).strip() for item in self.resolution_criteria
+        ):
+            raise ValueError("targeted Interview need requires resolution criteria")
+        _assert_neutral_targeted_text(
+            self.business_context_need,
+            self.why_needed,
+            *self.resolution_criteria,
+        )
 
 
 @dataclass(frozen=True)
@@ -151,6 +186,10 @@ def targeted_interview(
         "resolutionCriteria": list(need.resolution_criteria),
         "originatingInvestigationReference": need.originating_investigation_reference,
     }
+    if need.why_needed:
+        payload["whyNeeded"] = need.why_needed
+    if need.governed_evidence_refs:
+        payload["governedEvidenceRefs"] = list(need.governed_evidence_refs)
 
     if agent_decision is None:
         return InterviewRuntimeState(
@@ -162,20 +201,29 @@ def targeted_interview(
     if agent_decision.outcome == "CONTEXT_RESOLVED":
         _assert_authoritative_revision(latest, "CONTEXT_RESOLVED")
         _assert_resolution_criteria_satisfied(need, latest)
+        flags = tuple(sorted(agent_decision.flags))
+        resume = None
+        if _DOWNSTREAM_IMPACT_FLAG not in flags:
+            resume = {
+                "investigatorExecutionId": continuation.investigator_execution_id,
+                "originatingInvestigationReference": continuation.originating_investigation_reference,
+                "affectedRuleIds": list(continuation.affected_rule_ids),
+            }
         return InterviewRuntimeState(
             outcome="CONTEXT_RESOLVED",
             confirmed_context=dict(latest.facts if latest else agent_decision.confirmed_context),
             context_revision=latest.revision if latest else agent_decision.context_revision,
-            flags=tuple(sorted({"DOWNSTREAM_IMPACT", *agent_decision.flags})),
+            flags=flags,
+            orchestration_recovery_required=_DOWNSTREAM_IMPACT_FLAG in flags,
             interview_payload={**payload, **_decision_payload(agent_decision)},
-            resume={
-                "investigatorExecutionId": continuation.investigator_execution_id,
-                "originatingInvestigationReference": continuation.originating_investigation_reference,
-                "affectedRuleIds": list(continuation.affected_rule_ids),
-            },
+            resume=resume,
         )
 
     state = _waiting_or_blocked(agent_decision)
+    if state.active_question is not None:
+        if state.active_question.need_id not in {None, need.need_id}:
+            raise ValueError("Targeted Interview question escaped its registered need")
+        _assert_neutral_targeted_text(state.active_question.prompt)
     return replace(state, interview_payload={**payload, **state.interview_payload})
 
 
@@ -252,6 +300,16 @@ def _decision_payload(decision: InterviewAgentDecision) -> dict[str, Any]:
     if decision.rationale:
         payload["agentRationale"] = decision.rationale
     return payload
+
+
+def _assert_neutral_targeted_text(*values: str | None) -> None:
+    for value in values:
+        if not value:
+            continue
+        if any(pattern.search(value) for pattern in _TARGETED_TEXT_LEAK_PATTERNS):
+            raise ValueError(
+                "targeted Interview text must not expose internal rule, legal, or checkpoint details"
+            )
 
 
 __all__ = [
