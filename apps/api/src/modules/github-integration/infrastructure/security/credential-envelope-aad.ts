@@ -38,8 +38,7 @@ export function encodeCredentialEnvelopeAad(
 function assertContext(context: CredentialStorageContext): void {
   const ids = [context.providerCredentialId, context.ownerUserId];
   if (
-    (context.provider !== CREDENTIAL_PROVIDERS.github &&
-      context.provider !== CREDENTIAL_PROVIDERS.gitlab) ||
+    !Object.values(CREDENTIAL_PROVIDERS).includes(context.provider) ||
     !Number.isSafeInteger(context.credentialVersion) ||
     context.credentialVersion < 1 ||
     context.envelopeVersion !== 1 ||

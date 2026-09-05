@@ -87,6 +87,8 @@ export class GitHubIntegrationController {
     const providers = [
       CREDENTIAL_PROVIDERS.github,
       CREDENTIAL_PROVIDERS.gitlab,
+      CREDENTIAL_PROVIDERS.bitbucket,
+      CREDENTIAL_PROVIDERS.azureDevOps,
     ];
     return resultEnvelope(
       await Promise.all(

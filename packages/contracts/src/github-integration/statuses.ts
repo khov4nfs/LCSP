@@ -13,6 +13,8 @@ export type RepositoryConnectionStatus =
 export const CREDENTIAL_PROVIDERS = {
   github: "GITHUB",
   gitlab: "GITLAB",
+  bitbucket: "BITBUCKET",
+  azureDevOps: "AZURE_DEVOPS",
 } as const;
 
 export type CredentialProvider =
@@ -44,6 +46,8 @@ export const REPOSITORY_AUTHENTICATION_MODES = {
   githubApp: "GITHUB_APP",
   githubCliCredential: "GITHUB_CLI_CREDENTIAL",
   gitlabCliCredential: "GITLAB_CLI_CREDENTIAL",
+  bitbucketCliCredential: "BITBUCKET_CLI_CREDENTIAL",
+  azureDevOpsCliCredential: "AZURE_DEVOPS_CLI_CREDENTIAL",
 } as const;
 
 export type RepositoryAuthenticationMode =

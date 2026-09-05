@@ -139,6 +139,12 @@ test("provider credential dialog uses provider-specific Figma titles, not generi
   assert.match(dialog, /connectGitlabTitle/);
   assert.match(dialog, /manageGitlabPatTitle/);
   assert.match(dialog, /updateGitlabPatTitle/);
+  assert.match(dialog, /connectBitbucketTitle/);
+  assert.match(dialog, /manageBitbucketPatTitle/);
+  assert.match(dialog, /updateBitbucketPatTitle/);
+  assert.match(dialog, /connectAzureDevOpsTitle/);
+  assert.match(dialog, /manageAzureDevOpsPatTitle/);
+  assert.match(dialog, /updateAzureDevOpsPatTitle/);
   assert.doesNotMatch(dialog, /patDialogTitle|Provider credential/);
   assert.doesNotMatch(en, /patDialogTitle:\s*"Provider credential"/);
   assert.doesNotMatch(vi, /patDialogTitle:\s*"Provider credential"/);
@@ -173,10 +179,12 @@ test("credential dialog uses Figma desktop shell and right-aligned footer button
   assert.doesNotMatch(dialog, /max-w-md/);
 });
 
-test("unsupported providers stay disabled and cannot invoke credential mutation", async () => {
+test("all 4 git providers are supported in connector list and disabled state respects option.supported", async () => {
   const connectors = await source();
 
-  assert.match(connectors, /bitbucketProvider[\s\S]*?supported:\s*false/);
-  assert.match(connectors, /azureDevOpsProvider[\s\S]*?supported:\s*false/);
+  assert.match(connectors, /githubProvider[\s\S]*?supported:\s*true/);
+  assert.match(connectors, /gitlabProvider[\s\S]*?supported:\s*true/);
+  assert.match(connectors, /bitbucketProvider[\s\S]*?supported:\s*true/);
+  assert.match(connectors, /azureDevOpsProvider[\s\S]*?supported:\s*true/);
   assert.match(connectors, /disabled={!option\.supported}/);
 });

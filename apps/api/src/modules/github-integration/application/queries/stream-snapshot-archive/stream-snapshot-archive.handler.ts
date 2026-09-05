@@ -212,10 +212,8 @@ export class StreamSnapshotArchiveHandler implements IQueryHandler<StreamSnapsho
     }
 
     if (
-      (connection.authenticationMode ===
-        RepositoryAuthenticationMode.GITHUB_CLI_CREDENTIAL ||
-        connection.authenticationMode ===
-          RepositoryAuthenticationMode.GITLAB_CLI_CREDENTIAL) &&
+      connection.authenticationMode !==
+        RepositoryAuthenticationMode.GITHUB_APP &&
       !this.configService.get("githubCredentialPersistence", { infer: true })
         .archiveRetrievalEnabled
     ) {
@@ -447,7 +445,13 @@ function hasValidAuthenticationShape(connection: {
       connection.provider === CREDENTIAL_PROVIDERS.github) ||
       (connection.authenticationMode ===
         RepositoryAuthenticationMode.GITLAB_CLI_CREDENTIAL &&
-        connection.provider === CREDENTIAL_PROVIDERS.gitlab)) &&
+        connection.provider === CREDENTIAL_PROVIDERS.gitlab) ||
+      (connection.authenticationMode ===
+        RepositoryAuthenticationMode.BITBUCKET_CLI_CREDENTIAL &&
+        connection.provider === CREDENTIAL_PROVIDERS.bitbucket) ||
+      (connection.authenticationMode ===
+        RepositoryAuthenticationMode.AZURE_DEVOPS_CLI_CREDENTIAL &&
+        connection.provider === CREDENTIAL_PROVIDERS.azureDevOps)) &&
     connection.installationId === null &&
     connection.providerCredentialId != null
   );

@@ -74,7 +74,9 @@ describe("ConnectAssessmentRepositoryHandler credential snapshot", () => {
         findFirst: jest.fn(() => null),
       },
     };
-    const config = { get: () => ({ enabled: true }) };
+    const config = {
+      get: () => ({ enabled: true, snapshotPinningEnabled: true }),
+    };
     const handler = new ConnectAssessmentRepositoryHandler(
       prisma as never,
       config as never,

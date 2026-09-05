@@ -17,6 +17,7 @@ import {
   OverallCoverageStatus as PrismaOverallCoverageStatus,
   OutboxAggregateType as PrismaOutboxAggregateType,
   OutboxStatus as PrismaOutboxStatus,
+  CredentialProvider as PrismaCredentialProvider,
   RepositoryConnectionStatus as PrismaRepositoryConnectionStatus,
   RepositoryScanTriggerSource as PrismaRepositoryScanTriggerSource,
   RepositoryScanJobStatus as PrismaRepositoryScanJobStatus,
@@ -52,10 +53,12 @@ import {
   type DocumentType,
 } from "@lcsp/contracts/document";
 import {
+  CREDENTIAL_PROVIDERS,
   REPOSITORY_SCAN_JOB_STATUSES,
   REPOSITORY_CONNECTION_STATUSES,
   REPOSITORY_SCAN_TRIGGER_SOURCES,
   REPOSITORY_SNAPSHOT_STATUSES,
+  type CredentialProvider,
   type RepositoryConnectionStatus,
   type RepositoryScanJobStatus,
   type RepositoryScanTriggerSource,
@@ -1044,4 +1047,36 @@ export function fromPrismaLegalRuleMatchGuardrailStatus(
   status: PrismaLegalRuleMatchGuardrailStatus,
 ): LegalRuleMatchGuardrailStatus {
   return PRISMA_LEGAL_RULE_MATCH_GUARDRAIL_STATUS_TO_CONTRACT[status];
+}
+
+/** Maps credential provider from the contract layer to Prisma. @param provider - Contract credential provider. @returns Prisma credential provider. */
+export function toPrismaCredentialProvider(
+  provider: CredentialProvider,
+): PrismaCredentialProvider {
+  switch (provider) {
+    case CREDENTIAL_PROVIDERS.gitlab:
+      return PrismaCredentialProvider.GITLAB;
+    case CREDENTIAL_PROVIDERS.bitbucket:
+      return PrismaCredentialProvider.BITBUCKET;
+    case CREDENTIAL_PROVIDERS.azureDevOps:
+      return PrismaCredentialProvider.AZURE_DEVOPS;
+    default:
+      return PrismaCredentialProvider.GITHUB;
+  }
+}
+
+/** Maps credential provider from Prisma to the contract layer. @param provider - Prisma credential provider. @returns Contract credential provider. */
+export function fromPrismaCredentialProvider(
+  provider: PrismaCredentialProvider,
+): CredentialProvider {
+  switch (provider) {
+    case PrismaCredentialProvider.GITLAB:
+      return CREDENTIAL_PROVIDERS.gitlab;
+    case PrismaCredentialProvider.BITBUCKET:
+      return CREDENTIAL_PROVIDERS.bitbucket;
+    case PrismaCredentialProvider.AZURE_DEVOPS:
+      return CREDENTIAL_PROVIDERS.azureDevOps;
+    default:
+      return CREDENTIAL_PROVIDERS.github;
+  }
 }

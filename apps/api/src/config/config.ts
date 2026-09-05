@@ -114,6 +114,43 @@ export const configValidationSchema = Joi.object({
     .integer()
     .positive()
     .default(1048576),
+  BITBUCKET_CLI_EXECUTABLE_PATH: Joi.string()
+    .trim()
+    .allow("")
+    .default("")
+    .custom((value: string, helpers): string =>
+      !value || isAbsolute(value)
+        ? value
+        : (helpers.error("string.absolutePath") as unknown as string),
+    )
+    .messages({
+      "string.absolutePath": '"BITBUCKET_CLI_EXECUTABLE_PATH" must be absolute',
+    }),
+  BITBUCKET_PROVIDER_ENABLED: Joi.boolean().default(false),
+  BITBUCKET_CLI_TIMEOUT_MS: Joi.number().integer().positive().default(30000),
+  BITBUCKET_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
+    .integer()
+    .positive()
+    .default(1048576),
+  AZURE_DEVOPS_CLI_EXECUTABLE_PATH: Joi.string()
+    .trim()
+    .allow("")
+    .default("")
+    .custom((value: string, helpers): string =>
+      !value || isAbsolute(value)
+        ? value
+        : (helpers.error("string.absolutePath") as unknown as string),
+    )
+    .messages({
+      "string.absolutePath":
+        '"AZURE_DEVOPS_CLI_EXECUTABLE_PATH" must be absolute',
+    }),
+  AZURE_DEVOPS_PROVIDER_ENABLED: Joi.boolean().default(false),
+  AZURE_DEVOPS_CLI_TIMEOUT_MS: Joi.number().integer().positive().default(30000),
+  AZURE_DEVOPS_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
+    .integer()
+    .positive()
+    .default(1048576),
   GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED: Joi.boolean().default(false),
   GITHUB_CLI_SNAPSHOT_PINNING_ENABLED: Joi.boolean().default(false),
   GITHUB_CLI_ARCHIVE_RETRIEVAL_ENABLED: Joi.boolean().default(false),
@@ -317,6 +354,24 @@ export function config(): AppConfig {
       timeoutMs: Number(env.GITLAB_CLI_TIMEOUT_MS ?? 30000),
       maxJsonOutputBytes: Number(
         env.GITLAB_CLI_MAX_JSON_OUTPUT_BYTES ?? 1048576,
+      ),
+    },
+    bitbucketCli: {
+      enabled:
+        (env.BITBUCKET_PROVIDER_ENABLED ?? "false").toLowerCase() === "true",
+      executablePath: env.BITBUCKET_CLI_EXECUTABLE_PATH?.trim() ?? "",
+      timeoutMs: Number(env.BITBUCKET_CLI_TIMEOUT_MS ?? 30000),
+      maxJsonOutputBytes: Number(
+        env.BITBUCKET_CLI_MAX_JSON_OUTPUT_BYTES ?? 1048576,
+      ),
+    },
+    azureDevOpsCli: {
+      enabled:
+        (env.AZURE_DEVOPS_PROVIDER_ENABLED ?? "false").toLowerCase() === "true",
+      executablePath: env.AZURE_DEVOPS_CLI_EXECUTABLE_PATH?.trim() ?? "",
+      timeoutMs: Number(env.AZURE_DEVOPS_CLI_TIMEOUT_MS ?? 30000),
+      maxJsonOutputBytes: Number(
+        env.AZURE_DEVOPS_CLI_MAX_JSON_OUTPUT_BYTES ?? 1048576,
       ),
     },
     githubCredentialPersistence: {
