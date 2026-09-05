@@ -38,9 +38,9 @@ test("expired API sessions redirect refresh flows back to sign-in with next path
   assert.equal(
     signInRedirectForCurrentLocation({
       pathname: "/workspace/settings",
-      search: "?section=repositories",
+      search: "?section=connectors",
     }),
-    "/sign-in?next=%2Fworkspace%2Fsettings%3Fsection%3Drepositories",
+    "/sign-in?next=%2Fworkspace%2Fsettings%3Fsection%3Dconnectors",
   );
   assert.equal(
     signInRedirectForCurrentLocation({

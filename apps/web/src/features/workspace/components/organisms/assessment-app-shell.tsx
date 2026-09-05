@@ -16,6 +16,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useSignOutMutation } from "@/lib/api/auth-queries";
+import { SettingsModal } from "@/features/settings/components/organisms/settings-modal";
+import {
+  SETTINGS_SECTION_IDS,
+  type SettingsSectionId,
+} from "@/features/settings/types/settings.types";
 import {
   useAssessmentsQuery,
   useWorkspaceQuery,
@@ -71,6 +76,9 @@ export function AssessmentAppShell({
   }));
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const [mobileRuntimeOpen, setMobileRuntimeOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [activeSettingsSection, setActiveSettingsSection] =
+    useState<SettingsSectionId>(SETTINGS_SECTION_IDS.general);
   const signOutMutation = useSignOutMutation();
   const assessmentsQuery = useAssessmentsQuery();
   const workspaceQuery = useWorkspaceQuery();
@@ -154,6 +162,12 @@ export function AssessmentAppShell({
     window.dispatchEvent(new Event("lcsp:search-assessments"));
   }
 
+  function openSettings(section: SettingsSectionId) {
+    setActiveSettingsSection(section);
+    setSettingsModalOpen(true);
+    setMobileNavigationOpen(false);
+  }
+
   const navigation = (
     <AppSidebar
       assessments={assessments}
@@ -162,6 +176,7 @@ export function AssessmentAppShell({
       onNavigate={() => setMobileNavigationOpen(false)}
       onSearch={openAssessmentSearch}
       onSignOut={() => void handleSignOut()}
+      onOpenSettings={openSettings}
       onToggleCollapse={() => setMobileNavigationOpen(false)}
       pathname={pathname}
       recentLoadState={recentLoadState}
@@ -184,6 +199,7 @@ export function AssessmentAppShell({
           onForward={() => router.forward()}
           onSearch={openAssessmentSearch}
           onSignOut={() => void handleSignOut()}
+          onOpenSettings={openSettings}
           onToggleCollapse={toggleLeftSidebar}
           pathname={pathname}
           recentLoadState={recentLoadState}
@@ -217,10 +233,7 @@ export function AssessmentAppShell({
           ) : null}
 
           <div
-            className={cn(
-              "min-w-0 flex-1",
-              leftCollapsed ? "ml-8" : "ml-2",
-            )}
+            className={cn("min-w-0 flex-1", leftCollapsed ? "ml-8" : "ml-2")}
           >
             <p className="truncate text-[0.6875rem] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
               {headerEyebrow}
@@ -307,6 +320,13 @@ export function AssessmentAppShell({
           </SheetContent>
         </Sheet>
       ) : null}
+
+      <SettingsModal
+        activeSection={activeSettingsSection}
+        onOpenChange={setSettingsModalOpen}
+        onSectionChange={setActiveSettingsSection}
+        open={settingsModalOpen}
+      />
     </div>
   );
 }

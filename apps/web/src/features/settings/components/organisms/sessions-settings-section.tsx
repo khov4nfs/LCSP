@@ -1,7 +1,7 @@
 "use client";
 
 import { resolveMessage } from "@lcsp/i18n";
-import { CircleAlertIcon, ShieldCheckIcon } from "lucide-react";
+import { CircleAlertIcon, MonitorIcon, ShieldCheckIcon } from "lucide-react";
 
 import { SectionHeading } from "@/components/molecules/section-heading";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,14 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { appLocale } from "@/lib/locale";
 import type { SessionsSettingsSectionProps } from "../../types/settings-page.types";
 import { formatDateTime } from "../../utils/settings-page.utils";
@@ -33,13 +41,41 @@ export function SessionsSettingsSection({
   return (
     <section className="flex flex-col gap-4">
       <SectionHeading
-        title={resolveMessage(appLocale, "pages.workspace.settingsHub.sessions.title")}
+        title={resolveMessage(
+          appLocale,
+          "pages.workspace.settingsHub.sessions.title",
+        )}
         description={resolveMessage(
           appLocale,
           "pages.workspace.settingsHub.sessions.description",
         )}
         icon={<ShieldCheckIcon className="size-4" />}
       />
+      <Card>
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1.5">
+            <CardTitle>
+              {resolveMessage(
+                appLocale,
+                "pages.workspace.settingsHub.labels.trustedDevices",
+              )}
+            </CardTitle>
+            <CardDescription>
+              {resolveMessage(
+                appLocale,
+                "pages.workspace.settingsHub.sessions.logoutAllUnsupported",
+              )}
+            </CardDescription>
+          </div>
+          <Button type="button" variant="outline" disabled>
+            {resolveMessage(
+              appLocale,
+              "pages.workspace.settingsHub.actions.logOutAllDevices",
+            )}
+          </Button>
+        </CardHeader>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>
@@ -87,72 +123,96 @@ export function SessionsSettingsSection({
               </EmptyHeader>
             </Empty>
           ) : (
-            <div className="flex flex-col gap-3">
-              {sessions.map((session) => (
-                <div key={session.id} className="rounded-xl border px-4 py-3">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-medium">
-                          {session.is_current
-                            ? resolveMessage(
-                                appLocale,
-                                "pages.workspace.settingsHub.states.currentSession",
-                              )
-                            : session.id}
-                        </p>
-                        <Badge variant="outline">
-                          {resolveMessage(
-                            appLocale,
-                            session.revoked_at
-                              ? "pages.workspace.settingsHub.badges.revoked"
-                              : "pages.workspace.settingsHub.badges.active",
-                          )}
-                        </Badge>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    {resolveMessage(
+                      appLocale,
+                      "pages.workspace.settingsHub.labels.device",
+                    )}
+                  </TableHead>
+                  <TableHead>
+                    {resolveMessage(
+                      appLocale,
+                      "pages.workspace.settingsHub.labels.location",
+                    )}
+                  </TableHead>
+                  <TableHead>
+                    {resolveMessage(
+                      appLocale,
+                      "pages.workspace.settingsHub.labels.createdAt",
+                    )}
+                  </TableHead>
+                  <TableHead>
+                    {resolveMessage(
+                      appLocale,
+                      "pages.workspace.settingsHub.labels.updatedAt",
+                    )}
+                  </TableHead>
+                  <TableHead className="text-right">
+                    {resolveMessage(
+                      appLocale,
+                      "pages.workspace.settingsHub.labels.actions",
+                    )}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sessions.map((session) => (
+                  <TableRow key={session.id}>
+                    <TableCell>
+                      <div className="flex min-w-48 items-center gap-2">
+                        <MonitorIcon className="size-4 text-muted-foreground" />
+                        <div className="flex flex-col gap-1">
+                          <span className="font-medium">
+                            {session.is_current
+                              ? resolveMessage(
+                                  appLocale,
+                                  "pages.workspace.settingsHub.states.currentSession",
+                                )
+                              : session.id}
+                          </span>
+                          <Badge variant="outline" className="w-fit">
+                            {resolveMessage(
+                              appLocale,
+                              session.revoked_at
+                                ? "pages.workspace.settingsHub.badges.revoked"
+                                : "pages.workspace.settingsHub.badges.active",
+                            )}
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="grid gap-1 text-sm text-muted-foreground">
-                        <span>
-                          {resolveMessage(
-                            appLocale,
-                            "pages.workspace.settingsHub.labels.createdAt",
-                          )}
-                          : {formatDateTime(session.created_at)}
-                        </span>
-                        <span>
-                          {resolveMessage(
-                            appLocale,
-                            "pages.workspace.settingsHub.labels.lastActiveAt",
-                          )}
-                          : {formatDateTime(session.updated_at)}
-                        </span>
-                        <span>
-                          {resolveMessage(
-                            appLocale,
-                            "pages.workspace.settingsHub.labels.expiresAt",
-                          )}
-                          : {formatDateTime(session.expires_at)}
-                        </span>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={
-                        session.is_current ||
-                        session.revoked_at !== null ||
-                        revokePending
-                      }
-                      onClick={() => void onRevokeSession(session.id)}
-                    >
+                    </TableCell>
+                    <TableCell>
                       {resolveMessage(
                         appLocale,
-                        "pages.workspace.settingsHub.actions.revoke",
+                        "pages.workspace.settingsHub.sessions.unknownLocation",
                       )}
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                    </TableCell>
+                    <TableCell>{formatDateTime(session.created_at)}</TableCell>
+                    <TableCell>{formatDateTime(session.updated_at)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={
+                          session.is_current ||
+                          session.revoked_at !== null ||
+                          revokePending
+                        }
+                        onClick={() => void onRevokeSession(session.id)}
+                      >
+                        {resolveMessage(
+                          appLocale,
+                          "pages.workspace.settingsHub.actions.revoke",
+                        )}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
