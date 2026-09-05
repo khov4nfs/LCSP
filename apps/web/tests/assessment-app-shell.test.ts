@@ -228,7 +228,8 @@ test("app sidebar keeps LCSP-268 navigation contracts without legacy assessment 
   assert.match(sidebarSource, /href="\/assessments\/new"/);
   assert.match(combined, /getAssessmentActiveHref\(assessment\)/);
   assert.match(combined, /aria-current=\{active \? "page" : undefined\}/);
-  assert.match(sidebarSource, /artifactsUnavailable/);
+  assert.match(sidebarSource, /href="\/artifacts"/);
+  assert.match(sidebarSource, /active={artifactsActive}/);
   assert.match(navItemSource, /aria-disabled=\{disabled \|\| undefined\}/);
   assert.doesNotMatch(
     combined,

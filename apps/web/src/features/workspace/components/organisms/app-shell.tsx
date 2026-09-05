@@ -42,6 +42,8 @@ export function AppShell({ children }: AppShellProps) {
     pathname.startsWith("/workspace/") ||
     pathname === "/assessments" ||
     pathname.startsWith("/assessments/") ||
+    pathname === "/artifacts" ||
+    pathname.startsWith("/artifacts/") ||
     pathname === "/laws" ||
     pathname.startsWith("/laws/")
   ) {
