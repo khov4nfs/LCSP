@@ -481,7 +481,12 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
         workflowRunId: "workflow-run-1",
         checkpointId: "checkpoint-1",
         affectedRuleIds: ["ENG-1"],
-        artifactVersions: { technicalEvidenceReportId: "ter-original" },
+        artifactVersions: {
+          technicalEvidenceReportId: "ter-original",
+          repositorySnapshotId: "snap-original",
+          legalRuleCatalogVersionId: "catalog-original",
+          legalCorpusVersionId: "corpus-original",
+        },
       });
     assert.equal(registered.status, 201, JSON.stringify(registered.body));
 
@@ -651,6 +656,9 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     assert.deepEqual(resolvedState.continuation.affectedRuleIds, ["ENG-1"]);
     assert.deepEqual(resolvedState.continuation.artifactVersions, {
       technicalEvidenceReportId: "ter-original",
+      repositorySnapshotId: "snap-original",
+      legalRuleCatalogVersionId: "catalog-original",
+      legalCorpusVersionId: "corpus-original",
     });
   });
 

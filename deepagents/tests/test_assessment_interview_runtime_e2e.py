@@ -299,13 +299,36 @@ def test_e2e_b_targeted_clarification_validates_then_resumes_exact_investigator(
         agent_decision=InterviewAgentDecision(outcome="CONTEXT_RESOLVED"),
     )
     assert resolved.outcome == "CONTEXT_RESOLVED"
-    assert resolved.flags == ("DOWNSTREAM_IMPACT",)
-    assert "DOWNSTREAM_IMPACT" != resolved.outcome
+    assert resolved.flags == ()
     assert resolved.resume == {
         "investigatorExecutionId": "investigator:ENG-7:original",
         "originatingInvestigationReference": "investigation:step-3",
         "affectedRuleIds": ["ENG-7"],
     }
+
+    downstream = targeted_interview(
+        need=need,
+        continuation=consumed,
+        customer_revisions=(
+            CustomerContextRevision(
+                revision=5,
+                facts={
+                    "human_reviewer_role": "operations lead",
+                    "decision_authority": "approval path changed",
+                },
+                authority="CUSTOMER_CONFIRMED",
+                confirmed_by_actor_id="actor-customer-2",
+            ),
+        ),
+        agent_decision=InterviewAgentDecision(
+            outcome="CONTEXT_RESOLVED",
+            flags=("DOWNSTREAM_IMPACT",),
+        ),
+    )
+    assert downstream.outcome == "CONTEXT_RESOLVED"
+    assert downstream.flags == ("DOWNSTREAM_IMPACT",)
+    assert downstream.orchestration_recovery_required is True
+    assert downstream.resume is None
 
     specialist = MagicMock()
     specialist.invoke.return_value = {
