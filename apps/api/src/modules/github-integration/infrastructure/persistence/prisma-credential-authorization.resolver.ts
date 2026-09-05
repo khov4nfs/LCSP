@@ -56,6 +56,8 @@ export class PrismaCredentialAuthorizationResolver implements CredentialAuthoriz
           in: [
             RepositoryAuthenticationMode.GITHUB_CLI_CREDENTIAL,
             RepositoryAuthenticationMode.GITLAB_CLI_CREDENTIAL,
+            RepositoryAuthenticationMode.BITBUCKET_CLI_CREDENTIAL,
+            RepositoryAuthenticationMode.AZURE_DEVOPS_CLI_CREDENTIAL,
           ],
         },
       },
@@ -129,6 +131,8 @@ export class PrismaCredentialAuthorizationResolver implements CredentialAuthoriz
           in: [
             RepositoryAuthenticationMode.GITHUB_CLI_CREDENTIAL,
             RepositoryAuthenticationMode.GITLAB_CLI_CREDENTIAL,
+            RepositoryAuthenticationMode.BITBUCKET_CLI_CREDENTIAL,
+            RepositoryAuthenticationMode.AZURE_DEVOPS_CLI_CREDENTIAL,
           ],
         },
       },
@@ -203,6 +207,8 @@ export class PrismaCredentialAuthorizationResolver implements CredentialAuthoriz
           in: [
             RepositoryAuthenticationMode.GITHUB_CLI_CREDENTIAL,
             RepositoryAuthenticationMode.GITLAB_CLI_CREDENTIAL,
+            RepositoryAuthenticationMode.BITBUCKET_CLI_CREDENTIAL,
+            RepositoryAuthenticationMode.AZURE_DEVOPS_CLI_CREDENTIAL,
           ],
         },
         credentialAuthorizationStatus: CredentialAuthorizationStatus.ACTIVE,

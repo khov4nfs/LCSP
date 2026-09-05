@@ -44,6 +44,20 @@ export interface GitlabCliConfig {
   maxJsonOutputBytes: number;
 }
 
+export interface BitbucketCliConfig {
+  enabled: boolean;
+  executablePath: string;
+  timeoutMs: number;
+  maxJsonOutputBytes: number;
+}
+
+export interface AzureDevOpsCliConfig {
+  enabled: boolean;
+  executablePath: string;
+  timeoutMs: number;
+  maxJsonOutputBytes: number;
+}
+
 export interface GithubCredentialPersistenceConfig {
   enabled: boolean;
   snapshotPinningEnabled: boolean;
@@ -109,6 +123,8 @@ export interface AppConfig {
   github: GithubConfig;
   githubCli: GithubCliConfig;
   gitlabCli: GitlabCliConfig;
+  bitbucketCli: BitbucketCliConfig;
+  azureDevOpsCli: AzureDevOpsCliConfig;
   githubCredentialPersistence: GithubCredentialPersistenceConfig;
   rabbitmq: RabbitMqConfig;
   outbox: OutboxConfig;

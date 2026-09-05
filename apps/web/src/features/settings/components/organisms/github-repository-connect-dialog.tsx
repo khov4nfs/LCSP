@@ -149,6 +149,18 @@ function GitHubRepositoryConnectDialogContent({
                           "pages.workspace.settingsHub.repositories.gitlabProvider",
                         )}
                       </SelectItem>
+                      <SelectItem value={CREDENTIAL_PROVIDERS.bitbucket}>
+                        {resolveMessage(
+                          appLocale,
+                          "pages.workspace.settingsHub.repositories.bitbucketProvider",
+                        )}
+                      </SelectItem>
+                      <SelectItem value={CREDENTIAL_PROVIDERS.azureDevOps}>
+                        {resolveMessage(
+                          appLocale,
+                          "pages.workspace.settingsHub.repositories.azureDevOpsProvider",
+                        )}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 )}

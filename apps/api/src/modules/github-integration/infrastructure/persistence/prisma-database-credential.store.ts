@@ -183,17 +183,11 @@ export class PrismaDatabaseCredentialStore implements CredentialStorePort {
       where: {
         id: context.providerCredentialId,
         ownerUserId: context.ownerUserId,
-        provider: {
-          in: [CredentialProvider.GITHUB, CredentialProvider.GITLAB],
-        },
+        provider: toPrismaProvider(context.provider),
       },
       select: { id: true },
     });
-    if (
-      !row ||
-      (context.provider !== CREDENTIAL_PROVIDERS.github &&
-        context.provider !== CREDENTIAL_PROVIDERS.gitlab)
-    )
+    if (!row || !Object.values(CREDENTIAL_PROVIDERS).includes(context.provider))
       throw new CredentialStoreError();
   }
 }
@@ -244,15 +238,7 @@ function contextFromRow(
   credentialVersion: number,
   envelopeVersion: number,
 ): CredentialStorageContext {
-  if (
-    row.provider !== CredentialProvider.GITHUB &&
-    row.provider !== CredentialProvider.GITLAB
-  )
-    throw new CredentialStoreError();
-  const provider =
-    row.provider === CredentialProvider.GITLAB
-      ? CREDENTIAL_PROVIDERS.gitlab
-      : CREDENTIAL_PROVIDERS.github;
+  const provider = fromPrismaProvider(row.provider);
   return {
     provider,
     providerCredentialId: row.id,
@@ -260,6 +246,36 @@ function contextFromRow(
     credentialVersion,
     envelopeVersion,
   };
+}
+
+function fromPrismaProvider(
+  provider: CredentialProvider,
+): (typeof CREDENTIAL_PROVIDERS)[keyof typeof CREDENTIAL_PROVIDERS] {
+  switch (provider) {
+    case CredentialProvider.GITLAB:
+      return CREDENTIAL_PROVIDERS.gitlab;
+    case CredentialProvider.BITBUCKET:
+      return CREDENTIAL_PROVIDERS.bitbucket;
+    case CredentialProvider.AZURE_DEVOPS:
+      return CREDENTIAL_PROVIDERS.azureDevOps;
+    default:
+      return CREDENTIAL_PROVIDERS.github;
+  }
+}
+
+function toPrismaProvider(
+  provider: (typeof CREDENTIAL_PROVIDERS)[keyof typeof CREDENTIAL_PROVIDERS],
+): CredentialProvider {
+  switch (provider) {
+    case CREDENTIAL_PROVIDERS.gitlab:
+      return CredentialProvider.GITLAB;
+    case CREDENTIAL_PROVIDERS.bitbucket:
+      return CredentialProvider.BITBUCKET;
+    case CREDENTIAL_PROVIDERS.azureDevOps:
+      return CredentialProvider.AZURE_DEVOPS;
+    default:
+      return CredentialProvider.GITHUB;
+  }
 }
 
 function envelopeFromRow(row: {

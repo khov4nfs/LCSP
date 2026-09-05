@@ -1084,24 +1084,30 @@ export const viPages = {
         repositoryUrlLabel: "URL repository",
         repositoryUrlPlaceholder: "https://github.com/owner/repository",
         gitlabRepositoryUrlPlaceholder: "https://gitlab.com/group/project",
-        repositoryUrlRequired: "Hãy nhập URL repository GitHub HTTPS hợp lệ.",
+        bitbucketRepositoryUrlPlaceholder:
+          "https://bitbucket.org/workspace/repository",
+        azureDevOpsRepositoryUrlPlaceholder:
+          "https://dev.azure.com/organization/project/_git/repository",
+        repositoryUrlRequired: "Hãy nhập URL repository HTTPS hợp lệ.",
         credentialLabel: "GitHub personal access token",
         gitlabCredentialLabel: "GitLab access token",
-        credentialRequired: "Hãy nhập GitHub personal access token.",
+        bitbucketCredentialLabel: "Bitbucket app password",
+        azureDevOpsCredentialLabel: "Azure DevOps personal access token",
+        credentialRequired: "Hãy nhập access token hoặc app password hợp lệ.",
         repositoryLabel: "Repository",
         discoverAction: "Xác thực và tìm repository",
         connectAction: "Kết nối repository",
-        requestFailedTitle: "Không thể kết nối GitHub",
+        requestFailedTitle: "Không thể kết nối provider",
         requestFailedDescription:
           "Hãy kiểm tra credential và quyền truy cập repository rồi thử lại.",
         credentialInvalidDescription:
-          "GitHub credential không hợp lệ hoặc đã hết hạn. Hãy nhập credential còn hiệu lực.",
+          "Credential của provider không hợp lệ hoặc đã hết hạn. Hãy nhập credential còn hiệu lực.",
         approvalRequiredDescription:
-          "Credential này cần được tổ chức GitHub hoặc SSO phê duyệt trước khi truy cập repository.",
+          "Credential này cần được tổ chức hoặc SSO phê duyệt trước khi truy cập repository.",
         repositoryDeniedDescription:
           "Credential không có quyền đọc repository đã chọn.",
         serviceUnavailableDescription:
-          "Dịch vụ truy cập GitHub tạm thời không khả dụng. Hãy thử lại sau.",
+          "Dịch vụ truy cập repository tạm thời không khả dụng. Hãy thử lại sau.",
         supportedProviderDescription:
           "Trạng thái credential được tải từ API provider credential hiện có.",
         unsupportedProviderDescription:
@@ -1112,6 +1118,8 @@ export const viPages = {
         connect: "Kết nối",
         connectGithubTitle: "Kết nối GitHub",
         connectGitlabTitle: "Kết nối GitLab",
+        connectBitbucketTitle: "Kết nối Bitbucket",
+        connectAzureDevOpsTitle: "Kết nối Azure DevOps",
         connected: "Đã kết nối",
         connectionStatus: "Trạng thái kết nối",
         credentialStoredHelper:
@@ -1124,13 +1132,26 @@ export const viPages = {
           "API cài đặt hiện chưa hỗ trợ ngắt kết nối provider.",
         enterNewPat: "Nhập PAT mới",
         githubRepositoryCredentialSubtitle: "Credential repository GitHub",
+        gitlabRepositoryCredentialSubtitle: "Credential repository GitLab",
+        bitbucketRepositoryCredentialSubtitle:
+          "Credential repository Bitbucket",
+        azureDevOpsRepositoryCredentialSubtitle:
+          "Credential repository Azure DevOps",
         gitProvidersTitle: "Git providers",
         gitlabRepositoryAccessGuidance:
           "Dùng token có quyền đọc repository. Chỉ thêm quyền ghi repository khi bật sửa code.",
-        gitlabRepositoryCredentialSubtitle: "Credential repository GitLab",
+        bitbucketRepositoryAccessGuidance:
+          "Dùng app password có quyền đọc repository. Chỉ thêm quyền ghi repository khi bật sửa code.",
+        azureDevOpsRepositoryAccessGuidance:
+          "Dùng tên tổ chức và personal access token có scope Code (Read).",
+        azureDevOpsOrganizationLabel: "Tổ chức",
+        azureDevOpsOrganizationPlaceholder:
+          "Nhập tên tổ chức Azure DevOps (ví dụ: anhkn7)",
         githubPatAccessTitle: "Quyền GitHub PAT",
         manageGithubPatTitle: "Quản lý GitHub PAT",
         manageGitlabPatTitle: "Quản lý GitLab PAT",
+        manageBitbucketPatTitle: "Quản lý App Password Bitbucket",
+        manageAzureDevOpsPatTitle: "Quản lý Azure DevOps PAT",
         managePat: "Quản lý PAT",
         manageProvidersDescription:
           "Quản lý provider repository và tích hợp workspace.",
@@ -1144,6 +1165,8 @@ export const viPages = {
         save: "Lưu",
         updateGithubPatTitle: "Cập nhật GitHub PAT",
         updateGitlabPatTitle: "Cập nhật GitLab PAT",
+        updateBitbucketPatTitle: "Cập nhật App Password Bitbucket",
+        updateAzureDevOpsPatTitle: "Cập nhật Azure DevOps PAT",
         updatePat: "Cập nhật PAT",
         username: "Username",
         listTitle: "Repository đã liên kết",

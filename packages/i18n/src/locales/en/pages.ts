@@ -1085,24 +1085,30 @@ export const enPages = {
         repositoryUrlLabel: "Repository URL",
         repositoryUrlPlaceholder: "https://github.com/owner/repository",
         gitlabRepositoryUrlPlaceholder: "https://gitlab.com/group/project",
-        repositoryUrlRequired: "Enter a valid HTTPS GitHub repository URL.",
+        bitbucketRepositoryUrlPlaceholder:
+          "https://bitbucket.org/workspace/repository",
+        azureDevOpsRepositoryUrlPlaceholder:
+          "https://dev.azure.com/organization/project/_git/repository",
+        repositoryUrlRequired: "Enter a valid HTTPS repository URL.",
         credentialLabel: "GitHub personal access token",
         gitlabCredentialLabel: "GitLab access token",
-        credentialRequired: "Enter a GitHub personal access token.",
+        bitbucketCredentialLabel: "Bitbucket app password",
+        azureDevOpsCredentialLabel: "Azure DevOps personal access token",
+        credentialRequired: "Enter a personal access token or app password.",
         repositoryLabel: "Repository",
         discoverAction: "Validate and discover repositories",
         connectAction: "Connect repository",
-        requestFailedTitle: "Unable to connect GitHub",
+        requestFailedTitle: "Unable to connect provider",
         requestFailedDescription:
           "Check the credential and repository access, then try again.",
         credentialInvalidDescription:
-          "The GitHub credential is invalid or expired. Enter a current credential and try again.",
+          "The provider credential is invalid or expired. Enter a current credential and try again.",
         approvalRequiredDescription:
-          "This credential requires GitHub organization or SSO approval before it can access repositories.",
+          "This credential requires organization or SSO approval before it can access repositories.",
         repositoryDeniedDescription:
           "The credential cannot read the selected repository.",
         serviceUnavailableDescription:
-          "GitHub repository access is temporarily unavailable. Try again later.",
+          "Repository access is temporarily unavailable. Try again later.",
         supportedProviderDescription:
           "Credential status is loaded from the existing provider credential API.",
         unsupportedProviderDescription:
@@ -1113,6 +1119,8 @@ export const enPages = {
         connect: "Connect",
         connectGithubTitle: "Connect GitHub",
         connectGitlabTitle: "Connect GitLab",
+        connectBitbucketTitle: "Connect Bitbucket",
+        connectAzureDevOpsTitle: "Connect Azure DevOps",
         connected: "Connected",
         connectionStatus: "Connection status",
         credentialStoredHelper:
@@ -1125,13 +1133,26 @@ export const enPages = {
           "Disconnect is not available from the current settings API.",
         enterNewPat: "Enter a new PAT",
         githubRepositoryCredentialSubtitle: "GitHub repository credential",
+        gitlabRepositoryCredentialSubtitle: "GitLab repository credential",
+        bitbucketRepositoryCredentialSubtitle:
+          "Bitbucket repository credential",
+        azureDevOpsRepositoryCredentialSubtitle:
+          "Azure DevOps repository credential",
         gitProvidersTitle: "Git providers",
         gitlabRepositoryAccessGuidance:
           "Use a token with repository read access. Add repository write access only when code fixes are enabled.",
-        gitlabRepositoryCredentialSubtitle: "GitLab repository credential",
+        bitbucketRepositoryAccessGuidance:
+          "Use an app password with repository read access. Add repository write access only when code fixes are enabled.",
+        azureDevOpsRepositoryAccessGuidance:
+          "Use your organization name and a personal access token with Code (Read) scope.",
+        azureDevOpsOrganizationLabel: "Organization",
+        azureDevOpsOrganizationPlaceholder:
+          "Enter Azure DevOps organization name (e.g. anhkn7)",
         githubPatAccessTitle: "GitHub PAT access",
         manageGithubPatTitle: "Manage GitHub PAT",
         manageGitlabPatTitle: "Manage GitLab PAT",
+        manageBitbucketPatTitle: "Manage Bitbucket App Password",
+        manageAzureDevOpsPatTitle: "Manage Azure DevOps PAT",
         managePat: "Manage PAT",
         manageProvidersDescription:
           "Manage repository providers and workspace integrations.",
@@ -1145,6 +1166,8 @@ export const enPages = {
         save: "Save",
         updateGithubPatTitle: "Update GitHub PAT",
         updateGitlabPatTitle: "Update GitLab PAT",
+        updateBitbucketPatTitle: "Update Bitbucket App Password",
+        updateAzureDevOpsPatTitle: "Update Azure DevOps PAT",
         updatePat: "Update PAT",
         username: "Username",
       },

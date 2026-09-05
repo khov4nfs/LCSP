@@ -68,6 +68,24 @@ import {
   assertGitLabCliRuntime,
   resolveGitLabCliExecutablePath,
 } from "./infrastructure/gitlab/gitlab-cli-runtime.validator.js";
+import {
+  BitbucketCliProviderError,
+  BitbucketCliRepositoryProvider,
+} from "./infrastructure/bitbucket/bitbucket-cli-repository.provider.js";
+import { BitbucketSecureArchiveHttpTransport } from "./infrastructure/bitbucket/bitbucket-secure-archive-http.transport.js";
+import {
+  assertBitbucketCliRuntime,
+  resolveBitbucketCliExecutablePath,
+} from "./infrastructure/bitbucket/bitbucket-cli-runtime.validator.js";
+import {
+  AzureDevOpsCliProviderError,
+  AzureDevOpsCliRepositoryProvider,
+} from "./infrastructure/azure-devops/azure-devops-cli-repository.provider.js";
+import { AzureDevOpsSecureArchiveHttpTransport } from "./infrastructure/azure-devops/azure-devops-secure-archive-http.transport.js";
+import {
+  assertAzureDevOpsCliRuntime,
+  resolveAzureDevOpsCliExecutablePath,
+} from "./infrastructure/azure-devops/azure-devops-cli-runtime.validator.js";
 import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
 
 /**
@@ -118,10 +136,107 @@ import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
             executablePath,
           });
         }
+
+        const bitbucket = configService.get("bitbucketCli", { infer: true });
+        let bitbucketProvider: RepositoryProviderAdapter;
+        if (!bitbucket.enabled) {
+          bitbucketProvider = {
+            validateIdentity: () =>
+              Promise.reject(
+                new BitbucketCliProviderError(
+                  GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
+                ),
+              ),
+            listAccessibleRepositories: () =>
+              Promise.reject(
+                new BitbucketCliProviderError(
+                  GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
+                ),
+              ),
+            validateRepositoryAccess: () =>
+              Promise.reject(
+                new BitbucketCliProviderError(
+                  GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
+                ),
+              ),
+            resolveCommit: () =>
+              Promise.reject(
+                new BitbucketCliProviderError(
+                  GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
+                ),
+              ),
+            downloadArchive: () =>
+              Promise.reject(
+                new BitbucketCliProviderError(
+                  GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
+                ),
+              ),
+          };
+        } else {
+          const executablePath = resolveBitbucketCliExecutablePath(
+            bitbucket.executablePath,
+          );
+          assertBitbucketCliRuntime(executablePath);
+          bitbucketProvider = new BitbucketCliRepositoryProvider({
+            ...bitbucket,
+            executablePath,
+          });
+        }
+
+        const azureDevOps = configService.get("azureDevOpsCli", {
+          infer: true,
+        });
+        let azureDevOpsProvider: RepositoryProviderAdapter;
+        if (!azureDevOps.enabled) {
+          azureDevOpsProvider = {
+            validateIdentity: () =>
+              Promise.reject(
+                new AzureDevOpsCliProviderError(
+                  GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
+                ),
+              ),
+            listAccessibleRepositories: () =>
+              Promise.reject(
+                new AzureDevOpsCliProviderError(
+                  GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
+                ),
+              ),
+            validateRepositoryAccess: () =>
+              Promise.reject(
+                new AzureDevOpsCliProviderError(
+                  GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
+                ),
+              ),
+            resolveCommit: () =>
+              Promise.reject(
+                new AzureDevOpsCliProviderError(
+                  GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
+                ),
+              ),
+            downloadArchive: () =>
+              Promise.reject(
+                new AzureDevOpsCliProviderError(
+                  GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
+                ),
+              ),
+          };
+        } else {
+          const executablePath = resolveAzureDevOpsCliExecutablePath(
+            azureDevOps.executablePath,
+          );
+          assertAzureDevOpsCliRuntime(executablePath);
+          azureDevOpsProvider = new AzureDevOpsCliRepositoryProvider({
+            ...azureDevOps,
+            executablePath,
+          });
+        }
+
         return new ConfiguredRepositoryProviderRegistry(
           new Map([
             [CREDENTIAL_PROVIDERS.github, githubProvider],
             [CREDENTIAL_PROVIDERS.gitlab, gitlabProvider],
+            [CREDENTIAL_PROVIDERS.bitbucket, bitbucketProvider],
+            [CREDENTIAL_PROVIDERS.azureDevOps, azureDevOpsProvider],
           ]),
         );
       },
@@ -197,11 +312,22 @@ import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
           timeoutMs: cli.archiveTimeoutMs,
           maxArchiveBytes: cli.maxArchiveBytes,
         });
+        const bitbucket = new BitbucketSecureArchiveHttpTransport({
+          timeoutMs: cli.archiveTimeoutMs,
+          maxArchiveBytes: cli.maxArchiveBytes,
+        });
+        const azureDevOps = new AzureDevOpsSecureArchiveHttpTransport({
+          timeoutMs: cli.archiveTimeoutMs,
+          maxArchiveBytes: cli.maxArchiveBytes,
+        });
         return {
           get(provider: string): GitHubArchiveTransportPort {
             if (provider === CREDENTIAL_PROVIDERS.github)
               return githubTransport;
             if (provider === CREDENTIAL_PROVIDERS.gitlab) return gitlab;
+            if (provider === CREDENTIAL_PROVIDERS.bitbucket) return bitbucket;
+            if (provider === CREDENTIAL_PROVIDERS.azureDevOps)
+              return azureDevOps;
             throw new Error(
               `repository_archive_transport_unavailable:${provider}`,
             );

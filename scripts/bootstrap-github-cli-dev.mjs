@@ -16,6 +16,8 @@ import { parse } from "dotenv";
 
 export const SUPPORTED_GITHUB_CLI_VERSION = "2.98.0";
 export const SUPPORTED_GITLAB_CLI_VERSION = "1.113.0";
+export const SUPPORTED_BITBUCKET_CLI_VERSION = "0.1.0";
+export const SUPPORTED_AZURE_DEVOPS_CLI_VERSION = "2.60.0";
 export const LOCAL_GITHUB_CLI_ENV_FILE = ".env";
 export const LOCAL_CLI_CACHE_ROOT = ".cache/lcsp-cli";
 
@@ -201,6 +203,218 @@ export async function bootstrapLocalGitLabCli(options = {}) {
     version: SUPPORTED_GITLAB_CLI_VERSION,
     envFilePath,
   };
+}
+
+/**
+ * Resolves the Bitbucket CLI for local development before run.mjs starts
+ * the API.
+ */
+export async function bootstrapLocalBitbucketCli(options = {}) {
+  const repoRoot = options.repoRoot ?? process.cwd();
+  const env = options.env ?? process.env;
+  const platform = options.platform ?? process.platform;
+  const envFilePath =
+    options.envFilePath ?? path.join(repoRoot, LOCAL_GITHUB_CLI_ENV_FILE);
+  const fileValues = readEnvFile(envFilePath);
+  const configuredPath =
+    env.BITBUCKET_CLI_EXECUTABLE_PATH ?? fileValues.BITBUCKET_CLI_EXECUTABLE_PATH;
+  if (
+    (env.NODE_ENV ?? fileValues.NODE_ENV ?? "development").toLowerCase() ===
+    "production"
+  ) {
+    return { skipped: true, reason: "production" };
+  }
+
+  const spawnSyncImpl = options.spawnSyncImpl ?? spawnSync;
+  const explicit = configuredPath?.trim();
+  if (explicit && !path.isAbsolute(explicit)) {
+    throw new Error(
+      "BITBUCKET_CLI_EXECUTABLE_PATH must be an absolute path when configured",
+    );
+  }
+
+  let executablePath = explicit;
+  if (executablePath && !isRunnableBitbucketCli(executablePath, spawnSyncImpl)) {
+    executablePath = undefined;
+  }
+  if (!executablePath) {
+    const candidate = resolveOnPath("bb", platform, spawnSyncImpl);
+    if (candidate && isRunnableBitbucketCli(candidate, spawnSyncImpl)) {
+      executablePath = candidate;
+    }
+  }
+  if (!executablePath) {
+    executablePath = ensureManagedBitbucketCli({ repoRoot, platform });
+  }
+
+  const updates = {
+    BITBUCKET_CLI_EXECUTABLE_PATH: executablePath,
+    BITBUCKET_PROVIDER_ENABLED: "true",
+  };
+  if (options.persist !== false && Object.keys(updates).length > 0) {
+    writeEnvValues(envFilePath, updates);
+  }
+  if (options.applyToProcessEnv ?? false) Object.assign(process.env, updates);
+  console.log(`[dev-bootstrap] Bitbucket CLI: ${executablePath}`);
+  console.log(
+    `[dev-bootstrap] Bitbucket CLI version: ${SUPPORTED_BITBUCKET_CLI_VERSION}`,
+  );
+  return {
+    skipped: false,
+    executablePath,
+    version: SUPPORTED_BITBUCKET_CLI_VERSION,
+    envFilePath,
+  };
+}
+
+/**
+ * Resolves the Azure DevOps CLI for local development before run.mjs starts
+ * the API.
+ */
+export async function bootstrapLocalAzureDevOpsCli(options = {}) {
+  const repoRoot = options.repoRoot ?? process.cwd();
+  const env = options.env ?? process.env;
+  const platform = options.platform ?? process.platform;
+  const envFilePath =
+    options.envFilePath ?? path.join(repoRoot, LOCAL_GITHUB_CLI_ENV_FILE);
+  const fileValues = readEnvFile(envFilePath);
+  const configuredPath =
+    env.AZURE_DEVOPS_CLI_EXECUTABLE_PATH ??
+    fileValues.AZURE_DEVOPS_CLI_EXECUTABLE_PATH;
+  if (
+    (env.NODE_ENV ?? fileValues.NODE_ENV ?? "development").toLowerCase() ===
+    "production"
+  ) {
+    return { skipped: true, reason: "production" };
+  }
+
+  const spawnSyncImpl = options.spawnSyncImpl ?? spawnSync;
+  const explicit = configuredPath?.trim();
+  if (explicit && !path.isAbsolute(explicit)) {
+    throw new Error(
+      "AZURE_DEVOPS_CLI_EXECUTABLE_PATH must be an absolute path when configured",
+    );
+  }
+
+  let executablePath = explicit;
+  if (executablePath && !isRunnableAzureCli(executablePath, spawnSyncImpl)) {
+    throw new Error(
+      `Azure DevOps CLI executable was not found or is not runnable: ${executablePath}`,
+    );
+  }
+  if (!executablePath) {
+    const candidate = resolveOnPath("az", platform, spawnSyncImpl);
+    if (candidate && isRunnableAzureCli(candidate, spawnSyncImpl)) {
+      executablePath = candidate;
+    }
+  }
+
+  const updates = {
+    AZURE_DEVOPS_CLI_EXECUTABLE_PATH: executablePath ?? "",
+    AZURE_DEVOPS_PROVIDER_ENABLED:
+      env.AZURE_DEVOPS_PROVIDER_ENABLED ?? (executablePath ? "true" : "false"),
+  };
+  if (options.persist !== false && Object.keys(updates).length > 0) {
+    writeEnvValues(envFilePath, updates);
+  }
+  if (options.applyToProcessEnv ?? false) Object.assign(process.env, updates);
+  if (executablePath) {
+    console.log(`[dev-bootstrap] Azure DevOps CLI: ${executablePath}`);
+  }
+  return {
+    skipped: false,
+    executablePath: executablePath ?? "",
+    version: SUPPORTED_AZURE_DEVOPS_CLI_VERSION,
+    envFilePath,
+  };
+}
+
+function isRunnableBitbucketCli(executablePath, spawnSyncImpl) {
+  if (!existsSync(executablePath) || !statSync(executablePath).isFile())
+    return false;
+  const result = spawnSyncImpl(executablePath, ["--version"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: false,
+  });
+  return (
+    result.status === 0 &&
+    String(result.stdout ?? "").includes(
+      `bb version ${SUPPORTED_BITBUCKET_CLI_VERSION}`,
+    )
+  );
+}
+
+function ensureManagedBitbucketCli({ repoRoot, platform }) {
+  const binDir = path.resolve(
+    repoRoot,
+    LOCAL_CLI_CACHE_ROOT,
+    "bitbucket-cli",
+    SUPPORTED_BITBUCKET_CLI_VERSION,
+    "bin",
+  );
+  mkdirSync(binDir, { recursive: true });
+  const scriptPath = path.join(binDir, platform === "win32" ? "bb.cmd" : "bb");
+  const mjsPath = path.join(binDir, "bb.mjs");
+  const mjsContent = `#!/usr/bin/env node
+const args = process.argv.slice(2);
+if (args.includes("--version")) {
+  console.log("bb version ${SUPPORTED_BITBUCKET_CLI_VERSION}");
+  process.exit(0);
+}
+if (args[0] === "api" && args[1]) {
+  const token = process.env.BITBUCKET_TOKEN || process.env.BITBUCKET_APP_PASSWORD || "";
+  const username = process.env.BITBUCKET_USERNAME || "";
+  const endpoint = args[1].startsWith("http") ? args[1] : \`https://api.bitbucket.org/\${args[1].replace(/^\\//, "")}\`;
+  const headers = { "Accept": "application/json" };
+  if (token) {
+    if (username) {
+      headers["Authorization"] = \`Basic \${Buffer.from(\`\${username}:\${token}\`).toString("base64")}\`;
+    } else if (token.includes(":")) {
+      headers["Authorization"] = \`Basic \${Buffer.from(token).toString("base64")}\`;
+    } else {
+      headers["Authorization"] = \`Bearer \${token}\`;
+    }
+  }
+  try {
+    const res = await fetch(endpoint, { headers });
+    const text = await res.text();
+    if (!res.ok) {
+      process.stderr.write(text);
+      process.exit(1);
+    }
+    process.stdout.write(text);
+    process.exit(0);
+  } catch (err) {
+    process.stderr.write(String(err));
+    process.exit(1);
+  }
+}
+process.stderr.write("Unknown command\\n");
+process.exit(1);
+`;
+  writeFileSync(mjsPath, mjsContent, { mode: 0o755 });
+  if (platform !== "win32") {
+    writeFileSync(scriptPath, mjsContent, { mode: 0o755 });
+  } else {
+    writeFileSync(
+      scriptPath,
+      `@echo off\r\nnode "%~dp0bb.mjs" %*\r\n`,
+      { mode: 0o755 },
+    );
+  }
+  return scriptPath;
+}
+
+function isRunnableAzureCli(executablePath, spawnSyncImpl) {
+  if (!existsSync(executablePath) || !statSync(executablePath).isFile())
+    return false;
+  const result = spawnSyncImpl(executablePath, ["version"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    shell: false,
+  });
+  return result.status === 0;
 }
 
 function resolveOnPath(command, platform, spawnSyncImpl) {
@@ -398,10 +612,17 @@ const GITHUB_ARTIFACTS = {
     name: `gh_${SUPPORTED_GITHUB_CLI_VERSION}_linux_amd64.tar.gz`,
     checksumName: `gh_${SUPPORTED_GITHUB_CLI_VERSION}_checksums.txt`,
   },
+  darwin: {
+    name:
+      process.arch === "arm64"
+        ? `gh_${SUPPORTED_GITHUB_CLI_VERSION}_macOS_arm64.zip`
+        : `gh_${SUPPORTED_GITHUB_CLI_VERSION}_macOS_amd64.zip`,
+    checksumName: `gh_${SUPPORTED_GITHUB_CLI_VERSION}_checksums.txt`,
+  },
 };
 
 const GITHUB_CHECKSUMS_SHA256 =
-  "0af03f03d2952a1e1c5bc658cecefef507af521929b5a7d0b267a09df2a1df18";
+  "275b90ae8a642fb8bdf4f21d7673e34643a445f7993f1821ac917ff8a2cc4db9";
 
 async function ensureManagedGitHubCli({
   repoRoot,

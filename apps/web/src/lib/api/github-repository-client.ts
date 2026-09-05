@@ -177,7 +177,9 @@ function isCredentialStatus(value: unknown): value is ProviderCredentialStatus {
   const account = item.account as Record<string, unknown>;
   return (
     (item.provider === CREDENTIAL_PROVIDERS.github ||
-      item.provider === CREDENTIAL_PROVIDERS.gitlab) &&
+      item.provider === CREDENTIAL_PROVIDERS.gitlab ||
+      item.provider === CREDENTIAL_PROVIDERS.bitbucket ||
+      item.provider === CREDENTIAL_PROVIDERS.azureDevOps) &&
     (item.configured === false ||
       (item.configured === true &&
         typeof account?.id === "string" &&

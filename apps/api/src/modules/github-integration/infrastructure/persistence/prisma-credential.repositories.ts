@@ -35,10 +35,7 @@ export class PrismaProviderCredentialRepository implements ProviderCredentialRep
     await this.client.providerCredential.create({
       data: {
         ...record,
-        provider:
-          record.provider === CREDENTIAL_PROVIDERS.gitlab
-            ? PrismaCredentialProvider.GITLAB
-            : PrismaCredentialProvider.GITHUB,
+        provider: toPrismaCredentialProvider(record.provider),
         status: toCredentialStatus(record.status),
         isActive: true,
       },
@@ -130,10 +127,7 @@ export class PrismaProviderCredentialRepository implements ProviderCredentialRep
     return row
       ? {
           id: row.id,
-          provider:
-            row.provider === PrismaCredentialProvider.GITLAB
-              ? CREDENTIAL_PROVIDERS.gitlab
-              : CREDENTIAL_PROVIDERS.github,
+          provider: fromPrismaCredentialProvider(row.provider),
           ownerUserId: row.ownerUserId,
           providerAccountId: row.providerAccountId,
           providerLogin: row.providerLogin,
@@ -226,10 +220,7 @@ function toRecord(row: {
 }): ProviderCredentialRecord {
   return {
     id: row.id,
-    provider:
-      row.provider === PrismaCredentialProvider.GITLAB
-        ? CREDENTIAL_PROVIDERS.gitlab
-        : CREDENTIAL_PROVIDERS.github,
+    provider: fromPrismaCredentialProvider(row.provider),
     ownerUserId: row.ownerUserId,
     providerAccountId: row.providerAccountId,
     providerLogin: row.providerLogin,
@@ -240,12 +231,34 @@ function toRecord(row: {
   };
 }
 
+function fromPrismaCredentialProvider(
+  provider: PrismaCredentialProvider,
+): CredentialProvider {
+  switch (provider) {
+    case PrismaCredentialProvider.GITLAB:
+      return CREDENTIAL_PROVIDERS.gitlab;
+    case PrismaCredentialProvider.BITBUCKET:
+      return CREDENTIAL_PROVIDERS.bitbucket;
+    case PrismaCredentialProvider.AZURE_DEVOPS:
+      return CREDENTIAL_PROVIDERS.azureDevOps;
+    default:
+      return CREDENTIAL_PROVIDERS.github;
+  }
+}
+
 function toPrismaCredentialProvider(
   provider: CredentialProvider,
 ): PrismaCredentialProvider {
-  return provider === CREDENTIAL_PROVIDERS.gitlab
-    ? PrismaCredentialProvider.GITLAB
-    : PrismaCredentialProvider.GITHUB;
+  switch (provider) {
+    case CREDENTIAL_PROVIDERS.gitlab:
+      return PrismaCredentialProvider.GITLAB;
+    case CREDENTIAL_PROVIDERS.bitbucket:
+      return PrismaCredentialProvider.BITBUCKET;
+    case CREDENTIAL_PROVIDERS.azureDevOps:
+      return PrismaCredentialProvider.AZURE_DEVOPS;
+    default:
+      return PrismaCredentialProvider.GITHUB;
+  }
 }
 
 function toCredentialStatus(

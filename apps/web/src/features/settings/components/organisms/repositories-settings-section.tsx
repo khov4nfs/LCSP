@@ -40,22 +40,24 @@ const CONNECTOR_PROVIDER_OPTIONS = [
     supported: true,
   },
   {
-    id: "bitbucket",
+    id: CREDENTIAL_PROVIDERS.bitbucket,
     logo: PROVIDER_LOGOS.bitbucket,
     labelKey: "pages.workspace.settingsHub.repositories.bitbucketProvider",
-    supported: false,
+    supported: true,
   },
   {
-    id: "azure-devops",
+    id: CREDENTIAL_PROVIDERS.azureDevOps,
     logo: PROVIDER_LOGOS.azureDevOps,
     labelKey: "pages.workspace.settingsHub.repositories.azureDevOpsProvider",
-    supported: false,
+    supported: true,
   },
 ] as const;
 
 const SUPPORTED_CREDENTIAL_PROVIDERS = [
   CREDENTIAL_PROVIDERS.github,
   CREDENTIAL_PROVIDERS.gitlab,
+  CREDENTIAL_PROVIDERS.bitbucket,
+  CREDENTIAL_PROVIDERS.azureDevOps,
 ] as const;
 
 type SupportedCredentialProvider = (typeof SUPPORTED_CREDENTIAL_PROVIDERS)[number];

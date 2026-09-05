@@ -34,6 +34,8 @@ import {
 import {
   parseGitHubRepositoryUrl,
   parseGitLabRepositoryUrl,
+  parseBitbucketRepositoryUrl,
+  parseAzureDevOpsRepositoryUrl,
   mapProviderFailure,
 } from "../github-cli-connect.support.js";
 import { ConnectAssessmentRepositoryCommand } from "./connect-assessment-repository.command.js";
@@ -52,26 +54,24 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
 
   async execute(command: ConnectAssessmentRepositoryCommand) {
     if (
-      !this.config.get("githubCredentialPersistence", { infer: true }).enabled
+      !this.config.get("githubCredentialPersistence", { infer: true })
+        .snapshotPinningEnabled
     ) {
       throw problemException(
-        GITHUB_INTEGRATION_ERROR_CODES.cliConnectDisabled,
+        GITHUB_INTEGRATION_ERROR_CODES.cliSnapshotPinningDisabled,
         command.correlationId,
-        { status: HttpStatus.NOT_FOUND },
+        { status: HttpStatus.SERVICE_UNAVAILABLE },
       );
     }
     const assessment = await this.prisma.assessment.findFirst({
-      where: {
-        id: command.assessmentId,
-        ownerId: command.userId,
-      },
+      where: { id: command.assessmentId, ownerId: command.userId },
       select: { id: true, status: true },
     });
     if (!assessment) {
       throw problemException(
-        GITHUB_INTEGRATION_ERROR_CODES.connectionNotFound,
+        GITHUB_INTEGRATION_ERROR_CODES.assessmentStateInvalid,
         command.correlationId,
-        { status: HttpStatus.NOT_FOUND },
+        { status: HttpStatus.BAD_REQUEST },
       );
     }
     if (
@@ -86,12 +86,18 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
     }
     const github = parseGitHubRepositoryUrl(command.repositoryUrl);
     const gitlab = parseGitLabRepositoryUrl(command.repositoryUrl);
+    const bitbucket = parseBitbucketRepositoryUrl(command.repositoryUrl);
+    const azureDevOps = parseAzureDevOpsRepositoryUrl(command.repositoryUrl);
     const provider = github
       ? CREDENTIAL_PROVIDERS.github
       : gitlab
         ? CREDENTIAL_PROVIDERS.gitlab
-        : null;
-    const locator = github ?? gitlab;
+        : bitbucket
+          ? CREDENTIAL_PROVIDERS.bitbucket
+          : azureDevOps
+            ? CREDENTIAL_PROVIDERS.azureDevOps
+            : null;
+    const locator = github ?? gitlab ?? bitbucket ?? azureDevOps;
     if (!provider || !locator) {
       throw problemException(
         GITHUB_INTEGRATION_ERROR_CODES.credentialRequestInvalid,
@@ -117,10 +123,7 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
       } catch (error: unknown) {
         mapProviderFailure(error, command.correlationId);
       }
-      const mode =
-        provider === CREDENTIAL_PROVIDERS.github
-          ? RepositoryAuthenticationMode.GITHUB_CLI_CREDENTIAL
-          : RepositoryAuthenticationMode.GITLAB_CLI_CREDENTIAL;
+      const mode = toAuthMode(provider);
       const existing = await this.prisma.repositoryConnection.findFirst({
         where: {
           assessmentId: command.assessmentId,
@@ -184,5 +187,20 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
     data: Prisma.RepositoryConnectionCreateArgs["data"],
   ): Promise<unknown> {
     return transaction.database.repositoryConnection.create({ data });
+  }
+}
+
+function toAuthMode(
+  provider: (typeof CREDENTIAL_PROVIDERS)[keyof typeof CREDENTIAL_PROVIDERS],
+): RepositoryAuthenticationMode {
+  switch (provider) {
+    case CREDENTIAL_PROVIDERS.github:
+      return RepositoryAuthenticationMode.GITHUB_CLI_CREDENTIAL;
+    case CREDENTIAL_PROVIDERS.gitlab:
+      return RepositoryAuthenticationMode.GITLAB_CLI_CREDENTIAL;
+    case CREDENTIAL_PROVIDERS.bitbucket:
+      return RepositoryAuthenticationMode.BITBUCKET_CLI_CREDENTIAL;
+    case CREDENTIAL_PROVIDERS.azureDevOps:
+      return RepositoryAuthenticationMode.AZURE_DEVOPS_CLI_CREDENTIAL;
   }
 }

@@ -40,18 +40,8 @@ export class ListAuthRepositoriesHandler {
       ok: true,
       repositories: connections.map((connection) => ({
         id: connection.id,
-        provider:
-          connection.provider === PrismaCredentialProvider.GITLAB
-            ? CREDENTIAL_PROVIDERS.gitlab
-            : CREDENTIAL_PROVIDERS.github,
-        authentication_mode:
-          connection.authenticationMode ===
-          RepositoryAuthenticationMode.GITHUB_APP
-            ? REPOSITORY_AUTHENTICATION_MODES.githubApp
-            : connection.authenticationMode ===
-                RepositoryAuthenticationMode.GITLAB_CLI_CREDENTIAL
-              ? REPOSITORY_AUTHENTICATION_MODES.gitlabCliCredential
-              : REPOSITORY_AUTHENTICATION_MODES.githubCliCredential,
+        provider: fromPrismaProvider(connection.provider),
+        authentication_mode: fromPrismaAuthMode(connection.authenticationMode),
         installation_id: connection.installationId,
         repository_name: connection.repositoryName,
         repository_full_name: connection.repositoryFullName,
@@ -65,5 +55,37 @@ export class ListAuthRepositoriesHandler {
           : null,
       })),
     };
+  }
+}
+
+function fromPrismaProvider(
+  provider: PrismaCredentialProvider,
+): (typeof CREDENTIAL_PROVIDERS)[keyof typeof CREDENTIAL_PROVIDERS] {
+  switch (provider) {
+    case PrismaCredentialProvider.GITLAB:
+      return CREDENTIAL_PROVIDERS.gitlab;
+    case PrismaCredentialProvider.BITBUCKET:
+      return CREDENTIAL_PROVIDERS.bitbucket;
+    case PrismaCredentialProvider.AZURE_DEVOPS:
+      return CREDENTIAL_PROVIDERS.azureDevOps;
+    default:
+      return CREDENTIAL_PROVIDERS.github;
+  }
+}
+
+function fromPrismaAuthMode(
+  mode: RepositoryAuthenticationMode,
+): (typeof REPOSITORY_AUTHENTICATION_MODES)[keyof typeof REPOSITORY_AUTHENTICATION_MODES] {
+  switch (mode) {
+    case RepositoryAuthenticationMode.GITHUB_APP:
+      return REPOSITORY_AUTHENTICATION_MODES.githubApp;
+    case RepositoryAuthenticationMode.GITLAB_CLI_CREDENTIAL:
+      return REPOSITORY_AUTHENTICATION_MODES.gitlabCliCredential;
+    case RepositoryAuthenticationMode.BITBUCKET_CLI_CREDENTIAL:
+      return REPOSITORY_AUTHENTICATION_MODES.bitbucketCliCredential;
+    case RepositoryAuthenticationMode.AZURE_DEVOPS_CLI_CREDENTIAL:
+      return REPOSITORY_AUTHENTICATION_MODES.azureDevOpsCliCredential;
+    default:
+      return REPOSITORY_AUTHENTICATION_MODES.githubCliCredential;
   }
 }
