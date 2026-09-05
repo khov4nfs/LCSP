@@ -1,5 +1,19 @@
 import type { PagesMessages } from "../../types.ts";
 export const viPages = {
+  artifacts: {
+    title: "Artifacts",
+    newArtifact: "Artifact mới",
+    loading: "Đang tải artifacts...",
+    emptyTitle: "Chưa có artifact",
+    emptyDescription: "Tạo assessment để bắt đầu xây dựng artifact tuân thủ.",
+    open: "Mở",
+    search: "Tìm artifact",
+    searchPlaceholder: "Tìm artifact...",
+    closeSearch: "Đóng tìm kiếm",
+    tabs: { all: "Tất cả", yours: "Của bạn", shared_with_you: "Được chia sẻ với bạn" },
+    status: { ready: "Sẵn sàng", waiting: "Đang chờ", updating: "Đang cập nhật", paused: "Tạm dừng", unavailable: "Không khả dụng" },
+    types: { businessContext: "Bối cảnh nghiệp vụ", programEvidenceGraph: "Đồ thị bằng chứng", investigationNotes: "Ghi chú điều tra" },
+  },
   appShell: {
     productName: "LCSP",
     backToWebsite: "Back to website",

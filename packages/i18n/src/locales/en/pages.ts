@@ -1,5 +1,19 @@
 import type { PagesMessages } from "../../types.ts";
 export const enPages = {
+  artifacts: {
+    title: "Artifacts",
+    newArtifact: "New artifact",
+    loading: "Loading artifacts...",
+    emptyTitle: "No artifacts yet",
+    emptyDescription: "Create an assessment to start building compliance artifacts.",
+    open: "Open",
+    search: "Search artifacts",
+    searchPlaceholder: "Search artifacts...",
+    closeSearch: "Close search",
+    tabs: { all: "All", yours: "Yours", shared_with_you: "Shared with you" },
+    status: { ready: "Ready", waiting: "Waiting", updating: "Updating", paused: "Paused", unavailable: "Unavailable" },
+    types: { businessContext: "Business context", programEvidenceGraph: "Evidence graph", investigationNotes: "Investigation notes" },
+  },
   appShell: {
     productName: "LCSP",
     backToWebsite: "Back to website",

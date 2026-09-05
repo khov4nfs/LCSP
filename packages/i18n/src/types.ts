@@ -38,6 +38,20 @@ export type CommonMessages = {
 };
 
 export type PagesMessages = {
+  artifacts: {
+    title: string;
+    newArtifact: string;
+    loading: string;
+    emptyTitle: string;
+    emptyDescription: string;
+    open: string;
+    search: string;
+    searchPlaceholder: string;
+    closeSearch: string;
+    tabs: { all: string; yours: string; shared_with_you: string };
+    status: { ready: string; waiting: string; updating: string; paused: string; unavailable: string };
+    types: { businessContext: string; programEvidenceGraph: string; investigationNotes: string };
+  };
   appShell: {
     productName: string;
     backToWebsite: string;

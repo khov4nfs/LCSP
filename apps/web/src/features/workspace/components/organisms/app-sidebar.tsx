@@ -67,6 +67,7 @@ export function AppSidebar({
     [assessments, filters],
   );
   const newActive = pathname === "/assessments/new";
+  const artifactsActive = pathname === "/artifacts" || pathname.startsWith("/artifacts/");
 
   function updateFilter<Value extends string>(
     key: RecentFilterKey,
@@ -105,13 +106,14 @@ export function AppSidebar({
           variant={SIDEBAR_NAV_ITEM_VARIANTS.new}
         />
         <SidebarNavItem
-          ariaLabel={resolveAppMessage("pages.appShell.artifactsUnavailable")}
+          active={artifactsActive}
           className="mt-3"
-          disabled
+          href="/artifacts"
           icon={<SwatchBookIcon className="size-4" />}
           label={resolveAppMessage("pages.appShell.artifacts")}
-          tooltip={resolveAppMessage("pages.appShell.artifactsUnavailable")}
+          tooltip={resolveAppMessage("pages.appShell.artifacts")}
           variant={SIDEBAR_NAV_ITEM_VARIANTS.nav}
+          onNavigate={onNavigate}
         />
       </div>
 
