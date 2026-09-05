@@ -1,11 +1,17 @@
 import {
+  ASSESSMENT_CONTEXT_AUTHORITY_STATUSES,
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
+  ASSESSMENT_INTERVIEW_FLAGS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
+  type AssessmentContextAuthorityStatus,
   type AssessmentInterviewAnswerInput,
+  type AssessmentInterviewAuditRef,
   type AssessmentInterviewBlockedInput,
+  type AssessmentInterviewFlag,
   type AssessmentInterviewQuestion,
+  type AssessmentInterviewQuestionChoice,
   type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
 
@@ -53,6 +59,7 @@ export function sanitizeAssessmentInterviewState(
     return null;
   }
   const question = sanitizeQuestion(record.activeQuestion);
+  const audit = sanitizeAudit(record.audit);
   return {
     outcome: record.outcome,
     activeQuestion: question ?? undefined,
@@ -60,7 +67,10 @@ export function sanitizeAssessmentInterviewState(
       ? record.blockedActions.filter(isBlockedAction)
       : undefined,
     flags: Array.isArray(record.flags)
-      ? record.flags.filter((item): item is never => typeof item === "string")
+      ? record.flags.filter(isFlag)
+      : undefined,
+    contextAuthority: isContextAuthority(record.contextAuthority)
+      ? record.contextAuthority
       : undefined,
     threadId: typeof record.threadId === "string" ? record.threadId : undefined,
     contextRevision:
@@ -74,9 +84,7 @@ export function sanitizeAssessmentInterviewState(
     answerHistory: Array.isArray(record.answerHistory)
       ? record.answerHistory.filter(isAnswerHistoryItem)
       : undefined,
-    audit: objectRecord(record.audit)
-      ? (record.audit as AssessmentInterviewRuntimeState["audit"])
-      : undefined,
+    audit: audit ?? undefined,
   };
 }
 
@@ -91,22 +99,85 @@ function sanitizeQuestion(value: unknown): AssessmentInterviewQuestion | null {
   ) {
     return null;
   }
-  return {
+  const question: AssessmentInterviewQuestion = {
     id: record.id,
     intent: record.intent,
     control: record.control,
     prompt: record.prompt,
-    choices: Array.isArray(record.choices)
-      ? record.choices.filter(isQuestionChoice)
-      : undefined,
-    priorAnswerSummary:
-      typeof record.priorAnswerSummary === "string"
-        ? record.priorAnswerSummary
-        : undefined,
-    whyEvidenceRefs: Array.isArray(record.whyEvidenceRefs)
-      ? record.whyEvidenceRefs.filter((item): item is string => typeof item === "string")
-      : undefined,
   };
+  if (typeof record.needId === "string") {
+    question.needId = record.needId;
+  }
+  if (Array.isArray(record.choices)) {
+    question.choices = record.choices.map(sanitizeQuestionChoice).filter(isDefined);
+  }
+  if (typeof record.priorAnswerSummary === "string") {
+    question.priorAnswerSummary = record.priorAnswerSummary;
+  }
+  if (Array.isArray(record.whyEvidenceRefs)) {
+    question.whyEvidenceRefs = record.whyEvidenceRefs.filter((item): item is string => typeof item === "string");
+  }
+  return question;
+}
+
+function sanitizeQuestionChoice(
+  value: unknown,
+): AssessmentInterviewQuestionChoice | null {
+  const record = objectRecord(value);
+  if (!record || typeof record.id !== "string" || typeof record.label !== "string") {
+    return null;
+  }
+  const choice: AssessmentInterviewQuestionChoice = {
+    id: record.id,
+    label: record.label,
+  };
+  if (typeof record.description === "string") {
+    choice.description = record.description;
+  }
+  if (typeof record.requiresFreeText === "boolean") {
+    choice.requiresFreeText = record.requiresFreeText;
+  }
+  return choice;
+}
+
+function sanitizeAudit(value: unknown): AssessmentInterviewAuditRef | null {
+  const record = objectRecord(value);
+  if (
+    !record ||
+    typeof record.authenticatedActorId !== "string" ||
+    typeof record.timestamp !== "string" ||
+    typeof record.assessmentId !== "string" ||
+    typeof record.sourceVersion !== "string" ||
+    typeof record.pgeVersion !== "string" ||
+    typeof record.sessionId !== "string" ||
+    typeof record.turnId !== "string" ||
+    typeof record.contextRevision !== "number"
+  ) {
+    return null;
+  }
+  const audit: AssessmentInterviewAuditRef = {
+    authenticatedActorId: record.authenticatedActorId,
+    timestamp: record.timestamp,
+    assessmentId: record.assessmentId,
+    sourceVersion: record.sourceVersion,
+    pgeVersion: record.pgeVersion,
+    sessionId: record.sessionId,
+    turnId: record.turnId,
+    contextRevision: record.contextRevision,
+  };
+  if (typeof record.priorRevision === "number") {
+    audit.priorRevision = record.priorRevision;
+  }
+  if (typeof record.newRevision === "number") {
+    audit.newRevision = record.newRevision;
+  }
+  if (typeof record.relatedQuestionId === "string") {
+    audit.relatedQuestionId = record.relatedQuestionId;
+  }
+  if (Array.isArray(record.governedEvidenceRefs)) {
+    audit.governedEvidenceRefs = record.governedEvidenceRefs.filter((item): item is string => typeof item === "string");
+  }
+  return audit;
 }
 
 function isAnswerHistoryItem(
@@ -120,13 +191,6 @@ function isAnswerHistoryItem(
     typeof record.actorId === "string" &&
     typeof record.summary === "string"
   );
-}
-
-function isQuestionChoice(
-  value: unknown,
-): value is NonNullable<AssessmentInterviewQuestion["choices"]>[number] {
-  const record = objectRecord(value);
-  return !!record && typeof record.id === "string" && typeof record.label === "string";
 }
 
 function isOutcome(value: unknown): value is AssessmentInterviewRuntimeState["outcome"] {
@@ -151,10 +215,28 @@ function isQuestionControl(
   );
 }
 
-function isBlockedAction(value: unknown): value is NonNullable<AssessmentInterviewRuntimeState["blockedActions"]>[number] {
+function isBlockedAction(
+  value: unknown,
+): value is NonNullable<AssessmentInterviewRuntimeState["blockedActions"]>[number] {
   return Object.values(ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS).includes(
     value as NonNullable<AssessmentInterviewRuntimeState["blockedActions"]>[number],
   );
+}
+
+function isFlag(value: unknown): value is AssessmentInterviewFlag {
+  return Object.values(ASSESSMENT_INTERVIEW_FLAGS).includes(
+    value as AssessmentInterviewFlag,
+  );
+}
+
+function isContextAuthority(value: unknown): value is AssessmentContextAuthorityStatus {
+  return Object.values(ASSESSMENT_CONTEXT_AUTHORITY_STATUSES).includes(
+    value as AssessmentContextAuthorityStatus,
+  );
+}
+
+function isDefined<T>(value: T | null): value is T {
+  return value !== null;
 }
 
 function objectRecord(value: unknown): Record<string, unknown> | null {
@@ -162,3 +244,4 @@ function objectRecord(value: unknown): Record<string, unknown> | null {
     ? (value as Record<string, unknown>)
     : null;
 }
+
