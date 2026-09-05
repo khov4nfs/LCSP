@@ -9,6 +9,10 @@ from tools.common.capabilities.managed.boundary import AgentBoundaryBase
 from tools.common.capabilities.workflow.recovery.post_guard_continuation import (
     PostGuardContinuationStore,
 )
+from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
+    ConfirmedStructuredBusinessContext,
+    normalize_confirmed_structured_business_context,
+)
 
 INTERVIEW_RESUME_COMMAND = "command.assessment-interview.resume-agent.v1"
 CURRENT_CONTEXT = "CURRENT"
@@ -356,13 +360,17 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             raise ValueError(
                 "guarded CONTEXT_RESOLVED is missing authoritative confirmedContext"
             )
+        typed_confirmed_context = normalize_confirmed_structured_business_context(
+            guarded_state,
+            assessment_id=assessment_id,
+        )
         if _has_downstream_impact(guarded_state):
             self._route_downstream_impact_to_orchestration(
                 assessment_id=assessment_id,
                 thread_id=thread_id,
                 context_revision=context_revision,
                 continuation=continuation,
-                confirmed_context=confirmed_context,
+                confirmed_context=typed_confirmed_context,
                 correlationId=correlationId,
             )
             return
@@ -371,7 +379,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             assessment_id=assessment_id,
             context_revision=context_revision,
             continuation=continuation,
-            confirmed_context=confirmed_context,
+            confirmed_context=typed_confirmed_context,
             correlationId=correlationId,
         )
 
@@ -382,7 +390,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         thread_id: str,
         context_revision: int,
         continuation: dict[str, Any],
-        confirmed_context: dict[str, Any],
+        confirmed_context: ConfirmedStructuredBusinessContext,
         correlationId: str,
     ) -> None:
         if self._downstream_impact_handler is not None:
@@ -426,7 +434,9 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                                     "contextRevision": context_revision,
                                     "affectedRuleIds": affected_rule_ids,
                                     "artifactVersions": artifact_versions,
-                                    "confirmedContext": confirmed_context,
+                                    "confirmedContext": (
+                                        confirmed_context.to_prompt_dict()
+                                    ),
                                 },
                                 ensure_ascii=False,
                                 sort_keys=True,
@@ -457,7 +467,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         assessment_id: str,
         context_revision: int,
         continuation: dict[str, Any],
-        confirmed_context: dict[str, Any],
+        confirmed_context: ConfirmedStructuredBusinessContext,
         correlationId: str,
     ) -> None:
         resumer = self._investigator_resumer

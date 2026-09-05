@@ -13,6 +13,10 @@ from model_policy import PLANNER_MODEL_SPEC
 from tools.legal.corpus.engineering_rules.contract.models import EngineeringRule
 from tools.common.capabilities.platform.logging import get_logger
 from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
+from .confirmed_business_context import (
+    ConfirmedStructuredBusinessContext,
+    coerce_confirmed_structured_business_context,
+)
 
 from tools.common.capabilities.assessment.claims.evidence_claim.models import InvestigationPacket
 
@@ -153,6 +157,12 @@ class EngineeringRulePlanDecisionAudit:
     reason_code: str
     basis: tuple[str, ...]
     validation_override: str | None = None
+    interview_context_revision_used: int | None = None
+    confirmed_statement_refs_used: tuple[str, ...] = ()
+    context_limitations_used: tuple[str, ...] = ()
+    source_version_ref: str | None = None
+    pge_version: str | None = None
+    guidance_version: str | None = None
 
 
 @dataclass(frozen=True)
@@ -163,6 +173,26 @@ class EngineeringRulePlan:
     skipped_rule_ids: tuple[str, ...]
     fallback_used: bool = False
     decision_audit: tuple[EngineeringRulePlanDecisionAudit, ...] = ()
+
+    @property
+    def context_provenance(self) -> dict[str, Any]:
+        for row in self.decision_audit:
+            if row.interview_context_revision_used is not None:
+                return {
+                    "interviewContextRevisionUsed": row.interview_context_revision_used,
+                    "confirmedStatementRefsUsed": list(
+                        row.confirmed_statement_refs_used
+                    ),
+                    "contextLimitationsUsed": list(row.context_limitations_used),
+                    "sourceVersionRef": row.source_version_ref,
+                    "pgeVersion": row.pge_version,
+                    "guidanceVersion": row.guidance_version,
+                    "authority": "CUSTOMER_CONFIRMED_CONFIRMED_ONLY",
+                    "orchestrationStalenessPolicy": (
+                        "RECORDED_ONLY_PLANNER_DOES_NOT_CHOOSE_RERUN_GRANULARITY"
+                    ),
+                }
+        return {}
 
 
 class EngineeringRulePlanner:
@@ -180,7 +210,9 @@ class EngineeringRulePlanner:
         self,
         *,
         candidates: Iterable[EngineeringRulePlanningCandidate],
-        confirmed_customer_context: dict[str, Any] | None,
+        confirmed_customer_context: ConfirmedStructuredBusinessContext
+        | dict[str, Any]
+        | None,
         graph: ProgramEvidenceGraph,
         workflow_run_id: str,
         correlation_id: str | None = None,
@@ -189,6 +221,10 @@ class EngineeringRulePlanner:
         rows = tuple(candidates)
         if not rows:
             return EngineeringRulePlan((), ())
+        confirmed_context = coerce_confirmed_structured_business_context(
+            confirmed_customer_context
+        )
+        provenance = _context_audit_kwargs(confirmed_context)
         if len(rows) == 1:
             rule_id = rows[0].engineering_rule_id
             return EngineeringRulePlan(
@@ -201,6 +237,7 @@ class EngineeringRulePlanner:
                         final_decision="SELECT",
                         reason_code="SINGLE_CANDIDATE",
                         basis=(),
+                        **provenance,
                     ),
                 ),
             )
@@ -223,7 +260,7 @@ class EngineeringRulePlanner:
                             "role": "user",
                             "content": self._prompt(
                                 rows,
-                                confirmed_customer_context,
+                                confirmed_context,
                                 graph,
                                 openwiki_context,
                             ),
@@ -239,7 +276,11 @@ class EngineeringRulePlanner:
                     "configurable": {"thread_id": workflow_run_id},
                 },
             )
-            plan = self._validate_plan(rows, response.get("structured_response") or {})
+            plan = self._validate_plan(
+                rows,
+                response.get("structured_response") or {},
+                confirmed_context=confirmed_context,
+            )
             requested = Counter(row.requested_decision for row in plan.decision_audit)
             reasons = Counter(row.reason_code or "MISSING" for row in plan.decision_audit)
             basis = Counter(value for row in plan.decision_audit for value in row.basis)
@@ -287,6 +328,7 @@ class EngineeringRulePlanner:
                         reason_code="PLANNER_FAILURE",
                         basis=(),
                         validation_override="FALLBACK_ALL",
+                        **provenance,
                     )
                     for row in rows
                 ),
@@ -296,6 +338,8 @@ class EngineeringRulePlanner:
     def _validate_plan(
         candidates: tuple[EngineeringRulePlanningCandidate, ...],
         payload: dict[str, Any],
+        *,
+        confirmed_context: ConfirmedStructuredBusinessContext,
     ) -> EngineeringRulePlan:
         known = {row.engineering_rule_id: row for row in candidates}
         raw = payload.get("decisions")
@@ -331,6 +375,7 @@ class EngineeringRulePlanner:
         selected: list[str] = []
         skipped: list[str] = []
         audits: dict[str, EngineeringRulePlanDecisionAudit] = {}
+        provenance = _context_audit_kwargs(confirmed_context)
 
         def choose(
             *,
@@ -348,6 +393,7 @@ class EngineeringRulePlanner:
                 reason_code=reason_code or "MISSING",
                 basis=tuple(sorted(basis)),
                 validation_override=override,
+                **provenance,
             )
             (selected if final == "SELECT" else skipped).append(rule_id)
 
@@ -504,12 +550,14 @@ class EngineeringRulePlanner:
     def _prompt(
         cls,
         candidates: tuple[EngineeringRulePlanningCandidate, ...],
-        confirmed_customer_context: dict[str, Any] | None,
+        confirmed_customer_context: ConfirmedStructuredBusinessContext,
         graph: ProgramEvidenceGraph,
         openwiki_context: dict[str, Any] | None = None,
     ) -> str:
         payload = {
-            "confirmedCustomerContext": confirmed_customer_context or {},
+            "confirmedStructuredBusinessContext": (
+                confirmed_customer_context.to_prompt_dict()
+            ),
             "repositoryEvidenceSummary": cls._graph_summary(graph),
             "openWikiArchitectureHints": openwiki_context or {
                 "source": "openwiki",
@@ -527,9 +575,15 @@ class EngineeringRulePlanner:
         return (
             "You are the LCSP EngineeringRule Planner. Select only the technical "
             "EngineeringRules that should be investigated for this assessment using "
-            "both Customer-confirmed context and repository evidence summaries. This is an "
+            "both confirmed structured business context and repository evidence summaries. "
+            "Use only confirmedStructuredBusinessContext.statements where source is "
+            "CUSTOMER_CONFIRMED and resolutionState is CONFIRMED. This is an "
             "investigation-scope plan, not a legal applicability or legal risk-tier "
-            "decision. Never invent rule IDs. Never treat Customer context as stronger "
+            "decision. Never invent rule IDs. Never create, rewrite, or promote Customer "
+            "context; never use raw Interview turns, model strategy traces, learning signals, "
+            "legacy wizard-derived fields, CUSTOMER_STATED, UNCERTAIN, CONFLICTED, "
+            "or SUPERSEDED as factual planning input. Never treat "
+            "Customer context as stronger "
             "than contradictory repository evidence. If scope is uncertain, SELECT "
             "the rule. Treat LegalReasoningContract as the only legal authority: "
             "citationSet, version IDs, jurisdiction, applicabilityCriteria, "
@@ -586,3 +640,16 @@ class EngineeringRulePlanner:
                 }
             },
         }
+
+
+def _context_audit_kwargs(
+    confirmed_context: ConfirmedStructuredBusinessContext,
+) -> dict[str, Any]:
+    return {
+        "interview_context_revision_used": confirmed_context.context_revision,
+        "confirmed_statement_refs_used": confirmed_context.confirmed_statement_refs,
+        "context_limitations_used": confirmed_context.limitations,
+        "source_version_ref": confirmed_context.source_version_ref,
+        "pge_version": confirmed_context.pge_version,
+        "guidance_version": confirmed_context.guidance_version,
+    }

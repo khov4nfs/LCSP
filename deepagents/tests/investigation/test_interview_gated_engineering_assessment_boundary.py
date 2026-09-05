@@ -96,6 +96,33 @@ def _report():
     }
 
 
+def _structured_context(*, revision: int = 2):
+    return {
+        "assessmentId": "assessment-1",
+        "contextRevision": revision,
+        "authority": "CUSTOMER_CONFIRMED_CONFIRMED_ONLY",
+        "statements": [
+            {
+                "statementId": "stmt-decision-authority",
+                "assessmentId": "assessment-1",
+                "topic": "decision_authority",
+                "statement": "human approval",
+                "normalizedValue": "human approval",
+                "scope": {"assessmentId": "assessment-1"},
+                "evidenceRefs": ["evidence:customer:1"],
+                "respondentRef": "actor:authenticated:1",
+                "createdAt": "2026-09-05T00:00:00Z",
+                "source": "CUSTOMER_CONFIRMED",
+                "resolutionState": "CONFIRMED",
+            }
+        ],
+        "limitations": ["customer-confirmed current statements only"],
+        "sourceVersionRef": "snapshot-1:abc123",
+        "pgeVersion": "ter-1:v1",
+        "guidanceVersion": "guidance-1",
+    }
+
+
 def test_default_production_pipeline_uses_managed_targeted_investigator_bridge() -> None:
     boundary = InterviewGatedEngineeringAssessmentBoundary(
         SimpleNamespace(
@@ -170,7 +197,7 @@ def test_guarded_ready_state_is_the_only_initial_path_to_confirmed_context() -> 
         {
             "outcome": "CONTEXT_READY",
             "contextRevision": 2,
-            "confirmedContext": {"decision_authority": "human approval"},
+            "confirmedContext": _structured_context(revision=2),
         }
     )
     dispatcher = FakeDispatcher()
@@ -183,9 +210,38 @@ def test_guarded_ready_state_is_the_only_initial_path_to_confirmed_context() -> 
         correlation_id="corr-1",
     )
 
-    assert result == {"decision_authority": "human approval"}
+    assert result is not None
+    assert result.context_revision == 2
+    assert result.confirmed_statement_refs == ("stmt-decision-authority",)
+    assert result.to_legacy_customer_context()["answers"] == {
+        "decision_authority": "human approval"
+    }
     assert dispatcher.calls == []
     assert api.seeded == []
+
+
+def test_guarded_ready_state_rejects_plain_confirmed_context() -> None:
+    api = FakeApi(
+        {
+            "outcome": "CONTEXT_READY",
+            "contextRevision": 2,
+            "confirmedContext": {"decision_authority": "human approval"},
+        }
+    )
+    dispatcher = FakeDispatcher()
+    boundary = _boundary(api, dispatcher)
+
+    try:
+        boundary._prepare_interview(
+            evidence_report=_report(),
+            evidence_report_id="ter-1",
+            assessment_id="assessment-1",
+            correlation_id="corr-1",
+        )
+    except ValueError as error:
+        assert "confirmed structured" in str(error)
+    else:
+        raise AssertionError("plain dict context must not become Planner authority")
 
 
 def test_existing_waiting_question_never_reboots_initial_interview() -> None:

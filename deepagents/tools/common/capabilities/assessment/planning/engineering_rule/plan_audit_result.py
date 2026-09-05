@@ -22,6 +22,9 @@ class PlannedEngineeringInvestigationResult(EngineeringInvestigationResult):
     def to_assessment_data(self) -> dict[str, Any]:
         payload = super().to_assessment_data()
         decisions = [dict(row) for row in self.planner_decisions]
+        context_provenance = dict(
+            (self.observability or {}).get("planner_context_provenance") or {}
+        )
         payload["planner"] = {
             "fallback_used": self.planner_fallback_used,
             "candidate_count": len(decisions),
@@ -35,6 +38,7 @@ class PlannedEngineeringInvestigationResult(EngineeringInvestigationResult):
                 1 for row in decisions if row.get("validation_override")
             ),
             "authority": "TECHNICAL_INVESTIGATION_SCOPE_ONLY",
+            "context_provenance": context_provenance,
         }
         payload["planner_decisions"] = decisions
         return payload

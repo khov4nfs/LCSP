@@ -12,6 +12,10 @@ from orchestration.context import LCSPRunContext
 from tools.common.capabilities.assessment.investigation.engineering_rule import (
     managed_targeted_investigator as managed,
 )
+from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
+    ConfirmedBusinessContextStatement,
+    ConfirmedStructuredBusinessContext,
+)
 from tools.common.capabilities.workflow.recovery.post_guard_continuation import (
     PostGuardContinuationStore,
 )
@@ -79,6 +83,30 @@ def _program_graph() -> dict[str, Any]:
         "evidence_refs": ["EV-POSTGRES-1"],
         "graph_hash": "sha256:postgres-graph",
     }
+
+
+def _confirmed_context(assessment_id: str) -> ConfirmedStructuredBusinessContext:
+    return ConfirmedStructuredBusinessContext(
+        assessment_id=assessment_id,
+        context_revision=8,
+        statements=(
+            ConfirmedBusinessContextStatement(
+                statement_id="stmt-decision-authority",
+                topic="decision_authority",
+                statement="human",
+                normalized_value="human",
+                scope={"needId": "need-postgres-1"},
+                evidence_refs=("evidence:customer:postgres",),
+                respondent_ref="actor:authenticated-postgres",
+                created_at="2026-09-05T00:00:00Z",
+                supersedes_statement_id=None,
+            ),
+        ),
+        limitations=("customer-confirmed current statements only",),
+        source_version_ref="snapshot-postgres-1:abc123",
+        pge_version="ter-postgres-1:v1",
+        guidance_version="guidance-postgres-1",
+    )
 
 
 def _deterministic_durable_agent_factory(run_counter: list[int]):
@@ -238,7 +266,7 @@ def test_exact_investigator_resume_uses_real_postgres_checkpoint_and_is_replay_s
         assessment_id=context.assessment_id,
         context_revision=8,
         continuation=reconstructed,
-        confirmed_context={"decision_authority": "human"},
+        confirmed_context=_confirmed_context(context.assessment_id),
         correlation_id="corr-postgres-resume",
     )
     assert resumed["executionId"] == execution_id
@@ -255,7 +283,7 @@ def test_exact_investigator_resume_uses_real_postgres_checkpoint_and_is_replay_s
         assessment_id=context.assessment_id,
         context_revision=8,
         continuation=reconstructed,
-        confirmed_context={"decision_authority": "human"},
+        confirmed_context=_confirmed_context(context.assessment_id),
         correlation_id="corr-postgres-replay",
     )
     assert replay["handoff"]["status"] == "READY"
