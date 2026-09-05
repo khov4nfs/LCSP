@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { apiQueryKeys } from "@/lib/api/query-keys";
+import { apiQueryKeys } from "../../../../lib/api/query-keys.ts";
 import {
   parseRuntimeEvent,
   runtimeFingerprint,
