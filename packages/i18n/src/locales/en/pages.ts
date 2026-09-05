@@ -133,12 +133,24 @@ export const enPages = {
     },
   },
   marketing: {
+    metadata: {
+      productTitle: "LCSP | Evidence-grounded AI compliance",
+      productDescription:
+        "Assess AI-enabled systems from repository evidence to verified remediation.",
+      featuresTitle: "Features | LCSP",
+      featuresDescription:
+        "Review repository evidence, human context, findings, remediation, and verification in one workspace.",
+      pricingTitle: "Pricing | LCSP",
+      pricingDescription:
+        "Pay as you go with prepaid LCSP credits and volume discounts.",
+    },
     brandHomeLabel: "LCSP product home",
     footerTagline: "Evidence-grounded AI compliance",
     footer: "",
     nav: {
       label: "Marketing navigation",
       mobileLabel: "Marketing pages",
+      languageSwitcherLabel: "Language",
       product: "Product",
       features: "Features",
       pricing: "Pricing",

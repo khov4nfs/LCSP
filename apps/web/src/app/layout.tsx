@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -44,14 +45,15 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = (await headers()).get("x-lcsp-locale");
   return (
     <html
-      lang="en"
+      lang={locale === "vi" ? "vi" : "en"}
       className={`${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >

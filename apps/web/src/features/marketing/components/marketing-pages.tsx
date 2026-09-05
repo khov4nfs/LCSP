@@ -1,3 +1,5 @@
+"use client";
+
 import { resolveMessage } from "@lcsp/i18n";
 import {
   ChevronRightIcon,
@@ -9,10 +11,14 @@ import {
   SquareIcon,
 } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { type ReactNode } from "react";
+import type { Locale } from "@lcsp/contracts/shared/locale";
 
-import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
+import {
+  MarketingLocaleProvider,
+  useMarketingLocale,
+} from "./marketing-locale";
 import { MarketingShell } from "./marketing-shell";
 
 const productQuickActions = [
@@ -184,7 +190,19 @@ const faqItems = [
   ],
 ] as const;
 
-export function ProductMarketingPage() {
+export function ProductMarketingPage({ locale }: { locale: Locale }) {
+  return (
+    <MarketingLocaleProvider locale={locale}>
+      <ProductMarketingPageContent />
+    </MarketingLocaleProvider>
+  );
+}
+
+function ProductMarketingPageContent() {
+  const locale = useMarketingLocale();
+  const t = (key: string) => resolveMarketingMessage(locale, key);
+  const localizedHref = (path: string) => localizedMarketingHref(locale, path);
+
   return (
     <MarketingShell active="product">
       <div data-figma-node="923:31255" data-figma-name="M01 Overview">
@@ -203,7 +221,7 @@ export function ProductMarketingPage() {
               <SmallPrimaryLink href="/sign-up">
                 {t("pages.marketing.home.primaryCta")}
               </SmallPrimaryLink>
-              <SmallSecondaryLink href="/features">
+              <SmallSecondaryLink href={localizedHref("/features")}>
                 {t("pages.marketing.home.secondaryCta")}
               </SmallSecondaryLink>
             </div>
@@ -319,7 +337,19 @@ export function ProductMarketingPage() {
   );
 }
 
-export function FeaturesMarketingPage() {
+export function FeaturesMarketingPage({ locale }: { locale: Locale }) {
+  return (
+    <MarketingLocaleProvider locale={locale}>
+      <FeaturesMarketingPageContent />
+    </MarketingLocaleProvider>
+  );
+}
+
+function FeaturesMarketingPageContent() {
+  const locale = useMarketingLocale();
+  const t = (key: string) => resolveMarketingMessage(locale, key);
+  const localizedHref = (path: string) => localizedMarketingHref(locale, path);
+
   return (
     <MarketingShell active="features">
       <div data-figma-node="1042:31775" data-figma-name="M02 Features">
@@ -408,7 +438,7 @@ export function FeaturesMarketingPage() {
             <LargePrimaryLink href="/sign-up">
               {t("pages.marketing.nav.getStarted")}
             </LargePrimaryLink>
-            <LargeSecondaryLink href="/pricing">
+            <LargeSecondaryLink href={localizedHref("/pricing")}>
               {t("pages.marketing.features.viewPricing")}
             </LargeSecondaryLink>
           </div>
@@ -418,7 +448,18 @@ export function FeaturesMarketingPage() {
   );
 }
 
-export function PricingMarketingPage() {
+export function PricingMarketingPage({ locale }: { locale: Locale }) {
+  return (
+    <MarketingLocaleProvider locale={locale}>
+      <PricingMarketingPageContent />
+    </MarketingLocaleProvider>
+  );
+}
+
+function PricingMarketingPageContent() {
+  const locale = useMarketingLocale();
+  const t = (key: string) => resolveMarketingMessage(locale, key);
+
   return (
     <MarketingShell active="pricing">
       <div data-figma-node="998:31472" data-figma-name="M03 Pricing">
@@ -541,6 +582,9 @@ export function PricingMarketingPage() {
 }
 
 function AssessmentPromptPreview() {
+  const locale = useMarketingLocale();
+  const t = (key: string) => resolveMarketingMessage(locale, key);
+
   return (
     <div className="mx-auto mt-[33px] flex h-auto max-w-[800px] flex-col gap-3 rounded-[28px] border border-border bg-card px-[22px] py-[18px] shadow-[0_8px_28px_rgba(0,0,0,0.05)] md:h-[156px]">
       <div className="flex min-h-[52px] items-center">
@@ -550,7 +594,7 @@ function AssessmentPromptPreview() {
         <Link
           href="/sign-up"
           aria-label={t("pages.marketing.home.primaryCta")}
-          className="flex size-[42px] shrink-0 items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground"
+          className="flex size-[42px] shrink-0 items-center justify-center rounded-full bg-foreground text-lg font-semibold text-primary-foreground"
         >
           <CornerDownLeftIcon
             aria-hidden="true"
@@ -575,6 +619,9 @@ function AssessmentPromptPreview() {
 }
 
 function ProofStrip() {
+  const locale = useMarketingLocale();
+  const t = (key: string) => resolveMarketingMessage(locale, key);
+
   return (
     <div className="mt-[139px] grid border-t border-border pt-6 md:grid-cols-4">
       {productProof.map(([title, detail]) => (
@@ -593,6 +640,9 @@ function ProofStrip() {
 }
 
 function AppShellPreview() {
+  const locale = useMarketingLocale();
+  const t = (key: string) => resolveMarketingMessage(locale, key);
+
   const scannerSteps = [
     ["github", "pages.marketing.home.showcaseStepGithub"],
     ["github", "pages.marketing.home.showcaseStepClone"],
@@ -672,7 +722,7 @@ function AppShellPreview() {
                   key={item}
                   className={cn(
                     "flex items-center gap-2 rounded-lg py-2",
-                    index === 0 ? "bg-accent px-3" : "px-1",
+                    index === 0 ? "bg-muted px-3" : "px-1",
                   )}
                 >
                   <span className="size-1.5 shrink-0 rounded-full border border-border" />
@@ -995,6 +1045,9 @@ function PreviewPanel({ children }: { children: ReactNode }) {
 }
 
 function RepositoryEvidencePreview() {
+  const locale = useMarketingLocale();
+  const t = (key: string) => resolveMarketingMessage(locale, key);
+
   return (
     <PreviewPanel>
       <p className="text-xs font-semibold text-brand">
@@ -1033,6 +1086,9 @@ function RepositoryEvidencePreview() {
 }
 
 function HumanContextPreview() {
+  const locale = useMarketingLocale();
+  const t = (key: string) => resolveMarketingMessage(locale, key);
+
   return (
     <PreviewPanel>
       <p className="text-xs font-semibold text-brand">
@@ -1065,6 +1121,9 @@ function HumanContextPreview() {
 }
 
 function FindingPreview() {
+  const locale = useMarketingLocale();
+  const t = (key: string) => resolveMarketingMessage(locale, key);
+
   return (
     <PreviewPanel>
       <p className="text-xs font-semibold text-brand">
@@ -1097,6 +1156,9 @@ function FindingPreview() {
 }
 
 function RemediationPreview() {
+  const locale = useMarketingLocale();
+  const t = (key: string) => resolveMarketingMessage(locale, key);
+
   return (
     <PreviewPanel>
       <p className="text-xs font-semibold text-brand">
@@ -1156,6 +1218,9 @@ function CreditTopUpCard({
   savingRow: string;
   cta: string;
 }) {
+  const locale = useMarketingLocale();
+  const t = (key: string) => resolveMarketingMessage(locale, key);
+
   return (
     <article className="relative min-h-[560px] rounded-[18px] border border-border bg-background p-[27px]">
       <p className="text-base font-semibold leading-[22px] text-muted-foreground">
@@ -1297,6 +1362,10 @@ function LargeSecondaryLink({
   );
 }
 
-function t(key: string) {
-  return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
+function resolveMarketingMessage(locale: Locale, key: string) {
+  return resolveMessage(locale, key as Parameters<typeof resolveMessage>[1]);
+}
+
+function localizedMarketingHref(locale: Locale, path: string) {
+  return `/${locale}${path}`;
 }

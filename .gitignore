@@ -47,3 +47,5 @@ tmp/
 .corpus/
 .chroma/
 .chorma/
+
+/lcsp-python-workers/output/*

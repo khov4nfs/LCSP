@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 const logoComponentPath = new URL(
   "../src/components/atoms/lcsp-logo.tsx",
@@ -62,7 +63,7 @@ test("marketing product features and pricing share the lockup header", async () 
     shellSource,
     /aria-label=\{t\("pages\.marketing\.brandHomeLabel"\)\}/,
   );
-  assert.match(shellSource, /href="\/"/);
+  assert.match(shellSource, /href=\{`\/\$\{locale\}`\}/);
   assert.match(shellSource, /<LCSPLogo variant="lockup" size="md" \/>/);
   assert.match(shellSource, /<LCSPLogo variant="lockup" size="sm" \/>/);
   assert.doesNotMatch(shellSource, />\s*LCSP\s*</);
@@ -199,7 +200,7 @@ test("production source does not retain temporary Figma asset URLs", async () =>
 });
 
 async function listFiles(root: URL | string): Promise<string[]> {
-  const rootPath = root instanceof URL ? root.pathname : root;
+  const rootPath = root instanceof URL ? fileURLToPath(root) : root;
   const entries = await readdir(rootPath, { withFileTypes: true });
   const files = await Promise.all(
     entries.map(async (entry) => {
