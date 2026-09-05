@@ -2,14 +2,14 @@
 
 import {
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
-  ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   type AssessmentInterviewBlockedAction,
-  type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
 import { resolveMessage } from "@lcsp/i18n";
+import { SaveIcon, TextCursorInputIcon } from "lucide-react";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import {
   useAssessmentInterviewBlockedActionMutation,
   useAssessmentInterviewStateQuery,
@@ -22,6 +22,16 @@ import {
   ASSESSMENT_CHAT_ROLES,
   TOOL_ACTIVITY_STATUSES,
 } from "../../types/assessment-chat.types";
+import {
+  ASSESSMENT_RUNTIME_AVAILABILITIES,
+} from "../../types/assessment-runtime-adapter.types";
+import { useAssessmentRuntimeViewModel } from "../../hooks/use-assessment-runtime-view-model";
+import {
+  selectComposerAvailability,
+  selectCustomerActions,
+  selectInterviewPresentation,
+  selectWorkflowPresentation,
+} from "../../utils/assessment-runtime-selectors";
 import { AgentMessage, AgentTurn } from "../molecules/agent-turn";
 import {
   AssessmentQuestionTurn,
@@ -33,33 +43,37 @@ import {
 } from "../molecules/tool-activity-row";
 import { AssessmentComposer } from "./assessment-composer";
 import { AssessmentTranscript } from "./assessment-transcript";
-import { useWorkspaceRuntime } from "./workspace-runtime-provider";
 
 export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
-  const runtime = useWorkspaceRuntime().getAssessmentRuntime(assessmentId);
+  // Query hook reference preserved for reactivity & test compatibility
   const interviewQuery = useAssessmentInterviewStateQuery(assessmentId);
+  const normalized = useAssessmentRuntimeViewModel(assessmentId);
+  const interview = selectInterviewPresentation(normalized);
+  const workflow = selectWorkflowPresentation(normalized);
+  const customerActions = selectCustomerActions(normalized);
+  const composerAvailability = selectComposerAvailability(normalized);
   const submitAnswer = useSubmitAssessmentInterviewAnswerMutation(assessmentId);
   const recordBlockedAction =
     useAssessmentInterviewBlockedActionMutation(assessmentId);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [lastSavedMessage, setLastSavedMessage] = useState<string | null>(null);
-  const interviewState: AssessmentInterviewRuntimeState =
-    interviewQuery.data ?? {
-      outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
-    };
-  const draft = drafts[assessmentId] ?? interviewState.pendingDraft ?? "";
-  const answerHistory = interviewState.answerHistory ?? [];
+
+  const draft = drafts[assessmentId] ?? interview.pendingDraft ?? "";
+  const answerHistory = interview.answerHistory;
   const autoScrollKey = [
     assessmentId,
-    runtime.latestRunId,
-    runtime.currentRun?.status,
-    runtime.currentRun?.updatedAt,
-    runtime.currentRun?.activeTools
+    workflow.currentRunId,
+    workflow.status,
+    normalized.workflow.latestRun?.updatedAt ?? workflow.lastEmittedAt,
+    // runtime.currentRun?.updatedAt
+    // runtime.currentRun?.activeTools
+    // runtime.recentActivity.map
+    workflow.activeTools
       .map((tool) => `${tool.toolName}:${tool.status}:${tool.startedAt ?? ""}`)
       .join("|"),
-    runtime.recentActivity.map((event) => event.eventId).join("|"),
+    workflow.recentActivity.map((event) => event.eventId).join("|"),
     interviewQuery.dataUpdatedAt,
-    interviewState.activeQuestion?.id,
+    interview.activeQuestion?.id,
     answerHistory.length,
     lastSavedMessage,
   ].join("::");
@@ -77,16 +91,24 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
   }
 
   function handleSubmit() {
-    if (!interviewState.activeQuestion || draft.trim().length === 0) {
+    if (
+      !interview.activeQuestion ||
+      draft.trim().length === 0 ||
+      !customerActions.canSubmitDraft ||
+      !customerActions.canAnswerQuestion
+    ) {
       return;
     }
     handleQuestionAnswer({
-      questionId: interviewState.activeQuestion.id,
+      questionId: interview.activeQuestion.id,
       freeText: draft,
     });
   }
 
   function handleQuestionAnswer(input: AssessmentQuestionAnswerInput) {
+    if (!customerActions.canAnswerQuestion) {
+      return;
+    }
     submitAnswer.mutate(input, {
       onSuccess: () => {
         clearDraft();
@@ -96,6 +118,9 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
   }
 
   function handleBlockedAction(action: AssessmentInterviewBlockedAction) {
+    if (!customerActions.canSubmitBlockedAction) {
+      return;
+    }
     recordBlockedAction.mutate(
       {
         action,
@@ -139,8 +164,8 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
 
         <AgentTurn>
           <ToolActivityList>
-            {runtime.currentRun?.activeTools.length ? (
-              runtime.currentRun.activeTools.map((tool) => (
+            {workflow.activeTools.length ? (
+              workflow.activeTools.map((tool) => (
                 <ToolActivityRow
                   key={`${tool.toolName}:${tool.startedAt ?? tool.attempt ?? "active"}`}
                   label={tool.summary || tool.toolName}
@@ -156,7 +181,7 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
           </ToolActivityList>
         </AgentTurn>
 
-        {runtime.recentActivity.slice(0, 4).map((event) => (
+        {workflow.recentActivity.slice(0, 4).map((event) => (
           <AgentTurn key={event.eventId}>
             <AgentMessage className="text-muted-foreground">
               {event.summary}
@@ -175,12 +200,13 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
           </AgentTurn>
         ))}
 
-        {interviewState.activeQuestion ? (
+        {interview.questionTurnProps ? (
           <AgentTurn
             terminalAction={
               <AssessmentQuestionTurn
-                question={interviewState.activeQuestion}
-                blockedActions={interviewState.blockedActions ?? []}
+                question={interview.questionTurnProps.question}
+                blockedActions={interview.questionTurnProps.blockedActions}
+                disabled={!customerActions.canAnswerQuestion}
                 initialDraft={draft}
                 onDraftChange={persistDraft}
                 onSubmitAnswer={handleQuestionAnswer}
@@ -188,12 +214,48 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
               />
             }
           />
+        ) : interview.isBlocked &&
+          customerActions.canSubmitBlockedAction &&
+          customerActions.availableBlockedActions.length > 0 ? (
+          <AgentTurn
+            terminalAction={
+              <div
+                data-slot="blocked-or-unresolved-actions"
+                className="flex flex-wrap gap-2"
+              >
+                {customerActions.availableBlockedActions.map((action) => (
+                  <Button
+                    key={action}
+                    type="button"
+                    size="sm"
+                    variant={
+                      action === ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit
+                        ? "outline"
+                        : "secondary"
+                    }
+                    onClick={() => handleBlockedAction(action)}
+                  >
+                    {action === ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit ? (
+                      <SaveIcon />
+                    ) : (
+                      <TextCursorInputIcon />
+                    )}
+                    {blockedActionLabel(action)}
+                  </Button>
+                ))}
+              </div>
+            }
+          >
+            <AgentMessage className="text-muted-foreground">
+              {t("pages.assessment.blockedActionRecorded")}
+            </AgentMessage>
+          </AgentTurn>
         ) : (
           <AgentTurn>
             <AgentMessage className="text-muted-foreground">
-              {interviewQuery.isLoading
+              {normalized.availability === ASSESSMENT_RUNTIME_AVAILABILITIES.loading
                 ? t("pages.assessment.loadingInterviewState")
-                : interviewState.orchestrationRequested
+                : interview.orchestrationRequested
                   ? t("pages.assessment.runtimeWaitingForAgent")
                   : t("pages.assessment.noActiveInterviewQuestion")}
             </AgentMessage>
@@ -211,6 +273,9 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
 
       <AssessmentComposer
         value={draft}
+        disabled={!composerAvailability.isEnabled}
+        submitting={submitAnswer.isPending || recordBlockedAction.isPending}
+        placeholder={t(composerAvailability.placeholderKey)}
         onValueChange={persistDraft}
         onSubmit={handleSubmit}
       />
@@ -231,6 +296,17 @@ function runtimeToolStatus(status: string) {
   return TOOL_ACTIVITY_STATUSES.pending;
 }
 
+function blockedActionLabel(action: AssessmentInterviewBlockedAction) {
+  if (action === ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.provideMoreContext) {
+    return t("pages.assessment.blockedProvideMoreContext");
+  }
+  if (action === ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.checkInternally) {
+    return t("pages.assessment.blockedCheckInternally");
+  }
+  return t("pages.assessment.blockedSaveExit");
+}
+
 function t(key: string) {
   return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
 }
+

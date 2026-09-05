@@ -28,6 +28,7 @@ type AssessmentQuestionTurnProps = {
   question: AssessmentInterviewQuestion;
   blockedActions?: AssessmentInterviewBlockedAction[];
   className?: string;
+  disabled?: boolean;
   initialDraft?: string;
   onDraftChange?: (value: string) => void;
   onSubmitAnswer?: (input: AssessmentQuestionAnswerInput) => void;
@@ -47,6 +48,7 @@ export function AssessmentQuestionTurn({
   question,
   blockedActions = [],
   className,
+  disabled = false,
   initialDraft = "",
   onDraftChange,
   onSubmitAnswer,
@@ -66,11 +68,17 @@ export function AssessmentQuestionTurn({
   );
 
   function updateFreeText(value: string) {
+    if (disabled) {
+      return;
+    }
     setFreeText(value);
     onDraftChange?.(value);
   }
 
   function toggleMultiValue(value: string) {
+    if (disabled) {
+      return;
+    }
     setMultiValues((current) => {
       const next = new Set(current);
       if (next.has(value)) {
@@ -83,6 +91,9 @@ export function AssessmentQuestionTurn({
   }
 
   function submitAnswer(input: Partial<AssessmentQuestionAnswerInput> = {}) {
+    if (disabled) {
+      return;
+    }
     const usesSingleValue =
       question.control === ASSESSMENT_INTERVIEW_CONTROLS.singleSelect ||
       question.control === ASSESSMENT_INTERVIEW_CONTROLS.boolean;
@@ -118,6 +129,7 @@ export function AssessmentQuestionTurn({
             <Textarea
               aria-label={question.prompt}
               className="min-h-24 resize-y"
+              disabled={disabled}
               placeholder={t("pages.appShell.chatComposerPlaceholder")}
               value={freeText}
               onChange={(event) => updateFreeText(event.target.value)}
@@ -127,6 +139,7 @@ export function AssessmentQuestionTurn({
           {question.control === ASSESSMENT_INTERVIEW_CONTROLS.boolean ? (
             <ChatSingleSelect
               value={singleValue}
+              disabled={disabled}
               onValueChange={setSingleValue}
               options={[
                 { id: "yes", label: t("pages.assessment.booleanYes") },
@@ -138,6 +151,7 @@ export function AssessmentQuestionTurn({
           {question.control === ASSESSMENT_INTERVIEW_CONTROLS.singleSelect ? (
             <ChatSingleSelect
               value={singleValue}
+              disabled={disabled}
               onValueChange={setSingleValue}
               options={question.choices ?? []}
             />
@@ -152,9 +166,10 @@ export function AssessmentQuestionTurn({
                     key={choice.id}
                     type="button"
                     aria-pressed={selected}
+                    disabled={disabled}
                     onClick={() => toggleMultiValue(choice.id)}
                     className={cn(
-                      "flex min-w-0 items-start gap-3 rounded-xl border px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+                      "flex min-w-0 items-start gap-3 rounded-xl border px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
                       selected
                         ? "border-foreground/20 bg-muted/80"
                         : "border-border/70 bg-background hover:bg-muted/50",
@@ -184,6 +199,7 @@ export function AssessmentQuestionTurn({
               <Button
                 type="button"
                 size="sm"
+                disabled={disabled}
                 onClick={() => submitAnswer({ confirmed: true })}
               >
                 <CheckIcon />
@@ -193,6 +209,7 @@ export function AssessmentQuestionTurn({
                 type="button"
                 size="sm"
                 variant="outline"
+                disabled={disabled}
                 onClick={() => submitAnswer({ adjusted: true })}
               >
                 <Edit3Icon />
@@ -205,6 +222,7 @@ export function AssessmentQuestionTurn({
             <Textarea
               aria-label={t("pages.assessment.otherDescribe")}
               className="mt-3 min-h-20"
+              disabled={disabled}
               placeholder={t("pages.assessment.otherDescribe")}
               value={otherText}
               onChange={(event) => setOtherText(event.target.value)}
@@ -217,6 +235,7 @@ export function AssessmentQuestionTurn({
             type="button"
             size="sm"
             className="mt-3"
+            disabled={disabled}
             onClick={() => submitAnswer()}
           >
             <CheckIcon />

@@ -66,6 +66,8 @@ const managedAgentPythonPath = ".";
 const dockerManagedAgentPythonPath = "/app/deepagents";
 const managedAgentEventsModule = "tools.common.capabilities.managed.rabbitmq_consumer";
 
+const isDarwin = process.platform === "darwin";
+
 const targets = {
   proxy: {
     cwd: repoRoot,
@@ -78,9 +80,11 @@ const targets = {
           "-File",
           "fogewise-dev-launchers/windows/fogewise-dev-windows.ps1",
         ]
-      : ["./fogewise-dev-launchers/fedora/fogewise-dev-fedora.sh"],
+      : isDarwin
+        ? ["./fogewise-dev-launchers/macos/fogewise-dev-macos.command"]
+        : ["./fogewise-dev-launchers/fedora/fogewise-dev-fedora.sh"],
     env: { FOGEWISE_SUBDOMAIN: "lcsp" },
-    description: "Start Fogewise Fedora local proxy (hosts override + Caddy)",
+    description: "Start Fogewise local proxy (hosts override + Caddy)",
   },
   proxy_reset: {
     cwd: repoRoot,
@@ -93,14 +97,16 @@ const targets = {
           "-File",
           "fogewise-dev-launchers/windows/fogewise-local-reset-windows.ps1",
         ]
-      : ["./fogewise-dev-launchers/fedora/fogewise-local-reset-fedora.sh"],
+      : isDarwin
+        ? ["./fogewise-dev-launchers/macos/fogewise-local-reset-macos.command"]
+        : ["./fogewise-dev-launchers/fedora/fogewise-local-reset-fedora.sh"],
     description:
-      "Reset Fogewise Fedora local proxy (remove hosts override + stop Caddy)",
+      "Reset Fogewise local proxy (remove hosts override + stop Caddy)",
     oneshot: true,
   },
   infra: {
     cwd: repoRoot,
-    cmd: isWindows ? "powershell.exe" : "bash",
+    cmd: isWindows ? "powershell.exe" : isDarwin ? "docker" : "bash",
     args: isWindows
       ? [
           "-NoProfile",
@@ -109,13 +115,21 @@ const targets = {
           "-File",
           "fogewise-dev-launchers/windows/fogewise-local-infra-windows.ps1",
         ]
-      : ["./fogewise-dev-launchers/fedora/fogewise-local-infra-fedora.sh"],
+      : isDarwin
+        ? [
+            "compose",
+            "-f",
+            "fogewise-dev-launchers/common/docker-compose.local-infra.yml",
+            "up",
+            "-d",
+          ]
+        : ["./fogewise-dev-launchers/fedora/fogewise-local-infra-fedora.sh"],
     description: "Start local PostgreSQL + RabbitMQ + Redis",
     oneshot: true,
   },
   infra_reset: {
     cwd: repoRoot,
-    cmd: isWindows ? "powershell.exe" : "bash",
+    cmd: isWindows ? "powershell.exe" : isDarwin ? "docker" : "bash",
     args: isWindows
       ? [
           "-NoProfile",
@@ -124,9 +138,17 @@ const targets = {
           "-File",
           "fogewise-dev-launchers/windows/fogewise-local-infra-reset-windows.ps1",
         ]
-      : [
-          "./fogewise-dev-launchers/fedora/fogewise-local-infra-reset-fedora.sh",
-        ],
+      : isDarwin
+        ? [
+            "compose",
+            "-f",
+            "fogewise-dev-launchers/common/docker-compose.local-infra.yml",
+            "down",
+            "-v",
+          ]
+        : [
+            "./fogewise-dev-launchers/fedora/fogewise-local-infra-reset-fedora.sh",
+          ],
     description: "Reset local PostgreSQL + RabbitMQ + Redis",
     oneshot: true,
   },

@@ -12,6 +12,8 @@ export const RECENT_FILTER_STATUSES = {
   all: "all",
 } as const;
 
+import { REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
+
 export const RECENT_FILTER_ACTIVITY = {
   oneDay: "oneDay",
   threeDays: "threeDays",
@@ -26,7 +28,7 @@ export const RECENT_FILTER_GROUPS = {
   unread: "unread",
   state: "state",
   customGroups: "customGroups",
-  none: "none",
+  none: REQUIRED_ACTIONS.none,
 } as const;
 
 export const RECENT_FILTER_SORTS = {

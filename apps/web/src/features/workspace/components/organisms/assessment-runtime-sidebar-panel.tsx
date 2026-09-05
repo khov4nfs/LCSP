@@ -11,6 +11,8 @@ import {
   type WorkspaceRuntimeAssessmentTimeline,
   type WorkspaceRuntimeConnectionState,
 } from "../../types/workspace-runtime.types";
+import { normalizeAssessmentRuntime } from "../../utils/assessment-runtime-adapter";
+import { selectRightSidebarPresentation } from "../../utils/assessment-runtime-selectors";
 import {
   connectionLabel,
   runStatusLabel,
@@ -19,6 +21,7 @@ import {
 } from "../../utils/assessment-runtime-formatter.ts";
 
 export function AssessmentRuntimeSidebarPanel({
+  assessmentId,
   timeline,
 }: {
   assessmentId: string;
@@ -41,27 +44,22 @@ export function AssessmentRuntimeSidebarPanel({
         lastEmittedAt: null,
       };
 
-  const activeRun = isActiveRuntimeStatus(effectiveTimeline.currentRun?.status)
-    ? effectiveTimeline.currentRun
-    : null;
-  const activeActivity =
-    effectiveTimeline.recentActivity.find((item) =>
-      isActiveRuntimeStatus(item.runStatus),
-    ) ?? null;
+  const normalized = normalizeAssessmentRuntime({
+    assessmentId,
+    timeline: effectiveTimeline,
+  });
+  const sidebar = selectRightSidebarPresentation(normalized);
 
-  if (activeRun === null && activeActivity === null) {
+  if (sidebar.activeRun === null && sidebar.activeActivity === null) {
     return null;
   }
 
-  const activeStage = activeRun?.stage ?? activeActivity?.stage ?? null;
-  const activeStatus = activeRun?.status ?? activeActivity?.runStatus ?? null;
+  const activeStage = sidebar.activeStage;
+  const activeStatus = sidebar.activeStatus;
   const activeSummary =
-    activeActivity?.summary ??
+    sidebar.activeSummary ??
     (activeStage === null ? null : stageLabel(activeStage));
-  const activeUpdatedAt =
-    activeActivity?.emittedAt ??
-    activeRun?.updatedAt ??
-    effectiveTimeline.lastEmittedAt;
+  const activeUpdatedAt = sidebar.activeUpdatedAt;
 
   return (
     <div className="mt-3 rounded-lg border border-sidebar-border/70 bg-sidebar-accent/20 p-3">
@@ -131,9 +129,3 @@ function statusBadgeVariant(status: string) {
   return "secondary";
 }
 
-function isActiveRuntimeStatus(status: string | null | undefined): boolean {
-  return (
-    status === ASSESSMENT_RUNTIME_RUN_STATUSES.running ||
-    status === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting
-  );
-}
