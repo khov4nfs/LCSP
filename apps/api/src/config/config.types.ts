@@ -134,4 +134,9 @@ export interface AppConfig {
   email: EmailConfig;
   orchestration: OrchestrationConfig;
   verifiedEpisodes: VerifiedEpisodesConfig;
+  interview: InterviewConfig;
+}
+
+export interface InterviewConfig {
+  guidanceVersion: string;
 }
