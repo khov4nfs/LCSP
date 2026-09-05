@@ -3,6 +3,10 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from tools.common.capabilities.assessment.claims.evidence_claim.models import InvestigationPacket
+from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
+    ConfirmedBusinessContextStatement,
+    ConfirmedStructuredBusinessContext,
+)
 from tools.common.capabilities.assessment.planning.engineering_rule.planning_business_scope import (
     BusinessAwareScopedEngineeringRulePlanningCandidate,
     BusinessAwareScopedMaterialEngineeringRulePlanner,
@@ -50,6 +54,26 @@ def _edge(edge_id: str, edge_type: str, source: str, target: str) -> dict:
         "resolution_state": "OBSERVED",
         "support_refs": [],
     }
+
+
+def _confirmed_context() -> ConfirmedStructuredBusinessContext:
+    return ConfirmedStructuredBusinessContext(
+        assessment_id="assessment-1",
+        context_revision=3,
+        statements=(
+            ConfirmedBusinessContextStatement(
+                statement_id="stmt-sector",
+                topic="sector",
+                statement="FINANCIAL_SERVICES",
+                normalized_value="FINANCIAL_SERVICES",
+                scope={"assessmentId": "assessment-1"},
+                evidence_refs=("evidence:customer:1",),
+                respondent_ref="actor:authenticated:1",
+                created_at="2026-09-05T00:00:00Z",
+                supersedes_statement_id=None,
+            ),
+        ),
+    )
 
 
 def _graph(*, with_human_review: bool = True) -> ProgramEvidenceGraph:
@@ -219,7 +243,7 @@ def test_business_aware_candidate_exposes_semantics_to_planner_prompt() -> None:
 
     prompt = BusinessAwareScopedMaterialEngineeringRulePlanner._prompt(
         (candidate,),
-        {"sector": "FINANCIAL_SERVICES"},
+        _confirmed_context(),
         graph,
     )
     assert "planningBusinessScope" in prompt
@@ -280,7 +304,7 @@ def test_planner_prompt_excludes_internal_llm_runtime_from_graph_summary() -> No
 
     prompt = BusinessAwareScopedMaterialEngineeringRulePlanner._prompt(
         (candidate,),
-        {"sector": "FINANCIAL_SERVICES"},
+        _confirmed_context(),
         graph,
     )
 

@@ -12,6 +12,10 @@ from .managed_targeted_investigator import (
     ManagedTargetedInvestigatorPipeline,
     TargetedInterviewPending,
 )
+from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
+    ConfirmedStructuredBusinessContext,
+    normalize_confirmed_structured_business_context,
+)
 
 
 _TERMINAL_WAITING_OUTCOMES = {
@@ -24,12 +28,16 @@ _TERMINAL_WAITING_OUTCOMES = {
 class _ConfirmedContextPipeline:
     """Inject only server-guarded confirmed Customer context into the existing pipeline."""
 
-    def __init__(self, delegate: Any, confirmed_context: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        delegate: Any,
+        confirmed_context: ConfirmedStructuredBusinessContext,
+    ) -> None:
         self._delegate = delegate
-        self._confirmed_context = dict(confirmed_context)
+        self._confirmed_context = confirmed_context
 
     def run(self, *args: Any, **kwargs: Any) -> Any:
-        kwargs["confirmed_customer_context"] = dict(self._confirmed_context)
+        kwargs["confirmed_customer_context"] = self._confirmed_context
         return self._delegate.run(*args, **kwargs)
 
     def __getattr__(self, name: str) -> Any:
@@ -102,7 +110,7 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
         evidence_report_id: str,
         assessment_id: str,
         correlation_id: str,
-    ) -> dict[str, Any] | None:
+    ) -> ConfirmedStructuredBusinessContext | None:
         coverage_state, coverage_notes = _technical_coverage(evidence_report)
         if coverage_state == "UNAVAILABLE":
             self._route_unavailable_coverage_to_recovery(
@@ -119,8 +127,10 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
         active_question = state.get("activeQuestion")
 
         if outcome == "CONTEXT_READY":
-            confirmed = state.get("confirmedContext")
-            return dict(confirmed) if isinstance(confirmed, dict) else {}
+            return normalize_confirmed_structured_business_context(
+                state,
+                assessment_id=assessment_id,
+            )
 
         if outcome in _TERMINAL_WAITING_OUTCOMES and (
             active_question is not None

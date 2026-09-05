@@ -55,6 +55,7 @@ def test_planner_decision_rationale_is_persisted_in_assessment_data() -> None:
         "skipped_count": 1,
         "validation_override_count": 1,
         "authority": "TECHNICAL_INVESTIGATION_SCOPE_ONLY",
+        "context_provenance": {},
     }
     assert payload["planner_decisions"][0]["engineering_rule_id"] == "eng-selected"
     assert payload["planner_decisions"][0]["validation_override"] == "SOURCE_BASIS_REQUIRED"

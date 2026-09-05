@@ -12,6 +12,10 @@ from tools.common.capabilities.evidence.graph.schema.source_roles import filter_
 from tools.common.capabilities.assessment.investigation.engineering_rule.code_context import CodeContextSession
 from tools.common.capabilities.assessment.investigation.engineering_rule.code_context_investigator import CodeContextLawGuidedInvestigator
 from tools.common.capabilities.assessment.investigation.engineering_rule.deterministic_investigator import DeterministicCodeContextLawGuidedInvestigator
+from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
+    ConfirmedStructuredBusinessContext,
+    coerce_confirmed_structured_business_context,
+)
 from tools.common.capabilities.assessment.planning.engineering_rule.engineering_rule_planner import (
     EngineeringRulePlan,
     EngineeringRulePlanDecisionAudit,
@@ -85,12 +89,36 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         evidence_report: dict[str, Any],
         workflow_run_id: str,
         correlation_id: str | None = None,
-        confirmed_customer_context: dict[str, Any] | None = None,
+        confirmed_customer_context: ConfirmedStructuredBusinessContext
+        | dict[str, Any]
+        | None = None,
         workspace_path: str | Path | None = None,
         recovery_source_crawl_requests: list[dict[str, Any]] | None = None,
         assessment_id: str | None = None,
         user_id: str | None = None,
     ) -> EngineeringInvestigationResult:
+        try:
+            confirmed_context = coerce_confirmed_structured_business_context(
+                confirmed_customer_context
+            )
+        except ValueError as error:
+            logger.warning(
+                "PLANNER_CONFIRMED_STRUCTURED_CONTEXT_REQUIRED",
+                reason=str(error),
+                workflow_run_id=workflow_run_id,
+                correlationId=correlation_id,
+            )
+            return self._blocked_before_llm(
+                catalog_version_id="",
+                corpus_version_id="",
+                rules_considered=0,
+                cache_hits=0,
+                limitations=("CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_REQUIRED",),
+                reason="CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_REQUIRED",
+                workflow_run_id=workflow_run_id,
+                correlation_id=correlation_id,
+            )
+
         raw_graph = self._graph(evidence_report)
         graph = filter_program_evidence_graph(raw_graph)
         if graph.node_count != raw_graph.node_count:
@@ -203,7 +231,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             catalog_version_id=catalog_version_id,
             corpus_version_id=corpus_version_id,
             graph=graph,
-            confirmed_customer_context=confirmed_customer_context,
+            confirmed_customer_context=confirmed_context,
             workflow_run_id=workflow_run_id,
             correlation_id=correlation_id,
         )
@@ -282,7 +310,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                     catalog_version_id=catalog_version_id,
                     corpus_version_id=corpus_version_id,
                     graph=graph,
-                    confirmed_customer_context=confirmed_customer_context,
+                    confirmed_customer_context=confirmed_context,
                     workflow_run_id=workflow_run_id,
                     correlation_id=correlation_id,
                 )
@@ -321,7 +349,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             corpus_version_id=corpus_version_id,
             workflow_run_id=workflow_run_id,
             correlation_id=correlation_id,
-            confirmed_customer_context=confirmed_customer_context,
+            confirmed_customer_context=confirmed_context,
             workspace_path=workspace_path,
             evidence_report=evidence_report,
             assessment_id=assessment_id,
@@ -342,7 +370,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         corpus_version_id: str,
         workflow_run_id: str,
         correlation_id: str | None,
-        confirmed_customer_context: dict[str, Any] | None,
+        confirmed_customer_context: ConfirmedStructuredBusinessContext,
         workspace_path: str | Path | None,
         evidence_report: dict[str, Any],
         assessment_id: str | None,
@@ -423,6 +451,16 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                         reason_code="OPENWIKI_REQUIRED_CONTEXT_UNAVAILABLE",
                         basis=(),
                         validation_override="OPENWIKI_REQUIRED_FALLBACK_ALL",
+                        interview_context_revision_used=(
+                            confirmed_customer_context.context_revision
+                        ),
+                        confirmed_statement_refs_used=(
+                            confirmed_customer_context.confirmed_statement_refs
+                        ),
+                        context_limitations_used=confirmed_customer_context.limitations,
+                        source_version_ref=confirmed_customer_context.source_version_ref,
+                        pge_version=confirmed_customer_context.pge_version,
+                        guidance_version=confirmed_customer_context.guidance_version,
                     )
                     for candidate in candidates
                 ),
@@ -469,8 +507,10 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         user_id: str | None,
     ) -> EngineeringInvestigationResult:
         selected_ids = set(plan.selected_rule_ids)
+        context_provenance = dict(plan.context_provenance)
         observability = {
             **dict(observability),
+            "planner_context_provenance": context_provenance,
             "planner_decision_distribution": {
                 "final_decision_counts": dict(
                     Counter(item.final_decision for item in plan.decision_audit)
@@ -542,6 +582,12 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                     if candidate is not None
                     else {}
                 ),
+                "interviewContextRevisionUsed": audit.interview_context_revision_used,
+                "confirmedStatementRefsUsed": list(audit.confirmed_statement_refs_used),
+                "contextLimitationsUsed": list(audit.context_limitations_used),
+                "sourceVersionRef": audit.source_version_ref,
+                "pgeVersion": audit.pge_version,
+                "guidanceVersion": audit.guidance_version,
             }
             planner_decisions.append(decision_row)
             logger.info(
@@ -833,7 +879,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         catalog_version_id: str,
         corpus_version_id: str,
         graph,
-        confirmed_customer_context: dict[str, Any] | None,
+        confirmed_customer_context: ConfirmedStructuredBusinessContext,
         workflow_run_id: str,
         correlation_id: str | None,
     ) -> tuple[list[str], int, list[tuple[Any, Any]], dict[str, Any]]:
@@ -897,7 +943,9 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 packet = self._query_executor.execute(
                     engineering_rule,
                     graph,
-                    confirmed_customer_context=confirmed_customer_context,
+                    confirmed_customer_context=(
+                        confirmed_customer_context.to_legacy_customer_context()
+                    ),
                 )
                 prepared.append((engineering_rule, packet))
 

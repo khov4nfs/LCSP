@@ -7,6 +7,7 @@ import {
   ASSESSMENT_INTERVIEW_CONTROLS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
+  CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
 } from "@lcsp/contracts/evidence";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
@@ -32,6 +33,38 @@ function jsonRecord(value: unknown): Record<string, unknown> {
     return {};
   }
   return value as Record<string, unknown>;
+}
+
+function confirmedStructuredContext(input: {
+  assessmentId: string;
+  contextRevision: number;
+  topic: string;
+  statement: string;
+}): Record<string, unknown> {
+  return {
+    assessmentId: input.assessmentId,
+    contextRevision: input.contextRevision,
+    authority:
+      CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly,
+    statements: [
+      {
+        statementId: `stmt-${input.topic}`,
+        topic: input.topic,
+        statement: input.statement,
+        normalizedValue: input.statement,
+        scope: { topic: input.topic },
+        evidenceRefs: ["evidence:customer:e2e"],
+        respondentRef: "actor:authenticated:user-1",
+        createdAt: "2026-09-05T00:00:00Z",
+        source: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
+        resolutionState: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
+      },
+    ],
+    limitations: ["customer-confirmed current statements only"],
+    sourceVersionRef: "snap-original",
+    pgeVersion: "ter-original:v1",
+    guidanceVersion: "guidance-e2e-1",
+  };
 }
 
 describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
@@ -623,7 +656,12 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
         contextAuthority:
           ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
-        confirmedContext: { decision_authority: "human operations lead" },
+        confirmedContext: confirmedStructuredContext({
+          assessmentId: "assessment-1",
+          contextRevision: 3,
+          topic: "decision_authority",
+          statement: "human operations lead",
+        }),
         resolutionCriteria: ["forged"],
         continuation: { investigatorExecutionId: "forged-run" },
       });
@@ -638,6 +676,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
         affectedRuleIds: string[];
         artifactVersions: Record<string, string>;
       };
+      confirmedContext: Record<string, unknown>;
     }>(resolved);
     assert.equal(
       resolvedState.outcome,
@@ -660,6 +699,14 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       legalRuleCatalogVersionId: "catalog-original",
       legalCorpusVersionId: "corpus-original",
     });
+    assert.equal(
+      resolvedState.confirmedContext.authority,
+      CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly,
+    );
+    assert.match(
+      JSON.stringify(resolvedState.confirmedContext),
+      /"topic":"decision_authority"/u,
+    );
   });
 
   it("keeps raw saved draft out of Agent-decision runtime events", async () => {

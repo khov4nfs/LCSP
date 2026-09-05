@@ -4,6 +4,10 @@ from tools.common.capabilities.assessment.planning.engineering_rule.engineering_
     EngineeringRulePlanner,
     EngineeringRulePlanningCandidate,
 )
+from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
+    ConfirmedBusinessContextStatement,
+    ConfirmedStructuredBusinessContext,
+)
 
 
 def _candidate(rule_id: str, *, source_hits: int = 0) -> EngineeringRulePlanningCandidate:
@@ -21,6 +25,26 @@ def _candidate(rule_id: str, *, source_hits: int = 0) -> EngineeringRulePlanning
         source_hit_count=source_hits,
         source_evidence_count=source_hits,
         source_node_types=("AI_MODEL_INVOCATION",) if source_hits else (),
+    )
+
+
+def _confirmed_context() -> ConfirmedStructuredBusinessContext:
+    return ConfirmedStructuredBusinessContext(
+        assessment_id="assessment-1",
+        context_revision=3,
+        statements=(
+            ConfirmedBusinessContextStatement(
+                statement_id="stmt-sector",
+                topic="sector",
+                statement="GENERAL_BUSINESS",
+                normalized_value="GENERAL_BUSINESS",
+                scope={"assessmentId": "assessment-1"},
+                evidence_refs=("evidence:customer:1",),
+                respondent_ref="actor:authenticated:1",
+                created_at="2026-09-05T00:00:00Z",
+                supersedes_statement_id=None,
+            ),
+        ),
     )
 
 
@@ -43,6 +67,7 @@ def test_plan_audit_records_requested_and_final_decision() -> None:
                 },
             ]
         },
+        confirmed_context=_confirmed_context(),
     )
 
     assert plan.selected_rule_ids == ("eng-1",)
@@ -74,6 +99,7 @@ def test_plan_audit_explains_source_backed_skip_override() -> None:
                 },
             ]
         },
+        confirmed_context=_confirmed_context(),
     )
 
     audit = plan.decision_audit[0]
