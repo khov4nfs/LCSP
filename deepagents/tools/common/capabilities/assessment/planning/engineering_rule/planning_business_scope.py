@@ -9,6 +9,7 @@ from tools.common.capabilities.evidence.graph.schema.models import ProgramEviden
 from tools.common.capabilities.evidence.graph.query.query_engine import ProgramGraphQueryEngine
 
 from .material_scope import is_internal_llm_runtime_node
+from .confirmed_business_context import ConfirmedStructuredBusinessContext
 from tools.common.capabilities.assessment.claims.evidence_claim.models import InvestigationPacket
 from .planning_scope import (
     ScopedEngineeringRulePlanningCandidate,
@@ -453,7 +454,7 @@ class BusinessAwareScopedMaterialEngineeringRulePlanner(
     def _prompt(
         cls,
         candidates,
-        confirmed_customer_context: dict[str, Any] | None,
+        confirmed_customer_context: ConfirmedStructuredBusinessContext,
         graph: ProgramEvidenceGraph,
         openwiki_context: dict[str, Any] | None = None,
     ) -> str:

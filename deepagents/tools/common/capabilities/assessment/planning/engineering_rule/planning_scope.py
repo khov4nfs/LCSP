@@ -14,6 +14,7 @@ from .material_scope import (
     is_internal_llm_runtime_node,
 )
 from tools.common.capabilities.assessment.claims.evidence_claim.models import InvestigationPacket
+from .confirmed_business_context import ConfirmedStructuredBusinessContext
 
 
 @dataclass(frozen=True)
@@ -142,7 +143,7 @@ class ScopedMaterialEngineeringRulePlanner(MaterialEngineeringRulePlanner):
     def _prompt(
         cls,
         candidates: tuple[EngineeringRulePlanningCandidate, ...],
-        confirmed_customer_context: dict[str, Any] | None,
+        confirmed_customer_context: ConfirmedStructuredBusinessContext,
         graph: ProgramEvidenceGraph,
         openwiki_context: dict[str, Any] | None = None,
     ) -> str:

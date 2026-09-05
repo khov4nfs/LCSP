@@ -19,6 +19,7 @@ import {
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
   ASSESSMENT_RUNTIME_STAGE_CODES,
+  CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
   type AssessmentContextAuthorityStatus,
   type AssessmentInterviewAnswerHistoryItem,
   type AssessmentInterviewAnswerInput,
@@ -72,7 +73,6 @@ const TARGETED_TEXT_LEAK_PATTERNS = [
   /\bthread(?:Id)?\b/iu,
   /\b[a-z0-9_.-]+\/[a-z0-9_./-]+\.(?:ts|tsx|js|jsx|py|java|go|rs)\b/iu,
 ] as const;
-
 export type PrivateInterviewAnswerRevision = {
   questionId: string;
   answer: AssessmentInterviewAnswerInput;
@@ -1597,7 +1597,7 @@ function assertGuardedDecision(
   }
   const context = decision.confirmedContext ?? {};
   const missing = target.resolutionCriteria.filter(
-    (criterion) => !(criterion in context),
+    (criterion) => !confirmedContextSatisfiesCriterion(context, criterion),
   );
   if (missing.length > 0) {
     throw problemException(
@@ -1609,6 +1609,51 @@ function assertGuardedDecision(
       },
     );
   }
+}
+
+function confirmedContextSatisfiesCriterion(
+  context: Record<string, unknown>,
+  criterion: string,
+): boolean {
+  const structuredTopics = confirmedStructuredContextTopics(context);
+  if (structuredTopics) {
+    return structuredTopics.has(criterion);
+  }
+  return Object.hasOwn(context, criterion);
+}
+
+function confirmedStructuredContextTopics(
+  context: Record<string, unknown>,
+): Set<string> | null {
+  if (
+    context.authority !==
+      CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly &&
+    !Array.isArray(context.statements)
+  ) {
+    return null;
+  }
+  if (
+    context.authority !==
+      CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly ||
+    !Array.isArray(context.statements)
+  ) {
+    return new Set();
+  }
+  const topics = new Set<string>();
+  for (const value of context.statements) {
+    const statement = objectRecord(value);
+    if (
+      statement &&
+      statement.source ===
+        ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed &&
+      statement.resolutionState ===
+        ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed &&
+      nonEmptyString(statement.topic)
+    ) {
+      topics.add(statement.topic);
+    }
+  }
+  return topics;
 }
 
 function assertTargetedQuestionBounded(

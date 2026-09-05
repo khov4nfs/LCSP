@@ -57,6 +57,13 @@ export const ASSESSMENT_CONTEXT_AUTHORITY_STATUSES = {
 export type AssessmentContextAuthorityStatus =
   (typeof ASSESSMENT_CONTEXT_AUTHORITY_STATUSES)[keyof typeof ASSESSMENT_CONTEXT_AUTHORITY_STATUSES];
 
+export const CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES = {
+  customerConfirmedConfirmedOnly: "CUSTOMER_CONFIRMED_CONFIRMED_ONLY",
+} as const;
+
+export type ConfirmedStructuredBusinessContextAuthority =
+  (typeof CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES)[keyof typeof CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES];
+
 export const ASSESSMENT_CONTEXT_UPDATE_SOURCES = {
   customer: "CUSTOMER",
   runtime: "RUNTIME",

@@ -9,6 +9,32 @@ from tools.common.capabilities.workflow.recovery.interview_boundary import (
 )
 
 
+def _confirmed_context() -> dict:
+    return {
+        "assessmentId": "assessment-1",
+        "contextRevision": 2,
+        "authority": "CUSTOMER_CONFIRMED_CONFIRMED_ONLY",
+        "statements": [
+            {
+                "statementId": "stmt-decision-authority",
+                "topic": "decision_authority",
+                "statement": "human",
+                "normalizedValue": "human",
+                "scope": {"needId": "need-1"},
+                "evidenceRefs": ["evidence:customer:1"],
+                "respondentRef": "actor:authenticated:1",
+                "createdAt": "2026-09-05T00:00:00Z",
+                "source": "CUSTOMER_CONFIRMED",
+                "resolutionState": "CONFIRMED",
+            }
+        ],
+        "limitations": ["customer-confirmed current statements only"],
+        "sourceVersionRef": "snapshot-1:abc",
+        "pgeVersion": "ter-1:v1",
+        "guidanceVersion": "guidance-1",
+    }
+
+
 WAITING_HANDOFF = {
     "expectedContextRevision": 0,
     "mode": "INITIAL_INTERVIEW",
@@ -327,7 +353,7 @@ def test_context_resolved_resumes_exact_managed_investigator_without_root() -> N
             super().post_interview_agent_decision(assessment_id, payload)
             return {
                 "outcome": "CONTEXT_RESOLVED",
-                "confirmedContext": {"decision_authority": "human"},
+                "confirmedContext": _confirmed_context(),
                 "continuation": continuation,
             }
 
@@ -336,7 +362,7 @@ def test_context_resolved_resumes_exact_managed_investigator_without_root() -> N
         "mode": "TARGETED_INTERVIEW",
         "outcome": "CONTEXT_RESOLVED",
         "contextAuthority": "CUSTOMER_CONFIRMED",
-        "confirmedContext": {"decision_authority": "human"},
+        "confirmedContext": _confirmed_context(),
         "flags": [],
         "blockedActions": [],
         "targetedResolution": {},
@@ -389,13 +415,18 @@ def test_context_resolved_resumes_exact_managed_investigator_without_root() -> N
     assert len(resume_calls) == 1
     call = resume_calls[0]
     assert call["continuation"] is continuation
-    assert call["confirmed_context"] == {"decision_authority": "human"}
+    assert call["confirmed_context"].context_revision == 2
+    assert call["confirmed_context"].to_legacy_customer_context()["answers"] == {
+        "decision_authority": "human"
+    }
     assert call["assessment_id"] == "assessment-1"
     assert call["context_revision"] == 2
     assert len(completion_calls) == 1
     assert completion_calls[0]["resumed_handoff"]["status"] == "READY"
     assert completion_calls[0]["continuation"] is continuation
-    assert completion_calls[0]["confirmed_context"] == {
+    assert completion_calls[0]["confirmed_context"].to_legacy_customer_context()[
+        "answers"
+    ] == {
         "decision_authority": "human"
     }
 
@@ -427,7 +458,7 @@ def test_exact_resume_rejects_wrong_investigator_execution() -> None:
             assessment_id="assessment-1",
             context_revision=2,
             continuation=continuation,
-            confirmed_context={"decision_authority": "human"},
+            confirmed_context=_confirmed_context(),
             correlationId="corr-1",
         )
 

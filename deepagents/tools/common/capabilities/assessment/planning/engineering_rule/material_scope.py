@@ -10,6 +10,7 @@ from tools.legal.corpus.engineering_rules.contract.models import EngineeringRule
 from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
 from tools.common.capabilities.evidence.graph.schema.source_roles import is_material_source_path
 
+from .confirmed_business_context import ConfirmedStructuredBusinessContext
 from .engineering_rule_planner import (
     EngineeringRulePlanner,
     EngineeringRulePlanningCandidate,
@@ -305,7 +306,7 @@ class MaterialEngineeringRulePlanner(EngineeringRulePlanner):
     def _prompt(
         cls,
         candidates: tuple[EngineeringRulePlanningCandidate, ...],
-        confirmed_customer_context: dict[str, Any] | None,
+        confirmed_customer_context: ConfirmedStructuredBusinessContext,
         graph: ProgramEvidenceGraph,
         openwiki_context: dict[str, Any] | None = None,
     ) -> str:
@@ -325,7 +326,9 @@ class MaterialEngineeringRulePlanner(EngineeringRulePlanner):
             }
             rules.append(item)
         payload = {
-            "confirmedCustomerContext": confirmed_customer_context or {},
+            "confirmedStructuredBusinessContext": (
+                confirmed_customer_context.to_prompt_dict()
+            ),
             "repositoryEvidenceSummary": cls._graph_summary(graph),
             "openWikiArchitectureHints": openwiki_context or {
                 "source": "openwiki",
@@ -342,11 +345,15 @@ class MaterialEngineeringRulePlanner(EngineeringRulePlanner):
         }
         return (
             "You are the LCSP EngineeringRule Planner. Plan technical investigation scope only; "
-            "do not decide legal applicability, legal risk tier, or compliance outcome. Use Customer-confirmed "
+            "do not decide legal applicability, legal risk tier, or compliance outcome. Use confirmed structured "
             "facts plus each rule's materialSourceSignal. repositoryEvidenceSummary is broad context "
             "and MUST NOT by itself make a domain/tier-specific rule source-backed. A zero material "
             "hit count means LCSP found no rule-specific trustworthy production trigger; generic AI "
             "presence or INFERRED sensitive-data taxonomy is not a contradiction to Customer context. "
+            "Use only confirmedStructuredBusinessContext.statements with source CUSTOMER_CONFIRMED "
+            "and resolutionState CONFIRMED. Do not use legacy wizard-derived facts, raw Interview "
+            "turns, model strategy traces, learning signals, CUSTOMER_STATED, UNCERTAIN, "
+            "CONFLICTED, or SUPERSEDED as factual planning input. "
             "SELECT when Customer context matches, when a material source signal exists, or when a "
             "concrete unresolved scope fact requires investigation. SKIP healthcare, education, "
             "public-sector, high-risk, medium-risk, prohibited-practice, or other domain-specific "

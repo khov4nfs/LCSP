@@ -65,6 +65,46 @@ ARTIFACT_PINS = {
 }
 
 
+def _confirmed_context(
+    assessment_id: str,
+    topic: str,
+    statement: str,
+    *,
+    revision: int,
+) -> dict[str, Any]:
+    return {
+        'assessmentId': assessment_id,
+        'contextRevision': revision,
+        'authority': 'CUSTOMER_CONFIRMED_CONFIRMED_ONLY',
+        'statements': [
+            {
+                'statementId': f'stmt-{topic}',
+                'topic': topic,
+                'statement': statement,
+                'normalizedValue': statement,
+                'scope': {'topic': topic},
+                'evidenceRefs': ['evidence:customer:release'],
+                'respondentRef': 'actor:authenticated-release',
+                'createdAt': '2026-09-05T00:00:00Z',
+                'source': 'CUSTOMER_CONFIRMED',
+                'resolutionState': 'CONFIRMED',
+            }
+        ],
+        'limitations': ['customer-confirmed current statements only'],
+        'sourceVersionRef': SOURCE_VERSION,
+        'pgeVersion': PGE_VERSION,
+        'guidanceVersion': 'guidance-release-vertical-1',
+    }
+
+
+def _context_answers(context: dict[str, Any]) -> dict[str, Any]:
+    return {
+        str(item['topic']): item.get('normalizedValue', item.get('statement'))
+        for item in context.get('statements') or []
+        if isinstance(item, dict) and item.get('topic')
+    }
+
+
 class _DurableState(TypedDict, total=False):
     messages: Annotated[list[Any], add_messages]
     structured_response: dict[str, Any]
@@ -363,8 +403,9 @@ class _VerticalApi:
             assert self.targeted_need is not None
             assert self.targeted_continuation is not None
             confirmed = payload.get('confirmedContext') or {}
+            answers = _context_answers(confirmed)
             for criterion in self.targeted_need['resolutionCriteria']:
-                assert criterion in confirmed
+                assert criterion in answers
             guarded['continuation'] = dict(self.targeted_continuation)
         self.state = guarded
         if outcome in {'CONTEXT_READY', 'CONTEXT_RESOLVED'}:
@@ -492,9 +533,12 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
                 'mode': 'INITIAL_INTERVIEW',
                 'outcome': 'CONTEXT_READY',
                 'contextAuthority': 'CONFIRMED',
-                'confirmedContext': {
-                    'system_purpose': 'AI-assisted recommendation'
-                },
+                'confirmedContext': _confirmed_context(
+                    assessment_id,
+                    'system_purpose',
+                    'AI-assisted recommendation',
+                    revision=1,
+                ),
                 'flags': [],
                 'blockedActions': [],
                 'targetedResolution': {},
@@ -520,11 +564,12 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
                 'mode': 'TARGETED_INTERVIEW',
                 'outcome': 'CONTEXT_RESOLVED',
                 'contextAuthority': 'CONFIRMED',
-                'confirmedContext': {
-                    'decision_authority': (
-                        'A human manager must approve before action'
-                    )
-                },
+                'confirmedContext': _confirmed_context(
+                    assessment_id,
+                    'decision_authority',
+                    'A human manager must approve before action',
+                    revision=2,
+                ),
                 'flags': [],
                 'blockedActions': [],
                 'targetedResolution': {},
@@ -599,9 +644,13 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
     )
 
     assert planner.calls == 1
-    assert initial_query.confirmed_contexts == [
-        {'system_purpose': 'AI-assisted recommendation'}
-    ]
+    assert initial_query.confirmed_contexts[0]['contextRevision'] == 1
+    assert initial_query.confirmed_contexts[0]['authority'] == (
+        'CUSTOMER_CONFIRMED_CONFIRMED_ONLY'
+    )
+    assert initial_query.confirmed_contexts[0]['answers'] == {
+        'system_purpose': 'AI-assisted recommendation'
+    }
     assert run_counter == [1]
     assert api.targeted_need is not None
     assert api.targeted_need['needId'] == NEED_ID
@@ -675,9 +724,10 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
 
     assert api.state['outcome'] == 'CONTEXT_RESOLVED'
     assert run_counter == [1, 1]
-    assert completion_query.confirmed_contexts == [
-        {'decision_authority': 'A human manager must approve before action'}
-    ]
+    assert completion_query.confirmed_contexts[0]['contextRevision'] == 2
+    assert completion_query.confirmed_contexts[0]['answers'] == {
+        'decision_authority': 'A human manager must approve before action'
+    }
     assert len(api.classification_callbacks) == 1
     callback = api.classification_callbacks[0]
     assert callback.assessment_id == assessment_id

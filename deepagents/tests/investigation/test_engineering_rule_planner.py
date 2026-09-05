@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -20,6 +21,10 @@ from tools.common.capabilities.assessment.claims.evidence_claim.models import (
     InvestigationPacket,
 )
 from tools.common.capabilities.assessment.investigation.engineering_rule.planned_pipeline import PlannedEngineeringInvestigationPipeline
+from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
+    ConfirmedBusinessContextStatement,
+    ConfirmedStructuredBusinessContext,
+)
 from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
 
 
@@ -84,6 +89,37 @@ def _candidate(rule_id: str, *, source_hits: int) -> EngineeringRulePlanningCand
     )
 
 
+def _confirmed_context(
+    *,
+    revision: int = 3,
+    topic: str = "sector",
+    value: object = "GENERAL_BUSINESS",
+) -> ConfirmedStructuredBusinessContext:
+    return ConfirmedStructuredBusinessContext(
+        assessment_id="assessment-1",
+        context_revision=revision,
+        statements=(
+            ConfirmedBusinessContextStatement(
+                statement_id=f"stmt-{topic}",
+                topic=topic,
+                statement=str(value),
+                normalized_value=value,
+                scope={"assessmentId": "assessment-1"},
+                evidence_refs=("evidence:customer:1",),
+                respondent_ref="actor:authenticated:1",
+                created_at="2026-09-05T00:00:00Z",
+                supersedes_statement_id=None,
+            ),
+        ),
+        limitations=("customer confirmed only current statement set",),
+        policy_decision_ref="policy-decision-1",
+        source_version_ref="snapshot-1:abc123",
+        pge_version="pge-1:v1",
+        guidance_version="guidance-1",
+        created_by_actor_ref="actor:runtime:1",
+    )
+
+
 @pytest.fixture
 def native_agent(monkeypatch):
     agent = MagicMock()
@@ -97,6 +133,10 @@ def native_agent(monkeypatch):
 
 def _structured_response(decisions: list[dict]):
     return {"structured_response": {"decisions": decisions}}
+
+
+def _prompt_payload(prompt: str) -> dict:
+    return json.loads(prompt.rsplit("\n\n", 1)[1])
 
 
 def test_planner_selects_only_relevant_rules(native_agent) -> None:
@@ -129,7 +169,7 @@ def test_planner_selects_only_relevant_rules(native_agent) -> None:
             _candidate("eng-general", source_hits=2),
             _candidate("eng-health", source_hits=0),
         ),
-        confirmed_customer_context={"sector": "GENERAL_BUSINESS"},
+        confirmed_customer_context=_confirmed_context(),
         graph=_graph(),
         workflow_run_id="workflow-1",
     )
@@ -165,13 +205,37 @@ def test_planner_cannot_skip_source_backed_rule_using_wizard_only(native_agent) 
             _candidate("eng-source-conflict", source_hits=1),
             _candidate("eng-other", source_hits=0),
         ),
-        confirmed_customer_context={"highImpactIndicators": ["NONE"]},
+        confirmed_customer_context=_confirmed_context(
+            topic="highImpactIndicators",
+            value=["NONE"],
+        ),
         graph=_graph(),
         workflow_run_id="workflow-1",
     )
 
     assert result.selected_rule_ids == ("eng-source-conflict",)
     assert result.skipped_rule_ids == ("eng-other",)
+
+
+def test_planner_decision_audit_records_context_revision_for_orchestration() -> None:
+    result = EngineeringRulePlanner().plan(
+        candidates=(_candidate("eng-single", source_hits=0),),
+        confirmed_customer_context=_confirmed_context(revision=7),
+        graph=_graph(),
+        workflow_run_id="workflow-1",
+    )
+
+    audit = result.decision_audit[0]
+    assert audit.interview_context_revision_used == 7
+    assert audit.confirmed_statement_refs_used == ("stmt-sector",)
+    assert audit.context_limitations_used == (
+        "customer confirmed only current statement set",
+    )
+    assert result.context_provenance["interviewContextRevisionUsed"] == 7
+    assert (
+        result.context_provenance["orchestrationStalenessPolicy"]
+        == "RECORDED_ONLY_PLANNER_DOES_NOT_CHOOSE_RERUN_GRANULARITY"
+    )
 
 
 def test_invalid_plan_falls_back_to_all_candidates(native_agent) -> None:
@@ -193,7 +257,7 @@ def test_invalid_plan_falls_back_to_all_candidates(native_agent) -> None:
             _candidate("eng-1", source_hits=0),
             _candidate("eng-2", source_hits=0),
         ),
-        confirmed_customer_context={},
+        confirmed_customer_context=_confirmed_context(),
         graph=_graph(),
         workflow_run_id="workflow-1",
     )
@@ -206,7 +270,7 @@ def test_invalid_plan_falls_back_to_all_candidates(native_agent) -> None:
 def test_planner_prompt_contains_legal_reasoning_contract() -> None:
     prompt = EngineeringRulePlanner._prompt(
         (_candidate("eng-contract", source_hits=0),),
-        confirmed_customer_context={"sector": "GENERAL_BUSINESS"},
+        confirmed_customer_context=_confirmed_context(),
         graph=_graph(),
     )
 
@@ -214,12 +278,48 @@ def test_planner_prompt_contains_legal_reasoning_contract() -> None:
     assert "citationSet" in prompt
     assert '"legalCorpusVersionId":"corpus-v1"' in prompt
     assert "Do not create legal claims or compliance conclusions" in prompt
+    assert "confirmedStructuredBusinessContext" in prompt
+    assert '"contextRevision":3' in prompt
+    assert '"source":"CUSTOMER_CONFIRMED"' in prompt
+    assert '"resolutionState":"CONFIRMED"' in prompt
+    assert "confirmedCustomerContext" not in prompt
+    assert "wizardContext" not in prompt
+    assert "WizardProfile" not in prompt
+    assert "wizardAnswers" not in prompt
+    assert "readinessWizard" not in prompt
+    assert "raw Interview turns" in prompt
+    assert "legacy wizard-derived fields" in prompt
+    assert "model strategy traces" in prompt
+    assert "learning signals" in prompt
+    payload = _prompt_payload(prompt)
+    assert "confirmedStructuredBusinessContext" in payload
+    assert "wizardContext" not in payload
+    assert "WizardProfile" not in payload
+    assert "rawInterviewTranscript" not in payload
+    assert "WorkingStrategy" not in payload
+    assert "LearningSignals" not in payload
+    statements = payload["confirmedStructuredBusinessContext"]["statements"]
+    assert statements == [
+        {
+            "statementId": "stmt-sector",
+            "topic": "sector",
+            "statement": "GENERAL_BUSINESS",
+            "normalizedValue": "GENERAL_BUSINESS",
+            "scope": {"assessmentId": "assessment-1"},
+            "evidenceRefs": ["evidence:customer:1"],
+            "respondentRef": "actor:authenticated:1",
+            "createdAt": "2026-09-05T00:00:00Z",
+            "supersedesStatementId": None,
+            "source": "CUSTOMER_CONFIRMED",
+            "resolutionState": "CONFIRMED",
+        }
+    ]
 
 
 def test_planner_prompt_treats_openwiki_as_unverified_hint_only() -> None:
     prompt = EngineeringRulePlanner._prompt(
         (_candidate("eng-contract", source_hits=0),),
-        confirmed_customer_context={"sector": "GENERAL_BUSINESS"},
+        confirmed_customer_context=_confirmed_context(),
         graph=_graph(),
         openwiki_context={
             "source": "openwiki",
@@ -352,7 +452,7 @@ def test_planned_pipeline_investigates_only_selected_rule(tmp_path) -> None:
     result = pipeline.run(
         evidence_report=evidence_report,
         workflow_run_id="workflow-1",
-        confirmed_customer_context={"sector": "GENERAL_BUSINESS"},
+        confirmed_customer_context=_confirmed_context(),
         workspace_path=tmp_path,
     )
 
@@ -366,6 +466,35 @@ def test_planned_pipeline_investigates_only_selected_rule(tmp_path) -> None:
         planner.plan.call_args.kwargs["openwiki_context"]["authority"]
         == "UNVERIFIED_ARCHITECTURE_HINT"
     )
+    confirmed_arg = planner.plan.call_args.kwargs["confirmed_customer_context"]
+    assert confirmed_arg.context_revision == 3
+    assert confirmed_arg.confirmed_statement_refs == ("stmt-sector",)
+
+
+def test_planned_pipeline_blocks_without_confirmed_structured_context(tmp_path) -> None:
+    api_client = MagicMock()
+    planner = MagicMock()
+    pipeline = PlannedEngineeringInvestigationPipeline(
+        api_client=api_client,
+        model="test:model",
+        retriever=MagicMock(),
+        rule_service=MagicMock(),
+        query_executor=MagicMock(),
+        investigator=MagicMock(),
+        evaluator=MagicMock(),
+        planner=planner,
+    )
+
+    result = pipeline.run(
+        evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
+        workflow_run_id="workflow-1",
+        workspace_path=tmp_path,
+    )
+
+    assert result.status == "BLOCKED"
+    assert result.limitations == ("CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_REQUIRED",)
+    api_client.get_active_legal_rule_catalog.assert_not_called()
+    planner.plan.assert_not_called()
 
 
 def test_planned_pipeline_falls_back_all_when_openwiki_runtime_context_missing(
@@ -447,7 +576,7 @@ def test_planned_pipeline_falls_back_all_when_openwiki_runtime_context_missing(
     result = pipeline.run(
         evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
         workflow_run_id="workflow-1",
-        confirmed_customer_context={"sector": "GENERAL_BUSINESS"},
+        confirmed_customer_context=_confirmed_context(),
         workspace_path=tmp_path,
     )
 
@@ -528,6 +657,7 @@ def test_planned_pipeline_persists_compile_failure_observability(
     result = pipeline.run(
         evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
         workflow_run_id="workflow-1",
+        confirmed_customer_context=_confirmed_context(),
         workspace_path=tmp_path,
     )
 
@@ -610,6 +740,7 @@ def test_planned_pipeline_recovers_corpus_sources_and_retries_when_no_rules_prep
         evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
         workflow_run_id="workflow-1",
         correlation_id="corr-1",
+        confirmed_customer_context=_confirmed_context(),
         workspace_path=tmp_path,
     )
 
@@ -656,6 +787,7 @@ def test_planned_pipeline_stops_before_planner_when_corpus_triage_still_missing(
         evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
         workflow_run_id="workflow-1",
         correlation_id="corr-1",
+        confirmed_customer_context=_confirmed_context(),
         workspace_path=tmp_path,
     )
 
@@ -707,6 +839,7 @@ def test_planned_pipeline_waits_when_catalog_has_no_source_rules_after_recovery(
         evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
         workflow_run_id="workflow-1",
         correlation_id="corr-1",
+        confirmed_customer_context=_confirmed_context(),
         workspace_path=tmp_path,
     )
 
@@ -884,6 +1017,7 @@ def test_planned_pipeline_stops_before_planner_when_engineering_rule_triage_find
         evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
         workflow_run_id="workflow-1",
         correlation_id="corr-1",
+        confirmed_customer_context=_confirmed_context(),
         workspace_path=tmp_path,
     )
 

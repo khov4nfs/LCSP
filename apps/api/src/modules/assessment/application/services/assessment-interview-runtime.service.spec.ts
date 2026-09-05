@@ -6,6 +6,7 @@ import {
   ASSESSMENT_INTERVIEW_CONTROLS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
+  CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
   type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
@@ -15,6 +16,100 @@ import type { OutboxRepository } from "../../../../platform/outbox/outbox.reposi
 import type { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import type { InterviewAuditService } from "../../../audit/application/services/interview-audit.service.js";
 import { AssessmentInterviewRuntimeService } from "./assessment-interview-runtime.service.js";
+
+function confirmedStructuredContext(input: {
+  assessmentId?: string;
+  contextRevision?: number;
+  topic?: string;
+  source?: string;
+  resolutionState?: string;
+}): Record<string, unknown> {
+  const topic = input.topic ?? "decision_authority";
+  return {
+    assessmentId: input.assessmentId ?? "assessment-1",
+    contextRevision: input.contextRevision ?? 2,
+    authority:
+      CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly,
+    statements: [
+      {
+        statementId: `stmt-${topic}`,
+        topic,
+        statement: "Human approval is required before action.",
+        normalizedValue: "human_approval_required",
+        scope: { needId: "need-1" },
+        evidenceRefs: ["evidence:customer:1"],
+        respondentRef: "actor:authenticated:user-1",
+        createdAt: "2026-09-05T00:00:00Z",
+        source:
+          input.source ??
+          ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
+        resolutionState:
+          input.resolutionState ??
+          ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
+      },
+    ],
+    limitations: ["customer-confirmed current statements only"],
+    sourceVersionRef: "snap-1:sha-123456",
+    pgeVersion: "report-1:v1",
+    guidanceVersion: "guidance-1",
+  };
+}
+
+function targetedResolutionThreadFixture(): Record<string, unknown> {
+  return {
+    assessmentId: "assessment-1",
+    contextRevision: 2,
+    processedRevision: 1,
+    activeQuestionId: null,
+    stateJson: {
+      outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+      contextRevision: 2,
+    },
+    privateContextJson: {
+      revisions: [
+        {
+          questionId: "q-1",
+          answer: { questionId: "q-1", confirmed: true },
+          actorId: "user-1",
+          answeredAt: new Date().toISOString(),
+          contextRevision: 2,
+          priorRevision: 1,
+          authority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
+          questionIntent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
+          questionControl: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+          sourceVersion: "snap-1:sha-123456",
+          pgeVersion: "report-1:v1",
+          governedEvidenceRefs: [],
+        },
+      ],
+      targetedNeed: {
+        needId: "need-1",
+        businessContextNeed: "Who approves this action?",
+        resolutionCriteria: ["decision_authority"],
+        originatingInvestigationReference: "inv-ref-1",
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      },
+      targetedContinuation: {
+        originatingInvestigationReference: "inv-ref-1",
+        investigatorExecutionId: "exec-1",
+        workflowRunId: "run-1",
+        checkpointId: "cp-1",
+        affectedRuleIds: ["ENG-1"],
+        artifactVersions: {
+          technicalEvidenceReportId: "report-1",
+          repositorySnapshotId: "snap-1",
+          legalRuleCatalogVersionId: "catalog-1",
+          legalCorpusVersionId: "corpus-1",
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      },
+    },
+    sourceVersion: "snap-1:sha-123456",
+    pgeVersion: "report-1:v1",
+  };
+}
 
 type MockPrismaDelegates = {
   assessment: {
@@ -788,59 +883,9 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
     });
 
     it("rejects targeted resolution without satisfied criteria", async () => {
-      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
-        assessmentId: "assessment-1",
-        contextRevision: 2,
-        processedRevision: 1,
-        activeQuestionId: null,
-        stateJson: {
-          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
-          contextRevision: 2,
-        },
-        privateContextJson: {
-          revisions: [
-            {
-              questionId: "q-1",
-              answer: { questionId: "q-1", confirmed: true },
-              actorId: "user-1",
-              answeredAt: new Date().toISOString(),
-              contextRevision: 2,
-              priorRevision: 1,
-              authority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
-              questionIntent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
-              questionControl: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
-              sourceVersion: "snap-1:sha-123456",
-              pgeVersion: "report-1:v1",
-              governedEvidenceRefs: [],
-            },
-          ],
-          targetedNeed: {
-            needId: "need-1",
-            businessContextNeed: "Who approves this action?",
-            resolutionCriteria: ["decision_authority"],
-            originatingInvestigationReference: "inv-ref-1",
-            sourceVersion: "snap-1:sha-123456",
-            pgeVersion: "report-1:v1",
-          },
-          targetedContinuation: {
-            originatingInvestigationReference: "inv-ref-1",
-            investigatorExecutionId: "exec-1",
-            workflowRunId: "run-1",
-            checkpointId: "cp-1",
-            affectedRuleIds: ["ENG-1"],
-            artifactVersions: {
-              technicalEvidenceReportId: "report-1",
-              repositorySnapshotId: "snap-1",
-              legalRuleCatalogVersionId: "catalog-1",
-              legalCorpusVersionId: "corpus-1",
-            },
-            sourceVersion: "snap-1:sha-123456",
-            pgeVersion: "report-1:v1",
-          },
-        },
-        sourceVersion: "snap-1:sha-123456",
-        pgeVersion: "report-1:v1",
-      });
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(
+        targetedResolutionThreadFixture(),
+      );
 
       await expect(
         service.recordAgentDecision({
@@ -853,6 +898,79 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
             contextAuthority:
               ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
             confirmedContext: { unrelated: "human" },
+          },
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          ok: false,
+          problem: { code: "INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED" },
+        },
+      });
+    });
+
+    it("accepts targeted resolution criteria from confirmed structured context topics", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(
+        targetedResolutionThreadFixture(),
+      );
+
+      const result = await service.recordAgentDecision({
+        assessmentId: "assessment-1",
+        correlationId: "corr-target-structured-resolved",
+        decision: {
+          expectedContextRevision: 2,
+          mode: "TARGETED_INTERVIEW",
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
+          contextAuthority:
+            ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
+          confirmedContext: confirmedStructuredContext({}),
+        },
+      });
+
+      expect(result).toMatchObject({
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
+        continuation: expect.objectContaining({
+          investigatorExecutionId: "exec-1",
+          checkpointId: "cp-1",
+        }),
+      });
+      const updateCalls = mockTx.assessmentInterviewThread.updateMany.mock
+        .calls as unknown[][];
+      const updateInput = updateCalls[0]?.[0] as {
+        data?: { stateJson?: unknown };
+      };
+      expect(updateInput.data?.stateJson).toMatchObject({
+        confirmedContext: {
+          authority:
+            CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly,
+          statements: [
+            expect.objectContaining({
+              topic: "decision_authority",
+              source: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
+              resolutionState: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
+            }),
+          ],
+        },
+      });
+    });
+
+    it("rejects structured targeted resolution criteria from non-confirmed statements", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(
+        targetedResolutionThreadFixture(),
+      );
+
+      await expect(
+        service.recordAgentDecision({
+          assessmentId: "assessment-1",
+          correlationId: "corr-target-structured-unconfirmed",
+          decision: {
+            expectedContextRevision: 2,
+            mode: "TARGETED_INTERVIEW",
+            outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
+            contextAuthority:
+              ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
+            confirmedContext: confirmedStructuredContext({
+              resolutionState: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.uncertain,
+            }),
           },
         }),
       ).rejects.toMatchObject({

@@ -10,6 +10,32 @@ from tools.common.capabilities.workflow.recovery.post_guard_continuation import 
 )
 
 
+def _confirmed_context() -> dict:
+    return {
+        "assessmentId": "assessment-1",
+        "contextRevision": 2,
+        "authority": "CUSTOMER_CONFIRMED_CONFIRMED_ONLY",
+        "statements": [
+            {
+                "statementId": "stmt-decision-authority",
+                "topic": "decision_authority",
+                "statement": "human",
+                "normalizedValue": "human",
+                "scope": {"needId": "need-1"},
+                "evidenceRefs": ["evidence:customer:1"],
+                "respondentRef": "actor:authenticated:1",
+                "createdAt": "2026-09-05T00:00:00Z",
+                "source": "CUSTOMER_CONFIRMED",
+                "resolutionState": "CONFIRMED",
+            }
+        ],
+        "limitations": ["customer-confirmed current statements only"],
+        "sourceVersionRef": "snapshot-1:abc",
+        "pgeVersion": "ter-1:v1",
+        "guidanceVersion": "guidance-1",
+    }
+
+
 READY_HANDOFF = {
     "mode": "INITIAL_INTERVIEW",
     "outcome": "CONTEXT_READY",
@@ -24,7 +50,7 @@ TARGETED_RESOLVED_HANDOFF = {
     "mode": "TARGETED_INTERVIEW",
     "outcome": "CONTEXT_RESOLVED",
     "contextAuthority": "CONFIRMED",
-    "confirmedContext": {"decision_authority": "human"},
+    "confirmedContext": _confirmed_context(),
     "flags": [],
     "blockedActions": [],
     "targetedResolution": {},
@@ -45,7 +71,6 @@ CONTINUATION = {
     "sourceVersion": "snapshot-1:abc",
     "pgeVersion": "ter-1:v1",
 }
-
 
 def _message(*, targeted: bool = False) -> dict:
     return {
@@ -146,7 +171,7 @@ def test_context_ready_crash_after_guard_retries_without_interview_model() -> No
         "outcome": "CONTEXT_READY",
         "contextRevision": 2,
         "orchestrationRequested": False,
-        "confirmedContext": {"decision_authority": "human"},
+        "confirmedContext": _confirmed_context(),
     }
 
     def successful_downstream(_payload, _correlation_id):
@@ -182,7 +207,7 @@ def test_context_resolved_crash_retries_exact_continuation_without_interview_mod
     api = MutableApi(targeted=True)
     api.decision_result = {
         "outcome": "CONTEXT_RESOLVED",
-        "confirmedContext": {"decision_authority": "human"},
+        "confirmedContext": _confirmed_context(),
         "continuation": dict(CONTINUATION),
         "flags": [],
     }
@@ -230,7 +255,7 @@ def test_context_resolved_crash_retries_exact_continuation_without_interview_mod
         "outcome": "CONTEXT_RESOLVED",
         "contextRevision": 2,
         "orchestrationRequested": False,
-        "confirmedContext": {"decision_authority": "human"},
+        "confirmedContext": _confirmed_context(),
         "flags": [],
     }
 
@@ -264,7 +289,7 @@ def test_downstream_impact_is_orchestration_owned_and_skips_exact_resume() -> No
     api = MutableApi(targeted=True)
     api.decision_result = {
         "outcome": "CONTEXT_RESOLVED",
-        "confirmedContext": {"decision_authority": "human"},
+        "confirmedContext": _confirmed_context(),
         "continuation": dict(CONTINUATION),
         "flags": ["DOWNSTREAM_IMPACT"],
     }
@@ -291,7 +316,10 @@ def test_downstream_impact_is_orchestration_owned_and_skips_exact_resume() -> No
 
     assert len(impact_calls) == 1
     assert impact_calls[0]["continuation"]["affectedRuleIds"] == ["ENG-1"]
-    assert impact_calls[0]["confirmed_context"] == {"decision_authority": "human"}
+    assert impact_calls[0]["confirmed_context"].context_revision == 2
+    assert impact_calls[0]["confirmed_context"].to_legacy_customer_context()[
+        "answers"
+    ] == {"decision_authority": "human"}
     completed = store.get(
         assessment_id="assessment-1",
         context_revision=2,

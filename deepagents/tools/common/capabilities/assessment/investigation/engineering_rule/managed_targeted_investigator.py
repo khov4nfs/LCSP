@@ -30,6 +30,10 @@ from tools.common.capabilities.assessment.planning.engineering_rule.engineering_
     EngineeringRulePlan,
     EngineeringRulePlanDecisionAudit,
 )
+from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_business_context import (
+    ConfirmedStructuredBusinessContext,
+    coerce_confirmed_structured_business_context,
+)
 from tools.common.capabilities.platform.graph_runtime import checkpoint_database_url
 
 from .managed_investigator_execution_store import ManagedInvestigatorExecutionStore
@@ -243,11 +247,13 @@ class ResumedManagedInvestigatorPipeline:
         api_client: Any,
         affected_rule_ids: tuple[str, ...],
         resumed_handoff: dict[str, Any],
-        confirmed_context: dict[str, Any],
+        confirmed_context: ConfirmedStructuredBusinessContext | dict[str, Any],
     ) -> None:
         from .planned_pipeline import PlannedEngineeringInvestigationPipeline
 
-        self._confirmed_context = dict(confirmed_context)
+        self._confirmed_context = coerce_confirmed_structured_business_context(
+            confirmed_context
+        )
         self._delegate = PlannedEngineeringInvestigationPipeline(
             api_client=api_client,
             planner=_ExactResumePlanner(affected_rule_ids),
@@ -258,7 +264,7 @@ class ResumedManagedInvestigatorPipeline:
         )
 
     def run(self, *args: Any, **kwargs: Any) -> Any:
-        kwargs["confirmed_customer_context"] = dict(self._confirmed_context)
+        kwargs["confirmed_customer_context"] = self._confirmed_context
         return self._delegate.run(*args, **kwargs)
 
     def __getattr__(self, name: str) -> Any:
@@ -275,14 +281,13 @@ class _ExactResumePlanner:
         self,
         *,
         candidates: Iterable[Any],
-        confirmed_customer_context: dict[str, Any] | None,
+        confirmed_customer_context: ConfirmedStructuredBusinessContext,
         graph: Any,
         workflow_run_id: str,
         correlation_id: str | None = None,
         openwiki_context: dict[str, Any] | None = None,
     ) -> EngineeringRulePlan:
         _ = (
-            confirmed_customer_context,
             graph,
             workflow_run_id,
             correlation_id,
@@ -320,6 +325,16 @@ class _ExactResumePlanner:
                     ),
                     reason_code="TARGETED_EXACT_RESUME_PIN",
                     basis=(),
+                    interview_context_revision_used=(
+                        confirmed_customer_context.context_revision
+                    ),
+                    confirmed_statement_refs_used=(
+                        confirmed_customer_context.confirmed_statement_refs
+                    ),
+                    context_limitations_used=confirmed_customer_context.limitations,
+                    source_version_ref=confirmed_customer_context.source_version_ref,
+                    pge_version=confirmed_customer_context.pge_version,
+                    guidance_version=confirmed_customer_context.guidance_version,
                 )
                 for item in rows
             ),
@@ -430,7 +445,7 @@ def resume_managed_investigator(
     assessment_id: str,
     context_revision: int,
     continuation: dict[str, Any],
-    confirmed_context: dict[str, Any],
+    confirmed_context: ConfirmedStructuredBusinessContext | dict[str, Any],
     correlation_id: str | None,
 ) -> dict[str, Any]:
     """Resume exactly the child Investigator thread/checkpoint stored by registration."""
@@ -442,6 +457,9 @@ def resume_managed_investigator(
             "exact Investigator resume requires LANGGRAPH_CHECKPOINT_DATABASE_URL"
         )
     assert_managed_investigator_artifact_pins(api_client, continuation)
+    typed_confirmed_context = coerce_confirmed_structured_business_context(
+        confirmed_context
+    )
     thread_id = _required_text(continuation, "workflowRunId")
     checkpoint_id = _required_text(continuation, "checkpointId")
     execution_id = _required_text(continuation, "investigatorExecutionId")
@@ -486,7 +504,11 @@ def resume_managed_investigator(
             "Continue this same Investigator execution from its stored checkpoint and fixed "
             "EngineeringRule/artifact scope. Do not restart Planner or Initial Interview. "
             "Use only the following Customer-confirmed business context as the new bounded input:\n"
-            + json.dumps(confirmed_context, ensure_ascii=False, sort_keys=True)
+            + json.dumps(
+                typed_confirmed_context.to_prompt_dict(),
+                ensure_ascii=False,
+                sort_keys=True,
+            )
         ),
         graph=graph,
         execution_id=execution_id,
@@ -511,7 +533,7 @@ def complete_resumed_investigation(
     assessment_id: str,
     context_revision: int,
     continuation: dict[str, Any],
-    confirmed_context: dict[str, Any],
+    confirmed_context: ConfirmedStructuredBusinessContext | dict[str, Any],
     resumed_handoff: dict[str, Any],
     correlation_id: str,
 ) -> None:
