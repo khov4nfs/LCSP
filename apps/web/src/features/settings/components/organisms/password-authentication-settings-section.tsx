@@ -95,7 +95,7 @@ export function PasswordAuthenticationSettingsSection({
               </div>
             </div>
             <Button
-              render={<Link href="?section=emails" />}
+              render={<Link href="?section=account" />}
               nativeButton={false}
               type="button"
               variant="outline"

@@ -4,6 +4,7 @@ import { PlusIcon, SwatchBookIcon } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { getAssessmentActiveHref } from "@/lib/api/workspace-client";
+import type { SettingsSectionId } from "@/features/settings/types/settings.types";
 import { resolveAppMessage } from "@/lib/i18n";
 
 import {
@@ -31,6 +32,7 @@ type AppSidebarProps = {
   onBack: () => void;
   onForward: () => void;
   onSignOut: () => void;
+  onOpenSettings?: (section: SettingsSectionId) => void;
   onSearch: () => void;
   onToggleCollapse: () => void;
   pathname: string;
@@ -47,6 +49,7 @@ export function AppSidebar({
   onForward,
   onNavigate,
   onSignOut,
+  onOpenSettings,
   onSearch,
   onToggleCollapse,
   pathname,
@@ -73,11 +76,6 @@ export function AppSidebar({
       ...current,
       [key]: value,
     }));
-  }
-
-  function navigateTo(href: string) {
-    onNavigate?.();
-    window.location.assign(href);
   }
 
   return (
@@ -166,7 +164,7 @@ export function AppSidebar({
       >
         {accountControl ?? (
           <SidebarAccountMount
-            navigateTo={navigateTo}
+            onOpenSettings={onOpenSettings}
             onSignOut={onSignOut}
             signOutPending={signOutPending}
             userInitial={userInitial}

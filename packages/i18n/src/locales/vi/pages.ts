@@ -74,6 +74,10 @@ export const viPages = {
       },
     },
     settings: "Cài đặt",
+    language: "Ngôn ngữ",
+    getHelp: "Trợ giúp",
+    documentation: "Tài liệu",
+    learnMore: "Tìm hiểu thêm",
     readiness: "Readiness",
     technicalEvidence: "Bằng chứng kỹ thuật",
     classification: "Classification",
@@ -755,14 +759,18 @@ export const viPages = {
       description:
         "Quản lý định danh tài khoản, MFA, khôi phục, phiên đăng nhập và repository đã liên kết theo đúng flow bảo mật hiện tại của LCSP.",
       sections: {
+        general: "Chung",
         account: "Tài khoản",
-        appearance: "Giao diện",
-        notifications: "Thông báo",
-        emails: "Email",
-        passwordAndAuthentication: "Mật khẩu và xác thực",
-        sessions: "Phiên đăng nhập",
-        repositories: "Repository",
+        privacy: "Quyền riêng tư",
+        billing: "Thanh toán",
+        usage: "Sử dụng",
+        capabilities: "Khả năng",
+        connectors: "Connectors",
       },
+      closeLabel: "Đóng cài đặt",
+      navigationLabel: "Điều hướng cài đặt",
+      searchLabel: "Tìm trong cài đặt",
+      searchPlaceholder: "Tìm kiếm",
       labels: {
         account: "Tài khoản",
         displayName: "Tên hiển thị",
@@ -778,6 +786,10 @@ export const viPages = {
         defaultBranch: "Nhánh mặc định",
         linkedAssessment: "Assessment liên kết",
         connectedAt: "Đã liên kết",
+        device: "Thiết bị",
+        location: "Vị trí",
+        actions: "Hành động",
+        trustedDevices: "Thiết bị tin cậy",
       },
       badges: {
         verified: "Đã xác minh",
@@ -799,6 +811,8 @@ export const viPages = {
         noSessions: "Không có phiên đăng nhập.",
         noRepositories: "Chưa có repository liên kết.",
         noAssessmentLinked: "Chưa liên kết assessment",
+        loadingAccount: "Đang tải tài khoản",
+        notSupported: "Chưa hỗ trợ",
       },
       actions: {
         edit: "Chỉnh sửa",
@@ -817,6 +831,8 @@ export const viPages = {
         linkGoogle: "Liên kết Google",
         connectGitHubRepository: "Kết nối repository",
         manageGitHubRepositoryAccess: "Quản lý quyền",
+        logOutAllDevices: "Đăng xuất mọi thiết bị",
+        updatePat: "Cập nhật PAT",
       },
       account: {
         title: "Tài khoản",
@@ -850,6 +866,87 @@ export const viPages = {
           light: "Sáng",
           dark: "Tối",
         },
+      },
+      general: {
+        profileTitle: "Hồ sơ",
+        fullName: "Tên đầy đủ",
+        assistantName: "Assistant nên gọi bạn là gì?",
+        preferencesTitle: "Tùy chọn",
+        appearance: "Giao diện",
+        language: "Ngôn ngữ",
+        languageEnglish: "Tiếng Anh",
+        languageVietnamese: "Tiếng Việt",
+        chatFont: "Font chat",
+        chatFontInter: "Inter",
+        notificationsTitle: "Thông báo",
+        assessmentCompletions: "Hoàn tất assessment",
+        assessmentCompletionsDescription:
+          "Thông báo khi assessment chạy lâu đã hoàn tất.",
+        remediationApprovals: "Phê duyệt remediation",
+        remediationApprovalsDescription:
+          "Thông báo khi code remediation cần được phê duyệt.",
+      },
+      privacy: {
+        title: "Quyền riêng tư",
+        description:
+          "Các kiểm soát quyền riêng tư chỉ hiển thị như cài đặt lưu được khi đã có contract backend.",
+        repositoryMetadata: "Metadata repository",
+        improveModels: "Cải thiện model bằng dữ liệu workspace",
+        exportData: "Xuất dữ liệu assessment",
+        sharedAssessments: "Assessment đã chia sẻ",
+        memoryPreferences: "Tùy chọn bộ nhớ",
+      },
+      billing: {
+        title: "Thanh toán",
+        description:
+          "LCSP dùng credits trả trước theo mô hình pay-as-you-go. Không hiển thị điều khiển subscription khi chưa có contract billing.",
+        creditBalance: "Số dư credits",
+        buyCredits: "Mua credits",
+        autoReload: "Tự nạp lại",
+        paymentMethod: "Phương thức thanh toán",
+        invoices: "Hóa đơn và lịch sử",
+      },
+      usage: {
+        title: "Sử dụng",
+        description:
+          "Usage sẽ bám theo credits trả trước khi contract billing của workspace sẵn sàng.",
+        creditUsage: "Credits đã dùng",
+        balance: "Số dư hiện tại",
+        spendingLimit: "Giới hạn chi tiêu",
+      },
+      capabilities: {
+        title: "Khả năng",
+        description:
+          "Các kiểm soát capability ở trạng thái chỉ đọc cho tới khi backend hỗ trợ lưu cài đặt workspace.",
+        addDomain: "Thêm",
+        additionalAllowedDomains: "Domain bổ sung được phép",
+        connectorSearch: "Tìm connector",
+        connectorSearchDescription:
+          "Hiển thị connector liên quan khi orchestration đang chạy.",
+        domainAllowlistDescription:
+          "Chọn domain sandbox thực thi được phép truy cập.",
+        domainAllowlistNotice:
+          "Các domain package manager phổ biến đã được phép. Chỉ thêm domain bổ sung cần cho verification.",
+        domainInputPlaceholder: "example.com hoặc *.example.com",
+        executionTitle: "Thực thi",
+        toolAccessMode: "Chế độ truy cập tool",
+        toolAccessModeDescription:
+          "Điều khiển cách connector tools được tải cho assessment mới.",
+        guidedMode: "Có hướng dẫn",
+        loadToolsWhenNeeded: "Tải tool khi cần",
+        artifacts: "Artifacts",
+        artifactsDescription:
+          "Việc tạo artifact đi theo workflow assessment hiện tại.",
+        cloudCodeExecution: "Chạy code trên cloud",
+        cloudCodeExecutionDescription:
+          "Cloud execution được điều khiển bởi cấu hình nền tảng.",
+        networkEgress: "Cho phép network egress",
+        networkEgressDescription:
+          "Network access do runtime policy quản trị, không phải toggle local.",
+        domainAllowlist: "Domain allowlist",
+        domainAllowlistUnsupported:
+          "Chưa thể cấu hình domain bổ sung trong settings contract hiện tại.",
+        packageManagersOnly: "Chỉ package manager",
       },
       notifications: {
         title: "Thông báo",
@@ -948,8 +1045,17 @@ export const viPages = {
         activeTitle: "Phiên web",
         activeDescription:
           "Thu hồi các phiên bạn không còn nhận ra mà không thay đổi layout workspace hiện tại.",
+        actionMenuLabel: "Mở thao tác phiên",
+        logOutAllDevicesTitle: "Đăng xuất khỏi mọi thiết bị",
+        noTrustedDevices: "Không có thiết bị tin cậy.",
         summary: "Phiên đang hoạt động",
         revokedTitle: "Đã thu hồi phiên",
+        trustedDevicesDescription:
+          "Thiết bị được ủy quyền cho remediation repository và thao tác bảo mật.",
+        logoutAllUnsupported:
+          "API cài đặt hiện chưa hỗ trợ đăng xuất hàng loạt khỏi mọi thiết bị.",
+        unknownLocation: "Chưa có thông tin vị trí",
+        webSession: "Phiên web",
       },
       repositories: {
         title: "Repository",
@@ -973,6 +1079,8 @@ export const viPages = {
         providerLabel: "Provider",
         githubProvider: "GitHub",
         gitlabProvider: "GitLab",
+        bitbucketProvider: "Bitbucket",
+        azureDevOpsProvider: "Azure DevOps",
         repositoryUrlLabel: "URL repository",
         repositoryUrlPlaceholder: "https://github.com/owner/repository",
         gitlabRepositoryUrlPlaceholder: "https://gitlab.com/group/project",
@@ -994,6 +1102,50 @@ export const viPages = {
           "Credential không có quyền đọc repository đã chọn.",
         serviceUnavailableDescription:
           "Dịch vụ truy cập GitHub tạm thời không khả dụng. Hãy thử lại sau.",
+        supportedProviderDescription:
+          "Trạng thái credential được tải từ API provider credential hiện có.",
+        unsupportedProviderDescription:
+          "Provider này có trong IA settings đã duyệt, nhưng backend contract hiện chưa hỗ trợ kết nối.",
+        codeRemediationWriteAccess: "Quyền ghi code remediation",
+        codeRemediationWriteHelper: "Cần quyền ghi Contents + Pull requests",
+        cancel: "Hủy",
+        connect: "Kết nối",
+        connectGithubTitle: "Kết nối GitHub",
+        connectGitlabTitle: "Kết nối GitLab",
+        connected: "Đã kết nối",
+        connectionStatus: "Trạng thái kết nối",
+        credentialStoredHelper:
+          "LCSP lưu credential của provider an toàn và không hiển thị lại token gốc.",
+        credentialStoredSecurely: "Đã lưu an toàn",
+        detectAccountFromCredential:
+          "Tài khoản sẽ được nhận diện từ credential.",
+        disconnect: "Ngắt kết nối",
+        disconnectUnavailable:
+          "API cài đặt hiện chưa hỗ trợ ngắt kết nối provider.",
+        enterNewPat: "Nhập PAT mới",
+        githubRepositoryCredentialSubtitle: "Credential repository GitHub",
+        gitProvidersTitle: "Git providers",
+        gitlabRepositoryAccessGuidance:
+          "Dùng token có quyền đọc repository. Chỉ thêm quyền ghi repository khi bật sửa code.",
+        gitlabRepositoryCredentialSubtitle: "Credential repository GitLab",
+        githubPatAccessTitle: "Quyền GitHub PAT",
+        manageGithubPatTitle: "Quản lý GitHub PAT",
+        manageGitlabPatTitle: "Quản lý GitLab PAT",
+        managePat: "Quản lý PAT",
+        manageProvidersDescription:
+          "Quản lý provider repository và tích hợp workspace.",
+        notConnected: "Chưa kết nối",
+        pastePersonalAccessToken: "Dán personal access token",
+        personalAccessToken: "Personal Access Token",
+        repositoryAccessConfigured: "Đã cấu hình",
+        repositoryAccessGuidance:
+          "Cần quyền đọc repository. Quyền ghi repository chỉ cần cho sửa code hoặc pull request.",
+        repositoryReadAccess: "Quyền đọc repository",
+        save: "Lưu",
+        updateGithubPatTitle: "Cập nhật GitHub PAT",
+        updateGitlabPatTitle: "Cập nhật GitLab PAT",
+        updatePat: "Cập nhật PAT",
+        username: "Username",
         listTitle: "Repository đã liên kết",
         listDescription:
           "Mỗi repository được hiển thị cạnh assessment đang sử dụng nó.",

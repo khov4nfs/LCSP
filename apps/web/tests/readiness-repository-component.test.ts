@@ -186,7 +186,7 @@ test("existing connection resumes analysis without reconnecting", async () => {
 test("credential-required failures provide a Settings recovery action", async () => {
   const source = await readFile(componentPath, "utf8");
   assert.match(source, /credentialRequired/);
-  assert.match(source, /section=repositories/);
+  assert.match(source, /section=connectors/);
   assert.match(source, /configureCredential/);
 });
 

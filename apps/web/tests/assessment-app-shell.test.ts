@@ -38,6 +38,38 @@ const sidebarAccountMountPath = new URL(
   "../src/features/workspace/components/molecules/sidebar-account-mount.tsx",
   import.meta.url,
 );
+const sidebarAccountTriggerPath = new URL(
+  "../src/features/workspace/components/molecules/sidebar-account-trigger.tsx",
+  import.meta.url,
+);
+const accountPopoverPath = new URL(
+  "../src/features/workspace/components/molecules/account-popover.tsx",
+  import.meta.url,
+);
+const accountPopoverItemPath = new URL(
+  "../src/features/workspace/components/molecules/account-popover-item.tsx",
+  import.meta.url,
+);
+const settingsModalPath = new URL(
+  "../src/features/settings/components/organisms/settings-modal.tsx",
+  import.meta.url,
+);
+const settingsSidebarPath = new URL(
+  "../src/features/settings/components/organisms/settings-sidebar.tsx",
+  import.meta.url,
+);
+const settingsTabPath = new URL(
+  "../src/features/settings/components/molecules/settings-tab.tsx",
+  import.meta.url,
+);
+const settingsTypesPath = new URL(
+  "../src/features/settings/types/settings.types.ts",
+  import.meta.url,
+);
+const settingsUtilsPath = new URL(
+  "../src/features/settings/utils/settings-page.utils.ts",
+  import.meta.url,
+);
 const sidebarHeaderControlsPath = new URL(
   "../src/features/workspace/components/molecules/sidebar-header-controls.tsx",
   import.meta.url,
@@ -309,16 +341,111 @@ test("recent filter empty and hover-through states are explicitly handled", asyn
 });
 
 test("account mount remains available for the LCSP-269 account controls", async () => {
-  const [sidebarSource, accountMountSource] = await Promise.all([
-    readFile(appSidebarPath, "utf8"),
-    readFile(sidebarAccountMountPath, "utf8"),
-  ]);
+  const [sidebarSource, accountMountSource, triggerSource, popoverSource] =
+    await Promise.all([
+      readFile(appSidebarPath, "utf8"),
+      readFile(sidebarAccountMountPath, "utf8"),
+      readFile(sidebarAccountTriggerPath, "utf8"),
+      readFile(accountPopoverPath, "utf8"),
+    ]);
 
   assert.match(sidebarSource, /accountControl\?: ReactNode/);
   assert.match(sidebarSource, /data-lcsp268-account-mount="true"/);
-  assert.match(accountMountSource, /DropdownMenuGroup/);
-  assert.match(accountMountSource, /pages\.appShell\.accountMenu/);
-  assert.match(accountMountSource, /pages\.appShell\.signOut/);
+  assert.match(sidebarSource, /<SidebarAccountMount/);
+  assert.match(accountMountSource, /<SidebarAccountTrigger/);
+  assert.match(accountMountSource, /<AccountPopover/);
+  assert.match(triggerSource, /data-component="SidebarAccountTrigger"/);
+  assert.match(triggerSource, /aria-expanded=\{open\}/);
+  assert.match(triggerSource, /aria-haspopup="menu"/);
+  assert.match(triggerSource, /open \? ChevronUpIcon : ChevronDownIcon/);
+  assert.match(popoverSource, /data-component="AccountPopover"/);
+  assert.match(popoverSource, /side="top"/);
+  assert.match(popoverSource, /sideOffset=\{8\}/);
+  assert.match(popoverSource, /pages\.appShell\.settings/);
+  assert.match(popoverSource, /pages\.appShell\.language/);
+  assert.match(popoverSource, /pages\.appShell\.getHelp/);
+  assert.match(popoverSource, /pages\.appShell\.documentation/);
+  assert.match(popoverSource, /pages\.appShell\.learnMore/);
+  assert.match(popoverSource, /pages\.appShell\.signOut/);
+  assert.doesNotMatch(accountMountSource, /workspace\/settings#repositories/);
+  assert.doesNotMatch(accountMountSource, /window\.location/);
+});
+
+test("LCSP-269 account popover uses one reusable menu item and existing sign-out", async () => {
+  const [mountSource, popoverSource, itemSource] = await Promise.all([
+    readFile(sidebarAccountMountPath, "utf8"),
+    readFile(accountPopoverPath, "utf8"),
+    readFile(accountPopoverItemPath, "utf8"),
+  ]);
+
+  assert.match(itemSource, /export function AccountPopoverItem/);
+  assert.match(itemSource, /<DropdownMenuItem/);
+  assert.match(itemSource, /data-component="AccountPopoverItem"/);
+  assert.equal((popoverSource.match(/<AccountPopoverItem/g) ?? []).length, 6);
+  assert.match(mountSource, /onSignOut=\{onSignOut\}/);
+  assert.match(mountSource, /SETTINGS_SECTION_IDS\.general/);
+  assert.match(mountSource, /setOpen\(false\)/);
+});
+
+test("LCSP-269 settings modal is owned by the shared app shell", async () => {
+  const [shellSource, modalSource] = await Promise.all([
+    readFile(shellPath, "utf8"),
+    readFile(settingsModalPath, "utf8"),
+  ]);
+
+  assert.match(shellSource, /import \{ SettingsModal \}/);
+  assert.match(
+    shellSource,
+    /const \[settingsModalOpen, setSettingsModalOpen\]/,
+  );
+  assert.match(
+    shellSource,
+    /const \[activeSettingsSection, setActiveSettingsSection\]/,
+  );
+  assert.match(
+    shellSource,
+    /function openSettings\(section: SettingsSectionId\)/,
+  );
+  assert.match(shellSource, /onOpenSettings=\{openSettings\}/);
+  assert.match(shellSource, /<SettingsModal/);
+  assert.match(
+    modalSource,
+    /<Dialog open=\{open\} onOpenChange=\{onOpenChange\}>/,
+  );
+  assert.match(modalSource, /max-w-295/);
+  assert.match(modalSource, /max-h-205/);
+  assert.match(modalSource, /<SettingsPage/);
+  assert.doesNotMatch(shellSource, /router\.push\(`?\/workspace\/settings/);
+});
+
+test("LCSP-269 settings navigation exposes the seven approved tabs and legacy mapping", async () => {
+  const [typesSource, sidebarSource, tabSource, utilsSource] =
+    await Promise.all([
+      readFile(settingsTypesPath, "utf8"),
+      readFile(settingsSidebarPath, "utf8"),
+      readFile(settingsTabPath, "utf8"),
+      readFile(settingsUtilsPath, "utf8"),
+    ]);
+
+  for (const section of [
+    "general",
+    "account",
+    "privacy",
+    "billing",
+    "usage",
+    "capabilities",
+    "connectors",
+  ]) {
+    assert.match(typesSource, new RegExp(`${section}: "${section}"`));
+  }
+
+  assert.match(tabSource, /export function SettingsTab/);
+  assert.match(tabSource, /aria-current=\{active \? "page" : undefined\}/);
+  assert.match(sidebarSource, /data-component="SettingsSidebar"/);
+  assert.match(sidebarSource, /data-component="SettingsTabs"/);
+  assert.match(utilsSource, /LEGACY_SETTINGS_SECTION_IDS\.repositories/);
+  assert.match(utilsSource, /return SETTINGS_SECTION_IDS\.connectors/);
+  assert.match(utilsSource, /return SETTINGS_SECTION_IDS\.general/);
 });
 
 test("LCSP-268 sidebar is split into feature atomic files", async () => {

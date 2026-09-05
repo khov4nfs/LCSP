@@ -41,7 +41,7 @@ function copySearchParam(source: URL, destination: URL, name: string) {
 function redirectToRepositories(publicOrigin: string, result: string) {
   return NextResponse.redirect(
     new URL(
-      `/workspace/settings?section=repositories&github_connection=${result}`,
+      `/workspace/settings?section=connectors&github_connection=${result}`,
       publicOrigin,
     ),
   );

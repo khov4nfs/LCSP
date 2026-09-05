@@ -1,24 +1,22 @@
 "use client";
 
-import {
-  ChevronsUpDownIcon,
-  LogOutIcon,
-  PlugIcon,
-  SettingsIcon,
-} from "lucide-react";
+import { useState } from "react";
 
 import {
   DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { resolveAppMessage } from "@/lib/i18n";
+import { useAuthSettingsProfileQuery } from "@/lib/api/auth-queries";
+
+import {
+  SETTINGS_SECTION_IDS,
+  type SettingsSectionId,
+} from "@/features/settings/types/settings.types";
+import { AccountPopover } from "./account-popover";
+import { SidebarAccountTrigger } from "./sidebar-account-trigger";
 
 type SidebarAccountMountProps = {
-  navigateTo: (href: string) => void;
+  onOpenSettings?: (section: SettingsSectionId) => void;
   onSignOut: () => void;
   signOutPending: boolean;
   userInitial: string;
@@ -26,61 +24,39 @@ type SidebarAccountMountProps = {
 };
 
 export function SidebarAccountMount({
-  navigateTo,
+  onOpenSettings,
   onSignOut,
   signOutPending,
   userInitial,
   userName,
 }: SidebarAccountMountProps) {
+  const [open, setOpen] = useState(false);
+  const profileQuery = useAuthSettingsProfileQuery();
+  const accountEmail = profileQuery.data?.email;
+
+  function openSettings(section: SettingsSectionId) {
+    setOpen(false);
+    onOpenSettings?.(section);
+  }
+
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         render={
-          <button
-            aria-label={resolveAppMessage("pages.appShell.accountMenu")}
-            className="flex h-9 w-full items-center rounded-[7px] px-2.5 text-left outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-            type="button"
+          <SidebarAccountTrigger
+            open={open}
+            userInitial={userInitial}
+            userName={userName}
           />
         }
-      >
-        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-xs font-medium text-sidebar-accent-foreground">
-          {userInitial}
-        </span>
-        <span className="ml-2.5 min-w-0 flex-1 truncate text-[13.5px] font-normal text-sidebar-foreground/90">
-          {userName}
-        </span>
-        <ChevronsUpDownIcon className="size-3.5 shrink-0 text-sidebar-foreground/60" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        className="w-51"
-        side="top"
-        sideOffset={6}
-      >
-        <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => navigateTo("/workspace/settings")}>
-            <SettingsIcon />
-            {resolveAppMessage("pages.appShell.settings")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => navigateTo("/workspace/settings#repositories")}
-          >
-            <PlugIcon />
-            {resolveAppMessage("pages.appShell.connectors")}
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuItem
-            disabled={signOutPending}
-            onClick={onSignOut}
-            variant="destructive"
-          >
-            <LogOutIcon />
-            {resolveAppMessage("pages.appShell.signOut")}
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
+      />
+      <AccountPopover
+        accountEmail={accountEmail}
+        onLanguage={() => openSettings(SETTINGS_SECTION_IDS.general)}
+        onSettings={() => openSettings(SETTINGS_SECTION_IDS.general)}
+        onSignOut={onSignOut}
+        signOutPending={signOutPending}
+      />
     </DropdownMenu>
   );
 }
