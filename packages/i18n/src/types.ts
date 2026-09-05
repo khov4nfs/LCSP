@@ -170,12 +170,21 @@ export type PagesMessages = {
     };
   };
   marketing: {
+    metadata: {
+      productTitle: string;
+      productDescription: string;
+      featuresTitle: string;
+      featuresDescription: string;
+      pricingTitle: string;
+      pricingDescription: string;
+    };
     brandHomeLabel: string;
     footerTagline: string;
     footer: string;
     nav: {
       label: string;
       mobileLabel: string;
+      languageSwitcherLabel: string;
       product: string;
       features: string;
       pricing: string;

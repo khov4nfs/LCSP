@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $LauncherDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ScriptPath = $MyInvocation.MyCommand.Path
 $BaseDir = Split-Path -Parent $LauncherDir
 $CommonDir = Join-Path $BaseDir "common"
 
@@ -51,6 +52,39 @@ function Require-Administrator([string]$Action) {
     }
 
     Fail "$Action requires Administrator privileges. Open PowerShell as Administrator, then run: pnpm dev:fogewise"
+}
+
+function Ensure-Administrator {
+    if (Test-Administrator) {
+        return
+    }
+
+    Write-Host "[Fogewise] Administrator permission is required for the hosts file and Caddy trust." -ForegroundColor Yellow
+    Write-Host "[Fogewise] Requesting UAC elevation..." -ForegroundColor Yellow
+
+    try {
+        $elevated = Start-Process `
+            -FilePath "powershell.exe" `
+            -Verb RunAs `
+            -Wait `
+            -PassThru `
+            -ArgumentList @(
+                "-NoProfile"
+                "-ExecutionPolicy"
+                "Bypass"
+                "-File"
+                $ScriptPath
+            )
+    }
+    catch {
+        Fail "Could not request Administrator permission. Run PowerShell as Administrator and execute: pnpm run dev:fogewise"
+    }
+
+    if ($null -eq $elevated.ExitCode) {
+        exit 1
+    }
+
+    exit $elevated.ExitCode
 }
 
 function Add-LocalExclude([string]$Entry) {
@@ -255,25 +289,50 @@ function Ensure-Hosts([string]$Domain) {
         Fail "hosts already contains $Domain without the Fogewise marker. Remove/fix that entry manually first."
     }
 
+    $managedEntry = $matching | Where-Object {
+        $_ -match ("^\s*127\.0\.0\.1\s+" + $escaped + "\s+#\s*fogewise-local-dev\s*$")
+    }
+
+    if ($managedEntry) {
+        return
+    }
+
     Require-Administrator "Updating Windows hosts file"
 
-    try {
-        # Repair stale managed entry first.
-        $lines = Get-Content $HostsPath | Where-Object {
-            -not (
-                $_ -match ("^\s*127\.0\.0\.1\s+" + $escaped + "(\s|$)") -and
-                $_ -match '#\s*fogewise-local-dev\s*$'
-            )
-        }
+    # Windows Defender/DNS Client can briefly hold the hosts file. Retry the
+    # complete read/write operation instead of failing on a transient lock.
+    $lastError = $null
+    for ($attempt = 1; $attempt -le 10; $attempt++) {
+        try {
+            # Repair stale managed entries first.
+            $lines = [System.IO.File]::ReadAllLines($HostsPath) | Where-Object {
+                -not (
+                    $_ -match ("^\s*127\.0\.0\.1\s+" + $escaped + "(\s|$)") -and
+                    $_ -match '#\s*fogewise-local-dev\s*$'
+                )
+            }
 
-        $lines | Set-Content -Path $HostsPath -Encoding ASCII
-        Add-Content -Path $HostsPath -Value "127.0.0.1 $Domain # fogewise-local-dev"
-        ipconfig /flushdns | Out-Null
+            $updatedLines = @($lines) + "127.0.0.1 $Domain # fogewise-local-dev"
+            [System.IO.File]::WriteAllLines(
+                $HostsPath,
+                $updatedLines,
+                [System.Text.Encoding]::ASCII
+            )
+            ipconfig /flushdns | Out-Null
+            return
+        }
+        catch {
+            $lastError = $_.Exception.Message
+            if ($attempt -lt 10) {
+                Start-Sleep -Milliseconds (250 * $attempt)
+            }
+        }
     }
-    catch {
-        Fail "Could not update Windows hosts file: $($_.Exception.Message)"
-    }
+
+    Fail "Could not update Windows hosts file after 10 attempts: $lastError"
 }
+
+Ensure-Administrator
 
 $config = Load-Or-Create-Config
 $env:FOGEWISE_SUBDOMAIN = $config.Subdomain
