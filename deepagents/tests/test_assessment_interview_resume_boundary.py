@@ -100,6 +100,14 @@ class RecordingApi:
         )
         return {
             "status": self.status,
+            "guidanceVersion": "guidance-v1",
+            "workingStrategy": {
+                "terminologyMap": {"human oversight": "manual review"},
+                "avoidReaskingTopics": ["governance"],
+                "effectiveQuestionPatterns": [],
+                "observedAmbiguities": [],
+                "interactionNotes": [],
+            },
             "publicState": self.public_state
             or {
                 "outcome": "WAITING_FOR_CUSTOMER",
@@ -159,6 +167,10 @@ def test_interview_resume_boundary_passes_private_context_only_to_interview_and_
     assert '"freeText": "raw"' in instruction
     assert "private worker-only input" in instruction
     assert "must not be copied into Customer-safe evidence or downstream prompts" in instruction
+    assert '"guidanceVersion": "guidance-v1"' in instruction
+    assert '"workingStrategy"' in instruction
+    assert '"human oversight": "manual review"' in instruction
+    assert "use the session-local workingStrategy only to adapt terminology and phrasing" in instruction
     assert root.calls == []
     assert len(api.decision_posts) == 1
     assessment_id, decision = api.decision_posts[0]

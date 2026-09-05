@@ -22,3 +22,4 @@ process.env.MFA_SECRET_ENCRYPTION_KEY ??=
 process.env.WORKER_API_KEY ??= "test-only-worker-api-key-at-least-32-chars";
 process.env.DATABASE_URL ??=
   "postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public";
+process.env.INTERVIEW_GUIDANCE_VERSION ??= "interview-context-test-v1";

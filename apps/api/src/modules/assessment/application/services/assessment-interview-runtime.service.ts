@@ -25,6 +25,8 @@ import {
   type AssessmentInterviewAnswerInput,
   type AssessmentInterviewBlockedInput,
   type AssessmentInterviewRuntimeState,
+  EMPTY_INTERVIEW_WORKING_STRATEGY,
+  type InterviewWorkingStrategy,
 } from "@lcsp/contracts/evidence";
 import {
   buildOutboxMessageInput,
@@ -44,6 +46,11 @@ import { problemException } from "../../../../platform/problems/problem-factory.
 import { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import { InterviewAuditService } from "../../../audit/application/services/interview-audit.service.js";
+import {
+  normalizeStrategy,
+  updateInterviewWorkingStrategy,
+} from "./interview-working-strategy.js";
+import { InterviewGuidanceResolver } from "./interview-guidance.resolver.js";
 
 const INTERVIEW_TOOL_NAME = "assessment_interview";
 const INTERVIEW_SOURCE_VERSION = "assessment-interview-runtime-v1";
@@ -117,6 +124,7 @@ type TargetedInterviewContinuation = {
 
 type PrivateInterviewStore = {
   revisions: PrivateInterviewAnswerRevision[];
+  workingStrategy?: InterviewWorkingStrategy;
   targetedNeed?: TargetedInterviewNeed;
   targetedContinuation?: TargetedInterviewContinuation;
 };
@@ -148,6 +156,8 @@ type WorkerPrivateContext = {
   publicState: AssessmentInterviewRuntimeState;
   privateRevision?: PrivateInterviewAnswerRevision;
   targetedNeed?: TargetedInterviewNeed;
+  guidanceVersion: string;
+  workingStrategy: InterviewWorkingStrategy;
 };
 
 type AgentDecisionInput = {
@@ -163,6 +173,8 @@ type AgentDecisionInput = {
 
 @Injectable()
 export class AssessmentInterviewRuntimeService {
+  private readonly guidanceResolver = new InterviewGuidanceResolver();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly runtimeEvents: AssessmentRuntimeEventService,
@@ -251,6 +263,13 @@ export class AssessmentInterviewRuntimeService {
           },
         ),
       };
+      const workingStrategy = updateInterviewWorkingStrategy({
+        current:
+          thread.privateStore.workingStrategy ??
+          EMPTY_INTERVIEW_WORKING_STRATEGY,
+        question: thread.state.activeQuestion,
+        answer,
+      });
       const updated = await tx.assessmentInterviewThread.updateMany({
         where: {
           assessmentId: input.assessmentId,
@@ -262,12 +281,15 @@ export class AssessmentInterviewRuntimeService {
           privateContextJson: toJson({
             ...thread.privateStore,
             revisions: [...thread.privateRevisions, privateRevision],
+            workingStrategy,
           }),
           contextRevision: nextRevision,
           activeQuestionId: null,
           processedRevision: thread.processedRevision,
           sourceVersion: provenance.sourceVersion,
           pgeVersion: provenance.pgeVersion,
+          guidanceVersion:
+            thread.guidanceVersion ?? this.resolveGuidanceVersion(),
         },
       });
       if (updated.count !== 1) {
@@ -288,6 +310,8 @@ export class AssessmentInterviewRuntimeService {
           questionId: answer.questionId,
           sourceVersion: provenance.sourceVersion,
           pgeVersion: provenance.pgeVersion,
+          guidanceVersion:
+            thread.guidanceVersion ?? this.resolveGuidanceVersion(),
           resumeReason: INTERVIEW_AGENT_DECISION_REQUIRED,
         }),
         tx,
@@ -300,6 +324,8 @@ export class AssessmentInterviewRuntimeService {
         pgeVersion: provenance.pgeVersion,
         technicalCoverageState: provenance.technicalCoverageState,
         coverageLimitations: provenance.coverageLimitations,
+        guidanceVersion:
+          thread.guidanceVersion ?? this.resolveGuidanceVersion(),
       };
       const responseMode = thread.state.activeQuestion.control;
       const responseAction = answer.confirmed
@@ -431,6 +457,8 @@ export class AssessmentInterviewRuntimeService {
         privateStore: current.privateStore,
         sourceVersion: provenance.sourceVersion,
         pgeVersion: provenance.pgeVersion,
+        guidanceVersion:
+          current.guidanceVersion ?? this.resolveGuidanceVersion(),
       });
       if (shouldResume) {
         await this.outboxRepository.enqueue(
@@ -442,6 +470,8 @@ export class AssessmentInterviewRuntimeService {
             questionId: current.activeQuestionId ?? "PROVIDE_MORE_CONTEXT",
             sourceVersion: provenance.sourceVersion,
             pgeVersion: provenance.pgeVersion,
+            guidanceVersion:
+              current.guidanceVersion ?? this.resolveGuidanceVersion(),
             resumeReason:
               ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.provideMoreContext,
           }),
@@ -463,6 +493,8 @@ export class AssessmentInterviewRuntimeService {
           contextRevision: current.contextRevision,
           sessionId: this.threadId(input.assessmentId),
           threadId: this.threadId(input.assessmentId),
+          guidanceVersion:
+            current.guidanceVersion ?? this.resolveGuidanceVersion(),
           correlationId: input.correlationId,
         },
         tx,
@@ -501,7 +533,23 @@ export class AssessmentInterviewRuntimeService {
     sourceVersion?: string;
     pgeVersion?: string;
   }): Promise<WorkerPrivateContext> {
-    const thread = await this.readThread(input.assessmentId);
+    let thread = await this.readThread(input.assessmentId);
+    if (
+      !thread.guidanceVersion &&
+      (thread.sourceVersion !== null ||
+        thread.activeQuestionId !== null ||
+        thread.contextRevision > 0)
+    ) {
+      const guidanceVersion = this.resolveGuidanceVersion();
+      const pinned = await this.prisma.assessmentInterviewThread.updateMany({
+        where: { assessmentId: input.assessmentId, guidanceVersion: null },
+        data: { guidanceVersion },
+      });
+      thread =
+        pinned.count === 1
+          ? { ...thread, guidanceVersion }
+          : await this.readThread(input.assessmentId);
+    }
     const authoritative = await this.assessmentProvenance(input.assessmentId);
     const privateRevision = thread.privateRevisions.find(
       (revision) => revision.contextRevision === input.contextRevision,
@@ -538,6 +586,8 @@ export class AssessmentInterviewRuntimeService {
       publicState: thread.state,
       privateRevision,
       targetedNeed: target,
+      guidanceVersion: thread.guidanceVersion ?? this.resolveGuidanceVersion(),
+      workingStrategy: normalizeStrategy(thread.privateStore.workingStrategy),
     };
   }
 
@@ -612,6 +662,8 @@ export class AssessmentInterviewRuntimeService {
         privateStore,
         sourceVersion: thread.sourceVersion,
         pgeVersion: thread.pgeVersion,
+        guidanceVersion:
+          thread.guidanceVersion ?? this.resolveGuidanceVersion(),
       });
       await this.outboxRepository.enqueue(
         this.interviewAgentResumeCommand({
@@ -622,6 +674,8 @@ export class AssessmentInterviewRuntimeService {
           questionId: target.needId,
           sourceVersion: thread.sourceVersion,
           pgeVersion: thread.pgeVersion,
+          guidanceVersion:
+            thread.guidanceVersion ?? this.resolveGuidanceVersion(),
           resumeReason: "TARGETED_INTERVIEW_REQUIRED",
         }),
         tx,
@@ -643,6 +697,8 @@ export class AssessmentInterviewRuntimeService {
             pgeVersion: thread.pgeVersion ?? undefined,
             technicalCoverageState: provenance.technicalCoverageState,
             coverageLimitations: provenance.coverageLimitations,
+            guidanceVersion:
+              thread.guidanceVersion ?? this.resolveGuidanceVersion(),
           },
           correlationId: input.correlationId,
         },
@@ -766,6 +822,8 @@ export class AssessmentInterviewRuntimeService {
           contextRevision: decision.expectedContextRevision,
           sessionId: this.threadId(input.assessmentId),
           threadId: this.threadId(input.assessmentId),
+          guidanceVersion:
+            thread.guidanceVersion ?? this.resolveGuidanceVersion(),
           correlationId: input.correlationId,
         },
         tx,
@@ -791,6 +849,8 @@ export class AssessmentInterviewRuntimeService {
               pgeVersion: authoritative.pgeVersion,
               technicalCoverageState: authoritative.technicalCoverageState,
               coverageLimitations: authoritative.coverageLimitations,
+              guidanceVersion:
+                thread.guidanceVersion ?? this.resolveGuidanceVersion(),
             },
             correlationId: input.correlationId,
           },
@@ -814,6 +874,8 @@ export class AssessmentInterviewRuntimeService {
               pgeVersion: authoritative.pgeVersion,
               technicalCoverageState: authoritative.technicalCoverageState,
               coverageLimitations: authoritative.coverageLimitations,
+              guidanceVersion:
+                thread.guidanceVersion ?? this.resolveGuidanceVersion(),
             },
             correlationId: input.correlationId,
           },
@@ -874,6 +936,9 @@ export class AssessmentInterviewRuntimeService {
     }
     const activeQuestionId = state.activeQuestion.id;
     const nextState = await this.prisma.$transaction(async (tx) => {
+      const existing = await this.readThread(input.assessmentId, tx);
+      const guidanceVersion =
+        existing.guidanceVersion ?? this.resolveGuidanceVersion();
       const provenance = await this.assessmentProvenance(
         input.assessmentId,
         tx,
@@ -888,9 +953,15 @@ export class AssessmentInterviewRuntimeService {
         contextRevision: computedState.contextRevision ?? 0,
         activeQuestionId,
         processedRevision: 0,
-        privateStore: { revisions: [] },
+        privateStore: {
+          ...existing.privateStore,
+          workingStrategy: normalizeStrategy(
+            existing.privateStore.workingStrategy,
+          ),
+        },
         sourceVersion: provenance.sourceVersion,
         pgeVersion: provenance.pgeVersion,
+        guidanceVersion,
       });
 
       if (state.activeQuestion) {
@@ -913,6 +984,7 @@ export class AssessmentInterviewRuntimeService {
               pgeVersion: provenance.pgeVersion,
               technicalCoverageState: provenance.technicalCoverageState,
               coverageLimitations: provenance.coverageLimitations,
+              guidanceVersion,
             },
             correlationId: input.correlationId,
           },
@@ -969,6 +1041,7 @@ export class AssessmentInterviewRuntimeService {
     processedRevision: number;
     sourceVersion: string | null;
     pgeVersion: string | null;
+    guidanceVersion: string | null;
   }> {
     const client = tx ?? this.prisma;
     const thread = await client.assessmentInterviewThread.findUnique({
@@ -991,6 +1064,7 @@ export class AssessmentInterviewRuntimeService {
         processedRevision: 0,
         sourceVersion: null,
         pgeVersion: null,
+        guidanceVersion: null,
       };
     }
     const state = parsePublicInterviewState(thread.stateJson) ?? fallbackState;
@@ -1004,6 +1078,7 @@ export class AssessmentInterviewRuntimeService {
       processedRevision: thread.processedRevision,
       sourceVersion: thread.sourceVersion,
       pgeVersion: thread.pgeVersion,
+      guidanceVersion: thread.guidanceVersion,
     };
   }
 
@@ -1018,6 +1093,7 @@ export class AssessmentInterviewRuntimeService {
       privateStore: PrivateInterviewStore;
       sourceVersion: string;
       pgeVersion: string;
+      guidanceVersion: string;
     },
   ): Promise<void> {
     const client = tx ?? this.prisma;
@@ -1033,6 +1109,7 @@ export class AssessmentInterviewRuntimeService {
               processedRevision: input.processedRevision,
               sourceVersion: input.sourceVersion,
               pgeVersion: input.pgeVersion,
+              guidanceVersion: input.guidanceVersion,
             }
           : {}),
       },
@@ -1046,6 +1123,8 @@ export class AssessmentInterviewRuntimeService {
         processedRevision: input?.processedRevision ?? 0,
         sourceVersion: input?.sourceVersion,
         pgeVersion: input?.pgeVersion,
+        guidanceVersion:
+          input?.guidanceVersion ?? this.resolveGuidanceVersion(),
       },
     });
   }
@@ -1058,6 +1137,7 @@ export class AssessmentInterviewRuntimeService {
     questionId: string;
     sourceVersion: string;
     pgeVersion: string;
+    guidanceVersion: string;
     resumeReason: string;
   }) {
     return buildOutboxMessageInput({
@@ -1078,6 +1158,7 @@ export class AssessmentInterviewRuntimeService {
         questionId: input.questionId,
         sourceVersion: input.sourceVersion,
         pgeVersion: input.pgeVersion,
+        guidanceVersion: input.guidanceVersion,
         resumeReason: input.resumeReason,
       },
     });
@@ -1096,6 +1177,7 @@ export class AssessmentInterviewRuntimeService {
         sourceVersion: string;
         pgeVersion: string;
         governedEvidenceRefs: string[];
+        guidanceVersion?: string;
       };
     },
   ) {
@@ -1105,6 +1187,7 @@ export class AssessmentInterviewRuntimeService {
       assessmentId,
       sourceVersion: input.provenance.sourceVersion,
       pgeVersion: input.provenance.pgeVersion,
+      guidanceVersion: input.provenance.guidanceVersion,
       sessionId: this.threadId(assessmentId),
       turnId: correlationId,
       governedEvidenceRefs: input.provenance.governedEvidenceRefs,
@@ -1182,6 +1265,10 @@ export class AssessmentInterviewRuntimeService {
 
   private threadId(assessmentId: string): string {
     return `interview:${assessmentId}`;
+  }
+
+  private resolveGuidanceVersion(): string {
+    return this.guidanceResolver.resolveActiveGuidanceVersion();
   }
 }
 
@@ -1372,7 +1459,14 @@ function parsePrivateStore(value: unknown): PrivateInterviewStore {
   const targetedContinuation = parseStoredTargetedContinuation(
     record.targetedContinuation,
   );
-  return { revisions, targetedNeed, targetedContinuation };
+  return {
+    revisions,
+    targetedNeed,
+    targetedContinuation,
+    workingStrategy: normalizeStrategy(
+      record.workingStrategy as Partial<InterviewWorkingStrategy> | undefined,
+    ),
+  };
 }
 
 function parseStoredTargetedNeed(

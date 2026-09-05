@@ -563,6 +563,7 @@ model AssessmentInterviewThread {
   processedRevision  Int        @default(0)
   sourceVersion      String?
   pgeVersion         String?
+  guidanceVersion    String?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
   assessment         Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)

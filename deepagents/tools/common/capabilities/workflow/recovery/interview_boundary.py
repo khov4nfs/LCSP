@@ -181,6 +181,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                 "assessment_id": assessment_id,
                 "question_id": question_id,
                 "context_revision": context_revision,
+                "guidance_version": context.get("guidanceVersion"),
                 "correlationId": correlationId,
             },
             thread_id=thread_id,
@@ -646,6 +647,17 @@ def _interview_instruction(
         "resumeReason": resume_reason,
         "sourceVersion": context.get("sourceVersion"),
         "pgeVersion": context.get("pgeVersion"),
+        "guidanceVersion": context.get("guidanceVersion"),
+        "workingStrategy": context.get(
+            "workingStrategy",
+            {
+                "terminologyMap": {},
+                "avoidReaskingTopics": [],
+                "effectiveQuestionPatterns": [],
+                "observedAmbiguities": [],
+                "interactionNotes": [],
+            },
+        ),
         "publicThreadState": public_state,
         "privateCustomerRevision": private_revision,
         "targetedNeed": context.get("targetedNeed"),
@@ -654,6 +666,8 @@ def _interview_instruction(
         "Evaluate exactly one governed Assessment Interview turn. The JSON below is a "
         "private worker-only input and must not be copied into Customer-safe evidence or "
         "downstream prompts. Preserve hedging/contradictions, choose ASK vs CLARIFY, and "
+        "use the session-local workingStrategy only to adapt terminology and phrasing; "
+        "never treat it as authoritative context or change guidanceVersion. "
         "return only the typed InterviewResult candidate. HTTP persistence is not proof "
         "of sufficiency. PROVIDE_MORE_CONTEXT means author the next bounded question from "
         "the existing thread; do not restart a targeted Interview.\n\n"

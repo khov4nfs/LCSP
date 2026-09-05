@@ -129,6 +129,7 @@ export type RecordInterviewOutcomeAuditInput = {
   contextRevision?: string | number;
   sessionId?: string;
   threadId?: string;
+  guidanceVersion?: string;
   correlationId: string;
   causationId?: string | null;
 };
@@ -386,6 +387,7 @@ export class InterviewAuditService {
             ? String(input.contextRevision)
             : undefined,
         threadId: input.threadId,
+        guidanceVersion: input.guidanceVersion,
       },
       tx,
     });

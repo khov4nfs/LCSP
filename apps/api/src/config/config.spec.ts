@@ -33,6 +33,7 @@ const VALID_ENV = {
   SMTP_PASS: "smtp-pass",
   SMTP_FROM: "lcsp@example.com",
   WORKER_API_KEY: "w".repeat(32),
+  INTERVIEW_GUIDANCE_VERSION: "interview-context-test-v1",
 };
 
 function validate(env: Record<string, string | undefined>) {
@@ -338,6 +339,9 @@ describe("config()", () => {
       orchestration: { debug: false },
       verifiedEpisodes: {
         consolidationIntervalMs: 0,
+      },
+      interview: {
+        guidanceVersion: "interview-context-test-v1",
       },
     });
   });

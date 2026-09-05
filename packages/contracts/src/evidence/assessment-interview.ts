@@ -112,6 +112,7 @@ export type AssessmentInterviewAuditRef = {
   assessmentId: string;
   sourceVersion: string;
   pgeVersion: string;
+  guidanceVersion?: string;
   sessionId: string;
   turnId: string;
   contextRevision: number;
@@ -142,6 +143,23 @@ export type AssessmentInterviewRuntimeState = {
   orchestrationRequested?: boolean;
   pendingDraft?: string;
   answerHistory?: AssessmentInterviewAnswerHistoryItem[];
+};
+
+/** Session-local, non-authoritative hints used to improve the next Interview turn. */
+export type InterviewWorkingStrategy = {
+  terminologyMap: Record<string, string>;
+  avoidReaskingTopics: string[];
+  effectiveQuestionPatterns: string[];
+  observedAmbiguities: string[];
+  interactionNotes: string[];
+};
+
+export const EMPTY_INTERVIEW_WORKING_STRATEGY: InterviewWorkingStrategy = {
+  terminologyMap: {},
+  avoidReaskingTopics: [],
+  effectiveQuestionPatterns: [],
+  observedAmbiguities: [],
+  interactionNotes: [],
 };
 
 export type AssessmentInterviewAnswerInput = {

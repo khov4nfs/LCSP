@@ -152,6 +152,7 @@ export const configValidationSchema = Joi.object({
     .positive()
     .default(1048576),
   GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED: Joi.boolean().default(false),
+  INTERVIEW_GUIDANCE_VERSION: Joi.string().trim().min(1).required(),
   GITHUB_CLI_SNAPSHOT_PINNING_ENABLED: Joi.boolean().default(false),
   GITHUB_CLI_ARCHIVE_RETRIEVAL_ENABLED: Joi.boolean().default(false),
   GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: Joi.string()
@@ -423,6 +424,9 @@ export function config(): AppConfig {
       consolidationIntervalMs: Number(
         env.VERIFIED_EPISODE_CONSOLIDATION_INTERVAL_MS ?? 0,
       ),
+    },
+    interview: {
+      guidanceVersion: env.INTERVIEW_GUIDANCE_VERSION?.trim() ?? "",
     },
   };
 }

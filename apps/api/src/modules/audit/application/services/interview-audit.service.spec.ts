@@ -266,6 +266,7 @@ describe("InterviewAuditService", () => {
         summary: "Context is ready for reconciliation.",
         contextRevision: 3,
         threadId: "thread-1",
+        guidanceVersion: "guidance-v3",
         correlationId: "corr-outcome-1",
       });
 
@@ -278,6 +279,7 @@ describe("InterviewAuditService", () => {
         outcome: "CONTEXT_READY",
         summary: "Context is ready for reconciliation.",
         contextRevision: "3",
+        guidanceVersion: "guidance-v3",
       });
     });
   });
