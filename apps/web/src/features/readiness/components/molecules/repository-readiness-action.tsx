@@ -172,7 +172,7 @@ export function RepositoryReadinessAction({
             {credentialActionRequired ? (
               <Link
                 className="mt-2 inline-block underline underline-offset-4"
-                href={`/workspace/settings?section=repositories&assessment_id=${encodeURIComponent(assessmentId)}`}
+                href={`/workspace/settings?section=connectors&assessment_id=${encodeURIComponent(assessmentId)}`}
               >
                 {t("pages.readiness.repository.configureCredential")}
               </Link>

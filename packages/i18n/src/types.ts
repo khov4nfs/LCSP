@@ -112,6 +112,10 @@ export type PagesMessages = {
       };
     };
     settings: string;
+    language: string;
+    getHelp: string;
+    documentation: string;
+    learnMore: string;
     readiness: string;
     technicalEvidence: string;
     classification: string;
@@ -694,14 +698,18 @@ export type PagesMessages = {
     settingsHub: {
       description: string;
       sections: {
+        general: string;
         account: string;
-        appearance: string;
-        notifications: string;
-        emails: string;
-        passwordAndAuthentication: string;
-        sessions: string;
-        repositories: string;
+        privacy: string;
+        billing: string;
+        usage: string;
+        capabilities: string;
+        connectors: string;
       };
+      closeLabel: string;
+      navigationLabel: string;
+      searchLabel: string;
+      searchPlaceholder: string;
       labels: {
         account: string;
         displayName: string;
@@ -717,6 +725,10 @@ export type PagesMessages = {
         defaultBranch: string;
         linkedAssessment: string;
         connectedAt: string;
+        device: string;
+        location: string;
+        actions: string;
+        trustedDevices: string;
       };
       badges: {
         verified: string;
@@ -738,6 +750,8 @@ export type PagesMessages = {
         noSessions: string;
         noRepositories: string;
         noAssessmentLinked: string;
+        loadingAccount: string;
+        notSupported: string;
       };
       actions: {
         edit: string;
@@ -756,6 +770,8 @@ export type PagesMessages = {
         linkGoogle: string;
         connectGitHubRepository: string;
         manageGitHubRepositoryAccess: string;
+        logOutAllDevices: string;
+        updatePat: string;
       };
       account: {
         title: string;
@@ -783,6 +799,73 @@ export type PagesMessages = {
           light: string;
           dark: string;
         };
+      };
+      general: {
+        profileTitle: string;
+        fullName: string;
+        assistantName: string;
+        preferencesTitle: string;
+        appearance: string;
+        language: string;
+        languageEnglish: string;
+        languageVietnamese: string;
+        chatFont: string;
+        chatFontInter: string;
+        notificationsTitle: string;
+        assessmentCompletions: string;
+        assessmentCompletionsDescription: string;
+        remediationApprovals: string;
+        remediationApprovalsDescription: string;
+      };
+      privacy: {
+        title: string;
+        description: string;
+        repositoryMetadata: string;
+        improveModels: string;
+        exportData: string;
+        sharedAssessments: string;
+        memoryPreferences: string;
+      };
+      billing: {
+        title: string;
+        description: string;
+        creditBalance: string;
+        buyCredits: string;
+        autoReload: string;
+        paymentMethod: string;
+        invoices: string;
+      };
+      usage: {
+        title: string;
+        description: string;
+        creditUsage: string;
+        balance: string;
+        spendingLimit: string;
+      };
+      capabilities: {
+        title: string;
+        description: string;
+        addDomain: string;
+        additionalAllowedDomains: string;
+        connectorSearch: string;
+        connectorSearchDescription: string;
+        domainAllowlistDescription: string;
+        domainAllowlistNotice: string;
+        domainInputPlaceholder: string;
+        executionTitle: string;
+        toolAccessMode: string;
+        toolAccessModeDescription: string;
+        guidedMode: string;
+        loadToolsWhenNeeded: string;
+        artifacts: string;
+        artifactsDescription: string;
+        cloudCodeExecution: string;
+        cloudCodeExecutionDescription: string;
+        networkEgress: string;
+        networkEgressDescription: string;
+        domainAllowlist: string;
+        domainAllowlistUnsupported: string;
+        packageManagersOnly: string;
       };
       notifications: {
         title: string;
@@ -860,8 +943,15 @@ export type PagesMessages = {
         description: string;
         activeTitle: string;
         activeDescription: string;
+        actionMenuLabel: string;
+        logOutAllDevicesTitle: string;
+        noTrustedDevices: string;
         summary: string;
         revokedTitle: string;
+        trustedDevicesDescription: string;
+        logoutAllUnsupported: string;
+        unknownLocation: string;
+        webSession: string;
       };
       repositories: {
         title: string;
@@ -882,6 +972,8 @@ export type PagesMessages = {
         providerLabel: string;
         githubProvider: string;
         gitlabProvider: string;
+        bitbucketProvider: string;
+        azureDevOpsProvider: string;
         repositoryUrlLabel: string;
         repositoryUrlPlaceholder: string;
         gitlabRepositoryUrlPlaceholder: string;
@@ -898,6 +990,42 @@ export type PagesMessages = {
         approvalRequiredDescription: string;
         repositoryDeniedDescription: string;
         serviceUnavailableDescription: string;
+        supportedProviderDescription: string;
+        unsupportedProviderDescription: string;
+        codeRemediationWriteAccess: string;
+        codeRemediationWriteHelper: string;
+        cancel: string;
+        connect: string;
+        connectGithubTitle: string;
+        connectGitlabTitle: string;
+        connected: string;
+        connectionStatus: string;
+        credentialStoredHelper: string;
+        credentialStoredSecurely: string;
+        detectAccountFromCredential: string;
+        disconnect: string;
+        disconnectUnavailable: string;
+        enterNewPat: string;
+        githubRepositoryCredentialSubtitle: string;
+        gitProvidersTitle: string;
+        gitlabRepositoryAccessGuidance: string;
+        gitlabRepositoryCredentialSubtitle: string;
+        githubPatAccessTitle: string;
+        manageGithubPatTitle: string;
+        manageGitlabPatTitle: string;
+        managePat: string;
+        manageProvidersDescription: string;
+        notConnected: string;
+        pastePersonalAccessToken: string;
+        personalAccessToken: string;
+        repositoryAccessConfigured: string;
+        repositoryAccessGuidance: string;
+        repositoryReadAccess: string;
+        save: string;
+        updateGithubPatTitle: string;
+        updateGitlabPatTitle: string;
+        updatePat: string;
+        username: string;
       };
       errors: {
         profileLoadTitle: string;

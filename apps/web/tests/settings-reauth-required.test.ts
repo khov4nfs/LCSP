@@ -5,7 +5,7 @@ import { test } from "node:test";
 test("provider credential reauthentication is routed to the existing Settings flow", async () => {
   const source = await readFile(
     new URL(
-      "../src/features/settings/components/organisms/repositories-settings-section.tsx",
+      "../src/features/settings/components/molecules/provider-credential-dialog.tsx",
       import.meta.url,
     ),
     "utf8",
