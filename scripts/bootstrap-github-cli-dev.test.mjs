@@ -16,8 +16,12 @@ import { parse } from "dotenv";
 import {
   bootstrapLocalGitHubCli,
   bootstrapLocalGitLabCli,
+  bootstrapLocalBitbucketCli,
+  bootstrapLocalAzureDevOpsCli,
   SUPPORTED_GITHUB_CLI_VERSION,
   SUPPORTED_GITLAB_CLI_VERSION,
+  SUPPORTED_BITBUCKET_CLI_VERSION,
+  SUPPORTED_AZURE_DEVOPS_CLI_VERSION,
 } from "./bootstrap-github-cli-dev.mjs";
 
 async function withTempEnv(callback) {
@@ -84,6 +88,48 @@ test("GitLab bootstrap enables the provider for local development", () =>
     });
     assert.equal(
       parse(readFileSync(envFilePath)).GITLAB_PROVIDER_ENABLED,
+      "true",
+    );
+  }));
+
+test("Bitbucket bootstrap enables the provider for local development", () =>
+  withTempEnv(async (root, envFilePath) => {
+    const executablePath = path.join(root, "bb.exe");
+    writeFileSync(executablePath, "fake-bb", "utf8");
+    const spawnSyncImpl = (_command, args) =>
+      args[0] === "--version"
+        ? { status: 0, stdout: `bb version ${SUPPORTED_BITBUCKET_CLI_VERSION} (test)\n` }
+        : { status: 0, stdout: `${executablePath}\n` };
+    await bootstrapLocalBitbucketCli({
+      repoRoot: root,
+      env: { NODE_ENV: "development", BITBUCKET_CLI_EXECUTABLE_PATH: executablePath },
+      platform: "win32",
+      envFilePath,
+      spawnSyncImpl,
+    });
+    assert.equal(
+      parse(readFileSync(envFilePath)).BITBUCKET_PROVIDER_ENABLED,
+      "true",
+    );
+  }));
+
+test("Azure DevOps bootstrap enables the provider for local development", () =>
+  withTempEnv(async (root, envFilePath) => {
+    const executablePath = path.join(root, "az.exe");
+    writeFileSync(executablePath, "fake-az", "utf8");
+    const spawnSyncImpl = (_command, args) =>
+      args[0] === "version"
+        ? { status: 0, stdout: `azure-cli ${SUPPORTED_AZURE_DEVOPS_CLI_VERSION} (test)\n` }
+        : { status: 0, stdout: `${executablePath}\n` };
+    await bootstrapLocalAzureDevOpsCli({
+      repoRoot: root,
+      env: { NODE_ENV: "development", AZURE_DEVOPS_CLI_EXECUTABLE_PATH: executablePath },
+      platform: "win32",
+      envFilePath,
+      spawnSyncImpl,
+    });
+    assert.equal(
+      parse(readFileSync(envFilePath)).AZURE_DEVOPS_PROVIDER_ENABLED,
       "true",
     );
   }));

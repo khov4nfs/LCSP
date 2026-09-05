@@ -5,6 +5,8 @@ export const githubRepositoryCredentialSchema = z.object({
   provider: z.union([
     z.literal(CREDENTIAL_PROVIDERS.github),
     z.literal(CREDENTIAL_PROVIDERS.gitlab),
+    z.literal(CREDENTIAL_PROVIDERS.bitbucket),
+    z.literal(CREDENTIAL_PROVIDERS.azureDevOps),
   ]),
   credential: z.string().trim().min(1).max(512),
 });

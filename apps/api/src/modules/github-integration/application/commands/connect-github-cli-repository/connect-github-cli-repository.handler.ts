@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { HttpStatus, Inject, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
@@ -14,7 +15,9 @@ import {
   GITHUB_INTEGRATION_EVENT_TYPES,
   PROVIDER_CREDENTIAL_STATUSES,
   REPOSITORY_CONNECTION_STATUSES,
+  type CredentialProvider,
 } from "@lcsp/contracts/github-integration";
+import { toPrismaCredentialProvider } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 
 import type { AppConfig } from "../../../../../config/config.types.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
@@ -34,9 +37,13 @@ import { CredentialLease } from "../../security/credential-lease.js";
 import { PrismaCredentialPersistenceUnitOfWork } from "../../../infrastructure/persistence/prisma-credential-persistence.unit-of-work.js";
 import {
   assertCredential,
+  AZURE_DEVOPS_REPOSITORY_PATTERN,
+  BITBUCKET_REPOSITORY_PATTERN,
   GITHUB_REPOSITORY_PATTERN,
   GITLAB_REPOSITORY_PATTERN,
   mapProviderFailure,
+  parseAzureDevOpsRepositoryUrl,
+  parseBitbucketRepositoryUrl,
   parseGitHubRepositoryUrl,
   parseGitLabRepositoryUrl,
 } from "../github-cli-connect.support.js";
@@ -64,26 +71,21 @@ export class ConnectGitHubCliRepositoryHandler implements ICommandHandler<Connec
   ): Promise<GitHubCliRepositoryConnectionDto> {
     this.assertEnabledAndManager(command.subjectRole, command.correlationId);
     assertCredential(command.credential, command.correlationId);
-    const provider = command.provider ?? CREDENTIAL_PROVIDERS.github;
-    if (
-      provider !== CREDENTIAL_PROVIDERS.github &&
-      provider !== CREDENTIAL_PROVIDERS.gitlab
-    ) {
+    const provider = (command.provider ??
+      CREDENTIAL_PROVIDERS.github) as CredentialProvider;
+    if (!Object.values(CREDENTIAL_PROVIDERS).includes(provider)) {
       this.invalid(command.correlationId);
     }
     const providerAdapter =
       this.providerRegistry?.get(provider) ?? this.provider;
-    const repositoryFullName =
-      command.repositoryUrl !== undefined
-        ? provider === CREDENTIAL_PROVIDERS.github
-          ? parseGitHubRepositoryUrl(command.repositoryUrl)?.repositoryFullName
-          : parseGitLabRepositoryUrl(command.repositoryUrl)?.repositoryFullName
-        : command.repositoryFullName?.trim();
+    const repositoryFullName = parseRepositoryFullName(
+      provider,
+      command.repositoryUrl,
+      command.repositoryFullName,
+    );
     if (
       !repositoryFullName ||
-      !(provider === CREDENTIAL_PROVIDERS.github
-        ? GITHUB_REPOSITORY_PATTERN.test(repositoryFullName)
-        : GITLAB_REPOSITORY_PATTERN.test(repositoryFullName))
+      !isValidRepositoryPath(provider, repositoryFullName)
     ) {
       this.invalid(command.correlationId);
     }
@@ -125,15 +127,13 @@ export class ConnectGitHubCliRepositoryHandler implements ICommandHandler<Connec
         command.repositoryUrl !== undefined,
       );
 
+      const authenticationMode = toRepositoryAuthenticationMode(provider);
       const duplicate = await this.prisma.repositoryConnection.findFirst({
         where: {
           userId: command.userId,
           repositoryId: repository.id,
           assessmentId: command.assessmentId ?? null,
-          authenticationMode:
-            provider === CREDENTIAL_PROVIDERS.github
-              ? RepositoryAuthenticationMode.GITHUB_CLI_CREDENTIAL
-              : RepositoryAuthenticationMode.GITLAB_CLI_CREDENTIAL,
+          authenticationMode,
           status: RepositoryConnectionStatus.ACTIVE,
         },
         select: { id: true },
@@ -160,7 +160,7 @@ export class ConnectGitHubCliRepositoryHandler implements ICommandHandler<Connec
           id: providerCredentialId,
           provider,
           ownerUserId: command.userId,
-          providerAccountId: BigInt(identity.id),
+          providerAccountId: toProviderAccountIdBigInt(identity.id),
           providerLogin: identity.login,
           status: PROVIDER_CREDENTIAL_STATUSES.active,
           currentVersion: INITIAL_CREDENTIAL_VERSION,
@@ -176,12 +176,9 @@ export class ConnectGitHubCliRepositoryHandler implements ICommandHandler<Connec
             id: connectionId,
             assessmentId: command.assessmentId ?? null,
             userId: command.userId,
-            provider,
+            provider: toPrismaCredentialProvider(provider),
             installationId: null,
-            authenticationMode:
-              provider === CREDENTIAL_PROVIDERS.github
-                ? RepositoryAuthenticationMode.GITHUB_CLI_CREDENTIAL
-                : RepositoryAuthenticationMode.GITLAB_CLI_CREDENTIAL,
+            authenticationMode,
             providerCredentialId,
             credentialVersion: INITIAL_CREDENTIAL_VERSION,
             credentialAuthorizedByUserId: command.userId,
@@ -324,4 +321,61 @@ export class ConnectGitHubCliRepositoryHandler implements ICommandHandler<Connec
       { status: HttpStatus.BAD_REQUEST },
     );
   }
+}
+
+function parseRepositoryFullName(
+  provider: (typeof CREDENTIAL_PROVIDERS)[keyof typeof CREDENTIAL_PROVIDERS],
+  repositoryUrl?: string,
+  repositoryFullName?: string,
+): string | undefined {
+  if (repositoryUrl !== undefined) {
+    switch (provider) {
+      case CREDENTIAL_PROVIDERS.github:
+        return parseGitHubRepositoryUrl(repositoryUrl)?.repositoryFullName;
+      case CREDENTIAL_PROVIDERS.gitlab:
+        return parseGitLabRepositoryUrl(repositoryUrl)?.repositoryFullName;
+      case CREDENTIAL_PROVIDERS.bitbucket:
+        return parseBitbucketRepositoryUrl(repositoryUrl)?.repositoryFullName;
+      case CREDENTIAL_PROVIDERS.azureDevOps:
+        return parseAzureDevOpsRepositoryUrl(repositoryUrl)?.repositoryFullName;
+    }
+  }
+  return repositoryFullName?.trim();
+}
+
+function isValidRepositoryPath(
+  provider: (typeof CREDENTIAL_PROVIDERS)[keyof typeof CREDENTIAL_PROVIDERS],
+  path: string,
+): boolean {
+  switch (provider) {
+    case CREDENTIAL_PROVIDERS.github:
+      return GITHUB_REPOSITORY_PATTERN.test(path);
+    case CREDENTIAL_PROVIDERS.gitlab:
+      return GITLAB_REPOSITORY_PATTERN.test(path);
+    case CREDENTIAL_PROVIDERS.bitbucket:
+      return BITBUCKET_REPOSITORY_PATTERN.test(path);
+    case CREDENTIAL_PROVIDERS.azureDevOps:
+      return AZURE_DEVOPS_REPOSITORY_PATTERN.test(path);
+  }
+}
+
+function toRepositoryAuthenticationMode(
+  provider: (typeof CREDENTIAL_PROVIDERS)[keyof typeof CREDENTIAL_PROVIDERS],
+): RepositoryAuthenticationMode {
+  switch (provider) {
+    case CREDENTIAL_PROVIDERS.github:
+      return RepositoryAuthenticationMode.GITHUB_CLI_CREDENTIAL;
+    case CREDENTIAL_PROVIDERS.gitlab:
+      return RepositoryAuthenticationMode.GITLAB_CLI_CREDENTIAL;
+    case CREDENTIAL_PROVIDERS.bitbucket:
+      return RepositoryAuthenticationMode.BITBUCKET_CLI_CREDENTIAL;
+    case CREDENTIAL_PROVIDERS.azureDevOps:
+      return RepositoryAuthenticationMode.AZURE_DEVOPS_CLI_CREDENTIAL;
+  }
+}
+
+function toProviderAccountIdBigInt(id: string): bigint {
+  if (/^\d+$/u.test(id)) return BigInt(id);
+  const hash = createHash("sha256").update(id).digest();
+  return hash.readBigUInt64BE(0) & 0x7fffffffffffffffn;
 }

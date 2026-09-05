@@ -7,6 +7,7 @@ import { resolveMessage } from "@lcsp/i18n";
 import Image from "next/image";
 import type { FormEvent } from "react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +18,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import type { ProviderCredentialStatus } from "@/lib/api/github-repository-client";
+import {
+  githubRepositoryProblemMessageKey,
+  type ProviderCredentialStatus,
+} from "@/lib/api/github-repository-client";
 import { useConfigureProviderCredentialMutation } from "@/lib/api/github-repository-queries";
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
@@ -30,6 +34,8 @@ export const PROVIDER_CREDENTIAL_DIALOG_MODES = {
 
 export type ProviderCredentialDialogMode =
   (typeof PROVIDER_CREDENTIAL_DIALOG_MODES)[keyof typeof PROVIDER_CREDENTIAL_DIALOG_MODES];
+
+type MessageKey = Parameters<typeof resolveMessage>[1];
 
 type ProviderCredentialDialogProps = {
   mode: ProviderCredentialDialogMode;
@@ -44,6 +50,9 @@ type ProviderCredentialDialogProps = {
 const PROVIDER_LOGOS: Record<CredentialProvider, string> = {
   [CREDENTIAL_PROVIDERS.github]: "/assets/figma/settings/logo-github.svg",
   [CREDENTIAL_PROVIDERS.gitlab]: "/assets/figma/settings/logo-gitlab.svg",
+  [CREDENTIAL_PROVIDERS.bitbucket]: "/assets/figma/settings/logo-bitbucket.svg",
+  [CREDENTIAL_PROVIDERS.azureDevOps]:
+    "/assets/figma/settings/logo-azure-devops.svg",
 };
 
 const PROVIDER_TITLE_KEYS = {
@@ -57,6 +66,16 @@ const PROVIDER_TITLE_KEYS = {
     manage: "pages.workspace.settingsHub.repositories.manageGitlabPatTitle",
     update: "pages.workspace.settingsHub.repositories.updateGitlabPatTitle",
   },
+  [CREDENTIAL_PROVIDERS.bitbucket]: {
+    connect: "pages.workspace.settingsHub.repositories.connectBitbucketTitle",
+    manage: "pages.workspace.settingsHub.repositories.manageBitbucketPatTitle",
+    update: "pages.workspace.settingsHub.repositories.updateBitbucketPatTitle",
+  },
+  [CREDENTIAL_PROVIDERS.azureDevOps]: {
+    connect: "pages.workspace.settingsHub.repositories.connectAzureDevOpsTitle",
+    manage: "pages.workspace.settingsHub.repositories.manageAzureDevOpsPatTitle",
+    update: "pages.workspace.settingsHub.repositories.updateAzureDevOpsPatTitle",
+  },
 } as const satisfies Record<
   CredentialProvider,
   Record<ProviderCredentialDialogMode, Parameters<typeof resolveMessage>[1]>
@@ -67,6 +86,10 @@ const PROVIDER_SUBTITLE_KEYS = {
     "pages.workspace.settingsHub.repositories.githubRepositoryCredentialSubtitle",
   [CREDENTIAL_PROVIDERS.gitlab]:
     "pages.workspace.settingsHub.repositories.gitlabRepositoryCredentialSubtitle",
+  [CREDENTIAL_PROVIDERS.bitbucket]:
+    "pages.workspace.settingsHub.repositories.bitbucketRepositoryCredentialSubtitle",
+  [CREDENTIAL_PROVIDERS.azureDevOps]:
+    "pages.workspace.settingsHub.repositories.azureDevOpsRepositoryCredentialSubtitle",
 } as const satisfies Record<
   CredentialProvider,
   Parameters<typeof resolveMessage>[1]
@@ -77,6 +100,10 @@ const PROVIDER_GUIDANCE_KEYS = {
     "pages.workspace.settingsHub.repositories.repositoryAccessGuidance",
   [CREDENTIAL_PROVIDERS.gitlab]:
     "pages.workspace.settingsHub.repositories.gitlabRepositoryAccessGuidance",
+  [CREDENTIAL_PROVIDERS.bitbucket]:
+    "pages.workspace.settingsHub.repositories.bitbucketRepositoryAccessGuidance",
+  [CREDENTIAL_PROVIDERS.azureDevOps]:
+    "pages.workspace.settingsHub.repositories.azureDevOpsRepositoryAccessGuidance",
 } as const satisfies Record<
   CredentialProvider,
   Parameters<typeof resolveMessage>[1]
@@ -92,27 +119,41 @@ export function ProviderCredentialDialog({
   status,
 }: ProviderCredentialDialogProps) {
   const [credential, setCredential] = useState("");
+  const [organization, setOrganization] = useState("");
   const [reauthRequired, setReauthRequired] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const mutation = useConfigureProviderCredentialMutation();
-  const accountUsername = status?.account?.username ?? "";
+  const accountUsername = status?.account?.username?.trim() ?? "";
 
-  function closeCredentialDialog(openState: boolean) {
-    if (!openState) {
+  function closeCredentialDialog(nextOpen: boolean) {
+    if (!nextOpen) {
       setCredential("");
+      setOrganization("");
       setReauthRequired(false);
+      setErrorMessage(null);
     }
-    onOpenChange(openState);
+    onOpenChange(nextOpen);
   }
 
   function changeMode(nextMode: ProviderCredentialDialogMode) {
     setCredential("");
+    setOrganization("");
     setReauthRequired(false);
+    setErrorMessage(null);
     onModeChange(nextMode);
   }
 
   function handleMutationSuccess() {
     setCredential("");
+    setOrganization("");
     setReauthRequired(false);
+    setErrorMessage(null);
+    toast.success(
+      resolveMessage(
+        appLocale,
+        "pages.workspace.settingsHub.repositories.connectSuccessTitle",
+      ),
+    );
     if (mode === PROVIDER_CREDENTIAL_DIALOG_MODES.update) {
       onModeChange(PROVIDER_CREDENTIAL_DIALOG_MODES.manage);
       return;
@@ -121,6 +162,7 @@ export function ProviderCredentialDialog({
   }
 
   function submitCredential(submittedCredential: string) {
+    setErrorMessage(null);
     mutation.mutate(
       { provider, credential: submittedCredential },
       {
@@ -138,7 +180,14 @@ export function ProviderCredentialDialog({
                 submitCredential(submittedCredential);
               });
             });
+            return;
           }
+          const message = resolveMessage(
+            appLocale,
+            githubRepositoryProblemMessageKey(error),
+          );
+          setErrorMessage(message);
+          toast.error(message);
         },
       },
     );
@@ -148,13 +197,24 @@ export function ProviderCredentialDialog({
     event.preventDefault();
     const submittedCredential = credential.trim();
     if (!submittedCredential || mutation.isPending) return;
-    submitCredential(submittedCredential);
+    const finalCredential =
+      provider === CREDENTIAL_PROVIDERS.azureDevOps &&
+      organization.trim() &&
+      !submittedCredential.includes(":")
+        ? `${organization.trim()}:${submittedCredential}`
+        : submittedCredential;
+    submitCredential(finalCredential);
   }
 
   return (
     <Dialog open={open} onOpenChange={closeCredentialDialog}>
       <DialogContent
-        className="h-[430px] max-h-[calc(100svh-2rem)] max-w-140 gap-0 rounded-2xl p-6"
+        className={cn(
+          "max-h-[calc(100svh-2rem)] max-w-140 gap-0 rounded-2xl p-6",
+          provider === CREDENTIAL_PROVIDERS.azureDevOps
+            ? "min-h-[490px]"
+            : "h-[430px]",
+        )}
         closeLabel={resolveMessage(
           appLocale,
           "pages.workspace.settingsHub.repositories.dialogClose",
@@ -172,6 +232,7 @@ export function ProviderCredentialDialog({
           <CredentialForm
             accountUsername={accountUsername}
             credential={credential}
+            errorMessage={errorMessage}
             isPending={mutation.isPending}
             mode={mode}
             onCancel={() => {
@@ -182,6 +243,8 @@ export function ProviderCredentialDialog({
               closeCredentialDialog(false);
             }}
             onCredentialChange={setCredential}
+            onOrganizationChange={setOrganization}
+            organization={organization}
             onSubmit={submit}
             provider={provider}
             reauthRequired={reauthRequired}
@@ -224,20 +287,26 @@ function CredentialDialogHeader({
 function CredentialForm({
   accountUsername,
   credential,
+  errorMessage,
   isPending,
   mode,
   onCancel,
   onCredentialChange,
+  onOrganizationChange,
+  organization,
   onSubmit,
   provider,
   reauthRequired,
 }: {
   accountUsername: string;
   credential: string;
+  errorMessage: string | null;
   isPending: boolean;
   mode: ProviderCredentialDialogMode;
   onCancel: () => void;
   onCredentialChange: (credential: string) => void;
+  onOrganizationChange: (organization: string) => void;
+  organization: string;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   provider: CredentialProvider;
   reauthRequired: boolean;
@@ -269,6 +338,30 @@ function CredentialForm({
               )}
         </div>
       </div>
+      {provider === CREDENTIAL_PROVIDERS.azureDevOps ? (
+        <div className="mt-4 flex h-18 flex-col gap-2">
+          <label
+            className="text-[13px] font-medium"
+            htmlFor="provider-organization"
+          >
+            {resolveMessage(
+              appLocale,
+              "pages.workspace.settingsHub.repositories.azureDevOpsOrganizationLabel",
+            )}
+          </label>
+          <Input
+            id="provider-organization"
+            className="h-11 text-[13px]"
+            type="text"
+            placeholder={resolveMessage(
+              appLocale,
+              "pages.workspace.settingsHub.repositories.azureDevOpsOrganizationPlaceholder",
+            )}
+            value={organization}
+            onChange={(event) => onOrganizationChange(event.target.value)}
+          />
+        </div>
+      ) : null}
       <div className="mt-4 flex h-18 flex-col gap-2">
         <label
           className="text-[13px] font-medium"
@@ -300,6 +393,11 @@ function CredentialForm({
       >
         {resolveMessage(appLocale, PROVIDER_GUIDANCE_KEYS[provider])}
       </div>
+      {errorMessage && !reauthRequired ? (
+        <p role="alert" className="mt-2 text-xs font-medium text-destructive">
+          {errorMessage}
+        </p>
+      ) : null}
       {reauthRequired ? (
         <p role="status" className="mt-3 text-xs text-muted-foreground">
           {resolveMessage(
@@ -323,7 +421,13 @@ function CredentialForm({
         <Button
           className={cn("h-9", isUpdateMode ? "w-21" : "w-25")}
           type="submit"
-          disabled={isPending || credential.trim().length === 0}
+          disabled={
+            isPending ||
+            credential.trim().length === 0 ||
+            (provider === CREDENTIAL_PROVIDERS.azureDevOps &&
+              organization.trim().length === 0 &&
+              !credential.includes(":"))
+          }
         >
           {resolveMessage(
             appLocale,

@@ -920,6 +920,8 @@ enum RepositoryConnectionStatus {
 enum CredentialProvider {
   GITHUB
   GITLAB
+  BITBUCKET
+  AZURE_DEVOPS
 }
 
 enum ProviderCredentialStatus {
@@ -942,6 +944,8 @@ enum RepositoryAuthenticationMode {
   GITHUB_APP
   GITHUB_CLI_CREDENTIAL
   GITLAB_CLI_CREDENTIAL
+  BITBUCKET_CLI_CREDENTIAL
+  AZURE_DEVOPS_CLI_CREDENTIAL
 }
 
 enum RepositorySnapshotStatus {

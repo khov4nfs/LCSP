@@ -45,10 +45,7 @@ export class PrismaActiveProviderCredentialResolver implements ActiveProviderCre
     }
     const metadata: ActiveProviderCredentialMetadata = {
       id: row.id,
-      provider:
-        row.provider === CredentialProvider.GITLAB
-          ? CREDENTIAL_PROVIDERS.gitlab
-          : CREDENTIAL_PROVIDERS.github,
+      provider: fromPrismaProvider(row.provider),
       providerAccountId: row.providerAccountId.toString(),
       providerLogin: row.providerLogin,
       currentVersion: row.currentVersion,
@@ -88,10 +85,7 @@ export class PrismaActiveProviderCredentialResolver implements ActiveProviderCre
     return row
       ? {
           id: row.id,
-          provider:
-            row.provider === CredentialProvider.GITLAB
-              ? CREDENTIAL_PROVIDERS.gitlab
-              : CREDENTIAL_PROVIDERS.github,
+          provider: fromPrismaProvider(row.provider),
           providerAccountId: row.providerAccountId.toString(),
           providerLogin: row.providerLogin,
           currentVersion: row.currentVersion,
@@ -105,5 +99,20 @@ export class PrismaActiveProviderCredentialResolver implements ActiveProviderCre
     repositoryFullName: string;
   }): Promise<CredentialLease> {
     return (await this.resolveActiveCredential(input)).lease;
+  }
+}
+
+function fromPrismaProvider(
+  provider: CredentialProvider,
+): (typeof CREDENTIAL_PROVIDERS)[keyof typeof CREDENTIAL_PROVIDERS] {
+  switch (provider) {
+    case CredentialProvider.GITLAB:
+      return CREDENTIAL_PROVIDERS.gitlab;
+    case CredentialProvider.BITBUCKET:
+      return CREDENTIAL_PROVIDERS.bitbucket;
+    case CredentialProvider.AZURE_DEVOPS:
+      return CREDENTIAL_PROVIDERS.azureDevOps;
+    default:
+      return CREDENTIAL_PROVIDERS.github;
   }
 }

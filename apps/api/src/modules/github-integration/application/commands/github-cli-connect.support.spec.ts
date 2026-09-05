@@ -3,6 +3,8 @@ import { describe, expect, it } from "@jest/globals";
 import {
   parseGitHubRepositoryUrl,
   parseGitLabRepositoryUrl,
+  parseBitbucketRepositoryUrl,
+  parseAzureDevOpsRepositoryUrl,
 } from "./github-cli-connect.support.js";
 
 describe("parseGitHubRepositoryUrl", () => {
@@ -57,5 +59,65 @@ describe("parseGitLabRepositoryUrl", () => {
     "https://gitlab.com/group/project?x=1",
   ])("rejects unsafe GitLab locator %s", (value) => {
     expect(parseGitLabRepositoryUrl(value)).toBeNull();
+  });
+});
+
+describe("parseBitbucketRepositoryUrl", () => {
+  it.each([
+    "https://bitbucket.org/workspace-slug/repo-slug",
+    "https://bitbucket.org/workspace-slug/repo-slug/",
+    "https://bitbucket.org/workspace-slug/repo-slug.git",
+  ])("normalizes Bitbucket project URL %s", (value) => {
+    expect(parseBitbucketRepositoryUrl(value)).toEqual({
+      repositoryFullName: "workspace-slug/repo-slug",
+      canonicalUrl: "https://bitbucket.org/workspace-slug/repo-slug",
+    });
+  });
+
+  it.each([
+    "http://bitbucket.org/workspace/repo",
+    "https://fakebitbucket.org/workspace/repo",
+    "https://bitbucket.org.attacker.com/workspace/repo",
+    "https://bitbucket.org/workspace",
+    "https://bitbucket.org/workspace/repo/src/main",
+  ])("rejects invalid Bitbucket locator %s", (value) => {
+    expect(parseBitbucketRepositoryUrl(value)).toBeNull();
+  });
+});
+
+describe("parseAzureDevOpsRepositoryUrl", () => {
+  it.each([
+    [
+      "https://dev.azure.com/org-name/project-name/_git/repo-name",
+      "org-name/project-name/repo-name",
+      "https://dev.azure.com/org-name/project-name/_git/repo-name",
+    ],
+    [
+      "https://dev.azure.com/org-name/project-name/_git/repo-name.git",
+      "org-name/project-name/repo-name",
+      "https://dev.azure.com/org-name/project-name/_git/repo-name",
+    ],
+    [
+      "https://org-name.visualstudio.com/project-name/_git/repo-name",
+      "org-name/project-name/repo-name",
+      "https://dev.azure.com/org-name/project-name/_git/repo-name",
+    ],
+  ])(
+    "normalizes Azure DevOps URL %s",
+    (value, expectedFullName, expectedCanonical) => {
+      expect(parseAzureDevOpsRepositoryUrl(value)).toEqual({
+        repositoryFullName: expectedFullName,
+        canonicalUrl: expectedCanonical,
+      });
+    },
+  );
+
+  it.each([
+    "http://dev.azure.com/org/proj/_git/repo",
+    "https://fakeazure.com/org/proj/_git/repo",
+    "https://dev.azure.com/org/proj",
+    "https://dev.azure.com/org/proj/_git/repo/branches",
+  ])("rejects invalid Azure DevOps locator %s", (value) => {
+    expect(parseAzureDevOpsRepositoryUrl(value)).toBeNull();
   });
 });

@@ -154,6 +154,10 @@ function fromPrismaAuthenticationMode(
       return REPOSITORY_AUTHENTICATION_MODES.githubApp;
     case PrismaRepositoryAuthenticationMode.GITLAB_CLI_CREDENTIAL:
       return REPOSITORY_AUTHENTICATION_MODES.gitlabCliCredential;
+    case PrismaRepositoryAuthenticationMode.BITBUCKET_CLI_CREDENTIAL:
+      return REPOSITORY_AUTHENTICATION_MODES.bitbucketCliCredential;
+    case PrismaRepositoryAuthenticationMode.AZURE_DEVOPS_CLI_CREDENTIAL:
+      return REPOSITORY_AUTHENTICATION_MODES.azureDevOpsCliCredential;
     default:
       return REPOSITORY_AUTHENTICATION_MODES.githubCliCredential;
   }
@@ -162,7 +166,14 @@ function fromPrismaAuthenticationMode(
 function fromPrismaCredentialProvider(
   provider: PrismaCredentialProvider,
 ): (typeof CREDENTIAL_PROVIDERS)[keyof typeof CREDENTIAL_PROVIDERS] {
-  return provider === PrismaCredentialProvider.GITLAB
-    ? CREDENTIAL_PROVIDERS.gitlab
-    : CREDENTIAL_PROVIDERS.github;
+  switch (provider) {
+    case PrismaCredentialProvider.GITLAB:
+      return CREDENTIAL_PROVIDERS.gitlab;
+    case PrismaCredentialProvider.BITBUCKET:
+      return CREDENTIAL_PROVIDERS.bitbucket;
+    case PrismaCredentialProvider.AZURE_DEVOPS:
+      return CREDENTIAL_PROVIDERS.azureDevOps;
+    default:
+      return CREDENTIAL_PROVIDERS.github;
+  }
 }
