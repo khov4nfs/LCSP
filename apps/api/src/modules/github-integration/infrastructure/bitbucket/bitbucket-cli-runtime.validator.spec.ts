@@ -1,3 +1,7 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it, jest } from "@jest/globals";
 import { GITHUB_CREDENTIAL_ERROR_CODES } from "@lcsp/contracts/github-integration";
 
@@ -6,6 +10,11 @@ import {
   SUPPORTED_BITBUCKET_CLI_VERSION,
   assertBitbucketCliRuntime,
 } from "./bitbucket-cli-runtime.validator.js";
+
+type BitbucketCliRuntimeDependencies = NonNullable<
+  Parameters<typeof assertBitbucketCliRuntime>[1]
+>;
+type BitbucketCliSpawn = NonNullable<BitbucketCliRuntimeDependencies["spawn"]>;
 
 describe("Bitbucket CLI runtime validation", () => {
   it("resolves bb from PATH to an absolute executable path", () => {
@@ -33,7 +42,7 @@ describe("Bitbucket CLI runtime validation", () => {
   });
 
   it("validates the supported bb runtime", () => {
-    const spawn = jest.fn(() => ({
+    const spawn = jest.fn<BitbucketCliSpawn>(() => ({
       status: 0,
       stdout: `bb version ${SUPPORTED_BITBUCKET_CLI_VERSION} (test)\n`,
     }));
@@ -43,27 +52,34 @@ describe("Bitbucket CLI runtime validation", () => {
     expect(spawn).toHaveBeenCalled();
   });
 
-  it("accepts a root-relative executable with an explicit workspace cwd", () => {
-    const access = jest.fn();
-    const spawn = jest.fn(() => ({
+  it("uses the Windows command shell for a managed .cmd wrapper", () => {
+    const spawn = jest.fn<BitbucketCliSpawn>(() => ({
       status: 0,
       stdout: `bb version ${SUPPORTED_BITBUCKET_CLI_VERSION} (test)\n`,
     }));
+    const directory = mkdtempSync(join(tmpdir(), "lcsp-bb-"));
+    const executablePath = join(directory, "bb.cmd");
+    writeFileSync(executablePath, "@echo off\n", "utf8");
+    writeFileSync(join(directory, "bb.mjs"), "", "utf8");
 
-    expect(() =>
-      assertBitbucketCliRuntime("./.cache/lcsp-cli/bitbucket-cli/bin/bb", {
-        access,
-        cwd: "/workspace/LCSP",
-        spawn,
-      }),
-    ).not.toThrow();
-    expect(access).toHaveBeenCalledWith(
-      "/workspace/LCSP/.cache/lcsp-cli/bitbucket-cli/bin/bb",
-      1,
-    );
+    try {
+      expect(() =>
+        assertBitbucketCliRuntime(executablePath, { spawn }),
+      ).not.toThrow();
+
+      expect(spawn).toHaveBeenLastCalledWith(
+        process.platform === "win32" ? process.execPath : executablePath,
+        process.platform === "win32"
+          ? [join(directory, "bb.mjs"), "--version"]
+          : ["--version"],
+        expect.objectContaining({ shell: false }),
+      );
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
-  it("rejects a missing executable", () => {
+  it("rejects a relative or missing executable", () => {
     expect(() => assertBitbucketCliRuntime("bb")).toThrow(
       GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
     );

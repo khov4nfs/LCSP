@@ -164,6 +164,7 @@ def test_initial_pge_event_bootstraps_interview_and_stops_before_pipeline() -> N
     assert "Missing technical evidence is not proof" in instruction
     assert api.seeded[0][0] == "assessment-1"
     assert api.seeded[0][1]["outcome"] == "WAITING_FOR_CUSTOMER"
+    assert api.seeded[0][1]["technicalEvidenceReportId"] == "ter-1"
 
 
 def test_unavailable_coverage_routes_to_orchestration_before_interview() -> None:
@@ -187,9 +188,68 @@ def test_unavailable_coverage_routes_to_orchestration_before_interview() -> None
     assert len(root.calls) == 1
     assert (
         root.calls[0][1]["metadata"]["trigger"]
-        == "TECHNICAL_COVERAGE_UNAVAILABLE_RECOVERY"
+        == "TECHNICAL_COVERAGE_RECOVERY_REQUIRED"
     )
     assert "Do not enter Initial Interview" in root.calls[0][0]["messages"][0]["content"]
+
+
+def test_unknown_coverage_routes_to_recovery_before_interview() -> None:
+    api = FakeApi({"outcome": "WAITING_FOR_CUSTOMER", "contextRevision": 0})
+    dispatcher = FakeDispatcher()
+    root = RecordingRoot()
+    boundary = _boundary(api, dispatcher, recovery_root=root)
+    report = _report()
+    report["evidence_payload"]["evidence_graph"]["coverage_state"] = "unknown"
+
+    boundary._prepare_interview(
+        evidence_report=report,
+        evidence_report_id="ter-1",
+        assessment_id="assessment-1",
+        correlation_id="corr-unknown",
+    )
+
+    assert dispatcher.calls == []
+    assert api.seeded == []
+    assert root.calls[0][1]["metadata"]["trigger"] == "TECHNICAL_COVERAGE_RECOVERY_REQUIRED"
+    assert "Coverage state: UNAVAILABLE" in root.calls[0][0]["messages"][0]["content"]
+
+
+def test_partial_without_preserved_limitations_routes_to_recovery() -> None:
+    api = FakeApi({"outcome": "WAITING_FOR_CUSTOMER", "contextRevision": 0})
+    dispatcher = FakeDispatcher()
+    root = RecordingRoot()
+    boundary = _boundary(api, dispatcher, recovery_root=root)
+    report = _report()
+    report["evidence_payload"]["evidence_graph"]["coverage_notes"] = []
+
+    boundary._prepare_interview(
+        evidence_report=report,
+        evidence_report_id="ter-1",
+        assessment_id="assessment-1",
+        correlation_id="corr-partial-without-limitations",
+    )
+
+    assert dispatcher.calls == []
+    assert api.seeded == []
+    assert "Coverage state: PARTIAL" in root.calls[0][0]["messages"][0]["content"]
+
+
+def test_limited_pge_coverage_normalizes_to_permitted_partial() -> None:
+    api = FakeApi({"outcome": "WAITING_FOR_CUSTOMER", "contextRevision": 0})
+    dispatcher = FakeDispatcher()
+    boundary = _boundary(api, dispatcher)
+    report = _report()
+    report["evidence_payload"]["evidence_graph"]["coverage_state"] = " LIMITED "
+
+    boundary._prepare_interview(
+        evidence_report=report,
+        evidence_report_id="ter-1",
+        assessment_id="assessment-1",
+        correlation_id="corr-limited",
+    )
+
+    assert len(dispatcher.calls) == 1
+    assert '"coverageState": "PARTIAL"' in dispatcher.calls[0]["instruction"]
 
 
 def test_guarded_ready_state_is_the_only_initial_path_to_confirmed_context() -> None:

@@ -1,0 +1,69 @@
+# The local development image deliberately excludes governed runtime reports.
+# In particular, the precompiled EngineeringRule bundle is a production artefact
+# with exact corpus hashes and approval provenance.  Do not manufacture one just
+# to make a developer image build; production uses Dockerfile, which keeps its
+# required COPY gate intact.
+FROM ghcr.io/astral-sh/uv:0.10.6 AS uv
+
+FROM python:3.11-slim-bookworm
+
+ARG SYFT_VERSION=1.20.0
+ARG SEMGREP_VERSION=1.99.0
+ARG KNIP_VERSION=6
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends bash ca-certificates curl git gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh \
+    | sh -s -- -b /usr/local/bin "v${SYFT_VERSION}" \
+    && npm install --global "knip@${KNIP_VERSION}" \
+    && ln -sf "$(command -v knip)" /usr/local/bin/knip
+
+WORKDIR /app
+COPY --from=uv /uv /uvx /bin/
+
+# Resolve the worker runtime from the reviewed lockfile before source files are
+# copied.  This prevents pip from re-solving the broad project constraints on
+# every build and gives dependency layers a stable cache key.
+COPY deepagents/pyproject.toml deepagents/uv.lock /app/deepagents/
+RUN cd /app/deepagents \
+    && uv sync --frozen --no-dev --no-install-project
+
+COPY deepagents /app/deepagents
+
+RUN cd /app/deepagents \
+    && uv sync --frozen --no-dev
+
+RUN cd /app/deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/ts-js-analyzer \
+    && rm -f package-lock.json \
+    && npm install --include=dev \
+    && npm run build \
+    && npm prune --omit=dev
+
+# Semgrep's dependency set intentionally remains isolated from the worker
+# runtime: its OpenTelemetry constraints otherwise force a second conflicting
+# resolution of the application's locked dependencies. Semgrep 1.99 imports
+# pkg_resources, so its isolated environment must retain setuptools below v81.
+RUN uv venv /opt/semgrep-venv \
+    && uv pip install --python /opt/semgrep-venv/bin/python "semgrep==${SEMGREP_VERSION}" "setuptools<81" \
+    && ln -s /opt/semgrep-venv/bin/semgrep /usr/local/bin/semgrep
+
+RUN syft --version \
+    && semgrep --version \
+    && knip --version \
+    && node --version
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH=/app/deepagents
+ENV KNIP_BINARY=/usr/local/bin/knip
+ENV PATH=/app/deepagents/.venv/bin:$PATH
+
+WORKDIR /app/deepagents
+
+ENTRYPOINT ["python", "entrypoint.py"]
