@@ -17,8 +17,15 @@ import type {
   WorkspaceRuntimeActiveTool,
   WorkspaceRuntimeConnectionState,
   WorkspaceRuntimeRepositorySnapshot,
+  WorkspaceRuntimeScanJob,
+  WorkspaceRuntimeEvidenceReport,
   WorkspaceRuntimeRun,
 } from "./workspace-runtime.types";
+import type {
+  ArtifactRef,
+  ArtifactStatus,
+  ArtifactType,
+} from "@/features/artifacts/types/artifact.types";
 
 export const ASSESSMENT_RUNTIME_AVAILABILITIES = {
   loading: "LOADING",
@@ -65,6 +72,7 @@ export type AssessmentScreenProjection =
   (typeof ASSESSMENT_SCREEN_PROJECTIONS)[keyof typeof ASSESSMENT_SCREEN_PROJECTIONS];
 
 export const ASSESSMENT_SIDEBAR_WORKFLOW_STAGES = {
+  repository: "REPOSITORY",
   scanner: "SCANNER",
   interview: "INTERVIEW",
   rules: "RULES",
@@ -138,9 +146,60 @@ export type NormalizedAssessmentWorkflow = {
   lastEmittedAt: string | null;
   isTargetedClarificationLoop: boolean;
   latestRun: WorkspaceRuntimeRun | null;
+  steps: NormalizedWorkflowStep[];
+};
+
+export const NORMALIZED_WORKFLOW_STEP_STATUSES = {
+  queued: "QUEUED",
+  running: "RUNNING",
+  waiting: "WAITING",
+  completed: "COMPLETED",
+  failed: "FAILED",
+  unknown: "UNKNOWN",
+} as const;
+
+export type NormalizedWorkflowStepStatus =
+  (typeof NORMALIZED_WORKFLOW_STEP_STATUSES)[keyof typeof NORMALIZED_WORKFLOW_STEP_STATUSES];
+
+export type NormalizedWorkflowStep = {
+  id: string;
+  label: string;
+  status: NormalizedWorkflowStepStatus;
+  detail: string | null;
+};
+
+export const NORMALIZED_REPOSITORY_SOURCE_STATES = {
+  available: "AVAILABLE",
+  pending: "PENDING",
+  unavailable: "UNAVAILABLE",
+} as const;
+
+export type NormalizedRepositorySourceState =
+  (typeof NORMALIZED_REPOSITORY_SOURCE_STATES)[keyof typeof NORMALIZED_REPOSITORY_SOURCE_STATES];
+
+export const NORMALIZED_ARTIFACT_CATEGORIES = {
+  durableArtifact: "DURABLE_ARTIFACT",
+  technicalEvidence: "TECHNICAL_EVIDENCE",
+  workingResult: "WORKING_RESULT",
+  sourceReference: "SOURCE_REFERENCE",
+} as const;
+
+export type NormalizedArtifactCategory =
+  (typeof NORMALIZED_ARTIFACT_CATEGORIES)[keyof typeof NORMALIZED_ARTIFACT_CATEGORIES];
+
+export type NormalizedAssessmentRepository = {
+  provider: string | null;
+  repositoryFullName: string | null;
+  branch: string | null;
+  pinnedCommit: string | null;
+  sourceState: NormalizedRepositorySourceState;
 };
 
 export type NormalizedAssessmentArtifactItem = {
+  ref: ArtifactRef;
+  type: ArtifactType;
+  status: ArtifactStatus;
+  category: NormalizedArtifactCategory;
   id: string;
   kind: string;
   labelKey: string;
@@ -199,6 +258,7 @@ export type NormalizedAssessmentRuntime = {
   availability: AssessmentRuntimeAvailability;
   connectionState: WorkspaceRuntimeConnectionState;
   identity: NormalizedAssessmentIdentity;
+  repository: NormalizedAssessmentRepository;
   coverage: NormalizedAssessmentCoverage;
   workflow: NormalizedAssessmentWorkflow;
   interview: NormalizedAssessmentInterview;
@@ -221,6 +281,9 @@ export type AdapterTimelineInput = {
   latestRunId: string | null;
   connectionState: WorkspaceRuntimeConnectionState;
   lastEmittedAt: string | null;
+  repositorySnapshot?: WorkspaceRuntimeRepositorySnapshot | null;
+  scanJobs?: WorkspaceRuntimeScanJob[];
+  evidenceReports?: WorkspaceRuntimeEvidenceReport[];
 };
 
 export type NormalizeAssessmentRuntimeParams = {

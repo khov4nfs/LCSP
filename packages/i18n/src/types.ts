@@ -187,6 +187,11 @@ export type PagesMessages = {
       };
     };
     runtimePanelTitle: string;
+    runtimePanelRepository: string;
+    runtimePanelProvider: string;
+    runtimePanelBranch: string;
+    runtimePanelPinnedCommit: string;
+    runtimePanelArtifacts: string;
     runtimePanelAwaiting: string;
     runtimePanelLastUpdated: string;
     runtimePanelActiveTools: string;
@@ -194,6 +199,8 @@ export type PagesMessages = {
     runtimePanelEmpty: string;
     runtimePanelViewFull: string;
     runtimePanelStatuses: {
+      queued: string;
+      unknown: string;
       running: string;
       waiting: string;
       completed: string;

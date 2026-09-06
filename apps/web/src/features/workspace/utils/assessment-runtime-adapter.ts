@@ -14,10 +14,14 @@ import {
   type AssessmentInterviewQuestion,
   type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
+import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
+import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 
 import {
   ASSESSMENT_ARTIFACT_AVAILABILITIES,
   ASSESSMENT_RUNTIME_AVAILABILITIES,
+  ASSESSMENT_SIDEBAR_WORKFLOW_STAGES,
+  NORMALIZED_WORKFLOW_STEP_STATUSES,
   type AdapterInterviewStateInput,
   type AdapterTimelineInput,
   type AssessmentArtifactAvailability,
@@ -29,6 +33,8 @@ import {
   type NormalizedAssessmentIntegration,
   type NormalizedAssessmentInterview,
   type NormalizedAssessmentRuntime,
+  type NormalizedAssessmentRepository,
+  type NormalizedWorkflowStep,
   type NormalizedAssessmentWorkflow,
   type NormalizedCustomerActions,
   type NormalizeAssessmentRuntimeParams,
@@ -36,8 +42,17 @@ import {
 import {
   WORKSPACE_RUNTIME_CONNECTION_STATES,
   type WorkspaceRuntimeConnectionState,
+  type WorkspaceRuntimeRun,
+  type WorkspaceRuntimeActivityItem,
 } from "../types/workspace-runtime.types";
 import { sanitizeAssessmentInterviewState } from "../../../lib/api/assessment-interview-client";
+import {
+  ARTIFACT_STATUSES,
+  ARTIFACT_TYPES,
+} from "../../artifacts/types/artifact.types";
+import { stageLabel } from "./assessment-runtime-formatter";
+import { resolveMessage, type MessageKey } from "@lcsp/i18n";
+import { appLocale } from "../../../lib/locale";
 
 const APPROVED_BLOCKED_ACTIONS = new Set<AssessmentInterviewBlockedAction>([
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.provideMoreContext,
@@ -95,6 +110,10 @@ export function normalizeAssessmentRuntime(
     newRevision: audit?.newRevision ?? null,
   };
 
+  const repository: NormalizedAssessmentRepository = normalizeRepository(
+    rawTimeline?.repositorySnapshot,
+  );
+
   // 4. Coverage normalization
   const coverage = normalizeCoverage({
     coverageOverride,
@@ -107,6 +126,7 @@ export function normalizeAssessmentRuntime(
   const workflow = normalizeWorkflow({
     timeline: rawTimeline,
     sanitizedInterview,
+    repositorySnapshot: rawTimeline?.repositorySnapshot,
   });
 
   // 6. Interview normalization
@@ -119,9 +139,12 @@ export function normalizeAssessmentRuntime(
 
   // 7. Artifacts normalization
   const artifacts = normalizeArtifacts({
-    coverage,
+    assessmentId,
     workflow,
     interview,
+    repositorySnapshot: rawTimeline?.repositorySnapshot ?? null,
+    scanJobs: rawTimeline?.scanJobs ?? [],
+    evidenceReports: rawTimeline?.evidenceReports ?? [],
   });
 
   // 8. Customer Actions normalization
@@ -156,6 +179,7 @@ export function normalizeAssessmentRuntime(
     availability,
     connectionState,
     identity,
+    repository,
     coverage,
     workflow,
     interview,
@@ -253,9 +277,11 @@ function normalizeCoverage({
 function normalizeWorkflow({
   timeline,
   sanitizedInterview,
+  repositorySnapshot,
 }: {
   timeline?: AdapterTimelineInput | null;
   sanitizedInterview: AssessmentInterviewRuntimeState | null;
+  repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
 }): NormalizedAssessmentWorkflow {
   const currentRun = timeline?.currentRun ?? null;
   const recentActivity = timeline?.recentActivity ?? [];
@@ -290,7 +316,103 @@ function normalizeWorkflow({
     lastEmittedAt: timeline?.lastEmittedAt ?? (recentActivity[0]?.emittedAt ?? null),
     isTargetedClarificationLoop,
     latestRun: currentRun,
+    steps: normalizeWorkflowSteps({
+      currentRun,
+      recentActivity,
+      repositorySnapshot,
+    }),
   };
+}
+
+function normalizeRepository(
+  snapshot: AdapterTimelineInput["repositorySnapshot"],
+): NormalizedAssessmentRepository {
+  if (!snapshot) {
+    return {
+      provider: null,
+      repositoryFullName: null,
+      branch: null,
+      pinnedCommit: null,
+      sourceState: "PENDING",
+    };
+  }
+  return {
+    provider: snapshot.provider,
+    repositoryFullName: snapshot.repositoryFullName,
+    branch: snapshot.branch,
+    pinnedCommit: snapshot.commitSha,
+    sourceState: "AVAILABLE",
+  };
+}
+
+function normalizeWorkflowSteps({
+  currentRun,
+  recentActivity,
+  repositorySnapshot,
+}: {
+  currentRun: WorkspaceRuntimeRun | null;
+  recentActivity: WorkspaceRuntimeActivityItem[];
+  repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
+}): NormalizedWorkflowStep[] {
+  const defaultSteps = [
+    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository, "pages.appShell.runtimePanelRepository"],
+    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner, "pages.appShell.assessmentSidebar.workflow.scanner"],
+    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview, "pages.appShell.assessmentSidebar.workflow.interview"],
+    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules, "pages.appShell.assessmentSidebar.workflow.rules"],
+    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner, "pages.appShell.assessmentSidebar.workflow.planner"],
+    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate, "pages.appShell.assessmentSidebar.workflow.investigate"],
+    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate, "pages.appShell.assessmentSidebar.workflow.gate"],
+  ] as const;
+  const steps = new Map<string, NormalizedWorkflowStep>([
+    ...defaultSteps.map(([id, labelKey]) => [id, {
+      id,
+      label: resolveMessage(appLocale, labelKey as MessageKey),
+      status: id === ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository && repositorySnapshot
+        ? NORMALIZED_WORKFLOW_STEP_STATUSES.completed
+        : NORMALIZED_WORKFLOW_STEP_STATUSES.queued,
+      detail: null,
+    } satisfies NormalizedWorkflowStep] as const),
+  ]);
+  const stageId = (stage: string) =>
+    stage === ASSESSMENT_RUNTIME_STAGE_CODES.snapshot
+      ? ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository
+      : stage === ASSESSMENT_RUNTIME_STAGE_CODES.scan
+        ? ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner
+        : stage;
+  for (const activity of [...recentActivity].reverse()) {
+    const id = stageId(activity.stage);
+    steps.set(id, {
+      id,
+      label: steps.has(id) ? steps.get(id)!.label : stageLabel(activity.stage),
+      status: normalizeStepStatus(activity.runStatus),
+      detail: activity.summary || null,
+    });
+  }
+  if (currentRun) {
+    const id = stageId(currentRun.stage);
+    steps.set(id, {
+      id,
+      label: steps.has(id) ? steps.get(id)!.label : stageLabel(currentRun.stage),
+      status: normalizeStepStatus(currentRun.status),
+      detail: null,
+    });
+  }
+  return [...steps.values()];
+}
+
+function normalizeStepStatus(status: string) {
+  switch (status) {
+    case ASSESSMENT_RUNTIME_RUN_STATUSES.running:
+      return NORMALIZED_WORKFLOW_STEP_STATUSES.running;
+    case ASSESSMENT_RUNTIME_RUN_STATUSES.waiting:
+      return NORMALIZED_WORKFLOW_STEP_STATUSES.waiting;
+    case ASSESSMENT_RUNTIME_RUN_STATUSES.completed:
+      return NORMALIZED_WORKFLOW_STEP_STATUSES.completed;
+    case ASSESSMENT_RUNTIME_RUN_STATUSES.failed:
+      return NORMALIZED_WORKFLOW_STEP_STATUSES.failed;
+    default:
+      return NORMALIZED_WORKFLOW_STEP_STATUSES.unknown;
+  }
 }
 
 function normalizeInterview({
@@ -367,29 +489,103 @@ function normalizeInterview({
   };
 }
 
-function normalizeArtifacts({
-  coverage,
-  workflow,
-  interview,
+function normalizeProgramEvidenceAvailability({
+  assessmentId,
+  repositorySnapshot,
+  scanJobs,
+  evidenceReports,
 }: {
-  coverage: NormalizedAssessmentCoverage;
-  workflow: NormalizedAssessmentWorkflow;
-  interview: NormalizedAssessmentInterview;
-}): NormalizedAssessmentArtifacts {
-  // Program Evidence Graph artifact
-  let pegAvailability: AssessmentArtifactAvailability = ASSESSMENT_ARTIFACT_AVAILABILITIES.unavailable;
-  if (coverage.state === ASSESSMENT_TECHNICAL_COVERAGE_STATES.ready) {
-    pegAvailability = ASSESSMENT_ARTIFACT_AVAILABILITIES.ready;
-  } else if (coverage.state === ASSESSMENT_TECHNICAL_COVERAGE_STATES.partial) {
-    pegAvailability = ASSESSMENT_ARTIFACT_AVAILABILITIES.ready;
-  } else if (workflow.stage === ASSESSMENT_RUNTIME_STAGE_CODES.scan && workflow.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running) {
-    pegAvailability = ASSESSMENT_ARTIFACT_AVAILABILITIES.updating;
+  assessmentId: string;
+  repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
+  scanJobs: NonNullable<AdapterTimelineInput["scanJobs"]>;
+  evidenceReports: NonNullable<AdapterTimelineInput["evidenceReports"]>;
+}): AssessmentArtifactAvailability {
+  if (!repositorySnapshot || repositorySnapshot.assessmentId !== assessmentId) {
+    return ASSESSMENT_ARTIFACT_AVAILABILITIES.unavailable;
   }
 
+  const snapshotJobs = scanJobs
+    .filter((job) => job.assessmentId === repositorySnapshot.assessmentId && job.snapshotId === repositorySnapshot.id)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const latestJob = snapshotJobs[0];
+
+  if (!latestJob) {
+    return ASSESSMENT_ARTIFACT_AVAILABILITIES.waiting;
+  }
+
+  switch (latestJob.status) {
+    case REPOSITORY_SCAN_JOB_STATUSES.queued:
+    case REPOSITORY_SCAN_JOB_STATUSES.running:
+      return ASSESSMENT_ARTIFACT_AVAILABILITIES.updating;
+    case REPOSITORY_SCAN_JOB_STATUSES.pendingMapping:
+    case REPOSITORY_SCAN_JOB_STATUSES.waitingForContext:
+    case REPOSITORY_SCAN_JOB_STATUSES.readyToSnapshot:
+      return ASSESSMENT_ARTIFACT_AVAILABILITIES.waiting;
+    case REPOSITORY_SCAN_JOB_STATUSES.failed:
+    case REPOSITORY_SCAN_JOB_STATUSES.blocked:
+    case REPOSITORY_SCAN_JOB_STATUSES.blockedMapping:
+      return ASSESSMENT_ARTIFACT_AVAILABILITIES.unavailable;
+    case REPOSITORY_SCAN_JOB_STATUSES.completed:
+      break;
+    default:
+      return ASSESSMENT_ARTIFACT_AVAILABILITIES.waiting;
+  }
+
+  const latestReport = evidenceReports
+    .filter(
+      (report) =>
+        report.assessmentId === repositorySnapshot.assessmentId &&
+        report.snapshotId === repositorySnapshot.id &&
+        report.scanJobId === latestJob.id,
+    )
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+
+  if (!latestReport) {
+    return ASSESSMENT_ARTIFACT_AVAILABILITIES.waiting;
+  }
+
+  if (latestReport.status === TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted) {
+    return ASSESSMENT_ARTIFACT_AVAILABILITIES.ready;
+  }
+
+  if (latestReport.status === TECHNICAL_EVIDENCE_REPORT_STATUSES.rejected) {
+    return ASSESSMENT_ARTIFACT_AVAILABILITIES.unavailable;
+  }
+
+  return ASSESSMENT_ARTIFACT_AVAILABILITIES.waiting;
+}
+
+function normalizeArtifacts({
+  assessmentId,
+  workflow,
+  interview,
+  repositorySnapshot,
+  scanJobs,
+  evidenceReports,
+}: {
+  assessmentId: string;
+  workflow: NormalizedAssessmentWorkflow;
+  interview: NormalizedAssessmentInterview;
+  repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
+  scanJobs: NonNullable<AdapterTimelineInput["scanJobs"]>;
+  evidenceReports: NonNullable<AdapterTimelineInput["evidenceReports"]>;
+}): NormalizedAssessmentArtifacts {
+  // Program Evidence Graph artifact
+  const pegAvailability = normalizeProgramEvidenceAvailability({
+    assessmentId,
+    repositorySnapshot,
+    scanJobs,
+    evidenceReports,
+  });
+
   const programEvidenceGraph: NormalizedAssessmentArtifactItem = {
+    ref: { assessmentId, type: ARTIFACT_TYPES.programEvidenceGraph },
+    type: ARTIFACT_TYPES.programEvidenceGraph,
+    status: availabilityToArtifactStatus(pegAvailability),
+    category: "TECHNICAL_EVIDENCE",
     id: "program-evidence-graph",
     kind: "PROGRAM_EVIDENCE_GRAPH",
-    labelKey: "artifacts.programEvidenceGraph.label",
+    labelKey: "artifacts.types.programEvidenceGraph",
     availability: pegAvailability,
     customerSafeSummary:
       pegAvailability === ASSESSMENT_ARTIFACT_AVAILABILITIES.ready
@@ -417,9 +613,13 @@ function normalizeArtifacts({
   }
 
   const businessContext: NormalizedAssessmentArtifactItem = {
+    ref: { assessmentId, type: ARTIFACT_TYPES.businessContext },
+    type: ARTIFACT_TYPES.businessContext,
+    status: availabilityToArtifactStatus(businessContextAvailability),
+    category: "WORKING_RESULT",
     id: "business-context",
     kind: "BUSINESS_CONTEXT",
-    labelKey: "artifacts.businessContext.label",
+    labelKey: "artifacts.types.businessContext",
     availability: businessContextAvailability,
     customerSafeSummary:
       businessContextAvailability === ASSESSMENT_ARTIFACT_AVAILABILITIES.ready
@@ -443,9 +643,13 @@ function normalizeArtifacts({
   }
 
   const investigationNotes: NormalizedAssessmentArtifactItem = {
+    ref: { assessmentId, type: ARTIFACT_TYPES.investigationNotes },
+    type: ARTIFACT_TYPES.investigationNotes,
+    status: availabilityToArtifactStatus(notesAvailability),
+    category: "WORKING_RESULT",
     id: "investigation-notes",
     kind: "INVESTIGATION_NOTES",
-    labelKey: "artifacts.investigationNotes.label",
+    labelKey: "artifacts.types.investigationNotes",
     availability: notesAvailability,
     customerSafeSummary:
       notesAvailability === ASSESSMENT_ARTIFACT_AVAILABILITIES.paused
@@ -465,6 +669,23 @@ function normalizeArtifacts({
     businessContext,
     investigationNotes,
   };
+}
+
+function availabilityToArtifactStatus(
+  availability: AssessmentArtifactAvailability,
+) {
+  switch (availability) {
+    case ASSESSMENT_ARTIFACT_AVAILABILITIES.ready:
+      return ARTIFACT_STATUSES.ready;
+    case ASSESSMENT_ARTIFACT_AVAILABILITIES.waiting:
+      return ARTIFACT_STATUSES.waiting;
+    case ASSESSMENT_ARTIFACT_AVAILABILITIES.updating:
+      return ARTIFACT_STATUSES.updating;
+    case ASSESSMENT_ARTIFACT_AVAILABILITIES.paused:
+      return ARTIFACT_STATUSES.paused;
+    default:
+      return ARTIFACT_STATUSES.unavailable;
+  }
 }
 
 function normalizeCustomerActions({
