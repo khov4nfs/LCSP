@@ -181,28 +181,21 @@ test("workflow run renders dynamic interview controls through shared workspace c
   assert.match(overviewSource, /pendingDraft/);
   assert.match(overviewSource, /answerHistory/);
   assert.match(overviewSource, /selectInterviewHandoffPresentation/);
+  assert.match(overviewSource, /selectedChoiceRequiresFreeText/);
   assert.match(selectorSource, /orchestrationRequested/);
   assert.match(selectorSource, /assessmentFlow\.interview\.startingDescription/);
-  assert.doesNotMatch(overviewSource, /runtimeWaitingForAgent/);
   assert.doesNotMatch(
     overviewSource,
     /initialInterviewQuestion|targetedClarificationQuestion|localStorage|Card|modules\.map|\/wizard|\/readiness/,
   );
 
   assert.match(questionSource, /priorAnswerSummary/);
-  assert.match(questionSource, /requiresFreeText/);
   assert.match(questionSource, /whyEvidenceRefs/);
   assert.match(questionSource, /blocked-or-unresolved-actions/);
-  assert.match(questionSource, /usesSingleValue/);
-  assert.match(
-    questionSource,
-    /ASSESSMENT_INTERVIEW_CONTROLS\.singleSelect\s*\|\|\s*\n\s*question\.control === ASSESSMENT_INTERVIEW_CONTROLS\.boolean/,
-  );
-  assert.match(
-    questionSource,
-    /usesSingleValue && singleValue \? \[singleValue\] : selectedChoiceIds/,
-  );
-  assert.doesNotMatch(questionSource, /Support/);
+  assert.match(questionSource, /ChatSingleSelect/);
+  assert.match(questionSource, /ChatMultiSelect/);
+  assert.match(questionSource, /confirm-adjust-actions/);
+  assert.doesNotMatch(questionSource, /Support|Textarea|submitAnswer/);
 
   const contractSource = await readFile(contractsPath, "utf8");
   for (const control of Object.values(ASSESSMENT_INTERVIEW_CONTROLS)) {

@@ -42,6 +42,8 @@ export const enPages = {
     chatCopy: "Copy response",
     chatThinking: "Thinking...",
     chatOptionsLabel: "Response options",
+    chatContinueInComposer: "Continue in composer ↓",
+    chatChooseOption: "Choose an option...",
     chatActivityStatuses: {
       pending: "Pending",
       running: "Running",
@@ -1276,6 +1278,12 @@ export const enPages = {
     whyAsking: "Why are we asking?",
     whyAskingDetail:
       "The Interview Agent linked this question to evidence refs:",
+    whyAskingSafeNote:
+      "This question clarifies system implementation scope and operational authority.",
+    continueInComposer: "Continue in composer ↓",
+    composerChooseOption: "Choose an option...",
+    adjustPlaceholder: "Enter your adjustment or correction...",
+    composerChooseConfirmAdjust: "Choose Confirm or Adjust above...",
     submitAnswer: "Send answer",
     answerSavedForRuntime:
       "Answer captured for the runtime thread. The Interview Agent will evaluate sufficiency before downstream resume.",

@@ -1,3 +1,4 @@
+import { ASSESSMENT_TECHNICAL_COVERAGE_STATES } from "@lcsp/contracts/evidence";
 import type { AssessmentStatus } from "@/features/workspace/types/workspace.types";
 
 export const ARTIFACT_TYPES = {
@@ -19,11 +20,11 @@ export const ARTIFACT_TYPES = {
 export type ArtifactType = (typeof ARTIFACT_TYPES)[keyof typeof ARTIFACT_TYPES];
 
 export const ARTIFACT_STATUSES = {
-  ready: "READY",
+  ready: ASSESSMENT_TECHNICAL_COVERAGE_STATES.ready,
   waiting: "WAITING",
   updating: "UPDATING",
   paused: "PAUSED",
-  unavailable: "UNAVAILABLE",
+  unavailable: ASSESSMENT_TECHNICAL_COVERAGE_STATES.unavailable,
 } as const;
 
 export type ArtifactStatus =

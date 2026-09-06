@@ -110,6 +110,11 @@ export function ChatSingleSelect({
         const descriptionId = option.description
           ? `${option.id}-description`
           : undefined;
+        const assistiveText =
+          option.assistiveText ??
+          (option.requiresFreeText
+            ? t("pages.appShell.chatContinueInComposer")
+            : undefined);
 
         return (
           <button
@@ -148,9 +153,9 @@ export function ChatSingleSelect({
               ) : null}
             </span>
             <span className="min-w-0 flex-1 truncate">{option.label}</span>
-            {option.assistiveText ? (
+            {assistiveText ? (
               <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:inline">
-                {option.assistiveText}
+                {assistiveText}
               </span>
             ) : null}
             {option.description ? (

@@ -1,4 +1,5 @@
 import {
+  ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
   type AssessmentContextAuthorityStatus,
   type AssessmentInterviewAnswerHistoryItem,
@@ -9,6 +10,7 @@ import {
   type AssessmentInterviewQuestion,
   type AssessmentTechnicalCoverageState,
 } from "@lcsp/contracts/evidence";
+import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 
 import type {
   WorkspaceRuntimeActivityItem,
@@ -75,13 +77,13 @@ export type AssessmentSidebarWorkflowStage =
   (typeof ASSESSMENT_SIDEBAR_WORKFLOW_STAGES)[keyof typeof ASSESSMENT_SIDEBAR_WORKFLOW_STAGES];
 
 export const ASSESSMENT_SIDEBAR_STATUSES = {
-  running: "RUNNING",
-  queued: "QUEUED",
+  running: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+  queued: REPOSITORY_SCAN_JOB_STATUSES.queued,
   passed: "PASSED",
   building: "BUILDING",
-  ready: "READY",
-  waiting: "WAITING",
-  failed: "FAILED",
+  ready: ASSESSMENT_TECHNICAL_COVERAGE_STATES.ready,
+  waiting: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
+  failed: ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
 } as const;
 
 export type AssessmentSidebarStatus =
