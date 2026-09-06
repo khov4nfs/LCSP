@@ -8,11 +8,11 @@ import {
 import { appLocale } from "@/lib/locale";
 
 import type {
-  ProgramEvidenceSummary,
+  ProgramEvidenceSummary as ProgramEvidenceSummaryType,
   RepositoryHistory,
   ScannerActivityItem,
 } from "../../types/assessment-flow.types";
-import { ProgramEvidenceGraphSummary } from "../molecules/program-evidence-graph-summary";
+import { ProgramEvidenceSummary } from "@/features/workspace/components/molecules/program-evidence-summary";
 import { RepositoryConnectionResult } from "../molecules/repository-connection-result";
 import { ScannerActivitySequence } from "../molecules/scanner-activity-sequence";
 
@@ -20,7 +20,7 @@ type ScannerStepProps = {
   repository: RepositoryHistory;
   activities: ScannerActivityItem[];
   evidenceReady: boolean;
-  programEvidenceSummary: ProgramEvidenceSummary;
+  programEvidenceSummary: ProgramEvidenceSummaryType;
 };
 
 export function ScannerStep({
@@ -54,7 +54,7 @@ export function ScannerStep({
           <ScannerActivitySequence activities={activities} />
         </div>
         {evidenceReady ? (
-          <ProgramEvidenceGraphSummary
+          <ProgramEvidenceSummary
             className="mt-4"
             commitSha={repository.commitSha}
             summary={programEvidenceSummary}

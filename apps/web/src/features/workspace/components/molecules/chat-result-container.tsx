@@ -1,8 +1,10 @@
+import * as React from "react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
 type ChatResultContainerProps = {
+  header?: ReactNode;
   title?: string;
   eyebrow?: string;
   description?: string;
@@ -12,6 +14,7 @@ type ChatResultContainerProps = {
 };
 
 export function ChatResultContainer({
+  header,
   title,
   eyebrow,
   description,
@@ -27,6 +30,7 @@ export function ChatResultContainer({
         className,
       )}
     >
+      {header ? <div className="min-w-0">{header}</div> : null}
       {eyebrow ? (
         <p className="text-[0.6875rem] font-semibold text-muted-foreground uppercase">
           {eyebrow}
@@ -49,7 +53,7 @@ export function ChatResultContainer({
       ) : null}
       {children ? (
         <div
-          className={cn("min-w-0", (title || eyebrow || description) && "mt-3")}
+          className={cn("min-w-0", (header || title || eyebrow || description) && "mt-3")}
         >
           {children}
         </div>
