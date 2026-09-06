@@ -1,57 +1,175 @@
 "use client";
 
 import {
+  ASSESSMENT_FLOW_STAGES,
+  ASSESSMENT_REPOSITORY_PROVIDERS,
+} from "@lcsp/contracts/assessment";
+import {
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
-  ASSESSMENT_RUNTIME_RUN_STATUSES,
   type AssessmentInterviewBlockedAction,
 } from "@lcsp/contracts/evidence";
+import { REPOSITORY_CONNECTION_STATUSES } from "@lcsp/contracts/github-integration";
 import { resolveMessage } from "@lcsp/i18n";
 import { SaveIcon, TextCursorInputIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { RepositorySetupStep } from "@/features/assessment-flow/components/organisms/repository-setup-step";
+import { ScannerStep } from "@/features/assessment-flow/components/organisms/scanner-step";
+import { deriveAssessmentFlowRuntime } from "@/features/assessment-flow/utils/assessment-flow-runtime";
 import {
   useAssessmentInterviewBlockedActionMutation,
   useAssessmentInterviewStateQuery,
+  useReadinessStatusQuery,
   useSubmitAssessmentInterviewAnswerMutation,
 } from "@/lib/api/assessment-queries";
+import { API_OUTCOME_KINDS } from "@/lib/api/outcome-kinds";
 import { appLocale } from "@/lib/locale";
 
-import type { AssessmentOverviewProps } from "../../types/assessment-overview.types";
-import {
-  ASSESSMENT_CHAT_ROLES,
-  TOOL_ACTIVITY_STATUSES,
-} from "../../types/assessment-chat.types";
-import {
-  ASSESSMENT_RUNTIME_AVAILABILITIES,
-} from "../../types/assessment-runtime-adapter.types";
 import { useAssessmentRuntimeViewModel } from "../../hooks/use-assessment-runtime-view-model";
+import type { AssessmentOverviewProps } from "../../types/assessment-overview.types";
+import { ASSESSMENT_CHAT_ROLES } from "../../types/assessment-chat.types";
 import {
   selectComposerAvailability,
   selectCustomerActions,
+  selectInterviewHandoffPresentation,
   selectInterviewPresentation,
   selectWorkflowPresentation,
 } from "../../utils/assessment-runtime-selectors";
-import { AgentMessage, AgentTurn } from "../molecules/agent-turn";
+import {
+  AgentMessage,
+  AgentTurn,
+  ThinkingLine,
+  ThoughtLine,
+} from "../molecules/agent-turn";
 import {
   AssessmentQuestionTurn,
   type AssessmentQuestionAnswerInput,
 } from "../molecules/assessment-question-turn";
-import {
-  ToolActivityList,
-  ToolActivityRow,
-} from "../molecules/tool-activity-row";
 import { AssessmentComposer } from "./assessment-composer";
 import { AssessmentTranscript } from "./assessment-transcript";
+import { useWorkspaceRuntime } from "./workspace-runtime-provider";
 
 export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
-  // Query hook reference preserved for reactivity & test compatibility
-  const interviewQuery = useAssessmentInterviewStateQuery(assessmentId);
-  const normalized = useAssessmentRuntimeViewModel(assessmentId);
+  const workspaceRuntime = useWorkspaceRuntime();
+  const readinessQuery = useReadinessStatusQuery(assessmentId);
+  const connection =
+    readinessQuery.data?.kind === API_OUTCOME_KINDS.loaded
+      ? readinessQuery.data.data.repositoryConnection
+      : null;
+  const readinessLoaded =
+    readinessQuery.data?.kind === API_OUTCOME_KINDS.loaded;
+  const snapshot =
+    workspaceRuntime.repositorySnapshots.find(
+      (item) => item.assessmentId === assessmentId,
+    ) ?? null;
+  const scanJob =
+    workspaceRuntime.scanJobs.find(
+      (item) => item.assessmentId === assessmentId,
+    ) ?? null;
+  const evidenceReport =
+    workspaceRuntime.evidenceReports.find(
+      (item) => item.assessmentId === assessmentId,
+    ) ?? null;
+  const timeline = workspaceRuntime.getAssessmentRuntime(assessmentId);
+  const flow = deriveAssessmentFlowRuntime({
+    hasRepositoryConnection: readinessLoaded
+      ? connection?.status === REPOSITORY_CONNECTION_STATUSES.active
+      : Boolean(snapshot),
+    snapshot,
+    scanJob,
+    evidenceReport,
+    recentActivity: timeline.recentActivity,
+  });
+
+  if (readinessQuery.isLoading && !snapshot) {
+    return (
+      <main className="flex h-full min-h-0 flex-col">
+        <AssessmentTranscript>
+          <AgentTurn>
+            <ThinkingLine
+              label={t("pages.assessmentFlow.repository.loadingState")}
+            />
+          </AgentTurn>
+        </AssessmentTranscript>
+        <AssessmentComposer
+          value=""
+          onValueChange={() => undefined}
+          onSubmit={() => undefined}
+          disabled
+          placeholder={t("pages.assessmentFlow.repository.loadingState")}
+        />
+      </main>
+    );
+  }
+
+  if (flow.stage === ASSESSMENT_FLOW_STAGES.repositorySetup) {
+    return <RepositorySetupStep assessmentId={assessmentId} />;
+  }
+
+  return (
+    <AssessmentInterviewFlow
+      assessmentId={assessmentId}
+      interviewEnabled={flow.stage === ASSESSMENT_FLOW_STAGES.interview}
+      scanner={
+        <ScannerStep
+          repository={{
+            provider:
+              connection?.provider ??
+              snapshot?.provider ??
+              ASSESSMENT_REPOSITORY_PROVIDERS.github,
+            repositoryFullName:
+              connection?.repositoryFullName ??
+              snapshot?.repositoryFullName ??
+              t("pages.assessmentFlow.repository.pending"),
+            commitSha:
+              snapshot?.commitSha ??
+              t("pages.assessmentFlow.repository.pending"),
+          }}
+          activities={flow.activities}
+          evidenceReady={flow.evidenceAccepted}
+          programEvidenceSummary={flow.programEvidenceSummary}
+        />
+      }
+      scanFailed={flow.scanFailed}
+      runtimeKey={[
+        snapshot?.id,
+        scanJob?.id,
+        scanJob?.status,
+        evidenceReport?.id,
+        evidenceReport?.status,
+      ].join(":")}
+    />
+  );
+}
+
+function AssessmentInterviewFlow({
+  assessmentId,
+  interviewEnabled,
+  scanner,
+  scanFailed,
+  runtimeKey,
+}: {
+  assessmentId: string;
+  interviewEnabled: boolean;
+  scanner: ReactNode;
+  scanFailed: boolean;
+  runtimeKey: string;
+}) {
+  // Query hook reference preserved for reactivity & test compatibility.
+  const interviewQuery = useAssessmentInterviewStateQuery(
+    assessmentId,
+    interviewEnabled,
+  );
+  const normalized = useAssessmentRuntimeViewModel(
+    assessmentId,
+    interviewEnabled,
+  );
   const interview = selectInterviewPresentation(normalized);
   const workflow = selectWorkflowPresentation(normalized);
   const customerActions = selectCustomerActions(normalized);
   const composerAvailability = selectComposerAvailability(normalized);
+  const interviewHandoff = selectInterviewHandoffPresentation(normalized);
   const submitAnswer = useSubmitAssessmentInterviewAnswerMutation(assessmentId);
   const recordBlockedAction =
     useAssessmentInterviewBlockedActionMutation(assessmentId);
@@ -62,6 +180,7 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
   const answerHistory = interview.answerHistory;
   const autoScrollKey = [
     assessmentId,
+    runtimeKey,
     workflow.currentRunId,
     workflow.status,
     normalized.workflow.latestRun?.updatedAt ?? workflow.lastEmittedAt,
@@ -92,6 +211,7 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
 
   function handleSubmit() {
     if (
+      !interviewEnabled ||
       !interview.activeQuestion ||
       draft.trim().length === 0 ||
       !customerActions.canSubmitDraft ||
@@ -106,7 +226,7 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
   }
 
   function handleQuestionAnswer(input: AssessmentQuestionAnswerInput) {
-    if (!customerActions.canAnswerQuestion) {
+    if (!interviewEnabled || !customerActions.canAnswerQuestion) {
       return;
     }
     submitAnswer.mutate(input, {
@@ -118,7 +238,7 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
   }
 
   function handleBlockedAction(action: AssessmentInterviewBlockedAction) {
-    if (!customerActions.canSubmitBlockedAction) {
+    if (!interviewEnabled || !customerActions.canSubmitBlockedAction) {
       return;
     }
     recordBlockedAction.mutate(
@@ -147,153 +267,143 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
       className="flex h-full min-h-0 flex-col"
       data-assessment-id={assessmentId}
       data-surface="workflow-run"
+      data-flow-stage={
+        interviewEnabled
+          ? ASSESSMENT_FLOW_STAGES.interview
+          : ASSESSMENT_FLOW_STAGES.scanner
+      }
     >
       <AssessmentTranscript autoScrollKey={autoScrollKey}>
-        <AgentTurn
-          content={
-            <AgentMessage>
-              <p className="font-medium">
-                {t("pages.assessment.workflowRunTitle")}
-              </p>
-              <p className="mt-1 text-muted-foreground">
-                {t("pages.assessment.workflowRunDescription")}
-              </p>
-            </AgentMessage>
-          }
-        />
+        {scanner}
 
-        <AgentTurn>
-          <ToolActivityList>
-            {workflow.activeTools.length ? (
-              workflow.activeTools.map((tool) => (
-                <ToolActivityRow
-                  key={`${tool.toolName}:${tool.startedAt ?? tool.attempt ?? "active"}`}
-                  label={tool.summary || tool.toolName}
-                  status={runtimeToolStatus(tool.status)}
-                />
-              ))
-            ) : (
-              <ToolActivityRow
-                label={t("pages.assessment.runtimeWaitingForAgent")}
-                status={TOOL_ACTIVITY_STATUSES.pending}
-              />
-            )}
-          </ToolActivityList>
-        </AgentTurn>
-
-        {workflow.recentActivity.slice(0, 4).map((event) => (
-          <AgentTurn key={event.eventId}>
-            <AgentMessage className="text-muted-foreground">
-              {event.summary}
-            </AgentMessage>
-          </AgentTurn>
-        ))}
-
-        {answerHistory.map((answer) => (
-          <AgentTurn
-            key={`${answer.questionId}:${answer.answeredAt}`}
-            role={ASSESSMENT_CHAT_ROLES.user}
-          >
-            <p className="text-sm text-muted-foreground">
-              {t("pages.assessment.answerHistoryPrefix")} {answer.summary}
-            </p>
-          </AgentTurn>
-        ))}
-
-        {interview.questionTurnProps ? (
-          <AgentTurn
-            terminalAction={
-              <AssessmentQuestionTurn
-                question={interview.questionTurnProps.question}
-                blockedActions={interview.questionTurnProps.blockedActions}
-                disabled={!customerActions.canAnswerQuestion}
-                initialDraft={draft}
-                onDraftChange={persistDraft}
-                onSubmitAnswer={handleQuestionAnswer}
-                onBlockedAction={handleBlockedAction}
-              />
-            }
-          />
-        ) : interview.isBlocked &&
-          customerActions.canSubmitBlockedAction &&
-          customerActions.availableBlockedActions.length > 0 ? (
-          <AgentTurn
-            terminalAction={
-              <div
-                data-slot="blocked-or-unresolved-actions"
-                className="flex flex-wrap gap-2"
+        {interviewEnabled ? (
+          <>
+            {answerHistory.map((answer) => (
+              <AgentTurn
+                key={`${answer.questionId}:${answer.answeredAt}`}
+                role={ASSESSMENT_CHAT_ROLES.user}
               >
-                {customerActions.availableBlockedActions.map((action) => (
-                  <Button
-                    key={action}
-                    type="button"
-                    size="sm"
-                    variant={
-                      action === ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit
-                        ? "outline"
-                        : "secondary"
-                    }
-                    onClick={() => handleBlockedAction(action)}
-                  >
-                    {action === ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit ? (
-                      <SaveIcon />
-                    ) : (
-                      <TextCursorInputIcon />
-                    )}
-                    {blockedActionLabel(action)}
-                  </Button>
-                ))}
-              </div>
-            }
-          >
-            <AgentMessage className="text-muted-foreground">
-              {t("pages.assessment.blockedActionRecorded")}
-            </AgentMessage>
-          </AgentTurn>
-        ) : (
-          <AgentTurn>
-            <AgentMessage className="text-muted-foreground">
-              {normalized.availability === ASSESSMENT_RUNTIME_AVAILABILITIES.loading
-                ? t("pages.assessment.loadingInterviewState")
-                : interview.orchestrationRequested
-                  ? t("pages.assessment.runtimeWaitingForAgent")
-                  : t("pages.assessment.noActiveInterviewQuestion")}
-            </AgentMessage>
-          </AgentTurn>
-        )}
+                <p className="text-sm text-muted-foreground">
+                  {t("pages.assessment.answerHistoryPrefix")} {answer.summary}
+                </p>
+              </AgentTurn>
+            ))}
 
-        {lastSavedMessage ? (
-          <AgentTurn>
-            <AgentMessage className="text-muted-foreground">
-              {lastSavedMessage}
-            </AgentMessage>
-          </AgentTurn>
+            {interview.questionTurnProps ? (
+              <AgentTurn
+                content={
+                  <AgentMessage>
+                    <ThoughtLine
+                      label={t("pages.assessmentFlow.interview.thought")}
+                    />
+                    <p className="mt-2">
+                      {t("pages.assessmentFlow.interview.readyDescription")}
+                    </p>
+                  </AgentMessage>
+                }
+                terminalAction={
+                  <AssessmentQuestionTurn
+                    question={interview.questionTurnProps.question}
+                    blockedActions={interview.questionTurnProps.blockedActions}
+                    disabled={!customerActions.canAnswerQuestion}
+                    initialDraft={draft}
+                    onDraftChange={persistDraft}
+                    onSubmitAnswer={handleQuestionAnswer}
+                    onBlockedAction={handleBlockedAction}
+                  />
+                }
+              />
+            ) : interview.isBlocked &&
+              customerActions.canSubmitBlockedAction &&
+              customerActions.availableBlockedActions.length > 0 ? (
+              <AgentTurn
+                content={
+                  <AgentMessage>
+                    <ThoughtLine
+                      label={t("pages.assessmentFlow.interview.thought")}
+                    />
+                    <p className="mt-2">
+                      {t("pages.assessmentFlow.interview.readyDescription")}
+                    </p>
+                    <p className="mt-2 text-muted-foreground">
+                      {t("pages.assessment.blockedActionRecorded")}
+                    </p>
+                  </AgentMessage>
+                }
+                terminalAction={
+                  <div
+                    data-slot="blocked-or-unresolved-actions"
+                    className="flex flex-wrap gap-2"
+                  >
+                    {customerActions.availableBlockedActions.map((action) => (
+                      <Button
+                        key={action}
+                        type="button"
+                        size="sm"
+                        variant={
+                          action ===
+                          ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit
+                            ? "outline"
+                            : "secondary"
+                        }
+                        onClick={() => handleBlockedAction(action)}
+                      >
+                        {action ===
+                        ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit ? (
+                          <SaveIcon />
+                        ) : (
+                          <TextCursorInputIcon />
+                        )}
+                        {blockedActionLabel(action)}
+                      </Button>
+                    ))}
+                  </div>
+                }
+              />
+            ) : (
+              <AgentTurn>
+                <AgentMessage>
+                  <ThoughtLine
+                    label={t("pages.assessmentFlow.interview.thought")}
+                  />
+                  <p className="mt-2 text-muted-foreground">
+                    {t(interviewHandoff.messageKey)}
+                  </p>
+                </AgentMessage>
+              </AgentTurn>
+            )}
+
+            {lastSavedMessage ? (
+              <AgentTurn>
+                <AgentMessage className="text-muted-foreground">
+                  {lastSavedMessage}
+                </AgentMessage>
+              </AgentTurn>
+            ) : null}
+          </>
         ) : null}
       </AssessmentTranscript>
 
       <AssessmentComposer
         value={draft}
-        disabled={!composerAvailability.isEnabled}
+        disabled={
+          !interviewEnabled || scanFailed || !composerAvailability.isEnabled
+        }
         submitting={submitAnswer.isPending || recordBlockedAction.isPending}
-        placeholder={t(composerAvailability.placeholderKey)}
+        placeholder={t(
+          scanFailed
+            ? "pages.assessmentFlow.scanner.failedPlaceholder"
+            : interviewEnabled
+              ? composerAvailability.isEnabled
+                ? "pages.assessmentFlow.interview.placeholder"
+                : interviewHandoff.placeholderKey
+              : "pages.assessmentFlow.scanner.runningPlaceholder",
+        )}
         onValueChange={persistDraft}
         onSubmit={handleSubmit}
       />
     </main>
   );
-}
-
-function runtimeToolStatus(status: string) {
-  if (status === ASSESSMENT_RUNTIME_RUN_STATUSES.completed) {
-    return TOOL_ACTIVITY_STATUSES.completed;
-  }
-  if (status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed) {
-    return TOOL_ACTIVITY_STATUSES.failed;
-  }
-  if (status === ASSESSMENT_RUNTIME_RUN_STATUSES.running) {
-    return TOOL_ACTIVITY_STATUSES.running;
-  }
-  return TOOL_ACTIVITY_STATUSES.pending;
 }
 
 function blockedActionLabel(action: AssessmentInterviewBlockedAction) {
@@ -309,4 +419,3 @@ function blockedActionLabel(action: AssessmentInterviewBlockedAction) {
 function t(key: string) {
   return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
 }
-

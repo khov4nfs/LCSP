@@ -1,12 +1,14 @@
 import { constants, accessSync, existsSync, statSync } from "node:fs";
 import { execFileSync, spawnSync } from "node:child_process";
-import { isAbsolute, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { isAbsolute, join, resolve } from "node:path";
 
 import { GITHUB_CREDENTIAL_ERROR_CODES } from "@lcsp/contracts/github-integration";
 
 import { GitHubCliProviderError } from "./github-cli-repository.provider.js";
 
-export const SUPPORTED_GITHUB_CLI_VERSION = "2.98.0";
+/** Minimum GitHub CLI version supported by the provider adapter. */
+export const SUPPORTED_GITHUB_CLI_VERSION = "2.95.0";
 
 /** Resolve an explicit CLI override, or discover `gh` through PATH. */
 export function resolveGitHubCliExecutablePath(
@@ -41,11 +43,13 @@ export function resolveGitHubCliExecutablePath(
 }
 
 type GitHubCliRuntimeValidationDependencies = {
-  access: (path: string, mode: number) => void;
-  spawn: (
+  access?: (path: string, mode: number) => void;
+  cwd?: string;
+  spawn?: (
     executablePath: string,
     args: string[],
     options: {
+      cwd?: string;
       encoding: "utf8";
       shell: false;
       windowsHide: true;
@@ -62,18 +66,29 @@ export function assertGitHubCliRuntime(
     spawn: spawnSync,
   },
 ): void {
+  const cwd = dependencies.cwd ?? process.cwd();
+  const validationPath = isAbsolute(executablePath)
+    ? executablePath
+    : resolve(cwd, executablePath);
   try {
-    dependencies.access(executablePath, constants.X_OK);
-    const result = dependencies.spawn(executablePath, ["--version"], {
-      encoding: "utf8",
-      shell: false,
-      windowsHide: true,
-      timeout: 5_000,
-      env: minimalVersionEnvironment(),
-    });
+    (dependencies.access ?? accessSync)(validationPath, constants.X_OK);
+    const result = (dependencies.spawn ?? spawnSync)(
+      executablePath,
+      ["--version"],
+      {
+        cwd,
+        encoding: "utf8",
+        shell: false,
+        windowsHide: true,
+        timeout: 5_000,
+        env: minimalVersionEnvironment(),
+      },
+    );
+    const version = parseGitHubCliVersion(String(result.stdout ?? ""));
     if (
       result.status !== 0 ||
-      !result.stdout.startsWith(`gh version ${SUPPORTED_GITHUB_CLI_VERSION}`)
+      !version ||
+      !isAtLeast(version, SUPPORTED_GITHUB_CLI_VERSION)
     ) {
       throw new Error("unsupported");
     }
@@ -84,8 +99,28 @@ export function assertGitHubCliRuntime(
   }
 }
 
+function parseGitHubCliVersion(output: string): string | null {
+  const match = /^gh version (\d+\.\d+\.\d+)/u.exec(output.trim());
+  return match?.[1] ?? null;
+}
+
+function isAtLeast(version: string, minimum: string): boolean {
+  const current = version.split(".").map(Number);
+  const required = minimum.split(".").map(Number);
+  for (let index = 0; index < required.length; index += 1) {
+    if (current[index] !== required[index]) {
+      return current[index] > required[index];
+    }
+  }
+  return true;
+}
+
 function minimalVersionEnvironment(): NodeJS.ProcessEnv {
-  const environment: NodeJS.ProcessEnv = {};
+  const runtimeStateRoot = join(tmpdir(), "lcsp-gh-runtime-validation");
+  const environment: NodeJS.ProcessEnv = {
+    GH_CONFIG_DIR: join(runtimeStateRoot, "config"),
+    XDG_STATE_HOME: join(runtimeStateRoot, "state"),
+  };
   for (const name of ["SystemRoot", "WINDIR", "ComSpec"] as const) {
     const value = process.env[name];
     if (value) environment[name] = value;

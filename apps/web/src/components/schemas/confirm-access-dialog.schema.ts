@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const confirmAccessPasswordSchema = z.object({
-  password: z.string().trim().min(1, "pages.signIn.errors.passwordRequired"),
+  password: z.string().min(1, "pages.signIn.errors.passwordRequired"),
 });
 
 export const confirmAccessOtpSchema = z.object({

@@ -10,6 +10,7 @@
     "./assessment": "./src/assessment/index.ts",
     "./assessment/actions": "./src/assessment/actions.ts",
     "./assessment/codes": "./src/assessment/codes.ts",
+    "./assessment/flow": "./src/assessment/flow.ts",
     "./assessment/readiness": "./src/assessment/readiness.ts",
     "./assessment/statuses": "./src/assessment/statuses.ts",
     "./assessment/types": "./src/assessment/types.ts",

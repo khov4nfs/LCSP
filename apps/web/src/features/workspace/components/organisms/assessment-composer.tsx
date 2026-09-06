@@ -58,7 +58,7 @@ export function AssessmentComposer({
       data-slot="assessment-composer"
       onSubmit={handleSubmit}
       className={cn(
-        "relative mx-auto h-19 w-full max-w-180 rounded-[18px] border border-input bg-card shadow-sm",
+        "relative mx-auto mb-4 h-19 w-full max-w-180 shrink-0 rounded-[18px] border border-input bg-card shadow-sm",
         className,
       )}
     >

@@ -40,10 +40,12 @@ export function CenterContentSlot({
     >
       <div
         data-slot="assessment-center-scroll"
-        className="min-h-0 flex-1 overflow-y-auto"
+        className="min-h-0 flex-1 overflow-hidden"
       >
         {assessmentId ? (
-          <div className="mx-auto min-h-full w-full max-w-180">{children}</div>
+          <div className="mx-auto flex h-full min-h-0 w-full max-w-180 flex-col">
+            {children}
+          </div>
         ) : (
           children
         )}

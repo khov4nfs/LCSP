@@ -41,7 +41,27 @@ describe("GitLab CLI runtime validation", () => {
     expect(spawn).toHaveBeenCalled();
   });
 
-  it("rejects a relative or missing executable", () => {
+  it("accepts a root-relative executable with an explicit workspace cwd", () => {
+    const access = jest.fn();
+    const spawn = jest.fn(() => ({
+      status: 0,
+      stdout: `glab ${SUPPORTED_GITLAB_CLI_VERSION} (test)\n`,
+    }));
+
+    expect(() =>
+      assertGitLabCliRuntime("./.cache/lcsp-cli/gitlab-cli/bin/glab", {
+        access,
+        cwd: "/workspace/LCSP",
+        spawn,
+      }),
+    ).not.toThrow();
+    expect(access).toHaveBeenCalledWith(
+      "/workspace/LCSP/.cache/lcsp-cli/gitlab-cli/bin/glab",
+      1,
+    );
+  });
+
+  it("rejects a missing executable", () => {
     expect(() => assertGitLabCliRuntime("glab")).toThrow(
       GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
     );

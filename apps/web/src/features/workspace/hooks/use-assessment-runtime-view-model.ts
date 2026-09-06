@@ -9,10 +9,14 @@ import { normalizeAssessmentRuntime } from "../utils/assessment-runtime-adapter"
 
 export function useAssessmentRuntimeViewModel(
   assessmentId: string,
+  interviewEnabled = true,
 ): NormalizedAssessmentRuntime {
   const workspaceRuntime = useWorkspaceRuntime();
   const timeline = workspaceRuntime.getAssessmentRuntime(assessmentId);
-  const interviewQuery = useAssessmentInterviewStateQuery(assessmentId);
+  const interviewQuery = useAssessmentInterviewStateQuery(
+    assessmentId,
+    interviewEnabled,
+  );
 
   return useMemo(() => {
     return normalizeAssessmentRuntime({

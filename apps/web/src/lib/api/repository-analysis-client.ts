@@ -64,6 +64,13 @@ type ScanPayload = {
   status?: unknown;
 };
 
+type RepositorySetupPayload = {
+  assessment_id?: unknown;
+  repository_connection_id?: unknown;
+  snapshot_id?: unknown;
+  commit_sha?: unknown;
+};
+
 export type RerunRepositoryScanInput = {
   snapshotId: string;
 };
@@ -96,6 +103,20 @@ export async function startRepositoryAnalysis(
   }
 
   const snapshotId = snapshotResponse.payload.snapshot_id;
+  const repositorySetupResponse = await apiRequest(
+    `/api/assessments/${encodeURIComponent(assessmentId)}/repository-setup/complete`,
+    { method: "POST" },
+  );
+
+  if (
+    !repositorySetupResponse.ok ||
+    !isRepositorySetupPayload(repositorySetupResponse.payload)
+  ) {
+    throw new Error(
+      repositorySetupResponse.problemCode ?? "repository-setup-complete-failed",
+    );
+  }
+
   const scanResponse = await apiRequest(
     `/api/assessments/${encodeURIComponent(assessmentId)}/scan-jobs`,
     {
@@ -121,6 +142,24 @@ export async function startRepositoryAnalysis(
     scanJobId: scanResponse.payload.scan_job_id,
     scanStatus: scanResponse.payload.status,
   };
+}
+
+function isRepositorySetupPayload(payload: unknown): payload is {
+  assessment_id: string;
+  repository_connection_id: string;
+  snapshot_id: string;
+  commit_sha: string;
+} {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+  const value = payload as RepositorySetupPayload;
+  return (
+    typeof value.assessment_id === "string" &&
+    typeof value.repository_connection_id === "string" &&
+    typeof value.snapshot_id === "string" &&
+    typeof value.commit_sha === "string"
+  );
 }
 
 export async function rerunRepositoryScan(

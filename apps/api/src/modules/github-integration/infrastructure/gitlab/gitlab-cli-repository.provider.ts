@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute } from "node:path";
 
 import { isRecord } from "../../../../common/utils/index.js";
 import {
@@ -25,6 +24,7 @@ const PROJECT_PATH_PATTERN = /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)+$/u;
 
 export type GitLabCliRepositoryProviderOptions = {
   executablePath: string;
+  workspaceRoot?: string;
   host?: string;
   timeoutMs: number;
   maxJsonOutputBytes: number;
@@ -49,7 +49,7 @@ export class GitLabCliRepositoryProvider implements GitHubRepositoryProviderPort
 
   constructor(private readonly options: GitLabCliRepositoryProviderOptions) {
     this.host = options.host ?? GITLAB_HOST;
-    if (!isAbsolute(options.executablePath) || this.host !== GITLAB_HOST) {
+    if (!options.executablePath.trim() || this.host !== GITLAB_HOST) {
       throw new GitLabCliProviderError(
         GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
       );
@@ -187,7 +187,7 @@ export class GitLabCliRepositoryProvider implements GitHubRepositoryProviderPort
           this.options.executablePath,
           args,
           {
-            cwd: directory,
+            cwd: this.options.workspaceRoot ?? directory,
             shell: false,
             windowsHide: true,
             env: {

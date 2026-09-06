@@ -67,7 +67,7 @@ export function AssessmentTranscript({
       aria-label={ariaLabel}
       onScroll={handleScroll}
       className={cn(
-        "min-h-0 flex-1 overflow-x-hidden overflow-y-auto",
+        "no-scrollbar min-h-0 flex-1 overflow-x-hidden overflow-y-auto",
         className,
       )}
     >

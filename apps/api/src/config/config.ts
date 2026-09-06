@@ -1,7 +1,37 @@
 import Joi from "joi";
-import { isAbsolute } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { NODE_ENVS, type AppConfig, type NodeEnv } from "./config.types.js";
+
+export const CONFIG_WORKSPACE_ROOT = findWorkspaceRoot(
+  dirname(fileURLToPath(import.meta.url)),
+);
+
+function findWorkspaceRoot(startDir: string): string {
+  let currentDir = resolve(startDir);
+
+  while (true) {
+    const packageJsonPath = resolve(currentDir, "package.json");
+    if (existsSync(packageJsonPath)) {
+      try {
+        const packageJson = JSON.parse(
+          readFileSync(packageJsonPath, "utf8"),
+        ) as {
+          name?: unknown;
+        };
+        if (packageJson.name === "lcsp") return currentDir;
+      } catch {
+        // Keep walking up; malformed intermediate package files are not roots.
+      }
+    }
+
+    const parentDir = resolve(currentDir, "..");
+    if (parentDir === currentDir) return startDir;
+    currentDir = parentDir;
+  }
+}
 
 const SMTP_MAILBOX_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 const SMTP_DISPLAY_NAME_PATTERN = /^([^<>]+)<\s*([^<>]+)\s*>$/;
@@ -33,214 +63,206 @@ function isValidSmtpFrom(value: string): boolean {
   );
 }
 
-export const configValidationSchema = Joi.object({
-  NODE_ENV: Joi.string()
-    .valid(...Object.values(NODE_ENVS))
-    .default(NODE_ENVS.development),
-  DATABASE_URL: Joi.string().required(),
-  AUTH_BCRYPT_COST: Joi.number().integer().min(10).default(12),
-  AUTH_SESSION_TTL_SECONDS: Joi.number().integer().positive().default(86400),
-  JWT_SECRET: Joi.string().min(32).required(),
-  OAUTH_GOOGLE_CLIENT_ID: Joi.string().allow("").default(""),
-  OAUTH_GOOGLE_CLIENT_SECRET: Joi.string().allow("").default(""),
-  OAUTH_ALLOWED_REDIRECT_ORIGINS: Joi.string().allow("").default(""),
-  OAUTH_ALLOWED_REDIRECT_URIS: Joi.string().required(),
-  GITHUB_APP_SLUG: Joi.string().required(),
-  GITHUB_APP_ID: Joi.string().required(),
-  GITHUB_APP_PRIVATE_KEY: Joi.string().required(),
-  GITHUB_APP_ALLOWED_REDIRECT_URIS: Joi.string().required(),
-  GITHUB_APP_CLIENT_ID: Joi.string().required(),
-  GITHUB_APP_CLIENT_SECRET: Joi.string().required(),
-  GITHUB_CLI_EXECUTABLE_PATH: Joi.string()
-    .trim()
-    .allow("")
-    .default("")
-    .custom((value: string, helpers): string =>
-      !value || isAbsolute(value)
-        ? value
-        : (helpers.error("string.absolutePath") as unknown as string),
-    )
-    .messages({
-      "string.absolutePath": '"GITHUB_CLI_EXECUTABLE_PATH" must be absolute',
-    }),
-  GITHUB_CLI_METADATA_TIMEOUT_MS: Joi.number()
-    .integer()
-    .positive()
-    .default(15000),
-  GITHUB_CLI_DISCOVERY_TIMEOUT_MS: Joi.number()
-    .integer()
-    .positive()
-    .default(30000),
-  GITHUB_CLI_ARCHIVE_TIMEOUT_MS: Joi.number()
-    .integer()
-    .positive()
-    .default(120000),
-  GITHUB_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
-    .integer()
-    .positive()
-    .default(1048576),
-  GITHUB_CLI_MAX_DISCOVERY_OUTPUT_BYTES: Joi.number()
-    .integer()
-    .positive()
-    .default(10485760),
-  GITHUB_CLI_MAX_STDERR_BYTES: Joi.number().integer().positive().default(8192),
-  GITHUB_CLI_MAX_ARCHIVE_BYTES: Joi.number()
-    .integer()
-    .positive()
-    .default(104857600),
-  GITHUB_CLI_MAX_CONCURRENT_METADATA_PROCESSES: Joi.number()
-    .integer()
-    .positive()
-    .default(8),
-  GITHUB_CLI_MAX_CONCURRENT_ARCHIVE_PROCESSES: Joi.number()
-    .integer()
-    .positive()
-    .default(2),
-  GITLAB_CLI_EXECUTABLE_PATH: Joi.string()
-    .trim()
-    .allow("")
-    .default("")
-    .custom((value: string, helpers): string =>
-      !value || isAbsolute(value)
-        ? value
-        : (helpers.error("string.absolutePath") as unknown as string),
-    )
-    .messages({
-      "string.absolutePath": '"GITLAB_CLI_EXECUTABLE_PATH" must be absolute',
-    }),
-  GITLAB_PROVIDER_ENABLED: Joi.boolean().default(false),
-  GITLAB_CLI_TIMEOUT_MS: Joi.number().integer().positive().default(30000),
-  GITLAB_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
-    .integer()
-    .positive()
-    .default(1048576),
-  BITBUCKET_CLI_EXECUTABLE_PATH: Joi.string()
-    .trim()
-    .allow("")
-    .default("")
-    .custom((value: string, helpers): string =>
-      !value || isAbsolute(value)
-        ? value
-        : (helpers.error("string.absolutePath") as unknown as string),
-    )
-    .messages({
-      "string.absolutePath": '"BITBUCKET_CLI_EXECUTABLE_PATH" must be absolute',
-    }),
-  BITBUCKET_PROVIDER_ENABLED: Joi.boolean().default(false),
-  BITBUCKET_CLI_TIMEOUT_MS: Joi.number().integer().positive().default(30000),
-  BITBUCKET_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
-    .integer()
-    .positive()
-    .default(1048576),
-  AZURE_DEVOPS_CLI_EXECUTABLE_PATH: Joi.string()
-    .trim()
-    .allow("")
-    .default("")
-    .custom((value: string, helpers): string =>
-      !value || isAbsolute(value)
-        ? value
-        : (helpers.error("string.absolutePath") as unknown as string),
-    )
-    .messages({
-      "string.absolutePath":
-        '"AZURE_DEVOPS_CLI_EXECUTABLE_PATH" must be absolute',
-    }),
-  AZURE_DEVOPS_PROVIDER_ENABLED: Joi.boolean().default(false),
-  AZURE_DEVOPS_CLI_TIMEOUT_MS: Joi.number().integer().positive().default(30000),
-  AZURE_DEVOPS_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
-    .integer()
-    .positive()
-    .default(1048576),
-  GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED: Joi.boolean().default(false),
-  INTERVIEW_GUIDANCE_VERSION: Joi.string().trim().min(1).required(),
-  GITHUB_CLI_SNAPSHOT_PINNING_ENABLED: Joi.boolean().default(false),
-  GITHUB_CLI_ARCHIVE_RETRIEVAL_ENABLED: Joi.boolean().default(false),
-  GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: Joi.string()
-    .trim()
-    .allow("")
-    .default(""),
-  GITHUB_CLI_CREDENTIAL_KEK_KEYRING: Joi.string().trim().default("{}"),
-  RABBITMQ_URL: Joi.string().required(),
-  RABBITMQ_EXCHANGE: Joi.string().default("lcsp.events"),
-  OUTBOX_ENABLED: Joi.boolean().default(true),
-  OUTBOX_POLL_INTERVAL_MS: Joi.number().integer().positive().default(1000),
-  OUTBOX_BATCH_SIZE: Joi.number().integer().positive().default(50),
-  OUTBOX_MAX_ATTEMPTS: Joi.number().integer().positive().default(5),
-  MFA_SECRET_ENCRYPTION_KEY: Joi.string()
-    .pattern(/^[0-9a-fA-F]{64}$/)
-    .required()
-    .messages({
-      "string.pattern.base":
-        '"MFA_SECRET_ENCRYPTION_KEY" must be exactly 64 hex characters (32 bytes)',
-    }),
-  SMTP_HOST: Joi.string().trim().allow("").default(""),
-  SMTP_PORT: Joi.number().integer().positive().default(587),
-  SMTP_SECURE: Joi.boolean().default(false),
-  SMTP_USER: Joi.string().trim().allow("").default(""),
-  SMTP_PASS: Joi.string().trim().allow("").default(""),
-  SMTP_FROM: Joi.string()
-    .trim()
-    .allow("")
-    .default("")
-    .custom((value: string, helpers): string => {
-      if (isValidSmtpFrom(value)) {
-        return value;
-      }
+export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
+  return Joi.object({
+    NODE_ENV: Joi.string()
+      .valid(...Object.values(NODE_ENVS))
+      .default(NODE_ENVS.development),
+    DATABASE_URL: Joi.string().required(),
+    AUTH_BCRYPT_COST: Joi.number().integer().min(10).default(12),
+    AUTH_SESSION_TTL_SECONDS: Joi.number().integer().positive().default(86400),
+    JWT_SECRET: Joi.string().min(32).required(),
+    OAUTH_GOOGLE_CLIENT_ID: Joi.string().allow("").default(""),
+    OAUTH_GOOGLE_CLIENT_SECRET: Joi.string().allow("").default(""),
+    OAUTH_ALLOWED_REDIRECT_ORIGINS: Joi.string().allow("").default(""),
+    OAUTH_ALLOWED_REDIRECT_URIS: Joi.string().required(),
+    GITHUB_APP_SLUG: Joi.string().required(),
+    GITHUB_APP_ID: Joi.string().required(),
+    GITHUB_APP_PRIVATE_KEY: Joi.string().required(),
+    GITHUB_APP_ALLOWED_REDIRECT_URIS: Joi.string().required(),
+    GITHUB_APP_CLIENT_ID: Joi.string().required(),
+    GITHUB_APP_CLIENT_SECRET: Joi.string().required(),
+    GITHUB_CLI_EXECUTABLE_PATH: cliExecutablePathSchema(
+      "GITHUB_CLI_EXECUTABLE_PATH",
+      workspaceRoot,
+    ),
+    GITHUB_CLI_METADATA_TIMEOUT_MS: Joi.number()
+      .integer()
+      .positive()
+      .default(15000),
+    GITHUB_CLI_DISCOVERY_TIMEOUT_MS: Joi.number()
+      .integer()
+      .positive()
+      .default(30000),
+    GITHUB_CLI_ARCHIVE_TIMEOUT_MS: Joi.number()
+      .integer()
+      .positive()
+      .default(120000),
+    GITHUB_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
+      .integer()
+      .positive()
+      .default(1048576),
+    GITHUB_CLI_MAX_DISCOVERY_OUTPUT_BYTES: Joi.number()
+      .integer()
+      .positive()
+      .default(10485760),
+    GITHUB_CLI_MAX_STDERR_BYTES: Joi.number()
+      .integer()
+      .positive()
+      .default(8192),
+    GITHUB_CLI_MAX_ARCHIVE_BYTES: Joi.number()
+      .integer()
+      .positive()
+      .default(104857600),
+    GITHUB_CLI_MAX_CONCURRENT_METADATA_PROCESSES: Joi.number()
+      .integer()
+      .positive()
+      .default(8),
+    GITHUB_CLI_MAX_CONCURRENT_ARCHIVE_PROCESSES: Joi.number()
+      .integer()
+      .positive()
+      .default(2),
+    GITLAB_CLI_EXECUTABLE_PATH: cliExecutablePathSchema(
+      "GITLAB_CLI_EXECUTABLE_PATH",
+      workspaceRoot,
+    ),
+    GITLAB_PROVIDER_ENABLED: Joi.boolean().default(false),
+    GITLAB_CLI_TIMEOUT_MS: Joi.number().integer().positive().default(30000),
+    GITLAB_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
+      .integer()
+      .positive()
+      .default(1048576),
+    BITBUCKET_CLI_EXECUTABLE_PATH: cliExecutablePathSchema(
+      "BITBUCKET_CLI_EXECUTABLE_PATH",
+      workspaceRoot,
+    ),
+    BITBUCKET_PROVIDER_ENABLED: Joi.boolean().default(false),
+    BITBUCKET_CLI_TIMEOUT_MS: Joi.number().integer().positive().default(30000),
+    BITBUCKET_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
+      .integer()
+      .positive()
+      .default(1048576),
+    AZURE_DEVOPS_CLI_EXECUTABLE_PATH: cliExecutablePathSchema(
+      "AZURE_DEVOPS_CLI_EXECUTABLE_PATH",
+      workspaceRoot,
+    ),
+    AZURE_DEVOPS_PROVIDER_ENABLED: Joi.boolean().default(false),
+    AZURE_DEVOPS_CLI_TIMEOUT_MS: Joi.number()
+      .integer()
+      .positive()
+      .default(30000),
+    AZURE_DEVOPS_CLI_MAX_JSON_OUTPUT_BYTES: Joi.number()
+      .integer()
+      .positive()
+      .default(1048576),
+    GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED: Joi.boolean().default(false),
+    INTERVIEW_GUIDANCE_VERSION: Joi.string().trim().min(1).required(),
+    GITHUB_CLI_SNAPSHOT_PINNING_ENABLED: Joi.boolean().default(false),
+    GITHUB_CLI_ARCHIVE_RETRIEVAL_ENABLED: Joi.boolean().default(false),
+    GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION: Joi.string()
+      .trim()
+      .allow("")
+      .default(""),
+    GITHUB_CLI_CREDENTIAL_KEK_KEYRING: Joi.string().trim().default("{}"),
+    RABBITMQ_URL: Joi.string().required(),
+    RABBITMQ_EXCHANGE: Joi.string().default("lcsp.events"),
+    OUTBOX_ENABLED: Joi.boolean().default(true),
+    OUTBOX_POLL_INTERVAL_MS: Joi.number().integer().positive().default(1000),
+    OUTBOX_BATCH_SIZE: Joi.number().integer().positive().default(50),
+    OUTBOX_MAX_ATTEMPTS: Joi.number().integer().positive().default(5),
+    MFA_SECRET_ENCRYPTION_KEY: Joi.string()
+      .pattern(/^[0-9a-fA-F]{64}$/)
+      .required()
+      .messages({
+        "string.pattern.base":
+          '"MFA_SECRET_ENCRYPTION_KEY" must be exactly 64 hex characters (32 bytes)',
+      }),
+    SMTP_HOST: Joi.string().trim().allow("").default(""),
+    SMTP_PORT: Joi.number().integer().positive().default(587),
+    SMTP_SECURE: Joi.boolean().default(false),
+    SMTP_USER: Joi.string().trim().allow("").default(""),
+    SMTP_PASS: Joi.string().trim().allow("").default(""),
+    SMTP_FROM: Joi.string()
+      .trim()
+      .allow("")
+      .default("")
+      .custom((value: string, helpers): string => {
+        if (isValidSmtpFrom(value)) {
+          return value;
+        }
 
-      return helpers.error("string.smtpFrom") as unknown as string;
-    })
-    .messages({
-      "string.smtpFrom":
-        '"SMTP_FROM" must be a valid email or display-name address like "LCSP <noreply@lcsp.com>"',
-    }),
-  WORKER_API_KEY: Joi.string().min(32).required(),
-  ORCHESTRATION_DEBUG: Joi.boolean().default(false),
-  VERIFIED_EPISODE_CONSOLIDATION_INTERVAL_MS: Joi.number()
-    .integer()
-    .min(0)
-    .default(0),
-})
-  .unknown(true)
-  .custom((env: Record<string, unknown>, helpers) => {
-    if (
-      env.GITHUB_CLI_SNAPSHOT_PINNING_ENABLED === true &&
-      env.GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED !== true
-    ) {
-      return helpers.error("credentialKek.snapshotPinning");
-    }
-    if (
-      env.GITHUB_CLI_ARCHIVE_RETRIEVAL_ENABLED === true &&
-      (env.GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED !== true ||
-        env.GITHUB_CLI_SNAPSHOT_PINNING_ENABLED !== true)
-    ) {
-      return helpers.error("credentialKek.archiveRetrieval");
-    }
-    if (env.GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED !== true) return env;
-    const activeVersion = env.GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION;
-    const encodedKeyring = env.GITHUB_CLI_CREDENTIAL_KEK_KEYRING;
-    if (typeof activeVersion !== "string" || activeVersion.length === 0) {
-      return helpers.error("credentialKek.activeVersion");
-    }
-    try {
-      const parsed: unknown = JSON.parse(String(encodedKeyring));
-      if (!isValidKekKeyring(parsed, activeVersion)) {
+        return helpers.error("string.smtpFrom") as unknown as string;
+      })
+      .messages({
+        "string.smtpFrom":
+          '"SMTP_FROM" must be a valid email or display-name address like "LCSP <noreply@lcsp.com>"',
+      }),
+    WORKER_API_KEY: Joi.string().min(32).required(),
+    ORCHESTRATION_DEBUG: Joi.boolean().default(false),
+    VERIFIED_EPISODE_CONSOLIDATION_INTERVAL_MS: Joi.number()
+      .integer()
+      .min(0)
+      .default(0),
+  })
+    .unknown(true)
+    .custom((env: Record<string, unknown>, helpers) => {
+      if (
+        env.GITHUB_CLI_SNAPSHOT_PINNING_ENABLED === true &&
+        env.GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED !== true
+      ) {
+        return helpers.error("credentialKek.snapshotPinning");
+      }
+      if (
+        env.GITHUB_CLI_ARCHIVE_RETRIEVAL_ENABLED === true &&
+        (env.GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED !== true ||
+          env.GITHUB_CLI_SNAPSHOT_PINNING_ENABLED !== true)
+      ) {
+        return helpers.error("credentialKek.archiveRetrieval");
+      }
+      if (env.GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED !== true) return env;
+      const activeVersion = env.GITHUB_CLI_CREDENTIAL_KEK_ACTIVE_VERSION;
+      const encodedKeyring = env.GITHUB_CLI_CREDENTIAL_KEK_KEYRING;
+      if (typeof activeVersion !== "string" || activeVersion.length === 0) {
+        return helpers.error("credentialKek.activeVersion");
+      }
+      try {
+        const parsed: unknown = JSON.parse(String(encodedKeyring));
+        if (!isValidKekKeyring(parsed, activeVersion)) {
+          return helpers.error("credentialKek.keyring");
+        }
+      } catch {
         return helpers.error("credentialKek.keyring");
       }
-    } catch {
-      return helpers.error("credentialKek.keyring");
-    }
-    return env;
-  })
-  .messages({
-    "credentialKek.activeVersion":
-      "GitHub CLI credential persistence requires an active KEK version",
-    "credentialKek.keyring":
-      "GitHub CLI credential persistence requires a valid 32-byte base64 KEK keyring containing the active version",
-    "credentialKek.snapshotPinning":
-      "GitHub CLI snapshot pinning requires credential persistence",
-    "credentialKek.archiveRetrieval":
-      "GitHub CLI archive retrieval requires credential persistence and snapshot pinning",
-  });
+      return env;
+    })
+    .messages({
+      "credentialKek.activeVersion":
+        "GitHub CLI credential persistence requires an active KEK version",
+      "credentialKek.keyring":
+        "GitHub CLI credential persistence requires a valid 32-byte base64 KEK keyring containing the active version",
+      "credentialKek.snapshotPinning":
+        "GitHub CLI snapshot pinning requires credential persistence",
+      "credentialKek.archiveRetrieval":
+        "GitHub CLI archive retrieval requires credential persistence and snapshot pinning",
+    });
+}
+
+export const configValidationSchema = createConfigValidationSchema();
+
+function cliExecutablePathSchema(variableName: string, workspaceRoot: string) {
+  void workspaceRoot;
+  return Joi.string()
+    .trim()
+    .allow("")
+    .default("")
+    .description(
+      `${variableName} accepts an absolute path or a path relative to the LCSP workspace root`,
+    );
+}
+
+function resolveCliExecutablePath(value: string | undefined): string {
+  return value?.trim() ?? "";
+}
 
 function isValidKekKeyring(value: unknown, activeVersion: string): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -329,7 +351,7 @@ export function config(): AppConfig {
       privateKey: env.GITHUB_APP_PRIVATE_KEY ?? "",
     },
     githubCli: {
-      executablePath: env.GITHUB_CLI_EXECUTABLE_PATH?.trim() ?? "",
+      executablePath: resolveCliExecutablePath(env.GITHUB_CLI_EXECUTABLE_PATH),
       metadataTimeoutMs: Number(env.GITHUB_CLI_METADATA_TIMEOUT_MS ?? 15000),
       discoveryTimeoutMs: Number(env.GITHUB_CLI_DISCOVERY_TIMEOUT_MS ?? 30000),
       archiveTimeoutMs: Number(env.GITHUB_CLI_ARCHIVE_TIMEOUT_MS ?? 120000),
@@ -351,7 +373,7 @@ export function config(): AppConfig {
     gitlabCli: {
       enabled:
         (env.GITLAB_PROVIDER_ENABLED ?? "false").toLowerCase() === "true",
-      executablePath: env.GITLAB_CLI_EXECUTABLE_PATH?.trim() ?? "",
+      executablePath: resolveCliExecutablePath(env.GITLAB_CLI_EXECUTABLE_PATH),
       timeoutMs: Number(env.GITLAB_CLI_TIMEOUT_MS ?? 30000),
       maxJsonOutputBytes: Number(
         env.GITLAB_CLI_MAX_JSON_OUTPUT_BYTES ?? 1048576,
@@ -360,7 +382,9 @@ export function config(): AppConfig {
     bitbucketCli: {
       enabled:
         (env.BITBUCKET_PROVIDER_ENABLED ?? "false").toLowerCase() === "true",
-      executablePath: env.BITBUCKET_CLI_EXECUTABLE_PATH?.trim() ?? "",
+      executablePath: resolveCliExecutablePath(
+        env.BITBUCKET_CLI_EXECUTABLE_PATH,
+      ),
       timeoutMs: Number(env.BITBUCKET_CLI_TIMEOUT_MS ?? 30000),
       maxJsonOutputBytes: Number(
         env.BITBUCKET_CLI_MAX_JSON_OUTPUT_BYTES ?? 1048576,
@@ -369,7 +393,9 @@ export function config(): AppConfig {
     azureDevOpsCli: {
       enabled:
         (env.AZURE_DEVOPS_PROVIDER_ENABLED ?? "false").toLowerCase() === "true",
-      executablePath: env.AZURE_DEVOPS_CLI_EXECUTABLE_PATH?.trim() ?? "",
+      executablePath: resolveCliExecutablePath(
+        env.AZURE_DEVOPS_CLI_EXECUTABLE_PATH,
+      ),
       timeoutMs: Number(env.AZURE_DEVOPS_CLI_TIMEOUT_MS ?? 30000),
       maxJsonOutputBytes: Number(
         env.AZURE_DEVOPS_CLI_MAX_JSON_OUTPUT_BYTES ?? 1048576,
