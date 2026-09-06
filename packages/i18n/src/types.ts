@@ -80,6 +80,8 @@ export type PagesMessages = {
     chatCopy: string;
     chatThinking: string;
     chatOptionsLabel: string;
+    chatContinueInComposer: string;
+    chatChooseOption: string;
     chatActivityStatuses: {
       pending: string;
       running: string;
@@ -1260,6 +1262,11 @@ export type PagesMessages = {
     blockedSaveExit: string;
     whyAsking: string;
     whyAskingDetail: string;
+    whyAskingSafeNote: string;
+    continueInComposer: string;
+    composerChooseOption: string;
+    adjustPlaceholder: string;
+    composerChooseConfirmAdjust: string;
     submitAnswer: string;
     answerSavedForRuntime: string;
     draftSavedForResume: string;

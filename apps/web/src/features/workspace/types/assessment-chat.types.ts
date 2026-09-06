@@ -22,7 +22,10 @@ export type ChatSingleSelectOption = {
   description?: string;
   disabled?: boolean;
   assistiveText?: string;
+  requiresFreeText?: boolean;
 };
+
+export type ChatMultiSelectOption = ChatSingleSelectOption;
 
 export type TurnFooterAction = {
   id: string;

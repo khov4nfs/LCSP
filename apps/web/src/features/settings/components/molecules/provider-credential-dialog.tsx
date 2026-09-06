@@ -35,8 +35,6 @@ export const PROVIDER_CREDENTIAL_DIALOG_MODES = {
 export type ProviderCredentialDialogMode =
   (typeof PROVIDER_CREDENTIAL_DIALOG_MODES)[keyof typeof PROVIDER_CREDENTIAL_DIALOG_MODES];
 
-type MessageKey = Parameters<typeof resolveMessage>[1];
-
 type ProviderCredentialDialogProps = {
   mode: ProviderCredentialDialogMode;
   onModeChange: (mode: ProviderCredentialDialogMode) => void;
