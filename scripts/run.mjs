@@ -1,5 +1,11 @@
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readlinkSync,
+  statSync,
+} from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -64,7 +70,14 @@ const defaultOpenWikiRuntimeTimeoutSeconds =
   "180";
 const managedAgentPythonPath = ".";
 const dockerManagedAgentPythonPath = "/app/deepagents";
-const managedAgentEventsModule = "tools.common.capabilities.managed.rabbitmq_consumer";
+const managedAgentEventsModule =
+  "tools.common.capabilities.managed.rabbitmq_consumer";
+const managedAgentPersistenceDir = path.join(
+  workerRoot,
+  ".mda",
+  "build",
+  ".langgraph_api",
+);
 
 const isDarwin = process.platform === "darwin";
 
@@ -190,9 +203,10 @@ const targets = {
     // on PATH.  Calling the venv-installed mda.exe directly makes mda dev
     // probe for a `python3` executable that Windows does not provide.
     cmd: existsSync(workerMda) && !isWindows ? workerMda : "uv",
-    args: existsSync(workerMda) && !isWindows
-      ? ["dev", "--no-reload", "."]
-      : ["run", "mda", "dev", "--no-reload", "."],
+    args:
+      existsSync(workerMda) && !isWindows
+        ? ["dev", "--no-reload", "."]
+        : ["run", "mda", "dev", "--no-reload", "."],
     env: {
       ...rootEnv,
       PYTHONPATH: managedAgentPythonPath,
@@ -334,6 +348,66 @@ function prepareTsJsAnalyzer() {
   if (!existsSync(tsJsAnalyzerCli)) {
     console.error(`[run] Analyzer build did not create ${tsJsAnalyzerCli}`);
     process.exit(1);
+  }
+}
+
+function prepareManagedAgentRuntime() {
+  stopStaleManagedAgentProcesses();
+  mkdirSync(managedAgentPersistenceDir, { recursive: true });
+}
+
+function stopStaleManagedAgentProcesses() {
+  if (process.platform !== "linux") return;
+  const result = spawnSync("ps", ["-eo", "pid=,args="], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    shell: false,
+  });
+  if (result.status !== 0) return;
+
+  const candidates = [];
+  for (const line of result.stdout.split("\n")) {
+    const match = /^\s*(\d+)\s+(.+)$/u.exec(line);
+    if (!match) continue;
+    const pid = Number.parseInt(match[1], 10);
+    const command = match[2];
+    if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) continue;
+    if (
+      !/(?:mda|langgraph)(?:\.exe)?\s+dev\b|langgraph-cli\[inmem\]/u.test(
+        command,
+      )
+    ) {
+      continue;
+    }
+
+    let cwd;
+    try {
+      cwd = readlinkSync(`/proc/${pid}/cwd`);
+    } catch {
+      continue;
+    }
+    const relative = path.relative(workerRoot, cwd);
+    const belongsToWorkspace =
+      relative === "" ||
+      (relative !== ".." &&
+        !relative.startsWith(`..${path.sep}`) &&
+        !path.isAbsolute(relative));
+    if (belongsToWorkspace) candidates.push(pid);
+  }
+
+  if (candidates.length === 0) return;
+  console.log(
+    `[run] Stopping stale LCSP Managed Agent processes: ${candidates.join(", ")}`,
+  );
+  for (const signal of ["SIGTERM", "SIGKILL"]) {
+    for (const pid of candidates) {
+      try {
+        process.kill(pid, signal);
+      } catch {
+        // Process already exited.
+      }
+    }
+    if (signal === "SIGTERM") sleepMs(250);
   }
 }
 
@@ -513,6 +587,7 @@ function loadDotEnv(filePath) {
 
 function runTarget(name) {
   const target = targets[name];
+  if (name === "managed_agent") prepareManagedAgentRuntime();
   cleanupDockerWorkerContainer(target);
   console.log(`[run] Starting ${name}: ${target.description}`);
   const child = spawnTarget(target);
@@ -546,6 +621,10 @@ async function runGroup(name) {
     } else {
       longRunningMembers.push(member);
     }
+  }
+
+  if (longRunningMembers.includes("managed_agent")) {
+    prepareManagedAgentRuntime();
   }
 
   assertPortsAvailable(longRunningMembers);

@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute } from "node:path";
 
 import { isRecord } from "../../../../common/utils/index.js";
 import {
@@ -25,6 +24,7 @@ const REPOSITORY_FULL_NAME_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u;
 
 export type BitbucketCliRepositoryProviderOptions = {
   executablePath: string;
+  workspaceRoot?: string;
   host?: string;
   timeoutMs: number;
   maxJsonOutputBytes: number;
@@ -44,7 +44,7 @@ export class BitbucketCliRepositoryProvider implements GitHubRepositoryProviderP
 
   constructor(private readonly options: BitbucketCliRepositoryProviderOptions) {
     this.host = options.host ?? BITBUCKET_HOST;
-    if (!isAbsolute(options.executablePath) || this.host !== BITBUCKET_HOST) {
+    if (!options.executablePath.trim() || this.host !== BITBUCKET_HOST) {
       throw new BitbucketCliProviderError(
         GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
       );
@@ -241,7 +241,7 @@ export class BitbucketCliRepositoryProvider implements GitHubRepositoryProviderP
           this.options.executablePath,
           args,
           {
-            cwd: directory,
+            cwd: this.options.workspaceRoot ?? directory,
             shell: false,
             windowsHide: true,
             env: {

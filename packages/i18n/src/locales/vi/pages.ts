@@ -108,6 +108,46 @@ export const viPages = {
     authTitle: "Đưa mọi assessment AI tiến về phía trước bằng evidence.",
     authDescription:
       "LCSP tập trung intake, readiness, classification và review trong một workspace được kiểm soát.",
+    assessmentSidebar: {
+      title: "Assessment",
+      repositoryContext: "Bối cảnh repository",
+      repositoryUnavailable: "Bối cảnh repository chưa khả dụng.",
+      pinnedCommit: "Commit đã pin · {commit}",
+      workflowTitle: "Workflow",
+      artifactsAndEvidence: "Artifacts & evidence",
+      artifactSummary: {
+        active: "2 đang hoạt động",
+        readyWaiting: "1 sẵn sàng · 1 đang chờ",
+      },
+      workflow: {
+        scanner: "Scanner",
+        interview: "Interview",
+        rules: "Rules",
+        planner: "Planner",
+        investigate: "Investigate",
+        gate: "Gate",
+      },
+      statuses: {
+        running: "Đang chạy",
+        queued: "Đang chờ",
+        passed: "Đã qua",
+        building: "Đang dựng",
+        ready: "Sẵn sàng",
+        waiting: "Đang chờ",
+        failed: "Thất bại",
+      },
+      artifacts: {
+        programEvidenceGraph: "Program Evidence Graph",
+        collectedEvidence: "Evidence đã thu thập",
+        projectContext: "Bối cảnh dự án",
+        programEvidenceGraphBuilding: "Đang lập chỉ mục evidence repository",
+        programEvidenceGraphServices:
+          "{count} services · đang lập chỉ mục evidence repository",
+        programEvidenceGraphReady: "Cấu trúc repository và bản đồ evidence",
+        collectedEvidenceRunning: "Claims được trích xuất từ mã nguồn đã quét",
+        projectContextWaiting: "Đang chờ mô tả dự án",
+      },
+    },
     runtimePanelTitle: "Hoạt động runtime",
     runtimePanelAwaiting: "Đang chờ hoạt động runtime",
     runtimePanelLastUpdated: "Cập nhật lần cuối",
@@ -1254,6 +1294,91 @@ export const viPages = {
         "Xem trạng thái phân loại và các hành động có thể tiếp tục.",
       documents: "Tạo, theo dõi và tải các tài liệu assessment.",
       conflicts: "Xem xét và ghi nhận quyết định cho các xung đột đang chờ.",
+    },
+  },
+  assessmentFlow: {
+    thought: "Đã suy nghĩ trong 2 giây",
+    repositorySetupDescription:
+      "Trước khi assessment bắt đầu, hãy kết nối repository cần quét. Tôi sẽ phân tích source đã pin trước, sau đó mới bắt đầu Interview.",
+    providerQuestion: "Chọn Git provider",
+    providerHelp:
+      "Chọn provider để mở kết nối bảo mật. Repository và commit đã pin là bắt buộc trước khi scan.",
+    providerComingSoon: "Sắp hỗ trợ",
+    configureProvider: "Cấu hình kết nối bảo mật",
+    repositoryPlaceholder: "Dán URL repository để tiếp tục...",
+    repositoryDisabledPlaceholder: "Kết nối provider để tiếp tục...",
+    providers: {
+      github: "GitHub",
+      gitlab: "GitLab",
+      bitbucket: "Bitbucket",
+      azureDevOps: "Azure DevOps",
+    },
+    repository: {
+      connected: "Repository đã kết nối",
+      connectedDescription:
+        "Repository đã kết nối. Assessment này được khóa theo repository và commit đã chọn.",
+      pinnedCommit: "commit đã pin {commit}",
+      pending: "Đang chờ",
+      loadingState: "Đang tải trạng thái repository...",
+    },
+    scanner: {
+      runningThinking: "Đang suy nghĩ...",
+      runningDescription:
+        "Repository đã được pin. Tôi đang quét source trước khi hỏi bất kỳ câu Interview nào.",
+      completeThinking: "Đã suy nghĩ trong 18 giây",
+      completeDescription:
+        "Scan hoàn tất. Source đã pin đã được index và evidence graph đã được xây dựng.",
+      runningPlaceholder: "Scanner đang chạy...",
+      failedPlaceholder:
+        "Scanner cần được xử lý trước khi Interview có thể bắt đầu.",
+      activities: {
+        connect: "Đã kết nối Git provider",
+        clone: "Đã clone source archive",
+        scan: "Đã quét source code",
+        buildGraph: "Đã xây dựng Program Evidence Graph",
+        collectEvidence: "Đã thu thập evidence",
+        collectEvidenceRunning: "Đang thu thập evidence...",
+      },
+    },
+    graph: {
+      title: "Program Evidence Graph",
+      subtitle: "Repository evidence snapshot · commit đã pin",
+      ready: "Sẵn sàng",
+      servicesScanned: "Services đã quét",
+      servicesScannedDescription:
+        "Ranh giới service/module được đưa vào phân tích repository.",
+      codeSymbolsIndexed: "Code symbols đã index",
+      codeSymbolsIndexedDescription:
+        "Functions, classes và handlers có thể dùng để trace evidence.",
+      aiProviderCallPaths: "AI/provider call paths",
+      aiProviderCallPathsDescription:
+        "Các execution path có thể chạm tới ranh giới AI/model/provider.",
+      evidenceMappedScope: "Phạm vi đã map evidence",
+      evidenceMappedScopeDescription:
+        "Graph nodes trong phạm vi được liên kết với ít nhất một evidence claim.",
+      unavailableValue: "--",
+      viewEvidenceGraph: "Xem evidence graph",
+      artifactMetadata: "Artifact · repository evidence",
+    },
+    interview: {
+      thought: "Đã suy nghĩ trong 2 giây",
+      readyDescription:
+        "Scan hoàn tất. Tôi sẵn sàng bắt đầu Interview bằng ngữ cảnh dự án.",
+      startingDescription:
+        "Evidence đã sẵn sàng. Tôi đang khởi động Interview Agent và chờ câu hỏi đầu tiên.",
+      startingPlaceholder: "Đang khởi động Interview...",
+      pendingDescription:
+        "Evidence đã sẵn sàng. Đang chờ orchestration cung cấp câu hỏi Interview đầu tiên.",
+      pendingPlaceholder: "Đang chờ Interview...",
+      placeholder: "Mô tả project hoặc system...",
+    },
+    errors: {
+      title: "Không thể hoàn tất repository setup",
+      repositoryUrl:
+        "Hãy nhập URL repository hợp lệ và khớp với provider đã chọn.",
+      createAssessment: "Không thể tạo assessment. Vui lòng thử lại.",
+      repositorySetup:
+        "Hãy kiểm tra provider credential và quyền truy cập repository, sau đó thử lại.",
     },
   },
   assessmentForm: {

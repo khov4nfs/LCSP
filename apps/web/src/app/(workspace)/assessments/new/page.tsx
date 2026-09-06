@@ -1,5 +1,5 @@
-import { CreateAssessmentForm } from "@/features/workspace/components/organisms/create-assessment-form";
+import { RepositorySetupStep } from "@/features/assessment-flow/components/organisms/repository-setup-step";
 
 export default function NewAssessmentPage() {
-  return <CreateAssessmentForm />;
+  return <RepositorySetupStep />;
 }

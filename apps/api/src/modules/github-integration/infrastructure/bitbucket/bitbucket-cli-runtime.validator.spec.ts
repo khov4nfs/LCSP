@@ -43,7 +43,27 @@ describe("Bitbucket CLI runtime validation", () => {
     expect(spawn).toHaveBeenCalled();
   });
 
-  it("rejects a relative or missing executable", () => {
+  it("accepts a root-relative executable with an explicit workspace cwd", () => {
+    const access = jest.fn();
+    const spawn = jest.fn(() => ({
+      status: 0,
+      stdout: `bb version ${SUPPORTED_BITBUCKET_CLI_VERSION} (test)\n`,
+    }));
+
+    expect(() =>
+      assertBitbucketCliRuntime("./.cache/lcsp-cli/bitbucket-cli/bin/bb", {
+        access,
+        cwd: "/workspace/LCSP",
+        spawn,
+      }),
+    ).not.toThrow();
+    expect(access).toHaveBeenCalledWith(
+      "/workspace/LCSP/.cache/lcsp-cli/bitbucket-cli/bin/bb",
+      1,
+    );
+  });
+
+  it("rejects a missing executable", () => {
     expect(() => assertBitbucketCliRuntime("bb")).toThrow(
       GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
     );

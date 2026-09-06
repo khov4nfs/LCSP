@@ -98,11 +98,17 @@ test("Bitbucket bootstrap enables the provider for local development", () =>
     writeFileSync(executablePath, "fake-bb", "utf8");
     const spawnSyncImpl = (_command, args) =>
       args[0] === "--version"
-        ? { status: 0, stdout: `bb version ${SUPPORTED_BITBUCKET_CLI_VERSION} (test)\n` }
+        ? {
+            status: 0,
+            stdout: `bb version ${SUPPORTED_BITBUCKET_CLI_VERSION} (test)\n`,
+          }
         : { status: 0, stdout: `${executablePath}\n` };
     await bootstrapLocalBitbucketCli({
       repoRoot: root,
-      env: { NODE_ENV: "development", BITBUCKET_CLI_EXECUTABLE_PATH: executablePath },
+      env: {
+        NODE_ENV: "development",
+        BITBUCKET_CLI_EXECUTABLE_PATH: executablePath,
+      },
       platform: "win32",
       envFilePath,
       spawnSyncImpl,
@@ -119,11 +125,17 @@ test("Azure DevOps bootstrap enables the provider for local development", () =>
     writeFileSync(executablePath, "fake-az", "utf8");
     const spawnSyncImpl = (_command, args) =>
       args[0] === "version"
-        ? { status: 0, stdout: `azure-cli ${SUPPORTED_AZURE_DEVOPS_CLI_VERSION} (test)\n` }
+        ? {
+            status: 0,
+            stdout: `azure-cli ${SUPPORTED_AZURE_DEVOPS_CLI_VERSION} (test)\n`,
+          }
         : { status: 0, stdout: `${executablePath}\n` };
     await bootstrapLocalAzureDevOpsCli({
       repoRoot: root,
-      env: { NODE_ENV: "development", AZURE_DEVOPS_CLI_EXECUTABLE_PATH: executablePath },
+      env: {
+        NODE_ENV: "development",
+        AZURE_DEVOPS_CLI_EXECUTABLE_PATH: executablePath,
+      },
       platform: "win32",
       envFilePath,
       spawnSyncImpl,
@@ -311,28 +323,34 @@ test("explicit absolute executable path is respected", () =>
     });
     assert.equal(
       parse(readFileSync(envFilePath)).GITHUB_CLI_EXECUTABLE_PATH,
-      undefined,
+      "custom-gh",
     );
   }));
 
-test("relative executable configuration is rejected", () =>
+test("relative executable configuration resolves from the workspace root", () =>
   withTempEnv(async (root, envFilePath) => {
-    await assert.rejects(
-      bootstrapLocalGitHubCli({
-        repoRoot: root,
-        env: {
-          NODE_ENV: "development",
-          GITHUB_CLI_EXECUTABLE_PATH: "tools/gh",
-        },
-        platform: "linux",
-        envFilePath,
-        spawnSyncImpl: () => ({ status: 0, stdout: "" }),
-      }),
-      /must be an absolute path/u,
+    const relativePath = "tools/gh";
+    const executablePath = path.join(root, relativePath);
+    mkdirSync(path.dirname(executablePath), { recursive: true });
+    const result = await bootstrapLocalGitHubCli({
+      repoRoot: root,
+      env: {
+        NODE_ENV: "development",
+        GITHUB_CLI_EXECUTABLE_PATH: relativePath,
+      },
+      platform: "linux",
+      envFilePath,
+      spawnSyncImpl: fakeGh(executablePath),
+      randomBytesImpl: (size) => Buffer.alloc(size, 4),
+    });
+    assert.equal(result.executablePath, executablePath);
+    assert.equal(
+      parse(readFileSync(envFilePath)).GITHUB_CLI_EXECUTABLE_PATH,
+      relativePath,
     );
   }));
 
-test("resolved GitHub CLI path is injected without writing it to .env", () =>
+test("resolved GitHub CLI path is injected absolutely and persisted relatively", () =>
   withTempEnv(async (root, envFilePath) => {
     const executablePath = path.join(root, "injected-gh");
     const previous = process.env.GITHUB_CLI_EXECUTABLE_PATH;
@@ -352,12 +370,34 @@ test("resolved GitHub CLI path is injected without writing it to .env", () =>
       assert.equal(process.env.GITHUB_CLI_EXECUTABLE_PATH, executablePath);
       assert.equal(
         parse(readFileSync(envFilePath)).GITHUB_CLI_EXECUTABLE_PATH,
-        undefined,
+        "injected-gh",
       );
     } finally {
       if (previous === undefined) delete process.env.GITHUB_CLI_EXECUTABLE_PATH;
       else process.env.GITHUB_CLI_EXECUTABLE_PATH = previous;
     }
+  }));
+
+test("stale absolute GitHub CLI path self-heals to the current workspace", () =>
+  withTempEnv(async (root, envFilePath) => {
+    const executablePath = path.join(root, "gh");
+    writeFileSync(
+      envFilePath,
+      "GITHUB_CLI_EXECUTABLE_PATH=/Users/old-machine/LCSP/.cache/lcsp-cli/github-cli/2.98.0/bin/gh\n",
+    );
+    const result = await bootstrapLocalGitHubCli({
+      repoRoot: root,
+      env: { NODE_ENV: "development" },
+      platform: "linux",
+      envFilePath,
+      spawnSyncImpl: fakeGh(executablePath),
+      randomBytesImpl: (size) => Buffer.alloc(size, 8),
+    });
+    assert.equal(result.executablePath, executablePath);
+    assert.equal(
+      parse(readFileSync(envFilePath)).GITHUB_CLI_EXECUTABLE_PATH,
+      "gh",
+    );
   }));
 
 test("unsupported gh version fails safely", () =>

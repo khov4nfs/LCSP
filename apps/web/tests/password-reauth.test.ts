@@ -6,6 +6,7 @@ import {
   reauthenticateWithPassword,
   toPasswordReauthOutcome,
 } from "../src/lib/api/auth-client.ts";
+import { confirmAccessPasswordSchema } from "../src/components/schemas/confirm-access-dialog.schema.ts";
 
 function problem(code: string, status: number) {
   return {
@@ -36,6 +37,11 @@ test("password re-auth returns session invalid for expired sessions", () => {
     ),
     { kind: "session_invalid" },
   );
+});
+
+test("password re-auth preserves password whitespace", () => {
+  const password = " CorrectHorseBatteryStaple! ";
+  assert.equal(confirmAccessPasswordSchema.parse({ password }).password, password);
 });
 
 test("password re-auth client sends only the password in a same-origin JSON body", async () => {

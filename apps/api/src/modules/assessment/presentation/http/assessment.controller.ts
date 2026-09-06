@@ -17,7 +17,9 @@ import { resultEnvelope } from "../../../../platform/problems/result-envelope.js
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { CreateAssessmentCommand } from "../../application/commands/create-assessment/create-assessment.command.js";
+import { CompleteRepositorySetupCommand } from "../../application/commands/complete-repository-setup/complete-repository-setup.command.js";
 import { GetAssessmentQuery } from "../../application/queries/get-assessment/get-assessment.query.js";
+import { GetAssessmentReadinessQuery } from "../../application/queries/get-assessment-readiness/get-assessment-readiness.query.js";
 import { ListAssessmentsQuery } from "../../application/queries/list-assessments/list-assessments.query.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import { AssessmentInterviewRuntimeService } from "../../application/services/assessment-interview-runtime.service.js";
@@ -63,6 +65,24 @@ export class AssessmentController {
           body.name,
           body.description,
           request.correlationId ?? "worker-interview-context",
+        ),
+      ),
+    );
+  }
+
+  @Post(":assessmentId/repository-setup/complete")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async completeRepositorySetup(
+    @Param("assessmentId") assessmentId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new CompleteRepositorySetupCommand(
+          assessmentId,
+          request.rbacContext.userId,
+          request.correlationId ?? "repository-setup-complete",
         ),
       ),
     );
@@ -119,6 +139,26 @@ export class AssessmentController {
   ) {
     return resultEnvelope(
       await this.interviewRuntime.getState(assessmentId, request.rbacContext),
+    );
+  }
+
+  @Get(":assessmentId/readiness")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
+  async getReadiness(
+    @Param("assessmentId") assessmentId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const { rbacContext } = request;
+    return resultEnvelope(
+      await this.queryBus.execute(
+        new GetAssessmentReadinessQuery(
+          assessmentId,
+          rbacContext.userId,
+          rbacContext.role,
+          request.correlationId ?? "assessment-readiness",
+        ),
+      ),
     );
   }
 

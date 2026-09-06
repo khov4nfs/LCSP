@@ -51,6 +51,7 @@ import {
   GitHubCliRepositoryProvider,
 } from "./infrastructure/github/github-cli-repository.provider.js";
 import { GITHUB_CREDENTIAL_ERROR_CODES } from "@lcsp/contracts/github-integration";
+import { CONFIG_WORKSPACE_ROOT } from "../../config/config.js";
 import {
   GITHUB_ARCHIVE_TRANSPORT,
   REPOSITORY_ARCHIVE_TRANSPORT_REGISTRY,
@@ -129,11 +130,15 @@ import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
         } else {
           const executablePath = resolveGitLabCliExecutablePath(
             gitlab.executablePath,
+            { cwd: CONFIG_WORKSPACE_ROOT },
           );
-          assertGitLabCliRuntime(executablePath);
+          assertGitLabCliRuntime(executablePath, {
+            cwd: CONFIG_WORKSPACE_ROOT,
+          });
           gitlabProvider = new GitLabCliRepositoryProvider({
             ...gitlab,
             executablePath,
+            workspaceRoot: CONFIG_WORKSPACE_ROOT,
           });
         }
 
@@ -175,11 +180,15 @@ import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
         } else {
           const executablePath = resolveBitbucketCliExecutablePath(
             bitbucket.executablePath,
+            { cwd: CONFIG_WORKSPACE_ROOT },
           );
-          assertBitbucketCliRuntime(executablePath);
+          assertBitbucketCliRuntime(executablePath, {
+            cwd: CONFIG_WORKSPACE_ROOT,
+          });
           bitbucketProvider = new BitbucketCliRepositoryProvider({
             ...bitbucket,
             executablePath,
+            workspaceRoot: CONFIG_WORKSPACE_ROOT,
           });
         }
 
@@ -223,11 +232,15 @@ import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
         } else {
           const executablePath = resolveAzureDevOpsCliExecutablePath(
             azureDevOps.executablePath,
+            { cwd: CONFIG_WORKSPACE_ROOT },
           );
-          assertAzureDevOpsCliRuntime(executablePath);
+          assertAzureDevOpsCliRuntime(executablePath, {
+            cwd: CONFIG_WORKSPACE_ROOT,
+          });
           azureDevOpsProvider = new AzureDevOpsCliRepositoryProvider({
             ...azureDevOps,
             executablePath,
+            workspaceRoot: CONFIG_WORKSPACE_ROOT,
           });
         }
 
@@ -295,9 +308,14 @@ import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
         }
         const executablePath = resolveGitHubCliExecutablePath(
           cli.executablePath,
+          { cwd: CONFIG_WORKSPACE_ROOT },
         );
-        assertGitHubCliRuntime(executablePath);
-        return new GitHubCliRepositoryProvider({ ...cli, executablePath });
+        assertGitHubCliRuntime(executablePath, { cwd: CONFIG_WORKSPACE_ROOT });
+        return new GitHubCliRepositoryProvider({
+          ...cli,
+          executablePath,
+          workspaceRoot: CONFIG_WORKSPACE_ROOT,
+        });
       },
     },
     {

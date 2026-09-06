@@ -145,6 +145,45 @@ export type PagesMessages = {
     authEyebrow: string;
     authTitle: string;
     authDescription: string;
+    assessmentSidebar: {
+      title: string;
+      repositoryContext: string;
+      repositoryUnavailable: string;
+      pinnedCommit: string;
+      workflowTitle: string;
+      artifactsAndEvidence: string;
+      artifactSummary: {
+        active: string;
+        readyWaiting: string;
+      };
+      workflow: {
+        scanner: string;
+        interview: string;
+        rules: string;
+        planner: string;
+        investigate: string;
+        gate: string;
+      };
+      statuses: {
+        running: string;
+        queued: string;
+        passed: string;
+        building: string;
+        ready: string;
+        waiting: string;
+        failed: string;
+      };
+      artifacts: {
+        programEvidenceGraph: string;
+        collectedEvidence: string;
+        projectContext: string;
+        programEvidenceGraphBuilding: string;
+        programEvidenceGraphServices: string;
+        programEvidenceGraphReady: string;
+        collectedEvidenceRunning: string;
+        projectContextWaiting: string;
+      };
+    };
     runtimePanelTitle: string;
     runtimePanelAwaiting: string;
     runtimePanelLastUpdated: string;
@@ -1234,6 +1273,76 @@ export type PagesMessages = {
       classification: string;
       documents: string;
       conflicts: string;
+    };
+  };
+  assessmentFlow: {
+    thought: string;
+    repositorySetupDescription: string;
+    providerQuestion: string;
+    providerHelp: string;
+    providerComingSoon: string;
+    configureProvider: string;
+    repositoryPlaceholder: string;
+    repositoryDisabledPlaceholder: string;
+    providers: {
+      github: string;
+      gitlab: string;
+      bitbucket: string;
+      azureDevOps: string;
+    };
+    repository: {
+      connected: string;
+      connectedDescription: string;
+      pinnedCommit: string;
+      pending: string;
+      loadingState: string;
+    };
+    scanner: {
+      runningThinking: string;
+      runningDescription: string;
+      completeThinking: string;
+      completeDescription: string;
+      runningPlaceholder: string;
+      failedPlaceholder: string;
+      activities: {
+        connect: string;
+        clone: string;
+        scan: string;
+        buildGraph: string;
+        collectEvidence: string;
+        collectEvidenceRunning: string;
+      };
+    };
+    graph: {
+      title: string;
+      subtitle: string;
+      ready: string;
+      servicesScanned: string;
+      servicesScannedDescription: string;
+      codeSymbolsIndexed: string;
+      codeSymbolsIndexedDescription: string;
+      aiProviderCallPaths: string;
+      aiProviderCallPathsDescription: string;
+      evidenceMappedScope: string;
+      evidenceMappedScopeDescription: string;
+      unavailableValue: string;
+      viewEvidenceGraph: string;
+      artifactMetadata: string;
+    };
+    interview: {
+      thought: string;
+      readyDescription: string;
+      startingDescription: string;
+      startingPlaceholder: string;
+      pendingDescription: string;
+      pendingPlaceholder: string;
+      placeholder: string;
+    };
+    errors: {
+      title: string;
+      repositoryUrl: string;
+      createAssessment: string;
+      repositorySetup: string;
     };
   };
   assessmentForm: {

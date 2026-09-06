@@ -49,7 +49,41 @@ describe("GitHub CLI runtime validation", () => {
     expect((spawn.mock.calls as unknown[][])[0]).toEqual([
       "/usr/bin/gh",
       ["--version"],
-      expect.objectContaining({ shell: false }),
+      expect.objectContaining({
+        shell: false,
+        env: expect.objectContaining({
+          GH_CONFIG_DIR: expect.stringContaining("lcsp-gh-runtime-validation"),
+          XDG_STATE_HOME: expect.stringContaining("lcsp-gh-runtime-validation"),
+        }),
+      }),
+    ]);
+  });
+
+  it("accepts a root-relative executable with an explicit workspace cwd", () => {
+    const access = jest.fn();
+    const spawn = jest.fn(() => ({
+      status: 0,
+      stdout: `gh version ${SUPPORTED_GITHUB_CLI_VERSION} (test)\n`,
+    }));
+
+    expect(() =>
+      assertGitHubCliRuntime("./.cache/lcsp-cli/github-cli/bin/gh", {
+        access,
+        cwd: "/workspace/LCSP",
+        spawn,
+      }),
+    ).not.toThrow();
+    expect(access).toHaveBeenCalledWith(
+      "/workspace/LCSP/.cache/lcsp-cli/github-cli/bin/gh",
+      expect.any(Number),
+    );
+    expect((spawn.mock.calls as unknown[][])[0]).toEqual([
+      "./.cache/lcsp-cli/github-cli/bin/gh",
+      ["--version"],
+      expect.objectContaining({
+        cwd: "/workspace/LCSP",
+        shell: false,
+      }),
     ]);
   });
 

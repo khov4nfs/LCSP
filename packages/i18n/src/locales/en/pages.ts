@@ -108,6 +108,46 @@ export const enPages = {
     authTitle: "Move every AI assessment forward with evidence.",
     authDescription:
       "LCSP keeps intake, readiness, classification, and review in one controlled workspace.",
+    assessmentSidebar: {
+      title: "Assessment",
+      repositoryContext: "Repository context",
+      repositoryUnavailable: "Repository context is not available yet.",
+      pinnedCommit: "Pinned commit · {commit}",
+      workflowTitle: "Workflow",
+      artifactsAndEvidence: "Artifacts & evidence",
+      artifactSummary: {
+        active: "2 active",
+        readyWaiting: "1 ready · 1 waiting",
+      },
+      workflow: {
+        scanner: "Scanner",
+        interview: "Interview",
+        rules: "Rules",
+        planner: "Planner",
+        investigate: "Investigate",
+        gate: "Gate",
+      },
+      statuses: {
+        running: "Running",
+        queued: "Queued",
+        passed: "Passed",
+        building: "Building",
+        ready: "Ready",
+        waiting: "Waiting",
+        failed: "Failed",
+      },
+      artifacts: {
+        programEvidenceGraph: "Program Evidence Graph",
+        collectedEvidence: "Collected evidence",
+        projectContext: "Project context",
+        programEvidenceGraphBuilding: "Indexing repository evidence",
+        programEvidenceGraphServices:
+          "{count} services · indexing repository evidence",
+        programEvidenceGraphReady: "Repository structure and evidence map",
+        collectedEvidenceRunning: "Claims extracted from scanned source",
+        projectContextWaiting: "Waiting for project description",
+      },
+    },
     runtimePanelTitle: "Runtime activity",
     runtimePanelAwaiting: "Waiting for runtime activity",
     runtimePanelLastUpdated: "Last updated",
@@ -1254,6 +1294,91 @@ export const enPages = {
         "Review the classification state and available next actions.",
       documents: "Generate, track, and download assessment documents.",
       conflicts: "Review and record decisions for pending conflicts.",
+    },
+  },
+  assessmentFlow: {
+    thought: "Thought for 2s",
+    repositorySetupDescription:
+      "Before the assessment can start, connect the repository I should scan. I will analyze the pinned source first, then begin the interview.",
+    providerQuestion: "Choose Git provider",
+    providerHelp:
+      "Select a provider to open the secure connector. A repository and pinned commit are required before scanning.",
+    providerComingSoon: "Coming soon",
+    configureProvider: "Configure secure connection",
+    repositoryPlaceholder: "Paste a repository URL to continue...",
+    repositoryDisabledPlaceholder: "Connect a provider to continue...",
+    providers: {
+      github: "GitHub",
+      gitlab: "GitLab",
+      bitbucket: "Bitbucket",
+      azureDevOps: "Azure DevOps",
+    },
+    repository: {
+      connected: "Connected repository",
+      connectedDescription:
+        "Repository connected. This assessment is locked to the selected repository and pinned commit.",
+      pinnedCommit: "pinned commit {commit}",
+      pending: "Pending",
+      loadingState: "Loading repository state...",
+    },
+    scanner: {
+      runningThinking: "Thinking...",
+      runningDescription:
+        "Repository is pinned. I am scanning the source before asking any interview questions.",
+      completeThinking: "Thought for 18s",
+      completeDescription:
+        "Scan complete. I indexed the pinned source and built the evidence graph.",
+      runningPlaceholder: "Scanner is running...",
+      failedPlaceholder: "Scanner needs attention before Interview can begin.",
+      activities: {
+        connect: "Connected to Git provider",
+        clone: "Cloned source archive",
+        scan: "Scanned source code",
+        buildGraph: "Built program evidence graph",
+        collectEvidence: "Collected evidence",
+        collectEvidenceRunning: "Collecting evidence...",
+      },
+    },
+    graph: {
+      title: "Program Evidence Graph",
+      subtitle: "Repository evidence snapshot · pinned commit",
+      ready: "Ready",
+      servicesScanned: "Services scanned",
+      servicesScannedDescription:
+        "Service/module boundaries included in the repository analysis.",
+      codeSymbolsIndexed: "Code symbols indexed",
+      codeSymbolsIndexedDescription:
+        "Functions, classes and handlers available for evidence tracing.",
+      aiProviderCallPaths: "AI/provider call paths",
+      aiProviderCallPathsDescription:
+        "Reachable execution paths crossing an AI/model/provider boundary.",
+      evidenceMappedScope: "Evidence-mapped scope",
+      evidenceMappedScopeDescription:
+        "In-scope graph nodes linked to at least one evidence claim.",
+      unavailableValue: "--",
+      viewEvidenceGraph: "View evidence graph",
+      artifactMetadata: "Artifact · repository evidence",
+    },
+    interview: {
+      thought: "Thought for 2s",
+      readyDescription:
+        "The scan is complete. I am ready to start the interview with the project context.",
+      startingDescription:
+        "Evidence is ready. I am starting the Interview Agent and waiting for the first question.",
+      startingPlaceholder: "Starting Interview...",
+      pendingDescription:
+        "Evidence is ready. Waiting for Interview orchestration to provide the first question.",
+      pendingPlaceholder: "Waiting for Interview...",
+      placeholder: "Describe the project or system...",
+    },
+    errors: {
+      title: "Repository setup could not be completed",
+      repositoryUrl:
+        "Enter a valid repository URL that matches the selected provider.",
+      createAssessment:
+        "The assessment could not be created. Please try again.",
+      repositorySetup:
+        "Check the provider credential and repository access, then try again.",
     },
   },
   assessmentForm: {

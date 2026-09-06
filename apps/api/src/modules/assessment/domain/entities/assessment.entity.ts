@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  ASSESSMENT_ERROR_CODES,
   ASSESSMENT_STATUS_CODES,
   type AssessmentStatusCode,
 } from "@lcsp/contracts/assessment";
@@ -102,5 +103,17 @@ export class Assessment {
   /** @returns The most recent assessment update timestamp. */
   get updatedAt(): Date {
     return this.props.updatedAt;
+  }
+
+  /** Marks the legacy wizard boundary complete after repository prerequisites are verified. */
+  completeRepositorySetup(): void {
+    if (this.props.status === ASSESSMENT_STATUS_CODES.wizardSubmitted) {
+      return;
+    }
+    if (this.props.status !== ASSESSMENT_STATUS_CODES.wizardInProgress) {
+      throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupStateInvalid);
+    }
+    this.props.status = ASSESSMENT_STATUS_CODES.wizardSubmitted;
+    this.props.updatedAt = new Date();
   }
 }

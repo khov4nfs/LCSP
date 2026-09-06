@@ -87,6 +87,10 @@ export async function bootstrapLocalGitHubCli(options = {}) {
     "true",
   );
   const updates = {
+    GITHUB_CLI_EXECUTABLE_PATH: toPortableExecutablePath(
+      repoRoot,
+      executablePath,
+    ),
     GITHUB_CLI_CREDENTIAL_PERSISTENCE_ENABLED: persistenceEnabled,
     GITHUB_CLI_SNAPSHOT_PINNING_ENABLED: configuredOrDefault(
       effective.GITHUB_CLI_SNAPSHOT_PINNING_ENABLED,
@@ -155,18 +159,12 @@ export async function bootstrapLocalGitLabCli(options = {}) {
   }
 
   const spawnSyncImpl = options.spawnSyncImpl ?? spawnSync;
-  const explicit = configuredPath?.trim();
-  if (explicit && !path.isAbsolute(explicit)) {
-    throw new Error(
-      "GITLAB_CLI_EXECUTABLE_PATH must be an absolute path when configured",
-    );
-  }
-
-  let executablePath = explicit;
+  let executablePath = resolveConfiguredExecutablePath(
+    repoRoot,
+    configuredPath,
+  );
   if (executablePath && !isRunnableCli(executablePath, spawnSyncImpl, "glab")) {
-    throw new Error(
-      `GitLab CLI executable was not found or is not runnable: ${executablePath}`,
-    );
+    executablePath = undefined;
   }
   if (!executablePath) {
     const candidate = resolveOnPath("glab", platform, spawnSyncImpl);
@@ -185,14 +183,20 @@ export async function bootstrapLocalGitLabCli(options = {}) {
   }
 
   const updates = {
-    GITLAB_CLI_EXECUTABLE_PATH: executablePath,
+    GITLAB_CLI_EXECUTABLE_PATH: toPortableExecutablePath(
+      repoRoot,
+      executablePath,
+    ),
     GITLAB_PROVIDER_ENABLED:
       env.GITLAB_PROVIDER_ENABLED ??
       fileValues.GITLAB_PROVIDER_ENABLED ??
       "true",
   };
   if (options.persist !== false) writeEnvValues(envFilePath, updates);
-  if (options.applyToProcessEnv ?? false) Object.assign(process.env, updates);
+  if (options.applyToProcessEnv ?? false) {
+    Object.assign(process.env, updates);
+    process.env.GITLAB_CLI_EXECUTABLE_PATH = executablePath;
+  }
   console.log(`[dev-bootstrap] GitLab CLI: ${executablePath}`);
   console.log(
     `[dev-bootstrap] GitLab CLI version: ${SUPPORTED_GITLAB_CLI_VERSION}`,
@@ -217,7 +221,8 @@ export async function bootstrapLocalBitbucketCli(options = {}) {
     options.envFilePath ?? path.join(repoRoot, LOCAL_GITHUB_CLI_ENV_FILE);
   const fileValues = readEnvFile(envFilePath);
   const configuredPath =
-    env.BITBUCKET_CLI_EXECUTABLE_PATH ?? fileValues.BITBUCKET_CLI_EXECUTABLE_PATH;
+    env.BITBUCKET_CLI_EXECUTABLE_PATH ??
+    fileValues.BITBUCKET_CLI_EXECUTABLE_PATH;
   if (
     (env.NODE_ENV ?? fileValues.NODE_ENV ?? "development").toLowerCase() ===
     "production"
@@ -226,15 +231,14 @@ export async function bootstrapLocalBitbucketCli(options = {}) {
   }
 
   const spawnSyncImpl = options.spawnSyncImpl ?? spawnSync;
-  const explicit = configuredPath?.trim();
-  if (explicit && !path.isAbsolute(explicit)) {
-    throw new Error(
-      "BITBUCKET_CLI_EXECUTABLE_PATH must be an absolute path when configured",
-    );
-  }
-
-  let executablePath = explicit;
-  if (executablePath && !isRunnableBitbucketCli(executablePath, spawnSyncImpl)) {
+  let executablePath = resolveConfiguredExecutablePath(
+    repoRoot,
+    configuredPath,
+  );
+  if (
+    executablePath &&
+    !isRunnableBitbucketCli(executablePath, spawnSyncImpl)
+  ) {
     executablePath = undefined;
   }
   if (!executablePath) {
@@ -248,13 +252,19 @@ export async function bootstrapLocalBitbucketCli(options = {}) {
   }
 
   const updates = {
-    BITBUCKET_CLI_EXECUTABLE_PATH: executablePath,
+    BITBUCKET_CLI_EXECUTABLE_PATH: toPortableExecutablePath(
+      repoRoot,
+      executablePath,
+    ),
     BITBUCKET_PROVIDER_ENABLED: "true",
   };
   if (options.persist !== false && Object.keys(updates).length > 0) {
     writeEnvValues(envFilePath, updates);
   }
-  if (options.applyToProcessEnv ?? false) Object.assign(process.env, updates);
+  if (options.applyToProcessEnv ?? false) {
+    Object.assign(process.env, updates);
+    process.env.BITBUCKET_CLI_EXECUTABLE_PATH = executablePath;
+  }
   console.log(`[dev-bootstrap] Bitbucket CLI: ${executablePath}`);
   console.log(
     `[dev-bootstrap] Bitbucket CLI version: ${SUPPORTED_BITBUCKET_CLI_VERSION}`,
@@ -289,18 +299,12 @@ export async function bootstrapLocalAzureDevOpsCli(options = {}) {
   }
 
   const spawnSyncImpl = options.spawnSyncImpl ?? spawnSync;
-  const explicit = configuredPath?.trim();
-  if (explicit && !path.isAbsolute(explicit)) {
-    throw new Error(
-      "AZURE_DEVOPS_CLI_EXECUTABLE_PATH must be an absolute path when configured",
-    );
-  }
-
-  let executablePath = explicit;
+  let executablePath = resolveConfiguredExecutablePath(
+    repoRoot,
+    configuredPath,
+  );
   if (executablePath && !isRunnableAzureCli(executablePath, spawnSyncImpl)) {
-    throw new Error(
-      `Azure DevOps CLI executable was not found or is not runnable: ${executablePath}`,
-    );
+    executablePath = undefined;
   }
   if (!executablePath) {
     const candidate = resolveOnPath("az", platform, spawnSyncImpl);
@@ -310,14 +314,19 @@ export async function bootstrapLocalAzureDevOpsCli(options = {}) {
   }
 
   const updates = {
-    AZURE_DEVOPS_CLI_EXECUTABLE_PATH: executablePath ?? "",
+    AZURE_DEVOPS_CLI_EXECUTABLE_PATH: executablePath
+      ? toPortableExecutablePath(repoRoot, executablePath)
+      : "",
     AZURE_DEVOPS_PROVIDER_ENABLED:
       env.AZURE_DEVOPS_PROVIDER_ENABLED ?? (executablePath ? "true" : "false"),
   };
   if (options.persist !== false && Object.keys(updates).length > 0) {
     writeEnvValues(envFilePath, updates);
   }
-  if (options.applyToProcessEnv ?? false) Object.assign(process.env, updates);
+  if (options.applyToProcessEnv ?? false) {
+    Object.assign(process.env, updates);
+    process.env.AZURE_DEVOPS_CLI_EXECUTABLE_PATH = executablePath ?? "";
+  }
   if (executablePath) {
     console.log(`[dev-bootstrap] Azure DevOps CLI: ${executablePath}`);
   }
@@ -397,11 +406,9 @@ process.exit(1);
   if (platform !== "win32") {
     writeFileSync(scriptPath, mjsContent, { mode: 0o755 });
   } else {
-    writeFileSync(
-      scriptPath,
-      `@echo off\r\nnode "%~dp0bb.mjs" %*\r\n`,
-      { mode: 0o755 },
-    );
+    writeFileSync(scriptPath, `@echo off\r\nnode "%~dp0bb.mjs" %*\r\n`, {
+      mode: 0o755,
+    });
   }
   return scriptPath;
 }
@@ -542,6 +549,26 @@ function configuredOrDefault(value, fallback) {
     : fallback;
 }
 
+function resolveConfiguredExecutablePath(repoRoot, configuredPath) {
+  const explicit = configuredPath?.trim();
+  if (!explicit) return undefined;
+  return path.isAbsolute(explicit)
+    ? path.normalize(explicit)
+    : path.resolve(repoRoot, explicit);
+}
+
+function toPortableExecutablePath(repoRoot, executablePath) {
+  const relative = path.relative(repoRoot, executablePath);
+  const isInsideWorkspace =
+    relative.length > 0 &&
+    relative !== ".." &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative);
+  return isInsideWorkspace
+    ? relative.split(path.sep).join("/")
+    : executablePath;
+}
+
 async function resolveGitHubExecutablePath({
   repoRoot,
   configuredPath,
@@ -551,13 +578,8 @@ async function resolveGitHubExecutablePath({
   extractArchiveImpl,
   checksumManifestSha256,
 }) {
-  const explicit = configuredPath?.trim();
-  if (explicit) {
-    if (!path.isAbsolute(explicit)) {
-      throw new Error(
-        "GITHUB_CLI_EXECUTABLE_PATH must be an absolute path when configured",
-      );
-    }
+  const explicit = resolveConfiguredExecutablePath(repoRoot, configuredPath);
+  if (explicit && existsSync(explicit) && statSync(explicit).isFile()) {
     return explicit;
   }
 

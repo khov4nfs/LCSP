@@ -42,7 +42,27 @@ describe("Azure DevOps CLI runtime validation", () => {
     expect(spawn).toHaveBeenCalled();
   });
 
-  it("rejects a relative or missing executable", () => {
+  it("accepts a root-relative executable with an explicit workspace cwd", () => {
+    const access = jest.fn();
+    const spawn = jest.fn(() => ({
+      status: 0,
+      stdout: `azure-cli 2.60.0 (test)\n`,
+    }));
+
+    expect(() =>
+      assertAzureDevOpsCliRuntime("./.cache/lcsp-cli/azure-devops-cli/bin/az", {
+        access,
+        cwd: "/workspace/LCSP",
+        spawn,
+      }),
+    ).not.toThrow();
+    expect(access).toHaveBeenCalledWith(
+      "/workspace/LCSP/.cache/lcsp-cli/azure-devops-cli/bin/az",
+      1,
+    );
+  });
+
+  it("rejects a missing executable", () => {
     expect(() => assertAzureDevOpsCliRuntime("az")).toThrow(
       GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
     );

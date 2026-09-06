@@ -184,7 +184,7 @@ jobs:
         run: pytest
 
   lcsp-278-production-vertical:
-    name: LCSP-278 production Interview vertical
+    name: Production Interview vertical
     needs: changes
     if: needs.changes.outputs.api == 'true' || needs.changes.outputs.python == 'true'
     runs-on: ubuntu-latest

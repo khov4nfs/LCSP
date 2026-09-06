@@ -13,7 +13,11 @@ import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
-import { AUTH_ERROR_CODES, type ProblemResult } from "@lcsp/contracts/auth";
+import {
+  AUTH_ERROR_CODES,
+  REQUIRED_ACTIONS,
+  type ProblemResult,
+} from "@lcsp/contracts/auth";
 import { resolveMessage } from "@lcsp/i18n";
 
 import { AppModule } from "../src/app.module.js";
@@ -230,6 +234,7 @@ describe("Auth workspace (e2e)", () => {
 
     const failure = expectFailure(result.body);
     assert.equal(failure.problem.code, AUTH_ERROR_CODES.invalidCredentials);
+    assert.equal(failure.problem.requiredAction, REQUIRED_ACTIONS.none);
     assert.doesNotMatch(JSON.stringify(failure), /WrongPassword123!/);
   });
 

@@ -99,6 +99,18 @@ const slotPath = new URL(
   "../src/features/workspace/components/organisms/assessment-shell-slots.tsx",
   import.meta.url,
 );
+const runtimeSidebarPath = new URL(
+  "../src/features/workspace/components/organisms/assessment-runtime-sidebar.tsx",
+  import.meta.url,
+);
+const runtimeSelectorsPath = new URL(
+  "../src/features/workspace/utils/assessment-runtime-selectors.ts",
+  import.meta.url,
+);
+const runtimeAdapterTypesPath = new URL(
+  "../src/features/workspace/types/assessment-runtime-adapter.types.ts",
+  import.meta.url,
+);
 const legacySidebarAssessmentListPath = new URL(
   "../src/features/workspace/components/molecules/sidebar-assessment-list.tsx",
   import.meta.url,
@@ -117,7 +129,7 @@ const workspaceClientPath = new URL(
 );
 const appI18nPath = new URL("../src/lib/i18n.ts", import.meta.url);
 const createAssessmentPath = new URL(
-  "../src/features/workspace/components/organisms/create-assessment-form.tsx",
+  "../src/features/assessment-flow/components/organisms/repository-setup-step.tsx",
   import.meta.url,
 );
 const summaryCardPath = new URL(
@@ -179,6 +191,90 @@ test("assessment app shell releases the left sidebar space completely when colla
   assert.match(slotSource, /min-w-0 flex-1/);
   assert.match(slotSource, /hidden .*lg:flex/);
   assert.match(slotSource, /hidden .*xl:flex/);
+});
+
+test("LCSP-272 right assessment sidebar keeps one shared 420px slot and mobile sheet reuse", async () => {
+  const [shellSource, slotSource, sidebarSource] = await Promise.all([
+    readFile(shellPath, "utf8"),
+    readFile(slotPath, "utf8"),
+    readFile(runtimeSidebarPath, "utf8"),
+  ]);
+
+  assert.match(slotSource, /export function AssessmentRightPanelSlot/);
+  assert.match(slotSource, /w-105/);
+  assert.doesNotMatch(slotSource, /AssessmentRightPanelSlotV2/);
+  assert.doesNotMatch(slotSource, /RuntimeSidebarSlot|FixedRightSidebar/);
+  assert.equal((shellSource.match(/<AssessmentRuntimePanel/g) ?? []).length, 2);
+  assert.match(shellSource, /<SheetContent[\s\S]*side="right"/);
+  assert.match(
+    shellSource,
+    /<AssessmentRuntimeSidebar presentation=\{presentation\}/,
+  );
+  assert.match(sidebarSource, /data-component="AssessmentRuntimeSidebar"/);
+  assert.match(sidebarSource, /min-h-0 flex-1 overflow-y-auto/);
+});
+
+test("LCSP-272 right assessment sidebar removes the generic runtime dashboard UI", async () => {
+  const [shellSource, sidebarSource] = await Promise.all([
+    readFile(shellPath, "utf8"),
+    readFile(runtimeSidebarPath, "utf8"),
+  ]);
+  const visibleSidebarSources = [shellSource, sidebarSource].join("\n");
+
+  assert.match(sidebarSource, /assessmentSidebar\.title/);
+  assert.match(sidebarSource, /assessmentSidebar\.repositoryContext/);
+  assert.match(sidebarSource, /assessmentSidebar\.workflowTitle/);
+  assert.match(sidebarSource, /assessmentSidebar\.artifactsAndEvidence/);
+  assert.doesNotMatch(visibleSidebarSources, /runtimePanelLastUpdated/);
+  assert.doesNotMatch(visibleSidebarSources, /runtimePanelRecentActivity/);
+  assert.doesNotMatch(visibleSidebarSources, /runtimePanelViewFull/);
+  assert.doesNotMatch(visibleSidebarSources, /recentActivity\.slice\(0, 4\)/);
+  assert.doesNotMatch(visibleSidebarSources, /Repository scan run completed/);
+  assert.doesNotMatch(
+    visibleSidebarSources,
+    /Technical evidence callback submitted/,
+  );
+  assert.doesNotMatch(
+    visibleSidebarSources,
+    /Technical evidence callback was accepted/,
+  );
+});
+
+test("LCSP-272 right assessment sidebar follows Figma spacing, icon, and alignment contract", async () => {
+  const sidebarSource = await readFile(runtimeSidebarPath, "utf8");
+
+  assert.match(sidebarSource, /h-55/);
+  assert.match(sidebarSource, /h-8\.5/);
+  assert.match(sidebarSource, /top-3\.5 h-6 w-px/);
+  assert.match(sidebarSource, /grid h-15/);
+  assert.match(sidebarSource, /grid-cols-\[28px_minmax\(0,1fr\)_94px_14px\]/);
+  assert.match(
+    sidebarSource,
+    /\/assets\/figma\/assessment\/output-icon\.svg/,
+  );
+  assert.doesNotMatch(sidebarSource, /FileTextIcon/);
+  assert.match(sidebarSource, /whitespace-nowrap text-right text-\[11px\]/);
+  assert.match(sidebarSource, /compact \? "w-20" : "w-24"/);
+});
+
+test("LCSP-272 right assessment sidebar uses normalized state instead of F03/F04 screen branching", async () => {
+  const [shellSource, selectorSource, sidebarSource, typesSource] =
+    await Promise.all([
+      readFile(shellPath, "utf8"),
+      readFile(runtimeSelectorsPath, "utf8"),
+      readFile(runtimeSidebarPath, "utf8"),
+      readFile(runtimeAdapterTypesPath, "utf8"),
+    ]);
+  const combined = [shellSource, selectorSource, sidebarSource].join("\n");
+
+  assert.match(shellSource, /normalizeAssessmentRuntime/);
+  assert.match(shellSource, /selectAssessmentRuntimeSidebarPresentation/);
+  assert.match(selectorSource, /normalized\.artifacts\.programEvidenceGraph/);
+  assert.match(selectorSource, /normalized\.artifacts\.businessContext/);
+  assert.match(typesSource, /NormalizedAssessmentSidebarPresentation/);
+  assert.match(typesSource, /NormalizedAssessmentArtifactItem/);
+  assert.doesNotMatch(combined, /screen === ["']F03["']/);
+  assert.doesNotMatch(combined, /screen === ["']F04["']/);
 });
 
 test("assessment app shell mounts the single shared LCSP-268 AppSidebar through the left slot", async () => {
@@ -582,7 +678,7 @@ test("assessment entry points no longer route progression through legacy step pa
   assert.match(clientSource, /return `\/assessments\/\$\{encodedId\}`/);
   assert.match(
     createSource,
-    /router\.push\(`\/assessments\/\$\{outcome\.assessmentId\}`\)/,
+    /router\.replace\(`\/assessments\/\$\{assessmentId\}`\)/,
   );
 });
 

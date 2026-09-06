@@ -3,9 +3,19 @@ packages:
   - "packages/*"
   - "deepagents/tools/common/capabilities/evidence/scanner/ts_js_bridge/ts-js-analyzer"
 allowBuilds:
+  '@parcel/watcher': true
   '@prisma/client': true
   '@prisma/engines': true
   esbuild: true
   prisma: true
   sharp: true
   unrs-resolver: true
+
+# Next 16.2.x still includes eslint-plugin-react 7.37.5, which is not safe on ESLint 10.
+# Keep the web app on the final ESLint 9 patch until the upstream Next lint stack migrates.
+allowedDeprecatedVersions:
+  eslint: "9.39.5"
+
+# Jest/Babel coverage can use test-exclude 8 without the deprecated glob 7/10 chain.
+overrides:
+  "babel-plugin-istanbul>test-exclude": "8.0.0"

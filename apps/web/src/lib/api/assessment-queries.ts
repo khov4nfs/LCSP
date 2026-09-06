@@ -37,15 +37,20 @@ import type {
   AssessmentInterviewBlockedInput,
 } from "@lcsp/contracts/evidence";
 
-export function useAssessmentInterviewStateQuery(assessmentId: string) {
+export function useAssessmentInterviewStateQuery(
+  assessmentId: string,
+  enabled = true,
+) {
   return useQuery({
     queryKey: apiQueryKeys.assessment.interview(assessmentId),
     queryFn: () => getAssessmentInterviewState(assessmentId),
-    enabled: assessmentId.length > 0,
+    enabled: enabled && assessmentId.length > 0,
   });
 }
 
-export function useSubmitAssessmentInterviewAnswerMutation(assessmentId: string) {
+export function useSubmitAssessmentInterviewAnswerMutation(
+  assessmentId: string,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -59,7 +64,9 @@ export function useSubmitAssessmentInterviewAnswerMutation(assessmentId: string)
   });
 }
 
-export function useAssessmentInterviewBlockedActionMutation(assessmentId: string) {
+export function useAssessmentInterviewBlockedActionMutation(
+  assessmentId: string,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({

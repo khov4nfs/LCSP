@@ -95,6 +95,10 @@ jobs:
             ${{ needs.changes.outputs.api_files }}
             ${{ needs.changes.outputs.web_files }}
 
+      - name: Build runtime packages
+        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true'
+        run: pnpm run build:runtime-packages
+
       - name: Generate Prisma client
         if: needs.changes.outputs.api == 'true'
         run: pnpm --filter @lcsp/api prisma:generate
@@ -168,8 +172,8 @@ jobs:
       - name: Check import policy
         run: pnpm run check:imports
 
-      - name: Build runtime contracts
-        run: pnpm --filter @lcsp/contracts build
+      - name: Build runtime packages
+        run: pnpm run build:runtime-packages
 
       - name: Generate Prisma client
         run: pnpm --filter @lcsp/api prisma:generate
@@ -216,8 +220,8 @@ jobs:
       - name: Check import policy
         run: pnpm run check:imports
 
-      - name: Build runtime contracts
-        run: pnpm --filter @lcsp/contracts build
+      - name: Build runtime packages
+        run: pnpm run build:runtime-packages
 
       - name: Lint web
         run: |

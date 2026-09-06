@@ -35,10 +35,12 @@ export function assertAzureDevOpsCliRuntime(
   executablePath: string,
   dependencies: {
     access?: (path: string, mode: number) => void;
+    cwd?: string;
     spawn?: (
       executablePath: string,
       args: string[],
       options: {
+        cwd?: string;
         encoding: "utf8";
         shell: false;
         stdio: ["ignore", "pipe", "ignore"];
@@ -46,15 +48,20 @@ export function assertAzureDevOpsCliRuntime(
     ) => { status: number | null; stdout: string | Buffer };
   } = {},
 ): void {
-  let fileAvailable = false;
+  const cwd = dependencies.cwd ?? process.cwd();
+  const validationPath = isAbsolute(executablePath)
+    ? executablePath
+    : resolve(cwd, executablePath);
   try {
-    if (dependencies.access) dependencies.access(executablePath, 1);
-    fileAvailable =
-      existsSync(executablePath) && statSync(executablePath).isFile();
+    if (dependencies.access) {
+      dependencies.access(validationPath, 1);
+    } else if (
+      !existsSync(validationPath) ||
+      !statSync(validationPath).isFile()
+    ) {
+      throw new Error("az_unavailable");
+    }
   } catch {
-    fileAvailable = false;
-  }
-  if (!isAbsolute(executablePath) || !fileAvailable) {
     throw new AzureDevOpsCliProviderError(
       GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
     );
@@ -63,6 +70,7 @@ export function assertAzureDevOpsCliRuntime(
     executablePath,
     ["--version"],
     {
+      cwd,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
       shell: false,

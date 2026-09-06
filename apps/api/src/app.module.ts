@@ -9,7 +9,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { config, configValidationSchema } from "./config/config.js";
+import { config, createConfigValidationSchema } from "./config/config.js";
 import { AIUsageFlowModule } from "./modules/ai-usage-flow/ai-usage-flow.module.js";
 import { AppFeatureModule } from "./modules/app/app.module.js";
 import { AssessmentModule } from "./modules/assessment/assessment.module.js";
@@ -40,6 +40,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootEnvPath = resolveEnvPath([".env.pm2", ".env"]);
 const rootTestEnvPath = resolveEnvPath([".env.test", ".env.pm2", ".env"]);
+const workspaceRoot = rootEnvPath ? path.dirname(rootEnvPath) : process.cwd();
 
 function resolveEnvPath(
   filenames: ReadonlyArray<".env" | ".env.test" | ".env.pm2">,
@@ -92,7 +93,7 @@ function findUpwards(
         : [rootEnvPath]
       ).filter((value): value is string => typeof value === "string"),
       load: [config],
-      validationSchema: configValidationSchema,
+      validationSchema: createConfigValidationSchema(workspaceRoot),
       validationOptions: { abortEarly: false, allowUnknown: true },
     }),
     AuditPlatformModule,
