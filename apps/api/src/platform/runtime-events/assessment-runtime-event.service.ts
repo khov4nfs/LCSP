@@ -107,7 +107,10 @@ type RuntimeScanJobSnapshot = {
 type RuntimeRepositorySnapshot = {
   id: string;
   assessmentId: string;
+  repositoryFullName: string | null;
+  branch: string | null;
   commitSha: string;
+  connection?: { provider: string } | null;
   createdAt: Date;
 };
 
@@ -352,7 +355,10 @@ export class AssessmentRuntimeEventService {
           select: {
             id: true,
             assessmentId: true,
+            repositoryFullName: true,
+            branch: true,
             commitSha: true,
+            connection: { select: { provider: true } },
             createdAt: true,
           },
         }),
@@ -406,6 +412,9 @@ export class AssessmentRuntimeEventService {
         (snapshot: RuntimeRepositorySnapshot) => ({
           id: snapshot.id,
           assessmentId: snapshot.assessmentId,
+          provider: snapshot.connection?.provider ?? null,
+          repositoryFullName: snapshot.repositoryFullName,
+          branch: snapshot.branch,
           commitSha: snapshot.commitSha,
           createdAt: snapshot.createdAt.toISOString(),
         }),

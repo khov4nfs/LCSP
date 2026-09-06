@@ -67,6 +67,7 @@ test("workspace runtime parser groups runs and activity by assessment", () => {
         {
           id: "snapshot-1",
           assessment_id: "assessment-1",
+          branch: "main",
           commit_sha: "abc123",
           created_at: "2026-08-13T10:58:00.000Z",
         },
@@ -80,6 +81,7 @@ test("workspace runtime parser groups runs and activity by assessment", () => {
   assert.equal(parsed?.runs.length, 1);
   assert.equal(parsed?.recentActivity.length, 1);
   assert.equal(parsed?.repositorySnapshots[0]?.id, "snapshot-1");
+  assert.equal(parsed?.repositorySnapshots[0]?.branch, "main");
   assert.equal(parsed?.latestRunIdByAssessmentId["assessment-1"], "run-1");
 
   const assessmentRuntime = parsed?.getAssessmentRuntime("assessment-1");

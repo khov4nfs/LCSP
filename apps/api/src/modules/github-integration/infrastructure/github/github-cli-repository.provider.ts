@@ -2,7 +2,7 @@ import type { ChildProcessByStdio } from "node:child_process";
 import { spawn } from "node:child_process";
 import { chmod, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { join } from "node:path";
 import { Readable, Transform, type TransformCallback } from "node:stream";
 
 import { isRecord } from "../../../../common/utils/index.js";
@@ -57,6 +57,7 @@ export type GitHubCliChildProcess = ChildProcessByStdio<
 
 export type GitHubCliRepositoryProviderOptions = {
   executablePath: string;
+  workspaceRoot?: string;
   metadataTimeoutMs: number;
   discoveryTimeoutMs: number;
   archiveTimeoutMs: number;
@@ -92,7 +93,7 @@ export class GitHubCliRepositoryProvider implements GitHubRepositoryProviderPort
       processOptions,
     ) => spawn(executablePath, [...args], processOptions),
   ) {
-    if (!isAbsolute(options.executablePath)) {
+    if (!options.executablePath.trim()) {
       throw new GitHubCliProviderError(
         GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
       );
@@ -362,7 +363,7 @@ export class GitHubCliRepositoryProvider implements GitHubRepositoryProviderPort
         const environment = buildChildEnvironment(secret, directory);
         try {
           return this.processRunner(this.options.executablePath, args, {
-            cwd: directory,
+            cwd: this.options.workspaceRoot ?? directory,
             env: environment,
             shell: false,
             stdio: ["ignore", "pipe", "pipe"],

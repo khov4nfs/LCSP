@@ -2,6 +2,7 @@ import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
+  REQUIRED_ACTIONS,
   createProblemResult,
 } from "@lcsp/contracts/auth";
 
@@ -76,6 +77,7 @@ export class ReauthenticatePasswordHandler {
       return createProblemResult(
         AUTH_ERROR_CODES.invalidCredentials,
         correlationId,
+        { requiredAction: REQUIRED_ACTIONS.none },
       );
     }
 

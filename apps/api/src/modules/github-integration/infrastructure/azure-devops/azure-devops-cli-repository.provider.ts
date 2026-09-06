@@ -1,7 +1,6 @@
 import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { isAbsolute } from "node:path";
 
 import {
   GITHUB_CREDENTIAL_ERROR_CODES,
@@ -25,6 +24,7 @@ const REPOSITORY_PATH_PATTERN = /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)+$/u;
 
 export type AzureDevOpsCliRepositoryProviderOptions = {
   executablePath: string;
+  workspaceRoot?: string;
   host?: string;
   timeoutMs: number;
   maxJsonOutputBytes: number;
@@ -46,7 +46,7 @@ export class AzureDevOpsCliRepositoryProvider implements GitHubRepositoryProvide
     private readonly options: AzureDevOpsCliRepositoryProviderOptions,
   ) {
     this.host = options.host ?? DEFAULT_HOST;
-    if (!isAbsolute(options.executablePath)) {
+    if (!options.executablePath.trim()) {
       throw new AzureDevOpsCliProviderError(
         GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
       );
@@ -551,7 +551,7 @@ export class AzureDevOpsCliRepositoryProvider implements GitHubRepositoryProvide
           this.options.executablePath,
           args,
           {
-            cwd: directory,
+            cwd: this.options.workspaceRoot ?? directory,
             shell: false,
             windowsHide: true,
             env: {

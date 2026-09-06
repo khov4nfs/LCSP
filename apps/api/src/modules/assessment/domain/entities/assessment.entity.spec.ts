@@ -63,4 +63,31 @@ describe("Assessment", () => {
       expect(assessment.updatedAt).toBe(updatedAt);
     });
   });
+
+  describe("completeRepositorySetup", () => {
+    it("moves repository-ready assessments to WIZARD_SUBMITTED", () => {
+      const assessment = Assessment.create({
+        ownerId: "user-1",
+        name: "Repository first",
+      });
+
+      assessment.completeRepositorySetup();
+
+      expect(assessment.status).toBe(ASSESSMENT_STATUS_CODES.wizardSubmitted);
+    });
+
+    it("is idempotent after repository setup has completed", () => {
+      const assessment = Assessment.create({
+        ownerId: "user-1",
+        name: "Repository first",
+      });
+      assessment.completeRepositorySetup();
+      const updatedAt = assessment.updatedAt;
+
+      assessment.completeRepositorySetup();
+
+      expect(assessment.status).toBe(ASSESSMENT_STATUS_CODES.wizardSubmitted);
+      expect(assessment.updatedAt).toBe(updatedAt);
+    });
+  });
 });

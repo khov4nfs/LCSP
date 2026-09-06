@@ -74,9 +74,10 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
         { status: HttpStatus.BAD_REQUEST },
       );
     }
+    const assessmentStatus = fromPrismaAssessmentStatus(assessment.status);
     if (
-      fromPrismaAssessmentStatus(assessment.status) !==
-      ASSESSMENT_STATUS_CODES.wizardSubmitted
+      assessmentStatus !== ASSESSMENT_STATUS_CODES.wizardInProgress &&
+      assessmentStatus !== ASSESSMENT_STATUS_CODES.wizardSubmitted
     ) {
       throw problemException(
         GITHUB_INTEGRATION_ERROR_CODES.assessmentStateInvalid,

@@ -14,6 +14,7 @@ import type {
   WorkspaceRuntimeActivityItem,
   WorkspaceRuntimeActiveTool,
   WorkspaceRuntimeConnectionState,
+  WorkspaceRuntimeRepositorySnapshot,
   WorkspaceRuntimeRun,
 } from "./workspace-runtime.types";
 
@@ -60,6 +61,31 @@ export const ASSESSMENT_SCREEN_PROJECTIONS = {
 
 export type AssessmentScreenProjection =
   (typeof ASSESSMENT_SCREEN_PROJECTIONS)[keyof typeof ASSESSMENT_SCREEN_PROJECTIONS];
+
+export const ASSESSMENT_SIDEBAR_WORKFLOW_STAGES = {
+  scanner: "SCANNER",
+  interview: "INTERVIEW",
+  rules: "RULES",
+  planner: "PLANNER",
+  investigate: "INVESTIGATE",
+  gate: "GATE",
+} as const;
+
+export type AssessmentSidebarWorkflowStage =
+  (typeof ASSESSMENT_SIDEBAR_WORKFLOW_STAGES)[keyof typeof ASSESSMENT_SIDEBAR_WORKFLOW_STAGES];
+
+export const ASSESSMENT_SIDEBAR_STATUSES = {
+  running: "RUNNING",
+  queued: "QUEUED",
+  passed: "PASSED",
+  building: "BUILDING",
+  ready: "READY",
+  waiting: "WAITING",
+  failed: "FAILED",
+} as const;
+
+export type AssessmentSidebarStatus =
+  (typeof ASSESSMENT_SIDEBAR_STATUSES)[keyof typeof ASSESSMENT_SIDEBAR_STATUSES];
 
 export type NormalizedCoveragePolicyDecision = {
   permittedForInterview: boolean;
@@ -119,6 +145,31 @@ export type NormalizedAssessmentArtifactItem = {
   availability: AssessmentArtifactAvailability;
   customerSafeSummary: string | null;
   referenceUrl?: string;
+};
+
+export type NormalizedAssessmentSidebarWorkflowItem = {
+  id: AssessmentSidebarWorkflowStage;
+  labelKey: string;
+  status: AssessmentSidebarStatus;
+};
+
+export type NormalizedAssessmentSidebarArtifactItem = {
+  id: string;
+  labelKey: string;
+  descriptionKey: string;
+  status: AssessmentSidebarStatus;
+  descriptionParams?: Record<string, string>;
+  artifact: NormalizedAssessmentArtifactItem;
+};
+
+export type NormalizedAssessmentSidebarPresentation = {
+  repository: Pick<
+    WorkspaceRuntimeRepositorySnapshot,
+    "repositoryFullName" | "branch" | "commitSha"
+  > | null;
+  workflow: NormalizedAssessmentSidebarWorkflowItem[];
+  artifacts: NormalizedAssessmentSidebarArtifactItem[];
+  artifactSummaryKey: string;
 };
 
 export type NormalizedAssessmentArtifacts = {
