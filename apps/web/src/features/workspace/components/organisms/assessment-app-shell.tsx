@@ -13,9 +13,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { deriveAssessmentFlowRuntime } from "@/features/assessment-flow/utils/assessment-flow-runtime";
 import { useSignOutMutation } from "@/lib/api/auth-queries";
-import { useAssessmentInterviewStateQuery } from "@/lib/api/assessment-queries";
 import { SettingsModal } from "@/features/settings/components/organisms/settings-modal";
 import {
   SETTINGS_SECTION_IDS,
@@ -27,6 +25,7 @@ import {
 } from "@/lib/api/workspace-queries";
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
+import { AssessmentRuntimeSidebar } from "@/features/assessment-runtime";
 
 import type {
   AppShellNavigationItem,
@@ -38,17 +37,13 @@ import {
   ASSESSMENT_SHELL_SCREENS,
   type AssessmentShellState,
 } from "../../types/assessment-shell-state.types";
-import { normalizeAssessmentRuntime } from "../../utils/assessment-runtime-adapter";
-import { selectAssessmentRuntimeSidebarPresentation } from "../../utils/assessment-runtime-selectors";
 import { AppSidebar, SIDEBAR_RECENT_LOAD_STATES } from "./app-sidebar";
 import {
   AssessmentRightPanelSlot,
   CenterContentSlot,
   LeftSidebarSlot,
 } from "./assessment-shell-slots";
-import { AssessmentRuntimeSidebar } from "./assessment-runtime-sidebar";
 import { SidebarHeaderControls } from "../molecules/sidebar-header-controls";
-import { useWorkspaceRuntime } from "./workspace-runtime-provider";
 
 type AssessmentAppShellProps = {
   assessmentId?: string;
@@ -79,7 +74,6 @@ export function AssessmentAppShell({
   const signOutMutation = useSignOutMutation();
   const assessmentsQuery = useAssessmentsQuery();
   const workspaceQuery = useWorkspaceQuery();
-  const runtime = useWorkspaceRuntime();
   const assessments =
     assessmentsQuery.data?.kind === "loaded"
       ? assessmentsQuery.data.assessments
@@ -205,7 +199,7 @@ export function AssessmentAppShell({
         />
       </LeftSidebarSlot>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex h-13 shrink-0 items-center border-b border-border/70 bg-background/95 px-3 backdrop-blur sm:px-4 lg:px-5">
           <Button
             type="button"
@@ -269,17 +263,14 @@ export function AssessmentAppShell({
           ) : null}
         </header>
 
-        <div className="flex min-h-0 flex-1 bg-muted/10">
+        <div className="flex h-full min-h-0 flex-1 overflow-hidden bg-muted/10">
           <CenterContentSlot assessmentId={assessmentId}>
             {children}
           </CenterContentSlot>
 
           {assessmentId ? (
             <AssessmentRightPanelSlot open={rightPanelOpen}>
-              <AssessmentRuntimePanel
-                assessmentId={assessmentId}
-                runtime={runtime}
-              />
+              <AssessmentRuntimeSidebar assessmentId={assessmentId} assessmentName={assessment?.name} />
             </AssessmentRightPanelSlot>
           ) : null}
         </div>
@@ -304,10 +295,7 @@ export function AssessmentAppShell({
               <SheetTitle>{t("pages.appShell.runtimePanelTitle")}</SheetTitle>
               <SheetDescription>{headerEyebrow}</SheetDescription>
             </SheetHeader>
-            <AssessmentRuntimePanel
-              assessmentId={assessmentId}
-              runtime={runtime}
-            />
+            <AssessmentRuntimeSidebar assessmentId={assessmentId} assessmentName={assessment?.name} />
           </SheetContent>
         </Sheet>
       ) : null}
@@ -320,52 +308,6 @@ export function AssessmentAppShell({
       />
     </div>
   );
-}
-
-function AssessmentRuntimePanel({
-  assessmentId,
-  runtime,
-}: {
-  assessmentId: string;
-  runtime: ReturnType<typeof useWorkspaceRuntime>;
-}) {
-  const timeline = runtime.getAssessmentRuntime(assessmentId);
-  const repository =
-    runtime.repositorySnapshots.find(
-      (item) => item.assessmentId === assessmentId,
-    ) ?? null;
-  const scanJob =
-    runtime.scanJobs.find((item) => item.assessmentId === assessmentId) ?? null;
-  const evidenceReport =
-    runtime.evidenceReports.find(
-      (item) => item.assessmentId === assessmentId,
-    ) ?? null;
-  const flow = deriveAssessmentFlowRuntime({
-    hasRepositoryConnection: Boolean(repository),
-    snapshot: repository,
-    scanJob,
-    evidenceReport,
-    recentActivity: timeline.recentActivity,
-  });
-  const interviewQuery = useAssessmentInterviewStateQuery(
-    assessmentId,
-    flow.evidenceAccepted,
-  );
-  const normalized = normalizeAssessmentRuntime({
-    assessmentId,
-    interviewState: interviewQuery,
-    timeline,
-  });
-  const presentation = selectAssessmentRuntimeSidebarPresentation(normalized, {
-    repository,
-    scanner: {
-      evidenceAccepted: flow.evidenceAccepted,
-      scanFailed: flow.scanFailed,
-      programEvidenceSummary: flow.programEvidenceSummary,
-    },
-  });
-
-  return <AssessmentRuntimeSidebar presentation={presentation} />;
 }
 
 function isNavigationItemActive(

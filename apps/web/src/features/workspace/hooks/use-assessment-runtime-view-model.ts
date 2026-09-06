@@ -17,12 +17,23 @@ export function useAssessmentRuntimeViewModel(
     assessmentId,
     interviewEnabled,
   );
+  const repositorySnapshot =
+    workspaceRuntime.repositorySnapshots
+      .filter((snapshot) => snapshot.assessmentId === assessmentId)
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ??
+    null;
+  const scanJobs = workspaceRuntime.scanJobs.filter(
+    (scanJob) => scanJob.assessmentId === assessmentId,
+  );
+  const evidenceReports = workspaceRuntime.evidenceReports.filter(
+    (report) => report.assessmentId === assessmentId,
+  );
 
   return useMemo(() => {
     return normalizeAssessmentRuntime({
       assessmentId,
       interviewState: interviewQuery,
-      timeline,
+      timeline: { ...timeline, repositorySnapshot, scanJobs, evidenceReports },
     });
-  }, [assessmentId, interviewQuery, timeline]);
+  }, [assessmentId, interviewQuery, timeline, repositorySnapshot, scanJobs, evidenceReports]);
 }
