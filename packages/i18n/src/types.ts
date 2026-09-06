@@ -1700,6 +1700,37 @@ export type PagesMessages = {
       legalMatchBlockedSummary: string;
     };
   };
+  structuredResults: {
+    investigationTrace: {
+      title: string;
+      currentPath: string;
+      inProgress: string;
+      completed: string;
+      failed: string;
+      paused: string;
+      claimsCollected: string;
+      linkedToTracedPath: string;
+      noPathAvailable: string;
+      viewInvestigationDetails: string;
+      artifactMetadata: string;
+    };
+    findingsTable: {
+      priorityHeader: string;
+      issueHeader: string;
+      whyItMattersHeader: string;
+      foundInHeader: string;
+      priorities: {
+        high: string;
+        medium: string;
+        low: string;
+        unspecified: string;
+      };
+      lineInfo: string;
+      ruleInfo: string;
+      viewTechnicalDetails: string;
+      noFindings: string;
+    };
+  };
 };
 
 export type LocaleMessages = {

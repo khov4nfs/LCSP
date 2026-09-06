@@ -1,3 +1,4 @@
+import * as React from "react";
 import type { ReactNode } from "react";
 import { resolveMessage } from "@lcsp/i18n";
 
@@ -19,7 +20,7 @@ type AgentTurnProps = {
 };
 
 type MessageProps = {
-  children: ReactNode;
+  children?: ReactNode;
   className?: string;
 };
 
