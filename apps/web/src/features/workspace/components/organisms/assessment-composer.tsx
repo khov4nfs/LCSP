@@ -17,6 +17,7 @@ type AssessmentComposerProps = {
   sendLabel?: string;
   disabled?: boolean;
   submitting?: boolean;
+  submitReady?: boolean;
   className?: string;
 };
 
@@ -28,9 +29,12 @@ export function AssessmentComposer({
   sendLabel = t("pages.appShell.chatSend"),
   disabled = false,
   submitting = false,
+  submitReady,
   className,
 }: AssessmentComposerProps) {
-  const sendDisabled = disabled || submitting || value.trim().length === 0;
+  const isSubmitReady =
+    submitReady !== undefined ? submitReady : value.trim().length > 0;
+  const sendDisabled = disabled || submitting || !isSubmitReady;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
