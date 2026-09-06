@@ -100,6 +100,7 @@ class RecordingApi:
         )
         return {
             "status": self.status,
+            "threadId": "interview:assessment-1",
             "guidanceVersion": "guidance-v1",
             "workingStrategy": {
                 "terminologyMap": {"human oversight": "manual review"},
@@ -178,6 +179,21 @@ def test_interview_resume_boundary_passes_private_context_only_to_interview_and_
     assert decision["expectedContextRevision"] == 2
     assert decision["outcome"] == "WAITING_FOR_CUSTOMER"
     assert decision["activeQuestion"]["id"] == "agent-question-next"
+
+
+def test_interview_resume_boundary_rejects_a_non_server_thread() -> None:
+    api = RecordingApi()
+    boundary = AssessmentInterviewResumeBoundary(
+        SimpleNamespace(),
+        api_client=api,
+        dispatcher=RecordingDispatcher(),
+    )
+    message = _message()
+    message["threadId"] = "interview:other-assessment"
+
+    with pytest.raises(ValueError, match="server-owned Interview thread"):
+        boundary.handle(message, "corr-wrong-thread")
+    assert api.decision_posts == []
 
 
 def test_guard_persists_before_any_downstream_continuation() -> None:

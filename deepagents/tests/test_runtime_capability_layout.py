@@ -39,6 +39,7 @@ def test_dispatch_runtime_groups_support_capabilities() -> None:
         "correlation.py",
         "dev_unsafe_trace.py",
         "env.py",
+        "file_lock.py",
         "graph_runtime.py",
         "logging.py",
         "logging_config.py",

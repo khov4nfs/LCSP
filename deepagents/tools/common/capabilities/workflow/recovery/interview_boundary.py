@@ -72,6 +72,12 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             source_version=source_version,
             pge_version=pge_version,
         )
+        server_thread_id = _required_text(context, "threadId")
+        if server_thread_id != thread_id:
+            raise ValueError(
+                "assessment Interview resume command threadId does not match "
+                "the server-owned Interview thread"
+            )
         status = str(context.get("status") or "")
         if status == STALE_PROVENANCE_CONTEXT:
             self._reenter_root_for_revalidation(

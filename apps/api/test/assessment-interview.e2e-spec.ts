@@ -12,13 +12,14 @@ import {
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import { EvidenceAcceptanceStatus, PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
 import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
+  seedRepositoryScanGraph,
   TEST_DATABASE_URL,
 } from "./support/auth-workspace-test-helpers.js";
 import { httpRequest, successBody } from "./support/http.js";
@@ -352,10 +353,12 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
   });
 
   it("persists an Interview Agent-authored initial question through the worker entry", async () => {
+    await seedUsableTechnicalCoverage(prisma);
     const seeded = await httpRequest(app)
       .post("/internal/assessment-interviews/assessment-1/initial-question")
       .set("x-worker-api-key", WORKER_KEY)
       .send({
+        technicalEvidenceReportId: "report-interview-ready",
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
         activeQuestion: {
           id: QUESTION_ID,
@@ -449,10 +452,12 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
   });
 
   it("rejects answers that do not match the active runtime control", async () => {
+    await seedUsableTechnicalCoverage(prisma);
     const seeded = await httpRequest(app)
       .post("/internal/assessment-interviews/assessment-1/initial-question")
       .set("x-worker-api-key", WORKER_KEY)
       .send({
+        technicalEvidenceReportId: "report-interview-ready",
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
         activeQuestion: {
           id: QUESTION_ID,
@@ -785,6 +790,34 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     );
   });
 });
+
+async function seedUsableTechnicalCoverage(
+  prisma: PrismaClient,
+): Promise<void> {
+  await seedRepositoryScanGraph(prisma, {
+    assessmentId: "assessment-1",
+    userId: "user-1",
+    connectionId: "connection-interview-ready",
+    snapshotId: "snapshot-interview-ready",
+    scanJobId: "scan-interview-ready",
+  });
+  await prisma.technicalEvidenceReport.create({
+    data: {
+      id: "report-interview-ready",
+      scanJobId: "scan-interview-ready",
+      assessmentId: "assessment-1",
+      snapshotId: "snapshot-interview-ready",
+      toolsVersion: { scanner: "test" },
+      configHash: { scanner: "test" },
+      evidencePayload: {
+        evidence_graph: { coverage_state: "SUFFICIENT", coverage_notes: [] },
+      },
+      privacyFlags: { containsSourceCode: false, secretsRedacted: true },
+      schemaVersion: "v1",
+      status: EvidenceAcceptanceStatus.ACCEPTED,
+    },
+  });
+}
 
 async function seedWaitingQuestion(prisma: PrismaClient): Promise<void> {
   await prisma.assessmentInterviewThread.upsert({

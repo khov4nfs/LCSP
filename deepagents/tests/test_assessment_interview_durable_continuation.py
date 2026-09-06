@@ -114,6 +114,7 @@ class MutableApi:
         _ = (args, kwargs)
         result = {
             "status": self.status,
+            "threadId": "interview:assessment-1",
             "sourceVersion": "snapshot-1:abc",
             "pgeVersion": "ter-1:v1",
             "publicState": dict(self.public_state),

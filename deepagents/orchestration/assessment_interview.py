@@ -144,8 +144,10 @@ def initial_interview(
     agent_decision: InterviewAgentDecision | None = None,
 ) -> InterviewRuntimeState:
     """Apply protected initial-Interview guardrails to an agent-authored decision."""
-    if coverage.state == "UNAVAILABLE":
-        raise ValueError("UNAVAILABLE coverage requires Root Orchestration recovery before Interview")
+    if coverage.state not in {"READY", "PARTIAL"}:
+        raise ValueError("unusable coverage requires Root Orchestration recovery before Interview")
+    if coverage.state == "PARTIAL" and not coverage.limitations:
+        raise ValueError("PARTIAL coverage requires preserved limitations before Interview")
 
     latest = customer_revisions[-1] if customer_revisions else None
     if agent_decision is None:

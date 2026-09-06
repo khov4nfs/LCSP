@@ -46,6 +46,7 @@ const COMMIT_SHA = "0123456789abcdef0123456789abcdef01234567";
 async function main(): Promise<void> {
   await prisma.$connect();
   await resetAuthWorkspaceDatabase(prisma);
+  await resetWorkerCheckpointFixtures();
   await deleteLegalFixtures();
   await seedAuthWorkspaceFixture(prisma);
   await seedRepositoryScanGraph(prisma, {
@@ -81,6 +82,31 @@ async function main(): Promise<void> {
   await seedLegalFixtures();
   await seedSnapshotArchiveCache(SNAPSHOT_ID);
   await seedSnapshotArchiveCache(BLOCKED_SNAPSHOT_ID);
+}
+
+async function resetWorkerCheckpointFixtures(): Promise<void> {
+  await deleteCheckpointFixtures("lcsp_interview_post_guard_continuation");
+  await deleteCheckpointFixtures("lcsp_managed_investigator_execution");
+}
+
+async function deleteCheckpointFixtures(tableName: string): Promise<void> {
+  const rows = await prisma.$queryRaw<{ exists: boolean }[]>`
+    SELECT to_regclass(${`public.${tableName}`}) IS NOT NULL AS "exists"
+  `;
+  if (!rows[0]?.exists) return;
+
+  if (tableName === "lcsp_interview_post_guard_continuation") {
+    await prisma.$executeRaw`
+      DELETE FROM "lcsp_interview_post_guard_continuation"
+      WHERE assessment_id IN (${ASSESSMENT_ID}, ${BLOCKED_ASSESSMENT_ID})
+    `;
+    return;
+  }
+
+  await prisma.$executeRaw`
+    DELETE FROM "lcsp_managed_investigator_execution"
+    WHERE assessment_id IN (${ASSESSMENT_ID}, ${BLOCKED_ASSESSMENT_ID})
+  `;
 }
 
 async function deleteLegalFixtures(): Promise<void> {

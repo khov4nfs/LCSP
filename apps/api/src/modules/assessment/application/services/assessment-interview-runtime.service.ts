@@ -919,6 +919,7 @@ export class AssessmentInterviewRuntimeService {
     assessmentId: string;
     correlationId: string;
     state: AssessmentInterviewRuntimeState;
+    technicalEvidenceReportId?: string;
   }): Promise<AssessmentInterviewRuntimeState> {
     const state = parsePublicInterviewState(input.state);
     if (
@@ -942,6 +943,12 @@ export class AssessmentInterviewRuntimeService {
       const provenance = await this.assessmentProvenance(
         input.assessmentId,
         tx,
+        input.technicalEvidenceReportId,
+      );
+      this.assertInitialInterviewCoverageUsable(
+        provenance.technicalCoverageState,
+        provenance.coverageLimitations,
+        input.correlationId,
       );
       const computedState: AssessmentInterviewRuntimeState = {
         ...state,
@@ -1008,6 +1015,33 @@ export class AssessmentInterviewRuntimeService {
     });
 
     return nextState;
+  }
+
+  private assertInitialInterviewCoverageUsable(
+    technicalCoverageState: InterviewTechnicalCoverageState,
+    coverageLimitations: string[],
+    correlationId: string,
+  ): void {
+    if (
+      technicalCoverageState === INTERVIEW_TECHNICAL_COVERAGE_STATES.unavailable
+    ) {
+      throw problemException(
+        ASSESSMENT_ERROR_CODES.interviewTechnicalCoverageUnusable,
+        correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+
+    if (
+      technicalCoverageState === INTERVIEW_TECHNICAL_COVERAGE_STATES.partial &&
+      coverageLimitations.length === 0
+    ) {
+      throw problemException(
+        ASSESSMENT_ERROR_CODES.interviewPartialCoverageLimitationsRequired,
+        correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
   }
 
   private async assertAssessmentVisible(
@@ -1201,6 +1235,7 @@ export class AssessmentInterviewRuntimeService {
   private async assessmentProvenance(
     assessmentId: string,
     tx?: Prisma.TransactionClient,
+    technicalEvidenceReportId?: string,
   ): Promise<{
     sourceVersion: string;
     pgeVersion: string;
@@ -1218,31 +1253,42 @@ export class AssessmentInterviewRuntimeService {
         select: { id: true, commitSha: true },
       }),
       client.technicalEvidenceReport.findFirst({
-        where: { assessmentId },
+        where: technicalEvidenceReportId
+          ? { assessmentId, id: technicalEvidenceReportId }
+          : { assessmentId },
         orderBy: { createdAt: "desc" },
         select: { id: true, schemaVersion: true, evidencePayload: true },
       }),
     ]);
     const evidencePayload = objectRecord(report?.evidencePayload);
+    const evidenceGraph = objectRecord(
+      evidencePayload?.evidence_graph ?? evidencePayload?.evidenceGraph,
+    );
     const technicalCoverageState: InterviewTechnicalCoverageState =
       readTechnicalCoverageState(
-        evidencePayload?.technicalCoverageState ??
+        evidenceGraph?.coverage_state ??
+          evidenceGraph?.coverageState ??
+          evidencePayload?.technicalCoverageState ??
           evidencePayload?.coverageState,
       ) ??
       (report
-        ? INTERVIEW_TECHNICAL_COVERAGE_STATES.ready
+        ? INTERVIEW_TECHNICAL_COVERAGE_STATES.unavailable
         : INTERVIEW_TECHNICAL_COVERAGE_STATES.unavailable);
-    const coverageLimitations = Array.isArray(
-      evidencePayload?.coverageLimitations,
-    )
-      ? evidencePayload.coverageLimitations.filter(
+    const graphCoverageNotes =
+      evidenceGraph?.coverage_notes ?? evidenceGraph?.coverageNotes;
+    const coverageLimitations = Array.isArray(graphCoverageNotes)
+      ? graphCoverageNotes.filter(
           (item): item is string => typeof item === "string",
         )
-      : Array.isArray(evidencePayload?.limitations)
-        ? evidencePayload.limitations.filter(
+      : Array.isArray(evidencePayload?.coverageLimitations)
+        ? evidencePayload.coverageLimitations.filter(
             (item): item is string => typeof item === "string",
           )
-        : [];
+        : Array.isArray(evidencePayload?.limitations)
+          ? evidencePayload.limitations.filter(
+              (item): item is string => typeof item === "string",
+            )
+          : [];
 
     return {
       snapshotId: snapshot?.id,
@@ -2032,13 +2078,21 @@ function toJson(value: unknown): Prisma.InputJsonValue {
 function readTechnicalCoverageState(
   value: unknown,
 ): InterviewTechnicalCoverageState | undefined {
-  if (
-    typeof value === "string" &&
-    Object.values(INTERVIEW_TECHNICAL_COVERAGE_STATES).includes(
-      value as InterviewTechnicalCoverageState,
-    )
-  ) {
-    return value as InterviewTechnicalCoverageState;
+  if (typeof value === "string") {
+    const normalized = value.trim().toUpperCase();
+    if (normalized === "SUFFICIENT") {
+      return INTERVIEW_TECHNICAL_COVERAGE_STATES.ready;
+    }
+    if (normalized === "LIMITED") {
+      return INTERVIEW_TECHNICAL_COVERAGE_STATES.partial;
+    }
+    if (
+      Object.values(INTERVIEW_TECHNICAL_COVERAGE_STATES).includes(
+        normalized as InterviewTechnicalCoverageState,
+      )
+    ) {
+      return normalized as InterviewTechnicalCoverageState;
+    }
   }
   return undefined;
 }

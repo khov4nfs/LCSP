@@ -17,6 +17,7 @@ import type {
   GitHubResolvedCommit,
 } from "../../application/ports/github-repository-provider.port.js";
 import type { CredentialLease } from "../../application/security/credential-lease.js";
+import { resolveBitbucketCliCommand } from "./bitbucket-cli-command.js";
 
 const BITBUCKET_HOST = "bitbucket.org";
 const SHA_PATTERN = /^[0-9a-f]{40}$/iu;
@@ -237,9 +238,13 @@ export class BitbucketCliRepositoryProvider implements GitHubRepositoryProviderP
         stderr: string;
         code: number;
       }>((resolve, reject) => {
-        const child = (this.options.spawnImpl ?? spawn)(
+        const command = resolveBitbucketCliCommand(
           this.options.executablePath,
           args,
+        );
+        const child = (this.options.spawnImpl ?? spawn)(
+          command.executablePath,
+          command.args,
           {
             cwd: this.options.workspaceRoot ?? directory,
             shell: false,

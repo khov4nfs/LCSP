@@ -9,7 +9,6 @@ execution ends.
 
 from __future__ import annotations
 
-import fcntl
 import json
 import os
 from contextlib import contextmanager
@@ -22,6 +21,11 @@ from typing import Any, Iterator, TextIO
 from uuid import uuid4
 
 from tools.common.capabilities.platform.config import default_legal_source_storage_root
+from tools.common.capabilities.platform.file_lock import (
+    acquire_exclusive_lock,
+    ensure_lock_file,
+    release_file_lock,
+)
 
 
 TRIAGE_RUNTIME_DIR = "triage-runtime"
@@ -89,7 +93,7 @@ class TriageSingletonCoordinator:
 
         lease_file = self.execution_lock_path.open("a+", encoding="utf-8")
         try:
-            fcntl.flock(lease_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            acquire_exclusive_lock(lease_file, non_blocking=True)
         except BlockingIOError:
             lease_file.close()
             return self._observe_running()
@@ -280,11 +284,11 @@ class TriageSingletonCoordinator:
         self._ensure_runtime_dir()
         state_file = self.state_lock_path.open("a+", encoding="utf-8")
         try:
-            fcntl.flock(state_file.fileno(), fcntl.LOCK_EX)
+            acquire_exclusive_lock(state_file)
             yield
         finally:
             try:
-                fcntl.flock(state_file.fileno(), fcntl.LOCK_UN)
+                release_file_lock(state_file)
             finally:
                 state_file.close()
 
@@ -293,7 +297,7 @@ class TriageSingletonCoordinator:
             lease_file = _ACTIVE_LEASES.pop(execution_id, None)
         if lease_file is not None:
             try:
-                fcntl.flock(lease_file.fileno(), fcntl.LOCK_UN)
+                release_file_lock(lease_file)
             finally:
                 lease_file.close()
 
@@ -309,8 +313,8 @@ class TriageSingletonCoordinator:
 
     def _ensure_runtime_dir(self) -> None:
         self.runtime_root.mkdir(parents=True, exist_ok=True)
-        self.execution_lock_path.touch(exist_ok=True)
-        self.state_lock_path.touch(exist_ok=True)
+        ensure_lock_file(self.execution_lock_path)
+        ensure_lock_file(self.state_lock_path)
 
 
 def _now() -> str:

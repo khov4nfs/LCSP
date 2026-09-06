@@ -52,6 +52,10 @@ const defaultOrchestrationDebug =
   process.env.ORCHESTRATION_DEBUG ?? rootEnv.ORCHESTRATION_DEBUG ?? "false";
 const defaultPhoenixTracing =
   process.env.PHOENIX_TRACING ?? rootEnv.PHOENIX_TRACING ?? "true";
+const defaultDockerPhoenixTracing =
+  process.env.LCSP_DOCKER_PHOENIX_TRACING ??
+  rootEnv.LCSP_DOCKER_PHOENIX_TRACING ??
+  "false";
 const defaultPhoenixCollectorEndpoint =
   process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006/v1/traces";
 const defaultPhoenixProject =
@@ -249,12 +253,12 @@ const targets = {
     args: [
       "build",
       "-f",
-      "deepagents/Dockerfile",
+      "deepagents/Dockerfile.dev",
       "-t",
       defaultDockerWorkerImage,
       ".",
     ],
-    description: `Build Managed Deep Agent Docker image (${defaultDockerWorkerImage})`,
+    description: `Build Managed Deep Agent development Docker image (${defaultDockerWorkerImage})`,
     oneshot: true,
     shell: false,
   },
@@ -794,7 +798,9 @@ function dockerWorkerEnv() {
     NESTJS_API_BASE_URL: apiBaseUrl,
     LCSP_API_BASE_URL: apiBaseUrl,
     WORKER_API_KEY: process.env.WORKER_API_KEY ?? rootEnv.WORKER_API_KEY ?? "",
-    PHOENIX_TRACING: defaultPhoenixTracing,
+    // Docker dev does not start a Phoenix collector.  Keep tracing opt-in here
+    // so the worker does not repeatedly send spans to an unavailable host port.
+    PHOENIX_TRACING: defaultDockerPhoenixTracing,
     PHOENIX_COLLECTOR_ENDPOINT: dockerizeLocalhost(
       defaultPhoenixCollectorEndpoint,
     ),

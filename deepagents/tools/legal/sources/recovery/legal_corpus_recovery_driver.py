@@ -12,8 +12,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Iterator
 
-import fcntl
-
 from structlog import get_logger
 
 from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import LegalToolDispatcher
@@ -22,6 +20,11 @@ from tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoin
 )
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.config import default_legal_source_storage_root
+from tools.common.capabilities.platform.file_lock import (
+    acquire_exclusive_lock,
+    ensure_lock_file,
+    release_file_lock,
+)
 from tools.legal.corpus.artifact_store import write_recovery_artifact
 from tools.legal.corpus.partial_update.partial_update_context_builder import (
     build_partial_update_context,
@@ -824,9 +827,10 @@ def _exclusive_recovery_lock(storage_root: Path) -> Iterator[None]:
     lock_dir = storage_root / "locks"
     lock_dir.mkdir(parents=True, exist_ok=True)
     lock_path = lock_dir / RECOVERY_LOCK_FILE
-    with lock_path.open("w", encoding="utf-8") as lock_file:
-        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+    ensure_lock_file(lock_path)
+    with lock_path.open("a+", encoding="utf-8") as lock_file:
+        acquire_exclusive_lock(lock_file)
         try:
             yield
         finally:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+            release_file_lock(lock_file)
