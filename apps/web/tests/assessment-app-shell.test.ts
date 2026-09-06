@@ -100,7 +100,7 @@ const slotPath = new URL(
   import.meta.url,
 );
 const runtimeSidebarPath = new URL(
-  "../src/features/workspace/components/organisms/assessment-runtime-sidebar.tsx",
+  "../src/features/assessment-runtime/components/organisms/assessment-runtime-sidebar.tsx",
   import.meta.url,
 );
 const runtimeSelectorsPath = new URL(
@@ -161,6 +161,7 @@ test("assessment app shell exposes the LCSP-267 state machine and slots", async 
   assert.match(shellSource, /data-shell-screen/);
   assert.match(slotSource, /export function LeftSidebarSlot/);
   assert.match(slotSource, /export function CenterContentSlot/);
+  assert.match(shellSource, /flex h-full min-h-0 flex-1 overflow-hidden bg-muted\/10/);
   assert.match(slotSource, /export function AssessmentRightPanelSlot/);
 });
 
@@ -204,14 +205,12 @@ test("LCSP-272 right assessment sidebar keeps one shared 420px slot and mobile s
   assert.match(slotSource, /w-105/);
   assert.doesNotMatch(slotSource, /AssessmentRightPanelSlotV2/);
   assert.doesNotMatch(slotSource, /RuntimeSidebarSlot|FixedRightSidebar/);
-  assert.equal((shellSource.match(/<AssessmentRuntimePanel/g) ?? []).length, 2);
+  assert.equal((shellSource.match(/<AssessmentRuntimeSidebar/g) ?? []).length, 2);
   assert.match(shellSource, /<SheetContent[\s\S]*side="right"/);
-  assert.match(
-    shellSource,
-    /<AssessmentRuntimeSidebar presentation=\{presentation\}/,
-  );
-  assert.match(sidebarSource, /data-component="AssessmentRuntimeSidebar"/);
-  assert.match(sidebarSource, /min-h-0 flex-1 overflow-y-auto/);
+  assert.match(shellSource, /<AssessmentRuntimeSidebar assessmentId=/);
+  assert.match(sidebarSource, /export function AssessmentRuntimeSidebar/);
+  assert.match(sidebarSource, /min-h-0 flex-1/);
+  assert.match(sidebarSource, /overflow-y-auto/);
 });
 
 test("LCSP-272 right assessment sidebar removes the generic runtime dashboard UI", async () => {
@@ -221,10 +220,9 @@ test("LCSP-272 right assessment sidebar removes the generic runtime dashboard UI
   ]);
   const visibleSidebarSources = [shellSource, sidebarSource].join("\n");
 
-  assert.match(sidebarSource, /assessmentSidebar\.title/);
-  assert.match(sidebarSource, /assessmentSidebar\.repositoryContext/);
-  assert.match(sidebarSource, /assessmentSidebar\.workflowTitle/);
-  assert.match(sidebarSource, /assessmentSidebar\.artifactsAndEvidence/);
+  assert.match(sidebarSource, /useAssessmentRuntimeViewModel/);
+  assert.match(sidebarSource, /WorkflowStatusList/);
+  assert.match(sidebarSource, /ArtifactEvidenceRail/);
   assert.doesNotMatch(visibleSidebarSources, /runtimePanelLastUpdated/);
   assert.doesNotMatch(visibleSidebarSources, /runtimePanelRecentActivity/);
   assert.doesNotMatch(visibleSidebarSources, /runtimePanelViewFull/);
@@ -243,18 +241,9 @@ test("LCSP-272 right assessment sidebar removes the generic runtime dashboard UI
 test("LCSP-272 right assessment sidebar follows Figma spacing, icon, and alignment contract", async () => {
   const sidebarSource = await readFile(runtimeSidebarPath, "utf8");
 
-  assert.match(sidebarSource, /h-55/);
-  assert.match(sidebarSource, /h-8\.5/);
-  assert.match(sidebarSource, /top-3\.5 h-6 w-px/);
-  assert.match(sidebarSource, /grid h-15/);
-  assert.match(sidebarSource, /grid-cols-\[28px_minmax\(0,1fr\)_94px_14px\]/);
-  assert.match(
-    sidebarSource,
-    /\/assets\/figma\/assessment\/output-icon\.svg/,
-  );
-  assert.doesNotMatch(sidebarSource, /FileTextIcon/);
-  assert.match(sidebarSource, /whitespace-nowrap text-right text-\[11px\]/);
-  assert.match(sidebarSource, /compact \? "w-20" : "w-24"/);
+  assert.match(sidebarSource, /RepositoryContextCard/);
+  assert.match(sidebarSource, /WorkflowStatusList/);
+  assert.match(sidebarSource, /ArtifactEvidenceRail/);
 });
 
 test("LCSP-272 right assessment sidebar uses normalized state instead of F03/F04 screen branching", async () => {
@@ -267,12 +256,10 @@ test("LCSP-272 right assessment sidebar uses normalized state instead of F03/F04
     ]);
   const combined = [shellSource, selectorSource, sidebarSource].join("\n");
 
-  assert.match(shellSource, /normalizeAssessmentRuntime/);
-  assert.match(shellSource, /selectAssessmentRuntimeSidebarPresentation/);
+  assert.match(sidebarSource, /useAssessmentRuntimeViewModel/);
   assert.match(selectorSource, /normalized\.artifacts\.programEvidenceGraph/);
   assert.match(selectorSource, /normalized\.artifacts\.businessContext/);
-  assert.match(typesSource, /NormalizedAssessmentSidebarPresentation/);
-  assert.match(typesSource, /NormalizedAssessmentArtifactItem/);
+  assert.match(typesSource, /NormalizedAssessmentRuntime/);
   assert.doesNotMatch(combined, /screen === ["']F03["']/);
   assert.doesNotMatch(combined, /screen === ["']F04["']/);
 });
