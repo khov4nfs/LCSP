@@ -24,6 +24,14 @@ _TERMINAL_WAITING_OUTCOMES = {
     "FAILED",
 }
 
+_CANONICAL_COVERAGE_STATES = {
+    "READY": "READY",
+    "SUFFICIENT": "READY",
+    "PARTIAL": "PARTIAL",
+    "LIMITED": "PARTIAL",
+    "UNAVAILABLE": "UNAVAILABLE",
+}
+
 
 class _ConfirmedContextPipeline:
     """Inject only server-guarded confirmed Customer context into the existing pipeline."""
@@ -112,10 +120,11 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
         correlation_id: str,
     ) -> ConfirmedStructuredBusinessContext | None:
         coverage_state, coverage_notes = _technical_coverage(evidence_report)
-        if coverage_state == "UNAVAILABLE":
-            self._route_unavailable_coverage_to_recovery(
+        if not _can_start_initial_interview(coverage_state, coverage_notes):
+            self._route_coverage_to_recovery(
                 assessment_id=assessment_id,
                 evidence_report_id=evidence_report_id,
+                coverage_state=coverage_state,
                 coverage_notes=coverage_notes,
                 correlation_id=correlation_id,
             )
@@ -170,14 +179,16 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
                 "Initial Interview must persist a Customer question before EngineeringRule work"
             )
         handoff["expectedContextRevision"] = 0
+        handoff["technicalEvidenceReportId"] = evidence_report_id
         self._api_client.post_interview_initial_question(assessment_id, handoff)
         return None
 
-    def _route_unavailable_coverage_to_recovery(
+    def _route_coverage_to_recovery(
         self,
         *,
         assessment_id: str,
         evidence_report_id: str,
+        coverage_state: str,
         coverage_notes: list[str],
         correlation_id: str,
     ) -> None:
@@ -192,12 +203,14 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
                     {
                         "role": "user",
                         "content": (
-                            "Technical evidence coverage is UNAVAILABLE. Do not enter Initial Interview, "
+                            "Technical evidence coverage cannot start Initial Interview. Do not enter "
+                            "Initial Interview, "
                             "EngineeringRule, Planner, or Investigator. Run Root Orchestration recovery "
                             "for the pinned technical evidence first (for example targeted re-analysis or "
                             "a governed re-scan), then re-enter the assessment only from newly accepted "
                             "technical evidence. "
                             f"Assessment: {assessment_id}. Evidence report: {evidence_report_id}. "
+                            f"Coverage state: {coverage_state}. "
                             f"Bounded coverage notes: {json.dumps(coverage_notes, ensure_ascii=False)}"
                         ),
                     }
@@ -211,7 +224,7 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
                     "assessment_id": assessment_id,
                     "technical_evidence_report_id": evidence_report_id,
                     "correlationId": correlation_id,
-                    "trigger": "TECHNICAL_COVERAGE_UNAVAILABLE_RECOVERY",
+                    "trigger": "TECHNICAL_COVERAGE_RECOVERY_REQUIRED",
                 },
             },
         )
@@ -222,16 +235,29 @@ def _technical_coverage(evidence_report: dict[str, Any]) -> tuple[str, list[str]
         "evidencePayload"
     )
     graph = payload.get("evidence_graph") if isinstance(payload, dict) else None
-    coverage_state = "UNKNOWN"
+    coverage_state = "UNAVAILABLE"
     coverage_notes: list[str] = []
     if isinstance(graph, dict):
-        coverage_state = str(
-            graph.get("coverage_state") or graph.get("coverageState") or "UNKNOWN"
-        ).upper()
+        raw_coverage_state = str(
+            graph.get("coverage_state") or graph.get("coverageState") or ""
+        ).strip().upper()
+        coverage_state = _CANONICAL_COVERAGE_STATES.get(
+            raw_coverage_state,
+            "UNAVAILABLE",
+        )
         raw_notes = graph.get("coverage_notes") or graph.get("coverageNotes") or []
         if isinstance(raw_notes, list):
             coverage_notes = [str(item)[:240] for item in raw_notes[:8]]
     return coverage_state, coverage_notes
+
+
+def _can_start_initial_interview(coverage_state: str, coverage_notes: list[str]) -> bool:
+    if coverage_state == "READY":
+        return True
+    # A PARTIAL PGE report is permitted only when its uncertainty is explicitly
+    # preserved in the governed report. Absence of limitations is not evidence of
+    # complete coverage and therefore fails closed into Orchestration recovery.
+    return coverage_state == "PARTIAL" and bool(coverage_notes)
 
 
 def _initial_interview_instruction(

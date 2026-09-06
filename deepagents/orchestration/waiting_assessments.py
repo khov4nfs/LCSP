@@ -8,7 +8,6 @@ LegalRule scope is never queued, merged, or persisted here.
 
 from __future__ import annotations
 
-import fcntl
 import hashlib
 import json
 import os
@@ -19,6 +18,11 @@ from typing import Any, Callable, Iterator
 from uuid import uuid4
 
 from tools.common.capabilities.platform.config import default_legal_source_storage_root
+from tools.common.capabilities.platform.file_lock import (
+    acquire_exclusive_lock,
+    ensure_lock_file,
+    release_file_lock,
+)
 from tools.common.capabilities.platform.logging import get_logger
 from tools.triage.legal_rule_triage.singleton import TRIAGE_RUNTIME_DIR
 
@@ -193,14 +197,14 @@ class WaitingAssessmentRegistry:
     @contextmanager
     def _locked_state(self) -> Iterator[None]:
         self.runtime_root.mkdir(parents=True, exist_ok=True)
-        self.lock_path.touch(exist_ok=True)
+        ensure_lock_file(self.lock_path)
         lock_file = self.lock_path.open("a+", encoding="utf-8")
         try:
-            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            acquire_exclusive_lock(lock_file)
             yield
         finally:
             try:
-                fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+                release_file_lock(lock_file)
             finally:
                 lock_file.close()
 

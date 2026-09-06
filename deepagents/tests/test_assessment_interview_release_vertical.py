@@ -376,6 +376,7 @@ class _VerticalApi:
         result = {
             'status': status,
             'assessmentId': assessment_id,
+            'threadId': f'interview:{assessment_id}',
             'sourceVersion': SOURCE_VERSION,
             'pgeVersion': PGE_VERSION,
             'publicState': dict(self.state),

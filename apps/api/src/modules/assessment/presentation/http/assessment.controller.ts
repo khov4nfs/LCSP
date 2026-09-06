@@ -287,11 +287,20 @@ export class InternalAssessmentInterviewController {
     @Body() body: unknown,
     @Req() request: AuthenticatedRequest,
   ) {
+    const technicalEvidenceReportId =
+      body &&
+      typeof body === "object" &&
+      typeof (body as { technicalEvidenceReportId?: unknown })
+        .technicalEvidenceReportId === "string"
+        ? (body as { technicalEvidenceReportId: string })
+            .technicalEvidenceReportId
+        : undefined;
     return resultEnvelope(
       await this.interviewRuntime.seedInitialQuestionForWorker({
         assessmentId,
         correlationId: request.correlationId ?? "worker-interview-context",
         state: body as never,
+        technicalEvidenceReportId,
       }),
     );
   }

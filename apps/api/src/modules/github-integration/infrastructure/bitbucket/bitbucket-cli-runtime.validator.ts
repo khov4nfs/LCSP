@@ -4,6 +4,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 
 import { GITHUB_CREDENTIAL_ERROR_CODES } from "@lcsp/contracts/github-integration";
 import { BitbucketCliProviderError } from "./bitbucket-cli-repository.provider.js";
+import { resolveBitbucketCliCommand } from "./bitbucket-cli-command.js";
 
 export const SUPPORTED_BITBUCKET_CLI_VERSION = "0.1.0";
 
@@ -66,9 +67,10 @@ export function assertBitbucketCliRuntime(
       GITHUB_CREDENTIAL_ERROR_CODES.providerClientUnavailable,
     );
   }
+  const command = resolveBitbucketCliCommand(executablePath, ["--version"]);
   const result = (dependencies.spawn ?? spawnSync)(
-    executablePath,
-    ["--version"],
+    command.executablePath,
+    command.args,
     {
       cwd,
       encoding: "utf8",

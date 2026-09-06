@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_CONTEXT_AUTHORITY_STATUSES,
   ASSESSMENT_INTERVIEW_ANSWER_ACTIONS,
@@ -10,6 +11,7 @@ import {
   type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import { INTERVIEW_TECHNICAL_COVERAGE_STATES } from "@lcsp/contracts/audit";
 
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
@@ -154,6 +156,10 @@ type MockInterviewAudit = {
   recordDownstreamImpact: jest.Mock<(...args: unknown[]) => Promise<void>>;
 };
 
+type MockRuntimeEvents = {
+  recordToolWaitingInput: jest.Mock<() => Promise<void>>;
+};
+
 describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => {
   let service: AssessmentInterviewRuntimeService;
   let mockTx: MockPrismaDelegates;
@@ -162,6 +168,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
   let mockInterviewGuidanceResolver: {
     resolveActiveGuidanceVersion: jest.Mock<() => string>;
   };
+  let mockRuntimeEvents: MockRuntimeEvents;
 
   beforeEach(() => {
     mockTx = {
@@ -227,7 +234,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         .mockResolvedValue("outbox-1"),
     };
 
-    const mockRuntimeEvents = {
+    mockRuntimeEvents = {
       recordToolWaitingInput: jest
         .fn<() => Promise<void>>()
         .mockResolvedValue(undefined),
@@ -999,6 +1006,115 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
   });
 
   describe("seedInitialQuestionForWorker", () => {
+    const initialQuestionState = (): AssessmentInterviewRuntimeState => ({
+      outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+      activeQuestion: {
+        id: "q-init-coverage-gate",
+        intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+        prompt: "What is the business purpose of this flow?",
+        control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+      },
+    });
+
+    it.each([
+      ["a missing coverage state", {}],
+      ["an unknown coverage state", { coverageState: "UNKNOWN" }],
+    ])(
+      "does not persist an Initial Interview question for selected report with %s",
+      async (_description, evidencePayload) => {
+        mockTx.technicalEvidenceReport.findFirst.mockResolvedValueOnce({
+          id: "report-unusable",
+          schemaVersion: "v1",
+          evidencePayload,
+        } as never);
+
+        await expect(
+          service.seedInitialQuestionForWorker({
+            assessmentId: "assessment-1",
+            correlationId: "corr-unusable-coverage",
+            state: initialQuestionState(),
+            technicalEvidenceReportId: "report-unusable",
+          }),
+        ).rejects.toMatchObject({
+          response: {
+            ok: false,
+            problem: {
+              code: ASSESSMENT_ERROR_CODES.interviewTechnicalCoverageUnusable,
+            },
+          },
+        });
+
+        expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+        expect(
+          mockInterviewAudit.recordQuestionPersisted,
+        ).not.toHaveBeenCalled();
+        expect(mockRuntimeEvents.recordToolWaitingInput).not.toHaveBeenCalled();
+      },
+    );
+
+    it("does not persist an Initial Interview question for UNAVAILABLE coverage", async () => {
+      mockTx.technicalEvidenceReport.findFirst.mockResolvedValueOnce({
+        id: "report-unavailable",
+        schemaVersion: "v1",
+        evidencePayload: {
+          technicalCoverageState:
+            INTERVIEW_TECHNICAL_COVERAGE_STATES.unavailable,
+          coverageLimitations: ["source retrieval failed"],
+        },
+      });
+
+      await expect(
+        service.seedInitialQuestionForWorker({
+          assessmentId: "assessment-1",
+          correlationId: "corr-unavailable-coverage",
+          state: initialQuestionState(),
+          technicalEvidenceReportId: "report-unavailable",
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          ok: false,
+          problem: {
+            code: ASSESSMENT_ERROR_CODES.interviewTechnicalCoverageUnusable,
+          },
+        },
+      });
+
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+      expect(mockInterviewAudit.recordQuestionPersisted).not.toHaveBeenCalled();
+      expect(mockRuntimeEvents.recordToolWaitingInput).not.toHaveBeenCalled();
+    });
+
+    it("does not persist PARTIAL coverage without preserved limitations", async () => {
+      mockTx.technicalEvidenceReport.findFirst.mockResolvedValueOnce({
+        id: "report-partial-without-limitations",
+        schemaVersion: "v1",
+        evidencePayload: {
+          technicalCoverageState: INTERVIEW_TECHNICAL_COVERAGE_STATES.partial,
+          coverageLimitations: [],
+        },
+      });
+
+      await expect(
+        service.seedInitialQuestionForWorker({
+          assessmentId: "assessment-1",
+          correlationId: "corr-partial-without-limitations",
+          state: initialQuestionState(),
+          technicalEvidenceReportId: "report-partial-without-limitations",
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          ok: false,
+          problem: {
+            code: ASSESSMENT_ERROR_CODES.interviewPartialCoverageLimitationsRequired,
+          },
+        },
+      });
+
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+      expect(mockInterviewAudit.recordQuestionPersisted).not.toHaveBeenCalled();
+      expect(mockRuntimeEvents.recordToolWaitingInput).not.toHaveBeenCalled();
+    });
+
     it("atomically persists thread state and records question in transaction", async () => {
       const initialState: AssessmentInterviewRuntimeState = {
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
@@ -1044,6 +1160,56 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
             sourceVersion: "snap-1:sha-123456",
             pgeVersion: "report-1:v1",
             technicalCoverageState: "READY",
+          }),
+        }),
+        mockTx,
+      );
+    });
+
+    it("pins nested PGE PARTIAL coverage and limitations from the worker-selected report", async () => {
+      mockTx.technicalEvidenceReport.findFirst.mockResolvedValueOnce({
+        id: "report-pinned",
+        schemaVersion: "v2",
+        evidencePayload: {
+          evidence_graph: {
+            coverage_state: "LIMITED",
+            coverage_notes: ["dynamic routing was not statically resolved"],
+          },
+        },
+      } as never);
+      const initialState: AssessmentInterviewRuntimeState = {
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        activeQuestion: {
+          id: "q-partial-1",
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+          prompt: "How is the recommendation used?",
+          control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+        },
+      };
+
+      await service.seedInitialQuestionForWorker({
+        assessmentId: "assessment-1",
+        correlationId: "corr-partial-1",
+        state: initialState,
+        technicalEvidenceReportId: "report-pinned",
+      });
+
+      expect(
+        mockTx.technicalEvidenceReport.findFirst as unknown as jest.Mock,
+      ).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: { assessmentId: "assessment-1", id: "report-pinned" },
+        }),
+      );
+      expect(mockTx.assessmentInterviewThread.upsert).toHaveBeenCalledTimes(1);
+      expect(mockInterviewAudit.recordQuestionPersisted).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sourceSnapshot: expect.objectContaining({
+            pgeVersion: "report-pinned:v2",
+            technicalCoverageState: "PARTIAL",
+            coverageLimitations: [
+              "dynamic routing was not statically resolved",
+            ],
           }),
         }),
         mockTx,
