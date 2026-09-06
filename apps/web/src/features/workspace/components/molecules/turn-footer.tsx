@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { resolveMessage } from "@lcsp/i18n";
 import { CopyIcon } from "lucide-react";
 

@@ -46,8 +46,8 @@ const scannerStepPath = new URL(
   "../src/features/assessment-flow/components/organisms/scanner-step.tsx",
   import.meta.url,
 );
-const programEvidenceSummaryPath = new URL(
-  "../src/features/assessment-flow/components/molecules/program-evidence-graph-summary.tsx",
+const sharedProgramEvidenceSummaryPath = new URL(
+  "../src/features/workspace/components/molecules/program-evidence-summary.tsx",
   import.meta.url,
 );
 const typesPath = new URL(
@@ -245,7 +245,7 @@ test("tool activity list and row support reusable Running, Done, and Failed sema
   assert.match(typesSource, /failed: "failed"/);
 });
 
-test("chat result container is a neutral 680px rail-safe structured result wrapper", async () => {
+test("chat result container stays domain-neutral and wraps chat results", async () => {
   const source = await readFile(resultContainerPath, "utf8");
 
   assert.match(source, /data-slot="chat-result-container"/);
@@ -259,10 +259,10 @@ test("chat result container is a neutral 680px rail-safe structured result wrapp
 test("scanner renders the dedicated Program Evidence Graph artifact only after evidence is ready", async () => {
   const [scannerSource, artifactSource] = await Promise.all([
     readFile(scannerStepPath, "utf8"),
-    readFile(programEvidenceSummaryPath, "utf8"),
+    readFile(sharedProgramEvidenceSummaryPath, "utf8"),
   ]);
 
-  assert.match(scannerSource, /ProgramEvidenceGraphSummary/);
+  assert.match(scannerSource, /ProgramEvidenceSummary/);
   assert.match(scannerSource, /evidenceReady \? \(/);
   assert.doesNotMatch(scannerSource, /ChatResultContainer/);
   assert.doesNotMatch(
@@ -270,7 +270,7 @@ test("scanner renders the dedicated Program Evidence Graph artifact only after e
     /pages\.assessmentFlow\.graph\.repository/,
   );
   assert.doesNotMatch(scannerSource, /pages\.assessmentFlow\.graph\.commit/);
-  assert.match(artifactSource, /data-slot="program-evidence-graph-summary"/);
+  assert.match(artifactSource, /ChatResultContainer/);
   assert.match(artifactSource, /pages\.assessmentFlow\.graph\.servicesScanned/);
   assert.match(
     artifactSource,
