@@ -52,8 +52,28 @@ CHECKPOINT_URL = os.getenv("LCSP_TEST_CHECKPOINT_DATABASE_URL") or os.getenv(
 )
 WORKER_KEY = os.getenv("WORKER_API_KEY")
 
+
+def _is_server_reachable(url: str | None) -> bool:
+    if not url:
+        return False
+    try:
+        import socket
+        from urllib.parse import urlparse
+
+        parsed = urlparse(url)
+        host = parsed.hostname or "127.0.0.1"
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        with socket.create_connection((host, port), timeout=1.0):
+            return True
+    except Exception:
+        return False
+
+
 pytestmark = pytest.mark.skipif(
-    not API_BASE_URL or not API_DATABASE_URL or not CHECKPOINT_URL or not WORKER_KEY,
+    not _is_server_reachable(API_BASE_URL)
+    or not API_DATABASE_URL
+    or not CHECKPOINT_URL
+    or not WORKER_KEY,
     reason="production vertical requires real Nest API, API Postgres and checkpoint Postgres",
 )
 
@@ -90,7 +110,7 @@ def _confirmed_context(
                 "statement": statement,
                 "normalizedValue": statement,
                 "scope": {"topic": topic},
-                "evidenceRefs": ["evidence:customer:production"],
+                "evidenceRefs": [EVIDENCE_REF],
                 "respondentRef": "actor:authenticated-production",
                 "createdAt": "2026-09-05T00:00:00Z",
                 "source": "CUSTOMER_CONFIRMED",
@@ -249,6 +269,12 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
                     "intent": "ASK",
                     "control": "FREE_TEXT",
                     "prompt": "What is the business purpose of this AI-supported flow?",
+                    "frontier": {
+                        "owner": "CUSTOMER",
+                        "materiality": "MATERIAL",
+                        "description": "AI-supported flow business purpose",
+                        "evidenceRefs": [EVIDENCE_REF],
+                    },
                 },
                 "confirmedContext": {},
                 "flags": [],
@@ -280,6 +306,12 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
                     "control": "FREE_TEXT",
                     "prompt": "Who must approve the recommendation before action?",
                     "needId": NEED_ID,
+                    "frontier": {
+                        "owner": "CUSTOMER",
+                        "materiality": "MATERIAL",
+                        "description": "Who must approve the recommendation before action?",
+                        "evidenceRefs": [EVIDENCE_REF],
+                    },
                 },
                 "confirmedContext": {},
                 "flags": [],
@@ -298,6 +330,12 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
                     "prompt": "Please confirm the approval authority before resume.",
                     "priorAnswerSummary": "A human manager must approve before action.",
                     "needId": NEED_ID,
+                    "frontier": {
+                        "owner": "CUSTOMER",
+                        "materiality": "MATERIAL",
+                        "description": "Please confirm the approval authority before resume.",
+                        "evidenceRefs": [EVIDENCE_REF],
+                    },
                 },
                 "confirmedContext": {},
                 "flags": [],
@@ -492,6 +530,12 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
                     "intent": "ASK",
                     "control": "FREE_TEXT",
                     "prompt": "What is the business purpose of this AI-supported flow?",
+                    "frontier": {
+                        "owner": "CUSTOMER",
+                        "materiality": "MATERIAL",
+                        "description": "AI-supported flow business purpose",
+                        "evidenceRefs": [EVIDENCE_REF],
+                    },
                 },
                 "confirmedContext": {},
                 "flags": [],
@@ -523,6 +567,12 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
                     "control": "FREE_TEXT",
                     "prompt": "Who must approve the recommendation before action?",
                     "needId": BLOCKED_NEED_ID,
+                    "frontier": {
+                        "owner": "CUSTOMER",
+                        "materiality": "MATERIAL",
+                        "description": "Who must approve the recommendation before action?",
+                        "evidenceRefs": [EVIDENCE_REF],
+                    },
                 },
                 "confirmedContext": {},
                 "flags": [],

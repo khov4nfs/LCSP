@@ -14,11 +14,10 @@ from tools.common.runtime_envelope import (
 
 
 class InspectHumanReviewPathRequest(CorrelatedToolInput):
-    subject_ref: str = Field(alias="subjectRef", min_length=1, max_length=240)
-    review_refs: list[str] = Field(default_factory=list, alias="reviewRefs", max_length=50)
-    include_override_paths: bool = Field(default=True, alias="includeOverridePaths")
-    max_depth: int = Field(default=5, alias="maxDepth", ge=1, le=20)
-    max_results: int = Field(default=20, alias="maxResults", ge=1, le=100)
+    subject_ref: str | None = Field(default=None, alias="subjectRef", max_length=240)
+    start_ref: str | None = Field(default=None, alias="startRef", max_length=240)
+    max_hops: int = Field(default=5, alias="maxHops", ge=1, le=20)
+    max_results: int = Field(default=20, alias="maxResults", ge=1, le=20)
 
 
 @tool(args_schema=InspectHumanReviewPathRequest)

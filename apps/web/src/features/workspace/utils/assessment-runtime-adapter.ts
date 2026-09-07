@@ -21,6 +21,7 @@ import {
   ASSESSMENT_ARTIFACT_AVAILABILITIES,
   ASSESSMENT_RUNTIME_AVAILABILITIES,
   ASSESSMENT_SIDEBAR_WORKFLOW_STAGES,
+  NORMALIZED_REPOSITORY_SOURCE_STATES,
   NORMALIZED_WORKFLOW_STEP_STATUSES,
   type AdapterInterviewStateInput,
   type AdapterTimelineInput,
@@ -333,7 +334,7 @@ function normalizeRepository(
       repositoryFullName: null,
       branch: null,
       pinnedCommit: null,
-      sourceState: "PENDING",
+      sourceState: NORMALIZED_REPOSITORY_SOURCE_STATES.pending,
     };
   }
   return {
@@ -341,7 +342,7 @@ function normalizeRepository(
     repositoryFullName: snapshot.repositoryFullName,
     branch: snapshot.branch,
     pinnedCommit: snapshot.commitSha,
-    sourceState: "AVAILABLE",
+    sourceState: NORMALIZED_REPOSITORY_SOURCE_STATES.available,
   };
 }
 

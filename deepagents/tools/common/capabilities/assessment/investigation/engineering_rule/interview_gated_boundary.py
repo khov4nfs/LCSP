@@ -88,11 +88,17 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
         if not assessment_id:
             raise ValueError("accepted evidence report is missing assessment_id")
 
+        workflow_run_id = self._workflow_run_id(
+            message,
+            evidence_report,
+            evidence_report_id,
+        )
         confirmed_context = self._prepare_interview(
             evidence_report=evidence_report,
             evidence_report_id=evidence_report_id,
             assessment_id=assessment_id,
             correlation_id=correlationId,
+            workflow_run_id=workflow_run_id,
         )
         if confirmed_context is None:
             return
@@ -118,6 +124,7 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
         evidence_report_id: str,
         assessment_id: str,
         correlation_id: str,
+        workflow_run_id: str | None = None,
     ) -> ConfirmedStructuredBusinessContext | None:
         coverage_state, coverage_notes = _technical_coverage(evidence_report)
         if not _can_start_initial_interview(coverage_state, coverage_notes):
@@ -151,24 +158,109 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
         if outcome != "WAITING_FOR_CUSTOMER" or context_revision != 0:
             return None
 
-        dispatcher = self._interview_dispatcher or RootSubagentDispatcher()
-        result = dispatcher.dispatch(
-            subagent_type="interview",
-            instruction=_initial_interview_instruction(
-                assessment_id=assessment_id,
-                evidence_report_id=evidence_report_id,
-                evidence_report=evidence_report,
-            ),
-            idempotency_key=f"assessment-interview-initial:{assessment_id}:{evidence_report_id}",
-            trigger="TECHNICAL_EVIDENCE_ACCEPTED",
-            metadata={
-                "assessment_id": assessment_id,
-                "technical_evidence_report_id": evidence_report_id,
-                "correlationId": correlation_id,
-            },
-            thread_id=f"interview:{assessment_id}",
-            reenter_root=False,
+        from uuid import UUID
+        from orchestration.context import LCSPRunContext
+        from subagents.interview.customer_safe_projection import (
+            TurnEvidenceLedger,
+            build_why_are_we_asking_explanation,
+            evaluate_question_eligibility,
+            extract_governed_evidence_refs,
+            reset_active_turn_evidence_ledger,
+            sanitize_customer_facing_text,
+            set_active_turn_evidence_ledger,
+            validate_evidence_refs,
         )
+
+        if not workflow_run_id or not str(workflow_run_id).strip():
+            raise ValueError(
+                "Initial Interview requires a valid workflowRunId from orchestration"
+            )
+        valid_wf_id = str(workflow_run_id).strip()
+        if correlation_id and valid_wf_id == correlation_id:
+            raise ValueError(
+                "workflowRunId cannot be identical to correlationId"
+            )
+
+
+        authenticated_actor_id = (
+            str(state.get("authenticatedActorId") or "").strip()
+            or str(state.get("actorId") or "").strip()
+            or str(state.get("userId") or "").strip()
+            or str(evidence_report.get("user_id") or "").strip()
+            or str(evidence_report.get("userId") or "").strip()
+            or str(evidence_report.get("ownerId") or "").strip()
+            or str(evidence_report.get("owner_id") or "").strip()
+        )
+        if not authenticated_actor_id:
+            raise ValueError("Initial Interview requires a trusted authenticated principal / user_id")
+
+        snapshot_id = str(
+            evidence_report.get("snapshotId")
+            or evidence_report.get("snapshot_id")
+            or ""
+        )
+
+        run_context = LCSPRunContext(
+            assessment_id=assessment_id,
+            user_id=authenticated_actor_id,
+            workflow_run_id=valid_wf_id,
+            artifact_versions={
+                "technicalEvidenceReportId": evidence_report_id,
+                "repositorySnapshotId": snapshot_id,
+                "sourceVersion": str(
+                    evidence_report.get("sourceVersion")
+                    or evidence_report.get("source_version")
+                    or "1.0.0"
+                ),
+                "pgeVersion": str(
+                    evidence_report.get("pgeVersion")
+                    or evidence_report.get("pge_version")
+                    or "2.0.0"
+                ),
+                "guidanceVersion": str(
+                    evidence_report.get("guidanceVersion")
+                    or evidence_report.get("guidance_version")
+                    or "1.0.0"
+                ),
+            },
+            idempotency_key=f"assessment-interview-initial:{assessment_id}:{evidence_report_id}",
+        )
+
+        initial_refs = {
+            f"technicalEvidenceReport:{evidence_report_id}",
+            f"repositorySnapshot:{snapshot_id}",
+            "interviewRuntime:assessment-interview-runtime-v1",
+        }
+        initial_refs.update(extract_governed_evidence_refs(evidence_report))
+        ledger = TurnEvidenceLedger(
+            initial_authorized_refs=initial_refs,
+            initial_coverage_state=coverage_state,
+            initial_coverage_limitations=coverage_notes,
+        )
+        ledger_token = set_active_turn_evidence_ledger(ledger)
+        try:
+            dispatcher = self._interview_dispatcher or RootSubagentDispatcher()
+            result = dispatcher.dispatch(
+                subagent_type="interview",
+                instruction=_initial_interview_instruction(
+                    assessment_id=assessment_id,
+                    evidence_report_id=evidence_report_id,
+                    evidence_report=evidence_report,
+                ),
+                idempotency_key=f"assessment-interview-initial:{assessment_id}:{evidence_report_id}",
+                trigger="TECHNICAL_EVIDENCE_ACCEPTED",
+                metadata={
+                    "assessment_id": assessment_id,
+                    "technical_evidence_report_id": evidence_report_id,
+                    "correlationId": correlation_id,
+                },
+                thread_id=f"interview:{assessment_id}",
+                context=run_context,
+                reenter_root=False,
+            )
+        finally:
+            reset_active_turn_evidence_ledger(ledger_token)
+
         handoff = result.get("handoff") if isinstance(result, dict) else None
         if not isinstance(handoff, dict):
             raise ValueError("Initial Interview specialist did not return a validated handoff")
@@ -178,8 +270,43 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
             raise ValueError(
                 "Initial Interview must persist a Customer question before EngineeringRule work"
             )
+
+        question = handoff["activeQuestion"]
+        frontier = question.get("frontier")
+        if not isinstance(frontier, dict):
+            raise ValueError("Initial Interview question candidate requires frontier metadata")
+        eligible, reason = evaluate_question_eligibility(frontier, ledger)
+        if not eligible:
+            raise ValueError(f"Initial Interview question candidate is not eligible: {reason}")
+
+        frontier_refs = frontier.get("evidenceRefs") or []
+        topic = str(frontier.get("description") or question.get("prompt") or "business clarification")
+        obs = str(frontier.get("description") or "")
+        question["whyAreWeAsking"] = build_why_are_we_asking_explanation(
+            topic=topic,
+            evidence_observation=obs,
+            coverage_state=coverage_state,
+            coverage_limitations=coverage_notes,
+            ledger=ledger,
+            evidence_refs=frontier_refs,
+        )
+
+        if "prompt" in question and question["prompt"]:
+            question["prompt"] = sanitize_customer_facing_text(str(question["prompt"]))
+        if "whyAreWeAsking" in question and question["whyAreWeAsking"]:
+            question["whyAreWeAsking"] = sanitize_customer_facing_text(str(question["whyAreWeAsking"]))
+
+        question_refs = (
+            question.get("whyEvidenceRefs")
+            or question.get("governedEvidenceRefs")
+            or []
+        )
+        frontier_refs = frontier.get("evidenceRefs") or []
+        validate_evidence_refs([*question_refs, *frontier_refs], ledger.authorized_refs)
+
         handoff["expectedContextRevision"] = 0
         handoff["technicalEvidenceReportId"] = evidence_report_id
+        handoff["workflowRunId"] = valid_wf_id
         self._api_client.post_interview_initial_question(assessment_id, handoff)
         return None
 

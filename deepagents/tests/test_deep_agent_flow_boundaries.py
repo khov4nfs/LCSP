@@ -30,6 +30,13 @@ TRIAGE_TOOL_NAMES: tuple[str, ...] = (
     "persist_legal_rule_triage_result",
     "finish_legal_rule_triage_execution",
 )
+INTERVIEW_TOOL_NAMES: tuple[str, ...] = (
+    "search_program_graph",
+    "get_scan_coverage",
+    "inspect_decision_path",
+    "inspect_data_path",
+    "inspect_human_review_path",
+)
 TRIAGE_TOOL_PACKAGES: set[str] = {
     "maintain_legal_catalog",
     "legal_rule_triage",
@@ -42,6 +49,7 @@ COMMON_TOOL_NAMES: tuple[str, ...] = (
 )
 ORCHESTRATION_TOOL_NAMES: tuple[str, ...] = ("request_targeted_reanalysis",)
 EXPECTED_ROLE_TOOL_NAMES: dict[str, tuple[str, ...]] = {
+    "interview": INTERVIEW_TOOL_NAMES,
     "planner": ("retrieve_verified_episodes", "search_program_graph", "get_scan_coverage"),
     "investigator": (
         "retrieve_verified_episodes",
@@ -92,9 +100,27 @@ def _assessment_authored_tool_layout() -> dict[str, tuple[str, ...]]:
     }
 
 
+def test_specialist_tools_are_strictly_isolated() -> None:
+    expected = {
+        "triage": TRIAGE_TOOL_NAMES,
+        "interview": INTERVIEW_TOOL_NAMES,
+        "planner": EXPECTED_ROLE_TOOL_NAMES["planner"],
+        "investigator": EXPECTED_ROLE_TOOL_NAMES["investigator"],
+    }
+    for role, tool_names in expected.items():
+        assert len(tool_names) == len(set(tool_names))
+    for tool_name in EXPECTED_ROLE_TOOL_NAMES["planner"]:
+        assert tool_name not in TRIAGE_TOOL_NAMES
+    for tool_name in EXPECTED_ROLE_TOOL_NAMES["investigator"]:
+        assert tool_name not in TRIAGE_TOOL_NAMES
+    # LCSP-285: Interview must not have EngineeringRule retrieval or verified episode tools
+    for disallowed in ("get_finding_detail", "retrieve_verified_episodes", "retrieve_legal_basis"):
+        assert disallowed not in INTERVIEW_TOOL_NAMES
+
+
 def test_subagents_receive_fixed_minimal_tool_surfaces() -> None:
     assert _names(TRIAGE_TOOLS) == TRIAGE_TOOL_NAMES
-    assert _names(INTERVIEW_TOOLS) == ()
+    assert _names(INTERVIEW_TOOLS) == INTERVIEW_TOOL_NAMES
     assert _names(PLANNER_TOOLS) == EXPECTED_ROLE_TOOL_NAMES["planner"]
     assert _names(INVESTIGATOR_TOOLS) == EXPECTED_ROLE_TOOL_NAMES["investigator"]
 
@@ -106,7 +132,7 @@ def test_subagents_receive_fixed_minimal_tool_surfaces() -> None:
         "investigator",
     )
     assert _names(by_name["triage"]["tools"]) == TRIAGE_TOOL_NAMES
-    assert _names(by_name["interview"]["tools"]) == ()
+    assert _names(by_name["interview"]["tools"]) == INTERVIEW_TOOL_NAMES
     for role in ("planner", "investigator"):
         assert _names(by_name[role]["tools"]) == EXPECTED_ROLE_TOOL_NAMES[role]
 

@@ -69,13 +69,48 @@ export function createAssessmentRuntimeSidebarPreview(
   });
 
   const previewSteps: NormalizedWorkflowStep[] = [
-    { id: "REPOSITORY", label: "Repository", status: "COMPLETED", detail: null },
-    { id: "SCANNER", label: "Scanner", status: "COMPLETED", detail: null },
-    { id: "INTERVIEW", label: "Interview", status: "COMPLETED", detail: null },
-    { id: "RULES", label: "Rules", status: "COMPLETED", detail: null },
-    { id: "PLANNER", label: "Planner", status: "COMPLETED", detail: null },
-    { id: "INVESTIGATE", label: "Investigate", status: "RUNNING", detail: "Reviewing findings" },
-    { id: "GATE", label: "Gate", status: "QUEUED", detail: null },
+    {
+      id: "REPOSITORY",
+      label: "Repository",
+      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+      detail: null,
+    },
+    {
+      id: "SCANNER",
+      label: "Scanner",
+      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+      detail: null,
+    },
+    {
+      id: "INTERVIEW",
+      label: "Interview",
+      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+      detail: null,
+    },
+    {
+      id: "RULES",
+      label: "Rules",
+      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+      detail: null,
+    },
+    {
+      id: "PLANNER",
+      label: "Planner",
+      status: REPOSITORY_SCAN_JOB_STATUSES.completed,
+      detail: null,
+    },
+    {
+      id: "INVESTIGATE",
+      label: "Investigate",
+      status: REPOSITORY_SCAN_JOB_STATUSES.running,
+      detail: "Reviewing findings",
+    },
+    {
+      id: "GATE",
+      label: "Gate",
+      status: REPOSITORY_SCAN_JOB_STATUSES.queued,
+      detail: null,
+    },
   ];
 
   return {

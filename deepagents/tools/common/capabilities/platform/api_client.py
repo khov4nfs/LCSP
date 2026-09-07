@@ -61,6 +61,8 @@ class WorkerApiClient:
         self._api_key = api_key
         self._timeout = 30.0
         self._max_retries = 3
+        from tools.common.capabilities.platform.rbac_client import RbacClient
+        self.rbac_client = RbacClient(self._base_url, self._api_key)
 
     def _post_with_retry(self, path: str, payload: dict, *, redact: bool = True) -> dict:
         """POST a sanitized payload with exponential retry for network/5xx failures.

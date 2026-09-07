@@ -41,6 +41,12 @@ class FakeDispatcher:
                     "intent": "ASK",
                     "control": "FREE_TEXT",
                     "prompt": "Who approves this business action?",
+                    "frontier": {
+                        "owner": "CUSTOMER",
+                        "materiality": "MATERIAL",
+                        "description": "Approval threshold and authority",
+                        "evidenceRefs": [],
+                    },
                 },
                 "confirmedContext": {},
                 "flags": [],
@@ -87,6 +93,7 @@ def _report():
         "assessment_id": "assessment-1",
         "snapshot_id": "snapshot-1",
         "schema_version": "2.0.0",
+        "user_id": "user-test-owner",
         "evidence_payload": {
             "evidence_graph": {
                 "coverage_state": "PARTIAL",
@@ -153,7 +160,8 @@ def test_initial_pge_event_bootstraps_interview_and_stops_before_pipeline() -> N
         evidence_report=_report(),
         evidence_report_id="ter-1",
         assessment_id="assessment-1",
-        correlation_id="corr-1",
+        correlation_id="00000000-0000-0000-0000-000000000001",
+        workflow_run_id="10000000-0000-0000-0000-000000000001",
     )
 
     assert result is None
@@ -245,7 +253,8 @@ def test_limited_pge_coverage_normalizes_to_permitted_partial() -> None:
         evidence_report=report,
         evidence_report_id="ter-1",
         assessment_id="assessment-1",
-        correlation_id="corr-limited",
+        correlation_id="00000000-0000-0000-0000-000000000002",
+        workflow_run_id="10000000-0000-0000-0000-000000000002",
     )
 
     assert len(dispatcher.calls) == 1

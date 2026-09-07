@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping
 from uuid import uuid4
 import os
 import time
@@ -106,7 +106,217 @@ def trusted_request_from_model_input(
     )
 
 
+_PYTHON_LOCAL_TOOLS = {
+    "get_scan_coverage",
+    "search_evidence",
+    "inspect_decision_path",
+    "inspect_data_path",
+    "inspect_human_review_path",
+    "find_provider_invocations",
+    "get_evidence_subgraph",
+    "get_symbol_context",
+    "trace_static_flow",
+    "find_similar_symbols",
+    "inspect_deployment_context",
+    "propose_missing_targets",
+    "get_finding_detail",
+}
+
+_custom_api_client = None
+
+
+def set_agentic_tool_api_client(client: Any | None) -> None:
+    """Override api_client used by local tool dispatcher (useful in tests)."""
+    global _custom_api_client
+    _custom_api_client = client
+
+
+def _get_api_client():
+    if _custom_api_client is not None:
+        return _custom_api_client
+    from tools.common.capabilities.platform.api_client import WorkerApiClient
+    from tools.common.capabilities.platform.config import load_config
+
+    try:
+        config = load_config()
+        return WorkerApiClient(config.nestjs_api_base_url, config.worker_api_key)
+    except Exception:
+        base_url = (os.environ.get("NESTJS_API_BASE_URL") or "").rstrip("/")
+        api_key = os.environ.get("WORKER_API_KEY") or ""
+        return WorkerApiClient(base_url, api_key)
+
+
+def _normalize_canonical_input(tool_name: str, raw_input: dict[str, Any]) -> dict[str, Any]:
+    data = dict(raw_input)
+    if tool_name == "get_scan_coverage":
+        return {"maxResults": int(data.get("maxResults", 50))}
+
+    if tool_name == "search_evidence":
+        out: dict[str, Any] = {"maxResults": int(data.get("maxResults", 10))}
+        if data.get("query"):
+            out["query"] = str(data["query"])
+        if data.get("pathPrefixes"):
+            out["pathPrefixes"] = list(data["pathPrefixes"])
+        return out
+
+    if tool_name == "inspect_decision_path":
+        start_ref = data.get("startRef") or data.get("subjectRef") or ""
+        out = {
+            "startRef": str(start_ref),
+            "maxHops": int(data.get("maxHops") or 5),
+            "maxResults": int(data.get("maxResults", 20)),
+        }
+        if data.get("actionCategories"):
+            out["actionCategories"] = list(data["actionCategories"])
+        return out
+
+    if tool_name == "inspect_data_path":
+        start_ref = data.get("startRef") or data.get("subjectRef") or ""
+        direction = str(data.get("direction", "FORWARD")).upper()
+        if direction not in {"FORWARD", "BACKWARD"}:
+            direction = "FORWARD"
+        return {
+            "startRef": str(start_ref),
+            "direction": direction,
+            "maxHops": int(data.get("maxHops") or 5),
+            "maxResults": int(data.get("maxResults", 20)),
+        }
+
+    if tool_name == "inspect_human_review_path":
+        start_ref = data.get("startRef") or data.get("subjectRef") or ""
+        return {
+            "startRef": str(start_ref),
+            "maxHops": int(data.get("maxHops") or 5),
+            "maxResults": int(data.get("maxResults", 20)),
+        }
+
+    return {k: v for k, v in data.items() if v is not None}
+
+
 def dispatch_agentic_tool(tool_name: str, request: TrustedAgenticToolRequest) -> dict[str, Any]:
+    from uuid import UUID
+    from tools.common.capabilities.agentic_evidence import (
+        ApiRbacToolAuthorizer,
+        AgenticToolRequest as InternalAgenticToolRequest,
+        AgenticToolValidationError,
+        ToolRuntimeTarget,
+        bind_runtime_handlers,
+        build_engineering_rule_agentic_registry,
+        runtime_binding,
+    )
+
+    binding = runtime_binding(tool_name)
+    if binding.runtime_target == ToolRuntimeTarget.PYTHON_LOCAL:
+        registry = build_engineering_rule_agentic_registry()
+        api_client = _get_api_client()
+        bind_runtime_handlers(registry, api_client=api_client, user_id=request.user_id)
+
+        rbac_client = getattr(api_client, "rbac_client", None)
+        if rbac_client is None and api_client is not None:
+            base_url = getattr(api_client, "_base_url", None)
+            api_key = getattr(api_client, "_api_key", None)
+            if base_url and api_key:
+                from tools.common.capabilities.platform.rbac_client import RbacClient
+                rbac_client = RbacClient(base_url, api_key)
+
+        if rbac_client is None:
+            raise AgenticToolValidationError("AGENTIC_TOOL_RBAC_UNAVAILABLE")
+
+        authorizer = ApiRbacToolAuthorizer(rbac_client=rbac_client)
+
+        capability = registry.capability(tool_name)
+        correlation_id = request.correlation_id or str(uuid4())
+        workflow_run_id = request.workflow_run_id or correlation_id
+
+        canonical_input = _normalize_canonical_input(tool_name, request.input)
+
+        agentic_request = InternalAgenticToolRequest.model_validate({
+            "toolName": tool_name,
+            "requestId": str(uuid4()),
+            "assessmentId": request.assessment_id,
+            "workflowRunId": workflow_run_id,
+            "artifactVersions": dict(request.artifact_versions),
+            "correlationId": correlation_id,
+            "budget": {
+                "maxItems": min(50, capability.max_items),
+                "maxDepth": min(5, capability.max_depth),
+                "maxBytes": min(262144, capability.max_bytes),
+                "maxDurationMs": min(30000, capability.max_duration_ms),
+            },
+            "input": canonical_input,
+        })
+        registry.validate_model_request(agentic_request)
+        authorizer.authorize(
+            tool_name=tool_name,
+            user_id=request.user_id,
+            correlationId=UUID(correlation_id) if isinstance(correlation_id, str) else correlation_id,
+        )
+        result = registry.invoke_model_tool(agentic_request)
+
+        # Record retrieved evidence refs and rich safe metadata into active turn ledger
+        from subagents.interview.customer_safe_projection import (
+            GovernedEvidenceMetadata,
+            get_active_turn_evidence_ledger,
+            normalize_coverage_state,
+            normalize_resolution_state,
+        )
+        ledger = get_active_turn_evidence_ledger()
+        if ledger is not None and isinstance(result, Mapping):
+            raw_cov = result.get("coverageState") or result.get("coverage_state")
+            coverage_state = normalize_coverage_state(raw_cov) if raw_cov is not None else "READY"
+            coverage_limitations = tuple(result.get("coverageNotes") or result.get("coverageLimitations") or ())
+
+            # Process top-level evidenceRefs
+            top_refs = list(result.get("evidenceRefs") or [])
+            for ref in top_refs:
+                ledger.record_metadata(
+                    GovernedEvidenceMetadata(
+                        evidence_ref=ref,
+                        resolution_state=normalize_resolution_state(result.get("resolutionState") or result.get("resolution_state")),
+                        coverage_state=coverage_state,
+                        coverage_limitations=coverage_limitations,
+                        safe_observation=str(result.get("summary") or result.get("label") or ""),
+                    )
+                )
+
+            # Process node-level evidenceRefs
+            if "nodes" in result:
+                for node in result["nodes"]:
+                    if isinstance(node, Mapping):
+                        node_res = normalize_resolution_state(node.get("resolution_state") or node.get("resolutionState"))
+                        node_label = str(node.get("label") or node.get("name") or "")
+                        node_refs = list(node.get("evidence_refs") or node.get("evidenceRefs") or [])
+                        for ref in node_refs:
+                            ledger.record_metadata(
+                                GovernedEvidenceMetadata(
+                                    evidence_ref=ref,
+                                    resolution_state=node_res,
+                                    coverage_state=coverage_state,
+                                    coverage_limitations=coverage_limitations,
+                                    safe_observation=node_label,
+                                )
+                            )
+
+            # Process edge-level evidenceRefs
+            if "edges" in result:
+                for edge in result["edges"]:
+                    if isinstance(edge, Mapping):
+                        edge_res = normalize_resolution_state(edge.get("resolution_state") or edge.get("resolutionState"))
+                        edge_refs = list(edge.get("evidence_refs") or edge.get("evidenceRefs") or [])
+                        for ref in edge_refs:
+                            ledger.record_metadata(
+                                GovernedEvidenceMetadata(
+                                    evidence_ref=ref,
+                                    resolution_state=edge_res,
+                                    coverage_state=coverage_state,
+                                    coverage_limitations=coverage_limitations,
+                                )
+                            )
+
+        if isinstance(result, dict):
+            return result
+        return dict(result)
+
     base_url = (os.environ.get("NESTJS_API_BASE_URL") or "").rstrip("/")
     api_key = os.environ.get("WORKER_API_KEY") or ""
     if not base_url or not api_key:
@@ -159,6 +369,21 @@ def dispatch_agentic_tool(tool_name: str, request: TrustedAgenticToolRequest) ->
     raise AgenticToolInvocationError("Agentic tool request failed unexpectedly.")
 
 
+def get_active_turn_evidence_ledger() -> Any:
+    from subagents.interview.customer_safe_projection import get_active_turn_evidence_ledger as _fn
+    return _fn()
+
+
+def set_active_turn_evidence_ledger(ledger: Any) -> Any:
+    from subagents.interview.customer_safe_projection import set_active_turn_evidence_ledger as _fn
+    return _fn(ledger)
+
+
+def reset_active_turn_evidence_ledger(token: Any) -> None:
+    from subagents.interview.customer_safe_projection import reset_active_turn_evidence_ledger as _fn
+    _fn(token)
+
+
 __all__ = [
     "AgenticToolInvocationError",
     "AgenticToolRequest",
@@ -166,6 +391,10 @@ __all__ = [
     "TrustedAgenticToolRequest",
     "ToolRuntime",
     "dispatch_agentic_tool",
+    "get_active_turn_evidence_ledger",
+    "reset_active_turn_evidence_ledger",
+    "set_active_turn_evidence_ledger",
+    "set_agentic_tool_api_client",
     "trusted_agentic_tool_request",
     "trusted_request_from_model_input",
 ]

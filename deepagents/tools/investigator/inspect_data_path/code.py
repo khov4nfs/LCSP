@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from langchain.tools import ToolRuntime, tool
 from pydantic import Field
@@ -14,11 +14,11 @@ from tools.common.runtime_envelope import (
 
 
 class InspectDataPathRequest(CorrelatedToolInput):
-    subject_ref: str = Field(alias="subjectRef", min_length=1, max_length=240)
-    source_ref: str | None = Field(default=None, alias="sourceRef")
-    sink_ref: str | None = Field(default=None, alias="sinkRef")
-    data_categories: list[str] = Field(default_factory=list, alias="dataCategories", max_length=50)
-    max_depth: int = Field(default=5, alias="maxDepth", ge=1, le=20)
+    subject_ref: str | None = Field(default=None, alias="subjectRef", max_length=240)
+    start_ref: str | None = Field(default=None, alias="startRef", max_length=240)
+    direction: Literal["FORWARD", "BACKWARD"] = Field(default="FORWARD")
+    max_hops: int = Field(default=5, alias="maxHops", ge=1, le=20)
+    max_results: int = Field(default=20, alias="maxResults", ge=1, le=100)
 
 
 @tool(args_schema=InspectDataPathRequest)

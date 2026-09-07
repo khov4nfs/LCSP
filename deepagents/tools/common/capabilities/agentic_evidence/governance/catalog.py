@@ -490,30 +490,17 @@ AGENTIC_TOOL_SPECS: tuple[AgenticToolSpec, ...] = (
         input_schema=_closed_object(
             {
                 "startRef": _START_REF,
-                "reviewKinds": _array(
-                    {
-                        "type": "string",
-                        "enum": [
-                            "QUEUE",
-                            "ASSIGNMENT",
-                            "APPROVAL",
-                            "STATE_GATE",
-                            "ESCALATION",
-                        ],
-                    },
-                    max_items=5,
-                    unique=True,
-                ),
                 "maxHops": {"type": "integer", "minimum": 1, "maximum": 20},
+                "maxResults": {"type": "integer", "minimum": 1, "maximum": 20},
             },
-            required=("startRef", "maxHops"),
+            required=("startRef", "maxHops", "maxResults"),
         ),
     ),
     AgenticToolSpec(
         name="inspect_data_path",
         description=(
-            "Return category-only ingress/schema/field-role paths without actual data values, "
-            "schemas, defaults or prompts."
+            "Return bounded category-safe data-flow structure without actual values, schemas, "
+            "defaults or prompts."
         ),
         exposure="LLM_CALLABLE",
         mutation=False,
@@ -526,22 +513,6 @@ AGENTIC_TOOL_SPECS: tuple[AgenticToolSpec, ...] = (
             {
                 "startRef": _START_REF,
                 "direction": {"type": "string", "enum": ["FORWARD", "BACKWARD"]},
-                "dataCategories": _array(
-                    {
-                        "type": "string",
-                        "enum": [
-                            "IDENTIFIER",
-                            "CONTACT",
-                            "FINANCIAL",
-                            "HEALTH",
-                            "LEGAL",
-                            "CONTENT",
-                            "UNKNOWN",
-                        ],
-                    },
-                    max_items=7,
-                    unique=True,
-                ),
                 "maxHops": {"type": "integer", "minimum": 1, "maximum": 20},
                 "maxResults": {"type": "integer", "minimum": 1, "maximum": 100},
             },
@@ -659,8 +630,8 @@ AGENTIC_TOOL_SPECS: tuple[AgenticToolSpec, ...] = (
     AgenticToolSpec(
         name="get_scan_coverage",
         description=(
-            "Return bounded file and tool coverage for one accepted TechnicalEvidenceReport; "
-            "use before making a scoped evidence claim."
+            "Return bounded global coverage for one accepted TechnicalEvidenceReport; "
+            "scoped coverage is not inferred without an explicit scanner coverage manifest."
         ),
         exposure="LLM_CALLABLE",
         mutation=False,
@@ -670,60 +641,15 @@ AGENTIC_TOOL_SPECS: tuple[AgenticToolSpec, ...] = (
         max_duration_ms=2_000,
         required_artifacts=("technicalEvidenceReportId",),
         input_schema=_closed_object(
-            {
-                "pathPrefixes": _array(
-                    _RELATIVE_PREFIX,
-                    min_items=1,
-                    max_items=20,
-                    unique=True,
-                ),
-                "languages": _array(
-                    {
-                        "type": "string",
-                        "enum": ["PYTHON", "TYPESCRIPT", "JAVASCRIPT", "OTHER"],
-                    },
-                    max_items=4,
-                    unique=True,
-                ),
-                "dispositions": _array(
-                    {
-                        "type": "string",
-                        "enum": ["ANALYZED", "SKIPPED", "LIMITED"],
-                    },
-                    max_items=3,
-                    unique=True,
-                ),
-                "toolNames": _array(
-                    {
-                        "type": "string",
-                        "enum": [
-                            "materialize_snapshot",
-                            "classify_workspace_languages",
-                            "run_syft_inventory",
-                            "run_semgrep_rules",
-                            "run_knip_usage_analysis",
-                            "run_deptry_usage_analysis",
-                            "run_python_semantic_analysis",
-                            "run_ts_js_semantic_analysis",
-                            "run_structural_augmentation",
-                            "build_evidence_graph",
-                            "validate_evidence_report",
-                        ],
-                    },
-                    max_items=11,
-                    unique=True,
-                ),
-                "cursor": {"type": "string", "maxLength": 512},
-                "maxResults": {"type": "integer", "minimum": 1, "maximum": 100},
-            },
+            {"maxResults": {"type": "integer", "minimum": 1, "maximum": 100}},
             required=("maxResults",),
         ),
     ),
     AgenticToolSpec(
         name="search_evidence",
         description=(
-            "Search normalized findings in one accepted report with bounded typed filters; "
-            "never perform raw-source or free-text repository search."
+            "Search normalized Program Evidence Graph nodes using bounded text/path filters; "
+            "never perform raw-source repository search."
         ),
         exposure="LLM_CALLABLE",
         mutation=False,
@@ -734,42 +660,8 @@ AGENTIC_TOOL_SPECS: tuple[AgenticToolSpec, ...] = (
         required_artifacts=("technicalEvidenceReportId",),
         input_schema=_closed_object(
             {
-                "findingKinds": _array(
-                    {
-                        "type": "string",
-                        "enum": [
-                            "AI_PROVIDER_INVOCATION",
-                            "DATA_PATH",
-                            "DECISION_PATH",
-                            "HUMAN_REVIEW_PATH",
-                            "DEPLOYMENT_CONTEXT",
-                            "DEPENDENCY_SIGNAL",
-                        ],
-                    },
-                    min_items=1,
-                    max_items=10,
-                    unique=True,
-                ),
-                "providers": _array(
-                    {
-                        "type": "string",
-                        "enum": ["OPENAI", "GOOGLE", "ANTHROPIC", "AZURE_OPENAI", "OTHER"],
-                    },
-                    min_items=1,
-                    max_items=10,
-                    unique=True,
-                ),
-                "pathPrefixes": _array(
-                    _RELATIVE_PREFIX,
-                    min_items=1,
-                    max_items=20,
-                    unique=True,
-                ),
-                "minConfidence": {
-                    "type": "string",
-                    "enum": ["LOW", "MEDIUM", "HIGH"],
-                },
-                "cursor": {"type": "string", "maxLength": 512},
+                "query": {"type": "string", "maxLength": 1000},
+                "pathPrefixes": _array(_RELATIVE_PREFIX, min_items=1, max_items=20, unique=True),
                 "maxResults": {"type": "integer", "minimum": 1, "maximum": 100},
             },
             required=("maxResults",),

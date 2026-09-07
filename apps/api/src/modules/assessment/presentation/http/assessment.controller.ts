@@ -295,12 +295,19 @@ export class InternalAssessmentInterviewController {
         ? (body as { technicalEvidenceReportId: string })
             .technicalEvidenceReportId
         : undefined;
+    const workflowRunId =
+      body &&
+      typeof body === "object" &&
+      typeof (body as { workflowRunId?: unknown }).workflowRunId === "string"
+        ? (body as { workflowRunId: string }).workflowRunId
+        : undefined;
     return resultEnvelope(
       await this.interviewRuntime.seedInitialQuestionForWorker({
         assessmentId,
         correlationId: request.correlationId ?? "worker-interview-context",
         state: body as never,
         technicalEvidenceReportId,
+        workflowRunId,
       }),
     );
   }

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_EVENT_TYPES,
@@ -20,10 +21,15 @@ import {
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
   ASSESSMENT_RUNTIME_STAGE_CODES,
   CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
+  INTERVIEW_FRONTIER_MATERIALITIES,
+  INTERVIEW_FRONTIER_OWNERS,
   type AssessmentContextAuthorityStatus,
   type AssessmentInterviewAnswerHistoryItem,
   type AssessmentInterviewAnswerInput,
   type AssessmentInterviewBlockedInput,
+  type AssessmentInterviewControl,
+  type AssessmentInterviewQuestion,
+  type AssessmentInterviewQuestionIntent,
   type AssessmentInterviewRuntimeState,
   EMPTY_INTERVIEW_WORKING_STRATEGY,
   type InterviewWorkingStrategy,
@@ -32,6 +38,7 @@ import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
 } from "@lcsp/contracts/outbox";
+import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import {
   BadRequestException,
   HttpStatus,
@@ -124,6 +131,7 @@ type TargetedInterviewContinuation = {
 
 type PrivateInterviewStore = {
   revisions: PrivateInterviewAnswerRevision[];
+  workflowRunId?: string;
   workingStrategy?: InterviewWorkingStrategy;
   targetedNeed?: TargetedInterviewNeed;
   targetedContinuation?: TargetedInterviewContinuation;
@@ -148,11 +156,15 @@ type WorkerPrivateContext = {
   status: "CURRENT" | "DUPLICATE" | "STALE" | "STALE_PROVENANCE";
   assessmentId: string;
   threadId: string;
+  workflowRunId?: string;
+  authenticatedActorId?: string;
   requestedRevision: number;
   currentRevision: number;
   processedRevision: number;
   sourceVersion: string;
   pgeVersion: string;
+  technicalCoverageState?: InterviewTechnicalCoverageState;
+  coverageLimitations?: string[];
   publicState: AssessmentInterviewRuntimeState;
   privateRevision?: PrivateInterviewAnswerRevision;
   targetedNeed?: TargetedInterviewNeed;
@@ -227,6 +239,13 @@ export class AssessmentInterviewRuntimeService {
         answeredAt: now,
         summary: summarizeAnswer(answer),
       };
+      const questionEvidenceRefs = [
+        ...(thread.state.activeQuestion.whyEvidenceRefs ?? []),
+        ...(thread.state.activeQuestion.frontier?.evidenceRefs ?? []),
+      ];
+      const lineageEvidenceRefs = Array.from(
+        new Set([...provenance.governedEvidenceRefs, ...questionEvidenceRefs]),
+      );
       const privateRevision: PrivateInterviewAnswerRevision = {
         questionId: answer.questionId,
         answer,
@@ -239,7 +258,7 @@ export class AssessmentInterviewRuntimeService {
         questionControl: thread.state.activeQuestion.control,
         sourceVersion: provenance.sourceVersion,
         pgeVersion: provenance.pgeVersion,
-        governedEvidenceRefs: provenance.governedEvidenceRefs,
+        governedEvidenceRefs: lineageEvidenceRefs,
       };
       const nextState: AssessmentInterviewRuntimeState = {
         ...thread.state,
@@ -259,7 +278,10 @@ export class AssessmentInterviewRuntimeService {
             priorRevision,
             newRevision: nextRevision,
             relatedQuestionId: answer.questionId,
-            provenance,
+            provenance: {
+              ...provenance,
+              governedEvidenceRefs: lineageEvidenceRefs,
+            },
           },
         ),
       };
@@ -301,9 +323,20 @@ export class AssessmentInterviewRuntimeService {
           },
         );
       }
+      const workflowRunId =
+        thread.privateStore.targetedContinuation?.workflowRunId ??
+        thread.privateStore.workflowRunId;
+      if (!workflowRunId) {
+        throw problemException(
+          "INTERVIEW_WORKFLOW_RUN_ID_REQUIRED",
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
       await this.outboxRepository.enqueue(
         this.interviewAgentResumeCommand({
           assessmentId: input.assessmentId,
+          workflowRunId,
           actorId: input.actor.userId,
           correlationId: input.correlationId,
           contextRevision: nextRevision,
@@ -359,7 +392,7 @@ export class AssessmentInterviewRuntimeService {
           threadId: this.threadId(input.assessmentId),
           turnId: nextRevision,
           sourceSnapshot,
-          evidenceRefs: provenance.governedEvidenceRefs,
+          evidenceRefs: lineageEvidenceRefs,
           correlationId: input.correlationId,
         },
         tx,
@@ -378,7 +411,7 @@ export class AssessmentInterviewRuntimeService {
           threadId: this.threadId(input.assessmentId),
           turnId: nextRevision,
           sourceSnapshot,
-          governedEvidenceRefs: provenance.governedEvidenceRefs,
+          governedEvidenceRefs: lineageEvidenceRefs,
           correlationId: input.correlationId,
         },
         tx,
@@ -408,7 +441,7 @@ export class AssessmentInterviewRuntimeService {
       startedAt: new Date(),
     });
 
-    return next.state;
+    return publicState(next.state);
   }
 
   async recordBlockedAction(input: {
@@ -461,9 +494,20 @@ export class AssessmentInterviewRuntimeService {
           current.guidanceVersion ?? this.resolveGuidanceVersion(),
       });
       if (shouldResume) {
+        const workflowRunId =
+          current.privateStore.targetedContinuation?.workflowRunId ??
+          current.privateStore.workflowRunId;
+        if (!workflowRunId) {
+          throw problemException(
+            "INTERVIEW_WORKFLOW_RUN_ID_REQUIRED",
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
         await this.outboxRepository.enqueue(
           this.interviewAgentResumeCommand({
             assessmentId: input.assessmentId,
+            workflowRunId,
             actorId: input.actor.userId,
             correlationId: input.correlationId,
             contextRevision: current.contextRevision,
@@ -524,7 +568,7 @@ export class AssessmentInterviewRuntimeService {
       startedAt: now,
     });
 
-    return result;
+    return publicState(result);
   }
 
   async getPrivateContextForWorker(input: {
@@ -574,16 +618,29 @@ export class AssessmentInterviewRuntimeService {
         : thread.contextRevision === input.contextRevision && privateRevision
           ? "CURRENT"
           : "STALE";
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: input.assessmentId },
+      select: { ownerId: true },
+    });
+    const authenticatedActorId =
+      privateRevision?.actorId || assessment?.ownerId;
+    const workflowRunId =
+      thread.privateStore.targetedContinuation?.workflowRunId ??
+      thread.privateStore.workflowRunId;
     return {
       status,
       assessmentId: input.assessmentId,
       threadId: this.threadId(input.assessmentId),
+      workflowRunId,
+      authenticatedActorId,
       requestedRevision: input.contextRevision,
       currentRevision: thread.contextRevision,
       processedRevision: thread.processedRevision,
       sourceVersion: authoritative.sourceVersion,
       pgeVersion: authoritative.pgeVersion,
-      publicState: thread.state,
+      technicalCoverageState: authoritative.technicalCoverageState,
+      coverageLimitations: authoritative.coverageLimitations,
+      publicState: publicState(thread.state),
       privateRevision,
       targetedNeed: target,
       guidanceVersion: thread.guidanceVersion ?? this.resolveGuidanceVersion(),
@@ -622,6 +679,16 @@ export class AssessmentInterviewRuntimeService {
           { status: HttpStatus.CONFLICT },
         );
       }
+      const authoritativeRefs = new Set(provenance.governedEvidenceRefs);
+      for (const ref of target.governedEvidenceRefs ?? []) {
+        if (!authoritativeRefs.has(ref)) {
+          throw problemException(
+            "INTERVIEW_EVIDENCE_REF_UNAUTHORIZED",
+            input.correlationId,
+            { status: HttpStatus.BAD_REQUEST, meta: { unauthorizedRef: ref } },
+          );
+        }
+      }
       const targetedNeed: TargetedInterviewNeed = {
         needId: target.needId,
         businessContextNeed: target.businessContextNeed,
@@ -652,6 +719,7 @@ export class AssessmentInterviewRuntimeService {
       };
       const privateStore: PrivateInterviewStore = {
         ...thread.privateStore,
+        workflowRunId: target.workflowRunId,
         targetedNeed,
         targetedContinuation,
       };
@@ -668,6 +736,7 @@ export class AssessmentInterviewRuntimeService {
       await this.outboxRepository.enqueue(
         this.interviewAgentResumeCommand({
           assessmentId: input.assessmentId,
+          workflowRunId: target.workflowRunId,
           actorId: target.actorId,
           correlationId: input.correlationId,
           contextRevision: thread.contextRevision,
@@ -757,6 +826,12 @@ export class AssessmentInterviewRuntimeService {
           { status: HttpStatus.CONFLICT },
         );
       }
+      const authorizedRefs = new Set([
+        ...authoritative.governedEvidenceRefs,
+        ...(latestPrivate?.governedEvidenceRefs ?? []),
+        ...(thread.privateStore.targetedNeed?.governedEvidenceRefs ?? []),
+      ]);
+
       const isBlockedFollowup =
         thread.state.outcome ===
           ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved &&
@@ -775,6 +850,44 @@ export class AssessmentInterviewRuntimeService {
         input.correlationId,
         { isBlockedFollowup, isTargetedBootstrap },
       );
+
+      // Materialize authoritative confirmed context after guarded transition
+      // checks. Model output supplies semantic facts only; runtime owns actor,
+      // assessment, timestamp, source, resolution and evidence membership.
+      if (isAuthoritative(decision.contextAuthority)) {
+        if (!latestPrivate) {
+          throw problemException(
+            "INTERVIEW_AUTHORITATIVE_CONTEXT_REQUIRES_CUSTOMER_REVISION",
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        if (!decision.confirmedContext) {
+          throw problemException(
+            "INTERVIEW_CONFIRMED_CONTEXT_INVALID",
+            input.correlationId,
+            { status: HttpStatus.BAD_REQUEST },
+          );
+        }
+        decision.confirmedContext =
+          materializeConfirmedStructuredBusinessContext(
+            decision.confirmedContext,
+            authorizedRefs,
+            input.assessmentId,
+            latestPrivate,
+            input.correlationId,
+          );
+      }
+
+      if (decision.activeQuestion) {
+        decision.activeQuestion = parsePersistableInterviewQuestion(
+          decision.activeQuestion,
+          decision.outcome,
+          authorizedRefs,
+          input.correlationId,
+        );
+      }
+
       const state = decisionState(thread.state, decision);
       const revisions = thread.privateRevisions.map((revision) =>
         revision.contextRevision === decision.expectedContextRevision
@@ -920,12 +1033,17 @@ export class AssessmentInterviewRuntimeService {
     correlationId: string;
     state: AssessmentInterviewRuntimeState;
     technicalEvidenceReportId?: string;
+    workflowRunId?: string;
   }): Promise<AssessmentInterviewRuntimeState> {
-    const state = parsePublicInterviewState(input.state);
+    const workflowRunId =
+      typeof input.workflowRunId === "string" && input.workflowRunId.trim()
+        ? input.workflowRunId.trim()
+        : randomUUID();
+    const rawState = objectRecord(input.state);
     if (
-      !state ||
-      state.outcome !== ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer ||
-      !state.activeQuestion
+      !rawState ||
+      rawState.outcome !== ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer ||
+      !objectRecord(rawState.activeQuestion)
     ) {
       throw problemException(
         "INTERVIEW_INITIAL_QUESTION_INVALID",
@@ -935,7 +1053,6 @@ export class AssessmentInterviewRuntimeService {
         },
       );
     }
-    const activeQuestionId = state.activeQuestion.id;
     const nextState = await this.prisma.$transaction(async (tx) => {
       const existing = await this.readThread(input.assessmentId, tx);
       const guidanceVersion =
@@ -950,6 +1067,26 @@ export class AssessmentInterviewRuntimeService {
         provenance.coverageLimitations,
         input.correlationId,
       );
+      const authorizedRefs = new Set(provenance.governedEvidenceRefs);
+      const validatedQuestion = parsePersistableInterviewQuestion(
+        rawState.activeQuestion,
+        rawState.outcome as string,
+        authorizedRefs,
+        input.correlationId,
+      );
+      if (!validatedQuestion) {
+        throw problemException(
+          "INTERVIEW_INITIAL_QUESTION_INVALID",
+          input.correlationId,
+          { status: HttpStatus.BAD_REQUEST },
+        );
+      }
+      const activeQuestionId = validatedQuestion.id;
+      const state: AssessmentInterviewRuntimeState = {
+        ...(rawState as unknown as AssessmentInterviewRuntimeState),
+        activeQuestion: validatedQuestion,
+      };
+
       const computedState: AssessmentInterviewRuntimeState = {
         ...state,
         threadId: this.threadId(input.assessmentId),
@@ -962,6 +1099,7 @@ export class AssessmentInterviewRuntimeService {
         processedRevision: 0,
         privateStore: {
           ...existing.privateStore,
+          workflowRunId,
           workingStrategy: normalizeStrategy(
             existing.privateStore.workingStrategy,
           ),
@@ -1101,7 +1239,7 @@ export class AssessmentInterviewRuntimeService {
         guidanceVersion: null,
       };
     }
-    const state = parsePublicInterviewState(thread.stateJson) ?? fallbackState;
+    const state = parseStoredInterviewState(thread.stateJson) ?? fallbackState;
     const privateStore = parsePrivateStore(thread.privateContextJson);
     return {
       state,
@@ -1165,6 +1303,7 @@ export class AssessmentInterviewRuntimeService {
 
   private interviewAgentResumeCommand(input: {
     assessmentId: string;
+    workflowRunId: string;
     actorId: string;
     correlationId: string;
     contextRevision: number;
@@ -1188,6 +1327,7 @@ export class AssessmentInterviewRuntimeService {
       payload: {
         assessmentId: input.assessmentId,
         threadId: this.threadId(input.assessmentId),
+        workflowRunId: input.workflowRunId,
         contextRevision: input.contextRevision,
         questionId: input.questionId,
         sourceVersion: input.sourceVersion,
@@ -1246,23 +1386,39 @@ export class AssessmentInterviewRuntimeService {
     governedEvidenceRefs: string[];
   }> {
     const client = tx ?? this.prisma;
-    const [snapshot, report] = await Promise.all([
-      client.repositorySnapshot.findFirst({
-        where: { assessmentId },
-        orderBy: { createdAt: "desc" },
-        select: { id: true, commitSha: true },
-      }),
-      client.technicalEvidenceReport.findFirst({
-        where: technicalEvidenceReportId
-          ? { assessmentId, id: technicalEvidenceReportId }
-          : { assessmentId },
-        orderBy: { createdAt: "desc" },
-        select: { id: true, schemaVersion: true, evidencePayload: true },
-      }),
-    ]);
+    const report = await client.technicalEvidenceReport.findFirst({
+      where: technicalEvidenceReportId
+        ? {
+            assessmentId,
+            id: technicalEvidenceReportId,
+            status: TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+          }
+        : {
+            assessmentId,
+            status: TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+          },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        schemaVersion: true,
+        evidencePayload: true,
+        snapshotId: true,
+        snapshot: { select: { id: true, commitSha: true } },
+      },
+    });
+    const snapshot = report?.snapshot
+      ? report.snapshot
+      : await client.repositorySnapshot.findFirst({
+          where: { assessmentId },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, commitSha: true },
+        });
     const evidencePayload = objectRecord(report?.evidencePayload);
     const evidenceGraph = objectRecord(
-      evidencePayload?.evidence_graph ?? evidencePayload?.evidenceGraph,
+      evidencePayload?.evidence_graph ??
+        evidencePayload?.evidenceGraph ??
+        evidencePayload?.programEvidenceGraph ??
+        evidencePayload?.program_evidence_graph,
     );
     const technicalCoverageState: InterviewTechnicalCoverageState =
       readTechnicalCoverageState(
@@ -1290,6 +1446,52 @@ export class AssessmentInterviewRuntimeService {
             )
           : [];
 
+    const rawGraphRefs =
+      evidenceGraph?.evidence_refs ?? evidenceGraph?.evidenceRefs;
+    const graphRefs: string[] = Array.isArray(rawGraphRefs)
+      ? rawGraphRefs.filter(
+          (item): item is string =>
+            typeof item === "string" && item.trim().length > 0,
+        )
+      : [];
+
+    const rawNodes = evidenceGraph?.nodes;
+    const nodeRefs: string[] = Array.isArray(rawNodes)
+      ? rawNodes.flatMap((node) => {
+          const rec = objectRecord(node);
+          const refs = rec?.evidence_refs ?? rec?.evidenceRefs;
+          return Array.isArray(refs)
+            ? refs.filter(
+                (item): item is string =>
+                  typeof item === "string" && item.trim().length > 0,
+              )
+            : [];
+        })
+      : [];
+
+    const rawEdges = evidenceGraph?.edges;
+    const edgeRefs: string[] = Array.isArray(rawEdges)
+      ? rawEdges.flatMap((edge) => {
+          const rec = objectRecord(edge);
+          const refs = rec?.evidence_refs ?? rec?.evidenceRefs;
+          return Array.isArray(refs)
+            ? refs.filter(
+                (item): item is string =>
+                  typeof item === "string" && item.trim().length > 0,
+              )
+            : [];
+        })
+      : [];
+
+    const rawPayloadRefs =
+      evidencePayload?.evidence_refs ?? evidencePayload?.evidenceRefs;
+    const payloadRefs: string[] = Array.isArray(rawPayloadRefs)
+      ? rawPayloadRefs.filter(
+          (item): item is string =>
+            typeof item === "string" && item.trim().length > 0,
+        )
+      : [];
+
     return {
       snapshotId: snapshot?.id,
       commitSha: snapshot?.commitSha,
@@ -1301,11 +1503,17 @@ export class AssessmentInterviewRuntimeService {
         : MISSING_PGE_VERSION,
       technicalCoverageState,
       coverageLimitations,
-      governedEvidenceRefs: [
-        ...(snapshot ? [`repositorySnapshot:${snapshot.id}`] : []),
-        ...(report ? [`technicalEvidenceReport:${report.id}`] : []),
-        `interviewRuntime:${INTERVIEW_SOURCE_VERSION}`,
-      ],
+      governedEvidenceRefs: Array.from(
+        new Set([
+          ...(snapshot ? [`repositorySnapshot:${snapshot.id}`] : []),
+          ...(report ? [`technicalEvidenceReport:${report.id}`] : []),
+          `interviewRuntime:${INTERVIEW_SOURCE_VERSION}`,
+          ...graphRefs,
+          ...nodeRefs,
+          ...edgeRefs,
+          ...payloadRefs,
+        ]),
+      ),
     };
   }
 
@@ -1434,6 +1642,151 @@ function parseTargetedNeedRegistration(
   };
 }
 
+function parsePersistableInterviewQuestion(
+  value: unknown,
+  outcome: string,
+  authorizedEvidenceRefs?: Set<string>,
+  correlationId: string = "",
+): AssessmentInterviewQuestion | undefined {
+  if (outcome !== ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer) {
+    return undefined;
+  }
+  const record = objectRecord(value);
+  if (
+    !record ||
+    !nonEmptyString(record.id) ||
+    !Object.values(ASSESSMENT_INTERVIEW_QUESTION_INTENTS).includes(
+      record.intent as never,
+    ) ||
+    !Object.values(ASSESSMENT_INTERVIEW_CONTROLS).includes(
+      record.control as never,
+    ) ||
+    !nonEmptyString(record.prompt)
+  ) {
+    throw problemException(
+      "INTERVIEW_INITIAL_QUESTION_INVALID",
+      correlationId,
+      { status: HttpStatus.BAD_REQUEST },
+    );
+  }
+
+  // Canonical frontier validation (CUSTOMER + MATERIAL required)
+  const frontierRecord = objectRecord(record.frontier);
+  if (!frontierRecord) {
+    throw problemException(
+      "INTERVIEW_QUESTION_FRONTIER_REQUIRED",
+      correlationId,
+      { status: HttpStatus.BAD_REQUEST },
+    );
+  }
+  if (frontierRecord.owner !== INTERVIEW_FRONTIER_OWNERS.customer) {
+    throw problemException(
+      "INTERVIEW_QUESTION_FRONTIER_NOT_CUSTOMER_OWNED",
+      correlationId,
+      { status: HttpStatus.BAD_REQUEST },
+    );
+  }
+  if (
+    frontierRecord.materiality !== INTERVIEW_FRONTIER_MATERIALITIES.material
+  ) {
+    throw problemException(
+      "INTERVIEW_QUESTION_FRONTIER_NOT_MATERIAL",
+      correlationId,
+      { status: HttpStatus.BAD_REQUEST },
+    );
+  }
+  if (!nonEmptyString(frontierRecord.description)) {
+    throw problemException(
+      "INTERVIEW_QUESTION_FRONTIER_DESCRIPTION_REQUIRED",
+      correlationId,
+      { status: HttpStatus.BAD_REQUEST },
+    );
+  }
+
+  const frontierEvidenceRefs = Array.isArray(frontierRecord.evidenceRefs)
+    ? frontierRecord.evidenceRefs.filter(
+        (item): item is string =>
+          typeof item === "string" && item.trim().length > 0,
+      )
+    : undefined;
+
+  const whyEvidenceRefs = Array.isArray(record.whyEvidenceRefs)
+    ? record.whyEvidenceRefs.filter(
+        (item): item is string =>
+          typeof item === "string" && item.trim().length > 0,
+      )
+    : undefined;
+
+  // Server-side evidence-ref authorization validation
+  if (authorizedEvidenceRefs) {
+    const refsToValidate = [
+      ...(whyEvidenceRefs ?? []),
+      ...(frontierEvidenceRefs ?? []),
+    ];
+    for (const ref of refsToValidate) {
+      if (!authorizedEvidenceRefs.has(ref)) {
+        throw problemException(
+          "INTERVIEW_EVIDENCE_REF_UNAUTHORIZED",
+          correlationId,
+          {
+            status: HttpStatus.BAD_REQUEST,
+            meta: { unauthorizedRef: ref },
+          },
+        );
+      }
+    }
+  }
+
+  const choices = Array.isArray(record.choices)
+    ? record.choices
+        .map((c) => {
+          const choiceRecord = objectRecord(c);
+          if (
+            !choiceRecord ||
+            !nonEmptyString(choiceRecord.id) ||
+            !nonEmptyString(choiceRecord.label)
+          ) {
+            return null;
+          }
+          return {
+            id: choiceRecord.id.trim(),
+            label: choiceRecord.label.trim(),
+            description:
+              typeof choiceRecord.description === "string"
+                ? choiceRecord.description.trim()
+                : undefined,
+            requiresFreeText: Boolean(choiceRecord.requiresFreeText),
+          };
+        })
+        .filter((c): c is NonNullable<typeof c> => c !== null)
+    : undefined;
+
+  return {
+    id: record.id.trim(),
+    needId:
+      typeof record.needId === "string" ? record.needId.trim() : undefined,
+    intent: record.intent as AssessmentInterviewQuestionIntent,
+    control: record.control as AssessmentInterviewControl,
+    prompt: record.prompt.trim(),
+    choices,
+    priorAnswerSummary:
+      typeof record.priorAnswerSummary === "string"
+        ? record.priorAnswerSummary.trim()
+        : undefined,
+    whyEvidenceRefs,
+    whyAreWeAsking:
+      typeof record.whyAreWeAsking === "string"
+        ? record.whyAreWeAsking.trim()
+        : undefined,
+    frontier: {
+      owner: INTERVIEW_FRONTIER_OWNERS.customer,
+      materiality: INTERVIEW_FRONTIER_MATERIALITIES.material,
+      description: frontierRecord.description.trim(),
+      evidenceRefs: frontierEvidenceRefs,
+    },
+  };
+}
+
 function parseAgentDecision(value: unknown): AgentDecisionInput {
   const record = objectRecord(value);
   if (
@@ -1445,6 +1798,11 @@ function parseAgentDecision(value: unknown): AgentDecisionInput {
   ) {
     throw new BadRequestException({ code: "INTERVIEW_AGENT_DECISION_INVALID" });
   }
+  const outcome = record.outcome as AgentDecisionInput["outcome"];
+  const activeQuestion = parsePersistableInterviewQuestion(
+    record.activeQuestion,
+    outcome,
+  );
   return {
     expectedContextRevision: record.expectedContextRevision,
     mode:
@@ -1452,10 +1810,8 @@ function parseAgentDecision(value: unknown): AgentDecisionInput {
       record.mode === "INITIAL_INTERVIEW"
         ? record.mode
         : undefined,
-    outcome: record.outcome as AgentDecisionInput["outcome"],
-    activeQuestion: objectRecord(record.activeQuestion)
-      ? (record.activeQuestion as AssessmentInterviewRuntimeState["activeQuestion"])
-      : undefined,
+    outcome,
+    activeQuestion,
     contextAuthority: Object.values(
       ASSESSMENT_CONTEXT_AUTHORITY_STATUSES,
     ).includes(record.contextAuthority as never)
@@ -1475,7 +1831,7 @@ function parseAgentDecision(value: unknown): AgentDecisionInput {
   };
 }
 
-function parsePublicInterviewState(
+function parseStoredInterviewState(
   value: unknown,
 ): AssessmentInterviewRuntimeState | null {
   const record = objectRecord(value);
@@ -1507,6 +1863,10 @@ function parsePrivateStore(value: unknown): PrivateInterviewStore {
   );
   return {
     revisions,
+    workflowRunId:
+      typeof record.workflowRunId === "string" && record.workflowRunId.trim()
+        ? record.workflowRunId.trim()
+        : undefined,
     targetedNeed,
     targetedContinuation,
     workingStrategy: normalizeStrategy(
@@ -1784,10 +2144,8 @@ function confirmedStructuredContextTopics(
     const statement = objectRecord(value);
     if (
       statement &&
-      statement.source ===
-        ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed &&
-      statement.resolutionState ===
-        ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed &&
+      statement.resolutionState !==
+        ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.uncertain &&
       nonEmptyString(statement.topic)
     ) {
       topics.add(statement.topic);
@@ -2045,16 +2403,211 @@ function summarizeAnswer(answer: AssessmentInterviewAnswerInput): string {
   return "Customer supplied free-text Interview context.";
 }
 
+function sanitizePublicText(text?: string): string | undefined {
+  if (!text) return undefined;
+  let sanitized = text;
+  sanitized = sanitized.replace(
+    /(?:api[_-]?key|secret|token|password|client[_-]?secret)\s*[:=]\s*['"][^'"]+['"]/gi,
+    "[redacted secret]",
+  );
+  sanitized = sanitized.replace(
+    /Authorization:\s*Bearer\s+[A-Za-z0-9._~+/-]+=*/gi,
+    "[redacted token]",
+  );
+  sanitized = sanitized.replace(
+    /\bBearer\s+[A-Za-z0-9._~+/-]{8,}\b/gi,
+    "[redacted token]",
+  );
+  sanitized = sanitized.replace(
+    /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g,
+    "[redacted token]",
+  );
+  sanitized = sanitized.replace(
+    /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{36,}\b/g,
+    "[redacted token]",
+  );
+  sanitized = sanitized.replace(/\bAKIA[0-9A-Z]{16}\b/g, "[redacted secret]");
+  sanitized = sanitized.replace(
+    /\bsk_(?:live|test)_[A-Za-z0-9_-]{12,}\b/gi,
+    "[redacted secret]",
+  );
+  sanitized = sanitized.replace(
+    /(?:postgres|mysql|mongodb|redis|amqp|http|https):\/\/[^/\s:@]+:[^/\s:@]+@[^/\s]+/gi,
+    "[redacted url]",
+  );
+  sanitized = sanitized.replace(
+    /(?:^|[\s"'`([])\/(?:etc|var|proc|sys|root|home|Users|private|tmp|app|secrets?)(?:\/[A-Za-z0-9_.-]+)*/gi,
+    " [path reference]",
+  );
+  sanitized = sanitized.replace(
+    /\b(?:[A-Za-z0-9_.-]+\/)+[A-Za-z0-9_.-]+\.(?:ts|tsx|js|jsx|py|java|go|rs|cpp|c|h|rb|php|cs|scala|kt|json|yaml|yml|env|conf|cfg|ini|log|txt|sh|bash)(?::\d+(?::\d+)?)?\b/gi,
+    "[file reference]",
+  );
+  sanitized = sanitized.replace(/\b(?:ENG|ER|LR)-\d+\b/gi, "");
+  sanitized = sanitized.replace(/\b(?:EngineeringRule|LegalRule)\b/gi, "");
+  sanitized = sanitized.replace(
+    /\bcheckpoint(?:Id)?\s*[:=]\s*['"][^'"]+['"]/gi,
+    "",
+  );
+  sanitized = sanitized.replace(
+    /\bthread(?:Id)?\s*[:=]\s*['"][^'"]+['"]/gi,
+    "",
+  );
+  sanitized = sanitized.replace(
+    /\bcontinuation(?:Token)?\s*[:=]\s*['"][^'"]+['"]/gi,
+    "",
+  );
+  sanitized = sanitized.replace(/\bcp-[A-Za-z0-9_-]+\b/gi, "");
+  sanitized = sanitized.replace(/\bcheckpoint(?:Id)?\b/gi, "");
+  sanitized = sanitized.replace(/\bcontinuation(?: token)?\b/gi, "");
+  sanitized = sanitized.replace(/\bthread(?:Id)?\b/gi, "");
+  sanitized = sanitized.replace(/\bLangGraph\b/gi, "");
+  sanitized = sanitized.replace(/\bnode:[0-9a-fA-F-]{8,}\b/gi, "");
+  sanitized = sanitized.replace(/\bsymbol:[a-zA-Z0-9_.:/-]+\b/gi, "");
+  return sanitized.replace(/[ \t]+/g, " ").trim();
+}
+
+function materializeConfirmedStructuredBusinessContext(
+  context: Record<string, unknown>,
+  authorizedRefs: Set<string>,
+  assessmentId: string,
+  privateRevision: PrivateInterviewAnswerRevision,
+  correlationId: string,
+): Record<string, unknown> {
+  if (!Array.isArray(context.statements) || context.statements.length === 0) {
+    throw problemException(
+      "INTERVIEW_CONFIRMED_CONTEXT_INVALID",
+      correlationId,
+      { status: HttpStatus.BAD_REQUEST },
+    );
+  }
+
+  const respondentRef = `actor:authenticated:${privateRevision.actorId}`;
+  const statements = context.statements.map((item) => {
+    const stmt = objectRecord(item);
+    if (
+      !stmt ||
+      !nonEmptyString(stmt.statementId) ||
+      !nonEmptyString(stmt.topic) ||
+      !nonEmptyString(stmt.statement)
+    ) {
+      throw problemException(
+        "INTERVIEW_CONFIRMED_CONTEXT_INVALID",
+        correlationId,
+        { status: HttpStatus.BAD_REQUEST },
+      );
+    }
+    const evidenceRefs = Array.isArray(stmt.evidenceRefs)
+      ? stmt.evidenceRefs.filter(
+          (ref): ref is string =>
+            typeof ref === "string" && ref.trim().length > 0,
+        )
+      : [];
+    for (const ref of evidenceRefs) {
+      if (!authorizedRefs.has(ref)) {
+        throw problemException(
+          "INTERVIEW_EVIDENCE_REF_UNAUTHORIZED",
+          correlationId,
+          { status: HttpStatus.BAD_REQUEST, meta: { unauthorizedRef: ref } },
+        );
+      }
+    }
+    const rawScope = objectRecord(stmt.scope);
+    const scope = rawScope
+      ? rawScope
+      : typeof stmt.scope === "string" && stmt.scope.trim()
+        ? { needId: stmt.scope.trim() }
+        : {};
+    return {
+      statementId: stmt.statementId.trim(),
+      assessmentId,
+      topic: stmt.topic.trim(),
+      statement: stmt.statement.trim(),
+      normalizedValue: Object.hasOwn(stmt, "normalizedValue")
+        ? stmt.normalizedValue
+        : stmt.statement.trim(),
+      scope,
+      evidenceRefs,
+      respondentRef,
+      createdAt: privateRevision.answeredAt,
+      ...(nonEmptyString(stmt.supersedesStatementId)
+        ? { supersedesStatementId: stmt.supersedesStatementId.trim() }
+        : {}),
+      source: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
+      resolutionState: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
+    };
+  });
+
+  return {
+    authority:
+      CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly,
+    assessmentId,
+    contextRevision: privateRevision.contextRevision,
+    statements,
+    createdByActorRef: respondentRef,
+  };
+}
+
+function publicActiveQuestion(
+  question?: AssessmentInterviewQuestion,
+): AssessmentInterviewQuestion | undefined {
+  if (!question) {
+    return undefined;
+  }
+  const hasSupportingEvidence = Boolean(
+    (question.whyEvidenceRefs && question.whyEvidenceRefs.length > 0) ||
+    (question.frontier?.evidenceRefs &&
+      question.frontier.evidenceRefs.length > 0) ||
+    question.hasSupportingEvidence,
+  );
+  const frontier = question.frontier
+    ? {
+        owner: question.frontier.owner,
+        materiality: question.frontier.materiality,
+        description:
+          sanitizePublicText(question.frontier.description) ??
+          question.frontier.description,
+      }
+    : undefined;
+
+  const choices = question.choices?.map((c) => ({
+    id: c.id,
+    label: sanitizePublicText(c.label) ?? c.label,
+    description: sanitizePublicText(c.description),
+    requiresFreeText: c.requiresFreeText,
+  }));
+
+  return {
+    id: question.id,
+    needId: question.needId,
+    intent: question.intent,
+    control: question.control,
+    prompt: sanitizePublicText(question.prompt) ?? question.prompt,
+    choices,
+    priorAnswerSummary: sanitizePublicText(question.priorAnswerSummary),
+    whyAreWeAsking: sanitizePublicText(question.whyAreWeAsking),
+    hasSupportingEvidence,
+    frontier,
+  };
+}
+
 function publicState(
   state: AssessmentInterviewRuntimeState,
 ): AssessmentInterviewRuntimeState {
   return {
-    ...state,
-    confirmedContext: undefined,
-    pendingDraft: state.pendingDraft,
+    outcome: state.outcome,
+    contextRevision: state.contextRevision,
+    contextAuthority: state.contextAuthority,
+    activeQuestion: publicActiveQuestion(state.activeQuestion),
+    blockedActions: state.blockedActions,
+    flags: state.flags,
+    orchestrationRequested: state.orchestrationRequested,
+    audit: undefined,
+    pendingDraft: sanitizePublicText(state.pendingDraft),
     answerHistory: state.answerHistory?.map((item) => ({
-      ...item,
-      summary: item.summary,
+      questionId: item.questionId,
+      answeredAt: item.answeredAt,
+      summary: sanitizePublicText(item.summary) ?? item.summary,
     })),
   };
 }
@@ -2062,7 +2615,7 @@ function publicState(
 function runtimeEventState(
   state: AssessmentInterviewRuntimeState,
 ): AssessmentInterviewRuntimeState {
-  return { ...publicState(state), pendingDraft: undefined };
+  return { ...publicState(state), pendingDraft: undefined, audit: undefined };
 }
 
 function objectRecord(value: unknown): Record<string, unknown> | null {

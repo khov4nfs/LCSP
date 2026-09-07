@@ -88,6 +88,41 @@ export const ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS = {
 export type AssessmentInterviewBlockedAction =
   (typeof ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS)[keyof typeof ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS];
 
+export const INTERVIEW_FRONTIER_OWNERS = {
+  customer: "CUSTOMER",
+  technical: "TECHNICAL",
+  system: "SYSTEM",
+} as const;
+
+export type InterviewFrontierOwner =
+  (typeof INTERVIEW_FRONTIER_OWNERS)[keyof typeof INTERVIEW_FRONTIER_OWNERS];
+
+export const INTERVIEW_FRONTIER_MATERIALITIES = {
+  material: "MATERIAL",
+  nonMaterial: "NON_MATERIAL",
+} as const;
+
+export type InterviewFrontierMateriality =
+  (typeof INTERVIEW_FRONTIER_MATERIALITIES)[keyof typeof INTERVIEW_FRONTIER_MATERIALITIES];
+
+export type AssessmentInterviewFrontierCandidate = {
+  owner: InterviewFrontierOwner;
+  materiality: InterviewFrontierMateriality;
+  description: string;
+  evidenceRefs?: string[];
+};
+
+export type PersistedCustomerQuestionFrontier = {
+  owner: typeof INTERVIEW_FRONTIER_OWNERS.customer;
+  materiality: typeof INTERVIEW_FRONTIER_MATERIALITIES.material;
+  description: string;
+  evidenceRefs?: string[];
+};
+
+export type AssessmentInterviewFrontier =
+  | PersistedCustomerQuestionFrontier
+  | AssessmentInterviewFrontierCandidate;
+
 export type AssessmentInterviewQuestionChoice = {
   id: string;
   label: string;
@@ -104,6 +139,31 @@ export type AssessmentInterviewQuestion = {
   choices?: AssessmentInterviewQuestionChoice[];
   priorAnswerSummary?: string;
   whyEvidenceRefs?: string[];
+  whyAreWeAsking?: string;
+  hasSupportingEvidence?: boolean;
+  frontier?: PersistedCustomerQuestionFrontier;
+};
+
+export type ConfirmedStructuredBusinessStatement = {
+  statementId: string;
+  assessmentId: string;
+  topic: string;
+  statement: string;
+  normalizedValue?: unknown;
+  scope?: Record<string, unknown>;
+  respondentRef: string;
+  createdAt: string;
+  source: typeof ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed;
+  resolutionState: typeof ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed;
+  evidenceRefs: string[];
+};
+
+export type ConfirmedStructuredBusinessContext = {
+  assessmentId: string;
+  contextRevision: number;
+  authority: typeof CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly;
+  statements: ConfirmedStructuredBusinessStatement[];
+  createdByActorRef?: string;
 };
 
 export type AssessmentInterviewAuditRef = {
@@ -125,7 +185,8 @@ export type AssessmentInterviewAuditRef = {
 export type AssessmentInterviewAnswerHistoryItem = {
   questionId: string;
   answeredAt: string;
-  actorId: string;
+  /** Internal history stores actorId; Customer projections omit it. */
+  actorId?: string;
   summary: string;
 };
 

@@ -14,7 +14,7 @@ def test_runtime_registry_binds_python_local_model_tools() -> None:
     registry = build_engineering_rule_agentic_registry(); api = MagicMock(); api.get_accepted_technical_evidence_report.return_value = {"evidence_payload": {"evidence_graph": _graph()}}
     bind_runtime_handlers(registry, api_client=api, user_id="user-1")
     response = registry.invoke_model_tool(_request("get_scan_coverage"))
-    assert response["coverageState"] == "SUFFICIENT"
+    assert response["coverageState"] == "READY"
     api.dispatch_agentic_tool.assert_not_called()
     api.get_accepted_technical_evidence_report.assert_called_once_with("ter-1")
 

@@ -64,6 +64,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         pge_version = _required_text(message, "pgeVersion")
         context_revision = _required_int(message, "contextRevision")
         resume_reason = _required_text(message, "resumeReason")
+        command_workflow_run_id = _required_text(message, "workflowRunId")
         api_client = self._api_client or self._load_api_client()
 
         context = api_client.get_interview_private_context(
@@ -89,6 +90,13 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                 root=self._root_agent or self._load_root_agent(),
             )
             return
+
+        server_workflow_run_id = _required_text(context, "workflowRunId")
+        if server_workflow_run_id != command_workflow_run_id:
+            raise ValueError(
+                "assessment Interview resume command workflowRunId does not match "
+                "the server-owned Interview workflow run"
+            )
 
         # A guard-accepted broker delivery may be retried after the worker crashes.
         # DUPLICATE therefore means no new Interview model turn, not automatically no-op.
@@ -168,31 +176,122 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         context: dict[str, Any],
         correlationId: str,
     ) -> dict[str, Any]:
-        dispatcher = self._dispatcher or self._load_dispatcher()
-        instruction = _interview_instruction(
-            assessment_id=assessment_id,
-            question_id=question_id,
-            context_revision=context_revision,
-            resume_reason=resume_reason,
-            context=context,
+        from uuid import UUID
+        from orchestration.context import LCSPRunContext
+        from subagents.interview.customer_safe_projection import (
+            TurnEvidenceLedger,
+            build_why_are_we_asking_explanation,
+            evaluate_question_eligibility,
+            extract_governed_evidence_refs,
+            reset_active_turn_evidence_ledger,
+            sanitize_customer_facing_text,
+            set_active_turn_evidence_ledger,
+            validate_evidence_refs,
         )
-        result = dispatcher.dispatch(
-            subagent_type="interview",
-            instruction=instruction,
+
+        private_revision = context.get("privateRevision")
+        targeted_need = context.get("targetedNeed")
+        actor_id = (
+            str(context.get("authenticatedActorId") or "").strip()
+            or str(context.get("actorId") or "").strip()
+            or str(context.get("userId") or "").strip()
+            or (str(private_revision.get("authenticatedActorId") or "").strip() if isinstance(private_revision, dict) else "")
+            or (str(private_revision.get("actorId") or "").strip() if isinstance(private_revision, dict) else "")
+            or (str(private_revision.get("userId") or "").strip() if isinstance(private_revision, dict) else "")
+        )
+        if not actor_id and isinstance(targeted_need, dict):
+            actor_id = str(targeted_need.get("actorId") or "").strip()
+        if not actor_id:
+            raise ValueError(
+                "Assessment Interview resume requires a trusted authenticated principal / actorId"
+            )
+
+        workflow_run_id = context.get("workflowRunId") or context.get("workflow_run_id")
+        if not workflow_run_id and isinstance(context.get("targetedContinuation"), dict):
+            workflow_run_id = context["targetedContinuation"].get("workflowRunId")
+        if not workflow_run_id or not str(workflow_run_id).strip():
+            raise ValueError(
+                "Assessment Interview resume requires a valid workflowRunId from orchestration"
+            )
+        valid_wf_id = str(workflow_run_id).strip()
+        if correlationId and valid_wf_id == correlationId:
+            raise ValueError(
+                "workflowRunId cannot be identical to correlationId"
+            )
+
+        source_version = str(context.get("sourceVersion") or "")
+        pge_version = str(context.get("pgeVersion") or "")
+        technical_evidence_report_id = (
+            pge_version.split(":", 1)[0].strip() if pge_version else ""
+        )
+        repository_snapshot_id = (
+            source_version.split(":", 1)[0].strip() if source_version else ""
+        )
+
+        run_context = LCSPRunContext(
+            assessment_id=assessment_id,
+            user_id=actor_id,
+            workflow_run_id=valid_wf_id,
+            artifact_versions={
+                "technicalEvidenceReportId": technical_evidence_report_id,
+                "repositorySnapshotId": repository_snapshot_id,
+                "sourceVersion": source_version,
+                "pgeVersion": pge_version,
+                "guidanceVersion": str(context.get("guidanceVersion") or ""),
+            },
             idempotency_key=(
                 f"assessment-interview:{assessment_id}:{context_revision}:{resume_reason}"
             ),
-            trigger=resume_reason,
-            metadata={
-                "assessment_id": assessment_id,
-                "question_id": question_id,
-                "context_revision": context_revision,
-                "guidance_version": context.get("guidanceVersion"),
-                "correlationId": correlationId,
-            },
-            thread_id=thread_id,
-            reenter_root=False,
         )
+
+        authorized_refs = {
+            f"repositorySnapshot:{repository_snapshot_id}",
+            f"technicalEvidenceReport:{technical_evidence_report_id}",
+            "interviewRuntime:assessment-interview-runtime-v1",
+        }
+        authorized_refs.update(
+            extract_governed_evidence_refs(private_revision, targeted_need, context)
+        )
+
+        cov_state = str(context.get("technicalCoverageState") or "READY")
+        cov_limitations = list(context.get("coverageLimitations") or [])
+        ledger = TurnEvidenceLedger(
+            initial_authorized_refs=authorized_refs,
+            initial_coverage_state=cov_state,
+            initial_coverage_limitations=cov_limitations,
+        )
+        ledger_token = set_active_turn_evidence_ledger(ledger)
+        try:
+            dispatcher = self._dispatcher or self._load_dispatcher()
+            instruction = _interview_instruction(
+                assessment_id=assessment_id,
+                question_id=question_id,
+                context_revision=context_revision,
+                resume_reason=resume_reason,
+                context=context,
+            )
+            result = dispatcher.dispatch(
+                subagent_type="interview",
+                instruction=instruction,
+                idempotency_key=(
+                    f"assessment-interview:{assessment_id}:{context_revision}:{resume_reason}"
+                ),
+                trigger=resume_reason,
+                metadata={
+                    "assessment_id": assessment_id,
+                    "question_id": question_id,
+                    "context_revision": context_revision,
+                    "guidance_version": context.get("guidanceVersion"),
+                    "correlationId": correlationId,
+                    "artifact_versions": run_context.artifact_versions,
+                },
+                thread_id=thread_id,
+                context=run_context,
+                reenter_root=False,
+            )
+        finally:
+            reset_active_turn_evidence_ledger(ledger_token)
+
         handoff = result.get("handoff") if isinstance(result, dict) else None
         if not isinstance(handoff, dict):
             raise ValueError("Interview specialist did not return a validated handoff")
@@ -209,6 +308,60 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                 targeted_need.get("needId"),
             }:
                 raise ValueError("Targeted Interview question escaped its registered need")
+
+        # Validate candidate question and evidence refs emitted by the Interview specialist
+        question = handoff.get("activeQuestion")
+        outcome = handoff.get("outcome")
+        if outcome == "WAITING_FOR_CUSTOMER":
+            if not isinstance(question, dict):
+                raise ValueError("Interview handoff with WAITING_FOR_CUSTOMER requires an activeQuestion")
+            frontier = question.get("frontier")
+            if not isinstance(frontier, dict):
+                raise ValueError("Interview question candidate requires frontier metadata")
+            eligible, reason = evaluate_question_eligibility(frontier, ledger)
+            if not eligible:
+                raise ValueError(f"Interview question candidate is not eligible: {reason}")
+            frontier_refs = frontier.get("evidenceRefs") or []
+            topic = str(frontier.get("description") or question.get("prompt") or "business clarification")
+            obs = str(frontier.get("description") or "")
+            question["whyAreWeAsking"] = build_why_are_we_asking_explanation(
+                topic=topic,
+                evidence_observation=obs,
+                coverage_state=str(context.get("technicalCoverageState") or "READY"),
+                coverage_limitations=list(context.get("coverageLimitations") or []),
+                ledger=ledger,
+                evidence_refs=frontier_refs,
+            )
+
+        confirmed_context = handoff.get("confirmedContext")
+        if isinstance(confirmed_context, dict):
+            confirmed_refs: list[str] = []
+            statements = confirmed_context.get("statements")
+            if isinstance(statements, list):
+                for statement in statements:
+                    if isinstance(statement, dict):
+                        refs = statement.get("evidenceRefs") or statement.get("evidence_refs") or []
+                        if isinstance(refs, list):
+                            confirmed_refs.extend(str(ref) for ref in refs if str(ref).strip())
+            validate_evidence_refs(confirmed_refs, ledger.authorized_refs)
+
+        if isinstance(question, dict):
+            if "prompt" in question and question["prompt"]:
+                question["prompt"] = sanitize_customer_facing_text(str(question["prompt"]))
+            if "whyAreWeAsking" in question and question["whyAreWeAsking"]:
+                question["whyAreWeAsking"] = sanitize_customer_facing_text(
+                    str(question["whyAreWeAsking"])
+                )
+
+            question_refs = (
+                question.get("whyEvidenceRefs")
+                or question.get("governedEvidenceRefs")
+                or []
+            )
+            frontier = question.get("frontier")
+            frontier_refs = frontier.get("evidenceRefs") or [] if isinstance(frontier, dict) else []
+            validate_evidence_refs([*question_refs, *frontier_refs], ledger.authorized_refs)
+
         return handoff
 
     def _run_guarded_continuation(
@@ -653,6 +806,8 @@ def _interview_instruction(
         "resumeReason": resume_reason,
         "sourceVersion": context.get("sourceVersion"),
         "pgeVersion": context.get("pgeVersion"),
+        "technicalCoverageState": context.get("technicalCoverageState"),
+        "coverageLimitations": list(context.get("coverageLimitations") or []),
         "guidanceVersion": context.get("guidanceVersion"),
         "workingStrategy": context.get(
             "workingStrategy",
