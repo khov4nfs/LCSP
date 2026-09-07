@@ -1,4 +1,8 @@
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import type {
+  AssessmentDetectedPullRequest,
+  AssessmentPostFindingRuntimeState,
+} from "@lcsp/contracts/evidence";
 import type { MessageEvent } from "@nestjs/common";
 import { Controller, Logger, Sse, UseGuards } from "@nestjs/common";
 import {
@@ -89,6 +93,9 @@ export class WorkspaceRuntimeEventsController {
               evidence_reports: data.evidenceReports.map(
                 toLegacyEvidenceReportPayload,
               ),
+              post_finding: data.postFindingStates.map(
+                toPostFindingRuntimePayload,
+              ),
             },
           })),
           catchError((error) => {
@@ -101,6 +108,50 @@ export class WorkspaceRuntimeEventsController {
       ),
     );
   }
+}
+
+function toPostFindingRuntimePayload(state: AssessmentPostFindingRuntimeState) {
+  return {
+    assessment_id: state.assessmentId,
+    phase: state.phase,
+    code_review_activities: state.codeReviewActivities,
+    decision_availability: state.decisionAvailability,
+    selected_decision: state.selectedDecision ?? null,
+    selected_decision_at: state.selectedDecisionAt ?? null,
+    detected_pull_request: toPostFindingPullRequestPayload(
+      state.detectedPullRequest,
+    ),
+    created_pull_request: toPostFindingPullRequestPayload(
+      state.createdPullRequest,
+    ),
+    approval_status: state.approvalStatus,
+    approved_patch_version: state.approvedPatchVersion ?? null,
+    verification_activities: state.verificationActivities,
+    verification_status: state.verificationStatus ?? null,
+    final_result: state.finalResult ?? null,
+    can_continue_remediation: state.canContinueRemediation ?? false,
+    artifacts: {
+      remediation_patch_resource_id:
+        state.artifacts?.remediationPatchResourceId ?? null,
+      verification_report_resource_id:
+        state.artifacts?.verificationReportResourceId ?? null,
+      final_report_resource_id: state.artifacts?.finalReportResourceId ?? null,
+    },
+  };
+}
+
+function toPostFindingPullRequestPayload(
+  pullRequest: AssessmentDetectedPullRequest | undefined,
+) {
+  if (!pullRequest) {
+    return null;
+  }
+  return {
+    number: pullRequest.number,
+    url: pullRequest.url ?? null,
+    branch: pullRequest.branch,
+    patch_version: pullRequest.patchVersion,
+  };
 }
 
 function snapshotFailureReason(error: unknown): string {

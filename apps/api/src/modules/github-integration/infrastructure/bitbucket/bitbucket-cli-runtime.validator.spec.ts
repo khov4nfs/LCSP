@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 import { describe, expect, it, jest } from "@jest/globals";
 import { GITHUB_CREDENTIAL_ERROR_CODES } from "@lcsp/contracts/github-integration";
@@ -29,6 +29,17 @@ describe("Bitbucket CLI runtime validation", () => {
     expect(resolveBitbucketCliExecutablePath("/opt/bb/bin/bb")).toBe(
       "/opt/bb/bin/bb",
     );
+  });
+
+  it("resolves a workspace-relative configured executable path", () => {
+    expect(
+      resolveBitbucketCliExecutablePath(
+        ".cache/lcsp-cli/bitbucket-cli/bin/bb",
+        {
+          cwd: "/workspace/LCSP",
+        },
+      ),
+    ).toBe(resolve("/workspace/LCSP", ".cache/lcsp-cli/bitbucket-cli/bin/bb"));
   });
 
   it("fails clearly when bb is not discoverable", () => {

@@ -86,6 +86,7 @@ test("1. MAINLINE — READY coverage + WAITING_FOR_CUSTOMER question", () => {
     latestRunId: "run-1",
     connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
     lastEmittedAt: "2026-09-05T08:00:00.000Z",
+    postFinding: null,
   };
 
   const normalized = normalizeAssessmentRuntime({
@@ -149,7 +150,15 @@ test("production sidebar normalization preserves repository metadata and canonic
   });
   assert.deepEqual(
     normalized.workflow.steps.map((step) => step.id),
-    ["REPOSITORY", "SCANNER", "INTERVIEW", "RULES", "PLANNER", "INVESTIGATE", "GATE"],
+    [
+      "REPOSITORY",
+      "SCANNER",
+      "INTERVIEW",
+      "RULES",
+      "PLANNER",
+      "INVESTIGATE",
+      "GATE",
+    ],
   );
   assert.equal(
     normalized.workflow.steps[0]?.status,
@@ -759,6 +768,7 @@ test("20. TARGETED LOOP: investigator waiting + interview clarifying creates syn
     latestRunId: "run-targeted",
     connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
     lastEmittedAt: "2026-09-05T09:40:00.000Z",
+    postFinding: null,
   };
 
   const normalized = normalizeAssessmentRuntime({
@@ -825,6 +835,7 @@ test("23. SSE DISCONNECTED: connection state disconnected does not mutate interv
     latestRunId: null,
     connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.disconnected,
     lastEmittedAt: null,
+    postFinding: null,
   };
 
   const normalized = normalizeAssessmentRuntime({
@@ -1278,6 +1289,7 @@ function scannerTimeline(
     latestRunId: `${assessmentId}-scan`,
     connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
     lastEmittedAt: "2026-09-05T08:03:00.000Z",
+    postFinding: null,
   };
 }
 
