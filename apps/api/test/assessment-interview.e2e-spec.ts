@@ -8,6 +8,8 @@ import {
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
   CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
+  INTERVIEW_FRONTIER_MATERIALITIES,
+  INTERVIEW_FRONTIER_OWNERS,
 } from "@lcsp/contracts/evidence";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
@@ -54,7 +56,7 @@ function confirmedStructuredContext(input: {
         statement: input.statement,
         normalizedValue: input.statement,
         scope: { topic: input.topic },
-        evidenceRefs: ["evidence:customer:e2e"],
+        evidenceRefs: ["interviewRuntime:assessment-interview-runtime-v1"],
         respondentRef: "actor:authenticated:user-1",
         createdAt: "2026-09-05T00:00:00Z",
         source: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
@@ -138,8 +140,10 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     assert.equal(state.orchestrationRequested, true);
     assert.equal(state.answerHistory[0]?.questionId, QUESTION_ID);
     assert.notEqual(state.answerHistory[0]?.summary, RAW_ANSWER);
-    assert.equal(state.audit.authenticatedActorId, "user-1");
-    assert.equal(state.audit.relatedQuestionId, QUESTION_ID);
+    assert.equal(
+      (state as unknown as Record<string, unknown>).audit,
+      undefined,
+    );
 
     const event = await prisma.assessmentRuntimeEvent.findFirstOrThrow({
       where: { assessmentId: "assessment-1", toolName: "assessment_interview" },
@@ -318,7 +322,12 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
         contextAuthority:
           ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
-        confirmedContext: { decision_authority: "human approval required" },
+        confirmedContext: confirmedStructuredContext({
+          assessmentId: "assessment-1",
+          contextRevision: 1,
+          topic: "decision_authority",
+          statement: "human approval required",
+        }),
       });
     assert.equal(
       forgedCustomerConfirmation.status,
@@ -333,7 +342,12 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
         expectedContextRevision: 1,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
         contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
-        confirmedContext: { decision_authority: "human approval required" },
+        confirmedContext: confirmedStructuredContext({
+          assessmentId: "assessment-1",
+          contextRevision: 1,
+          topic: "decision_authority",
+          statement: "human approval required",
+        }),
       });
     assert.equal(ready.status, 201, JSON.stringify(ready.body));
     assert.equal(
@@ -348,6 +362,12 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
         expectedContextRevision: 1,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
         contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
+        confirmedContext: confirmedStructuredContext({
+          assessmentId: "assessment-1",
+          contextRevision: 1,
+          topic: "decision_authority",
+          statement: "human approval required",
+        }),
       });
     assert.equal(duplicate.status, 409, JSON.stringify(duplicate.body));
   });
@@ -365,6 +385,11 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
           intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
           control: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
           prompt: "Agent-authored runtime question",
+          frontier: {
+            owner: INTERVIEW_FRONTIER_OWNERS.customer,
+            materiality: INTERVIEW_FRONTIER_MATERIALITIES.material,
+            description: "Agent-authored runtime question",
+          },
         },
       });
     assert.equal(seeded.status, 201, JSON.stringify(seeded.body));
@@ -464,6 +489,11 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
           intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
           control: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
           prompt: "Is human approval required?",
+          frontier: {
+            owner: INTERVIEW_FRONTIER_OWNERS.customer,
+            materiality: INTERVIEW_FRONTIER_MATERIALITIES.material,
+            description: "Is human approval required?",
+          },
         },
       });
     assert.equal(seeded.status, 201, JSON.stringify(seeded.body));
@@ -501,7 +531,12 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
         expectedContextRevision: 1,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
         contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
-        confirmedContext: { baseline: "confirmed" },
+        confirmedContext: confirmedStructuredContext({
+          assessmentId: "assessment-1",
+          contextRevision: 1,
+          topic: "baseline",
+          statement: "confirmed",
+        }),
       });
     assert.equal(ready.status, 201, JSON.stringify(ready.body));
 
@@ -567,6 +602,11 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
           intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
           control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
           prompt: "Who has final decision authority?",
+          frontier: {
+            owner: INTERVIEW_FRONTIER_OWNERS.customer,
+            materiality: INTERVIEW_FRONTIER_MATERIALITIES.material,
+            description: "Who has final decision authority?",
+          },
         },
       });
     assert.equal(question.status, 201, JSON.stringify(question.body));
@@ -635,6 +675,12 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
           prompt:
             "Please confirm this interpretation before it becomes authoritative.",
           priorAnswerSummary: "The human operations lead has final approval.",
+          frontier: {
+            owner: INTERVIEW_FRONTIER_OWNERS.customer,
+            materiality: INTERVIEW_FRONTIER_MATERIALITIES.material,
+            description:
+              "Please confirm this interpretation before it becomes authoritative.",
+          },
         },
       });
     assert.equal(
@@ -744,6 +790,11 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
           intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
           control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
           prompt: "Please provide the additional context.",
+          frontier: {
+            owner: INTERVIEW_FRONTIER_OWNERS.customer,
+            materiality: INTERVIEW_FRONTIER_MATERIALITIES.material,
+            description: "Please provide the additional context.",
+          },
         },
       });
     assert.equal(decision.status, 201, JSON.stringify(decision.body));
@@ -820,13 +871,17 @@ async function seedUsableTechnicalCoverage(
 }
 
 async function seedWaitingQuestion(prisma: PrismaClient): Promise<void> {
+  const privateContext = {
+    revisions: [],
+    workflowRunId: "00000000-0000-4000-8000-000000000001",
+  };
   await prisma.assessmentInterviewThread.upsert({
     where: { assessmentId: "assessment-1" },
     update: {
       contextRevision: 0,
       activeQuestionId: QUESTION_ID,
       processedRevision: 0,
-      privateContextJson: [],
+      privateContextJson: privateContext,
       stateJson: {
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
         threadId: "interview:assessment-1",
@@ -846,7 +901,7 @@ async function seedWaitingQuestion(prisma: PrismaClient): Promise<void> {
       contextRevision: 0,
       activeQuestionId: QUESTION_ID,
       processedRevision: 0,
-      privateContextJson: [],
+      privateContextJson: privateContext,
       stateJson: {
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
         threadId: "interview:assessment-1",

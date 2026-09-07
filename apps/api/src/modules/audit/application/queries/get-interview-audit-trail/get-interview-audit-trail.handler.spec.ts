@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 import { jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
@@ -26,9 +27,9 @@ async function captureError(promise: Promise<unknown>): Promise<HttpException> {
 
 describe("GetInterviewAuditTrailHandler", () => {
   let handler: GetInterviewAuditTrailHandler;
-  let findUniqueAssessmentMock: jest.Mock<any>;
-  let findManyAuditEventsMock: jest.Mock<any>;
-  let countAuditEventsMock: jest.Mock<any>;
+  let findUniqueAssessmentMock: any;
+  let findManyAuditEventsMock: any;
+  let countAuditEventsMock: any;
   let redactor: AuditRedactorService;
 
   beforeEach(() => {

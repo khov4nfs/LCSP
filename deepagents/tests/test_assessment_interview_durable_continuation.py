@@ -22,7 +22,7 @@ def _confirmed_context() -> dict:
                 "statement": "human",
                 "normalizedValue": "human",
                 "scope": {"needId": "need-1"},
-                "evidenceRefs": ["evidence:customer:1"],
+                "evidenceRefs": ["technicalEvidenceReport:ter-1"],
                 "respondentRef": "actor:authenticated:1",
                 "createdAt": "2026-09-05T00:00:00Z",
                 "source": "CUSTOMER_CONFIRMED",
@@ -76,6 +76,8 @@ def _message(*, targeted: bool = False) -> dict:
     return {
         "assessmentId": "assessment-1",
         "threadId": "interview:assessment-1",
+        "workflowRunId": "c0000000-0000-0000-0000-000000000001",
+        "authenticatedActorId": "user-actor-test",
         "questionId": "need-1" if targeted else "question-1",
         "contextRevision": 2,
         "sourceVersion": "snapshot-1:abc",
@@ -115,14 +117,21 @@ class MutableApi:
         result = {
             "status": self.status,
             "threadId": "interview:assessment-1",
+            "workflowRunId": "c0000000-0000-0000-0000-000000000001",
+            "authenticatedActorId": "user-actor-test",
+            "actorId": "user-actor-test",
             "sourceVersion": "snapshot-1:abc",
             "pgeVersion": "ter-1:v1",
             "publicState": dict(self.public_state),
-            "privateRevision": {"answer": {"freeText": "private customer context"}},
+            "privateRevision": {
+                "actorId": "user-actor-test",
+                "answer": {"freeText": "private customer context"},
+            },
         }
         if self.targeted:
             result["targetedNeed"] = {
                 "needId": "need-1",
+                "actorId": "user-actor-test",
                 "businessContextNeed": "Who approves this decision?",
                 "resolutionCriteria": ["decision_authority"],
                 "originatingInvestigationReference": CONTINUATION[

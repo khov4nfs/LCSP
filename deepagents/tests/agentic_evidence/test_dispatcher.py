@@ -26,7 +26,7 @@ def test_dispatcher_queries_program_graph_without_nest_analysis_handler() -> Non
     api = MagicMock(); api.get_accepted_technical_evidence_report.return_value = {"evidence_payload": {"evidence_graph": _graph()}}
     dispatcher = AgenticToolDispatcher(AgenticToolExecutionContext(api, "user-1", "org-1"))
     response = dispatcher.dispatch(_request("get_scan_coverage"))
-    assert response["coverageState"] == "SUFFICIENT"
+    assert response["coverageState"] == "READY"
     api.get_accepted_technical_evidence_report.assert_called_once_with("ter-1")
     api.dispatch_agentic_tool.assert_not_called()
 
