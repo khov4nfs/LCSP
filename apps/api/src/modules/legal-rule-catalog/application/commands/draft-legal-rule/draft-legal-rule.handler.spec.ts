@@ -26,11 +26,11 @@ describe("DraftLegalRuleHandler", () => {
   beforeEach(async () => {
     prisma = {
       legalRuleCatalogVersion: {
-        findUnique: jest.fn<any>(),
+        findUnique: jest.fn(),
       },
-      $transaction: jest.fn<any>((cb: any) => cb(prisma)),
+      $transaction: jest.fn((cb: any) => cb(prisma)),
       legalRule: {
-        create: jest.fn<any>(),
+        create: jest.fn(),
       },
     } as unknown as jest.Mocked<PrismaService>;
 

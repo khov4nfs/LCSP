@@ -429,6 +429,8 @@ export function pushPrismaSchema(): void {
         ...process.env,
         DATABASE_URL: TEST_DATABASE_URL,
         XDG_CACHE_HOME: cacheHome,
+        PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION:
+          process.env.PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION ?? "yes",
       },
       stdio: "pipe",
       shell: process.platform === "win32",

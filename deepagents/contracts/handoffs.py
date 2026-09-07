@@ -68,6 +68,17 @@ class InterviewQuestionChoice(BaseModel):
     requiresFreeText: bool = False
 
 
+class InterviewFrontierResult(BaseModel):
+    """Structured customer/technical frontier supporting the question."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    owner: Literal["CUSTOMER", "TECHNICAL", "SYSTEM"]
+    materiality: Literal["MATERIAL", "NON_MATERIAL"]
+    description: str = Field(min_length=1, max_length=2_000)
+    evidenceRefs: list[str] = Field(default_factory=list, max_length=50)
+
+
 class InterviewQuestionResult(BaseModel):
     """Interview Agent-authored bounded Customer-facing question."""
 
@@ -80,6 +91,8 @@ class InterviewQuestionResult(BaseModel):
     choices: list[InterviewQuestionChoice] = Field(default_factory=list, max_length=20)
     priorAnswerSummary: str | None = Field(default=None, max_length=1_000)
     whyEvidenceRefs: list[str] = Field(default_factory=list, max_length=50)
+    whyAreWeAsking: str | None = Field(default=None, max_length=2_000)
+    frontier: InterviewFrontierResult | None = None
     needId: str | None = Field(default=None, max_length=240)
 
     @model_validator(mode="after")
@@ -126,8 +139,18 @@ class InterviewResult(BaseModel):
     def validate_transition_shape(self) -> Self:
         if self.activeQuestion is not None and self.outcome != "WAITING_FOR_CUSTOMER":
             raise ValueError("activeQuestion requires WAITING_FOR_CUSTOMER outcome")
-        if self.outcome == "WAITING_FOR_CUSTOMER" and self.activeQuestion is None:
-            raise ValueError("WAITING_FOR_CUSTOMER requires activeQuestion")
+        if self.outcome == "WAITING_FOR_CUSTOMER":
+            if self.activeQuestion is None:
+                raise ValueError("WAITING_FOR_CUSTOMER requires activeQuestion")
+            if self.activeQuestion.frontier is None:
+                raise ValueError("WAITING_FOR_CUSTOMER activeQuestion requires a structured frontier")
+            if (
+                self.activeQuestion.frontier.owner != "CUSTOMER"
+                or self.activeQuestion.frontier.materiality != "MATERIAL"
+            ):
+                raise ValueError(
+                    "Customer question requires CUSTOMER-owned MATERIAL frontier"
+                )
         if self.outcome == "BLOCKED_OR_UNRESOLVED" and not self.blockedActions:
             self.blockedActions = [
                 "PROVIDE_MORE_CONTEXT",
@@ -326,6 +349,7 @@ SPECIALIST_RESPONSE_FORMATS: dict[str, type[BaseModel]] = {
 __all__ = [
     "BusinessContextNeed",
     "GraphSeed",
+    "InterviewFrontierResult",
     "InterviewQuestionChoice",
     "InterviewQuestionResult",
     "InterviewResult",

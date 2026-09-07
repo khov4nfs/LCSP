@@ -21,7 +21,7 @@ def _confirmed_context() -> dict:
                 "statement": "human",
                 "normalizedValue": "human",
                 "scope": {"needId": "need-1"},
-                "evidenceRefs": ["evidence:customer:1"],
+                "evidenceRefs": ["technicalEvidenceReport:ter-1"],
                 "respondentRef": "actor:authenticated:1",
                 "createdAt": "2026-09-05T00:00:00Z",
                 "source": "CUSTOMER_CONFIRMED",
@@ -44,6 +44,12 @@ WAITING_HANDOFF = {
         "intent": "ASK",
         "control": "FREE_TEXT",
         "prompt": "Please provide the missing business context.",
+        "frontier": {
+            "owner": "CUSTOMER",
+            "materiality": "MATERIAL",
+            "description": "Missing business context clarification",
+            "evidenceRefs": [],
+        },
     },
     "contextAuthority": "CUSTOMER_STATED",
     "confirmedContext": {},
@@ -101,6 +107,11 @@ class RecordingApi:
         return {
             "status": self.status,
             "threadId": "interview:assessment-1",
+            "workflowRunId": "a0000000-0000-0000-0000-000000000001",
+            "authenticatedActorId": "user-test-actor",
+            "actorId": "user-test-actor",
+            "sourceVersion": "snapshot-1:abc",
+            "pgeVersion": "ter-1:v1",
             "guidanceVersion": "guidance-v1",
             "workingStrategy": {
                 "terminologyMap": {"human oversight": "manual review"},
@@ -115,7 +126,10 @@ class RecordingApi:
                 "contextRevision": context_revision,
                 "orchestrationRequested": True,
             },
-            "privateRevision": {"answer": {"freeText": "raw"}},
+            "privateRevision": {
+                "actorId": "user-test-actor",
+                "answer": {"freeText": "raw"},
+            },
         }
 
     def post_interview_agent_decision(self, assessment_id, payload):
@@ -129,6 +143,8 @@ def _message(*, reason="INTERVIEW_AGENT_DECISION_REQUIRED", revision=2):
     return {
         "assessmentId": "assessment-1",
         "threadId": "interview:assessment-1",
+        "workflowRunId": "a0000000-0000-0000-0000-000000000001",
+        "authenticatedActorId": "user-test-actor",
         "questionId": "agent-question-1",
         "contextRevision": revision,
         "sourceVersion": "snapshot-1:abc",

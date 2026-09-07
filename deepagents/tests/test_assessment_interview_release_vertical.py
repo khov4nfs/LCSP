@@ -83,7 +83,7 @@ def _confirmed_context(
                 'statement': statement,
                 'normalizedValue': statement,
                 'scope': {'topic': topic},
-                'evidenceRefs': ['evidence:customer:release'],
+                'evidenceRefs': [EVIDENCE_REF],
                 'respondentRef': 'actor:authenticated-release',
                 'createdAt': '2026-09-05T00:00:00Z',
                 'source': 'CUSTOMER_CONFIRMED',
@@ -317,8 +317,11 @@ class _VerticalApi:
         self.current_revision = 1
         self.private_revision = {
             'revision': 1,
+            'actorId': 'user-release-vertical',
+            'authenticatedActorId': 'user-release-vertical',
             'answer': {'freeText': 'The system provides recommendations only.'},
             'authority': 'CUSTOMER_STATED',
+            'governedEvidenceRefs': [EVIDENCE_REF],
         }
         self.state = {
             'outcome': 'WAITING_FOR_CUSTOMER',
@@ -333,6 +336,7 @@ class _VerticalApi:
             'needId': payload['needId'],
             'businessContextNeed': payload['businessContextNeed'],
             'resolutionCriteria': list(payload['resolutionCriteria']),
+            'governedEvidenceRefs': [EVIDENCE_REF],
             'originatingInvestigationReference': payload[
                 'originatingInvestigationReference'
             ],
@@ -377,8 +381,12 @@ class _VerticalApi:
             'status': status,
             'assessmentId': assessment_id,
             'threadId': f'interview:{assessment_id}',
+            'workflowRunId': f'assessment-run:{assessment_id}',
+            'actorId': 'user-release-vertical',
+            'authenticatedActorId': 'user-release-vertical',
             'sourceVersion': SOURCE_VERSION,
             'pgeVersion': PGE_VERSION,
+            'governedEvidenceRefs': [EVIDENCE_REF],
             'publicState': dict(self.state),
             'privateRevision': (
                 dict(self.private_revision)
@@ -493,6 +501,7 @@ def _resume_message(assessment_id: str, *, revision: int, targeted: bool) -> dic
     return {
         'assessmentId': assessment_id,
         'threadId': f'interview:{assessment_id}',
+        'workflowRunId': f'assessment-run:{assessment_id}',
         'questionId': NEED_ID if targeted else 'question-initial-1',
         'contextRevision': revision,
         'sourceVersion': SOURCE_VERSION,
@@ -523,6 +532,12 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
                     'intent': 'ASK',
                     'control': 'FREE_TEXT',
                     'prompt': 'What is the business purpose of this AI-supported flow?',
+                    'frontier': {
+                        'owner': 'CUSTOMER',
+                        'materiality': 'MATERIAL',
+                        'description': 'AI-supported flow business purpose',
+                        'evidenceRefs': [EVIDENCE_REF],
+                    },
                 },
                 'confirmedContext': {},
                 'flags': [],
@@ -554,6 +569,12 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
                     'control': 'FREE_TEXT',
                     'prompt': 'Who must approve the recommendation before action?',
                     'needId': NEED_ID,
+                    'frontier': {
+                        'owner': 'CUSTOMER',
+                        'materiality': 'MATERIAL',
+                        'description': 'Who must approve the recommendation before action?',
+                        'evidenceRefs': [EVIDENCE_REF],
+                    },
                 },
                 'confirmedContext': {},
                 'flags': [],

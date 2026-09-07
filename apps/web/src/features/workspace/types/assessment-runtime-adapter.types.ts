@@ -10,7 +10,10 @@ import {
   type AssessmentInterviewQuestion,
   type AssessmentTechnicalCoverageState,
 } from "@lcsp/contracts/evidence";
-import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
+import {
+  PROVIDER_CREDENTIAL_STATUSES,
+  REPOSITORY_SCAN_JOB_STATUSES,
+} from "@lcsp/contracts/github-integration";
 
 import type {
   WorkspaceRuntimeActivityItem,
@@ -150,11 +153,11 @@ export type NormalizedAssessmentWorkflow = {
 };
 
 export const NORMALIZED_WORKFLOW_STEP_STATUSES = {
-  queued: "QUEUED",
-  running: "RUNNING",
+  queued: REPOSITORY_SCAN_JOB_STATUSES.queued,
+  running: REPOSITORY_SCAN_JOB_STATUSES.running,
   waiting: "WAITING",
-  completed: "COMPLETED",
-  failed: "FAILED",
+  completed: REPOSITORY_SCAN_JOB_STATUSES.completed,
+  failed: REPOSITORY_SCAN_JOB_STATUSES.failed,
   unknown: "UNKNOWN",
 } as const;
 
@@ -170,7 +173,7 @@ export type NormalizedWorkflowStep = {
 
 export const NORMALIZED_REPOSITORY_SOURCE_STATES = {
   available: "AVAILABLE",
-  pending: "PENDING",
+  pending: PROVIDER_CREDENTIAL_STATUSES.pending,
   unavailable: "UNAVAILABLE",
 } as const;
 

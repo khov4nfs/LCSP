@@ -79,7 +79,13 @@ def test_pipeline_roles_do_not_receive_customer_context_or_resolver_tools() -> N
         "persist_legal_rule_triage_result",
         "finish_legal_rule_triage_execution",
     )
-    assert _tool_names(by_name["interview"]) == ()
+    assert _tool_names(by_name["interview"]) == (
+        "search_program_graph",
+        "get_scan_coverage",
+        "inspect_decision_path",
+        "inspect_data_path",
+        "inspect_human_review_path",
+    )
     assert _tool_names(by_name["planner"]) == (
         "retrieve_verified_episodes",
         "search_program_graph",
@@ -97,6 +103,10 @@ def test_pipeline_roles_do_not_receive_customer_context_or_resolver_tools() -> N
     )
     for role in ("planner", "investigator"):
         assert "get_assessment_context" not in _tool_names(by_name[role])
+
+    # LCSP-285: Interview must not receive EngineeringRule retrieval or verified episode tools
+    for disallowed in ("get_finding_detail", "retrieve_verified_episodes", "retrieve_legal_basis"):
+        assert disallowed not in _tool_names(by_name["interview"])
 
 
 def test_all_specialists_expose_pydantic_response_formats() -> None:

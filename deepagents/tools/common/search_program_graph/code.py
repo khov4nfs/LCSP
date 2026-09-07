@@ -15,10 +15,7 @@ from tools.common.runtime_envelope import (
 
 class SearchProgramGraphRequest(CorrelatedToolInput):
     query: str | None = Field(default=None, max_length=1_000)
-    subject_ref: str | None = Field(default=None, alias="subjectRef")
-    subject_refs: list[str] = Field(default_factory=list, alias="subjectRefs", max_length=50)
-    node_types: list[str] = Field(default_factory=list, alias="nodeTypes", max_length=50)
-    path_prefixes: list[str] = Field(default_factory=list, alias="pathPrefixes", max_length=50)
+    path_prefixes: list[str] = Field(default_factory=list, alias="pathPrefixes", max_length=20)
     max_results: int = Field(default=10, alias="maxResults", ge=1, le=50)
 
 
