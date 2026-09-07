@@ -3,6 +3,9 @@ name: Tests
 on:
   pull_request:
     branches: ["**"]
+  push:
+    branches: [develop]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -16,6 +19,7 @@ jobs:
       api: ${{ steps.filter.outputs.api }}
       web: ${{ steps.filter.outputs.web }}
       python: ${{ steps.filter.outputs.python }}
+      release_gate: ${{ steps.filter.outputs.release_gate }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,6 +35,7 @@ jobs:
               - '.github/workflows/test.yml'
               - 'apps/api/**'
               - 'packages/contracts/**'
+              - 'frozen/interview-agent-frozen/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
@@ -40,6 +45,7 @@ jobs:
               - 'apps/web/**'
               - 'packages/contracts/**'
               - 'packages/i18n/**'
+              - 'frozen/interview-agent-frozen/**'
               - 'tests/**'
               - 'package.json'
               - 'pnpm-lock.yaml'
@@ -48,6 +54,73 @@ jobs:
             python:
               - '.github/workflows/test.yml'
               - 'deepagents/**'
+              - 'frozen/interview-agent-frozen/**'
+            release_gate:
+              - '.github/workflows/test.yml'
+              - 'apps/api/**'
+              - 'apps/web/**'
+              - 'deepagents/**'
+              - 'frozen/interview-agent-frozen/**'
+              - 'packages/contracts/**'
+              - 'packages/i18n/**'
+              - 'tests/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - 'tsconfig*.json'
+
+  release-gate-static:
+    name: Release gate static checks
+    needs: changes
+    if: needs.changes.outputs.release_gate == 'true'
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck workspace
+        run: pnpm run typecheck
+
+      - name: Check import policy
+        run: pnpm run check:imports
+
+      - name: Check contract literals
+        run: pnpm run check:contracts
+
+  web-production-build:
+    name: Web lint and production build
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint web
+        run: pnpm --filter @lcsp/web lint
+
+      - name: Build web
+        run: pnpm --filter @lcsp/web build
 
   api-unit:
     name: API unit tests
