@@ -13,6 +13,7 @@ import {
   type AssessmentInterviewBlockedAction,
   type AssessmentInterviewQuestion,
   type AssessmentInterviewRuntimeState,
+  type AssessmentPostFindingRuntimeState,
 } from "@lcsp/contracts/evidence";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
@@ -33,6 +34,7 @@ import {
   type NormalizedAssessmentIdentity,
   type NormalizedAssessmentIntegration,
   type NormalizedAssessmentInterview,
+  type NormalizedAssessmentPostFinding,
   type NormalizedAssessmentRuntime,
   type NormalizedAssessmentRepository,
   type NormalizedWorkflowStep,
@@ -138,6 +140,12 @@ export function normalizeAssessmentRuntime(
     dataUpdatedAt,
   });
 
+  const postFinding = normalizePostFinding({
+    assessmentId,
+    postFinding: rawTimeline?.postFinding ?? null,
+    contractErrors,
+  });
+
   // 7. Artifacts normalization
   const artifacts = normalizeArtifacts({
     assessmentId,
@@ -146,6 +154,7 @@ export function normalizeAssessmentRuntime(
     repositorySnapshot: rawTimeline?.repositorySnapshot ?? null,
     scanJobs: rawTimeline?.scanJobs ?? [],
     evidenceReports: rawTimeline?.evidenceReports ?? [],
+    postFinding,
   });
 
   // 8. Customer Actions normalization
@@ -154,6 +163,7 @@ export function normalizeAssessmentRuntime(
     coverage,
     contractErrors,
     isLoadingInterview,
+    postFinding,
   });
 
   // 9. Derive authoritative presentation availability
@@ -184,9 +194,46 @@ export function normalizeAssessmentRuntime(
     coverage,
     workflow,
     interview,
+    postFinding,
     artifacts,
     customerActions,
     integration,
+  };
+}
+
+function normalizePostFinding({
+  assessmentId,
+  postFinding,
+  contractErrors,
+}: {
+  assessmentId: string;
+  postFinding: AssessmentPostFindingRuntimeState | null;
+  contractErrors: string[];
+}): NormalizedAssessmentPostFinding | null {
+  if (postFinding === null) {
+    return null;
+  }
+
+  if (postFinding.assessmentId !== assessmentId) {
+    contractErrors.push("Post-finding runtime belongs to another assessment");
+    return null;
+  }
+
+  return {
+    phase: postFinding.phase,
+    codeReviewActivities: postFinding.codeReviewActivities,
+    availableDecisions: postFinding.decisionAvailability,
+    selectedDecision: postFinding.selectedDecision ?? null,
+    selectedDecisionAt: postFinding.selectedDecisionAt ?? null,
+    detectedPullRequest: postFinding.detectedPullRequest ?? null,
+    createdPullRequest: postFinding.createdPullRequest ?? null,
+    approvalStatus: postFinding.approvalStatus,
+    approvedPatchVersion: postFinding.approvedPatchVersion ?? null,
+    verificationActivities: postFinding.verificationActivities,
+    verificationStatus: postFinding.verificationStatus ?? null,
+    finalResult: postFinding.finalResult ?? null,
+    canContinueRemediation: postFinding.canContinueRemediation === true,
+    artifacts: postFinding.artifacts ?? {},
   };
 }
 
@@ -560,6 +607,7 @@ function normalizeArtifacts({
   assessmentId,
   workflow,
   interview,
+  postFinding,
   repositorySnapshot,
   scanJobs,
   evidenceReports,
@@ -567,6 +615,7 @@ function normalizeArtifacts({
   assessmentId: string;
   workflow: NormalizedAssessmentWorkflow;
   interview: NormalizedAssessmentInterview;
+  postFinding: NormalizedAssessmentPostFinding | null;
   repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
   scanJobs: NonNullable<AdapterTimelineInput["scanJobs"]>;
   evidenceReports: NonNullable<AdapterTimelineInput["evidenceReports"]>;
@@ -658,10 +707,32 @@ function normalizeArtifacts({
         : null,
   };
 
+  const remediationPatch = normalizePostFindingArtifact({
+    assessmentId,
+    resourceId: postFinding?.artifacts.remediationPatchResourceId,
+    type: ARTIFACT_TYPES.remediationPatch,
+    labelKey: "artifacts.types.remediationPatch",
+  });
+  const verificationReport = normalizePostFindingArtifact({
+    assessmentId,
+    resourceId: postFinding?.artifacts.verificationReportResourceId,
+    type: ARTIFACT_TYPES.verificationReport,
+    labelKey: "artifacts.types.verificationReport",
+  });
+  const finalReport = normalizePostFindingArtifact({
+    assessmentId,
+    resourceId: postFinding?.artifacts.finalReportResourceId,
+    type: ARTIFACT_TYPES.finalReport,
+    labelKey: "artifacts.types.finalReport",
+  });
+
   const items: NormalizedAssessmentArtifactItem[] = [
     programEvidenceGraph,
     businessContext,
     investigationNotes,
+    ...[remediationPatch, verificationReport, finalReport].filter(
+      (artifact): artifact is NormalizedAssessmentArtifactItem => artifact !== null,
+    ),
   ];
 
   return {
@@ -669,6 +740,37 @@ function normalizeArtifacts({
     programEvidenceGraph,
     businessContext,
     investigationNotes,
+    remediationPatch,
+    verificationReport,
+    finalReport,
+  };
+}
+
+function normalizePostFindingArtifact({
+  assessmentId,
+  resourceId,
+  type,
+  labelKey,
+}: {
+  assessmentId: string;
+  resourceId: string | undefined;
+  type: NormalizedAssessmentArtifactItem["type"];
+  labelKey: string;
+}): NormalizedAssessmentArtifactItem | null {
+  if (!resourceId) {
+    return null;
+  }
+
+  return {
+    ref: { assessmentId, type, resourceId },
+    type,
+    status: ARTIFACT_STATUSES.ready,
+    category: "DURABLE_ARTIFACT",
+    id: resourceId,
+    kind: type,
+    labelKey,
+    availability: ASSESSMENT_ARTIFACT_AVAILABILITIES.ready,
+    customerSafeSummary: null,
   };
 }
 
@@ -694,11 +796,13 @@ function normalizeCustomerActions({
   coverage,
   contractErrors,
   isLoadingInterview,
+  postFinding,
 }: {
   interview: NormalizedAssessmentInterview;
   coverage: NormalizedAssessmentCoverage;
   contractErrors: string[];
   isLoadingInterview: boolean;
+  postFinding: NormalizedAssessmentPostFinding | null;
 }): NormalizedCustomerActions {
   if (contractErrors.length > 0 || isLoadingInterview) {
     return {
@@ -707,6 +811,8 @@ function normalizeCustomerActions({
       canSubmitBlockedAction: false,
       availableBlockedActions: [],
       canUseComposer: false,
+      canSelectRemediationDecision: false,
+      availableRemediationDecisions: [],
     };
   }
 
@@ -721,6 +827,8 @@ function normalizeCustomerActions({
       canSubmitBlockedAction: false,
       availableBlockedActions: [],
       canUseComposer: false,
+      canSelectRemediationDecision: false,
+      availableRemediationDecisions: [],
     };
   }
 
@@ -732,6 +840,10 @@ function normalizeCustomerActions({
   const canSubmitDraft = canAnswerQuestion;
   const canSubmitBlockedAction = isBlocked && interview.blockedActions.length > 0;
   const canUseComposer = canAnswerQuestion;
+  const canSelectRemediationDecision =
+    postFinding !== null &&
+    postFinding.selectedDecision === null &&
+    postFinding.availableDecisions.length > 0;
 
   return {
     canAnswerQuestion,
@@ -739,5 +851,9 @@ function normalizeCustomerActions({
     canSubmitBlockedAction,
     availableBlockedActions: isBlocked ? interview.blockedActions : [],
     canUseComposer,
+    canSelectRemediationDecision,
+    availableRemediationDecisions: canSelectRemediationDecision
+      ? postFinding.availableDecisions
+      : [],
   };
 }

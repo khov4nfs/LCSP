@@ -14,7 +14,11 @@ export function resolveBitbucketCliExecutablePath(
   dependencies: { discover?: () => string; cwd?: string } = {},
 ): string {
   const candidate = configuredPath.trim();
-  if (candidate) return candidate;
+  if (candidate) {
+    return isAbsolute(candidate)
+      ? candidate
+      : resolve(dependencies.cwd ?? process.cwd(), candidate);
+  }
   let discovered: string;
   try {
     discovered = dependencies.discover?.() ?? discoverBitbucketCli();

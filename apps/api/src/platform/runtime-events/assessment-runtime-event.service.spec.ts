@@ -3,6 +3,9 @@ import {
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
+  POST_FINDING_RUNTIME_PHASES,
+  REMEDIATION_APPROVAL_STATUSES,
+  REMEDIATION_DECISIONS,
 } from "@lcsp/contracts/evidence";
 
 import { AssessmentRuntimeEventService } from "./assessment-runtime-event.service.js";
@@ -119,6 +122,68 @@ describe("AssessmentRuntimeEventService", () => {
           status: "RUNNING",
           observedAt: "2026-08-14T08:02:00.000Z",
         },
+      }),
+    ]);
+  });
+
+  it("derives the latest post-finding state from runtime event output summaries", async () => {
+    const prisma = {
+      assessmentRuntimeEvent: {
+        findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([
+          {
+            id: "evt-latest",
+            assessmentId: "assessment-1",
+            runId: "interview:assessment-1",
+            correlationId: "corr-1",
+            sequence: 2,
+            eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput,
+            runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
+            stage: ASSESSMENT_RUNTIME_STAGE_CODES.remediation,
+            toolName: "post_finding_remediation_decision",
+            summary: "Customer remediation decision persisted",
+            inputSummaryJson: null,
+            outputSummaryJson: {
+              postFinding: {
+                assessmentId: "assessment-1",
+                phase: POST_FINDING_RUNTIME_PHASES.createPr,
+                codeReviewActivities: [],
+                decisionAvailability: [
+                  REMEDIATION_DECISIONS.createRemediationPr,
+                ],
+                selectedDecision: REMEDIATION_DECISIONS.createRemediationPr,
+                selectedDecisionAt: "2026-09-07T01:02:03.000Z",
+                approvalStatus: REMEDIATION_APPROVAL_STATUSES.pendingCustomer,
+                verificationActivities: [],
+              },
+            },
+            errorSummary: null,
+            startedAt: null,
+            completedAt: null,
+            durationMs: null,
+            attempt: null,
+            waitingReason: null,
+            createdAt: new Date("2026-09-07T01:02:03.000Z"),
+          },
+        ]),
+        findFirst: jest.fn().mockImplementation(freshRuntimeEvent),
+      },
+      repositorySnapshot: emptyRepositorySnapshots(),
+      repositoryScanJob: {
+        findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
+      },
+      technicalEvidenceReport: {
+        findMany: jest.fn<() => Promise<unknown[]>>().mockResolvedValue([]),
+      },
+    };
+    const service = new AssessmentRuntimeEventService(prisma as never);
+
+    const snapshot = await service.buildWorkspaceSnapshot();
+
+    expect(snapshot.postFindingStates).toEqual([
+      expect.objectContaining({
+        assessmentId: "assessment-1",
+        phase: POST_FINDING_RUNTIME_PHASES.createPr,
+        selectedDecision: REMEDIATION_DECISIONS.createRemediationPr,
       }),
     ]);
   });

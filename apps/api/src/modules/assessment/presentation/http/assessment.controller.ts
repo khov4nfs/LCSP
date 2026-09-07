@@ -198,6 +198,24 @@ export class AssessmentController {
     );
   }
 
+  @Post(":assessmentId/post-finding/decisions")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async submitPostFindingDecision(
+    @Param("assessmentId") assessmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.interviewRuntime.submitPostFindingDecision({
+        assessmentId,
+        actor: request.rbacContext,
+        correlationId: request.correlationId ?? "post-finding-decision",
+        decision: body as never,
+      }),
+    );
+  }
+
   @Get(":assessmentId")
   @UseGuards(RbacGuard)
   @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)

@@ -26,6 +26,9 @@ export const viPages = {
       businessContext: "Bối cảnh nghiệp vụ",
       programEvidenceGraph: "Đồ thị bằng chứng",
       investigationNotes: "Ghi chú điều tra",
+      remediationPatch: "Bản vá remediation",
+      verificationReport: "Báo cáo xác minh",
+      finalReport: "Báo cáo cuối cùng",
     },
   },
   appShell: {
@@ -1400,6 +1403,43 @@ export const viPages = {
         "Evidence đã sẵn sàng. Đang chờ orchestration cung cấp câu hỏi Interview đầu tiên.",
       pendingPlaceholder: "Đang chờ Interview...",
       placeholder: "Mô tả project hoặc system...",
+    },
+    postFinding: {
+      thought: "Đã suy nghĩ trong 2 giây",
+      description:
+        "Findings đã sẵn sàng. Tôi đang điều phối remediation và verification theo evidence repository đã pin.",
+      codeReviewTitle: "Code review",
+      codeReviewPending: "Code review đang chờ chạy.",
+      decisionTitle: "Quyết định remediation",
+      decisionPrompt: "Chọn hướng remediation",
+      existingPrTitle: "Nhánh PR hiện có",
+      existingPrPending: "Đang chờ chi tiết pull request đã phát hiện.",
+      createPrTitle: "Tạo nhánh PR",
+      createPrPending: "Đang chờ pull request remediation.",
+      verificationTitle: "Verification",
+      verificationPending: "Verification đang chờ đầu ra remediation.",
+      verificationPassed: "Đã vượt qua",
+      finalTitle: "Final assessment",
+      finalSummary:
+        "Agent turn cuối hiển thị liên kết remediation, verification và final assessment khi artifact sẵn sàng.",
+      openPullRequest: "Mở pull request",
+      pullRequestNumber: "Pull request #{number}",
+      pullRequestBranch: "Nhánh {branch}",
+      decisions: {
+        UPDATE_GITHUB_PAT: "Cập nhật GitHub PAT",
+        CONTINUE_DETECTED_PR: "Tiếp tục với PR đã phát hiện",
+        CREATE_REMEDIATION_PR: "Tạo remediation PR",
+      },
+      verificationStatuses: {
+        PENDING: "Đang chờ",
+        RUNNING: "Đang chạy",
+        PASSED: "Đã vượt qua",
+        FAILED: "Thất bại",
+      },
+      finalResults: {
+        VERIFIED: "Đã xác minh",
+        UNRESOLVED: "Chưa giải quyết",
+      },
     },
     errors: {
       title: "Không thể hoàn tất repository setup",

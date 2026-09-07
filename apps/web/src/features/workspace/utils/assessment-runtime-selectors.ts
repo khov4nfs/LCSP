@@ -3,6 +3,7 @@ import {
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
+  POST_FINDING_RUNTIME_PHASES,
 } from "@lcsp/contracts/evidence";
 
 import type { ProgramEvidenceSummary } from "../../assessment-flow/types/assessment-flow.types";
@@ -292,6 +293,21 @@ export function selectCustomerActions(normalized: NormalizedAssessmentRuntime) {
   return normalized.customerActions;
 }
 
+export function selectPostFindingPresentation(
+  normalized: NormalizedAssessmentRuntime,
+) {
+  const postFinding = normalized.postFinding;
+  if (postFinding === null) {
+    return null;
+  }
+
+  return {
+    ...postFinding,
+    canSelectDecision: normalized.customerActions.canSelectRemediationDecision,
+    screenProjection: postFindingScreenProjection(postFinding.phase),
+  };
+}
+
 export function selectComposerAvailability(
   normalized: NormalizedAssessmentRuntime,
 ) {
@@ -337,6 +353,10 @@ export function selectAssessmentScreenProjection(
   normalized: NormalizedAssessmentRuntime,
 ): AssessmentScreenProjection {
   const { coverage, interview, workflow } = normalized;
+
+  if (normalized.postFinding !== null) {
+    return postFindingScreenProjection(normalized.postFinding.phase);
+  }
 
   // Targeted loop: Investigator paused + Interview running
   if (workflow.isTargetedClarificationLoop) {
@@ -399,4 +419,23 @@ export function selectAssessmentScreenProjection(
   }
 
   return ASSESSMENT_SCREEN_PROJECTIONS.f03;
+}
+
+function postFindingScreenProjection(
+  phase: NonNullable<NormalizedAssessmentRuntime["postFinding"]>["phase"],
+): AssessmentScreenProjection {
+  switch (phase) {
+    case POST_FINDING_RUNTIME_PHASES.codeReview:
+      return ASSESSMENT_SCREEN_PROJECTIONS.f11;
+    case POST_FINDING_RUNTIME_PHASES.needsInput:
+      return ASSESSMENT_SCREEN_PROJECTIONS.f12;
+    case POST_FINDING_RUNTIME_PHASES.existingPr:
+      return ASSESSMENT_SCREEN_PROJECTIONS.f13;
+    case POST_FINDING_RUNTIME_PHASES.createPr:
+      return ASSESSMENT_SCREEN_PROJECTIONS.f14;
+    case POST_FINDING_RUNTIME_PHASES.verification:
+      return ASSESSMENT_SCREEN_PROJECTIONS.f15;
+    case POST_FINDING_RUNTIME_PHASES.final:
+      return ASSESSMENT_SCREEN_PROJECTIONS.f16;
+  }
 }

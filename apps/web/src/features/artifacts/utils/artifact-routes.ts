@@ -19,8 +19,13 @@ export function buildArtifactOpenTarget(ref: ArtifactRef): ArtifactOpenTarget {
     case ARTIFACT_TYPES.finalReport:
     case ARTIFACT_TYPES.gapAnalysis:
     case ARTIFACT_TYPES.readinessExport:
+    case ARTIFACT_TYPES.remediationPatch:
+    case ARTIFACT_TYPES.verificationReport:
       return ref.resourceId
-        ? { kind: ARTIFACT_OPEN_KINDS.download, href: `${assessment}/documents/${encodeURIComponent(ref.resourceId)}/download` }
+        ? {
+            kind: ARTIFACT_OPEN_KINDS.download,
+            href: `${assessment}/documents/${encodeURIComponent(ref.resourceId)}/download`,
+          }
         : { kind: ARTIFACT_OPEN_KINDS.unsupported };
     case ARTIFACT_TYPES.businessContext:
     case ARTIFACT_TYPES.programEvidenceGraph:

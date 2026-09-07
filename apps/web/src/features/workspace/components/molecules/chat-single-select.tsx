@@ -122,6 +122,7 @@ export function ChatSingleSelect({
             ref={(node) => {
               optionRefs.current[index] = node;
             }}
+            data-option-id={option.id}
             type="button"
             role="radio"
             aria-checked={selected}

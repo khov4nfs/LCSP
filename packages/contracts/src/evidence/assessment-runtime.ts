@@ -1,3 +1,5 @@
+import type { AssessmentPostFindingRuntimeState } from "./assessment-post-finding-runtime.ts";
+
 export const ASSESSMENT_RUNTIME_EVENT_TYPES = {
   runStarted: "RUN_STARTED",
   runStageChanged: "RUN_STAGE_CHANGED",
@@ -35,6 +37,10 @@ export const ASSESSMENT_RUNTIME_STAGE_CODES = {
   conflicts: "CONFLICTS",
   documents: "DOCUMENTS",
   legalRetrieval: "LEGAL_RETRIEVAL",
+  codeReview: "CODE_REVIEW",
+  remediation: "REMEDIATION",
+  verification: "VERIFICATION",
+  finalAssessment: "FINAL_ASSESSMENT",
 } as const;
 
 export type AssessmentRuntimeStageCode =
@@ -99,4 +105,5 @@ export type AssessmentRuntimeSnapshot = {
   repositorySnapshots: unknown[];
   scanJobs: unknown[];
   evidenceReports: unknown[];
+  postFindingStates: AssessmentPostFindingRuntimeState[];
 };

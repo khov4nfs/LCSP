@@ -1,4 +1,13 @@
-import { ASSESSMENT_RUNTIME_RUN_STATUSES } from "@lcsp/contracts/evidence";
+import {
+  ASSESSMENT_RUNTIME_RUN_STATUSES,
+  FINAL_ASSESSMENT_RESULT_STATUSES,
+  isPostFindingRuntimePhase,
+  isRemediationDecision,
+  REMEDIATION_APPROVAL_STATUSES,
+  VERIFICATION_RESULT_STATUSES,
+  type AssessmentPostFindingActivity,
+  type AssessmentPostFindingRuntimeState,
+} from "@lcsp/contracts/evidence";
 
 import {
   WORKSPACE_RUNTIME_CONNECTION_STATES,
@@ -37,11 +46,17 @@ export function parseRuntimeEvent(
   const evidenceReports = Array.isArray(payload.evidence_reports)
     ? payload.evidence_reports.map(parseEvidenceReport).filter(isDefined)
     : [];
+  const postFindingStates = Array.isArray(payload.post_finding)
+    ? payload.post_finding.map(parsePostFindingState).filter(isDefined)
+    : [];
 
   const runsByAssessmentId = groupRunsByAssessmentId(runs);
   const recentActivityByAssessmentId =
     groupActivityByAssessmentId(recentActivity);
   const latestRunIdByAssessmentId = deriveLatestRunIds(runsByAssessmentId);
+  const postFindingByAssessmentId = Object.fromEntries(
+    postFindingStates.map((state) => [state.assessmentId, state]),
+  );
 
   return {
     connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
@@ -51,17 +66,174 @@ export function parseRuntimeEvent(
     repositorySnapshots,
     scanJobs,
     evidenceReports,
+    postFindingStates,
     runsByAssessmentId,
     recentActivityByAssessmentId,
     latestRunIdByAssessmentId,
+    postFindingByAssessmentId,
     getAssessmentRuntime: (assessmentId: string) => ({
       currentRun: runsByAssessmentId[assessmentId]?.[0] ?? null,
       recentActivity: recentActivityByAssessmentId[assessmentId] ?? [],
       latestRunId: latestRunIdByAssessmentId[assessmentId] ?? null,
       connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
       lastEmittedAt: payload.emitted_at as string,
+      postFinding: postFindingByAssessmentId[assessmentId] ?? null,
     }),
   };
+}
+
+function parsePostFindingState(
+  value: unknown,
+): AssessmentPostFindingRuntimeState | null {
+  const item = parseObject(value);
+  if (
+    item === null ||
+    typeof item.assessment_id !== "string" ||
+    !isPostFindingRuntimePhase(item.phase) ||
+    !isApprovalStatus(item.approval_status)
+  ) {
+    return null;
+  }
+
+  return {
+    assessmentId: item.assessment_id,
+    phase: item.phase,
+    codeReviewActivities: parsePostFindingActivities(item.code_review_activities),
+    decisionAvailability: Array.isArray(item.decision_availability)
+      ? item.decision_availability.filter(isRemediationDecision)
+      : [],
+    selectedDecision: isRemediationDecision(item.selected_decision)
+      ? item.selected_decision
+      : undefined,
+    selectedDecisionAt:
+      typeof item.selected_decision_at === "string"
+        ? item.selected_decision_at
+        : undefined,
+    detectedPullRequest: parsePullRequest(item.detected_pull_request),
+    createdPullRequest: parsePullRequest(item.created_pull_request),
+    approvalStatus: item.approval_status,
+    approvedPatchVersion:
+      typeof item.approved_patch_version === "string"
+        ? item.approved_patch_version
+        : undefined,
+    verificationActivities: parsePostFindingActivities(item.verification_activities),
+    verificationStatus: isVerificationStatus(item.verification_status)
+      ? item.verification_status
+      : undefined,
+    finalResult: isFinalResultStatus(item.final_result)
+      ? item.final_result
+      : undefined,
+    canContinueRemediation:
+      typeof item.can_continue_remediation === "boolean"
+        ? item.can_continue_remediation
+        : undefined,
+    artifacts: parseArtifactRefs(item.artifacts),
+  };
+}
+
+function parsePostFindingActivities(value: unknown): AssessmentPostFindingActivity[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    const item = parseObject(entry);
+    if (
+      item === null ||
+      typeof item.id !== "string" ||
+      typeof item.label !== "string" ||
+      !isRunStatus(item.status)
+    ) {
+      return [];
+    }
+    return [{
+      id: item.id,
+      label: item.label,
+      detail: typeof item.detail === "string" ? item.detail : undefined,
+      status: item.status,
+    }];
+  });
+}
+
+function parsePullRequest(value: unknown) {
+  const item = parseObject(value);
+  if (
+    item === null ||
+    typeof item.number !== "number" ||
+    typeof item.branch !== "string" ||
+    typeof item.patch_version !== "string"
+  ) {
+    return undefined;
+  }
+  return {
+    number: item.number,
+    branch: item.branch,
+    patchVersion: item.patch_version,
+    url: typeof item.url === "string" ? item.url : undefined,
+  };
+}
+
+function parseArtifactRefs(value: unknown) {
+  const item = parseObject(value);
+  if (item === null) {
+    return undefined;
+  }
+  return {
+    remediationPatchResourceId:
+      typeof item.remediation_patch_resource_id === "string"
+        ? item.remediation_patch_resource_id
+        : undefined,
+    verificationReportResourceId:
+      typeof item.verification_report_resource_id === "string"
+        ? item.verification_report_resource_id
+        : undefined,
+    finalReportResourceId:
+      typeof item.final_report_resource_id === "string"
+        ? item.final_report_resource_id
+        : undefined,
+  };
+}
+
+function isRunStatus(value: unknown): value is AssessmentPostFindingActivity["status"] {
+  return (
+    typeof value === "string" &&
+    Object.values(ASSESSMENT_RUNTIME_RUN_STATUSES).includes(
+      value as AssessmentPostFindingActivity["status"],
+    )
+  );
+}
+
+function isApprovalStatus(
+  value: unknown,
+): value is AssessmentPostFindingRuntimeState["approvalStatus"] {
+  return (
+    typeof value === "string" &&
+    Object.values(REMEDIATION_APPROVAL_STATUSES).includes(
+      value as AssessmentPostFindingRuntimeState["approvalStatus"],
+    )
+  );
+}
+
+function isVerificationStatus(
+  value: unknown,
+): value is NonNullable<AssessmentPostFindingRuntimeState["verificationStatus"]> {
+  return (
+    typeof value === "string" &&
+    Object.values(VERIFICATION_RESULT_STATUSES).includes(
+      value as NonNullable<AssessmentPostFindingRuntimeState["verificationStatus"]>,
+    )
+  );
+}
+
+function isFinalResultStatus(
+  value: unknown,
+): value is NonNullable<AssessmentPostFindingRuntimeState["finalResult"]> {
+  return (
+    typeof value === "string" &&
+    Object.values(FINAL_ASSESSMENT_RESULT_STATUSES).includes(
+      value as NonNullable<AssessmentPostFindingRuntimeState["finalResult"]>,
+    )
+  );
 }
 
 function parseRun(value: unknown): WorkspaceRuntimeRun | null {

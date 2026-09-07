@@ -3,6 +3,13 @@ import {
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
   ASSESSMENT_RUNTIME_SYNTHETIC_TOOL_NAMES,
+  isPostFindingRuntimePhase,
+  isRemediationDecision,
+  REMEDIATION_APPROVAL_STATUSES,
+  VERIFICATION_RESULT_STATUSES,
+  FINAL_ASSESSMENT_RESULT_STATUSES,
+  type AssessmentPostFindingActivity,
+  type AssessmentPostFindingRuntimeState,
   type AssessmentRuntimeEventType,
   type AssessmentRuntimeActiveTool,
   type AssessmentRuntimeActivityEvent,
@@ -403,6 +410,7 @@ export class AssessmentRuntimeEventService {
       .sort((left, right) => right.emittedAt.localeCompare(left.emittedAt))
       .slice(0, 50);
     const runs = deriveRuns(recentActivity).slice(0, 20);
+    const postFindingStates = deriveLatestPostFindingStates(events);
 
     return {
       emittedAt,
@@ -437,7 +445,23 @@ export class AssessmentRuntimeEventService {
         rejectionReason: report.rejectionReason,
         createdAt: report.createdAt.toISOString(),
       })),
+      postFindingStates,
     };
+  }
+
+  async getLatestPostFindingState(
+    assessmentId: string,
+  ): Promise<AssessmentPostFindingRuntimeState | null> {
+    const events = await this.safeFindMany({
+      where: { assessmentId },
+      orderBy: [{ createdAt: "desc" }, { sequence: "desc" }],
+      take: 200,
+    });
+    return (
+      deriveLatestPostFindingStates(events).find(
+        (state) => state.assessmentId === assessmentId,
+      ) ?? null
+    );
   }
 
   /**
@@ -885,6 +909,192 @@ function deriveActiveTools(
   return Array.from(active.values());
 }
 
+function deriveLatestPostFindingStates(
+  events: PersistedAssessmentRuntimeEvent[],
+): AssessmentPostFindingRuntimeState[] {
+  const states = new Map<string, AssessmentPostFindingRuntimeState>();
+  for (const event of events) {
+    if (states.has(event.assessmentId)) {
+      continue;
+    }
+    const state = parsePostFindingRuntimeStateFromSummary(
+      event.outputSummaryJson,
+    );
+    if (state !== null) {
+      states.set(event.assessmentId, state);
+    }
+  }
+  return Array.from(states.values());
+}
+
+function parsePostFindingRuntimeStateFromSummary(
+  value: unknown,
+): AssessmentPostFindingRuntimeState | null {
+  const summary = objectRecord(value);
+  const candidate = objectRecord(summary?.postFinding);
+  if (
+    candidate === null ||
+    typeof candidate.assessmentId !== "string" ||
+    !isPostFindingRuntimePhase(candidate.phase) ||
+    !isApprovalStatus(candidate.approvalStatus)
+  ) {
+    return null;
+  }
+
+  return {
+    assessmentId: candidate.assessmentId,
+    phase: candidate.phase,
+    codeReviewActivities: parsePostFindingActivities(
+      candidate.codeReviewActivities,
+    ),
+    decisionAvailability: Array.isArray(candidate.decisionAvailability)
+      ? candidate.decisionAvailability.filter(isRemediationDecision)
+      : [],
+    selectedDecision: isRemediationDecision(candidate.selectedDecision)
+      ? candidate.selectedDecision
+      : undefined,
+    selectedDecisionAt:
+      typeof candidate.selectedDecisionAt === "string"
+        ? candidate.selectedDecisionAt
+        : undefined,
+    detectedPullRequest: parseRuntimePullRequest(candidate.detectedPullRequest),
+    createdPullRequest: parseRuntimePullRequest(candidate.createdPullRequest),
+    approvalStatus: candidate.approvalStatus,
+    approvedPatchVersion:
+      typeof candidate.approvedPatchVersion === "string"
+        ? candidate.approvedPatchVersion
+        : undefined,
+    verificationActivities: parsePostFindingActivities(
+      candidate.verificationActivities,
+    ),
+    verificationStatus: isVerificationStatus(candidate.verificationStatus)
+      ? candidate.verificationStatus
+      : undefined,
+    finalResult: isFinalResultStatus(candidate.finalResult)
+      ? candidate.finalResult
+      : undefined,
+    canContinueRemediation:
+      typeof candidate.canContinueRemediation === "boolean"
+        ? candidate.canContinueRemediation
+        : undefined,
+    artifacts: parsePostFindingArtifactRefs(candidate.artifacts),
+  };
+}
+
+function parsePostFindingActivities(
+  value: unknown,
+): AssessmentPostFindingActivity[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((entry) => {
+    const item = objectRecord(entry);
+    if (
+      item === null ||
+      typeof item.id !== "string" ||
+      typeof item.label !== "string" ||
+      !isRunStatus(item.status)
+    ) {
+      return [];
+    }
+    return [
+      {
+        id: item.id,
+        label: item.label,
+        detail: typeof item.detail === "string" ? item.detail : undefined,
+        status: item.status,
+      },
+    ];
+  });
+}
+
+function parseRuntimePullRequest(value: unknown) {
+  const item = objectRecord(value);
+  if (
+    item === null ||
+    typeof item.number !== "number" ||
+    typeof item.branch !== "string" ||
+    typeof item.patchVersion !== "string"
+  ) {
+    return undefined;
+  }
+  return {
+    number: item.number,
+    branch: item.branch,
+    patchVersion: item.patchVersion,
+    url: typeof item.url === "string" ? item.url : undefined,
+  };
+}
+
+function parsePostFindingArtifactRefs(value: unknown) {
+  const item = objectRecord(value);
+  if (item === null) {
+    return undefined;
+  }
+  return {
+    remediationPatchResourceId:
+      typeof item.remediationPatchResourceId === "string"
+        ? item.remediationPatchResourceId
+        : undefined,
+    verificationReportResourceId:
+      typeof item.verificationReportResourceId === "string"
+        ? item.verificationReportResourceId
+        : undefined,
+    finalReportResourceId:
+      typeof item.finalReportResourceId === "string"
+        ? item.finalReportResourceId
+        : undefined,
+  };
+}
+
+function isRunStatus(
+  value: unknown,
+): value is AssessmentPostFindingActivity["status"] {
+  return (
+    typeof value === "string" &&
+    Object.values(ASSESSMENT_RUNTIME_RUN_STATUSES).includes(
+      value as AssessmentPostFindingActivity["status"],
+    )
+  );
+}
+
+function isApprovalStatus(
+  value: unknown,
+): value is AssessmentPostFindingRuntimeState["approvalStatus"] {
+  return (
+    typeof value === "string" &&
+    Object.values(REMEDIATION_APPROVAL_STATUSES).includes(
+      value as AssessmentPostFindingRuntimeState["approvalStatus"],
+    )
+  );
+}
+
+function isVerificationStatus(
+  value: unknown,
+): value is NonNullable<
+  AssessmentPostFindingRuntimeState["verificationStatus"]
+> {
+  return (
+    typeof value === "string" &&
+    Object.values(VERIFICATION_RESULT_STATUSES).includes(
+      value as NonNullable<
+        AssessmentPostFindingRuntimeState["verificationStatus"]
+      >,
+    )
+  );
+}
+
+function isFinalResultStatus(
+  value: unknown,
+): value is NonNullable<AssessmentPostFindingRuntimeState["finalResult"]> {
+  return (
+    typeof value === "string" &&
+    Object.values(FINAL_ASSESSMENT_RESULT_STATUSES).includes(
+      value as NonNullable<AssessmentPostFindingRuntimeState["finalResult"]>,
+    )
+  );
+}
+
 /**
  * Converts a sanitized runtime summary into a Prisma JSON input value while preserving null as database null.
  *
@@ -941,6 +1151,10 @@ function isUniqueSequenceTarget(meta: unknown): boolean {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function objectRecord(value: unknown): Record<string, unknown> | null {
+  return isObject(value) ? value : null;
 }
 
 async function delayRuntimeEventSequenceRetry(index: number): Promise<void> {
