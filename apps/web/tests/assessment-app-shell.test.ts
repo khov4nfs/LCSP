@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
+import React, { createElement, type ComponentType, type ReactNode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 const shellPath = new URL(
   "../src/features/workspace/components/organisms/assessment-app-shell.tsx",
@@ -244,6 +246,105 @@ test("LCSP-272 right assessment sidebar follows Figma spacing, icon, and alignme
   assert.match(sidebarSource, /RepositoryContextCard/);
   assert.match(sidebarSource, /WorkflowStatusList/);
   assert.match(sidebarSource, /ArtifactEvidenceRail/);
+});
+
+test("LCSP-278 right sidebar layout keeps the center pane shrinkable and overflow-contained", async () => {
+  Object.assign(globalThis, { React });
+  const { AssessmentRightPanelSlot, CenterContentSlot, LeftSidebarSlot } =
+    await import(
+      "../src/features/workspace/components/organisms/assessment-shell-slots"
+    );
+  const LeftSlot = LeftSidebarSlot as ComponentType<{
+    collapsed: boolean;
+    children?: ReactNode;
+  }>;
+  const CenterSlot = CenterContentSlot as ComponentType<{
+    assessmentId?: string;
+    children?: ReactNode;
+  }>;
+  const RightSlot = AssessmentRightPanelSlot as ComponentType<{
+    open: boolean;
+    children?: ReactNode;
+  }>;
+  const html = renderToStaticMarkup(
+    createElement(
+      "div",
+      {
+        "data-testid": "shell",
+        className: "flex h-svh min-h-0 w-full overflow-hidden bg-background",
+      },
+      createElement(
+        LeftSlot,
+        { collapsed: false },
+        createElement("nav", { "data-testid": "left-nav" }),
+      ),
+      createElement(
+        "div",
+        {
+          "data-testid": "content-column",
+          className: "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+        },
+        createElement(
+          "div",
+          {
+            "data-testid": "body-row",
+            className:
+              "flex h-full min-h-0 flex-1 overflow-hidden bg-muted/10",
+          },
+          createElement(
+            CenterSlot,
+            { assessmentId: "assessment-lcsp-278" },
+            createElement("main", { "data-testid": "workflow-run" }),
+          ),
+          createElement(
+            RightSlot,
+            { open: true },
+            createElement(
+              "div",
+              {
+                "data-testid": "runtime-sidebar",
+                className:
+                  "flex h-full min-h-0 w-full flex-col overflow-hidden bg-background/95",
+              },
+              createElement("div", {
+                "data-testid": "runtime-scroll",
+                className: "min-h-0 flex-1 overflow-y-auto px-4 py-4",
+              }),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+
+  assert.match(
+    html,
+    /data-testid="shell" class="flex h-svh min-h-0 w-full overflow-hidden bg-background"/,
+  );
+  assert.match(
+    html,
+    /data-testid="content-column" class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"/,
+  );
+  assert.match(
+    html,
+    /data-slot="assessment-center-content" class="flex min-w-0 flex-1 flex-col bg-background"/,
+  );
+  assert.match(
+    html,
+    /data-slot="assessment-right-panel" data-state="open" class="hidden h-full min-h-0 w-105 shrink-0 overflow-hidden border-l border-border\/70 bg-muted\/20 xl:flex"/,
+  );
+  assert.equal(
+    html.match(/data-slot="assessment-right-panel"/g)?.length,
+    1,
+  );
+  assert.match(
+    html,
+    /data-testid="runtime-sidebar" class="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background\/95"/,
+  );
+  assert.match(
+    html,
+    /data-testid="runtime-scroll" class="min-h-0 flex-1 overflow-y-auto px-4 py-4"/,
+  );
 });
 
 test("LCSP-272 right assessment sidebar uses normalized state instead of F03/F04 screen branching", async () => {

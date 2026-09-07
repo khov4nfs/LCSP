@@ -36,6 +36,12 @@ EXPECTED_TOOLS = {
 }
 
 NON_MODEL_TOOLS = {"resume_waiting_runs", "request_targeted_reanalysis"}
+LEGACY_CUSTOMER_CONTEXT_TOOLS = {
+    "context_wizard",
+    "wizard_needs_input",
+    "wizard_resume",
+    "resolver_customer_context",
+}
 
 
 def valid_input_for(tool_name: str) -> dict:
@@ -95,6 +101,13 @@ def test_engineering_rule_inventory_is_exact_and_unique() -> None:
     registry = build_engineering_rule_agentic_registry()
     assert set(registry.names()) == EXPECTED_TOOLS
     assert len(registry.names()) == len(EXPECTED_TOOLS)
+
+
+def test_legacy_customer_context_tools_are_not_active_registry_entries() -> None:
+    registry = build_engineering_rule_agentic_registry()
+
+    assert set(registry.names()).isdisjoint(LEGACY_CUSTOMER_CONTEXT_TOOLS)
+    assert set(registry.model_callable_names()).isdisjoint(LEGACY_CUSTOMER_CONTEXT_TOOLS)
 
 
 def test_only_read_tools_are_exposed_to_the_model() -> None:
