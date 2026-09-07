@@ -76,6 +76,23 @@ describe("WorkspaceRuntimeEventsController", () => {
           },
         ],
         evidenceReports: [],
+        postFindingStates: [
+          {
+            assessmentId: "assessment-1",
+            phase: "EXISTING_PR",
+            codeReviewActivities: [],
+            decisionAvailability: ["CONTINUE_DETECTED_PR"],
+            selectedDecision: "CONTINUE_DETECTED_PR",
+            selectedDecisionAt: "2026-09-07T01:02:03.000Z",
+            detectedPullRequest: {
+              number: 276,
+              branch: "fix/lcsp-276",
+              patchVersion: "patch-v1",
+            },
+            approvalStatus: "PENDING_CUSTOMER",
+            verificationActivities: [],
+          },
+        ],
       });
     const controller = new WorkspaceRuntimeEventsController({
       buildWorkspaceSnapshot,
@@ -135,6 +152,19 @@ describe("WorkspaceRuntimeEventsController", () => {
         },
       ],
       evidence_reports: [],
+      post_finding: [
+        {
+          assessment_id: "assessment-1",
+          phase: "EXISTING_PR",
+          decision_availability: ["CONTINUE_DETECTED_PR"],
+          selected_decision: "CONTINUE_DETECTED_PR",
+          detected_pull_request: {
+            number: 276,
+            branch: "fix/lcsp-276",
+            patch_version: "patch-v1",
+          },
+        },
+      ],
     });
   });
 
@@ -171,6 +201,7 @@ describe("WorkspaceRuntimeEventsController", () => {
       repositorySnapshots: [],
       scanJobs: [],
       evidenceReports: [],
+      postFindingStates: [],
     });
     await Promise.resolve();
 

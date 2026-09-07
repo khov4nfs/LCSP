@@ -5,6 +5,15 @@ import {
   ASSESSMENT_INTERVIEW_FLAGS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
+  ASSESSMENT_RUNTIME_RUN_STATUSES,
+  FINAL_ASSESSMENT_RESULT_STATUSES,
+  isPostFindingRuntimePhase,
+  isRemediationDecision,
+  REMEDIATION_APPROVAL_STATUSES,
+  VERIFICATION_RESULT_STATUSES,
+  type AssessmentPostFindingActivity,
+  type AssessmentPostFindingDecisionInput,
+  type AssessmentPostFindingRuntimeState,
   type AssessmentContextAuthorityStatus,
   type AssessmentInterviewAnswerInput,
   type AssessmentInterviewAuditRef,
@@ -51,6 +60,20 @@ export async function recordAssessmentInterviewBlockedAction(
   );
 }
 
+export async function submitAssessmentPostFindingDecision(
+  assessmentId: string,
+  input: AssessmentPostFindingDecisionInput,
+) {
+  return apiJson<AssessmentPostFindingRuntimeState>(
+    `/api/assessments/${encodeURIComponent(assessmentId)}/post-finding/decisions`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+}
+
 export function sanitizeAssessmentInterviewState(
   value: unknown,
 ): AssessmentInterviewRuntimeState | null {
@@ -74,7 +97,9 @@ export function sanitizeAssessmentInterviewState(
       : undefined,
     threadId: typeof record.threadId === "string" ? record.threadId : undefined,
     contextRevision:
-      typeof record.contextRevision === "number" ? record.contextRevision : undefined,
+      typeof record.contextRevision === "number"
+        ? record.contextRevision
+        : undefined,
     orchestrationRequested:
       typeof record.orchestrationRequested === "boolean"
         ? record.orchestrationRequested
@@ -85,6 +110,63 @@ export function sanitizeAssessmentInterviewState(
       ? record.answerHistory.filter(isAnswerHistoryItem)
       : undefined,
     audit: audit ?? undefined,
+  };
+}
+
+export function sanitizeAssessmentPostFindingState(
+  value: unknown,
+): AssessmentPostFindingRuntimeState | null {
+  const record = objectRecord(value);
+  if (
+    !record ||
+    typeof record.assessmentId !== "string" ||
+    !isPostFindingRuntimePhase(record.phase) ||
+    !isApprovalStatus(record.approvalStatus)
+  ) {
+    return null;
+  }
+
+  return {
+    assessmentId: record.assessmentId,
+    phase: record.phase,
+    codeReviewActivities: sanitizePostFindingActivities(
+      record.codeReviewActivities,
+    ),
+    decisionAvailability: Array.isArray(record.decisionAvailability)
+      ? record.decisionAvailability.filter(isRemediationDecision)
+      : [],
+    selectedDecision: isRemediationDecision(record.selectedDecision)
+      ? record.selectedDecision
+      : undefined,
+    selectedDecisionAt:
+      typeof record.selectedDecisionAt === "string"
+        ? record.selectedDecisionAt
+        : undefined,
+    detectedPullRequest: sanitizePostFindingPullRequest(
+      record.detectedPullRequest,
+    ),
+    createdPullRequest: sanitizePostFindingPullRequest(
+      record.createdPullRequest,
+    ),
+    approvalStatus: record.approvalStatus,
+    approvedPatchVersion:
+      typeof record.approvedPatchVersion === "string"
+        ? record.approvedPatchVersion
+        : undefined,
+    verificationActivities: sanitizePostFindingActivities(
+      record.verificationActivities,
+    ),
+    verificationStatus: isVerificationStatus(record.verificationStatus)
+      ? record.verificationStatus
+      : undefined,
+    finalResult: isFinalResultStatus(record.finalResult)
+      ? record.finalResult
+      : undefined,
+    canContinueRemediation:
+      typeof record.canContinueRemediation === "boolean"
+        ? record.canContinueRemediation
+        : undefined,
+    artifacts: sanitizePostFindingArtifactRefs(record.artifacts),
   };
 }
 
@@ -109,13 +191,17 @@ function sanitizeQuestion(value: unknown): AssessmentInterviewQuestion | null {
     question.needId = record.needId;
   }
   if (Array.isArray(record.choices)) {
-    question.choices = record.choices.map(sanitizeQuestionChoice).filter(isDefined);
+    question.choices = record.choices
+      .map(sanitizeQuestionChoice)
+      .filter(isDefined);
   }
   if (typeof record.priorAnswerSummary === "string") {
     question.priorAnswerSummary = record.priorAnswerSummary;
   }
   if (Array.isArray(record.whyEvidenceRefs)) {
-    question.whyEvidenceRefs = record.whyEvidenceRefs.filter((item): item is string => typeof item === "string");
+    question.whyEvidenceRefs = record.whyEvidenceRefs.filter(
+      (item): item is string => typeof item === "string",
+    );
   }
   return question;
 }
@@ -124,7 +210,11 @@ function sanitizeQuestionChoice(
   value: unknown,
 ): AssessmentInterviewQuestionChoice | null {
   const record = objectRecord(value);
-  if (!record || typeof record.id !== "string" || typeof record.label !== "string") {
+  if (
+    !record ||
+    typeof record.id !== "string" ||
+    typeof record.label !== "string"
+  ) {
     return null;
   }
   const choice: AssessmentInterviewQuestionChoice = {
@@ -175,14 +265,84 @@ function sanitizeAudit(value: unknown): AssessmentInterviewAuditRef | null {
     audit.relatedQuestionId = record.relatedQuestionId;
   }
   if (Array.isArray(record.governedEvidenceRefs)) {
-    audit.governedEvidenceRefs = record.governedEvidenceRefs.filter((item): item is string => typeof item === "string");
+    audit.governedEvidenceRefs = record.governedEvidenceRefs.filter(
+      (item): item is string => typeof item === "string",
+    );
   }
   return audit;
 }
 
+function sanitizePostFindingActivities(
+  value: unknown,
+): AssessmentPostFindingActivity[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((entry) => {
+    const record = objectRecord(entry);
+    if (
+      !record ||
+      typeof record.id !== "string" ||
+      typeof record.label !== "string" ||
+      !isPostFindingActivityStatus(record.status)
+    ) {
+      return [];
+    }
+    return [
+      {
+        id: record.id,
+        label: record.label,
+        detail: typeof record.detail === "string" ? record.detail : undefined,
+        status: record.status,
+      },
+    ];
+  });
+}
+
+function sanitizePostFindingPullRequest(value: unknown) {
+  const record = objectRecord(value);
+  if (
+    !record ||
+    typeof record.number !== "number" ||
+    typeof record.branch !== "string" ||
+    typeof record.patchVersion !== "string"
+  ) {
+    return undefined;
+  }
+  return {
+    number: record.number,
+    branch: record.branch,
+    patchVersion: record.patchVersion,
+    url: typeof record.url === "string" ? record.url : undefined,
+  };
+}
+
+function sanitizePostFindingArtifactRefs(value: unknown) {
+  const record = objectRecord(value);
+  if (!record) {
+    return undefined;
+  }
+  return {
+    remediationPatchResourceId:
+      typeof record.remediationPatchResourceId === "string"
+        ? record.remediationPatchResourceId
+        : undefined,
+    verificationReportResourceId:
+      typeof record.verificationReportResourceId === "string"
+        ? record.verificationReportResourceId
+        : undefined,
+    finalReportResourceId:
+      typeof record.finalReportResourceId === "string"
+        ? record.finalReportResourceId
+        : undefined,
+  };
+}
+
 function isAnswerHistoryItem(
   value: unknown,
-): value is NonNullable<AssessmentInterviewRuntimeState["answerHistory"]>[number] {
+): value is NonNullable<
+  AssessmentInterviewRuntimeState["answerHistory"]
+>[number] {
   const record = objectRecord(value);
   return (
     !!record &&
@@ -193,9 +353,59 @@ function isAnswerHistoryItem(
   );
 }
 
-function isOutcome(value: unknown): value is AssessmentInterviewRuntimeState["outcome"] {
+function isOutcome(
+  value: unknown,
+): value is AssessmentInterviewRuntimeState["outcome"] {
   return Object.values(ASSESSMENT_INTERVIEW_OUTCOMES).includes(
     value as AssessmentInterviewRuntimeState["outcome"],
+  );
+}
+
+function isPostFindingActivityStatus(
+  value: unknown,
+): value is AssessmentPostFindingActivity["status"] {
+  return (
+    typeof value === "string" &&
+    Object.values(ASSESSMENT_RUNTIME_RUN_STATUSES).includes(
+      value as AssessmentPostFindingActivity["status"],
+    )
+  );
+}
+
+function isApprovalStatus(
+  value: unknown,
+): value is AssessmentPostFindingRuntimeState["approvalStatus"] {
+  return (
+    typeof value === "string" &&
+    Object.values(REMEDIATION_APPROVAL_STATUSES).includes(
+      value as AssessmentPostFindingRuntimeState["approvalStatus"],
+    )
+  );
+}
+
+function isVerificationStatus(
+  value: unknown,
+): value is NonNullable<
+  AssessmentPostFindingRuntimeState["verificationStatus"]
+> {
+  return (
+    typeof value === "string" &&
+    Object.values(VERIFICATION_RESULT_STATUSES).includes(
+      value as NonNullable<
+        AssessmentPostFindingRuntimeState["verificationStatus"]
+      >,
+    )
+  );
+}
+
+function isFinalResultStatus(
+  value: unknown,
+): value is NonNullable<AssessmentPostFindingRuntimeState["finalResult"]> {
+  return (
+    typeof value === "string" &&
+    Object.values(FINAL_ASSESSMENT_RESULT_STATUSES).includes(
+      value as NonNullable<AssessmentPostFindingRuntimeState["finalResult"]>,
+    )
   );
 }
 
@@ -217,9 +427,13 @@ function isQuestionControl(
 
 function isBlockedAction(
   value: unknown,
-): value is NonNullable<AssessmentInterviewRuntimeState["blockedActions"]>[number] {
+): value is NonNullable<
+  AssessmentInterviewRuntimeState["blockedActions"]
+>[number] {
   return Object.values(ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS).includes(
-    value as NonNullable<AssessmentInterviewRuntimeState["blockedActions"]>[number],
+    value as NonNullable<
+      AssessmentInterviewRuntimeState["blockedActions"]
+    >[number],
   );
 }
 
@@ -229,7 +443,9 @@ function isFlag(value: unknown): value is AssessmentInterviewFlag {
   );
 }
 
-function isContextAuthority(value: unknown): value is AssessmentContextAuthorityStatus {
+function isContextAuthority(
+  value: unknown,
+): value is AssessmentContextAuthorityStatus {
   return Object.values(ASSESSMENT_CONTEXT_AUTHORITY_STATUSES).includes(
     value as AssessmentContextAuthorityStatus,
   );
@@ -244,4 +460,3 @@ function objectRecord(value: unknown): Record<string, unknown> | null {
     ? (value as Record<string, unknown>)
     : null;
 }
-

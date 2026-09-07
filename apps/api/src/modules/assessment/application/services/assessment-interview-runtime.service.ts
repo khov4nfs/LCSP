@@ -23,6 +23,11 @@ import {
   CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
   INTERVIEW_FRONTIER_MATERIALITIES,
   INTERVIEW_FRONTIER_OWNERS,
+  isRemediationDecision,
+  POST_FINDING_RUNTIME_PHASES,
+  REMEDIATION_DECISIONS,
+  type AssessmentPostFindingDecisionInput,
+  type AssessmentPostFindingRuntimeState,
   type AssessmentContextAuthorityStatus,
   type AssessmentInterviewAnswerHistoryItem,
   type AssessmentInterviewAnswerInput,
@@ -68,6 +73,9 @@ const PUBLIC_REDACTED_ANSWER_SUMMARY =
 const PUBLIC_REDACTED_DRAFT_SUMMARY =
   "Customer draft persisted for Interview resume.";
 const INTERVIEW_AGENT_DECISION_REQUIRED = "INTERVIEW_AGENT_DECISION_REQUIRED";
+const POST_FINDING_DECISION_TOOL_NAME = "post_finding_remediation_decision";
+const POST_FINDING_RUNTIME_CONTINUATION_REQUIRED =
+  "POST_FINDING_RUNTIME_CONTINUATION_REQUIRED";
 const TARGETED_ARTIFACT_PIN_KEYS = [
   "technicalEvidenceReportId",
   "repositorySnapshotId",
@@ -569,6 +577,67 @@ export class AssessmentInterviewRuntimeService {
     });
 
     return publicState(result);
+  }
+
+  async submitPostFindingDecision(input: {
+    assessmentId: string;
+    actor: RbacRequestContext;
+    correlationId: string;
+    decision: AssessmentPostFindingDecisionInput;
+  }): Promise<AssessmentPostFindingRuntimeState> {
+    const decision = parsePostFindingDecision(
+      input.decision,
+      input.correlationId,
+    );
+    await this.assertAssessmentVisible(input.assessmentId, input.actor);
+
+    const current = await this.runtimeEvents.getLatestPostFindingState(
+      input.assessmentId,
+    );
+    if (current === null) {
+      throw problemException(
+        "POST_FINDING_RUNTIME_STATE_REQUIRED",
+        input.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+    if (current.selectedDecision) {
+      throw problemException(
+        "POST_FINDING_DECISION_ALREADY_SELECTED",
+        input.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+    if (!current.decisionAvailability.includes(decision)) {
+      throw problemException(
+        "POST_FINDING_DECISION_NOT_AVAILABLE",
+        input.correlationId,
+        { status: HttpStatus.CONFLICT },
+      );
+    }
+
+    const updated: AssessmentPostFindingRuntimeState = {
+      ...current,
+      phase: postFindingPhaseAfterDecision(current, decision),
+      selectedDecision: decision,
+      selectedDecisionAt: new Date().toISOString(),
+    };
+
+    await this.runtimeEvents.recordToolWaitingInput({
+      assessmentId: input.assessmentId,
+      runId: this.threadId(input.assessmentId),
+      correlationId: input.correlationId,
+      stage: ASSESSMENT_RUNTIME_STAGE_CODES.remediation,
+      toolName: POST_FINDING_DECISION_TOOL_NAME,
+      summary:
+        "Customer remediation decision persisted for runtime continuation.",
+      inputSummary: { decision },
+      outputSummary: { postFinding: updated },
+      waitingReason: POST_FINDING_RUNTIME_CONTINUATION_REQUIRED,
+      startedAt: new Date(),
+    });
+
+    return updated;
   }
 
   async getPrivateContextForWorker(input: {
@@ -1562,6 +1631,32 @@ function parseBlockedAction(value: unknown): AssessmentInterviewBlockedInput {
     action: record.action as AssessmentInterviewBlockedInput["action"],
     draft: typeof record.draft === "string" ? record.draft : undefined,
   };
+}
+
+function parsePostFindingDecision(
+  value: unknown,
+  correlationId: string,
+): AssessmentPostFindingDecisionInput["decision"] {
+  const record = objectRecord(value);
+  if (!record || !isRemediationDecision(record.decision)) {
+    throw problemException("POST_FINDING_DECISION_INVALID", correlationId, {
+      status: HttpStatus.BAD_REQUEST,
+    });
+  }
+  return record.decision;
+}
+
+function postFindingPhaseAfterDecision(
+  current: AssessmentPostFindingRuntimeState,
+  decision: AssessmentPostFindingDecisionInput["decision"],
+) {
+  if (decision === REMEDIATION_DECISIONS.continueDetectedPr) {
+    return POST_FINDING_RUNTIME_PHASES.existingPr;
+  }
+  if (decision === REMEDIATION_DECISIONS.createRemediationPr) {
+    return POST_FINDING_RUNTIME_PHASES.createPr;
+  }
+  return current.phase;
 }
 
 function parseTargetedNeedRegistration(

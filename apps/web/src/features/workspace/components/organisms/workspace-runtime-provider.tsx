@@ -30,15 +30,18 @@ const initialRuntime: WorkspaceRuntimeContextValue = {
   repositorySnapshots: [],
   scanJobs: [],
   evidenceReports: [],
+  postFindingStates: [],
   runsByAssessmentId: {},
   recentActivityByAssessmentId: {},
   latestRunIdByAssessmentId: {},
+  postFindingByAssessmentId: {},
   getAssessmentRuntime: (): WorkspaceRuntimeAssessmentTimeline => ({
     currentRun: null,
     recentActivity: [],
     latestRunId: null,
     connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connecting,
     lastEmittedAt: null,
+    postFinding: null,
   }),
 };
 

@@ -49,8 +49,21 @@ export type PagesMessages = {
     searchPlaceholder: string;
     closeSearch: string;
     tabs: { all: string; yours: string; shared_with_you: string };
-    status: { ready: string; waiting: string; updating: string; paused: string; unavailable: string };
-    types: { businessContext: string; programEvidenceGraph: string; investigationNotes: string };
+    status: {
+      ready: string;
+      waiting: string;
+      updating: string;
+      paused: string;
+      unavailable: string;
+    };
+    types: {
+      businessContext: string;
+      programEvidenceGraph: string;
+      investigationNotes: string;
+      remediationPatch: string;
+      verificationReport: string;
+      finalReport: string;
+    };
   };
   appShell: {
     productName: string;
@@ -1351,6 +1364,41 @@ export type PagesMessages = {
       pendingDescription: string;
       pendingPlaceholder: string;
       placeholder: string;
+    };
+    postFinding: {
+      thought: string;
+      description: string;
+      codeReviewTitle: string;
+      codeReviewPending: string;
+      decisionTitle: string;
+      decisionPrompt: string;
+      existingPrTitle: string;
+      existingPrPending: string;
+      createPrTitle: string;
+      createPrPending: string;
+      verificationTitle: string;
+      verificationPending: string;
+      verificationPassed: string;
+      finalTitle: string;
+      finalSummary: string;
+      openPullRequest: string;
+      pullRequestNumber: string;
+      pullRequestBranch: string;
+      decisions: {
+        UPDATE_GITHUB_PAT: string;
+        CONTINUE_DETECTED_PR: string;
+        CREATE_REMEDIATION_PR: string;
+      };
+      verificationStatuses: {
+        PENDING: string;
+        RUNNING: string;
+        PASSED: string;
+        FAILED: string;
+      };
+      finalResults: {
+        VERIFIED: string;
+        UNRESOLVED: string;
+      };
     };
     errors: {
       title: string;

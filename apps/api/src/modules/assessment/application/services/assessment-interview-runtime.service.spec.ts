@@ -7,9 +7,14 @@ import {
   ASSESSMENT_INTERVIEW_CONTROLS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
+  ASSESSMENT_RUNTIME_RUN_STATUSES,
   CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
   INTERVIEW_FRONTIER_MATERIALITIES,
   INTERVIEW_FRONTIER_OWNERS,
+  POST_FINDING_RUNTIME_PHASES,
+  REMEDIATION_APPROVAL_STATUSES,
+  REMEDIATION_DECISIONS,
+  type AssessmentPostFindingRuntimeState,
   type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
@@ -164,7 +169,10 @@ type MockInterviewAudit = {
 };
 
 type MockRuntimeEvents = {
-  recordToolWaitingInput: jest.Mock<() => Promise<void>>;
+  recordToolWaitingInput: jest.Mock<(...args: unknown[]) => Promise<void>>;
+  getLatestPostFindingState: jest.Mock<
+    () => Promise<AssessmentPostFindingRuntimeState | null>
+  >;
 };
 
 describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => {
@@ -243,8 +251,11 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
 
     mockRuntimeEvents = {
       recordToolWaitingInput: jest
-        .fn<() => Promise<void>>()
+        .fn<(...args: unknown[]) => Promise<void>>()
         .mockResolvedValue(undefined),
+      getLatestPostFindingState: jest
+        .fn<() => Promise<AssessmentPostFindingRuntimeState | null>>()
+        .mockResolvedValue(null),
     };
 
     mockInterviewAudit = {
@@ -283,6 +294,63 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
     Object.defineProperty(service, "guidanceResolver", {
       configurable: true,
       value: mockInterviewGuidanceResolver,
+    });
+  });
+
+  describe("submitPostFindingDecision", () => {
+    it("persists the stable remediation decision through runtime events", async () => {
+      mockRuntimeEvents.getLatestPostFindingState.mockResolvedValueOnce({
+        assessmentId: "assessment-1",
+        phase: POST_FINDING_RUNTIME_PHASES.needsInput,
+        codeReviewActivities: [
+          {
+            id: "review-1",
+            label: "Code review completed",
+            status: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
+          },
+        ],
+        decisionAvailability: [
+          REMEDIATION_DECISIONS.updateGithubPat,
+          REMEDIATION_DECISIONS.continueDetectedPr,
+          REMEDIATION_DECISIONS.createRemediationPr,
+        ],
+        approvalStatus: REMEDIATION_APPROVAL_STATUSES.pendingCustomer,
+        verificationActivities: [],
+      });
+
+      const result = await service.submitPostFindingDecision({
+        assessmentId: "assessment-1",
+        actor: {
+          userId: "user-1",
+          sessionId: "session-1",
+          role: AUTH_USER_ROLES.customer,
+          scope: "customer-1",
+        },
+        correlationId: "corr-post-finding-1",
+        decision: {
+          decision: REMEDIATION_DECISIONS.continueDetectedPr,
+        },
+      });
+
+      expect(result.selectedDecision).toBe(
+        REMEDIATION_DECISIONS.continueDetectedPr,
+      );
+      expect(result.phase).toBe(POST_FINDING_RUNTIME_PHASES.existingPr);
+      expect(mockRuntimeEvents.recordToolWaitingInput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          assessmentId: "assessment-1",
+          correlationId: "corr-post-finding-1",
+          inputSummary: {
+            decision: REMEDIATION_DECISIONS.continueDetectedPr,
+          },
+          outputSummary: {
+            postFinding: expect.objectContaining({
+              selectedDecision: REMEDIATION_DECISIONS.continueDetectedPr,
+              phase: POST_FINDING_RUNTIME_PHASES.existingPr,
+            }),
+          },
+        }),
+      );
     });
   });
 
