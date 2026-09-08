@@ -3,6 +3,7 @@ import * as assert from "node:assert/strict";
 import { ASSESSMENT_EVENT_TYPES } from "@lcsp/contracts/assessment";
 import {
   ASSESSMENT_CONTEXT_AUTHORITY_STATUSES,
+  ASSESSMENT_INTERVIEW_ANSWER_ACTIONS,
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
@@ -10,6 +11,8 @@ import {
   CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
   INTERVIEW_FRONTIER_MATERIALITIES,
   INTERVIEW_FRONTIER_OWNERS,
+  INTERVIEW_TECHNICAL_CONTRACT_VERSION,
+  type CustomerAnswer,
 } from "@lcsp/contracts/evidence";
 import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
@@ -70,6 +73,23 @@ function confirmedStructuredContext(input: {
   };
 }
 
+function submitAnswerCommand(input: {
+  questionRef: string;
+  expectedSessionRevision: number;
+  clientRequestId: string;
+  answer: CustomerAnswer;
+}) {
+  return {
+    contractVersion: INTERVIEW_TECHNICAL_CONTRACT_VERSION,
+    assessmentId: "assessment-1",
+    sessionId: "interview:assessment-1",
+    questionRef: input.questionRef,
+    expectedSessionRevision: input.expectedSessionRevision,
+    clientRequestId: input.clientRequestId,
+    answer: input.answer,
+  };
+}
+
 describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
   let app: INestApplication;
   let prisma: PrismaClient;
@@ -111,14 +131,34 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     const shortcut = await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ questionId: "anything" });
+      .send(
+        submitAnswerCommand({
+          questionRef: "anything",
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-shortcut",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: "Attempted shortcut.",
+          },
+        }),
+      );
     assert.equal(shortcut.status, 409, JSON.stringify(shortcut.body));
 
     await seedWaitingQuestion(prisma);
     const answered = await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ questionId: QUESTION_ID, freeText: RAW_ANSWER });
+      .send(
+        submitAnswerCommand({
+          questionRef: QUESTION_ID,
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-context-answer",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: RAW_ANSWER,
+          },
+        }),
+      );
     assert.equal(answered.status, 201, JSON.stringify(answered.body));
     const state = successBody<{
       outcome: string;
@@ -212,7 +252,17 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     const answered = await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ questionId: QUESTION_ID, freeText: RAW_ANSWER });
+      .send(
+        submitAnswerCommand({
+          questionRef: QUESTION_ID,
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-save-exit-answer",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: RAW_ANSWER,
+          },
+        }),
+      );
     assert.equal(answered.status, 201, JSON.stringify(answered.body));
 
     const blocked = await httpRequest(app)
@@ -275,14 +325,31 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     const first = await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ questionId: QUESTION_ID, freeText: RAW_ANSWER });
+      .send(
+        submitAnswerCommand({
+          questionRef: QUESTION_ID,
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-stale-first",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: RAW_ANSWER,
+          },
+        }),
+      );
     const stale = await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({
-        questionId: QUESTION_ID,
-        freeText: "Contradictory second answer.",
-      });
+      .send(
+        submitAnswerCommand({
+          questionRef: QUESTION_ID,
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-stale-second",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: "Contradictory second answer.",
+          },
+        }),
+      );
 
     assert.equal(first.status, 201, JSON.stringify(first.body));
     assert.equal(stale.status, 409, JSON.stringify(stale.body));
@@ -297,15 +364,110 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     assert.equal(revisions.length, 1);
   });
 
+  it("makes canonical SubmitInterviewAnswerCommand delivery idempotent across persisted thread state", async () => {
+    const questionId = "agent-question-idempotency";
+    await seedWaitingQuestion(prisma, questionId);
+    const command = submitAnswerCommand({
+      questionRef: questionId,
+      expectedSessionRevision: 0,
+      clientRequestId: "client-request-e2e-idempotent-1",
+      answer: {
+        kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+        text: RAW_ANSWER,
+      },
+    });
+
+    const first = await httpRequest(app)
+      .post("/assessments/assessment-1/interview/answers")
+      .set("Authorization", `Bearer ${token}`)
+      .send(command);
+    assert.equal(first.status, 201, JSON.stringify(first.body));
+    const firstState = successBody<{
+      contextRevision: number;
+      answerHistory: unknown[];
+    }>(first);
+    assert.equal(firstState.contextRevision, 1);
+    assert.equal(firstState.answerHistory.length, 1);
+
+    const duplicate = await httpRequest(app)
+      .post("/assessments/assessment-1/interview/answers")
+      .set("Authorization", `Bearer ${token}`)
+      .send(command);
+    assert.equal(duplicate.status, 201, JSON.stringify(duplicate.body));
+    const duplicateState = successBody<{
+      contextRevision: number;
+      answerHistory: unknown[];
+    }>(duplicate);
+    assert.equal(duplicateState.contextRevision, 1);
+    assert.equal(duplicateState.answerHistory.length, 1);
+
+    const conflict = await httpRequest(app)
+      .post("/assessments/assessment-1/interview/answers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        ...command,
+        answer: {
+          kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+          text: "Contradictory replay payload.",
+        },
+      });
+    assert.equal(conflict.status, 409, JSON.stringify(conflict.body));
+
+    const stale = await httpRequest(app)
+      .post("/assessments/assessment-1/interview/answers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        ...command,
+        clientRequestId: "client-request-e2e-stale-1",
+        expectedSessionRevision: 0,
+      });
+    assert.equal(stale.status, 409, JSON.stringify(stale.body));
+
+    const thread = await prisma.assessmentInterviewThread.findUniqueOrThrow({
+      where: { assessmentId: "assessment-1" },
+    });
+    assert.equal(thread.contextRevision, 1);
+    const privateStore = jsonRecord(thread.privateContextJson);
+    const revisions = Array.isArray(privateStore.revisions)
+      ? privateStore.revisions
+      : [];
+    const submittedAnswerRequests = Array.isArray(
+      privateStore.submittedAnswerRequests,
+    )
+      ? privateStore.submittedAnswerRequests
+      : [];
+    assert.equal(revisions.length, 1);
+    assert.equal(submittedAnswerRequests.length, 1);
+
+    const resumeCommands = await prisma.outboxMessage.findMany({
+      where: {
+        aggregateId: "assessment-1",
+        eventType: ASSESSMENT_EVENT_TYPES.interviewAgentResumeRequestedOutbox,
+      },
+    });
+    const resumeCommandsForQuestion = resumeCommands.filter((message) => {
+      const payload = jsonRecord(message.payload);
+      return payload.questionId === questionId;
+    });
+    assert.equal(resumeCommandsForQuestion.length, 1);
+  });
+
   it("uses internal guarded decision write-back and blocks false ready", async () => {
     await seedWaitingQuestion(prisma);
     const answered = await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({
-        questionId: QUESTION_ID,
-        freeText: "Human approval is required.",
-      });
+      .send(
+        submitAnswerCommand({
+          questionRef: QUESTION_ID,
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-guarded-answer",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: "Human approval is required.",
+          },
+        }),
+      );
     assert.equal(answered.status, 201, JSON.stringify(answered.body));
 
     const falseReady = await httpRequest(app)
@@ -410,7 +572,17 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ questionId: QUESTION_ID, freeText: RAW_ANSWER });
+      .send(
+        submitAnswerCommand({
+          questionRef: QUESTION_ID,
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-stale-provenance",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: RAW_ANSWER,
+          },
+        }),
+      );
 
     const stale = await httpRequest(app)
       .get("/internal/assessment-interviews/assessment-1/private-context/1")
@@ -428,7 +600,17 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     const answered = await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ questionId: QUESTION_ID, freeText: RAW_ANSWER });
+      .send(
+        submitAnswerCommand({
+          questionRef: QUESTION_ID,
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-authoritative-provenance",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: RAW_ANSWER,
+          },
+        }),
+      );
     assert.equal(answered.status, 201, JSON.stringify(answered.body));
 
     const thread = await prisma.assessmentInterviewThread.findUniqueOrThrow({
@@ -489,19 +671,49 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     const empty = await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ questionId: QUESTION_ID });
+      .send(
+        submitAnswerCommand({
+          questionRef: QUESTION_ID,
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-empty-control",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: "Wrong control.",
+          },
+        }),
+      );
     assert.equal(empty.status, 400, JSON.stringify(empty.body));
 
     const invalidChoice = await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ questionId: QUESTION_ID, selectedChoiceIds: ["maybe"] });
+      .send(
+        submitAnswerCommand({
+          questionRef: QUESTION_ID,
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-invalid-choice",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+            value: "maybe",
+          },
+        }),
+      );
     assert.equal(invalidChoice.status, 400, JSON.stringify(invalidChoice.body));
 
     const valid = await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ questionId: QUESTION_ID, selectedChoiceIds: ["yes"] });
+      .send(
+        submitAnswerCommand({
+          questionRef: QUESTION_ID,
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-valid-boolean",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+            value: true,
+          },
+        }),
+      );
     assert.equal(valid.status, 201, JSON.stringify(valid.body));
   });
 
@@ -510,7 +722,17 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ questionId: QUESTION_ID, freeText: RAW_ANSWER });
+      .send(
+        submitAnswerCommand({
+          questionRef: QUESTION_ID,
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-targeted-baseline",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: RAW_ANSWER,
+          },
+        }),
+      );
 
     const ready = await httpRequest(app)
       .post("/internal/assessment-interviews/assessment-1/agent-decisions")
@@ -602,10 +824,17 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     const targetedAnswer = await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({
-        questionId: "target-question-1",
-        freeText: "The human operations lead has final approval.",
-      });
+      .send(
+        submitAnswerCommand({
+          questionRef: "target-question-1",
+          expectedSessionRevision: 1,
+          clientRequestId: "client-request-targeted-answer",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: "The human operations lead has final approval.",
+          },
+        }),
+      );
     assert.equal(
       targetedAnswer.status,
       201,
@@ -686,10 +915,17 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     const confirmation = await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({
-        questionId: "target-confirm-1",
-        confirmed: true,
-      });
+      .send(
+        submitAnswerCommand({
+          questionRef: "target-confirm-1",
+          expectedSessionRevision: 2,
+          clientRequestId: "client-request-targeted-confirm",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+            action: ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.confirm,
+          },
+        }),
+      );
     assert.equal(confirmation.status, 201, JSON.stringify(confirmation.body));
 
     const resolved = await httpRequest(app)
@@ -864,7 +1100,10 @@ async function seedUsableTechnicalCoverage(
   });
 }
 
-async function seedWaitingQuestion(prisma: PrismaClient): Promise<void> {
+async function seedWaitingQuestion(
+  prisma: PrismaClient,
+  questionId = QUESTION_ID,
+): Promise<void> {
   // Directly materialized Interview threads still require the same accepted,
   // usable technical-report provenance as a worker-seeded question.
   await seedUsableTechnicalCoverage(prisma);
@@ -876,7 +1115,7 @@ async function seedWaitingQuestion(prisma: PrismaClient): Promise<void> {
     where: { assessmentId: "assessment-1" },
     update: {
       contextRevision: 0,
-      activeQuestionId: QUESTION_ID,
+      activeQuestionId: questionId,
       processedRevision: 0,
       privateContextJson: privateContext,
       stateJson: {
@@ -884,7 +1123,7 @@ async function seedWaitingQuestion(prisma: PrismaClient): Promise<void> {
         threadId: "interview:assessment-1",
         contextRevision: 0,
         activeQuestion: {
-          id: QUESTION_ID,
+          id: questionId,
           intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
           control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
           prompt: "Runtime-authored Interview Agent question",
@@ -896,7 +1135,7 @@ async function seedWaitingQuestion(prisma: PrismaClient): Promise<void> {
       id: "interview:assessment-1",
       assessmentId: "assessment-1",
       contextRevision: 0,
-      activeQuestionId: QUESTION_ID,
+      activeQuestionId: questionId,
       processedRevision: 0,
       privateContextJson: privateContext,
       stateJson: {
@@ -904,7 +1143,7 @@ async function seedWaitingQuestion(prisma: PrismaClient): Promise<void> {
         threadId: "interview:assessment-1",
         contextRevision: 0,
         activeQuestion: {
-          id: QUESTION_ID,
+          id: questionId,
           intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
           control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
           prompt: "Runtime-authored Interview Agent question",

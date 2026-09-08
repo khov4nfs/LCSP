@@ -66,6 +66,9 @@ export const ASSESSMENT_INTERVIEW_ANSWER_ACTIONS = {
 export type AssessmentInterviewAnswerAction =
   (typeof ASSESSMENT_INTERVIEW_ANSWER_ACTIONS)[keyof typeof ASSESSMENT_INTERVIEW_ANSWER_ACTIONS];
 
+export const INTERVIEW_TECHNICAL_CONTRACT_VERSION =
+  "interview-technical-contract-v1.0.0";
+
 export const ASSESSMENT_TECHNICAL_COVERAGE_STATES = {
   ready: "READY",
   partial: "PARTIAL",
@@ -292,8 +295,62 @@ export type AssessmentInterviewAnswerInput = {
   freeText?: string;
   selectedChoiceIds?: string[];
   otherText?: string;
+  comment?: string;
   confirmed?: boolean;
   adjusted?: boolean;
+};
+
+export type CustomerFreeTextAnswer = {
+  kind: typeof ASSESSMENT_INTERVIEW_CONTROLS.freeText;
+  text: string;
+};
+
+export type CustomerSingleSelectAnswer = {
+  kind: typeof ASSESSMENT_INTERVIEW_CONTROLS.singleSelect;
+  value: string;
+  comment?: string;
+};
+
+export type CustomerMultiSelectAnswer = {
+  kind: typeof ASSESSMENT_INTERVIEW_CONTROLS.multiSelect;
+  values: string[];
+  comment?: string;
+};
+
+export type CustomerBooleanAnswer = {
+  kind: typeof ASSESSMENT_INTERVIEW_CONTROLS.boolean;
+  value: boolean;
+  comment?: string;
+};
+
+export type CustomerConfirmAnswer = {
+  kind: typeof ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust;
+  action: typeof ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.confirm;
+  comment?: string;
+};
+
+export type CustomerAdjustAnswer = {
+  kind: typeof ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust;
+  action: typeof ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.adjust;
+  adjustmentText: string;
+};
+
+export type CustomerAnswer =
+  | CustomerFreeTextAnswer
+  | CustomerSingleSelectAnswer
+  | CustomerMultiSelectAnswer
+  | CustomerBooleanAnswer
+  | CustomerConfirmAnswer
+  | CustomerAdjustAnswer;
+
+export type SubmitInterviewAnswerCommand = {
+  contractVersion: string;
+  assessmentId: string;
+  sessionId: string;
+  questionRef: string;
+  expectedSessionRevision: number;
+  clientRequestId: string;
+  answer: CustomerAnswer;
 };
 
 export type AssessmentInterviewBlockedInput = {
