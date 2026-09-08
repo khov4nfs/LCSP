@@ -10,6 +10,7 @@ import os
 import pytest
 
 from orchestration.context import LCSPRunContext
+from contracts.handoffs import InterviewResult
 from subagents.interview.customer_safe_projection import (
     GovernedEvidenceMetadata,
     InterviewEvidenceDTO,
@@ -59,6 +60,68 @@ from tools.common.search_program_graph.code import (
     SearchProgramGraphRequest,
     search_program_graph,
 )
+
+
+def test_interview_contract_rejects_compatibility_only_and_legacy_modes() -> None:
+    with pytest.raises(ValueError):
+        InterviewResult(
+            expectedContextRevision=0,
+            mode="PRE_PLANNER",
+            outcome="BLOCKED_OR_UNRESOLVED",
+        )
+    with pytest.raises(ValueError):
+        InterviewResult(
+            expectedContextRevision=0,
+            mode="TARGETED_INTERVIEW",
+            outcome="BLOCKED_OR_UNRESOLVED",
+        )
+
+
+def test_interview_contract_requires_canonical_confirm_adjust_shape() -> None:
+    result = InterviewResult(
+        expectedContextRevision=0,
+        mode="INVESTIGATOR_RESOLUTION",
+        outcome="WAITING_FOR_CUSTOMER",
+        activeQuestion={
+            "id": "confirm-approval",
+            "intent": "CLARIFY",
+            "control": "CONFIRM_ADJUST",
+            "prompt": "Please confirm the approval authority.",
+            "proposedInterpretation": "A human manager approves before action.",
+            "choices": [
+                {"id": "CONFIRM", "label": "Confirm"},
+                {
+                    "id": "ADJUST",
+                    "label": "Adjust",
+                    "requiresFreeText": True,
+                },
+            ],
+            "frontier": {
+                "owner": "CUSTOMER",
+                "materiality": "MATERIAL",
+                "description": "Approval authority",
+            },
+        },
+    )
+    assert result.activeQuestion is not None
+    assert result.activeQuestion.control == "CONFIRM_ADJUST"
+    with pytest.raises(ValueError):
+        InterviewResult(
+            expectedContextRevision=0,
+            mode="INVESTIGATOR_RESOLUTION",
+            outcome="WAITING_FOR_CUSTOMER",
+            activeQuestion={
+                "id": "invalid-confirm",
+                "intent": "ASK",
+                "control": "CONFIRM_ADJUST",
+                "prompt": "Confirm?",
+                "frontier": {
+                    "owner": "CUSTOMER",
+                    "materiality": "MATERIAL",
+                    "description": "Approval authority",
+                },
+            },
+        )
 from tools.investigator.inspect_data_path.code import (
     InspectDataPathRequest,
     inspect_data_path,

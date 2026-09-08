@@ -361,9 +361,14 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         contextRevision: 1,
         activeQuestion: {
           id: "q-1",
-          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
-          prompt: "What is your data residency?",
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
+          prompt: "Please confirm the current interpretation.",
           control: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+          proposedInterpretation: "Data remains in the selected region.",
+          choices: [
+            { id: "CONFIRM", label: "Confirm" },
+            { id: "ADJUST", label: "Adjust", requiresFreeText: true },
+          ],
         },
       };
 
@@ -402,7 +407,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         expect.objectContaining({
           assessmentId: "assessment-1",
           questionId: "q-1",
-          questionIntent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+          questionIntent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
           responseMode: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
           responseAction: ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.confirm,
           sessionId: "interview:assessment-1",
@@ -436,6 +441,89 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           sessionId: "interview:assessment-1",
           threadId: "interview:assessment-1",
           turnId: 2,
+        }),
+        mockTx,
+      );
+    });
+
+    it("rejects confirm-only answers for FREE_TEXT and requires text for CONFIRM_ADJUST adjustments", async () => {
+      const threadFor = (
+        activeQuestion: NonNullable<
+          AssessmentInterviewRuntimeState["activeQuestion"]
+        >,
+      ) => ({
+        assessmentId: "assessment-1",
+        contextRevision: 1,
+        processedRevision: 0,
+        activeQuestionId: activeQuestion.id,
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 1,
+          activeQuestion,
+        },
+        privateContextJson: {
+          revisions: [],
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+      const submit = (answer: Record<string, unknown>) =>
+        service.submitAnswer({
+          assessmentId: "assessment-1",
+          actor: {
+            userId: "user-1",
+            sessionId: "session-1",
+            role: AUTH_USER_ROLES.customer,
+            scope: "assessment:assessment-1",
+          },
+          correlationId: "corr-submit-control",
+          answer: answer as { questionId: string },
+        });
+
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(
+        threadFor({
+          id: "q-free-text",
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+          prompt: "Describe the business purpose.",
+          control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+        }),
+      );
+      await expect(
+        submit({ questionId: "q-free-text", confirmed: true }),
+      ).rejects.toMatchObject({
+        response: { code: "INTERVIEW_ANSWER_CONTROL_INVALID" },
+      });
+
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(
+        threadFor({
+          id: "q-confirm-adjust",
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
+          prompt: "Please confirm the current interpretation.",
+          control: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+          proposedInterpretation: "A manager approves before action.",
+          choices: [
+            { id: "CONFIRM", label: "Confirm" },
+            { id: "ADJUST", label: "Adjust", requiresFreeText: true },
+          ],
+        }),
+      );
+      await expect(
+        submit({ questionId: "q-confirm-adjust", adjusted: true }),
+      ).rejects.toMatchObject({
+        response: { code: "INTERVIEW_ANSWER_CONTROL_INVALID" },
+      });
+
+      const adjusted = await submit({
+        questionId: "q-confirm-adjust",
+        adjusted: true,
+        freeText: "A senior manager approves before action.",
+      });
+      expect(adjusted.contextRevision).toBe(2);
+      expect(mockInterviewAudit.recordCustomerAnswer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          responseMode: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+          responseAction: ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.adjust,
         }),
         mockTx,
       );
@@ -1017,7 +1105,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           correlationId: "corr-target-non-structured",
           decision: {
             expectedContextRevision: 2,
-            mode: "TARGETED_INTERVIEW",
+            mode: "INVESTIGATOR_RESOLUTION",
             outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
             contextAuthority:
               ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
@@ -1043,7 +1131,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           correlationId: "corr-target-unsatisfied",
           decision: {
             expectedContextRevision: 2,
-            mode: "TARGETED_INTERVIEW",
+            mode: "INVESTIGATOR_RESOLUTION",
             outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
             contextAuthority:
               ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
@@ -1070,7 +1158,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         correlationId: "corr-target-structured-resolved",
         decision: {
           expectedContextRevision: 2,
-          mode: "TARGETED_INTERVIEW",
+          mode: "INVESTIGATOR_RESOLUTION",
           outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
           contextAuthority:
             ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
@@ -1116,7 +1204,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           correlationId: "corr-target-structured-unconfirmed",
           decision: {
             expectedContextRevision: 2,
-            mode: "TARGETED_INTERVIEW",
+            mode: "INVESTIGATOR_RESOLUTION",
             outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
             contextAuthority:
               ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
@@ -1942,7 +2030,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           correlationId: "corr-target-fake-statement-ref",
           decision: {
             expectedContextRevision: 2,
-            mode: "TARGETED_INTERVIEW",
+            mode: "INVESTIGATOR_RESOLUTION",
             outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
             contextAuthority:
               ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
@@ -2056,7 +2144,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         correlationId: "corr-runtime-owned-confirmed-context",
         decision: {
           expectedContextRevision: 2,
-          mode: "TARGETED_INTERVIEW",
+          mode: "INVESTIGATOR_RESOLUTION",
           outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
           contextAuthority:
             ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,

@@ -104,7 +104,7 @@ def test_managed_project_separates_authored_tools_from_runtime() -> None:
         for path in (PROJECT_ROOT / "skills").iterdir()
         if path.is_dir() and not path.name.startswith("__")
     }
-    assert skill_packages == {"lcsp", "legal-rule-triage"}
+    assert skill_packages == {"interview-context", "lcsp", "legal-rule-triage"}
     assert (PROJECT_ROOT / "skills" / "lcsp" / "SKILL.md").is_file()
     assert (PROJECT_ROOT / "skills" / "legal-rule-triage" / "SKILL.md").is_file()
     assert not (PROJECT_ROOT / "skills" / "deep_agent_skills").exists()

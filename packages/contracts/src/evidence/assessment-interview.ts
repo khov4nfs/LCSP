@@ -9,6 +9,36 @@ export const ASSESSMENT_INTERVIEW_OUTCOMES = {
 export type AssessmentInterviewOutcome =
   (typeof ASSESSMENT_INTERVIEW_OUTCOMES)[keyof typeof ASSESSMENT_INTERVIEW_OUTCOMES];
 
+/** Canonical Interview reasoning modes. PRE_PLANNER is input-only compatibility. */
+export const ASSESSMENT_INTERVIEW_MODES = {
+  initialInterview: "INITIAL_INTERVIEW",
+  investigatorResolution: "INVESTIGATOR_RESOLUTION",
+  prePlanner: "PRE_PLANNER",
+} as const;
+
+export type AssessmentInterviewMode =
+  (typeof ASSESSMENT_INTERVIEW_MODES)[keyof typeof ASSESSMENT_INTERVIEW_MODES];
+
+export type CanonicalAssessmentInterviewMode = Exclude<
+  AssessmentInterviewMode,
+  typeof ASSESSMENT_INTERVIEW_MODES.prePlanner
+>;
+
+export function normalizeAssessmentInterviewMode(
+  value: unknown,
+): CanonicalAssessmentInterviewMode | undefined {
+  if (
+    value === ASSESSMENT_INTERVIEW_MODES.initialInterview ||
+    value === ASSESSMENT_INTERVIEW_MODES.prePlanner
+  ) {
+    return ASSESSMENT_INTERVIEW_MODES.initialInterview;
+  }
+  if (value === ASSESSMENT_INTERVIEW_MODES.investigatorResolution) {
+    return ASSESSMENT_INTERVIEW_MODES.investigatorResolution;
+  }
+  return undefined;
+}
+
 export const ASSESSMENT_INTERVIEW_QUESTION_INTENTS = {
   ask: "ASK",
   clarify: "CLARIFY",
@@ -120,8 +150,7 @@ export type PersistedCustomerQuestionFrontier = {
 };
 
 export type AssessmentInterviewFrontier =
-  | PersistedCustomerQuestionFrontier
-  | AssessmentInterviewFrontierCandidate;
+  PersistedCustomerQuestionFrontier | AssessmentInterviewFrontierCandidate;
 
 export type AssessmentInterviewQuestionChoice = {
   id: string;
@@ -138,6 +167,7 @@ export type AssessmentInterviewQuestion = {
   prompt: string;
   choices?: AssessmentInterviewQuestionChoice[];
   priorAnswerSummary?: string;
+  proposedInterpretation?: string;
   whyEvidenceRefs?: string[];
   whyAreWeAsking?: string;
   hasSupportingEvidence?: boolean;
