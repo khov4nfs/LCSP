@@ -6,6 +6,7 @@ import {
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
   ASSESSMENT_INTERVIEW_FLAGS,
+  ASSESSMENT_INTERVIEW_MODES,
   ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
@@ -15,10 +16,12 @@ import {
   INTERVIEW_FRONTIER_MATERIALITIES,
   INTERVIEW_FRONTIER_OWNERS,
   INTERVIEW_TECHNICAL_CONTRACT_VERSION,
+  LEGACY_ASSESSMENT_INTERVIEW_MODES,
   POST_FINDING_RUNTIME_PHASES,
   REMEDIATION_APPROVAL_STATUSES,
   REMEDIATION_DECISIONS,
   type CustomerAnswer,
+  type SubmitInterviewAnswerCommand,
   type AssessmentPostFindingRuntimeState,
   type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
@@ -80,7 +83,7 @@ function submitAnswerCommand(input: {
   expectedSessionRevision?: number;
   clientRequestId?: string;
   answer: CustomerAnswer;
-}) {
+}): SubmitInterviewAnswerCommand {
   return {
     contractVersion: INTERVIEW_TECHNICAL_CONTRACT_VERSION,
     assessmentId: "assessment-1",
@@ -1384,6 +1387,26 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
   });
 
   describe("recordAgentDecision", () => {
+    it("rejects PRE_PLANNER on the internal agent decision path", async () => {
+      await expect(
+        service.recordAgentDecision({
+          assessmentId: "assessment-1",
+          correlationId: "corr-legacy-mode",
+          decision: {
+            expectedContextRevision: 2,
+            mode: LEGACY_ASSESSMENT_INTERVIEW_MODES.prePlanner,
+            outcome: ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved,
+          } as never,
+        }),
+      ).rejects.toMatchObject({
+        response: { code: "INTERVIEW_AGENT_DECISION_INVALID" },
+      });
+
+      expect(
+        mockTx.assessmentInterviewThread.findUnique,
+      ).not.toHaveBeenCalled();
+    });
+
     it("atomically records outcome, question persistence, and downstream impact in transaction", async () => {
       const waitingState: AssessmentInterviewRuntimeState = {
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
@@ -1421,6 +1444,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         correlationId: "corr-decision-1",
         decision: {
           expectedContextRevision: 2,
+          mode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
           outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
           activeQuestion: {
             id: "q-next-1",
@@ -2574,6 +2598,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
             correlationId: "corr-decision-frontier-test",
             decision: {
               expectedContextRevision: 2,
+              mode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
               outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
               activeQuestion: {
                 id: "q-decision-invalid",
@@ -2629,6 +2654,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           correlationId: "corr-decision-unauth-refs",
           decision: {
             expectedContextRevision: 2,
+            mode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
             outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
             activeQuestion: {
               id: "q-decision-unauth",
@@ -2778,6 +2804,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         correlationId: "corr-decision-node-edge-refs",
         decision: {
           expectedContextRevision: 2,
+          mode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
           outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
           activeQuestion: {
             id: "q-decision-valid-refs",

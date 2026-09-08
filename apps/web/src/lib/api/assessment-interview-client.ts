@@ -24,6 +24,7 @@ import {
   type AssessmentInterviewQuestionChoice,
   type AssessmentInterviewRuntimeState,
   type CustomerAnswer,
+  type NonEmptyArray,
   type SubmitInterviewAnswerCommand,
   INTERVIEW_TECHNICAL_CONTRACT_VERSION,
 } from "@lcsp/contracts/evidence";
@@ -104,9 +105,13 @@ function toCustomerAnswer(
     };
   }
   if (question.control === ASSESSMENT_INTERVIEW_CONTROLS.multiSelect) {
+    const values = input.selectedChoiceIds?.filter(Boolean) ?? [];
+    if (values.length === 0) {
+      throw new Error("INTERVIEW_MULTI_SELECT_ANSWER_REQUIRED");
+    }
     return {
       kind: ASSESSMENT_INTERVIEW_CONTROLS.multiSelect,
-      values: input.selectedChoiceIds ?? [],
+      values: values as NonEmptyArray<string>,
       comment,
     };
   }
