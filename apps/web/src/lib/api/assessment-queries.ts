@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  buildSubmitInterviewAnswerCommand,
   getAssessmentInterviewState,
   recordAssessmentInterviewBlockedAction,
   submitAssessmentPostFindingDecision,
@@ -36,6 +37,7 @@ import { apiQueryKeys } from "./query-keys";
 import type {
   AssessmentInterviewAnswerInput,
   AssessmentInterviewBlockedInput,
+  AssessmentInterviewRuntimeState,
   AssessmentPostFindingDecisionInput,
 } from "@lcsp/contracts/evidence";
 
@@ -56,8 +58,18 @@ export function useSubmitAssessmentInterviewAnswerMutation(
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: AssessmentInterviewAnswerInput) =>
-      submitAssessmentInterviewAnswer(assessmentId, input),
+    mutationFn: (input: {
+      answer: AssessmentInterviewAnswerInput;
+      state: AssessmentInterviewRuntimeState;
+    }) =>
+      submitAssessmentInterviewAnswer(
+        assessmentId,
+        buildSubmitInterviewAnswerCommand(
+          assessmentId,
+          input.state,
+          input.answer,
+        ),
+      ),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: apiQueryKeys.assessment.interview(assessmentId),

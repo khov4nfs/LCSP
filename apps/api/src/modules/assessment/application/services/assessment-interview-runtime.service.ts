@@ -27,6 +27,7 @@ import {
   CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
   INTERVIEW_FRONTIER_MATERIALITIES,
   INTERVIEW_FRONTIER_OWNERS,
+  INTERVIEW_TECHNICAL_CONTRACT_VERSION,
   isRemediationDecision,
   POST_FINDING_RUNTIME_PHASES,
   REMEDIATION_DECISIONS,
@@ -39,6 +40,8 @@ import {
   type AssessmentInterviewControl,
   type AssessmentInterviewOrchestratorAction,
   type CanonicalAssessmentInterviewMode,
+  type CustomerAnswer,
+  type SubmitInterviewAnswerCommand,
   type AssessmentInterviewWorkflowEvent,
   type AssessmentInterviewQuestion,
   type AssessmentInterviewQuestionIntent,
@@ -123,6 +126,14 @@ export type PrivateInterviewAnswerRevision = {
   processedAt?: string;
 };
 
+type InterviewAnswerIdempotencyRecord = {
+  clientRequestId: string;
+  payloadFingerprint: string;
+  questionId: string;
+  contextRevision: number;
+  recordedAt: string;
+};
+
 type TargetedInterviewNeed = {
   needId: string;
   businessContextNeed: string;
@@ -147,6 +158,7 @@ type TargetedInterviewContinuation = {
 
 type PrivateInterviewStore = {
   revisions: PrivateInterviewAnswerRevision[];
+  submittedAnswerRequests?: InterviewAnswerIdempotencyRecord[];
   workflowRunId?: string;
   workingStrategy?: InterviewWorkingStrategy;
   targetedNeed?: TargetedInterviewNeed;
@@ -232,13 +244,69 @@ export class AssessmentInterviewRuntimeService {
     assessmentId: string;
     actor: RbacRequestContext;
     correlationId: string;
-    answer: AssessmentInterviewAnswerInput;
+    answer: SubmitInterviewAnswerCommand;
   }): Promise<AssessmentInterviewRuntimeState> {
-    const answer = parseAnswer(input.answer);
+    const command = parseSubmitAnswerCommand(input.answer, input.assessmentId);
+    const answer = command.answer;
     await this.assertAssessmentVisible(input.assessmentId, input.actor);
     const now = new Date().toISOString();
     const next = await this.prisma.$transaction(async (tx) => {
       const thread = await this.readThread(input.assessmentId, tx);
+      if (
+        command.sessionId &&
+        command.sessionId !== this.threadId(input.assessmentId)
+      ) {
+        throw problemException(
+          "INTERVIEW_SESSION_MISMATCH",
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
+      const payloadFingerprint = command.clientRequestId
+        ? stableJson({
+            assessmentId: input.assessmentId,
+            sessionId: command.sessionId,
+            questionRef: answer.questionId,
+            expectedSessionRevision: command.expectedSessionRevision,
+            answer,
+          })
+        : undefined;
+      const existingRequest = command.clientRequestId
+        ? thread.privateStore.submittedAnswerRequests?.find(
+            (request) => request.clientRequestId === command.clientRequestId,
+          )
+        : undefined;
+      if (existingRequest) {
+        if (existingRequest.payloadFingerprint !== payloadFingerprint) {
+          throw problemException(
+            "INTERVIEW_ANSWER_IDEMPOTENCY_CONFLICT",
+            input.correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
+        return {
+          state: thread.state,
+          revision: existingRequest.contextRevision,
+          questionId: existingRequest.questionId,
+          workflowRunId:
+            thread.privateStore.targetedContinuation?.workflowRunId ??
+            thread.privateStore.workflowRunId ??
+            this.threadId(input.assessmentId),
+          partialCoveragePolicyDecision:
+            thread.privateStore.partialCoveragePolicyDecision,
+          idempotentReplay: true,
+        };
+      }
+      if (
+        command.expectedSessionRevision !== undefined &&
+        command.expectedSessionRevision !== thread.contextRevision
+      ) {
+        throw problemException(
+          "INTERVIEW_SESSION_REVISION_STALE",
+          input.correlationId,
+          { status: HttpStatus.CONFLICT },
+        );
+      }
       if (
         !thread.state.activeQuestion ||
         thread.state.activeQuestion.id !== answer.questionId ||
@@ -329,6 +397,18 @@ export class AssessmentInterviewRuntimeService {
           privateContextJson: toJson({
             ...thread.privateStore,
             revisions: [...thread.privateRevisions, privateRevision],
+            submittedAnswerRequests: command.clientRequestId
+              ? [
+                  ...(thread.privateStore.submittedAnswerRequests ?? []),
+                  {
+                    clientRequestId: command.clientRequestId,
+                    payloadFingerprint: payloadFingerprint ?? "",
+                    questionId: answer.questionId,
+                    contextRevision: nextRevision,
+                    recordedAt: now,
+                  },
+                ]
+              : thread.privateStore.submittedAnswerRequests,
             workingStrategy,
           }),
           contextRevision: nextRevision,
@@ -452,8 +532,13 @@ export class AssessmentInterviewRuntimeService {
         partialCoveragePolicyDecision:
           provenance.partialCoveragePolicyDecision ??
           thread.privateStore.partialCoveragePolicyDecision,
+        idempotentReplay: false,
       };
     });
+
+    if (next.idempotentReplay) {
+      return publicState(next.state);
+    }
 
     await this.runtimeEvents.recordToolWaitingInput({
       assessmentId: input.assessmentId,
@@ -1816,26 +1901,118 @@ export class AssessmentInterviewRuntimeService {
   }
 }
 
-function parseAnswer(value: unknown): AssessmentInterviewAnswerInput {
+function parseSubmitAnswerCommand(
+  value: unknown,
+  routeAssessmentId: string,
+): {
+  answer: AssessmentInterviewAnswerInput;
+  sessionId: string;
+  expectedSessionRevision: number;
+  clientRequestId: string;
+} {
   const record = objectRecord(value);
-  if (!record || typeof record.questionId !== "string") {
-    throw new BadRequestException({ code: "INTERVIEW_ANSWER_INVALID" });
+  if (!record || !objectRecord(record.answer)) {
+    throw new BadRequestException({ code: "INTERVIEW_SUBMIT_COMMAND_INVALID" });
+  }
+  if (
+    record.contractVersion !== INTERVIEW_TECHNICAL_CONTRACT_VERSION ||
+    record.assessmentId !== routeAssessmentId ||
+    typeof record.sessionId !== "string" ||
+    !record.sessionId.trim() ||
+    typeof record.questionRef !== "string" ||
+    !record.questionRef.trim() ||
+    typeof record.expectedSessionRevision !== "number" ||
+    !Number.isInteger(record.expectedSessionRevision) ||
+    record.expectedSessionRevision < 0 ||
+    typeof record.clientRequestId !== "string" ||
+    !record.clientRequestId.trim()
+  ) {
+    throw new BadRequestException({ code: "INTERVIEW_SUBMIT_COMMAND_INVALID" });
   }
   return {
-    questionId: record.questionId,
-    freeText: typeof record.freeText === "string" ? record.freeText : undefined,
-    selectedChoiceIds: Array.isArray(record.selectedChoiceIds)
-      ? record.selectedChoiceIds.filter(
-          (item): item is string => typeof item === "string",
-        )
-      : undefined,
-    otherText:
-      typeof record.otherText === "string" ? record.otherText : undefined,
-    confirmed:
-      typeof record.confirmed === "boolean" ? record.confirmed : undefined,
-    adjusted:
-      typeof record.adjusted === "boolean" ? record.adjusted : undefined,
+    answer: parseCustomerAnswer(record.questionRef.trim(), record.answer),
+    sessionId: record.sessionId.trim(),
+    expectedSessionRevision: record.expectedSessionRevision,
+    clientRequestId: record.clientRequestId.trim(),
   };
+}
+
+function parseCustomerAnswer(
+  questionId: string,
+  value: unknown,
+): AssessmentInterviewAnswerInput {
+  const answer = objectRecord(value);
+  if (
+    !answer ||
+    !Object.values(ASSESSMENT_INTERVIEW_CONTROLS).includes(answer.kind as never)
+  ) {
+    throw new BadRequestException({ code: "INTERVIEW_ANSWER_INVALID" });
+  }
+  const kind = answer.kind as CustomerAnswer["kind"];
+  if (kind === ASSESSMENT_INTERVIEW_CONTROLS.freeText) {
+    if (typeof answer.text !== "string" || !answer.text.trim()) {
+      throw new BadRequestException({ code: "INTERVIEW_ANSWER_INVALID" });
+    }
+    return { questionId, freeText: answer.text };
+  }
+  if (kind === ASSESSMENT_INTERVIEW_CONTROLS.singleSelect) {
+    if (typeof answer.value !== "string" || !answer.value.trim()) {
+      throw new BadRequestException({ code: "INTERVIEW_ANSWER_INVALID" });
+    }
+    return {
+      questionId,
+      selectedChoiceIds: [answer.value],
+      comment: typeof answer.comment === "string" ? answer.comment : undefined,
+    };
+  }
+  if (kind === ASSESSMENT_INTERVIEW_CONTROLS.multiSelect) {
+    const values = Array.isArray(answer.values)
+      ? answer.values.filter(
+          (item): item is string =>
+            typeof item === "string" && item.trim().length > 0,
+        )
+      : [];
+    if (!values.length || new Set(values).size !== values.length) {
+      throw new BadRequestException({ code: "INTERVIEW_ANSWER_INVALID" });
+    }
+    return {
+      questionId,
+      selectedChoiceIds: values,
+      comment: typeof answer.comment === "string" ? answer.comment : undefined,
+    };
+  }
+  if (kind === ASSESSMENT_INTERVIEW_CONTROLS.boolean) {
+    if (typeof answer.value !== "boolean") {
+      throw new BadRequestException({ code: "INTERVIEW_ANSWER_INVALID" });
+    }
+    return {
+      questionId,
+      selectedChoiceIds: [answer.value ? "yes" : "no"],
+      comment: typeof answer.comment === "string" ? answer.comment : undefined,
+    };
+  }
+  if (kind === ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust) {
+    if (answer.action === ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.confirm) {
+      return {
+        questionId,
+        confirmed: true,
+        comment:
+          typeof answer.comment === "string" ? answer.comment : undefined,
+      };
+    }
+    if (
+      answer.action === ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.adjust &&
+      typeof answer.adjustmentText === "string" &&
+      answer.adjustmentText.trim()
+    ) {
+      return {
+        questionId,
+        adjusted: true,
+        freeText: answer.adjustmentText,
+      };
+    }
+  }
+  throw new BadRequestException({ code: "INTERVIEW_ANSWER_INVALID" });
 }
 
 function parseBlockedAction(value: unknown): AssessmentInterviewBlockedInput {
@@ -2344,6 +2521,9 @@ function parsePrivateStore(value: unknown): PrivateInterviewStore {
   );
   return {
     revisions,
+    submittedAnswerRequests: Array.isArray(record.submittedAnswerRequests)
+      ? record.submittedAnswerRequests.filter(isAnswerIdempotencyRecord)
+      : undefined,
     workflowRunId:
       typeof record.workflowRunId === "string" && record.workflowRunId.trim()
         ? record.workflowRunId.trim()
@@ -2468,6 +2648,21 @@ function isPrivateRevision(
     typeof record.sourceVersion === "string" &&
     typeof record.pgeVersion === "string" &&
     Array.isArray(record.governedEvidenceRefs)
+  );
+}
+
+function isAnswerIdempotencyRecord(
+  value: unknown,
+): value is InterviewAnswerIdempotencyRecord {
+  const record = objectRecord(value);
+  return (
+    !!record &&
+    typeof record.clientRequestId === "string" &&
+    record.clientRequestId.trim().length > 0 &&
+    typeof record.payloadFingerprint === "string" &&
+    typeof record.questionId === "string" &&
+    typeof record.contextRevision === "number" &&
+    typeof record.recordedAt === "string"
   );
 }
 
@@ -2820,8 +3015,11 @@ function assertAnswerMatchesQuestion(
   const requiresOtherText = selected.some(
     (choiceId) => choiceById.get(choiceId)?.requiresFreeText === true,
   );
-  const hasOtherText = Boolean(answer.otherText?.trim());
+  const hasOtherText = Boolean(
+    answer.otherText?.trim() || answer.comment?.trim(),
+  );
   const hasFreeText = Boolean(answer.freeText?.trim());
+  const hasComment = Boolean(answer.comment?.trim());
 
   if (question.control === ASSESSMENT_INTERVIEW_CONTROLS.freeText) {
     if (
@@ -2829,7 +3027,8 @@ function assertAnswerMatchesQuestion(
       selected.length ||
       answer.confirmed ||
       answer.adjusted ||
-      hasOtherText
+      hasOtherText ||
+      hasComment
     )
       invalid();
     return;
@@ -3121,6 +3320,7 @@ function publicState(
 ): AssessmentInterviewRuntimeState {
   return {
     outcome: state.outcome,
+    threadId: state.threadId,
     contextRevision: state.contextRevision,
     contextAuthority: state.contextAuthority,
     activeQuestion: publicActiveQuestion(state.activeQuestion),
@@ -3151,6 +3351,20 @@ function objectRecord(value: unknown): Record<string, unknown> | null {
 
 function toJson(value: unknown): Prisma.InputJsonValue {
   return value as Prisma.InputJsonValue;
+}
+
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableJson(item)).join(",")}]`;
+  }
+  if (value !== null && typeof value === "object") {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .filter(([, item]) => item !== undefined)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${stableJson(item)}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
 }
 
 function readTechnicalCoverageState(

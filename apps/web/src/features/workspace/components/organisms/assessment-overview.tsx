@@ -185,6 +185,7 @@ function AssessmentInterviewFlow({
   const composerAvailability = selectComposerAvailability(normalized);
   const interviewHandoff = selectInterviewHandoffPresentation(normalized);
   const postFinding = selectPostFindingPresentation(normalized);
+  const runtimeInterviewState = interviewQuery.data;
   const submitAnswer = useSubmitAssessmentInterviewAnswerMutation(assessmentId);
   const recordBlockedAction =
     useAssessmentInterviewBlockedActionMutation(assessmentId);
@@ -385,16 +386,20 @@ function AssessmentInterviewFlow({
       !interviewEnabled ||
       !customerActions.canAnswerQuestion ||
       interview.stale ||
-      interview.revalidating
+      interview.revalidating ||
+      !runtimeInterviewState
     ) {
       return;
     }
-    submitAnswer.mutate(input, {
-      onSuccess: () => {
-        clearDraft();
-        setLastSavedMessage(t("pages.assessment.answerSavedForRuntime"));
+    submitAnswer.mutate(
+      { answer: input, state: runtimeInterviewState },
+      {
+        onSuccess: () => {
+          clearDraft();
+          setLastSavedMessage(t("pages.assessment.answerSavedForRuntime"));
+        },
       },
-    });
+    );
   }
 
   function handleBlockedAction(action: AssessmentInterviewBlockedAction) {

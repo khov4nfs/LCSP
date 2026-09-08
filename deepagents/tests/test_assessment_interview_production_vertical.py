@@ -817,11 +817,25 @@ def _submit_answer(
     confirmed: bool | None = None,
 ) -> dict[str, Any]:
     token = _sign_in()
-    payload: dict[str, Any] = {"questionId": question_id}
-    if free_text is not None:
-        payload["freeText"] = free_text
-    if confirmed is not None:
-        payload["confirmed"] = confirmed
+    state = _public_interview_state(assessment_id)
+    active_question = state.get("activeQuestion") or {}
+    assert active_question.get("id") == question_id, state
+    thread_id = state.get("threadId")
+    context_revision = state.get("contextRevision")
+    assert isinstance(thread_id, str) and thread_id, state
+    assert isinstance(context_revision, int), state
+    answer = _canonical_customer_answer(active_question, free_text, confirmed)
+    payload: dict[str, Any] = {
+        "contractVersion": "interview-technical-contract-v1.0.0",
+        "assessmentId": assessment_id,
+        "sessionId": thread_id,
+        "questionRef": question_id,
+        "expectedSessionRevision": context_revision,
+        "clientRequestId": (
+            f"production-vertical:{assessment_id}:{question_id}:{context_revision}"
+        ),
+        "answer": answer,
+    }
     with httpx.Client(base_url=API_BASE_URL, timeout=30.0) as client:
         response = client.post(
             f"/assessments/{assessment_id}/interview/answers",
@@ -830,6 +844,27 @@ def _submit_answer(
         )
     assert response.status_code == 201, response.text
     return _unwrap(response.json())
+
+
+def _canonical_customer_answer(
+    active_question: dict[str, Any],
+    free_text: str | None,
+    confirmed: bool | None,
+) -> dict[str, Any]:
+    control = active_question.get("control")
+    if control == "FREE_TEXT":
+        assert free_text is not None and free_text.strip(), active_question
+        return {"kind": "FREE_TEXT", "text": free_text}
+    if control == "CONFIRM_ADJUST":
+        if confirmed is True:
+            return {"kind": "CONFIRM_ADJUST", "action": "CONFIRM"}
+        assert free_text is not None and free_text.strip(), active_question
+        return {
+            "kind": "CONFIRM_ADJUST",
+            "action": "ADJUST",
+            "adjustmentText": free_text,
+        }
+    raise AssertionError(f"Unsupported production vertical question control: {control}")
 
 
 def _public_interview_state(assessment_id: str = ASSESSMENT_ID) -> dict[str, Any]:
