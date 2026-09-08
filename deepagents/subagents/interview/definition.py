@@ -4,7 +4,7 @@ from contracts.handoffs import InterviewResult
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.interview_runtime_context import inject_interview_runtime_context
 from model_policy import INTERVIEW_MODEL_SPEC
-from tools.common.capabilities.managed.skill_loader import load_project_skill
+from tools.common.capabilities.managed.skill_loader import load_project_skill_package
 from tools.common.search_program_graph.code import search_program_graph
 from tools.investigator.inspect_data_path.code import inspect_data_path
 from tools.investigator.inspect_decision_path.code import inspect_decision_path
@@ -20,7 +20,23 @@ TOOLS = [
     inspect_human_review_path,
 ]
 OUTPUT_MODEL = InterviewResult
-INTERVIEW_SKILL = load_project_skill("interview-context")
+INTERVIEW_SKILL_REFERENCES = (
+    "references/agent-runtime-contract.md",
+    "references/protected-boundaries.md",
+    "references/adaptive-rules.md",
+    "references/context-sufficiency.md",
+    "references/evidence-reasoning.md",
+    "references/investigator-resolution.md",
+    "references/conflict-handling.md",
+    "references/question-strategy.md",
+    "references/terminology-contract.md",
+    "references/lcsp-operating-context.md",
+    "references/improvement-protocol.md",
+)
+INTERVIEW_SKILL = load_project_skill_package(
+    "interview-context",
+    INTERVIEW_SKILL_REFERENCES,
+)
 
 SYSTEM_PROMPT = f"""You are the LCSP Assessment Interview specialist.
 
@@ -100,4 +116,11 @@ SUBAGENT = {
     "response_format": OUTPUT_MODEL,
 }
 
-__all__ = ["INTERVIEW_SKILL", "OUTPUT_MODEL", "SUBAGENT", "SYSTEM_PROMPT", "TOOLS"]
+__all__ = [
+    "INTERVIEW_SKILL",
+    "INTERVIEW_SKILL_REFERENCES",
+    "OUTPUT_MODEL",
+    "SUBAGENT",
+    "SYSTEM_PROMPT",
+    "TOOLS",
+]
