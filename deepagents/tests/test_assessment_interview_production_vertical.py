@@ -777,6 +777,12 @@ def _program_graph(snapshot_id: str = SNAPSHOT_ID) -> dict[str, Any]:
         "edge_count": 0,
         "coverage_state": "PARTIAL",
         "coverage_notes": ["dynamic configuration remains bounded but incomplete"],
+        "partialCoveragePolicyDecision": {
+            "policyDecisionRef": f"coverage-policy:{snapshot_id}",
+            "policyVersion": "partial-coverage-policy-v1",
+            "permittedForInterview": True,
+            "limitations": ["dynamic configuration remains bounded but incomplete"],
+        },
         "nodes": [
             {
                 "node_id": "node:approval-authority-ai",

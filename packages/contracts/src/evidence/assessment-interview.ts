@@ -109,6 +109,33 @@ export const ASSESSMENT_INTERVIEW_FLAGS = {
 export type AssessmentInterviewFlag =
   (typeof ASSESSMENT_INTERVIEW_FLAGS)[keyof typeof ASSESSMENT_INTERVIEW_FLAGS];
 
+export const ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS = {
+  waitForCustomer: "WAIT_FOR_CUSTOMER",
+  continueToEngineeringRule: "CONTINUE_TO_ENGINEERING_RULE",
+  keepBusinessContextBlocked: "KEEP_BUSINESS_CONTEXT_BLOCKED",
+  routeRuntimeRecovery: "ROUTE_RUNTIME_RECOVERY",
+  resumeExactInvestigator: "RESUME_EXACT_INVESTIGATOR",
+  selectiveRerunRescope: "SELECTIVE_RERUN_RESCOPE",
+} as const;
+
+export type AssessmentInterviewOrchestratorAction =
+  (typeof ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS)[keyof typeof ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS];
+
+export const ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS = {
+  interviewStarted: "INTERVIEW_STARTED",
+  interviewWaitingForCustomer: "INTERVIEW_WAITING_FOR_CUSTOMER",
+  interviewContextUpdated: "INTERVIEW_CONTEXT_UPDATED",
+  interviewContextReady: "INTERVIEW_CONTEXT_READY",
+  interviewContextResolved: "INTERVIEW_CONTEXT_RESOLVED",
+  interviewBlockedOrUnresolved: "INTERVIEW_BLOCKED_OR_UNRESOLVED",
+  interviewFailed: "INTERVIEW_FAILED",
+  downstreamReevaluationStarted: "DOWNSTREAM_REEVALUATION_STARTED",
+  investigationResumed: "INVESTIGATION_RESUMED",
+} as const;
+
+export type AssessmentInterviewWorkflowEvent =
+  (typeof ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS)[keyof typeof ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS];
+
 export const ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS = {
   provideMoreContext: "PROVIDE_MORE_CONTEXT",
   checkInternally: "CHECK_INTERNALLY",
@@ -234,6 +261,13 @@ export type AssessmentInterviewRuntimeState = {
   orchestrationRequested?: boolean;
   pendingDraft?: string;
   answerHistory?: AssessmentInterviewAnswerHistoryItem[];
+};
+
+export type PartialCoveragePolicyDecision = {
+  policyDecisionRef: string;
+  policyVersion: string;
+  permittedForInterview: boolean;
+  limitations: string[];
 };
 
 /** Session-local, non-authoritative hints used to improve the next Interview turn. */
