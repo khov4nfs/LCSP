@@ -299,10 +299,14 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
 
   it("uses internal guarded decision write-back and blocks false ready", async () => {
     await seedWaitingQuestion(prisma);
-    await httpRequest(app)
+    const answered = await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ questionId: QUESTION_ID, freeText: RAW_ANSWER });
+      .send({
+        questionId: QUESTION_ID,
+        freeText: "Human approval is required.",
+      });
+    assert.equal(answered.status, 201, JSON.stringify(answered.body));
 
     const falseReady = await httpRequest(app)
       .post("/internal/assessment-interviews/assessment-1/agent-decisions")
@@ -314,7 +318,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       });
     assert.equal(falseReady.status, 409, JSON.stringify(falseReady.body));
 
-    const forgedCustomerConfirmation = await httpRequest(app)
+    const directCustomerConfirmation = await httpRequest(app)
       .post("/internal/assessment-interviews/assessment-1/agent-decisions")
       .set("x-worker-api-key", WORKER_KEY)
       .send({
@@ -330,28 +334,12 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
         }),
       });
     assert.equal(
-      forgedCustomerConfirmation.status,
-      409,
-      JSON.stringify(forgedCustomerConfirmation.body),
+      directCustomerConfirmation.status,
+      201,
+      JSON.stringify(directCustomerConfirmation.body),
     );
-
-    const ready = await httpRequest(app)
-      .post("/internal/assessment-interviews/assessment-1/agent-decisions")
-      .set("x-worker-api-key", WORKER_KEY)
-      .send({
-        expectedContextRevision: 1,
-        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
-        contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
-        confirmedContext: confirmedStructuredContext({
-          assessmentId: "assessment-1",
-          contextRevision: 1,
-          topic: "decision_authority",
-          statement: "human approval required",
-        }),
-      });
-    assert.equal(ready.status, 201, JSON.stringify(ready.body));
     assert.equal(
-      successBody<{ outcome: string }>(ready).outcome,
+      successBody<{ outcome: string }>(directCustomerConfirmation).outcome,
       ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
     );
 
@@ -594,7 +582,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 1,
-        mode: "TARGETED_INTERVIEW",
+        mode: "INVESTIGATOR_RESOLUTION",
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
         activeQuestion: {
           id: "target-question-1",
@@ -629,7 +617,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 2,
-        mode: "TARGETED_INTERVIEW",
+        mode: "INVESTIGATOR_RESOLUTION",
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
         contextAuthority:
           ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
@@ -648,7 +636,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 2,
-        mode: "TARGETED_INTERVIEW",
+        mode: "INVESTIGATOR_RESOLUTION",
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
         contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
         confirmedContext: { decision_authority: "human operations lead" },
@@ -664,7 +652,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 2,
-        mode: "TARGETED_INTERVIEW",
+        mode: "INVESTIGATOR_RESOLUTION",
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
         contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
         activeQuestion: {
@@ -675,6 +663,12 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
           prompt:
             "Please confirm this interpretation before it becomes authoritative.",
           priorAnswerSummary: "The human operations lead has final approval.",
+          proposedInterpretation:
+            "The human operations lead has final approval.",
+          choices: [
+            { id: "CONFIRM", label: "Confirm" },
+            { id: "ADJUST", label: "Adjust", requiresFreeText: true },
+          ],
           frontier: {
             owner: INTERVIEW_FRONTIER_OWNERS.customer,
             materiality: INTERVIEW_FRONTIER_MATERIALITIES.material,
@@ -703,7 +697,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 3,
-        mode: "TARGETED_INTERVIEW",
+        mode: "INVESTIGATOR_RESOLUTION",
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
         contextAuthority:
           ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
@@ -871,6 +865,9 @@ async function seedUsableTechnicalCoverage(
 }
 
 async function seedWaitingQuestion(prisma: PrismaClient): Promise<void> {
+  // Directly materialized Interview threads still require the same accepted,
+  // usable technical-report provenance as a worker-seeded question.
+  await seedUsableTechnicalCoverage(prisma);
   const privateContext = {
     revisions: [],
     workflowRunId: "00000000-0000-4000-8000-000000000001",

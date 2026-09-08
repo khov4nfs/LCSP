@@ -91,6 +91,23 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             )
             return
 
+        coverage_state = str(context.get("technicalCoverageState") or "UNAVAILABLE").upper()
+        coverage_limitations = context.get("coverageLimitations")
+        if coverage_state == "UNAVAILABLE" or (
+            coverage_state == "PARTIAL"
+            and (not isinstance(coverage_limitations, list) or not coverage_limitations)
+        ):
+            self._reenter_root_for_coverage_recovery(
+                assessment_id=assessment_id,
+                thread_id=thread_id,
+                question_id=question_id,
+                context_revision=context_revision,
+                coverage_state=coverage_state,
+                correlationId=correlationId,
+                root=self._root_agent or self._load_root_agent(),
+            )
+            return
+
         server_workflow_run_id = _required_text(context, "workflowRunId")
         if server_workflow_run_id != command_workflow_run_id:
             raise ValueError(
@@ -298,9 +315,9 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         handoff["expectedContextRevision"] = context_revision
         targeted_need = context.get("targetedNeed")
         if isinstance(targeted_need, dict):
-            if handoff.get("mode") != "TARGETED_INTERVIEW":
+            if handoff.get("mode") != "INVESTIGATOR_RESOLUTION":
                 raise ValueError(
-                    "Targeted Interview specialist must return TARGETED_INTERVIEW mode"
+                    "Targeted Interview specialist must return INVESTIGATOR_RESOLUTION mode"
                 )
             question = handoff.get("activeQuestion")
             if isinstance(question, dict) and question.get("needId") not in {
@@ -720,6 +737,44 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             },
         )
 
+    def _reenter_root_for_coverage_recovery(
+        self,
+        *,
+        assessment_id: str,
+        thread_id: str,
+        question_id: str,
+        context_revision: int,
+        coverage_state: str,
+        correlationId: str,
+        root: Any,
+    ) -> None:
+        root.invoke(
+            {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": (
+                            "Technical coverage cannot enter Interview reasoning. "
+                            "Run Root Orchestration recovery or revalidation before any "
+                            "Interview Agent turn or downstream continuation. "
+                            f"Assessment: {assessment_id}. Coverage state: {coverage_state}."
+                        ),
+                    }
+                ]
+            },
+            config={
+                "configurable": {"thread_id": thread_id},
+                "metadata": {
+                    "lcsp_thread_id": thread_id,
+                    "assessment_id": assessment_id,
+                    "question_id": question_id,
+                    "context_revision": context_revision,
+                    "correlationId": correlationId,
+                    "trigger": "ASSESSMENT_INTERVIEW_COVERAGE_RECOVERY_REQUIRED",
+                },
+            },
+        )
+
     def _load_api_client(self):
         from tools.common.capabilities.platform.api_client import WorkerApiClient
         from tools.common.capabilities.platform.config import load_config
@@ -799,8 +854,17 @@ def _interview_instruction(
 ) -> str:
     private_revision = context.get("privateRevision")
     public_state = context.get("publicState")
+    targeted_need = context.get("targetedNeed")
+    mode = (
+        "INVESTIGATOR_RESOLUTION"
+        if isinstance(targeted_need, dict)
+        else "INITIAL_INTERVIEW"
+    )
     bounded_payload = {
+        "hostPlatform": "LCSP",
+        "subjectSystemIdentity": f"repositorySnapshot:{str(context.get('sourceVersion') or '').split(':', 1)[0]}",
         "assessmentId": assessment_id,
+        "mode": mode,
         "questionId": question_id,
         "contextRevision": context_revision,
         "resumeReason": resume_reason,
@@ -821,7 +885,7 @@ def _interview_instruction(
         ),
         "publicThreadState": public_state,
         "privateCustomerRevision": private_revision,
-        "targetedNeed": context.get("targetedNeed"),
+        "targetedNeed": targeted_need,
     }
     return (
         "Evaluate exactly one governed Assessment Interview turn. The JSON below is a "

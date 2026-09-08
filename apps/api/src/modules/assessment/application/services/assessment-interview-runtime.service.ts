@@ -17,6 +17,7 @@ import {
   ASSESSMENT_INTERVIEW_ANSWER_ACTIONS,
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
+  ASSESSMENT_INTERVIEW_MODES,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
   ASSESSMENT_RUNTIME_STAGE_CODES,
@@ -33,6 +34,7 @@ import {
   type AssessmentInterviewAnswerInput,
   type AssessmentInterviewBlockedInput,
   type AssessmentInterviewControl,
+  type CanonicalAssessmentInterviewMode,
   type AssessmentInterviewQuestion,
   type AssessmentInterviewQuestionIntent,
   type AssessmentInterviewRuntimeState,
@@ -182,7 +184,7 @@ type WorkerPrivateContext = {
 
 type AgentDecisionInput = {
   expectedContextRevision: number;
-  mode?: "INITIAL_INTERVIEW" | "TARGETED_INTERVIEW";
+  mode?: CanonicalAssessmentInterviewMode;
   outcome: AssessmentInterviewRuntimeState["outcome"];
   activeQuestion?: AssessmentInterviewRuntimeState["activeQuestion"];
   contextAuthority?: AssessmentContextAuthorityStatus;
@@ -736,6 +738,11 @@ export class AssessmentInterviewRuntimeService {
         input.assessmentId,
         tx,
       );
+      this.assertInitialInterviewCoverageUsable(
+        provenance.technicalCoverageState,
+        provenance.coverageLimitations,
+        input.correlationId,
+      );
       if (
         !thread.sourceVersion ||
         !thread.pgeVersion ||
@@ -814,7 +821,7 @@ export class AssessmentInterviewRuntimeService {
           pgeVersion: thread.pgeVersion,
           guidanceVersion:
             thread.guidanceVersion ?? this.resolveGuidanceVersion(),
-          resumeReason: "TARGETED_INTERVIEW_REQUIRED",
+          resumeReason: "INVESTIGATOR_RESOLUTION_REQUIRED",
         }),
         tx,
       );
@@ -827,7 +834,7 @@ export class AssessmentInterviewRuntimeService {
           sessionId: this.threadId(input.assessmentId),
           threadId: this.threadId(input.assessmentId),
           runId: target.workflowRunId,
-          stage: "TARGETED_INTERVIEW",
+          stage: ASSESSMENT_INTERVIEW_MODES.investigatorResolution,
           sourceSnapshot: {
             snapshotId: provenance.snapshotId,
             commitSha: provenance.commitSha,
@@ -882,6 +889,11 @@ export class AssessmentInterviewRuntimeService {
         input.assessmentId,
         tx,
       );
+      this.assertInitialInterviewCoverageUsable(
+        authoritative.technicalCoverageState,
+        authoritative.coverageLimitations,
+        input.correlationId,
+      );
       if (
         thread.sourceVersion !== authoritative.sourceVersion ||
         thread.pgeVersion !== authoritative.pgeVersion ||
@@ -906,7 +918,7 @@ export class AssessmentInterviewRuntimeService {
           ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved &&
         decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer;
       const isTargetedBootstrap =
-        decision.mode === "TARGETED_INTERVIEW" &&
+        decision.mode === ASSESSMENT_INTERVIEW_MODES.investigatorResolution &&
         decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer &&
         thread.state.outcome ===
           ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer &&
@@ -1855,19 +1867,45 @@ function parsePersistableInterviewQuestion(
         })
         .filter((c): c is NonNullable<typeof c> => c !== null)
     : undefined;
+  const control = record.control as AssessmentInterviewControl;
+  const proposedInterpretation =
+    typeof record.proposedInterpretation === "string"
+      ? record.proposedInterpretation.trim()
+      : undefined;
+  if (control === ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust) {
+    const choicesById = new Map(
+      (choices ?? []).map((choice) => [choice.id, choice]),
+    );
+    if (
+      record.intent !== ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify ||
+      !proposedInterpretation ||
+      choicesById.size !== 2 ||
+      !choicesById.has("CONFIRM") ||
+      !choicesById.has("ADJUST") ||
+      choicesById.get("CONFIRM")?.requiresFreeText === true ||
+      choicesById.get("ADJUST")?.requiresFreeText !== true
+    ) {
+      throw problemException(
+        "INTERVIEW_CONFIRM_ADJUST_QUESTION_INVALID",
+        correlationId,
+        { status: HttpStatus.BAD_REQUEST },
+      );
+    }
+  }
 
   return {
     id: record.id.trim(),
     needId:
       typeof record.needId === "string" ? record.needId.trim() : undefined,
     intent: record.intent as AssessmentInterviewQuestionIntent,
-    control: record.control as AssessmentInterviewControl,
+    control,
     prompt: record.prompt.trim(),
     choices,
     priorAnswerSummary:
       typeof record.priorAnswerSummary === "string"
         ? record.priorAnswerSummary.trim()
         : undefined,
+    proposedInterpretation,
     whyEvidenceRefs,
     whyAreWeAsking:
       typeof record.whyAreWeAsking === "string"
@@ -1901,10 +1939,12 @@ function parseAgentDecision(value: unknown): AgentDecisionInput {
   return {
     expectedContextRevision: record.expectedContextRevision,
     mode:
-      record.mode === "TARGETED_INTERVIEW" ||
-      record.mode === "INITIAL_INTERVIEW"
-        ? record.mode
-        : undefined,
+      record.mode === ASSESSMENT_INTERVIEW_MODES.prePlanner ||
+      record.mode === ASSESSMENT_INTERVIEW_MODES.initialInterview
+        ? ASSESSMENT_INTERVIEW_MODES.initialInterview
+        : record.mode === ASSESSMENT_INTERVIEW_MODES.investigatorResolution
+          ? ASSESSMENT_INTERVIEW_MODES.investigatorResolution
+          : undefined,
     outcome,
     activeQuestion,
     contextAuthority: Object.values(
@@ -2099,7 +2139,7 @@ function assertGuardedDecision(
     correlationId,
   );
   if (thread.privateStore.targetedNeed) {
-    if (decision.mode !== "TARGETED_INTERVIEW") {
+    if (decision.mode !== ASSESSMENT_INTERVIEW_MODES.investigatorResolution) {
       throw problemException(
         "INTERVIEW_TARGETED_MODE_REQUIRED",
         correlationId,
@@ -2110,6 +2150,7 @@ function assertGuardedDecision(
       ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
       ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
       ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved,
+      ASSESSMENT_INTERVIEW_OUTCOMES.failed,
     ]);
     if (!targetedOutcomes.has(decision.outcome)) {
       throw problemException(
@@ -2133,7 +2174,7 @@ function assertGuardedDecision(
   if (decision.outcome !== ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved) {
     return;
   }
-  if (decision.mode !== "TARGETED_INTERVIEW") {
+  if (decision.mode !== ASSESSMENT_INTERVIEW_MODES.investigatorResolution) {
     throw problemException(
       "INTERVIEW_CONTEXT_RESOLVED_REQUIRES_TARGETED_MODE",
       correlationId,
@@ -2257,7 +2298,7 @@ function assertTargetedQuestionBounded(
   correlationId: string,
 ): void {
   if (
-    decision.mode !== "TARGETED_INTERVIEW" ||
+    decision.mode !== ASSESSMENT_INTERVIEW_MODES.investigatorResolution ||
     decision.outcome !== ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer ||
     !decision.activeQuestion
   ) {
@@ -2353,10 +2394,17 @@ function assertAuthorityProvenance(
     privateRevision.answer.confirmed === true &&
     privateRevision.answer.adjusted !== true;
 
+  const directLosslessCustomerStatement =
+    privateRevision.questionIntent ===
+      ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask &&
+    privateRevision.questionControl !==
+      ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust &&
+    privateRevision.answer.adjusted !== true;
+
   if (authority === ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed) {
-    if (!explicitlyConfirmed) {
+    if (!explicitlyConfirmed && !directLosslessCustomerStatement) {
       throw problemException(
-        "INTERVIEW_CUSTOMER_CONFIRMED_REQUIRES_EXPLICIT_CONFIRMATION",
+        "INTERVIEW_CUSTOMER_CONFIRMED_REQUIRES_DIRECT_OR_EXPLICIT_CONFIRMATION",
         correlationId,
         { status: HttpStatus.CONFLICT },
       );
@@ -2364,13 +2412,7 @@ function assertAuthorityProvenance(
     return;
   }
 
-  if (
-    privateRevision.questionIntent !==
-      ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask ||
-    privateRevision.questionControl ===
-      ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust ||
-    privateRevision.answer.adjusted === true
-  ) {
+  if (!directLosslessCustomerStatement) {
     throw problemException(
       "INTERVIEW_CONFIRMED_REQUIRES_DIRECT_ASK",
       correlationId,
@@ -2445,7 +2487,13 @@ function assertAnswerMatchesQuestion(
     return;
   }
   if (question.control === ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust) {
-    if (answer.confirmed === answer.adjusted || selected.length || hasOtherText)
+    if (
+      answer.confirmed === answer.adjusted ||
+      selected.length ||
+      hasOtherText ||
+      (answer.confirmed === true && hasFreeText) ||
+      (answer.adjusted === true && !hasFreeText)
+    )
       invalid();
     return;
   }
@@ -2680,6 +2728,7 @@ function publicActiveQuestion(
     prompt: sanitizePublicText(question.prompt) ?? question.prompt,
     choices,
     priorAnswerSummary: sanitizePublicText(question.priorAnswerSummary),
+    proposedInterpretation: sanitizePublicText(question.proposedInterpretation),
     whyAreWeAsking: sanitizePublicText(question.whyAreWeAsking),
     hasSupportingEvidence,
     frontier,
