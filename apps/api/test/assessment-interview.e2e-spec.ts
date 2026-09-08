@@ -6,6 +6,7 @@ import {
   ASSESSMENT_INTERVIEW_ANSWER_ACTIONS,
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
+  ASSESSMENT_INTERVIEW_MODES,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
   CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
@@ -475,6 +476,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 1,
+        mode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
         contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
       });
@@ -485,6 +487,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 1,
+        mode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
         contextAuthority:
           ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
@@ -510,6 +513,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 1,
+        mode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
         contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
         confirmedContext: confirmedStructuredContext({
@@ -739,6 +743,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 1,
+        mode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
         contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
         confirmedContext: confirmedStructuredContext({
@@ -804,7 +809,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 1,
-        mode: "INVESTIGATOR_RESOLUTION",
+        mode: ASSESSMENT_INTERVIEW_MODES.investigatorResolution,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
         activeQuestion: {
           id: "target-question-1",
@@ -846,7 +851,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 2,
-        mode: "INVESTIGATOR_RESOLUTION",
+        mode: ASSESSMENT_INTERVIEW_MODES.investigatorResolution,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
         contextAuthority:
           ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
@@ -865,7 +870,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 2,
-        mode: "INVESTIGATOR_RESOLUTION",
+        mode: ASSESSMENT_INTERVIEW_MODES.investigatorResolution,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
         contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
         confirmedContext: { decision_authority: "human operations lead" },
@@ -881,7 +886,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 2,
-        mode: "INVESTIGATOR_RESOLUTION",
+        mode: ASSESSMENT_INTERVIEW_MODES.investigatorResolution,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
         contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
         activeQuestion: {
@@ -933,7 +938,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 3,
-        mode: "INVESTIGATOR_RESOLUTION",
+        mode: ASSESSMENT_INTERVIEW_MODES.investigatorResolution,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
         contextAuthority:
           ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
@@ -1014,6 +1019,7 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
       .set("x-worker-api-key", WORKER_KEY)
       .send({
         expectedContextRevision: 0,
+        mode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
         activeQuestion: {
           id: "more-context-question",

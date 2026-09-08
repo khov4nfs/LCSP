@@ -7,17 +7,35 @@ import { test } from "node:test";
 import {
   ASSESSMENT_CONTEXT_AUTHORITY_STATUSES,
   ASSESSMENT_CONTEXT_UPDATE_SOURCES,
+  ASSESSMENT_INTERVIEW_ANSWER_ACTIONS,
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
   ASSESSMENT_INTERVIEW_FLAGS,
+  ASSESSMENT_INTERVIEW_MODES,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
+  BUSINESS_CONTEXT_RESOLUTION_STATES,
+  BUSINESS_CONTEXT_SOURCES,
+  CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
+  EVIDENCE_RESOLUTION_STATES,
+  EVIDENCE_SOURCE_TYPES,
+  INTERVIEW_HOST_PLATFORMS,
+  INTERVIEW_REASONING_TECHNICAL_COVERAGE_STATES,
   INTERVIEW_TECHNICAL_CONTRACT_VERSION,
+  LEGACY_ASSESSMENT_INTERVIEW_MODES,
   hasValidInterviewWaitingInvariant,
   isAssessmentInterviewOutcome,
   isAssessmentInterviewQuestionIntent,
   isAuthoritativeAssessmentContextStatus,
+  isBusinessContextStatement,
+  isBusinessContextUpdate,
+  isCustomerAnswer,
+  isConfirmedStructuredBusinessContext,
+  isInterviewAgentInput,
+  isInterviewAgentResultForMode,
+  isInterviewRuntimeResult,
+  normalizeAssessmentInterviewMode,
   type AssessmentInterviewAuditRef,
   type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
@@ -62,6 +80,306 @@ test("canonical interview contract exposes only release-gated outcomes", () => {
   assert.equal(
     ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved,
     "BLOCKED_OR_UNRESOLVED",
+  );
+});
+
+test("canonical interview modes exclude compatibility-only PRE_PLANNER", () => {
+  assert.deepEqual(Object.values(ASSESSMENT_INTERVIEW_MODES).sort(), [
+    "INITIAL_INTERVIEW",
+    "INVESTIGATOR_RESOLUTION",
+  ]);
+  assert.deepEqual(Object.values(LEGACY_ASSESSMENT_INTERVIEW_MODES), [
+    "PRE_PLANNER",
+  ]);
+  assert.equal(
+    normalizeAssessmentInterviewMode(
+      LEGACY_ASSESSMENT_INTERVIEW_MODES.prePlanner,
+    ),
+    ASSESSMENT_INTERVIEW_MODES.initialInterview,
+  );
+});
+
+const canonicalScope = {
+  systemRefs: ["system:checkout"],
+};
+
+const confirmedStatement = {
+  statementId: "stmt-human-approval",
+  assessmentId: "assessment-1",
+  topic: "decision_authority",
+  statement: "Human approval is required before action.",
+  normalizedValue: "human_approval_required",
+  scope: canonicalScope,
+  evidenceRefs: ["evidence:customer-confirmation"],
+  respondentRef: "actor:authenticated:user-1",
+  createdAt: "2026-09-08T00:00:00.000Z",
+  source: BUSINESS_CONTEXT_SOURCES.customerConfirmed,
+  resolutionState: BUSINESS_CONTEXT_RESOLUTION_STATES.confirmed,
+};
+
+const statedUpdate = {
+  topic: "operating_region",
+  statement: "Operations may include the EU region.",
+  scope: canonicalScope,
+  evidenceRefs: [],
+  source: BUSINESS_CONTEXT_SOURCES.customerStated,
+  resolutionState: BUSINESS_CONTEXT_RESOLUTION_STATES.uncertain,
+};
+
+const safeEvidenceItem = {
+  evidenceRef: "evidence:customer-confirmation",
+  sourceType: EVIDENCE_SOURCE_TYPES.technicalEvidence,
+  resolutionState: EVIDENCE_RESOLUTION_STATES.observed,
+  observation: "Customer stated approval occurs before action.",
+  sourceVersionRef: "source:snap-1",
+  scope: canonicalScope,
+  customerSafeSummary: "The current evidence indicates approval is involved.",
+};
+
+const confirmAdjustQuestion = {
+  intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
+  text: "Please confirm the approval authority.",
+  reasonSummary: "Approval authority affects downstream assessment scope.",
+  evidenceRefs: ["evidence:customer-confirmation"],
+  responseMode: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+  proposedInterpretation: [
+    {
+      topic: "decision_authority",
+      statement: "Human approval is required before action.",
+      normalizedValue: "human_approval_required",
+      scope: canonicalScope,
+      evidenceRefs: ["evidence:customer-confirmation"],
+    },
+  ],
+  choices: [
+    { value: ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.confirm, label: "Confirm" },
+    { value: ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.adjust, label: "Adjust" },
+  ],
+};
+
+function canonicalAgentInput(overrides: Record<string, unknown> = {}) {
+  return {
+    contractVersion: INTERVIEW_TECHNICAL_CONTRACT_VERSION,
+    hostPlatform: INTERVIEW_HOST_PLATFORMS.lcsp,
+    assessmentId: "assessment-1",
+    sessionId: "interview:assessment-1",
+    sessionRevision: 3,
+    subjectSystemIdentity: {
+      systemRef: "system:checkout",
+      displayName: "Checkout",
+      workspaceRef: "workspace:main",
+    },
+    guidanceVersion: "guidance:v1",
+    locale: "en-US",
+    artifactVersions: {
+      sourceVersionRef: "source:snap-1",
+      scannerRunRef: "scanner:run-1",
+      programEvidenceGraphVersion: "pge:v1",
+    },
+    technicalCoverage: {
+      state: INTERVIEW_REASONING_TECHNICAL_COVERAGE_STATES.ready,
+      limitations: [],
+      policyDecisionRef: "coverage-policy:ready",
+    },
+    currentConfirmedBusinessContext: [confirmedStatement],
+    safeEvidenceContext: {
+      items: [safeEvidenceItem],
+    },
+    interviewHistory: [],
+    mode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
+    ...overrides,
+  };
+}
+
+function waitingAgentResult(overrides: Record<string, unknown> = {}) {
+  return {
+    outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+    question: confirmAdjustQuestion,
+    contextUpdates: [statedUpdate],
+    unresolved: [],
+    flags: [],
+    limitations: [],
+    ...overrides,
+  };
+}
+
+function runtimeResult(overrides: Record<string, unknown> = {}) {
+  return {
+    contractVersion: INTERVIEW_TECHNICAL_CONTRACT_VERSION,
+    assessmentId: "assessment-1",
+    sessionId: "interview:assessment-1",
+    invocationRef: "invocation:1",
+    mode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
+    guidanceVersion: "guidance:v1",
+    artifactVersions: {
+      sourceVersionRef: "source:snap-1",
+      scannerRunRef: "scanner:run-1",
+      programEvidenceGraphVersion: "pge:v1",
+    },
+    contextRevisionBefore: "context:2",
+    sessionRevisionBefore: 2,
+    sessionRevisionAfter: 3,
+    persistedQuestionRef: "question:1",
+    generatedAt: "2026-09-08T00:00:00.000Z",
+    agentResult: waitingAgentResult(),
+    ...overrides,
+  };
+}
+
+test("canonical interview contract validators reject authority-changing drift", () => {
+  assert.equal(isBusinessContextStatement(confirmedStatement), true);
+  assert.equal(isBusinessContextUpdate(statedUpdate), true);
+  assert.equal(isInterviewAgentInput(canonicalAgentInput()), true);
+  assert.equal(
+    isInterviewAgentResultForMode(
+      waitingAgentResult(),
+      ASSESSMENT_INTERVIEW_MODES.initialInterview,
+    ),
+    true,
+  );
+  assert.equal(isInterviewRuntimeResult(runtimeResult()), true);
+
+  assert.equal(
+    isBusinessContextStatement({
+      ...confirmedStatement,
+      source: BUSINESS_CONTEXT_SOURCES.customerStated,
+    }),
+    false,
+  );
+  assert.equal(
+    isBusinessContextUpdate({
+      ...statedUpdate,
+      resolutionState: BUSINESS_CONTEXT_RESOLUTION_STATES.confirmed,
+    }),
+    false,
+  );
+  assert.equal(
+    isInterviewAgentInput(
+      canonicalAgentInput({
+        mode: LEGACY_ASSESSMENT_INTERVIEW_MODES.prePlanner,
+      }),
+    ),
+    false,
+  );
+  assert.equal(
+    isInterviewAgentInput(canonicalAgentInput({ checkpointBlob: "opaque" })),
+    false,
+  );
+  assert.equal(
+    isInterviewAgentInput(
+      canonicalAgentInput({
+        currentConfirmedBusinessContext: [
+          {
+            ...confirmedStatement,
+            resolutionState: BUSINESS_CONTEXT_RESOLUTION_STATES.conflicted,
+          },
+        ],
+      }),
+    ),
+    false,
+  );
+  assert.equal(
+    isInterviewAgentResultForMode(
+      {
+        ...waitingAgentResult({
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
+        }),
+      },
+      ASSESSMENT_INTERVIEW_MODES.initialInterview,
+    ),
+    false,
+  );
+  assert.equal(
+    isInterviewAgentResultForMode(
+      {
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
+        contextUpdates: [],
+        unresolved: [],
+        flags: [],
+        limitations: [],
+      },
+      ASSESSMENT_INTERVIEW_MODES.initialInterview,
+    ),
+    false,
+  );
+  assert.equal(
+    isInterviewRuntimeResult(
+      runtimeResult({ persistedQuestionRef: undefined }),
+    ),
+    false,
+  );
+  assert.equal(
+    isInterviewRuntimeResult(
+      runtimeResult({
+        mode: LEGACY_ASSESSMENT_INTERVIEW_MODES.prePlanner,
+      }),
+    ),
+    false,
+  );
+});
+
+test("canonical confirmed structured context requires confirmed authority, scope, respondent and provenance", () => {
+  assert.equal(
+    isConfirmedStructuredBusinessContext({
+      assessmentId: "assessment-1",
+      contextRevision: 3,
+      authority:
+        CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly,
+      statements: [confirmedStatement],
+      createdByActorRef: "actor:authenticated:user-1",
+    }),
+    true,
+  );
+  assert.equal(
+    isConfirmedStructuredBusinessContext({
+      assessmentId: "assessment-1",
+      contextRevision: 3,
+      authority:
+        CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly,
+      statements: [{ ...confirmedStatement, scope: undefined }],
+      createdByActorRef: "actor:authenticated:user-1",
+    }),
+    false,
+  );
+  assert.equal(
+    isConfirmedStructuredBusinessContext({
+      assessmentId: "assessment-1",
+      contextRevision: 3,
+      authority:
+        CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly,
+      statements: [{ ...confirmedStatement, respondentRef: undefined }],
+      createdByActorRef: "actor:authenticated:user-1",
+    }),
+    false,
+  );
+  assert.equal(
+    isConfirmedStructuredBusinessContext({
+      assessmentId: "assessment-1",
+      contextRevision: 3,
+      authority:
+        CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly,
+      statements: [{ ...confirmedStatement, evidenceRefs: undefined }],
+      createdByActorRef: "actor:authenticated:user-1",
+    }),
+    false,
+  );
+});
+
+test("canonical customer answer guard rejects empty free-text answers", () => {
+  assert.equal(
+    isCustomerAnswer({ kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText, text: "" }),
+    false,
+  );
+  assert.equal(
+    isCustomerAnswer({ kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText, text: "   " }),
+    false,
+  );
+  assert.equal(
+    isCustomerAnswer({
+      kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+      text: "Customer confirmed the approval workflow.",
+    }),
+    true,
   );
 });
 
