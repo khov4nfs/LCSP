@@ -5,8 +5,11 @@ import {
   ASSESSMENT_INTERVIEW_ANSWER_ACTIONS,
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
+  ASSESSMENT_INTERVIEW_FLAGS,
+  ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
+  ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
   INTERVIEW_FRONTIER_MATERIALITIES,
@@ -126,6 +129,20 @@ function targetedResolutionThreadFixture(): Record<string, unknown> {
   };
 }
 
+function partialCoveragePolicyDecision(overrides?: {
+  permittedForInterview?: boolean;
+  limitations?: string[];
+}): Record<string, unknown> {
+  return {
+    policyDecisionRef: "coverage-policy:assessment-1:report-pinned",
+    policyVersion: "partial-coverage-policy-v1",
+    permittedForInterview: overrides?.permittedForInterview ?? true,
+    limitations: overrides?.limitations ?? [
+      "dynamic routing was not statically resolved",
+    ],
+  };
+}
+
 type MockPrismaDelegates = {
   assessment: {
     findUnique: jest.Mock<() => Promise<{ id: string; ownerId: string }>>;
@@ -170,6 +187,8 @@ type MockInterviewAudit = {
 
 type MockRuntimeEvents = {
   recordToolWaitingInput: jest.Mock<(...args: unknown[]) => Promise<void>>;
+  recordToolCompleted: jest.Mock<(...args: unknown[]) => Promise<void>>;
+  recordToolFailed: jest.Mock<(...args: unknown[]) => Promise<void>>;
   getLatestPostFindingState: jest.Mock<
     () => Promise<AssessmentPostFindingRuntimeState | null>
   >;
@@ -251,6 +270,12 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
 
     mockRuntimeEvents = {
       recordToolWaitingInput: jest
+        .fn<(...args: unknown[]) => Promise<void>>()
+        .mockResolvedValue(undefined),
+      recordToolCompleted: jest
+        .fn<(...args: unknown[]) => Promise<void>>()
+        .mockResolvedValue(undefined),
+      recordToolFailed: jest
         .fn<(...args: unknown[]) => Promise<void>>()
         .mockResolvedValue(undefined),
       getLatestPostFindingState: jest
@@ -943,7 +968,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
               description: "Storage multi-region configuration",
             },
           },
-          flags: ["DOWNSTREAM_IMPACT"],
+          flags: [ASSESSMENT_INTERVIEW_FLAGS.downstreamImpact],
         },
       });
 
@@ -985,6 +1010,20 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           threadId: "interview:assessment-1",
         }),
         mockTx,
+      );
+      expect(mockRuntimeEvents.recordToolWaitingInput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          runId: "interview:assessment-1",
+          waitingReason:
+            ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewWaitingForCustomer,
+          outputSummary: expect.objectContaining({
+            interviewWorkflowEvent:
+              ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewWaitingForCustomer,
+            orchestratorAction:
+              ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.waitForCustomer,
+            interviewMode: "INITIAL_INTERVIEW",
+          }),
+        }),
       );
     });
 
@@ -1173,6 +1212,22 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           checkpointId: "cp-1",
         }),
       });
+      expect(mockRuntimeEvents.recordToolCompleted).toHaveBeenCalledWith(
+        expect.objectContaining({
+          runId: "10000000-0000-4000-8000-000000000001",
+          outputSummary: expect.objectContaining({
+            interviewWorkflowEvent:
+              ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.investigationResumed,
+            interviewWorkflowEvents: [
+              ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewContextResolved,
+              ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.investigationResumed,
+            ],
+            orchestratorAction:
+              ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.resumeExactInvestigator,
+            interviewMode: "INVESTIGATOR_RESOLUTION",
+          }),
+        }),
+      );
       const updateCalls =
         mockTx.assessmentInterviewThread.updateMany.mock.calls;
       const updateInput = updateCalls[0]?.[0] as {
@@ -1191,6 +1246,124 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           ],
         },
       });
+    });
+
+    it("routes targeted downstream impact to selective rerun instead of exact resume", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(
+        targetedResolutionThreadFixture(),
+      );
+
+      const result = await service.recordAgentDecision({
+        assessmentId: "assessment-1",
+        correlationId: "corr-target-downstream-impact",
+        decision: {
+          expectedContextRevision: 2,
+          mode: "INVESTIGATOR_RESOLUTION",
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
+          contextAuthority:
+            ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
+          confirmedContext: confirmedStructuredContext({}),
+          flags: [ASSESSMENT_INTERVIEW_FLAGS.downstreamImpact],
+        },
+      });
+
+      expect(result).toMatchObject({
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved,
+      });
+      expect(result).not.toHaveProperty("continuation");
+      expect(mockRuntimeEvents.recordToolCompleted).toHaveBeenCalledWith(
+        expect.objectContaining({
+          runId: "10000000-0000-4000-8000-000000000001",
+          outputSummary: expect.objectContaining({
+            interviewWorkflowEvent:
+              ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.downstreamReevaluationStarted,
+            interviewWorkflowEvents: [
+              ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewContextResolved,
+              ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.downstreamReevaluationStarted,
+            ],
+            orchestratorAction:
+              ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.selectiveRerunRescope,
+            interviewMode: "INVESTIGATOR_RESOLUTION",
+          }),
+        }),
+      );
+    });
+
+    it("routes initial CONTEXT_READY to engineering rule evaluation workflow", async () => {
+      mockTx.technicalEvidenceReport.findFirst.mockResolvedValueOnce({
+        id: "report-1",
+        schemaVersion: "v1",
+        evidencePayload: {
+          technicalCoverageState: INTERVIEW_TECHNICAL_COVERAGE_STATES.partial,
+          partialCoveragePolicyDecision: partialCoveragePolicyDecision(),
+        },
+      });
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        assessmentId: "assessment-1",
+        contextRevision: 1,
+        processedRevision: 0,
+        activeQuestionId: "q-1",
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 1,
+        },
+        privateContextJson: {
+          revisions: [
+            {
+              questionId: "q-1",
+              answer: { questionId: "q-1", freeText: "Human approval" },
+              actorId: "user-1",
+              answeredAt: "2026-09-07T00:00:00.000Z",
+              contextRevision: 1,
+              priorRevision: 0,
+              authority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
+              questionIntent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+              questionControl: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+              sourceVersion: "snap-1:sha-123456",
+              pgeVersion: "report-1:v1",
+              governedEvidenceRefs: [],
+            },
+          ],
+          workflowRunId: "10000000-0000-4000-8000-000000000002",
+          partialCoveragePolicyDecision: partialCoveragePolicyDecision(),
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      const result = await service.recordAgentDecision({
+        assessmentId: "assessment-1",
+        correlationId: "corr-initial-context-ready",
+        decision: {
+          expectedContextRevision: 1,
+          mode: "INITIAL_INTERVIEW",
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
+          contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed,
+          confirmedContext: confirmedStructuredContext({
+            contextRevision: 1,
+          }),
+        },
+      });
+
+      expect(result.outcome).toBe(ASSESSMENT_INTERVIEW_OUTCOMES.contextReady);
+      expect(mockRuntimeEvents.recordToolCompleted).toHaveBeenCalledWith(
+        expect.objectContaining({
+          runId: "10000000-0000-4000-8000-000000000002",
+          outputSummary: expect.objectContaining({
+            interviewWorkflowEvent:
+              ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewContextReady,
+            orchestratorAction:
+              ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.continueToEngineeringRule,
+            interviewMode: "INITIAL_INTERVIEW",
+            partialCoveragePolicyDecision: {
+              policyDecisionRef: "coverage-policy:assessment-1:report-pinned",
+              policyVersion: "partial-coverage-policy-v1",
+              permittedForInterview: true,
+              limitations: ["dynamic routing was not statically resolved"],
+            },
+          }),
+        }),
+      );
     });
 
     it("rejects structured targeted resolution criteria from non-confirmed statements", async () => {
@@ -1314,7 +1487,9 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         schemaVersion: "v1",
         evidencePayload: {
           technicalCoverageState: INTERVIEW_TECHNICAL_COVERAGE_STATES.partial,
-          coverageLimitations: [],
+          partialCoveragePolicyDecision: partialCoveragePolicyDecision({
+            limitations: [],
+          }),
         },
       });
 
@@ -1325,6 +1500,72 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           workflowRunId: "10000000-0000-4000-8000-000000000001",
           state: initialQuestionState(),
           technicalEvidenceReportId: "report-partial-without-limitations",
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          ok: false,
+          problem: {
+            code: ASSESSMENT_ERROR_CODES.interviewPartialCoverageLimitationsRequired,
+          },
+        },
+      });
+
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+      expect(mockInterviewAudit.recordQuestionPersisted).not.toHaveBeenCalled();
+      expect(mockRuntimeEvents.recordToolWaitingInput).not.toHaveBeenCalled();
+    });
+
+    it("does not invoke Interview for PARTIAL coverage without a policy decision", async () => {
+      mockTx.technicalEvidenceReport.findFirst.mockResolvedValueOnce({
+        id: "report-partial-without-policy",
+        schemaVersion: "v1",
+        evidencePayload: {
+          technicalCoverageState: INTERVIEW_TECHNICAL_COVERAGE_STATES.partial,
+          coverageLimitations: ["static analyzer missed a dynamic import"],
+        },
+      });
+
+      await expect(
+        service.seedInitialQuestionForWorker({
+          assessmentId: "assessment-1",
+          correlationId: "corr-partial-without-policy",
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+          state: initialQuestionState(),
+          technicalEvidenceReportId: "report-partial-without-policy",
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          ok: false,
+          problem: {
+            code: ASSESSMENT_ERROR_CODES.interviewPartialCoverageLimitationsRequired,
+          },
+        },
+      });
+
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+      expect(mockInterviewAudit.recordQuestionPersisted).not.toHaveBeenCalled();
+      expect(mockRuntimeEvents.recordToolWaitingInput).not.toHaveBeenCalled();
+    });
+
+    it("does not invoke Interview when PARTIAL coverage policy denies Interview", async () => {
+      mockTx.technicalEvidenceReport.findFirst.mockResolvedValueOnce({
+        id: "report-partial-denied-policy",
+        schemaVersion: "v1",
+        evidencePayload: {
+          technicalCoverageState: INTERVIEW_TECHNICAL_COVERAGE_STATES.partial,
+          partialCoveragePolicyDecision: partialCoveragePolicyDecision({
+            permittedForInterview: false,
+          }),
+        },
+      });
+
+      await expect(
+        service.seedInitialQuestionForWorker({
+          assessmentId: "assessment-1",
+          correlationId: "corr-partial-denied-policy",
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+          state: initialQuestionState(),
+          technicalEvidenceReportId: "report-partial-denied-policy",
         }),
       ).rejects.toMatchObject({
         response: {
@@ -1405,6 +1646,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           evidence_graph: {
             coverage_state: "LIMITED",
             coverage_notes: ["dynamic routing was not statically resolved"],
+            partialCoveragePolicyDecision: partialCoveragePolicyDecision(),
           },
         },
       });
@@ -1451,10 +1693,100 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
             coverageLimitations: [
               "dynamic routing was not statically resolved",
             ],
+            partialCoveragePolicyDecision: {
+              policyDecisionRef: "coverage-policy:assessment-1:report-pinned",
+              policyVersion: "partial-coverage-policy-v1",
+              permittedForInterview: true,
+              limitations: ["dynamic routing was not statically resolved"],
+            },
           }),
         }),
         mockTx,
       );
+      expect(mockTx.assessmentInterviewThread.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            privateContextJson: expect.objectContaining({
+              partialCoveragePolicyDecision: {
+                policyDecisionRef: "coverage-policy:assessment-1:report-pinned",
+                policyVersion: "partial-coverage-policy-v1",
+                permittedForInterview: true,
+                limitations: ["dynamic routing was not statically resolved"],
+              },
+            }),
+          }),
+        }),
+      );
+      expect(mockRuntimeEvents.recordToolWaitingInput).toHaveBeenCalledWith(
+        expect.objectContaining({
+          runId: "10000000-0000-4000-8000-000000000001",
+          waitingReason: ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewStarted,
+          outputSummary: expect.objectContaining({
+            interviewWorkflowEvent:
+              ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewStarted,
+            orchestratorAction:
+              ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.waitForCustomer,
+            assessmentInterview: expect.objectContaining({
+              outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+            }),
+            partialCoveragePolicyDecision: {
+              policyDecisionRef: "coverage-policy:assessment-1:report-pinned",
+              policyVersion: "partial-coverage-policy-v1",
+              permittedForInterview: true,
+              limitations: ["dynamic routing was not statically resolved"],
+            },
+          }),
+        }),
+      );
+    });
+
+    it("preserves permitted PARTIAL policy decision in worker Interview input", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValueOnce({
+        assessmentId: "assessment-1",
+        contextRevision: 0,
+        processedRevision: 0,
+        activeQuestionId: "q-partial-policy",
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 0,
+        },
+        privateContextJson: {
+          revisions: [],
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+          partialCoveragePolicyDecision: partialCoveragePolicyDecision(),
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+        guidanceVersion: TEST_GUIDANCE_VERSION,
+      });
+      mockTx.technicalEvidenceReport.findFirst.mockResolvedValueOnce({
+        id: "report-1",
+        schemaVersion: "v1",
+        evidencePayload: {
+          technicalCoverageState: INTERVIEW_TECHNICAL_COVERAGE_STATES.partial,
+          partialCoveragePolicyDecision: partialCoveragePolicyDecision(),
+        },
+      });
+
+      const workerContext = await service.getPrivateContextForWorker({
+        assessmentId: "assessment-1",
+        contextRevision: 0,
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      expect(workerContext.technicalCoverageState).toBe(
+        INTERVIEW_TECHNICAL_COVERAGE_STATES.partial,
+      );
+      expect(workerContext.coverageLimitations).toEqual([
+        "dynamic routing was not statically resolved",
+      ]);
+      expect(workerContext.partialCoveragePolicyDecision).toEqual({
+        policyDecisionRef: "coverage-policy:assessment-1:report-pinned",
+        policyVersion: "partial-coverage-policy-v1",
+        permittedForInterview: true,
+        limitations: ["dynamic routing was not statically resolved"],
+      });
     });
   });
 
