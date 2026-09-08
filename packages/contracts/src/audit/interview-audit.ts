@@ -3,6 +3,7 @@ import type {
   AssessmentInterviewControl,
   AssessmentInterviewOutcome,
   AssessmentInterviewQuestionIntent,
+  PartialCoveragePolicyDecision,
 } from "../evidence/assessment-interview.ts";
 import type { AuditActorType } from "./audit-event.types.ts";
 
@@ -84,6 +85,8 @@ export type InterviewSourceSnapshotRef = {
   technicalCoverageState?: InterviewTechnicalCoverageState;
   /** Coverage limitations active when the event was recorded. */
   coverageLimitations?: string[];
+  /** Explicit Orchestrator policy decision permitting PARTIAL coverage. */
+  partialCoveragePolicyDecision?: PartialCoveragePolicyDecision;
 };
 
 /**

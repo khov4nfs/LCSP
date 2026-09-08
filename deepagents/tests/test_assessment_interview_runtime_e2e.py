@@ -11,9 +11,12 @@ from orchestration.assessment_interview import (
     InterviewAgentDecision,
     InterviewQuestion,
     InvestigatorContinuation,
+    PartialCoveragePolicyDecision,
     TechnicalCoverage,
+    engineering_rule_completed_after_initial_interview,
     initial_interview,
     investigator_resolution,
+    orchestrator_transition,
     validate_continuation,
 )
 from orchestration.context import LCSPRunContext
@@ -70,6 +73,76 @@ def _program_graph() -> dict:
     }
 
 
+def test_orchestrator_transition_matrix_and_partial_policy_contract() -> None:
+    permitted_partial = PartialCoveragePolicyDecision(
+        policy_decision_ref="coverage-policy:assessment-1:rev-1",
+        policy_version="partial-coverage-v1",
+        permitted_for_interview=True,
+        limitations=("dynamic_path_unresolved",),
+    )
+    assert permitted_partial.limitations == ("dynamic_path_unresolved",)
+    with pytest.raises(ValueError, match="preserved limitations"):
+        PartialCoveragePolicyDecision(
+            policy_decision_ref="coverage-policy:assessment-1:rev-2",
+            policy_version="partial-coverage-v1",
+            permitted_for_interview=True,
+        )
+    with pytest.raises(ValueError, match="explicit policy decision"):
+        initial_interview(
+            coverage=TechnicalCoverage(
+                state="PARTIAL",
+                limitations=("dynamic_path_unresolved",),
+            ),
+            customer_revisions=(),
+        )
+    with pytest.raises(ValueError, match="does not permit"):
+        initial_interview(
+            coverage=TechnicalCoverage(
+                state="PARTIAL",
+                partial_policy_decision=PartialCoveragePolicyDecision(
+                    policy_decision_ref="coverage-policy:assessment-1:rev-3",
+                    policy_version="partial-coverage-v1",
+                    permitted_for_interview=False,
+                    limitations=("dynamic_path_unresolved",),
+                ),
+            ),
+            customer_revisions=(),
+        )
+
+    ready_transition = orchestrator_transition(
+        mode="INITIAL_INTERVIEW",
+        decision=InterviewAgentDecision(outcome="CONTEXT_READY"),
+    )
+    assert ready_transition.action == "CONTINUE_TO_ENGINEERING_RULE"
+    assert ready_transition.workflow_event == "INTERVIEW_CONTEXT_READY"
+
+    exact_resume_transition = orchestrator_transition(
+        mode="INVESTIGATOR_RESOLUTION",
+        decision=InterviewAgentDecision(outcome="CONTEXT_RESOLVED"),
+    )
+    assert exact_resume_transition.action == "RESUME_EXACT_INVESTIGATOR"
+    assert exact_resume_transition.workflow_event == "INVESTIGATION_RESUMED"
+    assert exact_resume_transition.exact_resume_allowed is True
+
+    downstream_transition = orchestrator_transition(
+        mode="INVESTIGATOR_RESOLUTION",
+        decision=InterviewAgentDecision(
+            outcome="CONTEXT_RESOLVED",
+            flags=("DOWNSTREAM_IMPACT",),
+        ),
+    )
+    assert downstream_transition.action == "SELECTIVE_RERUN_RESCOPE"
+    assert downstream_transition.workflow_event == "DOWNSTREAM_REEVALUATION_STARTED"
+    assert downstream_transition.exact_resume_allowed is False
+    assert downstream_transition.requires_downstream_rescope is True
+
+    with pytest.raises(ValueError, match="cannot resolve"):
+        orchestrator_transition(
+            mode="INITIAL_INTERVIEW",
+            decision=InterviewAgentDecision(outcome="CONTEXT_RESOLVED"),
+        )
+
+
 def test_e2e_a_initial_interview_reaches_planner_after_guarded_context_ready() -> None:
     with pytest.raises(ValueError, match="recovery before Interview"):
         initial_interview(
@@ -80,8 +153,13 @@ def test_e2e_a_initial_interview_reaches_planner_after_guarded_context_ready() -
     waiting = initial_interview(
         coverage=TechnicalCoverage(
             state="PARTIAL",
-            limitations=("dynamic_path_unresolved",),
             missing_evidence_refs=("EV-MISSING",),
+            partial_policy_decision=PartialCoveragePolicyDecision(
+                policy_decision_ref="coverage-policy:assessment-1:rev-1",
+                policy_version="partial-coverage-v1",
+                permitted_for_interview=True,
+                limitations=("dynamic_path_unresolved",),
+            ),
         ),
         customer_revisions=(),
     )
@@ -92,7 +170,15 @@ def test_e2e_a_initial_interview_reaches_planner_after_guarded_context_ready() -
     assert waiting.missing_evidence_is_absence_proof is False
 
     ambiguous = initial_interview(
-        coverage=TechnicalCoverage(state="PARTIAL", limitations=("dynamic_path_unresolved",)),
+        coverage=TechnicalCoverage(
+            state="PARTIAL",
+            partial_policy_decision=PartialCoveragePolicyDecision(
+                policy_decision_ref="coverage-policy:assessment-1:rev-1",
+                policy_version="partial-coverage-v1",
+                permitted_for_interview=True,
+                limitations=("dynamic_path_unresolved",),
+            ),
+        ),
         customer_revisions=(
             CustomerContextRevision(
                 revision=1,
@@ -114,7 +200,15 @@ def test_e2e_a_initial_interview_reaches_planner_after_guarded_context_ready() -
     assert ambiguous.active_question.intent == "CLARIFY"
 
     ready = initial_interview(
-        coverage=TechnicalCoverage(state="PARTIAL", limitations=("dynamic_path_unresolved",)),
+        coverage=TechnicalCoverage(
+            state="PARTIAL",
+            partial_policy_decision=PartialCoveragePolicyDecision(
+                policy_decision_ref="coverage-policy:assessment-1:rev-1",
+                policy_version="partial-coverage-v1",
+                permitted_for_interview=True,
+                limitations=("dynamic_path_unresolved",),
+            ),
+        ),
         customer_revisions=(
             CustomerContextRevision(
                 revision=2,
@@ -131,7 +225,9 @@ def test_e2e_a_initial_interview_reaches_planner_after_guarded_context_ready() -
         "decision_role": "recommendation",
     }
     assert ready.engineering_rule_can_start is True
-    assert ready.planner_can_start is True
+    assert ready.planner_can_start is False
+    after_engineering_rule = engineering_rule_completed_after_initial_interview(ready)
+    assert after_engineering_rule.planner_can_start is True
 
     specialist = MagicMock()
     specialist.invoke.return_value = {

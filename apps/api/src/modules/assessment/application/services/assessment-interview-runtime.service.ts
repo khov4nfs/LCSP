@@ -18,8 +18,11 @@ import {
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
   ASSESSMENT_INTERVIEW_MODES,
+  ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
+  ASSESSMENT_INTERVIEW_FLAGS,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
+  ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS,
   ASSESSMENT_RUNTIME_STAGE_CODES,
   CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
   INTERVIEW_FRONTIER_MATERIALITIES,
@@ -34,12 +37,15 @@ import {
   type AssessmentInterviewAnswerInput,
   type AssessmentInterviewBlockedInput,
   type AssessmentInterviewControl,
+  type AssessmentInterviewOrchestratorAction,
   type CanonicalAssessmentInterviewMode,
+  type AssessmentInterviewWorkflowEvent,
   type AssessmentInterviewQuestion,
   type AssessmentInterviewQuestionIntent,
   type AssessmentInterviewRuntimeState,
   EMPTY_INTERVIEW_WORKING_STRATEGY,
   type InterviewWorkingStrategy,
+  type PartialCoveragePolicyDecision,
 } from "@lcsp/contracts/evidence";
 import {
   buildOutboxMessageInput,
@@ -145,6 +151,7 @@ type PrivateInterviewStore = {
   workingStrategy?: InterviewWorkingStrategy;
   targetedNeed?: TargetedInterviewNeed;
   targetedContinuation?: TargetedInterviewContinuation;
+  partialCoveragePolicyDecision?: PartialCoveragePolicyDecision;
 };
 
 type TargetedNeedRegistrationInput = {
@@ -175,6 +182,7 @@ type WorkerPrivateContext = {
   pgeVersion: string;
   technicalCoverageState?: InterviewTechnicalCoverageState;
   coverageLimitations?: string[];
+  partialCoveragePolicyDecision?: PartialCoveragePolicyDecision;
   publicState: AssessmentInterviewRuntimeState;
   privateRevision?: PrivateInterviewAnswerRevision;
   targetedNeed?: TargetedInterviewNeed;
@@ -191,6 +199,14 @@ type AgentDecisionInput = {
   confirmedContext?: Record<string, unknown>;
   blockedActions?: AssessmentInterviewRuntimeState["blockedActions"];
   flags?: AssessmentInterviewRuntimeState["flags"];
+};
+
+type OrchestratorInterviewTransition = {
+  mode: CanonicalAssessmentInterviewMode;
+  action: AssessmentInterviewOrchestratorAction;
+  workflowEvent: AssessmentInterviewWorkflowEvent;
+  exactResumeAllowed: boolean;
+  requiresDownstreamRescope: boolean;
 };
 
 @Injectable()
@@ -367,6 +383,7 @@ export class AssessmentInterviewRuntimeService {
         pgeVersion: provenance.pgeVersion,
         technicalCoverageState: provenance.technicalCoverageState,
         coverageLimitations: provenance.coverageLimitations,
+        partialCoveragePolicyDecision: provenance.partialCoveragePolicyDecision,
         guidanceVersion:
           thread.guidanceVersion ?? this.resolveGuidanceVersion(),
       };
@@ -431,12 +448,16 @@ export class AssessmentInterviewRuntimeService {
         state: nextState,
         revision: nextRevision,
         questionId: answer.questionId,
+        workflowRunId,
+        partialCoveragePolicyDecision:
+          provenance.partialCoveragePolicyDecision ??
+          thread.privateStore.partialCoveragePolicyDecision,
       };
     });
 
     await this.runtimeEvents.recordToolWaitingInput({
       assessmentId: input.assessmentId,
-      runId: this.threadId(input.assessmentId),
+      runId: next.workflowRunId,
       correlationId: input.correlationId,
       stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
       toolName: INTERVIEW_TOOL_NAME,
@@ -446,8 +467,15 @@ export class AssessmentInterviewRuntimeService {
         questionId: next.questionId,
         answer: PUBLIC_REDACTED_ANSWER_SUMMARY,
       },
-      outputSummary: { assessmentInterview: publicState(next.state) },
-      waitingReason: INTERVIEW_AGENT_DECISION_REQUIRED,
+      outputSummary: {
+        assessmentInterview: publicState(next.state),
+        interviewWorkflowEvent:
+          ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewContextUpdated,
+        partialCoveragePolicyDecision:
+          next.partialCoveragePolicyDecision ?? null,
+      },
+      waitingReason:
+        ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewContextUpdated,
       startedAt: new Date(),
     });
 
@@ -472,6 +500,10 @@ export class AssessmentInterviewRuntimeService {
       const shouldResume =
         blocked.action ===
         ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.provideMoreContext;
+      const workflowRunId =
+        current.privateStore.targetedContinuation?.workflowRunId ??
+        current.privateStore.workflowRunId ??
+        this.threadId(input.assessmentId);
       const nextState: AssessmentInterviewRuntimeState = {
         ...current.state,
         outcome: ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved,
@@ -504,10 +536,7 @@ export class AssessmentInterviewRuntimeService {
           current.guidanceVersion ?? this.resolveGuidanceVersion(),
       });
       if (shouldResume) {
-        const workflowRunId =
-          current.privateStore.targetedContinuation?.workflowRunId ??
-          current.privateStore.workflowRunId;
-        if (!workflowRunId) {
+        if (workflowRunId === this.threadId(input.assessmentId)) {
           throw problemException(
             "INTERVIEW_WORKFLOW_RUN_ID_REQUIRED",
             input.correlationId,
@@ -554,12 +583,17 @@ export class AssessmentInterviewRuntimeService {
         tx,
       );
 
-      return nextState;
+      return {
+        state: nextState,
+        workflowRunId,
+        partialCoveragePolicyDecision:
+          current.privateStore.partialCoveragePolicyDecision,
+      };
     });
 
     await this.runtimeEvents.recordToolWaitingInput({
       assessmentId: input.assessmentId,
-      runId: this.threadId(input.assessmentId),
+      runId: result.workflowRunId,
       correlationId: input.correlationId,
       stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
       toolName: INTERVIEW_TOOL_NAME,
@@ -570,15 +604,19 @@ export class AssessmentInterviewRuntimeService {
       },
       outputSummary: {
         assessmentInterview: publicState({
-          ...result,
+          ...result.state,
           pendingDraft: undefined,
         }),
+        interviewWorkflowEvent:
+          ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewBlockedOrUnresolved,
+        partialCoveragePolicyDecision:
+          result.partialCoveragePolicyDecision ?? null,
       },
       waitingReason: blocked.action,
       startedAt: now,
     });
 
-    return publicState(result);
+    return publicState(result.state);
   }
 
   async submitPostFindingDecision(input: {
@@ -711,6 +749,9 @@ export class AssessmentInterviewRuntimeService {
       pgeVersion: authoritative.pgeVersion,
       technicalCoverageState: authoritative.technicalCoverageState,
       coverageLimitations: authoritative.coverageLimitations,
+      partialCoveragePolicyDecision:
+        authoritative.partialCoveragePolicyDecision ??
+        thread.privateStore.partialCoveragePolicyDecision,
       publicState: publicState(thread.state),
       privateRevision,
       targetedNeed: target,
@@ -741,6 +782,7 @@ export class AssessmentInterviewRuntimeService {
       this.assertInitialInterviewCoverageUsable(
         provenance.technicalCoverageState,
         provenance.coverageLimitations,
+        provenance.partialCoveragePolicyDecision,
         input.correlationId,
       );
       if (
@@ -798,6 +840,7 @@ export class AssessmentInterviewRuntimeService {
         workflowRunId: target.workflowRunId,
         targetedNeed,
         targetedContinuation,
+        partialCoveragePolicyDecision: provenance.partialCoveragePolicyDecision,
       };
       await this.persistThreadState(input.assessmentId, nextState, tx, {
         contextRevision: thread.contextRevision,
@@ -842,6 +885,8 @@ export class AssessmentInterviewRuntimeService {
             pgeVersion: thread.pgeVersion ?? undefined,
             technicalCoverageState: provenance.technicalCoverageState,
             coverageLimitations: provenance.coverageLimitations,
+            partialCoveragePolicyDecision:
+              provenance.partialCoveragePolicyDecision,
             guidanceVersion:
               thread.guidanceVersion ?? this.resolveGuidanceVersion(),
           },
@@ -850,10 +895,36 @@ export class AssessmentInterviewRuntimeService {
         tx,
       );
 
-      return nextState;
+      return {
+        state: nextState,
+        workflowRunId: target.workflowRunId,
+        partialCoveragePolicyDecision: provenance.partialCoveragePolicyDecision,
+      };
     });
 
-    return targetResult;
+    await this.runtimeEvents.recordToolWaitingInput({
+      assessmentId: input.assessmentId,
+      runId: targetResult.workflowRunId,
+      correlationId: input.correlationId,
+      stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
+      toolName: INTERVIEW_TOOL_NAME,
+      summary:
+        "Investigator-resolution Interview has started and is waiting for Customer context.",
+      outputSummary: {
+        assessmentInterview: publicState(targetResult.state),
+        interviewWorkflowEvent:
+          ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewStarted,
+        orchestratorAction:
+          ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.waitForCustomer,
+        interviewMode: ASSESSMENT_INTERVIEW_MODES.investigatorResolution,
+        partialCoveragePolicyDecision:
+          targetResult.partialCoveragePolicyDecision ?? null,
+      },
+      waitingReason: ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewStarted,
+      startedAt: new Date(),
+    });
+
+    return targetResult.state;
   }
 
   async getWorkerStateForWorker(
@@ -892,6 +963,7 @@ export class AssessmentInterviewRuntimeService {
       this.assertInitialInterviewCoverageUsable(
         authoritative.technicalCoverageState,
         authoritative.coverageLimitations,
+        authoritative.partialCoveragePolicyDecision,
         input.correlationId,
       );
       if (
@@ -930,6 +1002,11 @@ export class AssessmentInterviewRuntimeService {
         thread,
         input.correlationId,
         { isBlockedFollowup, isTargetedBootstrap },
+      );
+      const transition = orchestratorInterviewTransition(
+        decision,
+        thread.privateStore,
+        input.correlationId,
       );
 
       // Materialize authoritative confirmed context after guarded transition
@@ -1043,6 +1120,8 @@ export class AssessmentInterviewRuntimeService {
               pgeVersion: authoritative.pgeVersion,
               technicalCoverageState: authoritative.technicalCoverageState,
               coverageLimitations: authoritative.coverageLimitations,
+              partialCoveragePolicyDecision:
+                authoritative.partialCoveragePolicyDecision,
               guidanceVersion:
                 thread.guidanceVersion ?? this.resolveGuidanceVersion(),
             },
@@ -1052,7 +1131,9 @@ export class AssessmentInterviewRuntimeService {
         );
       }
 
-      if (decision.flags?.includes("DOWNSTREAM_IMPACT")) {
+      if (
+        decision.flags?.includes(ASSESSMENT_INTERVIEW_FLAGS.downstreamImpact)
+      ) {
         await this.interviewAudit.recordDownstreamImpact(
           {
             assessmentId: input.assessmentId,
@@ -1068,6 +1149,8 @@ export class AssessmentInterviewRuntimeService {
               pgeVersion: authoritative.pgeVersion,
               technicalCoverageState: authoritative.technicalCoverageState,
               coverageLimitations: authoritative.coverageLimitations,
+              partialCoveragePolicyDecision:
+                authoritative.partialCoveragePolicyDecision,
               guidanceVersion:
                 thread.guidanceVersion ?? this.resolveGuidanceVersion(),
             },
@@ -1079,29 +1162,30 @@ export class AssessmentInterviewRuntimeService {
 
       return {
         state,
+        transition,
+        workflowRunId:
+          thread.privateStore.targetedContinuation?.workflowRunId ??
+          thread.privateStore.workflowRunId ??
+          this.threadId(input.assessmentId),
+        partialCoveragePolicyDecision:
+          authoritative.partialCoveragePolicyDecision ??
+          thread.privateStore.partialCoveragePolicyDecision,
         continuation:
-          decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved
+          transition.exactResumeAllowed &&
+          transition.action ===
+            ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.resumeExactInvestigator
             ? thread.privateStore.targetedContinuation
             : undefined,
       };
     });
 
-    await this.runtimeEvents.recordToolWaitingInput({
+    await this.recordTransitionWorkflowEvent({
       assessmentId: input.assessmentId,
-      runId: this.threadId(input.assessmentId),
+      runId: result.workflowRunId,
       correlationId: input.correlationId,
-      stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
-      toolName: INTERVIEW_TOOL_NAME,
-      summary:
-        "Interview Agent guarded decision persisted for customer or orchestration continuation.",
-      inputSummary: { decisionOutcome: result.state.outcome },
-      outputSummary: { assessmentInterview: runtimeEventState(result.state) },
-      waitingReason:
-        result.state.outcome ===
-        ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer
-          ? "WAITING_FOR_CUSTOMER"
-          : null,
-      startedAt: new Date(),
+      transition: result.transition,
+      state: result.state,
+      partialCoveragePolicyDecision: result.partialCoveragePolicyDecision,
     });
 
     return result.continuation
@@ -1134,7 +1218,7 @@ export class AssessmentInterviewRuntimeService {
         },
       );
     }
-    const nextState = await this.prisma.$transaction(async (tx) => {
+    const seedResult = await this.prisma.$transaction(async (tx) => {
       const existing = await this.readThread(input.assessmentId, tx);
       const guidanceVersion =
         existing.guidanceVersion ?? this.resolveGuidanceVersion();
@@ -1146,6 +1230,7 @@ export class AssessmentInterviewRuntimeService {
       this.assertInitialInterviewCoverageUsable(
         provenance.technicalCoverageState,
         provenance.coverageLimitations,
+        provenance.partialCoveragePolicyDecision,
         input.correlationId,
       );
       const authorizedRefs = new Set(provenance.governedEvidenceRefs);
@@ -1181,6 +1266,8 @@ export class AssessmentInterviewRuntimeService {
         privateStore: {
           ...existing.privateStore,
           workflowRunId,
+          partialCoveragePolicyDecision:
+            provenance.partialCoveragePolicyDecision,
           workingStrategy: normalizeStrategy(
             existing.privateStore.workingStrategy,
           ),
@@ -1210,6 +1297,8 @@ export class AssessmentInterviewRuntimeService {
               pgeVersion: provenance.pgeVersion,
               technicalCoverageState: provenance.technicalCoverageState,
               coverageLimitations: provenance.coverageLimitations,
+              partialCoveragePolicyDecision:
+                provenance.partialCoveragePolicyDecision,
               guidanceVersion,
             },
             correlationId: input.correlationId,
@@ -1218,27 +1307,122 @@ export class AssessmentInterviewRuntimeService {
         );
       }
 
-      return computedState;
+      return {
+        state: computedState,
+        partialCoveragePolicyDecision: provenance.partialCoveragePolicyDecision,
+      };
     });
 
     await this.runtimeEvents.recordToolWaitingInput({
       assessmentId: input.assessmentId,
-      runId: this.threadId(input.assessmentId),
+      runId: workflowRunId,
       correlationId: input.correlationId,
       stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
       toolName: INTERVIEW_TOOL_NAME,
       summary: "Interview Agent question is waiting for Customer response.",
-      outputSummary: { assessmentInterview: publicState(nextState) },
-      waitingReason: "WAITING_FOR_CUSTOMER",
+      outputSummary: {
+        assessmentInterview: publicState(seedResult.state),
+        interviewWorkflowEvent:
+          ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewStarted,
+        orchestratorAction:
+          ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.waitForCustomer,
+        interviewMode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
+        partialCoveragePolicyDecision:
+          seedResult.partialCoveragePolicyDecision ?? null,
+      },
+      waitingReason: ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewStarted,
       startedAt: new Date(),
     });
 
-    return nextState;
+    return seedResult.state;
+  }
+
+  private async recordTransitionWorkflowEvent(input: {
+    assessmentId: string;
+    runId: string;
+    correlationId: string;
+    transition: OrchestratorInterviewTransition;
+    state: AssessmentInterviewRuntimeState;
+    partialCoveragePolicyDecision?: PartialCoveragePolicyDecision;
+  }): Promise<void> {
+    const payload = {
+      assessmentInterview: runtimeEventState(input.state),
+      interviewWorkflowEvent: input.transition.workflowEvent,
+      interviewWorkflowEvents: interviewWorkflowEventsForTransition(
+        input.transition,
+      ),
+      orchestratorAction: input.transition.action,
+      interviewMode: input.transition.mode,
+      partialCoveragePolicyDecision:
+        input.partialCoveragePolicyDecision ?? null,
+    };
+    const base = {
+      assessmentId: input.assessmentId,
+      runId: input.runId,
+      correlationId: input.correlationId,
+      stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
+      toolName: INTERVIEW_TOOL_NAME,
+      inputSummary: { decisionOutcome: input.state.outcome },
+      outputSummary: payload,
+      startedAt: new Date(),
+    };
+
+    if (
+      input.transition.action ===
+      ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.waitForCustomer
+    ) {
+      await this.runtimeEvents.recordToolWaitingInput({
+        ...base,
+        summary:
+          "Interview Agent guarded decision persisted; Interview is waiting for Customer response.",
+        waitingReason: input.transition.workflowEvent,
+      });
+      return;
+    }
+
+    if (
+      input.transition.action ===
+      ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.keepBusinessContextBlocked
+    ) {
+      await this.runtimeEvents.recordToolWaitingInput({
+        ...base,
+        summary: "Interview business context remains blocked or unresolved.",
+        waitingReason: input.transition.workflowEvent,
+      });
+      return;
+    }
+
+    if (
+      input.transition.action ===
+      ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.routeRuntimeRecovery
+    ) {
+      await this.runtimeEvents.recordToolFailed({
+        ...base,
+        summary:
+          "Interview runtime failed and requires orchestration recovery.",
+        errorSummary: input.transition.workflowEvent,
+      });
+      return;
+    }
+
+    await this.runtimeEvents.recordToolCompleted({
+      ...base,
+      summary:
+        input.transition.action ===
+        ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.resumeExactInvestigator
+          ? "Targeted Interview context resolved; exact Investigator resume is authorized."
+          : input.transition.action ===
+              ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.selectiveRerunRescope
+            ? "Targeted Interview context resolved; downstream re-evaluation rescope is required."
+            : "Initial Interview context is ready for engineering rule evaluation.",
+      waitingReason: null,
+    });
   }
 
   private assertInitialInterviewCoverageUsable(
     technicalCoverageState: InterviewTechnicalCoverageState,
     coverageLimitations: string[],
+    partialCoveragePolicyDecision: PartialCoveragePolicyDecision | undefined,
     correlationId: string,
   ): void {
     if (
@@ -1252,7 +1436,17 @@ export class AssessmentInterviewRuntimeService {
     }
 
     if (
-      technicalCoverageState === INTERVIEW_TECHNICAL_COVERAGE_STATES.partial &&
+      technicalCoverageState !== INTERVIEW_TECHNICAL_COVERAGE_STATES.partial
+    ) {
+      return;
+    }
+
+    if (
+      !partialCoveragePolicyDecision ||
+      partialCoveragePolicyDecision.permittedForInterview !== true ||
+      !partialCoveragePolicyDecision.policyDecisionRef.trim() ||
+      !partialCoveragePolicyDecision.policyVersion.trim() ||
+      partialCoveragePolicyDecision.limitations.length === 0 ||
       coverageLimitations.length === 0
     ) {
       throw problemException(
@@ -1464,6 +1658,7 @@ export class AssessmentInterviewRuntimeService {
     commitSha?: string;
     technicalCoverageState: InterviewTechnicalCoverageState;
     coverageLimitations: string[];
+    partialCoveragePolicyDecision?: PartialCoveragePolicyDecision;
     governedEvidenceRefs: string[];
   }> {
     const client = tx ?? this.prisma;
@@ -1511,9 +1706,17 @@ export class AssessmentInterviewRuntimeService {
       (report
         ? INTERVIEW_TECHNICAL_COVERAGE_STATES.unavailable
         : INTERVIEW_TECHNICAL_COVERAGE_STATES.unavailable);
+    const partialCoveragePolicyDecision = parsePartialCoveragePolicyDecision(
+      evidenceGraph?.partialCoveragePolicyDecision ??
+        evidenceGraph?.partial_coverage_policy_decision ??
+        evidencePayload?.partialCoveragePolicyDecision ??
+        evidencePayload?.partial_coverage_policy_decision ??
+        evidencePayload?.coveragePolicyDecision ??
+        evidencePayload?.coverage_policy_decision,
+    );
     const graphCoverageNotes =
       evidenceGraph?.coverage_notes ?? evidenceGraph?.coverageNotes;
-    const coverageLimitations = Array.isArray(graphCoverageNotes)
+    const rawCoverageLimitations = Array.isArray(graphCoverageNotes)
       ? graphCoverageNotes.filter(
           (item): item is string => typeof item === "string",
         )
@@ -1526,6 +1729,11 @@ export class AssessmentInterviewRuntimeService {
               (item): item is string => typeof item === "string",
             )
           : [];
+    const coverageLimitations =
+      technicalCoverageState === INTERVIEW_TECHNICAL_COVERAGE_STATES.partial &&
+      partialCoveragePolicyDecision
+        ? partialCoveragePolicyDecision.limitations
+        : rawCoverageLimitations;
 
     const rawGraphRefs =
       evidenceGraph?.evidence_refs ?? evidenceGraph?.evidenceRefs;
@@ -1584,6 +1792,7 @@ export class AssessmentInterviewRuntimeService {
         : MISSING_PGE_VERSION,
       technicalCoverageState,
       coverageLimitations,
+      partialCoveragePolicyDecision,
       governedEvidenceRefs: Array.from(
         new Set([
           ...(snapshot ? [`repositorySnapshot:${snapshot.id}`] : []),
@@ -1656,6 +1865,143 @@ function parsePostFindingDecision(
     });
   }
   return record.decision;
+}
+
+function orchestratorInterviewTransition(
+  decision: Pick<AgentDecisionInput, "mode" | "outcome" | "flags">,
+  privateStore: PrivateInterviewStore,
+  correlationId: string,
+): OrchestratorInterviewTransition {
+  const mode =
+    privateStore.targetedNeed ||
+    decision.mode === ASSESSMENT_INTERVIEW_MODES.investigatorResolution
+      ? ASSESSMENT_INTERVIEW_MODES.investigatorResolution
+      : ASSESSMENT_INTERVIEW_MODES.initialInterview;
+  const hasDownstreamImpact = Boolean(
+    decision.flags?.includes(ASSESSMENT_INTERVIEW_FLAGS.downstreamImpact),
+  );
+
+  if (mode === ASSESSMENT_INTERVIEW_MODES.initialInterview) {
+    if (decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer) {
+      return {
+        mode,
+        action: ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.waitForCustomer,
+        workflowEvent:
+          ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewWaitingForCustomer,
+        exactResumeAllowed: false,
+        requiresDownstreamRescope: false,
+      };
+    }
+    if (decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.contextReady) {
+      return {
+        mode,
+        action:
+          ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.continueToEngineeringRule,
+        workflowEvent:
+          ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewContextReady,
+        exactResumeAllowed: false,
+        requiresDownstreamRescope: false,
+      };
+    }
+    if (
+      decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved
+    ) {
+      return {
+        mode,
+        action:
+          ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.keepBusinessContextBlocked,
+        workflowEvent:
+          ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewBlockedOrUnresolved,
+        exactResumeAllowed: false,
+        requiresDownstreamRescope: false,
+      };
+    }
+    if (decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.failed) {
+      return {
+        mode,
+        action: ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.routeRuntimeRecovery,
+        workflowEvent: ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewFailed,
+        exactResumeAllowed: false,
+        requiresDownstreamRescope: false,
+      };
+    }
+    throw problemException(
+      "INTERVIEW_ORCHESTRATOR_TRANSITION_INVALID",
+      correlationId,
+      {
+        status: HttpStatus.CONFLICT,
+      },
+    );
+  }
+
+  if (decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer) {
+    return {
+      mode,
+      action: ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.waitForCustomer,
+      workflowEvent:
+        ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewWaitingForCustomer,
+      exactResumeAllowed: false,
+      requiresDownstreamRescope: false,
+    };
+  }
+  if (decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved) {
+    return {
+      mode,
+      action: hasDownstreamImpact
+        ? ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.selectiveRerunRescope
+        : ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.resumeExactInvestigator,
+      workflowEvent: hasDownstreamImpact
+        ? ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.downstreamReevaluationStarted
+        : ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.investigationResumed,
+      exactResumeAllowed: !hasDownstreamImpact,
+      requiresDownstreamRescope: hasDownstreamImpact,
+    };
+  }
+  if (decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved) {
+    return {
+      mode,
+      action:
+        ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.keepBusinessContextBlocked,
+      workflowEvent:
+        ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewBlockedOrUnresolved,
+      exactResumeAllowed: false,
+      requiresDownstreamRescope: false,
+    };
+  }
+  if (decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.failed) {
+    return {
+      mode,
+      action: ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.routeRuntimeRecovery,
+      workflowEvent: ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewFailed,
+      exactResumeAllowed: false,
+      requiresDownstreamRescope: false,
+    };
+  }
+
+  throw problemException(
+    "INTERVIEW_ORCHESTRATOR_TRANSITION_INVALID",
+    correlationId,
+    {
+      status: HttpStatus.CONFLICT,
+    },
+  );
+}
+
+function interviewWorkflowEventsForTransition(
+  transition: OrchestratorInterviewTransition,
+): AssessmentInterviewWorkflowEvent[] {
+  if (
+    transition.action ===
+      ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.resumeExactInvestigator ||
+    transition.action ===
+      ASSESSMENT_INTERVIEW_ORCHESTRATOR_ACTIONS.selectiveRerunRescope
+  ) {
+    return [
+      ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewContextResolved,
+      transition.workflowEvent,
+    ];
+  }
+  return [transition.workflowEvent];
 }
 
 function postFindingPhaseAfterDecision(
@@ -2004,6 +2350,9 @@ function parsePrivateStore(value: unknown): PrivateInterviewStore {
         : undefined,
     targetedNeed,
     targetedContinuation,
+    partialCoveragePolicyDecision: parsePartialCoveragePolicyDecision(
+      record.partialCoveragePolicyDecision,
+    ),
     workingStrategy: normalizeStrategy(
       record.workingStrategy as Partial<InterviewWorkingStrategy> | undefined,
     ),
@@ -2067,6 +2416,38 @@ function parseStoredTargetedContinuation(
     return undefined;
   }
   return record as TargetedInterviewContinuation;
+}
+
+function parsePartialCoveragePolicyDecision(
+  value: unknown,
+): PartialCoveragePolicyDecision | undefined {
+  const record = objectRecord(value);
+  if (!record) {
+    return undefined;
+  }
+  const limitations = Array.isArray(record.limitations)
+    ? record.limitations
+        .filter(
+          (item): item is string =>
+            typeof item === "string" && item.trim().length > 0,
+        )
+        .map((item) => item.trim())
+    : [];
+  if (
+    typeof record.policyDecisionRef !== "string" ||
+    !record.policyDecisionRef.trim() ||
+    typeof record.policyVersion !== "string" ||
+    !record.policyVersion.trim() ||
+    typeof record.permittedForInterview !== "boolean"
+  ) {
+    return undefined;
+  }
+  return {
+    policyDecisionRef: record.policyDecisionRef.trim(),
+    policyVersion: record.policyVersion.trim(),
+    permittedForInterview: record.permittedForInterview,
+    limitations,
+  };
 }
 
 function isPrivateRevision(

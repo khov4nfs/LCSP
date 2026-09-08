@@ -119,6 +119,12 @@ def _program_graph() -> dict[str, Any]:
         'edge_count': 0,
         'coverage_state': 'PARTIAL',
         'coverage_notes': ['dynamic configuration remains bounded but incomplete'],
+        'partialCoveragePolicyDecision': {
+            'policyDecisionRef': f'coverage-policy:{SNAPSHOT_ID}',
+            'policyVersion': 'partial-coverage-policy-v1',
+            'permittedForInterview': True,
+            'limitations': ['dynamic configuration remains bounded but incomplete'],
+        },
         'nodes': [
             {
                 'node_id': 'node:ai',
