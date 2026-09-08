@@ -13,6 +13,7 @@ import {
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
+  INTERVIEW_TECHNICAL_CONTRACT_VERSION,
   hasValidInterviewWaitingInvariant,
   isAssessmentInterviewOutcome,
   isAssessmentInterviewQuestionIntent,
@@ -20,6 +21,8 @@ import {
   type AssessmentInterviewAuditRef,
   type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
+
+import { buildSubmitInterviewAnswerCommand } from "../src/lib/api/assessment-interview-client";
 
 const workspaceRoot = new URL("../src/", import.meta.url);
 const contractsPath = new URL(
@@ -180,10 +183,14 @@ test("workflow run renders dynamic interview controls through shared workspace c
   assert.match(overviewSource, /useAssessmentInterviewBlockedActionMutation/);
   assert.match(overviewSource, /pendingDraft/);
   assert.match(overviewSource, /answerHistory/);
+  assert.match(overviewSource, /state:\s*runtimeInterviewState/);
   assert.match(overviewSource, /selectInterviewHandoffPresentation/);
   assert.match(overviewSource, /selectedChoiceRequiresFreeText/);
   assert.match(selectorSource, /orchestrationRequested/);
-  assert.match(selectorSource, /assessmentFlow\.interview\.startingDescription/);
+  assert.match(
+    selectorSource,
+    /assessmentFlow\.interview\.startingDescription/,
+  );
   assert.doesNotMatch(
     overviewSource,
     /initialInterviewQuestion|targetedClarificationQuestion|localStorage|Card|modules\.map|\/wizard|\/readiness/,
@@ -201,6 +208,49 @@ test("workflow run renders dynamic interview controls through shared workspace c
   for (const control of Object.values(ASSESSMENT_INTERVIEW_CONTROLS)) {
     assert.match(contractSource, new RegExp(control));
   }
+});
+
+test("web customer answer submit builds canonical idempotent command from persisted state", () => {
+  const command = buildSubmitInterviewAnswerCommand(
+    "assessment-1",
+    {
+      outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+      threadId: "interview:assessment-1",
+      contextRevision: 7,
+      activeQuestion: {
+        id: "q-choice",
+        intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+        control: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+        prompt: "Runtime prompt",
+        choices: [
+          { id: "choice-a", label: "Choice A" },
+          { id: "choice-b", label: "Choice B" },
+        ],
+      },
+    },
+    {
+      questionId: "q-choice",
+      selectedChoiceIds: ["choice-a"],
+      otherText: "Selected by the authenticated user.",
+    },
+    "client-request-web-1",
+  );
+
+  assert.equal(command.contractVersion, INTERVIEW_TECHNICAL_CONTRACT_VERSION);
+  assert.equal(command.assessmentId, "assessment-1");
+  assert.equal(command.sessionId, "interview:assessment-1");
+  assert.equal(command.questionRef, "q-choice");
+  assert.equal(command.expectedSessionRevision, 7);
+  assert.equal(command.clientRequestId, "client-request-web-1");
+  assert.deepEqual(command.answer, {
+    kind: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+    value: "choice-a",
+    comment: "Selected by the authenticated user.",
+  });
+  assert.equal(
+    "respondentRef" in (command.answer as Record<string, unknown>),
+    false,
+  );
 });
 
 test("web production cutover has no active wizard customer-context consumers", async () => {

@@ -1,6 +1,7 @@
 import {
   ASSESSMENT_CONTEXT_AUTHORITY_STATUSES,
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
+  ASSESSMENT_INTERVIEW_ANSWER_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
   ASSESSMENT_INTERVIEW_FLAGS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
@@ -22,6 +23,9 @@ import {
   type AssessmentInterviewQuestion,
   type AssessmentInterviewQuestionChoice,
   type AssessmentInterviewRuntimeState,
+  type CustomerAnswer,
+  type SubmitInterviewAnswerCommand,
+  INTERVIEW_TECHNICAL_CONTRACT_VERSION,
 } from "@lcsp/contracts/evidence";
 
 import { apiJson } from "./api-request";
@@ -34,7 +38,7 @@ export async function getAssessmentInterviewState(assessmentId: string) {
 
 export async function submitAssessmentInterviewAnswer(
   assessmentId: string,
-  input: AssessmentInterviewAnswerInput,
+  input: SubmitInterviewAnswerCommand,
 ) {
   return apiJson<AssessmentInterviewRuntimeState>(
     `/api/assessments/${encodeURIComponent(assessmentId)}/interview`,
@@ -44,6 +48,87 @@ export async function submitAssessmentInterviewAnswer(
       body: JSON.stringify(input),
     },
   );
+}
+
+export function buildSubmitInterviewAnswerCommand(
+  assessmentId: string,
+  state: AssessmentInterviewRuntimeState,
+  input: AssessmentInterviewAnswerInput,
+  clientRequestId = createClientRequestId(),
+): SubmitInterviewAnswerCommand {
+  const activeQuestion = state.activeQuestion;
+  if (
+    !activeQuestion ||
+    !state.threadId ||
+    typeof state.contextRevision !== "number" ||
+    activeQuestion.id !== input.questionId
+  ) {
+    throw new Error("INTERVIEW_SUBMIT_STATE_INVALID");
+  }
+  return {
+    contractVersion: INTERVIEW_TECHNICAL_CONTRACT_VERSION,
+    assessmentId,
+    sessionId: state.threadId,
+    questionRef: activeQuestion.id,
+    expectedSessionRevision: state.contextRevision,
+    clientRequestId,
+    answer: toCustomerAnswer(activeQuestion, input),
+  };
+}
+
+function createClientRequestId(): string {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `interview-submit-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2)}`;
+}
+
+function toCustomerAnswer(
+  question: AssessmentInterviewQuestion,
+  input: AssessmentInterviewAnswerInput,
+): CustomerAnswer {
+  const comment = input.otherText?.trim() || input.comment?.trim() || undefined;
+  if (question.control === ASSESSMENT_INTERVIEW_CONTROLS.freeText) {
+    return {
+      kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+      text: input.freeText?.trim() ?? "",
+    };
+  }
+  if (question.control === ASSESSMENT_INTERVIEW_CONTROLS.singleSelect) {
+    return {
+      kind: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+      value: input.selectedChoiceIds?.[0] ?? "",
+      comment,
+    };
+  }
+  if (question.control === ASSESSMENT_INTERVIEW_CONTROLS.multiSelect) {
+    return {
+      kind: ASSESSMENT_INTERVIEW_CONTROLS.multiSelect,
+      values: input.selectedChoiceIds ?? [],
+      comment,
+    };
+  }
+  if (question.control === ASSESSMENT_INTERVIEW_CONTROLS.boolean) {
+    return {
+      kind: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+      value: input.selectedChoiceIds?.[0] === "yes",
+      comment,
+    };
+  }
+  if (input.adjusted) {
+    return {
+      kind: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+      action: ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.adjust,
+      adjustmentText: input.freeText?.trim() ?? "",
+    };
+  }
+  return {
+    kind: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+    action: ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.confirm,
+    comment,
+  };
 }
 
 export async function recordAssessmentInterviewBlockedAction(

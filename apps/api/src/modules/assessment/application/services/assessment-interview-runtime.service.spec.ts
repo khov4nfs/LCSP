@@ -14,9 +14,11 @@ import {
   CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES,
   INTERVIEW_FRONTIER_MATERIALITIES,
   INTERVIEW_FRONTIER_OWNERS,
+  INTERVIEW_TECHNICAL_CONTRACT_VERSION,
   POST_FINDING_RUNTIME_PHASES,
   REMEDIATION_APPROVAL_STATUSES,
   REMEDIATION_DECISIONS,
+  type CustomerAnswer,
   type AssessmentPostFindingRuntimeState,
   type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
@@ -70,6 +72,24 @@ function confirmedStructuredContext(input: {
     sourceVersionRef: "snap-1:sha-123456",
     pgeVersion: "report-1:v1",
     guidanceVersion: "guidance-1",
+  };
+}
+
+function submitAnswerCommand(input: {
+  questionId: string;
+  expectedSessionRevision?: number;
+  clientRequestId?: string;
+  answer: CustomerAnswer;
+}) {
+  return {
+    contractVersion: INTERVIEW_TECHNICAL_CONTRACT_VERSION,
+    assessmentId: "assessment-1",
+    sessionId: "interview:assessment-1",
+    questionRef: input.questionId,
+    expectedSessionRevision: input.expectedSessionRevision ?? 1,
+    clientRequestId:
+      input.clientRequestId ?? `client-request-${input.questionId}`,
+    answer: input.answer,
   };
 }
 
@@ -420,10 +440,13 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           scope: "assessment:assessment-1",
         },
         correlationId: "corr-submit-1",
-        answer: {
+        answer: submitAnswerCommand({
           questionId: "q-1",
-          confirmed: true,
-        },
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+            action: ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.confirm,
+          },
+        }),
       });
 
       expect(result.contextRevision).toBe(2);
@@ -493,7 +516,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         sourceVersion: "snap-1:sha-123456",
         pgeVersion: "report-1:v1",
       });
-      const submit = (answer: Record<string, unknown>) =>
+      const submit = (input: { questionId: string; answer: CustomerAnswer }) =>
         service.submitAnswer({
           assessmentId: "assessment-1",
           actor: {
@@ -503,7 +526,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
             scope: "assessment:assessment-1",
           },
           correlationId: "corr-submit-control",
-          answer: answer as { questionId: string },
+          answer: submitAnswerCommand(input),
         });
 
       mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(
@@ -515,7 +538,13 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         }),
       );
       await expect(
-        submit({ questionId: "q-free-text", confirmed: true }),
+        submit({
+          questionId: "q-free-text",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+            action: ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.confirm,
+          },
+        }),
       ).rejects.toMatchObject({
         response: { code: "INTERVIEW_ANSWER_CONTROL_INVALID" },
       });
@@ -534,15 +563,25 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         }),
       );
       await expect(
-        submit({ questionId: "q-confirm-adjust", adjusted: true }),
+        submit({
+          questionId: "q-confirm-adjust",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+            action: ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.adjust,
+            adjustmentText: "",
+          },
+        }),
       ).rejects.toMatchObject({
-        response: { code: "INTERVIEW_ANSWER_CONTROL_INVALID" },
+        response: { code: "INTERVIEW_ANSWER_INVALID" },
       });
 
       const adjusted = await submit({
         questionId: "q-confirm-adjust",
-        adjusted: true,
-        freeText: "A senior manager approves before action.",
+        answer: {
+          kind: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+          action: ASSESSMENT_INTERVIEW_ANSWER_ACTIONS.adjust,
+          adjustmentText: "A senior manager approves before action.",
+        },
       });
       expect(adjusted.contextRevision).toBe(2);
       expect(mockInterviewAudit.recordCustomerAnswer).toHaveBeenCalledWith(
@@ -593,10 +632,13 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           scope: "assessment:assessment-1",
         },
         correlationId: "corr-submit-bool",
-        answer: {
+        answer: submitAnswerCommand({
           questionId: "q-bool",
-          selectedChoiceIds: ["yes"],
-        },
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+            value: true,
+          },
+        }),
       });
 
       expect(result.contextRevision).toBe(2);
@@ -649,10 +691,13 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           scope: "assessment:assessment-1",
         },
         correlationId: "corr-submit-multi",
-        answer: {
+        answer: submitAnswerCommand({
           questionId: "q-multi",
-          selectedChoiceIds: ["soc2", "iso27001"],
-        },
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.multiSelect,
+            values: ["soc2", "iso27001"],
+          },
+        }),
       });
 
       expect(result.contextRevision).toBe(2);
@@ -664,6 +709,426 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         }),
         mockTx,
       );
+    });
+
+    it("accepts canonical SINGLE_SELECT Other comments and persists them for resume", async () => {
+      const activeState: AssessmentInterviewRuntimeState = {
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        contextRevision: 1,
+        activeQuestion: {
+          id: "q-single-other",
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+          prompt: "Select the deployment model.",
+          control: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+          choices: [
+            { id: "standard", label: "Standard" },
+            { id: "other", label: "Other", requiresFreeText: true },
+          ],
+        },
+      };
+
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        assessmentId: "assessment-1",
+        contextRevision: 1,
+        processedRevision: 0,
+        activeQuestionId: "q-single-other",
+        stateJson: activeState,
+        privateContextJson: {
+          revisions: [],
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      const result = await service.submitAnswer({
+        assessmentId: "assessment-1",
+        actor: {
+          userId: "user-1",
+          sessionId: "session-1",
+          role: AUTH_USER_ROLES.customer,
+          scope: "assessment:assessment-1",
+        },
+        correlationId: "corr-submit-single-other",
+        answer: submitAnswerCommand({
+          questionId: "q-single-other",
+          clientRequestId: "client-request-single-other",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+            value: "other",
+            comment: "Hosted in a customer-managed region.",
+          },
+        }),
+      });
+
+      expect(result.contextRevision).toBe(2);
+      expect(result.answerHistory).toEqual([
+        expect.objectContaining({
+          questionId: "q-single-other",
+          summary: "Customer selected 1 option(s).",
+        }),
+      ]);
+      expect(mockTx.assessmentInterviewThread.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            privateContextJson: expect.objectContaining({
+              revisions: [
+                expect.objectContaining({
+                  questionId: "q-single-other",
+                  answer: expect.objectContaining({
+                    selectedChoiceIds: ["other"],
+                    comment: "Hosted in a customer-managed region.",
+                  }),
+                }),
+              ],
+            }),
+          }),
+        }),
+      );
+    });
+
+    it("accepts canonical MULTI_SELECT Other comments and persists them for resume", async () => {
+      const activeState: AssessmentInterviewRuntimeState = {
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        contextRevision: 1,
+        activeQuestion: {
+          id: "q-multi-other",
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+          prompt: "Select compliance frameworks.",
+          control: ASSESSMENT_INTERVIEW_CONTROLS.multiSelect,
+          choices: [
+            { id: "soc2", label: "SOC 2" },
+            { id: "other", label: "Other", requiresFreeText: true },
+          ],
+        },
+      };
+
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        assessmentId: "assessment-1",
+        contextRevision: 1,
+        processedRevision: 0,
+        activeQuestionId: "q-multi-other",
+        stateJson: activeState,
+        privateContextJson: {
+          revisions: [],
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      const result = await service.submitAnswer({
+        assessmentId: "assessment-1",
+        actor: {
+          userId: "user-1",
+          sessionId: "session-1",
+          role: AUTH_USER_ROLES.customer,
+          scope: "assessment:assessment-1",
+        },
+        correlationId: "corr-submit-multi-other",
+        answer: submitAnswerCommand({
+          questionId: "q-multi-other",
+          clientRequestId: "client-request-multi-other",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.multiSelect,
+            values: ["soc2", "other"],
+            comment: "PCI DSS also applies to this flow.",
+          },
+        }),
+      });
+
+      expect(result.contextRevision).toBe(2);
+      expect(result.answerHistory).toEqual([
+        expect.objectContaining({
+          questionId: "q-multi-other",
+          summary: "Customer selected 2 option(s).",
+        }),
+      ]);
+      expect(mockTx.assessmentInterviewThread.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            privateContextJson: expect.objectContaining({
+              revisions: [
+                expect.objectContaining({
+                  questionId: "q-multi-other",
+                  answer: expect.objectContaining({
+                    selectedChoiceIds: ["soc2", "other"],
+                    comment: "PCI DSS also applies to this flow.",
+                  }),
+                }),
+              ],
+            }),
+          }),
+        }),
+      );
+    });
+
+    it("accepts canonical SubmitInterviewAnswerCommand and persists the clientRequestId fingerprint", async () => {
+      const activeState: AssessmentInterviewRuntimeState = {
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        contextRevision: 1,
+        activeQuestion: {
+          id: "q-canonical-bool",
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+          prompt: "Is human review required?",
+          control: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+          choices: [
+            { id: "yes", label: "Yes" },
+            { id: "no", label: "No" },
+          ],
+        },
+      };
+
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        assessmentId: "assessment-1",
+        contextRevision: 1,
+        processedRevision: 0,
+        activeQuestionId: "q-canonical-bool",
+        stateJson: activeState,
+        privateContextJson: {
+          revisions: [],
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      const result = await service.submitAnswer({
+        assessmentId: "assessment-1",
+        actor: {
+          userId: "user-1",
+          sessionId: "session-1",
+          role: AUTH_USER_ROLES.customer,
+          scope: "assessment:assessment-1",
+        },
+        correlationId: "corr-submit-canonical",
+        answer: {
+          ...submitAnswerCommand({
+            questionId: "q-canonical-bool",
+            clientRequestId: "client-request-1",
+            answer: {
+              kind: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+              value: true,
+            },
+          }),
+        },
+      });
+
+      expect(result.contextRevision).toBe(2);
+      expect(mockTx.assessmentInterviewThread.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            privateContextJson: expect.objectContaining({
+              submittedAnswerRequests: [
+                expect.objectContaining({
+                  clientRequestId: "client-request-1",
+                  questionId: "q-canonical-bool",
+                  contextRevision: 2,
+                }),
+              ],
+            }),
+          }),
+        }),
+      );
+      expect(mockInterviewAudit.recordCustomerAnswer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          questionId: "q-canonical-bool",
+          responseMode: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+          answerValue: ["yes"],
+        }),
+        mockTx,
+      );
+    });
+
+    it("rejects stale canonical expectedSessionRevision before mutating the thread", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        assessmentId: "assessment-1",
+        contextRevision: 2,
+        processedRevision: 1,
+        activeQuestionId: "q-stale",
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 2,
+          activeQuestion: {
+            id: "q-stale",
+            intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+            prompt: "Describe purpose.",
+            control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+          },
+        },
+        privateContextJson: {
+          revisions: [],
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      await expect(
+        service.submitAnswer({
+          assessmentId: "assessment-1",
+          actor: {
+            userId: "user-1",
+            sessionId: "session-1",
+            role: AUTH_USER_ROLES.customer,
+            scope: "assessment:assessment-1",
+          },
+          correlationId: "corr-submit-stale-revision",
+          answer: {
+            contractVersion: "interview-technical-contract-v1.0.0",
+            assessmentId: "assessment-1",
+            sessionId: "interview:assessment-1",
+            questionRef: "q-stale",
+            expectedSessionRevision: 1,
+            clientRequestId: "client-request-stale",
+            answer: {
+              kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+              text: "Business purpose answer.",
+            },
+          },
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          ok: false,
+          problem: { code: "INTERVIEW_SESSION_REVISION_STALE" },
+        },
+      });
+      expect(
+        mockTx.assessmentInterviewThread.updateMany,
+      ).not.toHaveBeenCalled();
+      expect(mockInterviewAudit.recordCustomerAnswer).not.toHaveBeenCalled();
+    });
+
+    it("returns the persisted state for duplicate canonical delivery without replaying side effects", async () => {
+      const persistedState: AssessmentInterviewRuntimeState = {
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        contextRevision: 2,
+        answerHistory: [
+          {
+            questionId: "q-idempotent",
+            answeredAt: "2026-09-08T00:00:00.000Z",
+            actorId: "user-1",
+            summary: "Customer supplied free-text Interview context.",
+          },
+        ],
+      };
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        assessmentId: "assessment-1",
+        contextRevision: 2,
+        processedRevision: 1,
+        activeQuestionId: null,
+        stateJson: persistedState,
+        privateContextJson: {
+          revisions: [],
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+          submittedAnswerRequests: [
+            {
+              clientRequestId: "client-request-idempotent",
+              payloadFingerprint:
+                '{"answer":{"freeText":"Business purpose answer.","questionId":"q-idempotent"},"assessmentId":"assessment-1","expectedSessionRevision":1,"questionRef":"q-idempotent","sessionId":"interview:assessment-1"}',
+              questionId: "q-idempotent",
+              contextRevision: 2,
+              recordedAt: "2026-09-08T00:00:00.000Z",
+            },
+          ],
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      const result = await service.submitAnswer({
+        assessmentId: "assessment-1",
+        actor: {
+          userId: "user-1",
+          sessionId: "session-1",
+          role: AUTH_USER_ROLES.customer,
+          scope: "assessment:assessment-1",
+        },
+        correlationId: "corr-submit-duplicate",
+        answer: {
+          contractVersion: "interview-technical-contract-v1.0.0",
+          assessmentId: "assessment-1",
+          sessionId: "interview:assessment-1",
+          questionRef: "q-idempotent",
+          expectedSessionRevision: 1,
+          clientRequestId: "client-request-idempotent",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+            text: "Business purpose answer.",
+          },
+        },
+      });
+
+      expect(result.contextRevision).toBe(2);
+      expect(result.answerHistory?.[0]?.actorId).toBeUndefined();
+      expect(
+        mockTx.assessmentInterviewThread.updateMany,
+      ).not.toHaveBeenCalled();
+      expect(mockOutboxRepository.enqueue).not.toHaveBeenCalled();
+      expect(mockRuntimeEvents.recordToolWaitingInput).not.toHaveBeenCalled();
+      expect(mockInterviewAudit.recordCustomerAnswer).not.toHaveBeenCalled();
+    });
+
+    it("rejects a reused canonical clientRequestId with a different payload", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        assessmentId: "assessment-1",
+        contextRevision: 2,
+        processedRevision: 1,
+        activeQuestionId: null,
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 2,
+        },
+        privateContextJson: {
+          revisions: [],
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+          submittedAnswerRequests: [
+            {
+              clientRequestId: "client-request-conflict",
+              payloadFingerprint: '{"answer":"original"}',
+              questionId: "q-idempotent",
+              contextRevision: 2,
+              recordedAt: "2026-09-08T00:00:00.000Z",
+            },
+          ],
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      await expect(
+        service.submitAnswer({
+          assessmentId: "assessment-1",
+          actor: {
+            userId: "user-1",
+            sessionId: "session-1",
+            role: AUTH_USER_ROLES.customer,
+            scope: "assessment:assessment-1",
+          },
+          correlationId: "corr-submit-idempotency-conflict",
+          answer: {
+            contractVersion: "interview-technical-contract-v1.0.0",
+            assessmentId: "assessment-1",
+            sessionId: "interview:assessment-1",
+            questionRef: "q-idempotent",
+            expectedSessionRevision: 1,
+            clientRequestId: "client-request-conflict",
+            answer: {
+              kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+              text: "Different business purpose.",
+            },
+          },
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          ok: false,
+          problem: { code: "INTERVIEW_ANSWER_IDEMPOTENCY_CONFLICT" },
+        },
+      });
+      expect(
+        mockTx.assessmentInterviewThread.updateMany,
+      ).not.toHaveBeenCalled();
+      expect(mockInterviewAudit.recordCustomerAnswer).not.toHaveBeenCalled();
     });
   });
 
