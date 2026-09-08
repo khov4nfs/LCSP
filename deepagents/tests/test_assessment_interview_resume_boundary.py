@@ -112,6 +112,8 @@ class RecordingApi:
             "actorId": "user-test-actor",
             "sourceVersion": "snapshot-1:abc",
             "pgeVersion": "ter-1:v1",
+            "technicalCoverageState": "READY",
+            "coverageLimitations": [],
             "guidanceVersion": "guidance-v1",
             "workingStrategy": {
                 "terminologyMap": {"human oversight": "manual review"},
@@ -359,7 +361,7 @@ def test_targeted_duplicate_after_question_materialized_is_noop() -> None:
         SimpleNamespace(), api_client=api, dispatcher=dispatcher
     )
 
-    boundary.handle(_message(reason="TARGETED_INTERVIEW_REQUIRED"), "corr-3")
+    boundary.handle(_message(reason="INVESTIGATOR_RESOLUTION_REQUIRED"), "corr-3")
 
     assert dispatcher.calls == []
     assert api.decision_posts == []
@@ -403,7 +405,7 @@ def test_context_resolved_resumes_exact_managed_investigator_without_root() -> N
 
     targeted_handoff = {
         "expectedContextRevision": 0,
-        "mode": "TARGETED_INTERVIEW",
+        "mode": "INVESTIGATOR_RESOLUTION",
         "outcome": "CONTEXT_RESOLVED",
         "contextAuthority": "CUSTOMER_CONFIRMED",
         "confirmedContext": _confirmed_context(),
@@ -453,7 +455,7 @@ def test_context_resolved_resumes_exact_managed_investigator_without_root() -> N
         investigation_completer=exact_completer,
     )
 
-    boundary.handle(_message(reason="TARGETED_INTERVIEW_REQUIRED"), "corr-1")
+    boundary.handle(_message(reason="INVESTIGATOR_RESOLUTION_REQUIRED"), "corr-1")
 
     assert root.calls == []
     assert len(resume_calls) == 1

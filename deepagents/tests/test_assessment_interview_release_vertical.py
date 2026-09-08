@@ -386,6 +386,11 @@ class _VerticalApi:
             'authenticatedActorId': 'user-release-vertical',
             'sourceVersion': SOURCE_VERSION,
             'pgeVersion': PGE_VERSION,
+            # The release fixture represents an accepted, usable report.  Resume
+            # must not enter the Root recovery branch reserved for unavailable
+            # technical coverage.
+            'technicalCoverageState': 'READY',
+            'coverageLimitations': [],
             'governedEvidenceRefs': [EVIDENCE_REF],
             'publicState': dict(self.state),
             'privateRevision': (
@@ -507,7 +512,7 @@ def _resume_message(assessment_id: str, *, revision: int, targeted: bool) -> dic
         'sourceVersion': SOURCE_VERSION,
         'pgeVersion': PGE_VERSION,
         'resumeReason': (
-            'TARGETED_INTERVIEW_REQUIRED'
+            'INVESTIGATOR_RESOLUTION_REQUIRED'
             if targeted
             else 'INTERVIEW_AGENT_DECISION_REQUIRED'
         ),
@@ -561,7 +566,7 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
             },
             {
                 'expectedContextRevision': 1,
-                'mode': 'TARGETED_INTERVIEW',
+                'mode': 'INVESTIGATOR_RESOLUTION',
                 'outcome': 'WAITING_FOR_CUSTOMER',
                 'activeQuestion': {
                     'id': 'question-targeted-1',
@@ -583,7 +588,7 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
             },
             {
                 'expectedContextRevision': 2,
-                'mode': 'TARGETED_INTERVIEW',
+                'mode': 'INVESTIGATOR_RESOLUTION',
                 'outcome': 'CONTEXT_RESOLVED',
                 'contextAuthority': 'CONFIRMED',
                 'confirmedContext': _confirmed_context(

@@ -173,14 +173,14 @@ def initial_interview(
     return _waiting_or_blocked(agent_decision, coverage_limitations=coverage.limitations)
 
 
-def targeted_interview(
+def investigator_resolution(
     *,
     need: BusinessContextNeed,
     continuation: InvestigatorContinuation,
     customer_revisions: tuple[CustomerContextRevision, ...],
     agent_decision: InterviewAgentDecision | None = None,
 ) -> InterviewRuntimeState:
-    """Apply targeted-Interview guardrails to an agent-authored sufficiency decision."""
+    """Apply Investigator-resolution guardrails to an agent-authored decision."""
     latest = customer_revisions[-1] if customer_revisions else None
     payload = {
         "needId": need.need_id,
@@ -224,7 +224,7 @@ def targeted_interview(
     state = _waiting_or_blocked(agent_decision)
     if state.active_question is not None:
         if state.active_question.need_id not in {None, need.need_id}:
-            raise ValueError("Targeted Interview question escaped its registered need")
+            raise ValueError("Investigator-resolution question escaped its registered need")
         _assert_neutral_targeted_text(state.active_question.prompt)
     return replace(state, interview_payload={**payload, **state.interview_payload})
 
@@ -323,6 +323,6 @@ __all__ = [
     "InvestigatorContinuation",
     "TechnicalCoverage",
     "initial_interview",
-    "targeted_interview",
+    "investigator_resolution",
     "validate_continuation",
 ]

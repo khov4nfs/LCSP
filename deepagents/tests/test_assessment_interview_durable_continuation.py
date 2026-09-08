@@ -47,7 +47,7 @@ READY_HANDOFF = {
 }
 
 TARGETED_RESOLVED_HANDOFF = {
-    "mode": "TARGETED_INTERVIEW",
+    "mode": "INVESTIGATOR_RESOLUTION",
     "outcome": "CONTEXT_RESOLVED",
     "contextAuthority": "CONFIRMED",
     "confirmedContext": _confirmed_context(),
@@ -83,7 +83,7 @@ def _message(*, targeted: bool = False) -> dict:
         "sourceVersion": "snapshot-1:abc",
         "pgeVersion": "ter-1:v1",
         "resumeReason": (
-            "TARGETED_INTERVIEW_REQUIRED"
+            "INVESTIGATOR_RESOLUTION_REQUIRED"
             if targeted
             else "INTERVIEW_AGENT_DECISION_REQUIRED"
         ),
@@ -122,6 +122,8 @@ class MutableApi:
             "actorId": "user-actor-test",
             "sourceVersion": "snapshot-1:abc",
             "pgeVersion": "ter-1:v1",
+            "technicalCoverageState": "READY",
+            "coverageLimitations": [],
             "publicState": dict(self.public_state),
             "privateRevision": {
                 "actorId": "user-actor-test",

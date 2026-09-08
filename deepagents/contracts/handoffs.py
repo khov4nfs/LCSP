@@ -86,10 +86,13 @@ class InterviewQuestionResult(BaseModel):
 
     id: str = Field(min_length=1, max_length=240)
     intent: Literal["ASK", "CLARIFY"]
-    control: Literal["FREE_TEXT", "BOOLEAN", "SINGLE_SELECT", "MULTI_SELECT", "CONFIRM_ADJUST"]
+    control: Literal[
+        "FREE_TEXT", "BOOLEAN", "SINGLE_SELECT", "MULTI_SELECT", "CONFIRM_ADJUST"
+    ]
     prompt: str = Field(min_length=1, max_length=2_000)
     choices: list[InterviewQuestionChoice] = Field(default_factory=list, max_length=20)
     priorAnswerSummary: str | None = Field(default=None, max_length=1_000)
+    proposedInterpretation: str | None = Field(default=None, max_length=2_000)
     whyEvidenceRefs: list[str] = Field(default_factory=list, max_length=50)
     whyAreWeAsking: str | None = Field(default=None, max_length=2_000)
     frontier: InterviewFrontierResult | None = None
@@ -101,6 +104,20 @@ class InterviewQuestionResult(BaseModel):
             raise ValueError("select Interview controls require choices")
         if self.control == "BOOLEAN" and self.choices:
             raise ValueError("BOOLEAN Interview controls must not carry custom choices")
+        if self.control == "CONFIRM_ADJUST":
+            if self.intent != "CLARIFY":
+                raise ValueError("CONFIRM_ADJUST Interview controls require CLARIFY intent")
+            if not self.proposedInterpretation:
+                raise ValueError("CONFIRM_ADJUST Interview controls require proposedInterpretation")
+            choices_by_id = {choice.id: choice for choice in self.choices}
+            if set(choices_by_id) != {"CONFIRM", "ADJUST"}:
+                raise ValueError(
+                    "CONFIRM_ADJUST Interview controls require CONFIRM and ADJUST choices"
+                )
+            if choices_by_id["CONFIRM"].requiresFreeText:
+                raise ValueError("CONFIRM choice must not require free text")
+            if not choices_by_id["ADJUST"].requiresFreeText:
+                raise ValueError("ADJUST choice must require free text")
         return self
 
 
@@ -110,7 +127,7 @@ class InterviewResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     expectedContextRevision: int = Field(ge=0)
-    mode: Literal["INITIAL_INTERVIEW", "TARGETED_INTERVIEW"] = "INITIAL_INTERVIEW"
+    mode: Literal["INITIAL_INTERVIEW", "INVESTIGATOR_RESOLUTION"] = "INITIAL_INTERVIEW"
     outcome: Literal[
         "WAITING_FOR_CUSTOMER",
         "CONTEXT_READY",
@@ -157,8 +174,8 @@ class InterviewResult(BaseModel):
                 "CHECK_INTERNALLY",
                 "SAVE_AND_EXIT",
             ]
-        if self.outcome == "CONTEXT_RESOLVED" and self.mode != "TARGETED_INTERVIEW":
-            raise ValueError("CONTEXT_RESOLVED is only valid for TARGETED_INTERVIEW")
+        if self.outcome == "CONTEXT_RESOLVED" and self.mode != "INVESTIGATOR_RESOLUTION":
+            raise ValueError("CONTEXT_RESOLVED is only valid for INVESTIGATOR_RESOLUTION")
         return self
 
 

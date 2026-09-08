@@ -198,6 +198,9 @@ function sanitizeQuestion(value: unknown): AssessmentInterviewQuestion | null {
   if (typeof record.priorAnswerSummary === "string") {
     question.priorAnswerSummary = record.priorAnswerSummary;
   }
+  if (typeof record.proposedInterpretation === "string") {
+    question.proposedInterpretation = record.proposedInterpretation;
+  }
   if (Array.isArray(record.whyEvidenceRefs)) {
     question.whyEvidenceRefs = record.whyEvidenceRefs.filter(
       (item): item is string => typeof item === "string",

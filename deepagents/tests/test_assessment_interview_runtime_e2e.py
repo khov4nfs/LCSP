@@ -13,7 +13,7 @@ from orchestration.assessment_interview import (
     InvestigatorContinuation,
     TechnicalCoverage,
     initial_interview,
-    targeted_interview,
+    investigator_resolution,
     validate_continuation,
 )
 from orchestration.context import LCSPRunContext
@@ -187,7 +187,7 @@ def test_e2e_b_targeted_clarification_validates_then_resumes_exact_investigator(
         artifact_versions={"technicalEvidenceReportId": "ter-7"},
     )
 
-    waiting = targeted_interview(
+    waiting = investigator_resolution(
         need=need,
         continuation=continuation,
         customer_revisions=(),
@@ -199,7 +199,7 @@ def test_e2e_b_targeted_clarification_validates_then_resumes_exact_investigator(
     assert "ENG-7" not in str(waiting.interview_payload)
     assert "checkpoint" not in str(waiting.interview_payload).lower()
 
-    unresolved = targeted_interview(
+    unresolved = investigator_resolution(
         need=need,
         continuation=continuation,
         customer_revisions=(
@@ -223,7 +223,7 @@ def test_e2e_b_targeted_clarification_validates_then_resumes_exact_investigator(
     assert unresolved.active_question is not None
     assert unresolved.active_question.intent == "CLARIFY"
 
-    blocked = targeted_interview(
+    blocked = investigator_resolution(
         need=need,
         continuation=continuation,
         customer_revisions=(),
@@ -262,7 +262,7 @@ def test_e2e_b_targeted_clarification_validates_then_resumes_exact_investigator(
         current_artifact_versions={"technicalEvidenceReportId": "ter-7"},
     )
     with pytest.raises(ValueError, match="resolution criteria"):
-        targeted_interview(
+        investigator_resolution(
             need=need,
             continuation=consumed,
             customer_revisions=(
@@ -282,7 +282,7 @@ def test_e2e_b_targeted_clarification_validates_then_resumes_exact_investigator(
             current_artifact_versions={"technicalEvidenceReportId": "ter-7"},
         )
 
-    resolved = targeted_interview(
+    resolved = investigator_resolution(
         need=need,
         continuation=consumed,
         customer_revisions=(
@@ -306,7 +306,7 @@ def test_e2e_b_targeted_clarification_validates_then_resumes_exact_investigator(
         "affectedRuleIds": ["ENG-7"],
     }
 
-    downstream = targeted_interview(
+    downstream = investigator_resolution(
         need=need,
         continuation=consumed,
         customer_revisions=(

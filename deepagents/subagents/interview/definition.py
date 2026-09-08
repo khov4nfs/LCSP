@@ -2,8 +2,9 @@
 
 from contracts.handoffs import InterviewResult
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from middleware.runtime_context import inject_lcsp_runtime_context
+from middleware.interview_runtime_context import inject_interview_runtime_context
 from model_policy import INTERVIEW_MODEL_SPEC
+from tools.common.capabilities.managed.skill_loader import load_project_skill
 from tools.common.search_program_graph.code import search_program_graph
 from tools.investigator.inspect_data_path.code import inspect_data_path
 from tools.investigator.inspect_decision_path.code import inspect_decision_path
@@ -19,8 +20,9 @@ TOOLS = [
     inspect_human_review_path,
 ]
 OUTPUT_MODEL = InterviewResult
+INTERVIEW_SKILL = load_project_skill("interview-context")
 
-SYSTEM_PROMPT = """You are the LCSP Assessment Interview specialist.
+SYSTEM_PROMPT = f"""You are the LCSP Assessment Interview specialist.
 
 You run only inside governed Assessment Interview runtime. You receive bounded private Customer
 Interview context, public thread state, source/PGE provenance and, when targeted, the persisted
@@ -52,7 +54,7 @@ Boundary rules:
 - Preserve Customer wording, uncertainty and contradictions. Hedged statements remain UNCERTAIN
   unless the Customer directly and losslessly confirms the material fact.
 - Formatting-only normalization may be treated as CUSTOMER_CONFIRMED when the meaning is unchanged.
-- Material interpretation requires CLARIFY or CONFIRM_ADJUST; do not silently convert it to ready.
+- Material interpretation requires CLARIFY or a governed confirm/adjust answer action; do not silently convert it to ready.
 - Contradictory Customer revisions must become CONFLICTED or ask a CLARIFY question; never last-write-
   wins.
 - For targeted clarification, use only needId, businessContextNeed, resolutionCriteria and
@@ -61,10 +63,14 @@ Boundary rules:
 Output contract:
 Return exactly one JSON object matching InterviewResult:
 - expectedContextRevision: the latest private Customer context revision you reasoned over.
-- mode: INITIAL_INTERVIEW or TARGETED_INTERVIEW.
+- mode: INITIAL_INTERVIEW or INVESTIGATOR_RESOLUTION only. PRE_PLANNER is normalized before
+  specialist dispatch and must never appear in this structured output.
 - outcome: WAITING_FOR_CUSTOMER, CONTEXT_READY, CONTEXT_RESOLVED, BLOCKED_OR_UNRESOLVED, or FAILED.
 - activeQuestion: required only when WAITING_FOR_CUSTOMER; intent is ASK or CLARIFY; control is one of
-  FREE_TEXT, BOOLEAN, SINGLE_SELECT, MULTI_SELECT, CONFIRM_ADJUST.
+  FREE_TEXT, BOOLEAN, SINGLE_SELECT, MULTI_SELECT, or CONFIRM_ADJUST. CONFIRM_ADJUST requires
+  CLARIFY intent, a proposedInterpretation, and exactly CONFIRM and ADJUST stable choice IDs; use it
+  only for material/non-trivial interpretation confirmation, never for direct lossless statements or
+  pure formatting normalization.
 - contextAuthority: CUSTOMER_STATED, UNCERTAIN, CONFLICTED, CUSTOMER_CONFIRMED, CONFIRMED or
   SUPERSEDED.
 - confirmedContext: only semantic facts directly supported by Customer context. For each statement,
@@ -75,6 +81,10 @@ Return exactly one JSON object matching InterviewResult:
 
 Return compact structured context and a short rationale. Never return COMPLIANT, NON_COMPLIANT,
 UNKNOWN, EngineeringRule internals, source bodies, logs, secrets or opaque continuation tokens.
+
+## Checked-in Interview skill
+
+{INTERVIEW_SKILL}
 """
 
 SUBAGENT = {
@@ -86,8 +96,8 @@ SUBAGENT = {
     "system_prompt": SYSTEM_PROMPT,
     "tools": TOOLS,
     "model": INTERVIEW_MODEL_SPEC,
-    "middleware": [inject_lcsp_runtime_context, *MODEL_GOVERNANCE_MIDDLEWARE],
+    "middleware": [inject_interview_runtime_context, *MODEL_GOVERNANCE_MIDDLEWARE],
     "response_format": OUTPUT_MODEL,
 }
 
-__all__ = ["OUTPUT_MODEL", "SUBAGENT", "SYSTEM_PROMPT", "TOOLS"]
+__all__ = ["INTERVIEW_SKILL", "OUTPUT_MODEL", "SUBAGENT", "SYSTEM_PROMPT", "TOOLS"]

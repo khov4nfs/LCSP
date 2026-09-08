@@ -395,7 +395,15 @@ def _initial_interview_instruction(
 ) -> str:
     coverage_state, coverage_notes = _technical_coverage(evidence_report)
     safe_context = {
+        "hostPlatform": "LCSP",
+        "subjectSystemIdentity": "repositorySnapshot:"
+        + str(
+            evidence_report.get("snapshot_id")
+            or evidence_report.get("snapshotId")
+            or "UNKNOWN"
+        ),
         "assessmentId": assessment_id,
+        "mode": "INITIAL_INTERVIEW",
         "technicalEvidenceReportId": evidence_report_id,
         "coverageState": coverage_state,
         "coverageNotes": coverage_notes,

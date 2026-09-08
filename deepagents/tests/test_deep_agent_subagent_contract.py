@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import harness
+from middleware.interview_runtime_context import inject_interview_runtime_context
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from middleware.runtime_context import inject_lcsp_runtime_context
 from model_policy import (
@@ -62,7 +63,12 @@ def test_subagents_follow_deep_agents_dictionary_contract() -> None:
         assert "Output contract:" in str(subagent["system_prompt"])
         assert len(str(subagent["description"])) >= 80
         expected_middleware = [*MODEL_GOVERNANCE_MIDDLEWARE]
-        if name != "triage":
+        if name == "interview":
+            expected_middleware = [
+                inject_interview_runtime_context,
+                *MODEL_GOVERNANCE_MIDDLEWARE,
+            ]
+        elif name != "triage":
             expected_middleware = [
                 inject_lcsp_runtime_context,
                 *MODEL_GOVERNANCE_MIDDLEWARE,
@@ -167,8 +173,10 @@ def test_structured_handoffs_match_deep_research_report_fields() -> None:
 
 
 def test_engineering_rules_are_pinned_inputs_not_subagent_discovery() -> None:
-    context_source = (PROJECT_ROOT / "orchestration" / "context.py").read_text()
-    instructions = (PROJECT_ROOT / "instructions.md").read_text()
+    context_source = (PROJECT_ROOT / "orchestration" / "context.py").read_text(
+        encoding="utf-8"
+    )
+    instructions = (PROJECT_ROOT / "instructions.md").read_text(encoding="utf-8")
     planner_prompt = str(
         next(item for item in FLOW_SUBAGENTS if item["name"] == "planner")["system_prompt"]
     )
