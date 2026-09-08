@@ -2459,15 +2459,18 @@ function parseAgentDecision(value: unknown): AgentDecisionInput {
     record.activeQuestion,
     outcome,
   );
+  const mode =
+    record.mode === ASSESSMENT_INTERVIEW_MODES.initialInterview
+      ? ASSESSMENT_INTERVIEW_MODES.initialInterview
+      : record.mode === ASSESSMENT_INTERVIEW_MODES.investigatorResolution
+        ? ASSESSMENT_INTERVIEW_MODES.investigatorResolution
+        : undefined;
+  if (!mode) {
+    throw new BadRequestException({ code: "INTERVIEW_AGENT_DECISION_INVALID" });
+  }
   return {
     expectedContextRevision: record.expectedContextRevision,
-    mode:
-      record.mode === ASSESSMENT_INTERVIEW_MODES.prePlanner ||
-      record.mode === ASSESSMENT_INTERVIEW_MODES.initialInterview
-        ? ASSESSMENT_INTERVIEW_MODES.initialInterview
-        : record.mode === ASSESSMENT_INTERVIEW_MODES.investigatorResolution
-          ? ASSESSMENT_INTERVIEW_MODES.investigatorResolution
-          : undefined,
+    mode,
     outcome,
     activeQuestion,
     contextAuthority: Object.values(
