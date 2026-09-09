@@ -49,3 +49,5 @@ tmp/
 .chorma/
 
 /lcsp-python-workers/output/*
+test-results/
+playwright-report/
