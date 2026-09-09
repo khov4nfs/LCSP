@@ -355,3 +355,31 @@ jobs:
           if [ -f /tmp/lcsp-278-api.pid ]; then
             kill "$(cat /tmp/lcsp-278-api.pid)" || true
           fi
+
+  admin-playwright-e2e:
+    name: Admin Playwright E2E release gate
+    needs: changes
+    if: needs.changes.outputs.release_gate == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Build runtime packages
+        run: pnpm run build:runtime-packages
+
+      - name: Run Admin Playwright E2E tests
+        run: pnpm run test:admin:e2e
+
