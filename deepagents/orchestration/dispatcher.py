@@ -11,8 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from langchain.agents import create_agent
-
+from model_policy import create_lcsp_agent as create_agent
 from subagents import FLOW_SUBAGENTS
 
 from .context import LCSPRunContext
@@ -103,6 +102,7 @@ class RootSubagentDispatcher:
             prompt = f"{owner_instruction}\n\n{prompt}" if prompt else owner_instruction
 
         agent_kwargs: dict[str, Any] = {
+            "agent_name": subagent_type,
             "model": definition["model"],
             "tools": definition["tools"],
             "system_prompt": definition["system_prompt"],
@@ -117,6 +117,12 @@ class RootSubagentDispatcher:
 
         specialist = self._agent_factory(**agent_kwargs)
         config: dict[str, Any] = {"metadata": dict(metadata or {})}
+        if subagent_type == "triage":
+            config["recursion_limit"] = 2400
+        from .interview_progress import active_progress
+        progress = active_progress.get()
+        if progress is not None:
+            config["callbacks"] = [progress]
         if thread_id:
             config["metadata"]["lcsp_thread_id"] = thread_id
             config["metadata"]["lcsp_thread_checkpointing"] = (
@@ -245,7 +251,7 @@ class RootSubagentDispatcher:
     ) -> dict[str, Any] | None:
         if response_format is None:
             return None
-        if not isinstance(invocation_result, dict) or "structured_response" not in invocation_result:
+        if not isinstance(invocation_result, dict) or invocation_result.get("structured_response") is None:
             raise RuntimeError(
                 f"{subagent_type} did not return a structured_response handoff"
             )

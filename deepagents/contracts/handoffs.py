@@ -121,6 +121,25 @@ class InterviewQuestionResult(BaseModel):
         return self
 
 
+class InterviewStatementCandidate(BaseModel):
+    """Semantic statement candidate; authoritative provenance is API-owned."""
+
+    model_config = ConfigDict(extra="allow")
+    statementId: str = Field(min_length=1, pattern=r"\S")
+    topic: str = Field(min_length=1, pattern=r"\S")
+    statement: str = Field(min_length=1, pattern=r"\S")
+    evidenceRefs: list[str] = Field(default_factory=list)
+    normalizedValue: Any = None
+    scope: dict[str, Any] | str | None = None
+
+
+class InterviewContextCandidate(BaseModel):
+    """Statement envelope shared by model output and API materialization."""
+
+    model_config = ConfigDict(extra="allow")
+    statements: list[InterviewStatementCandidate] = Field(default_factory=list)
+
+
 class InterviewResult(BaseModel):
     """Typed Interview Agent candidate decision before protected API guard persistence."""
 
@@ -144,7 +163,7 @@ class InterviewResult(BaseModel):
         "CONFIRMED",
         "SUPERSEDED",
     ] | None = None
-    confirmedContext: dict[str, Any] = Field(default_factory=dict)
+    confirmedContext: InterviewContextCandidate = Field(default_factory=InterviewContextCandidate)
     flags: list[Literal["DOWNSTREAM_IMPACT"]] = Field(default_factory=list, max_length=10)
     blockedActions: list[
         Literal["PROVIDE_MORE_CONTEXT", "CHECK_INTERNALLY", "SAVE_AND_EXIT"]
@@ -154,6 +173,8 @@ class InterviewResult(BaseModel):
 
     @model_validator(mode="after")
     def validate_transition_shape(self) -> Self:
+        if self.contextAuthority in {"CUSTOMER_CONFIRMED", "CONFIRMED"} and not self.confirmedContext.statements:
+            raise ValueError("Confirmed authority requires non-empty confirmedContext.statements")
         if self.activeQuestion is not None and self.outcome != "WAITING_FOR_CUSTOMER":
             raise ValueError("activeQuestion requires WAITING_FOR_CUSTOMER outcome")
         if self.outcome == "WAITING_FOR_CUSTOMER":

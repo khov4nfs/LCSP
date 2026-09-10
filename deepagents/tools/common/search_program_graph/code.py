@@ -20,7 +20,7 @@ class SearchProgramGraphRequest(CorrelatedToolInput):
 
 
 @tool(args_schema=SearchProgramGraphRequest)
-def search_program_graph(runtime: ToolRuntime | None = None, **request: Any) -> dict[str, Any]:
+def search_program_graph(runtime: ToolRuntime = None, **request: Any) -> dict[str, Any]:
     """Search the pinned Program Evidence Graph and return bounded provenance-backed nodes.
 
     Args:

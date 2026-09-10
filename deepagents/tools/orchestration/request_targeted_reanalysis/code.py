@@ -21,7 +21,7 @@ class TargetedReanalysisRequest(CorrelatedToolInput):
 
 
 @tool(args_schema=TargetedReanalysisRequest)
-def request_targeted_reanalysis(runtime: ToolRuntime | None = None, **request: Any) -> dict[str, Any]:
+def request_targeted_reanalysis(runtime: ToolRuntime = None, **request: Any) -> dict[str, Any]:
     """Request one allow-listed targeted analyzer rerun for a bounded pinned evidence scope.
 
     Args:

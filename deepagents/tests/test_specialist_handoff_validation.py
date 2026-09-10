@@ -98,6 +98,32 @@ def test_investigator_handoff_runs_existing_evidence_claim_validator() -> None:
     assert handoff.status == "READY"
 
 
+@pytest.mark.parametrize("empty_claims", [True, False])
+def test_recorded_misrouted_investigator_outputs_remain_rejected(empty_claims) -> None:
+    # 2026-09-09, workflow 640df563-8b35-4883-b9d8-3b4c0c2e3813:
+    # art-15 cl-1 pt-c returned READY with no claims; art-16 cl-5 returned
+    # a maintenance claim without provenance. Artifact identities are anonymized.
+    payload = _investigator_payload()
+    payload["claims"] = [] if empty_claims else [{
+        "claim_id": "ENG-1::ENGINEERING_RULE_NOT_READY",
+        "engineering_rule_id": "eng-1",
+        "claim_type": "UNRESOLVED_ENGINEERING_FACT",
+        "value": None,
+        "evidence_refs": [],
+        "graph_path_refs": [],
+        "source_anchor_refs": [],
+        "confidence": 0.9,
+        "limitations": ["ENGINEERING_RULE_NOT_READY_LEGAL_MAINTENANCE"],
+        "criterion": "ENGINEERING_RULE_NOT_READY_LEGAL_MAINTENANCE",
+    }]
+    expected = "schema validation" if empty_claims else "evidence-claim validation"
+    with pytest.raises(SpecialistHandoffValidationError, match=expected):
+        validate_specialist_handoff(
+            "investigator", payload, graph=_graph(), pinned_rule_ids=("eng-1",),
+            pinned_versions=payload["artifact_versions"],
+        )
+
+
 def test_investigator_handoff_rejects_unknown_graph_refs() -> None:
     payload = _investigator_payload()
     payload["claims"][0]["graph_path_refs"] = ["node:missing"]
@@ -146,6 +172,21 @@ def test_specialist_handoff_rejects_forbidden_final_verdicts() -> None:
 
     with pytest.raises(SpecialistHandoffValidationError, match="forbidden"):
         validate_specialist_handoff("investigator", payload)
+
+
+def test_specialist_handoff_allows_unknown_as_non_verdict_value() -> None:
+    payload = _investigator_payload()
+    payload["claims"][0]["limitations"] = ["UNKNOWN"]
+
+    handoff = validate_specialist_handoff(
+        "investigator",
+        payload,
+        graph=_graph(),
+        pinned_rule_ids=("eng-1",),
+        pinned_versions={"technicalEvidenceReportId": "ter-1"},
+    )
+
+    assert handoff.claims[0].limitations == ["UNKNOWN"]
 
 
 def test_planner_handoff_allows_unknown_coverage_state() -> None:

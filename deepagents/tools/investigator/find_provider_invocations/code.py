@@ -22,7 +22,7 @@ class ProviderInvocationsRequest(CorrelatedToolInput):
 
 
 @tool(args_schema=ProviderInvocationsRequest)
-def find_provider_invocations(runtime: ToolRuntime | None = None, **request: Any) -> dict[str, Any]:
+def find_provider_invocations(runtime: ToolRuntime = None, **request: Any) -> dict[str, Any]:
     """Find bounded AI provider/model invocation evidence in the Program Evidence Graph.
 
     Args:

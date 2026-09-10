@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from orchestration.dispatcher import RootSubagentDispatcher
+from tools.common.capabilities.platform.api_client import InterviewCoverageCallbackError
 
 from .engineering_assessment_boundary import EngineeringAssessmentBoundary
 from .managed_targeted_investigator import (
@@ -75,9 +76,7 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
         evidence_report_id = self._evidence_report_id(message)
-        evidence_report = self._api_client.get_accepted_technical_evidence_report(
-            evidence_report_id
-        )
+        evidence_report = self._get_accepted_evidence_report(evidence_report_id)
         assessment_id = str(
             evidence_report.get("assessment_id")
             or evidence_report.get("assessmentId")
@@ -127,7 +126,7 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
         workflow_run_id: str | None = None,
     ) -> ConfirmedStructuredBusinessContext | None:
         coverage_state, coverage_notes = _technical_coverage(evidence_report)
-        if not _can_start_initial_interview(coverage_state, coverage_notes):
+        if not _can_start_initial_interview(coverage_state, coverage_notes, evidence_report):
             self._route_coverage_to_recovery(
                 assessment_id=assessment_id,
                 evidence_report_id=evidence_report_id,
@@ -307,7 +306,16 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
         handoff["expectedContextRevision"] = 0
         handoff["technicalEvidenceReportId"] = evidence_report_id
         handoff["workflowRunId"] = valid_wf_id
-        self._api_client.post_interview_initial_question(assessment_id, handoff)
+        try:
+            self._api_client.post_interview_initial_question(assessment_id, handoff)
+        except InterviewCoverageCallbackError:
+            self._route_coverage_to_recovery(
+                assessment_id=assessment_id,
+                evidence_report_id=evidence_report_id,
+                coverage_state=coverage_state,
+                coverage_notes=coverage_notes,
+                correlation_id=correlation_id,
+            )
         return None
 
     def _route_coverage_to_recovery(
@@ -336,6 +344,9 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
                             "for the pinned technical evidence first (for example targeted re-analysis or "
                             "a governed re-scan), then re-enter the assessment only from newly accepted "
                             "technical evidence. "
+                            "PARTIAL coverage requires a persisted policy with permittedForInterview=true, "
+                            "policyDecisionRef, policyVersion, and non-empty limitations. Coverage notes "
+                            "alone do not authorize Interview. Do not manufacture a policy approval. "
                             f"Assessment: {assessment_id}. Evidence report: {evidence_report_id}. "
                             f"Coverage state: {coverage_state}. "
                             f"Bounded coverage notes: {json.dumps(coverage_notes, ensure_ascii=False)}"
@@ -361,12 +372,16 @@ def _technical_coverage(evidence_report: dict[str, Any]) -> tuple[str, list[str]
     payload = evidence_report.get("evidence_payload") or evidence_report.get(
         "evidencePayload"
     )
-    graph = payload.get("evidence_graph") if isinstance(payload, dict) else None
+    payload = payload if isinstance(payload, dict) else {}
+    graph = next((payload[key] for key in (
+        "evidence_graph", "evidenceGraph", "programEvidenceGraph", "program_evidence_graph"
+    ) if payload.get(key) is not None), {})
     coverage_state = "UNAVAILABLE"
     coverage_notes: list[str] = []
     if isinstance(graph, dict):
         raw_coverage_state = str(
-            graph.get("coverage_state") or graph.get("coverageState") or ""
+            graph.get("coverage_state") or graph.get("coverageState")
+            or payload.get("technicalCoverageState") or payload.get("coverageState") or ""
         ).strip().upper()
         coverage_state = _CANONICAL_COVERAGE_STATES.get(
             raw_coverage_state,
@@ -374,17 +389,51 @@ def _technical_coverage(evidence_report: dict[str, Any]) -> tuple[str, list[str]
         )
         raw_notes = graph.get("coverage_notes") or graph.get("coverageNotes") or []
         if isinstance(raw_notes, list):
-            coverage_notes = [str(item)[:240] for item in raw_notes[:8]]
+            coverage_notes = [item[:240] for item in raw_notes[:8] if isinstance(item, str)]
+    policy = _coverage_policy(evidence_report)
+    if coverage_state == "PARTIAL" and isinstance(policy, dict):
+        limitations = policy.get("limitations")
+        if isinstance(limitations, list):
+            coverage_notes = [item.strip()[:240] for item in limitations
+                              if isinstance(item, str) and item.strip()][:8]
     return coverage_state, coverage_notes
 
 
-def _can_start_initial_interview(coverage_state: str, coverage_notes: list[str]) -> bool:
+def _can_start_initial_interview(
+    coverage_state: str, coverage_notes: list[str], evidence_report: dict[str, Any]
+) -> bool:
     if coverage_state == "READY":
         return True
-    # A PARTIAL PGE report is permitted only when its uncertainty is explicitly
-    # preserved in the governed report. Absence of limitations is not evidence of
-    # complete coverage and therefore fails closed into Orchestration recovery.
-    return coverage_state == "PARTIAL" and bool(coverage_notes)
+    policy = _coverage_policy(evidence_report)
+    return (
+        coverage_state == "PARTIAL"
+        and isinstance(policy, dict)
+        and policy.get("permittedForInterview") is True
+        and all(isinstance(policy.get(key), str) and policy[key].strip()
+                for key in ("policyDecisionRef", "policyVersion"))
+        and isinstance(policy.get("limitations"), list)
+        and any(isinstance(item, str) and item.strip() for item in policy["limitations"])
+    )
+
+
+def _coverage_policy(evidence_report: dict[str, Any]) -> Any:
+    payload = evidence_report.get("evidence_payload", evidence_report.get("evidencePayload"))
+    if not isinstance(payload, dict):
+        return None
+    graph = next((payload[key] for key in (
+        "evidence_graph", "evidenceGraph", "programEvidenceGraph", "program_evidence_graph"
+    ) if payload.get(key) is not None), {})
+    if not isinstance(graph, dict):
+        graph = {}
+    for source, keys in (
+        (graph, ("partialCoveragePolicyDecision", "partial_coverage_policy_decision")),
+        (payload, ("partialCoveragePolicyDecision", "partial_coverage_policy_decision",
+                   "coveragePolicyDecision", "coverage_policy_decision")),
+    ):
+        for key in keys:
+            if source.get(key) is not None:
+                return source[key]
+    return None
 
 
 def _initial_interview_instruction(

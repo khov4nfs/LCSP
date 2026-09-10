@@ -21,7 +21,7 @@ class SymbolContextRequest(CorrelatedToolInput):
 
 
 @tool(args_schema=SymbolContextRequest)
-def get_symbol_context(runtime: ToolRuntime | None = None, **request: Any) -> dict[str, Any]:
+def get_symbol_context(runtime: ToolRuntime = None, **request: Any) -> dict[str, Any]:
     """Read bounded structural context around one pinned symbol reference.
 
     Args:

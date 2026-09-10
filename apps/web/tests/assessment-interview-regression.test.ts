@@ -40,7 +40,49 @@ import {
   type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
 
-import { buildSubmitInterviewAnswerCommand } from "../src/lib/api/assessment-interview-client";
+import {
+  buildSubmitInterviewAnswerCommand,
+  sanitizeAssessmentInterviewState,
+} from "../src/lib/api/assessment-interview-client";
+
+test("public interview history survives sanitization without private actor identity", () => {
+  const answer = {
+    questionId: "purpose-question",
+    answeredAt: "2026-09-09T00:00:00.000Z",
+    summary: "The system pauses assessment for human review.",
+    comment: "A mix of internal advice and external sharing.",
+  };
+  const state = sanitizeAssessmentInterviewState({
+    mode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
+    outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+    answerHistory: [answer, { questionId: "invalid" }],
+  });
+  assert.ok(state);
+  assert.deepEqual(state.answerHistory, [answer]);
+  assert.deepEqual(sanitizeAssessmentInterviewState(state)?.answerHistory, [
+    answer,
+  ]);
+  for (const comment of [42, {}, "   "]) {
+    const sanitized = sanitizeAssessmentInterviewState({
+      ...state,
+      answerHistory: [{ ...answer, comment }],
+    });
+    assert.equal(sanitized?.answerHistory?.[0].comment, undefined);
+  }
+});
+
+test("terminal Interview assistant output survives the public client boundary", () => {
+  const state = sanitizeAssessmentInterviewState({
+    outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
+    assistantMessage:
+      "I have enough confirmed business context to continue the assessment.",
+  });
+
+  assert.equal(
+    state?.assistantMessage,
+    "I have enough confirmed business context to continue the assessment.",
+  );
+});
 
 const workspaceRoot = new URL("../src/", import.meta.url);
 const contractsPath = new URL(
@@ -501,6 +543,7 @@ test("workflow run renders dynamic interview controls through shared workspace c
   assert.match(overviewSource, /useAssessmentInterviewBlockedActionMutation/);
   assert.match(overviewSource, /pendingDraft/);
   assert.match(overviewSource, /answerHistory/);
+  assert.match(overviewSource, /interview\.assistantMessage/);
   assert.match(overviewSource, /state:\s*runtimeInterviewState/);
   assert.match(overviewSource, /selectInterviewHandoffPresentation/);
   assert.match(overviewSource, /selectedChoiceRequiresFreeText/);
@@ -520,7 +563,13 @@ test("workflow run renders dynamic interview controls through shared workspace c
   assert.match(questionSource, /ChatSingleSelect/);
   assert.match(questionSource, /ChatMultiSelect/);
   assert.match(questionSource, /confirm-adjust-actions/);
-  assert.doesNotMatch(questionSource, /Support|Textarea|submitAnswer/);
+  assert.match(questionSource, /selection-submit-action/);
+  assert.match(overviewSource, /onSubmitSelection=\{handleSubmit\}/);
+  // The question turn owns no input surface and no mutation: free text stays in the shared
+  // composer and every send delegates upward. The send action added for select answers
+  // names the `pages.assessment.submitAnswer` label, so the token itself is no longer the
+  // signal; calling the mutation hook here is.
+  assert.doesNotMatch(questionSource, /Support|Textarea|useSubmitAssessmentInterviewAnswerMutation|apiRequest/);
 
   const contractSource = await readFile(contractsPath, "utf8");
   for (const control of Object.values(ASSESSMENT_INTERVIEW_CONTROLS)) {

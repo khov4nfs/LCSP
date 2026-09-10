@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Req,
@@ -18,6 +20,8 @@ import { resultEnvelope } from "../../../../platform/problems/result-envelope.js
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { CreateAssessmentCommand } from "../../application/commands/create-assessment/create-assessment.command.js";
 import { CompleteRepositorySetupCommand } from "../../application/commands/complete-repository-setup/complete-repository-setup.command.js";
+import { DeleteAssessmentCommand } from "../../application/commands/delete-assessment/delete-assessment.command.js";
+import { RenameAssessmentCommand } from "../../application/commands/rename-assessment/rename-assessment.command.js";
 import { GetAssessmentQuery } from "../../application/queries/get-assessment/get-assessment.query.js";
 import { GetAssessmentReadinessQuery } from "../../application/queries/get-assessment-readiness/get-assessment-readiness.query.js";
 import { ListAssessmentsQuery } from "../../application/queries/list-assessments/list-assessments.query.js";
@@ -83,6 +87,48 @@ export class AssessmentController {
           assessmentId,
           request.rbacContext.userId,
           request.correlationId ?? "repository-setup-complete",
+        ),
+      ),
+    );
+  }
+
+  @Patch(":assessmentId")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async renameAssessment(
+    @Param("assessmentId") assessmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const name =
+      body && typeof body === "object" && !Array.isArray(body)
+        ? (body as { name?: unknown }).name
+        : undefined;
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new RenameAssessmentCommand(
+          assessmentId,
+          request.rbacContext.userId,
+          name,
+          request.correlationId ?? "assessment-rename",
+        ),
+      ),
+    );
+  }
+
+  @Delete(":assessmentId")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async deleteAssessment(
+    @Param("assessmentId") assessmentId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new DeleteAssessmentCommand(
+          assessmentId,
+          request.rbacContext.userId,
+          request.correlationId ?? "assessment-delete",
         ),
       ),
     );
@@ -281,6 +327,21 @@ export class InternalAssessmentInterviewController {
         correlationId: request.correlationId ?? "worker-interview-context",
         target: body as never,
       }),
+    );
+  }
+
+  @Post(":assessmentId/runtime-progress")
+  async recordRuntimeProgress(
+    @Param("assessmentId") assessmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.interviewRuntime.recordWorkerProgress(
+        assessmentId,
+        body,
+        request.correlationId ?? "worker-interview-context",
+      ),
     );
   }
 

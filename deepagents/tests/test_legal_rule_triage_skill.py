@@ -45,3 +45,14 @@ def test_triage_prompt_requires_bounded_decision_reasoning() -> None:
     assert "Assessment-specific facts" in prompt
     assert "preserve legal strength and timing" in prompt
     assert "customer source code" in prompt
+
+
+def test_skill_states_the_constraints_that_fail_the_deterministic_gate() -> None:
+    """These constraints exist because violating them poison-retries the singleton."""
+    skill = load_project_skill("legal-rule-triage")
+
+    assert "One analysis per chunk" in skill
+    assert "SCREAMING_SNAKE_CASE" in skill
+    assert "Do not set `engineeringRuleId`" in skill
+    for vocabulary_term in ("AI_SYSTEM", "PERSISTS_TO", "FORWARD"):
+        assert vocabulary_term in skill

@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from tools.common.capabilities.platform.config import default_legal_source_storage_root
+from tools.common.capabilities.platform.config import resolve_legal_source_storage_root
 
 
 RECOVERY_ARTIFACT_ROOT = "recovery-artifacts"
@@ -16,14 +16,7 @@ RECOVERY_ARTIFACT_ROOT = "recovery-artifacts"
 
 def recovery_artifact_root(storage_root: Path | None = None) -> Path:
     """Resolve the durable .corpus recovery artifact directory."""
-    root = storage_root
-    if root is None:
-        raw_env = os.getenv("LEGAL_SOURCE_STORAGE_ROOT")
-        root = (
-            Path(raw_env.strip())
-            if raw_env and raw_env.strip()
-            else Path(default_legal_source_storage_root())
-        )
+    root = storage_root or Path(resolve_legal_source_storage_root())
     return root.resolve() / RECOVERY_ARTIFACT_ROOT
 
 

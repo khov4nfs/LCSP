@@ -59,7 +59,14 @@ class PrecompiledEngineeringRuleRegistry:
 
     @property
     def contract_version(self) -> str:
-        """Return the active technical-contract version used for cache invalidation."""
+        """Return the active technical-contract version used for cache invalidation.
+
+        An absent bundle is the normal state before the first export, so it resolves to
+        the same "base" version a bundle without a matching overlay yields. Publishing a
+        bundle therefore does not rewrite every already-cached rule's fingerprint.
+        """
+        if not Path(self.bundle_path).is_file():
+            return "base"
         bundle = self._load_bundle("contract-version")
         _, version = self.templates_for_bundle(bundle)
         return version
@@ -77,6 +84,50 @@ class PrecompiledEngineeringRuleRegistry:
             bundle,
             self._contract_overrides,
         )
+
+    def records_no_engineering_rules(
+        self,
+        *,
+        legal_rule: dict[str, Any],
+        legal_context: list[dict[str, Any]],
+    ) -> bool:
+        """Return whether the bundle records this rule as triaged with no rules.
+
+        Verified against the same grounding hashes recovery uses, so a decision retires
+        itself once the cited legal text changes rather than silently outliving it.
+        """
+        legal_rule_id = str(
+            legal_rule.get("legalRuleId")
+            or legal_rule.get("legal_rule_id")
+            or legal_rule.get("id")
+            or ""
+        )
+        if not legal_rule_id or not Path(self.bundle_path).is_file():
+            return False
+        bundle = self._load_bundle(legal_rule_id)
+        self._validate_runtime_contract(bundle, legal_rule_id)
+        entry = next(
+            (
+                item
+                for item in (bundle.get("noEngineeringRuleLegalRules") or [])
+                if isinstance(item, dict)
+                and str(item.get("legalRuleId")) == legal_rule_id
+            ),
+            None,
+        )
+        if entry is None:
+            return False
+
+        expected = {
+            str(key): str(value)
+            for key, value in (entry.get("groundingContextHashes") or {}).items()
+        }
+        actual = {
+            str(item.get("id")): str(item.get("contentSha256") or "")
+            for item in legal_context
+            if isinstance(item, dict) and item.get("id")
+        }
+        return bool(actual) and actual == expected
 
     def materialize(
         self,

@@ -42,9 +42,31 @@ _PRIVACY_FLAG_KEYS = {
 
 
 class WorkerCallbackError(Exception):
-    """Raised when an internal API request permanently fails or violates its contract."""
+    """Raised when an internal API request permanently fails or violates its contract.
 
-    pass
+    A 4xx carries `status_code` so delivery settlement can stop instead of redelivering the
+    identical payload forever. Retrying a rejected decision re-runs the model on every
+    redelivery, so an unbounded loop spends real money and never converges.
+    """
+
+    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.callback_client_error = (
+            status_code is not None and 400 <= status_code < 500
+        )
+
+
+class InterviewCoverageCallbackError(WorkerCallbackError):
+    """Coverage changed or failed validation; the boundary must request recovery."""
+
+
+class InterviewResolutionCallbackError(WorkerCallbackError):
+    """Private criterion feedback for one bounded specialist correction."""
+
+    def __init__(self, message: str, *, missing: str | None = None) -> None:
+        super().__init__(message, status_code=409)
+        self.missing = missing
 
 
 class WorkerApiClient:
@@ -110,7 +132,26 @@ class WorkerApiClient:
                     message = client_error_message(resp.status_code)
                     if error_code:
                         message = f"{error_code}: {message}"
-                    raise WorkerCallbackError(message)
+                    if resp.status_code == 409 and error_code in {
+                        "INTERVIEW_PARTIAL_COVERAGE_LIMITATIONS_REQUIRED",
+                        "INTERVIEW_TECHNICAL_COVERAGE_UNUSABLE",
+                    }:
+                        raise InterviewCoverageCallbackError(
+                            message, status_code=resp.status_code
+                        )
+                    if (
+                        resp.status_code == 409
+                        and error_code == "INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED"
+                    ):
+                        body = resp.json()
+                        problem = body.get("problem") if isinstance(body, dict) else None
+                        meta = problem.get("meta") if isinstance(problem, dict) else None
+                        missing = meta.get("missing") if isinstance(meta, dict) else None
+                        raise InterviewResolutionCallbackError(
+                            message,
+                            missing=missing if isinstance(missing, str) else None,
+                        )
+                    raise WorkerCallbackError(message, status_code=resp.status_code)
 
                 if resp.status_code >= 500:
                     if attempt < self._max_retries - 1:
@@ -214,7 +255,7 @@ class WorkerApiClient:
                     message = client_error_message(resp.status_code)
                     if error_code:
                         message = f"{error_code}: {message}"
-                    raise WorkerCallbackError(message)
+                    raise WorkerCallbackError(message, status_code=resp.status_code)
 
                 if resp.status_code >= 500:
                     if attempt < self._max_retries - 1:
@@ -327,6 +368,19 @@ class WorkerApiClient:
         else:
             resp_data = self._post_with_retry(path, request_payload)
         return CallbackResponse(**resp_data)
+
+    def post_interview_progress(self, assessment_id: str, revision: int, phase: str) -> None:
+        try:
+            response = httpx.post(
+                f"{self._base_url}/internal/assessment-interviews/{assessment_id}/runtime-progress",
+                headers={WORKER_API_KEY_HEADER: self._api_key, correlationId_HEADER: get_correlationId()},
+                json={"contextRevision": revision, "phase": phase},
+                timeout=3,
+            )
+            response.raise_for_status()
+        except Exception:
+            import logging
+            logging.getLogger(__name__).warning("Interview progress delivery failed phase=%s", phase)
 
     def post_scan_runtime_event(self, scan_job_id: str, payload: dict) -> None:
         """Submit best-effort privacy-safe runtime progress for an active scan job."""

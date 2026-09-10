@@ -22,6 +22,7 @@ class LCSPRunContext:
     engineering_rule_ids: tuple[str, ...] = ()
     legal_rule_ids: tuple[str, ...] = ()
     idempotency_key: str | None = None
+    correlation_id: str | None = None
 
 
 def bounded_context_lines(context: LCSPRunContext | None) -> tuple[str, ...]:

@@ -17,7 +17,7 @@ from typing import Any
 from uuid import uuid4
 
 from tools.common.capabilities.platform.api_client import WorkerApiClient
-from tools.common.capabilities.platform.config import default_legal_source_storage_root
+from tools.common.capabilities.platform.config import resolve_legal_source_storage_root
 from tools.legal.corpus.partial_update.partial_update_context_builder import (
     build_partial_update_context,
 )
@@ -53,9 +53,7 @@ class MaintainLegalCatalogService:
     """Refresh approved sources and recover changed legal corpus artifacts."""
 
     def __init__(self, *, api_client: WorkerApiClient | None = None) -> None:
-        self.storage_root = Path(
-            os.getenv("LEGAL_SOURCE_STORAGE_ROOT", default_legal_source_storage_root())
-        ).resolve()
+        self.storage_root = Path(resolve_legal_source_storage_root()).resolve()
         self.api_client = api_client or WorkerApiClient(
             os.environ["NESTJS_API_BASE_URL"],
             os.environ["WORKER_API_KEY"],

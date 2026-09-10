@@ -3,6 +3,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   readlinkSync,
   statSync,
 } from "node:fs";
@@ -41,6 +42,17 @@ const tsJsAnalyzerCli = path.join(
   "tools",
   "ts-js-analyzer",
   "cli.js",
+);
+const tsJsAnalyzerNodeModules = path.join(tsJsAnalyzerRoot, "node_modules");
+const tsJsAnalyzerPackageJson = path.join(tsJsAnalyzerRoot, "package.json");
+const tsJsAnalyzerTsMorphPackage = path.join(
+  tsJsAnalyzerNodeModules,
+  "ts-morph",
+  "package.json",
+);
+const tsJsAnalyzerNpmCache = path.join(
+  tsJsAnalyzerNodeModules,
+  ".npm-cache",
 );
 const openWikiRuntimeScript = path.join(
   repoRoot,
@@ -316,43 +328,84 @@ async function main() {
 }
 
 function prepareTsJsAnalyzer() {
-  const inputs = [
-    "analyzer.ts",
-    "cli.ts",
-    "package-lock.json",
-    "package.json",
-    "tsconfig.json",
-  ].map((file) => path.join(tsJsAnalyzerRoot, file));
-  const outputMtime = existsSync(tsJsAnalyzerCli)
-    ? statSync(tsJsAnalyzerCli).mtimeMs
-    : 0;
-  if (
-    outputMtime > 0 &&
-    inputs.every((input) => statSync(input).mtimeMs <= outputMtime)
-  ) {
+  const dependenciesReady = isTsJsAnalyzerDependenciesReady();
+  const outputFresh = isTsJsAnalyzerOutputFresh();
+  if (dependenciesReady && outputFresh) {
     return;
   }
 
   console.log("[run] Building TypeScript/JavaScript analyzer...");
-  const npm = isWindows ? "npm.cmd" : "npm";
-  for (const args of [
-    ["ci", "--include=dev"],
-    ["run", "build"],
-  ]) {
-    const result = spawnSync(npm, args, {
-      cwd: tsJsAnalyzerRoot,
-      env: process.env,
-      stdio: "inherit",
-      shell: isWindows,
-    });
-    if (result.status !== 0) {
-      process.exit(result.status ?? 1);
-    }
+  if (!dependenciesReady) {
+    rmSync(tsJsAnalyzerNodeModules, { recursive: true, force: true });
+    runTsJsAnalyzerNpm([
+      "install",
+      "--include=dev",
+      "--package-lock=false",
+      "--workspaces=false",
+      "--no-audit",
+      "--no-fund",
+    ]);
+  }
+  if (!outputFresh) {
+    runTsJsAnalyzerNpm(["run", "build"]);
+  }
+
+  if (!existsSync(tsJsAnalyzerTsMorphPackage)) {
+    console.error(
+      `[run] ts-morph was not installed at ${tsJsAnalyzerTsMorphPackage}`,
+    );
+    process.exit(1);
   }
   if (!existsSync(tsJsAnalyzerCli)) {
     console.error(`[run] Analyzer build did not create ${tsJsAnalyzerCli}`);
     process.exit(1);
   }
+}
+
+function isTsJsAnalyzerDependenciesReady() {
+  return (
+    existsSync(tsJsAnalyzerTsMorphPackage) &&
+    existsSync(tsJsAnalyzerPackageJson) &&
+    statSync(tsJsAnalyzerPackageJson).mtimeMs <=
+      statSync(tsJsAnalyzerTsMorphPackage).mtimeMs
+  );
+}
+
+function isTsJsAnalyzerOutputFresh() {
+  const inputs = ["analyzer.ts", "cli.ts", "package.json", "tsconfig.json"].map(
+    (file) => path.join(tsJsAnalyzerRoot, file),
+  );
+  const outputMtime = existsSync(tsJsAnalyzerCli)
+    ? statSync(tsJsAnalyzerCli).mtimeMs
+    : 0;
+  return (
+    outputMtime > 0 &&
+    inputs.every((input) => existsSync(input) && statSync(input).mtimeMs <= outputMtime)
+  );
+}
+
+function runTsJsAnalyzerNpm(args) {
+  const npm = isWindows ? "npm.cmd" : "npm";
+  const result = spawnSync(npm, [...args, "--cache", tsJsAnalyzerNpmCache], {
+    cwd: tsJsAnalyzerRoot,
+    env: buildTsJsAnalyzerNpmEnv(),
+    stdio: "inherit",
+    shell: isWindows,
+  });
+  if (result.error) {
+    console.error(`[run] failed to execute npm: ${result.error.message}`);
+    process.exit(1);
+  }
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}
+
+function buildTsJsAnalyzerNpmEnv() {
+  const env = { ...process.env, NPM_CONFIG_CACHE: tsJsAnalyzerNpmCache };
+  delete env.npm_config_manage_package_manager_versions;
+  delete env.NPM_CONFIG_MANAGE_PACKAGE_MANAGER_VERSIONS;
+  return env;
 }
 
 function prepareManagedAgentRuntime() {
@@ -417,8 +470,6 @@ function stopStaleManagedAgentProcesses() {
 
 function stopDevProcesses() {
   const patterns = [
-    "pnpm dev:fogewise",
-    "node scripts/run.mjs fogewise",
     "node scripts/run.mjs dev",
     "node scripts/run.mjs dev_app",
     ".venv/bin/mda dev --no-reload .",
@@ -445,6 +496,13 @@ function stopDevProcesses() {
     process.ppid,
     ...listParentPids(process.pid),
   ]);
+  // Fogewise owns proxy/infra independently of the application dev processes.
+  // Protect its group too when both launchers share the same terminal/session.
+  for (const pattern of ["scripts/run.mjs fogewise", "fogewise-dev-launchers/"]) {
+    for (const entry of findMatchingProcesses(pattern, protectedPids)) {
+      protectedPids.add(entry.pid);
+    }
+  }
   const protectedProcessGroups = new Set(
     [...protectedPids]
       .map((pid) => readProcessGroupId(pid))
@@ -770,7 +828,11 @@ function dockerWorkerEnv() {
     "LCSP_ROOT_AGENT_MODEL",
     "LCSP_TRIAGE_MODEL",
     "LCSP_PLANNER_MODEL",
+    "LCSP_INTERVIEW_MODEL",
     "LCSP_INVESTIGATOR_MODEL",
+    "LCSP_NARRATOR_MODEL",
+    "LCSP_REASONING_EFFORT",
+    "LCSP_LANGSMITH_TRACING",
     "WORKER_RUNTIME_VERSION",
     "WORKER_RUNTIME_BUILD_REF",
     "PHOENIX_TRACING",
@@ -807,6 +869,14 @@ function dockerWorkerEnv() {
     PHOENIX_PROJECT: defaultPhoenixProject,
     HEALTH_PORT: "8080",
     PYTHONPATH: dockerManagedAgentPythonPath,
+    LANGSMITH_TRACING:
+      process.env.LCSP_LANGSMITH_TRACING ??
+      rootEnv.LCSP_LANGSMITH_TRACING ??
+      "false",
+    LANGCHAIN_TRACING_V2:
+      process.env.LCSP_LANGSMITH_TRACING ??
+      rootEnv.LCSP_LANGSMITH_TRACING ??
+      "false",
     KNIP_BINARY: "/usr/local/bin/knip",
   };
 }

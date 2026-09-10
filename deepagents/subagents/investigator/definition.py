@@ -72,7 +72,11 @@ Return exactly one JSON object matching `InvestigatorResult`:
 - `missing_input`: the exact business fact requiring Customer clarification when NEEDS_INPUT
 - `business_context_need`: when NEEDS_INPUT, an object with a stable local `need_id`, a concise
   customer-safe `business_context_need`, and one or more concrete `resolution_criteria` keys that
-  confirmed Customer context must satisfy; omit it when READY
+  confirmed Customer context must satisfy; omit it when READY.
+  Each `resolution_criteria` entry is a snake_case context topic key such as
+  `national_data_source_reuse`, never a sentence or a restatement of the question. The runtime
+  matches these keys against confirmed statement topics by exact string, so a prose criterion can
+  never be satisfied and leaves the need open forever.
 - `next_step`: GATE when READY, otherwise RESOLVE for Orchestration-owned clarification routing
 
 Return a compact synthesis, not raw tool output. Never emit COMPLIANT, NON_COMPLIANT or UNKNOWN.

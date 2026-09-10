@@ -31,7 +31,6 @@ import { appLocale } from "@/lib/locale";
 
 import { useAssessmentRuntimeViewModel } from "../../hooks/use-assessment-runtime-view-model";
 import type { AssessmentOverviewProps } from "../../types/assessment-overview.types";
-import { ASSESSMENT_CHAT_ROLES } from "../../types/assessment-chat.types";
 import {
   selectComposerAvailability,
   selectCustomerActions,
@@ -45,7 +44,6 @@ import {
   AgentTurn,
   ThinkingLine,
   ThoughtLine,
-  UserMessage,
 } from "../molecules/agent-turn";
 import {
   AssessmentQuestionTurn,
@@ -53,6 +51,7 @@ import {
 } from "../molecules/assessment-question-turn";
 import { PostFindingFlowSteps } from "../molecules/post-finding-flow-steps";
 import { AssessmentComposer } from "./assessment-composer";
+import { InterviewAnswerHistory } from "../molecules/interview-answer-history";
 import { AssessmentTranscript } from "./assessment-transcript";
 import { useWorkspaceRuntime } from "./workspace-runtime-provider";
 
@@ -301,6 +300,7 @@ function AssessmentInterviewFlow({
     interviewQuery.dataUpdatedAt,
     activeQuestionId,
     answerHistory.length,
+    interview.assistantMessage,
     postFinding?.screenProjection,
     postFinding?.selectedDecision,
     lastSavedMessage,
@@ -463,12 +463,10 @@ function AssessmentInterviewFlow({
         {interviewEnabled ? (
           <>
             {answerHistory.map((answer) => (
-              <AgentTurn
+              <InterviewAnswerHistory
                 key={`${answer.questionId}:${answer.answeredAt}`}
-                role={ASSESSMENT_CHAT_ROLES.user}
-              >
-                <UserMessage>{answer.summary}</UserMessage>
-              </AgentTurn>
+                answer={answer}
+              />
             ))}
 
             {interview.questionTurnProps ? (
@@ -486,10 +484,13 @@ function AssessmentInterviewFlow({
                 terminalAction={
                   <AssessmentQuestionTurn
                     question={interview.questionTurnProps.question}
+                    answerHistoryVisible={answerHistory.length > 0}
                     selectedChoiceIds={activeDraft.selectedChoiceIds}
                     onSelectedChoiceIdsChange={handleSelectedChoicesChange}
                     isAdjusting={activeDraft.isAdjusting}
                     onAdjust={handleAdjust}
+                    canSubmitSelection={isSubmitReady}
+                    onSubmitSelection={handleSubmit}
                     blockedActions={interview.questionTurnProps.blockedActions}
                     disabled={
                       !customerActions.canAnswerQuestion ||
@@ -558,11 +559,8 @@ function AssessmentInterviewFlow({
             ) : (
               <AgentTurn>
                 <AgentMessage>
-                  <ThoughtLine
-                    label={t("pages.assessmentFlow.interview.thought")}
-                  />
-                  <p className="mt-2 text-muted-foreground">
-                    {t(interviewHandoff.messageKey)}
+                  <p className="mt-2 whitespace-pre-wrap break-words text-muted-foreground">
+                    {interview.assistantMessage ?? t(interviewHandoff.messageKey)}
                   </p>
                 </AgentMessage>
               </AgentTurn>

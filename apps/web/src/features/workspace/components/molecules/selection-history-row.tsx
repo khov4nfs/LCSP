@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 type SelectionHistoryRowProps = {
-  prompt: string;
+  prompt?: string;
   selectedValue: string;
   detail?: string;
   className?: string;
@@ -26,8 +26,12 @@ export function SelectionHistoryRow({
         aria-hidden="true"
       />
       <div className="min-w-0 flex-1 truncate font-medium">
-        <span>{prompt}</span>
-        <span aria-hidden="true"> · </span>
+        {prompt ? (
+          <>
+            <span>{prompt}</span>
+            <span aria-hidden="true"> · </span>
+          </>
+        ) : null}
         <span>{selectedValue}</span>
         {detail ? (
           <span className="text-muted-foreground">

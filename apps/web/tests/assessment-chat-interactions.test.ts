@@ -5,11 +5,19 @@ import { JSDOM } from "jsdom";
 import React, { useState } from "react";
 import { act } from "react";
 import type { Root } from "react-dom/client";
+import {
+  ASSESSMENT_INTERVIEW_CONTROLS,
+  ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
+} from "@lcsp/contracts/evidence";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "http://localhost/",
 });
 const testWindow = dom.window;
+Object.defineProperty(globalThis, "Element", {
+  configurable: true,
+  value: testWindow.Element,
+});
 
 Object.defineProperty(globalThis, "window", {
   configurable: true,
@@ -81,10 +89,15 @@ actEnvironment.IS_REACT_ACT_ENVIRONMENT = true;
 const { createRoot } = await import("react-dom/client");
 const { ChatSingleSelect } =
   await import("../src/features/workspace/components/molecules/chat-single-select");
+const { InterviewAnswerHistory } =
+  await import("../src/features/workspace/components/molecules/interview-answer-history");
+
 const { SelectionHistoryRow } =
   await import("../src/features/workspace/components/molecules/selection-history-row");
 const { AssessmentComposer } =
   await import("../src/features/workspace/components/organisms/assessment-composer");
+const { InterviewAnswerMessage } =
+  await import("../src/features/workspace/components/molecules/interview-answer-message");
 const { AssessmentTranscript } =
   await import("../src/features/workspace/components/organisms/assessment-transcript");
 
@@ -162,6 +175,49 @@ test("assessment composer blocks empty disabled submitting and multiline submits
   await keyDown(getTextarea(container), { key: "Enter", shiftKey: true });
   await keyDown(getTextarea(container), { isComposing: true, key: "Enter" });
   assert.equal(submitCount, 0);
+});
+
+test("composer expands and collapses without changing the draft or submitting", async () => {
+  const draft = "A long answer\n".repeat(30);
+  let submits = 0;
+  const { container } = await renderElement(
+    React.createElement(AssessmentComposer, {
+      value: draft,
+      onValueChange: () => undefined,
+      onSubmit: () => {
+        submits += 1;
+      },
+    }),
+  );
+  const toggle = container.querySelector<HTMLButtonElement>(
+    "button[aria-expanded]",
+  );
+  assert.ok(toggle);
+  await click(toggle);
+  assert.equal(toggle.getAttribute("aria-expanded"), "true");
+  assert.equal(getTextarea(container).value, draft);
+  await keyDown(getTextarea(container), { key: "Escape" });
+  assert.equal(toggle.getAttribute("aria-expanded"), "false");
+  assert.equal(getTextarea(container).value, draft);
+  assert.equal(submits, 0);
+  assert.equal(container.querySelector("button button"), null);
+});
+
+test("long customer answers expand and collapse without losing text", async () => {
+  const text = "Customer's original answer.\n".repeat(40);
+  const { container } = await renderElement(
+    React.createElement(InterviewAnswerMessage, { text }),
+  );
+  const toggle = container.querySelector<HTMLButtonElement>(
+    "button[aria-expanded]",
+  );
+  assert.ok(toggle);
+  assert.equal(toggle.getAttribute("aria-expanded"), "false");
+  await click(toggle);
+  assert.equal(toggle.getAttribute("aria-expanded"), "true");
+  assert.equal(container.querySelector("p")?.textContent, text);
+  await click(toggle);
+  assert.equal(toggle.getAttribute("aria-expanded"), "false");
 });
 
 test("chat single select changes by click and ignores disabled options", async () => {
@@ -316,7 +372,9 @@ async function keyDown(
 }
 
 function getButton(container: HTMLElement) {
-  const button = container.querySelector("button");
+  const button = container.querySelector<HTMLButtonElement>(
+    'button[type="submit"]',
+  );
   assert.ok(button);
   return button;
 }
@@ -383,4 +441,59 @@ function setScrollState(element: HTMLElement, scrollCalls: ScrollToOptions[]) {
   });
 
   return state;
+}
+
+for (const control of [
+  ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+  ASSESSMENT_INTERVIEW_CONTROLS.multiSelect,
+  ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+]) {
+  for (const comment of [
+    undefined,
+    "A mix of internal advice and external sharing.",
+  ]) {
+    test(`answered ${control} retains disabled choices and saved selection with comment=${Boolean(comment)}`, async () => {
+      const { container } = await renderElement(
+        React.createElement(InterviewAnswerHistory, {
+          answer: {
+            questionId: "q-1",
+            answeredAt: "2026-09-09T00:00:00Z",
+            summary: "Generic count summary",
+            comment,
+            selectedChoiceIds: ["internal"],
+            question: {
+              id: "q-1",
+              intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+              control,
+              prompt: "How are results used?",
+              choices: [
+                { id: "internal", label: "Internal advice" },
+                { id: "external", label: "External sharing" },
+              ],
+            },
+          },
+        }),
+      );
+      const options = Array.from(
+        container.querySelectorAll<HTMLButtonElement>("button[aria-checked]"),
+      );
+      assert.equal(options.length, 2);
+      assert.ok(options.every((option) => option.disabled));
+      assert.deepEqual(
+        options.map((option) => option.getAttribute("aria-checked")),
+        ["true", "false"],
+      );
+      await act(async () => {
+        options[1].click();
+      });
+      assert.deepEqual(
+        options.map((option) => option.getAttribute("aria-checked")),
+        ["true", "false"],
+      );
+      assert.ok(!container.textContent?.includes("Generic count summary"));
+      if (comment) {
+        assert.ok(container.textContent?.includes(comment));
+      }
+    });
+  }
 }

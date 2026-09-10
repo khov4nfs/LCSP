@@ -455,7 +455,8 @@ def test_root_dispatcher_releases_specialist_policy_when_agent_fails() -> None:
     lifecycle.complete_subagent.assert_not_called()
 
 
-def test_root_dispatcher_fails_policy_when_structured_handoff_is_missing() -> None:
+@pytest.mark.parametrize("result", [{"messages": []}, {"structured_response": None}])
+def test_root_dispatcher_fails_policy_when_structured_handoff_is_missing(result) -> None:
     lifecycle = MagicMock()
     reservation = RootSubagentReservation(
         subagent_type="triage",
@@ -466,7 +467,7 @@ def test_root_dispatcher_fails_policy_when_structured_handoff_is_missing() -> No
     lifecycle.reserve_subagent.return_value = reservation
     lifecycle.owner_instruction.return_value = "ROOT OWNS TRIAGE"
     specialist = MagicMock()
-    specialist.invoke.return_value = {"messages": []}
+    specialist.invoke.return_value = result
     dispatcher = RootSubagentDispatcher(
         lifecycle=lifecycle,
         agent_factory=MagicMock(return_value=specialist),

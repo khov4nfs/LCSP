@@ -114,11 +114,11 @@ test("assessment overview gates Interview behind repository and scanner runtime"
 test("assessment composer keeps the approved 720 by 76 single-send control", async () => {
   const source = await readFile(composerPath, "utf8");
 
-  assert.match(source, /mb-4 h-19 w-full max-w-180/);
-  assert.match(source, /shrink-0/);
+  assert.match(source, /mb-4 w-full max-w-180 shrink-0/);
+  assert.match(source, /min-h-19/);
   assert.match(source, /rounded-\[18px\]/);
   assert.equal(source.match(/<Textarea\b/g)?.length, 1);
-  assert.equal(source.match(/<Button\b/g)?.length, 1);
+  assert.equal(source.match(/type="submit"/g)?.length, 1);
   assert.match(source, /CornerDownLeftIcon/);
   assert.doesNotMatch(source, /PlusIcon|<input\b|avatar|brand label/i);
   assert.doesNotMatch(source, /h-12 w-full max-w-\[760px\]/);
@@ -208,11 +208,13 @@ test("chat single select uses generic exclusive radio-row semantics and selected
   assert.match(source, /aria-checked=\{selected\}/);
   assert.match(source, /onValueChange\(option\.id\)/);
   assert.match(source, /ArrowDown|ArrowRight|ArrowUp|ArrowLeft|Home|End/);
-  assert.match(source, /h-9 min-w-0 items-center/);
+  assert.match(source, /min-h-9 min-w-0 items-start/);
+  assert.match(source, /whitespace-normal wrap-anywhere/);
+  assert.doesNotMatch(source, /(?:^|\s)h-9(?:\s|$)|truncate|line-clamp-/);
   assert.match(source, /rounded-xl border border-input bg-card/);
   assert.match(source, /bg-chart-3\/20/);
   assert.doesNotMatch(source, /GitHub|GitLab|Bitbucket|Azure DevOps/);
-  assert.doesNotMatch(source, /CheckIcon|items-start/);
+  assert.doesNotMatch(source, /CheckIcon/);
 });
 
 test("selection history preserves the submitted value as compact transcript history", async () => {

@@ -105,6 +105,12 @@ export class Assessment {
     return this.props.updatedAt;
   }
 
+  /** Renames the assessment while preserving its identity and lifecycle state. */
+  rename(name: string): void {
+    this.props.name = name.trim();
+    this.props.updatedAt = new Date();
+  }
+
   /** Marks the legacy wizard boundary complete after repository prerequisites are verified. */
   completeRepositorySetup(): void {
     if (this.props.status === ASSESSMENT_STATUS_CODES.wizardSubmitted) {
