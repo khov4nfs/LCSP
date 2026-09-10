@@ -184,6 +184,7 @@ class FakeCache:
         self.get_calls = 0
         self.put_calls = 0
         self.get_keys: list[str] = []
+        self.no_rule_markers: set[str] = set()
 
     def get(self, fingerprint):
         self.get_calls += 1
@@ -193,6 +194,12 @@ class FakeCache:
     def put(self, fingerprint, rules):
         self.put_calls += 1
         self.values[fingerprint] = list(rules)
+
+    def mark_no_engineering_rules(self, fingerprint, *, legal_rule_id):
+        self.no_rule_markers.add(fingerprint)
+
+    def is_triaged_without_rules(self, fingerprint):
+        return fingerprint in self.no_rule_markers
 
 
 def test_assessment_cache_miss_never_calls_legacy_llm_agents(native_agent) -> None:

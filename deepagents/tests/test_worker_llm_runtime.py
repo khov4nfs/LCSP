@@ -253,3 +253,36 @@ def test_build_boundary_keeps_deterministic_default_without_legacy_llm() -> None
         boundary = build_boundary("ignored:GraphBoundary")
 
     assert boundary.evidence_graph_assembler is None
+
+
+def test_relative_storage_root_anchors_to_the_repository_not_the_cwd(monkeypatch):
+    """One durable store for every process, whatever directory it was launched from.
+
+    The consumer runs from deepagents/ and the compiled agent from .mda/build/. A
+    relative root used as-is gave each of them a private .corpus, so completed triage
+    work was invisible across processes.
+    """
+    from pathlib import Path
+
+    from tools.common.capabilities.platform.config import (
+        default_legal_source_storage_root,
+        resolve_legal_source_storage_root,
+    )
+
+    monkeypatch.setenv("LEGAL_SOURCE_STORAGE_ROOT", ".corpus")
+    expected = default_legal_source_storage_root()
+    repo_root = Path(expected).parent
+
+    resolved = []
+    for relative in (".", "deepagents", "deepagents/tools"):
+        monkeypatch.chdir(repo_root / relative)
+        resolved.append(resolve_legal_source_storage_root())
+
+    assert resolved == [expected, expected, expected]
+
+
+def test_absolute_storage_root_is_respected_as_given(monkeypatch, tmp_path):
+    monkeypatch.setenv("LEGAL_SOURCE_STORAGE_ROOT", str(tmp_path / "elsewhere"))
+    from tools.common.capabilities.platform.config import resolve_legal_source_storage_root
+
+    assert resolve_legal_source_storage_root() == str(tmp_path / "elsewhere")

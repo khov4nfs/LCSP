@@ -26,7 +26,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from dotenv import find_dotenv, load_dotenv
 
-from tools.legal.legal.normative_chunk_filter import (
+from tools.legal.retrieval.legal_basis.normative_chunk_filter import (
     legal_chunk_normative_class,
     is_legal_database_chunk,
 )
@@ -35,8 +35,7 @@ from tools.legal.legal.normative_chunk_filter import (
 SEED_VERSION = "legal-corpus-dev-seed/1.0.0"
 DEFAULT_CORPUS_VERSION = "VN-LEGAL-2026-08"
 DEFAULT_PAYLOADS = (
-    Path("reports/legal-corpus-source/LAW-71-2025-QH15.ingest.json"),
-    Path("reports/legal-corpus-source/LAW-134-2025-QH15.ingest.json"),
+    Path("reports/legal-corpus-source/VN-LEGAL-2026-08.ingest.json"),
 )
 LOCAL_DB_HOSTS = {"127.0.0.1", "localhost", "::1"}
 LAW_71_DOCUMENT_ID = "LAW-71-2025-QH15"
@@ -288,7 +287,7 @@ def seed_database_and_index(
     from psycopg import sql
     from psycopg.rows import dict_row
 
-    from tools.legal.legal.chromadb_citation_retriever import ChromaDbCitationRetriever
+    from tools.legal.retrieval.legal_basis.chromadb_citation_retriever import ChromaDbCitationRetriever
 
     corpus_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)

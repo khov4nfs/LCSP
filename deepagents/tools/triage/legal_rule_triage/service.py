@@ -87,6 +87,12 @@ class LegalRuleTriageService:
         }
         if requested:
             rules = [rule for rule in rules if self._rule_id(rule) in requested]
+            if requested - {self._rule_id(rule) for rule in rules}:
+                raise ValueError("Claimed LegalRules are missing from the approved catalog")
+
+        completed_this_run = self.coordinator.get_completed_rule_ids(
+            execution_id=lease.execution_id,
+        )
 
         active_chunks = [chunk for chunk in chunks if isinstance(chunk, dict)]
         self.retriever.index_corpus(corpus_version_id, active_chunks)
@@ -98,6 +104,9 @@ class LegalRuleTriageService:
         work_items: list[dict[str, Any]] = []
         completed_count = 0
         for rule in rules:
+            if self._rule_id(rule) in completed_this_run:
+                completed_count += 1
+                continue
             chunk_ids = EngineeringRuleService._chunk_ids(rule)
             legal_context = [
                 chunk_by_id[value] for value in chunk_ids if value in chunk_by_id
@@ -109,7 +118,9 @@ class LegalRuleTriageService:
             source_fingerprint: str | None = None
             triage_completed = False
             if ready_for_triage:
-                _, source_fingerprint = self.rule_service.resolve_source_identity(
+                # Persistence validates the expanded context (including parents and
+                # references), so the agent must receive that same complete input.
+                legal_context, source_fingerprint = self.rule_service.resolve_source_identity(
                     legal_rule=rule,
                     legal_corpus_version_id=corpus_version_id,
                 )
@@ -137,7 +148,6 @@ class LegalRuleTriageService:
             legal_rule_ids=[
                 str(item["legalRuleId"])
                 for item in work_items
-                if item.get("readyForTriage")
             ],
         )
         return {
@@ -152,7 +162,8 @@ class LegalRuleTriageService:
             "approvedRuleCount": len(rules),
             "completedRuleCount": completed_count,
             "pendingRuleCount": len(work_items),
-            "workItems": work_items,
+            # Completion tracks the full scope; the model receives a bounded page.
+            "workItems": work_items[:5],
         }
 
     def persist_result(
@@ -168,6 +179,9 @@ class LegalRuleTriageService:
         correlation_id: str | None = None,
     ) -> dict[str, Any]:
         self.coordinator.assert_owner(triage_execution_id)
+        self.coordinator.assert_rule_pending(
+            execution_id=triage_execution_id, legal_rule_id=legal_rule_id,
+        )
         _, active_catalog_id, active_corpus_id, chunks, rules = self._load_sources()
         if legal_rule_catalog_version_id != active_catalog_id:
             raise ValueError("triage result targets a stale LegalRule catalog version")

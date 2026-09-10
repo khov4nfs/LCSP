@@ -176,6 +176,11 @@ export function sanitizeAssessmentInterviewState(
   return {
     outcome: record.outcome,
     activeQuestion: question ?? undefined,
+    assistantMessage:
+      typeof record.assistantMessage === "string" &&
+      record.assistantMessage.trim()
+        ? record.assistantMessage.trim()
+        : undefined,
     blockedActions: Array.isArray(record.blockedActions)
       ? record.blockedActions.filter(isBlockedAction)
       : undefined,
@@ -197,7 +202,27 @@ export function sanitizeAssessmentInterviewState(
     pendingDraft:
       typeof record.pendingDraft === "string" ? record.pendingDraft : undefined,
     answerHistory: Array.isArray(record.answerHistory)
-      ? record.answerHistory.filter(isAnswerHistoryItem)
+      ? record.answerHistory.filter(isAnswerHistoryItem).map((item) => ({
+          questionId: item.questionId,
+          ...(item.questionPrompt !== undefined
+            ? { questionPrompt: item.questionPrompt }
+            : {}),
+          answeredAt: item.answeredAt,
+          summary: item.summary,
+          ...(typeof item.comment === "string" && item.comment.trim()
+            ? { comment: item.comment }
+            : {}),
+          ...(sanitizeQuestion(item.question)
+            ? { question: sanitizeQuestion(item.question)! }
+            : {}),
+          ...(Array.isArray(item.selectedChoiceIds)
+            ? {
+                selectedChoiceIds: item.selectedChoiceIds.filter(
+                  (id): id is string => typeof id === "string",
+                ),
+              }
+            : {}),
+        }))
       : undefined,
     audit: audit ?? undefined,
   };
@@ -441,7 +466,9 @@ function isAnswerHistoryItem(
     !!record &&
     typeof record.questionId === "string" &&
     typeof record.answeredAt === "string" &&
-    typeof record.actorId === "string" &&
+    (record.questionPrompt === undefined ||
+      typeof record.questionPrompt === "string") &&
+    (record.actorId === undefined || typeof record.actorId === "string") &&
     typeof record.summary === "string"
   );
 }

@@ -6,6 +6,7 @@ import json
 from typing import Any, Callable
 
 from tools.common.capabilities.managed.boundary import AgentBoundaryBase
+from tools.common.capabilities.platform.api_client import InterviewResolutionCallbackError
 from tools.common.capabilities.workflow.recovery.post_guard_continuation import (
     PostGuardContinuationStore,
 )
@@ -135,6 +136,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                 pge_version=str(context.get("pgeVersion") or pge_version),
                 guarded_state=guarded_state,
                 correlationId=correlationId,
+                root_workflow_run_id=context.get("rootWorkflowRunId"),
             )
             return
 
@@ -158,6 +160,25 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                 # above so it cannot be accidentally swallowed here.
                 return
 
+        from orchestration.interview_progress import active_progress, InterviewProgressCallback
+        def emit(phase):
+            reporter = getattr(api_client, "post_interview_progress", None)
+            if reporter is not None:
+                reporter(assessment_id, context_revision, phase)
+        token = active_progress.set(InterviewProgressCallback(emit))
+        emit("RUNNING")
+        try:
+            self._run_and_persist_decision(api_client, assessment_id, thread_id, question_id,
+                context_revision, resume_reason, context, correlationId, source_version, pge_version)
+        except Exception:
+            emit("FAILED")
+            raise
+        finally:
+            active_progress.reset(token)
+
+    def _run_and_persist_decision(self, api_client, assessment_id, thread_id, question_id,
+                                  context_revision, resume_reason, context, correlationId,
+                                  source_version, pge_version):
         decision = self._run_interview(
             assessment_id=assessment_id,
             thread_id=thread_id,
@@ -167,10 +188,36 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             context=context,
             correlationId=correlationId,
         )
-        guarded_state = api_client.post_interview_agent_decision(
-            assessment_id,
-            decision,
-        )
+        try:
+            guarded_state = api_client.post_interview_agent_decision(
+                assessment_id, decision,
+            )
+        except InterviewResolutionCallbackError as exc:
+            # A rejected candidate has not advanced the persisted revision. Let the
+            # specialist correct it once; never infer authority or relax the API guard.
+            if decision.get("outcome") != "CONTEXT_RESOLVED":
+                raise
+            repair_context = {
+                **context,
+                "decisionValidationFeedback": {
+                    "code": "INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED",
+                    "missingCriteria": exc.missing,
+                    "rejectedDecision": decision,
+                },
+            }
+            corrected = self._run_interview(
+                assessment_id=assessment_id,
+                thread_id=thread_id,
+                question_id=question_id,
+                context_revision=context_revision,
+                resume_reason=resume_reason,
+                context=repair_context,
+                correlationId=correlationId,
+            )
+            # A second rejection propagates to terminal delivery settlement.
+            guarded_state = api_client.post_interview_agent_decision(
+                assessment_id, corrected,
+            )
         self._run_guarded_continuation(
             assessment_id=assessment_id,
             thread_id=thread_id,
@@ -180,6 +227,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             pge_version=str(context.get("pgeVersion") or pge_version),
             guarded_state=guarded_state,
             correlationId=correlationId,
+            root_workflow_run_id=context.get("rootWorkflowRunId"),
         )
 
     def _run_interview(
@@ -245,6 +293,12 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             source_version.split(":", 1)[0].strip() if source_version else ""
         )
 
+        invocation_key = (
+            f"assessment-interview:{assessment_id}:{context_revision}:{resume_reason}"
+        )
+        if context.get("decisionValidationFeedback"):
+            invocation_key += ":resolution-correction:1"
+
         run_context = LCSPRunContext(
             assessment_id=assessment_id,
             user_id=actor_id,
@@ -256,9 +310,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                 "pgeVersion": pge_version,
                 "guidanceVersion": str(context.get("guidanceVersion") or ""),
             },
-            idempotency_key=(
-                f"assessment-interview:{assessment_id}:{context_revision}:{resume_reason}"
-            ),
+            idempotency_key=invocation_key,
         )
 
         authorized_refs = {
@@ -290,9 +342,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             result = dispatcher.dispatch(
                 subagent_type="interview",
                 instruction=instruction,
-                idempotency_key=(
-                    f"assessment-interview:{assessment_id}:{context_revision}:{resume_reason}"
-                ),
+                idempotency_key=invocation_key,
                 trigger=resume_reason,
                 metadata={
                     "assessment_id": assessment_id,
@@ -392,10 +442,19 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         pge_version: str,
         guarded_state: dict[str, Any],
         correlationId: str,
+        root_workflow_run_id: str | None = None,
     ) -> None:
         outcome = str(guarded_state.get("outcome") or "")
         if outcome not in _TERMINAL_GUARDED_OUTCOMES:
             return
+        if root_workflow_run_id and isinstance(guarded_state.get("continuation"), dict):
+            guarded_state = {
+                **guarded_state,
+                "continuation": {
+                    **guarded_state["continuation"],
+                    "rootWorkflowRunId": root_workflow_run_id,
+                },
+            }
         payload = _continuation_store_payload(guarded_state)
         record = self._continuation_store.begin(
             assessment_id=assessment_id,
@@ -439,6 +498,10 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         if not isinstance(public_state, dict):
             raise RuntimeError("duplicate guarded continuation is missing worker state")
         guarded_state = dict(public_state)
+        # Customer projections intentionally omit confirmed context. Recover it
+        # from the authenticated worker response, never from the broker payload.
+        if isinstance(context.get("confirmedContext"), dict):
+            guarded_state["confirmedContext"] = context["confirmedContext"]
         outcome = str(guarded_state.get("outcome") or "")
         record = self._continuation_store.get(
             assessment_id=assessment_id,
@@ -855,6 +918,15 @@ def _interview_instruction(
     private_revision = context.get("privateRevision")
     public_state = context.get("publicState")
     targeted_need = context.get("targetedNeed")
+    # The complete authorization inventory belongs to the turn ledger, not the
+    # model prompt. It can contain millions of characters for a large repository.
+    if isinstance(private_revision, dict):
+        refs = private_revision.get("governedEvidenceRefs")
+        private_revision = {
+            key: value for key, value in private_revision.items()
+            if key != "governedEvidenceRefs"
+        }
+        private_revision["governedEvidenceRefCount"] = len(refs) if isinstance(refs, list) else 0
     mode = (
         "INVESTIGATOR_RESOLUTION"
         if isinstance(targeted_need, dict)
@@ -887,6 +959,8 @@ def _interview_instruction(
         "privateCustomerRevision": private_revision,
         "targetedNeed": targeted_need,
     }
+    if context.get("decisionValidationFeedback"):
+        bounded_payload["decisionValidationFeedback"] = context["decisionValidationFeedback"]
     return (
         "Evaluate exactly one governed Assessment Interview turn. The JSON below is a "
         "private worker-only input and must not be copied into Customer-safe evidence or "
@@ -895,7 +969,14 @@ def _interview_instruction(
         "never treat it as authoritative context or change guidanceVersion. "
         "return only the typed InterviewResult candidate. HTTP persistence is not proof "
         "of sufficiency. PROVIDE_MORE_CONTEXT means author the next bounded question from "
-        "the existing thread; do not restart a targeted Interview.\n\n"
+        "the existing thread; do not restart a targeted Interview. "
+        "If decisionValidationFeedback is present, the prior candidate was rejected and "
+        "did not resolve the need. Re-evaluate it against the private customer revision. "
+        "For supported criteria, use the exact resolutionCriteria text as statement.topic. "
+        "Do not invent confirmation or treat validation feedback as customer evidence. "
+        "If evidence is missing, return WAITING_FOR_CUSTOMER with a bounded clarification, "
+        "or BLOCKED_OR_UNRESOLVED when the customer cannot supply it. Keep validation "
+        "feedback private; never copy it into customer-facing text or downstream context.\n\n"
         + json.dumps(bounded_payload, ensure_ascii=False, sort_keys=True)
     )
 

@@ -58,15 +58,23 @@ export function WorkspaceRuntimeProvider({
   const latestFingerprint = useRef<string | null>(null);
 
   useEffect(() => {
-    const source = new EventSource("/api/workspace/runtime-events");
+    let source: EventSource;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let attempts = 0;
+    let stopped = false;
+    let needsResync = false;
     const onRuntime = (event: MessageEvent<string>) => {
       const parsed = parseRuntimeEvent(event.data);
       if (parsed !== null) {
+        attempts = 0;
         setRuntime(parsed);
         const fingerprint = runtimeFingerprint(parsed);
         if (latestFingerprint.current !== fingerprint) {
           latestFingerprint.current = fingerprint;
           for (const assessmentId of affectedAssessmentIds(parsed)) {
+            void queryClient.invalidateQueries({
+              queryKey: apiQueryKeys.assessment.interview(assessmentId),
+            });
             void queryClient.invalidateQueries({
               queryKey: apiQueryKeys.assessment.readiness(assessmentId),
             });
@@ -81,22 +89,51 @@ export function WorkspaceRuntimeProvider({
       }
     };
 
-    source.addEventListener("workspace.runtime", onRuntime);
-    source.onopen = () => {
-      setRuntime((current) => ({
-        ...current,
-        connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
-      }));
+    const connect = () => {
+      if (stopped) return;
+      source = new EventSource("/api/workspace/runtime-events");
+      source.addEventListener("workspace.runtime", onRuntime);
+      source.onopen = () => {
+        if (needsResync) {
+          latestFingerprint.current = null;
+          void queryClient.invalidateQueries({
+            queryKey: apiQueryKeys.workspace.detail(),
+          });
+          void queryClient.invalidateQueries({
+            queryKey: apiQueryKeys.workspace.assessments(),
+          });
+          void queryClient.invalidateQueries({
+            predicate: (query) => query.queryKey[0] === "assessment",
+          });
+          needsResync = false;
+        }
+        setRuntime((current) => ({
+          ...current,
+          connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
+        }));
+      };
+      source.onerror = () => {
+        source.removeEventListener("workspace.runtime", onRuntime);
+        source.onopen = null;
+        source.onerror = null;
+        source.close();
+        needsResync = true;
+        setRuntime((current) => ({
+          ...current,
+          connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.disconnected,
+        }));
+        const delay = Math.min(1000 * 2 ** Math.min(attempts++, 5), 30000);
+        retryTimer = setTimeout(connect, delay);
+      };
     };
-    source.onerror = () => {
-      setRuntime((current) => ({
-        ...current,
-        connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.disconnected,
-      }));
-    };
+    connect();
 
     return () => {
+      stopped = true;
+      clearTimeout(retryTimer);
       source.removeEventListener("workspace.runtime", onRuntime);
+      source.onopen = null;
+      source.onerror = null;
       source.close();
     };
   }, [queryClient]);

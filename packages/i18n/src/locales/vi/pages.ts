@@ -56,6 +56,10 @@ export const viPages = {
     chatTranscriptLabel: "Hội thoại assessment",
     chatComposerPlaceholder: "Nhắn cho LCSP",
     chatSend: "Gửi tin nhắn",
+    chatExpand: "Mở rộng ô soạn thảo",
+    chatCollapse: "Thu gọn ô soạn thảo",
+    chatShowMore: "Xem thêm",
+    chatShowLess: "Thu gọn",
     chatCopy: "Sao chép phản hồi",
     chatThinking: "Đang suy nghĩ...",
     chatOptionsLabel: "Các lựa chọn trả lời",
@@ -105,6 +109,26 @@ export const viPages = {
         dateCreated: "Ngày tạo",
         lastActivity: "Hoạt động gần nhất",
       },
+    },
+    assessmentActions: {
+      menuLabel: "Tùy chọn assessment",
+      rename: "Đổi tên",
+      delete: "Xóa",
+      renameTitle: "Đổi tên assessment",
+      renameDescription:
+        "Cập nhật tên hiển thị của assessment trong workspace.",
+      nameLabel: "Tên assessment",
+      cancel: "Hủy",
+      save: "Lưu",
+      saving: "Đang lưu...",
+      deleteTitle: "Xóa assessment?",
+      deleteDescription:
+        "Thao tác này sẽ xóa vĩnh viễn assessment và toàn bộ dữ liệu đã thu thập.",
+      deleteConfirm: "Xóa assessment",
+      deleting: "Đang xóa...",
+      renameError: "Không thể đổi tên assessment. Vui lòng thử lại.",
+      deleteError: "Không thể xóa assessment. Vui lòng thử lại.",
+      close: "Đóng",
     },
     settings: "Cài đặt",
     language: "Ngôn ngữ",
@@ -1402,6 +1426,14 @@ export const viPages = {
       pendingDescription:
         "Evidence đã sẵn sàng. Đang chờ orchestration cung cấp câu hỏi Interview đầu tiên.",
       pendingPlaceholder: "Đang chờ Interview...",
+      progressQueued: "Câu trả lời đang chờ được đánh giá.",
+      progressRunning: "Đang đánh giá câu trả lời của bạn.",
+      progressTool: "Đang kiểm tra thông tin hỗ trợ.",
+      progressCompleted: "Đánh giá Interview đã hoàn tất. Kết quả đã được lưu.",
+      progressFailed:
+        "Lượt đánh giá này gặp lỗi. Câu trả lời của bạn vẫn được lưu.",
+      continuingDescription:
+        "Câu trả lời đã được lưu. Đang chờ kết quả đánh giá hoặc câu hỏi tiếp theo.",
       placeholder: "Mô tả project hoặc system...",
     },
     postFinding: {

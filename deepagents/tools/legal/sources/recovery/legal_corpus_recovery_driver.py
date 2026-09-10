@@ -19,7 +19,7 @@ from tools.common.capabilities.agentic_evidence.entrypoints.legal_tool_entrypoin
     LegalToolExecutionContext,
 )
 from tools.common.capabilities.platform.api_client import WorkerApiClient
-from tools.common.capabilities.platform.config import default_legal_source_storage_root
+from tools.common.capabilities.platform.config import resolve_legal_source_storage_root
 from tools.common.capabilities.platform.file_lock import (
     acquire_exclusive_lock,
     ensure_lock_file,
@@ -716,10 +716,7 @@ class LegalCorpusRecoveryDriver:
         raw = message.get("storageRoot")
         if isinstance(raw, str) and raw.strip():
             return Path(raw.strip()).resolve()
-        raw_env = os.getenv("LEGAL_SOURCE_STORAGE_ROOT")
-        if raw_env and raw_env.strip():
-            return Path(raw_env.strip()).resolve()
-        return Path(default_legal_source_storage_root()).resolve()
+        return Path(resolve_legal_source_storage_root()).resolve()
 
 
 def required_string(values: dict[str, Any], key: str) -> str:

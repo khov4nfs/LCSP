@@ -22,7 +22,7 @@ class TraceStaticFlowRequest(CorrelatedToolInput):
 
 
 @tool(args_schema=TraceStaticFlowRequest)
-def trace_static_flow(runtime: ToolRuntime | None = None, **request: Any) -> dict[str, Any]:
+def trace_static_flow(runtime: ToolRuntime = None, **request: Any) -> dict[str, Any]:
     """Trace a bounded static flow from an evidence-backed graph reference.
 
     Args:

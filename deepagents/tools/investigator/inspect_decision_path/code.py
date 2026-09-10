@@ -22,7 +22,7 @@ class InspectDecisionPathRequest(CorrelatedToolInput):
 
 
 @tool(args_schema=InspectDecisionPathRequest)
-def inspect_decision_path(runtime: ToolRuntime | None = None, **request: Any) -> dict[str, Any]:
+def inspect_decision_path(runtime: ToolRuntime = None, **request: Any) -> dict[str, Any]:
     """Inspect structural decision influence evidence without producing a legal conclusion.
 
     Args:

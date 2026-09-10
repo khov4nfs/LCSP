@@ -6,6 +6,7 @@ import {
 import {
   AUDIT_ACTOR_TYPES,
   AUDIT_REDACTION_STATUSES,
+  INTERVIEW_AUDIT_EVENT_TYPES,
   INTERVIEW_TECHNICAL_COVERAGE_STATES,
   type InterviewAuditActorRef,
   type InterviewSourceSnapshotRef,
@@ -14,6 +15,7 @@ import {
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   ASSESSMENT_CONTEXT_AUTHORITY_STATUSES,
+  INTERVIEW_PROGRESS_PHASES,
   ASSESSMENT_INTERVIEW_ANSWER_ACTIONS,
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
@@ -186,6 +188,7 @@ type WorkerPrivateContext = {
   assessmentId: string;
   threadId: string;
   workflowRunId?: string;
+  rootWorkflowRunId?: string;
   authenticatedActorId?: string;
   requestedRevision: number;
   currentRevision: number;
@@ -196,6 +199,7 @@ type WorkerPrivateContext = {
   coverageLimitations?: string[];
   partialCoveragePolicyDecision?: PartialCoveragePolicyDecision;
   publicState: AssessmentInterviewRuntimeState;
+  confirmedContext?: AssessmentInterviewRuntimeState["confirmedContext"];
   privateRevision?: PrivateInterviewAnswerRevision;
   targetedNeed?: TargetedInterviewNeed;
   guidanceVersion: string;
@@ -207,6 +211,7 @@ type AgentDecisionInput = {
   mode?: CanonicalAssessmentInterviewMode;
   outcome: AssessmentInterviewRuntimeState["outcome"];
   activeQuestion?: AssessmentInterviewRuntimeState["activeQuestion"];
+  rationale?: string;
   contextAuthority?: AssessmentContextAuthorityStatus;
   confirmedContext?: Record<string, unknown>;
   blockedActions?: AssessmentInterviewRuntimeState["blockedActions"];
@@ -237,7 +242,138 @@ export class AssessmentInterviewRuntimeService {
     actor: RbacRequestContext,
   ): Promise<AssessmentInterviewRuntimeState> {
     await this.assertAssessmentVisible(assessmentId, actor);
-    return publicState((await this.readThread(assessmentId)).state);
+    const thread = await this.readThread(assessmentId);
+    const state = publicState(thread.state);
+    const answerHistory = await Promise.all(
+      (state.answerHistory ?? []).map(async (item) => {
+        if (item.question) return item;
+        const event = await this.prisma.auditEvent.findFirst({
+          where: {
+            resourceId: assessmentId,
+            sessionId: this.threadId(assessmentId),
+            eventType: INTERVIEW_AUDIT_EVENT_TYPES.questionPersisted,
+            createdAt: { lte: new Date(item.answeredAt) },
+            payload: { path: ["questionId"], equals: item.questionId },
+          },
+          orderBy: { createdAt: "desc" },
+          select: { payload: true },
+        });
+        const payload = objectRecord(event?.payload);
+        const control =
+          payload?.control as AssessmentInterviewQuestion["control"];
+        const intent =
+          payload?.questionIntent as AssessmentInterviewQuestion["intent"];
+        const question =
+          typeof payload?.prompt === "string" &&
+          Object.values(ASSESSMENT_INTERVIEW_CONTROLS).includes(control) &&
+          Object.values(ASSESSMENT_INTERVIEW_QUESTION_INTENTS).includes(intent)
+            ? publicActiveQuestion({
+                id: item.questionId,
+                prompt: payload.prompt,
+                control,
+                intent,
+                choices: Array.isArray(payload.choices)
+                  ? payload.choices.flatMap((value) => {
+                      const choice = objectRecord(value);
+                      return typeof choice?.id === "string" &&
+                        typeof choice.label === "string"
+                        ? [{ id: choice.id, label: choice.label }]
+                        : [];
+                    })
+                  : undefined,
+              })
+            : undefined;
+        return {
+          ...item,
+          question,
+          questionPrompt:
+            typeof payload?.prompt === "string"
+              ? sanitizePublicText(payload.prompt)
+              : item.questionPrompt,
+        };
+      }),
+    );
+    return {
+      ...state,
+      answerHistory: answerHistory.map((item) => {
+        const revision = thread.privateRevisions.find(
+          (entry) =>
+            entry.questionId === item.questionId &&
+            entry.answeredAt === item.answeredAt &&
+            entry.actorId === actor.userId,
+        );
+        const text = revision?.answer.freeText;
+        return {
+          ...item,
+          selectedChoiceIds: revision?.answer.selectedChoiceIds,
+          comment: sanitizePublicText(
+            revision?.answer.comment?.trim() || revision?.answer.otherText,
+          ),
+          summary: text
+            ? (sanitizePublicText(text) ?? item.summary)
+            : item.summary,
+        };
+      }),
+    };
+  }
+
+  async recordWorkerProgress(
+    assessmentId: string,
+    body: unknown,
+    correlationId: string,
+  ) {
+    const input = objectRecord(body);
+    const phases = [
+      INTERVIEW_PROGRESS_PHASES.running,
+      INTERVIEW_PROGRESS_PHASES.toolRunning,
+      INTERVIEW_PROGRESS_PHASES.failed,
+    ];
+    if (
+      !input ||
+      !Number.isSafeInteger(input.contextRevision) ||
+      Number(input.contextRevision) < 1 ||
+      !phases.some((phase) => phase === input.phase) ||
+      Object.keys(input).some(
+        (key) => key !== "contextRevision" && key !== "phase",
+      )
+    ) {
+      throw problemException(
+        "INTERVIEW_CONFIRMED_CONTEXT_INVALID",
+        correlationId,
+        { status: HttpStatus.BAD_REQUEST },
+      );
+    }
+    const thread = await this.readThread(assessmentId);
+    if (
+      thread.contextRevision !== input.contextRevision ||
+      thread.processedRevision >= Number(input.contextRevision)
+    ) {
+      return { recorded: false };
+    }
+    const runId =
+      thread.privateStore.targetedContinuation?.workflowRunId ??
+      thread.privateStore.workflowRunId;
+    if (!runId) return { recorded: false };
+    const event = {
+      assessmentId,
+      runId,
+      correlationId,
+      stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
+      toolName: INTERVIEW_TOOL_NAME,
+      summary: `Interview progress: ${String(input.phase)}`,
+      outputSummary: {
+        interviewProgress: {
+          contextRevision: input.contextRevision,
+          phase: input.phase,
+        },
+      },
+    };
+    if (input.phase === INTERVIEW_PROGRESS_PHASES.failed) {
+      await this.runtimeEvents.recordToolFailed(event);
+    } else {
+      await this.runtimeEvents.recordToolStarted(event);
+    }
+    return { recorded: true };
   }
 
   async submitAnswer(input: {
@@ -329,6 +465,7 @@ export class AssessmentInterviewRuntimeService {
       );
       const historyItem: AssessmentInterviewAnswerHistoryItem = {
         questionId: answer.questionId,
+        questionPrompt: sanitizePublicText(thread.state.activeQuestion.prompt),
         actorId: input.actor.userId,
         answeredAt: now,
         summary: summarizeAnswer(answer),
@@ -554,6 +691,10 @@ export class AssessmentInterviewRuntimeService {
       },
       outputSummary: {
         assessmentInterview: publicState(next.state),
+        interviewProgress: {
+          contextRevision: next.revision,
+          phase: INTERVIEW_PROGRESS_PHASES.queued,
+        },
         interviewWorkflowEvent:
           ASSESSMENT_INTERVIEW_WORKFLOW_EVENTS.interviewContextUpdated,
         partialCoveragePolicyDecision:
@@ -828,6 +969,7 @@ export class AssessmentInterviewRuntimeService {
       workflowRunId,
       authenticatedActorId,
       requestedRevision: input.contextRevision,
+      rootWorkflowRunId: thread.privateStore.workflowRunId,
       currentRevision: thread.contextRevision,
       processedRevision: thread.processedRevision,
       sourceVersion: authoritative.sourceVersion,
@@ -838,6 +980,12 @@ export class AssessmentInterviewRuntimeService {
         authoritative.partialCoveragePolicyDecision ??
         thread.privateStore.partialCoveragePolicyDecision,
       publicState: publicState(thread.state),
+      // Worker-only recovery input; never add this to the customer projection.
+      confirmedContext:
+        status === "DUPLICATE" &&
+        input.contextRevision === thread.contextRevision
+          ? thread.state.confirmedContext
+          : undefined,
       privateRevision,
       targetedNeed: target,
       guidanceVersion: thread.guidanceVersion ?? this.resolveGuidanceVersion(),
@@ -922,7 +1070,6 @@ export class AssessmentInterviewRuntimeService {
       };
       const privateStore: PrivateInterviewStore = {
         ...thread.privateStore,
-        workflowRunId: target.workflowRunId,
         targetedNeed,
         targetedContinuation,
         partialCoveragePolicyDecision: provenance.partialCoveragePolicyDecision,
@@ -1271,6 +1418,21 @@ export class AssessmentInterviewRuntimeService {
       transition: result.transition,
       state: result.state,
       partialCoveragePolicyDecision: result.partialCoveragePolicyDecision,
+    });
+
+    await this.runtimeEvents.recordToolCompleted({
+      assessmentId: input.assessmentId,
+      runId: result.workflowRunId,
+      correlationId: input.correlationId,
+      stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
+      toolName: INTERVIEW_TOOL_NAME,
+      summary: "Interview decision persisted.",
+      outputSummary: {
+        interviewProgress: {
+          contextRevision: result.state.contextRevision,
+          phase: INTERVIEW_PROGRESS_PHASES.completed,
+        },
+      },
     });
 
     return result.continuation
@@ -2473,6 +2635,10 @@ function parseAgentDecision(value: unknown): AgentDecisionInput {
     mode,
     outcome,
     activeQuestion,
+    rationale:
+      typeof record.rationale === "string" && record.rationale.trim()
+        ? record.rationale.trim()
+        : undefined,
     contextAuthority: Object.values(
       ASSESSMENT_CONTEXT_AUTHORITY_STATUSES,
     ).includes(record.contextAuthority as never)
@@ -2848,8 +3014,9 @@ function confirmedStructuredContextTopics(
     return null;
   }
   if (
-    context.authority !==
-      CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly ||
+    (context.authority !== undefined &&
+      context.authority !==
+        CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly) ||
     !Array.isArray(context.statements)
   ) {
     return new Set();
@@ -2859,8 +3026,11 @@ function confirmedStructuredContextTopics(
     const statement = objectRecord(value);
     if (
       statement &&
-      statement.resolutionState !==
-        ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.uncertain &&
+      // This guard runs before API-owned provenance is materialized. Model
+      // candidates may omit it, but explicit unresolved states fail closed.
+      (statement.resolutionState === undefined ||
+        statement.resolutionState ===
+          ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed) &&
       nonEmptyString(statement.topic)
     ) {
       topics.add(statement.topic);
@@ -3087,9 +3257,15 @@ function decisionState(
   current: AssessmentInterviewRuntimeState,
   decision: AgentDecisionInput,
 ): AssessmentInterviewRuntimeState {
+  const assistantMessage =
+    decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.contextReady ||
+    decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved
+      ? sanitizePublicText(decision.rationale)
+      : undefined;
   return {
     ...current,
     outcome: decision.outcome,
+    assistantMessage,
     activeQuestion:
       decision.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer
         ? decision.activeQuestion
@@ -3326,6 +3502,7 @@ function publicState(
     threadId: state.threadId,
     contextRevision: state.contextRevision,
     contextAuthority: state.contextAuthority,
+    assistantMessage: sanitizePublicText(state.assistantMessage),
     activeQuestion: publicActiveQuestion(state.activeQuestion),
     blockedActions: state.blockedActions,
     flags: state.flags,
@@ -3334,6 +3511,7 @@ function publicState(
     pendingDraft: sanitizePublicText(state.pendingDraft),
     answerHistory: state.answerHistory?.map((item) => ({
       questionId: item.questionId,
+      questionPrompt: sanitizePublicText(item.questionPrompt),
       answeredAt: item.answeredAt,
       summary: sanitizePublicText(item.summary) ?? item.summary,
     })),

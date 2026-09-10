@@ -140,6 +140,34 @@ Derive:
 
 Keywords and common libraries are never proof by themselves.
 
+### Hard output constraints enforced downstream
+
+The deterministic gate rejects the whole persist call when any of these is violated, and a
+rejected call wastes the singleton lease. Satisfy them before emitting a result.
+
+- **One analysis per chunk, no exceptions.** Return exactly one verdict for every chunk id
+  supplied in `legalContext`, including chunks you classify as CONTEXT_ONLY or REJECT.
+  A missing chunk fails the whole LegalRule, not just that chunk.
+- **`legalContext` is wider than the cited locator.** Retrieval adds structural parent
+  context, so a LegalRule citing a point (`art-12::cl-2::pt-a`) is normally handed both the
+  point and its parent clause (`art-12::cl-2`). Count the chunks you were given rather than
+  assuming one per rule. The parent chapeau is structure for the point, so classify it
+  CONTEXT_ONLY there and let the point carry the operative obligation — promoting both
+  would compile the same duty twice.
+- **Graph vocabulary is a closed set.** `startingNodeTypes`, `targetNodeTypes`, and every
+  query's `startNodeTypes` / `stopNodeTypes` must come from the LCSP node vocabulary;
+  `edgeStrategies` and `followEdges` must come from the edge vocabulary. Both are
+  `SCREAMING_SNAKE_CASE` (`AI_SYSTEM`, `HUMAN_REVIEW`, `PERSISTS_TO`, `TRIGGERS`).
+  Descriptive names such as `Function`, `Route`, or `calls` are rejected. When no vocabulary
+  term fits the control, leave the list empty rather than inventing one.
+- **`direction`** on a graph query must be `FORWARD`, `BACKWARD`, or `BOTH`, and query names
+  must be unique within one rule.
+- **Do not set `engineeringRuleId`.** The service assigns the canonical
+  `{legalRuleId}::ENG::{n}` identity; supplying your own breaks traceability.
+- **Candidate and proposal counts must agree.** At least one EngineeringRule proposal is
+  required when any chunk is a Candidate, and proposals must be empty when none is.
+- `investigationGoals` and `requiredEvidence` must each be non-empty for every proposal.
+
 ## Evidence reasoning discipline
 
 Use these distinctions:

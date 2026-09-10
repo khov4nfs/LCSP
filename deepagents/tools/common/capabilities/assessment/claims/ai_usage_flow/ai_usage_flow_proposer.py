@@ -5,11 +5,10 @@ from __future__ import annotations
 from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
-from langchain.agents import create_agent
 from langchain.agents.middleware import ToolCallLimitMiddleware
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from model_policy import INVESTIGATOR_MODEL_SPEC
+from model_policy import NARRATOR_MODEL_SPEC, create_lcsp_agent as create_agent
 from tools.common.capabilities.agentic_evidence import AgenticInvocationContext, AgenticToolResolver
 
 
@@ -27,7 +26,7 @@ class AIUsageFlowModelAssistedProposer:
     def __init__(
         self,
         agentic_tool_resolver: AgenticToolResolver | None = None,
-        model: str = INVESTIGATOR_MODEL_SPEC,
+        model: str = NARRATOR_MODEL_SPEC,
     ):
         """Create the proposer with optional read-only agentic evidence tools."""
         self.agentic_tool_resolver = agentic_tool_resolver
@@ -191,10 +190,10 @@ class AIUsageFlowModelAssistedProposer:
                 ))
                 middleware.append(ToolCallLimitMiddleware(run_limit=self.agentic_tool_resolver.max_tool_calls, exit_behavior="error"))
             agent = create_agent(
+                agent_name="lcsp-ai-usage-flow-proposer",
                 model=self._model, tools=tools,
                 system_prompt="Propose bounded AIUsageFlow summary fields only. Use governed read tools only when necessary.",
                 response_format=_summary_proposal_response_schema(), middleware=middleware,
-                name="lcsp-ai-usage-flow-proposer",
             )
             return agent.invoke(
                 {"messages": [{"role": "user", "content": prompt}]},

@@ -87,9 +87,7 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
 
     def handle(self, message: dict[str, Any], correlationId: str) -> None:
         evidence_report_id = self._evidence_report_id(message)
-        evidence_report = self._api_client.get_accepted_technical_evidence_report(
-            evidence_report_id
-        )
+        evidence_report = self._get_accepted_evidence_report(evidence_report_id)
         assessment_id = str(
             evidence_report.get("assessment_id")
             or evidence_report.get("assessmentId")
@@ -487,6 +485,20 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
             if connection.is_open:
                 connection.close()
 
+    def _get_accepted_evidence_report(self, evidence_report_id: str) -> dict[str, Any]:
+        """Fetch accepted evidence and classify deterministic 4xx reads as terminal."""
+        try:
+            return self._api_client.get_accepted_technical_evidence_report(
+                evidence_report_id
+            )
+        except WorkerCallbackError as error:
+            # A stale/deleted report or another deterministic 4xx cannot be healed by
+            # requeueing the same broker delivery. Network/5xx failures remain
+            # retryable so RabbitMQ can redeliver after the dependency recovers.
+            if self._is_terminal_callback_client_error(error):
+                raise NonRetryableAgentBoundaryError(str(error)) from error
+            raise
+
     @staticmethod
     def _evidence_report_id(message: dict[str, Any]) -> str:
         value = (
@@ -516,4 +528,4 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
     @staticmethod
     def _is_terminal_callback_client_error(error: WorkerCallbackError) -> bool:
         """Return whether WorkerApiClient reported a non-idempotent HTTP 4xx."""
-        return "callback failed with client error 4" in str(error).lower()
+        return bool(getattr(error, "callback_client_error", False))

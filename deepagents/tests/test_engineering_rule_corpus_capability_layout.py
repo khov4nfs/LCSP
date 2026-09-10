@@ -43,6 +43,7 @@ def test_engineering_rule_corpus_is_grouped_by_lifecycle() -> None:
     assert _py(rules / "registry") == {
         "cache.py",
         "precompiled_contract_overrides.py",
+        "precompiled_export.py",
         "precompiled_registry.py",
     }
     assert _py(rules / "orchestration") == {"service.py"}

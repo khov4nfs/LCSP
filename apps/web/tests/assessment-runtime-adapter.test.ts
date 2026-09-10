@@ -532,11 +532,17 @@ test("11. CONTEXT_READY: maps distinctly with no active question", () => {
     assessmentId: "asm-11",
     interviewState: {
       outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
+      assistantMessage:
+        "I have enough confirmed business context to continue the assessment.",
     },
   });
 
   const chat = selectInterviewPresentation(normalized);
   assert.equal(chat.isContextReady, true);
+  assert.equal(
+    chat.assistantMessage,
+    "I have enough confirmed business context to continue the assessment.",
+  );
   assert.equal(chat.hasActiveQuestion, false);
   assert.equal(chat.activeQuestion, null);
   assert.equal(chat.isWaitingForCustomer, false);
@@ -1018,6 +1024,15 @@ test("LCSP-272 HANDOFF: evidence ready without orchestration request stays truth
     handoff.placeholderKey,
     "pages.assessmentFlow.interview.pendingPlaceholder",
   );
+  const resumed = {
+    ...normalized,
+    interview: {
+      ...normalized.interview,
+      answerHistory: [{ questionId: "answered-question", answeredAt: "2026-09-05T10:00:00.000Z", summary: "Saved answer" }],
+    },
+  };
+  assert.equal(selectInterviewHandoffPresentation(resumed).messageKey,
+    "pages.assessmentFlow.interview.continuingDescription");
 });
 
 test("LCSP-272 HANDOFF: active runtime question produces the real F04 projection", () => {

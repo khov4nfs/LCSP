@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterator
 from uuid import uuid4
 
-from tools.common.capabilities.platform.config import default_legal_source_storage_root
+from tools.common.capabilities.platform.config import resolve_legal_source_storage_root
 from tools.common.capabilities.platform.file_lock import (
     acquire_exclusive_lock,
     ensure_lock_file,
@@ -36,14 +36,7 @@ class WaitingAssessmentRegistry:
     """Store and reconcile Assessment checkpoints under Root Orchestration ownership."""
 
     def __init__(self, *, storage_root: Path | None = None) -> None:
-        root = storage_root
-        if root is None:
-            configured = os.getenv("LEGAL_SOURCE_STORAGE_ROOT")
-            root = (
-                Path(configured)
-                if configured
-                else Path(default_legal_source_storage_root())
-            )
+        root = storage_root or Path(resolve_legal_source_storage_root())
         # Keep the on-disk location stable across this ownership refactor so a deploy
         # cannot orphan checkpoints written by the previous implementation. The file
         # is now read/written only by Root Orchestration code.
@@ -125,6 +118,7 @@ class WaitingAssessmentRegistry:
 
         resumed = 0
         deferred = 0
+        stopped = 0
         for checkpoint in checkpoints:
             try:
                 invoker(
@@ -137,6 +131,16 @@ class WaitingAssessmentRegistry:
                 )
                 resumed += 1
             except Exception as error:
+                from middleware.failure_policy import is_terminal_task_error
+
+                if is_terminal_task_error(error):
+                    stopped += 1
+                    logger.error(
+                        "WAITING_ENGINEERING_ASSESSMENT_STOPPED",
+                        workflow_run_id=checkpoint["workflowRunId"],
+                        error_type=type(error).__name__,
+                    )
+                    continue
                 deferred += 1
                 self.register(
                     evidence_report_id=checkpoint["evidenceReportId"],
@@ -154,6 +158,8 @@ class WaitingAssessmentRegistry:
             "resumedAssessmentCount": resumed,
             "deferredAssessmentCount": deferred,
         }
+        if stopped:
+            result["stoppedAssessmentCount"] = stopped
         logger.info("WAITING_ENGINEERING_ASSESSMENTS_RECONCILED", **result)
         return result
 

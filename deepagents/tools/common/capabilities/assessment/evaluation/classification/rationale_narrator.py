@@ -1,15 +1,13 @@
 """Narrate an already-computed classification decision without changing it."""
 
-from langchain.agents import create_agent
-
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from model_policy import INVESTIGATOR_MODEL_SPEC
+from model_policy import NARRATOR_MODEL_SPEC, create_lcsp_agent as create_agent
 
 
 class RationaleNarrator:
     """Use an LLM only to explain deterministic classification results."""
 
-    def __init__(self, model: str = INVESTIGATOR_MODEL_SPEC):
+    def __init__(self, model: str = NARRATOR_MODEL_SPEC):
         """Create a narrator backed by LangChain's standard agent runtime."""
         self._model = model
 
@@ -62,13 +60,13 @@ class RationaleNarrator:
 
         try:
             agent = create_agent(
+                agent_name="lcsp-classification-rationale-narrator",
                 model=self._model,
                 system_prompt=(
                     "You explain an existing LCSP decision without changing it or "
                     "making legal conclusions."
                 ),
                 middleware=MODEL_GOVERNANCE_MIDDLEWARE,
-                name="lcsp-classification-rationale-narrator",
             )
             result = agent.invoke(
                 {"messages": [{"role": "user", "content": prompt}]},

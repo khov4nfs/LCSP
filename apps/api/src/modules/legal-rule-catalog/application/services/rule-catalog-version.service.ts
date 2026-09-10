@@ -346,10 +346,23 @@ function legalRuleIdForChunk(corpusVersion: string, chunkId: string): string {
 }
 
 function safeIdentifier(value: string): string {
-  return value
+  const sanitized = value
     .normalize("NFKD")
     .replace(/[^\w:-]+/g, "_")
     .replace(/_+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 160);
+  if (sanitized === value) {
+    return sanitized;
+  }
+  // Sanitising is lossy, and Vietnamese point letters collide under it: e/ê, o/ô/ơ and
+  // u/ư each reduce to one identifier while đ disappears entirely. Points a…ơ inside a
+  // single clause would then share a legalRuleId and silently merge distinct legal
+  // obligations into one rule. A digest of the original keeps the mapping injective;
+  // purely ASCII ids are untouched, so existing identifiers stay byte-identical.
+  const discriminator = createHash("sha256")
+    .update(value)
+    .digest("hex")
+    .slice(0, 8);
+  return `${sanitized.slice(0, 150)}--${discriminator}`;
 }

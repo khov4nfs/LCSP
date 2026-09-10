@@ -637,6 +637,9 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                     "ENGINEERING_INVESTIGATION_FAILED",
                     engineering_rule_id=engineering_rule.engineering_rule_id,
                     error_type=type(error).__name__,
+                    # The type alone cannot separate a provider rejection from a schema
+                    # or verdict violation, and every rule failing looks identical.
+                    error_message=str(error)[:500],
                     workflow_run_id=workflow_run_id,
                     correlationId=correlation_id,
                 )
@@ -929,7 +932,10 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                     }
                 )
                 continue
-            if not engineering_rules:
+            # An empty result with a cache decision means triage already ran and this
+            # LegalRule legitimately yields no EngineeringRule. Only an undecided rule is
+            # missing work; counting the decided ones re-requests triage forever.
+            if not engineering_rules and not cache_hit:
                 compile_skipped_legal_rule_ids.append(legal_rule_id)
             compiled_rule_counts.append(
                 {

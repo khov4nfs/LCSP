@@ -101,6 +101,69 @@ describe("RuleCatalogVersionService", () => {
     );
   });
 
+  it("keeps a distinct legalRuleId for Vietnamese point letters that sanitise alike", async () => {
+    // Points o, ô and ơ all reduce to "o" under identifier sanitising, and đ vanishes.
+    // Without disambiguation these clauses would share one legalRuleId and silently
+    // merge separate legal obligations into a single rule.
+    const points = ["o", "\u00f4", "\u01a1", "\u0111"];
+    const tx = {
+      legalRuleCatalogVersion: {
+        create: jest.fn().mockResolvedValue({
+          id: "catalog-new",
+          version: "AUTO-ENGINEERING-RULES-0123456789ABCDEF",
+        } as never),
+      },
+      legalRule: {
+        createMany: jest
+          .fn()
+          .mockResolvedValue({ count: points.length } as never),
+      },
+      ruleApprovalRecord: {
+        create: jest.fn().mockResolvedValue({ id: "approval-1" } as never),
+      },
+    };
+    const prisma = {
+      legalRuleCatalogVersion: {
+        findMany: jest.fn().mockResolvedValue([] as never),
+        findFirst: jest.fn().mockResolvedValue(null as never),
+      },
+      legalRule: { count: jest.fn().mockResolvedValue(0 as never) },
+      legalCorpusVersion: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: "corpus-1",
+          version: "VN-LEGAL-CORPUS-test",
+          chunks: points.map((point) => ({
+            id: `LAW-134:art-9::cl-1::pt-${point}`,
+            documentId: "LAW-134",
+            locator: `art-9::cl-1::pt-${point}`,
+            contentSha256: `sha256:${point}`,
+            legalStatus: "ACTIVE",
+            hierarchy: { normativeClass: "ENGINEERING_RULE_CANDIDATE" },
+          })),
+        } as never),
+      },
+      $transaction: jest.fn((callback: (client: typeof tx) => unknown) =>
+        Promise.resolve(callback(tx)),
+      ),
+    };
+
+    const service = new RuleCatalogVersionService(prisma as any);
+    await service.recoverApprovedRulesFromActiveCorpus({
+      idempotencyKey: "recover-diacritics",
+      correlationId: "corr-diacritics",
+    });
+
+    const created = (
+      tx.legalRule.createMany.mock.calls[0][0] as {
+        data: { legalRuleId: string }[];
+      }
+    ).data;
+    const ids = created.map((row) => row.legalRuleId);
+    expect(ids).toHaveLength(points.length);
+    expect(new Set(ids).size).toBe(points.length);
+    expect(ids.every((id) => id.length > 0)).toBe(true);
+  });
+
   it("returns existing approved catalog when it already has rules", async () => {
     const prisma = {
       legalRuleCatalogVersion: {

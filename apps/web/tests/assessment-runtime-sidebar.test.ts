@@ -32,6 +32,18 @@ test("runtime sidebar consumes normalized runtime data and the shared artifact c
   );
 });
 
+test("repository context card renders the matching provider logo beside the provider name", async () => {
+  const card = await read("features/assessment-runtime/components/molecules/repository-context-card.tsx");
+
+  assert.match(card, /ASSESSMENT_REPOSITORY_PROVIDERS/);
+  assert.match(card, /logo-github\.svg/);
+  assert.match(card, /logo-gitlab\.svg/);
+  assert.match(card, /logo-bitbucket\.svg/);
+  assert.match(card, /logo-azure-devops\.svg/);
+  assert.match(card, /<ProviderIcon provider=\{repository\.provider\}/);
+  assert.match(card, /data-provider-icon=\{provider\}/);
+});
+
 test("runtime sidebar does not reconstruct workflow from screen or F-state branches", async () => {
   const sidebar = await read("features/assessment-runtime/components/organisms/assessment-runtime-sidebar.tsx");
   assert.doesNotMatch(sidebar, /F0[0-9]|F1[0-6]|screen\s*===|route\s*===/);

@@ -140,27 +140,29 @@ export function ChatMultiSelect({
             }}
             onKeyDown={(event) => handleKeyDown(event, index)}
             className={cn(
-              "flex h-9 min-w-0 items-center gap-3 rounded-lg px-3 text-left text-[13.5px] leading-4.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:pointer-events-none disabled:opacity-50",
+              "flex min-h-9 min-w-0 items-start gap-3 rounded-lg px-3 py-2 text-left text-[13.5px] leading-4.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:pointer-events-none disabled:opacity-50",
               selected
-                ? "bg-chart-3/20 text-foreground hover:bg-chart-3/25"
+                ? "bg-chart-3/20 text-foreground hover:bg-chart-3/25 disabled:opacity-100"
                 : "text-foreground hover:bg-accent",
             )}
           >
             <span
               className={cn(
-                "flex size-4 shrink-0 items-center justify-center rounded-sm border border-muted-foreground/70",
+                "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-sm border border-muted-foreground/70",
                 selected && "border-primary bg-primary text-primary-foreground",
               )}
               aria-hidden="true"
             >
               {selected ? <CheckIcon className="size-3 stroke-2" /> : null}
             </span>
-            <span className="min-w-0 flex-1 truncate">{option.label}</span>
-            {assistiveText ? (
-              <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:inline">
-                {assistiveText}
-              </span>
-            ) : null}
+            <span className="min-w-0 flex-1 whitespace-normal wrap-anywhere">
+              <span>{option.label}</span>
+              {assistiveText ? (
+                <span className="mt-1 block text-[11px] text-muted-foreground">
+                  {assistiveText}
+                </span>
+              ) : null}
+            </span>
             {option.description ? (
               <span id={descriptionId} className="sr-only">
                 {option.description}

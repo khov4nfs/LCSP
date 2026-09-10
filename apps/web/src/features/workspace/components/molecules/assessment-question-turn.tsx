@@ -12,6 +12,7 @@ import {
   Edit3Icon,
   HelpCircleIcon,
   SaveIcon,
+  SendIcon,
   TextCursorInputIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -35,10 +36,13 @@ export type AssessmentQuestionAnswerInput = {
 
 type AssessmentQuestionTurnProps = {
   question: AssessmentInterviewQuestion;
+  answerHistoryVisible?: boolean;
   selectedChoiceIds?: string[];
   onSelectedChoiceIdsChange?: (choiceIds: string[]) => void;
   isAdjusting?: boolean;
   onAdjust?: () => void;
+  canSubmitSelection?: boolean;
+  onSubmitSelection?: () => void;
   blockedActions?: AssessmentInterviewBlockedAction[];
   className?: string;
   disabled?: boolean;
@@ -48,10 +52,13 @@ type AssessmentQuestionTurnProps = {
 
 export function AssessmentQuestionTurn({
   question,
+  answerHistoryVisible = false,
   selectedChoiceIds = [],
   onSelectedChoiceIdsChange,
   isAdjusting = false,
   onAdjust,
+  canSubmitSelection = false,
+  onSubmitSelection,
   blockedActions = [],
   className,
   disabled = false,
@@ -89,11 +96,8 @@ export function AssessmentQuestionTurn({
       data-intent={question.intent}
       className={cn("w-full max-w-170 space-y-3", className)}
     >
-      {question.priorAnswerSummary ? (
-        <SelectionHistoryRow
-          prompt={question.prompt}
-          selectedValue={question.priorAnswerSummary}
-        />
+      {question.priorAnswerSummary && !answerHistoryVisible ? (
+        <SelectionHistoryRow selectedValue={question.priorAnswerSummary} />
       ) : null}
 
       <div className="space-y-3">
@@ -124,6 +128,23 @@ export function AssessmentQuestionTurn({
             onValuesChange={handleMultiSelectChange}
             options={question.choices ?? []}
           />
+        ) : null}
+
+        {isSelectionControl(question.control) ? (
+          <div
+            data-slot="selection-submit-action"
+            className="flex flex-wrap items-center gap-2"
+          >
+            <Button
+              type="button"
+              size="sm"
+              disabled={disabled || !canSubmitSelection}
+              onClick={() => onSubmitSelection?.()}
+            >
+              <SendIcon />
+              {t("pages.assessment.submitAnswer")}
+            </Button>
+          </div>
         ) : null}
 
         {question.control === ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust ? (
@@ -164,10 +185,7 @@ export function AssessmentQuestionTurn({
         ) : null}
 
         {question.whyEvidenceRefs && question.whyEvidenceRefs.length > 0 ? (
-          <div
-            data-slot="why-asking-disclosure"
-            className="space-y-2 pt-1"
-          >
+          <div data-slot="why-asking-disclosure" className="space-y-2 pt-1">
             <Button
               type="button"
               size="sm"
@@ -216,6 +234,17 @@ export function AssessmentQuestionTurn({
         </div>
       ) : null}
     </div>
+  );
+}
+
+// Choosing an option only stages a draft. Without a submit control next to the choice
+// the only way to send it is the composer's arrow, which sits in an empty text box and
+// reads as inactive, so a selected answer looks submitted while nothing was sent.
+function isSelectionControl(control: AssessmentInterviewQuestion["control"]) {
+  return (
+    control === ASSESSMENT_INTERVIEW_CONTROLS.boolean ||
+    control === ASSESSMENT_INTERVIEW_CONTROLS.singleSelect ||
+    control === ASSESSMENT_INTERVIEW_CONTROLS.multiSelect
   );
 }
 

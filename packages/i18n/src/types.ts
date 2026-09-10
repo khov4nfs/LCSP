@@ -90,6 +90,10 @@ export type PagesMessages = {
     chatTranscriptLabel: string;
     chatComposerPlaceholder: string;
     chatSend: string;
+    chatExpand: string;
+    chatCollapse: string;
+    chatShowMore: string;
+    chatShowLess: string;
     chatCopy: string;
     chatThinking: string;
     chatOptionsLabel: string;
@@ -139,6 +143,24 @@ export type PagesMessages = {
         dateCreated: string;
         lastActivity: string;
       };
+    };
+    assessmentActions: {
+      menuLabel: string;
+      rename: string;
+      delete: string;
+      renameTitle: string;
+      renameDescription: string;
+      nameLabel: string;
+      cancel: string;
+      save: string;
+      saving: string;
+      deleteTitle: string;
+      deleteDescription: string;
+      deleteConfirm: string;
+      deleting: string;
+      renameError: string;
+      deleteError: string;
+      close: string;
     };
     settings: string;
     language: string;
@@ -1362,6 +1384,12 @@ export type PagesMessages = {
       startingDescription: string;
       startingPlaceholder: string;
       pendingDescription: string;
+      continuingDescription: string;
+      progressQueued: string;
+      progressRunning: string;
+      progressTool: string;
+      progressCompleted: string;
+      progressFailed: string;
       pendingPlaceholder: string;
       placeholder: string;
     };

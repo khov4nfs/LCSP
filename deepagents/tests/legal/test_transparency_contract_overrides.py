@@ -236,3 +236,16 @@ def test_generic_output_tokens_do_not_prove_ai_media_output_surface() -> None:
             ),
             graph,
         )
+
+
+def test_absent_overlay_file_means_no_overlay_not_a_failure(tmp_path) -> None:
+    """A generated bundle ships no overlay, so an absent file is the normal state."""
+    assert load_precompiled_contract_overrides(str(tmp_path / "missing.json")) == {}
+
+
+def test_corrupt_overlay_file_still_fails_closed(tmp_path) -> None:
+    broken = tmp_path / "broken.json"
+    broken.write_text("{not json", encoding="utf-8")
+
+    with pytest.raises(PrecompiledContractOverrideError):
+        load_precompiled_contract_overrides(str(broken))

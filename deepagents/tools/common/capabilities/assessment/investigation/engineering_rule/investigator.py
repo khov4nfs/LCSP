@@ -5,12 +5,11 @@ import hashlib
 import json
 from typing import Any, Callable
 
-from langchain.agents import create_agent
 from langchain.agents.middleware import ToolCallLimitMiddleware
 from langchain.tools import BaseTool, tool
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from model_policy import INVESTIGATOR_MODEL_SPEC
+from model_policy import INVESTIGATOR_MODEL_SPEC, create_lcsp_agent as create_agent
 from tools.common.capabilities.platform.logging import get_logger
 from tools.common.capabilities.platform.tracing import traceable
 from tools.common.capabilities.evidence.graph.query.query_engine import ProgramGraphQueryEngine
@@ -125,6 +124,7 @@ class LawGuidedInvestigator:
 
         native_tools = self._native_tools(engine=engine, ledger=ledger)
         agent = create_agent(
+            agent_name="law_guided_investigator",
             model=self._model,
             tools=native_tools,
             system_prompt=(
@@ -140,7 +140,6 @@ class LawGuidedInvestigator:
                     exit_behavior="error",
                 ),
             ],
-            name="law_guided_investigator",
         )
         try:
             response = agent.invoke(

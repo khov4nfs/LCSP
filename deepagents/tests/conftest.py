@@ -68,6 +68,32 @@ def _spec_from_file_location(name, location, *args, **kwargs):
 importlib.util.spec_from_file_location = _spec_from_file_location
 
 
+@pytest.fixture(autouse=True)
+def isolated_legal_storage_root(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Generator[None, None, None]:
+    """Keep recovery artifacts and singleton locks out of the real .corpus root.
+
+    Recovery artifacts double as triage completion markers, so a test writing into the
+    developer's storage root can silently mark real LegalRules as already triaged.
+
+    This deliberately does not use `monkeypatch`: requesting it here would build it
+    before every test's own fixtures and so delay its undo past their teardown, which
+    breaks tests that patch module globals their teardown still depends on.
+    """
+    previous = os.environ.get("LEGAL_SOURCE_STORAGE_ROOT")
+    os.environ["LEGAL_SOURCE_STORAGE_ROOT"] = str(
+        tmp_path_factory.mktemp("legal-storage")
+    )
+    try:
+        yield
+    finally:
+        if previous is None:
+            os.environ.pop("LEGAL_SOURCE_STORAGE_ROOT", None)
+        else:
+            os.environ["LEGAL_SOURCE_STORAGE_ROOT"] = previous
+
+
 @pytest.fixture
 def workspace_dir() -> Generator[Path, None, None]:
     """Ephemeral workspace directory — deleted after each test."""

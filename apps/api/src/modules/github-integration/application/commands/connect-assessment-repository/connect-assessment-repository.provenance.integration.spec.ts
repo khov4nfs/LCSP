@@ -30,6 +30,24 @@ import { CredentialLease } from "../../security/credential-lease.js";
 
 const databaseUrl = process.env.PHASE25_DATABASE_URL;
 const run = databaseUrl ? describe : describe.skip;
+const fixtureUserIds = [
+  "provenance-user",
+  "missing-user",
+  "scope-user",
+  "other-user",
+  "github-snapshot-user",
+];
+const fixtureAssessmentIds = [
+  "provenance-a1",
+  "provenance-a2",
+  "provenance-missing",
+  "scope-assessment",
+  "provenance-denied",
+  "provenance-invalid",
+  "provenance-atomicity",
+  "provenance-snapshot",
+  "github-snapshot-assessment",
+];
 
 run("ConnectAssessmentRepository credential provenance", () => {
   let prisma: PrismaClient;
@@ -65,14 +83,27 @@ run("ConnectAssessmentRepository credential provenance", () => {
   beforeAll(async () => {
     prisma = new PrismaClient({ adapter: new PrismaPg(databaseUrl!) });
     await prisma.$connect();
+    await prisma.repositorySnapshot.deleteMany({
+      where: { assessmentId: { in: fixtureAssessmentIds } },
+    });
     await prisma.repositoryConnection.deleteMany({
-      where: { userId: "provenance-user" },
+      where: {
+        OR: [
+          { userId: { in: fixtureUserIds } },
+          { assessmentId: { in: fixtureAssessmentIds } },
+        ],
+      },
     });
     await prisma.assessment.deleteMany({
-      where: { ownerId: "provenance-user" },
+      where: {
+        OR: [
+          { id: { in: fixtureAssessmentIds } },
+          { ownerId: { in: fixtureUserIds } },
+        ],
+      },
     });
     await prisma.providerCredential.deleteMany({
-      where: { ownerUserId: "provenance-user" },
+      where: { ownerUserId: { in: fixtureUserIds } },
     });
     const prismaService = prisma as never;
     const encryption = new EnvelopeEncryptionService(
@@ -85,7 +116,9 @@ run("ConnectAssessmentRepository credential provenance", () => {
       prismaService,
       encryption,
     );
-    const config = { get: () => ({ enabled: true }) } as never;
+    const config = {
+      get: () => ({ enabled: true, snapshotPinningEnabled: true }),
+    } as never;
     const registry = { get: () => provider } as never;
     configure = new ConfigureProviderCredentialHandler(
       provider as never,

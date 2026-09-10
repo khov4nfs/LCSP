@@ -125,6 +125,8 @@ class MutableApi:
             "technicalCoverageState": "READY",
             "coverageLimitations": [],
             "publicState": dict(self.public_state),
+            "confirmedContext": getattr(self, "confirmed_context", None),
+            "rootWorkflowRunId": "c0000000-0000-0000-0000-000000000001",
             "privateRevision": {
                 "actorId": "user-actor-test",
                 "answer": {"freeText": "private customer context"},
@@ -228,6 +230,7 @@ def test_context_resolved_crash_retries_exact_continuation_without_interview_mod
     completion_calls: list[str] = []
 
     def exact_resumer(**_kwargs):
+        assert _kwargs["continuation"]["rootWorkflowRunId"] == "c0000000-0000-0000-0000-000000000001"
         resume_calls.append("resume")
         return {
             "executionId": "exec-17",
@@ -267,9 +270,9 @@ def test_context_resolved_crash_retries_exact_continuation_without_interview_mod
         "outcome": "CONTEXT_RESOLVED",
         "contextRevision": 2,
         "orchestrationRequested": False,
-        "confirmedContext": _confirmed_context(),
         "flags": [],
     }
+    api.confirmed_context = _confirmed_context()
 
     def successful_completer(**_kwargs):
         completion_calls.append("success")

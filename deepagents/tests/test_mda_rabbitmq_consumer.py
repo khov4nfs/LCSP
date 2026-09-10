@@ -293,3 +293,58 @@ def test_wait_for_api_ready_times_out_before_consuming(monkeypatch):
             timeout_seconds=0,
             stopping=Event(),
         )
+
+
+@pytest.mark.parametrize("wrapped", [False, True])
+def test_schema_type_failure_is_not_requeued(wrapped):
+    error = TypeError("invalid schema type")
+    if wrapped:
+        outer = RuntimeError("dispatch failed")
+        outer.__cause__ = error
+        error = outer
+    channel = FakeChannel()
+    completed = Future()
+    completed.set_exception(error)
+    rabbitmq_consumer._settle_delivery(
+        channel=channel, delivery_tag="schema-task", routing_key="event.test",
+        boundary_name="test_boundary", requeue_on_error=True, completed=completed,
+    )
+    assert channel.nacked == [("schema-task", False)]
+
+
+@pytest.mark.parametrize(
+    ("status_code", "requeued"),
+    [(409, False), (404, False), (422, False), (None, True)],
+)
+def test_rejected_api_callback_is_not_requeued(status_code, requeued):
+    # A boundary re-runs its model on every redelivery. When our own API rejects the
+    # resulting decision, requeueing the identical payload spends money on each attempt and
+    # never converges, so only an exhausted server failure stays retryable.
+    from tools.common.capabilities.platform.api_client import WorkerCallbackError
+
+    error = WorkerCallbackError(
+        "INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED: Callback failed with client error 409."
+        if status_code
+        else "Callback failed after 3 attempts with server error 503.",
+        status_code=status_code,
+    )
+    channel = FakeChannel()
+    completed = Future()
+    completed.set_exception(error)
+
+    rabbitmq_consumer._settle_delivery(
+        channel=channel, delivery_tag="callback-task", routing_key="command.test",
+        boundary_name="test_boundary", requeue_on_error=True, completed=completed,
+    )
+
+    assert channel.nacked == [("callback-task", requeued)]
+
+
+def test_a_malformed_api_response_is_not_mistaken_for_a_rejection():
+    # Response-shape failures carry no HTTP status and keep their retryable classification.
+    from tools.common.capabilities.platform.api_client import WorkerCallbackError
+
+    error = WorkerCallbackError("Interview Agent decision response was invalid.")
+
+    assert error.status_code is None
+    assert error.callback_client_error is False

@@ -947,6 +947,11 @@ class ScanBoundary(AgentBoundaryBase):
                 ),
                 tool_provenance=tool_registry.all(),
             )
+            from orchestration.technical_coverage_policy import attach_partial_coverage_policy
+
+            callback_payload.evidence_payload = attach_partial_coverage_policy(
+                callback_payload.evidence_payload
+            )
             assemble_ended_at = self._utc_timestamp()
             self._emit_runtime_event(
                 envelope.scan_job_id,

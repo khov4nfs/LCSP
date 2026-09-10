@@ -124,3 +124,33 @@ def test_registry_fails_closed_when_runtime_contract_differs(tmp_path: Path) -> 
             legal_context=_context(),
             source_fingerprint="sha256:fingerprint",
         )
+
+
+def test_absent_bundle_reports_the_base_contract_version(tmp_path: Path) -> None:
+    """No bundle is the normal pre-export state, so fingerprints must stay computable."""
+    overrides_path = tmp_path / "contract-overrides.json"
+    overrides_path.write_text("{}", encoding="utf-8")
+    registry = PrecompiledEngineeringRuleRegistry(
+        str(tmp_path / "missing-bundle.json"),
+        contract_overrides_path=str(overrides_path),
+    )
+
+    assert registry.contract_version == "base"
+
+
+def test_absent_bundle_still_fails_closed_on_recovery(tmp_path: Path) -> None:
+    overrides_path = tmp_path / "contract-overrides.json"
+    overrides_path.write_text("{}", encoding="utf-8")
+    registry = PrecompiledEngineeringRuleRegistry(
+        str(tmp_path / "missing-bundle.json"),
+        contract_overrides_path=str(overrides_path),
+    )
+
+    with pytest.raises(ValueError, match="BUNDLE_UNAVAILABLE"):
+        registry.materialize(
+            legal_rule=_legal_rule(),
+            legal_rule_catalog_version_id="catalog-1",
+            legal_corpus_version_id="corpus-1",
+            legal_context=_context(),
+            source_fingerprint="sha256:fingerprint",
+        )

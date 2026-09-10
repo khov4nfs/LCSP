@@ -10,7 +10,6 @@ from .legal_reasoning_contract import (
 )
 
 ENGINEERING_RULE_SCHEMA_VERSION = "1.1.0"
-DEV_ENGINEERING_RULE_BOOTSTRAP_RULE_FAMILY = "DEV_ENGINEERING_RULE_BOOTSTRAP"
 
 
 @dataclass(frozen=True)

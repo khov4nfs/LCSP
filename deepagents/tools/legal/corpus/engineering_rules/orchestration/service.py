@@ -1,7 +1,6 @@
 """Cache-aware orchestration for governed LegalRule -> EngineeringRule preparation."""
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from tools.legal.retrieval.legal_basis.chromadb_citation_retriever import ChromaDbCitationRetriever
@@ -14,7 +13,6 @@ from ..compilation.compiler import COMPILER_VERSION, PROMPT_VERSION, Engineering
 from ..compilation.chunk_triage import LegalChunkEngineeringRuleTriage
 from ..compilation.fingerprint import engineering_rule_fingerprint
 from ..contract.models import (
-    DEV_ENGINEERING_RULE_BOOTSTRAP_RULE_FAMILY,
     ENGINEERING_RULE_SCHEMA_VERSION,
     EngineeringRule,
     build_legal_reasoning_contract,
@@ -54,12 +52,13 @@ class EngineeringRuleService:
         workflow_run_id: str,
         correlation_id: str | None = None,
     ) -> tuple[list[EngineeringRule], bool]:
-        """Return only READY cached rules; never compile as an Assessment side effect.
+        """Return READY rules from cache, else rebuild them from the governed bundle.
 
         The method name remains temporarily for caller compatibility. LCSP-263 moves
-        business triage and EngineeringRule creation to the Legal Rule Triage subagent.
-        A cache miss therefore means the legal-preparation workflow has not produced a
-        READY EngineeringRule yet.
+        business triage and EngineeringRule creation to the Legal Rule Triage subagent,
+        so this never invokes an LLM. Warm-up is the primary path: Triage reasons once,
+        the export publishes that result, and a cleared cache rehydrates deterministically.
+        No rules means neither the cache nor the bundle can ground this LegalRule yet.
         """
         context, fingerprint = self.resolve_source_identity(
             legal_rule=legal_rule,
@@ -75,6 +74,43 @@ class EngineeringRuleService:
                 legal_context=context,
             ), True
 
+        if self.cache.is_triaged_without_rules(fingerprint):
+            # Triaged and legitimately empty is a finished state, not missing work.
+            return [], True
+
+        recovered = self._recover_precompiled_rules(
+            legal_rule=legal_rule,
+            legal_rule_catalog_version_id=legal_rule_catalog_version_id,
+            legal_corpus_version_id=legal_corpus_version_id,
+            legal_context=context,
+            source_fingerprint=fingerprint,
+        )
+        if recovered:
+            self.cache.put(fingerprint, recovered)
+            logger.info(
+                "ENGINEERING_RULE_RECOVERED_FROM_PRECOMPILED_BUNDLE",
+                legal_rule_id=self._legal_rule_id(legal_rule),
+                engineering_rule_count=len(recovered),
+                source_fingerprint=fingerprint,
+                workflow_run_id=workflow_run_id,
+                correlationId=correlation_id,
+            )
+            return recovered, False
+
+        if self._bundle_records_no_rules(legal_rule=legal_rule, legal_context=context):
+            self.cache.mark_no_engineering_rules(
+                fingerprint,
+                legal_rule_id=self._legal_rule_id(legal_rule),
+            )
+            logger.info(
+                "ENGINEERING_RULE_NO_CANDIDATES_RECOVERED_FROM_BUNDLE",
+                legal_rule_id=self._legal_rule_id(legal_rule),
+                source_fingerprint=fingerprint,
+                workflow_run_id=workflow_run_id,
+                correlationId=correlation_id,
+            )
+            return [], True
+
         logger.info(
             "ENGINEERING_RULE_NOT_READY",
             legal_rule_id=self._legal_rule_id(legal_rule),
@@ -83,6 +119,57 @@ class EngineeringRuleService:
             correlationId=correlation_id,
         )
         return [], False
+
+    def _bundle_records_no_rules(
+        self,
+        *,
+        legal_rule: dict[str, Any],
+        legal_context: list[dict[str, Any]],
+    ) -> bool:
+        """Ask the bundle whether triage already decided this rule yields nothing."""
+        try:
+            return self.precompiled_registry.records_no_engineering_rules(
+                legal_rule=legal_rule,
+                legal_context=legal_context,
+            )
+        except ValueError as error:
+            logger.info(
+                "ENGINEERING_RULE_PRECOMPILED_RECOVERY_UNAVAILABLE",
+                legal_rule_id=self._legal_rule_id(legal_rule),
+                reason=str(error)[:200],
+            )
+            return False
+
+    def _recover_precompiled_rules(
+        self,
+        *,
+        legal_rule: dict[str, Any],
+        legal_rule_catalog_version_id: str,
+        legal_corpus_version_id: str,
+        legal_context: list[dict[str, Any]],
+        source_fingerprint: str,
+    ) -> list[EngineeringRule]:
+        """Rebuild rules from the governed bundle, or return none if it cannot ground them.
+
+        Recovery stays fail-closed inside the registry: a missing bundle, an unlisted rule,
+        or any chunk whose content hash moved yields no rules and the caller reports
+        ENGINEERING_RULE_NOT_READY rather than serving stale legal grounding.
+        """
+        try:
+            return self.precompiled_registry.materialize(
+                legal_rule=legal_rule,
+                legal_rule_catalog_version_id=legal_rule_catalog_version_id,
+                legal_corpus_version_id=legal_corpus_version_id,
+                legal_context=legal_context,
+                source_fingerprint=source_fingerprint,
+            )
+        except ValueError as error:
+            logger.info(
+                "ENGINEERING_RULE_PRECOMPILED_RECOVERY_UNAVAILABLE",
+                legal_rule_id=self._legal_rule_id(legal_rule),
+                reason=str(error)[:200],
+            )
+            return []
 
     def prepare_from_triage(
         self,
@@ -120,6 +207,10 @@ class EngineeringRuleService:
                 raise ValueError(
                     "EngineeringRules cannot be persisted when triage produced no candidates"
                 )
+            self.cache.mark_no_engineering_rules(
+                fingerprint,
+                legal_rule_id=self._legal_rule_id(legal_rule),
+            )
             self._store_triage_artifact(
                 fingerprint=fingerprint,
                 legal_rule=legal_rule,
@@ -229,18 +320,13 @@ class EngineeringRuleService:
             str(item["id"]): str(item.get("contentSha256") or "")
             for item in context
         }
-        fingerprint_compiler_version = COMPILER_VERSION
-        rule_family = str(
-            legal_rule.get("ruleFamily") or legal_rule.get("rule_family") or ""
-        ).strip()
-        if (
-            self._allow_precompiled_fallback()
-            and rule_family == DEV_ENGINEERING_RULE_BOOTSTRAP_RULE_FAMILY
-        ):
-            fingerprint_compiler_version = (
-                f"{COMPILER_VERSION}|precompiled-contract:"
-                f"{self.precompiled_registry.contract_version}"
-            )
+        # Every rule family shares one identity. The precompiled contract version is part
+        # of it so that changing the technical overlay invalidates rules cached under the
+        # previous overlay instead of silently reusing them.
+        fingerprint_compiler_version = (
+            f"{COMPILER_VERSION}|precompiled-contract:"
+            f"{self.precompiled_registry.contract_version}"
+        )
         fingerprint = engineering_rule_fingerprint(
             legal_rule=legal_rule,
             legal_corpus_version_id=legal_corpus_version_id,
@@ -325,16 +411,6 @@ class EngineeringRuleService:
                 validate_engineering_rule(EngineeringRule.from_dict(item))
             )
         return prepared
-
-    @staticmethod
-    def _allow_precompiled_fallback() -> bool:
-        return os.getenv("ENGINEERING_RULE_ALLOW_PRECOMPILED_FALLBACK", "").strip() in {
-            "1",
-            "true",
-            "TRUE",
-            "yes",
-            "YES",
-        }
 
     @staticmethod
     def _retarget_cached_rules(

@@ -3,7 +3,9 @@ import httpx
 from unittest.mock import patch, MagicMock
 from pydantic import ValidationError
 
-from tools.common.capabilities.platform.api_client import WorkerApiClient, WorkerCallbackError
+from tools.common.capabilities.platform.api_client import (
+    InterviewResolutionCallbackError, WorkerApiClient, WorkerCallbackError,
+)
 from tools.common.capabilities.platform.callback_schemas import (
     ScanCallbackPayload,
     CallbackResponse,
@@ -24,6 +26,30 @@ def client():
 @pytest.fixture
 def dummy_payload():
     return ScanCallbackPayload(status="COMPLETED", findings=[])
+
+
+@pytest.mark.parametrize("meta,expected", [
+    ({"missing": "Explicit confirmation or denial, including external sources."},
+     "Explicit confirmation or denial, including external sources."),
+    ({"missing": ["invalid shape"]}, None),
+    (None, None),
+])
+def test_resolution_rejection_preserves_only_typed_private_feedback(client, meta, expected):
+    response = httpx.Response(409, json={
+        "ok": False,
+        "problem": {
+            "code": "INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED",
+            "meta": meta,
+        },
+    })
+    with patch("tools.common.capabilities.platform.api_client.httpx.post", return_value=response) as post:
+        with pytest.raises(InterviewResolutionCallbackError) as caught:
+            client.post_interview_agent_decision("assessment-1", {})
+    assert caught.value.missing == expected
+    assert caught.value.status_code == 409
+    assert caught.value.callback_client_error is True
+    assert "Explicit confirmation" not in str(caught.value)
+    post.assert_called_once()
 
 
 def test_t01_successful_callback(client, dummy_payload):

@@ -181,9 +181,54 @@ Defaults live in `model_policy.py` and can be overridden by deployment env vars.
 
 | Role | Default model | Workload |
 | --- | --- | --- |
-| Root orchestrator | `openai:gpt-5.6-terra` | coordination, delegation, todo/state management |
-| Planner | `openai:gpt-5.6-sol` | highest-reasoning scope construction |
-| Investigator | `openai:gpt-5.6-terra` | repeated tool-heavy technical investigation |
+| Root orchestrator | `openai:gpt-5-nano` | coordination, delegation, todo/state management |
+| Legal triage | `openai:gpt-5-nano` | legal work-item triage |
+| Interview | `openai:gpt-5-nano` | Customer business-context reasoning and clarification |
+| Planner | `openai:gpt-5-nano` | high-reasoning scope construction |
+| Investigator | `openai:gpt-5-nano` | repeated tool-heavy technical investigation |
+| Narrators/proposers | `openai:gpt-4.1-nano` | bounded narration and proposal fields without reasoning kwargs |
+
+OpenAI `provider:model` specs are constructed through an LCSP provider profile
+that explicitly sets the Responses API client contract:
+`use_responses_api=True` and `output_version="responses/v1"`. Reasoning is not
+enabled merely because the provider is OpenAI. LCSP attaches
+`reasoning={"effort": ...}` only when both conditions are true:
+
+1. the agent role is a reasoning owner (`root`, `triage`, `interview`, `planner`,
+   `investigator`, `lcsp-legal-chunk-triage`, `lcsp-engineering-rule-compiler`,
+   `lcsp-engineering-rule-planner`, `law_guided_investigator`, or
+   `lcsp-investigator-durable-execution`);
+2. the model is an OpenAI reasoning-capable model such as `gpt-5-mini`,
+   `gpt-5.1`, `gpt-5.6-*`, or an o-series reasoning model.
+
+Non-reasoning narrators/proposers omit reasoning even when their model is OpenAI:
+`lcsp-final-report-narrator`, `lcsp-classification-rationale-narrator`,
+`lcsp-classification-proposer`, and `lcsp-ai-usage-flow-proposer`. Overrides to
+non-reasoning models such as `openai:gpt-4.1-nano` also omit reasoning regardless
+of whether the Responses API or Chat Completions path is used. Reasoning effort
+defaults to `low` and can be overridden with `LCSP_REASONING_EFFORT` (with
+legacy aliases retained for deployment compatibility). LCSP does not request
+reasoning summaries and does not expose hidden chain-of-thought.
+
+Select all role models together with a code-owned preset:
+
+```env
+LCSP_MODEL_PROVIDER=openai
+# Or: LCSP_MODEL_PROVIDER=google_genai
+```
+
+OpenAI uses GPT-5 nano with low reasoning for reasoning roles and GPT-4.1 nano
+for narrators/proposers. Google uses Gemini 3.5 Flash-Lite for every role:
+reasoning roles receive `thinking_level="low"`; narrators/proposers receive `"minimal"`.
+Minimal reduces thinking but does not guarantee zero thinking tokens.
+The exact Google harness profile supports the reasoning root and subagents;
+narrators/proposers use the agent-scoped constructor with minimal thinking.
+
+An explicit provider preset takes precedence over legacy per-role model and
+reasoning environment variables. Unset `LCSP_MODEL_PROVIDER` to retain legacy
+per-role overrides. Unknown preset names fail at startup. Restart the worker
+after switching. This selects a provider at startup; it is not automatic
+failover/replay after an API error. Configure credentials for the selected provider.
 
 All role models receive the same LCSP harness profile.
 
@@ -240,3 +285,40 @@ LLM agents plan and investigate. Runtime Interview and Orchestration own Custome
 context clarification. Deterministic LCSP code owns claim validation,
 EngineeringRule evaluation, gap derivation boundaries, and the final authority
 trail.
+
+## Terminal schema failures
+
+Schema/type validation failures stop the affected task immediately. Shared model
+governance rejects structured-output repair messages and tool-argument validation
+messages before another model call. Native provider validation errors, Pydantic
+validation errors, TypeError, and HTTP 400/404/422 request rejection are non-retryable,
+including when wrapped by another exception. Transient model retries remain bounded
+at two retries. RabbitMQ rejects terminal deliveries with requeue disabled (dead
+lettering follows the queue's configured policy), and waiting-assessment reconciliation
+does not register terminal failures for automatic resume. Correct the schema/config
+before explicitly submitting a new task. Existing running workers need a restart.
+
+## Same-provider token fallback
+
+The selected provider can use an ordered comma-separated API key list:
+
+```env
+LCSP_MODEL_PROVIDER=openai
+OPENAI_API_KEY=token1,token2,token3,
+# For Google instead:
+# LCSP_MODEL_PROVIDER=google_genai
+# GOOGLE_API_KEY=token1,token2,token3,
+```
+
+Google also accepts `GEMINI_API_KEY` when `GOOGLE_API_KEY` is unset. Whitespace,
+empty entries and duplicate keys are removed; a non-empty list containing only
+commas/whitespace is invalid. A single key retains normal SDK behavior.
+
+For multiple keys, each model call tries keys in order on HTTP 401/403/429
+(including wrapped provider errors). SDK retries are disabled for these lists.
+The model, provider, reasoning/thinking settings, tools, and input stay the same.
+Schema/type errors and HTTP 400/404/422 stop immediately without trying another key.
+Exhausting the list stops the task without model retry, queue requeue, or automatic
+waiting-assessment resume. Completed tool operations are not replayed by token
+fallback. Token values are never included in fallback diagnostics. Restart workers
+after changing the environment. This is credential fallback, not data rollback.

@@ -22,7 +22,7 @@ class InspectDataPathRequest(CorrelatedToolInput):
 
 
 @tool(args_schema=InspectDataPathRequest)
-def inspect_data_path(runtime: ToolRuntime | None = None, **request: Any) -> dict[str, Any]:
+def inspect_data_path(runtime: ToolRuntime = None, **request: Any) -> dict[str, Any]:
     """Inspect a bounded data path without inferring unsupported business or legal meaning.
 
     Args:

@@ -15,10 +15,9 @@ from dataclasses import asdict
 from threading import Lock
 from typing import Any, Iterable
 
-from langchain.agents import create_agent
-
 from contracts.handoffs import InvestigatorResult
 from middleware.specialist_handoff_validation import _persist_targeted_interview_need
+from model_policy import create_lcsp_agent as create_agent
 from orchestration.context import LCSPRunContext
 from orchestration.result_validation import validate_specialist_handoff
 from subagents.investigator.definition import SUBAGENT as INVESTIGATOR_SUBAGENT
@@ -488,7 +487,8 @@ def resume_managed_investigator(
     context = LCSPRunContext(
         assessment_id=assessment_id,
         user_id=original_user_id,
-        workflow_run_id=thread_id,
+        workflow_run_id=continuation.get("rootWorkflowRunId") or thread_id,
+        correlation_id=correlation_id,
         checkpoint_id=checkpoint_id,
         artifact_versions=dict(artifact_versions),
         engineering_rule_ids=affected_rule_ids,
@@ -700,12 +700,12 @@ def _assert_execution_registry_matches_continuation(
 def _durable_investigator_agent(checkpointer: Any):
     definition = INVESTIGATOR_SUBAGENT
     return create_agent(
+        agent_name="lcsp-investigator-durable-execution",
         model=definition["model"],
         tools=definition["tools"],
         system_prompt=definition["system_prompt"],
         middleware=definition["middleware"],
         response_format=definition["response_format"],
-        name="lcsp-investigator-durable-execution",
         checkpointer=checkpointer,
     )
 

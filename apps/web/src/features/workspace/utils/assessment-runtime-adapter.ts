@@ -478,6 +478,7 @@ function normalizeInterview({
     return {
       outcome: null,
       activeQuestion: null,
+      assistantMessage: null,
       flags: [],
       hasDownstreamImpact: false,
       contextAuthority: null,
@@ -525,6 +526,7 @@ function normalizeInterview({
   return {
     outcome: isValidOutcome ? outcome : null,
     activeQuestion,
+    assistantMessage: sanitizedInterview.assistantMessage ?? null,
     flags,
     hasDownstreamImpact,
     contextAuthority: sanitizedInterview.contextAuthority ?? null,

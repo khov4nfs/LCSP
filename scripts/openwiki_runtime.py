@@ -4,12 +4,20 @@
 This runtime intentionally writes synthesized documentation only. It does not emit
 source code, secrets, or claim-grade evidence; downstream LCSP validators still
 require graph/source anchors for technical claims.
+
+The planner uses this keyless metadata generator when a materialized snapshot has
+no prebuilt openwiki/ directory. Existing docs are read without invoking a runtime.
+The generated docs live only in that snapshot workspace and are cleaned up with
+it; a new snapshot gets fresh hints. This does not initialize the OpenWiki CLI,
+install workflows, or modify AGENTS.md. OPENWIKI_RUNTIME_COMMAND remains an
+explicit operator override; unavailable or irrelevant hints still select all rules.
 """
 
 from __future__ import annotations
 
 from collections import Counter
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -85,8 +93,8 @@ def main() -> int:
     wiki.mkdir(parents=True, exist_ok=True)
 
     files = list(_iter_files(root))
-    manifests = _manifest_summaries(root)
-    dependencies = _dependencies(root)
+    manifests = _manifest_summaries(root, files)
+    dependencies = _dependencies(root, files)
     top_dirs = _top_directories(files)
     keyword_hits = _keyword_hits(files, manifests, dependencies)
 
@@ -103,22 +111,23 @@ def main() -> int:
 
 def _iter_files(root: Path):
     count = 0
-    for path in sorted(root.rglob("*")):
-        if count >= MAX_FILES:
-            break
-        if not path.is_file():
-            continue
-        if any(part in SKIP_DIRS for part in path.relative_to(root).parts):
-            continue
-        count += 1
-        yield path
+    for directory, dirs, names in os.walk(root, followlinks=False):
+        dirs[:] = sorted(name for name in dirs if name not in SKIP_DIRS and not name.startswith("."))
+        for name in sorted(names):
+            if count >= MAX_FILES:
+                return
+            path = Path(directory) / name
+            if name.startswith(".") or path.is_symlink() or not path.is_file():
+                continue
+            count += 1
+            yield path
 
 
-def _manifest_summaries(root: Path) -> list[str]:
+def _manifest_summaries(root: Path, files: list[Path]) -> list[str]:
     summaries: list[str] = []
     for name in ("package.json", "pyproject.toml", "pnpm-workspace.yaml"):
-        for path in sorted(root.rglob(name)):
-            if any(part in SKIP_DIRS for part in path.relative_to(root).parts):
+        for path in files:
+            if path.name != name:
                 continue
             summaries.append(str(path.relative_to(root)))
             if len(summaries) >= 40:
@@ -126,14 +135,17 @@ def _manifest_summaries(root: Path) -> list[str]:
     return summaries
 
 
-def _dependencies(root: Path) -> list[str]:
+def _dependencies(root: Path, files: list[Path]) -> list[str]:
     names: list[str] = []
-    for package_json in sorted(root.rglob("package.json")):
-        if any(part in SKIP_DIRS for part in package_json.relative_to(root).parts):
+    for package_json in files:
+        if package_json.name != "package.json":
             continue
         try:
-            data = json.loads(package_json.read_text(encoding="utf-8")[:120_000])
-        except (OSError, json.JSONDecodeError):
+            with package_json.open(encoding="utf-8") as stream:
+                data = json.loads(stream.read(120_000))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(data, dict):
             continue
         for key in (
             "dependencies",
@@ -174,7 +186,6 @@ def _keyword_hits(
             *(str(path.relative_to(Path.cwd())) for path in files[:MAX_PATHS]),
             *manifests,
             *dependencies,
-            *PLANNER_VOCABULARY,
         ]
     ).lower()
     result: dict[str, int] = {}

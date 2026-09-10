@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const workerAgentPath = join(rootDir, "deepagents");
-const defaultChromaPath = join(rootDir, "tmp", "lcsp-legal-chroma");
+const defaultChromaPath = join(rootDir, ".chroma");
 
 const commands = {
   corpus: {

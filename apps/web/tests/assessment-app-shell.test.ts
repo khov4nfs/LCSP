@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
-import React, { createElement, type ComponentType, type ReactNode } from "react";
+import React, {
+  createElement,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const shellPath = new URL(
@@ -18,6 +22,10 @@ const sidebarNavItemPath = new URL(
 );
 const recentAssessmentItemPath = new URL(
   "../src/features/workspace/components/molecules/recent-assessment-item.tsx",
+  import.meta.url,
+);
+const assessmentActionsMenuPath = new URL(
+  "../src/features/workspace/components/molecules/assessment-actions-menu.tsx",
   import.meta.url,
 );
 const recentEmptyMessagePath = new URL(
@@ -163,7 +171,10 @@ test("assessment app shell exposes the LCSP-267 state machine and slots", async 
   assert.match(shellSource, /data-shell-screen/);
   assert.match(slotSource, /export function LeftSidebarSlot/);
   assert.match(slotSource, /export function CenterContentSlot/);
-  assert.match(shellSource, /flex h-full min-h-0 flex-1 overflow-hidden bg-muted\/10/);
+  assert.match(
+    shellSource,
+    /flex h-full min-h-0 flex-1 overflow-hidden bg-muted\/10/,
+  );
   assert.match(slotSource, /export function AssessmentRightPanelSlot/);
 });
 
@@ -207,7 +218,10 @@ test("LCSP-272 right assessment sidebar keeps one shared 420px slot and mobile s
   assert.match(slotSource, /w-105/);
   assert.doesNotMatch(slotSource, /AssessmentRightPanelSlotV2/);
   assert.doesNotMatch(slotSource, /RuntimeSidebarSlot|FixedRightSidebar/);
-  assert.equal((shellSource.match(/<AssessmentRuntimeSidebar/g) ?? []).length, 2);
+  assert.equal(
+    (shellSource.match(/<AssessmentRuntimeSidebar/g) ?? []).length,
+    2,
+  );
   assert.match(shellSource, /<SheetContent[\s\S]*side="right"/);
   assert.match(shellSource, /<AssessmentRuntimeSidebar assessmentId=/);
   assert.match(sidebarSource, /export function AssessmentRuntimeSidebar/);
@@ -251,9 +265,7 @@ test("LCSP-272 right assessment sidebar follows Figma spacing, icon, and alignme
 test("LCSP-278 right sidebar layout keeps the center pane shrinkable and overflow-contained", async () => {
   Object.assign(globalThis, { React });
   const { AssessmentRightPanelSlot, CenterContentSlot, LeftSidebarSlot } =
-    await import(
-      "../src/features/workspace/components/organisms/assessment-shell-slots"
-    );
+    await import("../src/features/workspace/components/organisms/assessment-shell-slots");
   const LeftSlot = LeftSidebarSlot as ComponentType<{
     collapsed: boolean;
     children?: ReactNode;
@@ -288,8 +300,7 @@ test("LCSP-278 right sidebar layout keeps the center pane shrinkable and overflo
           "div",
           {
             "data-testid": "body-row",
-            className:
-              "flex h-full min-h-0 flex-1 overflow-hidden bg-muted/10",
+            className: "flex h-full min-h-0 flex-1 overflow-hidden bg-muted/10",
           },
           createElement(
             CenterSlot,
@@ -333,10 +344,7 @@ test("LCSP-278 right sidebar layout keeps the center pane shrinkable and overflo
     html,
     /data-slot="assessment-right-panel" data-state="open" class="hidden h-full min-h-0 w-105 shrink-0 overflow-hidden border-l border-border\/70 bg-muted\/20 xl:flex"/,
   );
-  assert.equal(
-    html.match(/data-slot="assessment-right-panel"/g)?.length,
-    1,
-  );
+  assert.equal(html.match(/data-slot="assessment-right-panel"/g)?.length, 1);
   assert.match(
     html,
     /data-testid="runtime-sidebar" class="flex h-full min-h-0 w-full flex-col overflow-hidden bg-background\/95"/,
@@ -468,6 +476,29 @@ test("app sidebar exposes the Figma sidebar item state contracts", async () => {
     /hover:border-sidebar-border hover:bg-sidebar-accent/,
   );
   assert.match(recentItemSource, /h-8\.5/);
+});
+
+test("assessment sidebar items reveal a three-dot actions popover with rename and delete", async () => {
+  const [recentItemSource, actionsSource, workspaceClientSource] =
+    await Promise.all([
+      readFile(recentAssessmentItemPath, "utf8"),
+      readFile(assessmentActionsMenuPath, "utf8"),
+      readFile(workspaceClientPath, "utf8"),
+    ]);
+
+  assert.match(recentItemSource, /AssessmentActionsMenu/);
+  assert.match(actionsSource, /MoreHorizontalIcon/);
+  assert.match(actionsSource, /group-hover:opacity-100/);
+  assert.match(actionsSource, /group-focus-within:opacity-100/);
+  assert.match(actionsSource, /DropdownMenuContent/);
+  assert.match(actionsSource, /rounded-xl border border-border bg-popover/);
+  assert.match(actionsSource, /PencilIcon/);
+  assert.match(actionsSource, /Trash2Icon/);
+  assert.match(actionsSource, /variant="destructive"/);
+  assert.match(actionsSource, /useRenameAssessmentMutation/);
+  assert.match(actionsSource, /useDeleteAssessmentMutation/);
+  assert.match(workspaceClientSource, /method: "PATCH"/);
+  assert.match(workspaceClientSource, /method: "DELETE"/);
 });
 
 test("recent filter popover renders main rows, submenus, and preserved selection state", async () => {

@@ -4,10 +4,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tools.legal.corpus.engineering_rules.contract.models import (
-    DEV_ENGINEERING_RULE_BOOTSTRAP_RULE_FAMILY,
-    EngineeringRule,
-)
+from tools.legal.corpus.engineering_rules.contract.models import EngineeringRule
 from tools.legal.corpus.engineering_rules.orchestration.service import EngineeringRuleService
 
 
@@ -86,8 +83,12 @@ def _service(
     ]
     cache = MagicMock()
     cache.get.return_value = list(cached or [])
+    # No triage decision recorded unless a test says otherwise.
+    cache.is_triaged_without_rules.return_value = False
     registry = MagicMock()
     registry.contract_version = contract_version
+    # No bundle decision recorded unless a test says otherwise.
+    registry.records_no_engineering_rules.return_value = False
     return (
         EngineeringRuleService(
             compiler=compiler,
@@ -130,11 +131,34 @@ def test_ready_rule_uses_cache_without_compilation() -> None:
     registry.materialize.assert_not_called()
 
 
-def test_assessment_cache_miss_does_not_compile_or_materialize_fallback() -> None:
+def test_cache_miss_recovers_from_the_precompiled_bundle_for_any_rule_family() -> None:
+    recovered = _engineering_rule()
     service, compiler, cache, registry = _service(cached=[])
+    registry.materialize.return_value = [recovered]
 
     rules, cache_hit = service.get_or_compile(
-        legal_rule=_legal_rule(family=DEV_ENGINEERING_RULE_BOOTSTRAP_RULE_FAMILY),
+        legal_rule=_legal_rule(),
+        legal_rule_catalog_version_id="catalog-1",
+        legal_corpus_version_id="corpus-1",
+        workflow_run_id="assessment-run-1",
+    )
+
+    assert rules == [recovered]
+    # Recovery rehydrates the cache but is not itself a cache hit.
+    assert cache_hit is False
+    registry.materialize.assert_called_once()
+    assert cache.put.call_args.args[1] == [recovered]
+    compiler.compile.assert_not_called()
+
+
+def test_cache_miss_stays_not_ready_when_the_bundle_cannot_ground_the_rule() -> None:
+    service, compiler, cache, registry = _service(cached=[])
+    registry.materialize.side_effect = ValueError(
+        "PRECOMPILED_ENGINEERING_RULE_BUNDLE_UNAVAILABLE:LEGAL-1"
+    )
+
+    rules, cache_hit = service.get_or_compile(
+        legal_rule=_legal_rule(),
         legal_rule_catalog_version_id="catalog-1",
         legal_corpus_version_id="corpus-1",
         workflow_run_id="assessment-run-1",
@@ -142,36 +166,11 @@ def test_assessment_cache_miss_does_not_compile_or_materialize_fallback() -> Non
 
     assert rules == []
     assert cache_hit is False
-    assert cache.get.called
     cache.put.assert_not_called()
     compiler.compile.assert_not_called()
-    registry.materialize.assert_not_called()
 
 
-def test_assessment_cache_miss_stays_ready_only_when_fallback_flag_enabled(
-    monkeypatch,
-) -> None:
-    monkeypatch.setenv("ENGINEERING_RULE_ALLOW_PRECOMPILED_FALLBACK", "1")
-    service, compiler, cache, registry = _service(cached=[])
-
-    rules, cache_hit = service.get_or_compile(
-        legal_rule=_legal_rule(family=DEV_ENGINEERING_RULE_BOOTSTRAP_RULE_FAMILY),
-        legal_rule_catalog_version_id="catalog-1",
-        legal_corpus_version_id="corpus-1",
-        workflow_run_id="assessment-run-1",
-    )
-
-    assert rules == []
-    assert cache_hit is False
-    cache.put.assert_not_called()
-    compiler.compile.assert_not_called()
-    registry.materialize.assert_not_called()
-
-
-def test_enabled_bootstrap_contract_version_changes_cache_fingerprint(
-    monkeypatch,
-) -> None:
-    monkeypatch.setenv("ENGINEERING_RULE_ALLOW_PRECOMPILED_FALLBACK", "1")
+def test_contract_version_changes_cache_fingerprint_for_every_rule_family() -> None:
     service_v1, _, cache_v1, _ = _service(
         cached=[_engineering_rule()],
         contract_version="transparency-v1",
@@ -183,9 +182,7 @@ def test_enabled_bootstrap_contract_version_changes_cache_fingerprint(
 
     for service in (service_v1, service_v2):
         service.get_or_compile(
-            legal_rule=_legal_rule(
-                family=DEV_ENGINEERING_RULE_BOOTSTRAP_RULE_FAMILY
-            ),
+            legal_rule=_legal_rule(),
             legal_rule_catalog_version_id="catalog-1",
             legal_corpus_version_id="corpus-1",
             workflow_run_id="assessment-run-1",
@@ -296,3 +293,45 @@ def test_triage_cannot_persist_rules_without_candidates() -> None:
 
     cache.put.assert_not_called()
     store_triage_artifact.assert_not_called()
+
+
+def test_context_only_rule_is_recorded_as_decided_not_missing() -> None:
+    """A legitimately context-only LegalRule must not look like unprepared work."""
+    service, _, cache, registry = _service(cached=[])
+
+    rules, cache_hit = service.prepare_from_triage(
+        legal_rule=_legal_rule(),
+        legal_rule_catalog_version_id="catalog-1",
+        legal_corpus_version_id="corpus-1",
+        chunk_analyses=[
+            {
+                "chunkId": "LAW:A1",
+                "verdict": "CONTEXT_ONLY",
+                "reason": "Definition supplying vocabulary only.",
+            }
+        ],
+        engineering_rule_rows=[],
+        workflow_run_id="triage-run-1",
+    )
+
+    assert rules == []
+    assert cache_hit is False
+    cache.mark_no_engineering_rules.assert_called_once()
+    registry.materialize.assert_not_called()
+
+
+def test_decided_empty_rule_reads_back_without_re_requesting_triage() -> None:
+    service, _, cache, registry = _service(cached=[])
+    cache.is_triaged_without_rules.return_value = True
+
+    rules, cache_hit = service.get_or_compile(
+        legal_rule=_legal_rule(),
+        legal_rule_catalog_version_id="catalog-1",
+        legal_corpus_version_id="corpus-1",
+        workflow_run_id="assessment-run-1",
+    )
+
+    assert rules == []
+    # cache_hit True is what stops the readiness gate treating this as missing work.
+    assert cache_hit is True
+    registry.materialize.assert_not_called()

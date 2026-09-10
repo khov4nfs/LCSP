@@ -136,15 +136,15 @@ export function ChatSingleSelect({
             }}
             onKeyDown={(event) => handleKeyDown(event, index)}
             className={cn(
-              "flex h-9 min-w-0 items-center gap-3 rounded-lg px-3 text-left text-[13.5px] leading-4.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:pointer-events-none disabled:opacity-50",
+              "flex min-h-9 min-w-0 items-start gap-3 rounded-lg px-3 py-2 text-left text-[13.5px] leading-4.5 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 disabled:pointer-events-none disabled:opacity-50",
               selected
-                ? "bg-chart-3/20 text-foreground hover:bg-chart-3/25"
+                ? "bg-chart-3/20 text-foreground hover:bg-chart-3/25 disabled:opacity-100"
                 : "text-foreground hover:bg-accent",
             )}
           >
             <span
               className={cn(
-                "relative size-4 shrink-0 rounded-full border border-muted-foreground/70",
+                "relative mt-0.5 size-4 shrink-0 rounded-full border border-muted-foreground/70",
                 selected && "border-primary bg-primary/10",
               )}
               aria-hidden="true"
@@ -153,12 +153,14 @@ export function ChatSingleSelect({
                 <span className="absolute top-1/2 left-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary" />
               ) : null}
             </span>
-            <span className="min-w-0 flex-1 truncate">{option.label}</span>
-            {assistiveText ? (
-              <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:inline">
-                {assistiveText}
-              </span>
-            ) : null}
+            <span className="min-w-0 flex-1 whitespace-normal wrap-anywhere">
+              <span>{option.label}</span>
+              {assistiveText ? (
+                <span className="mt-1 block text-[11px] text-muted-foreground">
+                  {assistiveText}
+                </span>
+              ) : null}
+            </span>
             {option.description ? (
               <span id={descriptionId} className="sr-only">
                 {option.description}

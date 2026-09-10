@@ -9,12 +9,28 @@ import time
 
 import httpx
 from langchain.tools import ToolRuntime
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from orchestration.context import LCSPRunContext
 
 
-class AgenticToolRequest(BaseModel):
+class RuntimeInjectedInput(BaseModel):
+    """Validate model data separately from LangGraph's injected runtime.
+
+    LangChain validates explicit args_schema before reattaching injected arguments.
+    Only an actual ToolRuntime is removed here; model-authored dictionaries remain
+    forbidden extra fields. The original runtime is forwarded by StructuredTool.
+    """
+
+    @model_validator(mode="before")
+    @classmethod
+    def separate_injected_runtime(cls, value: Any) -> Any:
+        if isinstance(value, dict) and isinstance(value.get("runtime"), ToolRuntime):
+            return {key: item for key, item in value.items() if key != "runtime"}
+        return value
+
+
+class AgenticToolRequest(RuntimeInjectedInput):
     """Model-visible tool payload.
 
     Trusted identity and pinned artifact fields are injected only from
@@ -28,7 +44,7 @@ class AgenticToolRequest(BaseModel):
     input: dict[str, Any] = Field(default_factory=dict, description="Tool-specific input object.")
 
 
-class CorrelatedToolInput(BaseModel):
+class CorrelatedToolInput(RuntimeInjectedInput):
     """Base class for domain-specific model-visible tool arguments."""
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
@@ -84,7 +100,7 @@ def trusted_agentic_tool_request(
         assessment_id=context.assessment_id,
         user_id=context.user_id,
         workflow_run_id=context.workflow_run_id,
-        correlation_id=value.correlation_id,
+        correlation_id=context.correlation_id or value.correlation_id,
         artifact_versions=dict(context.artifact_versions),
         input=value.input,
     )

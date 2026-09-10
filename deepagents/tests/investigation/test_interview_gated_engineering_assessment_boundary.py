@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
+import pytest
 
 from tools.common.capabilities.assessment.investigation.engineering_rule.interview_gated_boundary import (
     InterviewGatedEngineeringAssessmentBoundary,
@@ -8,6 +9,8 @@ from tools.common.capabilities.assessment.investigation.engineering_rule.intervi
 from tools.common.capabilities.assessment.investigation.engineering_rule.managed_targeted_investigator import (
     ManagedTargetedInvestigatorPipeline,
 )
+from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
+from tools.common.capabilities.platform.api_client import WorkerCallbackError
 
 
 class FakeApi:
@@ -98,9 +101,94 @@ def _report():
             "evidence_graph": {
                 "coverage_state": "PARTIAL",
                 "coverage_notes": ["dynamic configuration not fully observed"],
+                "partialCoveragePolicyDecision": {
+                    "permittedForInterview": True,
+                    "policyDecisionRef": "policy:snapshot-1",
+                    "policyVersion": "v1",
+                    "limitations": ["dynamic configuration not fully observed"],
+                },
             }
         },
     }
+
+
+def test_stale_accepted_evidence_event_is_terminal_before_interview_dispatch() -> None:
+    api = FakeApi({"outcome": "WAITING_FOR_CUSTOMER", "contextRevision": 0})
+    api.get_accepted_technical_evidence_report = lambda _report_id: (_ for _ in ()).throw(
+        WorkerCallbackError(
+            "VALIDATION_FAILED: Callback failed with client error 404.", status_code=404
+        )
+    )
+    dispatcher = FakeDispatcher()
+    boundary = _boundary(api, dispatcher)
+
+    with pytest.raises(NonRetryableAgentBoundaryError, match="client error 404"):
+        boundary.handle(
+            {"evidenceReportId": "stale-ter", "assessmentId": "assessment-1"},
+            "corr-stale",
+        )
+
+    assert dispatcher.calls == []
+    assert api.seeded == []
+
+
+@pytest.mark.parametrize("invalid_policy", [None, {},
+    {"permittedForInterview": False, "policyDecisionRef": "ref", "policyVersion": "v1", "limitations": ["gap"]},
+    {"permittedForInterview": True, "policyDecisionRef": " ", "policyVersion": "v1", "limitations": ["gap"]},
+    {"permittedForInterview": True, "policyDecisionRef": "ref", "policyVersion": "v1", "limitations": [" ", 3]},
+])
+def test_invalid_partial_policy_never_dispatches_interview(invalid_policy):
+    api = FakeApi({"outcome": "WAITING_FOR_CUSTOMER", "contextRevision": 0})
+    dispatcher = FakeDispatcher()
+    root = RecordingRoot()
+    report = _report()
+    report["evidence_payload"]["evidence_graph"]["partialCoveragePolicyDecision"] = invalid_policy
+    _boundary(api, dispatcher, root)._prepare_interview(
+        evidence_report=report, evidence_report_id="ter-1",
+        assessment_id="assessment-1", correlation_id="corr",
+    )
+    assert dispatcher.calls == []
+    assert api.seeded == []
+    assert len(root.calls) == 1
+
+
+def test_coverage_callback_rejection_routes_to_recovery(monkeypatch):
+    from tools.common.capabilities.platform.api_client import InterviewCoverageCallbackError
+    api = FakeApi({"outcome": "WAITING_FOR_CUSTOMER", "contextRevision": 0})
+    def reject(*args):
+        raise InterviewCoverageCallbackError("coverage changed")
+    monkeypatch.setattr(api, "post_interview_initial_question", reject)
+    dispatcher = FakeDispatcher()
+    root = RecordingRoot()
+    _boundary(api, dispatcher, root)._prepare_interview(
+        evidence_report=_report(), evidence_report_id="ter-1",
+        assessment_id="assessment-1", correlation_id="corr",
+        workflow_run_id="workflow-1",
+    )
+    assert len(dispatcher.calls) == 1
+    assert len(root.calls) == 1
+    assert api.seeded == []
+
+
+@pytest.mark.parametrize("graph_key", ["evidence_graph", "evidenceGraph", "programEvidenceGraph", "program_evidence_graph"])
+def test_payload_policy_limitations_authorize_partial_without_graph_notes(graph_key):
+    report = _report()
+    payload = report["evidence_payload"]
+    graph = payload.pop("evidence_graph")
+    payload[graph_key] = graph
+    policy = graph.pop("partialCoveragePolicyDecision")
+    policy["limitations"] = ["bounded policy limitation"]
+    payload["partial_coverage_policy_decision"] = policy
+    graph["coverage_notes"] = []
+    api = FakeApi({"outcome": "WAITING_FOR_CUSTOMER", "contextRevision": 0})
+    dispatcher = FakeDispatcher()
+    _boundary(api, dispatcher)._prepare_interview(
+        evidence_report=report, evidence_report_id="ter-1",
+        assessment_id="assessment-1", correlation_id="corr",
+        workflow_run_id="workflow-1",
+    )
+    assert len(api.seeded) == 1
+    assert "bounded policy limitation" in dispatcher.calls[0]["instruction"]
 
 
 def _structured_context(*, revision: int = 2):
@@ -229,6 +317,7 @@ def test_partial_without_preserved_limitations_routes_to_recovery() -> None:
     boundary = _boundary(api, dispatcher, recovery_root=root)
     report = _report()
     report["evidence_payload"]["evidence_graph"]["coverage_notes"] = []
+    report["evidence_payload"]["evidence_graph"]["partialCoveragePolicyDecision"]["limitations"] = []
 
     boundary._prepare_interview(
         evidence_report=report,

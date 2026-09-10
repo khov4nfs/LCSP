@@ -29,6 +29,10 @@ Object.defineProperty(globalThis, "navigator", {
   configurable: true,
   value: testWindow.navigator,
 });
+Object.defineProperty(globalThis, "Element", {
+  configurable: true,
+  value: testWindow.Element,
+});
 Object.defineProperty(globalThis, "HTMLElement", {
   configurable: true,
   value: testWindow.HTMLElement,
@@ -209,11 +213,13 @@ function InterviewInteractiveHarness({
     "div",
     null,
     React.createElement(AssessmentQuestionTurn, {
+      canSubmitSelection: isSubmitReady,
       disabled,
       isAdjusting,
       onAdjust: () => setIsAdjusting(true),
       onSubmitAnswer: onSubmit,
       onSelectedChoiceIdsChange: setSelectedChoiceIds,
+      onSubmitSelection: handleSubmit,
       question,
       selectedChoiceIds,
     }),
@@ -243,7 +249,10 @@ test("FREE_TEXT: renders question without inline textarea, uses shared composer 
     }),
   );
 
-  assert.match(container.textContent ?? "", /Describe this system architecture/);
+  assert.match(
+    container.textContent ?? "",
+    /Describe this system architecture/,
+  );
 
   const questionTurn = container.querySelector(
     "[data-slot='assessment-question-turn']",
@@ -306,7 +315,8 @@ test("SINGLE_SELECT: click updates selection only (no mutation), Enter/Send subm
     }),
   );
 
-  const radios = container.querySelectorAll<HTMLButtonElement>("[role='radio']");
+  const radios =
+    container.querySelectorAll<HTMLButtonElement>("[role='radio']");
   assert.equal(radios.length, 2);
 
   // Click option A -> selects A only, mutation NOT called
@@ -362,7 +372,8 @@ test("OTHER / requiresFreeText: requires custom text in shared composer before s
     }),
   );
 
-  const radios = container.querySelectorAll<HTMLButtonElement>("[role='radio']");
+  const radios =
+    container.querySelectorAll<HTMLButtonElement>("[role='radio']");
   assert.equal(radios.length, 2);
 
   // Select option with requiresFreeText
@@ -424,7 +435,8 @@ test("OTHER IS NOT HARDCODED: custom choice where label is not 'Other' triggers 
     }),
   );
 
-  const radios = container.querySelectorAll<HTMLButtonElement>("[role='radio']");
+  const radios =
+    container.querySelectorAll<HTMLButtonElement>("[role='radio']");
   await click(radios[1]);
 
   const sendButton = container.querySelector(
@@ -447,6 +459,58 @@ test("OTHER IS NOT HARDCODED: custom choice where label is not 'Other' triggers 
   });
 });
 
+test("selection controls expose an inline send action that arms only after a choice", async () => {
+  // Regression: choosing an option only staged a draft. The sole way to send it was the
+  // composer arrow inside an empty text box, so a chosen answer looked submitted while
+  // nothing reached the API.
+  for (const question of [
+    {
+      control: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+      id: "q-bool-send",
+      intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+      prompt: "Does this workflow require secondary human review?",
+    },
+    {
+      control: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+      id: "q-single-send",
+      intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+      prompt: "How are results used?",
+      choices: [
+        { id: "internal", label: "Internal advice" },
+        { id: "gate", label: "Formal gate" },
+      ],
+    },
+  ] satisfies AssessmentInterviewQuestion[]) {
+    const submissions: unknown[] = [];
+    const { container } = await renderElement(
+      React.createElement(InterviewInteractiveHarness, {
+        onSubmit: (payload) => submissions.push(payload),
+        question,
+      }),
+    );
+
+    const sendAction = container.querySelector<HTMLButtonElement>(
+      "[data-slot='selection-submit-action'] button",
+    );
+    assert.ok(sendAction, `${question.control} must offer an inline send action`);
+    assert.equal(sendAction.disabled, true);
+    await click(sendAction);
+    assert.equal(submissions.length, 0);
+
+    await click(container.querySelectorAll<HTMLButtonElement>("[role='radio']")[1]);
+    assert.equal(sendAction.disabled, false);
+    await click(sendAction);
+
+    assert.equal(submissions.length, 1);
+    assert.deepEqual(submissions[0], {
+      questionId: question.id,
+      selectedChoiceIds: [
+        question.control === ASSESSMENT_INTERVIEW_CONTROLS.boolean ? "no" : "gate",
+      ],
+    });
+  }
+});
+
 test("BOOLEAN: uses ChatSingleSelect, selection on click, submits on Enter/Send", async () => {
   const submissions: unknown[] = [];
   const question: AssessmentInterviewQuestion = {
@@ -463,7 +527,8 @@ test("BOOLEAN: uses ChatSingleSelect, selection on click, submits on Enter/Send"
     }),
   );
 
-  const radios = container.querySelectorAll<HTMLButtonElement>("[role='radio']");
+  const radios =
+    container.querySelectorAll<HTMLButtonElement>("[role='radio']");
   assert.equal(radios.length, 2);
 
   // Click Yes
@@ -504,9 +569,8 @@ test("MULTI_SELECT: supports toggle selection, deselect, and multi-value submiss
     }),
   );
 
-  const checkboxes = container.querySelectorAll<HTMLButtonElement>(
-    "[role='checkbox']",
-  );
+  const checkboxes =
+    container.querySelectorAll<HTMLButtonElement>("[role='checkbox']");
   assert.equal(checkboxes.length, 3);
 
   // Select A and B
@@ -650,6 +714,33 @@ test("ASK vs CLARIFY: preserves semantic data-intent attribute without rewrite",
       ?.getAttribute("data-intent"),
     "CLARIFY",
   );
+});
+
+test("question renders once and prior answer summary is hidden when history is visible", async () => {
+  const question: AssessmentInterviewQuestion = {
+    control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+    id: "q-summary",
+    intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
+    prompt: "What does workflow gating block?",
+    priorAnswerSummary: "Only the assessment is paused.",
+  };
+
+  for (const answerHistoryVisible of [false, true]) {
+    const { container } = await renderElement(
+      React.createElement(AssessmentQuestionTurn, {
+        question,
+        answerHistoryVisible,
+      }),
+    );
+    assert.equal(container.textContent?.split(question.prompt).length, 2);
+    const summary = container.querySelector(
+      "[data-slot='selection-history-row']",
+    );
+    assert.equal(
+      summary?.textContent ?? null,
+      answerHistoryVisible ? null : question.priorAnswerSummary,
+    );
+  }
 });
 
 test("CUSTOMER-SAFE EVIDENCE: raw evidence refs are absent from visible text, DOM attributes, and markup", async () => {

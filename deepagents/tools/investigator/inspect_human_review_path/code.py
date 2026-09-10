@@ -21,7 +21,7 @@ class InspectHumanReviewPathRequest(CorrelatedToolInput):
 
 
 @tool(args_schema=InspectHumanReviewPathRequest)
-def inspect_human_review_path(runtime: ToolRuntime | None = None, **request: Any) -> dict[str, Any]:
+def inspect_human_review_path(runtime: ToolRuntime = None, **request: Any) -> dict[str, Any]:
     """Inspect bounded human-review and override evidence for the active technical scope.
 
     Args:

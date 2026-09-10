@@ -1,8 +1,14 @@
 from types import SimpleNamespace
+from copy import deepcopy
+import json
+from unittest.mock import Mock
 
 import pytest
 
 from tools.common.capabilities.managed.invocation import invocation_boundary_manifest
+from tools.common.capabilities.platform.api_client import (
+    InterviewResolutionCallbackError, WorkerCallbackError,
+)
 from tools.common.capabilities.workflow.recovery.interview_boundary import (
     AssessmentInterviewResumeBoundary,
     INTERVIEW_RESUME_COMMAND,
@@ -153,6 +159,78 @@ def _message(*, reason="INTERVIEW_AGENT_DECISION_REQUIRED", revision=2):
         "pgeVersion": "ter-1:v1",
         "resumeReason": reason,
     }
+
+
+@pytest.mark.parametrize("corrected_outcome", ["WAITING_FOR_CUSTOMER", "CONTEXT_RESOLVED"])
+def test_resolution_rejection_gets_one_private_correction_before_continuation(corrected_outcome):
+    api = RecordingApi()
+    context = api.get_interview_private_context("assessment-1", 2)
+    context["targetedNeed"] = {
+        "needId": "need-1",
+        "businessContextNeed": "Clarify the status of external data sources.",
+        "resolutionCriteria": [
+            "Explicit confirmation or denial regarding external data sources.",
+        ],
+    }
+    api.get_interview_private_context = Mock(return_value=context)
+    original_context = deepcopy(context)
+    api.post_interview_progress = Mock()
+    rejected = {**deepcopy(WAITING_HANDOFF), "mode": "INVESTIGATOR_RESOLUTION", "outcome": "CONTEXT_RESOLVED", "activeQuestion": None}
+    corrected = {**deepcopy(WAITING_HANDOFF), "mode": "INVESTIGATOR_RESOLUTION", "outcome": corrected_outcome}
+    if corrected_outcome == "CONTEXT_RESOLVED":
+        corrected["activeQuestion"] = None
+    dispatcher = RecordingDispatcher()
+    dispatcher.dispatch = Mock(side_effect=[{"handoff": rejected}, {"handoff": corrected}])
+    missing = "Explicit confirmation or denial regarding external data sources."
+    accepted = {"outcome": corrected_outcome}
+    api.post_interview_agent_decision = Mock(side_effect=[
+        InterviewResolutionCallbackError("rejected", missing=missing), accepted,
+    ])
+    boundary = AssessmentInterviewResumeBoundary(SimpleNamespace(), api_client=api, dispatcher=dispatcher)
+    boundary._run_guarded_continuation = Mock()
+
+    boundary.handle(_message(), "corr-1")
+
+    first, repair = [call.kwargs for call in dispatcher.dispatch.call_args_list]
+    payload = json.loads(repair["instruction"].split("\n\n", 1)[1])
+    assert payload["decisionValidationFeedback"]["missingCriteria"] == missing
+    assert payload["decisionValidationFeedback"]["rejectedDecision"]["outcome"] == "CONTEXT_RESOLVED"
+    assert payload["targetedNeed"] == context["targetedNeed"]
+    assert context == original_context
+    assert "decisionValidationFeedback" not in first["instruction"].split("\n\n", 1)[1]
+    assert first["thread_id"] == repair["thread_id"]
+    assert first["idempotency_key"] != repair["idempotency_key"]
+    assert repair["context"].idempotency_key == repair["idempotency_key"]
+    for call in api.post_interview_agent_decision.call_args_list:
+        assert call.args[1]["expectedContextRevision"] == 2
+        assert "decisionValidationFeedback" not in call.args[1]
+    boundary._run_guarded_continuation.assert_called_once()
+    assert boundary._run_guarded_continuation.call_args.kwargs["guarded_state"] is accepted
+    assert all(call.args[-1] != "FAILED" for call in api.post_interview_progress.call_args_list)
+
+
+@pytest.mark.parametrize("error,attempts", [
+    (InterviewResolutionCallbackError("criteria missing"), 2),
+    (WorkerCallbackError("stale revision", status_code=409), 1),
+    (WorkerCallbackError("forbidden", status_code=403), 1),
+])
+def test_rejected_correction_is_bounded_and_unrelated_errors_are_not_repaired(error, attempts):
+    api = RecordingApi()
+    api.post_interview_progress = Mock()
+    api.post_interview_agent_decision = Mock(side_effect=error)
+    handoff = {**deepcopy(WAITING_HANDOFF), "outcome": "CONTEXT_RESOLVED", "activeQuestion": None}
+    dispatcher = RecordingDispatcher(handoff)
+    boundary = AssessmentInterviewResumeBoundary(SimpleNamespace(), api_client=api, dispatcher=dispatcher)
+    boundary._run_guarded_continuation = Mock()
+
+    with pytest.raises(type(error)) as caught:
+        boundary.handle(_message(), "corr-1")
+
+    assert caught.value is error
+    assert len(dispatcher.calls) == attempts
+    assert api.post_interview_agent_decision.call_count == attempts
+    boundary._run_guarded_continuation.assert_not_called()
+    assert api.post_interview_progress.call_args.args[-1] == "FAILED"
 
 
 def test_interview_resume_command_is_managed_boundary() -> None:
