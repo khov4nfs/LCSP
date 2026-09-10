@@ -1814,7 +1814,121 @@ export type PagesMessages = {
       noFindings: string;
     };
   };
+  admin: {
+    sidebar: {
+      adminBadge: string;
+      navOverview: string;
+      navUserAccounts: string;
+      navCorpusVersions: string;
+      administrationLabel: string;
+      administrationDescription: string;
+      roleAdminLabel: string;
+      navigationAria: string;
+      sectionsAria: string;
+      logoLabel: string;
+      soonLabel: string;
+      identityFallbackName: string;
+      identityFallbackEmail: string;
+    };
+    usersList: {
+      title: string;
+      description: string;
+      searchPlaceholder: string;
+      searchAriaLabel: string;
+      statusFilterAll: string;
+      roleFilterAll: string;
+      statusFilterLabel: string;
+      roleFilterLabel: string;
+      createUser: string;
+      createUserDisabledTooltip: string;
+      accountsCount: string;
+      tableAriaLabel: string;
+      columns: {
+        user: string;
+        role: string;
+        status: string;
+        created: string;
+        lastActive: string;
+        assessments: string;
+        actions: string;
+      };
+      viewAction: string;
+      viewUserAria: string;
+      pagination: {
+        pageOf: string;
+        previous: string;
+        next: string;
+      };
+      emptyTitle: string;
+      emptyDescription: string;
+      errorTitle: string;
+      errorDescription: string;
+      retry: string;
+      roles: {
+        ADMIN: string;
+        CUSTOMER: string;
+      };
+      statuses: {
+        ACTIVE: string;
+        SUSPENDED: string;
+        INVITED: string;
+        DEACTIVATED: string;
+      };
+    };
+    userDetail: {
+      title: string;
+      description: string;
+      backToUsers: string;
+      accountDetailsCard: {
+        title: string;
+        fullName: string;
+        email: string;
+        role: string;
+        created: string;
+        lastActive: string;
+      };
+      administrativeActionsCard: {
+        title: string;
+        roleLabel: string;
+        saveRole: string;
+        savingRole: string;
+        accountAccessLabel: string;
+        activeAccessCopy: string;
+        suspendedAccessCopy: string;
+        suspendAccount: string;
+        restoreAccount: string;
+      };
+      usageSummary: {
+        title: string;
+        description: string;
+        metrics: {
+          assessments30d: string;
+          lastAssessment: string;
+          creditSpend30d: string;
+          openFindings: string;
+        };
+        unavailable: string;
+      };
+      statusPill: {
+        active: string;
+        suspended: string;
+        invited: string;
+        deactivated: string;
+      };
+    };
+    suspendModal: {
+      eyebrow: string;
+      title: string;
+      body: string;
+      auditNote: string;
+      cancel: string;
+      confirmSuspend: string;
+      suspending: string;
+      defaultReason: string;
+    };
+  };
 };
+
 
 export type LocaleMessages = {
   auth: AuthMessages;
