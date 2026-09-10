@@ -6,6 +6,7 @@ export const protectedWorkspacePathPrefixes = Object.freeze([
   "/laws",
 ]);
 
+
 export function isProtectedWorkspacePath(pathname: string): boolean {
   return protectedWorkspacePathPrefixes.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),

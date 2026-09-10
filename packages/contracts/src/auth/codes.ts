@@ -35,3 +35,12 @@ export const WORKSPACE_ERROR_CODES = {
   selectionRequired: "WORKSPACE_SELECTION_REQUIRED",
   notFound: "WORKSPACE_NOT_FOUND",
 } as const;
+
+export const ADMIN_ERROR_CODES = {
+  lastAdminDemotionForbidden: "LAST_ADMIN_DEMOTION_FORBIDDEN",
+  userNotFound: "USER_NOT_FOUND",
+  userAlreadySuspended: "USER_ALREADY_SUSPENDED",
+  userNotSuspended: "USER_NOT_SUSPENDED",
+  cannotSuspendSelf: "CANNOT_SUSPEND_SELF",
+} as const;
+

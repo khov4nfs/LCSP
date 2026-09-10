@@ -27,7 +27,16 @@
   html {
     @apply font-sans;
   }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [type="button"]:not(:disabled),
+  [type="submit"]:not(:disabled),
+  [type="reset"]:not(:disabled) {
+    cursor: pointer !important;
+  }
 }
+
 
 .auth-visual {
   background:
@@ -67,6 +76,22 @@
   --color-primary: var(--primary);
   --color-brand-foreground: var(--brand-foreground);
   --color-brand: var(--brand);
+  --color-admin-status-active: var(--admin-status-active);
+  --color-admin-status-active-foreground: var(--admin-status-active-foreground);
+  --color-admin-status-active-border: var(--admin-status-active-border);
+  --color-admin-status-active-surface: var(--admin-status-active-surface);
+  --color-admin-status-suspended: var(--admin-status-suspended);
+  --color-admin-status-suspended-foreground: var(--admin-status-suspended-foreground);
+  --color-admin-status-suspended-border: var(--admin-status-suspended-border);
+  --color-admin-status-suspended-surface: var(--admin-status-suspended-surface);
+  --color-admin-warning: var(--admin-warning);
+  --color-admin-warning-foreground: var(--admin-warning-foreground);
+  --color-admin-warning-border: var(--admin-warning-border);
+  --color-admin-warning-surface: var(--admin-warning-surface);
+  --color-admin-danger-foreground: var(--admin-danger-foreground);
+  --color-admin-danger-border: var(--admin-danger-border);
+  --color-admin-danger-surface: var(--admin-danger-surface);
+  --color-admin-danger-surface-hover: var(--admin-danger-surface-hover);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -100,6 +125,22 @@
   --accent-foreground: #2d2d2a;
   --brand: #0e7c66;
   --brand-foreground: #f7f7f5;
+  --admin-status-active: #10b981;
+  --admin-status-active-foreground: #059669;
+  --admin-status-active-border: color-mix(in oklch, var(--admin-status-active) 30%, transparent);
+  --admin-status-active-surface: color-mix(in oklch, var(--admin-status-active) 10%, transparent);
+  --admin-status-suspended: #f43f5e;
+  --admin-status-suspended-foreground: #e11d48;
+  --admin-status-suspended-border: color-mix(in oklch, var(--admin-status-suspended) 30%, transparent);
+  --admin-status-suspended-surface: color-mix(in oklch, var(--admin-status-suspended) 10%, transparent);
+  --admin-warning: #f59e0b;
+  --admin-warning-foreground: #d97706;
+  --admin-warning-border: color-mix(in oklch, var(--admin-warning) 30%, transparent);
+  --admin-warning-surface: color-mix(in oklch, var(--admin-warning) 10%, transparent);
+  --admin-danger-foreground: #e11d48;
+  --admin-danger-border: color-mix(in oklch, var(--admin-status-suspended) 40%, transparent);
+  --admin-danger-surface: color-mix(in oklch, var(--admin-status-suspended) 10%, transparent);
+  --admin-danger-surface-hover: color-mix(in oklch, var(--admin-status-suspended) 20%, transparent);
   --destructive: oklch(0.577 0.245 27.325);
   --border: #e3e3de;
   --input: #d8d8d3;
@@ -136,6 +177,22 @@
   --accent-foreground: #f0eee8;
   --brand: #10a37f;
   --brand-foreground: #101010;
+  --admin-status-active: #10b981;
+  --admin-status-active-foreground: #34d399;
+  --admin-status-active-border: color-mix(in oklch, var(--admin-status-active) 30%, transparent);
+  --admin-status-active-surface: color-mix(in oklch, var(--admin-status-active) 10%, transparent);
+  --admin-status-suspended: #f43f5e;
+  --admin-status-suspended-foreground: #fb7185;
+  --admin-status-suspended-border: color-mix(in oklch, var(--admin-status-suspended) 30%, transparent);
+  --admin-status-suspended-surface: color-mix(in oklch, var(--admin-status-suspended) 10%, transparent);
+  --admin-warning: #f59e0b;
+  --admin-warning-foreground: #fbbf24;
+  --admin-warning-border: color-mix(in oklch, var(--admin-warning) 30%, transparent);
+  --admin-warning-surface: color-mix(in oklch, var(--admin-warning) 10%, transparent);
+  --admin-danger-foreground: #fda4af;
+  --admin-danger-border: color-mix(in oklch, var(--admin-status-suspended) 40%, transparent);
+  --admin-danger-surface: color-mix(in oklch, var(--admin-status-suspended) 10%, transparent);
+  --admin-danger-surface-hover: color-mix(in oklch, var(--admin-status-suspended) 20%, transparent);
   --destructive: oklch(0.704 0.191 22.216);
   --border: #3d3d3d;
   --input: #414141;

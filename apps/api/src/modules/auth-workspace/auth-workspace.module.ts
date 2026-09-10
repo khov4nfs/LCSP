@@ -52,6 +52,7 @@ import {
   PrismaSessionRepository,
   PrismaUserRepository,
 } from "./infrastructure/persistence/prisma-auth-workspace.repositories.ts";
+import { AdminUsersController } from "./presentation/http/admin-users.controller.ts";
 import { AuthWorkspaceController } from "./presentation/http/auth-workspace.controller.ts";
 
 const REPOSITORY_PROVIDERS = [
@@ -89,7 +90,7 @@ function handlerProvider<T>(
 
 @Module({
   imports: [PrismaModule, AuditModule, CqrsModule],
-  controllers: [AuthWorkspaceController],
+  controllers: [AuthWorkspaceController, AdminUsersController],
   providers: [
     ...REPOSITORY_PROVIDERS,
     {
