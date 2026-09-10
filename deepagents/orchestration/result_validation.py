@@ -21,7 +21,7 @@ class SpecialistHandoffValidationError(RuntimeError):
     """Raised when a specialist returns an unsafe or invalid handoff."""
 
 
-FORBIDDEN_FINAL_VERDICTS = frozenset({"COMPLIANT", "NON_COMPLIANT", "UNKNOWN"})
+FORBIDDEN_FINAL_VERDICTS = frozenset({"COMPLIANT", "NON_COMPLIANT"})
 CONTROLLED_NON_VERDICT_PATHS = frozenset(
     {
         ("status",),

@@ -26,7 +26,7 @@ class RetrieveLegalBasisRequest(CorrelatedToolInput):
 
 
 @tool(args_schema=RetrieveLegalBasisRequest)
-def retrieve_legal_basis(runtime: ToolRuntime | None = None, **request: Any) -> dict[str, Any]:
+def retrieve_legal_basis(runtime: ToolRuntime = None, **request: Any) -> dict[str, Any]:
     """Retrieve exact governed legal context and citation references for investigation.
 
     Args:

@@ -105,3 +105,19 @@ def test_reconcile_all_requeues_only_failed_assessment_and_continues(tmp_path) -
     assert len(pending) == 1
     assert pending[0]["evidenceReportId"] == "ter-fail"
     assert pending[0]["workflowRunId"] == "scan-fail"
+
+
+def test_schema_failure_is_removed_from_automatic_resume(tmp_path):
+    registry = WaitingAssessmentRegistry(storage_root=tmp_path)
+    registry.register(evidence_report_id="ter-schema", workflow_run_id="scan-schema", source_correlation_id="corr")
+    calls = []
+
+    def invoke(*args):
+        calls.append(args)
+        raise TypeError("invalid schema type")
+
+    result = registry.reconcile_all(invoker=invoke)
+    assert result["stoppedAssessmentCount"] == 1
+    assert registry.pending() == []
+    registry.reconcile_all(invoker=invoke)
+    assert len(calls) == 1

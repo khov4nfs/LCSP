@@ -16,6 +16,8 @@ from typing import Any, Callable
 import httpx
 import pika
 
+from middleware.failure_policy import is_terminal_task_error
+
 from tools.common.capabilities.platform.env import load_runtime_env
 from tools.common.capabilities.platform.logging import suppress_langgraph_heartbeat_logs
 from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
@@ -322,6 +324,7 @@ def _schedule_delivery_settlement(
         error is not None
         and requeue_on_error
         and not isinstance(error, NonRetryableAgentBoundaryError)
+        and not is_terminal_task_error(error)
         and requeue_delay_seconds > 0
     ):
         sleep(requeue_delay_seconds)
@@ -383,6 +386,7 @@ def _settle_delivery(
             requeue=(
                 requeue_on_error
                 and not isinstance(error, NonRetryableAgentBoundaryError)
+                and not is_terminal_task_error(error)
             ),
         )
     except pika.exceptions.AMQPError:

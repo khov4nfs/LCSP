@@ -10,8 +10,11 @@ import time
 from collections.abc import Sequence
 from pathlib import Path
 
+from langsmith_bootstrap import disable_langsmith_tracing_by_default
+
 
 def main() -> int:
+    disable_langsmith_tracing_by_default()
     mda = _mda_executable()
     processes = [
         _start((mda, "dev", "--no-reload", ".")),

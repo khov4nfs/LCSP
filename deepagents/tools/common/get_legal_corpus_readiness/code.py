@@ -23,7 +23,7 @@ class LegalCorpusReadinessRequest(CorrelatedToolInput):
 
 
 @tool(args_schema=LegalCorpusReadinessRequest)
-def get_legal_corpus_readiness(runtime: ToolRuntime | None = None, **request: Any) -> dict[str, Any]:
+def get_legal_corpus_readiness(runtime: ToolRuntime = None, **request: Any) -> dict[str, Any]:
     """Read approved legal-corpus readiness without mutating corpus state.
 
     Args:

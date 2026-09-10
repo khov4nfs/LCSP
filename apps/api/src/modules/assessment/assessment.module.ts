@@ -7,6 +7,8 @@ import { AssessmentRuntimeEventService } from "../../platform/runtime-events/ass
 import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guard.js";
 import { CreateAssessmentHandler } from "./application/commands/create-assessment/create-assessment.handler.js";
 import { CompleteRepositorySetupHandler } from "./application/commands/complete-repository-setup/complete-repository-setup.handler.js";
+import { DeleteAssessmentHandler } from "./application/commands/delete-assessment/delete-assessment.handler.js";
+import { RenameAssessmentHandler } from "./application/commands/rename-assessment/rename-assessment.handler.js";
 import { GetAssessmentHandler } from "./application/queries/get-assessment/get-assessment.handler.js";
 import { GetAssessmentReadinessHandler } from "./application/queries/get-assessment-readiness/get-assessment-readiness.handler.js";
 import { AssessmentInterviewRuntimeService } from "./application/services/assessment-interview-runtime.service.js";
@@ -30,6 +32,8 @@ import {
     WorkerApiKeyGuard,
     CreateAssessmentHandler,
     CompleteRepositorySetupHandler,
+    DeleteAssessmentHandler,
+    RenameAssessmentHandler,
     GetAssessmentHandler,
     GetAssessmentReadinessHandler,
     ListAssessmentsHandler,

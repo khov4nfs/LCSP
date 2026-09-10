@@ -135,6 +135,7 @@ export type NormalizedAssessmentIdentity = {
 export type NormalizedAssessmentInterview = {
   outcome: AssessmentInterviewOutcome | null;
   activeQuestion: AssessmentInterviewQuestion | null;
+  assistantMessage: string | null;
   flags: AssessmentInterviewFlag[];
   hasDownstreamImpact: boolean;
   contextAuthority: AssessmentContextAuthorityStatus | null;

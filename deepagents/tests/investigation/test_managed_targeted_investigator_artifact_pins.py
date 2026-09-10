@@ -134,6 +134,8 @@ def test_exact_resume_serializes_confirmed_structured_context(monkeypatch) -> No
 
     def invoke(**kwargs):
         captured["instruction"] = kwargs["instruction"]
+        captured["context"] = kwargs["context"]
+        captured["thread_id"] = kwargs["thread_id"]
         return (
             {
                 "status": "READY",
@@ -180,6 +182,7 @@ def test_exact_resume_serializes_confirmed_structured_context(monkeypatch) -> No
     continuation = {
         **CONTINUATION,
         "workflowRunId": "investigator:exec-1",
+        "rootWorkflowRunId": "640df563-8b35-4883-b9d8-3b4c0c2e3813",
         "checkpointId": "checkpoint-original",
         "investigatorExecutionId": "exec-1",
     }
@@ -195,6 +198,9 @@ def test_exact_resume_serializes_confirmed_structured_context(monkeypatch) -> No
     )
 
     assert result["handoff"]["status"] == "READY"
+    assert captured["context"].workflow_run_id == continuation["rootWorkflowRunId"]
+    assert captured["context"].correlation_id == "corr-1"
+    assert captured["thread_id"] == "investigator:exec-1"
     assert "ConfirmedStructuredBusinessContext(" not in captured["instruction"]
     assert '"assessmentId": "assessment-1"' in captured["instruction"]
     assert '"contextRevision": 3' in captured["instruction"]

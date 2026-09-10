@@ -1,15 +1,13 @@
 """Generate final assessment Markdown from direct EngineeringRule results."""
 
-from langchain.agents import create_agent
-
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from model_policy import INVESTIGATOR_MODEL_SPEC
+from model_policy import NARRATOR_MODEL_SPEC, create_lcsp_agent as create_agent
 
 
 class FinalReportGenerator:
     """Render evidence deterministically and use LLM only for bounded narration."""
 
-    def __init__(self, model: str = INVESTIGATOR_MODEL_SPEC):
+    def __init__(self, model: str = NARRATOR_MODEL_SPEC):
         self._model = model
 
     def generate(
@@ -112,13 +110,13 @@ class FinalReportGenerator:
         - Do not include raw source code.
         """
         agent = create_agent(
+            agent_name="lcsp-final-report-narrator",
             model=self._model,
             system_prompt=(
                 "You draft bounded LCSP assessment narration. Never make a legal "
                 "certification, approval, or compliance conclusion."
             ),
             middleware=MODEL_GOVERNANCE_MIDDLEWARE,
-            name="lcsp-final-report-narrator",
         )
         result = agent.invoke(
             {"messages": [{"role": "user", "content": prompt}]},

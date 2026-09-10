@@ -2,10 +2,8 @@
 
 from typing import Any
 
-from langchain.agents import create_agent
-
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from model_policy import INVESTIGATOR_MODEL_SPEC
+from model_policy import NARRATOR_MODEL_SPEC, create_lcsp_agent as create_agent
 
 
 ALLOWED_RISK_LEVELS = {"LOW", "MEDIUM", "HIGH", "BLOCKED"}
@@ -15,7 +13,7 @@ ALLOWED_APPLICABILITY = {"applicable", "partially_applicable", "not_applicable"}
 class ModelAssistedClassificationProposer:
     """Ask an LLM for a structured proposal without granting final authority."""
 
-    def __init__(self, model: str = INVESTIGATOR_MODEL_SPEC):
+    def __init__(self, model: str = NARRATOR_MODEL_SPEC):
         """Create the proposer with a LangChain provider:model specification."""
         self._model = model
 
@@ -75,6 +73,7 @@ class ModelAssistedClassificationProposer:
 
         try:
             agent = create_agent(
+                agent_name="lcsp-classification-proposer",
                 model=self._model,
                 system_prompt=(
                     "You propose bounded classification fields only. Deterministic "
@@ -82,7 +81,6 @@ class ModelAssistedClassificationProposer:
                 ),
                 response_format=_classification_proposal_response_schema(),
                 middleware=MODEL_GOVERNANCE_MIDDLEWARE,
-                name="lcsp-classification-proposer",
             )
             result = agent.invoke(
                 {"messages": [{"role": "user", "content": prompt}]},

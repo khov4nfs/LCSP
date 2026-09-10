@@ -18,7 +18,7 @@ class ScanCoverageRequest(CorrelatedToolInput):
 
 
 @tool(args_schema=ScanCoverageRequest)
-def get_scan_coverage(runtime: ToolRuntime | None = None, **request: Any) -> dict[str, Any]:
+def get_scan_coverage(runtime: ToolRuntime = None, **request: Any) -> dict[str, Any]:
     """Read deterministic scanner coverage and unresolved frontiers before planning.
 
     Args:

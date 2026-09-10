@@ -20,7 +20,7 @@ from time import sleep
 from typing import Any, Iterator, TextIO
 from uuid import uuid4
 
-from tools.common.capabilities.platform.config import default_legal_source_storage_root
+from tools.common.capabilities.platform.config import resolve_legal_source_storage_root
 from tools.common.capabilities.platform.file_lock import (
     acquire_exclusive_lock,
     ensure_lock_file,
@@ -60,14 +60,7 @@ class TriageSingletonCoordinator:
     """Guarantee one active Legal Rule Triage execution per shared runtime store."""
 
     def __init__(self, *, storage_root: Path | None = None) -> None:
-        root = storage_root
-        if root is None:
-            configured = os.getenv("LEGAL_SOURCE_STORAGE_ROOT")
-            root = (
-                Path(configured)
-                if configured
-                else Path(default_legal_source_storage_root())
-            )
+        root = storage_root or Path(resolve_legal_source_storage_root())
         self.runtime_root = root.resolve() / TRIAGE_RUNTIME_DIR
         self.execution_lock_path = self.runtime_root / TRIAGE_EXECUTION_LOCK_FILE
         self.state_lock_path = self.runtime_root / TRIAGE_STATE_LOCK_FILE
@@ -167,6 +160,23 @@ class TriageSingletonCoordinator:
                 )
             )
             self._write_active_state_unlocked(state)
+
+    def assert_rule_pending(self, *, execution_id: str, legal_rule_id: str) -> None:
+        """Reject an out-of-scope proposal before any artifact is written."""
+        self.assert_owner(execution_id)
+        with self._locked_state():
+            state = self._read_active_state_unlocked()
+            self._assert_execution_state(state, execution_id)
+            if legal_rule_id not in (state.get("activeBatchLegalRuleIds") or []):
+                raise ValueError("LegalRule is not pending in the claimed triage scope")
+
+    def get_completed_rule_ids(self, *, execution_id: str) -> set[str]:
+        """Read progress for pagination, including explicit reprocessing runs."""
+        self.assert_owner(execution_id)
+        with self._locked_state():
+            state = self._read_active_state_unlocked()
+            self._assert_execution_state(state, execution_id)
+            return set(state.get("completedLegalRuleIds") or [])
 
     def mark_rule_completed(self, *, execution_id: str, legal_rule_id: str) -> None:
         """Remove one successfully persisted LegalRule from the owner batch."""

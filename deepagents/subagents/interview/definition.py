@@ -87,11 +87,23 @@ Return exactly one JSON object matching InterviewResult:
   CLARIFY intent, a proposedInterpretation, and exactly CONFIRM and ADJUST stable choice IDs; use it
   only for material/non-trivial interpretation confirmation, never for direct lossless statements or
   pure formatting normalization.
+  `choices` belongs to SINGLE_SELECT, MULTI_SELECT and CONFIRM_ADJUST only. SINGLE_SELECT and
+  MULTI_SELECT require at least one choice. BOOLEAN and FREE_TEXT must leave `choices` empty; the
+  yes/no pair is supplied by the runtime, and a BOOLEAN question that carries its own choices is
+  rejected. Pick SINGLE_SELECT when the answer needs labelled options.
 - contextAuthority: CUSTOMER_STATED, UNCERTAIN, CONFLICTED, CUSTOMER_CONFIRMED, CONFIRMED or
   SUPERSEDED.
-- confirmedContext: only semantic facts directly supported by Customer context. For each statement,
-  provide topic, statement, optional normalizedValue/scope, and governed evidence refs only. Runtime
+- confirmedContext: an object with a statements array, never a flat topic-to-value map.
+  For CUSTOMER_CONFIRMED or CONFIRMED authority this array must be non-empty. For each statement,
+  provide a non-empty statementId, topic, statement, optional normalizedValue/scope, and evidenceRefs. Runtime
   owns assessmentId, respondent identity, timestamps, source and CONFIRMED resolution provenance.
+  Resolving a targeted need with CONTEXT_RESOLVED additionally requires one statement per
+  supplied `resolutionCriteria` entry whose `topic` is that entry copied character for character,
+  supported by the customer's answer. Do not supply confirmedContext.authority or statement
+  source/resolutionState; those are API-owned provenance. The runtime matches criteria to statement
+  topics by exact string, so a reworded, translated or summarised topic is rejected.
+  A denial resolves a criterion just as an affirmation does; record what
+  the Customer said rather than withholding the statement.
 - flags: include DOWNSTREAM_IMPACT when targeted resolution changes downstream investigation scope.
 - blockedActions: only PROVIDE_MORE_CONTEXT, CHECK_INTERNALLY, SAVE_AND_EXIT.
 

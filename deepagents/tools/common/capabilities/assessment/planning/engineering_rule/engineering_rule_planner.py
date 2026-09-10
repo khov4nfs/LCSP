@@ -6,10 +6,8 @@ from collections import Counter
 from dataclasses import dataclass, replace
 from typing import Any, Iterable
 
-from langchain.agents import create_agent
-
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from model_policy import PLANNER_MODEL_SPEC
+from model_policy import PLANNER_MODEL_SPEC, create_lcsp_agent as create_agent
 from tools.legal.corpus.engineering_rules.contract.models import EngineeringRule
 from tools.common.capabilities.platform.logging import get_logger
 from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
@@ -244,6 +242,7 @@ class EngineeringRulePlanner:
 
         try:
             agent = create_agent(
+                agent_name="lcsp-engineering-rule-planner",
                 model=self._model,
                 system_prompt=(
                     "Plan the bounded technical investigation only. Do not make "
@@ -251,7 +250,6 @@ class EngineeringRulePlanner:
                 ),
                 response_format=self._plan_response_schema(),
                 middleware=MODEL_GOVERNANCE_MIDDLEWARE,
-                name="lcsp-engineering-rule-planner",
             )
             response = agent.invoke(
                 {

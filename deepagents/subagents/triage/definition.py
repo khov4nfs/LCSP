@@ -1,6 +1,7 @@
 """Legal Triage subagent: own LegalRule triage and EngineeringRule preparation."""
 
-from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.model_governance import TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.triage_progress import require_triage_progress
 from model_policy import TRIAGE_MODEL_SPEC
 from contracts.handoffs import TriageResult
 from tools.common.capabilities.managed.skill_loader import load_project_skill
@@ -62,8 +63,9 @@ Singleton execution protocol:
    persist, retry in a loop, merge scope, or emulate a queue. The incoming scope is not recorded.
 3. If you own the execution, preserve the returned `triageExecutionId` and pass that exact ID to
    every `persist_legal_rule_triage_result` call.
-4. Process only the work items returned for this claimed execution. Requests arriving later are not
-   added to your batch.
+4. Work is paginated within the claimed execution. Persist every item in the returned page,
+   then call get_legal_rule_triage_work_items again with the same triage_execution_id.
+   Continue until pendingRuleCount is zero. Requests arriving later are not added to your scope.
 5. After every ready item in the claimed batch is persisted, call
    `finish_legal_rule_triage_execution`. `COMPLETE` releases the singleton lease.
 6. Never replace or fabricate the execution ID. If ownership validation fails, stop fail-closed.
@@ -152,7 +154,7 @@ SUBAGENT = {
     "model": TRIAGE_MODEL_SPEC,
     # Deliberately omit inject_lcsp_runtime_context. The supervisor/singleton middleware
     # transfers only the legal scope and execution ownership needed by Triage.
-    "middleware": [*MODEL_GOVERNANCE_MIDDLEWARE],
+    "middleware": [require_triage_progress, *TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE],
     "response_format": OUTPUT_MODEL,
 }
 

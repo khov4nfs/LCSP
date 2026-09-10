@@ -38,7 +38,7 @@ def _runtime_context(runtime: ToolRuntime | None) -> LCSPRunContext | None:
 
 @tool(args_schema=RetrieveVerifiedEpisodesRequest, parse_docstring=True)
 def retrieve_verified_episodes(
-    runtime: ToolRuntime | None = None,
+    runtime: ToolRuntime = None,
     **request: Any,
 ) -> dict[str, Any]:
     """Return compatible verified episodes for Planner or Investigator.

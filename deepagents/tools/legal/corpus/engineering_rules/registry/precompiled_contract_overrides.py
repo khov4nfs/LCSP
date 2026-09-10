@@ -49,12 +49,16 @@ class PrecompiledContractOverrideError(ValueError):
 def load_precompiled_contract_overrides(
     path: str | None = None,
 ) -> dict[str, Any]:
-    """Load the governed technical-contract overlay from disk."""
+    """Load the governed technical-contract overlay from disk.
+
+    The overlay is optional: a bundle carrying no matching overlay already resolves to the
+    "base" contract, so an absent file means exactly that. A file that exists but cannot be
+    parsed still fails closed, because that is a corrupted governed artifact rather than an
+    intentional absence.
+    """
     selected = Path(path or DEFAULT_PRECOMPILED_CONTRACT_OVERRIDES_PATH)
     if not selected.is_file():
-        raise PrecompiledContractOverrideError(
-            "PRECOMPILED_ENGINEERING_RULE_CONTRACT_OVERRIDES_UNAVAILABLE"
-        )
+        return {}
     try:
         value = json.loads(selected.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:

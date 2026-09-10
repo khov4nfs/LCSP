@@ -6,9 +6,7 @@ import {
 import type { MessageKey } from "@lcsp/i18n";
 
 import { PUBLIC_ENTRY_ROUTES } from "../../auth-entry.ts";
-import {
-  assessmentStatusLabelKeys,
-} from "../../features/workspace/config/status-labels.ts";
+import { assessmentStatusLabelKeys } from "../../features/workspace/config/status-labels.ts";
 import type {
   AssessmentStatus,
   AssessmentSummary,
@@ -106,6 +104,33 @@ export async function createAssessment(
     titleKey: "pages.workspace.errors.createAssessmentTitle",
     detailKey: "pages.workspace.errors.createAssessmentDetail",
   };
+}
+
+export async function renameAssessment(
+  assessmentId: string,
+  name: string,
+): Promise<void> {
+  const { ok } = await apiRequest(
+    `${workspaceApiPaths.assessments}/${encodeURIComponent(assessmentId)}`,
+    {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name }),
+    },
+  );
+  if (!ok) {
+    throw new Error("assessment-rename-failed");
+  }
+}
+
+export async function deleteAssessment(assessmentId: string): Promise<void> {
+  const { ok } = await apiRequest(
+    `${workspaceApiPaths.assessments}/${encodeURIComponent(assessmentId)}`,
+    { method: "DELETE" },
+  );
+  if (!ok) {
+    throw new Error("assessment-delete-failed");
+  }
 }
 
 export async function getWorkspaceSelection(): Promise<WorkspaceSelectionPayload> {

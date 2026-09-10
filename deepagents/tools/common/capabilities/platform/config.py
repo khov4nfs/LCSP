@@ -57,6 +57,22 @@ def default_legal_source_storage_root() -> str:
     return str(Path(get_repo_root()) / ".corpus")
 
 
+def resolve_legal_source_storage_root(configured: str | None = None) -> str:
+    """Anchor the legal source storage root to the repository, not the process cwd.
+
+    Recovery artifacts double as triage completion markers, so this must resolve to one
+    durable store for every process. A relative `LEGAL_SOURCE_STORAGE_ROOT` used as-is
+    splits it per working directory: the consumer, the compiled agent and an operator
+    shell each got their own `.corpus` and could not see each other's completed work.
+    Mirrors resolve_legal_chroma_path, which already anchors the same way.
+    """
+    raw = configured if configured is not None else os.getenv("LEGAL_SOURCE_STORAGE_ROOT")
+    if raw is None or not raw.strip():
+        return default_legal_source_storage_root()
+    path = Path(raw.strip())
+    return str(path if path.is_absolute() else Path(get_repo_root()) / path)
+
+
 def load_config() -> WorkerConfig:
     """Load environment-backed worker configuration and validate required values.
 
@@ -81,10 +97,7 @@ def load_config() -> WorkerConfig:
         worker_api_key=os.getenv("WORKER_API_KEY"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),
         max_retries=int(os.getenv("MAX_RETRIES", "3")),
-        legal_source_storage_root=os.getenv(
-            "LEGAL_SOURCE_STORAGE_ROOT",
-            default_legal_source_storage_root(),
-        ),
+        legal_source_storage_root=resolve_legal_source_storage_root(),
         langgraph_checkpoint_database_url=os.getenv(
             "LANGGRAPH_CHECKPOINT_DATABASE_URL"
         ),

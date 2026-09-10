@@ -7,7 +7,10 @@ from pathlib import Path
 import shlex
 import shutil
 import subprocess
+import sys
 from typing import Any, Iterable
+
+from tools.common.capabilities.platform.logging_path import get_repo_root
 
 
 OPENWIKI_HINT_AUTHORITY = "UNVERIFIED_ARCHITECTURE_HINT"
@@ -20,7 +23,6 @@ _MAX_FILE_CHARS = 4000
 _MAX_SNIPPETS = 8
 _MAX_SNIPPET_CHARS = 700
 _SKIP_DIRS = {".git", "node_modules", ".next", "dist", "build"}
-_DEFAULT_OPENWIKI_RUNTIME_COMMAND = "openwiki --init --print"
 _DEFAULT_OPENWIKI_TIMEOUT_SECONDS = 180
 
 
@@ -112,7 +114,7 @@ class OpenWikiContextProvider:
 
         command = os.getenv(
             "OPENWIKI_RUNTIME_COMMAND",
-            _DEFAULT_OPENWIKI_RUNTIME_COMMAND,
+            shlex.join([sys.executable, str(Path(get_repo_root()) / "scripts" / "openwiki_runtime.py")]),
         ).strip()
         if not command:
             raise OpenWikiContextRequiredError("OPENWIKI_RUNTIME_COMMAND_EMPTY")

@@ -104,6 +104,68 @@ describe("Assessment creation and wizard readiness (e2e) [AC-001, AC-003]", () =
     assert.equal(result.status, 401);
   });
 
+  it("renames an owned assessment and records an audit event", async () => {
+    if (!managerToken) return;
+    const create = await httpRequest(app)
+      .post("/assessments")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ name: "Before rename", organization_id: orgId });
+    const assessmentId = successBody<CreateAssessmentDto>(create).assessment_id;
+
+    const result = await httpRequest(app)
+      .patch(`/assessments/${assessmentId}`)
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ name: "Renamed assessment" });
+    const body = successBody<{ assessment_id: string; name: string }>(result);
+
+    assert.equal(result.status, 200);
+    assert.equal(body.name, "Renamed assessment");
+    assert.equal(
+      (await prisma.assessment.findUnique({ where: { id: assessmentId } }))
+        ?.name,
+      "Renamed assessment",
+    );
+    assert.ok(
+      await prisma.auditEvent.findFirst({
+        where: {
+          eventType: ASSESSMENT_EVENT_TYPES.renamed,
+          resourceId: assessmentId,
+        },
+      }),
+    );
+  });
+
+  it("deletes an owned assessment and records an audit event", async () => {
+    if (!managerToken) return;
+    const create = await httpRequest(app)
+      .post("/assessments")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ name: "Delete me", organization_id: orgId });
+    const assessmentId = successBody<CreateAssessmentDto>(create).assessment_id;
+
+    const result = await httpRequest(app)
+      .delete(`/assessments/${assessmentId}`)
+      .set("Authorization", `Bearer ${managerToken}`);
+    const body = successBody<{ assessment_id: string; deleted: boolean }>(
+      result,
+    );
+
+    assert.equal(result.status, 200);
+    assert.equal(body.deleted, true);
+    assert.equal(
+      await prisma.assessment.findUnique({ where: { id: assessmentId } }),
+      null,
+    );
+    assert.ok(
+      await prisma.auditEvent.findFirst({
+        where: {
+          eventType: ASSESSMENT_EVENT_TYPES.deleted,
+          resourceId: assessmentId,
+        },
+      }),
+    );
+  });
+
   // AC-003: Wizard readiness — no risk level exposed
   it("AC-003: Assessment readiness response never uses risk/severity/compliant wording", async () => {
     if (!managerToken) return;

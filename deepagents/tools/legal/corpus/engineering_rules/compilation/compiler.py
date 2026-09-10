@@ -4,10 +4,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from langchain.agents import create_agent
-
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from model_policy import PLANNER_MODEL_SPEC
+from model_policy import PLANNER_MODEL_SPEC, create_lcsp_agent as create_agent
 from tools.common.capabilities.evidence.graph.schema.vocabulary import EDGE_TYPES, NODE_TYPES
 from tools.common.capabilities.managed.skill_loader import load_project_skill
 
@@ -54,6 +52,7 @@ class EngineeringRuleCompiler:
             return []
         triage_skill = load_project_skill(TRIAGE_SKILL_NAME)
         agent = create_agent(
+            agent_name="lcsp-engineering-rule-compiler",
             model=self._model,
             system_prompt=(
                 "Compile only triage-approved legal evidence into bounded, reusable "
@@ -65,7 +64,6 @@ class EngineeringRuleCompiler:
             ),
             response_format=_engineering_rules_response_schema(),
             middleware=MODEL_GOVERNANCE_MIDDLEWARE,
-            name="lcsp-engineering-rule-compiler",
         )
         result = agent.invoke(
             {"messages": [{"role": "user", "content": self._prompt(legal_rule, compile_context)}]},

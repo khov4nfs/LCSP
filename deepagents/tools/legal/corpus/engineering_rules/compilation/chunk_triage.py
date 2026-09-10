@@ -5,10 +5,8 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from langchain.agents import create_agent
-
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
-from model_policy import TRIAGE_MODEL_SPEC
+from model_policy import TRIAGE_MODEL_SPEC, create_lcsp_agent as create_agent
 from tools.common.capabilities.managed.skill_loader import load_project_skill
 from tools.legal.retrieval.legal_basis.normative_chunk_filter import (
     CHUNK_NORMATIVE_CLASSES,
@@ -59,6 +57,7 @@ class LegalChunkEngineeringRuleTriage:
         )
         triage_skill = load_project_skill(TRIAGE_SKILL_NAME)
         agent = create_agent(
+            agent_name="lcsp-legal-chunk-triage",
             model=self._model,
             system_prompt=(
                 "Classify approved legal chunks only. Do not make legal applicability, "
@@ -69,7 +68,6 @@ class LegalChunkEngineeringRuleTriage:
             ),
             response_format=_triage_response_schema(chunk_ids),
             middleware=MODEL_GOVERNANCE_MIDDLEWARE,
-            name="lcsp-legal-chunk-triage",
         )
         result = agent.invoke(
             {"messages": [{"role": "user", "content": self._prompt(legal_rule, legal_context)}]},
@@ -99,8 +97,10 @@ class LegalChunkEngineeringRuleTriage:
         known = {str(chunk.get("id")): chunk for chunk in legal_context if chunk.get("id")}
         decisions: dict[str, LegalChunkTriageDecision] = {}
         for raw in raw_rows:
+            # Skipping a malformed row here would resurface downstream as a bogus
+            # "omitted chunks" error that blames the model for a transport defect.
             if not isinstance(raw, dict):
-                continue
+                raise ValueError("legal chunk triage analysis must be an object")
             chunk_id = str(raw.get("chunkId") or "")
             if chunk_id not in known:
                 raise ValueError("legal chunk triage returned unknown chunkId")

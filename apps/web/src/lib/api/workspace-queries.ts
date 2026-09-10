@@ -4,8 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   createAssessment,
+  deleteAssessment,
   getAssessments,
   getWorkspace,
+  renameAssessment,
   getWorkspaceSelection,
   persistWorkspaceSelection,
 } from "./workspace-client";
@@ -41,6 +43,38 @@ export function useCreateAssessmentMutation() {
         return;
       }
 
+      await queryClient.invalidateQueries({
+        queryKey: apiQueryKeys.workspace.assessments(),
+      });
+    },
+  });
+}
+
+export function useRenameAssessmentMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      assessmentId,
+      name,
+    }: {
+      assessmentId: string;
+      name: string;
+    }) => renameAssessment(assessmentId, name),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: apiQueryKeys.workspace.assessments(),
+      });
+    },
+  });
+}
+
+export function useDeleteAssessmentMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (assessmentId: string) => deleteAssessment(assessmentId),
+    onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: apiQueryKeys.workspace.assessments(),
       });

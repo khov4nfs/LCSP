@@ -51,10 +51,45 @@ def _boundary(*, api_client, pipeline, publisher=None) -> EngineeringAssessmentB
     )
 
 
+def test_evidence_lookup_4xx_is_terminal_and_not_outer_retryable() -> None:
+    api_client = _api_client()
+    api_client.get_accepted_technical_evidence_report.side_effect = WorkerCallbackError(
+        "VALIDATION_FAILED: Callback failed with client error 404.", status_code=404
+    )
+    pipeline = MagicMock()
+    boundary = _boundary(api_client=api_client, pipeline=pipeline)
+
+    with pytest.raises(NonRetryableAgentBoundaryError) as exc_info:
+        boundary.handle(
+            {"evidenceReportId": "stale-ter", "workflowRunId": "scan-1"},
+            "corr-stale",
+        )
+
+    assert "client error 404" in str(exc_info.value)
+    pipeline.run.assert_not_called()
+
+
+def test_evidence_lookup_server_failure_remains_outer_retryable() -> None:
+    api_client = _api_client()
+    api_client.get_accepted_technical_evidence_report.side_effect = WorkerCallbackError(
+        "Callback failed after 3 attempts with server error 503."
+    )
+    pipeline = MagicMock()
+    boundary = _boundary(api_client=api_client, pipeline=pipeline)
+
+    with pytest.raises(WorkerCallbackError, match="server error 503"):
+        boundary.handle(
+            {"evidenceReportId": "ter-1", "workflowRunId": "scan-1"},
+            "corr-retry",
+        )
+
+    pipeline.run.assert_not_called()
+
+
 def test_classification_callback_4xx_is_terminal_and_not_outer_retryable() -> None:
     api_client = _api_client()
     api_client.post_classification_callback.side_effect = WorkerCallbackError(
-        "CLASSIFICATION_OVERCLAIM: Callback failed with client error 422."
+        "CLASSIFICATION_OVERCLAIM: Callback failed with client error 422.", status_code=422
     )
 
     result = MagicMock()
