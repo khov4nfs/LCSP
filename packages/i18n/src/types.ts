@@ -1875,6 +1875,83 @@ export type PagesMessages = {
         DEACTIVATED: string;
       };
     };
+    corpusVersions: {
+      title: string;
+      description: string;
+      detailTitle: string;
+      currentMeta: string;
+      create: string;
+      createUnavailable: string;
+      current: string;
+      view: string;
+      versions: string;
+      version: string;
+      status: string;
+      sources: string;
+      rules: string;
+      created: string;
+      published: string;
+      actions: string;
+      noValue: string;
+      unavailable: string;
+      loading: string;
+      error: string;
+      retry: string;
+      back: string;
+      metadata: string;
+      changes: string;
+      readiness: string;
+      snapshot: string;
+      category: string;
+      count: string;
+      change: string;
+      validation: string;
+      baseVersion: string;
+      createdBy: string;
+      sourceAdded: string;
+      sourceRemoved: string;
+      sourceUpdated: string;
+      legalRulesChanged: string;
+      engineeringRulesChanged: string;
+      conflicts: string;
+      publish: string;
+      publishUnavailable: string;
+      discard: string;
+      discardTitle: string;
+      discardDescription: string;
+      cancel: string;
+      confirmDiscard: string;
+      discarding: string;
+      discardFailedTitle: string;
+      discardFailedDetail: string;
+      note: string;
+      statuses: {
+        DRAFT: string;
+        APPROVED: string;
+        REJECTED: string;
+        SUPERSEDED: string;
+      };
+      readinessStates: {
+        READY: string;
+        PENDING: string;
+        FAILED: string;
+        UNAVAILABLE: string;
+      };
+      readinessChecks: {
+        SOURCE_PARSING: string;
+        RETRIEVAL_VALIDATION: string;
+        INTEGRITY_MANIFEST: string;
+        RULE_SNAPSHOT: string;
+        DIFF_REVIEW: string;
+      };
+      snapshotCategories: {
+        SOURCE_DOCUMENTS: string;
+        CORPUS_CHUNKS: string;
+        LEGAL_RULES: string;
+        ENGINEERING_RULES: string;
+      };
+      changeSummary: string;
+    };
     userDetail: {
       title: string;
       description: string;
@@ -1928,7 +2005,6 @@ export type PagesMessages = {
     };
   };
 };
-
 
 export type LocaleMessages = {
   auth: AuthMessages;

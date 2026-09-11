@@ -77,19 +77,30 @@ export function AdminUserFilters({
         >
           <SelectTrigger
             className="!h-[42px] data-[size=default]:!h-[42px] w-full rounded-[10px] border-border bg-card text-[12.5px] text-foreground focus:ring-1 focus:ring-primary shadow-xs"
-            aria-label={resolveAppMessage("pages.admin.usersList.statusFilterLabel" as MessageKey)}
+            aria-label={resolveAppMessage(
+              "pages.admin.usersList.statusFilterLabel" as MessageKey,
+            )}
           >
             <SelectValue placeholder={statusFilterAll}>
               {filters.statusFilter === "ALL"
                 ? statusFilterAll
                 : filters.statusFilter === AUTH_ACCOUNT_STATUSES.active
-                  ? resolveAppMessage("pages.admin.usersList.statuses.ACTIVE" as MessageKey)
+                  ? resolveAppMessage(
+                      "pages.admin.usersList.statuses.ACTIVE" as MessageKey,
+                    )
                   : filters.statusFilter === AUTH_ACCOUNT_STATUSES.suspended
-                    ? resolveAppMessage("pages.admin.usersList.statuses.SUSPENDED" as MessageKey)
+                    ? resolveAppMessage(
+                        "pages.admin.usersList.statuses.SUSPENDED" as MessageKey,
+                      )
                     : filters.statusFilter === AUTH_ACCOUNT_STATUSES.invited
-                      ? resolveAppMessage("pages.admin.usersList.statuses.INVITED" as MessageKey)
-                      : filters.statusFilter === AUTH_ACCOUNT_STATUSES.deactivated
-                        ? resolveAppMessage("pages.admin.usersList.statuses.DEACTIVATED" as MessageKey)
+                      ? resolveAppMessage(
+                          "pages.admin.usersList.statuses.INVITED" as MessageKey,
+                        )
+                      : filters.statusFilter ===
+                          AUTH_ACCOUNT_STATUSES.deactivated
+                        ? resolveAppMessage(
+                            "pages.admin.usersList.statuses.DEACTIVATED" as MessageKey,
+                          )
                         : statusFilterAll}
             </SelectValue>
           </SelectTrigger>
@@ -101,25 +112,33 @@ export function AdminUserFilters({
               value={AUTH_ACCOUNT_STATUSES.active}
               className="text-[12.5px]"
             >
-              {resolveAppMessage("pages.admin.usersList.statuses.ACTIVE" as MessageKey)}
+              {resolveAppMessage(
+                "pages.admin.usersList.statuses.ACTIVE" as MessageKey,
+              )}
             </SelectItem>
             <SelectItem
               value={AUTH_ACCOUNT_STATUSES.suspended}
               className="text-[12.5px]"
             >
-              {resolveAppMessage("pages.admin.usersList.statuses.SUSPENDED" as MessageKey)}
+              {resolveAppMessage(
+                "pages.admin.usersList.statuses.SUSPENDED" as MessageKey,
+              )}
             </SelectItem>
             <SelectItem
               value={AUTH_ACCOUNT_STATUSES.invited}
               className="text-[12.5px]"
             >
-              {resolveAppMessage("pages.admin.usersList.statuses.INVITED" as MessageKey)}
+              {resolveAppMessage(
+                "pages.admin.usersList.statuses.INVITED" as MessageKey,
+              )}
             </SelectItem>
             <SelectItem
               value={AUTH_ACCOUNT_STATUSES.deactivated}
               className="text-[12.5px]"
             >
-              {resolveAppMessage("pages.admin.usersList.statuses.DEACTIVATED" as MessageKey)}
+              {resolveAppMessage(
+                "pages.admin.usersList.statuses.DEACTIVATED" as MessageKey,
+              )}
             </SelectItem>
           </SelectContent>
         </Select>
@@ -133,15 +152,21 @@ export function AdminUserFilters({
         >
           <SelectTrigger
             className="!h-[42px] data-[size=default]:!h-[42px] w-full rounded-[10px] border-border bg-card text-[12.5px] text-foreground focus:ring-1 focus:ring-primary shadow-xs"
-            aria-label={resolveAppMessage("pages.admin.usersList.roleFilterLabel" as MessageKey)}
+            aria-label={resolveAppMessage(
+              "pages.admin.usersList.roleFilterLabel" as MessageKey,
+            )}
           >
             <SelectValue placeholder={roleFilterAll}>
               {filters.roleFilter === "ALL"
                 ? roleFilterAll
                 : filters.roleFilter === AUTH_USER_ROLES.admin
-                  ? resolveAppMessage("pages.admin.usersList.roles.ADMIN" as MessageKey)
+                  ? resolveAppMessage(
+                      "pages.admin.usersList.roles.ADMIN" as MessageKey,
+                    )
                   : filters.roleFilter === AUTH_USER_ROLES.customer
-                    ? resolveAppMessage("pages.admin.usersList.roles.CUSTOMER" as MessageKey)
+                    ? resolveAppMessage(
+                        "pages.admin.usersList.roles.CUSTOMER" as MessageKey,
+                      )
                     : roleFilterAll}
             </SelectValue>
           </SelectTrigger>
@@ -149,17 +174,18 @@ export function AdminUserFilters({
             <SelectItem value="ALL" className="text-[12.5px]">
               {roleFilterAll}
             </SelectItem>
-            <SelectItem
-              value={AUTH_USER_ROLES.admin}
-              className="text-[12.5px]"
-            >
-              {resolveAppMessage("pages.admin.usersList.roles.ADMIN" as MessageKey)}
+            <SelectItem value={AUTH_USER_ROLES.admin} className="text-[12.5px]">
+              {resolveAppMessage(
+                "pages.admin.usersList.roles.ADMIN" as MessageKey,
+              )}
             </SelectItem>
             <SelectItem
               value={AUTH_USER_ROLES.customer}
               className="text-[12.5px]"
             >
-              {resolveAppMessage("pages.admin.usersList.roles.CUSTOMER" as MessageKey)}
+              {resolveAppMessage(
+                "pages.admin.usersList.roles.CUSTOMER" as MessageKey,
+              )}
             </SelectItem>
           </SelectContent>
         </Select>
@@ -168,7 +194,9 @@ export function AdminUserFilters({
       {/* Create User Button (146px x 42px, light on dark / dark on light, right-aligned) */}
       <div className="ml-auto">
         <Tooltip>
-          <TooltipTrigger>
+          <TooltipTrigger
+            render={<span className="inline-flex" tabIndex={0} />}
+          >
             <Button
               type="button"
               onClick={onCreateUserClick}
@@ -186,8 +214,6 @@ export function AdminUserFilters({
           )}
         </Tooltip>
       </div>
-
-
     </div>
   );
 }

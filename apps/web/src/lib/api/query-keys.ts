@@ -36,5 +36,8 @@ export const apiQueryKeys = {
       ["admin", "users", params ?? {}] as const,
     userDetail: (userId: string) =>
       ["admin", "users", userId] as const,
+    corpusVersions: () => ["admin", "corpus-versions"] as const,
+    corpusVersion: (versionId: string) =>
+      ["admin", "corpus-versions", versionId] as const,
   },
 } as const;

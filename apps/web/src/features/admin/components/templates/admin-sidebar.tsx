@@ -54,7 +54,7 @@ export function AdminSidebar({
       href: "/admin/corpus-versions",
       icon: BookOpenIcon,
       isActive: isCorpusActive,
-      disabled: true,
+      disabled: false,
     },
   ];
 
