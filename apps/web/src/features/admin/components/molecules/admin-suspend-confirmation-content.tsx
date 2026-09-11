@@ -12,10 +12,10 @@ export function AdminSuspendConfirmationContent({
   userEmail,
 }: AdminSuspendConfirmationContentProps) {
   const warningText = resolveAppMessage(
-    "pages.admin.userDetail.suspendModal.warning" as MessageKey,
+    "pages.admin.suspendModal.auditNote" as MessageKey,
   );
   const descriptionTemplate = resolveAppMessage(
-    "pages.admin.userDetail.suspendModal.description" as MessageKey,
+    "pages.admin.suspendModal.body" as MessageKey,
   );
 
   const formattedDescription = descriptionTemplate

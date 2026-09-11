@@ -17,8 +17,8 @@ export function AdminRoleBadge({
   const isAdmin = role === AUTH_USER_ROLES.admin;
 
   const label = isAdmin
-    ? resolveAppMessage("pages.admin.usersList.filters.role.admin" as MessageKey)
-    : resolveAppMessage("pages.admin.usersList.filters.role.customer" as MessageKey);
+    ? resolveAppMessage("pages.admin.usersList.roles.ADMIN" as MessageKey)
+    : resolveAppMessage("pages.admin.usersList.roles.CUSTOMER" as MessageKey);
 
   return (
     <span

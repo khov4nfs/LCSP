@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { FieldGroup } from "@/components/ui/field";
 import { Spinner } from "@/components/ui/spinner";
 import { appLocale } from "@/lib/locale";
+import { resolvePostAuthRedirectPath } from "../../utils/post-auth-redirect";
 import { useSignInMutation } from "@/lib/api/auth-queries";
 import {
   API_OUTCOME_KINDS,
@@ -62,7 +63,15 @@ export function SignInForm() {
     }));
 
     if (outcome.kind === API_OUTCOME_KINDS.authenticated) {
-      router.replace("/workspace");
+      try {
+        router.replace(await resolvePostAuthRedirectPath(outcome.role));
+      } catch {
+        setSignInError({
+          kind: API_OUTCOME_KINDS.error,
+          titleKey: "pages.signIn.errors.requestFailedTitle",
+          detailKey: "pages.signIn.errors.requestFailedDetail",
+        });
+      }
       return;
     }
     if (outcome.kind === API_OUTCOME_KINDS.workspaceSelectionRequired) {

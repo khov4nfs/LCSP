@@ -35,6 +35,7 @@ import type {
   MfaVerifyOutcome,
 } from "@/lib/api/types/mfa-verify.types";
 import { appLocale } from "@/lib/locale";
+import { resolvePostAuthRedirectPath } from "../../utils/post-auth-redirect";
 
 import {
   MFA_VERIFY_METHODS,
@@ -88,7 +89,7 @@ export function MfaVerifyForm({
     }));
     form.resetField("otp");
 
-    handleOutcome(outcome);
+    await handleOutcome(outcome);
   }
 
   async function onRecoveryCodeSubmit(values: MfaRecoveryCodeVerifyFormValues) {
@@ -102,12 +103,19 @@ export function MfaVerifyForm({
       }));
     recoveryCodeForm.resetField("code");
 
-    handleOutcome(outcome);
+    await handleOutcome(outcome);
   }
 
-  function handleOutcome(outcome: MfaVerifyOutcome) {
+  async function handleOutcome(outcome: MfaVerifyOutcome) {
     if (outcome.kind === API_OUTCOME_KINDS.verified) {
-      router.replace("/workspace");
+      try {
+        router.replace(await resolvePostAuthRedirectPath());
+      } catch {
+        setError({
+          titleKey: "pages.mfaVerify.errors.requestFailedTitle",
+          detailKey: "pages.mfaVerify.errors.requestFailedDetail",
+        });
+      }
       return;
     }
     if (outcome.kind === API_OUTCOME_KINDS.sessionInvalid) {
