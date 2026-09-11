@@ -8,6 +8,21 @@ import {
   getAdminRouteRedirectPath,
   isAdminPath,
 } from "../src/admin-route-middleware.ts";
+import {
+  POST_AUTH_REDIRECT_PATHS,
+  postAuthRedirectPath,
+} from "../src/features/auth/utils/post-auth-redirect.ts";
+
+test("Post-auth redirect policy: Admin enters the Admin surface and Customer enters the workspace", () => {
+  assert.equal(
+    postAuthRedirectPath(AUTH_USER_ROLES.admin),
+    POST_AUTH_REDIRECT_PATHS.admin,
+  );
+  assert.equal(
+    postAuthRedirectPath(AUTH_USER_ROLES.customer),
+    POST_AUTH_REDIRECT_PATHS.customer,
+  );
+});
 
 test("Admin route policy: path matcher classification", () => {
   assert.equal(isAdminPath("/admin"), true);

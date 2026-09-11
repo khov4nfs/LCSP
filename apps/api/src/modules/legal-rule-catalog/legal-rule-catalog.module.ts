@@ -6,6 +6,7 @@ import { LegalCorpusReadinessController } from "./presentation/http/legal-corpus
 import { LegalBasisRetrievalController } from "./presentation/http/legal-basis-retrieval.controller.js";
 import { CitationSetValidationController } from "./presentation/http/citation-set-validation.controller.js";
 import { AdminSourceCatalogController } from "./presentation/http/admin-source-catalog.controller.js";
+import { AdminCorpusVersionsController } from "./presentation/http/admin-corpus-versions.controller.js";
 import { DraftLegalRuleHandler } from "./application/commands/draft-legal-rule/draft-legal-rule.handler.js";
 import { ApproveRuleCatalogVersionHandler } from "./application/commands/approve-rule-catalog-version/approve-rule-catalog-version.handler.js";
 import { ResumeWaitingRunsHandler } from "./application/commands/resume-waiting-runs/resume-waiting-runs.handler.js";
@@ -16,6 +17,7 @@ import { GetLegalCorpusReadinessHandler } from "./application/queries/get-legal-
 import { RetrieveLegalBasisHandler } from "./application/queries/retrieve-legal-basis/retrieve-legal-basis.handler.js";
 import { ValidateCitationSetHandler } from "./application/queries/validate-citation-set/validate-citation-set.handler.js";
 import { AdminSourceCatalogService } from "./application/services/admin-source-catalog.service.js";
+import { AdminCorpusVersionsService } from "./application/services/admin-corpus-versions.service.js";
 import { CitationLocatorValidatorService } from "./application/services/citation-locator-validator.service.js";
 import { LegalCorpusService } from "./application/services/legal-corpus.service.js";
 import { OfficialSourceSnapshotService } from "./application/services/official-source-snapshot.service.js";
@@ -38,6 +40,7 @@ const Handlers = [
   controllers: [
     LegalRuleCatalogController,
     AdminSourceCatalogController,
+    AdminCorpusVersionsController,
     LegalCorpusReadinessController,
     LegalBasisRetrievalController,
     CitationSetValidationController,
@@ -45,6 +48,7 @@ const Handlers = [
   providers: [
     ...Handlers,
     AdminSourceCatalogService,
+    AdminCorpusVersionsService,
     CitationLocatorValidatorService,
     LegalCorpusService,
     OfficialSourceSnapshotService,

@@ -5,4 +5,5 @@ export const LEGAL_RULE_EVENT_TYPES = {
   corpusIngested: "legal_corpus.ingested",
   corpusVersionApproved: "legal_corpus_version.approved",
   corpusVersionActivated: "event.legal-corpus.activated.v1",
+  corpusVersionDiscarded: "legal_corpus_version.discarded",
 } as const;

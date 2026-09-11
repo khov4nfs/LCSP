@@ -218,7 +218,7 @@ export type AuthRepositorySummary = {
 };
 
 export type SignInOutcome =
-  | { kind: typeof API_OUTCOME_KINDS.authenticated }
+  | { kind: typeof API_OUTCOME_KINDS.authenticated; role?: AuthUserRole }
   | {
       kind: typeof API_OUTCOME_KINDS.workspaceSelectionRequired;
       workspaces: SignInWorkspaceOption[];
@@ -257,7 +257,10 @@ export function toSignInOutcome(
         ? { kind: API_OUTCOME_KINDS.mfaEnrollmentRequired }
         : { kind: API_OUTCOME_KINDS.mfaRequired };
     }
-    return { kind: API_OUTCOME_KINDS.authenticated };
+    return {
+      kind: API_OUTCOME_KINDS.authenticated,
+      ...(payload.role ? { role: payload.role } : {}),
+    };
   }
 
   if (problemCode === AUTH_ERROR_CODES.temporaryLock) {
@@ -786,6 +789,7 @@ function isSignInSuccess(payload: unknown): payload is {
   mfa_enrolled?: boolean;
   workspace_selection_required?: boolean;
   workspaces?: SignInWorkspaceOption[];
+  role?: AuthUserRole;
 } {
   if (typeof payload !== "object" || payload === null) {
     return false;

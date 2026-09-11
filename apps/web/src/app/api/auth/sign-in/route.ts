@@ -1,4 +1,8 @@
-import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import {
+  AUTH_ERROR_CODES,
+  AUTH_USER_ROLES,
+  type AuthUserRole,
+} from "@lcsp/contracts/auth";
 import {
   isMockModeEnabled,
   readMockJson,
@@ -16,6 +20,7 @@ type SignInApiSuccess = {
   mfa_required?: boolean;
   mfa_enrolled?: boolean;
   session_token: string;
+  user: { subject_attributes: { role: AuthUserRole } };
 };
 
 export async function POST(request: Request) {
@@ -31,6 +36,7 @@ export async function POST(request: Request) {
     ) {
       const response = successJson({
         mfa_enrolled: false,
+        role: AUTH_USER_ROLES.customer,
       });
       response.cookies.set(
         SESSION_COOKIE_NAME,
@@ -60,6 +66,7 @@ export async function POST(request: Request) {
   const response = successJson({
     mfa_required: upstream.data.mfa_required === true,
     mfa_enrolled: upstream.data.mfa_enrolled === true,
+    role: upstream.data.user.subject_attributes.role,
   });
   response.cookies.set(
     SESSION_COOKIE_NAME,
@@ -73,6 +80,15 @@ function isSignInApiSuccess(payload: unknown): payload is SignInApiSuccess {
   return (
     typeof payload === "object" &&
     payload !== null &&
-    typeof (payload as { session_token?: unknown }).session_token === "string"
+    typeof (payload as { session_token?: unknown }).session_token ===
+      "string" &&
+    isAuthUserRole(
+      (payload as { user?: { subject_attributes?: { role?: unknown } } }).user
+        ?.subject_attributes?.role,
+    )
   );
+}
+
+function isAuthUserRole(value: unknown): value is AuthUserRole {
+  return Object.values(AUTH_USER_ROLES).includes(value as AuthUserRole);
 }
