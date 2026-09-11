@@ -1,10 +1,14 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon } from "lucide-react";
 import type { MessageKey } from "@lcsp/i18n";
-import type { AuthUserRole } from "@lcsp/contracts/auth";
+import {
+  ADMIN_ACCOUNT_ERRORS,
+  ADMIN_ACCOUNT_OPERATIONS,
+} from "@lcsp/contracts/auth";
+import { accountMutationErrorKey } from "@/features/admin/config/account-mutation-error";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,7 +20,7 @@ import { AdminUsageSummary } from "@/features/admin/components/organisms/admin-u
 import { AdminSuspendModal } from "@/features/admin/components/organisms/admin-suspend-modal";
 import {
   useAdminSuspendUserMutation,
-  useAdminUpdateRoleMutation,
+  useAdminRestoreUserMutation,
   useAdminUserDetailQuery,
 } from "@/lib/api/admin-users-queries";
 import { resolveAppMessage } from "@/lib/i18n";
@@ -30,10 +34,21 @@ export default function AdminUserDetailPage({
   const router = useRouter();
 
   const [isSuspendModalOpen, setIsSuspendModalOpen] = useState(false);
+  const [actionError, setActionError] = useState<MessageKey | null>(null);
+  const attempts = useRef(new Map<string, string>());
+  function requestKey(payload: unknown) {
+    const fingerprint = JSON.stringify(payload);
+    let key = attempts.current.get(fingerprint);
+    if (!key) {
+      key = crypto.randomUUID();
+      attempts.current.set(fingerprint, key);
+    }
+    return key;
+  }
 
   const { data: user, isLoading, error } = useAdminUserDetailQuery(id);
-  const updateRoleMutation = useAdminUpdateRoleMutation(id);
   const suspendUserMutation = useAdminSuspendUserMutation(id);
+  const restoreUserMutation = useAdminRestoreUserMutation(id);
 
   const pageTitle = resolveAppMessage(
     "pages.admin.userDetail.title" as MessageKey,
@@ -48,13 +63,46 @@ export default function AdminUserDetailPage({
     "pages.admin.suspendModal.defaultReason" as MessageKey,
   );
 
-  const handleRoleSave = async (newRole: AuthUserRole) => {
-    await updateRoleMutation.mutateAsync({ role: newRole });
+  const handleConfirmSuspend = async () => {
+    setActionError(null);
+    try {
+      if (user?.version === undefined)
+        throw new Error(ADMIN_ACCOUNT_ERRORS.staleVersion);
+      const input = {
+        reason: defaultSuspendReason,
+        expectedVersion: user.version,
+      };
+      await suspendUserMutation.mutateAsync({
+        ...input,
+        idempotencyKey: requestKey({
+          operation: ADMIN_ACCOUNT_OPERATIONS.suspend,
+          ...input,
+        }),
+      });
+      attempts.current.clear();
+      setIsSuspendModalOpen(false);
+    } catch (error) {
+      setActionError(accountMutationErrorKey(error));
+    }
   };
 
-  const handleConfirmSuspend = async () => {
-    await suspendUserMutation.mutateAsync({ reason: defaultSuspendReason });
-    setIsSuspendModalOpen(false);
+  const handleRestore = async () => {
+    setActionError(null);
+    try {
+      if (user?.version === undefined)
+        throw new Error(ADMIN_ACCOUNT_ERRORS.staleVersion);
+      const input = { expectedVersion: user.version };
+      await restoreUserMutation.mutateAsync({
+        ...input,
+        idempotencyKey: requestKey({
+          operation: ADMIN_ACCOUNT_OPERATIONS.restore,
+          ...input,
+        }),
+      });
+      attempts.current.clear();
+    } catch (error) {
+      setActionError(accountMutationErrorKey(error));
+    }
   };
 
   if (isLoading) {
@@ -63,8 +111,8 @@ export default function AdminUserDetailPage({
         <Skeleton className="h-10 w-48 bg-muted" />
         <Skeleton className="h-6 w-96 bg-muted" />
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Skeleton className="h-[252px] w-full rounded-xl bg-muted" />
-          <Skeleton className="h-[252px] w-full rounded-xl bg-muted" />
+          <Skeleton className="h-63 w-full rounded-xl bg-muted" />
+          <Skeleton className="h-63 w-full rounded-xl bg-muted" />
         </div>
       </div>
     );
@@ -80,7 +128,7 @@ export default function AdminUserDetailPage({
           type="button"
           variant="outline"
           onClick={() => router.push("/admin/users")}
-          className="mt-4 rounded-[10px]"
+          className="mt-4 rounded-lg"
         >
           {backToUsersLabel}
         </Button>
@@ -91,10 +139,7 @@ export default function AdminUserDetailPage({
   return (
     <div className="flex flex-col space-y-6 pb-12">
       {/* Page Header */}
-      <AdminPageHeader
-        title={pageTitle}
-        description={pageDescription}
-      />
+      <AdminPageHeader title={pageTitle} description={pageDescription} />
 
       {/* Back Button */}
       <div>
@@ -102,7 +147,7 @@ export default function AdminUserDetailPage({
           type="button"
           variant="outline"
           onClick={() => router.push("/admin/users")}
-          className="h-[38px] w-auto px-3.5 rounded-[10px] border-border bg-secondary text-[12.5px] font-semibold text-secondary-foreground hover:bg-secondary/80 shadow-xs"
+          className="h-9.5 w-auto px-3.5 rounded-lg border-border bg-secondary text-[12.5px] font-semibold text-secondary-foreground hover:bg-secondary/80 shadow-xs"
         >
           <ArrowLeftIcon className="size-4 mr-1.5" />
           {backToUsersLabel}
@@ -112,7 +157,7 @@ export default function AdminUserDetailPage({
       {/* User Identity Header + Status Pill */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-6 shadow-xs">
         <div className="flex flex-col space-y-1">
-          <h2 className="text-[24px] font-semibold text-foreground tracking-tight">
+          <h2 className="text-2xl font-semibold text-foreground tracking-tight">
             {user.fullName}
           </h2>
           <span className="text-[12.5px] text-muted-foreground">
@@ -124,14 +169,20 @@ export default function AdminUserDetailPage({
         <AdminStatusBadge status={user.status} size="md" />
       </div>
 
+      {actionError && (
+        <p role="alert" className="text-destructive">
+          {resolveAppMessage(actionError)}
+        </p>
+      )}
       {/* Two Details / Actions Cards */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <AdminAccountDetailsCard user={user} />
         <AdminAdministrativeActionsCard
+          key={`${user.id}:${user.version}`}
           user={user}
-          onRoleSave={handleRoleSave}
+          onRestore={handleRestore}
+          isRestoring={restoreUserMutation.isPending}
           onOpenSuspendModal={() => setIsSuspendModalOpen(true)}
-          isSavingRole={updateRoleMutation.isPending}
         />
       </div>
 
@@ -145,6 +196,7 @@ export default function AdminUserDetailPage({
         onClose={() => setIsSuspendModalOpen(false)}
         onConfirm={handleConfirmSuspend}
         isPending={suspendUserMutation.isPending}
+        errorMessage={actionError ? resolveAppMessage(actionError) : undefined}
       />
     </div>
   );

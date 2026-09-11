@@ -68,7 +68,10 @@ test("Admin user query filters correctly across search, status, and role", () =>
   assert.equal(filterUsers("client.io", "ALL", "ALL")[0].id, "usr_2");
 
   // Status filter
-  assert.equal(filterUsers("", AUTH_ACCOUNT_STATUSES.suspended, "ALL").length, 1);
+  assert.equal(
+    filterUsers("", AUTH_ACCOUNT_STATUSES.suspended, "ALL").length,
+    1,
+  );
   assert.equal(filterUsers("", AUTH_ACCOUNT_STATUSES.active, "ALL").length, 1);
 
   // Role filter
@@ -77,7 +80,8 @@ test("Admin user query filters correctly across search, status, and role", () =>
 
   // Combined filter
   assert.equal(
-    filterUsers("company", AUTH_ACCOUNT_STATUSES.active, AUTH_USER_ROLES.admin).length,
+    filterUsers("company", AUTH_ACCOUNT_STATUSES.active, AUTH_USER_ROLES.admin)
+      .length,
     1,
   );
 });
@@ -121,8 +125,9 @@ test("Ensures production BFF admin user routes forward upstream directly without
   const routes = [
     "src/app/api/admin/users/route.ts",
     "src/app/api/admin/users/[id]/route.ts",
-    "src/app/api/admin/users/[id]/role/route.ts",
     "src/app/api/admin/users/[id]/suspend/route.ts",
+    "src/app/api/admin/users/[id]/restore/route.ts",
+    "src/lib/server/admin-account-mutations.ts",
   ];
 
   for (const routePath of routes) {
@@ -130,15 +135,33 @@ test("Ensures production BFF admin user routes forward upstream directly without
     const content = await readFile(fullPath, "utf8");
 
     // Must not read mock JSON in production BFF handlers
-    assert.equal(content.includes("readMockJson"), false, `${routePath} must not use readMockJson`);
-    assert.equal(content.includes("admin-users.json"), false, `${routePath} must not use admin-users.json`);
+    assert.equal(
+      content.includes("readMockJson"),
+      false,
+      `${routePath} must not use readMockJson`,
+    );
+    assert.equal(
+      content.includes("admin-users.json"),
+      false,
+      `${routePath} must not use admin-users.json`,
+    );
     // Must forward upstream
-    assert.equal(content.includes("upstreamRequest"), true, `${routePath} must use upstreamRequest`);
-    assert.equal(content.includes("upstreamJson"), true, `${routePath} must use upstreamJson`);
+    assert.equal(
+      content.includes("upstreamRequest") ||
+        content.includes("proxyAdminAccountMutation"),
+      true,
+      `${routePath} must use the shared upstream transport`,
+    );
+    assert.equal(
+      content.includes("upstreamJson") ||
+        content.includes("proxyAdminAccountMutation"),
+      true,
+      `${routePath} must forward canonical upstream results`,
+    );
   }
 });
 
-test("Admin user filters expose every account status from the shared contract", async () => {
+test("Admin user filters expose only lifecycle statuses supported by the API", async () => {
   const filterFilePath = join(
     process.cwd(),
     "src/features/admin/components/molecules/admin-user-filters.tsx",
@@ -148,7 +171,10 @@ test("Admin user filters expose every account status from the shared contract", 
   assert.equal(filterContent.includes("AUTH_ACCOUNT_STATUSES.active"), true);
   assert.equal(filterContent.includes("AUTH_ACCOUNT_STATUSES.suspended"), true);
   assert.equal(filterContent.includes("AUTH_ACCOUNT_STATUSES.invited"), true);
-  assert.equal(filterContent.includes("AUTH_ACCOUNT_STATUSES.deactivated"), true);
+  assert.equal(
+    /value=\{AUTH_ACCOUNT_STATUSES\.deactivated\}/.test(filterContent),
+    false,
+  );
 });
 
 test("Admin UI chrome resolves labels from i18n instead of hardcoded English copy", async () => {
@@ -169,14 +195,25 @@ test("Admin UI chrome resolves labels from i18n instead of hardcoded English cop
     assert.equal(content.includes(">Soon<"), false, relativePath);
     assert.equal(content.includes("Admin Navigation"), false, relativePath);
     assert.equal(content.includes("Admin Sections"), false, relativePath);
-    assert.equal(content.includes("LCSP Admin\""), false, relativePath);
-    assert.equal(content.includes('aria-label="Usage Summary"'), false, relativePath);
-    assert.equal(content.includes("Administrative suspension"), false, relativePath);
+    assert.equal(content.includes('LCSP Admin"'), false, relativePath);
+    assert.equal(
+      content.includes('aria-label="Usage Summary"'),
+      false,
+      relativePath,
+    );
+    assert.equal(
+      content.includes("Administrative suspension"),
+      false,
+      relativePath,
+    );
   }
 });
 
 test("Admin mutations invalidate list queries through the shared admin query key", async () => {
-  const queryFilePath = join(process.cwd(), "src/lib/api/admin-users-queries.ts");
+  const queryFilePath = join(
+    process.cwd(),
+    "src/lib/api/admin-users-queries.ts",
+  );
   const queryContent = await readFile(queryFilePath, "utf8");
 
   assert.equal(queryContent.includes("apiQueryKeys.admin.usersRoot()"), true);

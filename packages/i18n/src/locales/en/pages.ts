@@ -1,5 +1,47 @@
 import type { PagesMessages } from "../../types.ts";
 export const enPages = {
+  accountLifecycle: {
+    inviteTitle: "Create user",
+    inviteDescription:
+      "Send a one-time invitation. The recipient sets their own password; no user account is created until acceptance.",
+    displayName: "Display name",
+    email: "Email address",
+    role: "Role",
+    sendInvite: "Send invitation",
+    sending: "Sending…",
+    cancel: "Cancel",
+    inviteSuccess:
+      "Invitation sent. The recipient can now accept it using the email link.",
+    requestFailed:
+      "The operation could not be completed. Retry the same request or refresh the account state.",
+    conflict:
+      "This account changed, or the request is no longer valid. Review the refreshed state before trying again.",
+    deliveryFailed:
+      "The invitation is pending, but email delivery failed. Retry to send the same invitation.",
+    duplicate: "An account or active invitation already exists for this email.",
+    lastAdmin:
+      "At least one usable Admin must remain. Your own account cannot be suspended.",
+    restore: "Restore account",
+    restoring: "Restoring…",
+    invitePending:
+      "Invitation pending. Access is available after the recipient accepts.",
+    acceptTitle: "Accept your invitation",
+    acceptDescription:
+      "Choose your password to activate your invited account. Then sign in normally.",
+    password: "Password",
+    confirmPassword: "Confirm password",
+    accept: "Activate account",
+    accepting: "Activating…",
+    accepted: "Your account has been created. Sign in to continue.",
+    signIn: "Sign in",
+    invalidInvitation:
+      "This invitation is invalid, expired, or already used. Request a new invitation from an Admin.",
+    passwordRule: "Use between 12 and 256 characters.",
+    passwordMismatch: "The passwords do not match.",
+    required: "Enter a valid value.",
+    unavailable:
+      "Invitation delivery is not configured. Contact the platform operator.",
+  },
   artifacts: {
     title: "Artifacts",
     newArtifact: "New artifact",
@@ -2249,9 +2291,6 @@ export const enPages = {
       },
       administrativeActionsCard: {
         title: "Administrative actions",
-        roleLabel: "Role",
-        saveRole: "Save role",
-        savingRole: "Saving role...",
         accountAccessLabel: "Account access",
         activeAccessCopy: "Active account can sign in and run assessments.",
         suspendedAccessCopy:

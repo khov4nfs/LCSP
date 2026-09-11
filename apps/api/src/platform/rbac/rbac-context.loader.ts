@@ -1,3 +1,4 @@
+import { USER_ACCESS_STATUSES } from "@lcsp/contracts/auth";
 import { Inject, Injectable } from "@nestjs/common";
 import type {
   Session,
@@ -62,6 +63,15 @@ export class RbacContextLoader {
         return { ok: false, reason: RBAC_REASON_CODES.sessionInvalid };
       }
 
+      const user = await this.users.findById(session.userId);
+      if (!user) {
+        return { ok: false, reason: RBAC_REASON_CODES.loadError };
+      }
+      if (user.accessStatus !== USER_ACCESS_STATUSES.active)
+        return { ok: false, reason: RBAC_REASON_CODES.accountSuspended };
+      if (user.accessVersion !== session.accessVersion)
+        return { ok: false, reason: RBAC_REASON_CODES.sessionInvalid };
+
       const mfaEnrollment = await this.mfaEnrollments.findByUserId(
         session.userId,
       );
@@ -76,11 +86,6 @@ export class RbacContextLoader {
           reason: RBAC_REASON_CODES.mfaRequired,
           mfaEnrolled: true,
         };
-      }
-
-      const user = await this.users.findById(session.userId);
-      if (!user) {
-        return { ok: false, reason: RBAC_REASON_CODES.loadError };
       }
 
       return {

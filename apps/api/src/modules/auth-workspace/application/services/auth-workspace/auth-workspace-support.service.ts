@@ -1,9 +1,12 @@
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
+  USER_ACCESS_STATUSES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
   createProblemResult,
 } from "@lcsp/contracts/auth";
+import { HttpStatus } from "@nestjs/common";
+import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { RBAC_DECISIONS, RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 
 import type {
@@ -115,10 +118,15 @@ export class AuthWorkspaceSupportService {
     user: User,
     correlationId: string,
   ): Promise<{ token: string; session: Session }> {
+    if (user.accessStatus !== USER_ACCESS_STATUSES.active)
+      throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId, {
+        status: HttpStatus.FORBIDDEN,
+      });
     const token = issueOpaqueToken();
     const fingerprint = fingerprintToken(token);
     const session = new SessionEntity({
       userId: user.id,
+      accessVersion: user.accessVersion,
       tokenHash: hashSecret(token),
       expiresAt: this.now() + SESSION_TTL_MS,
       revokedAt: null,
@@ -150,6 +158,13 @@ export class AuthWorkspaceSupportService {
       return null;
     }
 
+    const user = await repositories.users.findById(session.userId);
+    if (
+      !user ||
+      user.accessStatus !== USER_ACCESS_STATUSES.active ||
+      user.accessVersion !== session.accessVersion
+    )
+      return null;
     return session;
   }
 
@@ -166,7 +181,7 @@ export class AuthWorkspaceSupportService {
     correlationId: string,
     resourceId = "workspace-home",
   ): Promise<WorkspaceAuthorization> {
-    if (!user) {
+    if (!user || user.accessStatus !== USER_ACCESS_STATUSES.active) {
       const denied = createProblemResult(
         AUTH_ERROR_CODES.sessionInvalid,
         correlationId,

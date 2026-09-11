@@ -1,5 +1,46 @@
 import type { PagesMessages } from "../../types.ts";
 export const viPages = {
+  accountLifecycle: {
+    inviteTitle: "Tạo người dùng",
+    inviteDescription:
+      "Gửi lời mời dùng một lần. Người nhận tự đặt mật khẩu; tài khoản chỉ được tạo sau khi chấp nhận.",
+    displayName: "Tên hiển thị",
+    email: "Địa chỉ email",
+    role: "Vai trò",
+    sendInvite: "Gửi lời mời",
+    sending: "Đang gửi…",
+    cancel: "Hủy",
+    inviteSuccess:
+      "Đã gửi lời mời. Người nhận có thể chấp nhận qua liên kết trong email.",
+    requestFailed:
+      "Không thể hoàn tất thao tác. Thử lại cùng yêu cầu hoặc tải lại trạng thái tài khoản.",
+    conflict:
+      "Tài khoản đã thay đổi hoặc yêu cầu không còn hợp lệ. Kiểm tra trạng thái mới trước khi thử lại.",
+    deliveryFailed:
+      "Lời mời đang chờ nhưng gửi email thất bại. Thử lại để gửi cùng lời mời.",
+    duplicate: "Email này đã có tài khoản hoặc lời mời còn hiệu lực.",
+    lastAdmin:
+      "Phải giữ ít nhất một Admin có thể truy cập. Không thể đình chỉ tài khoản của chính bạn.",
+    restore: "Khôi phục tài khoản",
+    restoring: "Đang khôi phục…",
+    invitePending:
+      "Đang chờ chấp nhận lời mời. Người nhận cần chấp nhận trước khi truy cập.",
+    acceptTitle: "Chấp nhận lời mời",
+    acceptDescription:
+      "Đặt mật khẩu để kích hoạt tài khoản được mời. Sau đó đăng nhập như bình thường.",
+    password: "Mật khẩu",
+    confirmPassword: "Xác nhận mật khẩu",
+    accept: "Kích hoạt tài khoản",
+    accepting: "Đang kích hoạt…",
+    accepted: "Đã tạo tài khoản. Hãy đăng nhập để tiếp tục.",
+    signIn: "Đăng nhập",
+    invalidInvitation:
+      "Lời mời không hợp lệ, đã hết hạn hoặc đã được dùng. Liên hệ Admin để nhận lời mời mới.",
+    passwordRule: "Sử dụng từ 12 đến 256 ký tự.",
+    passwordMismatch: "Hai mật khẩu không khớp.",
+    required: "Nhập giá trị hợp lệ.",
+    unavailable: "Chưa cấu hình gửi lời mời. Liên hệ người vận hành nền tảng.",
+  },
   artifacts: {
     title: "Artifacts",
     newArtifact: "Artifact mới",
@@ -2254,9 +2295,6 @@ export const viPages = {
       },
       administrativeActionsCard: {
         title: "Thao tác quản trị",
-        roleLabel: "Vai trò",
-        saveRole: "Lưu vai trò",
-        savingRole: "Đang lưu vai trò...",
         accountAccessLabel: "Quyền truy cập tài khoản",
         activeAccessCopy:
           "Tài khoản đang hoạt động có thể đăng nhập và chạy assessment.",

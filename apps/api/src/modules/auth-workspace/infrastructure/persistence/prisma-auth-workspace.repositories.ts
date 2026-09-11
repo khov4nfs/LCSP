@@ -1,13 +1,16 @@
 import * as crypto from "node:crypto";
 
 import {
+  AUTH_ERROR_CODES,
+  USER_ACCESS_STATUSES,
   authAuditReadDecision,
   authAuditReadNullableString,
   authAuditReadString,
   normalizeLegacyAuthAuditEventType,
 } from "@lcsp/contracts/auth";
-import { Injectable } from "@nestjs/common";
-import type { Prisma } from "@prisma/client";
+import { HttpStatus, Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { problemException } from "../../../../platform/problems/problem-factory.js";
 
 import {
   toPrismaAuditResourceType,
@@ -104,7 +107,6 @@ export class PrismaUserRepository implements UserRepository {
           backupEmailPolicy: toPrismaAuthBackupEmailPolicy(
             user.backupEmailPolicy,
           ),
-          role: toPrismaAuthUserRole(user.role),
           mfaRequired: user.mfaRequired,
         },
       });
@@ -171,32 +173,67 @@ export class PrismaSessionRepository implements SessionRepository {
       ),
     } satisfies Prisma.InputJsonObject;
 
-    await this.prisma.authRecord.upsert({
-      where: { id: session.id },
-      create: {
-        id: session.id,
-        userId: session.userId,
-        type: AUTH_RECORD_TYPES.session,
-        lookupKey: authRecordLookupKey(
-          AUTH_RECORD_TYPES.session,
-          tokenFingerprint,
-        ),
-        secretHash: session.tokenHash,
-        expiresAt: dateFromEpochMsRequired(session.expiresAt),
-        revokedAt: dateFromEpochMs(session.revokedAt),
-        metadata,
-      },
-      update: {
-        userId: session.userId,
-        lookupKey: authRecordLookupKey(
-          AUTH_RECORD_TYPES.session,
-          tokenFingerprint,
-        ),
-        secretHash: session.tokenHash,
-        expiresAt: dateFromEpochMsRequired(session.expiresAt),
-        revokedAt: dateFromEpochMs(session.revokedAt),
-        metadata,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "User" WHERE "id" = ${session.userId} FOR UPDATE`,
+      );
+      const user = await tx.user.findUnique({
+        where: { id: session.userId },
+        select: { accessStatus: true, accessVersion: true },
+      });
+      if (
+        !user ||
+        (session.revokedAt === null &&
+          (user.accessStatus !== USER_ACCESS_STATUSES.active ||
+            user.accessVersion !== session.accessVersion))
+      ) {
+        throw problemException(
+          AUTH_ERROR_CODES.sessionInvalid,
+          crypto.randomUUID(),
+          { status: HttpStatus.UNAUTHORIZED },
+        );
+      }
+      const existing = await tx.authRecord.findUnique({
+        where: { id: session.id },
+        select: { id: true },
+      });
+      if (existing) {
+        // An MFA/reauth write from a stale entity must never un-revoke a session.
+        const updated = await tx.authRecord.updateMany({
+          where: {
+            id: session.id,
+            userId: session.userId,
+            type: AUTH_RECORD_TYPES.session,
+            revokedAt: null,
+          },
+          data: {
+            revokedAt: dateFromEpochMs(session.revokedAt),
+            metadata: { ...metadata, accessVersion: session.accessVersion },
+          },
+        });
+        if (updated.count === 0 && session.revokedAt === null)
+          throw problemException(
+            AUTH_ERROR_CODES.sessionInvalid,
+            crypto.randomUUID(),
+            { status: HttpStatus.UNAUTHORIZED },
+          );
+      } else {
+        await tx.authRecord.create({
+          data: {
+            id: session.id,
+            userId: session.userId,
+            type: AUTH_RECORD_TYPES.session,
+            lookupKey: authRecordLookupKey(
+              AUTH_RECORD_TYPES.session,
+              tokenFingerprint,
+            ),
+            secretHash: session.tokenHash,
+            expiresAt: dateFromEpochMsRequired(session.expiresAt),
+            revokedAt: dateFromEpochMs(session.revokedAt),
+            metadata: { ...metadata, accessVersion: session.accessVersion },
+          },
+        });
+      }
     });
   }
 

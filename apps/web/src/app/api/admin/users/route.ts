@@ -1,3 +1,4 @@
+import { proxyAdminAccountInvite } from "@/lib/server/admin-account-mutations";
 import { NextRequest } from "next/server";
 
 import { requireSessionToken } from "@/lib/server/session-token";
@@ -18,4 +19,8 @@ export async function GET(request: NextRequest) {
   );
 
   return upstreamJson(upstream);
+}
+
+export async function POST(request: import("next/server").NextRequest) {
+  return proxyAdminAccountInvite(request);
 }

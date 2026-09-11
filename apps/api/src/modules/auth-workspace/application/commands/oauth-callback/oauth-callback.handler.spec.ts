@@ -1,6 +1,7 @@
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
+  USER_ACCESS_STATUSES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
 } from "@lcsp/contracts/auth";
 import { describe, expect, it, jest } from "@jest/globals";
@@ -217,6 +218,23 @@ function buildLoginHarness(
 }
 
 describe("OAuthCallbackHandler", () => {
+  it("denies a suspended account even with a valid OAuth identity and provider claims", async () => {
+    const { handler, repositories } = buildLoginHarness({
+      user: makeUser({ accessStatus: USER_ACCESS_STATUSES.suspended }),
+    });
+    const save = jest.spyOn(repositories.sessions, "save");
+    const result = await handler.execute(
+      new OAuthCallbackCommand(
+        { code: "good-code", state: "state-value", provider: "stub-oidc" },
+        { correlationId: "suspended-oauth" },
+      ),
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok)
+      expect(result.problem.code).toBe(AUTH_ERROR_CODES.accountSuspended);
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("succeeds when nonce, issuer, audience, expiry, identity, and user are valid", async () => {
     const { handler, repositories } = buildLoginHarness();
 

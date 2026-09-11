@@ -1,3 +1,8 @@
+import { AdminAccountReadService } from "./application/services/admin/admin-account-read.service.js";
+import { AdminAccountCommandService } from "./application/services/admin/admin-account-command.service.js";
+import { AdminAccountInvitationService } from "./application/services/admin/admin-account-invitation.service.js";
+import { AccountInvitationsController } from "./presentation/http/account-invitations.controller.js";
+import { MailModule } from "../../platform/mail/mail.module.js";
 import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CqrsModule } from "@nestjs/cqrs";
@@ -89,9 +94,16 @@ function handlerProvider<T>(
 }
 
 @Module({
-  imports: [PrismaModule, AuditModule, CqrsModule],
-  controllers: [AuthWorkspaceController, AdminUsersController],
+  imports: [PrismaModule, AuditModule, CqrsModule, MailModule],
+  controllers: [
+    AuthWorkspaceController,
+    AdminUsersController,
+    AccountInvitationsController,
+  ],
   providers: [
+    AdminAccountReadService,
+    AdminAccountCommandService,
+    AdminAccountInvitationService,
     ...REPOSITORY_PROVIDERS,
     {
       provide: AUTH_WORKSPACE_REPOSITORIES_BAG,

@@ -1,5 +1,5 @@
 import { AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
-import { type AuthUserRole } from "@lcsp/contracts/auth";
+import { USER_ACCESS_STATUSES, type AuthUserRole } from "@lcsp/contracts/auth";
 import {
   RBAC_DECISIONS,
   RBAC_REASON_CODES,
@@ -45,6 +45,9 @@ export class RbacPreflightService {
       if (!user) {
         return this.deny(input, RBAC_REASON_CODES.loadError);
       }
+
+      if (user.accessStatus !== USER_ACCESS_STATUSES.active)
+        return this.deny(input, RBAC_REASON_CODES.accountSuspended);
 
       if (!input.requiredRoles.includes(user.role)) {
         return this.deny(input, RBAC_REASON_CODES.denied);

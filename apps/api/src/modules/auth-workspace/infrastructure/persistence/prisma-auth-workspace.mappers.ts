@@ -27,6 +27,8 @@ export function mapUserRecord(record: PrismaUser): User {
     emailVerified: record.emailVerified,
     failedLoginCount: record.failedLoginCount,
     lockUntil: record.lockUntil?.getTime() ?? null,
+    accessStatus: record.accessStatus,
+    accessVersion: record.accessVersion,
     displayName: record.displayName ?? null,
     recoveryEmail: record.recoveryEmail ?? null,
     primaryEmailAddressPolicy: fromPrismaAuthPrimaryEmailAddressPolicy(
@@ -54,6 +56,9 @@ export function mapSessionRecord(record: AuthRecord): Session {
   return Session.rehydrate({
     id: record.id,
     userId: required(record.userId, "Session userId"),
+    accessVersion: Number(
+      (record.metadata as Record<string, unknown> | null)?.accessVersion ?? 0,
+    ),
     tokenHash: required(record.secretHash, "Session token hash"),
     expiresAt: required(record.expiresAt, "Session expiry").getTime(),
     revokedAt: record.revokedAt?.getTime() ?? null,

@@ -31,7 +31,7 @@
     "prepare": "husky",
     "test": "pnpm run test:web && pnpm --filter @lcsp/api test:e2e",
     "pretest:web": "pnpm run build:runtime-packages",
-    "test:web": "pnpm exec tsx --test tests/*.web.test.ts && pnpm --dir apps/web exec tsx --test 'tests/*.test.ts'",
+    "test:web": "pnpm exec tsx --test tests/*.web.test.ts && pnpm --dir apps/web exec tsx --tsconfig tsconfig.test.json --test 'tests/*.test.ts'",
     "pretest:admin:e2e": "pnpm run build:runtime-packages",
     "test:admin:e2e": "playwright test tests/e2e/admin",
     "prisma:generate": "pnpm --filter @lcsp/api prisma:generate",
