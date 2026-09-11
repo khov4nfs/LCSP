@@ -1,6 +1,7 @@
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
+  USER_ACCESS_STATUSES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
   createProblemResult,
 } from "@lcsp/contracts/auth";
@@ -147,6 +148,19 @@ export class OAuthCallbackHandler {
       );
       return createProblemResult(
         AUTH_ERROR_CODES.accountNotFound,
+        correlationId,
+      );
+    }
+
+    if (user.accessStatus !== USER_ACCESS_STATUSES.active) {
+      await this.recordFailure(
+        repositories,
+        correlationId,
+        AUTH_ERROR_CODES.accountSuspended,
+        user.id,
+      );
+      return createProblemResult(
+        AUTH_ERROR_CODES.accountSuspended,
         correlationId,
       );
     }

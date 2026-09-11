@@ -1,82 +1,84 @@
 import type {
   AdminSuspendUserInput,
-  AdminUpdateRoleInput,
+  AdminRestoreUserInput,
+  AdminInviteUserInput,
+  AdminInvitationResult,
   AdminUserDetail,
   AdminUserListQuery,
   AdminUserListResponse,
 } from "@lcsp/contracts/auth";
-
+import {
+  ADMIN_ACCOUNT_FILTERS,
+  ADMIN_ACCOUNT_ERRORS,
+} from "@lcsp/contracts/auth";
 import { apiRequest } from "./api-request";
 
-/**
- * Fetches the paginated and filtered list of user accounts for Admin view.
- */
 export async function fetchAdminUsersList(
   query: AdminUserListQuery = {},
 ): Promise<AdminUserListResponse> {
-  const searchParams = new URLSearchParams();
-  if (query.query) searchParams.set("query", query.query);
-  if (query.status && query.status !== "ALL") searchParams.set("status", query.status);
-  if (query.role && query.role !== "ALL") searchParams.set("role", query.role);
-  if (query.page) searchParams.set("page", String(query.page));
-  if (query.pageSize) searchParams.set("pageSize", String(query.pageSize));
-
-  const queryString = searchParams.toString();
-  const url = queryString ? `/api/admin/users?${queryString}` : "/api/admin/users";
-
-  const response = await apiRequest(url);
-  if (!response.ok) {
-    throw new Error(response.problemCode ?? "FETCH_ADMIN_USERS_FAILED");
-  }
-  return response.payload as AdminUserListResponse;
+  const params = new URLSearchParams();
+  if (query.query) params.set("q", query.query);
+  if (query.status && query.status !== ADMIN_ACCOUNT_FILTERS.all)
+    params.set("status", query.status);
+  if (query.role && query.role !== ADMIN_ACCOUNT_FILTERS.all)
+    params.set("role", query.role);
+  if (query.page) params.set("page", String(query.page));
+  if (query.pageSize) params.set("pageSize", String(query.pageSize));
+  const result = await apiRequest(`/api/admin/users?${params}`);
+  if (!result.ok)
+    throw new Error(result.problemCode ?? ADMIN_ACCOUNT_ERRORS.invalidInput);
+  return result.payload as AdminUserListResponse;
 }
-
-/**
- * Fetches authoritative user detail with 30-day usage summary for Admin.
- */
 export async function fetchAdminUserDetail(
-  userId: string,
+  id: string,
 ): Promise<AdminUserDetail> {
-  const response = await apiRequest(`/api/admin/users/${userId}`);
-  if (!response.ok) {
-    throw new Error(response.problemCode ?? "FETCH_ADMIN_USER_DETAIL_FAILED");
-  }
-  return response.payload as AdminUserDetail;
+  const result = await apiRequest(`/api/admin/users/${encodeURIComponent(id)}`);
+  if (!result.ok)
+    throw new Error(result.problemCode ?? ADMIN_ACCOUNT_ERRORS.invalidInput);
+  return result.payload as AdminUserDetail;
 }
-
-/**
- * Mutates a user's role (promote/demote) with backend safeguards.
- */
-export async function updateAdminUserRole(
-  userId: string,
-  input: AdminUpdateRoleInput,
-): Promise<AdminUserDetail> {
-  const response = await apiRequest(`/api/admin/users/${userId}/role`, {
+async function accountWrite<T>(
+  path: string,
+  input: unknown,
+  idempotencyKey: string,
+): Promise<T> {
+  const result = await apiRequest(path, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      "idempotency-key": idempotencyKey,
+    },
     body: JSON.stringify(input),
   });
-  if (!response.ok) {
-    throw new Error(response.problemCode ?? "UPDATE_ADMIN_USER_ROLE_FAILED");
-  }
-  return response.payload as AdminUserDetail;
+  if (!result.ok)
+    throw new Error(result.problemCode ?? ADMIN_ACCOUNT_ERRORS.invalidInput);
+  return result.payload as T;
 }
-
-/**
- * Suspends a user account and triggers session revocation.
- */
-export async function suspendAdminUser(
-  userId: string,
-  input?: AdminSuspendUserInput,
+export function suspendAdminUser(
+  id: string,
+  input: AdminSuspendUserInput,
+  key: string = crypto.randomUUID(),
 ): Promise<AdminUserDetail> {
-  const response = await apiRequest(`/api/admin/users/${userId}/suspend`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input ?? {}),
-  });
-  if (!response.ok) {
-    throw new Error(response.problemCode ?? "SUSPEND_ADMIN_USER_FAILED");
-  }
-  return response.payload as AdminUserDetail;
+  return accountWrite(
+    `/api/admin/users/${encodeURIComponent(id)}/suspend`,
+    input,
+    key,
+  );
 }
-
+export function restoreAdminUser(
+  id: string,
+  input: AdminRestoreUserInput,
+  key: string = crypto.randomUUID(),
+): Promise<AdminUserDetail> {
+  return accountWrite(
+    `/api/admin/users/${encodeURIComponent(id)}/restore`,
+    input,
+    key,
+  );
+}
+export function createAdminUserInvitation(
+  input: AdminInviteUserInput,
+  key: string = crypto.randomUUID(),
+): Promise<AdminInvitationResult> {
+  return accountWrite("/api/admin/users", input, key);
+}

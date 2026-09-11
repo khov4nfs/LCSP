@@ -1,0 +1,17 @@
+{
+  "id": "user-lcsp299",
+  "referenceType": "USER",
+  "version": 4,
+  "fullName": "Lifecycle Test User",
+  "email": "lcsp299@example.com",
+  "role": "CUSTOMER",
+  "status": "ACTIVE",
+  "createdAt": "2026-09-01T00:00:00.000Z",
+  "lastActiveAt": null,
+  "usageSummary": {
+    "assessments30d": 0,
+    "lastAssessmentAt": null,
+    "creditSpend30d": null,
+    "openFindingsCount": null
+  }
+}

@@ -231,6 +231,12 @@ export class RbacGuard implements CanActivate {
   ): HttpException {
     const reason = typeof denial === "string" ? denial : denial.reason;
     switch (reason) {
+      case RBAC_REASON_CODES.accountSuspended:
+        return problemException(
+          AUTH_ERROR_CODES.accountSuspended,
+          correlationId,
+          { status: HttpStatus.FORBIDDEN },
+        );
       case RBAC_REASON_CODES.sessionInvalid:
         return problemException(
           AUTH_ERROR_CODES.sessionInvalid,

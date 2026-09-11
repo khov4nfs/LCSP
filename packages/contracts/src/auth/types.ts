@@ -44,6 +44,9 @@ export type AuthUserRole =
   (typeof AUTH_USER_ROLES)[keyof typeof AUTH_USER_ROLES];
 
 export interface AdminUserSummary {
+  /** Always returned by LCSP-299; optional for legacy UI fixtures. */
+  version?: number;
+  referenceType?: import("./admin-accounts.ts").AdminAccountReferenceType;
   id: string;
   fullName: string;
   email: string;
@@ -62,6 +65,11 @@ export interface AdminUserUsageSummary {
 }
 
 export interface AdminUserDetail {
+  version?: number;
+  referenceType?: import("./admin-accounts.ts").AdminAccountReferenceType;
+  replayed?: boolean;
+  invitationExpiresAt?: string;
+  deliveryStatus?: import("./admin-accounts.ts").InvitationDeliveryStatus;
   id: string;
   fullName: string;
   email: string;
@@ -88,11 +96,7 @@ export interface AdminUserListResponse {
   totalPages: number;
 }
 
-export interface AdminUpdateRoleInput {
-  role: AuthUserRole;
-}
-
 export interface AdminSuspendUserInput {
+  expectedVersion: number;
   reason?: string;
 }
-

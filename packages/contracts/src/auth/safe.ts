@@ -10,6 +10,7 @@ import type {
 import type { AuthErrorCode, RequiredAction } from "./types.ts";
 
 export const PROBLEM_REQUIRED_ACTIONS: Record<AuthErrorCode, RequiredAction> = {
+  [AUTH_ERROR_CODES.accountSuspended]: REQUIRED_ACTIONS.contactOwner,
   [AUTH_ERROR_CODES.authRequired]: REQUIRED_ACTIONS.signIn,
   [AUTH_ERROR_CODES.invalidCredentials]: REQUIRED_ACTIONS.signIn,
   [AUTH_ERROR_CODES.invalidInviteState]: REQUIRED_ACTIONS.acceptInvite,
@@ -40,6 +41,12 @@ type ProblemDefaults = {
 };
 
 export const PROBLEM_DEFAULTS: Record<AuthErrorCode, ProblemDefaults> = {
+  [AUTH_ERROR_CODES.accountSuspended]: {
+    type: "auth/account-suspended",
+    status: 403,
+    titleKey: "auth.errors.authzStateGateBlocked.title",
+    detailKey: "auth.errors.authzStateGateBlocked.detail",
+  },
   [AUTH_ERROR_CODES.authRequired]: {
     type: "auth/auth-required",
     status: 401,

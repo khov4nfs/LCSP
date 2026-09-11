@@ -4,6 +4,8 @@ import {
   AUTH_BACKUP_EMAIL_POLICIES,
   AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES,
   AUTH_USER_ROLES,
+  USER_ACCESS_STATUSES,
+  type UserAccessStatus,
   type AuthBackupEmailPolicy,
   type AuthPrimaryEmailAddressPolicy,
   type AuthUserRole,
@@ -17,6 +19,8 @@ type UserInput = {
   emailVerified: boolean;
   failedLoginCount?: number;
   lockUntil?: number | null;
+  accessStatus?: UserAccessStatus;
+  accessVersion?: number;
   displayName?: string | null;
   recoveryEmail?: string | null;
   primaryEmailAddressPolicy?: AuthPrimaryEmailAddressPolicy;
@@ -32,6 +36,8 @@ export class User {
   emailVerified: boolean;
   failedLoginCount: number;
   lockUntil: number | null;
+  readonly accessStatus: UserAccessStatus;
+  readonly accessVersion: number;
   displayName: string | null;
   recoveryEmail: string | null;
   primaryEmailAddressPolicy: AuthPrimaryEmailAddressPolicy;
@@ -46,6 +52,8 @@ export class User {
     this.emailVerified = input.emailVerified;
     this.failedLoginCount = input.failedLoginCount ?? 0;
     this.lockUntil = input.lockUntil ?? null;
+    this.accessStatus = input.accessStatus ?? USER_ACCESS_STATUSES.active;
+    this.accessVersion = input.accessVersion ?? 0;
     this.displayName = input.displayName ?? null;
     this.recoveryEmail = input.recoveryEmail ?? null;
     this.primaryEmailAddressPolicy =

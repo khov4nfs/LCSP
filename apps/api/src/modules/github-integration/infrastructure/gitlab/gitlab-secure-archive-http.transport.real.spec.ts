@@ -54,6 +54,7 @@ describeReal("GitLab exact-SHA archive transport (opt-in real GitLab)", () => {
         if (error instanceof GitHubArchiveTransportError) {
           throw new Error(
             `gitlab_archive_failed status=${error.status ?? "unknown"}`,
+            { cause: error },
           );
         }
         throw error;

@@ -1,6 +1,7 @@
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
+  USER_ACCESS_STATUSES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
   createProblemResult,
 } from "@lcsp/contracts/auth";
@@ -97,6 +98,13 @@ export class SignInHandler {
         user.lockUntil
           ? temporaryLockProblemOverrides(user.lockUntil, this.support.now())
           : undefined,
+      );
+    }
+
+    if (user.accessStatus !== USER_ACCESS_STATUSES.active) {
+      return createProblemResult(
+        AUTH_ERROR_CODES.accountSuspended,
+        correlationId,
       );
     }
 

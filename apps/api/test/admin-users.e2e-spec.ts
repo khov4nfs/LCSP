@@ -1,5 +1,8 @@
 import {
   ADMIN_ERROR_CODES,
+  ADMIN_ACCOUNT_ERRORS,
+  USER_ACCESS_STATUSES,
+  AUTH_AUDIT_EVENT_TYPES,
   AUTH_ACCOUNT_STATUSES,
   AUTH_ERROR_CODES,
   AUTH_USER_ROLES,
@@ -16,7 +19,13 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
-import { AppModule } from "../src/app.module.js";
+import { ConfigModule } from "@nestjs/config";
+import { AuthWorkspaceModule } from "../src/modules/auth-workspace/auth-workspace.module.js";
+import { RbacModule } from "../src/platform/rbac/rbac.module.js";
+import { MailModule } from "../src/platform/mail/mail.module.js";
+import { ProblemExceptionFilter } from "../src/platform/problems/problem-exception.filter.js";
+import { ProblemStatusInterceptor } from "../src/platform/problems/problem-status.interceptor.js";
+import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
 import {
   TEST_DATABASE_URL,
   ensureTestMfaEncryptionKey,
@@ -47,7 +56,17 @@ describe("Admin User Management API (e2e)", () => {
     });
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      // Test the actual auth module and guard without unrelated repository CLI providers.
+      imports: [
+        ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
+        MailModule,
+        AuthWorkspaceModule,
+        RbacModule,
+      ],
+      providers: [
+        { provide: APP_FILTER, useClass: ProblemExceptionFilter },
+        { provide: APP_INTERCEPTOR, useClass: ProblemStatusInterceptor },
+      ],
     }).compile();
 
     app = moduleFixture.createNestApplication();
@@ -158,15 +177,21 @@ describe("Admin User Management API (e2e)", () => {
       assert.equal(problemCode(res), RBAC_REASON_CODES.denied);
     });
 
-    it("rejects non-admin role update requests with 403 RBAC_DENIED", async () => {
-      const res = await httpRequest(app)
-        .post(`/admin/users/${targetCustomer.id}/role`)
-        .set("Authorization", `Bearer ${customerSessionToken}`)
-        .send({ role: AUTH_USER_ROLES.admin })
-        .set("Accept", "application/json");
-
-      assert.equal(res.status, 403);
-      assert.equal(problemCode(res), RBAC_REASON_CODES.denied);
+    it("does not expose an existing-user role endpoint, even to Admin", async () => {
+      for (const token of [adminSessionToken, customerSessionToken]) {
+        const res = await httpRequest(app)
+          .post(`/admin/users/${targetCustomer.id}/role`)
+          .set("Authorization", `Bearer ${token}`)
+          .set("Idempotency-Key", crypto.randomUUID())
+          .send({ role: AUTH_USER_ROLES.admin, expectedVersion: 0 });
+        assert.equal(res.status, 404);
+      }
+      const current = await prisma.user.findUniqueOrThrow({
+        where: { id: targetCustomer.id },
+      });
+      assert.equal(current.role, AUTH_USER_ROLES.customer);
+      assert.equal(current.accessVersion, 0);
+      assert.equal(await prisma.adminAccountCommandReceipt.count(), 0);
     });
 
     it("rejects non-admin suspend requests with 403 RBAC_DENIED", async () => {
@@ -253,94 +278,32 @@ describe("Admin User Management API (e2e)", () => {
     });
   });
 
-  describe("Role Mutations & Last-Admin Safeguards", () => {
-    it("allows Admin to promote Customer to Admin and persists in database", async () => {
-      const res = await httpRequest(app)
-        .post(`/admin/users/${targetCustomer.id}/role`)
-        .set("Authorization", `Bearer ${adminSessionToken}`)
-        .send({ role: AUTH_USER_ROLES.admin })
-        .set("Accept", "application/json");
-
-      assert.equal(res.status, 201);
-      const data = successBody<AdminUserDetail>(res);
-      assert.equal(data.role, AUTH_USER_ROLES.admin);
-
-      // Verify in database
-      const dbUser = await prisma.user.findUnique({
-        where: { id: targetCustomer.id },
-      });
-      assert.equal(dbUser?.role, "ADMIN");
-
-      // Verify audit log
-      const audit = await prisma.auditEvent.findFirst({
-        where: {
-          resourceId: targetCustomer.id,
-          eventType: "AUTH_ADMIN_USER_ROLE_UPDATED",
-        },
-      });
-      assert.ok(audit, "Audit event must be logged");
-    });
-
-    it("prevents self-demotion by an Admin", async () => {
-      const res = await httpRequest(app)
-        .post(`/admin/users/${adminUser.id}/role`)
-        .set("Authorization", `Bearer ${adminSessionToken}`)
-        .send({ role: AUTH_USER_ROLES.customer })
-        .set("Accept", "application/json");
-
-      assert.equal(res.status, 400);
-      assert.equal(problemCode(res), AUTH_ERROR_CODES.validationFailed);
-
-      // Admin role must remain unchanged
-      const dbUser = await prisma.user.findUnique({
-        where: { id: adminUser.id },
-      });
-      assert.equal(dbUser?.role, "ADMIN");
-    });
-
-    it("prevents demoting the last active Admin when demoting another admin", async () => {
-      // Set all other users to CUSTOMER
-      await prisma.user.updateMany({
-        where: { NOT: { id: targetCustomer.id } },
-        data: { role: "CUSTOMER" },
-      });
-      // Promote targetCustomer to ADMIN as the single admin in system
-      await prisma.user.update({
-        where: { id: targetCustomer.id },
-        data: { role: "ADMIN" },
-      });
-
-      // Create a separate admin session for a second admin to execute the request
-      const otherAdminId = crypto.randomUUID();
-      await prisma.user.create({
-        data: {
-          id: otherAdminId,
-          email: "superadmin@example.com",
-          passwordHash: hashSecret("Password123!"),
-          emailVerified: true,
-          failedLoginCount: 0,
-          role: AUTH_USER_ROLES.admin,
-        },
-      });
-      const otherAdminToken = `superadm-token-${Date.now()}`;
-      await createAuthSessionRecord(prisma, {
-        id: crypto.randomUUID(),
-        userId: otherAdminId,
-        token: otherAdminToken,
-        expiresAt: new Date(Date.now() + 1000 * 60 * 60),
-      });
-
-      // Now demote targetCustomer -> OK because otherAdminId exists
-      const okRes = await httpRequest(app)
-        .post(`/admin/users/${targetCustomer.id}/role`)
-        .set("Authorization", `Bearer ${otherAdminToken}`)
-        .send({ role: AUTH_USER_ROLES.customer })
-        .set("Accept", "application/json");
-      assert.equal(okRes.status, 201);
-    });
-  });
-
   describe("Account Suspension & Session Invalidation", () => {
+    it("blocks new password sessions while suspended and permits new sign-in after restore", async () => {
+      const key = crypto.randomUUID();
+      const suspended = await httpRequest(app)
+        .post(`/admin/users/${targetCustomer.id}/suspend`)
+        .set("Authorization", `Bearer ${adminSessionToken}`)
+        .set("Idempotency-Key", key)
+        .send({ expectedVersion: 0 });
+      assert.equal(suspended.status, 200);
+      const denied = await httpRequest(app)
+        .post("/auth/sign-in")
+        .send({ email: targetCustomer.email, password: "Password123!" });
+      assert.equal(denied.status, 403);
+      assert.equal(problemCode(denied), AUTH_ERROR_CODES.accountSuspended);
+      const restored = await httpRequest(app)
+        .post(`/admin/users/${targetCustomer.id}/restore`)
+        .set("Authorization", `Bearer ${adminSessionToken}`)
+        .set("Idempotency-Key", crypto.randomUUID())
+        .send({ expectedVersion: 1 });
+      assert.equal(restored.status, 200);
+      const signedIn = await httpRequest(app)
+        .post("/auth/sign-in")
+        .send({ email: targetCustomer.email, password: "Password123!" });
+      assert.equal(signedIn.status, 200);
+    });
+
     it("allows Admin to suspend a user, immediately invalidating active sessions", async () => {
       // 1. Create active session for target customer
       const targetSessionToken = `target-active-sess-${Date.now()}`;
@@ -362,10 +325,11 @@ describe("Admin User Management API (e2e)", () => {
       const suspendRes = await httpRequest(app)
         .post(`/admin/users/${targetCustomer.id}/suspend`)
         .set("Authorization", `Bearer ${adminSessionToken}`)
-        .send({ reason: "Security violation" })
+        .set("Idempotency-Key", crypto.randomUUID())
+        .send({ reason: "Security violation", expectedVersion: 0 })
         .set("Accept", "application/json");
 
-      assert.equal(suspendRes.status, 201);
+      assert.equal(suspendRes.status, 200);
       const data = successBody<AdminUserDetail>(suspendRes);
       assert.equal(data.status, AUTH_ACCOUNT_STATUSES.suspended);
 
@@ -381,17 +345,18 @@ describe("Admin User Management API (e2e)", () => {
         AUTH_ERROR_CODES.sessionInvalid,
       );
 
-      // 5. Verify user in database is locked
+      // 5. Product suspension is durable and does not repurpose failed-login lockout
       const dbUser = await prisma.user.findUnique({
         where: { id: targetCustomer.id },
       });
-      assert.ok(dbUser?.lockUntil && dbUser.lockUntil.getTime() > Date.now());
+      assert.equal(dbUser?.accessStatus, USER_ACCESS_STATUSES.suspended);
+      assert.equal(dbUser?.lockUntil, null);
 
       // 6. Verify audit event
       const audit = await prisma.auditEvent.findFirst({
         where: {
           resourceId: targetCustomer.id,
-          eventType: "AUTH_ADMIN_USER_SUSPENDED",
+          eventType: AUTH_AUDIT_EVENT_TYPES.authAdminUserSuspended,
         },
       });
       assert.ok(audit, "Suspension audit event must be logged");
@@ -401,11 +366,12 @@ describe("Admin User Management API (e2e)", () => {
       const res = await httpRequest(app)
         .post(`/admin/users/${adminUser.id}/suspend`)
         .set("Authorization", `Bearer ${adminSessionToken}`)
-        .send({ reason: "Accidental self-suspend" })
+        .set("Idempotency-Key", crypto.randomUUID())
+        .send({ reason: "Accidental self-suspend", expectedVersion: 0 })
         .set("Accept", "application/json");
 
-      assert.equal(res.status, 400);
-      assert.equal(problemCode(res), AUTH_ERROR_CODES.validationFailed);
+      assert.equal(res.status, 409);
+      assert.equal(problemCode(res), ADMIN_ACCOUNT_ERRORS.selfSuspend);
     });
   });
 });

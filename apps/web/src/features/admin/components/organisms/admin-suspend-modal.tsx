@@ -22,6 +22,7 @@ export function AdminSuspendModal({
   onClose,
   onConfirm,
   isPending = false,
+  errorMessage,
 }: AdminSuspendModalProps) {
   const eyebrow = resolveAppMessage(
     "pages.admin.suspendModal.eyebrow" as MessageKey,
@@ -58,13 +59,13 @@ export function AdminSuspendModal({
         }
       }}
     >
-      <DialogContent className="max-w-[520px] rounded-[14px] p-0 border border-border shadow-2xl">
+      <DialogContent className="max-w-130 rounded-xl p-0 border border-border shadow-2xl">
         <DialogHeader className="flex flex-col space-y-1.5 border-b-0 pb-0 bg-transparent px-6 pt-6">
           <div className="flex items-center gap-1.5 text-[10.5px] font-semibold tracking-wider text-muted-foreground uppercase">
             <ShieldAlertIcon className="size-3.5 text-admin-warning-foreground" />
             <span>{eyebrow}</span>
           </div>
-          <DialogTitle className="text-[20px] font-semibold text-foreground">
+          <DialogTitle className="text-xl font-semibold text-foreground">
             {title}
           </DialogTitle>
         </DialogHeader>
@@ -74,8 +75,13 @@ export function AdminSuspendModal({
             {formattedBody}
           </DialogDescription>
 
+          {errorMessage && (
+            <p role="alert" className="text-destructive">
+              {errorMessage}
+            </p>
+          )}
           {/* Audit Trail Notice */}
-          <div className="flex items-center gap-2.5 rounded-[10px] border border-border bg-muted/40 px-3.5 py-2.5 text-[11.5px] font-medium text-muted-foreground">
+          <div className="flex items-center gap-2.5 rounded-lg border border-border bg-muted/40 px-3.5 py-2.5 text-[11.5px] font-medium text-muted-foreground">
             <AlertCircleIcon className="size-4 shrink-0 text-muted-foreground" />
             <span className="leading-snug">{auditNote}</span>
           </div>
@@ -87,7 +93,7 @@ export function AdminSuspendModal({
             variant="outline"
             onClick={onClose}
             disabled={isPending}
-            className="h-[38px] w-[108px] rounded-[10px] border-border bg-secondary text-[12.5px] font-medium text-secondary-foreground hover:bg-secondary/80 shadow-xs"
+            className="h-9.5 w-27 rounded-lg border-border bg-secondary text-[12.5px] font-medium text-secondary-foreground hover:bg-secondary/80 shadow-xs"
           >
             {cancelLabel}
           </Button>
@@ -96,7 +102,7 @@ export function AdminSuspendModal({
             type="button"
             onClick={onConfirm}
             disabled={isPending}
-            className="h-[38px] w-[164px] rounded-[10px] bg-primary text-[12.5px] font-semibold text-primary-foreground hover:bg-primary/90 shadow-xs disabled:opacity-50"
+            className="h-9.5 w-41 rounded-lg bg-primary text-[12.5px] font-semibold text-primary-foreground hover:bg-primary/90 shadow-xs disabled:opacity-50"
           >
             {isPending ? suspendingLabel : confirmLabel}
           </Button>
