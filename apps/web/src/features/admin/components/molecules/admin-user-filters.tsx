@@ -55,7 +55,7 @@ export function AdminUserFilters({
   return (
     <div className="flex flex-wrap items-center gap-3">
       {/* Search Input (420px x 42px) */}
-      <div className="relative w-[420px]">
+      <div className="relative w-105 max-w-full">
         <SearchIcon className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
         <Input
           type="search"
@@ -63,12 +63,12 @@ export function AdminUserFilters({
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={searchPlaceholder}
           aria-label={searchAriaLabel}
-          className="h-[42px] w-full rounded-[10px] border-border bg-card pl-10 pr-3 text-[12.5px] text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary shadow-xs"
+          className="h-10.5 w-full rounded-lg border-border bg-card pl-10 pr-3 text-[12.5px] text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-primary shadow-xs"
         />
       </div>
 
       {/* Status Filter (160px x 42px) */}
-      <div className="w-[160px]">
+      <div className="w-40">
         <Select
           value={filters.statusFilter}
           onValueChange={(val) =>
@@ -76,7 +76,7 @@ export function AdminUserFilters({
           }
         >
           <SelectTrigger
-            className="!h-[42px] data-[size=default]:!h-[42px] w-full rounded-[10px] border-border bg-card text-[12.5px] text-foreground focus:ring-1 focus:ring-primary shadow-xs"
+            className="!h-10.5 data-[size=default]:!h-10.5 w-full rounded-lg border-border bg-card text-[12.5px] text-foreground focus:ring-1 focus:ring-primary shadow-xs"
             aria-label={resolveAppMessage(
               "pages.admin.usersList.statusFilterLabel" as MessageKey,
             )}
@@ -132,26 +132,18 @@ export function AdminUserFilters({
                 "pages.admin.usersList.statuses.INVITED" as MessageKey,
               )}
             </SelectItem>
-            <SelectItem
-              value={AUTH_ACCOUNT_STATUSES.deactivated}
-              className="text-[12.5px]"
-            >
-              {resolveAppMessage(
-                "pages.admin.usersList.statuses.DEACTIVATED" as MessageKey,
-              )}
-            </SelectItem>
           </SelectContent>
         </Select>
       </div>
 
       {/* Role Filter (150px x 42px) */}
-      <div className="w-[150px]">
+      <div className="w-37.5">
         <Select
           value={filters.roleFilter}
           onValueChange={(val) => onRoleChange(val as AuthUserRole | "ALL")}
         >
           <SelectTrigger
-            className="!h-[42px] data-[size=default]:!h-[42px] w-full rounded-[10px] border-border bg-card text-[12.5px] text-foreground focus:ring-1 focus:ring-primary shadow-xs"
+            className="!h-10.5 data-[size=default]:!h-10.5 w-full rounded-lg border-border bg-card text-[12.5px] text-foreground focus:ring-1 focus:ring-primary shadow-xs"
             aria-label={resolveAppMessage(
               "pages.admin.usersList.roleFilterLabel" as MessageKey,
             )}
@@ -195,13 +187,18 @@ export function AdminUserFilters({
       <div className="ml-auto">
         <Tooltip>
           <TooltipTrigger
-            render={<span className="inline-flex" tabIndex={0} />}
+            render={
+              <span
+                className="inline-flex"
+                tabIndex={onCreateUserClick ? undefined : 0}
+              />
+            }
           >
             <Button
               type="button"
               onClick={onCreateUserClick}
               disabled={!onCreateUserClick}
-              className="h-[42px] w-[146px] rounded-[10px] bg-primary text-[12.5px] font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              className="h-10.5 w-36.5 rounded-lg bg-primary text-[12.5px] font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               <UserPlusIcon className="size-4 mr-1.5" />
               {createUserLabel}

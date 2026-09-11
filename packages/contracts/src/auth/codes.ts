@@ -1,4 +1,5 @@
 export const AUTH_ERROR_CODES = {
+  accountSuspended: "ACCOUNT_SUSPENDED",
   authRequired: "AUTH_REQUIRED",
   invalidCredentials: "INVALID_CREDENTIALS",
   invalidInviteState: "INVALID_INVITE_STATE",
@@ -37,10 +38,8 @@ export const WORKSPACE_ERROR_CODES = {
 } as const;
 
 export const ADMIN_ERROR_CODES = {
-  lastAdminDemotionForbidden: "LAST_ADMIN_DEMOTION_FORBIDDEN",
   userNotFound: "USER_NOT_FOUND",
   userAlreadySuspended: "USER_ALREADY_SUSPENDED",
   userNotSuspended: "USER_NOT_SUSPENDED",
   cannotSuspendSelf: "CANNOT_SUSPEND_SELF",
 } as const;
-

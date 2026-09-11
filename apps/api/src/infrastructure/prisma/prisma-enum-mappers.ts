@@ -199,6 +199,8 @@ const PRISMA_AUTH_USER_ROLE_TO_CONTRACT = {
 } as const satisfies Record<PrismaAuthUserRole, AuthUserRole>;
 
 const AUTHORIZATION_REASON_CODE_TO_PRISMA = {
+  [AUTH_ERROR_CODES.accountSuspended]:
+    PrismaAuthorizationReasonCode.ACCOUNT_SUSPENDED,
   [AUTH_ERROR_CODES.accountNotFound]:
     PrismaAuthorizationReasonCode.ACCOUNT_NOT_FOUND,
   [RBAC_REASON_CODES.authorized]: PrismaAuthorizationReasonCode.AUTHORIZED,
@@ -245,6 +247,8 @@ const AUTHORIZATION_REASON_CODE_TO_PRISMA = {
 >;
 
 const PRISMA_AUTHORIZATION_REASON_CODE_TO_CONTRACT = {
+  [PrismaAuthorizationReasonCode.ACCOUNT_SUSPENDED]:
+    AUTH_ERROR_CODES.accountSuspended,
   [PrismaAuthorizationReasonCode.ACTION_NOT_GRANTED]: RBAC_REASON_CODES.denied,
   [PrismaAuthorizationReasonCode.ACCOUNT_NOT_FOUND]:
     AUTH_ERROR_CODES.accountNotFound,
@@ -302,6 +306,7 @@ const AUDIT_RESOURCE_TYPE_TO_PRISMA = {
     PrismaAuditResourceType.ASSESSMENT_RECORD,
   [AUDIT_RESOURCE_TYPES.auditExportRequest]:
     PrismaAuditResourceType.AUDIT_EXPORT_REQUEST,
+  [AUDIT_RESOURCE_TYPES.authAccount]: PrismaAuditResourceType.AUTH_ACCOUNT,
   [AUDIT_RESOURCE_TYPES.authInvitation]:
     PrismaAuditResourceType.AUTH_INVITATION,
   [AUDIT_RESOURCE_TYPES.authMfaRecoveryCode]:
@@ -349,6 +354,7 @@ const PRISMA_AUDIT_RESOURCE_TYPE_TO_CONTRACT = {
     AUDIT_RESOURCE_TYPES.assessmentRecord,
   [PrismaAuditResourceType.AUDIT_EXPORT_REQUEST]:
     AUDIT_RESOURCE_TYPES.auditExportRequest,
+  [PrismaAuditResourceType.AUTH_ACCOUNT]: AUDIT_RESOURCE_TYPES.authAccount,
   [PrismaAuditResourceType.AUTH_INVITATION]:
     AUDIT_RESOURCE_TYPES.authInvitation,
   [PrismaAuditResourceType.AUTH_MFA_RECOVERY_CODE]:

@@ -46,6 +46,7 @@ export const AUDIT_RESOURCE_TYPES = {
   assessment: "ASSESSMENT",
   assessmentRecord: "ASSESSMENT_RECORD",
   auditExportRequest: "AUDIT_EXPORT_REQUEST",
+  authAccount: "AUTH_ACCOUNT",
   authInvitation: "AUTH_INVITATION",
   authMfaRecoveryCode: "AUTH_MFA_RECOVERY_CODE",
   authSession: "AUTH_SESSION",

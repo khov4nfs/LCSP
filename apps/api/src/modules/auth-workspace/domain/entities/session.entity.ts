@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 type SessionInput = {
   userId: string;
+  accessVersion?: number;
   tokenHash: string;
   expiresAt: number;
   revokedAt?: number | null;
@@ -12,6 +13,7 @@ type SessionInput = {
 export class Session {
   readonly id: string;
   readonly userId: string;
+  readonly accessVersion: number;
   readonly tokenHash: string;
   readonly expiresAt: number;
   revokedAt: number | null;
@@ -21,6 +23,7 @@ export class Session {
   constructor(input: SessionInput) {
     this.id = randomUUID();
     this.userId = input.userId;
+    this.accessVersion = input.accessVersion ?? 0;
     this.tokenHash = input.tokenHash;
     this.expiresAt = input.expiresAt;
     this.revokedAt = input.revokedAt ?? null;

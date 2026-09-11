@@ -1,6 +1,9 @@
+import { lockAccountLifecycle } from "../../services/admin/admin-account.transaction.js";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AUTH_AUDIT_EVENT_TYPES,
+  ACCOUNT_INVITATION_STATUSES,
+  AUTH_ERROR_CODES,
   AUTH_USER_ROLES,
   SIGN_UP_ERROR_CODES,
 } from "@lcsp/contracts/auth";
@@ -93,6 +96,21 @@ export class SignUpHandler {
     let sessionId = "";
     try {
       await this.prisma.$transaction(async (tx) => {
+        await lockAccountLifecycle(tx);
+        const pending = await tx.accountInvitation.findUnique({
+          where: { email: normalizedEmail },
+          select: { status: true, expiresAt: true },
+        });
+        if (
+          pending?.status === ACCOUNT_INVITATION_STATUSES.pending &&
+          pending.expiresAt > new Date()
+        ) {
+          throw problemException(
+            AUTH_ERROR_CODES.invalidInviteState,
+            correlationId,
+            { status: HttpStatus.CONFLICT },
+          );
+        }
         const user = await tx.user.create({
           data: {
             id: newUserId,

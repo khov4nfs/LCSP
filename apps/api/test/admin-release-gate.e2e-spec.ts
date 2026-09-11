@@ -1,4 +1,8 @@
-import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import {
+  ADMIN_ACCOUNT_OPERATIONS,
+  AUTH_ERROR_CODES,
+  AUTH_USER_ROLES,
+} from "@lcsp/contracts/auth";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import { LEGAL_RULE_ERROR_CODES } from "@lcsp/contracts/legal-rule-catalog";
 import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
@@ -300,7 +304,7 @@ describe("Admin Release Gate & Security Integrity (e2e)", () => {
           correlationId,
           payload: {
             targetUserId: customerUser.id,
-            action: "UPDATE_ROLE",
+            action: ADMIN_ACCOUNT_OPERATIONS.suspend,
             password: "SuperSecretPassword123!",
             passwordHash: "$2b$10$abcdefghijklmnopqrstuvwxyz",
             mfaSecret: "JBSWY3DPEHPK3PXP",

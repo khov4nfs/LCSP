@@ -38,9 +38,9 @@ export type AdminAccountDetailsCardProps = {
 
 export type AdminAdministrativeActionsCardProps = {
   user: AdminUserDetail;
-  onRoleSave: (newRole: AuthUserRole) => Promise<void>;
   onOpenSuspendModal: () => void;
-  isSavingRole?: boolean;
+  onRestore?: () => Promise<void>;
+  isRestoring?: boolean;
 };
 
 export type AdminUsageSummaryProps = {
@@ -50,6 +50,7 @@ export type AdminUsageSummaryProps = {
 export type AdminSuspendModalProps = {
   isOpen: boolean;
   user: Pick<AdminUserDetail, "id" | "fullName" | "email">;
+  errorMessage?: string;
   onClose: () => void;
   onConfirm: () => Promise<void>;
   isPending?: boolean;

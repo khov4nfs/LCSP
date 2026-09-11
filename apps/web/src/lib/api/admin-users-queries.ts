@@ -1,17 +1,17 @@
 "use client";
-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   AdminSuspendUserInput,
-  AdminUpdateRoleInput,
+  AdminRestoreUserInput,
+  AdminInviteUserInput,
   AdminUserListQuery,
 } from "@lcsp/contracts/auth";
-
 import {
   fetchAdminUserDetail,
   fetchAdminUsersList,
   suspendAdminUser,
-  updateAdminUserRole,
+  restoreAdminUser,
+  createAdminUserInvitation,
 } from "./admin-users-client";
 import { apiQueryKeys } from "./query-keys";
 
@@ -21,43 +21,44 @@ export function useAdminUsersListQuery(query: AdminUserListQuery = {}) {
     queryFn: () => fetchAdminUsersList(query),
   });
 }
-
-export function useAdminUserDetailQuery(userId: string) {
+export function useAdminUserDetailQuery(id: string) {
   return useQuery({
-    queryKey: apiQueryKeys.admin.userDetail(userId),
-    queryFn: () => fetchAdminUserDetail(userId),
-    enabled: Boolean(userId),
+    queryKey: apiQueryKeys.admin.userDetail(id),
+    queryFn: () => fetchAdminUserDetail(id),
+    enabled: Boolean(id),
   });
 }
-
-export function useAdminUpdateRoleMutation(userId: string) {
-  const queryClient = useQueryClient();
-
+type WithKey<T> = T & { idempotencyKey?: string };
+function useAccountMutation<T>(
+  id: string,
+  execute: (id: string, input: T, key?: string) => Promise<unknown>,
+) {
+  const cache = useQueryClient();
   return useMutation({
-    mutationFn: (input: AdminUpdateRoleInput) =>
-      updateAdminUserRole(userId, input),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: apiQueryKeys.admin.userDetail(userId),
-      });
-      await queryClient.invalidateQueries({
+    mutationFn: ({ idempotencyKey, ...input }: WithKey<T>) =>
+      execute(id, input as T, idempotencyKey),
+    retry: false,
+    onSettled: async () => {
+      await cache.invalidateQueries({
         queryKey: apiQueryKeys.admin.usersRoot(),
       });
     },
   });
 }
-
-export function useAdminSuspendUserMutation(userId: string) {
-  const queryClient = useQueryClient();
-
+export function useAdminSuspendUserMutation(id: string) {
+  return useAccountMutation<AdminSuspendUserInput>(id, suspendAdminUser);
+}
+export function useAdminRestoreUserMutation(id: string) {
+  return useAccountMutation<AdminRestoreUserInput>(id, restoreAdminUser);
+}
+export function useAdminInviteUserMutation() {
+  const cache = useQueryClient();
   return useMutation({
-    mutationFn: (input?: AdminSuspendUserInput) =>
-      suspendAdminUser(userId, input),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: apiQueryKeys.admin.userDetail(userId),
-      });
-      await queryClient.invalidateQueries({
+    mutationFn: ({ idempotencyKey, ...input }: WithKey<AdminInviteUserInput>) =>
+      createAdminUserInvitation(input, idempotencyKey),
+    retry: false,
+    onSettled: async () => {
+      await cache.invalidateQueries({
         queryKey: apiQueryKeys.admin.usersRoot(),
       });
     },

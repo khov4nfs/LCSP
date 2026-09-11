@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -282,40 +283,34 @@ def test_consumer_waits_without_callback_when_engineering_rules_are_rebuilding()
 
 
 @pytest.mark.p0
-def test_get_accepted_technical_profile_resolves_file_ref() -> None:
-    import os
+def test_get_accepted_technical_profile_resolves_file_ref(tmp_path: Path) -> None:
     import json
     from tools.common.capabilities.platform.api_client import WorkerApiClient
-    
-    ref_path = "/tmp/lcsp-technical-profile-data-mock-ter.json"
+
+    # Use the test runner's isolated writable directory, not a shared /tmp file.
+    ref_path = tmp_path / "technical-profile-data.json"
     mock_full_data = {
         "external_integrations": [{"nodeId": "node-1"}],
         "business_actions": [{"nodeId": "node-2"}],
         "dependency_licenses": [],
-        "engineering_investigation": {"claims": [{"claim_id": "claim-1"}]}
+        "engineering_investigation": {"claims": [{"claim_id": "claim-1"}]},
     }
-    with open(ref_path, "w") as f:
-        json.dump(mock_full_data, f)
-        
+    ref_path.write_text(json.dumps(mock_full_data), encoding="utf-8")
+
     client = WorkerApiClient("http://api.test", "test-key")
     client._get_with_retry = MagicMock(return_value={
         "status": "accepted",
-        "profile_data_ref": ref_path,
+        "profile_data_ref": str(ref_path),
         "external_integrations": [],
         "business_actions": [],
         "dependency_licenses": [],
-        "engineering_investigation": {"claims": []}
+        "engineering_investigation": {"claims": []},
     })
-    
+
     resolved = client.get_accepted_technical_profile("profile-1")
     assert resolved["external_integrations"] == [{"nodeId": "node-1"}]
     assert resolved["business_actions"] == [{"nodeId": "node-2"}]
     assert resolved["engineering_investigation"]["claims"] == [{"claim_id": "claim-1"}]
-    
-    try:
-        os.remove(ref_path)
-    except Exception:
-        pass
 
 
 @pytest.mark.p0

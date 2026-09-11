@@ -38,6 +38,38 @@ export type CommonMessages = {
 };
 
 export type PagesMessages = {
+  accountLifecycle: {
+    inviteTitle: string;
+    inviteDescription: string;
+    displayName: string;
+    email: string;
+    role: string;
+    sendInvite: string;
+    sending: string;
+    cancel: string;
+    inviteSuccess: string;
+    requestFailed: string;
+    conflict: string;
+    deliveryFailed: string;
+    duplicate: string;
+    lastAdmin: string;
+    restore: string;
+    restoring: string;
+    invitePending: string;
+    acceptTitle: string;
+    acceptDescription: string;
+    password: string;
+    confirmPassword: string;
+    accept: string;
+    accepting: string;
+    accepted: string;
+    signIn: string;
+    invalidInvitation: string;
+    passwordRule: string;
+    passwordMismatch: string;
+    required: string;
+    unavailable: string;
+  };
   artifacts: {
     title: string;
     newArtifact: string;
@@ -1966,9 +1998,6 @@ export type PagesMessages = {
       };
       administrativeActionsCard: {
         title: string;
-        roleLabel: string;
-        saveRole: string;
-        savingRole: string;
         accountAccessLabel: string;
         activeAccessCopy: string;
         suspendedAccessCopy: string;
