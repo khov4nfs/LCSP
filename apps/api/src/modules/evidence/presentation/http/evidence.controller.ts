@@ -6,6 +6,7 @@ import {
   Get,
   Headers,
   HttpCode,
+  HttpStatus,
   NotFoundException,
   Param,
   Post,
@@ -14,6 +15,8 @@ import {
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import { ASSESSMENT_ERROR_CODES } from "@lcsp/contracts/assessment";
+import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { isRecord } from "../../../../common/utils/index.js";
@@ -25,10 +28,17 @@ import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-ke
 import { AcceptTechnicalProfileCommand } from "../../application/commands/accept-technical-profile/accept-technical-profile.command.js";
 import type { TechnicalProfileCallbackRequest } from "../../application/contracts/evidence/technical-profile-callback.contract.js";
 import { GetEvidenceQuery } from "../../application/queries/get-evidence/get-evidence.query.js";
+import { ProgramEvidenceGraphDetailService } from "../../application/services/evidence/program-evidence-graph-detail.service.js";
+import { toPrismaEvidenceAcceptanceStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { problemException } from "../../../../platform/problems/problem-factory.js";
 
 @Controller("assessments")
 export class EvidenceController {
-  constructor(private readonly queryBus: QueryBus) {}
+  constructor(
+    private readonly queryBus: QueryBus,
+    private readonly prisma: PrismaService,
+    private readonly graphDetail: ProgramEvidenceGraphDetailService,
+  ) {}
 
   /**
    * Return the persisted evidence/report view only.
@@ -49,6 +59,61 @@ export class EvidenceController {
           request.correlationId as string,
         ),
       ),
+    );
+  }
+
+  @Get(":assessmentId/evidence-graph")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
+  async getEvidenceGraph(
+    @Param("assessmentId") assessmentId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const context = request.rbacContext;
+    if (context.role !== AUTH_USER_ROLES.admin) {
+      const assessment = await this.prisma.assessment.findUnique({
+        where: { id: assessmentId },
+        select: { ownerId: true },
+      });
+      if (!assessment || assessment.ownerId !== context.userId) {
+        throw problemException(
+          ASSESSMENT_ERROR_CODES.notFound,
+          request.correlationId ?? randomUUID(),
+          { status: HttpStatus.NOT_FOUND },
+        );
+      }
+    }
+    const report = await this.prisma.technicalEvidenceReport.findFirst({
+      where: {
+        assessmentId,
+        status: toPrismaEvidenceAcceptanceStatus(
+          TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+        ),
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        assessmentId: true,
+        scanJobId: true,
+        snapshotId: true,
+        evidencePayload: true,
+        createdAt: true,
+        snapshot: {
+          select: {
+            repositoryFullName: true,
+            branch: true,
+            ref: true,
+            commitSha: true,
+            status: true,
+          },
+        },
+      },
+    });
+    if (!report) {
+      throw new NotFoundException("Technical evidence not found");
+    }
+    return resultEnvelope(
+      await this.graphDetail.project({ report, snapshot: report.snapshot }),
     );
   }
 }

@@ -13,6 +13,7 @@ describe("ArtifactStorageService", () => {
 
   beforeAll(() => {
     process.env.LCSP_ARTIFACT_STORAGE_PATH = testStoragePath;
+    process.env.LCSP_GRAPH_STORAGE_PATH = testStoragePath;
     service = new ArtifactStorageService();
   });
 
@@ -20,6 +21,7 @@ describe("ArtifactStorageService", () => {
     if (fs.existsSync(testStoragePath)) {
       fs.rmSync(testStoragePath, { recursive: true, force: true });
     }
+    delete process.env.LCSP_GRAPH_STORAGE_PATH;
   });
 
   it("reconstructs content successfully from valid chunks and matches hash/size", async () => {
@@ -94,5 +96,22 @@ describe("ArtifactStorageService", () => {
     await expect(service.readAndReconstruct(manifest)).rejects.toBeInstanceOf(
       BadRequestException,
     );
+  });
+
+  it("reads only safe JSON references under the configured graph root", async () => {
+    fs.mkdirSync(path.join(testStoragePath, "graphs"), { recursive: true });
+    fs.writeFileSync(
+      path.join(testStoragePath, "graphs", "graph.json"),
+      JSON.stringify({ nodes: [] }),
+      "utf8",
+    );
+    await expect(
+      service.readJsonArtifactReference(
+        "/app/deepagents/tmp/graphs/graph.json",
+      ),
+    ).resolves.toEqual({ nodes: [] });
+    await expect(
+      service.readJsonArtifactReference("/app/deepagents/tmp/../secret.json"),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

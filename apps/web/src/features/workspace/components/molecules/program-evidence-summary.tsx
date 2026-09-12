@@ -14,6 +14,12 @@ import {
 } from "@/features/artifacts/types/artifact.types";
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
+import { useProgramEvidenceGraphDrawer } from "@/features/assessment-runtime";
+import {
+  deriveProgramEvidenceSummary,
+  formatProgramEvidenceMetric,
+} from "@/features/assessment-flow/utils/program-evidence-summary";
+import type { ProgramEvidenceGraphOverview } from "@/lib/api/evidence-graph-detail-client";
 
 import type {
   ProgramEvidenceMetric,
@@ -24,22 +30,30 @@ import { ChatResultContainer } from "./chat-result-container";
 export type ProgramEvidenceSummaryProps = {
   commitSha: string;
   summary: ProgramEvidenceSummaryData;
+  canonicalOverview?: ProgramEvidenceGraphOverview | null;
   assessmentId?: string;
   referenceUrl?: string;
   artifactRef?: ArtifactRef | null;
-  onOpenArtifact?: (ref: ArtifactRef) => void;
+  onOpenArtifact?: (ref: ArtifactRef, trigger?: HTMLElement | null) => void;
   className?: string;
 };
 
 export function ProgramEvidenceSummary({
   commitSha,
   summary,
+  canonicalOverview,
   assessmentId,
   referenceUrl,
   artifactRef,
   onOpenArtifact,
   className,
 }: ProgramEvidenceSummaryProps) {
+  const graphDrawer = useProgramEvidenceGraphDrawer();
+  const canonicalSummary = deriveProgramEvidenceSummary({
+    canonicalOverview: canonicalOverview ?? graphDrawer.overview,
+  });
+  // Keep the existing prop for callers during the runtime migration; metric authority is canonicalOverview only.
+  void summary;
   const shortSha = commitSha ? commitSha.slice(0, 7) : "";
 
   const resolvedArtifactRef: ArtifactRef | null =
@@ -56,12 +70,17 @@ export function ProgramEvidenceSummary({
     : null;
 
   const canOpenArtifact =
-    Boolean(onOpenArtifact && resolvedArtifactRef) ||
+    Boolean(resolvedArtifactRef) ||
     (target !== null &&
       (target.kind === ARTIFACT_OPEN_KINDS.internal ||
         target.kind === ARTIFACT_OPEN_KINDS.download)) ||
     Boolean(referenceUrl);
 
+  const openHandler =
+    onOpenArtifact ??
+    (resolvedArtifactRef?.type === ARTIFACT_TYPES.programEvidenceGraph
+      ? graphDrawer.openArtifact
+      : undefined);
   const href =
     target &&
     (target.kind === ARTIFACT_OPEN_KINDS.internal ||
@@ -97,7 +116,7 @@ export function ProgramEvidenceSummary({
       }
       footer={
         <footer className="flex min-w-0 items-center justify-between gap-3">
-          {href && !onOpenArtifact ? (
+          {href && !openHandler ? (
             <Link
               href={href}
               className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
@@ -112,9 +131,9 @@ export function ProgramEvidenceSummary({
               variant="ghost"
               size="sm"
               disabled={!canOpenArtifact}
-              onClick={() => {
-                if (onOpenArtifact && resolvedArtifactRef) {
-                  onOpenArtifact(resolvedArtifactRef);
+              onClick={(event) => {
+                if (openHandler && resolvedArtifactRef) {
+                  openHandler(resolvedArtifactRef, event.currentTarget);
                 }
               }}
               className="h-7 min-w-0 px-0 text-xs font-medium text-primary hover:bg-transparent hover:underline disabled:text-muted-foreground disabled:no-underline"
@@ -132,32 +151,32 @@ export function ProgramEvidenceSummary({
       <div className="border-t border-border/60 pt-3">
         <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
           <MetricItem
-            label={t("pages.assessmentFlow.graph.servicesScanned")}
+            label={t("pages.assessmentFlow.graph.modulesAnalyzed")}
             description={t(
-              "pages.assessmentFlow.graph.servicesScannedDescription",
+              "pages.assessmentFlow.graph.modulesAnalyzedDescription",
             )}
-            metric={summary.servicesScanned}
+            metric={canonicalSummary.modulesAnalyzed}
           />
           <MetricItem
             label={t("pages.assessmentFlow.graph.codeSymbolsIndexed")}
             description={t(
               "pages.assessmentFlow.graph.codeSymbolsIndexedDescription",
             )}
-            metric={summary.codeSymbolsIndexed}
+            metric={canonicalSummary.codeSymbolsIndexed}
           />
           <MetricItem
-            label={t("pages.assessmentFlow.graph.aiProviderCallPaths")}
+            label={t("pages.assessmentFlow.graph.aiModelInvocations")}
             description={t(
-              "pages.assessmentFlow.graph.aiProviderCallPathsDescription",
+              "pages.assessmentFlow.graph.aiModelInvocationsDescription",
             )}
-            metric={summary.aiProviderCallPaths}
+            metric={canonicalSummary.aiModelInvocations}
           />
           <MetricItem
             label={t("pages.assessmentFlow.graph.evidenceMappedScope")}
             description={t(
               "pages.assessmentFlow.graph.evidenceMappedScopeDescription",
             )}
-            metric={summary.evidenceMappedScope}
+            metric={canonicalSummary.evidenceMappedScope}
           />
         </dl>
       </div>
@@ -178,7 +197,7 @@ function MetricItem({
     <div className="min-w-0">
       <dt className="flex min-w-0 items-baseline gap-2">
         <span className="shrink-0 text-lg font-semibold leading-6 text-foreground">
-          {formatMetric(metric)}
+          {formatProgramEvidenceMetric(metric)}
         </span>
         <span className="min-w-0 truncate text-xs font-medium leading-5 text-foreground">
           {label}
@@ -189,16 +208,6 @@ function MetricItem({
       </dd>
     </div>
   );
-}
-
-function formatMetric(metric: ProgramEvidenceMetric) {
-  if (metric.value === null) {
-    return t("pages.assessmentFlow.graph.unavailableValue");
-  }
-
-  const rounded =
-    metric.format === "percent" ? Math.round(metric.value) : metric.value;
-  return metric.format === "percent" ? `${rounded}%` : rounded.toLocaleString();
 }
 
 function t(key: string) {

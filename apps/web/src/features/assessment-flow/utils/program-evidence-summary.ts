@@ -1,4 +1,8 @@
+import { resolveMessage } from "@lcsp/i18n";
+
 import type { WorkspaceRuntimeActivityItem } from "@/features/workspace/types/workspace-runtime.types";
+import type { ProgramEvidenceGraphOverview } from "@/lib/api/evidence-graph-detail-client";
+import { appLocale } from "@/lib/locale";
 
 import type {
   ProgramEvidenceMetric,
@@ -9,130 +13,67 @@ import {
   PROGRAM_EVIDENCE_UNAVAILABLE_REASONS,
 } from "../types/assessment-flow.types";
 
-const PGE_METRIC_SOURCES = {
-  servicesScanned: [
-    "servicesScanned",
-    "serviceCount",
-    "services_scanned",
-    "service_count",
-  ],
-  codeSymbolsIndexed: [
-    "codeSymbolsIndexed",
-    "structuralFacts",
-    "code_symbols_indexed",
-    "structural_facts",
-  ],
-  aiProviderCallPaths: [
-    "aiProviderCallPaths",
-    "aiCallPaths",
-    "technicalFindings",
-    "ai_provider_call_paths",
-    "ai_call_paths",
-    "technical_findings",
-  ],
-  evidenceMappedScope: [
-    "evidenceMappedScope",
-    "evidenceMappedScopePercent",
-    "evidenceMappedPercent",
-    "mappedScopePercent",
-    "evidenceCoveragePercent",
-    "evidence_mapped_scope",
-    "evidence_mapped_scope_percent",
-    "evidence_mapped_percent",
-    "mapped_scope_percent",
-    "evidence_coverage_percent",
-  ],
+export const PROGRAM_EVIDENCE_OVERVIEW_FORMATS = {
+  modulesAnalyzed: PROGRAM_EVIDENCE_METRIC_FORMATS.count,
+  codeSymbolsIndexed: PROGRAM_EVIDENCE_METRIC_FORMATS.count,
+  aiModelInvocations: PROGRAM_EVIDENCE_METRIC_FORMATS.count,
+  evidenceMappedScope: PROGRAM_EVIDENCE_METRIC_FORMATS.percent,
 } as const;
-
-type MetricKey = keyof typeof PGE_METRIC_SOURCES;
 
 export function deriveProgramEvidenceSummary(input: {
   recentActivity?: WorkspaceRuntimeActivityItem[];
+  canonicalOverview?: ProgramEvidenceGraphOverview | null;
 }): ProgramEvidenceSummary {
-  const recentActivity = input.recentActivity ?? [];
-  const summaries = recentActivity.flatMap((activity) => [
-    activity.inputSummary,
-    activity.outputSummary,
-  ]);
-  const graphBuildSummaries = recentActivity
-    .filter((activity) => activity.toolName === "build_evidence_graph")
-    .flatMap((activity) => [activity.inputSummary, activity.outputSummary]);
-
+  void input.recentActivity;
+  const overview = input.canonicalOverview ?? null;
   return {
-    servicesScanned: metricFromSummaries(
-      summaries,
-      "servicesScanned",
-      PROGRAM_EVIDENCE_METRIC_FORMATS.count,
+    modulesAnalyzed: metricFromCanonical(
+      overview?.modules_analyzed ?? null,
+      PROGRAM_EVIDENCE_OVERVIEW_FORMATS.modulesAnalyzed,
     ),
-    codeSymbolsIndexed: metricFromSummaries(
-      graphBuildSummaries,
-      "codeSymbolsIndexed",
-      PROGRAM_EVIDENCE_METRIC_FORMATS.count,
+    codeSymbolsIndexed: metricFromCanonical(
+      overview?.code_symbols_indexed ?? null,
+      PROGRAM_EVIDENCE_OVERVIEW_FORMATS.codeSymbolsIndexed,
     ),
-    aiProviderCallPaths: metricFromSummaries(
-      graphBuildSummaries,
-      "aiProviderCallPaths",
-      PROGRAM_EVIDENCE_METRIC_FORMATS.count,
+    aiModelInvocations: metricFromCanonical(
+      overview?.ai_model_invocations ?? null,
+      PROGRAM_EVIDENCE_OVERVIEW_FORMATS.aiModelInvocations,
     ),
-    evidenceMappedScope: metricFromSummaries(
-      summaries,
-      "evidenceMappedScope",
-      PROGRAM_EVIDENCE_METRIC_FORMATS.percent,
+    evidenceMappedScope: metricFromCanonical(
+      overview?.evidence_mapped_scope ?? null,
+      PROGRAM_EVIDENCE_OVERVIEW_FORMATS.evidenceMappedScope,
     ),
   };
 }
 
-function metricFromSummaries(
-  summaries: WorkspaceRuntimeActivityItem["inputSummary"][],
-  key: MetricKey,
+function metricFromCanonical(
+  value: number | null,
   format: ProgramEvidenceMetric["format"],
 ): ProgramEvidenceMetric {
-  for (const summary of summaries) {
-    const value = findNumericValue(summary, PGE_METRIC_SOURCES[key]);
-    if (value !== null) {
-      return { value, format };
-    }
-  }
-
-  return {
-    value: null,
-    format,
-    unavailableReason:
-      PROGRAM_EVIDENCE_UNAVAILABLE_REASONS.missingCanonicalMetric,
-  };
+  return value === null
+    ? {
+        value: null,
+        format,
+        unavailableReason:
+          PROGRAM_EVIDENCE_UNAVAILABLE_REASONS.missingCanonicalMetric,
+      }
+    : { value, format };
 }
 
-function findNumericValue(
-  summary: WorkspaceRuntimeActivityItem["inputSummary"],
-  keys: readonly string[],
-): number | null {
-  if (!summary || typeof summary !== "object" || Array.isArray(summary)) {
-    return null;
+export function formatProgramEvidenceMetric(metric: ProgramEvidenceMetric): string {
+  if (metric.value == null) {
+    return t("pages.assessmentFlow.graph.unavailableValue");
   }
 
-  const record = summary as Record<string, unknown>;
-  for (const key of keys) {
-    const value = record[key];
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
-    if (typeof value === "string") {
-      const parsed = Number.parseFloat(value);
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
-    }
-  }
+  const rounded =
+    metric.format === PROGRAM_EVIDENCE_METRIC_FORMATS.percent
+      ? Math.round(metric.value)
+      : metric.value;
+  return metric.format === PROGRAM_EVIDENCE_METRIC_FORMATS.percent
+    ? `${rounded}%`
+    : rounded.toLocaleString();
+}
 
-  for (const value of Object.values(record)) {
-    const nested = findNumericValue(
-      value as WorkspaceRuntimeActivityItem["inputSummary"],
-      keys,
-    );
-    if (nested !== null) {
-      return nested;
-    }
-  }
-
-  return null;
+function t(key: string) {
+  return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
 }

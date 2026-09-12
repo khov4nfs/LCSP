@@ -17,6 +17,7 @@ import { RepositoryConnectionResult } from "../molecules/repository-connection-r
 import { ScannerActivitySequence } from "../molecules/scanner-activity-sequence";
 
 type ScannerStepProps = {
+  assessmentId: string;
   repository: RepositoryHistory;
   activities: ScannerActivityItem[];
   evidenceReady: boolean;
@@ -24,6 +25,7 @@ type ScannerStepProps = {
 };
 
 export function ScannerStep({
+  assessmentId,
   repository,
   activities,
   evidenceReady,
@@ -58,6 +60,7 @@ export function ScannerStep({
             className="mt-4"
             commitSha={repository.commitSha}
             summary={programEvidenceSummary}
+            assessmentId={assessmentId}
           />
         ) : null}
       </AgentTurn>
