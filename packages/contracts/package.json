@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./assessment": "./src/assessment/index.ts",
+    "./billing": "./src/billing/index.ts",
     "./assessment/actions": "./src/assessment/actions.ts",
     "./assessment/codes": "./src/assessment/codes.ts",
     "./assessment/flow": "./src/assessment/flow.ts",

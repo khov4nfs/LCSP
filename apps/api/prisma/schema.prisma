@@ -40,6 +40,12 @@ model User {
   repositoryConnections     RepositoryConnection[]        @relation("RepositoryConnectionUser")
   repositorySnapshots       RepositorySnapshot[]          @relation("RepositorySnapshotActor")
   resolvedConflicts         ConflictRecord[]              @relation("ConflictRecordResolver")
+  billingWallet             BillingWallet?
+  billingOrders             BillingOrder[]
+  creditLedgerEntries       CreditLedgerEntry[]
+  billingReservations       BillingReservation[]
+  llmUsageEvents            LlmUsageEvent[]
+  paymentTransactions       PaymentTransaction[]
 
   @@index([accessStatus, role, createdAt, id])
 }
@@ -317,30 +323,30 @@ enum AuditExportStatus {
 }
 
 model RepositoryConnection {
-  id                        String                       @id
-  assessmentId              String?
-  userId                    String
-  provider                  CredentialProvider           @default(GITHUB)
-  installationId            String?
-  authenticationMode        RepositoryAuthenticationMode @default(GITHUB_APP)
-  providerCredentialId     String?
-  credentialVersion        Int?
-  credentialAuthorizedByUserId String?
+  id                            String                         @id
+  assessmentId                  String?
+  userId                        String
+  provider                      CredentialProvider             @default(GITHUB)
+  installationId                String?
+  authenticationMode            RepositoryAuthenticationMode   @default(GITHUB_APP)
+  providerCredentialId          String?
+  credentialVersion             Int?
+  credentialAuthorizedByUserId  String?
   credentialAuthorizationStatus CredentialAuthorizationStatus?
-  credentialValidatedAt     DateTime?
-  credentialRevokedAt       DateTime?
-  repositoryId              String
-  repositoryName            String
-  repositoryFullName        String
-  defaultBranch             String
-  permissions               Json
-  status                    RepositoryConnectionStatus   @default(ACTIVE)
-  connectedAt               DateTime                     @default(now())
-  revokedAt                 DateTime?
-  assessment                Assessment?                  @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
-  providerCredential        ProviderCredential?          @relation(fields: [providerCredentialId], references: [id], onDelete: Restrict)
-  snapshots                 RepositorySnapshot[]
-  user                      User                         @relation("RepositoryConnectionUser", fields: [userId], references: [id], onDelete: Restrict)
+  credentialValidatedAt         DateTime?
+  credentialRevokedAt           DateTime?
+  repositoryId                  String
+  repositoryName                String
+  repositoryFullName            String
+  defaultBranch                 String
+  permissions                   Json
+  status                        RepositoryConnectionStatus     @default(ACTIVE)
+  connectedAt                   DateTime                       @default(now())
+  revokedAt                     DateTime?
+  assessment                    Assessment?                    @relation(fields: [assessmentId], references: [id], onDelete: SetNull)
+  providerCredential            ProviderCredential?            @relation(fields: [providerCredentialId], references: [id], onDelete: Restrict)
+  snapshots                     RepositorySnapshot[]
+  user                          User                           @relation("RepositoryConnectionUser", fields: [userId], references: [id], onDelete: Restrict)
 
   @@unique([installationId, repositoryId])
   @@index([assessmentId])
@@ -349,23 +355,23 @@ model RepositoryConnection {
 }
 
 model ProviderCredential {
-  id                    String                     @id
-  provider              CredentialProvider
-  ownerUserId           String
-  providerAccountId     BigInt
-  providerLogin         String
-  status                ProviderCredentialStatus
-  currentVersion        Int
-  isActive              Boolean                    @default(true)
-  declaredExpiresAt     DateTime?
-  createdAt             DateTime                   @default(now())
-  updatedAt             DateTime                   @updatedAt
-  validatedAt           DateTime?
-  lastUsedAt            DateTime?
-  invalidatedAt         DateTime?
-  revocationRequestedAt DateTime?
-  revokedAt             DateTime?
-  lastFailureCode       String?
+  id                          String                   @id
+  provider                    CredentialProvider
+  ownerUserId                 String
+  providerAccountId           BigInt
+  providerLogin               String
+  status                      ProviderCredentialStatus
+  currentVersion              Int
+  isActive                    Boolean                  @default(true)
+  declaredExpiresAt           DateTime?
+  createdAt                   DateTime                 @default(now())
+  updatedAt                   DateTime                 @updatedAt
+  validatedAt                 DateTime?
+  lastUsedAt                  DateTime?
+  invalidatedAt               DateTime?
+  revocationRequestedAt       DateTime?
+  revokedAt                   DateTime?
+  lastFailureCode             String?
   envelopeVersion             Int?
   encryptionAlgorithm         String?
   ciphertext                  Bytes?
@@ -375,7 +381,7 @@ model ProviderCredential {
   wrappingNonce               Bytes?
   wrappingAuthenticationTag   Bytes?
   kekVersion                  String?
-  repositoryConnections RepositoryConnection[]
+  repositoryConnections       RepositoryConnection[]
 
   @@index([ownerUserId, provider, isActive])
   @@index([ownerUserId, provider, providerAccountId])
@@ -608,29 +614,29 @@ model AssessmentRuntimeEvent {
 }
 
 model VerifiedAgentEpisode {
-  id                 String     @id
-  assessmentId       String
-  ownerAgent         String
-  workflowRunId      String?
-  engineeringRuleIds String[]
-  artifactVersions   Json
-  trustLevel         String
-  validationStatus   VerifiedAgentEpisodeValidationStatus
-  schemaVersion      String
-  contentHash        String
-  domainKey          String
-  inputSignature     String
+  id                        String                               @id
+  assessmentId              String
+  ownerAgent                String
+  workflowRunId             String?
+  engineeringRuleIds        String[]
+  artifactVersions          Json
+  trustLevel                String
+  validationStatus          VerifiedAgentEpisodeValidationStatus
+  schemaVersion             String
+  contentHash               String
+  domainKey                 String
+  inputSignature            String
   successfulStrategySummary String
-  evidenceRefs       String[]
-  promptVersion      String
-  modelId            String
-  summary            String
-  handoffJson        Json
-  status             String     @default("ACTIVE")
-  expiresAt          DateTime?
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
-  assessment         Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  evidenceRefs              String[]
+  promptVersion             String
+  modelId                   String
+  summary                   String
+  handoffJson               Json
+  status                    String                               @default("ACTIVE")
+  expiresAt                 DateTime?
+  createdAt                 DateTime                             @default(now())
+  updatedAt                 DateTime                             @updatedAt
+  assessment                Assessment                           @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
   @@unique([assessmentId, contentHash])
   @@index([assessmentId, ownerAgent, status, createdAt])
@@ -1087,53 +1093,234 @@ enum UserAccessStatus {
   ACTIVE
   SUSPENDED
 }
+
 enum AccountInvitationStatus {
   PENDING
   ACCEPTED
   REVOKED
 }
+
 enum InvitationDeliveryStatus {
   PENDING
   SENT
   FAILED
 }
+
 enum AdminAccountOperation {
   SUSPEND
   RESTORE
   INVITE
 }
+
 model AccountInvitation {
-  id                  String                   @id
-  email               String                   @unique
-  displayName         String
-  role                AuthUserRole
-  status              AccountInvitationStatus  @default(PENDING)
-  generation          Int                      @default(0)
-  tokenHash           String                   @unique
-  encryptedToken      String?
-  expiresAt           DateTime
-  acceptedAt          DateTime?
-  acceptedUserId      String?
-  invitedById         String
-  deliveryStatus      InvitationDeliveryStatus @default(PENDING)
-  deliveryLeaseId     String?
-  deliveryLeaseUntil  DateTime?
-  deliveredAt         DateTime?
-  version             Int                      @default(0)
-  createdAt           DateTime                 @default(now())
-  updatedAt           DateTime                 @updatedAt
+  id                 String                   @id
+  email              String                   @unique
+  displayName        String
+  role               AuthUserRole
+  status             AccountInvitationStatus  @default(PENDING)
+  generation         Int                      @default(0)
+  tokenHash          String                   @unique
+  encryptedToken     String?
+  expiresAt          DateTime
+  acceptedAt         DateTime?
+  acceptedUserId     String?
+  invitedById        String
+  deliveryStatus     InvitationDeliveryStatus @default(PENDING)
+  deliveryLeaseId    String?
+  deliveryLeaseUntil DateTime?
+  deliveredAt        DateTime?
+  version            Int                      @default(0)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
 
   @@index([status, expiresAt, createdAt, id])
 }
+
 model AdminAccountCommandReceipt {
-  id              String                @id
-  actorId         String
-  idempotencyKey  String
-  operation       AdminAccountOperation
-  requestHash     String
-  resourceId      String
+  id                 String                @id
+  actorId            String
+  idempotencyKey     String
+  operation          AdminAccountOperation
+  requestHash        String
+  resourceId         String
   resourceGeneration Int?
-  createdAt       DateTime              @default(now())
+  createdAt          DateTime              @default(now())
 
   @@unique([actorId, idempotencyKey])
+}
+
+enum BillingOrderStatus {
+  PENDING_PAYMENT
+  CREDITED
+  EXPIRED
+  CANCELLED
+  PENDING_RECONCILIATION
+}
+
+enum PaymentReconciliationStatus {
+  MATCHED
+  UNMATCHED
+  AMOUNT_MISMATCH
+  DUPLICATE
+  REJECTED
+  NEEDS_REVIEW
+}
+
+enum BillingReservationStatus {
+  RESERVED
+  SETTLED
+  RELEASED
+}
+
+model BillingWallet {
+  id               String               @id @default(uuid())
+  userId           String               @unique
+  availableCredits BigInt               @default(0)
+  reservedCredits  BigInt               @default(0)
+  version          Int                  @default(0)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  ledgerEntries    CreditLedgerEntry[]
+  reservations     BillingReservation[]
+}
+
+model BillingOrder {
+  id                  String               @id @default(uuid())
+  userId              String
+  paymentCode         String               @unique
+  idempotencyKey      String
+  requestFingerprint  String?
+  status              BillingOrderStatus   @default(PENDING_PAYMENT)
+  amountMinorUnits    BigInt
+  creditUnits         BigInt
+  expiresAt           DateTime?
+  creditedAt          DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  paymentTransactions PaymentTransaction[]
+  ledgerEntries       CreditLedgerEntry[]
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, status, createdAt])
+}
+
+model SePayWebhookEvent {
+  id                    String    @id @default(uuid())
+  provider              String
+  providerTransactionId String
+  sanitizedPayload      Json?
+  receivedAt            DateTime  @default(now())
+  processedAt           DateTime?
+  createdAt             DateTime  @default(now())
+
+  paymentTransaction PaymentTransaction?
+
+  @@unique([provider, providerTransactionId])
+  @@index([receivedAt])
+}
+
+model PaymentTransaction {
+  id                    String                      @id @default(uuid())
+  provider              String
+  providerTransactionId String
+  amountMinorUnits      BigInt
+  reconciliationStatus  PaymentReconciliationStatus @default(UNMATCHED)
+  userId                String?
+  billingOrderId        String?
+  webhookEventId        String?                     @unique
+  receivedAt            DateTime                    @default(now())
+  reconciledAt          DateTime?
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+  user                  User?                       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  billingOrder          BillingOrder?               @relation(fields: [billingOrderId], references: [id], onDelete: Restrict)
+  webhookEvent          SePayWebhookEvent?          @relation(fields: [webhookEventId], references: [id], onDelete: Restrict)
+
+  @@unique([provider, providerTransactionId])
+  @@index([userId, createdAt])
+  @@index([reconciliationStatus, createdAt])
+}
+
+model CreditLedgerEntry {
+  id             String        @id @default(uuid())
+  userId         String
+  walletId       String
+  billingOrderId String?
+  idempotencyKey String        @unique
+  source         String
+  referenceId    String?
+  deltaCredits   BigInt
+  createdAt      DateTime      @default(now())
+  user           User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  wallet         BillingWallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  billingOrder   BillingOrder? @relation(fields: [billingOrderId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([walletId, createdAt])
+  @@index([source, referenceId])
+}
+
+model BillingReservation {
+  id             String                   @id @default(uuid())
+  userId         String
+  walletId       String
+  amountCredits  BigInt
+  status         BillingReservationStatus @default(RESERVED)
+  idempotencyKey String?
+  settledAt      DateTime?
+  releasedAt     DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  user           User                     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  wallet         BillingWallet            @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  usageEvent     LlmUsageEvent?
+
+  @@unique([userId, idempotencyKey])
+  @@index([userId, status, createdAt])
+  @@index([walletId, status])
+}
+
+model ModelPricingSnapshot {
+  id                    String          @id @default(uuid())
+  provider              String
+  model                 String
+  inputPricePerMillion  Decimal         @db.Decimal(20, 8)
+  outputPricePerMillion Decimal         @db.Decimal(20, 8)
+  version               Int
+  effectiveAt           DateTime
+  createdAt             DateTime        @default(now())
+  usageEvents           LlmUsageEvent[]
+
+  @@unique([provider, model, version])
+  @@index([provider, model, effectiveAt])
+}
+
+model LlmUsageEvent {
+  id                 String                @id @default(uuid())
+  userId             String
+  provider           String
+  model              String
+  invocationId       String
+  providerResponseId String?
+  inputTokens        BigInt?
+  cachedInputTokens  BigInt?
+  outputTokens       BigInt?
+  reasoningTokens    BigInt?
+  totalTokens        BigInt?
+  pricingSnapshotId  String?
+  reservationId      String?
+  chargedCredits     BigInt?
+  occurredAt         DateTime              @default(now())
+  createdAt          DateTime              @default(now())
+  user               User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  pricingSnapshot    ModelPricingSnapshot? @relation(fields: [pricingSnapshotId], references: [id], onDelete: Restrict)
+  reservation        BillingReservation?   @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, invocationId])
+  @@unique([provider, providerResponseId])
+  @@unique([reservationId])
+  @@index([userId, createdAt])
+  @@index([provider, model, createdAt])
 }
