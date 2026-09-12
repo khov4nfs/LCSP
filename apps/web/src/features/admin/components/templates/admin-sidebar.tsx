@@ -31,16 +31,19 @@ export function AdminSidebar({
 
   const isUserAccountsActive =
     pathname === "/admin/users" || pathname.startsWith("/admin/users/");
-  const isOverviewActive = pathname === "/admin/overview";
+  const isOverviewActive =
+    pathname === "/admin" ||
+    pathname === "/admin/" ||
+    pathname === "/admin/overview";
   const isCorpusActive = pathname.startsWith("/admin/corpus");
 
   const navItems = [
     {
       labelKey: "pages.admin.sidebar.navOverview" as MessageKey,
-      href: "/admin/overview",
+      href: "/admin",
       icon: LayoutDashboardIcon,
       isActive: isOverviewActive,
-      disabled: true,
+      disabled: false,
     },
     {
       labelKey: "pages.admin.sidebar.navUserAccounts" as MessageKey,

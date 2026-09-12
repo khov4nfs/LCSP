@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import {
   AUTH_ERROR_CODES,
-  AUTH_USER_ROLES,
   REQUIRED_ACTIONS,
   type RequiredAction,
 } from "@lcsp/contracts/auth";
