@@ -31,6 +31,8 @@ export const apiQueryKeys = {
       ["assessment", assessmentId, "documents", documentRequestId] as const,
   },
   admin: {
+    overview: (period?: string) =>
+      ["admin", "overview", period ?? "30D"] as const,
     usersRoot: () => ["admin", "users"] as const,
     usersList: (params?: Record<string, unknown>) =>
       ["admin", "users", params ?? {}] as const,

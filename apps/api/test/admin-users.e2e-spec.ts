@@ -6,6 +6,7 @@ import {
   AUTH_ACCOUNT_STATUSES,
   AUTH_ERROR_CODES,
   AUTH_USER_ROLES,
+  type AdminOverviewStats,
   type AdminUserDetail,
   type AdminUserListResponse,
 } from "@lcsp/contracts/auth";
@@ -372,6 +373,42 @@ describe("Admin User Management API (e2e)", () => {
 
       assert.equal(res.status, 409);
       assert.equal(problemCode(res), ADMIN_ACCOUNT_ERRORS.selfSuspend);
+    });
+  });
+
+  describe("GET /admin/overview (Authorization & Response)", () => {
+    it("allows Admin to access Overview read model with result envelope", async () => {
+      const res = await httpRequest(app)
+        .get("/admin/overview?period=30D")
+        .set("Authorization", `Bearer ${adminSessionToken}`)
+        .set("Accept", "application/json");
+
+      assert.equal(res.status, 200);
+      const data = successBody<AdminOverviewStats>(res);
+      assert.equal(data.period, "30D");
+      assert.ok(data.summary);
+      assert.ok(typeof data.summary.totalUsers.count === "number");
+      assert.ok(Array.isArray(data.assessmentActivity.points));
+      assert.ok(Array.isArray(data.recentActivity));
+    });
+
+    it("denies Customer access to Admin Overview with 403 Forbidden", async () => {
+      const res = await httpRequest(app)
+        .get("/admin/overview")
+        .set("Authorization", `Bearer ${customerSessionToken}`)
+        .set("Accept", "application/json");
+
+      assert.equal(res.status, 403);
+      assert.equal(problemCode(res), RBAC_REASON_CODES.denied);
+    });
+
+    it("denies unauthenticated access to Admin Overview with 401 Unauthorized", async () => {
+      const res = await httpRequest(app)
+        .get("/admin/overview")
+        .set("Accept", "application/json");
+
+      assert.equal(res.status, 401);
+      assert.equal(problemCode(res), AUTH_ERROR_CODES.sessionInvalid);
     });
   });
 });

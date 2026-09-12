@@ -40,10 +40,6 @@ export function getAdminRouteRedirectPath({
     return "/workspace";
   }
 
-  // If navigating directly to /admin landing with valid session, forward to default module (/admin/users)
-  if (pathname === ADMIN_ROOT_PATH || pathname === `${ADMIN_ROOT_PATH}/`) {
-    return ADMIN_USERS_PATH;
-  }
-
+  // Valid admin user navigating to /admin landing or admin child routes
   return null;
 }
