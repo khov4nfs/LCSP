@@ -60,9 +60,9 @@ test("single PGE implementation: legacy component is a thin compatibility wrappe
 test("ProgramEvidenceSummary renders 4 explicit semantic metrics with canonical values in EN and VI", () => {
   setAppLocale("en");
   const summaryFixture: ProgramEvidenceSummaryData = {
-    servicesScanned: { value: 12, format: PROGRAM_EVIDENCE_METRIC_FORMATS.count },
+    modulesAnalyzed: { value: 12, format: PROGRAM_EVIDENCE_METRIC_FORMATS.count },
     codeSymbolsIndexed: { value: 93, format: PROGRAM_EVIDENCE_METRIC_FORMATS.count },
-    aiProviderCallPaths: { value: 5, format: PROGRAM_EVIDENCE_METRIC_FORMATS.count },
+    aiModelInvocations: { value: 5, format: PROGRAM_EVIDENCE_METRIC_FORMATS.count },
     evidenceMappedScope: { value: 71, format: PROGRAM_EVIDENCE_METRIC_FORMATS.percent },
   };
 
@@ -70,6 +70,12 @@ test("ProgramEvidenceSummary renders 4 explicit semantic metrics with canonical 
     React.createElement(ProgramEvidenceSummary, {
       commitSha: "9f31ca234567890abcdef",
       summary: summaryFixture,
+      canonicalOverview: {
+        modules_analyzed: 12,
+        code_symbols_indexed: 93,
+        ai_model_invocations: 5,
+        evidence_mapped_scope: 71,
+      },
       assessmentId: "asmt-101",
     }),
   );
@@ -78,10 +84,10 @@ test("ProgramEvidenceSummary renders 4 explicit semantic metrics with canonical 
   assert.match(htmlEn, /data-slot="chat-result-container"/);
 
   // Assert 4 semantic labels exist in EN
-  assert.match(htmlEn, /Services scanned/);
+  assert.match(htmlEn, /Modules analyzed/);
   assert.match(htmlEn, /Code symbols indexed/);
-  assert.match(htmlEn, /AI\/provider call paths/);
-  assert.match(htmlEn, /Evidence-mapped scope/);
+  assert.match(htmlEn, /AI model invocations/);
+  assert.match(htmlEn, /Mapped scope/);
 
   // Invariant: No ambiguous standalone coverage label exists
   assert.doesNotMatch(htmlEn, />71% coverage</);
@@ -99,7 +105,8 @@ test("ProgramEvidenceSummary renders 4 explicit semantic metrics with canonical 
 
   // Assert LCSP-270 CTA
   assert.match(htmlEn, /View evidence graph/);
-  assert.match(htmlEn, /href="\/assessments\/asmt-101"/);
+  assert.match(htmlEn, /data-slot="button"/);
+  assert.doesNotMatch(htmlEn, /href="\/assessments\/asmt-101"/);
   assert.match(htmlEn, /Artifact · repository evidence/);
 
   // Assert Vietnamese locale
@@ -111,16 +118,16 @@ test("ProgramEvidenceSummary renders 4 explicit semantic metrics with canonical 
       assessmentId: "asmt-101",
     }),
   );
-  assert.match(htmlVi, /Services đã quét/);
-  assert.match(htmlVi, /Phạm vi đã map evidence/);
+  assert.match(htmlVi, /Mô-đun đã phân tích/);
+  assert.match(htmlVi, /Độ phủ bằng chứng kỹ thuật/);
   assert.match(htmlVi, /Sẵn sàng/);
 });
 
 test("ProgramEvidenceSummary handles unavailable metrics with unavailable format and never with zero", () => {
   const partialSummary: ProgramEvidenceSummaryData = {
-    servicesScanned: { value: 0, format: PROGRAM_EVIDENCE_METRIC_FORMATS.count }, // Authoritative 0
+    modulesAnalyzed: { value: 0, format: PROGRAM_EVIDENCE_METRIC_FORMATS.count }, // Authoritative 0
     codeSymbolsIndexed: { value: null, format: PROGRAM_EVIDENCE_METRIC_FORMATS.count }, // Unavailable
-    aiProviderCallPaths: { value: null, format: PROGRAM_EVIDENCE_METRIC_FORMATS.count }, // Unavailable
+    aiModelInvocations: { value: null, format: PROGRAM_EVIDENCE_METRIC_FORMATS.count }, // Unavailable
     evidenceMappedScope: { value: null, format: PROGRAM_EVIDENCE_METRIC_FORMATS.percent }, // Unavailable
   };
 
@@ -128,6 +135,12 @@ test("ProgramEvidenceSummary handles unavailable metrics with unavailable format
     React.createElement(ProgramEvidenceSummary, {
       commitSha: "abc1234567890",
       summary: partialSummary,
+      canonicalOverview: {
+        modules_analyzed: 0,
+        code_symbols_indexed: null,
+        ai_model_invocations: null,
+        evidence_mapped_scope: null,
+      },
       assessmentId: "asmt-102",
     }),
   );
@@ -487,11 +500,12 @@ test("chat rail contract: structured results enforce max-w-170 (680px) and flexi
     React.createElement(ProgramEvidenceSummary, {
       commitSha: "1234567",
       summary: {
-        servicesScanned: { value: 1, format: "count" },
+        modulesAnalyzed: { value: 1, format: "count" },
         codeSymbolsIndexed: { value: 2, format: "count" },
-        aiProviderCallPaths: { value: 3, format: "count" },
+        aiModelInvocations: { value: 3, format: "count" },
         evidenceMappedScope: { value: 50, format: "percent" },
       },
+      canonicalOverview: null,
     }),
   );
   assert.match(pgeHtml, /max-w-170/);

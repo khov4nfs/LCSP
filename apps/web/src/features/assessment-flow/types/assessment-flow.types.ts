@@ -23,9 +23,9 @@ export type ProgramEvidenceMetric = {
 };
 
 export type ProgramEvidenceSummary = {
-  servicesScanned: ProgramEvidenceMetric;
+  modulesAnalyzed: ProgramEvidenceMetric;
   codeSymbolsIndexed: ProgramEvidenceMetric;
-  aiProviderCallPaths: ProgramEvidenceMetric;
+  aiModelInvocations: ProgramEvidenceMetric;
   evidenceMappedScope: ProgramEvidenceMetric;
 };
 

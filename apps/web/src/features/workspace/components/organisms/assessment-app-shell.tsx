@@ -25,7 +25,7 @@ import {
 } from "@/lib/api/workspace-queries";
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
-import { AssessmentRuntimeSidebar } from "@/features/assessment-runtime";
+import { AssessmentRuntimeSidebar, ProgramEvidenceGraphProvider } from "@/features/assessment-runtime";
 
 import type {
   AppShellNavigationItem,
@@ -177,6 +177,7 @@ export function AssessmentAppShell({
   );
 
   return (
+    <ProgramEvidenceGraphProvider assessmentId={assessmentId}>
     <div
       className="flex h-svh min-h-0 w-full overflow-hidden bg-background"
       data-shell-screen={effectiveShellState.screen}
@@ -307,6 +308,7 @@ export function AssessmentAppShell({
         open={settingsModalOpen}
       />
     </div>
+    </ProgramEvidenceGraphProvider>
   );
 }
 
