@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 
 import { config, createConfigValidationSchema } from "./config/config.js";
 import { AIUsageFlowModule } from "./modules/ai-usage-flow/ai-usage-flow.module.js";
+import { BillingModule } from "./modules/billing/billing.module.js";
 import { AppFeatureModule } from "./modules/app/app.module.js";
 import { AssessmentModule } from "./modules/assessment/assessment.module.js";
 import { AuditModule as AuditFeatureModule } from "./modules/audit/audit.module.js";
@@ -102,6 +103,7 @@ function findUpwards(
     RbacModule,
     StorageModule,
     AIUsageFlowModule,
+    BillingModule,
     AppFeatureModule,
     AuthWorkspaceModule,
     AssessmentModule,

@@ -1,4 +1,5 @@
 export * from "./audit/index.ts";
+export * from "./billing/index.ts";
 export * from "./assessment/index.ts";
 export * from "./auth/index.ts";
 export * from "./evidence/index.ts";
