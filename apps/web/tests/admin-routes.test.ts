@@ -3,8 +3,6 @@ import test from "node:test";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import {
-  ADMIN_ROOT_PATH,
-  ADMIN_USERS_PATH,
   getAdminRouteRedirectPath,
   isAdminPath,
 } from "../src/admin-route-middleware.ts";
@@ -85,14 +83,14 @@ test("Admin route policy: non-admin roles are redirected to customer workspace",
   assert.equal(redirectCustomerDetail, "/workspace");
 });
 
-test("Admin route policy: verified Admin navigating to /admin landing is forwarded to /admin/users", () => {
+test("Admin route policy: verified Admin navigating to /admin landing is allowed directly with 0 redirect", () => {
   const redirectLanding = getAdminRouteRedirectPath({
     pathname: "/admin",
     search: "",
     hasSession: true,
     userRole: AUTH_USER_ROLES.admin,
   });
-  assert.equal(redirectLanding, "/admin/users");
+  assert.equal(redirectLanding, null);
 
   const redirectTrailingSlash = getAdminRouteRedirectPath({
     pathname: "/admin/",
@@ -100,7 +98,7 @@ test("Admin route policy: verified Admin navigating to /admin landing is forward
     hasSession: true,
     userRole: AUTH_USER_ROLES.admin,
   });
-  assert.equal(redirectTrailingSlash, "/admin/users");
+  assert.equal(redirectTrailingSlash, null);
 });
 
 test("Admin route policy: verified Admin is allowed into /admin/users and child routes with 0 redirect", () => {

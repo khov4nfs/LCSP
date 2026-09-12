@@ -1899,6 +1899,89 @@ export type PagesMessages = {
       identityFallbackName: string;
       identityFallbackEmail: string;
     };
+    overview: {
+      title: string;
+      description: string;
+      periodSelectorAria: string;
+      periodLabel: string;
+      periods: {
+        p7d: string;
+        p30d: string;
+        p90d: string;
+      };
+      metrics: {
+        totalUsers: string;
+        totalUsersSubtitle: string;
+        activeUsers: string;
+        activeUsersSubtitle: string;
+        assessments: string;
+        assessmentsSubtitle: string;
+        currentCorpus: string;
+        corpusSubtitle: string;
+        noCorpus: string;
+      };
+      assessmentActivity: {
+        title: string;
+        subtitle: string;
+        completed: string;
+        emptyTitle: string;
+        emptyDescription: string;
+        errorTitle: string;
+        errorDescription: string;
+        barTooltip: string;
+      };
+      accountStatus: {
+        title: string;
+        subtitle: string;
+        active: string;
+        invited: string;
+        suspended: string;
+        totalAccounts: string;
+        emptyTitle: string;
+        emptyDescription: string;
+      };
+      recentActivity: {
+        title: string;
+        subtitle: string;
+        tableAria: string;
+        columns: {
+          time: string;
+          admin: string;
+          action: string;
+          target: string;
+        };
+        actions: {
+          suspendedAccount: string;
+          restoredAccount: string;
+          invitedUser: string;
+          publishedCorpus: string;
+          discardedDraft: string;
+        };
+        systemActor: string;
+        targets: {
+          userAccount: string;
+          newUser: string;
+          corpusDraft: string;
+          corpusVersion: string;
+          system: string;
+        };
+        emptyTitle: string;
+        emptyDescription: string;
+        errorTitle: string;
+        errorDescription: string;
+      };
+      corpusStatus: {
+        title: string;
+        subtitle: string;
+        currentLabel: string;
+        draftLabel: string;
+        noPublished: string;
+        noDraft: string;
+      };
+      loading: string;
+      error: string;
+      retry: string;
+    };
     usersList: {
       title: string;
       description: string;

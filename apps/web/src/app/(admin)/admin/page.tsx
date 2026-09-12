@@ -1,5 +1,5 @@
-import { redirect } from "next/navigation";
+import { AdminOverviewPage } from "@/features/admin/components/organisms/admin-overview-page";
 
 export default function AdminLandingPage() {
-  redirect("/admin/users");
+  return <AdminOverviewPage />;
 }

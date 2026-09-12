@@ -93,14 +93,19 @@ function handlerProvider<T>(
   };
 }
 
+import { AdminOverviewService } from "./application/services/admin/admin-overview.service.js";
+import { AdminOverviewController } from "./presentation/http/admin-overview.controller.js";
+
 @Module({
   imports: [PrismaModule, AuditModule, CqrsModule, MailModule],
   controllers: [
     AuthWorkspaceController,
     AdminUsersController,
     AccountInvitationsController,
+    AdminOverviewController,
   ],
   providers: [
+    AdminOverviewService,
     AdminAccountReadService,
     AdminAccountCommandService,
     AdminAccountInvitationService,

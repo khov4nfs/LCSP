@@ -3,7 +3,7 @@ import { AUTH_USER_ROLES, type AuthUserRole } from "@lcsp/contracts/auth";
 import { getAuthSettingsProfile } from "@/lib/api/auth-client";
 
 export const POST_AUTH_REDIRECT_PATHS = {
-  admin: "/admin/corpus-versions",
+  admin: "/admin",
   customer: "/workspace",
 } as const;
 
