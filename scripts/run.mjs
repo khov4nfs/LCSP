@@ -791,6 +791,8 @@ function dockerManagedAgentTarget() {
       containerName,
       "--add-host",
       "host.docker.internal:host-gateway",
+      "--mount",
+      `type=bind,source=${path.join(repoRoot, "tmp")},target=/app/deepagents/tmp`,
       ...dockerEnvArgs(dockerWorkerEnv()),
       defaultDockerWorkerImage,
     ],
@@ -878,6 +880,7 @@ function dockerWorkerEnv() {
       rootEnv.LCSP_LANGSMITH_TRACING ??
       "false",
     KNIP_BINARY: "/usr/local/bin/knip",
+    LCSP_GRAPH_STORAGE_PATH: "/app/deepagents/tmp",
   };
 }
 

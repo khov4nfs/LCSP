@@ -181,7 +181,7 @@ test("LCSP-272 right sidebar projects F03 scanner-running state without fabricat
       evidenceAccepted: false,
       scanFailed: false,
       programEvidenceSummary: {
-        servicesScanned: {
+        modulesAnalyzed: {
           value: null,
           format: PROGRAM_EVIDENCE_METRIC_FORMATS.count,
         },
@@ -189,7 +189,7 @@ test("LCSP-272 right sidebar projects F03 scanner-running state without fabricat
           value: 215,
           format: PROGRAM_EVIDENCE_METRIC_FORMATS.count,
         },
-        aiProviderCallPaths: {
+        aiModelInvocations: {
           value: 13,
           format: PROGRAM_EVIDENCE_METRIC_FORMATS.count,
         },

@@ -222,7 +222,17 @@ class EvidenceAssembler:
             from tools.common.capabilities.platform.logging_path import get_partitioned_graph_path
             user_id = get_user_id()
             assessment_id = get_assessment_id()
-            ref_path = get_partitioned_graph_path(user_id, assessment_id, f"lcsp-evidence-graph-{graph_id}.json")
+            # Storage keys must remain portable across the shared host volume (notably
+            # Windows, where ':' is not a valid filename character).
+            safe_graph_id = "".join(
+                char if char.isalnum() or char in "._-" else "_"
+                for char in str(graph_id)
+            )
+            ref_path = get_partitioned_graph_path(
+                user_id,
+                assessment_id,
+                f"lcsp-evidence-graph-{safe_graph_id}.json",
+            )
             
             import json
             try:

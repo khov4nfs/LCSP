@@ -10,6 +10,7 @@ import { ConsolidateVerifiedAgentEpisodesHandler } from "./application/commands/
 import { GetEvidenceHandler } from "./application/queries/get-evidence/get-evidence.handler.js";
 import { RetrieveVerifiedAgentEpisodesHandler } from "./application/queries/retrieve-verified-agent-episodes/retrieve-verified-agent-episodes.handler.js";
 import { EvidenceRedactorService } from "./application/services/evidence/evidence-redactor.service.js";
+import { ProgramEvidenceGraphDetailService } from "./application/services/evidence/program-evidence-graph-detail.service.js";
 import { VerifiedAgentEpisodeConsolidationWorker } from "./application/services/verified-agent-episode-consolidation.worker.js";
 import { VerifiedAgentEpisodeDeduplicationService } from "./application/services/verified-agent-episode-deduplication.service.js";
 import { InternalAgenticToolDispatchController } from "./presentation/http/agentic-tool-dispatch.controller.js";
@@ -37,6 +38,7 @@ import {
     ConsolidateVerifiedAgentEpisodesHandler,
     RetrieveVerifiedAgentEpisodesHandler,
     EvidenceRedactorService,
+    ProgramEvidenceGraphDetailService,
     VerifiedAgentEpisodeDeduplicationService,
     VerifiedAgentEpisodeConsolidationWorker,
     WorkerApiKeyGuard,

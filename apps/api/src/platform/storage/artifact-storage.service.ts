@@ -12,6 +12,8 @@ export interface ChunkedManifest {
   chunks: string[];
 }
 
+export type StoredJsonArtifact = Record<string, unknown>;
+
 @Injectable()
 export class ArtifactStorageService {
   private readonly storagePath: string;
@@ -66,5 +68,38 @@ export class ArtifactStorageService {
     }
 
     return reconstructed;
+  }
+
+  async readJsonArtifactReference(
+    reference: string,
+  ): Promise<StoredJsonArtifact> {
+    if (typeof reference !== "string" || !reference.trim()) {
+      throw new BadRequestException("Invalid artifact reference");
+    }
+    const normalized = reference.replaceAll("\\", "/");
+    const marker = "/app/deepagents/tmp/";
+    const relative = normalized.startsWith(marker)
+      ? normalized.slice(marker.length)
+      : normalized;
+    if (!/^[a-zA-Z0-9_./-]+\.json$/.test(relative) || relative.includes("..")) {
+      throw new BadRequestException("Invalid artifact reference");
+    }
+    const root =
+      process.env.LCSP_GRAPH_STORAGE_PATH || path.join(getRepoRoot(), "tmp");
+    const artifactPath = path.resolve(root, relative);
+    const storageRoot = path.resolve(root) + path.sep;
+    if (!artifactPath.startsWith(storageRoot)) {
+      throw new BadRequestException("Invalid artifact reference");
+    }
+    const content = await fs.promises.readFile(artifactPath, "utf8");
+    const parsed = JSON.parse(content) as unknown;
+    if (
+      parsed === null ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed)
+    ) {
+      throw new BadRequestException("Invalid JSON artifact");
+    }
+    return parsed as StoredJsonArtifact;
   }
 }

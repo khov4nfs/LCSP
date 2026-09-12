@@ -221,9 +221,9 @@ function sidebarScannerArtifacts(
   normalized: NormalizedAssessmentRuntime,
   programEvidenceSummary?: ProgramEvidenceSummary,
 ): NormalizedAssessmentSidebarArtifactItem[] {
-  const servicesCount = programEvidenceSummary?.servicesScanned.value ?? null;
+  const modulesCount = programEvidenceSummary?.modulesAnalyzed.value ?? null;
   const programEvidenceDescriptionKey =
-    servicesCount === null
+    modulesCount === null
       ? "pages.appShell.assessmentSidebar.artifacts.programEvidenceGraphBuilding"
       : "pages.appShell.assessmentSidebar.artifacts.programEvidenceGraphServices";
 
@@ -234,7 +234,7 @@ function sidebarScannerArtifacts(
         "pages.appShell.assessmentSidebar.artifacts.programEvidenceGraph",
       descriptionKey: programEvidenceDescriptionKey,
       descriptionParams:
-        servicesCount === null ? undefined : { count: String(servicesCount) },
+        modulesCount === null ? undefined : { count: String(modulesCount) },
       status: ASSESSMENT_SIDEBAR_STATUSES.building,
       artifact: {
         ...normalized.artifacts.programEvidenceGraph,

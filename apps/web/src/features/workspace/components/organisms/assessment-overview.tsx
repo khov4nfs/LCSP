@@ -126,6 +126,7 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
       interviewEnabled={flow.stage === ASSESSMENT_FLOW_STAGES.interview}
       scanner={
         <ScannerStep
+          assessmentId={assessmentId}
           repository={{
             provider:
               connection?.provider ??
