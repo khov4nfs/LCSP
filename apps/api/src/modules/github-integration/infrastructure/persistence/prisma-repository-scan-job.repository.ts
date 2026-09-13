@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 
+import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import type { OutboxMessageInput } from "@lcsp/contracts/outbox";
 
 import {
@@ -12,6 +13,14 @@ import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import type { RepositoryScanJobRepository } from "../../application/ports/persistence/repository-scan-job.repository.js";
 import { RepositoryScanJob } from "../../domain/entities/repository-scan-job.entity.js";
+
+const ACTIVE_REPOSITORY_SCAN_JOB_STATUSES = [
+  REPOSITORY_SCAN_JOB_STATUSES.queued,
+  REPOSITORY_SCAN_JOB_STATUSES.running,
+  REPOSITORY_SCAN_JOB_STATUSES.readyToSnapshot,
+  REPOSITORY_SCAN_JOB_STATUSES.pendingMapping,
+  REPOSITORY_SCAN_JOB_STATUSES.waitingForContext,
+] as const;
 
 /**
  * Implements repository scan-job persistence with Prisma and coordinates scan creation with transactional outbox delivery.
@@ -38,6 +47,38 @@ export class PrismaRepositoryScanJobRepository implements RepositoryScanJobRepos
   async findByIdempotencyKey(key: string): Promise<RepositoryScanJob | null> {
     const record = await this.prisma.repositoryScanJob.findUnique({
       where: { idempotencyKey: key },
+    });
+    if (!record) return null;
+    return RepositoryScanJob.rehydrate({
+      ...record,
+      triggerSource: fromPrismaRepositoryScanTriggerSource(
+        record.triggerSource,
+      ),
+      status: fromPrismaRepositoryScanJobStatus(record.status),
+    });
+  }
+
+  /**
+   * Finds the most recently updated non-terminal scan job for the same assessment snapshot.
+   *
+   * @param input - Assessment and immutable snapshot identities to deduplicate.
+   * @returns Rehydrated active scan-job aggregate, or null when only terminal/no jobs exist.
+   */
+  async findActiveByAssessmentAndSnapshot(input: {
+    assessmentId: string;
+    snapshotId: string;
+  }): Promise<RepositoryScanJob | null> {
+    const record = await this.prisma.repositoryScanJob.findFirst({
+      where: {
+        assessmentId: input.assessmentId,
+        snapshotId: input.snapshotId,
+        status: {
+          in: ACTIVE_REPOSITORY_SCAN_JOB_STATUSES.map(
+            toPrismaRepositoryScanJobStatus,
+          ),
+        },
+      },
+      orderBy: { updatedAt: "desc" },
     });
     if (!record) return null;
     return RepositoryScanJob.rehydrate({

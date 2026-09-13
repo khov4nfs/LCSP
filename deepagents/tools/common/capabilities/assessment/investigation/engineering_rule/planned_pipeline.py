@@ -40,6 +40,13 @@ from .selected_rule_orchestration import augment_selected_rule_packet
 
 logger = get_logger(__name__)
 
+ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS = {
+    "engineering_rule_planner_decision": "ENGINEERING_RULE_PLANNER_DECISION",
+    "engineering_rule_investigation_failed": "ENGINEERING_RULE_INVESTIGATION_FAILED",
+    "engineering_rule_investigated": "ENGINEERING_RULE_INVESTIGATED",
+}
+
+
 LEGAL_RULE_ONLY_RECOVERY_REASONS = frozenset(
     {
         "LEGAL_RULE_SOURCE_LOAD_FAILED",
@@ -96,6 +103,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         recovery_source_crawl_requests: list[dict[str, Any]] | None = None,
         assessment_id: str | None = None,
         user_id: str | None = None,
+        scan_job_id: str | None = None,
     ) -> EngineeringInvestigationResult:
         try:
             confirmed_context = coerce_confirmed_structured_business_context(
@@ -354,6 +362,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             evidence_report=evidence_report,
             assessment_id=assessment_id,
             user_id=user_id,
+            scan_job_id=scan_job_id,
         )
 
     def _run_planned_investigation(
@@ -375,6 +384,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         evidence_report: dict[str, Any],
         assessment_id: str | None,
         user_id: str | None,
+        scan_job_id: str | None,
     ) -> EngineeringInvestigationResult:
         # Planner does not receive every broad start-node hit. Each packet is projected
         # into rule-specific material production signals first. A single graph projector
@@ -484,6 +494,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             evidence_report=evidence_report,
             assessment_id=assessment_id,
             user_id=user_id,
+            scan_job_id=scan_job_id,
         )
 
     def _finish_planned_investigation(
@@ -505,6 +516,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         evidence_report: dict[str, Any],
         assessment_id: str | None,
         user_id: str | None,
+        scan_job_id: str | None,
     ) -> EngineeringInvestigationResult:
         selected_ids = set(plan.selected_rule_ids)
         context_provenance = dict(plan.context_provenance)
@@ -596,6 +608,34 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 workflow_run_id=workflow_run_id,
                 correlationId=correlation_id,
             )
+            self._emit_runtime_activity(
+                scan_job_id=scan_job_id,
+                event_type=(
+                    "TOOL_COMPLETED"
+                    if audit.final_decision == "SELECT"
+                    else "TOOL_SKIPPED"
+                ),
+                run_status="WAITING",
+                tool_name=f"engineering_rule_plan:{audit.engineering_rule_id}",
+                summary=ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS[
+                    "engineering_rule_planner_decision"
+                ],
+                output_summary={
+                    "messageKey": ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS[
+                        "engineering_rule_planner_decision"
+                    ],
+                    "messageParams": {
+                        "decision": audit.final_decision,
+                        "engineeringRuleId": audit.engineering_rule_id,
+                        "reasonCode": audit.reason_code,
+                    },
+                    "requestedDecision": audit.requested_decision,
+                    "finalDecision": audit.final_decision,
+                    "reasonCode": audit.reason_code,
+                    "basis": list(audit.basis),
+                    "validationOverride": audit.validation_override,
+                },
+            )
 
         claims: list[EvidenceClaim] = []
         evaluations = []
@@ -616,6 +656,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 workflow_run_id=workflow_run_id,
                 correlation_id=correlation_id,
             )
+            investigation_failed = False
             try:
                 if isinstance(self._investigator, CodeContextLawGuidedInvestigator):
                     rule_claims = self._investigator.investigate(
@@ -633,15 +674,40 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                         correlation_id=correlation_id,
                     )
             except Exception as error:
+                investigation_failed = True
                 logger.warning(
                     "ENGINEERING_INVESTIGATION_FAILED",
                     engineering_rule_id=engineering_rule.engineering_rule_id,
                     error_type=type(error).__name__,
                     # The type alone cannot separate a provider rejection from a schema
                     # or verdict violation, and every rule failing looks identical.
-                    error_message=str(error)[:500],
+                    # SpecialistHandoffValidationError now embeds the bounded underlying
+                    # cause in its own message (see result_validation._bounded_cause), so
+                    # this must stay wide enough to carry it instead of re-truncating it away.
+                    error_message=str(error)[:1_000],
                     workflow_run_id=workflow_run_id,
                     correlationId=correlation_id,
+                )
+                self._emit_runtime_activity(
+                    scan_job_id=scan_job_id,
+                    event_type="TOOL_FAILED",
+                    run_status="RUNNING",
+                    tool_name=(
+                        f"engineering_rule_investigation:"
+                        f"{engineering_rule.engineering_rule_id}"
+                    ),
+                    summary=ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS[
+                        "engineering_rule_investigation_failed"
+                    ],
+                    output_summary={
+                        "messageKey": ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS[
+                            "engineering_rule_investigation_failed"
+                        ],
+                        "messageParams": {
+                            "engineeringRuleId": engineering_rule.engineering_rule_id,
+                        },
+                    },
+                    error_summary=type(error).__name__,
                 )
                 rule_claims = [
                     EvidenceClaim(
@@ -672,6 +738,30 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 validated_rule_claims,
             )
             evaluations.append(evaluation)
+            if not investigation_failed:
+                self._emit_runtime_activity(
+                    scan_job_id=scan_job_id,
+                    event_type="TOOL_COMPLETED",
+                    run_status="WAITING",
+                    tool_name=(
+                        f"engineering_rule_investigation:"
+                        f"{engineering_rule.engineering_rule_id}"
+                    ),
+                    summary=ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS[
+                        "engineering_rule_investigated"
+                    ],
+                    output_summary={
+                        "messageKey": ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS[
+                            "engineering_rule_investigated"
+                        ],
+                        "messageParams": {
+                            "engineeringRuleId": engineering_rule.engineering_rule_id,
+                            "evaluationStatus": evaluation.status,
+                        },
+                        "evaluationStatus": evaluation.status,
+                        "claimCount": len(validated_rule_claims),
+                    },
+                )
             technical_evidence_by_rule[evaluation.engineering_rule_id] = tuple(
                 self._technical_evidence_displays(graph, evaluation.evidence_refs)
             )
@@ -710,6 +800,43 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             planner_decisions=tuple(planner_decisions),
             observability=observability,
         )
+
+    def _emit_runtime_activity(
+        self,
+        *,
+        scan_job_id: str | None,
+        event_type: str,
+        run_status: str,
+        tool_name: str,
+        summary: str,
+        output_summary: dict[str, Any] | None = None,
+        error_summary: str | None = None,
+    ) -> None:
+        """Best-effort stream one Planner/Investigator activity row to the live UI.
+
+        Reuses the scan-job runtime-event channel that already carries agentic tool
+        activity into the workspace SSE feed. Silently no-ops without a scan job id
+        (for example a unit-test fixture) or an api_client that predates this method;
+        delivery failures are swallowed inside ``post_scan_runtime_event`` itself so
+        this can never fail an otherwise successful investigation.
+        """
+        if not scan_job_id:
+            return
+        post_runtime_event = getattr(self._api_client, "post_scan_runtime_event", None)
+        if post_runtime_event is None:
+            return
+        payload: dict[str, Any] = {
+            "event_type": event_type,
+            "run_status": run_status,
+            "stage": "TECHNICAL_EVIDENCE",
+            "tool_name": tool_name,
+            "summary": summary,
+        }
+        if output_summary is not None:
+            payload["output_summary"] = output_summary
+        if error_summary is not None:
+            payload["error_summary"] = error_summary
+        post_runtime_event(scan_job_id, payload)
 
     def _load_legal_rule_sources(
         self,

@@ -11,6 +11,8 @@ import {
   ConflictRecordStatus as PrismaConflictRecordStatus,
   DocumentRequestStatus as PrismaDocumentRequestStatus,
   DocumentType as PrismaDocumentType,
+  EngineeringEvidenceClaimType as PrismaEngineeringEvidenceClaimType,
+  EngineeringRuleEvaluationStatus as PrismaEngineeringRuleEvaluationStatus,
   EvidenceAcceptanceStatus as PrismaEvidenceAcceptanceStatus,
   LegalRuleMatchGuardrailStatus as PrismaLegalRuleMatchGuardrailStatus,
   LegalRuleLifecycleStatus as PrismaLegalRuleLifecycleStatus,
@@ -76,6 +78,8 @@ import { RBAC_REASON_CODES, type RbacReasonCode } from "@lcsp/contracts/rbac";
 import {
   CONFLICT_RECORD_STATUSES,
   CLASSIFICATION_GUARDRAIL_STATUSES,
+  ENGINEERING_EVIDENCE_CLAIM_TYPES,
+  ENGINEERING_RULE_EVALUATION_STATUSES,
   LEGAL_RULE_MATCH_GUARDRAIL_STATUSES,
   OVERALL_COVERAGE_STATUSES,
   TECHNICAL_EVIDENCE_REPORT_STATUSES,
@@ -84,6 +88,8 @@ import {
   type ClassificationGuardrailStatus,
   type ClassificationResultStatus,
   type ConflictRecordStatus,
+  type EngineeringEvidenceClaimType,
+  type EngineeringRuleEvaluationStatus,
   type LegalRuleMatchGuardrailStatus,
   type LegalRuleMatchStatus,
   type OverallCoverageStatus,
@@ -173,6 +179,62 @@ const PRISMA_ASSESSMENT_STATUS_TO_CONTRACT = {
   [PrismaAssessmentStatus.READY_FOR_REVIEW]:
     ASSESSMENT_STATUS_CODES.readyForReview,
 } as const satisfies Record<PrismaAssessmentStatus, AssessmentStatusCode>;
+
+const ENGINEERING_RULE_EVALUATION_STATUS_TO_PRISMA = {
+  [ENGINEERING_RULE_EVALUATION_STATUSES.compliant]:
+    PrismaEngineeringRuleEvaluationStatus.COMPLIANT,
+  [ENGINEERING_RULE_EVALUATION_STATUSES.nonCompliant]:
+    PrismaEngineeringRuleEvaluationStatus.NON_COMPLIANT,
+  [ENGINEERING_RULE_EVALUATION_STATUSES.unknown]:
+    PrismaEngineeringRuleEvaluationStatus.UNKNOWN,
+  [ENGINEERING_RULE_EVALUATION_STATUSES.notApplicable]:
+    PrismaEngineeringRuleEvaluationStatus.NOT_APPLICABLE,
+} as const satisfies Record<
+  EngineeringRuleEvaluationStatus,
+  PrismaEngineeringRuleEvaluationStatus
+>;
+
+const PRISMA_ENGINEERING_RULE_EVALUATION_STATUS_TO_CONTRACT = {
+  [PrismaEngineeringRuleEvaluationStatus.COMPLIANT]:
+    ENGINEERING_RULE_EVALUATION_STATUSES.compliant,
+  [PrismaEngineeringRuleEvaluationStatus.NON_COMPLIANT]:
+    ENGINEERING_RULE_EVALUATION_STATUSES.nonCompliant,
+  [PrismaEngineeringRuleEvaluationStatus.UNKNOWN]:
+    ENGINEERING_RULE_EVALUATION_STATUSES.unknown,
+  [PrismaEngineeringRuleEvaluationStatus.NOT_APPLICABLE]:
+    ENGINEERING_RULE_EVALUATION_STATUSES.notApplicable,
+} as const satisfies Record<
+  PrismaEngineeringRuleEvaluationStatus,
+  EngineeringRuleEvaluationStatus
+>;
+
+const ENGINEERING_EVIDENCE_CLAIM_TYPE_TO_PRISMA = {
+  [ENGINEERING_EVIDENCE_CLAIM_TYPES.requirementMet]:
+    PrismaEngineeringEvidenceClaimType.RULE_REQUIREMENT_MET,
+  [ENGINEERING_EVIDENCE_CLAIM_TYPES.requirementNotMet]:
+    PrismaEngineeringEvidenceClaimType.RULE_REQUIREMENT_NOT_MET,
+  [ENGINEERING_EVIDENCE_CLAIM_TYPES.unresolved]:
+    PrismaEngineeringEvidenceClaimType.UNRESOLVED_ENGINEERING_FACT,
+  [ENGINEERING_EVIDENCE_CLAIM_TYPES.ruleScopeNotApplicable]:
+    PrismaEngineeringEvidenceClaimType.RULE_SCOPE_NOT_APPLICABLE,
+} as const satisfies Record<
+  EngineeringEvidenceClaimType,
+  PrismaEngineeringEvidenceClaimType
+>;
+
+const PRISMA_ENGINEERING_EVIDENCE_CLAIM_TYPE_TO_CONTRACT = {
+  [PrismaEngineeringEvidenceClaimType.RULE_REQUIREMENT_MET]:
+    ENGINEERING_EVIDENCE_CLAIM_TYPES.requirementMet,
+  [PrismaEngineeringEvidenceClaimType.RULE_REQUIREMENT_NOT_MET]:
+    ENGINEERING_EVIDENCE_CLAIM_TYPES.requirementNotMet,
+  [PrismaEngineeringEvidenceClaimType.UNRESOLVED_ENGINEERING_FACT]:
+    ENGINEERING_EVIDENCE_CLAIM_TYPES.unresolved,
+  [PrismaEngineeringEvidenceClaimType.RULE_SCOPE_NOT_APPLICABLE]:
+    ENGINEERING_EVIDENCE_CLAIM_TYPES.ruleScopeNotApplicable,
+} as const satisfies Record<
+  PrismaEngineeringEvidenceClaimType,
+  EngineeringEvidenceClaimType
+>;
 
 const AUDIT_EXPORT_STATUS_TO_PRISMA = {
   [AUDIT_EXPORT_STATUSES.queued]: PrismaAuditExportStatus.QUEUED,
@@ -785,6 +847,30 @@ export function fromPrismaLegalRuleLifecycleStatus(
   status: PrismaLegalRuleLifecycleStatus,
 ): LegalRuleLifecycleStatus {
   return PRISMA_LEGAL_RULE_LIFECYCLE_STATUS_TO_CONTRACT[status];
+}
+
+export function toPrismaEngineeringRuleEvaluationStatus(
+  status: EngineeringRuleEvaluationStatus,
+): PrismaEngineeringRuleEvaluationStatus {
+  return ENGINEERING_RULE_EVALUATION_STATUS_TO_PRISMA[status];
+}
+
+export function fromPrismaEngineeringRuleEvaluationStatus(
+  status: PrismaEngineeringRuleEvaluationStatus,
+): EngineeringRuleEvaluationStatus {
+  return PRISMA_ENGINEERING_RULE_EVALUATION_STATUS_TO_CONTRACT[status];
+}
+
+export function toPrismaEngineeringEvidenceClaimType(
+  claimType: EngineeringEvidenceClaimType,
+): PrismaEngineeringEvidenceClaimType {
+  return ENGINEERING_EVIDENCE_CLAIM_TYPE_TO_PRISMA[claimType];
+}
+
+export function fromPrismaEngineeringEvidenceClaimType(
+  claimType: PrismaEngineeringEvidenceClaimType,
+): EngineeringEvidenceClaimType {
+  return PRISMA_ENGINEERING_EVIDENCE_CLAIM_TYPE_TO_CONTRACT[claimType];
 }
 
 /** Maps assessment status from the contract layer to Prisma. @param status - Contract assessment status. @returns Prisma assessment status. */

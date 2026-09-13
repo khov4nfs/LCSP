@@ -31,7 +31,11 @@ from tools.common.capabilities.assessment.claims.evidence_claim.models import (
     ENGINEERING_LIMITATION_CODES,
     EvidenceClaim,
 )
-from .rule_evaluator import EngineeringRuleEvaluation, EngineeringRuleEvaluator
+from .rule_evaluator import (
+    ENGINEERING_RULE_EVALUATION_STATUSES,
+    EngineeringRuleEvaluation,
+    EngineeringRuleEvaluator,
+)
 
 
 logger = get_logger(__name__)
@@ -85,6 +89,12 @@ class EngineeringInvestigationResult:
                 "unknown": sum(
                     1 for item in self.evaluations if item.status == "UNKNOWN"
                 ),
+                "not_applicable": sum(
+                    1
+                    for item in self.evaluations
+                    if item.status
+                    == ENGINEERING_RULE_EVALUATION_STATUSES["not_applicable"]
+                ),
                 "total": len(self.evaluations),
             },
             "evaluations": evaluations,
@@ -113,6 +123,7 @@ class EngineeringInvestigationResult:
                 if claim.evidence_refs
                 or claim.graph_path_refs
                 or claim.source_anchor_refs
+                or claim.customer_context_refs
             ),
             "evaluations_with_evidence": sum(
                 1
@@ -175,7 +186,9 @@ class EngineeringInvestigationPipeline:
         workspace_path: str | Path | None = None,
         assessment_id: str | None = None,
         user_id: str | None = None,
+        scan_job_id: str | None = None,
     ) -> EngineeringInvestigationResult:
+        _ = scan_job_id
         graph = self._graph(evidence_report)
         code_context = CodeContextSession(graph, workspace_path=workspace_path)
         catalog = self._api_client.get_active_legal_rule_catalog()
@@ -465,6 +478,12 @@ class EngineeringInvestigationPipeline:
             if claim.claim_id.startswith("claim:failed:"):
                 continue
             if failed_code in claim.limitations:
+                continue
+            if (
+                claim.claim_type
+                == ENGINEERING_EVIDENCE_CLAIM_TYPES["rule_scope_not_applicable"]
+            ):
+                result.append(claim)
                 continue
             try:
                 validated = validator.validate(claim, graph)

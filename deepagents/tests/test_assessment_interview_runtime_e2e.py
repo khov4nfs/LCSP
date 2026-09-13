@@ -4,6 +4,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tools.common.capabilities.assessment.claims.evidence_claim.models import (
+    ENGINEERING_LIMITATION_CODES,
+)
 from contracts.handoffs import InvestigatorResult, PlannerResult
 from orchestration.assessment_interview import (
     BusinessContextNeed,
@@ -441,7 +444,9 @@ def test_e2e_b_targeted_clarification_validates_then_resumes_exact_investigator(
                     "graph_path_refs": ["node:ai"],
                     "source_anchor_refs": [],
                     "confidence": 0.91,
-                    "limitations": [],
+                    "limitations": [
+                        ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
+                    ],
                     "criterion": "Human approval is required before action",
                 }
             ],

@@ -174,8 +174,11 @@ def test_waiting_legal_source_emits_and_dispatches_automatic_full_backlog_triage
     runtime_payload = api_client.post_scan_runtime_event.call_args.args[1]
     assert runtime_payload["stage"] == "LEGAL_RETRIEVAL"
     assert runtime_payload["tool_name"] == "engineering_rule_readiness"
+    assert runtime_payload["summary"] == "ENGINEERING_RULE_READINESS_WAITING"
     assert runtime_payload["waiting_reason"] == "NO_ENGINEERING_RULE_SOURCE_RULES"
     summary = runtime_payload["output_summary"]
+    assert summary["messageKey"] == "ENGINEERING_RULE_READINESS_WAITING"
+    assert summary["messageParams"] == {}
     assert summary["kind"] == "LEGAL_PREPARATION_REQUEST"
     assert summary["scope"] == "LEGAL_MAINTENANCE"
     assert summary["requestedBy"] == "ASSESSMENT_READINESS_GATE"
@@ -367,3 +370,32 @@ def test_boundary_forwards_source_crawl_requests_to_pipeline_for_input_compatibi
         source_crawl_requests
     )
     api_client.post_classification_callback.assert_called_once()
+
+
+def test_boundary_forwards_scan_job_id_so_pipeline_can_stream_runtime_activity() -> None:
+    """The evidence report's scan_job_id is the channel Planner/Investigator activity
+    streams through (see PlannedEngineeringInvestigationPipeline._emit_runtime_activity).
+    If this stops being forwarded, live reasoning silently disappears from the UI again.
+    """
+    api_client = _api_client()
+
+    result = MagicMock()
+    result.status = "COMPLETE"
+    result.to_assessment_data.return_value = {
+        "mode": "ENGINEERING_RULE_EVALUATION",
+        "status": "COMPLETE",
+        "summary": {"compliant": 0, "non_compliant": 0, "unknown": 0, "total": 0},
+        "evaluations": [],
+        "claims": [],
+        "limitations": [],
+    }
+    pipeline = MagicMock()
+    pipeline.run.return_value = result
+
+    boundary = _boundary(api_client=api_client, pipeline=pipeline)
+    boundary.handle(
+        {"evidenceReportId": "ter-1", "workflowRunId": "scan-1"},
+        "corr-1",
+    )
+
+    assert pipeline.run.call_args.kwargs["scan_job_id"] == "scan-1"

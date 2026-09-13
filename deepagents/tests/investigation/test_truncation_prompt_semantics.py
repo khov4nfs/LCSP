@@ -40,6 +40,16 @@ def test_investigation_prompt_treats_truncated_as_search_state_only() -> None:
     assert "max_results" in claim_rules
 
 
+def test_investigation_prompt_requires_seeded_traces_before_closing_claims() -> None:
+    payload = json.loads(LawGuidedInvestigator._prompt(_packet(), EvidenceLedger(), [], 0))
+    claim_rules = " ".join(payload["claimRules"])
+
+    assert "SUBSTRING candidate discovery only" in claim_rules
+    assert "Never close MET or NOT_MET solely from search_nodes/search_program_graph" in claim_rules
+    assert "trace_static_flow or inspect_data_path starts from concrete seed refs" in claim_rules
+    assert "pre-executed seed observations" in claim_rules
+
+
 def test_forced_finish_does_not_equate_truncation_with_unknown() -> None:
     ledger = EvidenceLedger()
     payload = json.loads(
@@ -49,3 +59,4 @@ def test_forced_finish_does_not_equate_truncation_with_unknown() -> None:
 
     assert "truncated=true" in claim_rules
     assert "already proven" in claim_rules
+    assert "absenceProven=false" in claim_rules

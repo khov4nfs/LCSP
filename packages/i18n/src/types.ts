@@ -1342,6 +1342,8 @@ export type PagesMessages = {
     adjustPlaceholder: string;
     composerChooseConfirmAdjust: string;
     submitAnswer: string;
+    resumePipeline: string;
+    resumeQueued: string;
     answerSavedForRuntime: string;
     draftSavedForResume: string;
     blockedActionRecorded: string;
@@ -1461,6 +1463,17 @@ export type PagesMessages = {
       progressFailed: string;
       pendingPlaceholder: string;
       placeholder: string;
+    };
+    technicalEvidence: {
+      progress: string;
+      plannerProgress: string;
+      plannerFailed: string;
+      investigatorProgress: string;
+      investigatorFailed: string;
+      plannerDecision: string;
+      investigationFailed: string;
+      investigated: string;
+      readinessWaiting: string;
     };
     postFinding: {
       thought: string;

@@ -74,6 +74,7 @@ export const ENGINEERING_RULE_EVALUATION_STATUSES = {
   compliant: "COMPLIANT",
   nonCompliant: "NON_COMPLIANT",
   unknown: "UNKNOWN",
+  notApplicable: "NOT_APPLICABLE",
 } as const;
 
 export type EngineeringRuleEvaluationStatus =
@@ -83,6 +84,7 @@ export const ENGINEERING_EVIDENCE_CLAIM_TYPES = {
   requirementMet: "RULE_REQUIREMENT_MET",
   requirementNotMet: "RULE_REQUIREMENT_NOT_MET",
   unresolved: "UNRESOLVED_ENGINEERING_FACT",
+  ruleScopeNotApplicable: "RULE_SCOPE_NOT_APPLICABLE",
 } as const;
 
 export type EngineeringEvidenceClaimType =

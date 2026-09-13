@@ -285,7 +285,7 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
                 "expectedContextRevision": 1,
                 "mode": "INITIAL_INTERVIEW",
                 "outcome": "CONTEXT_READY",
-                "contextAuthority": "CONFIRMED",
+                "contextAuthority": "CUSTOMER_CONFIRMED",
                 "confirmedContext": _confirmed_context(
                     ASSESSMENT_ID,
                     "system_purpose",
@@ -298,6 +298,36 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
             },
             {
                 "expectedContextRevision": 1,
+                "mode": "INITIAL_INTERVIEW",
+                "outcome": "CONTEXT_READY",
+                "contextAuthority": "CUSTOMER_CONFIRMED",
+                "confirmedContext": _confirmed_context(
+                    ASSESSMENT_ID,
+                    "system_purpose",
+                    "AI-assisted recommendation",
+                    revision=1,
+                ),
+                "flags": [],
+                "blockedActions": [],
+                "targetedResolution": {},
+            },
+            {
+                "expectedContextRevision": 2,
+                "mode": "INITIAL_INTERVIEW",
+                "outcome": "CONTEXT_READY",
+                "contextAuthority": "CUSTOMER_CONFIRMED",
+                "confirmedContext": _confirmed_context(
+                    ASSESSMENT_ID,
+                    "system_purpose",
+                    "AI-assisted recommendation",
+                    revision=2,
+                ),
+                "flags": [],
+                "blockedActions": [],
+                "targetedResolution": {},
+            },
+            {
+                "expectedContextRevision": 2,
                 "mode": "INVESTIGATOR_RESOLUTION",
                 "outcome": "WAITING_FOR_CUSTOMER",
                 "activeQuestion": {
@@ -319,34 +349,16 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
                 "targetedResolution": {},
             },
             {
-                "expectedContextRevision": 2,
+                "expectedContextRevision": 3,
                 "mode": "INVESTIGATOR_RESOLUTION",
-                "outcome": "WAITING_FOR_CUSTOMER",
-                "contextAuthority": "CUSTOMER_STATED",
-                "activeQuestion": {
-                    "id": "question-lcsp-278-targeted-confirm",
-                    "intent": "CLARIFY",
-                    "control": "CONFIRM_ADJUST",
-                    "prompt": "Please confirm the approval authority before resume.",
-                    "priorAnswerSummary": "A human manager must approve before action.",
-                    "proposedInterpretation": "A human manager must approve before action.",
-                    "choices": [
-                        {"id": "CONFIRM", "label": "Confirm"},
-                        {
-                            "id": "ADJUST",
-                            "label": "Adjust",
-                            "requiresFreeText": True,
-                        },
-                    ],
-                    "needId": NEED_ID,
-                    "frontier": {
-                        "owner": "CUSTOMER",
-                        "materiality": "MATERIAL",
-                        "description": "Please confirm the approval authority before resume.",
-                        "evidenceRefs": [EVIDENCE_REF],
-                    },
-                },
-                "confirmedContext": {},
+                "outcome": "CONTEXT_RESOLVED",
+                "contextAuthority": "CUSTOMER_CONFIRMED",
+                "confirmedContext": _confirmed_context(
+                    ASSESSMENT_ID,
+                    "decision_authority",
+                    "A human manager must approve before action",
+                    revision=3,
+                ),
                 "flags": [],
                 "blockedActions": [],
                 "targetedResolution": {},
@@ -361,6 +373,21 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
                     "decision_authority",
                     "A human manager must approve before action",
                     revision=3,
+                ),
+                "flags": [],
+                "blockedActions": [],
+                "targetedResolution": {},
+            },
+            {
+                "expectedContextRevision": 4,
+                "mode": "INVESTIGATOR_RESOLUTION",
+                "outcome": "CONTEXT_RESOLVED",
+                "contextAuthority": "CUSTOMER_CONFIRMED",
+                "confirmedContext": _confirmed_context(
+                    ASSESSMENT_ID,
+                    "decision_authority",
+                    "A human manager must approve before action",
+                    revision=4,
                 ),
                 "flags": [],
                 "blockedActions": [],
@@ -403,6 +430,16 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
         dispatcher=dispatcher,
     )
     initial_resume_boundary.handle(initial_resume, "corr-lcsp-278-initial-answer")
+    assert _public_interview_state()["activeQuestion"]["control"] == "CONFIRM_ADJUST"
+
+    _submit_answer(
+        _public_interview_state()["activeQuestion"]["id"],
+        confirmed=True,
+    )
+    initial_resume_boundary.handle(
+        _latest_resume_payload(),
+        "corr-lcsp-278-initial-confirmed",
+    )
 
     ready_state = _thread_state()
     assert ready_state["state"]["outcome"] == "WAITING_FOR_CUSTOMER"
@@ -437,7 +474,7 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
         targeted_resume,
         "corr-lcsp-278-targeted-question-replay",
     )
-    assert interview_factory.invoke_count == 3
+    assert interview_factory.invoke_count == 5
 
     _submit_answer(
         "question-lcsp-278-targeted",
@@ -447,12 +484,14 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
         _latest_resume_payload(),
         "corr-lcsp-278-targeted-confirm",
     )
+    targeted_confirmation = _public_interview_state()["activeQuestion"]
+    assert targeted_confirmation["control"] == "CONFIRM_ADJUST"
     assert (
-        _public_interview_state()["activeQuestion"]["id"]
-        == "question-lcsp-278-targeted-confirm"
+        targeted_confirmation["proposedInterpretation"]
+        == "A human manager must approve before action"
     )
 
-    _submit_answer("question-lcsp-278-targeted-confirm", confirmed=True)
+    _submit_answer(targeted_confirmation["id"], confirmed=True)
     resolved_resume = _latest_resume_payload()
     targeted_resume_boundary.handle(
         resolved_resume,
@@ -464,7 +503,7 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
     resumed_instruction = investigator_instructions[-1]
     assert "ConfirmedStructuredBusinessContext(" not in resumed_instruction
     assert '"authority": "CUSTOMER_CONFIRMED_CONFIRMED_ONLY"' in resumed_instruction
-    assert '"contextRevision": 3' in resumed_instruction
+    assert '"contextRevision": 4' in resumed_instruction
     assert '"topic": "decision_authority"' in resumed_instruction
     assert '"source": "CUSTOMER_CONFIRMED"' in resumed_instruction
     assert '"resolutionState": "CONFIRMED"' in resumed_instruction
@@ -499,7 +538,7 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
     )
     stale_resume.handle(initial_resume, "corr-lcsp-278-stale-replay")
     assert root.calls
-    assert interview_factory.invoke_count == 5
+    assert interview_factory.invoke_count == 8
     assert run_counter == [1, 1]
 
 
@@ -555,7 +594,7 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
                 "expectedContextRevision": 1,
                 "mode": "INITIAL_INTERVIEW",
                 "outcome": "CONTEXT_READY",
-                "contextAuthority": "CONFIRMED",
+                "contextAuthority": "CUSTOMER_CONFIRMED",
                 "confirmedContext": _confirmed_context(
                     BLOCKED_ASSESSMENT_ID,
                     "system_purpose",
@@ -568,6 +607,36 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
             },
             {
                 "expectedContextRevision": 1,
+                "mode": "INITIAL_INTERVIEW",
+                "outcome": "CONTEXT_READY",
+                "contextAuthority": "CUSTOMER_CONFIRMED",
+                "confirmedContext": _confirmed_context(
+                    BLOCKED_ASSESSMENT_ID,
+                    "system_purpose",
+                    "AI-assisted recommendation",
+                    revision=1,
+                ),
+                "flags": [],
+                "blockedActions": [],
+                "targetedResolution": {},
+            },
+            {
+                "expectedContextRevision": 2,
+                "mode": "INITIAL_INTERVIEW",
+                "outcome": "CONTEXT_READY",
+                "contextAuthority": "CUSTOMER_CONFIRMED",
+                "confirmedContext": _confirmed_context(
+                    BLOCKED_ASSESSMENT_ID,
+                    "system_purpose",
+                    "AI-assisted recommendation",
+                    revision=2,
+                ),
+                "flags": [],
+                "blockedActions": [],
+                "targetedResolution": {},
+            },
+            {
+                "expectedContextRevision": 2,
                 "mode": "INVESTIGATOR_RESOLUTION",
                 "outcome": "WAITING_FOR_CUSTOMER",
                 "activeQuestion": {
@@ -589,7 +658,7 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
                 "targetedResolution": {},
             },
             {
-                "expectedContextRevision": 2,
+                "expectedContextRevision": 3,
                 "mode": "INVESTIGATOR_RESOLUTION",
                 "outcome": "BLOCKED_OR_UNRESOLVED",
                 "contextAuthority": "CUSTOMER_STATED",
@@ -642,6 +711,19 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
         _latest_resume_payload(BLOCKED_ASSESSMENT_ID),
         "corr-lcsp-278-blocked-initial-answer",
     )
+    assert (
+        _public_interview_state(BLOCKED_ASSESSMENT_ID)["activeQuestion"]["control"]
+        == "CONFIRM_ADJUST"
+    )
+    _submit_answer(
+        _public_interview_state(BLOCKED_ASSESSMENT_ID)["activeQuestion"]["id"],
+        assessment_id=BLOCKED_ASSESSMENT_ID,
+        confirmed=True,
+    )
+    resume_boundary.handle(
+        _latest_resume_payload(BLOCKED_ASSESSMENT_ID),
+        "corr-lcsp-278-blocked-initial-confirmed",
+    )
     state = _thread_state(BLOCKED_ASSESSMENT_ID)
     continuation = state["private"]["targetedContinuation"]
     assert state["private"]["targetedNeed"]["needId"] == BLOCKED_NEED_ID
@@ -681,7 +763,7 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
     ]
     assert blocked_state.get("activeQuestion") is None
     assert run_counter == [1]
-    assert interview_factory.invoke_count == 4
+    assert interview_factory.invoke_count == 6
     assert _classification_count(BLOCKED_ASSESSMENT_ID) == 0
 
 

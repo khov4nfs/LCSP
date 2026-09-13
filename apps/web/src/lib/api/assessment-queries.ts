@@ -131,9 +131,17 @@ export function useRerunClassificationMutation(assessmentId: string) {
   return useMutation({
     mutationFn: () => rerunClassification(assessmentId),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: apiQueryKeys.assessment.classification(assessmentId),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.assessment.classification(assessmentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.assessment.interview(assessmentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.workspace.detail(),
+        }),
+      ]);
     },
   });
 }

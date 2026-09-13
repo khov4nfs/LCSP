@@ -372,13 +372,21 @@ Prompt/scenario không thể manufacture governed evidence ref.
 
 ## 9. Customer statement normalization
 
-Direct explicit Customer statement có thể thành `CUSTOMER_CONFIRMED` khi normalization semantically lossless.
+Direct ASK answer chỉ thành `CUSTOMER_CONFIRMED` khi **không cần interpretation**: predefined `BOOLEAN`/`SINGLE_SELECT`/`MULTI_SELECT` choice không có comment. Answer nào cần interpretation — `FREE_TEXT`, choice `requiresFreeText` (ví dụ `OTHER`), hoặc answer có comment không rỗng — giữ `CUSTOMER_STATED` dù wording rõ ràng đến đâu, và cần một lượt `CONFIRM_ADJUST` trước khi thành `CUSTOMER_CONFIRMED`. Xem `terminology-contract.md` cho rule chính xác.
 
-Customer:
+Customer (`FREE_TEXT` answer):
 
 > “A recruiter must approve every rejection before it takes effect.”
 
-Không cần redundant confirmation question.
+Không trả `CUSTOMER_CONFIRMED` trực tiếp. Hỏi một `CONFIRM_ADJUST` question duy nhất với `proposedInterpretation` đúng statement — không phải câu hỏi yes/no thứ hai khác — để Customer chỉ cần bấm `CONFIRM` một lần.
+
+Direct ASK answer với predefined choice, không comment thì không cần lượt này:
+
+Customer chọn `SINGLE_SELECT` option, không comment:
+
+> “Standard approval flow.”
+
+Không cần confirmation question cho case này.
 
 Ambiguous/hedged Customer statement giữ `CUSTOMER_STATED` tới khi material distinction được clarify.
 

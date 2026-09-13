@@ -24,6 +24,7 @@ import { PrismaClient } from "@prisma/client";
 import { AppModule } from "../src/app.module.js";
 import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
 import type { PinSnapshotDto } from "../src/modules/github-integration/application/contracts/github-integration/pin-snapshot.contract.js";
+import type { TriggerScanDto } from "../src/modules/github-integration/application/contracts/github-integration/trigger-scan.contract.js";
 import { GitHubAppClient } from "../src/modules/github-integration/infrastructure/github/github-app.client.js";
 import { OutboxPublisherService } from "../src/platform/outbox/outbox-publisher.service.js";
 import { RabbitMqClient } from "../src/platform/outbox/rabbitmq.client.js";
@@ -230,6 +231,53 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
     assert.equal(
       problemCode(response),
       GITHUB_INTEGRATION_ERROR_CODES.connectionNotFound,
+    );
+  });
+
+  it("publishes snapshotCreated when a manual snapshot-auto scan already exists", async () => {
+    await prisma.assessment.update({
+      where: { id: "assessment-1" },
+      data: { status: ASSESSMENT_STATUS_CODES.wizardSubmitted },
+    });
+
+    const response = await httpRequest(app)
+      .post("/assessments/assessment-1/snapshots")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ connection_id: "connection-1", branch: "main" });
+    const body = successBody<PinSnapshotDto>(response);
+
+    const manual = await httpRequest(app)
+      .post("/assessments/assessment-1/scan-jobs")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({
+        snapshot_id: body.snapshot_id,
+        trigger_source: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
+        idempotency_key: `snapshot-auto:assessment-1:${body.snapshot_id}`,
+      });
+    const manualBody = successBody<TriggerScanDto>(manual);
+
+    await app.get(OutboxPublisherService).poll();
+
+    const snapshotCreatedEvent = await prisma.outboxMessage.findFirst({
+      where: {
+        aggregateId: body.snapshot_id,
+        eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreated,
+      },
+    });
+    assert.ok(snapshotCreatedEvent);
+    assert.equal(snapshotCreatedEvent.errorMessage, null);
+    assert.ok(snapshotCreatedEvent.publishedAt);
+
+    assert.equal(await prisma.repositoryScanJob.count(), 1);
+    const scanJob = await prisma.repositoryScanJob.findUniqueOrThrow({
+      where: { id: manualBody.scan_job_id },
+    });
+    assert.equal(scanJob.triggerSource, REPOSITORY_SCAN_TRIGGER_SOURCES.manual);
+    assert.equal(
+      await prisma.outboxMessage.count({
+        where: { eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered },
+      }),
+      1,
     );
   });
 

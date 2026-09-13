@@ -1374,6 +1374,8 @@ export const viPages = {
     adjustPlaceholder: "Nhập nội dung điều chỉnh hoặc bổ sung...",
     composerChooseConfirmAdjust: "Chọn Xác nhận hoặc Điều chỉnh ở trên...",
     submitAnswer: "Gửi câu trả lời",
+    resumePipeline: "Tiếp tục",
+    resumeQueued: "Đã đưa assessment vào hàng đợi tiếp tục.",
     answerSavedForRuntime:
       "Câu trả lời đã được ghi cho thread runtime. Interview Agent sẽ đánh giá đủ bối cảnh trước khi resume downstream.",
     draftSavedForResume:
@@ -1516,6 +1518,21 @@ export const viPages = {
       continuingDescription:
         "Câu trả lời đã được lưu. Đang chờ kết quả đánh giá hoặc câu hỏi tiếp theo.",
       placeholder: "Mô tả project hoặc system...",
+    },
+    technicalEvidence: {
+      progress: "Tiến độ assessment",
+      plannerProgress: "Tiến độ Planner",
+      plannerFailed: "Giới hạn Planner",
+      investigatorProgress: "Tiến độ Investigator",
+      investigatorFailed: "Giới hạn Investigator",
+      plannerDecision:
+        "Planner ghi nhận {decision} cho EngineeringRule {engineeringRuleId} ({reasonCode})",
+      investigationFailed:
+        "Điều tra EngineeringRule {engineeringRuleId} không thành công",
+      investigated:
+        "Đã điều tra EngineeringRule {engineeringRuleId}: {evaluationStatus}",
+      readinessWaiting:
+        "Assessment đang chờ EngineeringRules trạng thái READY; Legal Rule Triage tự động đã được yêu cầu.",
     },
     postFinding: {
       thought: "Đã suy nghĩ trong 2 giây",

@@ -4,6 +4,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from tools.common.capabilities.assessment.claims.evidence_claim.models import (
+    ENGINEERING_LIMITATION_CODES,
+)
 from contracts.handoffs import InvestigatorResult, TriageResult
 from orchestration.context import LCSPRunContext
 from orchestration.dispatcher import RootSubagentDispatcher
@@ -303,7 +306,9 @@ def test_direct_investigator_hydrates_program_graph_from_pinned_api_metadata() -
                     "graph_path_refs": ["node:ai"],
                     "source_anchor_refs": [],
                     "confidence": 0.9,
-                    "limitations": [],
+                    "limitations": [
+                        ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
+                    ],
                     "criterion": "AI invocation exists",
                 }
             ],

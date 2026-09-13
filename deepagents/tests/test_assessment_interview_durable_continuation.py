@@ -127,9 +127,17 @@ class MutableApi:
             "publicState": dict(self.public_state),
             "confirmedContext": getattr(self, "confirmed_context", None),
             "rootWorkflowRunId": "c0000000-0000-0000-0000-000000000001",
+            # Pre-existing gap (predates lcsp-tighten-direct-lossless.md): this
+            # fixture lacked questionIntent/questionControl entirely, so it was
+            # already never directLossless under either the old or the tightened
+            # _authority_provenance mirror. These tests are about crash/retry
+            # mechanics, not authority provenance, so use a genuinely
+            # non-interpretive direct-ASK answer (predefined choice, no comment).
             "privateRevision": {
                 "actorId": "user-actor-test",
-                "answer": {"freeText": "private customer context"},
+                "questionIntent": "ASK",
+                "questionControl": "BOOLEAN",
+                "answer": {"selectedChoiceIds": ["yes"]},
             },
         }
         if self.targeted:

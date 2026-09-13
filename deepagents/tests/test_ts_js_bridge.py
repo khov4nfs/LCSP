@@ -439,3 +439,18 @@ def test_ts_analyzer_source_contains_required_rule_ids() -> None:
         "ts-local-http-inference",
     ]:
         assert rule_id in source
+
+@pytest.mark.p0
+def test_scan_boundary_import_smoke_catches_bridge_redaction_api_drift() -> None:
+    from tools.common.capabilities.evidence.scanner.scanning import scan_boundary
+    from tools.common.capabilities.evidence.scanner.ts_js_bridge import bridge
+
+    assert scan_boundary is not None
+    assert bridge.sanitized_subprocess_env() == {
+        "PATH": bridge.sanitized_subprocess_env()["PATH"]
+    }
+    bridge.assert_subprocess_env_safe({"PATH": "/usr/bin"})
+    with pytest.raises(AssertionError):
+        bridge.assert_subprocess_env_safe(
+            {"PATH": "/usr/bin", "authToken": "prefixless-secret-value"}
+        )

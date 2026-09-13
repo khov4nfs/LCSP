@@ -51,6 +51,16 @@ export const ASSESSMENT_RUNTIME_SYNTHETIC_TOOL_NAMES = {
   technicalEvidenceReport: "technical_evidence_report",
 } as const;
 
+export const ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS = {
+  engineeringRulePlannerDecision: "ENGINEERING_RULE_PLANNER_DECISION",
+  engineeringRuleInvestigationFailed: "ENGINEERING_RULE_INVESTIGATION_FAILED",
+  engineeringRuleInvestigated: "ENGINEERING_RULE_INVESTIGATED",
+  engineeringRuleReadinessWaiting: "ENGINEERING_RULE_READINESS_WAITING",
+} as const;
+
+export type AssessmentRuntimeSummaryMessageKey =
+  (typeof ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS)[keyof typeof ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS];
+
 export type AssessmentRuntimeSummaryValue =
   | string
   | number

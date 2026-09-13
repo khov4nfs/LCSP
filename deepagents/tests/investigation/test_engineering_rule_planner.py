@@ -12,6 +12,7 @@ from tools.common.capabilities.assessment.planning.engineering_rule.engineering_
     ENGINEERING_RULE_PLAN_DECISIONS,
     ENGINEERING_RULE_PLAN_REASON_CODES,
     EngineeringRulePlan,
+    EngineeringRulePlanDecisionAudit,
     EngineeringRulePlanner,
     EngineeringRulePlanningCandidate,
 )
@@ -469,6 +470,317 @@ def test_planned_pipeline_investigates_only_selected_rule(tmp_path) -> None:
     confirmed_arg = planner.plan.call_args.kwargs["confirmed_customer_context"]
     assert confirmed_arg.context_revision == 3
     assert confirmed_arg.confirmed_statement_refs == ("stmt-sector",)
+
+
+def test_planned_pipeline_streams_planner_and_investigator_activity_when_scan_job_id_given(
+    tmp_path,
+) -> None:
+    wiki = tmp_path / "openwiki" / "architecture"
+    wiki.mkdir(parents=True)
+    (wiki / "overview.md").write_text(
+        "# Architecture\n\nAI model invocation flows through a review surface.",
+        encoding="utf-8",
+    )
+
+    api_client = MagicMock()
+    api_client.get_active_legal_rule_catalog.return_value = {
+        "versionId": "catalog-v1",
+        "rules": [
+            {"legalRuleId": "legal-1", "status": "APPROVED"},
+            {"legalRuleId": "legal-2", "status": "APPROVED"},
+        ],
+    }
+    api_client.get_active_legal_corpus.return_value = {"versionId": "corpus-v1"}
+    api_client.get_legal_corpus_chunks.return_value = {
+        "chunks": [{"id": "LAW:A1", "content": "approved legal text"}]
+    }
+
+    rule_one = _engineering_rule("eng-1")
+    rule_two = _engineering_rule("eng-2")
+    rule_service = MagicMock()
+    rule_service.get_or_compile.side_effect = [([rule_one], True), ([rule_two], True)]
+
+    query_executor = MagicMock()
+    query_executor.execute.side_effect = [_packet("eng-1"), _packet("eng-2")]
+
+    planner = MagicMock()
+    planner.plan.return_value = EngineeringRulePlan(
+        selected_rule_ids=("eng-1",),
+        skipped_rule_ids=("eng-2",),
+        decision_audit=(
+            EngineeringRulePlanDecisionAudit(
+                engineering_rule_id="eng-1",
+                requested_decision="SELECT",
+                final_decision="SELECT",
+                reason_code="SOURCE_SCOPE_MATCH",
+                basis=("SOURCE",),
+            ),
+            EngineeringRulePlanDecisionAudit(
+                engineering_rule_id="eng-2",
+                requested_decision="SKIP",
+                final_decision="SKIP",
+                reason_code="NO_CUSTOMER_CONTEXT_OR_SOURCE_SCOPE_SIGNAL",
+                basis=(),
+            ),
+        ),
+    )
+
+    claim = EvidenceClaim(
+        claim_id="claim-1",
+        engineering_rule_id="eng-1",
+        claim_type="RULE_REQUIREMENT_MET",
+        value=True,
+        evidence_refs=("evidence:ai:1",),
+        confidence=0.9,
+    )
+    investigator = MagicMock()
+    investigator.investigate.return_value = [claim]
+
+    evaluation = SimpleNamespace(
+        engineering_rule_id="eng-1",
+        status="COMPLIANT",
+        evidence_refs=("evidence:ai:1",),
+    )
+    evaluator = MagicMock()
+    evaluator.evaluate.return_value = evaluation
+
+    pipeline = PlannedEngineeringInvestigationPipeline(
+        api_client=api_client,
+        model="test:model",
+        retriever=MagicMock(),
+        rule_service=rule_service,
+        query_executor=query_executor,
+        investigator=investigator,
+        evaluator=evaluator,
+        planner=planner,
+    )
+
+    evidence_report = {
+        "evidence_payload": {"evidence_graph": _graph().to_dict()}
+    }
+    pipeline.run(
+        evidence_report=evidence_report,
+        workflow_run_id="workflow-1",
+        confirmed_customer_context=_confirmed_context(),
+        workspace_path=tmp_path,
+        scan_job_id="scan-1",
+    )
+
+    calls = api_client.post_scan_runtime_event.call_args_list
+    assert len(calls) == 3
+    by_tool_name = {call.args[1]["tool_name"]: call.args[1] for call in calls}
+    assert set(by_tool_name) == {
+        "engineering_rule_plan:eng-1",
+        "engineering_rule_plan:eng-2",
+        "engineering_rule_investigation:eng-1",
+    }
+    for call in calls:
+        assert call.args[0] == "scan-1"
+        assert call.args[1]["stage"] == "TECHNICAL_EVIDENCE"
+
+    selected = by_tool_name["engineering_rule_plan:eng-1"]
+    assert selected["event_type"] == "TOOL_COMPLETED"
+    assert selected["summary"] == "ENGINEERING_RULE_PLANNER_DECISION"
+    assert selected["output_summary"]["messageKey"] == "ENGINEERING_RULE_PLANNER_DECISION"
+    assert selected["output_summary"]["messageParams"] == {
+        "decision": "SELECT",
+        "engineeringRuleId": "eng-1",
+        "reasonCode": "SOURCE_SCOPE_MATCH",
+    }
+    assert selected["output_summary"]["finalDecision"] == "SELECT"
+
+    skipped = by_tool_name["engineering_rule_plan:eng-2"]
+    assert skipped["event_type"] == "TOOL_SKIPPED"
+    assert skipped["summary"] == "ENGINEERING_RULE_PLANNER_DECISION"
+    assert skipped["output_summary"]["messageKey"] == "ENGINEERING_RULE_PLANNER_DECISION"
+    assert skipped["output_summary"]["messageParams"] == {
+        "decision": "SKIP",
+        "engineeringRuleId": "eng-2",
+        "reasonCode": "NO_CUSTOMER_CONTEXT_OR_SOURCE_SCOPE_SIGNAL",
+    }
+    assert skipped["output_summary"]["finalDecision"] == "SKIP"
+
+    investigated = by_tool_name["engineering_rule_investigation:eng-1"]
+    assert investigated["event_type"] == "TOOL_COMPLETED"
+    assert investigated["summary"] == "ENGINEERING_RULE_INVESTIGATED"
+    assert investigated["output_summary"]["messageKey"] == "ENGINEERING_RULE_INVESTIGATED"
+    assert investigated["output_summary"]["messageParams"] == {
+        "engineeringRuleId": "eng-1",
+        "evaluationStatus": "COMPLIANT",
+    }
+    assert investigated["output_summary"]["evaluationStatus"] == "COMPLIANT"
+
+
+def test_planned_pipeline_streams_investigation_failure_as_runtime_activity(
+    tmp_path,
+) -> None:
+    wiki = tmp_path / "openwiki" / "architecture"
+    wiki.mkdir(parents=True)
+    (wiki / "overview.md").write_text(
+        "# Architecture\n\nAI model invocation flows through a review surface.",
+        encoding="utf-8",
+    )
+
+    api_client = MagicMock()
+    api_client.get_active_legal_rule_catalog.return_value = {
+        "versionId": "catalog-v1",
+        "rules": [{"legalRuleId": "legal-1", "status": "APPROVED"}],
+    }
+    api_client.get_active_legal_corpus.return_value = {"versionId": "corpus-v1"}
+    api_client.get_legal_corpus_chunks.return_value = {
+        "chunks": [{"id": "LAW:A1", "content": "approved legal text"}]
+    }
+
+    rule_one = _engineering_rule("eng-1")
+    rule_service = MagicMock()
+    rule_service.get_or_compile.return_value = ([rule_one], True)
+
+    query_executor = MagicMock()
+    query_executor.execute.return_value = _packet("eng-1")
+
+    planner = MagicMock()
+    planner.plan.return_value = EngineeringRulePlan(
+        selected_rule_ids=("eng-1",),
+        skipped_rule_ids=(),
+        decision_audit=(
+            EngineeringRulePlanDecisionAudit(
+                engineering_rule_id="eng-1",
+                requested_decision="SELECT",
+                final_decision="SELECT",
+                reason_code="SOURCE_SCOPE_MATCH",
+                basis=("SOURCE",),
+            ),
+        ),
+    )
+
+    investigator = MagicMock()
+    investigator.investigate.side_effect = RuntimeError("provider rejected the request")
+
+    evaluator = MagicMock()
+    evaluator.evaluate.return_value = SimpleNamespace(
+        engineering_rule_id="eng-1",
+        status="UNKNOWN",
+        evidence_refs=(),
+    )
+
+    pipeline = PlannedEngineeringInvestigationPipeline(
+        api_client=api_client,
+        model="test:model",
+        retriever=MagicMock(),
+        rule_service=rule_service,
+        query_executor=query_executor,
+        investigator=investigator,
+        evaluator=evaluator,
+        planner=planner,
+    )
+
+    evidence_report = {
+        "evidence_payload": {"evidence_graph": _graph().to_dict()}
+    }
+    pipeline.run(
+        evidence_report=evidence_report,
+        workflow_run_id="workflow-1",
+        confirmed_customer_context=_confirmed_context(),
+        workspace_path=tmp_path,
+        scan_job_id="scan-1",
+    )
+
+    calls = api_client.post_scan_runtime_event.call_args_list
+    by_tool_name = {call.args[1]["tool_name"]: call.args[1] for call in calls}
+    failed = by_tool_name["engineering_rule_investigation:eng-1"]
+    assert failed["event_type"] == "TOOL_FAILED"
+    assert failed["run_status"] == "RUNNING"
+    assert failed["summary"] == "ENGINEERING_RULE_INVESTIGATION_FAILED"
+    assert failed["output_summary"] == {
+        "messageKey": "ENGINEERING_RULE_INVESTIGATION_FAILED",
+        "messageParams": {"engineeringRuleId": "eng-1"},
+    }
+    assert failed["error_summary"] == "RuntimeError"
+    # A failed investigation still reaches deterministic evaluation, but only one
+    # runtime activity row (the failure) is emitted for that EngineeringRule.
+    assert sum(1 for name in by_tool_name if name.endswith(":eng-1") and "investigation" in name) == 1
+
+
+def test_planned_pipeline_omits_runtime_activity_without_scan_job_id(tmp_path) -> None:
+    wiki = tmp_path / "openwiki" / "architecture"
+    wiki.mkdir(parents=True)
+    (wiki / "overview.md").write_text(
+        "# Architecture\n\nAI model invocation flows through a review surface.",
+        encoding="utf-8",
+    )
+
+    api_client = MagicMock()
+    api_client.get_active_legal_rule_catalog.return_value = {
+        "versionId": "catalog-v1",
+        "rules": [{"legalRuleId": "legal-1", "status": "APPROVED"}],
+    }
+    api_client.get_active_legal_corpus.return_value = {"versionId": "corpus-v1"}
+    api_client.get_legal_corpus_chunks.return_value = {
+        "chunks": [{"id": "LAW:A1", "content": "approved legal text"}]
+    }
+
+    rule_one = _engineering_rule("eng-1")
+    rule_service = MagicMock()
+    rule_service.get_or_compile.return_value = ([rule_one], True)
+
+    query_executor = MagicMock()
+    query_executor.execute.return_value = _packet("eng-1")
+
+    planner = MagicMock()
+    planner.plan.return_value = EngineeringRulePlan(
+        selected_rule_ids=("eng-1",),
+        skipped_rule_ids=(),
+        decision_audit=(
+            EngineeringRulePlanDecisionAudit(
+                engineering_rule_id="eng-1",
+                requested_decision="SELECT",
+                final_decision="SELECT",
+                reason_code="SOURCE_SCOPE_MATCH",
+                basis=("SOURCE",),
+            ),
+        ),
+    )
+
+    claim = EvidenceClaim(
+        claim_id="claim-1",
+        engineering_rule_id="eng-1",
+        claim_type="RULE_REQUIREMENT_MET",
+        value=True,
+        evidence_refs=("evidence:ai:1",),
+        confidence=0.9,
+    )
+    investigator = MagicMock()
+    investigator.investigate.return_value = [claim]
+
+    evaluator = MagicMock()
+    evaluator.evaluate.return_value = SimpleNamespace(
+        engineering_rule_id="eng-1",
+        status="COMPLIANT",
+        evidence_refs=("evidence:ai:1",),
+    )
+
+    pipeline = PlannedEngineeringInvestigationPipeline(
+        api_client=api_client,
+        model="test:model",
+        retriever=MagicMock(),
+        rule_service=rule_service,
+        query_executor=query_executor,
+        investigator=investigator,
+        evaluator=evaluator,
+        planner=planner,
+    )
+
+    evidence_report = {
+        "evidence_payload": {"evidence_graph": _graph().to_dict()}
+    }
+    pipeline.run(
+        evidence_report=evidence_report,
+        workflow_run_id="workflow-1",
+        confirmed_customer_context=_confirmed_context(),
+        workspace_path=tmp_path,
+    )
+
+    api_client.post_scan_runtime_event.assert_not_called()
 
 
 def test_planned_pipeline_blocks_without_confirmed_structured_context(tmp_path) -> None:

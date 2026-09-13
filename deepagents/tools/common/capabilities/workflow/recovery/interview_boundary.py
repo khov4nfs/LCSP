@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import logging
+import re
 from typing import Any, Callable
 
+from contracts.handoffs import InterviewResult
+from orchestration.result_validation import SpecialistHandoffValidationError
 from tools.common.capabilities.managed.boundary import AgentBoundaryBase
-from tools.common.capabilities.platform.api_client import InterviewResolutionCallbackError
+from tools.common.capabilities.platform.api_client import (
+    InterviewDecisionRepairableCallbackError,
+)
 from tools.common.capabilities.workflow.recovery.post_guard_continuation import (
     PostGuardContinuationStore,
 )
@@ -14,6 +21,314 @@ from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_bu
     ConfirmedStructuredBusinessContext,
     normalize_confirmed_structured_business_context,
 )
+from tools.common.capabilities.assessment.claims.evidence_claim.models import (
+    ENGINEERING_EVIDENCE_CLAIM_TYPES,
+)
+from tools.common.capabilities.assessment.planning.engineering_rule.engineering_rule_planner import (
+    ENGINEERING_RULE_PLAN_REASON_CODES,
+)
+from tools.legal.retrieval.legal_basis.rule_applicability_evaluator import (
+    RuleApplicabilityEvaluator,
+    RULE_APPLICABILITY_STATUSES,
+)
+
+_LOGGER = logging.getLogger(__name__)
+_INTERVIEW_AGENT_DECISION_REJECTION_REPAIRED = "INTERVIEW_AGENT_DECISION_REJECTION_REPAIRED"
+_INTERVIEW_AUTHORITY_PROVENANCE_REPAIRED = "INTERVIEW_AUTHORITY_PROVENANCE_REPAIRED"
+_INTERVIEW_CONFIRMATION_QUESTION_SYNTHESIZED = (
+    "INTERVIEW_CONFIRMATION_QUESTION_SYNTHESIZED"
+)
+_INTERVIEW_CONFIRMATION_SYNTHESIS_REJECTED = (
+    "INTERVIEW_CONFIRMATION_SYNTHESIS_REJECTED"
+)
+_CONFIRMATION_PROVENANCE_INSTRUCTION_KEY = (
+    "CONFIRMATION_PROVENANCE_REQUIRES_CONFIRM_ADJUST_OR_DIRECT_ASK"
+)
+_AUTHORITY_REPAIR_GUIDANCE = {
+    "INTERVIEW_CUSTOMER_CONFIRMED_REQUIRES_DIRECT_OR_EXPLICIT_CONFIRMATION": {
+        "instructionKey": _CONFIRMATION_PROVENANCE_INSTRUCTION_KEY,
+        "instruction": (
+            "CUSTOMER_CONFIRMED requires either a prior CONFIRM_ADJUST question "
+            "where the customer selected CONFIRM, or a direct ASK answer that was "
+            "not adjusted and needed no interpretation. A FREE_TEXT answer, a "
+            "selected choice that requiresFreeText (e.g. OTHER), or any answer "
+            "carrying a non-empty comment always needs interpretation and can "
+            "never grant CUSTOMER_CONFIRMED on its own, no matter how explicit "
+            "the customer's wording is. CLARIFY BOOLEAN or SINGLE_SELECT answers "
+            "never grant CUSTOMER_CONFIRMED. If confirmation is still needed, ask "
+            "a CONFIRM_ADJUST question with CONFIRM and ADJUST choices, ADJUST "
+            "requiring free text, and proposedInterpretation set to the exact "
+            "statement to confirm. Otherwise keep CUSTOMER_STATED."
+        ),
+    },
+    "INTERVIEW_CONFIRMED_REQUIRES_DIRECT_ASK": {
+        "instructionKey": _CONFIRMATION_PROVENANCE_INSTRUCTION_KEY,
+        "instruction": (
+            "CONFIRMED authority requires a direct ASK answer that was not "
+            "adjusted and needed no interpretation. A FREE_TEXT answer, a "
+            "selected choice that requiresFreeText (e.g. OTHER), or any answer "
+            "carrying a non-empty comment always needs interpretation and cannot "
+            "earn CONFIRMED directly; ask CONFIRM_ADJUST first. Do not use "
+            "CONFIRMED for CLARIFY answers. If the prior answer was not a direct "
+            "ASK, keep CUSTOMER_STATED or ask the customer a direct ASK question."
+        ),
+    },
+    "INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY": {
+        "instructionKey": _CONFIRMATION_PROVENANCE_INSTRUCTION_KEY,
+        "instruction": (
+            "CONTEXT_READY requires CUSTOMER_CONFIRMED authority. If current "
+            "provenance is only CUSTOMER_STATED, ask a bounded CONFIRM_ADJUST "
+            "confirmation question or a direct ASK question instead of returning "
+            "CONTEXT_READY."
+        ),
+    },
+    "INTERVIEW_CONTEXT_RESOLVED_REQUIRES_AUTHORITY": {
+        "instructionKey": _CONFIRMATION_PROVENANCE_INSTRUCTION_KEY,
+        "instruction": (
+            "CONTEXT_RESOLVED requires authoritative customer-confirmed context "
+            "for the targeted need. If the latest answer does not satisfy the "
+            "authority provenance rule, ask CONFIRM_ADJUST or direct ASK rather "
+            "than resolving."
+        ),
+    },
+    "INTERVIEW_CONFIRMED_CONTEXT_INVALID": {
+        "instructionKey": _CONFIRMATION_PROVENANCE_INSTRUCTION_KEY,
+        "instruction": (
+            "Authoritative context requires structured confirmedContext statements "
+            "that reflect the latest valid customer-confirmed/direct answer. Do not "
+            "invent statements; if confirmation is missing, ask CONFIRM_ADJUST or "
+            "direct ASK and keep CUSTOMER_STATED."
+        ),
+    },
+}
+_INTERVIEW_HANDOFF_VALIDATION_REPAIRED = "INTERVIEW_HANDOFF_VALIDATION_REPAIRED"
+# _bounded_cause (orchestration.result_validation) renders each pydantic error as
+# "<loc>: Value error, <rule message>", joined with "; " for multiple errors. Extracting
+# the rule text lets repair telemetry name exactly which of the many conditional
+# InterviewResult/InterviewQuestionResult constraints a provider schema cannot express was
+# actually violated, instead of only knowing that some validator failed.
+_VIOLATED_RULE_PATTERN = re.compile(r"Value error, (.+)")
+
+
+def _violated_rule_names(error: BaseException) -> str:
+    names = [
+        match.group(1).strip()
+        for segment in str(error).split("; ")
+        if (match := _VIOLATED_RULE_PATTERN.search(segment))
+    ]
+    return "; ".join(names) if names else "unknown"
+
+
+def _decision_feedback(error_code: str, rejected_decision: dict[str, Any]) -> dict[str, Any]:
+    feedback = {
+        "code": error_code,
+        "rejectedDecision": rejected_decision,
+    }
+    guidance = _AUTHORITY_REPAIR_GUIDANCE.get(error_code)
+    if guidance is not None:
+        feedback.update(guidance)
+    return feedback
+
+
+def _revision_requires_answer_interpretation(private_revision: dict[str, Any]) -> bool:
+    # Keep this fallback in sync with apps/api assessment-interview-runtime.service.ts
+    # ::revisionRequiresAnswerInterpretation. The persisted answerRequiresInterpretation
+    # flag (set by the API at answer-recording time, including for choices that
+    # requiresFreeText such as OTHER) is authoritative when present; the raw-field
+    # fallback below only covers legacy/incomplete revisions that predate the flag.
+    if private_revision.get("answerRequiresInterpretation") is True:
+        return True
+    answer = private_revision.get("answer")
+    if not isinstance(answer, dict):
+        answer = {}
+    question_control = str(private_revision.get("questionControl") or "").upper()
+    return (
+        question_control == "FREE_TEXT"
+        or bool(str(answer.get("freeText") or "").strip())
+        or bool(str(answer.get("comment") or "").strip())
+        or bool(str(answer.get("otherText") or "").strip())
+    )
+
+
+def _authority_provenance(private_revision: dict[str, Any] | None) -> dict[str, bool]:
+    if not isinstance(private_revision, dict):
+        return {"customer_confirmed": False, "confirmed": False}
+    answer = private_revision.get("answer")
+    if not isinstance(answer, dict):
+        answer = {}
+    question_control = str(private_revision.get("questionControl") or "").upper()
+    question_intent = str(private_revision.get("questionIntent") or "").upper()
+    confirmed = answer.get("confirmed") is True
+    adjusted = answer.get("adjusted") is True
+
+    # Keep this worker preflight in sync with apps/api
+    # assessment-interview-runtime.service.ts::assertAuthorityProvenance. The API
+    # remains the final guard; this mirror only prevents known impossible candidates
+    # from consuming a guarded POST and gives the model one private correction.
+    explicitly_confirmed = (
+        question_control == "CONFIRM_ADJUST" and confirmed and not adjusted
+    )
+    direct_lossless_customer_statement = (
+        question_intent == "ASK"
+        and question_control != "CONFIRM_ADJUST"
+        and not adjusted
+        and not _revision_requires_answer_interpretation(private_revision)
+    )
+    return {
+        "customer_confirmed": (
+            explicitly_confirmed or direct_lossless_customer_statement
+        ),
+        "confirmed": direct_lossless_customer_statement,
+    }
+
+
+def _authority_error_code(decision: dict[str, Any], context: dict[str, Any]) -> str | None:
+    authority = str(decision.get("contextAuthority") or "").upper()
+    provenance = _authority_provenance(context.get("privateRevision"))
+    if authority == "CUSTOMER_CONFIRMED" and not provenance["customer_confirmed"]:
+        return "INTERVIEW_CUSTOMER_CONFIRMED_REQUIRES_DIRECT_OR_EXPLICIT_CONFIRMATION"
+    if authority == "CONFIRMED" and not provenance["confirmed"]:
+        return "INTERVIEW_CONFIRMED_REQUIRES_DIRECT_ASK"
+    return None
+
+
+def _apply_authority_preflight(
+    decision: dict[str, Any],
+    context: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    error_code = _authority_error_code(decision, context)
+    if error_code is None:
+        return decision, None
+
+    outcome = str(decision.get("outcome") or "").upper()
+    if outcome in {"CONTEXT_READY", "CONTEXT_RESOLVED"}:
+        return decision, _decision_feedback(error_code, decision)
+
+    downgraded = dict(decision)
+    downgraded["contextAuthority"] = "CUSTOMER_STATED"
+    # This does not discard the customer's answer. The answer is already persisted
+    # as API-owned privateRevision; the model-authored confirmedContext is only an
+    # authority claim candidate and must not be carried when provenance is invalid.
+    downgraded["confirmedContext"] = {}
+    return downgraded, None
+
+
+# A FREE_TEXT answer that volunteers several facts in one turn (e.g. "A recruiter
+# approves every rejection. For senior positions, the hiring manager must also
+# approve.") is now common after the FREE_TEXT/Other authority tightening, since a
+# raw ASK answer can no longer become CUSTOMER_CONFIRMED directly. Bound the merge
+# so a rejected multi-statement candidate still converges to one CONFIRM_ADJUST
+# turn instead of exhausting the one private correction and failing closed.
+_MAX_SYNTHESIZED_STATEMENTS = 5
+_MAX_SYNTHESIZED_STATEMENT_LENGTH = 1000
+
+
+def _confirmation_statement_text(decision: dict[str, Any]) -> str | None:
+    confirmed_context = decision.get("confirmedContext")
+    if not isinstance(confirmed_context, dict):
+        return None
+    statements = confirmed_context.get("statements")
+    if (
+        not isinstance(statements, list)
+        or not statements
+        or len(statements) > _MAX_SYNTHESIZED_STATEMENTS
+    ):
+        return None
+    texts: list[str] = []
+    for statement in statements:
+        if not isinstance(statement, dict):
+            return None
+        text = str(statement.get("statement") or "").strip()
+        if not text:
+            # Fail closed on any ambiguous/empty statement rather than guess or
+            # drop it silently.
+            return None
+        texts.append(text)
+    # Single statement: keep the exact prior behavior (no added formatting).
+    # Multiple: concatenate the model's own statement text verbatim, separated by
+    # a neutral dash-bullet newline. Never add narration/connecting words — the
+    # Customer-visible copy must stay exactly what the model itself asserted.
+    merged = texts[0] if len(texts) == 1 else "\n".join(f"- {text}" for text in texts)
+    if len(merged) > _MAX_SYNTHESIZED_STATEMENT_LENGTH:
+        return None
+    return merged
+
+
+def _confirmation_question_id(statement: str) -> str:
+    digest = hashlib.sha256(statement.encode("utf-8")).hexdigest()[:16]
+    return f"q-confirm-adjust-{digest}"
+
+
+def _synthesize_confirmation_question(
+    decision: dict[str, Any],
+    context: dict[str, Any],
+) -> dict[str, Any] | None:
+    statement = _confirmation_statement_text(decision)
+    if statement is None:
+        return None
+    question_id = _confirmation_question_id(statement)
+    private_revision = context.get("privateRevision")
+    if (
+        isinstance(private_revision, dict)
+        and str(private_revision.get("questionId") or "") == question_id
+        and str(private_revision.get("questionControl") or "").upper() == "CONFIRM_ADJUST"
+    ):
+        answer = private_revision.get("answer")
+        if isinstance(answer, dict) and answer.get("confirmed") is True:
+            _LOGGER.error(
+                "%s question_id=%s reason=confirmed_synthetic_question_rejected",
+                _INTERVIEW_CONFIRMATION_SYNTHESIS_REJECTED,
+                question_id,
+            )
+            raise RuntimeError(
+                "synthetic CONFIRM_ADJUST confirmation was rejected after customer confirmation"
+            )
+
+    synthesized = {
+        **decision,
+        "outcome": "WAITING_FOR_CUSTOMER",
+        "activeQuestion": {
+            "id": question_id,
+            "intent": "CLARIFY",
+            "control": "CONFIRM_ADJUST",
+            # Customer-visible copy must come from the rejected model candidate. Do
+            # not prepend static worker text here; web renders the button labels via i18n.
+            "prompt": statement,
+            "choices": [
+                {"id": "CONFIRM", "label": "CONFIRM", "requiresFreeText": False},
+                {"id": "ADJUST", "label": "ADJUST", "requiresFreeText": True},
+            ],
+            "proposedInterpretation": statement,
+            "frontier": {
+                "owner": "CUSTOMER",
+                "materiality": "MATERIAL",
+                "description": statement,
+                "evidenceRefs": [],
+            },
+        },
+        "contextAuthority": "CUSTOMER_STATED",
+        "confirmedContext": {},
+    }
+    validated = InterviewResult.model_validate(synthesized).model_dump(mode="json")
+    statement_count = len(
+        (decision.get("confirmedContext") or {}).get("statements") or []
+    )
+    _LOGGER.warning(
+        "%s statement_count=%d question_id=%s",
+        _INTERVIEW_CONFIRMATION_QUESTION_SYNTHESIZED,
+        statement_count,
+        question_id,
+    )
+    return validated
+
+
+def _confirmation_or_original(decision: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
+    prepared, feedback = _apply_authority_preflight(decision, context)
+    if feedback is None:
+        return prepared
+    synthesized = _synthesize_confirmation_question(prepared, context)
+    return synthesized if synthesized is not None else prepared
+
 
 INTERVIEW_RESUME_COMMAND = "command.assessment-interview.resume-agent.v1"
 CURRENT_CONTEXT = "CURRENT"
@@ -22,6 +337,18 @@ STALE_CONTEXT = "STALE"
 STALE_PROVENANCE_CONTEXT = "STALE_PROVENANCE"
 _TERMINAL_GUARDED_OUTCOMES = {"CONTEXT_READY", "CONTEXT_RESOLVED"}
 _DOWNSTREAM_IMPACT_FLAG = "DOWNSTREAM_IMPACT"
+_LEGAL_RULE_NOT_APPLICABLE_STATUS = RULE_APPLICABILITY_STATUSES["not_applicable"]
+
+# Targeted Interview resolution criteria are authored as customer-facing snake_case
+# keys, while LegalRule.requiredFacts fields remain catalog-owned facts. Keep this
+# bridge explicit and narrow so administrative customer facts can exclude only the
+# parent legal rule fact they were requested to resolve.
+_TARGETED_RESOLUTION_FACT_FIELDS = {
+    "national_data_source_reuse": (
+        "nationalDataSourceReuse",
+        "national_data_source_reuse",
+    ),
+}
 
 
 class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
@@ -179,31 +506,101 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
     def _run_and_persist_decision(self, api_client, assessment_id, thread_id, question_id,
                                   context_revision, resume_reason, context, correlationId,
                                   source_version, pge_version):
-        decision = self._run_interview(
-            assessment_id=assessment_id,
-            thread_id=thread_id,
-            question_id=question_id,
-            context_revision=context_revision,
-            resume_reason=resume_reason,
-            context=context,
-            correlationId=correlationId,
-        )
+        try:
+            decision = self._run_interview(
+                assessment_id=assessment_id,
+                thread_id=thread_id,
+                question_id=question_id,
+                context_revision=context_revision,
+                resume_reason=resume_reason,
+                context=context,
+                correlationId=correlationId,
+            )
+        except SpecialistHandoffValidationError as exc:
+            # The specialist's candidate violated one of the conditional InterviewResult /
+            # InterviewQuestionResult constraints a provider schema cannot express (e.g. a
+            # malformed CONFIRM_ADJUST choice shape, a missing frontier). None of those
+            # validators are relaxed; give the specialist one bounded chance to see the
+            # exact rule it broke and self-correct instead of crashing the whole turn.
+            rule_names = _violated_rule_names(exc)
+            _LOGGER.warning(
+                "%s assessment_id=%s question_id=%s context_revision=%s rule=%s",
+                _INTERVIEW_HANDOFF_VALIDATION_REPAIRED,
+                assessment_id,
+                question_id,
+                context_revision,
+                rule_names,
+            )
+            repair_context = {
+                **context,
+                "decisionValidationFeedback": {
+                    "code": "INTERVIEW_HANDOFF_SCHEMA_VIOLATION",
+                    "rejectedReason": str(exc),
+                },
+            }
+            # A second violation propagates to terminal delivery settlement.
+            decision = self._run_interview(
+                assessment_id=assessment_id,
+                thread_id=thread_id,
+                question_id=question_id,
+                context_revision=context_revision,
+                resume_reason=resume_reason,
+                context=repair_context,
+                correlationId=correlationId,
+            )
+        decision, authority_feedback = _apply_authority_preflight(decision, context)
+        if authority_feedback is not None:
+            _LOGGER.warning(
+                "%s assessment_id=%s question_id=%s context_revision=%s "
+                "instruction_key=%s",
+                _INTERVIEW_AUTHORITY_PROVENANCE_REPAIRED,
+                assessment_id,
+                question_id,
+                context_revision,
+                authority_feedback.get("instructionKey"),
+            )
+            repair_context = {
+                **context,
+                "decisionValidationFeedback": authority_feedback,
+            }
+            decision = self._run_interview(
+                assessment_id=assessment_id,
+                thread_id=thread_id,
+                question_id=question_id,
+                context_revision=context_revision,
+                resume_reason=resume_reason,
+                context=repair_context,
+                correlationId=correlationId,
+            )
+            decision = _confirmation_or_original(decision, context)
+
         try:
             guarded_state = api_client.post_interview_agent_decision(
                 assessment_id, decision,
             )
-        except InterviewResolutionCallbackError as exc:
-            # A rejected candidate has not advanced the persisted revision. Let the
-            # specialist correct it once; never infer authority or relax the API guard.
-            if decision.get("outcome") != "CONTEXT_RESOLVED":
-                raise
+        except InterviewDecisionRepairableCallbackError as exc:
+            # A rejected candidate has not advanced the persisted revision. The API
+            # guard remains authoritative; only codes in the explicit allowlist reach
+            # this path, and the specialist gets exactly one private correction. Do
+            # not log rejected text/meta here because some codes protect customer
+            # surfaces from leaked internal language.
+            decision_feedback = _decision_feedback(exc.error_code, decision)
+            _LOGGER.warning(
+                "%s assessment_id=%s question_id=%s context_revision=%s "
+                "error_code=%s instruction_key=%s",
+                _INTERVIEW_AGENT_DECISION_REJECTION_REPAIRED,
+                assessment_id,
+                question_id,
+                context_revision,
+                exc.error_code,
+                decision_feedback.get("instructionKey"),
+            )
+            missing = getattr(exc, "missing", None)
+            if isinstance(missing, str):
+                decision_feedback["missingCriteria"] = missing
             repair_context = {
                 **context,
-                "decisionValidationFeedback": {
-                    "code": "INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED",
-                    "missingCriteria": exc.missing,
-                    "rejectedDecision": decision,
-                },
+                "decisionValidationFeedback": decision_feedback,
             }
             corrected = self._run_interview(
                 assessment_id=assessment_id,
@@ -214,6 +611,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                 context=repair_context,
                 correlationId=correlationId,
             )
+            corrected = _confirmation_or_original(corrected, context)
             # A second rejection propagates to terminal delivery settlement.
             guarded_state = api_client.post_interview_agent_decision(
                 assessment_id, corrected,
@@ -351,6 +749,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                     "guidance_version": context.get("guidanceVersion"),
                     "correlationId": correlationId,
                     "artifact_versions": run_context.artifact_versions,
+                    "targeted_need": targeted_need if isinstance(targeted_need, dict) else None,
                 },
                 thread_id=thread_id,
                 context=run_context,
@@ -710,6 +1109,24 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         confirmed_context: ConfirmedStructuredBusinessContext,
         correlationId: str,
     ) -> None:
+        api_client = self._api_client or self._load_api_client()
+        scope_excluded_handoff = _deterministic_not_applicable_handoff(
+            api_client=api_client,
+            continuation=continuation,
+            confirmed_context=confirmed_context,
+        )
+        if scope_excluded_handoff is not None:
+            self._complete_exact_investigator_resume(
+                api_client=api_client,
+                assessment_id=assessment_id,
+                context_revision=context_revision,
+                continuation=continuation,
+                confirmed_context=confirmed_context,
+                handoff=scope_excluded_handoff,
+                correlationId=correlationId,
+            )
+            return
+
         resumer = self._investigator_resumer
         if resumer is None:
             from tools.common.capabilities.assessment.investigation.engineering_rule.managed_targeted_investigator import (
@@ -718,7 +1135,6 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
 
             resumer = resume_managed_investigator
 
-        api_client = self._api_client or self._load_api_client()
         result = resumer(
             config=self._config,
             api_client=api_client,
@@ -744,6 +1160,27 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
                 "exact Investigator resume must complete the original bounded investigation"
             )
 
+        self._complete_exact_investigator_resume(
+            api_client=api_client,
+            assessment_id=assessment_id,
+            context_revision=context_revision,
+            continuation=continuation,
+            confirmed_context=confirmed_context,
+            handoff=handoff,
+            correlationId=correlationId,
+        )
+
+    def _complete_exact_investigator_resume(
+        self,
+        *,
+        api_client: Any,
+        assessment_id: str,
+        context_revision: int,
+        continuation: dict[str, Any],
+        confirmed_context: ConfirmedStructuredBusinessContext,
+        handoff: dict[str, Any],
+        correlationId: str,
+    ) -> None:
         completer = self._investigation_completer
         if completer is None:
             from tools.common.capabilities.assessment.investigation.engineering_rule.managed_targeted_investigator import (
@@ -858,6 +1295,146 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         return agent
 
 
+
+def _deterministic_not_applicable_handoff(
+    *,
+    api_client: Any,
+    continuation: dict[str, Any],
+    confirmed_context: ConfirmedStructuredBusinessContext,
+) -> dict[str, Any] | None:
+    rules = _active_legal_rules(api_client)
+    if not rules:
+        return None
+    affected_rule_ids = [
+        str(value)
+        for value in continuation.get("affectedRuleIds") or []
+        if str(value or "").strip()
+    ]
+    for affected_rule_id in affected_rule_ids:
+        legal_rule = _parent_legal_rule_for_engineering_rule(rules, affected_rule_id)
+        if legal_rule is None:
+            continue
+        profile = _profile_with_confirmed_context_facts(
+            _base_verified_profile(legal_rule),
+            legal_rule=legal_rule,
+            confirmed_context=confirmed_context,
+        )
+        outcome = RuleApplicabilityEvaluator().evaluate_rule(
+            rule=legal_rule,
+            verified_profile=profile,
+        )
+        if outcome.status != _LEGAL_RULE_NOT_APPLICABLE_STATUS:
+            continue
+        statement_refs = tuple(
+            ref for refs in profile.get("factEvidenceRefs", {}).values() for ref in refs
+        )
+        if not statement_refs:
+            continue
+        return {
+            "status": "READY",
+            "artifact_versions": dict(continuation.get("artifactVersions") or {}),
+            "claims": [
+                {
+                    "claim_id": f"claim:targeted-scope-excluded:{affected_rule_id}",
+                    "engineering_rule_id": affected_rule_id,
+                    "claim_type": ENGINEERING_EVIDENCE_CLAIM_TYPES[
+                        "rule_scope_not_applicable"
+                    ],
+                    "value": None,
+                    "evidence_refs": [],
+                    "graph_path_refs": [],
+                    "source_anchor_refs": [],
+                    "customer_context_refs": list(dict.fromkeys(statement_refs)),
+                    "confidence": outcome.confidence,
+                    "limitations": [],
+                    "criterion": ENGINEERING_RULE_PLAN_REASON_CODES[
+                        "targeted_scope_excluded"
+                    ],
+                }
+            ],
+            "limitations": [],
+            "missing_input": None,
+            "next_step": "GATE",
+        }
+    return None
+
+
+def _active_legal_rules(api_client: Any) -> list[dict[str, Any]]:
+    try:
+        catalog = api_client.get_active_legal_rule_catalog()
+    except Exception:
+        return []
+    if not isinstance(catalog, dict):
+        return []
+    return [rule for rule in catalog.get("rules") or [] if isinstance(rule, dict)]
+
+
+def _parent_legal_rule_for_engineering_rule(
+    rules: list[dict[str, Any]],
+    engineering_rule_id: str,
+) -> dict[str, Any] | None:
+    for rule in rules:
+        legal_rule_id = str(rule.get("legalRuleId") or rule.get("legal_rule_id") or "")
+        if engineering_rule_id.startswith(f"{legal_rule_id}::PRECOMPILED::"):
+            return rule
+        if engineering_rule_id in _legal_rule_engineering_rule_ids(rule):
+            return rule
+    return None
+
+
+def _legal_rule_engineering_rule_ids(rule: dict[str, Any]) -> set[str]:
+    values: set[str] = set()
+    for key in ("engineeringRuleIds", "engineering_rule_ids"):
+        raw = rule.get(key)
+        if isinstance(raw, list):
+            values.update(str(item) for item in raw if str(item or "").strip())
+    raw_rules = rule.get("engineeringRules") or rule.get("engineering_rules")
+    if isinstance(raw_rules, list):
+        for item in raw_rules:
+            if isinstance(item, dict):
+                value = item.get("engineeringRuleId") or item.get("engineering_rule_id")
+                if str(value or "").strip():
+                    values.add(str(value))
+    return values
+
+
+def _base_verified_profile(rule: dict[str, Any]) -> dict[str, Any]:
+    raw = rule.get("verifiedProfile") or rule.get("verified_profile") or {}
+    if not isinstance(raw, dict):
+        raw = {}
+    merged = raw.get("mergedProfile") or raw.get("merged_profile") or {}
+    refs = raw.get("factEvidenceRefs") or raw.get("fact_evidence_refs") or {}
+    return {
+        "mergedProfile": dict(merged) if isinstance(merged, dict) else {},
+        "factEvidenceRefs": dict(refs) if isinstance(refs, dict) else {},
+    }
+
+
+def _profile_with_confirmed_context_facts(
+    profile: dict[str, Any],
+    *,
+    legal_rule: dict[str, Any],
+    confirmed_context: ConfirmedStructuredBusinessContext,
+) -> dict[str, Any]:
+    merged = dict(profile.get("mergedProfile") or {})
+    fact_refs = dict(profile.get("factEvidenceRefs") or {})
+    required_fields = {
+        str(fact.get("field"))
+        for fact in legal_rule.get("requiredFacts") or []
+        if isinstance(fact, dict) and str(fact.get("field") or "").strip()
+    }
+    for statement in confirmed_context.statements:
+        candidate_fields = _TARGETED_RESOLUTION_FACT_FIELDS.get(statement.topic, ())
+        target_field = next(
+            (field for field in candidate_fields if field in required_fields),
+            None,
+        )
+        if target_field is None:
+            continue
+        merged[target_field] = statement.normalized_value
+        fact_refs[target_field] = [statement.statement_id]
+    return {"mergedProfile": merged, "factEvidenceRefs": fact_refs}
+
 def _terminal_guarded_state(context: dict[str, Any]) -> bool:
     state = context.get("publicState")
     return isinstance(state, dict) and str(state.get("outcome") or "") in _TERMINAL_GUARDED_OUTCOMES
@@ -957,6 +1534,13 @@ def _interview_instruction(
         ),
         "publicThreadState": public_state,
         "privateCustomerRevision": private_revision,
+        # Worker-only, bounded/truncated verbatim history of prior turns' answers
+        # (never in publicThreadState, which stays the sanitized customer
+        # projection). See assessment-interview-runtime.service.ts
+        # ::buildWorkerPriorAnswerHistory for the exact entry-count/text-length
+        # limits and truncation marker.
+        "priorAnswerHistory": context.get("priorAnswerHistory") or [],
+        "priorAnswerHistoryOmittedCount": context.get("priorAnswerHistoryOmittedCount") or 0,
         "targetedNeed": targeted_need,
     }
     if context.get("decisionValidationFeedback"):
@@ -967,15 +1551,55 @@ def _interview_instruction(
         "downstream prompts. Preserve hedging/contradictions, choose ASK vs CLARIFY, and "
         "use the session-local workingStrategy only to adapt terminology and phrasing; "
         "never treat it as authoritative context or change guidanceVersion. "
+        "priorAnswerHistory carries the Customer's own verbatim wording from earlier "
+        "turns in this thread (bounded to the most recent entries, each comment/free "
+        "text truncated at a fixed length with a marker) - use it to recall exactly "
+        "what the Customer said before, especially for a FREE_TEXT/Other/commented "
+        "answer that publicThreadState.answerHistory only summarizes generically. "
+        "priorAnswerHistoryOmittedCount, if non-zero, means older entries beyond that "
+        "bound were dropped; do not assume no earlier answer exists just because it is "
+        "not listed. "
         "return only the typed InterviewResult candidate. HTTP persistence is not proof "
         "of sufficiency. PROVIDE_MORE_CONTEXT means author the next bounded question from "
         "the existing thread; do not restart a targeted Interview. "
-        "If decisionValidationFeedback is present, the prior candidate was rejected and "
-        "did not resolve the need. Re-evaluate it against the private customer revision. "
-        "For supported criteria, use the exact resolutionCriteria text as statement.topic. "
+        "Never return outcome=CONTEXT_READY while publicThreadState.contextAuthority is "
+        "CUSTOMER_STATED; the platform requires CUSTOMER_CONFIRMED authority for "
+        "CONTEXT_READY and rejects an unauthoritative CONTEXT_READY with no automatic "
+        "recovery beyond one bounded correction. Provenance rule: CUSTOMER_CONFIRMED "
+        "requires either a prior CONFIRM_ADJUST question where the customer selected "
+        "CONFIRM, or a direct ASK answer that was not adjusted and needed no "
+        "interpretation. A FREE_TEXT answer, a selected choice that requiresFreeText "
+        "(e.g. OTHER), or any answer carrying a non-empty comment always needs "
+        "interpretation: it stays CUSTOMER_STATED until the customer confirms it "
+        "through a CONFIRM_ADJUST turn, no matter how explicit or unambiguous the "
+        "wording looks. CLARIFY BOOLEAN or SINGLE_SELECT answers never grant "
+        "CUSTOMER_CONFIRMED. If confirmation is "
+        "needed, ask WAITING_FOR_CUSTOMER with control=CONFIRM_ADJUST, intent=CLARIFY, "
+        "choices exactly CONFIRM and ADJUST, ADJUST.requiresFreeText=true, and "
+        "proposedInterpretation set to the exact statement to confirm; otherwise keep "
+        "CUSTOMER_STATED. "
+        "If decisionValidationFeedback is present, the prior candidate was rejected by the "
+        "platform guard; re-evaluate rather than resubmit it unchanged. When its code is "
+        "INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED, the candidate did not resolve the "
+        "targeted need: re-evaluate against the private customer revision and use the exact "
+        "resolutionCriteria text as statement.topic. When its code is "
+        "INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY, the candidate asserted CONTEXT_READY "
+        "without CUSTOMER_CONFIRMED authority: return WAITING_FOR_CUSTOMER with a bounded "
+        "confirming question instead. When its code is INTERVIEW_HANDOFF_SCHEMA_VIOLATION, "
+        "rejectedReason names the exact structural rule the prior candidate broke (for "
+        "example a malformed CONFIRM_ADJUST choice shape or an invalid outcome/mode "
+        "combination): fix only that violation, changing nothing else about the candidate. "
         "Do not invent confirmation or treat validation feedback as customer evidence. "
         "If evidence is missing, return WAITING_FOR_CUSTOMER with a bounded clarification, "
-        "or BLOCKED_OR_UNRESOLVED when the customer cannot supply it. Keep validation "
+        "or BLOCKED_OR_UNRESOLVED when the customer cannot supply it. Because provider "
+        "schemas cannot enforce conditional fields, every WAITING_FOR_CUSTOMER "
+        "activeQuestion MUST include frontier with owner=CUSTOMER, "
+        "materiality=MATERIAL, a non-empty description, and evidenceRefs containing "
+        "only governed evidence refs supplied in the private input; use [] when no "
+        "authorized governed refs support the customer question. confirmedContext "
+        "statement evidenceRefs may contain only authorized governed evidence refs; "
+        "never use sourceVersion, pgeVersion, raw artifact ids, or version strings as "
+        "statement evidenceRefs, and leave evidenceRefs empty when uncertain. Keep validation "
         "feedback private; never copy it into customer-facing text or downstream context.\n\n"
         + json.dumps(bounded_payload, ensure_ascii=False, sort_keys=True)
     )

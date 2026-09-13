@@ -372,13 +372,21 @@ Prompt/scenario text cannot manufacture a governed evidence ref.
 
 ## 9. Customer statement normalization
 
-Direct explicit Customer statements may become `CUSTOMER_CONFIRMED` when normalization is semantically lossless.
+A direct ASK answer becomes `CUSTOMER_CONFIRMED` only when it needed **no interpretation**: a predefined `BOOLEAN`/`SINGLE_SELECT`/`MULTI_SELECT` choice with no comment. Any answer that required interpretation — `FREE_TEXT`, a choice that `requiresFreeText` (e.g. `OTHER`), or any answer carrying a non-empty comment — stays `CUSTOMER_STATED` even when the wording is completely unambiguous, and needs one `CONFIRM_ADJUST` turn before it can become `CUSTOMER_CONFIRMED`. See `terminology-contract.md` for the exact rule.
 
-Customer:
+Customer (`FREE_TEXT` answer):
 
 > “A recruiter must approve every rejection before it takes effect.”
 
-No redundant confirmation question is required.
+Do not return `CUSTOMER_CONFIRMED` directly. Ask one bounded `CONFIRM_ADJUST` question with `proposedInterpretation` set to the exact statement — not a second, separately-worded yes/no question — so the Customer only needs to press `CONFIRM` once.
+
+A predefined-choice direct ASK answer with no comment needs no such turn:
+
+Customer selects a `SINGLE_SELECT` option, no comment:
+
+> “Standard approval flow.”
+
+No confirmation question is required for this case.
 
 Ambiguous/hedged Customer statements remain `CUSTOMER_STATED` until the material distinction is clarified.
 

@@ -102,15 +102,18 @@
       "semantic_mode": "INITIAL_INTERVIEW",
       "runtime_mode": "PRE_PLANNER",
       "prompt": "Bạn hỏi ai ra final rejection decision. Customer trả lời: 'Recruiter approve mọi rejection. Senior position còn cần hiring manager approve.' Không còn ambiguity.",
-      "expected_summary": "Normalize cả hai explicit fact trực tiếp và không hỏi lại senior-role approval.",
+      "expected_summary": "Hỏi đúng một CONFIRM_ADJUST question cho cả hai fact; không coi là đã confirmed và không hỏi thêm một câu khác riêng.",
       "assertions": {
-        "outcome": "CONTEXT_READY",
-        "question_count": 0,
-        "question_intent": null,
+        "outcome": "WAITING_FOR_CUSTOMER",
+        "question_count": 1,
+        "question_intent": "CLARIFY",
         "flags": [],
+        "semantic_targets": [
+          "FREE_TEXT_ANSWER_NEEDS_CONFIRM_ADJUST"
+        ],
         "context_source_constraints": [
-          "Recruiter approval fact may be CUSTOMER_CONFIRMED",
-          "Senior-role hiring-manager approval fact may be CUSTOMER_CONFIRMED"
+          "Do not emit CUSTOMER_CONFIRMED directly for either fact from this FREE_TEXT answer",
+          "Ask one CONFIRM_ADJUST question whose proposedInterpretation covers both facts, not two separate re-asks"
         ]
       },
       "runtime_context": {},
@@ -467,15 +470,18 @@
       "semantic_mode": "INITIAL_INTERVIEW",
       "runtime_mode": "PRE_PLANNER",
       "prompt": "Customer explicit nói: 'Human reviewer bắt buộc approve mọi regulator report trước khi submit.' Không có conflict và đây là material uncertainty duy nhất.",
-      "expected_summary": "Normalize direct statement thành CUSTOMER_CONFIRMED và CONTEXT_READY, không hỏi confirmation dư.",
+      "expected_summary": "Hỏi đúng một CONFIRM_ADJUST question với proposedInterpretation là statement; không normalize trực tiếp thành CUSTOMER_CONFIRMED và không hỏi thêm một confirmation question khác riêng.",
       "assertions": {
-        "outcome": "CONTEXT_READY",
-        "question_count": 0,
-        "question_intent": null,
+        "outcome": "WAITING_FOR_CUSTOMER",
+        "question_count": 1,
+        "question_intent": "CLARIFY",
         "flags": [],
+        "semantic_targets": [
+          "FREE_TEXT_ANSWER_NEEDS_CONFIRM_ADJUST"
+        ],
         "context_source_constraints": [
-          "Approval-required-before-submission fact must be eligible for CUSTOMER_CONFIRMED",
-          "Do not emit a redundant confirmation question"
+          "Approval-required-before-submission fact must not become CUSTOMER_CONFIRMED directly from this FREE_TEXT answer",
+          "Ask exactly one CONFIRM_ADJUST question, not a second separately-worded confirmation question"
         ]
       },
       "runtime_context": {},
@@ -1064,7 +1070,8 @@
     "ABSENCE_OF_EVIDENCE_GUARD": "Không infer business behavior absent chỉ vì PGE không observe, đặc biệt khi partial coverage.",
     "TECHNICAL_COVERAGE_NONBLOCKING": "Cho phép PARTIAL coverage mà không auto-block readiness khi không còn handoff-relevant material uncertainty.",
     "RESOLUTION_CRITERIA_SATISFACTION": "Bắt buộc targeted business-operational resolutionCriteria satisfied trước CONTEXT_RESOLVED.",
-    "CUSTOMER_SAFE_EVIDENCE": "Dùng bounded customer-safe evidence explanation và tránh unrestricted raw source/config/security-sensitive disclosure."
+    "CUSTOMER_SAFE_EVIDENCE": "Dùng bounded customer-safe evidence explanation và tránh unrestricted raw source/config/security-sensitive disclosure.",
+    "FREE_TEXT_ANSWER_NEEDS_CONFIRM_ADJUST": "FREE_TEXT answer, choice requiresFreeText (ví dụ OTHER), hoặc answer có comment không rỗng luôn cần interpretation và không thể thành CUSTOMER_CONFIRMED trực tiếp, dù wording rõ ràng đến đâu. Hỏi đúng một CONFIRM_ADJUST question với proposedInterpretation là statement đã normalize, thay vì confirm ngay hoặc hỏi thêm một câu khác riêng."
   },
   "default_runtime_context": {
     "hostPlatform": "LCSP",

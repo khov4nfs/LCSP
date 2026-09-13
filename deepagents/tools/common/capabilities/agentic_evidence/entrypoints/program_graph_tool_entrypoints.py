@@ -3,9 +3,24 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
-from tools.common.capabilities.evidence.graph.query.query_engine import ProgramGraphQueryEngine
+from tools.common.capabilities.evidence.graph.query.query_engine import (
+    EVIDENCE_SEARCH_MATCH_MODE_SUBSTRING,
+    ProgramGraphQueryEngine,
+)
 
 from ..governance.registry import AgenticToolRequest
+
+
+AGENTIC_TOOL_COVERAGE_STATES = {
+    "ready": "READY",
+    "partial": "PARTIAL",
+    "unavailable": "UNAVAILABLE",
+}
+SEARCH_EVIDENCE_RESULT_FIELDS = {
+    "match_mode": "matchMode",
+    "absence_proven": "absenceProven",
+}
+SEARCH_EVIDENCE_ABSENCE_PROVEN_FALSE = False
 
 
 def _graph(
@@ -155,9 +170,18 @@ def _project_safe_node(node: dict[str, Any]) -> dict[str, Any]:
 
 
 def _project_safe_edge(edge: Mapping[str, Any]) -> dict[str, Any]:
-    """Strict DTO projection for edges returning to the agent: no attributes, source code, debug info, or secrets."""
+    """Strict DTO projection for edges returning to the agent: no attributes, source code, debug info, or secrets.
+
+    ``edge_id`` must be included: closed topology-gated claims (``validate_claim_topology``)
+    require ``graph_path_refs`` to resolve to a real edge, and node ids alone can never
+    satisfy that. Omitting it here made every AI_OUTPUT_PATH/DOWNSTREAM_ACTION_PATH/
+    HUMAN_CONTROL_STATE/SENSITIVE_DATA_LINEAGE claim structurally impossible to close,
+    since the model was never told a valid edge ref existed to cite. ``node_id`` is already
+    exposed on ``_project_safe_node`` above; this keeps edges at parity.
+    """
     from subagents.interview.customer_safe_projection import normalize_resolution_state
     return {
+        "edge_id": str(edge.get("edge_id") or edge.get("id") or ""),
         "source_node_id": str(edge.get("source_node_id") or edge.get("source_id") or edge.get("source") or ""),
         "target_node_id": str(edge.get("target_node_id") or edge.get("target_id") or edge.get("target") or ""),
         "edge_type": str(edge.get("edge_type") or edge.get("type") or "EDGE"),
@@ -191,6 +215,14 @@ def _safe_coverage_fields(graph) -> dict[str, Any]:
         "coverageLimitations": _safe_text_list(graph.coverage_notes or []),
     }
 
+
+def _search_absence_proven(nodes: list[dict], coverage_state: str) -> bool:
+    if not nodes or coverage_state != AGENTIC_TOOL_COVERAGE_STATES["ready"]:
+        return SEARCH_EVIDENCE_ABSENCE_PROVEN_FALSE
+    # SUBSTRING search returns candidates only; it is not a bounded negative proof.
+    return SEARCH_EVIDENCE_ABSENCE_PROVEN_FALSE
+
+
 def get_scan_coverage(request: AgenticToolRequest, context) -> Mapping[str, Any]:
     engine, _ = _graph(request, context)
     graph = engine.graph
@@ -213,13 +245,20 @@ def search_evidence(request: AgenticToolRequest, context) -> Mapping[str, Any]:
         path_prefixes=_input(request, "pathPrefixes", ()),
         max_results=_max_results(request),
     )
+    coverage_fields = _safe_coverage_fields(engine.graph)
+    safe_nodes = [_project_safe_node(n) for n in result.nodes]
     return {
-        "nodes": [_project_safe_node(n) for n in result.nodes],
+        "nodes": safe_nodes,
+        SEARCH_EVIDENCE_RESULT_FIELDS["match_mode"]: EVIDENCE_SEARCH_MATCH_MODE_SUBSTRING,
+        SEARCH_EVIDENCE_RESULT_FIELDS["absence_proven"]: _search_absence_proven(
+            safe_nodes,
+            str(coverage_fields["coverageState"]),
+        ),
         "truncated": result.truncated,
         "continuationFrontiers": _safe_text_list(result.continuation_frontiers),
         "unresolvedFrontiers": _safe_text_list(result.unresolved_frontiers),
         "evidenceRefs": result.evidence_refs,
-        **_safe_coverage_fields(engine.graph),
+        **coverage_fields,
     }
 
 

@@ -29,6 +29,7 @@ from subagents.interview.customer_safe_projection import (
 )
 from subagents.interview.definition import SUBAGENT, TOOLS
 from tools.common.capabilities.agentic_evidence.entrypoints.program_graph_tool_entrypoints import (
+    EVIDENCE_SEARCH_MATCH_MODE_SUBSTRING,
     get_scan_coverage as entry_get_scan_coverage,
     inspect_data_path as entry_inspect_data_path,
     inspect_decision_path as entry_inspect_decision_path,
@@ -952,6 +953,13 @@ def test_search_program_graph_with_query_filters_nodes() -> None:
     # Query matching nothing
     result_none = search_program_graph.func(runtime, query="THIS QUERY SHOULD FILTER OUT EVERYTHING", maxResults=5)
     assert len(result_none["nodes"]) == 0
+    assert result_none["matchMode"] == EVIDENCE_SEARCH_MATCH_MODE_SUBSTRING
+    assert result_none["absenceProven"] is False
+
+    result_tokenized = search_program_graph.func(runtime, query="AI_Loan", maxResults=5)
+    assert [node["label"] for node in result_tokenized["nodes"]] == [
+        "AI Loan Recommendation"
+    ]
 
     set_agentic_tool_api_client(None)
 
@@ -1527,6 +1535,7 @@ def test_every_pge_tool_propagates_coverage_and_limitations() -> None:
     mock_client.get_accepted_technical_evidence_report.return_value = report_dict
 
     from tools.common.capabilities.agentic_evidence.entrypoints.program_graph_tool_entrypoints import (
+        EVIDENCE_SEARCH_MATCH_MODE_SUBSTRING,
         get_scan_coverage,
         inspect_data_path,
         inspect_decision_path,
@@ -1561,6 +1570,9 @@ def test_every_pge_tool_propagates_coverage_and_limitations() -> None:
     search_res = search_evidence(AgenticToolRequest.model_validate(base_req), Ctx())
     assert search_res["coverageState"] == "PARTIAL"
     assert "Partial AST index for Python runtime" in search_res["coverageLimitations"]
+    assert search_res["nodes"] == []
+    assert search_res["matchMode"] == EVIDENCE_SEARCH_MATCH_MODE_SUBSTRING
+    assert search_res["absenceProven"] is False
 
     # 3. inspect_data_path
     data_res = inspect_data_path(AgenticToolRequest.model_validate(base_req), Ctx())

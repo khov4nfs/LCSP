@@ -327,11 +327,33 @@ class _VerticalApi:
             'authenticatedActorId': 'user-release-vertical',
             'answer': {'freeText': 'The system provides recommendations only.'},
             'authority': 'CUSTOMER_STATED',
+            'questionIntent': 'ASK',
+            'questionControl': 'FREE_TEXT',
+            'answerRequiresInterpretation': True,
             'governedEvidenceRefs': [EVIDENCE_REF],
         }
         self.state = {
             'outcome': 'WAITING_FOR_CUSTOMER',
             'contextRevision': 1,
+            'orchestrationRequested': True,
+        }
+
+    def submit_initial_confirmation(self) -> None:
+        self.current_revision = 2
+        self.private_revision = {
+            'revision': 2,
+            'actorId': 'user-release-vertical',
+            'authenticatedActorId': 'user-release-vertical',
+            'answer': {'confirmed': True},
+            'authority': 'CUSTOMER_CONFIRMED',
+            'questionIntent': 'CLARIFY',
+            'questionControl': 'CONFIRM_ADJUST',
+            'answerRequiresInterpretation': False,
+            'governedEvidenceRefs': [EVIDENCE_REF],
+        }
+        self.state = {
+            'outcome': 'WAITING_FOR_CUSTOMER',
+            'contextRevision': 2,
             'orchestrationRequested': True,
         }
 
@@ -433,17 +455,36 @@ class _VerticalApi:
         return dict(guarded)
 
     def submit_targeted_answer(self) -> None:
-        self.current_revision = 2
+        self.current_revision = 3
         self.private_revision = {
-            'revision': 2,
+            'revision': 3,
             'answer': {
                 'freeText': 'A human manager must approve before action.'
             },
-            'authority': 'CUSTOMER_CONFIRMED',
+            'authority': 'CUSTOMER_STATED',
+            'questionIntent': 'CLARIFY',
+            'questionControl': 'FREE_TEXT',
+            'answerRequiresInterpretation': True,
         }
         self.state = {
             'outcome': 'WAITING_FOR_CUSTOMER',
-            'contextRevision': 2,
+            'contextRevision': 3,
+            'orchestrationRequested': True,
+        }
+
+    def submit_targeted_confirmation(self) -> None:
+        self.current_revision = 4
+        self.private_revision = {
+            'revision': 4,
+            'answer': {'confirmed': True},
+            'authority': 'CUSTOMER_CONFIRMED',
+            'questionIntent': 'CLARIFY',
+            'questionControl': 'CONFIRM_ADJUST',
+            'answerRequiresInterpretation': False,
+        }
+        self.state = {
+            'outcome': 'WAITING_FOR_CUSTOMER',
+            'contextRevision': 4,
             'orchestrationRequested': True,
         }
 
@@ -559,7 +600,7 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
                 'expectedContextRevision': 1,
                 'mode': 'INITIAL_INTERVIEW',
                 'outcome': 'CONTEXT_READY',
-                'contextAuthority': 'CONFIRMED',
+                'contextAuthority': 'CUSTOMER_CONFIRMED',
                 'confirmedContext': _confirmed_context(
                     assessment_id,
                     'system_purpose',
@@ -572,6 +613,36 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
             },
             {
                 'expectedContextRevision': 1,
+                'mode': 'INITIAL_INTERVIEW',
+                'outcome': 'CONTEXT_READY',
+                'contextAuthority': 'CUSTOMER_CONFIRMED',
+                'confirmedContext': _confirmed_context(
+                    assessment_id,
+                    'system_purpose',
+                    'AI-assisted recommendation',
+                    revision=1,
+                ),
+                'flags': [],
+                'blockedActions': [],
+                'targetedResolution': {},
+            },
+            {
+                'expectedContextRevision': 2,
+                'mode': 'INITIAL_INTERVIEW',
+                'outcome': 'CONTEXT_READY',
+                'contextAuthority': 'CUSTOMER_CONFIRMED',
+                'confirmedContext': _confirmed_context(
+                    assessment_id,
+                    'system_purpose',
+                    'AI-assisted recommendation',
+                    revision=2,
+                ),
+                'flags': [],
+                'blockedActions': [],
+                'targetedResolution': {},
+            },
+            {
+                'expectedContextRevision': 2,
                 'mode': 'INVESTIGATOR_RESOLUTION',
                 'outcome': 'WAITING_FOR_CUSTOMER',
                 'activeQuestion': {
@@ -593,15 +664,45 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
                 'targetedResolution': {},
             },
             {
-                'expectedContextRevision': 2,
+                'expectedContextRevision': 3,
                 'mode': 'INVESTIGATOR_RESOLUTION',
                 'outcome': 'CONTEXT_RESOLVED',
-                'contextAuthority': 'CONFIRMED',
+                'contextAuthority': 'CUSTOMER_CONFIRMED',
                 'confirmedContext': _confirmed_context(
                     assessment_id,
                     'decision_authority',
                     'A human manager must approve before action',
-                    revision=2,
+                    revision=3,
+                ),
+                'flags': [],
+                'blockedActions': [],
+                'targetedResolution': {},
+            },
+            {
+                'expectedContextRevision': 3,
+                'mode': 'INVESTIGATOR_RESOLUTION',
+                'outcome': 'CONTEXT_RESOLVED',
+                'contextAuthority': 'CUSTOMER_CONFIRMED',
+                'confirmedContext': _confirmed_context(
+                    assessment_id,
+                    'decision_authority',
+                    'A human manager must approve before action',
+                    revision=3,
+                ),
+                'flags': [],
+                'blockedActions': [],
+                'targetedResolution': {},
+            },
+            {
+                'expectedContextRevision': 4,
+                'mode': 'INVESTIGATOR_RESOLUTION',
+                'outcome': 'CONTEXT_RESOLVED',
+                'contextAuthority': 'CUSTOMER_CONFIRMED',
+                'confirmedContext': _confirmed_context(
+                    assessment_id,
+                    'decision_authority',
+                    'A human manager must approve before action',
+                    revision=4,
                 ),
                 'flags': [],
                 'blockedActions': [],
@@ -675,9 +776,17 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
         _resume_message(assessment_id, revision=1, targeted=False),
         'corr-release-initial-answer',
     )
+    assert api.state['activeQuestion']['control'] == 'CONFIRM_ADJUST'
+    assert planner.calls == 0
+
+    api.submit_initial_confirmation()
+    initial_resume.handle(
+        _resume_message(assessment_id, revision=2, targeted=False),
+        'corr-release-initial-confirmed',
+    )
 
     assert planner.calls == 1
-    assert initial_query.confirmed_contexts[0]['contextRevision'] == 1
+    assert initial_query.confirmed_contexts[0]['contextRevision'] == 2
     assert initial_query.confirmed_contexts[0]['authority'] == (
         'CUSTOMER_CONFIRMED_CONFIRMED_ONLY'
     )
@@ -701,13 +810,20 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
         continuation_store=store,
     )
     targeted_resume.handle(
-        _resume_message(assessment_id, revision=1, targeted=True),
+        _resume_message(assessment_id, revision=2, targeted=True),
         'corr-release-targeted-question',
     )
     assert api.state['outcome'] == 'WAITING_FOR_CUSTOMER'
     assert api.state['activeQuestion']['needId'] == NEED_ID
 
     api.submit_targeted_answer()
+    targeted_resume.handle(
+        _resume_message(assessment_id, revision=3, targeted=True),
+        'corr-release-targeted-answer',
+    )
+    assert api.state['activeQuestion']['control'] == 'CONFIRM_ADJUST'
+
+    api.submit_targeted_confirmation()
     completion_query = _QueryExecutor()
 
     def complete_with_production_gate(**kwargs):
@@ -747,7 +863,7 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
     targeted_resume._investigation_completer = complete_with_production_gate
     resolved_message = _resume_message(
         assessment_id,
-        revision=2,
+        revision=4,
         targeted=True,
     )
     targeted_resume.handle(
@@ -757,7 +873,7 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
 
     assert api.state['outcome'] == 'CONTEXT_RESOLVED'
     assert run_counter == [1, 1]
-    assert completion_query.confirmed_contexts[0]['contextRevision'] == 2
+    assert completion_query.confirmed_contexts[0]['contextRevision'] == 4
     assert completion_query.confirmed_contexts[0]['answers'] == {
         'decision_authority': 'A human manager must approve before action'
     }
@@ -772,6 +888,6 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
         resolved_message,
         'corr-release-targeted-replay',
     )
-    assert interview_factory.invoke_count == 4
+    assert interview_factory.invoke_count == 8
     assert run_counter == [1, 1]
     assert len(api.classification_callbacks) == 1

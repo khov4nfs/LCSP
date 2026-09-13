@@ -36,6 +36,7 @@ ENGINEERING_RULE_PLAN_REASON_CODES = {
     "customer_context_scope_excludes": "CUSTOMER_CONTEXT_SCOPE_EXCLUDES_RULE",
     "source_signal_not_material": "SOURCE_SIGNAL_NOT_MATERIAL",
     "rule_scope_not_applicable": "RULE_SCOPE_NOT_APPLICABLE",
+    "targeted_scope_excluded": "TARGETED_SCOPE_EXCLUDED",
 }
 
 ENGINEERING_RULE_PLAN_BASIS = {
@@ -56,6 +57,7 @@ _SKIP_REASONS = {
     ENGINEERING_RULE_PLAN_REASON_CODES["customer_context_scope_excludes"],
     ENGINEERING_RULE_PLAN_REASON_CODES["source_signal_not_material"],
     ENGINEERING_RULE_PLAN_REASON_CODES["rule_scope_not_applicable"],
+    ENGINEERING_RULE_PLAN_REASON_CODES["targeted_scope_excluded"],
 }
 
 

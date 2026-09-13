@@ -7,7 +7,12 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from tools.common.capabilities.assessment.claims.evidence_claim.models import EvidenceClaim
+from tools.common.capabilities.assessment.claims.evidence_claim.models import (
+    ENGINEERING_EVIDENCE_CLAIM_TYPES,
+    ENGINEERING_LIMITATION_CODES,
+    MODEL_SELECTABLE_LIMITATION_CODES,
+    EvidenceClaim,
+)
 
 
 _TARGETED_TEXT_LEAK_PATTERNS = (
@@ -26,6 +31,18 @@ _TARGETED_TEXT_LEAK_PATTERNS = (
         re.IGNORECASE,
     ),
 )
+
+MODEL_AUTHORED_INVESTIGATOR_LIMITATION_CODES = frozenset(
+    MODEL_SELECTABLE_LIMITATION_CODES
+)
+_INVESTIGATOR_LIMITATION_CODE_VALUES = (
+    *MODEL_SELECTABLE_LIMITATION_CODES,
+    ENGINEERING_LIMITATION_CODES["engineering_investigation_failed"],
+)
+SYSTEM_AUTHORED_INVESTIGATOR_LIMITATION_CODES = frozenset(
+    _INVESTIGATOR_LIMITATION_CODE_VALUES
+)
+SYSTEM_FAILED_INVESTIGATOR_CLAIM_PREFIX = "claim:failed:"
 
 
 def _assert_neutral_targeted_text(*values: str | None) -> None:
@@ -228,25 +245,67 @@ class PlannerResult(BaseModel):
         return self
 
 
-class InvestigatorClaim(BaseModel):
-    """Model-facing equivalent of the deterministic EvidenceClaim dataclass."""
+class _InvestigatorClaimIdentity(BaseModel):
+    """Shared identity/limitation fields for every Investigator claim shape.
+
+    Every per-claim_type variant below inherits this instead of repeating it, so
+    `claim_id`/`engineering_rule_id` and the model-vs-system limitation-code narrowing stay
+    in exactly one place. `limitations` lives here too (all four shapes may carry coverage
+    limitation codes); only UNRESOLVED overrides it with `min_length=1`.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
     claim_id: str = Field(min_length=1, max_length=160)
     engineering_rule_id: str = Field(min_length=1, max_length=160)
-    claim_type: Literal[
-        "RULE_REQUIREMENT_MET",
-        "RULE_REQUIREMENT_NOT_MET",
-        "UNRESOLVED_ENGINEERING_FACT",
-    ]
-    value: bool | None
+    # See _INVESTIGATOR_LIMITATION_CODE_VALUES: the system-authored
+    # ENGINEERING_INVESTIGATION_FAILED code is included so
+    # managed_targeted_investigator._failed_investigator_handoff's synthetic
+    # "claim:failed:"-prefixed fallback still validates through this same model. The
+    # validator below narrows a *model*-authored claim to the 5-code subset.
+    limitations: list[Literal[*_INVESTIGATOR_LIMITATION_CODE_VALUES]] = Field(
+        default_factory=list, max_length=50
+    )
+
+    @model_validator(mode="after")
+    def validate_limitation_code_origin(self) -> Self:
+        allowed = (
+            SYSTEM_AUTHORED_INVESTIGATOR_LIMITATION_CODES
+            if self.claim_id.startswith(SYSTEM_FAILED_INVESTIGATOR_CLAIM_PREFIX)
+            else MODEL_AUTHORED_INVESTIGATOR_LIMITATION_CODES
+        )
+        invalid = sorted({code for code in self.limitations if code not in allowed})
+        if invalid:
+            raise ValueError(
+                f"Investigator claim limitations contain unsupported codes: {invalid}"
+            )
+        return self
+
+
+class _InvestigatorDecidedClaim(_InvestigatorClaimIdentity):
+    """Shared shape for RULE_REQUIREMENT_MET / RULE_REQUIREMENT_NOT_MET.
+
+    `criterion` and `confidence` are required (no default) here, structurally — a decided
+    claim missing either is unrepresentable rather than merely rejected after the fact.
+    The one obligation that genuinely cannot be a single field's own constraint is "at
+    least one of these three ref lists is non-empty": that is an OR across siblings, which
+    JSON Schema (and Gemini's schema support in particular) has no keyword for even with a
+    discriminated union, so it stays a `model_validator`.
+    """
+
+    criterion: str = Field(min_length=1, max_length=500)
+    confidence: float = Field(gt=0, le=1)
     evidence_refs: list[str] = Field(default_factory=list, max_length=100)
     graph_path_refs: list[str] = Field(default_factory=list, max_length=100)
     source_anchor_refs: list[str] = Field(default_factory=list, max_length=100)
-    confidence: float = Field(ge=0, le=1)
-    limitations: list[str] = Field(default_factory=list, max_length=50)
-    criterion: str | None = Field(default=None, max_length=500)
+
+    @model_validator(mode="after")
+    def validate_has_ref(self) -> Self:
+        if not (self.evidence_refs or self.graph_path_refs or self.source_anchor_refs):
+            raise ValueError(
+                "decided Investigator claims require at least one evidence, graph-path, or source-anchor ref"
+            )
+        return self
 
     def to_evidence_claim(self) -> EvidenceClaim:
         return EvidenceClaim(
@@ -257,10 +316,113 @@ class InvestigatorClaim(BaseModel):
             evidence_refs=tuple(self.evidence_refs),
             graph_path_refs=tuple(self.graph_path_refs),
             source_anchor_refs=tuple(self.source_anchor_refs),
+            customer_context_refs=(),
             confidence=self.confidence,
             limitations=tuple(self.limitations),
             criterion=self.criterion,
         )
+
+
+class InvestigatorRequirementMetClaim(_InvestigatorDecidedClaim):
+    """RULE_REQUIREMENT_MET: the criterion IS satisfied."""
+
+    claim_type: Literal[ENGINEERING_EVIDENCE_CLAIM_TYPES["requirement_met"]]
+    value: Literal[True]
+
+
+class InvestigatorRequirementNotMetClaim(_InvestigatorDecidedClaim):
+    """RULE_REQUIREMENT_NOT_MET: the criterion is NOT satisfied."""
+
+    claim_type: Literal[ENGINEERING_EVIDENCE_CLAIM_TYPES["requirement_not_met"]]
+    value: Literal[False]
+
+
+class InvestigatorUnresolvedClaim(_InvestigatorClaimIdentity):
+    """UNRESOLVED_ENGINEERING_FACT: technical evidence cannot decide the criterion.
+
+    `limitations` overrides the identity base's field with `min_length=1` — the exact
+    field that produced the real-run failure this shape exists to close. It is a plain
+    field constraint now, not a post-hoc "empty list" check: an empty `limitations` is not
+    a representable UNRESOLVED claim.
+    """
+
+    claim_type: Literal[ENGINEERING_EVIDENCE_CLAIM_TYPES["unresolved"]]
+    value: None = None
+    criterion: str | None = Field(default=None, max_length=500)
+    confidence: float = Field(ge=0, le=1)
+    evidence_refs: list[str] = Field(default_factory=list, max_length=100)
+    graph_path_refs: list[str] = Field(default_factory=list, max_length=100)
+    source_anchor_refs: list[str] = Field(default_factory=list, max_length=100)
+    limitations: list[Literal[*_INVESTIGATOR_LIMITATION_CODE_VALUES]] = Field(
+        min_length=1, max_length=50
+    )
+
+    def to_evidence_claim(self) -> EvidenceClaim:
+        return EvidenceClaim(
+            claim_id=self.claim_id,
+            engineering_rule_id=self.engineering_rule_id,
+            claim_type=self.claim_type,
+            value=self.value,
+            evidence_refs=tuple(self.evidence_refs),
+            graph_path_refs=tuple(self.graph_path_refs),
+            source_anchor_refs=tuple(self.source_anchor_refs),
+            customer_context_refs=(),
+            confidence=self.confidence,
+            limitations=tuple(self.limitations),
+            criterion=self.criterion,
+        )
+
+
+class InvestigatorScopeNotApplicableClaim(_InvestigatorClaimIdentity):
+    """RULE_SCOPE_NOT_APPLICABLE: the EngineeringRule does not apply to this system.
+
+    `customer_context_refs` is required (`min_length=1`) rather than checked after the
+    fact, and `evidence_refs`/`graph_path_refs`/`source_anchor_refs` are declared with
+    `max_length=0` rather than omitted: omitting the fields entirely would make even an
+    explicit `[]` (a completely reasonable caller default) an "extra fields not permitted"
+    error, while `max_length=0` structurally forces them empty without forbidding the key.
+    `relax_array_upper_bounds` preserves `maxItems: 0` for exactly this reason.
+    """
+
+    claim_type: Literal[ENGINEERING_EVIDENCE_CLAIM_TYPES["rule_scope_not_applicable"]]
+    value: None = None
+    criterion: str | None = Field(default=None, max_length=500)
+    confidence: float = Field(ge=0, le=1)
+    evidence_refs: list[str] = Field(default_factory=list, max_length=0)
+    graph_path_refs: list[str] = Field(default_factory=list, max_length=0)
+    source_anchor_refs: list[str] = Field(default_factory=list, max_length=0)
+    customer_context_refs: list[str] = Field(min_length=1, max_length=100)
+
+    def to_evidence_claim(self) -> EvidenceClaim:
+        return EvidenceClaim(
+            claim_id=self.claim_id,
+            engineering_rule_id=self.engineering_rule_id,
+            claim_type=self.claim_type,
+            value=self.value,
+            evidence_refs=(),
+            graph_path_refs=(),
+            source_anchor_refs=(),
+            customer_context_refs=tuple(self.customer_context_refs),
+            confidence=self.confidence,
+            limitations=tuple(self.limitations),
+            criterion=self.criterion,
+        )
+
+
+# Plain `Union` (no `Field(discriminator=...)`): pydantic renders this as JSON Schema
+# `anyOf`, not `oneOf` + a `discriminator` extension. `langchain_google_genai` has
+# explicit, tested handling for `anyOf` in its schema conversion; it has none at all for
+# `oneOf`/`discriminator` (verified against the installed library — see
+# test_investigator_claim_union_uses_anyof_not_oneof_discriminator). `InvestigatorClaim`
+# stays the public name so every existing import/type-hint keeps working unchanged; it is
+# no longer directly instantiable as a class, only usable as a type/annotation — the four
+# concrete classes above are what callers and tests construct.
+InvestigatorClaim = (
+    InvestigatorRequirementMetClaim
+    | InvestigatorRequirementNotMetClaim
+    | InvestigatorUnresolvedClaim
+    | InvestigatorScopeNotApplicableClaim
+)
 
 
 class BusinessContextNeed(BaseModel):
@@ -392,6 +554,10 @@ __all__ = [
     "InterviewQuestionResult",
     "InterviewResult",
     "InvestigatorClaim",
+    "InvestigatorRequirementMetClaim",
+    "InvestigatorRequirementNotMetClaim",
+    "InvestigatorScopeNotApplicableClaim",
+    "InvestigatorUnresolvedClaim",
     "InvestigatorResult",
     "PlannerResult",
     "ProvenanceRef",

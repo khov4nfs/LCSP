@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Iterable
 
 from tools.common.capabilities.platform.logging import get_logger
-from middleware.redaction import SENSITIVE_KEY_PATTERN, redact_string
+from middleware.redaction import is_sensitive_key_name, redact_string
 from tools.common.capabilities.evidence.scanner.tools.common.tool_base import (
     NOT_RUN_VERSION,
     OUTCOME_SUCCESS,
@@ -237,7 +237,7 @@ def assert_subprocess_env_safe(env: dict[str, str]) -> None:
     if set(env.keys()) != {"PATH"}:
         raise AssertionError("TS/JS analyzer subprocess env must contain PATH only")
     for key, value in env.items():
-        if key != "PATH" or SENSITIVE_KEY_PATTERN.search(key) or redact_string(value) != value:
+        if key != "PATH" or is_sensitive_key_name(key) or redact_string(value) != value:
             raise AssertionError("TS/JS analyzer subprocess env contains a secret")
 
 

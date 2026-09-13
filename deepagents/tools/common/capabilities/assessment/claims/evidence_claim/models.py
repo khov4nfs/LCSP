@@ -9,6 +9,7 @@ ENGINEERING_EVIDENCE_CLAIM_TYPES = {
     "requirement_met": "RULE_REQUIREMENT_MET",
     "requirement_not_met": "RULE_REQUIREMENT_NOT_MET",
     "unresolved": "UNRESOLVED_ENGINEERING_FACT",
+    "rule_scope_not_applicable": "RULE_SCOPE_NOT_APPLICABLE",
 }
 
 # Keep these values in parity with @lcsp/contracts/scan ENGINEERING_LIMITATION_CODES.
@@ -52,6 +53,8 @@ class EvidenceClaim:
     confidence: float = 0.0
     limitations: tuple[str, ...] = ()
     criterion: str | None = None
+    # Appended to preserve positional construction compatibility at this boundary.
+    customer_context_refs: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

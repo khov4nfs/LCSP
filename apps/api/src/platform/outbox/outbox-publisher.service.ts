@@ -13,6 +13,7 @@ import {
   TARGETED_REANALYSIS_CAPACITY_POLICY,
 } from "@lcsp/contracts/scan";
 import {
+  HttpException,
   Injectable,
   Logger,
   type OnModuleDestroy,
@@ -148,7 +149,8 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
               await this.outboxRepository.markPublished(tx, message.id, now);
             } catch (error) {
               const nextAttempts = message.attempts + 1;
-              const reason = (error as Error).message;
+              const failureDetails = describeOutboxError(error);
+              const reason = failureDetails.message;
               const messageMaxAttempts = maxAttemptsFor(message, maxAttempts);
               const nextAttemptAt =
                 nextAttempts >= messageMaxAttempts
@@ -185,7 +187,7 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
                 nextAttemptAt,
               });
               this.logger.error(
-                `Outbox message ${message.id} publish failed (attempt ${nextAttempts}/${maxAttempts}): ${reason}`,
+                `Outbox message ${message.id} publish failed (attempt ${nextAttempts}/${maxAttempts}): ${reason} error_type=${failureDetails.type} error_code=${failureDetails.code ?? "UNKNOWN"}`,
               );
             }
           }
@@ -254,6 +256,51 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
       },
     });
   }
+}
+
+/**
+ * Extracts non-sensitive exception metadata for outbox failure logs. Payloads are
+ * intentionally excluded so operators can diagnose exception class and problem
+ * code without leaking event data.
+ *
+ * @param error - Unknown caught publication/local-handler error.
+ * @returns Bounded error message, exception type, and optional problem code.
+ */
+function describeOutboxError(error: unknown): {
+  message: string;
+  type: string;
+  code?: string;
+} {
+  const message = error instanceof Error ? error.message : String(error);
+  const type =
+    error instanceof Error && error.constructor.name
+      ? error.constructor.name
+      : typeof error;
+
+  if (error instanceof HttpException) {
+    const response = error.getResponse();
+    const code = readProblemCode(response);
+    return code ? { message, type, code } : { message, type };
+  }
+
+  return { message, type };
+}
+
+/**
+ * Reads a standard API problem code from an unknown Nest exception response.
+ *
+ * @param response - Value returned by HttpException.getResponse().
+ * @returns Stable problem code when present.
+ */
+function readProblemCode(response: unknown): string | undefined {
+  if (!response || typeof response !== "object") {
+    return undefined;
+  }
+  const problem = (response as Record<string, unknown>).problem;
+  if (!problem || typeof problem !== "object") {
+    return undefined;
+  }
+  return readString((problem as Record<string, unknown>).code);
 }
 
 /**

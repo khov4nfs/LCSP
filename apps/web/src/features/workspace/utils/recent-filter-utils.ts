@@ -27,5 +27,5 @@ export function getVisibleRecentAssessments(
     );
   }
 
-  return sorted.slice(0, 3);
+  return sorted;
 }

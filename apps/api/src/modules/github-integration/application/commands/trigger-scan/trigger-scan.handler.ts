@@ -146,6 +146,15 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
       return this.resolveExisting(command, existing);
     }
 
+    const activeExisting =
+      await this.scanJobRepository.findActiveByAssessmentAndSnapshot({
+        assessmentId: command.assessmentId,
+        snapshotId: snapshot.id,
+      });
+    if (activeExisting) {
+      return this.resolveActiveDuplicate(command, activeExisting);
+    }
+
     if (
       fromPrismaAssessmentStatus(assessment.status) !==
       ASSESSMENT_STATUS_CODES.wizardSubmitted
@@ -268,10 +277,21 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
     command: TriggerScanCommand,
     existing: RepositoryScanJob,
   ): Promise<TriggerScanDto> {
-    if (
+    const commandSnapshotId = clean(command.snapshotId);
+    const hasMaterialConflict =
       existing.assessmentId !== command.assessmentId ||
-      existing.snapshotId !== clean(command.snapshotId) ||
-      existing.triggerSource !== command.triggerSource
+      existing.snapshotId !== commandSnapshotId;
+    const hasTriggerSourceConflict =
+      existing.triggerSource !== command.triggerSource;
+
+    if (
+      hasMaterialConflict ||
+      (hasTriggerSourceConflict &&
+        !isCompatibleSnapshotAutoTriggerDuplicate(
+          command,
+          existing,
+          commandSnapshotId,
+        ))
     ) {
       await this.auditRejected(
         command,
@@ -297,6 +317,43 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
         assessmentId: existing.assessmentId,
         snapshotId: existing.snapshotId,
         idempotencyKey: existing.idempotencyKey,
+        triggerSource: existing.triggerSource,
+        requestedTriggerSource: command.triggerSource,
+        correlationId: command.correlationId,
+      },
+    });
+    return this.toDto(existing, false, command.correlationId);
+  }
+
+  /**
+   * Returns an already-active scan job for the same assessment snapshot without enqueuing
+   * a second worker run. Unlike idempotency-key duplicate handling, this intentionally
+   * tolerates different trigger sources/keys so the snapshot-created auto-chain and an
+   * explicit client POST converge on one running job.
+   *
+   * @param command - Incoming scan-trigger command.
+   * @param existing - Active scan job for the same assessment/snapshot pair.
+   * @returns Existing scan job projected as a non-new response.
+   */
+  private async resolveActiveDuplicate(
+    command: TriggerScanCommand,
+    existing: RepositoryScanJob,
+  ): Promise<TriggerScanDto> {
+    await this.auditWriter.write({
+      eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggerDuplicateAudit,
+      actorId: command.actorId,
+      resourceType: AUDIT_RESOURCE_TYPES.repositoryScanJob,
+      resourceId: existing.id,
+      correlationId: command.correlationId,
+      decision: AUDIT_DECISIONS.allow,
+      payload: {
+        scanJobId: existing.id,
+        assessmentId: existing.assessmentId,
+        snapshotId: existing.snapshotId,
+        idempotencyKey: existing.idempotencyKey,
+        triggerSource: existing.triggerSource,
+        requestedIdempotencyKey: clean(command.idempotencyKey),
+        requestedTriggerSource: command.triggerSource,
         correlationId: command.correlationId,
       },
     });
@@ -377,6 +434,54 @@ function clean(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+/**
+ * Determines whether a snapshot-auto idempotency-key collision is the intentional
+ * convergence of the customer-triggered scan and trusted snapshot-created scan
+ * for the same assessment snapshot. Other key re-use remains a conflict.
+ *
+ * @param command - Incoming scan trigger command.
+ * @param existing - Existing job found by the same idempotency key.
+ * @param commandSnapshotId - Normalized incoming snapshot identifier.
+ * @returns True only for a same-assessment/same-snapshot MANUAL/TRUSTED pair.
+ */
+function isCompatibleSnapshotAutoTriggerDuplicate(
+  command: TriggerScanCommand,
+  existing: RepositoryScanJob,
+  commandSnapshotId: string | null,
+): boolean {
+  if (
+    existing.assessmentId !== command.assessmentId ||
+    existing.snapshotId !== commandSnapshotId ||
+    existing.idempotencyKey !== clean(command.idempotencyKey) ||
+    existing.idempotencyKey !==
+      buildSnapshotAutoIdempotencyKey(command.assessmentId, existing.snapshotId)
+  ) {
+    return false;
+  }
+
+  return (
+    (existing.triggerSource === REPOSITORY_SCAN_TRIGGER_SOURCES.manual &&
+      command.triggerSource === REPOSITORY_SCAN_TRIGGER_SOURCES.trusted) ||
+    (existing.triggerSource === REPOSITORY_SCAN_TRIGGER_SOURCES.trusted &&
+      command.triggerSource === REPOSITORY_SCAN_TRIGGER_SOURCES.manual)
+  );
+}
+
+/**
+ * Builds the deterministic snapshot auto-scan idempotency key shared by the web
+ * manual trigger and snapshot-created trusted trigger.
+ *
+ * @param assessmentId - Assessment associated with the snapshot.
+ * @param snapshotId - Snapshot to scan.
+ * @returns Stable idempotency key for the assessment/snapshot pair.
+ */
+function buildSnapshotAutoIdempotencyKey(
+  assessmentId: string,
+  snapshotId: string,
+): string {
+  return ["snapshot-auto", assessmentId, snapshotId].join(":");
 }
 
 /**

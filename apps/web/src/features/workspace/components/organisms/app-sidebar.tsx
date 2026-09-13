@@ -67,7 +67,8 @@ export function AppSidebar({
     [assessments, filters],
   );
   const newActive = pathname === "/assessments/new";
-  const artifactsActive = pathname === "/artifacts" || pathname.startsWith("/artifacts/");
+  const artifactsActive =
+    pathname === "/artifacts" || pathname.startsWith("/artifacts/");
 
   function updateFilter<Value extends string>(
     key: RecentFilterKey,
@@ -82,7 +83,7 @@ export function AppSidebar({
   return (
     <nav
       aria-label={resolveAppMessage("pages.appShell.workspaceNavigation")}
-      className="flex min-h-0 w-full flex-col bg-sidebar text-sidebar-foreground"
+      className="flex h-full min-h-0 w-full flex-col bg-sidebar text-sidebar-foreground"
       data-component="AppSidebar"
     >
       <SidebarHeaderControls
@@ -117,8 +118,8 @@ export function AppSidebar({
         />
       </div>
 
-      <section className="mt-3.5 min-h-0 flex-1 overflow-y-auto px-2.5 pb-12">
-        <div className="flex h-7 items-center">
+      <section className="mt-3.5 flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 pb-3">
+        <div className="flex h-7 shrink-0 items-center">
           <h2 className="ml-2 flex-1 text-[13px] leading-none font-medium text-sidebar-foreground/60">
             {resolveAppMessage("pages.appShell.recents")}
           </h2>
@@ -141,7 +142,10 @@ export function AppSidebar({
             text={resolveAppMessage("pages.appShell.recentFilter.error")}
           />
         ) : recentAssessments.length > 0 ? (
-          <div className="mt-4 flex flex-col gap-1">
+          <div
+            data-slot="sidebar-recents-scroll"
+            className="mt-4 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain"
+          >
             {recentAssessments.map((assessment) => (
               <RecentAssessmentItem
                 key={assessment.id}

@@ -437,6 +437,7 @@ function engineeringAssessmentRuntimeOutputSummary(input: {
       compliant: nonNegativeInteger(summary.compliant),
       nonCompliant: nonNegativeInteger(summary.non_compliant),
       unknown: nonNegativeInteger(summary.unknown),
+      notApplicable: nonNegativeInteger(summary.not_applicable),
       total: nonNegativeInteger(summary.total),
     },
     limitations: stringArray(input.classificationData.limitations),

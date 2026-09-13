@@ -454,7 +454,35 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
   });
 
   it("uses internal guarded decision write-back and blocks false ready", async () => {
-    await seedWaitingQuestion(prisma);
+    // A direct-ASK BOOLEAN answer (predefined choice, no comment) so the
+    // customerConfirmed sub-case below stays directLosslessCustomerStatement per
+    // the tightened FREE_TEXT/Other authority rule (docs/../lcsp-tighten-direct-lossless.md);
+    // this test is about guarded decision write-back plumbing, not authority tightening.
+    await seedUsableTechnicalCoverage(prisma);
+    const seededQuestion = await httpRequest(app)
+      .post("/internal/assessment-interviews/assessment-1/initial-question")
+      .set("x-worker-api-key", WORKER_KEY)
+      .send({
+        technicalEvidenceReportId: "report-interview-ready",
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        activeQuestion: {
+          id: QUESTION_ID,
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+          control: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+          prompt: "Is human approval required?",
+          frontier: {
+            owner: INTERVIEW_FRONTIER_OWNERS.customer,
+            materiality: INTERVIEW_FRONTIER_MATERIALITIES.material,
+            description: "Is human approval required?",
+          },
+        },
+      });
+    assert.equal(
+      seededQuestion.status,
+      201,
+      JSON.stringify(seededQuestion.body),
+    );
+
     const answered = await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
@@ -464,8 +492,8 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
           expectedSessionRevision: 0,
           clientRequestId: "client-request-guarded-answer",
           answer: {
-            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
-            text: "Human approval is required.",
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+            value: true,
           },
         }),
       );
@@ -650,6 +678,144 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
     );
   });
 
+  it("exposes a prior Other/comment answer verbatim to the worker without leaking it into publicState", async () => {
+    await seedUsableTechnicalCoverage(prisma);
+    const seededFirst = await httpRequest(app)
+      .post("/internal/assessment-interviews/assessment-1/initial-question")
+      .set("x-worker-api-key", WORKER_KEY)
+      .send({
+        technicalEvidenceReportId: "report-interview-ready",
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        activeQuestion: {
+          id: "q-hosting",
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+          control: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+          prompt: "Where is this system hosted?",
+          choices: [
+            { id: "standard", label: "Standard cloud hosting" },
+            { id: "other", label: "Other", requiresFreeText: true },
+          ],
+          frontier: {
+            owner: INTERVIEW_FRONTIER_OWNERS.customer,
+            materiality: INTERVIEW_FRONTIER_MATERIALITIES.material,
+            description: "Where is this system hosted?",
+          },
+        },
+      });
+    assert.equal(seededFirst.status, 201, JSON.stringify(seededFirst.body));
+
+    const otherComment =
+      "Hosted in a customer-managed region behind our own VPN.";
+    const firstAnswer = await httpRequest(app)
+      .post("/assessments/assessment-1/interview/answers")
+      .set("Authorization", `Bearer ${token}`)
+      .send(
+        submitAnswerCommand({
+          questionRef: "q-hosting",
+          expectedSessionRevision: 0,
+          clientRequestId: "client-request-other-comment",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+            value: "other",
+            comment: otherComment,
+          },
+        }),
+      );
+    assert.equal(firstAnswer.status, 201, JSON.stringify(firstAnswer.body));
+
+    const seededSecond = await httpRequest(app)
+      .post("/internal/assessment-interviews/assessment-1/agent-decisions")
+      .set("x-worker-api-key", WORKER_KEY)
+      .send({
+        expectedContextRevision: 1,
+        mode: ASSESSMENT_INTERVIEW_MODES.initialInterview,
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        contextAuthority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
+        activeQuestion: {
+          id: "q-followup",
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+          control: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+          prompt: "Is human approval required before deployment?",
+          frontier: {
+            owner: INTERVIEW_FRONTIER_OWNERS.customer,
+            materiality: INTERVIEW_FRONTIER_MATERIALITIES.material,
+            description: "Is human approval required before deployment?",
+          },
+        },
+      });
+    assert.equal(seededSecond.status, 201, JSON.stringify(seededSecond.body));
+
+    const secondAnswer = await httpRequest(app)
+      .post("/assessments/assessment-1/interview/answers")
+      .set("Authorization", `Bearer ${token}`)
+      .send(
+        submitAnswerCommand({
+          questionRef: "q-followup",
+          expectedSessionRevision: 1,
+          clientRequestId: "client-request-followup-answer",
+          answer: {
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+            value: true,
+          },
+        }),
+      );
+    assert.equal(secondAnswer.status, 201, JSON.stringify(secondAnswer.body));
+
+    const privateContext = await httpRequest(app)
+      .get("/internal/assessment-interviews/assessment-1/private-context/2")
+      .set("x-worker-api-key", WORKER_KEY);
+    assert.equal(
+      privateContext.status,
+      200,
+      JSON.stringify(privateContext.body),
+    );
+    const workerContext = successBody<{
+      priorAnswerHistory: Array<Record<string, unknown>>;
+      priorAnswerHistoryOmittedCount: number;
+      publicState: { answerHistory: Array<Record<string, unknown>> };
+    }>(privateContext);
+
+    assert.equal(workerContext.priorAnswerHistory.length, 1);
+    assert.equal(workerContext.priorAnswerHistoryOmittedCount, 0);
+    assert.deepEqual(workerContext.priorAnswerHistory[0]?.selectedChoiceIds, [
+      "other",
+    ]);
+    assert.equal(workerContext.priorAnswerHistory[0]?.comment, otherComment);
+
+    const publicAnswerHistory = workerContext.publicState.answerHistory;
+    assert.equal(publicAnswerHistory.length, 2);
+    const firstPublicEntry = publicAnswerHistory.find(
+      (entry) => entry.questionId === "q-hosting",
+    );
+    assert.ok(firstPublicEntry, "expected a public entry for q-hosting");
+    assert.doesNotMatch(
+      JSON.stringify(firstPublicEntry),
+      /customer-managed region|VPN/u,
+    );
+    assert.equal(firstPublicEntry?.comment, undefined);
+    assert.equal(firstPublicEntry?.selectedChoiceIds, undefined);
+
+    const runtimeEvents = await prisma.assessmentRuntimeEvent.findMany({
+      where: { assessmentId: "assessment-1" },
+    });
+    for (const event of runtimeEvents) {
+      assert.doesNotMatch(
+        JSON.stringify(event.inputSummaryJson) +
+          JSON.stringify(event.outputSummaryJson),
+        /customer-managed region|VPN/u,
+      );
+    }
+    const auditEvents = await prisma.auditEvent.findMany({
+      where: { resourceId: "assessment-1" },
+    });
+    for (const event of auditEvents) {
+      assert.doesNotMatch(
+        JSON.stringify(event.payload),
+        /customer-managed region|VPN/u,
+      );
+    }
+  });
+
   it("rejects answers that do not match the active runtime control", async () => {
     await seedUsableTechnicalCoverage(prisma);
     const seeded = await httpRequest(app)
@@ -722,7 +888,35 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
   });
 
   it("uses server-owned targeted criteria and continuation before exact resume", async () => {
-    await seedWaitingQuestion(prisma);
+    // A direct-ASK BOOLEAN answer (predefined choice, no comment) so the CONFIRMED
+    // claim below stays directLosslessCustomerStatement per the tightened
+    // FREE_TEXT/Other authority rule; this test is about targeted-need/continuation
+    // plumbing after CONTEXT_READY, not authority tightening.
+    await seedUsableTechnicalCoverage(prisma);
+    const seededQuestion = await httpRequest(app)
+      .post("/internal/assessment-interviews/assessment-1/initial-question")
+      .set("x-worker-api-key", WORKER_KEY)
+      .send({
+        technicalEvidenceReportId: "report-interview-ready",
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        activeQuestion: {
+          id: QUESTION_ID,
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+          control: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+          prompt: "Is there a baseline decision authority?",
+          frontier: {
+            owner: INTERVIEW_FRONTIER_OWNERS.customer,
+            materiality: INTERVIEW_FRONTIER_MATERIALITIES.material,
+            description: "Is there a baseline decision authority?",
+          },
+        },
+      });
+    assert.equal(
+      seededQuestion.status,
+      201,
+      JSON.stringify(seededQuestion.body),
+    );
+
     await httpRequest(app)
       .post("/assessments/assessment-1/interview/answers")
       .set("Authorization", `Bearer ${token}`)
@@ -732,8 +926,8 @@ describe("Assessment Interview Runtime (e2e) [LCSP-278]", () => {
           expectedSessionRevision: 0,
           clientRequestId: "client-request-targeted-baseline",
           answer: {
-            kind: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
-            text: RAW_ANSWER,
+            kind: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+            value: true,
           },
         }),
       );

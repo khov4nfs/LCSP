@@ -40,7 +40,7 @@ test("new assessment opens repository setup and removes the legacy details form"
 
   assert.match(page, /RepositorySetupStep/);
   assert.doesNotMatch(page, /CreateAssessmentForm/);
-  assert.match(setup, /GitProviderQuestion/);
+  assert.match(setup, /RepositorySetupConversation/);
   assert.match(setup, /connectAssessmentRepository/);
   assert.match(setup, /startRepositoryAnalysis/);
   assert.match(setup, /AssessmentComposer/);

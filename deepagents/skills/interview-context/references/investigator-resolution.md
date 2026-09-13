@@ -53,6 +53,28 @@ If any required field is missing, return `FAILED` with the corresponding limitat
 
 The opaque continuation/checkpoint remains with Assessment Orchestration and is not Interview reasoning context.
 
+## Downstream claim evidence contract
+
+The confirmed statement you resolve here does not stay inside Interview. Investigator re-enters
+with your `CUSTOMER_CONFIRMED` context and, when the resolved fact means the EngineeringRule does
+not apply to the Customer's system at all, closes it with an `InvestigatorClaim` of
+`claim_type: RULE_SCOPE_NOT_APPLICABLE`. That claim type is deterministically rejected unless its
+`customer_context_refs` resolve to a statement Interview actually confirmed — a vague or
+unresolved statement leaves the claim, and the EngineeringRule, permanently unable to close.
+
+So when you return `CONTEXT_RESOLVED`:
+
+- Persist the confirmed statement as one concrete, machine-matchable fact (the same discipline as
+  `resolutionCriteria` topic keys above — exact and referenceable, never a restatement of the
+  question), so Investigator has a stable ref to cite.
+- Do not return `CONTEXT_RESOLVED` for a fact that is directionally true but not concretely
+  confirmed; Investigator cannot invent the missing precision on your behalf, and the gate does
+  not accept an approximate ref.
+- This is the same evidence discipline Investigator itself follows for technical claims: every
+  `evidence_refs`/`graph_path_refs`/`source_anchor_refs` entry it cites must resolve to a real
+  node/edge in the pinned Program Evidence Graph, never a paraphrase. Your confirmed statement is
+  the Customer-context equivalent of that same rule.
+
 ## Flow
 
 ```text

@@ -1,5 +1,8 @@
 import pytest
 
+from tools.common.capabilities.assessment.claims.evidence_claim.models import (
+    ENGINEERING_LIMITATION_CODES,
+)
 from tools.common.capabilities.assessment.investigation.engineering_rule import (
     managed_targeted_investigator as managed,
 )
@@ -148,6 +151,9 @@ def test_exact_resume_serializes_confirmed_structured_context(monkeypatch) -> No
                         "value": None,
                         "evidence_refs": ["evidence:1"],
                         "confidence": 0.5,
+                        "limitations": [
+                            ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
+                        ],
                     }
                 ],
                 "limitations": [],

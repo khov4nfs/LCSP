@@ -4,6 +4,7 @@ import {
   ASSESSMENT_INTERVIEW_FLAGS,
   ASSESSMENT_INTERVIEW_OUTCOMES,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
+  ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
@@ -54,6 +55,8 @@ import {
   ARTIFACT_TYPES,
 } from "../../artifacts/types/artifact.types";
 import { stageLabel } from "./assessment-runtime-formatter";
+import { runtimeActivityDisplaySummary } from "./runtime-activity-summary";
+import { ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES } from "../config/runtime-activity";
 import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 import { appLocale } from "../../../lib/locale";
 
@@ -421,23 +424,17 @@ function normalizeWorkflowSteps({
       detail: null,
     } satisfies NormalizedWorkflowStep] as const),
   ]);
-  const stageId = (stage: string) =>
-    stage === ASSESSMENT_RUNTIME_STAGE_CODES.snapshot
-      ? ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository
-      : stage === ASSESSMENT_RUNTIME_STAGE_CODES.scan
-        ? ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner
-        : stage;
   for (const activity of [...recentActivity].reverse()) {
-    const id = stageId(activity.stage);
+    const id = workflowStepIdForRuntimeActivity(activity);
     steps.set(id, {
       id,
       label: steps.has(id) ? steps.get(id)!.label : stageLabel(activity.stage),
-      status: normalizeStepStatus(activity.runStatus),
-      detail: activity.summary || null,
+      status: normalizeActivityStepStatus(activity),
+      detail: activity.summary ? runtimeActivityDisplaySummary(activity) : null,
     });
   }
   if (currentRun) {
-    const id = stageId(currentRun.stage);
+    const id = workflowStepIdForRun(currentRun);
     steps.set(id, {
       id,
       label: steps.has(id) ? steps.get(id)!.label : stageLabel(currentRun.stage),
@@ -445,7 +442,98 @@ function normalizeWorkflowSteps({
       detail: null,
     });
   }
+  completeQueuedPredecessors(steps);
   return [...steps.values()];
+}
+
+function workflowStepIdForRun(run: WorkspaceRuntimeRun): string {
+  const activeToolName =
+    run.activeTools.find((tool) =>
+      tool.toolName.startsWith(ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.investigator),
+    )?.toolName ??
+    run.activeTools.find((tool) =>
+      tool.toolName.startsWith(ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.planner),
+    )?.toolName ??
+    null;
+  return workflowStepIdForStage(run.stage, activeToolName);
+}
+
+function workflowStepIdForRuntimeActivity(
+  activity: WorkspaceRuntimeActivityItem,
+): string {
+  return workflowStepIdForStage(activity.stage, activity.toolName);
+}
+
+function workflowStepIdForStage(stage: string, toolName: string | null): string {
+  if (stage === ASSESSMENT_RUNTIME_STAGE_CODES.snapshot) {
+    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository;
+  }
+  if (stage === ASSESSMENT_RUNTIME_STAGE_CODES.scan) {
+    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner;
+  }
+  if (stage === ASSESSMENT_RUNTIME_STAGE_CODES.interview) {
+    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview;
+  }
+  if (stage !== ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence) {
+    return stage;
+  }
+  if (toolName?.startsWith(ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.investigator)) {
+    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate;
+  }
+  if (toolName?.startsWith(ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.planner)) {
+    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner;
+  }
+  return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules;
+}
+
+function normalizeActivityStepStatus(
+  activity: WorkspaceRuntimeActivityItem,
+): NormalizedWorkflowStep["status"] {
+  if (
+    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted ||
+    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped ||
+    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted
+  ) {
+    return NORMALIZED_WORKFLOW_STEP_STATUSES.completed;
+  }
+  if (
+    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed ||
+    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runFailed
+  ) {
+    return NORMALIZED_WORKFLOW_STEP_STATUSES.failed;
+  }
+  return normalizeStepStatus(activity.runStatus);
+}
+
+function completeQueuedPredecessors(
+  steps: Map<string, NormalizedWorkflowStep>,
+): void {
+  const orderedStages = [
+    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository,
+    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner,
+    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview,
+    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules,
+    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner,
+    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate,
+    ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate,
+  ] as const;
+  const lastActiveIndex = orderedStages.reduce((lastIndex, stage, index) => {
+    const status = steps.get(stage)?.status;
+    return status && status !== NORMALIZED_WORKFLOW_STEP_STATUSES.queued
+      ? index
+      : lastIndex;
+  }, -1);
+
+  for (const stage of orderedStages.slice(0, lastActiveIndex)) {
+    const step = steps.get(stage);
+    if (!step || step.status !== NORMALIZED_WORKFLOW_STEP_STATUSES.queued) {
+      continue;
+    }
+    steps.set(stage, {
+      ...step,
+      status: NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
+    });
+  }
 }
 
 function normalizeStepStatus(status: string) {

@@ -10,15 +10,20 @@ PROVIDER_KEY_ENV = {
 }
 
 
-def provider_tokens(provider: str) -> tuple[str, ...]:
+def provider_token_source(provider: str) -> tuple[str, tuple[str, ...]] | None:
     for name in PROVIDER_KEY_ENV.get(provider, ()):
         value = os.getenv(name, "").strip()
         if value:
             tokens = tuple(dict.fromkeys(part.strip() for part in value.split(",") if part.strip()))
             if not tokens:
                 raise ValueError(f"{name} must contain at least one API token")
-            return tokens
-    return ()
+            return name, tokens
+    return None
+
+
+def provider_tokens(provider: str) -> tuple[str, ...]:
+    source = provider_token_source(provider)
+    return source[1] if source is not None else ()
 
 
 def credential_init_kwargs(provider: str) -> dict[str, object]:

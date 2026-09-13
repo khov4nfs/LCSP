@@ -17,7 +17,14 @@ def _request(model, response_format):
     request = MagicMock()
     request.model = model
     request.response_format = response_format
-    request.override = MagicMock(side_effect=lambda **kwargs: _request(model, kwargs["response_format"]))
+    request.model_settings = {}
+
+    def _override(**kwargs):
+        forwarded = _request(model, kwargs.get("response_format", response_format))
+        forwarded.model_settings = kwargs.get("model_settings", request.model_settings)
+        return forwarded
+
+    request.override = MagicMock(side_effect=_override)
     return request
 
 
@@ -36,18 +43,31 @@ def test_relaxing_removes_every_array_upper_bound_and_keeps_other_constraints() 
     schema = InvestigatorResult.model_json_schema()
     relaxed = relax_array_upper_bounds(schema)
 
-    def upper_bounds(node) -> int:
+    def positive_upper_bounds(node) -> int:
         if isinstance(node, dict):
-            return ("maxItems" in node) + sum(upper_bounds(value) for value in node.values())
+            hit = 1 if node.get("maxItems", 0) not in (0,) else 0
+            return hit + sum(positive_upper_bounds(value) for value in node.values())
         if isinstance(node, list):
-            return sum(upper_bounds(value) for value in node)
+            return sum(positive_upper_bounds(value) for value in node)
         return 0
 
-    assert upper_bounds(schema) > 0
-    assert upper_bounds(relaxed) == 0
+    assert positive_upper_bounds(schema) > 0
+    # Every expansion-costly (>0) maxItems is gone...
+    assert positive_upper_bounds(relaxed) == 0
+    # ...but the 3 maxItems:0 on InvestigatorScopeNotApplicableClaim are a shape contract
+    # (that claim_type must not carry these refs at all), not an expansion-cost bound, and
+    # must survive relaxation untouched.
+    scope_properties = relaxed["$defs"]["InvestigatorScopeNotApplicableClaim"]["properties"]
+    for field in ("evidence_refs", "graph_path_refs", "source_anchor_refs"):
+        assert scope_properties[field]["maxItems"] == 0, field
     # Lower bounds and value ranges cost the provider nothing, so they must survive.
     assert relaxed["properties"]["claims"]["items"] == schema["properties"]["claims"]["items"]
-    assert relaxed["$defs"]["InvestigatorClaim"]["properties"]["confidence"]["maximum"] == 1
+    assert (
+        relaxed["$defs"]["InvestigatorRequirementMetClaim"]["properties"]["confidence"][
+            "maximum"
+        ]
+        == 1
+    )
     assert relaxed["$defs"]["BusinessContextNeed"]["properties"]["resolution_criteria"]["minItems"] == 1
 
 
@@ -87,6 +107,9 @@ async def test_gemini_receives_a_relaxed_schema_in_the_same_strategy(asynchronou
     forwarded = handler.call_args.args[0].response_format
     assert isinstance(forwarded, ProviderStrategy)
     assert forwarded.schema == relax_array_upper_bounds(InvestigatorResult.model_json_schema())
+    assert handler.call_args.args[0].model_settings["automatic_function_calling"] == {
+        "disable": True
+    }
 
 
 def test_a_tool_strategy_keeps_its_own_strategy_type() -> None:
@@ -111,12 +134,14 @@ def test_openai_requests_are_forwarded_untouched() -> None:
     assert request.override.call_count == 0
 
 
-def test_a_schema_without_array_upper_bounds_is_forwarded_untouched() -> None:
+def test_a_schema_without_array_upper_bounds_still_disables_gemini_afc() -> None:
     middleware = ProviderSchemaCompatibilityMiddleware()
     request = _request(_gemini(), {"type": "object", "properties": {"status": {"type": "string"}}})
     handler = MagicMock()
 
     middleware.wrap_model_call(request, handler)
 
-    assert handler.call_args.args[0] is request
-    assert request.override.call_count == 0
+    assert handler.call_args.args[0].response_format is request.response_format
+    assert handler.call_args.args[0].model_settings["automatic_function_calling"] == {
+        "disable": True
+    }

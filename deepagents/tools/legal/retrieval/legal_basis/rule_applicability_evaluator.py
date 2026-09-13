@@ -12,6 +12,12 @@ UNKNOWN_FACT_VALUES = {
     "NOT_DETERMINABLE_FROM_CODE",
 }
 
+RULE_APPLICABILITY_STATUSES = {
+    "matched": "MATCHED",
+    "not_applicable": "NOT_APPLICABLE",
+    "blocked_unknown_fact": "BLOCKED_UNKNOWN_FACT",
+}
+
 
 @dataclass(slots=True)
 class RuleEvaluationResult:
@@ -133,7 +139,7 @@ class RuleApplicabilityEvaluator:
         if blocking_present:
             return RuleEvaluationResult(
                 rule_id=rule_id,
-                status="NOT_APPLICABLE",
+                status=RULE_APPLICABILITY_STATUSES["not_applicable"],
                 confidence=0.0,
                 rationale=rationale + ["blocking fact matched"],
                 matched_required_facts=matched_required_facts,
@@ -143,7 +149,7 @@ class RuleApplicabilityEvaluator:
         if unresolved_blocking_facts and unknown_fact_policy == "BLOCK_ON_UNKNOWN":
             return RuleEvaluationResult(
                 rule_id=rule_id,
-                status="BLOCKED_UNKNOWN_FACT",
+                status=RULE_APPLICABILITY_STATUSES["blocked_unknown_fact"],
                 confidence=0.0,
                 rationale=rationale,
                 matched_required_facts=matched_required_facts,
@@ -153,7 +159,7 @@ class RuleApplicabilityEvaluator:
         if unbacked_required_facts:
             return RuleEvaluationResult(
                 rule_id=rule_id,
-                status="BLOCKED_UNKNOWN_FACT",
+                status=RULE_APPLICABILITY_STATUSES["blocked_unknown_fact"],
                 confidence=0.0,
                 rationale=rationale,
                 matched_required_facts=matched_required_facts,
@@ -162,9 +168,9 @@ class RuleApplicabilityEvaluator:
 
         if unknown_required_facts:
             status = (
-                "BLOCKED_UNKNOWN_FACT"
+                RULE_APPLICABILITY_STATUSES["blocked_unknown_fact"]
                 if unknown_fact_policy == "BLOCK_ON_UNKNOWN"
-                else "NOT_APPLICABLE"
+                else RULE_APPLICABILITY_STATUSES["not_applicable"]
             )
             return RuleEvaluationResult(
                 rule_id=rule_id,
@@ -178,7 +184,7 @@ class RuleApplicabilityEvaluator:
         if mismatched_required_facts:
             return RuleEvaluationResult(
                 rule_id=rule_id,
-                status="NOT_APPLICABLE",
+                status=RULE_APPLICABILITY_STATUSES["not_applicable"],
                 confidence=0.0,
                 rationale=rationale,
                 matched_required_facts=matched_required_facts,
@@ -190,7 +196,7 @@ class RuleApplicabilityEvaluator:
 
         return RuleEvaluationResult(
             rule_id=rule_id,
-            status="MATCHED",
+            status=RULE_APPLICABILITY_STATUSES["matched"],
             confidence=0.95,
             rationale=rationale,
             matched_required_facts=matched_required_facts,
@@ -202,7 +208,7 @@ def blocked_invalid_rule(rule_id: str, reason: str) -> RuleEvaluationResult:
     """Fail closed for malformed/incomplete rule definitions."""
     return RuleEvaluationResult(
         rule_id=rule_id,
-        status="BLOCKED_UNKNOWN_FACT",
+        status=RULE_APPLICABILITY_STATUSES["blocked_unknown_fact"],
         confidence=0.0,
         rationale=[reason],
         matched_required_facts=[],
