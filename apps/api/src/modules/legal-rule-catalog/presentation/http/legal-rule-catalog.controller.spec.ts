@@ -102,4 +102,45 @@ describe("LegalRuleCatalogController official source snapshots", () => {
       data: { snapshotRef: "snapshot:law:abc" },
     });
   });
+
+  it("forwards worker preparation completion to the admin projection", async () => {
+    const adminCorpusVersions = {
+      completePreparation: jest
+        .fn<(input: unknown) => Promise<unknown>>()
+        .mockResolvedValue({
+          id: "prep-1",
+          corpusVersionId: "corpus-1",
+          status: "COMPLETED",
+        }),
+    };
+    const controller = new LegalRuleCatalogController(
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      adminCorpusVersions as never,
+    );
+    await expect(
+      controller.preparationCallback(
+        "corpus-1",
+        {
+          preparationId: "prep-1",
+          status: "COMPLETED",
+          readiness: { SOURCE_PARSING: "PASSED" },
+        },
+        { correlationId: "corr-3" } as never,
+      ),
+    ).resolves.toEqual({
+      ok: true,
+      data: { id: "prep-1", corpusVersionId: "corpus-1", status: "COMPLETED" },
+    });
+    expect(adminCorpusVersions.completePreparation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        preparationId: "prep-1",
+        corpusVersionId: "corpus-1",
+        status: "COMPLETED",
+      }),
+    );
+  });
 });

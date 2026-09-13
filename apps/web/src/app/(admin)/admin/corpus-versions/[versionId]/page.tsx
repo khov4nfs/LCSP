@@ -1,5 +1,5 @@
 "use client";
-import { use } from "react";
+import { use, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +9,7 @@ import {
 import {
   useAdminCorpusVersionQuery,
   useDiscardAdminCorpusVersionMutation,
+  usePublishAdminCorpusVersionMutation,
 } from "@/lib/api/admin-corpus-versions-queries";
 import { resolveAppMessage } from "@/lib/i18n";
 import type { MessageKey } from "@lcsp/i18n";
@@ -21,6 +22,9 @@ export default function AdminCorpusVersionDetailRoute({
   const router = useRouter();
   const query = useAdminCorpusVersionQuery(versionId);
   const discard = useDiscardAdminCorpusVersionMutation(versionId);
+  const publish = usePublishAdminCorpusVersionMutation(versionId);
+  const publishKey = useRef<string | null>(null);
+  const discardKey = useRef<string | null>(null);
   if (query.isLoading) return <CorpusVersionsLoading />;
   if (query.error || !query.data)
     return (
@@ -41,13 +45,32 @@ export default function AdminCorpusVersionDetailRoute({
     <CorpusVersionDetailPage
       detail={query.data}
       onBack={() => router.push("/admin/corpus-versions")}
+      onPublish={() => {
+        const key =
+          publishKey.current ??
+          (publishKey.current = globalThis.crypto.randomUUID());
+        publish.mutate(key, {
+          onSuccess: () => {
+            publishKey.current = null;
+          },
+        });
+      }}
       onDiscard={() =>
-        discard.mutate(undefined, {
-          onSuccess: () => router.replace("/admin/corpus-versions"),
-        })
+        discard.mutate(
+          discardKey.current ??
+            (discardKey.current = globalThis.crypto.randomUUID()),
+          {
+            onSuccess: () => {
+              discardKey.current = null;
+              router.replace("/admin/corpus-versions");
+            },
+          },
+        )
       }
       isDiscarding={discard.isPending}
       discardFailed={discard.isError}
+      isPublishing={publish.isPending}
+      publishFailed={publish.isError}
     />
   );
 }

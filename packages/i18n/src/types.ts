@@ -2033,6 +2033,7 @@ export type PagesMessages = {
       detailTitle: string;
       currentMeta: string;
       create: string;
+      creating: string;
       createUnavailable: string;
       current: string;
       view: string;
@@ -2067,6 +2068,7 @@ export type PagesMessages = {
       engineeringRulesChanged: string;
       conflicts: string;
       publish: string;
+      publishing: string;
       publishUnavailable: string;
       discard: string;
       discardTitle: string;
@@ -2085,8 +2087,10 @@ export type PagesMessages = {
       };
       readinessStates: {
         READY: string;
+        PASSED: string;
         PENDING: string;
         FAILED: string;
+        BLOCKED: string;
         UNAVAILABLE: string;
       };
       readinessChecks: {

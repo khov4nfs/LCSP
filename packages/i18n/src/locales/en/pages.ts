@@ -2328,6 +2328,7 @@ export const enPages = {
       detailTitle: "Corpus version · {version}",
       currentMeta: "{count} sources · {publishedAt}",
       create: "Create new version",
+      creating: "Preparing...",
       createUnavailable:
         "A UI-safe authoritative creation workflow is not available.",
       current: "Current published version",
@@ -2363,6 +2364,7 @@ export const enPages = {
       engineeringRulesChanged: "EngineeringRules changed",
       conflicts: "Unresolved conflicts",
       publish: "Publish version",
+      publishing: "Publishing...",
       publishUnavailable:
         "Publication is unavailable until authoritative readiness is fully reported.",
       discard: "Discard draft",
@@ -2384,8 +2386,10 @@ export const enPages = {
       },
       readinessStates: {
         READY: "Passed",
+        PASSED: "Passed",
         PENDING: "Pending",
         FAILED: "Failed",
+        BLOCKED: "Blocked",
         UNAVAILABLE: "Unavailable",
       },
       readinessChecks: {
