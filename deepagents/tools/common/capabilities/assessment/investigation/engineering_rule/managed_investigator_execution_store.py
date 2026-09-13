@@ -10,8 +10,15 @@ from typing import Any
 import psycopg
 
 _TABLE = "lcsp_managed_investigator_execution"
-_WAITING = "WAITING"
-_READY = "READY"
+MANAGED_INVESTIGATOR_EXECUTION_STATUSES = {
+    "waiting": "WAITING",
+    "ready": "READY",
+    "rejected": "REJECTED",
+    "failed": "FAILED",
+}
+MANAGED_INVESTIGATOR_EXECUTION_STATUS_VALUES = frozenset(
+    MANAGED_INVESTIGATOR_EXECUTION_STATUSES.values()
+)
 
 
 @dataclass(frozen=True)
@@ -23,6 +30,8 @@ class ManagedInvestigatorExecutionRecord:
     affected_rule_ids: tuple[str, ...]
     artifact_versions: dict[str, str]
     status: str
+    attempt_count: int = 0
+    last_error: str | None = None
 
 
 class ManagedInvestigatorExecutionStore:
@@ -41,7 +50,8 @@ class ManagedInvestigatorExecutionStore:
             with connection.cursor() as cursor:
                 cursor.execute(
                     f"SELECT assessment_id, thread_id, checkpoint_id, "
-                    f"affected_rule_ids_json, artifact_versions_json, status FROM {_TABLE} "
+                    "affected_rule_ids_json, artifact_versions_json, status, "
+                    f"attempt_count, last_error FROM {_TABLE} "
                     "WHERE execution_id = %s",
                     (execution_id,),
                 )
@@ -55,6 +65,8 @@ class ManagedInvestigatorExecutionStore:
             affected_rule_ids_json,
             artifact_versions_json,
             status,
+            attempt_count,
+            last_error,
         ) = row
         return ManagedInvestigatorExecutionRecord(
             execution_id=execution_id,
@@ -64,6 +76,8 @@ class ManagedInvestigatorExecutionStore:
             affected_rule_ids=_string_tuple(_decode_json(affected_rule_ids_json)),
             artifact_versions=_string_map(_decode_json(artifact_versions_json)),
             status=str(status),
+            attempt_count=int(attempt_count or 0),
+            last_error=str(last_error) if last_error is not None else None,
         )
 
     def save(
@@ -76,9 +90,13 @@ class ManagedInvestigatorExecutionStore:
         affected_rule_ids: tuple[str, ...],
         artifact_versions: dict[str, str],
         status: str,
+        attempt_count: int = 0,
+        last_error: str | None = None,
     ) -> ManagedInvestigatorExecutionRecord:
-        if status not in {_WAITING, _READY}:
+        if status not in MANAGED_INVESTIGATOR_EXECUTION_STATUS_VALUES:
             raise ValueError(f"unsupported managed Investigator execution status: {status}")
+        if attempt_count < 0:
+            raise ValueError("managed Investigator execution attempt_count cannot be negative")
         if not execution_id or not assessment_id or not thread_id or not checkpoint_id:
             raise ValueError("managed Investigator execution identity is incomplete")
         if not affected_rule_ids:
@@ -97,11 +115,14 @@ class ManagedInvestigatorExecutionStore:
                 cursor.execute(
                     f"INSERT INTO {_TABLE} "
                     "(execution_id, assessment_id, thread_id, checkpoint_id, "
-                    "affected_rule_ids_json, artifact_versions_json, status) "
-                    "VALUES (%s, %s, %s, %s, %s, %s, %s) "
+                    "affected_rule_ids_json, artifact_versions_json, status, "
+                    "attempt_count, last_error) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
                     "ON CONFLICT (execution_id) DO UPDATE SET "
                     "checkpoint_id = EXCLUDED.checkpoint_id, "
                     "status = EXCLUDED.status, "
+                    "attempt_count = EXCLUDED.attempt_count, "
+                    "last_error = EXCLUDED.last_error, "
                     "updated_at = NOW() "
                     f"WHERE {_TABLE}.assessment_id = EXCLUDED.assessment_id "
                     f"AND {_TABLE}.thread_id = EXCLUDED.thread_id "
@@ -115,6 +136,8 @@ class ManagedInvestigatorExecutionStore:
                         rules_json,
                         artifacts_json,
                         status,
+                        attempt_count,
+                        last_error,
                     ),
                 )
                 if cursor.rowcount != 1:
@@ -133,6 +156,10 @@ class ManagedInvestigatorExecutionStore:
         with self._lock:
             if self._setup_done:
                 return
+            allowed_status_sql = ", ".join(
+                f"'{status}'"
+                for status in sorted(MANAGED_INVESTIGATOR_EXECUTION_STATUS_VALUES)
+            )
             with psycopg.connect(self._database_url) as connection:
                 with connection.cursor() as cursor:
                     cursor.execute(
@@ -145,11 +172,28 @@ class ManagedInvestigatorExecutionStore:
                             affected_rule_ids_json TEXT NOT NULL,
                             artifact_versions_json TEXT NOT NULL,
                             status TEXT NOT NULL,
+                            attempt_count INTEGER NOT NULL DEFAULT 0,
+                            last_error TEXT,
                             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                            CHECK (status IN ('{_WAITING}', '{_READY}'))
+                            CHECK (status IN ({allowed_status_sql}))
                         )
                         """
+                    )
+                    cursor.execute(
+                        f"ALTER TABLE {_TABLE} "
+                        "ADD COLUMN IF NOT EXISTS attempt_count INTEGER NOT NULL DEFAULT 0"
+                    )
+                    cursor.execute(
+                        f"ALTER TABLE {_TABLE} ADD COLUMN IF NOT EXISTS last_error TEXT"
+                    )
+                    cursor.execute(
+                        f"ALTER TABLE {_TABLE} DROP CONSTRAINT IF EXISTS "
+                        f"{_TABLE}_status_check"
+                    )
+                    cursor.execute(
+                        f"ALTER TABLE {_TABLE} ADD CONSTRAINT {_TABLE}_status_check "
+                        f"CHECK (status IN ({allowed_status_sql}))",
                     )
                 connection.commit()
             self._setup_done = True
@@ -180,6 +224,7 @@ def _string_tuple(value: Any) -> tuple[str, ...]:
 
 
 __all__ = [
+    "MANAGED_INVESTIGATOR_EXECUTION_STATUSES",
     "ManagedInvestigatorExecutionRecord",
     "ManagedInvestigatorExecutionStore",
 ]

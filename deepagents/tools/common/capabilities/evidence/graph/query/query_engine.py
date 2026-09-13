@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+import re
 from typing import Iterable
 
 from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
@@ -42,6 +43,30 @@ _HUMAN_RELATION_EDGES = frozenset(
 _AI_START_NODE_TYPES = frozenset(
     {"AI_MODEL_INVOCATION", "AI_OUTPUT", "MODEL_ENDPOINT", "AI_CAPABILITY", "MODEL"}
 )
+EVIDENCE_SEARCH_MATCH_MODES = {
+    "substring": "SUBSTRING",
+}
+EVIDENCE_SEARCH_MATCH_MODE_SUBSTRING = EVIDENCE_SEARCH_MATCH_MODES["substring"]
+
+
+def _substring_search_tokens(text: str | None) -> tuple[str, ...]:
+    """Return OR-matched substring tokens for model-authored PGE searches.
+
+    Search is explicitly substring-based rather than semantic. Splitting on
+    underscores/hyphens lets graphQuery identifiers such as
+    ``external_data_into_training`` still discover nodes labelled with the
+    underlying graph concepts (external/data/training).
+    """
+    if not text:
+        return ()
+    tokens = tuple(
+        dict.fromkeys(
+            token.lower()
+            for token in re.findall(r"[A-Za-z0-9]+", str(text))
+            if token
+        )
+    )
+    return tokens or (str(text).lower(),)
 
 
 @dataclass(frozen=True)
@@ -79,6 +104,7 @@ class GraphNodeSearchResult:
     continuation_frontiers: list[str]
     unresolved_frontiers: list[str]
     evidence_refs: list[str]
+    match_mode: str = EVIDENCE_SEARCH_MATCH_MODE_SUBSTRING
 
     def __iter__(self):
         return iter(self.nodes)
@@ -96,6 +122,7 @@ class GraphNodeSearchResult:
             "continuationFrontiers": self.continuation_frontiers,
             "unresolvedFrontiers": self.unresolved_frontiers,
             "evidenceRefs": self.evidence_refs,
+            "matchMode": self.match_mode,
         }
 
 
@@ -134,7 +161,7 @@ class ProgramGraphQueryEngine:
         kinds = set(node_types)
         semantics = set(semantic_types)
         prefixes = tuple(path_prefixes)
-        needle = text.lower() if text else None
+        needles = _substring_search_tokens(text)
         limit = max(1, int(max_results))
         rows: list[dict] = []
         continuation: list[str] = []
@@ -150,13 +177,14 @@ class ProgramGraphQueryEngine:
                 set(node.get("semantic_types") or [])
             ):
                 continue
-            if needle and needle not in (
+            haystack = (
                 str(node.get("label"))
                 + " "
                 + str(node.get("attributes"))
                 + " "
                 + str(source.get("symbol_ref"))
-            ).lower():
+            ).lower()
+            if needles and not any(token in haystack for token in needles):
                 continue
             if len(rows) >= limit:
                 continuation.append(str(node["node_id"]))

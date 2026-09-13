@@ -1,7 +1,12 @@
 "use client";
 
 import { resolveMessage } from "@lcsp/i18n";
-import { CornerDownLeftIcon, Maximize2Icon, Minimize2Icon } from "lucide-react";
+import {
+  CornerDownLeftIcon,
+  Maximize2Icon,
+  Minimize2Icon,
+  RotateCcwIcon,
+} from "lucide-react";
 import {
   useLayoutEffect,
   useRef,
@@ -24,11 +29,15 @@ type AssessmentComposerProps = {
   value: string;
   onValueChange: (value: string) => void;
   onSubmit: () => void;
+  onResume?: () => void;
   placeholder?: string;
   sendLabel?: string;
+  resumeLabel?: string;
   disabled?: boolean;
   submitting?: boolean;
+  resuming?: boolean;
   submitReady?: boolean;
+  resumeAvailable?: boolean;
   className?: string;
 };
 
@@ -36,21 +45,36 @@ export function AssessmentComposer({
   value,
   onValueChange,
   onSubmit,
+  onResume,
   placeholder = t("pages.appShell.chatComposerPlaceholder"),
   sendLabel = t("pages.appShell.chatSend"),
+  resumeLabel = t("pages.assessment.resumePipeline"),
   disabled = false,
   submitting = false,
+  resuming = false,
   submitReady,
+  resumeAvailable = false,
   className,
 }: AssessmentComposerProps) {
   const [expanded, setExpanded] = useState(false);
+  const [canResize, setCanResize] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
     const resize = () => {
+      const style = window.getComputedStyle(textarea);
+      const lineHeight = cssPixels(style.lineHeight, 20);
+      const padding =
+        cssPixels(style.paddingTop, 0) + cssPixels(style.paddingBottom, 0);
+      const border =
+        cssPixels(style.borderTopWidth, 0) +
+        cssPixels(style.borderBottomWidth, 0);
+      const collapsedHeight = Math.ceil(lineHeight * 5 + padding + border);
       textarea.style.height = "0px";
-      textarea.style.height = `${textarea.scrollHeight}px`;
+      const nextHeight = expanded ? textarea.scrollHeight : collapsedHeight;
+      textarea.style.height = `${nextHeight}px`;
+      setCanResize(textarea.scrollHeight > collapsedHeight + 1);
     };
     resize();
     window.addEventListener("resize", resize);
@@ -59,6 +83,8 @@ export function AssessmentComposer({
   const isSubmitReady =
     submitReady !== undefined ? submitReady : value.trim().length > 0;
   const sendDisabled = disabled || submitting || !isSubmitReady;
+  const showResumeAction = resumeAvailable && value.trim().length === 0;
+  const resumeDisabled = resuming || !onResume;
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,6 +92,14 @@ export function AssessmentComposer({
       return;
     }
     onSubmit();
+    setExpanded(false);
+  }
+
+  function handleResume() {
+    if (resumeDisabled) {
+      return;
+    }
+    onResume?.();
     setExpanded(false);
   }
 
@@ -99,7 +133,7 @@ export function AssessmentComposer({
     >
       <Textarea
         ref={textareaRef}
-        rows={1}
+        rows={5}
         value={value}
         disabled={disabled || submitting}
         onChange={(event) => onValueChange(event.target.value)}
@@ -111,7 +145,7 @@ export function AssessmentComposer({
           expanded && "min-h-0 max-h-none flex-1",
         )}
       />
-      {value.length > 0 || expanded ? (
+      {canResize || expanded ? (
         <Tooltip>
           <TooltipTrigger
             render={
@@ -148,19 +182,38 @@ export function AssessmentComposer({
           </TooltipContent>
         </Tooltip>
       ) : null}
-      <Button
-        type="submit"
-        size="icon"
-        disabled={sendDisabled}
-        aria-label={sendLabel}
-        className="absolute bottom-1.5 right-3 size-8 rounded-full bg-transparent text-foreground hover:bg-accent disabled:bg-transparent"
-      >
-        <CornerDownLeftIcon aria-hidden="true" />
-      </Button>
+      {showResumeAction ? (
+        <Button
+          type="button"
+          size="sm"
+          disabled={resumeDisabled}
+          aria-label={resumeLabel}
+          onClick={handleResume}
+          className="absolute bottom-1.5 right-3 h-8 rounded-full px-3"
+        >
+          <RotateCcwIcon aria-hidden="true" />
+          {resumeLabel}
+        </Button>
+      ) : (
+        <Button
+          type="submit"
+          size="icon"
+          disabled={sendDisabled}
+          aria-label={sendLabel}
+          className="absolute bottom-1.5 right-3 size-8 rounded-full bg-transparent text-foreground hover:bg-accent disabled:bg-transparent"
+        >
+          <CornerDownLeftIcon aria-hidden="true" />
+        </Button>
+      )}
     </form>
   );
 }
 
 function t(key: string) {
   return resolveMessage(appLocale, key as Parameters<typeof resolveMessage>[1]);
+}
+
+function cssPixels(value: string, fallback: number) {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }

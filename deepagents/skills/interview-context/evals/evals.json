@@ -102,15 +102,18 @@
       "semantic_mode": "INITIAL_INTERVIEW",
       "runtime_mode": "PRE_PLANNER",
       "prompt": "You asked who makes the final rejection decision. Customer answered: 'A recruiter approves every rejection. For senior positions, the hiring manager must also approve.' No further ambiguity is present.",
-      "expected_summary": "Normalize both explicit facts directly and do not re-ask senior-role approval.",
+      "expected_summary": "Ask one bounded CONFIRM_ADJUST question covering both explicit facts; do not treat them as already confirmed and do not ask a second, separately-worded question.",
       "assertions": {
-        "outcome": "CONTEXT_READY",
-        "question_count": 0,
-        "question_intent": null,
+        "outcome": "WAITING_FOR_CUSTOMER",
+        "question_count": 1,
+        "question_intent": "CLARIFY",
         "flags": [],
+        "semantic_targets": [
+          "FREE_TEXT_ANSWER_NEEDS_CONFIRM_ADJUST"
+        ],
         "context_source_constraints": [
-          "Recruiter approval fact may be CUSTOMER_CONFIRMED",
-          "Senior-role hiring-manager approval fact may be CUSTOMER_CONFIRMED"
+          "Do not emit CUSTOMER_CONFIRMED directly for either fact from this FREE_TEXT answer",
+          "Ask one CONFIRM_ADJUST question whose proposedInterpretation covers both facts, not two separate re-asks"
         ]
       },
       "runtime_context": {},
@@ -467,15 +470,18 @@
       "semantic_mode": "INITIAL_INTERVIEW",
       "runtime_mode": "PRE_PLANNER",
       "prompt": "Customer says explicitly: 'A human reviewer must approve every regulator report before it is submitted.' No contradictory evidence/context exists and this resolves the only material uncertainty.",
-      "expected_summary": "Normalize the explicit statement directly to CUSTOMER_CONFIRMED and return CONTEXT_READY without a redundant confirmation question.",
+      "expected_summary": "Ask one bounded CONFIRM_ADJUST question with proposedInterpretation set to the statement; do not normalize directly to CUSTOMER_CONFIRMED and do not ask a second, differently-worded confirmation question.",
       "assertions": {
-        "outcome": "CONTEXT_READY",
-        "question_count": 0,
-        "question_intent": null,
+        "outcome": "WAITING_FOR_CUSTOMER",
+        "question_count": 1,
+        "question_intent": "CLARIFY",
         "flags": [],
+        "semantic_targets": [
+          "FREE_TEXT_ANSWER_NEEDS_CONFIRM_ADJUST"
+        ],
         "context_source_constraints": [
-          "Approval-required-before-submission fact must be eligible for CUSTOMER_CONFIRMED",
-          "Do not emit a redundant confirmation question"
+          "Approval-required-before-submission fact must not become CUSTOMER_CONFIRMED directly from this FREE_TEXT answer",
+          "Ask exactly one CONFIRM_ADJUST question, not a second separately-worded confirmation question"
         ]
       },
       "runtime_context": {},
@@ -1064,7 +1070,8 @@
     "ABSENCE_OF_EVIDENCE_GUARD": "Does not infer that a business behavior is absent merely because PGE did not observe it, especially under partial coverage.",
     "TECHNICAL_COVERAGE_NONBLOCKING": "Allows PARTIAL technical coverage without automatically blocking readiness when no handoff-relevant material uncertainty remains.",
     "RESOLUTION_CRITERIA_SATISFACTION": "Requires the targeted business-operational resolutionCriteria to be satisfied before CONTEXT_RESOLVED.",
-    "CUSTOMER_SAFE_EVIDENCE": "Uses a bounded customer-safe evidence explanation and avoids unrestricted raw source/config/security-sensitive disclosure."
+    "CUSTOMER_SAFE_EVIDENCE": "Uses a bounded customer-safe evidence explanation and avoids unrestricted raw source/config/security-sensitive disclosure.",
+    "FREE_TEXT_ANSWER_NEEDS_CONFIRM_ADJUST": "A FREE_TEXT answer, a choice that requiresFreeText (e.g. OTHER), or any answer carrying a non-empty comment always needed interpretation and cannot become CUSTOMER_CONFIRMED directly, however explicit or unambiguous the wording. Asks exactly one bounded CONFIRM_ADJUST question with proposedInterpretation set to the normalized statement, instead of confirming immediately or asking a second, separately-worded question."
   },
   "default_runtime_context": {
     "hostPlatform": "LCSP",

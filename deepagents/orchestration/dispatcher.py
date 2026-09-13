@@ -16,7 +16,7 @@ from subagents import FLOW_SUBAGENTS
 
 from .context import LCSPRunContext
 from .lifecycle import RootOrchestrationLifecycle
-from .result_validation import validate_specialist_handoff
+from .result_validation import repair_targeted_interview_frontier, validate_specialist_handoff
 
 
 class RootSubagentDispatcher:
@@ -154,6 +154,7 @@ class RootSubagentDispatcher:
                 subagent_type=subagent_type,
                 response_format=response_format,
                 invocation_result=invocation_result,
+                metadata=dict(metadata or {}),
                 graph=validation_graph,
                 pinned_rule_ids=tuple(affected_rule_ids or ()),
                 pinned_versions=dict(
@@ -245,6 +246,7 @@ class RootSubagentDispatcher:
         subagent_type: str,
         response_format: Any | None,
         invocation_result: Any,
+        metadata: dict[str, Any] | None = None,
         graph: Any | None = None,
         pinned_rule_ids: tuple[str, ...] = (),
         pinned_versions: dict[str, str] | None = None,
@@ -255,9 +257,15 @@ class RootSubagentDispatcher:
             raise RuntimeError(
                 f"{subagent_type} did not return a structured_response handoff"
             )
+        payload = invocation_result["structured_response"]
+        if subagent_type == "interview":
+            payload = repair_targeted_interview_frontier(
+                payload,
+                targeted_need=(metadata or {}).get("targeted_need"),
+            )
         handoff = validate_specialist_handoff(
             subagent_type,
-            invocation_result["structured_response"],
+            payload,
             graph=graph,
             pinned_rule_ids=pinned_rule_ids,
             pinned_versions=pinned_versions or {},

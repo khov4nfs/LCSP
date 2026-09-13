@@ -61,12 +61,80 @@ class InterviewCoverageCallbackError(WorkerCallbackError):
     """Coverage changed or failed validation; the boundary must request recovery."""
 
 
-class InterviewResolutionCallbackError(WorkerCallbackError):
+INTERVIEW_DECISION_REPAIRABLE_REJECTION_CODES = frozenset({
+    "INTERVIEW_ACTIVE_QUESTION_OUTCOME_INVALID",
+    "INTERVIEW_AGENT_DECISION_INVALID",
+    "INTERVIEW_CONFIRM_ADJUST_QUESTION_INVALID",
+    "INTERVIEW_CONFIRMED_CONTEXT_INVALID",
+    "INTERVIEW_CONFIRMED_REQUIRES_DIRECT_ASK",
+    "INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY",
+    "INTERVIEW_CONTEXT_RESOLVED_REQUIRES_AUTHORITY",
+    "INTERVIEW_CONTEXT_RESOLVED_REQUIRES_TARGETED_MODE",
+    "INTERVIEW_CUSTOMER_CONFIRMED_REQUIRES_DIRECT_OR_EXPLICIT_CONFIRMATION",
+    "INTERVIEW_EVIDENCE_REF_UNAUTHORIZED",
+    "INTERVIEW_INITIAL_QUESTION_INVALID",
+    "INTERVIEW_QUESTION_FRONTIER_DESCRIPTION_REQUIRED",
+    "INTERVIEW_QUESTION_FRONTIER_NOT_CUSTOMER_OWNED",
+    "INTERVIEW_QUESTION_FRONTIER_NOT_MATERIAL",
+    "INTERVIEW_QUESTION_FRONTIER_REQUIRED",
+    "INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED",
+    "INTERVIEW_TARGETED_MODE_REQUIRED",
+    "INTERVIEW_TARGETED_NEED_NON_NEUTRAL",
+    "INTERVIEW_TARGETED_OUTCOME_INVALID",
+    "INTERVIEW_TARGETED_QUESTION_NEED_MISMATCH",
+    "INTERVIEW_WAITING_REQUIRES_QUESTION",
+})
+
+
+class InterviewDecisionRepairableCallbackError(WorkerCallbackError):
+    """API rejected model-authored Interview decision content that may self-correct once.
+
+    The API guard remains authoritative. This error only tells the boundary that
+    the rejection code is in the explicit payload-content allowlist and can be
+    fed back privately to the specialist for one bounded retry.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        error_code: str,
+        status_code: int = 409,
+        meta: dict | None = None,
+    ) -> None:
+        super().__init__(message, status_code=status_code)
+        self.error_code = error_code
+        self.meta = dict(meta or {})
+
+
+class InterviewResolutionCallbackError(InterviewDecisionRepairableCallbackError):
     """Private criterion feedback for one bounded specialist correction."""
 
     def __init__(self, message: str, *, missing: str | None = None) -> None:
-        super().__init__(message, status_code=409)
+        meta = {"missing": missing} if missing is not None else {}
+        super().__init__(
+            message,
+            error_code="INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED",
+            status_code=409,
+            meta=meta,
+        )
         self.missing = missing
+
+
+class InterviewContextReadyAuthorityCallbackError(InterviewDecisionRepairableCallbackError):
+    """The specialist asserted CONTEXT_READY without CUSTOMER_CONFIRMED authority.
+
+    The API guard is correct and must never be relaxed. This carries the rejection
+    so the boundary can give the specialist exactly one bounded chance to ask for
+    confirmation instead of inferring authority it was never given.
+    """
+
+    def __init__(self, message: str) -> None:
+        super().__init__(
+            message,
+            error_code="INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY",
+            status_code=409,
+        )
 
 
 class WorkerApiClient:
@@ -139,17 +207,21 @@ class WorkerApiClient:
                         raise InterviewCoverageCallbackError(
                             message, status_code=resp.status_code
                         )
-                    if (
-                        resp.status_code == 409
-                        and error_code == "INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED"
-                    ):
-                        body = resp.json()
-                        problem = body.get("problem") if isinstance(body, dict) else None
-                        meta = problem.get("meta") if isinstance(problem, dict) else None
-                        missing = meta.get("missing") if isinstance(meta, dict) else None
-                        raise InterviewResolutionCallbackError(
+                    if error_code in INTERVIEW_DECISION_REPAIRABLE_REJECTION_CODES:
+                        meta = self._response_problem_meta(resp)
+                        if error_code == "INTERVIEW_RESOLUTION_CRITERIA_UNSATISFIED":
+                            missing = meta.get("missing")
+                            raise InterviewResolutionCallbackError(
+                                message,
+                                missing=missing if isinstance(missing, str) else None,
+                            )
+                        if error_code == "INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY":
+                            raise InterviewContextReadyAuthorityCallbackError(message)
+                        raise InterviewDecisionRepairableCallbackError(
                             message,
-                            missing=missing if isinstance(missing, str) else None,
+                            error_code=error_code,
+                            status_code=resp.status_code,
+                            meta=meta,
                         )
                     raise WorkerCallbackError(message, status_code=resp.status_code)
 
@@ -216,6 +288,20 @@ class WorkerApiClient:
             if value:
                 return str(value)
         return None
+
+    def _response_problem_meta(self, response) -> dict:
+        """Extract typed problem metadata without trusting it as authority."""
+        try:
+            data = response.json()
+        except ValueError:
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        problem = data.get("problem")
+        if not isinstance(problem, dict):
+            return {}
+        meta = problem.get("meta")
+        return dict(meta) if isinstance(meta, dict) else {}
 
     @staticmethod
     def _unwrap_result_envelope(data):

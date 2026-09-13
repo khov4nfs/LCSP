@@ -10,7 +10,7 @@ from concurrent.futures import CancelledError, Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import partial
 from threading import Event
-from time import monotonic, sleep
+from time import monotonic
 from typing import Any, Callable
 
 import httpx
@@ -24,6 +24,7 @@ from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundary
 from tools.common.capabilities.managed.invocation import (
     invocation_boundary_manifest,
     invoke_boundary,
+    load_boundary,
 )
 
 LOGGER = logging.getLogger("lcsp.mda.rabbitmq_consumer")
@@ -31,6 +32,8 @@ DEFAULT_EXCHANGE = "lcsp.events"
 DEFAULT_QUEUE_PREFIX = "lcsp.mda.boundary"
 DEFAULT_RECONNECT_DELAY_SECONDS = 2.0
 DEFAULT_REQUEUE_DELAY_SECONDS = 2.0
+DEFAULT_FALLBACK_MAX_REDELIVERIES = 3
+MANAGED_ATTEMPT_HEADER = "x-lcsp-managed-attempt"
 DEFAULT_API_READY_TIMEOUT_SECONDS = 60.0
 DEFAULT_API_READY_POLL_SECONDS = 0.5
 
@@ -42,6 +45,7 @@ class BoundaryBinding:
     boundary_name: str
     source_event: str
     queue_name: str
+    retry_delays_seconds: tuple[float, ...] = ()
 
 
 def boundary_bindings(
@@ -63,6 +67,7 @@ def boundary_bindings(
                 boundary_name=boundary_name,
                 source_event=source_event,
                 queue_name=queue_name,
+                retry_delays_seconds=_optional_retry_delays(entry),
             )
         )
 
@@ -96,6 +101,12 @@ def run_consumer() -> None:
         os.getenv(
             "LCSP_MDA_RABBITMQ_REQUEUE_DELAY_SECONDS",
             str(DEFAULT_REQUEUE_DELAY_SECONDS),
+        )
+    )
+    fallback_max_redeliveries = int(
+        os.getenv(
+            "LCSP_MDA_RABBITMQ_FALLBACK_MAX_REDELIVERIES",
+            str(DEFAULT_FALLBACK_MAX_REDELIVERIES),
         )
     )
     api_base_url = os.getenv("NESTJS_API_BASE_URL")
@@ -163,6 +174,7 @@ def run_consumer() -> None:
                     prefetch_count=prefetch_count,
                     requeue_on_error=requeue_on_error,
                     requeue_delay_seconds=requeue_delay_seconds,
+                    fallback_max_redeliveries=fallback_max_redeliveries,
                 )
                 LOGGER.info("Starting Managed Agent RabbitMQ consumer")
                 channel.start_consuming()
@@ -229,6 +241,7 @@ def _configure_channel(
     prefetch_count: int,
     requeue_on_error: bool,
     requeue_delay_seconds: float,
+    fallback_max_redeliveries: int,
 ) -> None:
     channel.exchange_declare(
         exchange=exchange,
@@ -236,9 +249,25 @@ def _configure_channel(
         durable=True,
     )
     channel.basic_qos(prefetch_count=prefetch_count)
+    channel.confirm_delivery()
 
     for binding in bindings:
+        retry_delays_seconds = _effective_retry_delays(
+            binding.retry_delays_seconds,
+            fallback_delay_seconds=requeue_delay_seconds,
+            fallback_max_redeliveries=fallback_max_redeliveries,
+        )
         channel.queue_declare(queue=binding.queue_name, durable=True)
+        for retry_delay_seconds in sorted(set(retry_delays_seconds)):
+            channel.queue_declare(
+                queue=_retry_queue_name(binding.queue_name, retry_delay_seconds),
+                durable=True,
+                arguments={
+                    "x-message-ttl": _delay_milliseconds(retry_delay_seconds),
+                    "x-dead-letter-exchange": "",
+                    "x-dead-letter-routing-key": binding.queue_name,
+                },
+            )
         channel.queue_bind(
             exchange=exchange,
             queue=binding.queue_name,
@@ -250,15 +279,17 @@ def _configure_channel(
                 binding.boundary_name,
                 connection=connection,
                 executor=executor,
+                queue_name=binding.queue_name,
                 requeue_on_error=requeue_on_error,
-                requeue_delay_seconds=requeue_delay_seconds,
+                retry_delays_seconds=retry_delays_seconds,
             ),
         )
         LOGGER.info(
-            "Bound Managed Agent boundary queue=%s routing_key=%s boundary=%s",
+            "Bound Managed Agent boundary queue=%s routing_key=%s boundary=%s retry_delays=%s",
             binding.queue_name,
             binding.source_event,
             binding.boundary_name,
+            retry_delays_seconds,
         )
 
 
@@ -267,8 +298,9 @@ def _delivery_handler(
     *,
     connection: pika.BlockingConnection,
     executor: ThreadPoolExecutor,
+    queue_name: str | None = None,
     requeue_on_error: bool,
-    requeue_delay_seconds: float,
+    retry_delays_seconds: tuple[float, ...] = (),
 ) -> Callable[[Any, Any, Any, bytes], None]:
     def handle_delivery(
         channel: Any,
@@ -288,9 +320,12 @@ def _delivery_handler(
                 channel=channel,
                 delivery_tag=method.delivery_tag,
                 routing_key=getattr(method, "routing_key", ""),
+                queue_name=queue_name or boundary_name,
                 boundary_name=boundary_name,
+                properties=properties,
+                body=body,
                 requeue_on_error=requeue_on_error,
-                requeue_delay_seconds=requeue_delay_seconds,
+                retry_delays_seconds=retry_delays_seconds,
                 completed=completed,
             )
         )
@@ -314,21 +349,14 @@ def _schedule_delivery_settlement(
     channel: Any,
     delivery_tag: Any,
     routing_key: str,
+    queue_name: str,
     boundary_name: str,
+    properties: Any,
+    body: bytes,
     requeue_on_error: bool,
-    requeue_delay_seconds: float,
+    retry_delays_seconds: tuple[float, ...],
     completed: Future[None],
 ) -> None:
-    error = _delivery_error(completed)
-    if (
-        error is not None
-        and requeue_on_error
-        and not isinstance(error, NonRetryableAgentBoundaryError)
-        and not is_terminal_task_error(error)
-        and requeue_delay_seconds > 0
-    ):
-        sleep(requeue_delay_seconds)
-
     try:
         connection.add_callback_threadsafe(
             partial(
@@ -336,8 +364,12 @@ def _schedule_delivery_settlement(
                 channel=channel,
                 delivery_tag=delivery_tag,
                 routing_key=routing_key,
+                queue_name=queue_name,
                 boundary_name=boundary_name,
+                properties=properties,
+                body=body,
                 requeue_on_error=requeue_on_error,
+                retry_delays_seconds=retry_delays_seconds,
                 completed=completed,
             )
         )
@@ -355,9 +387,13 @@ def _settle_delivery(
     channel: Any,
     delivery_tag: Any,
     routing_key: str,
-    boundary_name: str,
-    requeue_on_error: bool,
-    completed: Future[None],
+    queue_name: str = "",
+    boundary_name: str = "",
+    properties: Any | None = None,
+    body: bytes = b"",
+    requeue_on_error: bool = True,
+    retry_delays_seconds: tuple[float, ...] = (),
+    completed: Future[None] | None = None,
 ) -> None:
     if not channel.is_open:
         LOGGER.warning(
@@ -368,7 +404,7 @@ def _settle_delivery(
         )
         return
 
-    error = _delivery_error(completed)
+    error = _delivery_error(completed) if completed is not None else None
 
     try:
         if error is None:
@@ -381,14 +417,54 @@ def _settle_delivery(
             routing_key,
             exc_info=(type(error), error, error.__traceback__),
         )
-        channel.basic_nack(
-            delivery_tag=delivery_tag,
-            requeue=(
-                requeue_on_error
-                and not isinstance(error, NonRetryableAgentBoundaryError)
-                and not is_terminal_task_error(error)
-            ),
+        retryable = (
+            requeue_on_error
+            and not isinstance(error, NonRetryableAgentBoundaryError)
+            and not is_terminal_task_error(error)
         )
+        current_attempt = _delivery_attempt(properties)
+        max_attempts = len(retry_delays_seconds)
+        if retryable and current_attempt < max_attempts:
+            next_attempt = current_attempt + 1
+            retry_delay_seconds = retry_delays_seconds[current_attempt]
+            retry_queue = _retry_queue_name(queue_name, retry_delay_seconds)
+            LOGGER.warning(
+                "Managed Agent boundary retry scheduled boundary=%s routing_key=%s "
+                "correlation_id=%s attempt=%s max_attempts=%s delay_seconds=%s "
+                "exception_type=%s",
+                boundary_name,
+                routing_key,
+                _property_value(properties, "correlation_id"),
+                next_attempt,
+                max_attempts,
+                retry_delay_seconds,
+                type(error).__name__,
+            )
+            if _publish_retry_delivery(
+                channel=channel,
+                retry_queue=retry_queue,
+                properties=properties,
+                body=body,
+                attempt=next_attempt,
+            ):
+                channel.basic_ack(delivery_tag=delivery_tag)
+            else:
+                channel.basic_nack(delivery_tag=delivery_tag, requeue=True)
+            return
+
+        if retryable:
+            LOGGER.error(
+                "Managed Agent boundary retry exhausted boundary=%s routing_key=%s "
+                "correlation_id=%s attempt=%s max_attempts=%s exception_type=%s",
+                boundary_name,
+                routing_key,
+                _property_value(properties, "correlation_id"),
+                current_attempt,
+                max_attempts,
+                type(error).__name__,
+            )
+
+        channel.basic_nack(delivery_tag=delivery_tag, requeue=False)
     except pika.exceptions.AMQPError:
         LOGGER.warning(
             "RabbitMQ channel closed while settling delivery "
@@ -424,6 +500,104 @@ def _correlation_id(
     if isinstance(header_value, str) and header_value:
         return header_value
     return f"mda:{boundary_name}"
+
+
+
+def _optional_retry_delays(entry: dict[str, Any]) -> tuple[float, ...]:
+    raw = entry.get("retry_delays_seconds")
+    if raw is None:
+        target = entry.get("target")
+        if isinstance(target, str) and target:
+            return tuple(float(value) for value in load_boundary(target).retry_delays_seconds)
+        return ()
+    if not isinstance(raw, (list, tuple)):
+        raise RuntimeError("Managed Agent boundary manifest retry_delays_seconds must be a list")
+    delays: list[float] = []
+    for value in raw:
+        delay = float(value)
+        if delay < 0:
+            raise RuntimeError("Managed Agent boundary retry delay cannot be negative")
+        delays.append(delay)
+    return tuple(delays)
+
+
+def _effective_retry_delays(
+    retry_delays_seconds: tuple[float, ...],
+    *,
+    fallback_delay_seconds: float,
+    fallback_max_redeliveries: int,
+) -> tuple[float, ...]:
+    if retry_delays_seconds:
+        return retry_delays_seconds
+    return tuple(max(fallback_delay_seconds, 0.0) for _ in range(max(fallback_max_redeliveries, 0)))
+
+
+def _delay_milliseconds(delay_seconds: float) -> int:
+    return max(int(delay_seconds * 1000), 1)
+
+
+def _retry_queue_name(queue_name: str, delay_seconds: float) -> str:
+    return f"{queue_name}.retry.{_delay_milliseconds(delay_seconds)}ms"
+
+
+def _delivery_attempt(properties: Any | None) -> int:
+    headers = getattr(properties, "headers", None) or {}
+    try:
+        return max(int(headers.get(MANAGED_ATTEMPT_HEADER, 0)), 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _property_value(properties: Any | None, name: str) -> Any:
+    return getattr(properties, name, None) if properties is not None else None
+
+
+def _retry_properties(properties: Any | None, attempt: int) -> pika.BasicProperties:
+    headers = dict(getattr(properties, "headers", None) or {})
+    headers[MANAGED_ATTEMPT_HEADER] = attempt
+    preserved_names = (
+        "content_type",
+        "content_encoding",
+        "priority",
+        "correlation_id",
+        "reply_to",
+        "message_id",
+        "timestamp",
+        "type",
+        "app_id",
+    )
+    kwargs = {"headers": headers, "delivery_mode": 2}
+    for name in preserved_names:
+        value = _property_value(properties, name)
+        if value is not None:
+            kwargs[name] = value
+    return pika.BasicProperties(**kwargs)
+
+
+def _publish_retry_delivery(
+    *,
+    channel: Any,
+    retry_queue: str,
+    properties: Any | None,
+    body: bytes,
+    attempt: int,
+) -> bool:
+    try:
+        result = channel.basic_publish(
+            exchange="",
+            routing_key=retry_queue,
+            body=body,
+            properties=_retry_properties(properties, attempt),
+            mandatory=True,
+        )
+    except pika.exceptions.AMQPError:
+        LOGGER.exception(
+            "Managed Agent boundary retry publish failed retry_queue=%s attempt=%s",
+            retry_queue,
+            attempt,
+        )
+        return False
+    return result is not False
 
 
 def _required_manifest_text(entry: dict[str, str], key: str) -> str:

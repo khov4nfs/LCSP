@@ -9,6 +9,9 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 
 from orchestration.context import LCSPRunContext
+from tools.common.capabilities.assessment.claims.evidence_claim.models import (
+    ENGINEERING_LIMITATION_CODES,
+)
 from tools.common.capabilities.assessment.investigation.engineering_rule import (
     managed_targeted_investigator as managed,
 )
@@ -144,7 +147,9 @@ def _deterministic_durable_agent_factory(run_counter: list[int]):
                             "graph_path_refs": [],
                             "source_anchor_refs": [],
                             "confidence": 0.8,
-                            "limitations": [],
+                            "limitations": [
+                                ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
+                            ],
                             "criterion": None,
                         }
                     ],

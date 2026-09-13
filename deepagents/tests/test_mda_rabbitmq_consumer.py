@@ -12,6 +12,10 @@ class FakeChannel:
     def __init__(self):
         self.acked = []
         self.nacked = []
+        self.published = []
+        self.declared = []
+        self.confirmed = False
+        self.publish_result = True
         self.is_open = True
 
     def basic_ack(self, delivery_tag):
@@ -19,6 +23,28 @@ class FakeChannel:
 
     def basic_nack(self, delivery_tag, requeue):
         self.nacked.append((delivery_tag, requeue))
+
+    def basic_publish(self, **kwargs):
+        self.published.append(kwargs)
+        return self.publish_result
+
+    def confirm_delivery(self):
+        self.confirmed = True
+
+    def queue_declare(self, **kwargs):
+        self.declared.append(kwargs)
+
+    def exchange_declare(self, **_kwargs):
+        pass
+
+    def queue_bind(self, **_kwargs):
+        pass
+
+    def basic_qos(self, **_kwargs):
+        pass
+
+    def basic_consume(self, **_kwargs):
+        pass
 
 
 class ImmediateExecutor:
@@ -94,7 +120,7 @@ def test_delivery_handler_invokes_boundary_and_acks(monkeypatch):
         connection=FakeConnection(),
         executor=ImmediateExecutor(),
         requeue_on_error=True,
-        requeue_delay_seconds=0,
+        retry_delays_seconds=(),
     )
     handler(channel, method, properties, body)
 
@@ -124,7 +150,7 @@ def test_delivery_handler_uses_payload_correlation_id(monkeypatch):
         connection=FakeConnection(),
         executor=ImmediateExecutor(),
         requeue_on_error=True,
-        requeue_delay_seconds=0,
+        retry_delays_seconds=(),
     )
     handler(channel, method, properties, body)
 
@@ -150,7 +176,7 @@ def test_delivery_handler_nacks_on_dispatch_failure(monkeypatch):
         connection=FakeConnection(),
         executor=ImmediateExecutor(),
         requeue_on_error=False,
-        requeue_delay_seconds=0,
+        retry_delays_seconds=(),
     )
     handler(channel, method, properties, body)
 
@@ -173,7 +199,7 @@ def test_delivery_handler_never_requeues_terminal_boundary_failure(monkeypatch):
         connection=FakeConnection(),
         executor=ImmediateExecutor(),
         requeue_on_error=True,
-        requeue_delay_seconds=0,
+        retry_delays_seconds=(),
     )
     handler(channel, method, properties, body)
 
@@ -181,14 +207,16 @@ def test_delivery_handler_never_requeues_terminal_boundary_failure(monkeypatch):
     assert channel.nacked == [("delivery-1", False)]
 
 
-def test_retryable_delivery_failure_waits_before_requeue(monkeypatch):
-    delays = []
-    monkeypatch.setattr(
-        rabbitmq_consumer,
-        "sleep",
-        lambda seconds: delays.append(seconds),
-    )
+def test_retryable_delivery_failure_republishes_to_retry_queue_without_blocking():
     channel = FakeChannel()
+    properties = SimpleNamespace(
+        headers={"x-correlation-id": "corr-1", "custom": "kept"},
+        correlation_id="corr-1",
+        message_id="message-1",
+        expiration="999999",
+        user_id="api-user",
+        cluster_id="deprecated-cluster",
+    )
     completed = Future()
     completed.set_exception(RuntimeError("retryable"))
 
@@ -197,15 +225,178 @@ def test_retryable_delivery_failure_waits_before_requeue(monkeypatch):
         channel=channel,
         delivery_tag="delivery-1",
         routing_key="event.test",
+        queue_name="lcsp.mda.test.test_boundary",
         boundary_name="test_boundary",
+        properties=properties,
+        body=b"{\"payload\":true}",
         requeue_on_error=True,
-        requeue_delay_seconds=2,
+        retry_delays_seconds=(600,),
         completed=completed,
     )
 
-    assert delays == [2]
-    assert channel.nacked == [("delivery-1", True)]
+    assert channel.acked == ["delivery-1"]
+    assert channel.nacked == []
+    assert len(channel.published) == 1
+    published = channel.published[0]
+    assert published["exchange"] == ""
+    assert published["routing_key"] == "lcsp.mda.test.test_boundary.retry.600000ms"
+    assert published["body"] == b"{\"payload\":true}"
+    assert published["mandatory"] is True
+    retry_properties = published["properties"]
+    assert retry_properties.delivery_mode == 2
+    assert retry_properties.correlation_id == "corr-1"
+    assert retry_properties.message_id == "message-1"
+    assert retry_properties.expiration is None
+    assert retry_properties.user_id is None
+    assert retry_properties.cluster_id is None
+    assert retry_properties.headers == {
+        "x-correlation-id": "corr-1",
+        "custom": "kept",
+        rabbitmq_consumer.MANAGED_ATTEMPT_HEADER: 1,
+    }
 
+
+def test_configure_channel_declares_durable_retry_queue_back_to_original_queue():
+    channel = FakeChannel()
+    bindings = (
+        rabbitmq_consumer.BoundaryBinding(
+            boundary_name="test_boundary",
+            source_event="event.same",
+            queue_name="lcsp.mda.test.test_boundary",
+            retry_delays_seconds=(30,),
+        ),
+    )
+
+    rabbitmq_consumer._configure_channel(
+        connection=FakeConnection(),
+        channel=channel,
+        executor=ImmediateExecutor(),
+        exchange="lcsp.events",
+        bindings=bindings,
+        prefetch_count=1,
+        requeue_on_error=True,
+        requeue_delay_seconds=2,
+        fallback_max_redeliveries=3,
+    )
+
+    assert channel.confirmed is True
+    assert {
+        "queue": "lcsp.mda.test.test_boundary.retry.30000ms",
+        "durable": True,
+        "arguments": {
+            "x-message-ttl": 30000,
+            "x-dead-letter-exchange": "",
+            "x-dead-letter-routing-key": "lcsp.mda.test.test_boundary",
+        },
+    } in channel.declared
+
+
+def test_configure_channel_uses_bounded_fallback_for_empty_retry_schedule():
+    channel = FakeChannel()
+    bindings = (
+        rabbitmq_consumer.BoundaryBinding(
+            boundary_name="default_boundary",
+            source_event="event.default",
+            queue_name="lcsp.mda.test.default_boundary",
+            retry_delays_seconds=(),
+        ),
+    )
+
+    rabbitmq_consumer._configure_channel(
+        connection=FakeConnection(),
+        channel=channel,
+        executor=ImmediateExecutor(),
+        exchange="lcsp.events",
+        bindings=bindings,
+        prefetch_count=1,
+        requeue_on_error=True,
+        requeue_delay_seconds=2,
+        fallback_max_redeliveries=2,
+    )
+
+    retry_declarations = [
+        declaration for declaration in channel.declared
+        if declaration.get("queue", "").endswith(".retry.2000ms")
+    ]
+    assert retry_declarations == [
+        {
+            "queue": "lcsp.mda.test.default_boundary.retry.2000ms",
+            "durable": True,
+            "arguments": {
+                "x-message-ttl": 2000,
+                "x-dead-letter-exchange": "",
+                "x-dead-letter-routing-key": "lcsp.mda.test.default_boundary",
+            },
+        }
+    ]
+
+
+def test_retry_attempt_header_increments_and_exhaustion_stops_requeue():
+    channel = FakeChannel()
+    properties = SimpleNamespace(
+        headers={rabbitmq_consumer.MANAGED_ATTEMPT_HEADER: 1},
+        correlation_id="corr-2",
+    )
+    completed = Future()
+    completed.set_exception(RuntimeError("retryable"))
+
+    rabbitmq_consumer._settle_delivery(
+        channel=channel,
+        delivery_tag="delivery-2",
+        routing_key="event.test",
+        queue_name="lcsp.mda.test.test_boundary",
+        boundary_name="test_boundary",
+        properties=properties,
+        body=b"{}",
+        requeue_on_error=True,
+        retry_delays_seconds=(30, 120),
+        completed=completed,
+    )
+
+    assert channel.acked == ["delivery-2"]
+    assert channel.nacked == []
+    assert channel.published[0]["routing_key"] == "lcsp.mda.test.test_boundary.retry.120000ms"
+    assert channel.published[0]["properties"].headers[rabbitmq_consumer.MANAGED_ATTEMPT_HEADER] == 2
+
+    exhausted = FakeChannel()
+    rabbitmq_consumer._settle_delivery(
+        channel=exhausted,
+        delivery_tag="delivery-3",
+        routing_key="event.test",
+        queue_name="lcsp.mda.test.test_boundary",
+        boundary_name="test_boundary",
+        properties=SimpleNamespace(headers={rabbitmq_consumer.MANAGED_ATTEMPT_HEADER: 2}),
+        body=b"{}",
+        requeue_on_error=True,
+        retry_delays_seconds=(30, 120),
+        completed=completed,
+    )
+    assert exhausted.published == []
+    assert exhausted.nacked == [("delivery-3", False)]
+
+
+def test_retry_publish_not_confirmed_keeps_original_delivery_requeued():
+    channel = FakeChannel()
+    channel.publish_result = False
+    completed = Future()
+    completed.set_exception(RuntimeError("retryable"))
+
+    rabbitmq_consumer._settle_delivery(
+        channel=channel,
+        delivery_tag="delivery-4",
+        routing_key="event.test",
+        queue_name="lcsp.mda.test.test_boundary",
+        boundary_name="test_boundary",
+        properties=SimpleNamespace(headers={}, correlation_id="corr-4"),
+        body=b"{}",
+        requeue_on_error=True,
+        retry_delays_seconds=(30,),
+        completed=completed,
+    )
+
+    assert channel.acked == []
+    assert channel.nacked == [("delivery-4", True)]
+    assert len(channel.published) == 1
 
 def test_delivery_settlement_does_not_nack_a_closed_channel():
     channel = FakeChannel()
@@ -314,7 +505,7 @@ def test_schema_type_failure_is_not_requeued(wrapped):
 
 @pytest.mark.parametrize(
     ("status_code", "requeued"),
-    [(409, False), (404, False), (422, False), (None, True)],
+    [(409, False), (404, False), (422, False), (None, False)],
 )
 def test_rejected_api_callback_is_not_requeued(status_code, requeued):
     # A boundary re-runs its model on every redelivery. When our own API rejects the

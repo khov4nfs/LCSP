@@ -163,14 +163,27 @@ This does **not** confirm mandatory approval before finalization.
 
 A normalized business fact whose meaning is either:
 
-1. **directly explicit** in the Customer answer and normalization is semantically lossless; or
-2. a **non-trivial interpretation** that the Customer explicitly confirmed.
+1. **directly explicit from a predefined choice** — the Customer selected a `BOOLEAN`/`SINGLE_SELECT`/`MULTI_SELECT` option with no comment, so nothing was interpreted; or
+2. an **answer that needed interpretation, explicitly confirmed** — any `FREE_TEXT` answer, a choice that `requiresFreeText` (e.g. `OTHER`), or any answer carrying a non-empty comment. Interpretation is required to normalize these into a statement, so they can never take case 1 — even when the wording is completely unambiguous. Use one bounded `CONFIRM_ADJUST` turn instead: ask with `proposedInterpretation` set to the exact normalized statement. The Customer only needs to press `CONFIRM` once; do not ask a second, separately-worded yes/no question first.
 
-Direct example:
+Direct example (case 1, no confirmation turn needed):
 
-> “A recruiter must approve every rejection before it becomes final.”
+> Customer selects "Yes" on a `BOOLEAN` question, no comment.
 
-May normalize directly to:
+```text
+approval_required = true
+source = CUSTOMER_CONFIRMED
+```
+
+Interpretive-but-explicit example (case 2, one `CONFIRM_ADJUST` turn — not a second open question):
+
+> “A recruiter must approve every rejection before it becomes final.” (`FREE_TEXT` answer)
+
+Ask `CONFIRM_ADJUST` with `proposedInterpretation`:
+
+> "Approval is required from a recruiter before a rejection becomes final."
+
+Once the Customer selects `CONFIRM`:
 
 ```text
 approval_required = true
@@ -179,7 +192,7 @@ approval_timing = before_finalization
 source = CUSTOMER_CONFIRMED
 ```
 
-Interpretive example:
+Ambiguous/hedged example:
 
 > “Usually someone checks it.”
 

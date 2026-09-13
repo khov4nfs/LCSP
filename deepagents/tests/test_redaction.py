@@ -1,4 +1,5 @@
 from middleware.redaction import (
+    is_sensitive_key_name,
     redact_dict,
     redact_source_code,
     redact_string,
@@ -70,3 +71,106 @@ def test_t07_clean_dict_is_unchanged() -> None:
     }
 
     assert redact_dict(payload) == payload
+
+
+def test_t08_safe_metadata_field_names_survive_key_redaction() -> None:
+    payload = {
+        "author": "alice",
+        "authorName": "Alice Example",
+        "total_tokens": 123,
+        "tokenCount": 456,
+        "statusCode": 200,
+        "errorCode": "NONE",
+        "countryCode": "VN",
+        "sourceCode": "SRC-1",
+        "encoded": "abc123",
+        "decoded": "abc123",
+        "keyword": "planner",
+        "messageKey": "ENGINEERING_RULE_PLANNER_DECISION",
+        "reasonCode": "SOURCE_SCOPE_MATCH",
+        "finish_reason": "stop",
+        "usage_metadata": {"total_tokens": 321},
+    }
+
+    assert redact_dict(payload) == payload
+
+
+def test_t09_secret_field_names_are_redacted_and_logged(caplog) -> None:
+    caplog.set_level("INFO")
+    secret_field_names = (
+        "api_key",
+        "apiKey",
+        "access_token",
+        "client_secret",
+        "private_key",
+        "password",
+        "GEMINI_API_KEY",
+        "WORKER_API_KEY",
+        "authToken",
+        "auth_token",
+        "bearerToken",
+        "bearer_token",
+        "secretKey",
+        "secret_key",
+        "githubToken",
+        "github_token",
+        "dbPassword",
+        "db_password",
+        "passwd",
+        "pwd",
+        "webhookSecret",
+        "encryptionKey",
+        "signingKey",
+        "privateToken",
+        "openaiKey",
+        "gcpServiceAccountKey",
+        "x-api-key",
+        "token",
+        "key",
+        "auth",
+    )
+    payload = {
+        field_name: f"secret-{index}"
+        for index, field_name in enumerate(secret_field_names)
+    }
+    payload["nested"] = {"session_token": "secret-nested"}
+
+    copied = redact_dict(payload)
+
+    assert copied == {
+        **{field_name: "" for field_name in secret_field_names},
+        "nested": {"session_token": ""},
+    }
+    redaction_records = [
+        record
+        for record in caplog.records
+        if record.message.startswith("REDACTION_KEYS_STRIPPED redacted_keys=")
+    ]
+    assert len(redaction_records) == 1
+    assert set(redaction_records[0].redacted_keys) == {
+        *secret_field_names,
+        "session_token",
+    }
+    assert "redacted_keys=" in caplog.text
+    for field_name in (*secret_field_names, "session_token"):
+        assert field_name in caplog.text
+    assert "secret-" not in caplog.text
+
+
+def test_t10_code_fields_are_not_secret_key_names() -> None:
+    payload = {
+        "code": "VALIDATION_FAILED",
+        "status_code": 400,
+        "reason_code": "SOURCE_SCOPE_MATCH",
+        "error_code": "NONE",
+    }
+
+    assert redact_dict(payload) == payload
+
+def test_t11_public_sensitive_key_name_api_uses_segment_matching() -> None:
+    assert is_sensitive_key_name("authToken") is True
+    assert is_sensitive_key_name("x-api-key") is True
+    assert is_sensitive_key_name("dbPassword") is True
+    assert is_sensitive_key_name("author") is False
+    assert is_sensitive_key_name("statusCode") is False
+    assert is_sensitive_key_name("reasonCode") is False

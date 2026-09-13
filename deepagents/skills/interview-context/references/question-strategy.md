@@ -117,17 +117,27 @@ when refining a prior answer or conflict.
 
 These are not runtime outcomes.
 
-## Direct statement — do not over-confirm
+## Direct statement — confirm once, don't re-ask
 
-Customer:
+Customer (`FREE_TEXT` answer):
 
 > “A recruiter must approve every rejection before it takes effect.”
 
-Do not ask:
+Do not ask a second, separately-worded question:
 
 > “Just to confirm, is recruiter approval mandatory?”
 
-The statement is explicit enough for lossless normalization to `CUSTOMER_CONFIRMED`.
+That wastes a turn without producing an authoritative answer. A `FREE_TEXT` answer always needed
+interpretation to normalize, however explicit it reads, so it cannot become `CUSTOMER_CONFIRMED`
+directly. Instead ask exactly one bounded `CONFIRM_ADJUST` question with `proposedInterpretation`
+set to the statement verbatim (choices `CONFIRM` / `ADJUST`) — the Customer only needs to press
+`CONFIRM` once. The same applies to any choice that `requiresFreeText` (e.g. `OTHER`) or any answer
+carrying a non-empty comment.
+
+A predefined-choice answer with no comment needs no such turn — it is already lossless:
+
+Customer selects `SINGLE_SELECT` "Standard approval flow", no comment → `CUSTOMER_CONFIRMED`
+directly, no question needed.
 
 ## Ambiguous statement — clarify
 

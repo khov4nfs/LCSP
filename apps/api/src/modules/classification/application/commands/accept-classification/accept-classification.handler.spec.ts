@@ -212,6 +212,7 @@ describe("AcceptClassificationHandler", () => {
           engineeringSummary: {
             compliant: 1,
             nonCompliant: 1,
+            notApplicable: 0,
             unknown: 0,
             total: 2,
           },
