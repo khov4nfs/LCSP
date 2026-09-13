@@ -22,6 +22,7 @@ import { CitationLocatorValidatorService } from "./application/services/citation
 import { LegalCorpusService } from "./application/services/legal-corpus.service.js";
 import { OfficialSourceSnapshotService } from "./application/services/official-source-snapshot.service.js";
 import { RuleCatalogVersionService } from "./application/services/rule-catalog-version.service.js";
+import { OutboxModule } from "../../platform/outbox/outbox.module.js";
 
 const Handlers = [
   DraftLegalRuleHandler,
@@ -36,7 +37,7 @@ const Handlers = [
 ];
 
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, OutboxModule],
   controllers: [
     LegalRuleCatalogController,
     AdminSourceCatalogController,

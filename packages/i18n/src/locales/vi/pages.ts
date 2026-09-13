@@ -2332,6 +2332,7 @@ export const viPages = {
       detailTitle: "Phiên bản corpus · {version}",
       currentMeta: "{count} nguồn · {publishedAt}",
       create: "Tạo phiên bản mới",
+      creating: "Đang chuẩn bị...",
       createUnavailable:
         "Chưa có quy trình tạo phiên bản có thẩm quyền an toàn cho giao diện.",
       current: "Phiên bản đang công bố",
@@ -2367,6 +2368,7 @@ export const viPages = {
       engineeringRulesChanged: "EngineeringRules thay đổi",
       conflicts: "Xung đột chưa xử lý",
       publish: "Công bố phiên bản",
+      publishing: "Đang công bố...",
       publishUnavailable:
         "Không thể công bố cho tới khi readiness có thẩm quyền được báo cáo đầy đủ.",
       discard: "Huỷ bản nháp",
@@ -2388,8 +2390,10 @@ export const viPages = {
       },
       readinessStates: {
         READY: "Đạt",
+        PASSED: "Đã vượt qua",
         PENDING: "Đang chờ",
         FAILED: "Không đạt",
+        BLOCKED: "Bị chặn",
         UNAVAILABLE: "Không khả dụng",
       },
       readinessChecks: {

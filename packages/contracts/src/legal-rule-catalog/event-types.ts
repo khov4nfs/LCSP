@@ -6,4 +6,5 @@ export const LEGAL_RULE_EVENT_TYPES = {
   corpusVersionApproved: "legal_corpus_version.approved",
   corpusVersionActivated: "event.legal-corpus.activated.v1",
   corpusVersionDiscarded: "legal_corpus_version.discarded",
+  corpusPreparationRequested: "command.legal-corpus.recovery.requested.v1",
 } as const;

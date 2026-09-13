@@ -61,12 +61,18 @@ const date = (value: string | null) =>
     : text("noValue");
 
 export function CorpusVersionsPage({
-  versions,
-  currentPublished,
+  currentActive,
+  items,
+  canCreate,
+  onCreate,
+  isCreating,
   onView,
 }: {
-  versions: AdminCorpusVersionSummary[];
-  currentPublished: AdminCorpusVersionSummary | null;
+  items: AdminCorpusVersionSummary[];
+  currentActive: AdminCorpusVersionSummary | null;
+  canCreate: boolean;
+  onCreate: () => void;
+  isCreating: boolean;
   onView: (id: string) => void;
 }) {
   return (
@@ -77,11 +83,11 @@ export function CorpusVersionsPage({
         actionSlot={
           <Tooltip>
             <TooltipTrigger render={<span tabIndex={0} />}>
-              <Button type="button" disabled>
-                {text("create")}
+              <Button type="button" disabled={!canCreate || isCreating} onClick={onCreate}>
+                {isCreating ? text("creating") : text("create")}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{text("createUnavailable")}</TooltipContent>
+            {!canCreate ? <TooltipContent>{text("createUnavailable")}</TooltipContent> : null}
           </Tooltip>
         }
       />
@@ -89,27 +95,27 @@ export function CorpusVersionsPage({
         <p className="text-xs font-medium text-muted-foreground">
           {text("current")}
         </p>
-        {currentPublished ? (
+        {currentActive ? (
           <div className="mt-2 flex items-center justify-between gap-4">
             <div>
               <p className="text-xl font-semibold">
-                {currentPublished.version}
+                {currentActive.version}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {template("currentMeta", {
-                  count: currentPublished.sourceCount,
-                  publishedAt: date(currentPublished.publishedAt),
+                  count: currentActive.sourceCount,
+                  publishedAt: date(currentActive.publishedAt),
                 })}
               </p>
               <p className="hidden">
-                {currentPublished.sourceCount} {text("sources")} ·{" "}
-                {date(currentPublished.publishedAt)}
+                {currentActive.sourceCount} {text("sources")} ·{" "}
+                {date(currentActive.publishedAt)}
               </p>
             </div>
             <Button
               type="button"
               variant="outline"
-              onClick={() => onView(currentPublished.id)}
+              onClick={() => onView(currentActive.id)}
             >
               {text("view")}
             </Button>
@@ -122,7 +128,7 @@ export function CorpusVersionsPage({
       </section>
       <section>
         <h2 className="mb-3 text-sm font-semibold">{text("versions")}</h2>
-        <CorpusVersionsTable versions={versions} onView={onView} />
+        <CorpusVersionsTable versions={items} onView={onView} />
       </section>
       <aside className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
         {text("note")}
@@ -165,7 +171,7 @@ function CorpusVersionsTable({
               <TableCell className="font-medium">{version.version}</TableCell>
               <TableCell>{lifecycleStatus(version.status)}</TableCell>
               <TableCell>{version.sourceCount}</TableCell>
-              <TableCell>{shown(version.ruleCount)}</TableCell>
+              <TableCell>{shown(version.legalRuleCount)}</TableCell>
               <TableCell>{date(version.createdAt)}</TableCell>
               <TableCell>{date(version.publishedAt)}</TableCell>
               <TableCell>
@@ -189,13 +195,19 @@ function CorpusVersionsTable({
 export function CorpusVersionDetailPage({
   detail,
   onBack,
+  onPublish,
   onDiscard,
+  isPublishing,
+  publishFailed,
   isDiscarding,
   discardFailed,
 }: {
   detail: AdminCorpusVersionDetail;
   onBack: () => void;
+  onPublish: () => void;
   onDiscard: () => void;
+  isPublishing: boolean;
+  publishFailed: boolean;
   isDiscarding: boolean;
   discardFailed: boolean;
 }) {
@@ -206,7 +218,7 @@ export function CorpusVersionDetailPage({
     ["created", date(detail.createdAt)],
     ["createdBy", detail.createdBy],
     ["sources", detail.sourceCount],
-    ["rules", detail.ruleCount],
+    ["rules", detail.legalRuleCount],
   ];
   const changes: Array<[string, string | number | null]> = [
     ["sourceAdded", detail.sourcesAdded],
@@ -228,14 +240,20 @@ export function CorpusVersionDetailPage({
           {text("back")}
         </Button>
         <div className="flex gap-2">
-          <Tooltip>
-            <TooltipTrigger render={<span tabIndex={0} />}>
-              <Button type="button" disabled>
-                {text("publish")}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{text("publishUnavailable")}</TooltipContent>
-          </Tooltip>
+          {detail.actions.canPublish ? (
+            <Button type="button" disabled={isPublishing} onClick={onPublish}>
+              {isPublishing ? text("publishing") : text("publish")}
+            </Button>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger render={<span tabIndex={0} />}>
+                <Button type="button" disabled>
+                  {text("publish")}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{text("publishUnavailable")}</TooltipContent>
+            </Tooltip>
+          )}
           {detail.actions.canDiscard ? (
             <Button
               type="button"
@@ -247,6 +265,12 @@ export function CorpusVersionDetailPage({
           ) : null}
         </div>
       </div>
+      {publishFailed ? (
+        <Alert variant="destructive">
+          <AlertTitle>{text("publishUnavailable")}</AlertTitle>
+          <AlertDescription>{text("error")}</AlertDescription>
+        </Alert>
+      ) : null}
       <div className="grid gap-4 lg:grid-cols-3">
         <DetailCard title={text("metadata")} rows={metadata} />
         <DetailCard title={text("changes")} rows={changes} />

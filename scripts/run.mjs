@@ -17,6 +17,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 const workerRoot = path.join(repoRoot, "deepagents");
+const dockerGraphStorageRoot = path.join(repoRoot, "tmp", "managed-agent");
 const isWindows = process.platform === "win32";
 const workerPython =
   process.platform === "win32"
@@ -50,10 +51,7 @@ const tsJsAnalyzerTsMorphPackage = path.join(
   "ts-morph",
   "package.json",
 );
-const tsJsAnalyzerNpmCache = path.join(
-  tsJsAnalyzerNodeModules,
-  ".npm-cache",
-);
+const tsJsAnalyzerNpmCache = path.join(tsJsAnalyzerNodeModules, ".npm-cache");
 const openWikiRuntimeScript = path.join(
   repoRoot,
   "scripts",
@@ -380,7 +378,9 @@ function isTsJsAnalyzerOutputFresh() {
     : 0;
   return (
     outputMtime > 0 &&
-    inputs.every((input) => existsSync(input) && statSync(input).mtimeMs <= outputMtime)
+    inputs.every(
+      (input) => existsSync(input) && statSync(input).mtimeMs <= outputMtime,
+    )
   );
 }
 
@@ -498,7 +498,10 @@ function stopDevProcesses() {
   ]);
   // Fogewise owns proxy/infra independently of the application dev processes.
   // Protect its group too when both launchers share the same terminal/session.
-  for (const pattern of ["scripts/run.mjs fogewise", "fogewise-dev-launchers/"]) {
+  for (const pattern of [
+    "scripts/run.mjs fogewise",
+    "fogewise-dev-launchers/",
+  ]) {
     for (const entry of findMatchingProcesses(pattern, protectedPids)) {
       protectedPids.add(entry.pid);
     }
@@ -781,6 +784,7 @@ function cleanupDockerWorkerContainer(target) {
 
 function dockerManagedAgentTarget() {
   const containerName = "lcsp-managed-agent";
+  mkdirSync(dockerGraphStorageRoot, { recursive: true });
   return {
     cwd: repoRoot,
     cmd: "docker",
@@ -792,7 +796,7 @@ function dockerManagedAgentTarget() {
       "--add-host",
       "host.docker.internal:host-gateway",
       "--mount",
-      `type=bind,source=${path.join(repoRoot, "tmp")},target=/app/deepagents/tmp`,
+      `type=bind,source=${dockerGraphStorageRoot},target=/app/deepagents/tmp`,
       ...dockerEnvArgs(dockerWorkerEnv()),
       defaultDockerWorkerImage,
     ],
@@ -843,6 +847,7 @@ function dockerWorkerEnv() {
     "OPENWIKI_RUNTIME_COMMAND",
     "OPENWIKI_RUNTIME_TIMEOUT_SECONDS",
     "LEGAL_CHROMA_PATH",
+    "LEGAL_SOURCE_STORAGE_ROOT",
   ];
   const env = Object.fromEntries(
     selectedKeys

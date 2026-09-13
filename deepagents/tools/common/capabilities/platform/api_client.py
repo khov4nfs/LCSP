@@ -709,6 +709,14 @@ class WorkerApiClient:
             raise WorkerCallbackError("Legal corpus activation response was invalid.")
         return data
 
+    def complete_legal_corpus_preparation(self, corpus_version_id: str, payload: dict) -> dict:
+        """Report governed preparation completion without exposing worker credentials."""
+        path = CallbackPath.LEGAL_CORPUS_PREPARATION.format(corpus_version_id=corpus_version_id)
+        data = self._post_with_retry(path, payload)
+        if not isinstance(data, dict):
+            raise WorkerCallbackError("Legal corpus preparation callback response was invalid.")
+        return data
+
     def get_active_legal_rule_catalog(self) -> dict:
         """Fetch the active legal rule catalog/version metadata."""
         path = "/internal/legal-rule-catalog/active"

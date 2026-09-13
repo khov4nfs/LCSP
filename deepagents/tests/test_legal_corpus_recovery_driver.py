@@ -4,14 +4,18 @@ from types import SimpleNamespace
 
 import pytest
 
-from tools.legal.sources.recovery.legal_corpus_recovery_driver import LegalCorpusRecoveryDriver
+from tools.legal.sources.recovery.legal_corpus_recovery_driver import (
+    LegalCorpusRecoveryDriver,
+    PreparationCallbackDeliveryError,
+)
 from tools.legal.sources.recovery import legal_corpus_recovery_driver
 
 
 class FakeApiClient:
-    def __init__(self, *, ingest_response: dict | None = None) -> None:
+    def __init__(self, *, ingest_response: dict | None = None, callback_failures: int = 0) -> None:
         self.calls: list[tuple[str, object]] = []
         self.ingest_response = ingest_response
+        self.callback_failures = callback_failures
 
     def ingest_validated_legal_corpus_draft(self, payload: dict) -> dict:
         self.calls.append(("ingest", payload))
@@ -49,6 +53,15 @@ class FakeApiClient:
             "ruleCount": 3,
             "corpusVersionId": "corpus-1",
         }
+
+    def complete_legal_corpus_preparation(
+        self, corpus_version_id: str, payload: dict
+    ) -> dict:
+        self.calls.append(("complete_preparation", (corpus_version_id, payload)))
+        if self.callback_failures:
+            self.callback_failures -= 1
+            raise RuntimeError("transport unavailable")
+        return {"status": "COMPLETED"}
 
 
 class FakeSourceCrawlDispatcher:
@@ -393,6 +406,92 @@ def test_recovery_driver_can_recover_rules_from_active_corpus_without_artifacts(
     assert result["legalRuleCatalogVersionId"] == "catalog-1"
     assert result["legalRuleCount"] == 3
     assert [name for name, _payload in api_client.calls] == ["recover_rules"]
+
+
+def test_deferred_preparation_reports_non_applicable_checks_and_recovers_rules(
+    tmp_path: Path, monkeypatch
+) -> None:
+    api_client = FakeApiClient()
+    dispatcher = FakeSourceCrawlDispatcher()
+    driver = LegalCorpusRecoveryDriver(api_client=api_client, legal_dispatcher=dispatcher)
+    monkeypatch.setattr(driver, "_validate_retrieval_index", lambda *_args: None)
+
+    result = driver.run(
+        {
+            "idempotencyKey": "prep-1",
+            "preparationId": "preparation-1",
+            "targetCorpusVersionId": "corpus-1",
+            "deferActivation": True,
+            "storageRoot": str(tmp_path / ".corpus"),
+            "sourceCrawlRequests": [
+                {
+                    "documentId": "LAW-TEST",
+                    "catalogSourceRef": "catalog-source:vbpl.vn:law:law-test",
+                    "sourceUrl": "https://vbpl.vn/test",
+                }
+            ],
+        },
+        "corr-1",
+    )
+
+    assert result["status"] == "PREPARED"
+    names = [name for name, _payload in api_client.calls]
+    assert names == ["ingest", "register_index", "recover_rules", "complete_preparation"]
+    callback = api_client.calls[-1][1]
+    assert isinstance(callback, tuple)
+    assert callback[1]["readiness"]["RULE_SNAPSHOT"] == "UNAVAILABLE"
+    assert callback[1]["readiness"]["DIFF_REVIEW"] == "UNAVAILABLE"
+    assert callback[1]["readiness"]["applicable"] == {
+        "RULE_SNAPSHOT": False,
+        "DIFF_REVIEW": False,
+    }
+
+
+def test_completion_callback_failure_is_replayed_without_reingest(tmp_path: Path, monkeypatch) -> None:
+    api_client = FakeApiClient(callback_failures=1)
+    dispatcher = FakeSourceCrawlDispatcher()
+    driver = LegalCorpusRecoveryDriver(api_client=api_client, legal_dispatcher=dispatcher)
+    monkeypatch.setattr(driver, "_validate_retrieval_index", lambda *_args: None)
+    message = {
+        "idempotencyKey": "prep-2",
+        "preparationId": "preparation-2",
+        "targetCorpusVersionId": "corpus-1",
+        "deferActivation": True,
+        "storageRoot": str(tmp_path / ".corpus"),
+        "sourceCrawlRequests": [
+            {
+                "documentId": "LAW-TEST",
+                "catalogSourceRef": "catalog-source:vbpl.vn:law:law-test",
+                "sourceUrl": "https://vbpl.vn/test",
+            }
+        ],
+    }
+    with pytest.raises(PreparationCallbackDeliveryError):
+        driver.run(message, "corr-1")
+
+    result = driver.run(message, "corr-1")
+    assert result["status"] == "PREPARED"
+    assert [name for name, _payload in api_client.calls].count("ingest") == 1
+    assert [name for name, _payload in api_client.calls].count("complete_preparation") == 2
+
+
+def test_failure_callback_failure_is_replayed_and_confirmed(tmp_path: Path) -> None:
+    api_client = FakeApiClient(callback_failures=1)
+    driver = LegalCorpusRecoveryDriver(api_client=api_client)
+    message = {
+        "idempotencyKey": "prep-3",
+        "preparationId": "preparation-3",
+        "targetCorpusVersionId": "corpus-1",
+        "storageRoot": str(tmp_path / ".corpus"),
+    }
+    with pytest.raises(PreparationCallbackDeliveryError):
+        driver.run(message, "corr-1")
+
+    result = driver.run(message, "corr-1")
+    assert result["status"] == "FAILED"
+    callbacks = [payload for name, payload in api_client.calls if name == "complete_preparation"]
+    assert len(callbacks) == 2
+    assert callbacks[-1][1]["status"] == "FAILED"
 
 
 def raw_source_manifest(
