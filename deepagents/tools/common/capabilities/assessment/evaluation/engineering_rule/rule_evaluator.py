@@ -17,6 +17,7 @@ ENGINEERING_RULE_EVALUATION_STATUSES = {
     "compliant": "COMPLIANT",
     "non_compliant": "NON_COMPLIANT",
     "unknown": "UNKNOWN",
+    "not_applicable": "NOT_APPLICABLE",
 }
 
 
@@ -55,6 +56,22 @@ class EngineeringRuleEvaluator:
         required_criteria = tuple(
             dict.fromkeys(getattr(rule, "required_evidence", ()) or ())
         )
+
+        scope_exclusions = [
+            row
+            for row in rows
+            if row.claim_type
+            == ENGINEERING_EVIDENCE_CLAIM_TYPES["rule_scope_not_applicable"]
+            and row.customer_context_refs
+        ]
+        if scope_exclusions:
+            return self._result(
+                rule,
+                ENGINEERING_RULE_EVALUATION_STATUSES["not_applicable"],
+                "Customer-confirmed scope facts demonstrate that the parent legal rule is not applicable.",
+                scope_exclusions,
+                (),
+            )
 
         if required_criteria:
             return self._evaluate_required_criteria(

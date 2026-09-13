@@ -7,6 +7,8 @@ import {
 import {
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_CONTROLS,
+  ASSESSMENT_RUNTIME_RUN_STATUSES,
+  ASSESSMENT_RUNTIME_STAGE_CODES,
   type AssessmentInterviewBlockedAction,
   type RemediationDecision,
 } from "@lcsp/contracts/evidence";
@@ -17,12 +19,15 @@ import { useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { RepositorySetupStep } from "@/features/assessment-flow/components/organisms/repository-setup-step";
+import { RepositorySetupConversation } from "@/features/assessment-flow/components/organisms/repository-setup-conversation";
+import { deriveRepositorySetupAnswer } from "@/features/assessment-flow/utils/repository-setup-history";
 import { ScannerStep } from "@/features/assessment-flow/components/organisms/scanner-step";
 import { deriveAssessmentFlowRuntime } from "@/features/assessment-flow/utils/assessment-flow-runtime";
 import {
   useAssessmentInterviewBlockedActionMutation,
   useAssessmentInterviewStateQuery,
   useReadinessStatusQuery,
+  useRerunClassificationMutation,
   useSubmitAssessmentPostFindingDecisionMutation,
   useSubmitAssessmentInterviewAnswerMutation,
 } from "@/lib/api/assessment-queries";
@@ -37,6 +42,7 @@ import {
   selectInterviewHandoffPresentation,
   selectInterviewPresentation,
   selectPostFindingPresentation,
+  selectRuntimeThinkingActivities,
   selectWorkflowPresentation,
 } from "../../utils/assessment-runtime-selectors";
 import {
@@ -50,6 +56,7 @@ import {
   type AssessmentQuestionAnswerInput,
 } from "../molecules/assessment-question-turn";
 import { PostFindingFlowSteps } from "../molecules/post-finding-flow-steps";
+import { RuntimeThinkingActivity } from "../molecules/runtime-thinking-activity";
 import { AssessmentComposer } from "./assessment-composer";
 import { InterviewAnswerHistory } from "../molecules/interview-answer-history";
 import { AssessmentTranscript } from "./assessment-transcript";
@@ -85,6 +92,7 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
       (item) => item.assessmentId === assessmentId,
     ) ?? null;
   const timeline = workspaceRuntime.getAssessmentRuntime(assessmentId);
+  const repositoryAnswer = deriveRepositorySetupAnswer(connection ?? snapshot);
   const flow = deriveAssessmentFlowRuntime({
     hasRepositoryConnection: readinessLoaded
       ? connection?.status === REPOSITORY_CONNECTION_STATUSES.active
@@ -125,25 +133,30 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
       assessmentId={assessmentId}
       interviewEnabled={flow.stage === ASSESSMENT_FLOW_STAGES.interview}
       scanner={
-        <ScannerStep
-          assessmentId={assessmentId}
-          repository={{
-            provider:
-              connection?.provider ??
-              snapshot?.provider ??
-              ASSESSMENT_REPOSITORY_PROVIDERS.github,
-            repositoryFullName:
-              connection?.repositoryFullName ??
-              snapshot?.repositoryFullName ??
-              t("pages.assessmentFlow.repository.pending"),
-            commitSha:
-              snapshot?.commitSha ??
-              t("pages.assessmentFlow.repository.pending"),
-          }}
-          activities={flow.activities}
-          evidenceReady={flow.evidenceAccepted}
-          programEvidenceSummary={flow.programEvidenceSummary}
-        />
+        <>
+          {repositoryAnswer ? (
+            <RepositorySetupConversation {...repositoryAnswer} disabled />
+          ) : null}
+          <ScannerStep
+            assessmentId={assessmentId}
+            repository={{
+              provider:
+                connection?.provider ??
+                snapshot?.provider ??
+                ASSESSMENT_REPOSITORY_PROVIDERS.github,
+              repositoryFullName:
+                connection?.repositoryFullName ??
+                snapshot?.repositoryFullName ??
+                t("pages.assessmentFlow.repository.pending"),
+              commitSha:
+                snapshot?.commitSha ??
+                t("pages.assessmentFlow.repository.pending"),
+            }}
+            activities={flow.activities}
+            evidenceReady={flow.evidenceAccepted}
+            programEvidenceSummary={flow.programEvidenceSummary}
+          />
+        </>
       }
       scanFailed={flow.scanFailed}
       runtimeKey={[
@@ -185,10 +198,12 @@ function AssessmentInterviewFlow({
   const composerAvailability = selectComposerAvailability(normalized);
   const interviewHandoff = selectInterviewHandoffPresentation(normalized);
   const postFinding = selectPostFindingPresentation(normalized);
+  const runtimeThinkingActivities = selectRuntimeThinkingActivities(normalized);
   const runtimeInterviewState = interviewQuery.data;
   const submitAnswer = useSubmitAssessmentInterviewAnswerMutation(assessmentId);
   const recordBlockedAction =
     useAssessmentInterviewBlockedActionMutation(assessmentId);
+  const resumeAssessmentPipeline = useRerunClassificationMutation(assessmentId);
   const submitPostFindingDecision =
     useSubmitAssessmentPostFindingDecisionMutation(assessmentId);
 
@@ -298,6 +313,7 @@ function AssessmentInterviewFlow({
     workflow.currentRunId,
     workflow.status,
     normalized.workflow.latestRun?.updatedAt ?? workflow.lastEmittedAt,
+    runtimeThinkingActivities.at(-1)?.eventId,
     interviewQuery.dataUpdatedAt,
     activeQuestionId,
     answerHistory.length,
@@ -446,6 +462,30 @@ function AssessmentInterviewFlow({
     interview.revalidating ||
     (activeQuestion?.control === ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust &&
       !activeDraft.isAdjusting);
+  const hasComposerDraft = composerValue.trim().length > 0;
+  const canResumeAssessmentPipeline =
+    interviewEnabled &&
+    !scanFailed &&
+    workflow.activeStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.waiting &&
+    workflow.activeStage === ASSESSMENT_RUNTIME_STAGE_CODES.legalRetrieval &&
+    !hasComposerDraft &&
+    !submitAnswer.isPending &&
+    !recordBlockedAction.isPending &&
+    !submitPostFindingDecision.isPending &&
+    !resumeAssessmentPipeline.isPending;
+  const composerDisabled =
+    isComposerDisabled && !canResumeAssessmentPipeline && !hasComposerDraft;
+
+  function handleResumeAssessmentPipeline() {
+    if (!canResumeAssessmentPipeline) {
+      return;
+    }
+    resumeAssessmentPipeline.mutate(undefined, {
+      onSuccess: () => {
+        setLastSavedMessage(t("pages.assessment.resumeQueued"));
+      },
+    });
+  }
 
   return (
     <main
@@ -467,6 +507,13 @@ function AssessmentInterviewFlow({
               <InterviewAnswerHistory
                 key={`${answer.questionId}:${answer.answeredAt}`}
                 answer={answer}
+              />
+            ))}
+
+            {runtimeThinkingActivities.map((activity) => (
+              <RuntimeThinkingActivity
+                key={activity.eventId}
+                activity={activity}
               />
             ))}
 
@@ -561,7 +608,8 @@ function AssessmentInterviewFlow({
               <AgentTurn>
                 <AgentMessage>
                   <p className="mt-2 whitespace-pre-wrap break-words text-muted-foreground">
-                    {interview.assistantMessage ?? t(interviewHandoff.messageKey)}
+                    {interview.assistantMessage ??
+                      t(interviewHandoff.messageKey)}
                   </p>
                 </AgentMessage>
               </AgentTurn>
@@ -612,12 +660,16 @@ function AssessmentInterviewFlow({
 
       <AssessmentComposer
         value={composerValue}
-        disabled={isComposerDisabled}
+        disabled={composerDisabled}
         submitReady={isSubmitReady}
         submitting={submitAnswer.isPending || recordBlockedAction.isPending}
+        resuming={resumeAssessmentPipeline.isPending}
+        resumeAvailable={canResumeAssessmentPipeline}
+        resumeLabel={t("pages.assessment.resumePipeline")}
         placeholder={t(composerPlaceholderKey)}
         onValueChange={handleComposerValueChange}
         onSubmit={handleSubmit}
+        onResume={handleResumeAssessmentPipeline}
       />
     </main>
   );

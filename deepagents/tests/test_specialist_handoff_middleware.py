@@ -8,6 +8,9 @@ import pytest
 from langchain.messages import ToolMessage
 from langgraph.types import Command
 
+from tools.common.capabilities.assessment.claims.evidence_claim.models import (
+    ENGINEERING_LIMITATION_CODES,
+)
 from middleware import specialist_handoff_validation
 from middleware.specialist_handoff_validation import (
     _validate_lcsp_specialist_task_handoff,
@@ -80,7 +83,9 @@ def _investigator_handoff(*, graph_ref: str = "node:ai") -> dict:
                 "graph_path_refs": [graph_ref],
                 "source_anchor_refs": [],
                 "confidence": 0.9,
-                "limitations": [],
+                "limitations": [
+                    ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
+                ],
                 "criterion": "AI invocation exists",
             }
         ],

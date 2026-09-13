@@ -118,17 +118,26 @@ khi refine prior answer/conflict.
 
 Đây không phải runtime outcome.
 
-## Direct statement — không over-confirm
+## Direct statement — confirm một lần, không hỏi lại
 
-Customer:
+Customer (`FREE_TEXT` answer):
 
 > “A recruiter must approve every rejection before it takes effect.”
 
-Do not ask:
+Không hỏi thêm một câu hỏi khác:
 
 > “Just to confirm, is recruiter approval mandatory?”
 
-Statement đủ explicit để lossless normalize thành `CUSTOMER_CONFIRMED`.
+Hỏi vậy tốn một turn mà không ra được answer authoritative. `FREE_TEXT` answer luôn cần interpretation
+để normalize, dù wording rõ ràng đến đâu, nên không thể thành `CUSTOMER_CONFIRMED` trực tiếp. Thay vào
+đó hỏi đúng một `CONFIRM_ADJUST` question với `proposedInterpretation` là statement nguyên văn (choices
+`CONFIRM` / `ADJUST`) — Customer chỉ cần bấm `CONFIRM` một lần. Áp dụng tương tự cho choice nào
+`requiresFreeText` (ví dụ `OTHER`) hoặc answer có comment không rỗng.
+
+Predefined-choice answer không comment thì không cần lượt này — đã lossless:
+
+Customer chọn `SINGLE_SELECT` "Standard approval flow", không comment → `CUSTOMER_CONFIRMED` trực tiếp,
+không cần hỏi thêm.
 
 ## Ambiguous statement — clarify
 

@@ -1,5 +1,8 @@
 import { ASSESSMENT_EVENT_TYPES } from "@lcsp/contracts/assessment";
-import { GITHUB_INTEGRATION_EVENT_TYPES } from "@lcsp/contracts/github-integration";
+import {
+  GITHUB_INTEGRATION_ERROR_CODES,
+  GITHUB_INTEGRATION_EVENT_TYPES,
+} from "@lcsp/contracts/github-integration";
 import {
   OUTBOX_STATUSES,
   OUTBOX_AGGREGATE_TYPES,
@@ -9,7 +12,7 @@ import { TARGETED_REANALYSIS_CAPACITY_POLICY } from "@lcsp/contracts/scan";
 import { jest } from "@jest/globals";
 import type { Prisma } from "@prisma/client";
 import type { ConfigService } from "@nestjs/config";
-import { Logger } from "@nestjs/common";
+import { ConflictException, Logger } from "@nestjs/common";
 
 import { OutboxMessageEntity } from "./outbox-message.entity.js";
 import { OutboxPublisherService } from "./outbox-publisher.service.js";
@@ -288,6 +291,58 @@ describe("OutboxPublisherService", () => {
         user_id: "user-1",
         "x-correlation-id": "corr-1",
       },
+    );
+  });
+
+  it("logs exception type and problem code when local auto-chain fails", async () => {
+    const message = makeMessage({
+      aggregateType: OUTBOX_AGGREGATE_TYPES.repositorySnapshot,
+      eventType: GITHUB_INTEGRATION_EVENT_TYPES.snapshotCreated,
+    });
+    const withPendingBatch = jest
+      .fn<WithPendingBatchFn>()
+      .mockImplementation(async (_batchSize, handler) =>
+        handler([message], {} as Prisma.TransactionClient),
+      );
+    const markFailure = jest.fn<MarkFailureFn>().mockResolvedValue(undefined);
+    const autoScan = makeSnapshotCreatedAutoScanService();
+    autoScan.handleMock.mockRejectedValue(
+      new ConflictException({
+        ok: false,
+        problem: {
+          code: GITHUB_INTEGRATION_ERROR_CODES.scanIdempotencyConflict,
+        },
+      }),
+    );
+
+    const service = new OutboxPublisherService(
+      makeOutboxRepository({ withPendingBatch, markFailure }),
+      makeRabbitMqClient({
+        ensureConnected: jest
+          .fn<EnsureConnectedFn>()
+          .mockResolvedValue(undefined),
+        publish: jest.fn<PublishFn>().mockResolvedValue(undefined),
+      }),
+      makeConfigService(),
+      makeAuditWriter(),
+      autoScan,
+    );
+
+    await service.poll();
+
+    expect(markFailure).toHaveBeenCalledWith(
+      {},
+      "outbox-1",
+      1,
+      5,
+      "Conflict Exception",
+      expect.any(Date),
+      expect.any(Date),
+    );
+    expect(loggerErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `error_type=ConflictException error_code=${GITHUB_INTEGRATION_ERROR_CODES.scanIdempotencyConflict}`,
+      ),
     );
   });
 

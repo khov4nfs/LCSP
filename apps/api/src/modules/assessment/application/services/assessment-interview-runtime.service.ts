@@ -86,6 +86,16 @@ const PUBLIC_REDACTED_ANSWER_SUMMARY =
 const PUBLIC_REDACTED_DRAFT_SUMMARY =
   "Customer draft persisted for Interview resume.";
 const INTERVIEW_AGENT_DECISION_REQUIRED = "INTERVIEW_AGENT_DECISION_REQUIRED";
+// Worker-only private answer history (never merged into publicState, which stays
+// the sanitized customer projection). Bounded so a long-running Interview thread
+// cannot grow the model prompt unboundedly: only the most recent
+// WORKER_PRIOR_ANSWER_HISTORY_MAX_ENTRIES prior revisions are returned (older ones
+// are dropped and counted, never silently truncated without a signal), and each
+// comment/free-text field is cut at WORKER_PRIOR_ANSWER_HISTORY_TEXT_LIMIT
+// characters with an explicit truncation marker appended.
+const WORKER_PRIOR_ANSWER_HISTORY_MAX_ENTRIES = 20;
+const WORKER_PRIOR_ANSWER_HISTORY_TEXT_LIMIT = 500;
+const WORKER_PRIOR_ANSWER_HISTORY_TRUNCATION_MARKER = "…[truncated]";
 const POST_FINDING_DECISION_TOOL_NAME = "post_finding_remediation_decision";
 const POST_FINDING_RUNTIME_CONTINUATION_REQUIRED =
   "POST_FINDING_RUNTIME_CONTINUATION_REQUIRED";
@@ -125,7 +135,27 @@ export type PrivateInterviewAnswerRevision = {
   sourceVersion: string;
   pgeVersion: string;
   governedEvidenceRefs: string[];
+  /**
+   * True when customer text/comment or requires-free-text choices need model
+   * interpretation before authority can be claimed.
+   */
+  answerRequiresInterpretation?: boolean;
   processedAt?: string;
+};
+
+// Worker-only: one prior turn's answer, verbatim, so the model sees the Customer's
+// own wording in later turns instead of only the sanitized publicState.answerHistory
+// summary ("Customer selected N option(s)."). Never added to publicState.
+export type WorkerPriorAnswerHistoryItem = {
+  questionId: string;
+  contextRevision: number;
+  questionIntent?: PrivateInterviewAnswerRevision["questionIntent"];
+  questionControl?: PrivateInterviewAnswerRevision["questionControl"];
+  selectedChoiceIds?: string[];
+  confirmed?: boolean;
+  adjusted?: boolean;
+  freeText?: string;
+  comment?: string;
 };
 
 type InterviewAnswerIdempotencyRecord = {
@@ -201,6 +231,9 @@ type WorkerPrivateContext = {
   publicState: AssessmentInterviewRuntimeState;
   confirmedContext?: AssessmentInterviewRuntimeState["confirmedContext"];
   privateRevision?: PrivateInterviewAnswerRevision;
+  // Worker-only recovery input; never merged into publicState/customer projection.
+  priorAnswerHistory: WorkerPriorAnswerHistoryItem[];
+  priorAnswerHistoryOmittedCount: number;
   targetedNeed?: TargetedInterviewNeed;
   guidanceVersion: string;
   workingStrategy: InterviewWorkingStrategy;
@@ -490,6 +523,10 @@ export class AssessmentInterviewRuntimeService {
         sourceVersion: provenance.sourceVersion,
         pgeVersion: provenance.pgeVersion,
         governedEvidenceRefs: lineageEvidenceRefs,
+        answerRequiresInterpretation: requiresAnswerInterpretation(
+          answer,
+          thread.state.activeQuestion,
+        ),
       };
       const nextState: AssessmentInterviewRuntimeState = {
         ...thread.state,
@@ -962,6 +999,13 @@ export class AssessmentInterviewRuntimeService {
     const workflowRunId =
       thread.privateStore.targetedContinuation?.workflowRunId ??
       thread.privateStore.workflowRunId;
+    const {
+      items: priorAnswerHistory,
+      omittedCount: priorAnswerHistoryOmittedCount,
+    } = buildWorkerPriorAnswerHistory(
+      thread.privateRevisions,
+      input.contextRevision,
+    );
     return {
       status,
       assessmentId: input.assessmentId,
@@ -987,6 +1031,8 @@ export class AssessmentInterviewRuntimeService {
           ? thread.state.confirmedContext
           : undefined,
       privateRevision,
+      priorAnswerHistory,
+      priorAnswerHistoryOmittedCount,
       targetedNeed: target,
       guidanceVersion: thread.guidanceVersion ?? this.resolveGuidanceVersion(),
       workingStrategy: normalizeStrategy(thread.privateStore.workingStrategy),
@@ -3148,7 +3194,8 @@ function assertAuthorityProvenance(
       ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask &&
     privateRevision.questionControl !==
       ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust &&
-    privateRevision.answer.adjusted !== true;
+    privateRevision.answer.adjusted !== true &&
+    !revisionRequiresAnswerInterpretation(privateRevision);
 
   if (authority === ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed) {
     if (!explicitlyConfirmed && !directLosslessCustomerStatement) {
@@ -3168,6 +3215,40 @@ function assertAuthorityProvenance(
       { status: HttpStatus.CONFLICT },
     );
   }
+}
+
+function revisionRequiresAnswerInterpretation(
+  privateRevision: PrivateInterviewAnswerRevision,
+): boolean {
+  if (privateRevision.answerRequiresInterpretation === true) {
+    return true;
+  }
+  const answer = privateRevision.answer;
+  return (
+    privateRevision.questionControl ===
+      ASSESSMENT_INTERVIEW_CONTROLS.freeText ||
+    Boolean(answer.freeText?.trim()) ||
+    Boolean(answer.comment?.trim()) ||
+    Boolean(answer.otherText?.trim())
+  );
+}
+
+function requiresAnswerInterpretation(
+  answer: AssessmentInterviewAnswerInput,
+  question: NonNullable<AssessmentInterviewRuntimeState["activeQuestion"]>,
+): boolean {
+  if (question.control === ASSESSMENT_INTERVIEW_CONTROLS.freeText) {
+    return true;
+  }
+  if (answer.comment?.trim() || answer.otherText?.trim()) {
+    return true;
+  }
+  const choiceById = new Map(
+    (question.choices ?? []).map((choice) => [choice.id, choice]),
+  );
+  return (answer.selectedChoiceIds ?? []).some(
+    (choiceId) => choiceById.get(choiceId)?.requiresFreeText === true,
+  );
 }
 
 function assertAnswerMatchesQuestion(
@@ -3290,6 +3371,63 @@ function isAuthoritative(value: unknown): boolean {
     value === ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed ||
     value === ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.confirmed
   );
+}
+
+function truncateWorkerHistoryText(
+  text: string | undefined,
+): string | undefined {
+  const trimmed = text?.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length <= WORKER_PRIOR_ANSWER_HISTORY_TEXT_LIMIT) return trimmed;
+  return (
+    trimmed.slice(0, WORKER_PRIOR_ANSWER_HISTORY_TEXT_LIMIT) +
+    WORKER_PRIOR_ANSWER_HISTORY_TRUNCATION_MARKER
+  );
+}
+
+// Worker-only: never call this for anything that feeds publicState, logs, or a
+// runtime event — this is the one place verbatim Customer comment/free text from
+// prior turns is allowed to leave private storage.
+function buildWorkerPriorAnswerHistory(
+  revisions: PrivateInterviewAnswerRevision[],
+  currentRevision: number,
+): {
+  items: WorkerPriorAnswerHistoryItem[];
+  omittedCount: number;
+} {
+  const prior = revisions.filter(
+    (revision) => revision.contextRevision !== currentRevision,
+  );
+  const omittedCount = Math.max(
+    0,
+    prior.length - WORKER_PRIOR_ANSWER_HISTORY_MAX_ENTRIES,
+  );
+  const kept = prior.slice(-WORKER_PRIOR_ANSWER_HISTORY_MAX_ENTRIES);
+  const items = kept.map((revision): WorkerPriorAnswerHistoryItem => {
+    const item: WorkerPriorAnswerHistoryItem = {
+      questionId: revision.questionId,
+      contextRevision: revision.contextRevision,
+      questionIntent: revision.questionIntent,
+      questionControl: revision.questionControl,
+    };
+    if (revision.answer.selectedChoiceIds?.length) {
+      item.selectedChoiceIds = revision.answer.selectedChoiceIds;
+    }
+    if (typeof revision.answer.confirmed === "boolean") {
+      item.confirmed = revision.answer.confirmed;
+    }
+    if (typeof revision.answer.adjusted === "boolean") {
+      item.adjusted = revision.answer.adjusted;
+    }
+    const freeText = truncateWorkerHistoryText(revision.answer.freeText);
+    if (freeText) item.freeText = freeText;
+    const comment = truncateWorkerHistoryText(
+      revision.answer.comment ?? revision.answer.otherText,
+    );
+    if (comment) item.comment = comment;
+    return item;
+  });
+  return { items, omittedCount };
 }
 
 function summarizeAnswer(answer: AssessmentInterviewAnswerInput): string {

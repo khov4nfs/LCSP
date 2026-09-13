@@ -336,13 +336,15 @@ Read `references/context-sufficiency.md` before a READY/RESOLVED decision.
 
 ## Customer statement normalization
 
-Use `CUSTOMER_CONFIRMED` directly when a Customer statement is explicit and normalization is semantically lossless.
+Use `CUSTOMER_CONFIRMED` directly only for a predefined-choice direct ASK answer (`BOOLEAN`/`SINGLE_SELECT`/`MULTI_SELECT`, no comment) — nothing was interpreted.
+
+A `FREE_TEXT` answer, a choice that `requiresFreeText` (e.g. `OTHER`), or any answer carrying a non-empty comment always needed interpretation, however explicit the wording. It stays `CUSTOMER_STATED` until confirmed through one bounded `CONFIRM_ADJUST` turn — not a second, separately-worded question.
 
 Example:
 
-> “A recruiter must approve every rejection before it takes effect.”
+> “A recruiter must approve every rejection before it takes effect.” (`FREE_TEXT` answer)
 
-Do not ask a redundant confirmation question.
+Ask one `CONFIRM_ADJUST` question with `proposedInterpretation` set to the statement; do not ask a redundant, differently-worded confirmation question.
 
 Keep `CUSTOMER_STATED` when wording is hedged/ambiguous or normalization adds meaning.
 

@@ -40,7 +40,7 @@ from model_policy import (
 from subagents import FLOW_SUBAGENTS
 from contracts.handoffs import (
     InterviewResult,
-    InvestigatorClaim,
+    InvestigatorRequirementMetClaim,
     InvestigatorResult,
     PlannerResult,
     ProvenanceRef,
@@ -178,13 +178,14 @@ def test_structured_handoffs_match_deep_research_report_fields() -> None:
         status="READY",
         artifact_versions={"technicalEvidenceReportId": "ter-1"},
         claims=[
-            InvestigatorClaim(
+            InvestigatorRequirementMetClaim(
                 claim_id="claim-1",
                 engineering_rule_id="ENG-1",
                 claim_type="RULE_REQUIREMENT_MET",
                 value=True,
                 evidence_refs=["evidence:1"],
                 confidence=0.9,
+                criterion="AI invocation exists",
             )
         ],
         next_step="GATE",
@@ -236,6 +237,20 @@ def test_interview_prompt_states_every_enforced_control_shape_rule() -> None:
     assert "BOOLEAN and FREE_TEXT must leave `choices` empty" in interview_prompt
     assert "SINGLE_SELECT and\n  MULTI_SELECT require at least one choice" in interview_prompt
     assert "exactly CONFIRM and ADJUST stable choice IDs" in interview_prompt
+
+
+def test_investigator_prompt_requires_seeded_flow_trace_before_closure() -> None:
+    investigator_prompt = str(
+        next(item for item in FLOW_SUBAGENTS if item["name"] == "investigator")[
+            "system_prompt"
+        ]
+    )
+
+    assert "substring node search, not path proof or absence proof" in investigator_prompt
+    assert "Do not close a MET or NOT_MET technical claim based solely on `search_program_graph`" in investigator_prompt
+    assert "`trace_static_flow` or `inspect_data_path` starting from concrete seed refs" in investigator_prompt
+    assert "matchMode=SUBSTRING" in investigator_prompt
+    assert "absenceProven=false" in investigator_prompt
 
 
 def test_default_role_models_match_lcsp_cost_and_reasoning_policy() -> None:

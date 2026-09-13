@@ -161,6 +161,111 @@ describe("Scan Trigger Endpoint (e2e) [MW-gh-004]", () => {
     );
   });
 
+  it("deduplicates concurrent trusted auto and manual scan triggers for one snapshot", async () => {
+    const trusted = await httpRequest(app)
+      .post("/assessments/assessment-1/scan-jobs")
+      .set("X-Worker-Api-Key", WORKER_KEY)
+      .send({
+        snapshot_id: "snapshot-1",
+        trigger_source: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+        idempotency_key: "snapshot-auto:assessment-1:snapshot-1",
+      });
+    const trustedBody = successBody<TriggerScanDto>(trusted);
+
+    const manual = await httpRequest(app)
+      .post("/assessments/assessment-1/scan-jobs")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({
+        snapshot_id: "snapshot-1",
+        trigger_source: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
+        idempotency_key: "snapshot-scan:assessment-1:snapshot-1",
+      });
+    const manualBody = successBody<TriggerScanDto>(manual);
+
+    assert.equal(trusted.status, 201);
+    assert.equal(manual.status, 200);
+    assert.equal(trustedBody.is_new, true);
+    assert.equal(manualBody.is_new, false);
+    assert.equal(manualBody.scan_job_id, trustedBody.scan_job_id);
+    assert.equal(await prisma.repositoryScanJob.count(), 1);
+    assert.equal(
+      await prisma.outboxMessage.count({
+        where: { eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered },
+      }),
+      1,
+    );
+  });
+
+  it("deduplicates manual then trusted snapshot-auto triggers with the shared key", async () => {
+    const manual = await httpRequest(app)
+      .post("/assessments/assessment-1/scan-jobs")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({
+        snapshot_id: "snapshot-1",
+        trigger_source: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
+        idempotency_key: "snapshot-auto:assessment-1:snapshot-1",
+      });
+    const manualBody = successBody<TriggerScanDto>(manual);
+
+    const trusted = await httpRequest(app)
+      .post("/assessments/assessment-1/scan-jobs")
+      .set("X-Worker-Api-Key", WORKER_KEY)
+      .send({
+        snapshot_id: "snapshot-1",
+        trigger_source: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+        idempotency_key: "snapshot-auto:assessment-1:snapshot-1",
+      });
+    const trustedBody = successBody<TriggerScanDto>(trusted);
+
+    assert.equal(manual.status, 201);
+    assert.equal(trusted.status, 200);
+    assert.equal(manualBody.is_new, true);
+    assert.equal(trustedBody.is_new, false);
+    assert.equal(trustedBody.scan_job_id, manualBody.scan_job_id);
+    assert.equal(await prisma.repositoryScanJob.count(), 1);
+    assert.equal(
+      await prisma.outboxMessage.count({
+        where: { eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered },
+      }),
+      1,
+    );
+  });
+
+  it("deduplicates trusted then manual snapshot-auto triggers with the shared key", async () => {
+    const trusted = await httpRequest(app)
+      .post("/assessments/assessment-1/scan-jobs")
+      .set("X-Worker-Api-Key", WORKER_KEY)
+      .send({
+        snapshot_id: "snapshot-1",
+        trigger_source: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+        idempotency_key: "snapshot-auto:assessment-1:snapshot-1",
+      });
+    const trustedBody = successBody<TriggerScanDto>(trusted);
+
+    const manual = await httpRequest(app)
+      .post("/assessments/assessment-1/scan-jobs")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({
+        snapshot_id: "snapshot-1",
+        trigger_source: REPOSITORY_SCAN_TRIGGER_SOURCES.manual,
+        idempotency_key: "snapshot-auto:assessment-1:snapshot-1",
+      });
+    const manualBody = successBody<TriggerScanDto>(manual);
+
+    assert.equal(trusted.status, 201);
+    assert.equal(manual.status, 200);
+    assert.equal(trustedBody.is_new, true);
+    assert.equal(manualBody.is_new, false);
+    assert.equal(manualBody.scan_job_id, trustedBody.scan_job_id);
+    assert.equal(await prisma.repositoryScanJob.count(), 1);
+    assert.equal(
+      await prisma.outboxMessage.count({
+        where: { eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered },
+      }),
+      1,
+    );
+  });
+
   it("T03: rejects an assessment state that cannot start scan", async () => {
     await prisma.assessment.update({
       where: { id: "assessment-1" },

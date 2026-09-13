@@ -1,0 +1,13 @@
+CREATE TYPE "EngineeringRuleEvaluationStatus" AS ENUM (
+    'COMPLIANT',
+    'NON_COMPLIANT',
+    'UNKNOWN',
+    'NOT_APPLICABLE'
+);
+
+CREATE TYPE "EngineeringEvidenceClaimType" AS ENUM (
+    'RULE_REQUIREMENT_MET',
+    'RULE_REQUIREMENT_NOT_MET',
+    'UNRESOLVED_ENGINEERING_FACT',
+    'RULE_SCOPE_NOT_APPLICABLE'
+);

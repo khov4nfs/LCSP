@@ -163,14 +163,27 @@ Câu này **không xác nhận** mandatory approval trước finalization.
 
 Normalized business fact có meaning:
 
-1. **directly explicit** trong Customer answer và normalization semantically lossless; hoặc
-2. là **non-trivial interpretation** đã được Customer explicit confirm.
+1. **directly explicit từ predefined choice** — Customer chọn option `BOOLEAN`/`SINGLE_SELECT`/`MULTI_SELECT` không có comment, nên không có gì cần interpret; hoặc
+2. **answer cần interpretation, đã được explicit confirm** — bất kỳ `FREE_TEXT` answer, choice `requiresFreeText` (ví dụ `OTHER`), hoặc answer có comment không rỗng. Những answer này luôn cần interpretation để normalize thành statement, nên không bao giờ rơi vào case 1 — dù wording có rõ ràng đến đâu. Dùng một lượt `CONFIRM_ADJUST` duy nhất: hỏi với `proposedInterpretation` là statement đã normalize. Customer chỉ cần bấm `CONFIRM` một lần; không hỏi thêm một câu yes/no khác riêng.
 
-Direct example:
+Direct example (case 1, không cần confirm turn):
 
-> “Recruiter bắt buộc approve mọi rejection trước khi nó có hiệu lực.”
+> Customer chọn "Yes" trên câu hỏi `BOOLEAN`, không comment.
 
-Có thể normalize trực tiếp thành:
+```text
+approval_required = true
+source = CUSTOMER_CONFIRMED
+```
+
+Interpretive-nhưng-explicit example (case 2, một lượt `CONFIRM_ADJUST` — không phải câu hỏi mở thứ hai):
+
+> “Recruiter bắt buộc approve mọi rejection trước khi nó có hiệu lực.” (`FREE_TEXT` answer)
+
+Hỏi `CONFIRM_ADJUST` với `proposedInterpretation`:
+
+> "Cần recruiter approve trước khi rejection có hiệu lực."
+
+Khi Customer chọn `CONFIRM`:
 
 ```text
 approval_required = true
@@ -179,7 +192,7 @@ approval_timing = before_finalization
 source = CUSTOMER_CONFIRMED
 ```
 
-Interpretive example:
+Ambiguous/hedged example:
 
 > “Thường có người check.”
 

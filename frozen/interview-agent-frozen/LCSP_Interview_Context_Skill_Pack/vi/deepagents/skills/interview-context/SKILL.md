@@ -340,13 +340,15 @@ Investigator mode chỉ return `CONTEXT_RESOLVED` khi exact `businessContextNeed
 
 ## Customer statement normalization
 
-Dùng `CUSTOMER_CONFIRMED` trực tiếp khi Customer statement explicit và normalization semantically lossless.
+Dùng `CUSTOMER_CONFIRMED` trực tiếp chỉ cho predefined-choice direct ASK answer (`BOOLEAN`/`SINGLE_SELECT`/`MULTI_SELECT`, không comment) — không có gì cần interpret.
+
+`FREE_TEXT` answer, choice `requiresFreeText` (ví dụ `OTHER`), hoặc answer có comment không rỗng luôn cần interpretation, dù wording rõ ràng đến đâu. Giữ `CUSTOMER_STATED` cho đến khi được confirm qua một lượt `CONFIRM_ADJUST` — không phải một câu hỏi khác riêng.
 
 Ví dụ:
 
-> “Recruiter bắt buộc approve mọi rejection trước khi có hiệu lực.”
+> “Recruiter bắt buộc approve mọi rejection trước khi có hiệu lực.” (`FREE_TEXT` answer)
 
-Không cần hỏi lại confirmation dư thừa.
+Hỏi một `CONFIRM_ADJUST` question với `proposedInterpretation` là statement; không hỏi thêm một confirmation question khác dư thừa.
 
 Giữ `CUSTOMER_STATED` khi wording hedged/ambiguous hoặc normalization thêm meaning.
 

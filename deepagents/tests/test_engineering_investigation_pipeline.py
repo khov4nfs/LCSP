@@ -127,6 +127,7 @@ def test_pipeline_returns_direct_compliant_rule_evaluation() -> None:
         "compliant": 1,
         "non_compliant": 0,
         "unknown": 0,
+        "not_applicable": 0,
         "total": 1,
     }
 
@@ -366,6 +367,7 @@ def test_pipeline_treats_unknown_as_valid_complete_evaluation() -> None:
         "compliant": 0,
         "non_compliant": 0,
         "unknown": 1,
+        "not_applicable": 0,
         "total": 1,
     }
 
@@ -522,3 +524,25 @@ def test_safe_technical_evidence_projection_keeps_source_location_without_source
     ]
     assert "code" not in displays[0]
     assert "source" not in displays[0]
+
+
+def test_rule_evaluator_treats_scope_claim_as_not_applicable() -> None:
+    from tools.common.capabilities.assessment.evaluation.engineering_rule.rule_evaluator import (
+        EngineeringRuleEvaluator,
+    )
+
+    claim = EvidenceClaim(
+        claim_id="claim-scope-1",
+        engineering_rule_id="eng-1",
+        claim_type="RULE_SCOPE_NOT_APPLICABLE",
+        value=None,
+        evidence_refs=(),
+        customer_context_refs=("stmt-national-data",),
+        confidence=0.0,
+        criterion="TARGETED_SCOPE_EXCLUDED",
+    )
+
+    evaluation = EngineeringRuleEvaluator().evaluate(_rule(), [claim])
+
+    assert evaluation.status == "NOT_APPLICABLE"
+    assert evaluation.evidence_refs == ()

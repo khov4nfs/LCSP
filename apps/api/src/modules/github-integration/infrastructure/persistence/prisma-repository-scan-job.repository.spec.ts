@@ -86,6 +86,56 @@ describe("PrismaRepositoryScanJobRepository", () => {
     expect(result?.status).toBe(REPOSITORY_SCAN_JOB_STATUSES.running);
   });
 
+  it("finds the latest active job by assessment and snapshot", async () => {
+    const record = {
+      id: "scan-job-active",
+      assessmentId: "assessment-1",
+      snapshotId: "snapshot-1",
+      idempotencyKey: "snapshot-auto:assessment-1:snapshot-1",
+      triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+      status: REPOSITORY_SCAN_JOB_STATUSES.queued,
+      attemptCount: 0,
+      correlationId: "corr-active",
+      blockedReason: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const findFirst =
+      jest.fn<
+        (args: Record<string, unknown>) => Promise<typeof record | null>
+      >();
+    findFirst.mockResolvedValue(record);
+    const repository = new PrismaRepositoryScanJobRepository(
+      {
+        repositoryScanJob: { findFirst },
+      } as unknown as PrismaService,
+      {} as OutboxRepository,
+    );
+
+    const result = await repository.findActiveByAssessmentAndSnapshot({
+      assessmentId: "assessment-1",
+      snapshotId: "snapshot-1",
+    });
+
+    expect(result?.id).toBe("scan-job-active");
+    expect(findFirst).toHaveBeenCalledWith({
+      where: {
+        assessmentId: "assessment-1",
+        snapshotId: "snapshot-1",
+        status: {
+          in: [
+            REPOSITORY_SCAN_JOB_STATUSES.queued,
+            REPOSITORY_SCAN_JOB_STATUSES.running,
+            REPOSITORY_SCAN_JOB_STATUSES.readyToSnapshot,
+            REPOSITORY_SCAN_JOB_STATUSES.pendingMapping,
+            REPOSITORY_SCAN_JOB_STATUSES.waitingForContext,
+          ],
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+  });
+
   it("persists a controlled-state job without enqueueing an outbox command", async () => {
     const create = jest
       .fn<(args: { data: Record<string, unknown> }) => Promise<unknown>>()

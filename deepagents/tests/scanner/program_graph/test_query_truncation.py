@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
-from tools.common.capabilities.evidence.graph.query.query_engine import ProgramGraphQueryEngine
+from tools.common.capabilities.evidence.graph.query.query_engine import (
+    EVIDENCE_SEARCH_MATCH_MODE_SUBSTRING,
+    ProgramGraphQueryEngine,
+)
 
 
 def _node(node_id: str, node_type: str, *, provider: str | None = None) -> dict:
@@ -64,6 +67,30 @@ def test_search_nodes_uses_truncated_instead_of_exposing_limit_semantics() -> No
     assert result.continuation_frontiers == ["ai-2"]
     assert result.unresolved_frontiers == []
     assert result.to_dict()["truncated"] is True
+    assert result.to_dict()["matchMode"] == EVIDENCE_SEARCH_MATCH_MODE_SUBSTRING
+
+
+def test_search_nodes_tokenizes_underscore_joined_query_names_as_or_terms() -> None:
+    engine = ProgramGraphQueryEngine(
+        _graph(
+            [
+                _node("external-service", "EXTERNAL_SERVICE"),
+                _node("training-job", "TRAINING_JOB"),
+                _node("unrelated", "FUNCTION"),
+            ],
+            [],
+        )
+    )
+
+    result = engine.search_nodes(
+        text="external_data_into_training",
+        max_results=10,
+    )
+
+    assert [node["node_id"] for node in result] == [
+        "external-service",
+        "training-job",
+    ]
 
 
 def test_bounded_walk_separates_truncation_from_real_unresolved_frontiers() -> None:

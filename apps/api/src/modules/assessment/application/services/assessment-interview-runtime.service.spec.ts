@@ -1701,14 +1701,17 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           revisions: [
             {
               questionId: "q-1",
-              answer: { questionId: "q-1", freeText: "ans" },
+              // Non-interpretive direct-ASK answer so assertAuthorityProvenance's
+              // (now-tightened) directLosslessCustomerStatement check passes and this
+              // test still exercises the confirmedContext structure guard, not authority.
+              answer: { questionId: "q-1", selectedChoiceIds: ["yes"] },
               actorId: "user-1",
               answeredAt: "2026-09-07T00:00:00.000Z",
               contextRevision: 1,
               priorRevision: 0,
               authority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
               questionIntent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
-              questionControl: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+              questionControl: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
               sourceVersion: "snap-1:sha-123456",
               pgeVersion: "report-1:v1",
               governedEvidenceRefs: [],
@@ -1934,14 +1937,14 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           revisions: [
             {
               questionId: "q-1",
-              answer: { questionId: "q-1", freeText: "Human approval" },
+              answer: { questionId: "q-1", selectedChoiceIds: ["yes"] },
               actorId: "user-1",
               answeredAt: "2026-09-07T00:00:00.000Z",
               contextRevision: 1,
               priorRevision: 0,
               authority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
               questionIntent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
-              questionControl: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+              questionControl: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
               sourceVersion: "snap-1:sha-123456",
               pgeVersion: "report-1:v1",
               governedEvidenceRefs: [],
@@ -2001,6 +2004,208 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         }),
       );
     });
+
+    it("accepts CUSTOMER_CONFIRMED with multiple statements from one explicit CONFIRM_ADJUST answer", async () => {
+      // Worker-side synthesis may now merge several facts volunteered in one
+      // FREE_TEXT answer into a single CONFIRM_ADJUST turn (interview_boundary.py
+      // ::_confirmation_statement_text). Once the customer confirms that one turn,
+      // the API's explicit-confirm authority check must accept every statement the
+      // specialist resubmits, regardless of statement count.
+      mockTx.technicalEvidenceReport.findFirst.mockResolvedValueOnce({
+        id: "report-1",
+        schemaVersion: "v1",
+        evidencePayload: {
+          technicalCoverageState: INTERVIEW_TECHNICAL_COVERAGE_STATES.partial,
+          partialCoveragePolicyDecision: partialCoveragePolicyDecision(),
+        },
+      });
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+        assessmentId: "assessment-1",
+        contextRevision: 1,
+        processedRevision: 0,
+        activeQuestionId: "q-confirm-adjust-1",
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 1,
+        },
+        privateContextJson: {
+          revisions: [
+            {
+              questionId: "q-confirm-adjust-1",
+              answer: { questionId: "q-confirm-adjust-1", confirmed: true },
+              actorId: "user-1",
+              answeredAt: "2026-09-07T00:00:00.000Z",
+              contextRevision: 1,
+              priorRevision: 0,
+              authority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
+              questionIntent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
+              questionControl: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+              sourceVersion: "snap-1:sha-123456",
+              pgeVersion: "report-1:v1",
+              governedEvidenceRefs: [],
+            },
+          ],
+          workflowRunId: "10000000-0000-4000-8000-000000000002",
+          partialCoveragePolicyDecision: partialCoveragePolicyDecision(),
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      const result = await service.recordAgentDecision({
+        assessmentId: "assessment-1",
+        correlationId: "corr-multi-statement-confirm",
+        decision: {
+          expectedContextRevision: 1,
+          mode: "INITIAL_INTERVIEW",
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
+          rationale: "Both volunteered facts are now customer-confirmed.",
+          contextAuthority:
+            ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
+          confirmedContext: {
+            assessmentId: "assessment-1",
+            contextRevision: 1,
+            authority:
+              CONFIRMED_STRUCTURED_BUSINESS_CONTEXT_AUTHORITIES.customerConfirmedConfirmedOnly,
+            statements: [
+              {
+                statementId: "stmt-decision-authority",
+                assessmentId: "assessment-1",
+                topic: "decision_authority",
+                statement: "A recruiter approves every rejection.",
+                normalizedValue: "recruiter_approval_required",
+                scope: { needId: "need-1" },
+                evidenceRefs: [],
+                respondentRef: "actor:authenticated:user-1",
+              },
+              {
+                statementId: "stmt-senior-approval",
+                assessmentId: "assessment-1",
+                topic: "senior_approval",
+                statement:
+                  "For senior positions, the hiring manager must also approve.",
+                normalizedValue: "hiring_manager_approval_required",
+                scope: { needId: "need-1" },
+                evidenceRefs: [],
+                respondentRef: "actor:authenticated:user-1",
+              },
+            ],
+            limitations: [],
+            sourceVersionRef: "snap-1:sha-123456",
+            pgeVersion: "report-1:v1",
+            guidanceVersion: "guidance-1",
+          },
+        },
+      });
+
+      expect(result.outcome).toBe(ASSESSMENT_INTERVIEW_OUTCOMES.contextReady);
+      const stateUpdate = mockTx.assessmentInterviewThread.updateMany.mock
+        .calls[0]?.[0] as {
+        data?: { stateJson?: unknown };
+      };
+      expect(stateUpdate.data?.stateJson).toMatchObject({
+        confirmedContext: {
+          statements: [
+            expect.objectContaining({ topic: "decision_authority" }),
+            expect.objectContaining({ topic: "senior_approval" }),
+          ],
+        },
+      });
+    });
+
+    it.each([
+      {
+        name: "FREE_TEXT",
+        revision: {
+          answer: { questionId: "q-1", freeText: "Human approval" },
+          questionControl: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+          answerRequiresInterpretation: true,
+        },
+      },
+      {
+        name: "Other comment",
+        revision: {
+          answer: {
+            questionId: "q-1",
+            selectedChoiceIds: ["other"],
+            comment: "Hosted in a customer-managed region.",
+          },
+          questionControl: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+          answerRequiresInterpretation: true,
+        },
+      },
+      {
+        name: "selected choice comment",
+        revision: {
+          answer: {
+            questionId: "q-1",
+            selectedChoiceIds: ["standard"],
+            comment: "Mostly standard, except admin approval.",
+          },
+          questionControl: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+          answerRequiresInterpretation: true,
+        },
+      },
+    ])(
+      "rejects initial CONTEXT_READY from interpretive $name answers before confirm-adjust",
+      async ({ revision }) => {
+        mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+          assessmentId: "assessment-1",
+          contextRevision: 1,
+          processedRevision: 0,
+          activeQuestionId: "q-1",
+          stateJson: {
+            outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+            contextRevision: 1,
+          },
+          privateContextJson: {
+            revisions: [
+              {
+                questionId: "q-1",
+                ...revision,
+                actorId: "user-1",
+                answeredAt: "2026-09-07T00:00:00.000Z",
+                contextRevision: 1,
+                priorRevision: 0,
+                authority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
+                questionIntent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+                sourceVersion: "snap-1:sha-123456",
+                pgeVersion: "report-1:v1",
+                governedEvidenceRefs: [],
+              },
+            ],
+            workflowRunId: "10000000-0000-4000-8000-000000000002",
+            partialCoveragePolicyDecision: partialCoveragePolicyDecision(),
+          },
+          sourceVersion: "snap-1:sha-123456",
+          pgeVersion: "report-1:v1",
+        });
+
+        await expect(
+          service.recordAgentDecision({
+            assessmentId: "assessment-1",
+            correlationId: "corr-interpretive-context-ready",
+            decision: {
+              expectedContextRevision: 1,
+              mode: "INITIAL_INTERVIEW",
+              outcome: ASSESSMENT_INTERVIEW_OUTCOMES.contextReady,
+              contextAuthority:
+                ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerConfirmed,
+              confirmedContext: confirmedStructuredContext({
+                contextRevision: 1,
+              }),
+            },
+          }),
+        ).rejects.toMatchObject({
+          response: {
+            ok: false,
+            problem: {
+              code: "INTERVIEW_CUSTOMER_CONFIRMED_REQUIRES_DIRECT_OR_EXPLICIT_CONFIRMATION",
+            },
+          },
+        });
+      },
+    );
 
     it.each([
       { resolutionState: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.uncertain },
@@ -2582,6 +2787,251 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         where: { assessmentId: "assessment-1", guidanceVersion: null },
         data: { guidanceVersion: "guidance-v4" },
       });
+    });
+  });
+
+  describe("worker-only prior answer history", () => {
+    function revisionFixture(overrides: {
+      questionId: string;
+      contextRevision: number;
+      answer: Record<string, unknown>;
+      questionControl?: string;
+      questionIntent?: string;
+    }): Record<string, unknown> {
+      return {
+        questionId: overrides.questionId,
+        answer: { questionId: overrides.questionId, ...overrides.answer },
+        actorId: "user-1",
+        answeredAt: "2026-09-07T00:00:00.000Z",
+        contextRevision: overrides.contextRevision,
+        priorRevision: overrides.contextRevision - 1,
+        authority: ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.customerStated,
+        questionIntent:
+          overrides.questionIntent ?? ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+        questionControl:
+          overrides.questionControl ??
+          ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+        governedEvidenceRefs: [],
+      };
+    }
+
+    it("exposes verbatim prior comment/free text to the worker, excluding the current revision", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValueOnce({
+        assessmentId: "assessment-1",
+        contextRevision: 3,
+        processedRevision: 0,
+        activeQuestionId: "q-3",
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 3,
+        },
+        privateContextJson: {
+          revisions: [
+            revisionFixture({
+              questionId: "q-1",
+              contextRevision: 1,
+              questionControl: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+              answer: {
+                selectedChoiceIds: ["other"],
+                comment:
+                  "Hosted in a customer-managed region behind our own VPN.",
+              },
+            }),
+            revisionFixture({
+              questionId: "q-2",
+              contextRevision: 2,
+              questionControl: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+              answer: {
+                freeText: "Only the on-call engineer can override it.",
+              },
+            }),
+            revisionFixture({
+              questionId: "q-3",
+              contextRevision: 3,
+              questionControl: ASSESSMENT_INTERVIEW_CONTROLS.boolean,
+              answer: { selectedChoiceIds: ["yes"] },
+            }),
+          ],
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+        guidanceVersion: TEST_GUIDANCE_VERSION,
+      });
+
+      const workerContext = await service.getPrivateContextForWorker({
+        assessmentId: "assessment-1",
+        contextRevision: 3,
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      expect(workerContext.priorAnswerHistory).toHaveLength(2);
+      expect(workerContext.priorAnswerHistoryOmittedCount).toBe(0);
+      expect(workerContext.priorAnswerHistory[0]).toMatchObject({
+        questionId: "q-1",
+        contextRevision: 1,
+        selectedChoiceIds: ["other"],
+        comment: "Hosted in a customer-managed region behind our own VPN.",
+      });
+      expect(workerContext.priorAnswerHistory[1]).toMatchObject({
+        questionId: "q-2",
+        contextRevision: 2,
+        freeText: "Only the on-call engineer can override it.",
+      });
+      // The current revision (q-3) is already carried in full via privateRevision;
+      // it must not be duplicated into priorAnswerHistory.
+      expect(
+        workerContext.priorAnswerHistory.some(
+          (item) => item.contextRevision === 3,
+        ),
+      ).toBe(false);
+    });
+
+    it("truncates prior comment/free text over the length limit with a marker", async () => {
+      const longComment = "x".repeat(600);
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValueOnce({
+        assessmentId: "assessment-1",
+        contextRevision: 2,
+        processedRevision: 0,
+        activeQuestionId: "q-2",
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 2,
+        },
+        privateContextJson: {
+          revisions: [
+            revisionFixture({
+              questionId: "q-1",
+              contextRevision: 1,
+              answer: { selectedChoiceIds: ["other"], comment: longComment },
+            }),
+          ],
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+        guidanceVersion: TEST_GUIDANCE_VERSION,
+      });
+
+      const workerContext = await service.getPrivateContextForWorker({
+        assessmentId: "assessment-1",
+        contextRevision: 2,
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      const comment = workerContext.priorAnswerHistory[0]?.comment ?? "";
+      expect(comment.length).toBe(500 + "…[truncated]".length);
+      expect(comment.startsWith("x".repeat(500))).toBe(true);
+      expect(comment.endsWith("…[truncated]")).toBe(true);
+    });
+
+    it("keeps only the most recent entries and reports how many older ones were omitted", async () => {
+      const revisions = Array.from({ length: 25 }, (_, index) =>
+        revisionFixture({
+          questionId: `q-${index + 1}`,
+          contextRevision: index + 1,
+          answer: { selectedChoiceIds: ["yes"] },
+        }),
+      );
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValueOnce({
+        assessmentId: "assessment-1",
+        contextRevision: 26,
+        processedRevision: 0,
+        activeQuestionId: "q-26",
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 26,
+        },
+        privateContextJson: {
+          revisions,
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+        guidanceVersion: TEST_GUIDANCE_VERSION,
+      });
+
+      const workerContext = await service.getPrivateContextForWorker({
+        assessmentId: "assessment-1",
+        contextRevision: 26,
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      expect(workerContext.priorAnswerHistory).toHaveLength(20);
+      expect(workerContext.priorAnswerHistoryOmittedCount).toBe(5);
+      // Most recent 20 kept: q-6 .. q-25.
+      expect(workerContext.priorAnswerHistory[0]?.questionId).toBe("q-6");
+      expect(workerContext.priorAnswerHistory[19]?.questionId).toBe("q-25");
+    });
+
+    it("never carries prior comment/free text into the sanitized public projection", async () => {
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValueOnce({
+        assessmentId: "assessment-1",
+        contextRevision: 2,
+        processedRevision: 0,
+        activeQuestionId: "q-2",
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 2,
+          answerHistory: [
+            {
+              questionId: "q-1",
+              questionPrompt: "Where is this hosted?",
+              actorId: "user-1",
+              answeredAt: "2026-09-07T00:00:00.000Z",
+              summary: "Customer selected 1 option(s).",
+            },
+          ],
+        },
+        privateContextJson: {
+          revisions: [
+            revisionFixture({
+              questionId: "q-1",
+              contextRevision: 1,
+              answer: {
+                selectedChoiceIds: ["other"],
+                comment:
+                  "Hosted in a customer-managed region behind our own VPN.",
+              },
+            }),
+          ],
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+        guidanceVersion: TEST_GUIDANCE_VERSION,
+      });
+
+      const workerContext = await service.getPrivateContextForWorker({
+        assessmentId: "assessment-1",
+        contextRevision: 2,
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+      });
+
+      expect(workerContext.priorAnswerHistory[0]?.comment).toBe(
+        "Hosted in a customer-managed region behind our own VPN.",
+      );
+      const publicHistory = (
+        workerContext.publicState as {
+          answerHistory?: Record<string, unknown>[];
+        }
+      ).answerHistory;
+      expect(publicHistory).toEqual([
+        {
+          questionId: "q-1",
+          questionPrompt: "Where is this hosted?",
+          answeredAt: "2026-09-07T00:00:00.000Z",
+          summary: "Customer selected 1 option(s).",
+        },
+      ]);
+      expect(publicHistory?.[0]).not.toHaveProperty("comment");
+      expect(publicHistory?.[0]).not.toHaveProperty("selectedChoiceIds");
     });
   });
 

@@ -13,11 +13,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AgentMessage,
-  AgentTurn,
-  ThoughtLine,
-} from "@/features/workspace/components/molecules/agent-turn";
+import { AgentTurn } from "@/features/workspace/components/molecules/agent-turn";
 import { TurnFooter } from "@/features/workspace/components/molecules/turn-footer";
 import { AssessmentComposer } from "@/features/workspace/components/organisms/assessment-composer";
 import { AssessmentTranscript } from "@/features/workspace/components/organisms/assessment-transcript";
@@ -32,7 +28,7 @@ import { appLocale } from "@/lib/locale";
 
 import { repositorySetupSchema } from "../../schemas/repository-setup.schema";
 import type { GitProviderValue } from "../../types/assessment-flow.types";
-import { GitProviderQuestion } from "../molecules/git-provider-question";
+import { RepositorySetupConversation } from "./repository-setup-conversation";
 
 type RepositorySetupStepProps = {
   assessmentId?: string;
@@ -108,32 +104,15 @@ export function RepositorySetupStep({
       data-surface="repository-setup"
     >
       <AssessmentTranscript autoScrollKey={[provider, errorKey].join(":")}>
-        <AgentTurn
-          content={
-            <AgentMessage>
-              <ThoughtLine label={t("pages.assessmentFlow.thought")} />
-              <p className="mt-2">
-                {t("pages.assessmentFlow.repositorySetupDescription")}
-              </p>
-              <p className="mt-3 font-medium">
-                {t("pages.assessmentFlow.providerQuestion")}
-              </p>
-              <p className="text-muted-foreground">
-                {t("pages.assessmentFlow.providerHelp")}
-              </p>
-            </AgentMessage>
-          }
-          terminalAction={
-            <GitProviderQuestion
-              value={provider}
-              onValueChange={(value) => {
-                setProvider(value);
-                setRepositoryUrl("");
-                setErrorKey(undefined);
-              }}
-              disabled={isSubmitting}
-            />
-          }
+        <RepositorySetupConversation
+          provider={provider}
+          repositoryUrl={isSubmitting ? repositoryUrl.trim() : undefined}
+          onProviderChange={(value) => {
+            setProvider(value);
+            setRepositoryUrl("");
+            setErrorKey(undefined);
+          }}
+          disabled={isSubmitting}
           footer={
             provider && credentialProvider && !credentialConfigured ? (
               <TurnFooter

@@ -4,7 +4,11 @@ from unittest.mock import patch, MagicMock
 from pydantic import ValidationError
 
 from tools.common.capabilities.platform.api_client import (
-    InterviewResolutionCallbackError, WorkerApiClient, WorkerCallbackError,
+    InterviewContextReadyAuthorityCallbackError,
+    InterviewDecisionRepairableCallbackError,
+    InterviewResolutionCallbackError,
+    WorkerApiClient,
+    WorkerCallbackError,
 )
 from tools.common.capabilities.platform.callback_schemas import (
     ScanCallbackPayload,
@@ -49,6 +53,56 @@ def test_resolution_rejection_preserves_only_typed_private_feedback(client, meta
     assert caught.value.status_code == 409
     assert caught.value.callback_client_error is True
     assert "Explicit confirmation" not in str(caught.value)
+    post.assert_called_once()
+
+
+
+def test_allowlisted_interview_decision_rejection_raises_repairable_error(client):
+    response = httpx.Response(409, json={
+        "ok": False,
+        "problem": {
+            "code": "INTERVIEW_CUSTOMER_CONFIRMED_REQUIRES_DIRECT_OR_EXPLICIT_CONFIRMATION",
+            "meta": {"violatingText": "do not log this"},
+        },
+    })
+    with patch("tools.common.capabilities.platform.api_client.httpx.post", return_value=response) as post:
+        with pytest.raises(InterviewDecisionRepairableCallbackError) as caught:
+            client.post_interview_agent_decision("assessment-1", {})
+
+    assert caught.value.error_code == (
+        "INTERVIEW_CUSTOMER_CONFIRMED_REQUIRES_DIRECT_OR_EXPLICIT_CONFIRMATION"
+    )
+    assert caught.value.meta == {"violatingText": "do not log this"}
+    assert caught.value.status_code == 409
+    assert caught.value.callback_client_error is True
+    assert "do not log this" not in str(caught.value)
+    post.assert_called_once()
+
+
+def test_non_allowlisted_interview_decision_conflict_is_not_repairable(client):
+    response = httpx.Response(409, json={
+        "ok": False,
+        "problem": {"code": "INTERVIEW_SESSION_MISMATCH"},
+    })
+    with patch("tools.common.capabilities.platform.api_client.httpx.post", return_value=response) as post:
+        with pytest.raises(WorkerCallbackError) as caught:
+            client.post_interview_agent_decision("assessment-1", {})
+
+    assert not isinstance(caught.value, InterviewDecisionRepairableCallbackError)
+    assert caught.value.status_code == 409
+    assert caught.value.callback_client_error is True
+    post.assert_called_once()
+
+def test_context_ready_without_authority_raises_typed_error(client):
+    response = httpx.Response(409, json={
+        "ok": False,
+        "problem": {"code": "INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY"},
+    })
+    with patch("tools.common.capabilities.platform.api_client.httpx.post", return_value=response) as post:
+        with pytest.raises(InterviewContextReadyAuthorityCallbackError) as caught:
+            client.post_interview_agent_decision("assessment-1", {})
+    assert caught.value.status_code == 409
+    assert caught.value.callback_client_error is True
     post.assert_called_once()
 
 
@@ -157,6 +211,46 @@ def test_scan_runtime_event_posts_best_effort_metadata(client):
         assert kwargs["headers"]["X-Correlation-Id"] == "runtime-cid-1"
         assert kwargs["timeout"] == 3.0
         assert kwargs["json"]["input_summary"]["api_key"] == ""
+
+
+def test_scan_runtime_event_preserves_safe_runtime_message_metadata(client):
+    """Runtime activity keeps contract message keys/params while redacting secrets."""
+    with patch("tools.common.capabilities.platform.api_client.httpx.post") as mock_post:
+        mock_resp = MagicMock()
+        mock_resp.status_code = 202
+        mock_post.return_value = mock_resp
+
+        client.post_scan_runtime_event(
+            "job123",
+            {
+                "event_type": "TOOL_COMPLETED",
+                "run_status": "WAITING",
+                "stage": "TECHNICAL_EVIDENCE",
+                "tool_name": "engineering_rule_plan:eng-1",
+                "summary": "ENGINEERING_RULE_PLANNER_DECISION",
+                "output_summary": {
+                    "messageKey": "ENGINEERING_RULE_PLANNER_DECISION",
+                    "reasonCode": "SOURCE_SCOPE_MATCH",
+                    "messageParams": {
+                        "decision": "SELECT",
+                        "engineeringRuleId": "eng-1",
+                        "reasonCode": "SOURCE_SCOPE_MATCH",
+                    },
+                    "api_key": "secret-token",
+                },
+            },
+        )
+
+        _, kwargs = mock_post.call_args
+        summary = kwargs["json"]["output_summary"]
+        assert summary["messageKey"] == "ENGINEERING_RULE_PLANNER_DECISION"
+        assert summary["reasonCode"] == "SOURCE_SCOPE_MATCH"
+        assert summary["messageParams"] == {
+            "decision": "SELECT",
+            "engineeringRuleId": "eng-1",
+            "reasonCode": "SOURCE_SCOPE_MATCH",
+        }
+        assert summary["api_key"] == ""
 
 
 def test_scan_runtime_event_failure_does_not_fail_scan(client):
