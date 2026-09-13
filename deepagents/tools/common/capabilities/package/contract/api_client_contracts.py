@@ -16,6 +16,7 @@ class CallbackPath(StrEnum):
     TARGETED_REANALYSIS_CLAIM = "/internal/targeted-reanalysis/{request_id}/claim"
     TARGETED_REANALYSIS_REQUEUE = "/internal/targeted-reanalysis/{request_id}/requeue"
     TARGETED_REANALYSIS_TERMINAL = "/internal/targeted-reanalysis/{request_id}/terminal"
+    LEGAL_CORPUS_PREPARATION = "/internal/legal-rule-catalog/corpus/{corpus_version_id}/preparation-callback"
 
 
 class InternalPath(StrEnum):

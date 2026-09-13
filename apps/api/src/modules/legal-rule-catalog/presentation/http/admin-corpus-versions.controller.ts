@@ -1,10 +1,13 @@
 import { randomUUID } from "node:crypto";
 import {
+  Body,
   Controller,
   Get,
   HttpCode,
+  Headers,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -22,8 +25,32 @@ export class AdminCorpusVersionsController {
   constructor(private readonly corpusVersions: AdminCorpusVersionsService) {}
 
   @Get()
-  async list() {
-    return resultEnvelope(await this.corpusVersions.list());
+  async list(
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+  ) {
+    return resultEnvelope(
+      await this.corpusVersions.list({
+        page: page ? Number(page) : undefined,
+        pageSize: pageSize ? Number(pageSize) : undefined,
+      }),
+    );
+  }
+
+  @Post("prepare")
+  @HttpCode(202)
+  async prepare(
+    @Body() body: { idempotencyKey?: string } | undefined,
+    @Headers("x-idempotency-key") headerKey: string | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.corpusVersions.prepare({
+        actorId: request.rbacContext.userId,
+        idempotencyKey: (body?.idempotencyKey ?? headerKey)?.trim() ?? "",
+        correlationId: request.correlationId || randomUUID(),
+      }),
+    );
   }
 
   @Get(":versionId")
@@ -35,12 +62,33 @@ export class AdminCorpusVersionsController {
   @HttpCode(200)
   async discard(
     @Param("versionId") versionId: string,
+    @Body() body: { idempotencyKey?: string } | undefined,
+    @Headers("x-idempotency-key") headerKey: string | undefined,
     @Req() request: AuthenticatedRequest,
   ) {
     return resultEnvelope(
       await this.corpusVersions.discardDraft({
         versionId,
         actorId: request.rbacContext.userId,
+        idempotencyKey: (body?.idempotencyKey ?? headerKey)?.trim() ?? "",
+        correlationId: request.correlationId || randomUUID(),
+      }),
+    );
+  }
+
+  @Post(":versionId/publish")
+  @HttpCode(200)
+  async publish(
+    @Param("versionId") versionId: string,
+    @Body() body: { idempotencyKey?: string } | undefined,
+    @Headers("x-idempotency-key") headerKey: string | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.corpusVersions.publish({
+        versionId,
+        actorId: request.rbacContext.userId,
+        idempotencyKey: (body?.idempotencyKey ?? headerKey)?.trim() ?? "",
         correlationId: request.correlationId || randomUUID(),
       }),
     );
