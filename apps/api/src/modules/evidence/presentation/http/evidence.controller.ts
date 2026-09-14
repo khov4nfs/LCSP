@@ -116,6 +116,45 @@ export class EvidenceController {
       await this.graphDetail.project({ report, snapshot: report.snapshot }),
     );
   }
+
+  @Get(":assessmentId/evidence-graph/overview")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
+  async getEvidenceGraphOverview(
+    @Param("assessmentId") assessmentId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const context = request.rbacContext;
+    if (context.role !== AUTH_USER_ROLES.admin) {
+      const assessment = await this.prisma.assessment.findUnique({
+        where: { id: assessmentId },
+        select: { ownerId: true },
+      });
+      if (!assessment || assessment.ownerId !== context.userId) {
+        throw problemException(
+          ASSESSMENT_ERROR_CODES.notFound,
+          request.correlationId ?? randomUUID(),
+          { status: HttpStatus.NOT_FOUND },
+        );
+      }
+    }
+    const report = await this.prisma.technicalEvidenceReport.findFirst({
+      where: {
+        assessmentId,
+        status: toPrismaEvidenceAcceptanceStatus(
+          TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
+        ),
+      },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: { evidencePayload: true },
+    });
+    if (!report) {
+      throw new NotFoundException("Technical evidence not found");
+    }
+    return resultEnvelope(
+      this.graphDetail.projectOverview(report.evidencePayload),
+    );
+  }
 }
 
 @Controller("internal/evidence")

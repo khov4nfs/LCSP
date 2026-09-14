@@ -212,6 +212,12 @@ class EvidenceAssembler:
             "evidence_graph": evidence_graph.to_dict() if evidence_graph else None,
             "targeted_reanalysis": targeted_reanalysis,
         }
+        if evidence_graph is not None:
+            from .program_evidence_metrics import aggregate_program_evidence_metrics
+
+            evidence_payload.update(
+                aggregate_program_evidence_metrics(evidence_graph.nodes)
+            )
         self._assert_safe_payload(evidence_payload)
 
         # Move/summarize large graph payload if present
