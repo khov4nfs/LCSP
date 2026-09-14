@@ -27,6 +27,7 @@ import {
   useAssessmentInterviewBlockedActionMutation,
   useAssessmentInterviewStateQuery,
   useReadinessStatusQuery,
+  useProgramEvidenceGraphOverviewQuery,
   useRerunClassificationMutation,
   useSubmitAssessmentPostFindingDecisionMutation,
   useSubmitAssessmentInterviewAnswerMutation,
@@ -73,6 +74,7 @@ type InterviewAnswerDraft = {
 export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
   const workspaceRuntime = useWorkspaceRuntime();
   const readinessQuery = useReadinessStatusQuery(assessmentId);
+  const evidenceOverviewQuery = useProgramEvidenceGraphOverviewQuery(assessmentId);
   const connection =
     readinessQuery.data?.kind === API_OUTCOME_KINDS.loaded
       ? readinessQuery.data.data.repositoryConnection
@@ -155,6 +157,7 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
             activities={flow.activities}
             evidenceReady={flow.evidenceAccepted}
             programEvidenceSummary={flow.programEvidenceSummary}
+            canonicalOverview={evidenceOverviewQuery.data}
           />
         </>
       }

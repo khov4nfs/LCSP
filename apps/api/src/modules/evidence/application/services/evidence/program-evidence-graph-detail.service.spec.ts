@@ -2,6 +2,50 @@ import { ProgramEvidenceGraphDetailService } from "./program-evidence-graph-deta
 import type { ArtifactStorageService } from "../../../../../platform/storage/artifact-storage.service.js";
 
 describe("ProgramEvidenceGraphDetailService", () => {
+  it("projects persisted overview metrics without reading graph artifacts", () => {
+    let artifactReads = 0;
+    const service = new ProgramEvidenceGraphDetailService({
+      readJsonArtifactReference: () => {
+        artifactReads += 1;
+        return Promise.resolve(null);
+      },
+    } as unknown as ArtifactStorageService);
+
+    expect(
+      service.projectOverview({
+        modules_analyzed: 1539,
+        code_symbols_indexed: 7113,
+        ai_model_invocations: 2,
+        evidence_mapped_scope: 99,
+      }),
+    ).toEqual({
+      modules_analyzed: 1539,
+      code_symbols_indexed: 7113,
+      ai_model_invocations: 2,
+      evidence_mapped_scope: 99,
+    });
+    expect(
+      service.projectOverview({
+        modulesAnalyzed: 0,
+        codeSymbolsIndexed: 0,
+        aiModelInvocations: 0,
+        evidenceMappedScope: 0,
+      }),
+    ).toEqual({
+      modules_analyzed: 0,
+      code_symbols_indexed: 0,
+      ai_model_invocations: 0,
+      evidence_mapped_scope: 0,
+    });
+    expect(service.projectOverview({})).toEqual({
+      modules_analyzed: null,
+      code_symbols_indexed: null,
+      ai_model_invocations: null,
+      evidence_mapped_scope: null,
+    });
+    expect(artifactReads).toBe(0);
+  });
+
   it("projects canonical graph data and preserves real zero metrics", async () => {
     const result = await new ProgramEvidenceGraphDetailService({
       readJsonArtifactReference: () => Promise.reject(new Error("missing")),

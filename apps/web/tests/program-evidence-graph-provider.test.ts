@@ -21,7 +21,8 @@ test("refetches graph detail when opening after an unavailable initial result", 
   assert.match(openBlock, /setOpen\(true\)/);
   assert.match(openBlock, /loadDetail\(\)/);
 
-  const initialEffect = source.slice(source.lastIndexOf("useEffect(() =>"));
-  assert.match(initialEffect, /loadDetail\(\)/);
+  const providerBody = source.slice(source.indexOf("export function ProgramEvidenceGraphProvider"));
+  const effects = providerBody.match(/useEffect\(\(\) =>[\s\S]*?\n  \}, \[[^\]]*\]\);/g) ?? [];
+  assert.equal(effects.some((effect) => effect.includes("loadDetail()")), false);
   assert.match(source, /requestVersionRef/);
 });

@@ -1,5 +1,12 @@
 export type ProgramEvidenceGraphMetric = number | null;
 
+export interface ProgramEvidenceGraphOverviewDto {
+  modules_analyzed: ProgramEvidenceGraphMetric;
+  code_symbols_indexed: ProgramEvidenceGraphMetric;
+  ai_model_invocations: ProgramEvidenceGraphMetric;
+  evidence_mapped_scope: ProgramEvidenceGraphMetric;
+}
+
 export interface ProgramEvidenceGraphRepositoryDto {
   repository_full_name: string | null;
   branch: string | null;
@@ -49,12 +56,7 @@ export interface ProgramEvidenceGraphFindingDto {
 
 export interface ProgramEvidenceGraphDetailDto {
   repository: ProgramEvidenceGraphRepositoryDto;
-  overview: {
-    modules_analyzed: ProgramEvidenceGraphMetric;
-    code_symbols_indexed: ProgramEvidenceGraphMetric;
-    ai_model_invocations: ProgramEvidenceGraphMetric;
-    evidence_mapped_scope: ProgramEvidenceGraphMetric;
-  };
+  overview: ProgramEvidenceGraphOverviewDto;
   paths: {
     nodes: ProgramEvidenceGraphNodeDto[];
     edges: ProgramEvidenceGraphEdgeDto[];

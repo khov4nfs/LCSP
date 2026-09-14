@@ -7,6 +7,7 @@ import type {
   ProgramEvidenceGraphEdgeDto,
   ProgramEvidenceGraphNodeDto,
   ProgramEvidenceGraphFindingDto,
+  ProgramEvidenceGraphOverviewDto,
   ProgramEvidenceGraphSourceDto,
 } from "../../contracts/evidence/program-evidence-graph-detail.contract.js";
 import { ArtifactStorageService } from "../../../../../platform/storage/artifact-storage.service.js";
@@ -19,6 +20,30 @@ export class ProgramEvidenceGraphDetailService {
   constructor(
     private readonly storage: ArtifactStorageService = new ArtifactStorageService(),
   ) {}
+
+  projectOverview(evidencePayload: unknown): ProgramEvidenceGraphOverviewDto {
+    const payload = record(evidencePayload);
+    return {
+      modules_analyzed: metric(payload, [
+        "modulesAnalyzed",
+        "modules_analyzed",
+      ]),
+      code_symbols_indexed: metric(payload, [
+        "codeSymbolsIndexed",
+        "code_symbols_indexed",
+      ]),
+      ai_model_invocations: metric(payload, [
+        "aiModelInvocations",
+        "ai_model_invocations",
+      ]),
+      evidence_mapped_scope: metric(payload, [
+        "evidenceMappedScope",
+        "evidenceMappedScopePercent",
+        "evidence_mapped_scope",
+        "evidence_mapped_scope_percent",
+      ]),
+    };
+  }
 
   async project(input: {
     report: {

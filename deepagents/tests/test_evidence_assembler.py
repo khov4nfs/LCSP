@@ -11,6 +11,9 @@ from tools.common.capabilities.evidence.scanner.assembly.evidence_assembler impo
     PrivacyAssertionError,
     PrivacyFlags,
 )
+from tools.common.capabilities.evidence.scanner.assembly.program_evidence_metrics import (
+    aggregate_program_evidence_metrics,
+)
 from tools.common.capabilities.evidence.scanner.inventory.language.language_types import (
     LANGUAGE_PYTHON,
     LanguageClassification,
@@ -339,6 +342,28 @@ def test_t09_serializes_sanitized_versioned_program_evidence_graph() -> None:
     assert "raw_source" not in serialized
     assert "full_ast" not in serialized
     assert "prompt_text" not in serialized
+
+
+def test_program_evidence_metrics_follow_canonical_node_types_and_refs() -> None:
+    nodes = [
+        {"node_id": "m1", "node_type": "MODULE", "evidence_refs": ["e1"]},
+        {"node_id": "f1", "node_type": "FUNCTION", "support_refs": ["s1"]},
+        {"node_id": "a1", "node_type": "AI_MODEL_INVOCATION", "evidence_refs": []},
+        {"node_id": "repo", "node_type": "REPOSITORY", "evidence_refs": ["e2"]},
+        {"node_id": "gap", "node_type": "COVERAGE_GAP", "evidence_refs": []},
+    ]
+    assert aggregate_program_evidence_metrics(nodes) == {
+        "modules_analyzed": 1,
+        "code_symbols_indexed": 1,
+        "ai_model_invocations": 1,
+        "evidence_mapped_scope": 67,
+    }
+
+
+def test_program_evidence_metrics_zero_denominator_is_null() -> None:
+    assert aggregate_program_evidence_metrics(
+        [{"node_id": "repo", "node_type": "REPOSITORY"}]
+    )["evidence_mapped_scope"] is None
 
 
 def test_t10_ts_js_coverage_limitations_are_preserved_in_semantic_result() -> None:
