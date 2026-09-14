@@ -82,6 +82,9 @@ export function WorkspaceRuntimeProvider({
               queryKey: apiQueryKeys.assessment.evidence(assessmentId),
             });
             void queryClient.invalidateQueries({
+              queryKey: apiQueryKeys.assessment.evidenceGraphOverview(assessmentId),
+            });
+            void queryClient.invalidateQueries({
               queryKey: apiQueryKeys.assessment.classification(assessmentId),
             });
           }

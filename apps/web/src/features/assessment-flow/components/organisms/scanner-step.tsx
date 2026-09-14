@@ -12,6 +12,7 @@ import type {
   RepositoryHistory,
   ScannerActivityItem,
 } from "../../types/assessment-flow.types";
+import type { ProgramEvidenceGraphOverview } from "@/lib/api/evidence-graph-detail-client";
 import { ProgramEvidenceSummary } from "@/features/workspace/components/molecules/program-evidence-summary";
 import { RepositoryConnectionResult } from "../molecules/repository-connection-result";
 import { ScannerActivitySequence } from "../molecules/scanner-activity-sequence";
@@ -22,6 +23,7 @@ type ScannerStepProps = {
   activities: ScannerActivityItem[];
   evidenceReady: boolean;
   programEvidenceSummary: ProgramEvidenceSummaryType;
+  canonicalOverview?: ProgramEvidenceGraphOverview | null;
 };
 
 export function ScannerStep({
@@ -30,6 +32,7 @@ export function ScannerStep({
   activities,
   evidenceReady,
   programEvidenceSummary,
+  canonicalOverview,
 }: ScannerStepProps) {
   return (
     <>
@@ -60,6 +63,7 @@ export function ScannerStep({
             className="mt-4"
             commitSha={repository.commitSha}
             summary={programEvidenceSummary}
+            canonicalOverview={canonicalOverview}
             assessmentId={assessmentId}
           />
         ) : null}

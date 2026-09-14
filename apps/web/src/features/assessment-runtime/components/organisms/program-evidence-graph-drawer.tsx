@@ -112,12 +112,6 @@ export function ProgramEvidenceGraphProvider({
     }
     wasOpenRef.current = open;
   }, [open]);
-  useEffect(() => {
-    if (!assessmentId) return;
-    // The assessment remains mounted while optional graph metrics load.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadDetail();
-  }, [assessmentId, loadDetail]);
   return (
     <DrawerContext.Provider
       value={{ openArtifact, overview: detail?.overview ?? null }}

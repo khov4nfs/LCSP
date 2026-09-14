@@ -25,6 +25,7 @@ import {
   requestGapAnalysis,
 } from "./document-client";
 import { getTechnicalEvidence } from "./evidence-client";
+import { getProgramEvidenceGraphOverview } from "./evidence-graph-overview-client";
 import { getReadinessStatus } from "./readiness-client";
 import {
   connectAssessmentRepository,
@@ -223,6 +224,14 @@ export function useTechnicalEvidenceQuery(assessmentId: string) {
   return useQuery({
     queryKey: apiQueryKeys.assessment.evidence(assessmentId),
     queryFn: () => getTechnicalEvidence(assessmentId),
+    enabled: assessmentId.length > 0,
+  });
+}
+
+export function useProgramEvidenceGraphOverviewQuery(assessmentId: string) {
+  return useQuery({
+    queryKey: apiQueryKeys.assessment.evidenceGraphOverview(assessmentId),
+    queryFn: () => getProgramEvidenceGraphOverview(assessmentId),
     enabled: assessmentId.length > 0,
   });
 }

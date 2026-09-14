@@ -54,7 +54,10 @@ def test_scanner_root_only_contains_capability_packages() -> None:
         "snapshot_service_client.py",
         "workspace.py",
     }
-    assert _py(scanner / "assembly") == {"evidence_assembler.py"}
+    assert _py(scanner / "assembly") == {
+        "evidence_assembler.py",
+        "program_evidence_metrics.py",
+    }
     assert _py(scanner / "toolchain") == {
         "tool_registry.py",
         "toolchain_execution.py",
@@ -80,6 +83,7 @@ def test_flat_scanner_imports_are_removed() -> None:
     _assert_importable("tools.common.capabilities.evidence.scanner.snapshot.workspace")
     _assert_importable("tools.common.capabilities.evidence.scanner.toolchain.toolchain_execution")
     _assert_importable("tools.common.capabilities.evidence.scanner.assembly.evidence_assembler")
+    _assert_importable("tools.common.capabilities.evidence.scanner.assembly.program_evidence_metrics")
     _assert_importable("tools.common.capabilities.evidence.scanner.scanning.scan_boundary")
 
 
