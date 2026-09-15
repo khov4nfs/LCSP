@@ -10,6 +10,7 @@ class CallbackPath(StrEnum):
     SCAN_RUNTIME_EVENT = "/internal/scan-jobs/{scan_job_id}/runtime-events"
     TECHNICAL_PROFILE = "/internal/evidence/technical-profile-callback"
     AI_USAGE_FLOW = "/internal/ai-usage-flow/callback"
+    BILLING_USAGE = "/internal/billing/usage"
     RECONCILIATION_CONFLICT = "/internal/reconciliation/conflict-callback"
     CLASSIFICATION = "/internal/classification/result-callback"
     AUDIT_EXPORT = "/internal/callbacks/audit-export/{export_request_id}"

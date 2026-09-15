@@ -210,6 +210,9 @@ describe("LCSP-310 billing persistence constraints", () => {
         effectiveAt: new Date(),
         inputPricePerMillion: "1.00000000",
         outputPricePerMillion: "2.00000000",
+        providerCurrency: "VND",
+        customerCurrency: "VND",
+        markupBps: 0n,
       },
     });
     const v2 = await prisma.modelPricingSnapshot.create({
@@ -220,6 +223,9 @@ describe("LCSP-310 billing persistence constraints", () => {
         effectiveAt: new Date(),
         inputPricePerMillion: "3.00000000",
         outputPricePerMillion: "4.00000000",
+        providerCurrency: "VND",
+        customerCurrency: "VND",
+        markupBps: 0n,
       },
     });
     const usage = await prisma.llmUsageEvent.create({

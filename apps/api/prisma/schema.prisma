@@ -1335,7 +1335,17 @@ model ModelPricingSnapshot {
   provider              String
   model                 String
   inputPricePerMillion  Decimal         @db.Decimal(20, 8)
+  cachedInputPricePerMillion Decimal?    @db.Decimal(20, 8)
+  cacheWritePricePerMillion Decimal?    @db.Decimal(20, 8)
   outputPricePerMillion Decimal         @db.Decimal(20, 8)
+  reasoningPricePerMillion Decimal?     @db.Decimal(20, 8)
+  // Immutable composite authority for provider cost, customer markup, and FX.
+  // Legacy snapshots may omit composite fields; settlement rejects them.
+  providerCurrency      String?
+  customerCurrency      String?
+  markupBps             BigInt?
+  fxRateVndNumerator    BigInt?
+  fxRateVndDenominator  BigInt?
   version               Int
   effectiveAt           DateTime
   createdAt             DateTime        @default(now())
@@ -1343,6 +1353,20 @@ model ModelPricingSnapshot {
 
   @@unique([provider, model, version])
   @@index([provider, model, effectiveAt])
+}
+
+model RuntimeModelPolicySnapshot {
+  id            String   @id @default(uuid())
+  role          String
+  provider      String
+  model         String
+  policyVersion String
+  effectiveAt   DateTime
+  createdAt     DateTime @default(now())
+  usageEvents   LlmUsageEvent[]
+
+  @@unique([role, policyVersion])
+  @@index([role, effectiveAt])
 }
 
 model LlmUsageEvent {
@@ -1354,16 +1378,21 @@ model LlmUsageEvent {
   providerResponseId String?
   inputTokens        BigInt?
   cachedInputTokens  BigInt?
+  cacheWriteTokens    BigInt?
   outputTokens       BigInt?
   reasoningTokens    BigInt?
   totalTokens        BigInt?
   pricingSnapshotId  String?
+  runtimePolicySnapshotId String?
+  providerCostCredits BigInt?
+  customerChargeVnd  BigInt?
   reservationId      String?
   chargedCredits     BigInt?
   occurredAt         DateTime              @default(now())
   createdAt          DateTime              @default(now())
   user               User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
   pricingSnapshot    ModelPricingSnapshot? @relation(fields: [pricingSnapshotId], references: [id], onDelete: Restrict)
+  runtimePolicySnapshot RuntimeModelPolicySnapshot? @relation(fields: [runtimePolicySnapshotId], references: [id], onDelete: Restrict)
   reservation        BillingReservation?   @relation(fields: [reservationId], references: [id], onDelete: Restrict)
 
   @@unique([userId, invocationId])

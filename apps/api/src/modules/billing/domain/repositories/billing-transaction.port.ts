@@ -43,11 +43,17 @@ export type UsageRecord = {
   invocationId: string;
   providerResponseId: string | null;
   inputTokens: bigint | null;
+  cachedInputTokens: bigint | null;
+  cacheWriteTokens: bigint | null;
   outputTokens: bigint | null;
   totalTokens: bigint | null;
+  reasoningTokens: bigint | null;
   pricingSnapshotId: string | null;
+  runtimePolicySnapshotId: string | null;
   reservationId: string | null;
   chargedCredits: bigint | null;
+  providerCostCredits: bigint | null;
+  customerChargeVnd: bigint | null;
   occurredAt: Date;
 };
 export type PricingRecord = {
@@ -55,8 +61,24 @@ export type PricingRecord = {
   provider: string;
   model: string;
   inputPricePerMillion: string;
+  cachedInputPricePerMillion?: string;
+  cacheWritePricePerMillion?: string;
   outputPricePerMillion: string;
+  reasoningPricePerMillion?: string;
   version: number;
+  effectiveAt: Date;
+  providerCurrency?: string;
+  customerCurrency?: string;
+  markupBps?: bigint;
+  fxRateVndNumerator?: bigint;
+  fxRateVndDenominator?: bigint;
+};
+export type RuntimeModelPolicyRecord = {
+  id: string;
+  role: string;
+  provider: string;
+  model: string;
+  policyVersion: string;
   effectiveAt: Date;
 };
 
@@ -166,11 +188,17 @@ export interface LlmUsagePort {
     invocationId: string;
     providerResponseId?: string;
     inputTokens?: bigint;
+    cachedInputTokens?: bigint;
+    cacheWriteTokens?: bigint;
     outputTokens?: bigint;
+    reasoningTokens?: bigint;
     totalTokens?: bigint;
     pricingSnapshotId?: string;
+    runtimePolicySnapshotId?: string;
     reservationId: string;
     chargedCredits: bigint;
+    providerCostCredits?: bigint;
+    customerChargeVnd?: bigint;
     occurredAt?: Date;
   }): Promise<UsageRecord>;
 }
@@ -182,6 +210,12 @@ export interface PricingSnapshotPort {
     occurredAt: Date,
   ): Promise<PricingRecord | null>;
 }
+export interface RuntimeModelPolicyPort {
+  findApplicable(
+    role: string,
+    occurredAt: Date,
+  ): Promise<RuntimeModelPolicyRecord | null>;
+}
 export type BillingTransactionRepositories = {
   wallet: BillingWalletPort;
   ledger: CreditLedgerPort;
@@ -191,6 +225,7 @@ export type BillingTransactionRepositories = {
   webhook: WebhookEventPort;
   usage: LlmUsagePort;
   pricing: PricingSnapshotPort;
+  runtimePolicy: RuntimeModelPolicyPort;
   lockUserAccount(userId: string): Promise<void>;
 };
 export interface BillingTransactionPort {
