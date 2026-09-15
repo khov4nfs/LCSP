@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { PaymentReconciliationStatus } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
+import { selectEffectivePricingSnapshot } from "../../domain/effective-pricing.js";
+import { resolveEffectiveRuntimeModel } from "../../domain/effective-runtime-model.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import type {
   BillingTransactionPort,
@@ -203,21 +205,64 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
               x && {
                 ...x,
                 inputPricePerMillion: x.inputPricePerMillion.toString(),
+                cachedInputPricePerMillion:
+                  x.cachedInputPricePerMillion?.toString(),
+                cacheWritePricePerMillion:
+                  x.cacheWritePricePerMillion?.toString(),
                 outputPricePerMillion: x.outputPricePerMillion.toString(),
+                reasoningPricePerMillion:
+                  x.reasoningPricePerMillion?.toString(),
+                providerCurrency: x.providerCurrency ?? undefined,
+                customerCurrency: x.customerCurrency ?? undefined,
+                markupBps: x.markupBps ?? undefined,
+                fxRateVndNumerator: x.fxRateVndNumerator ?? undefined,
+                fxRateVndDenominator: x.fxRateVndDenominator ?? undefined,
               }
             );
           },
           findApplicable: async (provider, model, occurredAt) => {
-            const x = await tx.modelPricingSnapshot.findFirst({
+            const rows = await tx.modelPricingSnapshot.findMany({
               where: { provider, model, effectiveAt: { lte: occurredAt } },
-              orderBy: [{ effectiveAt: "desc" }, { version: "desc" }],
+              orderBy: { effectiveAt: "desc" },
             });
+            const x = selectEffectivePricingSnapshot(rows, occurredAt);
             return (
               x && {
                 ...x,
                 inputPricePerMillion: x.inputPricePerMillion.toString(),
+                cachedInputPricePerMillion:
+                  x.cachedInputPricePerMillion?.toString(),
+                cacheWritePricePerMillion:
+                  x.cacheWritePricePerMillion?.toString(),
                 outputPricePerMillion: x.outputPricePerMillion.toString(),
+                reasoningPricePerMillion:
+                  x.reasoningPricePerMillion?.toString(),
+                providerCurrency: x.providerCurrency ?? undefined,
+                customerCurrency: x.customerCurrency ?? undefined,
+                markupBps: x.markupBps ?? undefined,
+                fxRateVndNumerator: x.fxRateVndNumerator ?? undefined,
+                fxRateVndDenominator: x.fxRateVndDenominator ?? undefined,
               }
+            );
+          },
+        },
+        runtimePolicy: {
+          findApplicable: async (role, occurredAt) => {
+            const rows = await tx.runtimeModelPolicySnapshot.findMany({
+              where: { role, effectiveAt: { lte: occurredAt } },
+              orderBy: { effectiveAt: "desc" },
+            });
+            const selected = resolveEffectiveRuntimeModel(
+              rows,
+              role,
+              occurredAt,
+            );
+            return (
+              rows.find(
+                (row) =>
+                  row.policyVersion === selected.policyVersion &&
+                  row.effectiveAt.getTime() === selected.effectiveAt.getTime(),
+              ) ?? null
             );
           },
         },

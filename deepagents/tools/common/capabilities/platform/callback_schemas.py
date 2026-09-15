@@ -80,6 +80,22 @@ class AIUsageFlowCallbackPayload(BaseModel):
     flow_data: Dict[str, Any] = Field(default_factory=dict)
 
 
+class SettledUsagePayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    userId: str
+    reservationId: str
+    invocationId: str
+    providerResponseId: Optional[str] = None
+    effectiveRuntimeModel: Dict[str, str]
+    inputTokens: Optional[str] = None
+    cachedInputTokens: Optional[str] = None
+    cacheWriteTokens: Optional[str] = None
+    outputTokens: Optional[str] = None
+    reasoningTokens: Optional[str] = None
+    totalTokens: Optional[str] = None
+    occurredAt: str
+
+
 class ConflictDetectionCallbackPayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
     ai_usage_flow_id: str
