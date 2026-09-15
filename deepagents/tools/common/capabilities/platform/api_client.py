@@ -22,6 +22,7 @@ from tools.common.capabilities.platform.callback_schemas import (
     ScanCallbackPayload,
     TechnicalProfileCallbackPayload,
     AIUsageFlowCallbackPayload,
+    SettledUsagePayload,
     ConflictDetectionCallbackPayload,
     ClassificationCallbackPayload,
     AuditExportCallbackPayload,
@@ -600,6 +601,14 @@ class WorkerApiClient:
         """Persist a governed AIUsageFlow callback."""
         path = CallbackPath.AI_USAGE_FLOW
         resp_data = self._post_with_retry(path, payload.model_dump(exclude_none=True))
+        return CallbackResponse(**resp_data)
+
+    def post_settled_usage(self, payload: SettledUsagePayload) -> CallbackResponse:
+        """Submit provider-reported usage for fail-closed billing settlement."""
+        resp_data = self._post_with_retry(
+            CallbackPath.BILLING_USAGE,
+            payload.model_dump(exclude_none=True),
+        )
         return CallbackResponse(**resp_data)
 
     def post_reconciliation_conflict_callback(

@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { GITHUB_CREDENTIAL_ERROR_CODES } from "@lcsp/contracts/github-integration";
+import { resolve } from "node:path";
 
 import {
   assertGitHubCliRuntime,
@@ -74,7 +75,7 @@ describe("GitHub CLI runtime validation", () => {
       }),
     ).not.toThrow();
     expect(access).toHaveBeenCalledWith(
-      "/workspace/LCSP/.cache/lcsp-cli/github-cli/bin/gh",
+      resolve("/workspace/LCSP", ".cache/lcsp-cli/github-cli/bin/gh"),
       expect.any(Number),
     );
     expect((spawn.mock.calls as unknown[][])[0]).toEqual([

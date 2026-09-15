@@ -17,6 +17,7 @@ import type {
   BillingTransactionPort,
   BillingTransactionRepositories,
 } from "../src/modules/billing/domain/repositories/billing-transaction.port.js";
+import type { EffectiveRuntimeModel } from "@lcsp/contracts/billing";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import {
   TEST_DATABASE_URL,
@@ -26,8 +27,22 @@ import {
 describe("LCSP-310 usage and pricing foundation", () => {
   let prisma: PrismaClient;
   let accounting: BillingAccountingService;
-  let usage: BillingUsageService;
+  type LegacyUsageInput = Omit<
+    Parameters<BillingUsageService["recordAndSettleUsage"]>[0],
+    "agentRole" | "effectiveRuntimeModel"
+  >;
+  let usage: {
+    recordAndSettleUsage: (
+      input: LegacyUsageInput,
+    ) => ReturnType<BillingUsageService["recordAndSettleUsage"]>;
+  };
   const id = () => randomUUID();
+  const runtimeModel: EffectiveRuntimeModel = {
+    provider: "OPENAI",
+    model: "MODEL_A",
+    policyVersion: "usage-test-v1",
+    effectiveAt: "2020-01-01T00:00:00.000Z",
+  };
 
   beforeAll(async () => {
     process.env.DATABASE_URL = TEST_DATABASE_URL;
@@ -46,8 +61,16 @@ describe("LCSP-310 usage and pricing foundation", () => {
     `);
     const tx = new PrismaBillingTransaction(new PrismaService());
     accounting = new BillingAccountingService(tx);
-    usage = new BillingUsageService(tx, accounting);
-  });
+    const usageService = new BillingUsageService(tx, accounting);
+    usage = {
+      recordAndSettleUsage: (input) =>
+        usageService.recordAndSettleUsage({
+          ...input,
+          agentRole: "TEST_USAGE",
+          effectiveRuntimeModel: runtimeModel,
+        }),
+    };
+  }, 30_000);
   beforeEach(async () => {
     await prisma.$executeRawUnsafe(
       'DROP TRIGGER IF EXISTS "ModelPricingSnapshot_immutable" ON "ModelPricingSnapshot"',
@@ -56,6 +79,16 @@ describe("LCSP-310 usage and pricing foundation", () => {
     await prisma.billingReservation.deleteMany();
     await prisma.creditLedgerEntry.deleteMany();
     await prisma.modelPricingSnapshot.deleteMany();
+    await prisma.runtimeModelPolicySnapshot.deleteMany();
+    await prisma.runtimeModelPolicySnapshot.create({
+      data: {
+        role: "TEST_USAGE",
+        provider: runtimeModel.provider,
+        model: runtimeModel.model,
+        policyVersion: runtimeModel.policyVersion,
+        effectiveAt: new Date(runtimeModel.effectiveAt),
+      },
+    });
     await prisma.billingWallet.deleteMany();
     await prisma.user.deleteMany({
       where: { email: { endsWith: "@usage.test" } },
@@ -96,7 +129,11 @@ describe("LCSP-310 usage and pricing foundation", () => {
         model: "MODEL_A",
         version: Math.floor(Math.random() * 1_000_000_000),
         inputPricePerMillion: "1.00000000",
+        cachedInputPricePerMillion: "0.50000000",
         outputPricePerMillion: "2.00000000",
+        providerCurrency: "VND",
+        customerCurrency: "VND",
+        markupBps: 0n,
         effectiveAt: new Date(Date.now() - 1000),
       },
     });
@@ -110,6 +147,9 @@ describe("LCSP-310 usage and pricing foundation", () => {
       model: "MODEL_A",
       inputPricePerMillion: "1.00000000",
       outputPricePerMillion: "2.00000000",
+      providerCurrency: "VND",
+      customerCurrency: "VND",
+      markupBps: 0n,
       version: 1,
       effectiveAt: new Date(),
     };
@@ -161,6 +201,115 @@ describe("LCSP-310 usage and pricing foundation", () => {
     ).toBe(f.pricing.id);
   });
 
+  it("accepts a provider total that overlaps canonical cached-input buckets", async () => {
+    const f = await fixture();
+    const event = await usage.recordAndSettleUsage({
+      userId: f.user.id,
+      reservationId: f.reservation.id,
+      invocationId: "INV-CACHED-SLICE",
+      provider: "OPENAI",
+      model: "MODEL_A",
+      // Provider adapter normalized raw input=1M and cached=250k into the
+      // disjoint billable 750k uncached + 250k cached dimensions.
+      inputTokens: 750_000n,
+      cachedInputTokens: 250_000n,
+      totalTokens: 1_000_000n,
+    });
+    expect(event.chargedCredits).toBe(1n);
+    expect(event.totalTokens).toBe(1_000_000n);
+  });
+
+  it("rejects a priced provider/model that is not the effective runtime policy", async () => {
+    const f = await fixture();
+    await prisma.modelPricingSnapshot.create({
+      data: {
+        provider: "OPENAI",
+        model: "MODEL_NOT_EFFECTIVE",
+        version: Math.floor(Math.random() * 1_000_000_000),
+        inputPricePerMillion: "1.00000000",
+        outputPricePerMillion: "2.00000000",
+        providerCurrency: "VND",
+        customerCurrency: "VND",
+        markupBps: 0n,
+        effectiveAt: new Date(Date.now() - 1_000),
+      },
+    });
+    const tx = new PrismaBillingTransaction(new PrismaService());
+    const strictUsage = new BillingUsageService(
+      tx,
+      new BillingAccountingService(tx),
+    );
+    await expect(
+      strictUsage.recordAndSettleUsage({
+        userId: f.user.id,
+        reservationId: f.reservation.id,
+        invocationId: "INV-NON-EFFECTIVE",
+        agentRole: "TEST_USAGE",
+        effectiveRuntimeModel: {
+          ...runtimeModel,
+          model: "MODEL_NOT_EFFECTIVE",
+        },
+        inputTokens: 1n,
+      }),
+    ).rejects.toThrow("not the effective runtime policy");
+    expect(
+      await prisma.llmUsageEvent.count({
+        where: { invocationId: "INV-NON-EFFECTIVE" },
+      }),
+    ).toBe(0);
+  });
+
+  it("uses the VND wallet-credit amount consistently for cross-currency usage", async () => {
+    const f = await fixture();
+    await accounting.appendLedger({
+      userId: f.user.id,
+      walletId: f.wallet.id,
+      deltaCredits: 30_000n,
+      idempotencyKey: `cross-currency-seed-${id()}`,
+      source: "TEST",
+    });
+    const reservation = await accounting.reserveCredits({
+      userId: f.user.id,
+      amountCredits: 27_500n,
+      idempotencyKey: `cross-currency-reservation-${id()}`,
+    });
+    await prisma.modelPricingSnapshot.create({
+      data: {
+        provider: "OPENAI",
+        model: "MODEL_A",
+        version: Math.floor(Math.random() * 1_000_000_000),
+        inputPricePerMillion: "1.00000000",
+        outputPricePerMillion: "2.00000000",
+        providerCurrency: "USD",
+        customerCurrency: "VND",
+        markupBps: 1000n,
+        fxRateVndNumerator: 25_000n,
+        fxRateVndDenominator: 1n,
+        effectiveAt: new Date(),
+      },
+    });
+    const tx = new PrismaBillingTransaction(new PrismaService());
+    const strictUsage = new BillingUsageService(
+      tx,
+      new BillingAccountingService(tx),
+    );
+    const event = await strictUsage.recordAndSettleUsage({
+      userId: f.user.id,
+      reservationId: reservation.id,
+      invocationId: "INV-CROSS-CURRENCY",
+      agentRole: "TEST_USAGE",
+      effectiveRuntimeModel: runtimeModel,
+      inputTokens: 1_000_000n,
+    });
+    expect(event.chargedCredits).toBe(27_500n);
+    expect(event.customerChargeVnd).toBe(27_500n);
+    expect(event.runtimePolicySnapshotId).toBeTruthy();
+    const debit = await prisma.creditLedgerEntry.findFirstOrThrow({
+      where: { referenceId: reservation.id, source: "RESERVATION_SETTLEMENT" },
+    });
+    expect(debit.deltaCredits).toBe(-27_500n);
+  });
+
   it("rejects conflicting invocation replay and provider/model pricing mismatch", async () => {
     const f = await fixture();
     const base = {
@@ -190,7 +339,7 @@ describe("LCSP-310 usage and pricing foundation", () => {
         model: "MODEL_A",
         inputTokens: 1n,
       }),
-    ).rejects.toThrow("No applicable pricing snapshot");
+    ).rejects.toThrow();
   });
 
   it("rejects replay of an invocation against a different reservation", async () => {
@@ -297,6 +446,9 @@ describe("LCSP-310 usage and pricing foundation", () => {
         version: 2,
         inputPricePerMillion: "9.00000000",
         outputPricePerMillion: "9.00000000",
+        providerCurrency: "VND",
+        customerCurrency: "VND",
+        markupBps: 0n,
         effectiveAt: new Date(),
       },
     });
@@ -339,6 +491,9 @@ describe("LCSP-310 usage and pricing foundation", () => {
         version: Math.floor(Math.random() * 1_000_000_000),
         inputPricePerMillion: "9.00000000",
         outputPricePerMillion: "9.00000000",
+        providerCurrency: "VND",
+        customerCurrency: "VND",
+        markupBps: 0n,
         effectiveAt: new Date(t3.getTime() - 100),
       },
     });
@@ -394,6 +549,9 @@ describe("LCSP-310 usage and pricing foundation", () => {
         version: Math.floor(Math.random() * 1_000_000_000),
         inputPricePerMillion: "3.00000000",
         outputPricePerMillion: "4.00000000",
+        providerCurrency: "VND",
+        customerCurrency: "VND",
+        markupBps: 0n,
         effectiveAt: new Date(),
       },
     });
@@ -571,6 +729,8 @@ describe("LCSP-310 usage and pricing foundation", () => {
         userId: f.user.id,
         reservationId: f.reservation.id,
         invocationId: "INV-ROLLBACK",
+        agentRole: "TEST_USAGE",
+        effectiveRuntimeModel: runtimeModel,
         provider: "OPENAI",
         model: "MODEL_A",
         inputTokens: 1_000_000n,

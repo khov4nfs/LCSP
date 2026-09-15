@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { GITHUB_CREDENTIAL_ERROR_CODES } from "@lcsp/contracts/github-integration";
+import { resolve } from "node:path";
 
 import {
   resolveGitLabCliExecutablePath,
@@ -56,7 +57,7 @@ describe("GitLab CLI runtime validation", () => {
       }),
     ).not.toThrow();
     expect(access).toHaveBeenCalledWith(
-      "/workspace/LCSP/.cache/lcsp-cli/gitlab-cli/bin/glab",
+      resolve("/workspace/LCSP", ".cache/lcsp-cli/gitlab-cli/bin/glab"),
       1,
     );
   });
