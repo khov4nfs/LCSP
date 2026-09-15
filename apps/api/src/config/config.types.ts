@@ -107,6 +107,13 @@ export interface VerifiedEpisodesConfig {
   consolidationIntervalMs: number;
 }
 
+export interface BillingConfig {
+  sePayBankName: string;
+  sePayBankAccountNumber: string;
+  sePayAccountHolder: string;
+  sePayQrUrlTemplate: string;
+}
+
 export const NODE_ENVS = {
   development: "development",
   production: "production",
@@ -134,6 +141,7 @@ export interface AppConfig {
   email: EmailConfig;
   orchestration: OrchestrationConfig;
   verifiedEpisodes: VerifiedEpisodesConfig;
+  billing: BillingConfig;
   interview: InterviewConfig;
 }
 

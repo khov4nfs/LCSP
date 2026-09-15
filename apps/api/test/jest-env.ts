@@ -23,3 +23,8 @@ process.env.WORKER_API_KEY ??= "test-only-worker-api-key-at-least-32-chars";
 process.env.DATABASE_URL ??=
   "postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public";
 process.env.INTERVIEW_GUIDANCE_VERSION ??= "interview-context-test-v1";
+process.env.BILLING_SEPAY_BANK_NAME ??= "Test Bank";
+process.env.BILLING_SEPAY_BANK_ACCOUNT_NUMBER ??= "1234567890";
+process.env.BILLING_SEPAY_ACCOUNT_HOLDER ??= "LCSP TEST";
+process.env.BILLING_SEPAY_QR_URL_TEMPLATE ??=
+  "https://payments.test/qr?amount={amountVnd}&content={paymentCode}";
