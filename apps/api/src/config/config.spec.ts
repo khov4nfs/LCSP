@@ -39,7 +39,19 @@ const VALID_ENV = {
   SMTP_FROM: "lcsp@example.com",
   WORKER_API_KEY: "w".repeat(32),
   INTERVIEW_GUIDANCE_VERSION: "interview-context-test-v1",
+  BILLING_SEPAY_BANK_NAME: "Test Bank",
+  BILLING_SEPAY_BANK_ACCOUNT_NUMBER: "1234567890",
+  BILLING_SEPAY_ACCOUNT_HOLDER: "LCSP TEST",
+  BILLING_SEPAY_QR_URL_TEMPLATE:
+    "https://payments.test/qr?amount={amountVnd}&content={paymentCode}",
 };
+
+const PUBLIC_BILLING_KEYS = [
+  "BILLING_SEPAY_BANK_NAME",
+  "BILLING_SEPAY_BANK_ACCOUNT_NUMBER",
+  "BILLING_SEPAY_ACCOUNT_HOLDER",
+  "BILLING_SEPAY_QR_URL_TEMPLATE",
+] as const;
 
 function validate(env: Record<string, string | undefined>) {
   return configValidationSchema.validate(env, {
@@ -129,6 +141,35 @@ describe("configValidationSchema", () => {
     });
     expect(result.error).toBeUndefined();
   });
+
+  it.each(PUBLIC_BILLING_KEYS)(
+    "rejects a missing %s value in production",
+    (key) => {
+      const result = validate(
+        withoutKeys({ ...VALID_ENV, NODE_ENV: "production" }, [key]),
+      );
+      expect(result.error?.message).toContain(key);
+    },
+  );
+
+  it("allows payment configuration to be absent outside production", () => {
+    const result = validate(
+      withoutKeys({ ...VALID_ENV, NODE_ENV: "test" }, [...PUBLIC_BILLING_KEYS]),
+    );
+    expect(result.error).toBeUndefined();
+  });
+
+  it.each(PUBLIC_BILLING_KEYS)(
+    "rejects a blank %s value in production",
+    (key) => {
+      const result = validate({
+        ...VALID_ENV,
+        NODE_ENV: "production",
+        [key]: "",
+      });
+      expect(result.error?.message).toContain(key);
+    },
+  );
 
   it("fails closed when credential persistence lacks a valid KEK keyring", () => {
     const recognizableKey = "recognizable-invalid-kek";
@@ -375,6 +416,13 @@ describe("config()", () => {
       orchestration: { debug: false },
       verifiedEpisodes: {
         consolidationIntervalMs: 0,
+      },
+      billing: {
+        sePayBankName: "Test Bank",
+        sePayBankAccountNumber: "1234567890",
+        sePayAccountHolder: "LCSP TEST",
+        sePayQrUrlTemplate:
+          "https://payments.test/qr?amount={amountVnd}&content={paymentCode}",
       },
       interview: {
         guidanceVersion: "interview-context-test-v1",

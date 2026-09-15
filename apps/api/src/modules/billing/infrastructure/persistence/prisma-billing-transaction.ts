@@ -1,6 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import { PaymentReconciliationStatus } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
+import {
+  AUDIT_DECISIONS,
+  AUDIT_REDACTION_STATUSES,
+  AUDIT_RESOURCE_TYPES,
+  buildAuditEventInput,
+} from "@lcsp/contracts/audit";
+import {
+  toPrismaAuditResourceType,
+  toPrismaAuthDecision,
+} from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { selectEffectivePricingSnapshot } from "../../domain/effective-pricing.js";
 import { resolveEffectiveRuntimeModel } from "../../domain/effective-runtime-model.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
@@ -108,6 +118,20 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
             tx.billingOrder.findUnique({
               where: { userId_idempotencyKey: { userId, idempotencyKey: key } },
             }),
+          findForUser: (userId, id) =>
+            tx.billingOrder.findFirst({ where: { id, userId } }),
+          listForUser: async ({ userId, skip, take }) => {
+            const [orders, totalCount] = await Promise.all([
+              tx.billingOrder.findMany({
+                where: { userId },
+                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                skip,
+                take,
+              }),
+              tx.billingOrder.count({ where: { userId } }),
+            ]);
+            return { orders, totalCount };
+          },
           createPending: (i) => tx.billingOrder.create({ data: i }),
           transition: async (id, from, to) =>
             (
@@ -264,6 +288,39 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
                   row.effectiveAt.getTime() === selected.effectiveAt.getTime(),
               ) ?? null
             );
+          },
+        },
+        audit: {
+          append: async (i) => {
+            const event = buildAuditEventInput({
+              eventType: i.eventType,
+              actorId: i.actorId,
+              sessionId: i.sessionId,
+              correlationId: i.correlationId,
+              resourceType: AUDIT_RESOURCE_TYPES.httpRoute,
+              resourceId: i.resourceId,
+              decision: AUDIT_DECISIONS.allow,
+              result: "RECORDED",
+              redactionStatus: AUDIT_REDACTION_STATUSES.none,
+              payload: i.payload,
+            });
+            await tx.auditEvent.create({
+              data: {
+                id: crypto.randomUUID(),
+                eventType: event.eventType,
+                actorId: event.actorId,
+                sessionId: event.sessionId ?? null,
+                correlationId: event.correlationId,
+                resourceType: toPrismaAuditResourceType(
+                  AUDIT_RESOURCE_TYPES.httpRoute,
+                ),
+                resourceId: event.resourceId,
+                decision: event.decision
+                  ? toPrismaAuthDecision(event.decision)
+                  : null,
+                payload: event.payload as Prisma.InputJsonValue,
+              },
+            });
           },
         },
       };
