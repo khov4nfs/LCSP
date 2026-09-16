@@ -1,6 +1,8 @@
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import { HttpStatus } from "@nestjs/common";
 
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
+
 import {
   fromPrismaAuthBackupEmailPolicy,
   fromPrismaAuthPrimaryEmailAddressPolicy,
@@ -15,7 +17,8 @@ import type { AuthProblemResult } from "../../contracts/auth-workspace/common.co
 import type { AuthProfileSuccess } from "../../contracts/auth-workspace/settings.contract.ts";
 import { GetAuthProfileQuery } from "./get-auth-profile.query.ts";
 
-export class GetAuthProfileHandler {
+@QueryHandler(GetAuthProfileQuery)
+export class GetAuthProfileHandler implements IQueryHandler<GetAuthProfileQuery> {
   constructor(private readonly prisma: PrismaService) {}
 
   async execute(
