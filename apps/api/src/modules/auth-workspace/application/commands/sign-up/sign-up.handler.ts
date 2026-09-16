@@ -10,6 +10,8 @@ import {
 import { HttpStatus } from "@nestjs/common";
 import * as crypto from "node:crypto";
 
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.ts";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import {
@@ -30,7 +32,8 @@ const SESSION_TTL_MS = 8 * 60 * 60_000;
 const MIN_PASSWORD_LENGTH = 12;
 const MAX_DISPLAY_NAME_LENGTH = 100;
 
-export class SignUpHandler {
+@CommandHandler(SignUpCommand)
+export class SignUpHandler implements ICommandHandler<SignUpCommand> {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authAudit: AuthAuditService,

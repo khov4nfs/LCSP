@@ -4,7 +4,9 @@ import {
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
   createProblemResult,
 } from "@lcsp/contracts/auth";
-import { Logger } from "@nestjs/common";
+import { Inject, Logger } from "@nestjs/common";
+
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { MfaRateLimit } from "../../../domain/entities/mfa-rate-limit.entity.ts";
 import {
@@ -13,7 +15,10 @@ import {
 } from "../../../infrastructure/security/security.utils.ts";
 import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { VerifyMfaOtpSuccess } from "../../contracts/auth-workspace/mfa.contract.ts";
-import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
+import {
+  AUTH_WORKSPACE_REPOSITORIES,
+  type AuthWorkspaceRepositories,
+} from "../../ports/persistence/auth-workspace-repositories.ts";
 import { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
 import { VerifyMfaOtpCommand } from "./verify-mfa-otp.command.ts";
 
@@ -22,11 +27,13 @@ const MFA_LOCK_WINDOW_MS = 15 * 60_000;
 // ±1 TOTP step (30s) plus clock-skew slack; anything older can never be replayed.
 const OTP_USED_RETENTION_MS = 5 * 60_000;
 
-export class VerifyMfaOtpHandler {
+@CommandHandler(VerifyMfaOtpCommand)
+export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand> {
   private readonly logger = new Logger(VerifyMfaOtpHandler.name);
 
   constructor(
     private readonly support: AuthWorkspaceSupportService,
+    @Inject(AUTH_WORKSPACE_REPOSITORIES)
     private readonly repositories: AuthWorkspaceRepositories,
   ) {}
 

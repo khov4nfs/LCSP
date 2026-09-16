@@ -6,13 +6,19 @@ import {
   createProblemResult,
 } from "@lcsp/contracts/auth";
 
+import { Inject } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+
 import {
   hashSecret,
   verifySecret,
 } from "../../../infrastructure/security/security.utils.ts";
 import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { SignInSuccess } from "../../contracts/auth-workspace/sign-in.contract.ts";
-import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
+import {
+  AUTH_WORKSPACE_REPOSITORIES,
+  type AuthWorkspaceRepositories,
+} from "../../ports/persistence/auth-workspace-repositories.ts";
 import { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
 import { SignInCommand } from "./sign-in.command.ts";
 
@@ -20,9 +26,11 @@ const DECOY_PASSWORD_HASH = hashSecret(
   "decoy-password-for-constant-time-compare",
 );
 
-export class SignInHandler {
+@CommandHandler(SignInCommand)
+export class SignInHandler implements ICommandHandler<SignInCommand> {
   constructor(
     private readonly support: AuthWorkspaceSupportService,
+    @Inject(AUTH_WORKSPACE_REPOSITORIES)
     private readonly repositories: AuthWorkspaceRepositories,
   ) {}
 

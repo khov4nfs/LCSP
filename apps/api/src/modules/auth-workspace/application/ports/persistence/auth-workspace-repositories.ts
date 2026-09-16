@@ -12,6 +12,8 @@ import type { RecoveryRequestRepository } from "./recovery-request.repository.ts
 import type { SessionRepository } from "./session.repository.ts";
 import type { UserRepository } from "./user.repository.ts";
 
+export const AUTH_WORKSPACE_REPOSITORIES = "AUTH_WORKSPACE_REPOSITORIES";
+
 export type AuthWorkspaceRepositories = {
   users: UserRepository;
   sessions: SessionRepository;

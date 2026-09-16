@@ -1,3 +1,5 @@
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
+
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AuthRepositoriesSuccess } from "../../contracts/auth-workspace/settings.contract.ts";
 import { ListAuthRepositoriesQuery } from "./list-auth-repositories.query.ts";
@@ -10,7 +12,8 @@ import {
   REPOSITORY_AUTHENTICATION_MODES,
 } from "@lcsp/contracts/github-integration";
 
-export class ListAuthRepositoriesHandler {
+@QueryHandler(ListAuthRepositoriesQuery)
+export class ListAuthRepositoriesHandler implements IQueryHandler<ListAuthRepositoriesQuery> {
   constructor(private readonly prisma: PrismaService) {}
 
   async execute(
