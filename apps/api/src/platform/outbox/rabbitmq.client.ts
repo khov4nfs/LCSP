@@ -4,6 +4,11 @@ import { Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
 import { emitDevUnsafeTrace } from "../logging/dev-unsafe-trace.js";
 
 export type RabbitMqMessageHeaders = Record<string, string>;
+export type RabbitMqConsumerInput = {
+  queue: string;
+  routingKey: string;
+  handler(payload: Record<string, unknown>): Promise<void>;
+};
 
 /**
  * Manages a reusable RabbitMQ connection/channel and publishes persistent JSON event messages.
@@ -84,6 +89,46 @@ export class RabbitMqClient implements OnModuleDestroy {
       throw new Error(
         `RabbitMQ channel backpressure: publish buffer full for exchange="${exchange}"`,
       );
+    }
+  }
+
+  /**
+   * Binds a durable work queue and acknowledges only after its handler commits.
+   * Handler failures are requeued; domain-level idempotency remains mandatory.
+   */
+  async consume(input: RabbitMqConsumerInput): Promise<void> {
+    const channel = await this.getChannel();
+    const exchange = this.resolveExchangeName();
+    await channel.assertQueue(input.queue, { durable: true });
+    await channel.bindQueue(input.queue, exchange, input.routingKey);
+    await channel.prefetch(1);
+    await channel.consume(
+      input.queue,
+      (message) => {
+        if (!message) return;
+        void this.handleConsumedMessage(channel, message, input);
+      },
+      { noAck: false },
+    );
+  }
+
+  private async handleConsumedMessage(
+    channel: amqp.Channel,
+    message: amqp.ConsumeMessage,
+    input: RabbitMqConsumerInput,
+  ): Promise<void> {
+    try {
+      const parsed: unknown = JSON.parse(message.content.toString("utf8"));
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("RABBITMQ_CONSUMER_PAYLOAD_INVALID");
+      }
+      await input.handler(parsed as Record<string, unknown>);
+      channel.ack(message);
+    } catch (error) {
+      this.logger.error(
+        `RabbitMQ consumer failed queue=${input.queue}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      channel.nack(message, false, true);
     }
   }
 
