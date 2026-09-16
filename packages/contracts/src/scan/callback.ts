@@ -102,6 +102,7 @@ export const ENGINEERING_LIMITATION_CODES = {
   noEngineeringRuleCandidates: "NO_ENGINEERING_RULE_CANDIDATES",
   engineeringRuleCompilationFailed: "ENGINEERING_RULE_COMPILATION_FAILED",
   engineeringInvestigationFailed: "ENGINEERING_INVESTIGATION_FAILED",
+  engineeringInvestigationRuntimeError: "ENGINEERING_INVESTIGATION_RUNTIME_ERROR",
   investigationReturnedNoValidClaims: "INVESTIGATION_RETURNED_NO_VALID_CLAIMS",
   modelLimitationCodeInvalid: "MODEL_LIMITATION_CODE_INVALID",
   engineeringEvidenceInsufficient: "ENGINEERING_EVIDENCE_INSUFFICIENT",

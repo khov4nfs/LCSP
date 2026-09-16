@@ -785,6 +785,31 @@ def test_sanitize_customer_facing_text_strips_credentials_and_secrets() -> None:
     assert "[redacted secret]" in sanitized or "[file reference]" in sanitized
 
 
+def test_sanitize_customer_facing_text_strips_internal_orchestration_tokens() -> None:
+    """Raw model rationale must never reach the customer with contract/state-machine tokens."""
+    raw_text = (
+        "All core baseline business context dimensions have been asked and confirmed "
+        "by the customer through preceding confirmation turns, establishing sufficient "
+        "and confirmed business context with CUSTOMER_CONFIRMED authority to proceed "
+        "to CONTEXT_READY. The targeted loop uses resolutionCriteria before "
+        "CONTEXT_RESOLVED via INVESTIGATOR_RESOLUTION and TARGETED_EXACT_RESUME_PIN, "
+        "or WAITING_FOR_CUSTOMER / NEEDS_INPUT."
+    )
+    sanitized = sanitize_customer_facing_text(raw_text)
+
+    for token in (
+        "CUSTOMER_CONFIRMED",
+        "CONTEXT_READY",
+        "CONTEXT_RESOLVED",
+        "INVESTIGATOR_RESOLUTION",
+        "TARGETED_EXACT_RESUME_PIN",
+        "WAITING_FOR_CUSTOMER",
+        "NEEDS_INPUT",
+        "resolutionCriteria",
+    ):
+        assert token not in sanitized, token
+
+
 def test_customer_safe_projection_excludes_internal_node_ids_and_attributes() -> None:
     """Customer-safe projection must not leak internal node_id or raw attributes."""
     projection = project_customer_safe_evidence(_mock_graph())

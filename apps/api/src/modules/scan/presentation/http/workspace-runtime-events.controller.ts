@@ -1,10 +1,11 @@
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type {
+  AssessmentAgentStreamEvent,
   AssessmentDetectedPullRequest,
   AssessmentPostFindingRuntimeState,
 } from "@lcsp/contracts/evidence";
 import type { MessageEvent } from "@nestjs/common";
-import { Controller, Logger, Sse, UseGuards } from "@nestjs/common";
+import { Controller, Logger, Req, Sse, UseGuards } from "@nestjs/common";
 import {
   EMPTY,
   catchError,
@@ -12,9 +13,11 @@ import {
   exhaustMap,
   interval,
   map,
+  merge,
   startWith,
 } from "rxjs";
 
+import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
@@ -42,11 +45,16 @@ export class WorkspaceRuntimeEventsController {
   @Sse()
   @UseGuards(RbacGuard)
   @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
-  stream() {
-    return interval(2_000).pipe(
+  stream(@Req() request: AuthenticatedRequest) {
+    const rbacContext = request.rbacContext;
+    const ownerId =
+      rbacContext.role === AUTH_USER_ROLES.customer
+        ? rbacContext.userId
+        : `no-assessment-owner:${rbacContext.userId}`;
+    const snapshots = interval(2_000).pipe(
       startWith(0),
       exhaustMap(() =>
-        defer(() => this.runtimeEvents.buildWorkspaceSnapshot()).pipe(
+        defer(() => this.runtimeEvents.buildWorkspaceSnapshot(ownerId)).pipe(
           map((data): MessageEvent => ({
             type: "workspace.runtime",
             data: {
@@ -86,6 +94,34 @@ export class WorkspaceRuntimeEventsController {
                 attempt: event.attempt,
                 waiting_reason: event.waitingReason,
               })),
+              engineering_progress: data.engineeringProgress.map(
+                (progress) => ({
+                  assessment_id: progress.assessmentId,
+                  run_id: progress.runId,
+                  planning_batch_id: progress.planningBatchId,
+                  context_revision_used: progress.contextRevisionUsed,
+                  targeted: progress.targeted,
+                  approximate: progress.approximate,
+                  planner: {
+                    candidate_count: progress.planner.candidateCount,
+                    selected_count: progress.planner.selectedCount,
+                    skipped_count: progress.planner.skippedCount,
+                  },
+                  investigator: {
+                    selected_count: progress.investigator.selectedCount,
+                    completed_count: progress.investigator.completedCount,
+                    domain_limited_count:
+                      progress.investigator.domainLimitedCount,
+                    limited_or_failed_count:
+                      progress.investigator.limitedOrFailedCount,
+                    waiting_for_input_count:
+                      progress.investigator.waitingForInputCount,
+                    runtime_failed_count:
+                      progress.investigator.runtimeFailedCount,
+                    pending_count: progress.investigator.pendingCount,
+                  },
+                }),
+              ),
               repository_snapshots: data.repositorySnapshots.map(
                 toLegacyRepositorySnapshotPayload,
               ),
@@ -107,7 +143,40 @@ export class WorkspaceRuntimeEventsController {
         ),
       ),
     );
+    const agentStream =
+      this.runtimeEvents.observeAgentStreamEvents?.(ownerId).pipe(
+        map((event): MessageEvent => ({
+          id: event.eventId,
+          type: "workspace.agent-stream",
+          data: toAgentStreamPayload(event),
+        })),
+      ) ?? EMPTY;
+    return merge(snapshots, agentStream);
   }
+}
+
+function toAgentStreamPayload(event: AssessmentAgentStreamEvent) {
+  return {
+    event_id: event.eventId,
+    sequence: event.sequence,
+    client_sequence: event.clientSequence,
+    emitted_at: event.emittedAt,
+    assessment_id: event.assessmentId,
+    run_id: event.runId,
+    correlation_id: event.correlationId,
+    event_type: event.eventType,
+    source: event.source,
+    agent_name: event.agentName,
+    subagent_name: event.subagentName,
+    namespace: event.namespace,
+    node_name: event.nodeName,
+    message_id: event.messageId,
+    tool_name: event.toolName,
+    tool_call_id: event.toolCallId,
+    status: event.status,
+    text: event.text,
+    data: event.data,
+  };
 }
 
 function toPostFindingRuntimePayload(state: AssessmentPostFindingRuntimeState) {

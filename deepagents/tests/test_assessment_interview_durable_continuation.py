@@ -40,7 +40,22 @@ READY_HANDOFF = {
     "mode": "INITIAL_INTERVIEW",
     "outcome": "CONTEXT_READY",
     "contextAuthority": "CONFIRMED",
-    "confirmedContext": {"decision_authority": "human"},
+    # Initial CONTEXT_READY must carry the minimum planning context.
+    "confirmedContext": {
+        "statements": [
+            {
+                "statementId": "stmt-initial-planning",
+                "topic": "initial_planning_context",
+                "statement": (
+                    "The AI model drafts recommendations in the customer onboarding "
+                    "workflow; a human reviewer approves every customer-facing action "
+                    "before any status update, affected subjects are customers, and "
+                    "material data sources are customer profile records and "
+                    "repository code."
+                ),
+            }
+        ]
+    },
     "flags": [],
     "blockedActions": [],
     "targetedResolution": {},

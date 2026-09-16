@@ -10,6 +10,7 @@ from langchain.agents.middleware import (
 )
 from langchain.agents.structured_output import AutoStrategy, ProviderStrategy, ToolStrategy
 from langchain_core.messages import ToolMessage
+from middleware.provider_fallback import ProviderFallbackMiddleware
 from middleware.provider_schema import ProviderSchemaCompatibilityMiddleware
 from middleware.token_fallback import TokenFallbackMiddleware
 from middleware.failure_policy import TerminalSchemaError, retry_model_error
@@ -86,6 +87,9 @@ MODEL_GOVERNANCE_MIDDLEWARE = (
     _redacting_pii("credential_assignment", GENERIC_ASSIGNMENT_PATTERN.pattern),
     # A synthetic error message has no structured handoff and hides the cause.
     ModelRetryMiddleware(max_retries=2, on_failure="error", retry_on=retry_model_error),
+    # Provider fallback wraps same-provider key rotation. A provider is not left
+    # until its configured credential pool has been exhausted.
+    ProviderFallbackMiddleware(),
     TokenFallbackMiddleware(),
     # Runs inside token fallback so every retried model instance gets the same
     # provider-compatible response schema.

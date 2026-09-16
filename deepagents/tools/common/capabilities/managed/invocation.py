@@ -17,6 +17,12 @@ from tools.common.capabilities.platform.rbac_client import RbacClient
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.config import load_config
 from tools.common.capabilities.managed.boundary import AgentBoundaryBase
+from orchestration.agent_stream import (
+    AgentStreamSession,
+    BufferedAgentStreamEmitter,
+    activate_agent_stream,
+    publish_agent_stream_event,
+)
 from tools.legal.sources.recovery.legal_corpus_recovery_driver import (
     LEGAL_CORPUS_RECOVERY_COMMAND,
 )
@@ -180,7 +186,31 @@ def invoke_boundary(
     if boundary is None:
         raise ValueError(f"unknown managed agent invocation boundary: {boundary_name}")
     boundary_handler = build_boundary(boundary.target)
-    boundary_handler.handle(message, correlation_id)
+    session = _agent_stream_session(boundary.name, message, correlation_id)
+    with activate_agent_stream(session):
+        publish_agent_stream_event(
+            "BOUNDARY_STARTED",
+            status="RUNNING",
+            data={"boundary": boundary.name, "source_event": boundary.source_event},
+        )
+        try:
+            boundary_handler.handle(message, correlation_id)
+        except Exception as error:
+            publish_agent_stream_event(
+                "BOUNDARY_FAILED",
+                status="FAILED",
+                text=str(error),
+                data={
+                    "boundary": boundary.name,
+                    "exception_type": type(error).__name__,
+                },
+            )
+            raise
+        publish_agent_stream_event(
+            "BOUNDARY_COMPLETED",
+            status="COMPLETED",
+            data={"boundary": boundary.name},
+        )
     return {
         "boundary": boundary.name,
         "target": boundary.target,
@@ -188,6 +218,64 @@ def invoke_boundary(
         "status": "COMPLETED",
     }
 
+
+
+def _agent_stream_session(
+    boundary_name: str,
+    message: dict[str, Any],
+    correlation_id: str,
+) -> AgentStreamSession | None:
+    """Build a customer-visible stream session when the event carries an assessment."""
+    assessment_id = _find_first_text(message, ("assessmentId", "assessment_id"))
+    if not assessment_id:
+        return None
+    run_id = _find_first_text(
+        message,
+        (
+            "scanJobId",
+            "scan_job_id",
+            "workflowRunId",
+            "workflow_run_id",
+            "runId",
+            "run_id",
+            "requestId",
+            "request_id",
+        ),
+    ) or correlation_id
+    config = load_config()
+    client = WorkerApiClient(config.nestjs_api_base_url, config.worker_api_key)
+    return AgentStreamSession(
+        assessment_id=assessment_id,
+        run_id=run_id,
+        correlation_id=correlation_id,
+        boundary_name=boundary_name,
+        emit_payload=BufferedAgentStreamEmitter(client.post_agent_stream_event),
+    )
+
+
+def _find_first_text(
+    value: Any,
+    keys: tuple[str, ...],
+    *,
+    depth: int = 5,
+) -> str | None:
+    if depth < 0:
+        return None
+    if isinstance(value, dict):
+        for key in keys:
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+        for nested in value.values():
+            found = _find_first_text(nested, keys, depth=depth - 1)
+            if found:
+                return found
+    elif isinstance(value, (list, tuple)):
+        for nested in value[:50]:
+            found = _find_first_text(nested, keys, depth=depth - 1)
+            if found:
+                return found
+    return None
 
 def load_boundary(target: str) -> Type[AgentBoundaryBase]:
     """Resolve and validate a Managed Agent boundary class from an import target."""

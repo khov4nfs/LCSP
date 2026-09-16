@@ -17,6 +17,7 @@ import httpx
 import pika
 
 from middleware.failure_policy import is_terminal_task_error
+from orchestration.agent_stream import install_agent_stream_log_handler
 
 from tools.common.capabilities.platform.env import load_runtime_env
 from tools.common.capabilities.platform.logging import suppress_langgraph_heartbeat_logs
@@ -81,6 +82,7 @@ def run_consumer() -> None:
         level=os.getenv("LOG_LEVEL", "INFO").upper(),
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    install_agent_stream_log_handler()
     suppress_langgraph_heartbeat_logs()
 
     rabbitmq_url = os.getenv("RABBITMQ_URL")

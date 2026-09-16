@@ -296,11 +296,15 @@ class ProgramGraphBuilder:
             "provenance": self.provenance,
             "evidence_refs": refs,
         }
-        graph_hash = "sha256:" + hashlib.sha256(
+        # graph_hash and the stable graph id hash the same canonical bytes (_stable_id's
+        # default=str is never used once plain serialization succeeds), so the
+        # multi-hundred-MB body is serialized and hashed once instead of twice.
+        body_digest = hashlib.sha256(
             json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
         ).hexdigest()
+        graph_hash = "sha256:" + body_digest
         return ProgramEvidenceGraph(
-            self._stable_id("program-graph", body),
+            f"program-graph:{body_digest[:32]}",
             self.snapshot_id,
             self.commit_sha,
             len(nodes),

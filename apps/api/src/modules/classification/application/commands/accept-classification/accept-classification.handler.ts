@@ -7,7 +7,12 @@ import {
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
-import { ASSESSMENT_RUNTIME_STAGE_CODES } from "@lcsp/contracts/evidence";
+import {
+  ASSESSMENT_RUNTIME_GATE_STATUSES,
+  ASSESSMENT_RUNTIME_GATE_TOOL_NAMES,
+  ASSESSMENT_RUNTIME_STAGE_CODES,
+  ASSESSMENT_RUNTIME_STEP_SKIP_REASONS,
+} from "@lcsp/contracts/evidence";
 import {
   buildOutboxMessageInput,
   OUTBOX_AGGREGATE_TYPES,
@@ -196,6 +201,13 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
       guardrailStatus,
       classificationData: payload.classification_data,
     });
+    await this.recordGateTerminalEvent({
+      assessmentId: evidenceReport.assessmentId,
+      runId,
+      correlationId,
+      guardrailStatus,
+      classificationData: payload.classification_data,
+    });
     await this.runtimeEvents.recordToolCompleted({
       assessmentId: evidenceReport.assessmentId,
       runId,
@@ -236,6 +248,51 @@ export class AcceptClassificationHandler implements ICommandHandler<AcceptClassi
       guardrail_status: guardrailStatus,
       correlationId,
     };
+  }
+
+  /**
+   * Records the deterministic Gate's terminal state in the Classification run, so
+   * clients never infer "skipped" from the absence of a Gate event.
+   */
+  private async recordGateTerminalEvent(input: {
+    assessmentId: string;
+    runId: string;
+    correlationId: string;
+    guardrailStatus: ClassificationGuardrailStatus;
+    classificationData: Record<string, unknown>;
+  }): Promise<void> {
+    const gatedEvaluationCount = gatedEngineeringEvaluationCount(
+      input.classificationData,
+    );
+    const event = {
+      assessmentId: input.assessmentId,
+      runId: input.runId,
+      correlationId: input.correlationId,
+      stage: ASSESSMENT_RUNTIME_STAGE_CODES.classification,
+      toolName: ASSESSMENT_RUNTIME_GATE_TOOL_NAMES.engineeringRuleGate,
+      completedAt: new Date(),
+    };
+    if (gatedEvaluationCount === 0) {
+      await this.runtimeEvents.recordToolSkipped({
+        ...event,
+        summary: "EngineeringRule gate not required",
+        outputSummary: {
+          gateStatus: ASSESSMENT_RUNTIME_GATE_STATUSES.skipped,
+          reason: ASSESSMENT_RUNTIME_STEP_SKIP_REASONS.notRequired,
+          gatedEvaluationCount,
+        },
+      });
+      return;
+    }
+    await this.runtimeEvents.recordToolCompleted({
+      ...event,
+      summary: "EngineeringRule gate completed",
+      outputSummary: {
+        gateStatus: ASSESSMENT_RUNTIME_GATE_STATUSES.completed,
+        guardrailStatus: input.guardrailStatus,
+        gatedEvaluationCount,
+      },
+    });
   }
 
   private validate(command: AcceptClassificationCommand): void {
@@ -415,6 +472,18 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === "string")
     : [];
+}
+
+function gatedEngineeringEvaluationCount(
+  classificationData: Record<string, unknown>,
+): number {
+  if (Array.isArray(classificationData.evaluations)) {
+    return classificationData.evaluations.length;
+  }
+  const summary = isRecord(classificationData.summary)
+    ? classificationData.summary
+    : {};
+  return nonNegativeInteger(summary.total);
 }
 
 function engineeringAssessmentRuntimeOutputSummary(input: {

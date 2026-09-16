@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Generic, TypeVar
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from orchestration.agent_stream import invoke_graph_with_stream
+
 
 PayloadT = TypeVar("PayloadT")
 StateT = TypeVar("StateT")
@@ -184,7 +186,7 @@ def invoke_graph(
         Terminal or resumed graph state.
     """
     if not checkpoint_url:
-        return build_graph(None).invoke(initial_state)
+        return invoke_graph_with_stream(build_graph(None), initial_state)
 
     from langgraph.checkpoint.postgres import PostgresSaver
 
@@ -194,7 +196,7 @@ def invoke_graph(
         app = build_graph(checkpointer)
         snapshot = app.get_state(config)
         if snapshot.next:
-            return app.invoke(None, config)
+            return invoke_graph_with_stream(app, None, config=config)
         if snapshot.values:
             return snapshot.values
-        return app.invoke(initial_state, config)
+        return invoke_graph_with_stream(app, initial_state, config=config)

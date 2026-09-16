@@ -21,6 +21,7 @@ import { getClassificationActionVisibility } from "@/lib/api/classification-clie
 import { useClassificationStatusQuery } from "@/lib/api/assessment-queries";
 import { appLocale } from "@/lib/locale";
 import type { ClassificationStatusPageProps } from "../../types/component-props.types";
+import { ClassificationResultPanel } from "../molecules/classification-result-panel";
 import type {
   ClassificationObservabilityViewModel,
   EngineeringRuleEvaluationViewModel,
@@ -114,6 +115,12 @@ export function ClassificationStatusPage({
             <p className="mt-2 text-sm text-muted-foreground">{summary}</p>
           </div>
         ) : null}
+
+        <ClassificationResultPanel
+          executionState={viewModel.executionState}
+          assessmentOutcome={viewModel.assessmentOutcome}
+          evidenceQuality={viewModel.evidenceQuality}
+        />
 
         {viewModel.engineeringSummary ? (
           <div className="grid gap-3 sm:grid-cols-4">

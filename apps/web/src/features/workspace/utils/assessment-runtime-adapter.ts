@@ -1,4 +1,5 @@
 import {
+  ASSESSMENT_ARTIFACT_STATUSES,
   ASSESSMENT_CONTEXT_AUTHORITY_STATUSES,
   ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS,
   ASSESSMENT_INTERVIEW_FLAGS,
@@ -44,6 +45,7 @@ import {
   type NormalizeAssessmentRuntimeParams,
 } from "../types/assessment-runtime-adapter.types";
 import {
+  RUNTIME_THINKING_PHASES,
   WORKSPACE_RUNTIME_CONNECTION_STATES,
   type WorkspaceRuntimeConnectionState,
   type WorkspaceRuntimeRun,
@@ -56,7 +58,15 @@ import {
 } from "../../artifacts/types/artifact.types";
 import { stageLabel } from "./assessment-runtime-formatter";
 import { runtimeActivityDisplaySummary } from "./runtime-activity-summary";
-import { ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES } from "../config/runtime-activity";
+import {
+  formatRuntimeThinkingItem,
+  projectRuntimeThinking,
+  runtimeThinkingPhase,
+} from "./runtime-thinking-projection";
+import {
+  ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES,
+  ENGINEERING_RULE_GATE_TOOL_NAME,
+} from "../config/runtime-activity";
 import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 import { appLocale } from "../../../lib/locale";
 
@@ -69,18 +79,21 @@ const APPROVED_BLOCKED_ACTIONS = new Set<AssessmentInterviewBlockedAction>([
 export function normalizeAssessmentRuntime(
   params: NormalizeAssessmentRuntimeParams,
 ): NormalizedAssessmentRuntime {
-  const { assessmentId, interviewState: rawInterviewInput, timeline: rawTimeline, coverageOverride } = params;
+  const {
+    assessmentId,
+    interviewState: rawInterviewInput,
+    artifactState,
+    timeline: rawTimeline,
+    coverageOverride,
+  } = params;
 
   // 1. Unwrap interview query/data state
-  const {
-    interviewData,
-    isLoadingInterview,
-    isInterviewError,
-    dataUpdatedAt,
-  } = extractInterviewInput(rawInterviewInput);
+  const { interviewData, isLoadingInterview, isInterviewError, dataUpdatedAt } =
+    extractInterviewInput(rawInterviewInput);
 
   const connectionState: WorkspaceRuntimeConnectionState =
-    rawTimeline?.connectionState ?? WORKSPACE_RUNTIME_CONNECTION_STATES.connected;
+    rawTimeline?.connectionState ??
+    WORKSPACE_RUNTIME_CONNECTION_STATES.connected;
 
   const contractErrors: string[] = [];
   const missingFields: string[] = [];
@@ -96,7 +109,8 @@ export function normalizeAssessmentRuntime(
 
   // Check question-outcome invariant
   if (sanitizedInterview) {
-    const isValidInvariant = hasValidInterviewWaitingInvariant(sanitizedInterview);
+    const isValidInvariant =
+      hasValidInterviewWaitingInvariant(sanitizedInterview);
     if (!isValidInvariant) {
       contractErrors.push(
         `Invalid interview invariant: activeQuestion present but outcome is ${sanitizedInterview.outcome}`,
@@ -105,13 +119,15 @@ export function normalizeAssessmentRuntime(
   }
 
   // 3. Identity normalization
-  const audit: AssessmentInterviewAuditRef | null = sanitizedInterview?.audit ?? null;
+  const audit: AssessmentInterviewAuditRef | null =
+    sanitizedInterview?.audit ?? null;
   const identity: NormalizedAssessmentIdentity = {
     assessmentId,
     threadId: sanitizedInterview?.threadId ?? null,
     authenticatedActorId: audit?.authenticatedActorId ?? null,
     audit,
-    contextRevision: sanitizedInterview?.contextRevision ?? audit?.contextRevision ?? null,
+    contextRevision:
+      sanitizedInterview?.contextRevision ?? audit?.contextRevision ?? null,
     priorRevision: audit?.priorRevision ?? null,
     newRevision: audit?.newRevision ?? null,
   };
@@ -158,6 +174,7 @@ export function normalizeAssessmentRuntime(
     scanJobs: rawTimeline?.scanJobs ?? [],
     evidenceReports: rawTimeline?.evidenceReports ?? [],
     postFinding,
+    artifactState,
   });
 
   // 8. Customer Actions normalization
@@ -170,16 +187,21 @@ export function normalizeAssessmentRuntime(
   });
 
   // 9. Derive authoritative presentation availability
-  let availability: AssessmentRuntimeAvailability = ASSESSMENT_RUNTIME_AVAILABILITIES.ready;
+  let availability: AssessmentRuntimeAvailability =
+    ASSESSMENT_RUNTIME_AVAILABILITIES.ready;
   if (contractErrors.length > 0) {
     availability = ASSESSMENT_RUNTIME_AVAILABILITIES.invalid;
   } else if (isLoadingInterview) {
     availability = ASSESSMENT_RUNTIME_AVAILABILITIES.loading;
-  } else if (connectionState === WORKSPACE_RUNTIME_CONNECTION_STATES.disconnected) {
+  } else if (
+    connectionState === WORKSPACE_RUNTIME_CONNECTION_STATES.disconnected
+  ) {
     availability = ASSESSMENT_RUNTIME_AVAILABILITIES.disconnected;
   } else if (isInterviewError) {
     availability = ASSESSMENT_RUNTIME_AVAILABILITIES.unavailable;
-  } else if (coverage.state === ASSESSMENT_TECHNICAL_COVERAGE_STATES.unavailable) {
+  } else if (
+    coverage.state === ASSESSMENT_TECHNICAL_COVERAGE_STATES.unavailable
+  ) {
     availability = ASSESSMENT_RUNTIME_AVAILABILITIES.unavailable;
   }
 
@@ -251,7 +273,11 @@ function extractInterviewInput(input: unknown) {
   }
 
   const queryLike = input as AdapterInterviewStateInput;
-  if ("data" in queryLike || "isLoading" in queryLike || "isError" in queryLike) {
+  if (
+    "data" in queryLike ||
+    "isLoading" in queryLike ||
+    "isError" in queryLike
+  ) {
     return {
       interviewData: queryLike.data ?? null,
       isLoadingInterview: Boolean(queryLike.isLoading),
@@ -285,7 +311,9 @@ function normalizeCoverage({
       limitations: coverageOverride.limitations ?? [],
       policyDecision: coverageOverride.policyDecision ?? null,
       recovery: {
-        isUnavailable: coverageOverride.state === ASSESSMENT_TECHNICAL_COVERAGE_STATES.unavailable,
+        isUnavailable:
+          coverageOverride.state ===
+          ASSESSMENT_TECHNICAL_COVERAGE_STATES.unavailable,
         reason: coverageOverride.recoveryReason ?? null,
       },
     };
@@ -335,8 +363,15 @@ function normalizeWorkflow({
   repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
 }): NormalizedAssessmentWorkflow {
   const currentRun = timeline?.currentRun ?? null;
-  const recentActivity = timeline?.recentActivity ?? [];
   const latestRunId = timeline?.latestRunId ?? currentRun?.runId ?? null;
+  const recentActivity = scopeRuntimeActivity(
+    timeline?.recentActivity ?? [],
+    latestRunId,
+  );
+  const engineeringProgress = scopeEngineeringProgress(
+    timeline?.engineeringProgress ?? [],
+    latestRunId,
+  );
 
   // Targeted clarification loop detection:
   // e.g. Investigator paused / waiting for business context + Interview active/clarifying
@@ -355,24 +390,55 @@ function normalizeWorkflow({
 
   const isTargetedClarificationLoop =
     (hasInvestigatorWaiting && isClarifyingQuestion) ||
-    (sanitizedInterview?.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved &&
-      Boolean(sanitizedInterview.flags?.includes(ASSESSMENT_INTERVIEW_FLAGS.downstreamImpact)));
+    (sanitizedInterview?.outcome ===
+      ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved &&
+      Boolean(
+        sanitizedInterview.flags?.includes(
+          ASSESSMENT_INTERVIEW_FLAGS.downstreamImpact,
+        ),
+      ));
 
   return {
-    stage: currentRun?.stage ?? (recentActivity[0]?.stage ?? null),
-    status: currentRun?.status ?? (recentActivity[0]?.runStatus ?? null),
+    stage: currentRun?.stage ?? recentActivity[0]?.stage ?? null,
+    status: currentRun?.status ?? recentActivity[0]?.runStatus ?? null,
     currentRunId: latestRunId,
     activeTools: currentRun?.activeTools ?? [],
     recentActivity,
-    lastEmittedAt: timeline?.lastEmittedAt ?? (recentActivity[0]?.emittedAt ?? null),
+    engineeringProgress,
+    lastEmittedAt:
+      timeline?.lastEmittedAt ?? recentActivity[0]?.emittedAt ?? null,
     isTargetedClarificationLoop,
     latestRun: currentRun,
     steps: normalizeWorkflowSteps({
       currentRun,
       recentActivity,
+      engineeringProgress,
       repositorySnapshot,
+      sanitizedInterview,
     }),
   };
+}
+
+function scopeRuntimeActivity(
+  recentActivity: WorkspaceRuntimeActivityItem[],
+  latestRunId: string | null,
+): WorkspaceRuntimeActivityItem[] {
+  if (!latestRunId) {
+    return recentActivity;
+  }
+
+  return recentActivity.filter((item) => item.runId === latestRunId);
+}
+
+function scopeEngineeringProgress(
+  progress: NonNullable<AdapterTimelineInput["engineeringProgress"]>,
+  latestRunId: string | null,
+): NonNullable<AdapterTimelineInput["engineeringProgress"]> {
+  if (!latestRunId) {
+    return progress;
+  }
+
+  return progress.filter((item) => item.runId === latestRunId);
 }
 
 function normalizeRepository(
@@ -399,30 +465,63 @@ function normalizeRepository(
 function normalizeWorkflowSteps({
   currentRun,
   recentActivity,
+  engineeringProgress,
   repositorySnapshot,
+  sanitizedInterview,
 }: {
   currentRun: WorkspaceRuntimeRun | null;
   recentActivity: WorkspaceRuntimeActivityItem[];
+  engineeringProgress: NonNullable<AdapterTimelineInput["engineeringProgress"]>;
   repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
+  sanitizedInterview: AssessmentInterviewRuntimeState | null;
 }): NormalizedWorkflowStep[] {
   const defaultSteps = [
-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository, "pages.appShell.runtimePanelRepository"],
-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner, "pages.appShell.assessmentSidebar.workflow.scanner"],
-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview, "pages.appShell.assessmentSidebar.workflow.interview"],
-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules, "pages.appShell.assessmentSidebar.workflow.rules"],
-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner, "pages.appShell.assessmentSidebar.workflow.planner"],
-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate, "pages.appShell.assessmentSidebar.workflow.investigate"],
-    [ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate, "pages.appShell.assessmentSidebar.workflow.gate"],
+    [
+      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository,
+      "pages.appShell.runtimePanelRepository",
+    ],
+    [
+      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner,
+      "pages.appShell.assessmentSidebar.workflow.scanner",
+    ],
+    [
+      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview,
+      "pages.appShell.assessmentSidebar.workflow.interview",
+    ],
+    [
+      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.rules,
+      "pages.appShell.assessmentSidebar.workflow.rules",
+    ],
+    [
+      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner,
+      "pages.appShell.assessmentSidebar.workflow.planner",
+    ],
+    [
+      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate,
+      "pages.appShell.assessmentSidebar.workflow.investigate",
+    ],
+    [
+      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate,
+      "pages.appShell.assessmentSidebar.workflow.gate",
+    ],
   ] as const;
   const steps = new Map<string, NormalizedWorkflowStep>([
-    ...defaultSteps.map(([id, labelKey]) => [id, {
-      id,
-      label: resolveMessage(appLocale, labelKey as MessageKey),
-      status: id === ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository && repositorySnapshot
-        ? NORMALIZED_WORKFLOW_STEP_STATUSES.completed
-        : NORMALIZED_WORKFLOW_STEP_STATUSES.queued,
-      detail: null,
-    } satisfies NormalizedWorkflowStep] as const),
+    ...defaultSteps.map(
+      ([id, labelKey]) =>
+        [
+          id,
+          {
+            id,
+            label: resolveMessage(appLocale, labelKey as MessageKey),
+            status:
+              id === ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository &&
+              repositorySnapshot
+                ? NORMALIZED_WORKFLOW_STEP_STATUSES.completed
+                : NORMALIZED_WORKFLOW_STEP_STATUSES.queued,
+            detail: null,
+          } satisfies NormalizedWorkflowStep,
+        ] as const,
+    ),
   ]);
   for (const activity of [...recentActivity].reverse()) {
     const id = workflowStepIdForRuntimeActivity(activity);
@@ -430,26 +529,174 @@ function normalizeWorkflowSteps({
       id,
       label: steps.has(id) ? steps.get(id)!.label : stageLabel(activity.stage),
       status: normalizeActivityStepStatus(activity),
-      detail: activity.summary ? runtimeActivityDisplaySummary(activity) : null,
+      // Per-rule Planner/Investigator lines carry internal rule IDs and reason codes;
+      // those steps get an aggregated detail below instead.
+      detail:
+        activity.summary && !runtimeThinkingPhase(activity)
+          ? runtimeActivityDisplaySummary(activity)
+          : null,
     });
   }
+  applyEngineeringRuleStepDetails(steps, recentActivity, engineeringProgress);
   if (currentRun) {
     const id = workflowStepIdForRun(currentRun);
     steps.set(id, {
       id,
-      label: steps.has(id) ? steps.get(id)!.label : stageLabel(currentRun.stage),
+      label: steps.has(id)
+        ? steps.get(id)!.label
+        : stageLabel(currentRun.stage),
       status: normalizeStepStatus(currentRun.status),
       detail: null,
     });
   }
+  const interviewStepStatus = normalizeInterviewStepStatus(sanitizedInterview);
+  if (interviewStepStatus) {
+    const id = ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.interview;
+    const existingStep = steps.get(id);
+    steps.set(id, {
+      id,
+      label: existingStep?.label ?? stageLabel(id),
+      status: interviewStepStatus,
+      detail: existingStep?.detail ?? null,
+    });
+  }
+  applyLegacyClassificationGateProjection({
+    steps,
+    currentRun,
+    recentActivity,
+  });
   completeQueuedPredecessors(steps);
   return [...steps.values()];
+}
+
+function applyEngineeringRuleStepDetails(
+  steps: Map<string, NormalizedWorkflowStep>,
+  recentActivity: WorkspaceRuntimeActivityItem[],
+  engineeringProgress: NonNullable<AdapterTimelineInput["engineeringProgress"]>,
+): void {
+  const items = projectRuntimeThinking(recentActivity, engineeringProgress);
+  for (const [stepId, phase] of [
+    [
+      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.planner,
+      RUNTIME_THINKING_PHASES.planner,
+    ],
+    [
+      ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate,
+      RUNTIME_THINKING_PHASES.investigator,
+    ],
+  ] as const) {
+    const step = steps.get(stepId);
+    const detail = items
+      .filter((item) => item.phase === phase)
+      .map(formatRuntimeThinkingItem)
+      .join(" ");
+    if (step && detail) {
+      steps.set(stepId, { ...step, detail });
+    }
+  }
+}
+
+const TERMINAL_WORKFLOW_STEP_STATUSES = new Set<
+  NormalizedWorkflowStep["status"]
+>([
+  NORMALIZED_WORKFLOW_STEP_STATUSES.completed,
+  NORMALIZED_WORKFLOW_STEP_STATUSES.skipped,
+  NORMALIZED_WORKFLOW_STEP_STATUSES.failed,
+]);
+
+/**
+ * Compatibility fallback for historical runs recorded before the API emitted an
+ * explicit terminal Gate event. New runs carry `engineering_rule_gate` COMPLETED or
+ * SKIPPED/NOT_REQUIRED in the Classification run, which always wins over this.
+ * It also enforces the scope invariant: a non-terminal Gate never coexists with a
+ * completed Classification in the same execution scope.
+ */
+function applyLegacyClassificationGateProjection({
+  steps,
+  currentRun,
+  recentActivity,
+}: {
+  steps: Map<string, NormalizedWorkflowStep>;
+  currentRun: WorkspaceRuntimeRun | null;
+  recentActivity: WorkspaceRuntimeActivityItem[];
+}): void {
+  const gateStep = steps.get(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate);
+  if (
+    !gateStep ||
+    TERMINAL_WORKFLOW_STEP_STATUSES.has(gateStep.status) ||
+    hasExplicitTerminalGateEvent(recentActivity) ||
+    !hasCompletedClassificationRuntime(currentRun, recentActivity)
+  ) {
+    return;
+  }
+
+  steps.set(ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate, {
+    ...gateStep,
+    status: NORMALIZED_WORKFLOW_STEP_STATUSES.skipped,
+  });
+}
+
+function hasExplicitTerminalGateEvent(
+  recentActivity: WorkspaceRuntimeActivityItem[],
+): boolean {
+  return recentActivity.some(
+    (activity) =>
+      activity.toolName === ENGINEERING_RULE_GATE_TOOL_NAME &&
+      (activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted ||
+        activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped ||
+        activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed),
+  );
+}
+
+function hasCompletedClassificationRuntime(
+  currentRun: WorkspaceRuntimeRun | null,
+  recentActivity: WorkspaceRuntimeActivityItem[],
+): boolean {
+  if (
+    currentRun?.stage === ASSESSMENT_RUNTIME_STAGE_CODES.classification &&
+    currentRun.status === ASSESSMENT_RUNTIME_RUN_STATUSES.completed
+  ) {
+    return true;
+  }
+
+  return recentActivity.some(
+    (activity) =>
+      activity.stage === ASSESSMENT_RUNTIME_STAGE_CODES.classification &&
+      (activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.runCompleted ||
+        activity.runStatus === ASSESSMENT_RUNTIME_RUN_STATUSES.completed),
+  );
+}
+
+function normalizeInterviewStepStatus(
+  sanitizedInterview: AssessmentInterviewRuntimeState | null,
+): NormalizedWorkflowStep["status"] | null {
+  if (!sanitizedInterview) {
+    return null;
+  }
+
+  switch (sanitizedInterview.outcome) {
+    case ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer:
+      return sanitizedInterview.activeQuestion
+        ? NORMALIZED_WORKFLOW_STEP_STATUSES.running
+        : NORMALIZED_WORKFLOW_STEP_STATUSES.waiting;
+    case ASSESSMENT_INTERVIEW_OUTCOMES.contextReady:
+    case ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved:
+      return NORMALIZED_WORKFLOW_STEP_STATUSES.completed;
+    case ASSESSMENT_INTERVIEW_OUTCOMES.failed:
+      return NORMALIZED_WORKFLOW_STEP_STATUSES.failed;
+    case ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved:
+      return NORMALIZED_WORKFLOW_STEP_STATUSES.waiting;
+    default:
+      return null;
+  }
 }
 
 function workflowStepIdForRun(run: WorkspaceRuntimeRun): string {
   const activeToolName =
     run.activeTools.find((tool) =>
-      tool.toolName.startsWith(ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.investigator),
+      tool.toolName.startsWith(
+        ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.investigator,
+      ),
     )?.toolName ??
     run.activeTools.find((tool) =>
       tool.toolName.startsWith(ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.planner),
@@ -464,7 +711,13 @@ function workflowStepIdForRuntimeActivity(
   return workflowStepIdForStage(activity.stage, activity.toolName);
 }
 
-function workflowStepIdForStage(stage: string, toolName: string | null): string {
+function workflowStepIdForStage(
+  stage: string,
+  toolName: string | null,
+): string {
+  if (toolName === ENGINEERING_RULE_GATE_TOOL_NAME) {
+    return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.gate;
+  }
   if (stage === ASSESSMENT_RUNTIME_STAGE_CODES.snapshot) {
     return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.repository;
   }
@@ -477,7 +730,9 @@ function workflowStepIdForStage(stage: string, toolName: string | null): string 
   if (stage !== ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence) {
     return stage;
   }
-  if (toolName?.startsWith(ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.investigator)) {
+  if (
+    toolName?.startsWith(ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.investigator)
+  ) {
     return ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.investigate;
   }
   if (toolName?.startsWith(ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.planner)) {
@@ -489,6 +744,14 @@ function workflowStepIdForStage(stage: string, toolName: string | null): string 
 function normalizeActivityStepStatus(
   activity: WorkspaceRuntimeActivityItem,
 ): NormalizedWorkflowStep["status"] {
+  // Only the Gate treats TOOL_SKIPPED as a terminal SKIPPED step. Planner rule-level
+  // SKIP decisions are progress inside a completed Planner step.
+  if (
+    activity.toolName === ENGINEERING_RULE_GATE_TOOL_NAME &&
+    activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped
+  ) {
+    return NORMALIZED_WORKFLOW_STEP_STATUSES.skipped;
+  }
   if (
     activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted ||
     activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped ||
@@ -586,7 +849,9 @@ function normalizeInterview({
   }
 
   const flags = sanitizedInterview.flags ?? [];
-  const hasDownstreamImpact = flags.includes(ASSESSMENT_INTERVIEW_FLAGS.downstreamImpact);
+  const hasDownstreamImpact = flags.includes(
+    ASSESSMENT_INTERVIEW_FLAGS.downstreamImpact,
+  );
 
   // Filter blockedActions to only approved semantic actions when outcome is BLOCKED_OR_UNRESOLVED
   let blockedActions: AssessmentInterviewBlockedAction[] = [];
@@ -607,7 +872,10 @@ function normalizeInterview({
 
   // Active question normalization
   let activeQuestion: AssessmentInterviewQuestion | null = null;
-  if (outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer && sanitizedInterview.activeQuestion) {
+  if (
+    outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer &&
+    sanitizedInterview.activeQuestion
+  ) {
     activeQuestion = sanitizedInterview.activeQuestion;
   }
 
@@ -622,7 +890,9 @@ function normalizeInterview({
     answerHistory: sanitizedInterview.answerHistory ?? [],
     pendingDraft: sanitizedInterview.pendingDraft ?? null,
     orchestrationRequested: Boolean(sanitizedInterview.orchestrationRequested),
-    stale: sanitizedInterview.contextAuthority === ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.superseded,
+    stale:
+      sanitizedInterview.contextAuthority ===
+      ASSESSMENT_CONTEXT_AUTHORITY_STATUSES.superseded,
     revalidating: false,
   };
 }
@@ -643,7 +913,11 @@ function normalizeProgramEvidenceAvailability({
   }
 
   const snapshotJobs = scanJobs
-    .filter((job) => job.assessmentId === repositorySnapshot.assessmentId && job.snapshotId === repositorySnapshot.id)
+    .filter(
+      (job) =>
+        job.assessmentId === repositorySnapshot.assessmentId &&
+        job.snapshotId === repositorySnapshot.id,
+    )
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   const latestJob = snapshotJobs[0];
 
@@ -695,12 +969,11 @@ function normalizeProgramEvidenceAvailability({
 
 function normalizeArtifacts({
   assessmentId,
-  workflow,
-  interview,
   postFinding,
   repositorySnapshot,
   scanJobs,
   evidenceReports,
+  artifactState,
 }: {
   assessmentId: string;
   workflow: NormalizedAssessmentWorkflow;
@@ -709,8 +982,8 @@ function normalizeArtifacts({
   repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
   scanJobs: NonNullable<AdapterTimelineInput["scanJobs"]>;
   evidenceReports: NonNullable<AdapterTimelineInput["evidenceReports"]>;
+  artifactState: NormalizeAssessmentRuntimeParams["artifactState"];
 }): NormalizedAssessmentArtifacts {
-  // Program Evidence Graph artifact
   const pegAvailability = normalizeProgramEvidenceAvailability({
     assessmentId,
     repositorySnapshot,
@@ -733,25 +1006,10 @@ function normalizeArtifacts({
         : null,
   };
 
-  // Business Context artifact
-  let businessContextAvailability: AssessmentArtifactAvailability = ASSESSMENT_ARTIFACT_AVAILABILITIES.waiting;
-  if (
-    interview.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.contextReady ||
-    interview.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.contextResolved
-  ) {
-    businessContextAvailability = ASSESSMENT_ARTIFACT_AVAILABILITIES.ready;
-  } else if (
-    interview.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer &&
-    (interview.activeQuestion?.intent === ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify ||
-      workflow.isTargetedClarificationLoop)
-  ) {
-    businessContextAvailability = ASSESSMENT_ARTIFACT_AVAILABILITIES.updating;
-  } else if (interview.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved) {
-    businessContextAvailability = ASSESSMENT_ARTIFACT_AVAILABILITIES.paused;
-  } else if (interview.stale) {
-    businessContextAvailability = ASSESSMENT_ARTIFACT_AVAILABILITIES.updating;
-  }
-
+  const businessContextAvailability = apiArtifactAvailability(
+    artifactState?.data?.businessContext.status,
+    artifactState,
+  );
   const businessContext: NormalizedAssessmentArtifactItem = {
     ref: { assessmentId, type: ARTIFACT_TYPES.businessContext },
     type: ARTIFACT_TYPES.businessContext,
@@ -761,27 +1019,13 @@ function normalizeArtifacts({
     kind: "BUSINESS_CONTEXT",
     labelKey: "artifacts.types.businessContext",
     availability: businessContextAvailability,
-    customerSafeSummary:
-      businessContextAvailability === ASSESSMENT_ARTIFACT_AVAILABILITIES.ready
-        ? "Business context confirmed"
-        : null,
+    customerSafeSummary: null,
   };
 
-  // Investigation Notes artifact
-  let notesAvailability: AssessmentArtifactAvailability = ASSESSMENT_ARTIFACT_AVAILABILITIES.waiting;
-  if (workflow.isTargetedClarificationLoop) {
-    notesAvailability = ASSESSMENT_ARTIFACT_AVAILABILITIES.paused;
-  } else if (
-    workflow.stage === "INVESTIGATE" ||
-    workflow.stage === "investigate" ||
-    workflow.stage === ASSESSMENT_RUNTIME_STAGE_CODES.classification
-  ) {
-    notesAvailability =
-      workflow.status === ASSESSMENT_RUNTIME_RUN_STATUSES.running
-        ? ASSESSMENT_ARTIFACT_AVAILABILITIES.updating
-        : ASSESSMENT_ARTIFACT_AVAILABILITIES.ready;
-  }
-
+  const notesAvailability = apiArtifactAvailability(
+    artifactState?.data?.investigationNotes.status,
+    artifactState,
+  );
   const investigationNotes: NormalizedAssessmentArtifactItem = {
     ref: { assessmentId, type: ARTIFACT_TYPES.investigationNotes },
     type: ARTIFACT_TYPES.investigationNotes,
@@ -791,10 +1035,7 @@ function normalizeArtifacts({
     kind: "INVESTIGATION_NOTES",
     labelKey: "artifacts.types.investigationNotes",
     availability: notesAvailability,
-    customerSafeSummary:
-      notesAvailability === ASSESSMENT_ARTIFACT_AVAILABILITIES.paused
-        ? "Investigation paused for business context"
-        : null,
+    customerSafeSummary: null,
   };
 
   const remediationPatch = normalizePostFindingArtifact({
@@ -834,6 +1075,28 @@ function normalizeArtifacts({
     verificationReport,
     finalReport,
   };
+}
+
+function apiArtifactAvailability(
+  status: string | undefined,
+  query: NormalizeAssessmentRuntimeParams["artifactState"],
+): AssessmentArtifactAvailability {
+  if (query?.isLoading && !query.data) {
+    return ASSESSMENT_ARTIFACT_AVAILABILITIES.waiting;
+  }
+  switch (status) {
+    case ASSESSMENT_ARTIFACT_STATUSES.ready:
+      return ASSESSMENT_ARTIFACT_AVAILABILITIES.ready;
+    case ASSESSMENT_ARTIFACT_STATUSES.pending:
+      return ASSESSMENT_ARTIFACT_AVAILABILITIES.updating;
+    case ASSESSMENT_ARTIFACT_STATUSES.failed:
+    case ASSESSMENT_ARTIFACT_STATUSES.notAvailable:
+      return ASSESSMENT_ARTIFACT_AVAILABILITIES.unavailable;
+    default:
+      return query?.isError
+        ? ASSESSMENT_ARTIFACT_AVAILABILITIES.unavailable
+        : ASSESSMENT_ARTIFACT_AVAILABILITIES.waiting;
+  }
 }
 
 function normalizePostFindingArtifact({
@@ -922,13 +1185,16 @@ function normalizeCustomerActions({
     };
   }
 
-  const isWaiting = interview.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer;
+  const isWaiting =
+    interview.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer;
   const hasQuestion = Boolean(interview.activeQuestion);
-  const isBlocked = interview.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved;
+  const isBlocked =
+    interview.outcome === ASSESSMENT_INTERVIEW_OUTCOMES.blockedOrUnresolved;
 
   const canAnswerQuestion = isWaiting && hasQuestion;
   const canSubmitDraft = canAnswerQuestion;
-  const canSubmitBlockedAction = isBlocked && interview.blockedActions.length > 0;
+  const canSubmitBlockedAction =
+    isBlocked && interview.blockedActions.length > 0;
   const canUseComposer = canAnswerQuestion;
   const canSelectRemediationDecision =
     postFinding !== null &&

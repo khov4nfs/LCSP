@@ -65,6 +65,15 @@ ARTIFACT_PINS = {
 }
 
 
+# Initial CONTEXT_READY must resolve the minimum planning context in one confirmed answer.
+INITIAL_SYSTEM_PURPOSE = (
+    'AI-assisted recommendation: the AI model drafts recommendations in the customer '
+    'onboarding workflow; a human reviewer approves every action before any status '
+    'update; affected subjects are customers; data sources are customer profile '
+    'records and repository code.'
+)
+
+
 def _confirmed_context(
     assessment_id: str,
     topic: str,
@@ -604,7 +613,7 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
                 'confirmedContext': _confirmed_context(
                     assessment_id,
                     'system_purpose',
-                    'AI-assisted recommendation',
+                    INITIAL_SYSTEM_PURPOSE,
                     revision=1,
                 ),
                 'flags': [],
@@ -619,7 +628,7 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
                 'confirmedContext': _confirmed_context(
                     assessment_id,
                     'system_purpose',
-                    'AI-assisted recommendation',
+                    INITIAL_SYSTEM_PURPOSE,
                     revision=1,
                 ),
                 'flags': [],
@@ -634,7 +643,7 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
                 'confirmedContext': _confirmed_context(
                     assessment_id,
                     'system_purpose',
-                    'AI-assisted recommendation',
+                    INITIAL_SYSTEM_PURPOSE,
                     revision=2,
                 ),
                 'flags': [],
@@ -791,7 +800,7 @@ def test_release_gate_crosses_production_boundaries_and_exact_resume_is_replay_s
         'CUSTOMER_CONFIRMED_CONFIRMED_ONLY'
     )
     assert initial_query.confirmed_contexts[0]['answers'] == {
-        'system_purpose': 'AI-assisted recommendation'
+        'system_purpose': INITIAL_SYSTEM_PURPOSE
     }
     assert run_counter == [1]
     assert api.targeted_need is not None

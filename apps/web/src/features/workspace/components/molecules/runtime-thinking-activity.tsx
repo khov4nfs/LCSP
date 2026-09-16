@@ -1,25 +1,22 @@
-import { ASSESSMENT_RUNTIME_EVENT_TYPES } from "@lcsp/contracts/evidence";
 import { resolveMessage, type MessageKey } from "@lcsp/i18n";
 
 import { appLocale } from "@/lib/locale";
 
-import { ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES } from "../../config/runtime-activity";
-import type { WorkspaceRuntimeActivityItem } from "../../types/workspace-runtime.types";
-import { runtimeActivityDisplaySummary } from "../../utils/runtime-activity-summary";
+import {
+  RUNTIME_THINKING_PHASES,
+  type RuntimeThinkingItem,
+} from "../../types/workspace-runtime.types";
+import { formatRuntimeThinkingItem } from "../../utils/runtime-thinking-projection";
 import { AgentMessage, AgentTurn, ThoughtLine } from "./agent-turn";
 
-export function RuntimeThinkingActivity({
-  activity,
-}: {
-  activity: WorkspaceRuntimeActivityItem;
-}) {
+export function RuntimeThinkingActivity({ item }: { item: RuntimeThinkingItem }) {
   return (
     <AgentTurn>
       <AgentMessage>
-        <div className="space-y-2" data-runtime-event-id={activity.eventId}>
-          <ThoughtLine label={runtimeActivityLabel(activity)} />
+        <div className="space-y-2" data-runtime-thinking-id={item.id}>
+          <ThoughtLine label={resolveMessage(appLocale, thinkingLabelKey(item))} />
           <p className="whitespace-pre-wrap break-words text-muted-foreground">
-            {runtimeActivityDisplaySummary(activity)}
+            {formatRuntimeThinkingItem(item)}
           </p>
         </div>
       </AgentMessage>
@@ -27,29 +24,13 @@ export function RuntimeThinkingActivity({
   );
 }
 
-function runtimeActivityLabel(activity: WorkspaceRuntimeActivityItem): string {
-  const labelKey = runtimeActivityLabelKey(activity);
-  return resolveMessage(appLocale, labelKey);
-}
-
-function runtimeActivityLabelKey(
-  activity: WorkspaceRuntimeActivityItem,
-): MessageKey {
-  if (
-    activity.toolName?.startsWith(ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.planner)
-  ) {
-    return activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed
+function thinkingLabelKey(item: RuntimeThinkingItem): MessageKey {
+  if (item.phase === RUNTIME_THINKING_PHASES.planner) {
+    return item.limited
       ? "pages.assessmentFlow.technicalEvidence.plannerFailed"
       : "pages.assessmentFlow.technicalEvidence.plannerProgress";
   }
-  if (
-    activity.toolName?.startsWith(
-      ENGINEERING_RULE_ACTIVITY_TOOL_PREFIXES.investigator,
-    )
-  ) {
-    return activity.eventType === ASSESSMENT_RUNTIME_EVENT_TYPES.toolFailed
-      ? "pages.assessmentFlow.technicalEvidence.investigatorFailed"
-      : "pages.assessmentFlow.technicalEvidence.investigatorProgress";
-  }
-  return "pages.assessmentFlow.technicalEvidence.progress";
+  return item.limited
+    ? "pages.assessmentFlow.technicalEvidence.investigatorFailed"
+    : "pages.assessmentFlow.technicalEvidence.investigatorProgress";
 }

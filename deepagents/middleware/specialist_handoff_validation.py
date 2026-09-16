@@ -33,6 +33,14 @@ _TARGETED_TEXT_LEAK_PATTERNS = (
         r"\b[a-z0-9_.-]+/[a-z0-9_./-]+\.(?:ts|tsx|js|jsx|py|java|go|rs)\b",
         re.IGNORECASE,
     ),
+    re.compile(
+        r"\b(?:CUSTOMER_CONFIRMED|CUSTOMER_STATED|CONTEXT_READY|CONTEXT_RESOLVED"
+        r"|INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY|INVESTIGATOR_RESOLUTION"
+        r"|TARGETED_EXACT_RESUME_PIN|WAITING_FOR_CUSTOMER|BLOCKED_OR_UNRESOLVED"
+        r"|NEEDS_INPUT|PRE_PLANNER|DECISION_PATH_UNRESOLVED)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\bresolutionCriteria\b", re.IGNORECASE),
 )
 _TARGETED_ARTIFACT_PIN_KEYS = (
     "technicalEvidenceReportId",

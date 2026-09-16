@@ -185,6 +185,9 @@ class EvidenceAssembler:
         redacted_findings = redact_source_code(findings)
         source_stripped = len(redacted_findings) == len(findings)
 
+        # One dataclasses.asdict deep copy of a 10^5-node graph costs seconds; the
+        # read-only payload safety assertion never mutates it, so it is reused below.
+        evidence_graph_dict = evidence_graph.to_dict() if evidence_graph else None
         evidence_payload = {
             "sbom_entries": [
                 asdict(entry) for entry in (syft_result.entries if syft_result is not None else [])
@@ -209,7 +212,7 @@ class EvidenceAssembler:
             ],
             "coverage_notes": list(coverage_notes),
             "scan_coverage": self._scan_coverage(scan_coverage or []),
-            "evidence_graph": evidence_graph.to_dict() if evidence_graph else None,
+            "evidence_graph": evidence_graph_dict,
             "targeted_reanalysis": targeted_reanalysis,
         }
         if evidence_graph is not None:
@@ -222,7 +225,7 @@ class EvidenceAssembler:
 
         # Move/summarize large graph payload if present
         if evidence_graph:
-            full_graph_dict = evidence_graph.to_dict()
+            full_graph_dict = evidence_graph_dict
             graph_id = full_graph_dict.get("graph_id") or "unknown"
             from tools.common.capabilities.platform.correlation import get_user_id, get_assessment_id
             from tools.common.capabilities.platform.logging_path import get_partitioned_graph_path
