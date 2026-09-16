@@ -21,6 +21,14 @@ export const PAYMENT_RECONCILIATION_STATUSES = {
 export type PaymentReconciliationStatus =
   (typeof PAYMENT_RECONCILIATION_STATUSES)[keyof typeof PAYMENT_RECONCILIATION_STATUSES];
 
+export const BILLING_RECONCILIATION_RESULTS = {
+  accepted: "ACCEPTED",
+  rejected: "REJECTED",
+} as const;
+
+export type BillingReconciliationResult =
+  (typeof BILLING_RECONCILIATION_RESULTS)[keyof typeof BILLING_RECONCILIATION_RESULTS];
+
 export const BILLING_RESERVATION_STATUSES = {
   RESERVED: "RESERVED",
   SETTLED: "SETTLED",

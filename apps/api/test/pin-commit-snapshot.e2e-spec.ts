@@ -72,6 +72,7 @@ describe("Pin Commit Snapshot Endpoint (e2e) [MW-gh-003]", () => {
       .useValue({
         ensureConnected: () => Promise.resolve(),
         publish: () => Promise.resolve(),
+        consume: () => Promise.resolve(),
       })
       .compile();
 

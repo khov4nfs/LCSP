@@ -203,6 +203,35 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
               throw error;
             }
           },
+          findAcceptedById: async (id) => {
+            const row = await tx.sePayWebhookEvent.findUnique({
+              where: { id },
+            });
+            if (!row) return null;
+            const payload = (row.sanitizedPayload ?? {}) as Record<
+              string,
+              unknown
+            >;
+            const amount = payload.amountMinorUnits;
+            return {
+              id: row.id,
+              provider: row.provider,
+              providerTransactionId: row.providerTransactionId,
+              paymentCode:
+                typeof payload.paymentCode === "string"
+                  ? payload.paymentCode
+                  : null,
+              amountMinorUnits:
+                typeof amount === "string" ? BigInt(amount) : 0n,
+              transferDirection:
+                payload.transferDirection === "IN" ||
+                payload.transferDirection === "OUT"
+                  ? payload.transferDirection
+                  : "UNKNOWN",
+              sanitizedPayload: row.sanitizedPayload,
+              securityAcceptedAt: row.securityAcceptedAt,
+            };
+          },
         },
         usage: {
           findByInvocation: (userId, invocationId) =>

@@ -78,6 +78,11 @@ export interface OutboxConfig {
   maxAttempts: number;
 }
 
+export interface SePayConfig {
+  webhookSecret: string;
+  timestampSkewSeconds: number;
+}
+
 export interface CryptoConfig {
   mfaSecretEncryptionKey: string;
 }
@@ -135,6 +140,7 @@ export interface AppConfig {
   githubCredentialPersistence: GithubCredentialPersistenceConfig;
   rabbitmq: RabbitMqConfig;
   outbox: OutboxConfig;
+  sepay: SePayConfig;
   crypto: CryptoConfig;
   worker: WorkerConfig;
   internal: InternalConfig;
