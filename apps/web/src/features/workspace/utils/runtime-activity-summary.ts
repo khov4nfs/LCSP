@@ -81,7 +81,7 @@ function runtimeSummaryParams(
   );
 }
 
-function interpolateRuntimeSummary(
+export function interpolateRuntimeSummary(
   template: string,
   params: Record<string, string>,
 ): string {

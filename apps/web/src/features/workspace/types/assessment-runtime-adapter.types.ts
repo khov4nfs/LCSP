@@ -1,6 +1,7 @@
 import {
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
+  type AssessmentArtifactAvailabilityProjection,
   type AssessmentContextAuthorityStatus,
   type AssessmentInterviewAnswerHistoryItem,
   type AssessmentInterviewAuditRef,
@@ -8,6 +9,7 @@ import {
   type AssessmentInterviewFlag,
   type AssessmentInterviewOutcome,
   type AssessmentInterviewQuestion,
+  type AssessmentRuntimeEngineeringProgress,
   type AssessmentPostFindingActivity,
   type AssessmentPostFindingRuntimeState,
   type AssessmentTechnicalCoverageState,
@@ -153,6 +155,7 @@ export type NormalizedAssessmentWorkflow = {
   currentRunId: string | null;
   activeTools: WorkspaceRuntimeActiveTool[];
   recentActivity: WorkspaceRuntimeActivityItem[];
+  engineeringProgress: AssessmentRuntimeEngineeringProgress[];
   lastEmittedAt: string | null;
   isTargetedClarificationLoop: boolean;
   latestRun: WorkspaceRuntimeRun | null;
@@ -164,6 +167,7 @@ export const NORMALIZED_WORKFLOW_STEP_STATUSES = {
   running: REPOSITORY_SCAN_JOB_STATUSES.running,
   waiting: "WAITING",
   completed: REPOSITORY_SCAN_JOB_STATUSES.completed,
+  skipped: "SKIPPED",
   failed: REPOSITORY_SCAN_JOB_STATUSES.failed,
   unknown: "UNKNOWN",
 } as const;
@@ -261,8 +265,10 @@ export type NormalizedAssessmentPostFinding = {
   availableDecisions: RemediationDecision[];
   selectedDecision: RemediationDecision | null;
   selectedDecisionAt: string | null;
-  detectedPullRequest: AssessmentPostFindingRuntimeState["detectedPullRequest"] | null;
-  createdPullRequest: AssessmentPostFindingRuntimeState["createdPullRequest"] | null;
+  detectedPullRequest:
+    AssessmentPostFindingRuntimeState["detectedPullRequest"] | null;
+  createdPullRequest:
+    AssessmentPostFindingRuntimeState["createdPullRequest"] | null;
   approvalStatus: RemediationApprovalStatus;
   approvedPatchVersion: string | null;
   verificationActivities: NormalizedPostFindingActivity[];
@@ -310,9 +316,16 @@ export type AdapterInterviewStateInput = {
   dataUpdatedAt?: number;
 };
 
+export type AdapterArtifactAvailabilityInput = {
+  data?: AssessmentArtifactAvailabilityProjection | null;
+  isLoading?: boolean;
+  isError?: boolean;
+};
+
 export type AdapterTimelineInput = {
   currentRun: WorkspaceRuntimeRun | null;
   recentActivity: WorkspaceRuntimeActivityItem[];
+  engineeringProgress?: AssessmentRuntimeEngineeringProgress[];
   latestRunId: string | null;
   connectionState: WorkspaceRuntimeConnectionState;
   lastEmittedAt: string | null;
@@ -325,6 +338,7 @@ export type AdapterTimelineInput = {
 export type NormalizeAssessmentRuntimeParams = {
   assessmentId: string;
   interviewState?: unknown | AdapterInterviewStateInput | null;
+  artifactState?: AdapterArtifactAvailabilityInput | null;
   timeline?: AdapterTimelineInput | null;
   coverageOverride?: {
     state?: AssessmentTechnicalCoverageState;

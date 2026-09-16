@@ -51,6 +51,35 @@ export const ASSESSMENT_RUNTIME_SYNTHETIC_TOOL_NAMES = {
   technicalEvidenceReport: "technical_evidence_report",
 } as const;
 
+/**
+ * Deterministic EngineeringRule Gate. The API records exactly one terminal Gate event
+ * in the same run as the Classification completion: COMPLETED when evaluations passed
+ * through the gate, SKIPPED with a reason when the run had nothing to gate.
+ */
+export const ASSESSMENT_RUNTIME_GATE_TOOL_NAMES = {
+  engineeringRuleGate: "engineering_rule_gate",
+} as const;
+
+export const ASSESSMENT_RUNTIME_GATE_STATUSES = {
+  completed: "COMPLETED",
+  skipped: "SKIPPED",
+} as const;
+
+export type AssessmentRuntimeGateStatus =
+  (typeof ASSESSMENT_RUNTIME_GATE_STATUSES)[keyof typeof ASSESSMENT_RUNTIME_GATE_STATUSES];
+
+export const ASSESSMENT_RUNTIME_STEP_SKIP_REASONS = {
+  notRequired: "NOT_REQUIRED",
+} as const;
+
+export type AssessmentRuntimeStepSkipReason =
+  (typeof ASSESSMENT_RUNTIME_STEP_SKIP_REASONS)[keyof typeof ASSESSMENT_RUNTIME_STEP_SKIP_REASONS];
+
+/** Planner reason codes the workspace projection needs to aggregate runtime activity. */
+export const ASSESSMENT_RUNTIME_PLAN_REASON_CODES = {
+  targetedExactResumePin: "TARGETED_EXACT_RESUME_PIN",
+} as const;
+
 export const ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS = {
   engineeringRulePlannerDecision: "ENGINEERING_RULE_PLANNER_DECISION",
   engineeringRuleInvestigationFailed: "ENGINEERING_RULE_INVESTIGATION_FAILED",
@@ -68,6 +97,60 @@ export type AssessmentRuntimeSummaryValue =
   | null
   | { [key: string]: AssessmentRuntimeSummaryValue }
   | AssessmentRuntimeSummaryValue[];
+
+export const ASSESSMENT_AGENT_STREAM_EVENT_TYPES = {
+  boundaryStarted: "BOUNDARY_STARTED",
+  boundaryCompleted: "BOUNDARY_COMPLETED",
+  boundaryFailed: "BOUNDARY_FAILED",
+  agentStarted: "AGENT_STARTED",
+  agentCompleted: "AGENT_COMPLETED",
+  agentFailed: "AGENT_FAILED",
+  subagentSelected: "SUBAGENT_SELECTED",
+  modelContentDelta: "MODEL_CONTENT_DELTA",
+  modelReasoningDelta: "MODEL_REASONING_DELTA",
+  toolCallDelta: "TOOL_CALL_DELTA",
+  toolResult: "TOOL_RESULT",
+  customProgress: "CUSTOM_PROGRESS",
+  graphUpdate: "GRAPH_UPDATE",
+  graphState: "GRAPH_STATE",
+  runtimeEvent: "RUNTIME_EVENT",
+  providerFallback: "PROVIDER_FALLBACK",
+  credentialRotation: "CREDENTIAL_ROTATION",
+  log: "LOG",
+} as const;
+
+export type AssessmentAgentStreamEventType =
+  (typeof ASSESSMENT_AGENT_STREAM_EVENT_TYPES)[keyof typeof ASSESSMENT_AGENT_STREAM_EVENT_TYPES];
+
+export function isAssessmentAgentStreamEventType(
+  value: unknown,
+): value is AssessmentAgentStreamEventType {
+  return Object.values(ASSESSMENT_AGENT_STREAM_EVENT_TYPES).includes(
+    value as AssessmentAgentStreamEventType,
+  );
+}
+
+export type AssessmentAgentStreamEvent = {
+  eventId: string;
+  sequence: number;
+  clientSequence: number | null;
+  emittedAt: string;
+  assessmentId: string;
+  runId: string;
+  correlationId: string;
+  eventType: AssessmentAgentStreamEventType;
+  source: string | null;
+  agentName: string | null;
+  subagentName: string | null;
+  namespace: string[];
+  nodeName: string | null;
+  messageId: string | null;
+  toolName: string | null;
+  toolCallId: string | null;
+  status: string | null;
+  text: string | null;
+  data: AssessmentRuntimeSummaryValue | null;
+};
 
 export type AssessmentRuntimeActivityEvent = {
   eventId: string;
@@ -91,6 +174,39 @@ export type AssessmentRuntimeActivityEvent = {
   waitingReason: string | null;
 };
 
+export const ASSESSMENT_RUNTIME_ENGINEERING_PROGRESS_TOOL_NAMES = {
+  plannerSummary: "engineering_rule_plan_summary",
+  investigatorSummary: "engineering_rule_investigation_summary",
+} as const;
+
+export const ASSESSMENT_RUNTIME_ENGINEERING_RULE_TOOL_PREFIXES = {
+  planner: "engineering_rule_plan:",
+  investigator: "engineering_rule_investigation:",
+} as const;
+
+export type AssessmentRuntimeEngineeringProgress = {
+  assessmentId: string;
+  runId: string;
+  planningBatchId: string;
+  contextRevisionUsed: number | null;
+  targeted: boolean;
+  approximate: boolean;
+  planner: {
+    candidateCount: number;
+    selectedCount: number;
+    skippedCount: number;
+  };
+  investigator: {
+    selectedCount: number;
+    completedCount: number;
+    domainLimitedCount: number;
+    limitedOrFailedCount: number;
+    waitingForInputCount: number;
+    runtimeFailedCount: number;
+    pendingCount: number;
+  };
+};
+
 export type AssessmentRuntimeActiveTool = {
   toolName: string;
   status: AssessmentRuntimeRunStatus;
@@ -112,6 +228,7 @@ export type AssessmentRuntimeSnapshot = {
   emittedAt: string;
   runs: AssessmentRuntimeRun[];
   recentActivity: AssessmentRuntimeActivityEvent[];
+  engineeringProgress: AssessmentRuntimeEngineeringProgress[];
   repositorySnapshots: unknown[];
   scanJobs: unknown[];
   evidenceReports: unknown[];

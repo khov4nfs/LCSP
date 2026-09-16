@@ -66,6 +66,8 @@ const ENGINEERING_LIMITATION_LABELS = {
     NO_ENGINEERING_RULE_SOURCE_RULES: "Không có EngineeringRule nguồn đã được phê duyệt.",
     ENGINEERING_RULE_COMPILATION_FAILED: "Không thể materialize EngineeringRule từ nguồn pháp lý đã pin.",
     ENGINEERING_INVESTIGATION_FAILED: "Phiên điều tra EngineeringRule không hoàn tất thành công.",
+    ENGINEERING_INVESTIGATION_RUNTIME_ERROR:
+      "Phiên điều tra bị gián đoạn bởi lỗi runtime.",
     INVESTIGATION_RETURNED_NO_VALID_CLAIMS:
       "LLM không trả về claim kỹ thuật hợp lệ có provenance để evaluator sử dụng.",
     MODEL_LIMITATION_CODE_INVALID:
@@ -89,6 +91,8 @@ const ENGINEERING_LIMITATION_LABELS = {
       "The EngineeringRule could not be materialized from pinned legal provenance.",
     ENGINEERING_INVESTIGATION_FAILED:
       "The EngineeringRule investigation did not complete successfully.",
+    ENGINEERING_INVESTIGATION_RUNTIME_ERROR:
+      "Investigation interrupted by a runtime error.",
     INVESTIGATION_RETURNED_NO_VALID_CLAIMS:
       "The model returned no provenance-backed technical claim that the evaluator could use.",
     MODEL_LIMITATION_CODE_INVALID:

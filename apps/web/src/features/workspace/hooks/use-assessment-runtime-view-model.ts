@@ -2,7 +2,10 @@
 
 import { useMemo } from "react";
 
-import { useAssessmentInterviewStateQuery } from "../../../lib/api/assessment-queries";
+import {
+  useAssessmentArtifactsQuery,
+  useAssessmentInterviewStateQuery,
+} from "../../../lib/api/assessment-queries";
 import { useWorkspaceRuntime } from "../components/organisms/workspace-runtime-provider";
 import type { NormalizedAssessmentRuntime } from "../types/assessment-runtime-adapter.types";
 import { normalizeAssessmentRuntime } from "../utils/assessment-runtime-adapter";
@@ -17,6 +20,7 @@ export function useAssessmentRuntimeViewModel(
     assessmentId,
     interviewEnabled,
   );
+  const artifactQuery = useAssessmentArtifactsQuery(assessmentId);
   const repositorySnapshot =
     workspaceRuntime.repositorySnapshots
       .filter((snapshot) => snapshot.assessmentId === assessmentId)
@@ -33,7 +37,16 @@ export function useAssessmentRuntimeViewModel(
     return normalizeAssessmentRuntime({
       assessmentId,
       interviewState: interviewQuery,
+      artifactState: artifactQuery,
       timeline: { ...timeline, repositorySnapshot, scanJobs, evidenceReports },
     });
-  }, [assessmentId, interviewQuery, timeline, repositorySnapshot, scanJobs, evidenceReports]);
+  }, [
+    assessmentId,
+    interviewQuery,
+    artifactQuery,
+    timeline,
+    repositorySnapshot,
+    scanJobs,
+    evidenceReports,
+  ]);
 }

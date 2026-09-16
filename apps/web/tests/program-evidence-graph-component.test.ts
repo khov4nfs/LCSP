@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
+import { REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
+import { EVIDENCE_ERROR_CODES } from "@lcsp/contracts/evidence";
 import { JSDOM } from "jsdom";
 import React, { act } from "react";
 
@@ -32,6 +34,10 @@ const { GraphFirstDetail, GraphDetail } =
   await import("../src/features/assessment-runtime/components/organisms/program-evidence-graph-drawer");
 const { normalizeProgramEvidenceGraphDetail } =
   await import("../src/lib/api/evidence-graph-detail-client");
+const {
+  getProgramEvidenceGraphDetailState,
+  PROGRAM_EVIDENCE_GRAPH_DETAIL_LOAD_STATES,
+} = await import("../src/lib/api/evidence-graph-detail-client");
 const roots: ReturnType<typeof createRoot>[] = [];
 
 const detail = {
@@ -144,6 +150,35 @@ test("preserves canonical zero overview metrics", () => {
     evidence_mapped_scope: 0,
   });
 });
+
+for (const [code, status, expectedState] of [
+  [EVIDENCE_ERROR_CODES.notReady, 202, "pending"],
+  [EVIDENCE_ERROR_CODES.buildFailed, 409, "failed"],
+  [EVIDENCE_ERROR_CODES.notFound, 404, "notFound"],
+  ["ASSESSMENT_NOT_FOUND", 404, "unavailable"],
+] as const) {
+  test(`maps evidence graph ${code} problem to ${expectedState} state`, async () => {
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          ok: false,
+          problem: { code, status, requiredAction: REQUIRED_ACTIONS.none },
+        }),
+        { status, headers: { "content-type": "application/json" } },
+      )) as typeof fetch;
+
+    try {
+      const result = await getProgramEvidenceGraphDetailState("assessment-graph");
+      assert.deepEqual(result, {
+        state: PROGRAM_EVIDENCE_GRAPH_DETAIL_LOAD_STATES[expectedState],
+        detail: null,
+      });
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+}
 
 afterEach(() => {
   for (const root of roots.splice(0)) act(() => root.unmount());

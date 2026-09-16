@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from orchestration.agent_stream import invoke_with_stream
+
 import hashlib
 import json
 import logging
 import re
+import unicodedata
 from typing import Any, Callable
 
 from contracts.handoffs import InterviewResult
@@ -43,6 +46,142 @@ _INTERVIEW_CONFIRMATION_SYNTHESIS_REJECTED = (
 )
 _CONFIRMATION_PROVENANCE_INSTRUCTION_KEY = (
     "CONFIRMATION_PROVENANCE_REQUIRES_CONFIRM_ADJUST_OR_DIRECT_ASK"
+)
+_MINIMUM_CONTEXT_INSTRUCTION_KEY = "MINIMUM_PLANNING_CONTEXT_REQUIRES_FOLLOW_UP"
+# Keep these term sets and the matcher in sync with apps/api
+# assessment-interview-runtime.service.ts::INITIAL_PLANNING_CONTEXT_DIMENSIONS.
+# Terms are matched against word tokens: a trailing "*" is a prefix match, spaces form
+# a phrase. An explicit "unknown" answer still resolves a dimension as UNKNOWN; it never
+# implies a negative such as "no decision effect".
+_INITIAL_PLANNING_CONTEXT_DIMENSIONS = {
+    "aiUsage": (
+        "ai",
+        "artificial intelligence",
+        "model*",
+        "llm*",
+        "gpt*",
+        "gemini",
+        "openai",
+        "claude",
+        "copilot",
+        "chatbot*",
+        "machine learning",
+        "algorithm*",
+        "classifier*",
+        "generative",
+        "automated decision*",
+    ),
+    "operationalProcess": (
+        "process*",
+        "workflow*",
+        "operation*",
+        "pipeline*",
+        "assessment*",
+        "onboarding",
+        "support",
+        "procedure*",
+        "use case*",
+    ),
+    "decisionInfluence": (
+        "decision*",
+        "decide*",
+        "action*",
+        "approv*",
+        "reject*",
+        "gate",
+        "gates",
+        "block*",
+        "deploy*",
+        "trigger*",
+        "automatically",
+        "autonomous*",
+        "update*",
+        "status",
+        "external effect*",
+        "recommend*",
+        "advis*",
+        "draft*",
+        "suggest*",
+        "influenc*",
+    ),
+    # Approval verbs alone ("AI never approves") say nothing about who oversees AI output.
+    "humanOversight": (
+        "human*",
+        "person",
+        "persons",
+        "people",
+        "manual*",
+        "review*",
+        "oversight",
+        "supervis*",
+        "sign off",
+        "approver*",
+        "operator*",
+        "staff",
+        "analyst*",
+        "officer*",
+        "manager*",
+        "recruiter*",
+    ),
+    "affectedSubjects": (
+        "user*",
+        "customer*",
+        "client*",
+        "employee*",
+        "applicant*",
+        "candidate*",
+        "patient*",
+        "student*",
+        "citizen*",
+        "consumer*",
+        "subject*",
+        "individual*",
+        "organization*",
+        "organisation*",
+        "tenant*",
+        "member*",
+        "business process*",
+        "affected process*",
+    ),
+    "dataCategories": (
+        "data",
+        "dataset*",
+        "database*",
+        "code",
+        "codebase*",
+        "repositor*",
+        "source*",
+        "pii",
+        "personal",
+        "email*",
+        "transcript*",
+        "ticket*",
+        "document*",
+        "record*",
+        "metadata",
+        "log",
+        "logs",
+        "profile*",
+        "file*",
+        "message*",
+    ),
+}
+# Only explicit statements that AI is absent short-circuit readiness. Decision-level
+# negatives ("no automated decision", "AI never approves") are not an absence of AI.
+_NO_AI_USAGE_TERMS = (
+    "does not use ai",
+    "do not use ai",
+    "doesn t use ai",
+    "don t use ai",
+    "not using ai",
+    "no ai usage",
+    "no ai use",
+    "no ai capabilit*",
+    "no ai model*",
+    "no ai system*",
+    "no model capabilit*",
+    "khong dung ai",
+    "khong su dung ai",
 )
 _AUTHORITY_REPAIR_GUIDANCE = {
     "INTERVIEW_CUSTOMER_CONFIRMED_REQUIRES_DIRECT_OR_EXPLICIT_CONFIRMATION": {
@@ -98,6 +237,17 @@ _AUTHORITY_REPAIR_GUIDANCE = {
             "that reflect the latest valid customer-confirmed/direct answer. Do not "
             "invent statements; if confirmation is missing, ask CONFIRM_ADJUST or "
             "direct ASK and keep CUSTOMER_STATED."
+        ),
+    },
+    "INTERVIEW_MINIMUM_CONTEXT_INCOMPLETE": {
+        "instructionKey": _MINIMUM_CONTEXT_INSTRUCTION_KEY,
+        "instruction": (
+            "CONTEXT_READY requires enough customer-confirmed planning context for "
+            "the Planner. Resolve only the missing dimensions listed in "
+            "missingDimensions. Do not ask rule-specific governance questions yet; "
+            "ask one adaptive follow-up that can cover multiple missing dimensions "
+            "when possible. UNKNOWN or UNAVAILABLE is acceptable only when the "
+            "customer explicitly says it is unknown or unavailable."
         ),
     },
 }
@@ -189,7 +339,89 @@ def _authority_error_code(decision: dict[str, Any], context: dict[str, Any]) -> 
         return "INTERVIEW_CUSTOMER_CONFIRMED_REQUIRES_DIRECT_OR_EXPLICIT_CONFIRMATION"
     if authority == "CONFIRMED" and not provenance["confirmed"]:
         return "INTERVIEW_CONFIRMED_REQUIRES_DIRECT_ASK"
+    outcome = str(decision.get("outcome") or "").upper()
+    if outcome == "CONTEXT_READY" and authority not in {
+        "CUSTOMER_CONFIRMED",
+        "CONFIRMED",
+    }:
+        return "INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY"
+    if outcome == "CONTEXT_RESOLVED" and authority not in {
+        "CUSTOMER_CONFIRMED",
+        "CONFIRMED",
+    }:
+        return "INTERVIEW_CONTEXT_RESOLVED_REQUIRES_AUTHORITY"
     return None
+
+
+def _missing_initial_planning_context_dimensions(
+    decision: dict[str, Any],
+    context: dict[str, Any] | None = None,
+) -> list[str]:
+    # Targeted INVESTIGATOR_RESOLUTION turns resolve one rule-specific need; the
+    # initial minimum planning context gate must never be re-applied to them. Mirror
+    # the API's mode derivation: a registered targeted need makes the turn targeted.
+    if str(decision.get("mode") or "").upper() == "INVESTIGATOR_RESOLUTION" or (
+        isinstance(context, dict) and isinstance(context.get("targetedNeed"), dict)
+    ):
+        return []
+    if str(decision.get("outcome") or "").upper() != "CONTEXT_READY":
+        return []
+    confirmed_context = decision.get("confirmedContext")
+    if not isinstance(confirmed_context, dict):
+        return list(_INITIAL_PLANNING_CONTEXT_DIMENSIONS)
+    raw_statements = confirmed_context.get("statements")
+    statements = (
+        [item for item in raw_statements if isinstance(item, dict)]
+        if isinstance(raw_statements, list)
+        else []
+    )
+    if not statements:
+        return list(_INITIAL_PLANNING_CONTEXT_DIMENSIONS)
+    token_sets = [_planning_statement_tokens(statement) for statement in statements]
+    if any(_matches_any_term(tokens, _NO_AI_USAGE_TERMS) for tokens in token_sets):
+        return []
+    return [
+        dimension
+        for dimension, terms in _INITIAL_PLANNING_CONTEXT_DIMENSIONS.items()
+        if not any(_matches_any_term(tokens, terms) for tokens in token_sets)
+    ]
+
+
+def _planning_statement_tokens(statement: dict[str, Any]) -> list[str]:
+    values = (
+        statement.get("topic"),
+        statement.get("statement"),
+        statement.get("normalizedValue"),
+        statement.get("scope"),
+    )
+    text = " ".join(
+        value if isinstance(value, str) else json.dumps(value or {}, sort_keys=True)
+        for value in values
+    )
+    return _planning_tokens(text)
+
+
+def _planning_tokens(text: str) -> list[str]:
+    folded = unicodedata.normalize("NFKD", text.replace("đ", "d").replace("Đ", "D"))
+    ascii_text = "".join(char for char in folded if not unicodedata.combining(char))
+    return re.findall(r"[a-z0-9]+", ascii_text.lower())
+
+
+def _matches_any_term(tokens: list[str], terms: tuple[str, ...]) -> bool:
+    return any(_matches_term(tokens, term) for term in terms)
+
+
+def _matches_term(tokens: list[str], term: str) -> bool:
+    parts = term.split(" ")
+    for start in range(len(tokens) - len(parts) + 1):
+        if all(
+            tokens[start + offset].startswith(part[:-1])
+            if part.endswith("*")
+            else tokens[start + offset] == part
+            for offset, part in enumerate(parts)
+        ):
+            return True
+    return False
 
 
 def _apply_authority_preflight(
@@ -198,6 +430,11 @@ def _apply_authority_preflight(
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
     error_code = _authority_error_code(decision, context)
     if error_code is None:
+        missing_dimensions = _missing_initial_planning_context_dimensions(decision, context)
+        if missing_dimensions:
+            feedback = _decision_feedback("INTERVIEW_MINIMUM_CONTEXT_INCOMPLETE", decision)
+            feedback["missingDimensions"] = missing_dimensions
+            return decision, feedback
         return decision, None
 
     outcome = str(decision.get("outcome") or "").upper()
@@ -437,7 +674,21 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             return
 
         server_workflow_run_id = _required_text(context, "workflowRunId")
-        if server_workflow_run_id != command_workflow_run_id:
+        root_workflow_run_id = context.get("rootWorkflowRunId")
+        if server_workflow_run_id != command_workflow_run_id and (
+            not isinstance(root_workflow_run_id, str)
+            or root_workflow_run_id != command_workflow_run_id
+        ):
+            _LOGGER.warning(
+                "INTERVIEW_WORKFLOW_RUN_ID_MISMATCH",
+                server_workflow_run_id=server_workflow_run_id,
+                root_workflow_run_id=root_workflow_run_id,
+                command_workflow_run_id=command_workflow_run_id,
+                context_revision=context_revision,
+                status=status,
+                thread_id=thread_id,
+                assessment_id=assessment_id,
+            )
             raise ValueError(
                 "assessment Interview resume command workflowRunId does not match "
                 "the server-owned Interview workflow run"
@@ -598,6 +849,11 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
             missing = getattr(exc, "missing", None)
             if isinstance(missing, str):
                 decision_feedback["missingCriteria"] = missing
+            missing_dimensions = (getattr(exc, "meta", None) or {}).get("missingDimensions")
+            if isinstance(missing_dimensions, str) and missing_dimensions.strip():
+                decision_feedback["missingDimensions"] = [
+                    item.strip() for item in missing_dimensions.split(",") if item.strip()
+                ]
             repair_context = {
                 **context,
                 "decisionValidationFeedback": decision_feedback,
@@ -996,9 +1252,24 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         )
         confirmed_context = guarded_state.get("confirmedContext")
         if not isinstance(confirmed_context, dict):
-            raise ValueError(
-                "guarded CONTEXT_RESOLVED is missing authoritative confirmedContext"
+            _LOGGER.warning(
+                "GUARDED_STATE_MISSING_CONFIRMED_CONTEXT leniently treated as duplicate",
+                extra={
+                    "guarded_state_keys": list(guarded_state.keys()),
+                    "status": guarded_state.get("status"),
+                    "requested_revision": context_revision,
+                    "thread_context": guarded_state.get("currentRevision"),
+                    "has_confirmed_context": isinstance(
+                        guarded_state.get("confirmedContext"), dict
+                    ),
+                    "public_state_outcome": (
+                        guarded_state.get("publicState", {}) or {}
+                    ).get("outcome"),
+                    "source_version": source_version,
+                    "pge_version": pge_version,
+                },
             )
+            return
         typed_confirmed_context = normalize_confirmed_structured_business_context(
             guarded_state,
             assessment_id=assessment_id,
@@ -1055,7 +1326,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         if not isinstance(artifact_versions, dict) or not artifact_versions:
             raise RuntimeError("downstream impact re-evaluation requires artifact pins")
         root = self._root_agent or self._load_root_agent()
-        root.invoke(
+        invoke_with_stream(root,
             {
                 "messages": [
                     {
@@ -1209,7 +1480,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         correlationId: str,
         root: Any,
     ) -> None:
-        root.invoke(
+        invoke_with_stream(root,
             {
                 "messages": [
                     {
@@ -1248,7 +1519,7 @@ class AssessmentInterviewResumeBoundary(AgentBoundaryBase):
         correlationId: str,
         root: Any,
     ) -> None:
-        root.invoke(
+        invoke_with_stream(root,
             {
                 "messages": [
                     {

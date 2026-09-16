@@ -1,4 +1,9 @@
-import type { AssessmentPostFindingRuntimeState } from "@lcsp/contracts/evidence";
+import type { MessageKey } from "@lcsp/i18n";
+import type {
+  AssessmentAgentStreamEvent,
+  AssessmentPostFindingRuntimeState,
+  AssessmentRuntimeEngineeringProgress,
+} from "@lcsp/contracts/evidence";
 
 export const WORKSPACE_RUNTIME_CONNECTION_STATES = {
   connecting: "CONNECTING",
@@ -89,6 +94,8 @@ export type WorkspaceRuntimeActivityItem = {
 export type WorkspaceRuntimeAssessmentTimeline = {
   currentRun: WorkspaceRuntimeRun | null;
   recentActivity: WorkspaceRuntimeActivityItem[];
+  engineeringProgress?: AssessmentRuntimeEngineeringProgress[];
+  agentStreamEvents?: AssessmentAgentStreamEvent[];
   latestRunId: string | null;
   connectionState: WorkspaceRuntimeConnectionState;
   lastEmittedAt: string | null;
@@ -99,6 +106,7 @@ export type WorkspaceRuntimeSnapshot = {
   emittedAt: string | null;
   runs: WorkspaceRuntimeRun[];
   recentActivity: WorkspaceRuntimeActivityItem[];
+  engineeringProgress: AssessmentRuntimeEngineeringProgress[];
   repositorySnapshots: WorkspaceRuntimeRepositorySnapshot[];
   scanJobs: WorkspaceRuntimeScanJob[];
   evidenceReports: WorkspaceRuntimeEvidenceReport[];
@@ -109,9 +117,31 @@ export type WorkspaceRuntimeContextValue = WorkspaceRuntimeSnapshot & {
   connectionState: WorkspaceRuntimeConnectionState;
   runsByAssessmentId: Record<string, WorkspaceRuntimeRun[]>;
   recentActivityByAssessmentId: Record<string, WorkspaceRuntimeActivityItem[]>;
+  engineeringProgressByAssessmentId: Record<
+    string,
+    AssessmentRuntimeEngineeringProgress[]
+  >;
+  agentStreamEventsByAssessmentId: Record<string, AssessmentAgentStreamEvent[]>;
   latestRunIdByAssessmentId: Record<string, string>;
   postFindingByAssessmentId: Record<string, AssessmentPostFindingRuntimeState>;
   getAssessmentRuntime: (
     assessmentId: string,
   ) => WorkspaceRuntimeAssessmentTimeline;
+};
+
+export const RUNTIME_THINKING_PHASES = {
+  planner: "PLANNER",
+  investigator: "INVESTIGATOR",
+} as const;
+
+export type RuntimeThinkingPhase =
+  (typeof RUNTIME_THINKING_PHASES)[keyof typeof RUNTIME_THINKING_PHASES];
+
+/** Customer-facing aggregate of internal Planner/Investigator runtime telemetry. */
+export type RuntimeThinkingItem = {
+  id: string;
+  phase: RuntimeThinkingPhase;
+  limited: boolean;
+  messageKey: MessageKey;
+  params: Record<string, string>;
 };

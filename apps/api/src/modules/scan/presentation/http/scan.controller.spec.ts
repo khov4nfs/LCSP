@@ -191,4 +191,42 @@ describe("InternalScanController", () => {
       correlationId: "corr-1",
     });
   });
+  it("publishes worker agent stream events without trimming streamed text", async () => {
+    const publishAgentStreamEvent = jest.fn((value: unknown) =>
+      Promise.resolve({
+        ...(value as object),
+        eventId: "agent-event-1",
+      }),
+    );
+    const controller = new InternalScanController(
+      {} as unknown as CommandBus,
+      { publishAgentStreamEvent } as never,
+    );
+
+    const result = await controller.recordAgentStreamEvent(
+      {
+        assessment_id: "assessment-1",
+        run_id: "run-1",
+        event_type: "MODEL_CONTENT_DELTA",
+        agent_name: "planner",
+        text: " token \n",
+      },
+      "corr-header",
+    );
+
+    expect(publishAgentStreamEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assessmentId: "assessment-1",
+        runId: "run-1",
+        correlationId: "corr-header",
+        eventType: "MODEL_CONTENT_DELTA",
+        agentName: "planner",
+        text: " token \n",
+      }),
+    );
+    expect(result).toEqual({
+      ok: true,
+      data: { recorded: true, eventId: "agent-event-1" },
+    });
+  });
 });

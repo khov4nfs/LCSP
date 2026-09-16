@@ -291,7 +291,7 @@ def test_rejected_resume_threshold_fails_registry_and_passes_limitation_to_compl
     assert checkpoint_id == "checkpoint-original"
     assert handoff["claims"][0]["claim_id"] == "claim:failed:ENG-RECOVERY-1"
     assert handoff["claims"][0]["limitations"] == [
-        ENGINEERING_LIMITATION_CODES["engineering_investigation_failed"]
+        ENGINEERING_LIMITATION_CODES["engineering_investigation_runtime_error"]
     ]
     assert _FakeStore.saves[-1]["status"] == MANAGED_INVESTIGATOR_EXECUTION_STATUSES[
         "failed"
@@ -324,7 +324,7 @@ def test_rejected_resume_threshold_fails_registry_and_passes_limitation_to_compl
     )
 
     assert completion_calls[0]["resumed_handoff"]["claims"][0]["limitations"] == [
-        ENGINEERING_LIMITATION_CODES["engineering_investigation_failed"]
+        ENGINEERING_LIMITATION_CODES["engineering_investigation_runtime_error"]
     ]
 
 
@@ -478,6 +478,102 @@ def test_rejected_threshold_canonicalizes_unprovable_shape_to_unresolved(monkeyp
     assert claim["claim_type"] == "UNRESOLVED_ENGINEERING_FACT"
     assert claim["value"] is None
     assert claim["confidence"] == 0.0
+    assert claim["limitations"] == [
+        ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
+    ]
+    assert [save["status"] for save in _FakeStore.saves] == [
+        MANAGED_INVESTIGATOR_EXECUTION_STATUSES["rejected"],
+        MANAGED_INVESTIGATOR_EXECUTION_STATUSES["ready"],
+    ]
+
+
+def _not_met_null_value_handoff(*, criterion: str | None) -> dict[str, Any]:
+    handoff = _valid_handoff()
+    handoff["claims"][0] = {
+        "claim_id": "claim-not-met-null",
+        "engineering_rule_id": "ENG-RECOVERY-1",
+        "claim_type": "RULE_REQUIREMENT_NOT_MET",
+        "value": None,
+        "evidence_refs": ["EV-RECOVERY-1"],
+        "graph_path_refs": [],
+        "source_anchor_refs": [],
+        "confidence": 0.8,
+        "limitations": [],
+        "criterion": criterion,
+    }
+    return handoff
+
+
+def _bypass_graph_evidence_gate(monkeypatch) -> None:
+    # These tests isolate the model-call budget of the structured-output loop; the
+    # graph evidence gate itself is covered by test_specialist_handoff_validation.
+    from orchestration import result_validation
+
+    monkeypatch.setattr(
+        result_validation.EvidenceClaimValidator,
+        "validate",
+        lambda _self, claim, _graph: claim,
+    )
+
+
+def test_safe_not_met_value_shape_is_normalized_without_another_model_call(
+    monkeypatch,
+) -> None:
+    _install_fake_postgres_saver(monkeypatch)
+    _bypass_graph_evidence_gate(monkeypatch)
+    _FakeStore.records = {}
+    _FakeStore.saves = []
+    agent = _AlwaysInvalidShapeAgent(
+        _not_met_null_value_handoff(criterion="Retry limit is configured")
+    )
+    monkeypatch.setattr(managed, "ManagedInvestigatorExecutionStore", _FakeStore)
+    monkeypatch.setattr(managed, "_durable_investigator_agent", lambda _checkpointer: agent)
+
+    handoff, _checkpoint_id = managed._invoke_managed_investigator(
+        checkpoint_url="postgresql://recovery-test",
+        thread_id="investigator:exec-recovery-1",
+        checkpoint_id=None,
+        context=_context(),
+        instruction="Initial selected-rule investigation.",
+        graph=_program_graph(),
+        execution_id="exec-recovery-1",
+        correlation_id="corr-recovery-safe-shape",
+    )
+
+    assert len(agent.invoke_calls) == 1
+    assert handoff["claims"][0]["claim_type"] == "RULE_REQUIREMENT_NOT_MET"
+    assert handoff["claims"][0]["value"] is False
+    assert [save["status"] for save in _FakeStore.saves] == [
+        MANAGED_INVESTIGATOR_EXECUTION_STATUSES["ready"],
+    ]
+
+
+def test_unsafe_not_met_value_shape_keeps_bounded_retry_then_fails_closed(
+    monkeypatch,
+) -> None:
+    _install_fake_postgres_saver(monkeypatch)
+    _bypass_graph_evidence_gate(monkeypatch)
+    _FakeStore.records = {}
+    _FakeStore.saves = []
+    agent = _AlwaysInvalidShapeAgent(_not_met_null_value_handoff(criterion=None))
+    monkeypatch.setattr(managed, "ManagedInvestigatorExecutionStore", _FakeStore)
+    monkeypatch.setattr(managed, "_durable_investigator_agent", lambda _checkpointer: agent)
+
+    handoff, _checkpoint_id = managed._invoke_managed_investigator(
+        checkpoint_url="postgresql://recovery-test",
+        thread_id="investigator:exec-recovery-1",
+        checkpoint_id=None,
+        context=_context(),
+        instruction="Initial selected-rule investigation.",
+        graph=_program_graph(),
+        execution_id="exec-recovery-1",
+        correlation_id="corr-recovery-unsafe-shape",
+    )
+
+    assert len(agent.invoke_calls) == managed.MAX_MANAGED_INVESTIGATOR_REJECTED_ATTEMPTS
+    claim = handoff["claims"][0]
+    assert claim["claim_type"] == "UNRESOLVED_ENGINEERING_FACT"
+    assert claim["value"] is None
     assert claim["limitations"] == [
         ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
     ]

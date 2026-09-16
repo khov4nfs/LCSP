@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import {
   type OutboxAggregateType,
@@ -29,6 +29,7 @@ export class OutboxMessageEntity {
    * @param fields - Aggregate identity, event payload, delivery state, retry metadata, and creation time.
    */
   private constructor(fields: {
+    id?: string;
     aggregateType: OutboxAggregateType;
     aggregateId: string;
     eventType: string;
@@ -40,7 +41,7 @@ export class OutboxMessageEntity {
     errorMessage: string | null;
     createdAt: Date;
   }) {
-    this.id = randomUUID();
+    this.id = fields.id ?? randomUUID();
     this.aggregateType = fields.aggregateType;
     this.aggregateId = fields.aggregateId;
     this.eventType = fields.eventType;
@@ -65,6 +66,7 @@ export class OutboxMessageEntity {
     createdAt: Date = new Date(),
   ): OutboxMessageEntity {
     return new OutboxMessageEntity({
+      id: deterministicOutboxId(input.idempotencyKey),
       aggregateType: input.aggregateType,
       aggregateId: input.aggregateId,
       eventType: input.eventType,
@@ -101,4 +103,15 @@ export class OutboxMessageEntity {
     Object.assign(entity, { id: fields.id });
     return entity;
   }
+}
+
+function deterministicOutboxId(
+  idempotencyKey: string | undefined,
+): string | undefined {
+  const key = idempotencyKey?.trim();
+  if (!key) {
+    return undefined;
+  }
+  const digest = createHash("sha256").update(key).digest("hex");
+  return `outbox:${digest}`;
 }

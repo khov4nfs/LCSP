@@ -1,5 +1,6 @@
 """Produce bounded model-assisted classification proposals for later validation."""
 
+from orchestration.agent_stream import invoke_with_stream
 from typing import Any
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
@@ -82,7 +83,7 @@ class ModelAssistedClassificationProposer:
                 response_format=_classification_proposal_response_schema(),
                 middleware=MODEL_GOVERNANCE_MIDDLEWARE,
             )
-            result = agent.invoke(
+            result = invoke_with_stream(agent,
                 {"messages": [{"role": "user", "content": prompt}]},
                 config={
                     "metadata": {

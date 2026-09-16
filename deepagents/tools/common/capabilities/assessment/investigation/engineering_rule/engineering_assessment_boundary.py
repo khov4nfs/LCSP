@@ -113,10 +113,14 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         )
         scan_job_id = self._scan_job_id(evidence_report)
         workspace_job_id = f"investigation-{correlationId}"
-        workspace_path = self._materialize_code_workspace(
-            evidence_report=evidence_report,
-            workspace_job_id=workspace_job_id,
-            correlation_id=correlationId,
+        workspace_path = (
+            self._materialize_code_workspace(
+                evidence_report=evidence_report,
+                workspace_job_id=workspace_job_id,
+                correlation_id=correlationId,
+            )
+            if getattr(self._pipeline, "requires_code_workspace", True)
+            else None
         )
         try:
             result = self._pipeline.run(

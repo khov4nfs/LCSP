@@ -1,4 +1,13 @@
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
+import {
+  ASSESSMENT_RUNTIME_GATE_STATUSES,
+  ASSESSMENT_RUNTIME_RUN_STATUSES,
+} from "@lcsp/contracts/evidence";
+import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
+import {
+  CLASSIFICATION_GUARDRAIL_STATUSES,
+  ENGINEERING_RULE_EVALUATION_STATUSES,
+} from "@lcsp/contracts/scan";
 import type { MessageKey } from "@lcsp/i18n";
 
 import { PUBLIC_ENTRY_ROUTES } from "../../auth-entry.ts";
@@ -17,6 +26,29 @@ export const CLASSIFICATION_STATUS_STATES = {
   legalMatchBlocked: "legal_match_blocked",
 } as const;
 
+/**
+ * Pipeline execution state. It describes whether the assessment run executed, never
+ * whether the assessed system is compliant (guardrail PASSED is execution integrity).
+ */
+export const CLASSIFICATION_EXECUTION_STATES = {
+  queued: REPOSITORY_SCAN_JOB_STATUSES.queued,
+  running: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+  completed: ASSESSMENT_RUNTIME_RUN_STATUSES.completed,
+  failed: ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
+  blocked: CLASSIFICATION_GUARDRAIL_STATUSES.blocked,
+  skipped: ASSESSMENT_RUNTIME_GATE_STATUSES.skipped,
+} as const;
+
+/** Assessment verdict, reusing the canonical EngineeringRule evaluation value set. */
+export const CLASSIFICATION_ASSESSMENT_OUTCOMES = ENGINEERING_RULE_EVALUATION_STATUSES;
+
+export const CLASSIFICATION_EVIDENCE_QUALITIES = {
+  evidenceBacked: "EVIDENCE_BACKED",
+  limitedEvidence: "LIMITED_EVIDENCE",
+  noValidatedEvidence: "NO_VALIDATED_EVIDENCE",
+  coverageLimited: "COVERAGE_LIMITED",
+} as const;
+
 const CLASSIFICATION_STATUS_OUTCOME_KINDS = {
   loaded: "loaded",
   redirect: "redirect",
@@ -25,6 +57,15 @@ const CLASSIFICATION_STATUS_OUTCOME_KINDS = {
 
 export type ClassificationStatusState =
   (typeof CLASSIFICATION_STATUS_STATES)[keyof typeof CLASSIFICATION_STATUS_STATES];
+
+export type ClassificationExecutionState =
+  (typeof CLASSIFICATION_EXECUTION_STATES)[keyof typeof CLASSIFICATION_EXECUTION_STATES];
+
+export type ClassificationAssessmentOutcome =
+  (typeof CLASSIFICATION_ASSESSMENT_OUTCOMES)[keyof typeof CLASSIFICATION_ASSESSMENT_OUTCOMES];
+
+export type ClassificationEvidenceQuality =
+  (typeof CLASSIFICATION_EVIDENCE_QUALITIES)[keyof typeof CLASSIFICATION_EVIDENCE_QUALITIES];
 
 export type TechnicalEvidenceViewModel = {
   kind: string;
@@ -88,6 +129,9 @@ export type ClassificationObservabilityViewModel = {
 
 export type ClassificationStatusViewModel = {
   state: ClassificationStatusState;
+  executionState: ClassificationExecutionState;
+  assessmentOutcome: ClassificationAssessmentOutcome | null;
+  evidenceQuality: ClassificationEvidenceQuality | null;
   titleKey: MessageKey;
   badgeKey: MessageKey;
   descriptionKey: MessageKey;
@@ -251,6 +295,24 @@ export function toClassificationStatusOutcome(
 function toClassificationStatusViewModel(
   payload: AssessmentDetailPayload,
 ): ClassificationStatusViewModel {
+  const viewModel = toGuardrailStatusViewModel(payload);
+  const executionFailed =
+    payload.classification_result?.status?.trim().toUpperCase() ===
+    ASSESSMENT_RUNTIME_RUN_STATUSES.failed;
+  // A failed run produced no assessment verdict, whatever partial data it carries.
+  return executionFailed
+    ? {
+        ...viewModel,
+        executionState: CLASSIFICATION_EXECUTION_STATES.failed,
+        assessmentOutcome: null,
+        evidenceQuality: null,
+      }
+    : viewModel;
+}
+
+function toGuardrailStatusViewModel(
+  payload: AssessmentDetailPayload,
+): ClassificationStatusViewModel {
   const locked = payload.readiness_state?.classification_locked === true;
   const guardrailStatus = normalizeGuardrailStatus(payload.guardrail_status);
   const result = payload.classification_result;
@@ -263,14 +325,18 @@ function toClassificationStatusViewModel(
         total: result.engineering_summary.total,
       }
     : null;
+  const observability = result?.observability
+    ? toObservabilityViewModel(result.observability)
+    : null;
+  const evidenceQuality = deriveEvidenceQuality(observability, engineeringSummary);
 
   const common = {
     evaluations,
     engineeringSummary,
     limitations: result?.limitations ?? [],
-    observability: result?.observability
-      ? toObservabilityViewModel(result.observability)
-      : null,
+    observability,
+    assessmentOutcome: deriveAssessmentOutcome(engineeringSummary, evidenceQuality),
+    evidenceQuality,
     hasClassification: result !== null,
     canRerunClassification: false,
   };
@@ -279,36 +345,42 @@ function toClassificationStatusViewModel(
     return {
       ...common,
       state: CLASSIFICATION_STATUS_STATES.locked,
+      executionState: CLASSIFICATION_EXECUTION_STATES.queued,
+      assessmentOutcome: null,
+      evidenceQuality: null,
       titleKey: "pages.classification.states.lockedTitle",
       badgeKey: "pages.classification.states.lockedBadge",
       descriptionKey: "pages.classification.states.lockedDescription",
       hasClassification: false,
     };
   }
-  if (guardrailStatus === "passed") {
+  if (guardrailStatus === CLASSIFICATION_STATUS_STATES.passed) {
     return {
       ...common,
       state: CLASSIFICATION_STATUS_STATES.passed,
+      executionState: CLASSIFICATION_EXECUTION_STATES.completed,
       titleKey: "pages.classification.states.passedTitle",
       badgeKey: "pages.classification.states.passedBadge",
       descriptionKey: "pages.classification.states.passedDescription",
       summaryKey: "pages.classification.states.passedSummary",
     };
   }
-  if (guardrailStatus === "degraded") {
+  if (guardrailStatus === CLASSIFICATION_STATUS_STATES.degraded) {
     return {
       ...common,
       state: CLASSIFICATION_STATUS_STATES.degraded,
+      executionState: CLASSIFICATION_EXECUTION_STATES.completed,
       titleKey: "pages.classification.states.degradedTitle",
       badgeKey: "pages.classification.states.degradedBadge",
       descriptionKey: "pages.classification.states.degradedDescription",
       summaryKey: "pages.classification.states.degradedSummary",
     };
   }
-  if (guardrailStatus === "blocked") {
+  if (guardrailStatus === CLASSIFICATION_STATUS_STATES.blocked) {
     return {
       ...common,
       state: CLASSIFICATION_STATUS_STATES.blocked,
+      executionState: CLASSIFICATION_EXECUTION_STATES.blocked,
       titleKey: "pages.classification.states.blockedTitle",
       badgeKey: "pages.classification.states.blockedBadge",
       descriptionKey: "pages.classification.states.blockedDescription",
@@ -319,11 +391,71 @@ function toClassificationStatusViewModel(
   return {
     ...common,
     state: CLASSIFICATION_STATUS_STATES.processing,
+    executionState: CLASSIFICATION_EXECUTION_STATES.running,
+    assessmentOutcome: null,
+    evidenceQuality: null,
     titleKey: "pages.classification.states.processingTitle",
     badgeKey: "pages.classification.states.processingBadge",
     descriptionKey: "pages.classification.states.processingDescription",
     hasClassification: false,
   };
+}
+
+function deriveAssessmentOutcome(
+  summary: ClassificationStatusViewModel["engineeringSummary"],
+  evidenceQuality: ClassificationEvidenceQuality | null,
+): ClassificationAssessmentOutcome | null {
+  if (!summary) {
+    return null;
+  }
+  // A compliance conclusion is never presented without a validated evidence-backed claim.
+  if (
+    evidenceQuality === CLASSIFICATION_EVIDENCE_QUALITIES.noValidatedEvidence &&
+    summary.nonCompliant === 0
+  ) {
+    return CLASSIFICATION_ASSESSMENT_OUTCOMES.unknown;
+  }
+  if (summary.total === 0) {
+    return CLASSIFICATION_ASSESSMENT_OUTCOMES.unknown;
+  }
+  if (summary.nonCompliant > 0) {
+    return CLASSIFICATION_ASSESSMENT_OUTCOMES.nonCompliant;
+  }
+  if (summary.unknown > 0) {
+    return CLASSIFICATION_ASSESSMENT_OUTCOMES.unknown;
+  }
+  if (summary.compliant > 0) {
+    return CLASSIFICATION_ASSESSMENT_OUTCOMES.compliant;
+  }
+  return CLASSIFICATION_ASSESSMENT_OUTCOMES.unknown;
+}
+
+function deriveEvidenceQuality(
+  observability: ClassificationObservabilityViewModel | null,
+  summary: ClassificationStatusViewModel["engineeringSummary"],
+): ClassificationEvidenceQuality | null {
+  if (!summary) {
+    return null;
+  }
+  const provenance = observability?.provenance ?? null;
+  if (
+    summary.total === 0 ||
+    provenance?.claimCount === 0 ||
+    provenance?.claimsWithEvidence === 0 ||
+    provenance?.evaluationsWithEvidence === 0
+  ) {
+    return CLASSIFICATION_EVIDENCE_QUALITIES.noValidatedEvidence;
+  }
+  if (
+    provenance &&
+    provenance.evaluationsWithDisplayableTechnicalEvidence === 0
+  ) {
+    return CLASSIFICATION_EVIDENCE_QUALITIES.limitedEvidence;
+  }
+  if (summary.unknown > 0) {
+    return CLASSIFICATION_EVIDENCE_QUALITIES.coverageLimited;
+  }
+  return CLASSIFICATION_EVIDENCE_QUALITIES.evidenceBacked;
 }
 
 function normalizeGuardrailStatus(value: string | null | undefined) {

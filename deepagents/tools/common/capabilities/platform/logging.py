@@ -174,6 +174,18 @@ class PartitionedLogWriter:
         user_id = get_user_id()
         assessment_id = get_assessment_id()
 
+        try:
+            from orchestration.agent_stream import publish_agent_stream_event
+
+            publish_agent_stream_event(
+                "LOG",
+                text=str(data.get("event") or data.get("message") or "log"),
+                data=data,
+                status=str(data.get("level") or "INFO").upper(),
+            )
+        except Exception:
+            pass
+
         if "user_id" in data:
             user_id = str(data["user_id"])
         elif "userId" in data:

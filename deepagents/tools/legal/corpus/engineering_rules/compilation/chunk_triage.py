@@ -1,6 +1,8 @@
 """LLM-assisted triage for legal chunks before EngineeringRule compilation."""
 from __future__ import annotations
 
+from orchestration.agent_stream import invoke_with_stream
+
 import json
 from dataclasses import dataclass
 from typing import Any
@@ -69,7 +71,7 @@ class LegalChunkEngineeringRuleTriage:
             response_format=_triage_response_schema(chunk_ids),
             middleware=MODEL_GOVERNANCE_MIDDLEWARE,
         )
-        result = agent.invoke(
+        result = invoke_with_stream(agent,
             {"messages": [{"role": "user", "content": self._prompt(legal_rule, legal_context)}]},
             config={
                 "metadata": {

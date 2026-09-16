@@ -74,6 +74,7 @@ INTERVIEW_DECISION_REPAIRABLE_REJECTION_CODES = frozenset({
     "INTERVIEW_CUSTOMER_CONFIRMED_REQUIRES_DIRECT_OR_EXPLICIT_CONFIRMATION",
     "INTERVIEW_EVIDENCE_REF_UNAUTHORIZED",
     "INTERVIEW_INITIAL_QUESTION_INVALID",
+    "INTERVIEW_MINIMUM_CONTEXT_INCOMPLETE",
     "INTERVIEW_QUESTION_FRONTIER_DESCRIPTION_REQUIRED",
     "INTERVIEW_QUESTION_FRONTIER_NOT_CUSTOMER_OWNED",
     "INTERVIEW_QUESTION_FRONTIER_NOT_MATERIAL",
@@ -495,6 +496,32 @@ class WorkerApiClient:
             logger.warning(
                 "SCAN_RUNTIME_EVENT_POST_FAILED",
                 scan_job_id=scan_job_id,
+                error=type(exc).__name__,
+            )
+
+    def post_agent_stream_event(self, payload: dict) -> None:
+        """Submit one best-effort live agent event for the workspace chat stream."""
+        url = f"{self._base_url}{CallbackPath.AGENT_STREAM_EVENT}"
+        headers = {
+            WORKER_API_KEY_HEADER: self._api_key,
+            correlationId_HEADER: get_correlationId(),
+        }
+        try:
+            response = httpx.post(
+                url,
+                json=redact_dict(payload),
+                headers=headers,
+                timeout=3.0,
+            )
+            if response.status_code >= 400:
+                logger.warning(
+                    "AGENT_STREAM_EVENT_REJECTED",
+                    status_code=response.status_code,
+                    error_code=self._response_error_code(response),
+                )
+        except Exception as exc:
+            logger.warning(
+                "AGENT_STREAM_EVENT_POST_FAILED",
                 error=type(exc).__name__,
             )
 

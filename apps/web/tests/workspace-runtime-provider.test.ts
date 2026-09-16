@@ -8,6 +8,7 @@ import {
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 
 import {
+  parseAgentStreamEvent,
   parseRuntimeEvent,
   runtimeFingerprint,
 } from "../src/features/workspace/utils/workspace-runtime-parser.ts";
@@ -16,6 +17,38 @@ import {
   buildRuntimeConsoleModel,
   selectRuntimeConsoleActivity,
 } from "../src/features/evidence/utils/runtime-console.ts";
+
+
+test("agent stream parser preserves streamed whitespace and structured metadata", () => {
+  const parsed = parseAgentStreamEvent(
+    JSON.stringify({
+      event_id: "agent-event-1",
+      sequence: 7,
+      client_sequence: 3,
+      emitted_at: "2026-09-16T00:00:00.000Z",
+      assessment_id: "assessment-1",
+      run_id: "run-1",
+      correlation_id: "corr-1",
+      event_type: "MODEL_CONTENT_DELTA",
+      source: "engineering",
+      agent_name: "planner",
+      namespace: ["task:planner"],
+      node_name: "model",
+      message_id: "message-1",
+      tool_name: null,
+      tool_call_id: null,
+      status: "RUNNING",
+      text: " hello \n",
+      data: { provider: "openai" },
+    }),
+  );
+
+  assert.ok(parsed);
+  assert.equal(parsed?.text, " hello \n");
+  assert.equal(parsed?.agentName, "planner");
+  assert.deepEqual(parsed?.namespace, ["task:planner"]);
+  assert.deepEqual(parsed?.data, { provider: "openai" });
+});
 
 test("workspace runtime parser groups runs and activity by assessment", () => {
   const parsed = parseRuntimeEvent(

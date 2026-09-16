@@ -266,7 +266,7 @@ def test_pipeline_does_not_capture_episode_after_investigator_failure(
     assert result.status == "PARTIAL"
     assert result.claims == ()
     assert result.limitations == (
-        ENGINEERING_LIMITATION_CODES["engineering_investigation_failed"],
+        ENGINEERING_LIMITATION_CODES["engineering_investigation_runtime_error"],
     )
     assert captured == []
 

@@ -1,5 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
+import {
+  ASSESSMENT_RUNTIME_GATE_STATUSES,
+  ASSESSMENT_RUNTIME_GATE_TOOL_NAMES,
+  ASSESSMENT_RUNTIME_STAGE_CODES,
+  ASSESSMENT_RUNTIME_STEP_SKIP_REASONS,
+} from "@lcsp/contracts/evidence";
 import { OUTBOX_AGGREGATE_TYPES } from "@lcsp/contracts/outbox";
 import {
   ASSESSMENT_RESULT_MODES,
@@ -47,6 +53,7 @@ describe("AcceptClassificationHandler", () => {
   let mockWriteAuditInTx: jest.Mock<(...args: unknown[]) => Promise<void>>;
   let mockRecordToolCompleted: jest.Mock<(...args: unknown[]) => Promise<void>>;
   let mockRecordRunCompleted: jest.Mock<(...args: unknown[]) => Promise<void>>;
+  let mockRecordToolSkipped: jest.Mock<(...args: unknown[]) => Promise<void>>;
 
   const validPayload: AcceptClassificationDto = {
     technical_evidence_report_id: "ter-123",
@@ -102,6 +109,9 @@ describe("AcceptClassificationHandler", () => {
     mockRecordRunCompleted = jest
       .fn<(...args: unknown[]) => Promise<void>>()
       .mockResolvedValue(undefined);
+    mockRecordToolSkipped = jest
+      .fn<(...args: unknown[]) => Promise<void>>()
+      .mockResolvedValue(undefined);
 
     prisma = {
       technicalEvidenceReport: { findFirst: mockFindEvidence },
@@ -125,6 +135,7 @@ describe("AcceptClassificationHandler", () => {
       {
         recordToolCompleted: mockRecordToolCompleted,
         recordRunCompleted: mockRecordRunCompleted,
+        recordToolSkipped: mockRecordToolSkipped,
       } as unknown as AssessmentRuntimeEventService,
     );
   });
@@ -411,6 +422,86 @@ describe("AcceptClassificationHandler", () => {
         decision: AUDIT_DECISIONS.deny,
       }),
       prisma,
+    );
+  });
+  function gateToolCompletedCalls() {
+    return mockRecordToolCompleted.mock.calls.filter(
+      ([event]) =>
+        (event as { toolName?: string }).toolName ===
+        ASSESSMENT_RUNTIME_GATE_TOOL_NAMES.engineeringRuleGate,
+    );
+  }
+
+  it("records an explicit completed Gate event in the Classification run before run completion", async () => {
+    const payload: AcceptClassificationDto = {
+      ...validPayload,
+      classification_data: {
+        ...validPayload.classification_data,
+        run_id: "run-gate-required",
+      },
+    };
+
+    await handler.execute(
+      new AcceptClassificationCommand(payload, "corr-gate"),
+    );
+
+    const gateCalls = gateToolCompletedCalls();
+    expect(gateCalls).toHaveLength(1);
+    expect(gateCalls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        runId: "run-gate-required",
+        stage: ASSESSMENT_RUNTIME_STAGE_CODES.classification,
+        outputSummary: {
+          gateStatus: ASSESSMENT_RUNTIME_GATE_STATUSES.completed,
+          guardrailStatus: CLASSIFICATION_GUARDRAIL_STATUSES.passed,
+          gatedEvaluationCount: 1,
+        },
+      }),
+    );
+    expect(mockRecordToolSkipped).not.toHaveBeenCalled();
+    expect(mockRecordRunCompleted).toHaveBeenCalledWith(
+      expect.objectContaining({ runId: "run-gate-required" }),
+    );
+    const gateOrder =
+      mockRecordToolCompleted.mock.invocationCallOrder[
+        mockRecordToolCompleted.mock.calls.indexOf(gateCalls[0])
+      ];
+    expect(gateOrder).toBeLessThan(
+      mockRecordRunCompleted.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("records Gate as SKIPPED/NOT_REQUIRED when a targeted resume run has nothing to gate", async () => {
+    const payload: AcceptClassificationDto = {
+      ...validPayload,
+      classification_data: {
+        ...validPayload.classification_data,
+        run_id: "investigator:exec-1:gate:4",
+        summary: { compliant: 0, non_compliant: 0, unknown: 0, total: 0 },
+        evaluations: [],
+      },
+    };
+
+    await handler.execute(
+      new AcceptClassificationCommand(payload, "corr-gate-not-required"),
+    );
+
+    expect(mockRecordToolSkipped).toHaveBeenCalledTimes(1);
+    expect(mockRecordToolSkipped).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: "investigator:exec-1:gate:4",
+        stage: ASSESSMENT_RUNTIME_STAGE_CODES.classification,
+        toolName: ASSESSMENT_RUNTIME_GATE_TOOL_NAMES.engineeringRuleGate,
+        outputSummary: {
+          gateStatus: ASSESSMENT_RUNTIME_GATE_STATUSES.skipped,
+          reason: ASSESSMENT_RUNTIME_STEP_SKIP_REASONS.notRequired,
+          gatedEvaluationCount: 0,
+        },
+      }),
+    );
+    expect(gateToolCompletedCalls()).toHaveLength(0);
+    expect(mockRecordToolSkipped.mock.invocationCallOrder[0]).toBeLessThan(
+      mockRecordRunCompleted.mock.invocationCallOrder[0],
     );
   });
 });

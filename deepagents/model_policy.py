@@ -12,7 +12,7 @@ disable_langsmith_tracing_by_default()
 
 from langchain.agents import create_agent as _langchain_create_agent
 from langchain.chat_models import init_chat_model
-from provider_credentials import credential_init_kwargs
+from provider_credentials import credential_init_kwargs, llm7_base_url
 
 
 DEFAULT_ROOT_MODEL_SPEC = "openai:gpt-5-nano"
@@ -81,6 +81,7 @@ PROVIDER_CLIENTS = {
     "openai": "responses_api",
     "anthropic": "anthropic",
     "google_genai": "google_genai",
+    "llm7": "openai_compatible_chat_completions",
 }
 
 
@@ -118,6 +119,10 @@ PROVIDER_PRESETS = {
     "google_genai": ProviderPreset(
         "google_genai:gemini-3.5-flash-lite",
         "google_genai:gemini-3.5-flash-lite",
+    ),
+    "llm7": ProviderPreset(
+        "openai:gemini-3.1-flash-lite",
+        "openai:gemini-3.1-flash-lite",
     ),
 }
 GOOGLE_THINKING_LEVEL = "low"
@@ -188,6 +193,34 @@ def provider_from_model_spec(spec: str) -> str:
     normalized = normalize_model_spec(spec)
     provider, _, _ = normalized.partition(":")
     return provider
+
+
+def route_provider_for_model_spec(spec: str) -> str:
+    """Return the credential/client route for one model spec.
+
+    LLM7 keeps an ``openai:`` LangChain transport spec because it is an
+    OpenAI-compatible gateway rather than a native LangChain provider.
+    """
+    normalized = normalize_model_spec(spec)
+    if SELECTED_PROVIDER:
+        preset = PROVIDER_PRESETS[SELECTED_PROVIDER]
+        if normalized in {preset.reasoning_model, preset.narrator_model}:
+            return SELECTED_PROVIDER
+    return provider_from_model_spec(normalized)
+
+
+def route_provider_for_transport(provider: str) -> str:
+    """Return the active route behind one LangChain transport provider."""
+    canonical = canonical_provider(provider)
+    if SELECTED_PROVIDER:
+        preset = PROVIDER_PRESETS[SELECTED_PROVIDER]
+        transports = {
+            provider_from_model_spec(preset.reasoning_model),
+            provider_from_model_spec(preset.narrator_model),
+        }
+        if transports == {canonical}:
+            return SELECTED_PROVIDER
+    return canonical
 
 
 def model_name_from_spec(spec: str) -> str:
@@ -295,6 +328,9 @@ def model_init_kwargs_for_agent(*, agent_name: str, model_spec: str) -> dict[str
     """Return LangChain model kwargs for a specific LCSP agent construction."""
     normalized = normalize_model_spec(model_spec)
     provider, _, _ = normalized.partition(":")
+    route_provider = route_provider_for_model_spec(normalized)
+    if route_provider == "llm7":
+        return provider_init_kwargs(route_provider)
     if normalized == "google_genai:gemini-3.5-flash-lite":
         return {"thinking_level": GOOGLE_THINKING_LEVEL if reasoning_policy_for_agent(
             agent_name=agent_name, model_spec=normalized
@@ -314,10 +350,12 @@ def model_init_kwargs_for_agent(*, agent_name: str, model_spec: str) -> dict[str
 
 def resolve_agent_model(*, agent_name: str, model_spec: str):
     """Instantiate a LangChain chat model with LCSP agent-scoped reasoning policy."""
+    normalized = normalize_model_spec(model_spec)
+    route_provider = route_provider_for_model_spec(normalized)
     return init_chat_model(
-        normalize_model_spec(model_spec),
-        **model_init_kwargs_for_agent(agent_name=agent_name, model_spec=model_spec),
-        **credential_init_kwargs(provider_from_model_spec(model_spec)),
+        normalized,
+        **model_init_kwargs_for_agent(agent_name=agent_name, model_spec=normalized),
+        **credential_init_kwargs(route_provider),
     )
 
 
@@ -350,6 +388,11 @@ def provider_init_kwargs(provider: str) -> dict[str, object]:
     non-reasoning OpenAI agents do not inherit reasoning merely by provider prefix.
     """
     canonical = canonical_provider(provider)
+    if canonical == "llm7":
+        return {
+            "base_url": llm7_base_url(),
+            "use_responses_api": False,
+        }
     if canonical == "openai":
         return openai_responses_base_init_kwargs()
     return {}
@@ -373,7 +416,8 @@ def effective_model_configs() -> tuple[EffectiveModelConfig, ...]:
     )
     configs: list[EffectiveModelConfig] = []
     for role, spec, source in role_specs:
-        provider, model = spec.split(":", 1)
+        _, model = spec.split(":", 1)
+        provider = route_provider_for_model_spec(spec)
         is_openai = provider == "openai"
         agent_name = "lcsp-agent" if role == "root" else role
         reasoning_policy = reasoning_policy_for_agent(

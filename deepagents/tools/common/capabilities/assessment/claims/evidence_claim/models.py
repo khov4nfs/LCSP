@@ -22,6 +22,7 @@ ENGINEERING_LIMITATION_CODES = {
     "no_engineering_rule_candidates": "NO_ENGINEERING_RULE_CANDIDATES",
     "engineering_rule_compilation_failed": "ENGINEERING_RULE_COMPILATION_FAILED",
     "engineering_investigation_failed": "ENGINEERING_INVESTIGATION_FAILED",
+    "engineering_investigation_runtime_error": "ENGINEERING_INVESTIGATION_RUNTIME_ERROR",
     "investigation_returned_no_valid_claims": "INVESTIGATION_RETURNED_NO_VALID_CLAIMS",
     "model_limitation_code_invalid": "MODEL_LIMITATION_CODE_INVALID",
     "engineering_evidence_insufficient": "ENGINEERING_EVIDENCE_INSUFFICIENT",

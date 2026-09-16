@@ -68,6 +68,8 @@ const defaultDockerPhoenixTracing =
   "false";
 const defaultPhoenixCollectorEndpoint =
   process.env.PHOENIX_COLLECTOR_ENDPOINT ?? "http://localhost:6006/v1/traces";
+const defaultPhoenixHost =
+  process.env.PHOENIX_HOST ?? rootEnv.PHOENIX_HOST ?? "127.0.0.1";
 const defaultPhoenixProject =
   process.env.PHOENIX_PROJECT ?? rootEnv.PHOENIX_PROJECT ?? "deepagents";
 const defaultDockerWorkerImage =
@@ -206,7 +208,16 @@ const targets = {
   phoenix: {
     cwd: repoRoot,
     cmd: "uvx",
-    args: ["--python", "3.13", "arize-phoenix", "serve", "--port", "6006"],
+    args: [
+      "--python",
+      "3.13",
+      "arize-phoenix",
+      "serve",
+      "--host",
+      defaultPhoenixHost,
+      "--port",
+      "6006",
+    ],
     env: rootEnv,
     description: "Start Arize Phoenix trace UI",
     healthPort: 6006,
@@ -814,6 +825,17 @@ function dockerWorkerEnv() {
       rootEnv.LCSP_API_BASE_URL ??
       "http://127.0.0.1:4000",
   );
+  const fallbackProviderKeys = Array.from(
+    new Set(
+      [...Object.keys(rootEnv), ...Object.keys(process.env)].filter((key) =>
+        /^LLM_FALLBACK_PROVIDER_\d+$/.test(key),
+      ),
+    ),
+  ).sort(
+    (left, right) =>
+      Number(left.slice("LLM_FALLBACK_PROVIDER_".length)) -
+      Number(right.slice("LLM_FALLBACK_PROVIDER_".length)),
+  );
   const selectedKeys = [
     "LOG_LEVEL",
     "NODE_ENV",
@@ -827,10 +849,14 @@ function dockerWorkerEnv() {
     "AGENTIC_RUNTIME_DEFAULT_TIMEOUT_MS",
     "AGENTIC_RUNTIME_DISPATCH_PATH",
     "PBAC_PREFLIGHT_TIMEOUT_SECONDS",
+    "LCSP_MODEL_PROVIDER",
     "OPENAI_API_KEY",
     "ANTHROPIC_API_KEY",
     "GEMINI_API_KEY",
     "GOOGLE_API_KEY",
+    "LLM7_API_KEY",
+    "LLM7_BASE_URL",
+    ...fallbackProviderKeys,
     "LCSP_ROOT_AGENT_MODEL",
     "LCSP_TRIAGE_MODEL",
     "LCSP_PLANNER_MODEL",

@@ -30,6 +30,13 @@ INTERNAL_DISALLOWED_PATTERNS = [
     re.compile(r"\bthread(?:Id)?\b", re.IGNORECASE),
     re.compile(r"\bnode:[0-9a-fA-F-]{8,}\b", re.IGNORECASE),
     re.compile(r"\bsymbol:[a-zA-Z0-9_.:/-]+\b", re.IGNORECASE),
+    re.compile(
+        r"\b(?:CUSTOMER_CONFIRMED|CUSTOMER_STATED|CONTEXT_READY|CONTEXT_RESOLVED"
+        r"|INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY|INVESTIGATOR_RESOLUTION"
+        r"|TARGETED_EXACT_RESUME_PIN|WAITING_FOR_CUSTOMER|BLOCKED_OR_UNRESOLVED"
+        r"|NEEDS_INPUT|PRE_PLANNER|DECISION_PATH_UNRESOLVED)\b"
+    ),
+    re.compile(r"\bresolutionCriteria\b"),
 ]
 
 SECRET_CONFIG_PATTERNS = [

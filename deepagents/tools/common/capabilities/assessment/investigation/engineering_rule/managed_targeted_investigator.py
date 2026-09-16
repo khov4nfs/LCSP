@@ -9,6 +9,8 @@ before deterministic evaluation or the outer assessment callback can continue.
 
 from __future__ import annotations
 
+from orchestration.agent_stream import invoke_with_stream
+
 import hashlib
 import json
 from dataclasses import asdict
@@ -54,9 +56,9 @@ logger = get_logger(__name__)
 MAX_MANAGED_INVESTIGATOR_REJECTED_ATTEMPTS = 2
 MAX_MANAGED_INVESTIGATOR_PROMPT_CHARS = 60_000
 MAX_MANAGED_INVESTIGATOR_RESULT_ROWS = 12
-MAX_MANAGED_INVESTIGATOR_RESULT_REFS = 200
-MAX_MANAGED_INVESTIGATOR_EDGE_ROWS = 40
-MAX_MANAGED_INVESTIGATOR_NODE_ROWS = 40
+MAX_MANAGED_INVESTIGATOR_RESULT_REFS = 80
+MAX_MANAGED_INVESTIGATOR_EDGE_ROWS = 20
+MAX_MANAGED_INVESTIGATOR_NODE_ROWS = 20
 
 
 class TargetedInterviewPending(BaseException):
@@ -275,6 +277,10 @@ class _ManagedInvestigatorAdapter:
 class ResumedManagedInvestigatorPipeline:
     """Re-enter only the deterministic gate around an exact resumed Investigator output."""
 
+    # Claims come from the stored Investigator handoff, so no pinned source is read:
+    # re-downloading and extracting the snapshot archive here is pure latency.
+    requires_code_workspace = False
+
     def __init__(
         self,
         *,
@@ -307,6 +313,8 @@ class ResumedManagedInvestigatorPipeline:
 
 class _ExactResumePlanner:
     """Deterministically reconstruct the already-pinned targeted rule scope."""
+
+    requires_openwiki_context = False
 
     def __init__(self, affected_rule_ids: tuple[str, ...]) -> None:
         self._affected_rule_ids = affected_rule_ids
@@ -732,7 +740,7 @@ def _invoke_managed_investigator(
             response_shape: dict[str, Any] | None = None
             candidate_handoff: Any | None = None
             try:
-                invocation = agent.invoke(
+                invocation = invoke_with_stream(agent,
                     {"messages": [{"role": "user", "content": current_instruction}]},
                     config={
                         "configurable": configurable,
@@ -1046,13 +1054,17 @@ def _failed_investigator_handoff(
                 "source_anchor_refs": [],
                 "confidence": 0.0,
                 "limitations": [
-                    ENGINEERING_LIMITATION_CODES["engineering_investigation_failed"]
+                    ENGINEERING_LIMITATION_CODES[
+                        "engineering_investigation_runtime_error"
+                    ]
                 ],
                 "criterion": last_error[:500] or None,
             }
         ],
         "limitations": [
-            ENGINEERING_LIMITATION_CODES["engineering_investigation_failed"]
+            ENGINEERING_LIMITATION_CODES[
+                "engineering_investigation_runtime_error"
+            ]
         ],
         "missing_input": None,
         "business_context_need": None,
@@ -1062,10 +1074,14 @@ def _failed_investigator_handoff(
 
 def _is_failed_investigator_handoff(handoff: dict[str, Any]) -> bool:
     limitations = handoff.get("limitations")
-    return (
-        isinstance(limitations, list)
-        and ENGINEERING_LIMITATION_CODES["engineering_investigation_failed"]
-        in limitations
+    return isinstance(limitations, list) and any(
+        code in limitations
+        for code in (
+            ENGINEERING_LIMITATION_CODES["engineering_investigation_failed"],
+            ENGINEERING_LIMITATION_CODES[
+                "engineering_investigation_runtime_error"
+            ],
+        )
     )
 
 
@@ -1232,7 +1248,10 @@ def _compact_initial_result(item: dict[str, Any]) -> dict[str, Any]:
         ]
         compact["edgeCount"] = len(edges)
     if isinstance(paths, list):
-        compact["paths"] = paths[:MAX_MANAGED_INVESTIGATOR_RESULT_ROWS]
+        compact["paths"] = [
+            _compact_graph_path(path)
+            for path in paths[:MAX_MANAGED_INVESTIGATOR_RESULT_ROWS]
+        ]
         compact["pathCount"] = len(paths)
     for key in ("evidenceRefs", "unresolvedFrontiers", "continuationFrontiers"):
         value = item.get(key)
@@ -1268,6 +1287,26 @@ def _compact_graph_edge(edge: dict[str, Any]) -> dict[str, Any]:
         )
         if key in edge
     }
+
+
+def _compact_graph_path(path: Any) -> Any:
+    if not isinstance(path, list):
+        return path
+    return [
+        {
+            key: item.get(key)
+            for key in (
+                "node_id",
+                "edge_id",
+                "node_type",
+                "edge_type",
+                "source_node_id",
+                "target_node_id",
+            )
+            if isinstance(item, dict) and key in item
+        }
+        for item in path[:MAX_MANAGED_INVESTIGATOR_RESULT_ROWS]
+    ]
 
 
 def _artifact_versions(evidence_report: dict[str, Any]) -> dict[str, str]:

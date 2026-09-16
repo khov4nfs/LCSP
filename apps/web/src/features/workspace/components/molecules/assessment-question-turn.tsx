@@ -42,6 +42,7 @@ type AssessmentQuestionTurnProps = {
   isAdjusting?: boolean;
   onAdjust?: () => void;
   canSubmitSelection?: boolean;
+  hideSubmitSelection?: boolean;
   onSubmitSelection?: () => void;
   blockedActions?: AssessmentInterviewBlockedAction[];
   className?: string;
@@ -58,6 +59,7 @@ export function AssessmentQuestionTurn({
   isAdjusting = false,
   onAdjust,
   canSubmitSelection = false,
+  hideSubmitSelection = false,
   onSubmitSelection,
   blockedActions = [],
   className,
@@ -130,7 +132,9 @@ export function AssessmentQuestionTurn({
           />
         ) : null}
 
-        {isSelectionControl(question.control) ? (
+        {isSelectionControl(question.control) &&
+        !answerHistoryVisible &&
+        !hideSubmitSelection ? (
           <div
             data-slot="selection-submit-action"
             className="flex flex-wrap items-center gap-2"

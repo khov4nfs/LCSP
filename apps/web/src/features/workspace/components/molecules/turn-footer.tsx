@@ -9,6 +9,7 @@ import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 
 import type { TurnFooterAction } from "../../types/assessment-chat.types";
+import { formatLocaleTimestamp } from "../../utils/assessment-runtime-formatter";
 
 type TurnFooterProps = {
   timestamp?: string;
@@ -25,6 +26,8 @@ export function TurnFooter({
   actions = [],
   className,
 }: TurnFooterProps) {
+  const timestampLabel = timestamp ? formatLocaleTimestamp(timestamp) : null;
+
   if (!timestamp && !onCopy && actions.length === 0) {
     return null;
   }
@@ -39,7 +42,7 @@ export function TurnFooter({
     >
       {timestamp ? (
         <time className="leading-4" dateTime={timestamp}>
-          {timestamp}
+          {timestampLabel}
         </time>
       ) : null}
       {onCopy ? (

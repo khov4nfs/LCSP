@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from model_policy import INVESTIGATOR_MODEL_SPEC, PLANNER_MODEL_SPEC
+from tools.common.capabilities.platform.api_client import WorkerCallbackError
 from tools.common.capabilities.platform.logging import get_logger
 from tools.common.capabilities.evidence.graph.schema.source_roles import filter_program_evidence_graph
 
@@ -29,6 +30,7 @@ from tools.common.capabilities.assessment.claims.evidence_claim.models import (
 )
 from tools.common.capabilities.assessment.investigation.engineering_rule.openwiki_context import OpenWikiContextProvider, OpenWikiContextRequiredError
 from .pipeline import EngineeringInvestigationPipeline, EngineeringInvestigationResult
+from .managed_targeted_investigator import TargetedInterviewPending
 from tools.common.capabilities.assessment.planning.engineering_rule.plan_audit_result import PlannedEngineeringInvestigationResult
 from tools.common.capabilities.assessment.planning.engineering_rule.planning_business_scope import (
     BusinessAwareScopedEngineeringRulePlanningCandidate,
@@ -45,6 +47,8 @@ ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS = {
     "engineering_rule_investigation_failed": "ENGINEERING_RULE_INVESTIGATION_FAILED",
     "engineering_rule_investigated": "ENGINEERING_RULE_INVESTIGATED",
 }
+
+PLANNER_SUMMARY_TOOL_NAME = "engineering_rule_plan_summary"
 
 
 LEGAL_RULE_ONLY_RECOVERY_REASONS = frozenset(
@@ -410,71 +414,88 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                 candidates
             ),
         }
-        try:
-            openwiki_context = OpenWikiContextProvider(
-                workspace_path or Path.cwd()
-            ).collect_required_for_candidates(candidates)
+        if not getattr(self._planner, "requires_openwiki_context", True):
+            # A deterministic planner (exact targeted resume) never reads planner hints.
+            # Generating OpenWiki here would cost time, and its SELECT-ALL fallback on
+            # unavailability would silently widen an exact-resume scope to every rule.
             observability["openwiki"] = {
-                "available": True,
-                "hint_count": int(openwiki_context.get("hintCount") or 0),
-                "authority": str(openwiki_context.get("authority") or ""),
+                "available": False,
+                "skipped": "DETERMINISTIC_PLANNER_DOES_NOT_USE_OPENWIKI",
             }
-            logger.info(
-                "OPENWIKI_PLANNER_HINTS_READY",
-                hint_count=openwiki_context.get("hintCount", 0),
-                authority=openwiki_context.get("authority"),
-                workflow_run_id=workflow_run_id,
-                correlationId=correlation_id,
-            )
             plan = self._planner.plan(
                 candidates=candidates,
                 confirmed_customer_context=confirmed_customer_context,
                 graph=graph,
                 workflow_run_id=workflow_run_id,
                 correlation_id=correlation_id,
-                openwiki_context=openwiki_context,
+                openwiki_context=None,
             )
-        except OpenWikiContextRequiredError as error:
-            observability["openwiki"] = {
-                "available": False,
-                "error": str(error),
-                "fallback": "OPENWIKI_REQUIRED_FALLBACK_ALL",
-            }
-            logger.warning(
-                "OPENWIKI_PLANNER_HINTS_REQUIRED_FALLBACK_ALL",
-                reason=str(error),
-                candidate_count=len(candidates),
-                workflow_run_id=workflow_run_id,
-                correlationId=correlation_id,
-            )
-            plan = EngineeringRulePlan(
-                selected_rule_ids=tuple(
-                    candidate.engineering_rule_id for candidate in candidates
-                ),
-                skipped_rule_ids=(),
-                fallback_used=True,
-                decision_audit=tuple(
-                    EngineeringRulePlanDecisionAudit(
-                        engineering_rule_id=candidate.engineering_rule_id,
-                        requested_decision="FALLBACK",
-                        final_decision="SELECT",
-                        reason_code="OPENWIKI_REQUIRED_CONTEXT_UNAVAILABLE",
-                        basis=(),
-                        validation_override="OPENWIKI_REQUIRED_FALLBACK_ALL",
-                        interview_context_revision_used=(
-                            confirmed_customer_context.context_revision
-                        ),
-                        confirmed_statement_refs_used=(
-                            confirmed_customer_context.confirmed_statement_refs
-                        ),
-                        context_limitations_used=confirmed_customer_context.limitations,
-                        source_version_ref=confirmed_customer_context.source_version_ref,
-                        pge_version=confirmed_customer_context.pge_version,
-                        guidance_version=confirmed_customer_context.guidance_version,
-                    )
-                    for candidate in candidates
-                ),
-            )
+        else:
+            try:
+                openwiki_context = OpenWikiContextProvider(
+                    workspace_path or Path.cwd()
+                ).collect_required_for_candidates(candidates)
+                observability["openwiki"] = {
+                    "available": True,
+                    "hint_count": int(openwiki_context.get("hintCount") or 0),
+                    "authority": str(openwiki_context.get("authority") or ""),
+                }
+                logger.info(
+                    "OPENWIKI_PLANNER_HINTS_READY",
+                    hint_count=openwiki_context.get("hintCount", 0),
+                    authority=openwiki_context.get("authority"),
+                    workflow_run_id=workflow_run_id,
+                    correlationId=correlation_id,
+                )
+                plan = self._planner.plan(
+                    candidates=candidates,
+                    confirmed_customer_context=confirmed_customer_context,
+                    graph=graph,
+                    workflow_run_id=workflow_run_id,
+                    correlation_id=correlation_id,
+                    openwiki_context=openwiki_context,
+                )
+            except OpenWikiContextRequiredError as error:
+                observability["openwiki"] = {
+                    "available": False,
+                    "error": str(error),
+                    "fallback": "OPENWIKI_REQUIRED_FALLBACK_ALL",
+                }
+                logger.warning(
+                    "OPENWIKI_PLANNER_HINTS_REQUIRED_FALLBACK_ALL",
+                    reason=str(error),
+                    candidate_count=len(candidates),
+                    workflow_run_id=workflow_run_id,
+                    correlationId=correlation_id,
+                )
+                plan = EngineeringRulePlan(
+                    selected_rule_ids=tuple(
+                        candidate.engineering_rule_id for candidate in candidates
+                    ),
+                    skipped_rule_ids=(),
+                    fallback_used=True,
+                    decision_audit=tuple(
+                        EngineeringRulePlanDecisionAudit(
+                            engineering_rule_id=candidate.engineering_rule_id,
+                            requested_decision="FALLBACK",
+                            final_decision="SELECT",
+                            reason_code="OPENWIKI_REQUIRED_CONTEXT_UNAVAILABLE",
+                            basis=(),
+                            validation_override="OPENWIKI_REQUIRED_FALLBACK_ALL",
+                            interview_context_revision_used=(
+                                confirmed_customer_context.context_revision
+                            ),
+                            confirmed_statement_refs_used=(
+                                confirmed_customer_context.confirmed_statement_refs
+                            ),
+                            context_limitations_used=confirmed_customer_context.limitations,
+                            source_version_ref=confirmed_customer_context.source_version_ref,
+                            pge_version=confirmed_customer_context.pge_version,
+                            guidance_version=confirmed_customer_context.guidance_version,
+                        )
+                        for candidate in candidates
+                    ),
+                )
 
         # Existing implementation continues below in this helper.
         return self._finish_planned_investigation(
@@ -490,6 +511,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             rules=rules,
             workflow_run_id=workflow_run_id,
             correlation_id=correlation_id,
+            confirmed_customer_context=confirmed_customer_context,
             observability=observability,
             evidence_report=evidence_report,
             assessment_id=assessment_id,
@@ -512,6 +534,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         rules: list[dict[str, Any]],
         workflow_run_id: str,
         correlation_id: str | None,
+        confirmed_customer_context: ConfirmedStructuredBusinessContext,
         observability: dict[str, Any],
         evidence_report: dict[str, Any],
         assessment_id: str | None,
@@ -548,6 +571,29 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             selected_rule_ids=sorted(selected_ids),
             workflow_run_id=workflow_run_id,
             correlationId=correlation_id,
+        )
+        planning_batch_id = (
+            f"{workflow_run_id}:context:{confirmed_customer_context.context_revision}"
+        )
+        self._emit_runtime_activity(
+            scan_job_id=scan_job_id,
+            event_type="TOOL_COMPLETED",
+            run_status="WAITING",
+            tool_name=PLANNER_SUMMARY_TOOL_NAME,
+            summary=ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS[
+                "engineering_rule_planner_decision"
+            ],
+            output_summary={
+                "planningBatchId": planning_batch_id,
+                "contextRevisionUsed": confirmed_customer_context.context_revision,
+                "candidateCount": len(candidates),
+                "selectedCount": len(selected_ids),
+                "skippedCount": len(plan.skipped_rule_ids),
+                "targeted": any(
+                    item.reason_code == "TARGETED_EXACT_RESUME_PIN"
+                    for item in plan.decision_audit
+                ),
+            },
         )
 
         # P0 observability: persist and log one decision row per EngineeringRule. This
@@ -673,6 +719,58 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                         workflow_run_id=workflow_run_id,
                         correlation_id=correlation_id,
                     )
+            except TargetedInterviewPending:
+                self._emit_runtime_activity(
+                    scan_job_id=scan_job_id,
+                    event_type="TOOL_WAITING_INPUT",
+                    run_status="WAITING",
+                    tool_name=(
+                        f"engineering_rule_investigation:"
+                        f"{engineering_rule.engineering_rule_id}"
+                    ),
+                    summary=ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS[
+                        "engineering_rule_investigated"
+                    ],
+                    output_summary={
+                        "outcome": "NEEDS_INPUT",
+                        "engineeringRuleId": engineering_rule.engineering_rule_id,
+                    },
+                    waiting_reason="TARGETED_INTERVIEW_REQUIRED",
+                )
+                raise
+            except WorkerCallbackError as error:
+                logger.warning(
+                    "ENGINEERING_INVESTIGATION_RUNTIME_ERROR",
+                    engineering_rule_id=engineering_rule.engineering_rule_id,
+                    error_type=type(error).__name__,
+                    error_message=str(error)[:1_000],
+                    workflow_run_id=workflow_run_id,
+                    correlationId=correlation_id,
+                )
+                self._emit_runtime_activity(
+                    scan_job_id=scan_job_id,
+                    event_type="TOOL_FAILED",
+                    run_status="RUNNING",
+                    tool_name=(
+                        f"engineering_rule_investigation:"
+                        f"{engineering_rule.engineering_rule_id}"
+                    ),
+                    summary=ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS[
+                        "engineering_rule_investigation_failed"
+                    ],
+                    output_summary={
+                        "messageKey": ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS[
+                            "engineering_rule_investigation_failed"
+                        ],
+                        "messageParams": {
+                            "engineeringRuleId": engineering_rule.engineering_rule_id,
+                        },
+                        "failureKind": "RUNTIME_ERROR",
+                        "executionFailure": "CALLBACK_ERROR",
+                    },
+                    error_summary=type(error).__name__,
+                )
+                raise
             except Exception as error:
                 investigation_failed = True
                 logger.warning(
@@ -706,6 +804,8 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                         "messageParams": {
                             "engineeringRuleId": engineering_rule.engineering_rule_id,
                         },
+                        "failureKind": "RUNTIME_ERROR",
+                        "executionFailure": type(error).__name__,
                     },
                     error_summary=type(error).__name__,
                 )
@@ -719,13 +819,15 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                         confidence=0.0,
                         limitations=(
                             ENGINEERING_LIMITATION_CODES[
-                                "engineering_investigation_failed"
+                                "engineering_investigation_runtime_error"
                             ],
                         ),
                     )
                 ]
                 limitations.append(
-                    ENGINEERING_LIMITATION_CODES["engineering_investigation_failed"]
+                    ENGINEERING_LIMITATION_CODES[
+                        "engineering_investigation_runtime_error"
+                    ]
                 )
 
             validated_rule_claims = self._validated_claims_for_evaluation(
@@ -811,6 +913,7 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         summary: str,
         output_summary: dict[str, Any] | None = None,
         error_summary: str | None = None,
+        waiting_reason: str | None = None,
     ) -> None:
         """Best-effort stream one Planner/Investigator activity row to the live UI.
 
@@ -836,6 +939,8 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
             payload["output_summary"] = output_summary
         if error_summary is not None:
             payload["error_summary"] = error_summary
+        if waiting_reason is not None:
+            payload["waiting_reason"] = waiting_reason
         post_runtime_event(scan_job_id, payload)
 
     def _load_legal_rule_sources(

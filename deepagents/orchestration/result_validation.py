@@ -34,6 +34,7 @@ class SpecialistHandoffValidationError(RuntimeError):
 _CAUSE_DETAIL_LIMIT = 500
 _LOGGER = logging.getLogger(__name__)
 _INTERVIEW_TARGETED_FRONTIER_REPAIRED = "INTERVIEW_TARGETED_FRONTIER_REPAIRED"
+_INVESTIGATOR_CLAIM_VALUE_SHAPE_NORMALIZED = "INVESTIGATOR_CLAIM_VALUE_SHAPE_NORMALIZED"
 
 # `InvestigatorClaim` is a plain `Union` (anyOf, not a discriminated oneOf — see
 # contracts/handoffs.py for why). Pydantic's "smart union" validates a claim against every
@@ -172,8 +173,6 @@ def _normalize_investigator_payload(
         if not isinstance(claim, dict):
             normalized_claims.append(claim)
             continue
-        if allow_fail_closed_recovery:
-            claim = _fail_closed_investigator_claim(claim)
         if (
             claim.get("claim_type")
             != ENGINEERING_EVIDENCE_CLAIM_TYPES["rule_scope_not_applicable"]
@@ -181,9 +180,112 @@ def _normalize_investigator_payload(
         ):
             claim = dict(claim)
             claim.pop("customer_context_refs", None)
+        # Lossless provider-shape repair runs on every attempt so a safely repairable
+        # response never costs another model call. Fail-closed downgrades stay gated.
+        claim = _normalize_not_met_null_value_shape(claim)
+        claim = _normalize_unresolved_shape(claim)
+        claim = _clamp_investigator_claim_strings(claim)
+        if allow_fail_closed_recovery:
+            claim = _fail_closed_investigator_claim(claim)
         normalized_claims.append(claim)
     normalized["claims"] = normalized_claims
+    missing_input = normalized.get("missing_input")
+    if isinstance(missing_input, str) and len(missing_input) > 1_000:
+        normalized["missing_input"] = missing_input[:999] + "…"
     return normalized
+
+
+def _normalize_not_met_null_value_shape(claim: dict[str, Any]) -> dict[str, Any]:
+    """Fill only the value already fixed by an explicit RULE_REQUIREMENT_NOT_MET variant.
+
+    Gemini sometimes drops the ``const: false`` value of the NOT_MET variant. The
+    claim type alone fixes that value, so restoring it is lossless, but only when the
+    claim is otherwise a complete NOT_MET claim: a non-blank criterion, at least one
+    technical provenance ref, and every other field accepted by the strict contract
+    model. Anything less is left untouched for strict validation / fail-closed handling.
+    MET, UNRESOLVED, unknown variants and non-null values are never touched, so no
+    positive or negative truth is inferred from a missing value.
+    """
+    if claim.get("claim_type") != ENGINEERING_EVIDENCE_CLAIM_TYPES["requirement_not_met"]:
+        return claim
+    if claim.get("value") is not None:
+        return claim
+    criterion = claim.get("criterion")
+    if not isinstance(criterion, str) or not criterion.strip():
+        return claim
+    if not _investigator_claim_refs(claim):
+        return claim
+    candidate = {**claim, "value": False}
+    try:
+        InvestigatorRequirementNotMetClaim.model_validate(candidate)
+    except ValidationError:
+        return claim
+    _LOGGER.warning(
+        "%s claim_id=%s reason=missing_not_met_const_value",
+        _INVESTIGATOR_CLAIM_VALUE_SHAPE_NORMALIZED,
+        claim.get("claim_id"),
+    )
+    return candidate
+
+
+def _normalize_unresolved_shape(claim: dict[str, Any]) -> dict[str, Any]:
+    """Repair provider drift that is fixed by the UNRESOLVED variant itself."""
+    if claim.get("claim_type") != ENGINEERING_EVIDENCE_CLAIM_TYPES["unresolved"]:
+        return claim
+    normalized = dict(claim)
+    changed = False
+    if normalized.get("value") is not None:
+        normalized["value"] = None
+        changed = True
+    if not isinstance(normalized.get("confidence"), (int, float)) or isinstance(
+        normalized.get("confidence"), bool
+    ):
+        normalized["confidence"] = 0.0
+        changed = True
+    limitations = normalized.get("limitations")
+    if not isinstance(limitations, list) or not limitations:
+        normalized["limitations"] = [
+            ENGINEERING_LIMITATION_CODES["engineering_evidence_insufficient"]
+        ]
+        changed = True
+    if changed:
+        _LOGGER.warning(
+            "%s claim_id=%s reason=unresolved_value_or_limitations",
+            _INVESTIGATOR_CLAIM_VALUE_SHAPE_NORMALIZED,
+            claim.get("claim_id"),
+        )
+    return normalized
+
+
+_INVESTIGATOR_CLAIM_STRING_LIMITS = {
+    "criterion": 500,
+    "missing_input": 1_000,
+}
+
+
+def _clamp_investigator_claim_strings(claim: dict[str, Any]) -> dict[str, Any]:
+    """Clamp over-long free-text fields to their contract bounds.
+
+    Gemini's native responseSchema does not reliably enforce ``maxLength``, so the model
+    can copy oversized observation or tool text into bounded explanatory fields. The
+    bounded prefix plus an explicit truncation marker preserves the claim's semantics
+    without costing another model call; identity and provenance fields are never touched.
+    """
+    clamped = claim
+    for field, limit in _INVESTIGATOR_CLAIM_STRING_LIMITS.items():
+        value = clamped.get(field)
+        if not isinstance(value, str) or len(value) <= limit:
+            continue
+        if clamped is claim:
+            clamped = dict(claim)
+        clamped[field] = value[: limit - 1] + "…"
+    if clamped is not claim:
+        _LOGGER.warning(
+            "%s claim_id=%s reason=oversized_string_fields_clamped",
+            _INVESTIGATOR_CLAIM_VALUE_SHAPE_NORMALIZED,
+            claim.get("claim_id"),
+        )
+    return clamped
 
 
 def _fail_closed_investigator_claim(claim: dict[str, Any]) -> dict[str, Any]:

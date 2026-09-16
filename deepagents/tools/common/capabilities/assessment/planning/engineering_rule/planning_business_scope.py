@@ -129,8 +129,8 @@ class RulePlanningBusinessScope:
     data_categories: tuple[str, ...] = ()
     ai_capabilities: tuple[str, ...] = ()
     model_lifecycle_stages: tuple[str, ...] = ()
-    decision_influence_state: str = "NO_AI_DECISION_SIGNAL"
-    human_oversight_state: str = "NO_DECISION_EFFECT_EVIDENCED"
+    decision_influence_state: str = "DECISION_PATH_UNRESOLVED"
+    human_oversight_state: str = "UNKNOWN"
     material_source_refs: tuple[str, ...] = ()
     unresolved_frontiers: tuple[str, ...] = ()
 
@@ -372,7 +372,7 @@ class RulePlanningBusinessScopeProjector:
     @staticmethod
     def _aggregate_decision_state(states: set[str]) -> str:
         if not states:
-            return "NO_AI_DECISION_SIGNAL"
+            return "DECISION_PATH_UNRESOLVED"
         if {
             "HUMAN_IN_LOOP_PRESENT",
             "AUTOMATED_DECISION_CANDIDATE",

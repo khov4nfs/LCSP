@@ -27,6 +27,8 @@ from model_policy import (
     provider_init_kwargs,
     provider_from_model_spec,
     providers_for_model_specs,
+    route_provider_for_model_spec,
+    route_provider_for_transport,
     supports_openai_reasoning,
 )
 
@@ -45,14 +47,18 @@ LCSP_OPENAI_PROVIDER_PROFILE = ProviderProfile(
 def provider_profile_for(provider: str) -> ProviderProfile:
     """Return the LCSP construction profile for one canonical provider."""
     canonical = canonical_provider(provider)
-    if canonical == "openai":
+    route_provider = route_provider_for_transport(canonical)
+    if route_provider == "openai":
         return LCSP_OPENAI_PROVIDER_PROFILE
-    return ProviderProfile(init_kwargs=provider_init_kwargs(canonical))
+    return ProviderProfile(init_kwargs=provider_init_kwargs(route_provider))
 
 
 def model_provider_profile_for(model_spec: str) -> ProviderProfile:
     """Return the exact-model construction profile for LCSP reasoning-capable models."""
     provider = provider_from_model_spec(model_spec)
+    route_provider = route_provider_for_model_spec(model_spec)
+    if route_provider == "llm7":
+        return ProviderProfile(init_kwargs=provider_init_kwargs(route_provider))
     if model_spec == "google_genai:gemini-3.5-flash-lite":
         return ProviderProfile(init_kwargs=model_init_kwargs_for_agent(
             agent_name="lcsp-agent", model_spec=model_spec
@@ -108,13 +114,15 @@ def configure_lcsp_harness() -> None:
     """
     for provider in providers_for_model_specs(ALL_LCSP_MODEL_SPECS):
         profile = provider_profile_for(provider)
-        if credentials := credential_init_kwargs(provider):
+        credential_provider = route_provider_for_transport(provider)
+        if credentials := credential_init_kwargs(credential_provider):
             profile = ProviderProfile(init_kwargs={**profile.init_kwargs, **credentials})
         register_provider_profile(provider, profile)
 
     for model_spec in ALL_LCSP_MODEL_SPECS:
         profile = model_provider_profile_for(model_spec)
-        if credentials := credential_init_kwargs(provider_from_model_spec(model_spec)):
+        credential_provider = route_provider_for_model_spec(model_spec)
+        if credentials := credential_init_kwargs(credential_provider):
             profile = ProviderProfile(init_kwargs={**profile.init_kwargs, **credentials})
         register_provider_profile(model_spec, profile)
         register_harness_profile(model_spec, LCSP_HARNESS_PROFILE)

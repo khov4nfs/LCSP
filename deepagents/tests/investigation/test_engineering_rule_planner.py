@@ -567,9 +567,10 @@ def test_planned_pipeline_streams_planner_and_investigator_activity_when_scan_jo
     )
 
     calls = api_client.post_scan_runtime_event.call_args_list
-    assert len(calls) == 3
+    assert len(calls) == 4
     by_tool_name = {call.args[1]["tool_name"]: call.args[1] for call in calls}
     assert set(by_tool_name) == {
+        "engineering_rule_plan_summary",
         "engineering_rule_plan:eng-1",
         "engineering_rule_plan:eng-2",
         "engineering_rule_investigation:eng-1",
@@ -577,6 +578,16 @@ def test_planned_pipeline_streams_planner_and_investigator_activity_when_scan_jo
     for call in calls:
         assert call.args[0] == "scan-1"
         assert call.args[1]["stage"] == "TECHNICAL_EVIDENCE"
+
+    summary = by_tool_name["engineering_rule_plan_summary"]
+    assert summary["output_summary"] == {
+        "planningBatchId": "workflow-1:context:3",
+        "contextRevisionUsed": 3,
+        "candidateCount": 2,
+        "selectedCount": 1,
+        "skippedCount": 1,
+        "targeted": False,
+    }
 
     selected = by_tool_name["engineering_rule_plan:eng-1"]
     assert selected["event_type"] == "TOOL_COMPLETED"
@@ -691,14 +702,93 @@ def test_planned_pipeline_streams_investigation_failure_as_runtime_activity(
     assert failed["event_type"] == "TOOL_FAILED"
     assert failed["run_status"] == "RUNNING"
     assert failed["summary"] == "ENGINEERING_RULE_INVESTIGATION_FAILED"
-    assert failed["output_summary"] == {
-        "messageKey": "ENGINEERING_RULE_INVESTIGATION_FAILED",
-        "messageParams": {"engineeringRuleId": "eng-1"},
+    assert failed["output_summary"]["messageKey"] == (
+        "ENGINEERING_RULE_INVESTIGATION_FAILED"
+    )
+    assert failed["output_summary"]["messageParams"] == {
+        "engineeringRuleId": "eng-1"
     }
+    assert failed["output_summary"]["failureKind"] == "RUNTIME_ERROR"
+    assert failed["output_summary"]["executionFailure"] == "RuntimeError"
     assert failed["error_summary"] == "RuntimeError"
     # A failed investigation still reaches deterministic evaluation, but only one
     # runtime activity row (the failure) is emitted for that EngineeringRule.
     assert sum(1 for name in by_tool_name if name.endswith(":eng-1") and "investigation" in name) == 1
+
+
+def test_planned_pipeline_execution_failure_is_runtime_error_not_domain_limitation(
+    tmp_path,
+) -> None:
+    """An infrastructure/execution failure must stay separable from domain limitations."""
+    api_client = MagicMock()
+    api_client.get_active_legal_rule_catalog.return_value = {
+        "versionId": "catalog-v1",
+        "rules": [{"legalRuleId": "legal-1", "status": "APPROVED"}],
+    }
+    api_client.get_active_legal_corpus.return_value = {"versionId": "corpus-v1"}
+    api_client.get_legal_corpus_chunks.return_value = {
+        "chunks": [{"id": "LAW:A1", "content": "approved legal text"}]
+    }
+
+    rule_service = MagicMock()
+    rule_service.get_or_compile.return_value = ([_engineering_rule("eng-1")], True)
+
+    query_executor = MagicMock()
+    query_executor.execute.return_value = _packet("eng-1")
+
+    planner = MagicMock()
+    planner.plan.return_value = EngineeringRulePlan(
+        selected_rule_ids=("eng-1",),
+        skipped_rule_ids=(),
+        decision_audit=(
+            EngineeringRulePlanDecisionAudit(
+                engineering_rule_id="eng-1",
+                requested_decision="SELECT",
+                final_decision="SELECT",
+                reason_code="SOURCE_SCOPE_MATCH",
+                basis=("SOURCE",),
+            ),
+        ),
+    )
+
+    investigator = MagicMock()
+    investigator.investigate.side_effect = RuntimeError("database unavailable")
+
+    evaluator = MagicMock()
+    evaluator.evaluate.return_value = SimpleNamespace(
+        engineering_rule_id="eng-1",
+        status="UNKNOWN",
+        evidence_refs=(),
+    )
+
+    pipeline = PlannedEngineeringInvestigationPipeline(
+        api_client=api_client,
+        model="test:model",
+        retriever=MagicMock(),
+        rule_service=rule_service,
+        query_executor=query_executor,
+        investigator=investigator,
+        evaluator=evaluator,
+        planner=planner,
+    )
+
+    result = pipeline.run(
+        evidence_report={"evidence_payload": {"evidence_graph": _graph().to_dict()}},
+        workflow_run_id="workflow-1",
+        confirmed_customer_context=_confirmed_context(),
+        workspace_path=tmp_path,
+        scan_job_id="scan-1",
+    )
+
+    assert ENGINEERING_LIMITATION_CODES[
+        "engineering_investigation_runtime_error"
+    ] in result.limitations
+    assert ENGINEERING_LIMITATION_CODES[
+        "engineering_investigation_failed"
+    ] not in result.limitations
+    # The fail-closed synthetic claim never enters evaluated claims (provenance-free),
+    # but the evaluator still receives zero usable claims for the rule.
+    assert not [claim for claim in result.claims if claim.engineering_rule_id == "eng-1"]
 
 
 def test_planned_pipeline_omits_runtime_activity_without_scan_job_id(tmp_path) -> None:

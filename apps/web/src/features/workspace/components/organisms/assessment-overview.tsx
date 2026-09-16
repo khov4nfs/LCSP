@@ -43,7 +43,7 @@ import {
   selectInterviewHandoffPresentation,
   selectInterviewPresentation,
   selectPostFindingPresentation,
-  selectRuntimeThinkingActivities,
+  selectRuntimeThinkingItems,
   selectWorkflowPresentation,
 } from "../../utils/assessment-runtime-selectors";
 import {
@@ -58,9 +58,11 @@ import {
 } from "../molecules/assessment-question-turn";
 import { PostFindingFlowSteps } from "../molecules/post-finding-flow-steps";
 import { RuntimeThinkingActivity } from "../molecules/runtime-thinking-activity";
+import { AgentStreamTimeline } from "../molecules/agent-stream-timeline";
 import { AssessmentComposer } from "./assessment-composer";
 import { InterviewAnswerHistory } from "../molecules/interview-answer-history";
 import { AssessmentTranscript } from "./assessment-transcript";
+import { TurnFooter } from "../molecules/turn-footer";
 import { useWorkspaceRuntime } from "./workspace-runtime-provider";
 
 type InterviewAnswerDraft = {
@@ -186,6 +188,7 @@ function AssessmentInterviewFlow({
   scanFailed: boolean;
   runtimeKey: string;
 }) {
+  const liveTimeline = useWorkspaceRuntime().getAssessmentRuntime(assessmentId);
   // Query hook reference preserved for reactivity & test compatibility.
   const interviewQuery = useAssessmentInterviewStateQuery(
     assessmentId,
@@ -201,8 +204,9 @@ function AssessmentInterviewFlow({
   const composerAvailability = selectComposerAvailability(normalized);
   const interviewHandoff = selectInterviewHandoffPresentation(normalized);
   const postFinding = selectPostFindingPresentation(normalized);
-  const runtimeThinkingActivities = selectRuntimeThinkingActivities(normalized);
+  const runtimeThinkingItems = selectRuntimeThinkingItems(normalized);
   const runtimeInterviewState = interviewQuery.data;
+  const interviewTurnTimestamp = normalized.identity.audit?.timestamp;
   const submitAnswer = useSubmitAssessmentInterviewAnswerMutation(assessmentId);
   const recordBlockedAction =
     useAssessmentInterviewBlockedActionMutation(assessmentId);
@@ -216,6 +220,7 @@ function AssessmentInterviewFlow({
   const [draftMap, setDraftMap] = useState<
     Record<string, InterviewAnswerDraft>
   >({});
+  const [submittedQuestionId, setSubmittedQuestionId] = useState<string | null>(null);
   const [lastSavedMessage, setLastSavedMessage] = useState<string | null>(null);
 
   const activeDraft: InterviewAnswerDraft =
@@ -316,7 +321,8 @@ function AssessmentInterviewFlow({
     workflow.currentRunId,
     workflow.status,
     normalized.workflow.latestRun?.updatedAt ?? workflow.lastEmittedAt,
-    runtimeThinkingActivities.at(-1)?.eventId,
+    liveTimeline.agentStreamEvents?.at(-1)?.eventId,
+    runtimeThinkingItems.map((item) => item.id).join("|"),
     interviewQuery.dataUpdatedAt,
     activeQuestionId,
     answerHistory.length,
@@ -415,6 +421,7 @@ function AssessmentInterviewFlow({
       { answer: input, state: runtimeInterviewState },
       {
         onSuccess: () => {
+          setSubmittedQuestionId(input.questionId);
           clearDraft();
           setLastSavedMessage(t("pages.assessment.answerSavedForRuntime"));
         },
@@ -503,6 +510,7 @@ function AssessmentInterviewFlow({
     >
       <AssessmentTranscript autoScrollKey={autoScrollKey}>
         {scanner}
+        <AgentStreamTimeline events={liveTimeline.agentStreamEvents ?? []} />
 
         {interviewEnabled ? (
           <>
@@ -513,11 +521,8 @@ function AssessmentInterviewFlow({
               />
             ))}
 
-            {runtimeThinkingActivities.map((activity) => (
-              <RuntimeThinkingActivity
-                key={activity.eventId}
-                activity={activity}
-              />
+            {runtimeThinkingItems.map((item) => (
+              <RuntimeThinkingActivity key={item.id} item={item} />
             ))}
 
             {interview.questionTurnProps ? (
@@ -532,6 +537,11 @@ function AssessmentInterviewFlow({
                     </p>
                   </AgentMessage>
                 }
+                footer={
+                  interviewTurnTimestamp ? (
+                    <TurnFooter timestamp={interviewTurnTimestamp} />
+                  ) : null
+                }
                 terminalAction={
                   <AssessmentQuestionTurn
                     question={interview.questionTurnProps.question}
@@ -541,6 +551,7 @@ function AssessmentInterviewFlow({
                     isAdjusting={activeDraft.isAdjusting}
                     onAdjust={handleAdjust}
                     canSubmitSelection={isSubmitReady}
+                    hideSubmitSelection={submittedQuestionId === activeQuestion?.id}
                     onSubmitSelection={handleSubmit}
                     blockedActions={interview.questionTurnProps.blockedActions}
                     disabled={
@@ -570,6 +581,11 @@ function AssessmentInterviewFlow({
                       {t("pages.assessment.blockedActionRecorded")}
                     </p>
                   </AgentMessage>
+                }
+                footer={
+                  interviewTurnTimestamp ? (
+                    <TurnFooter timestamp={interviewTurnTimestamp} />
+                  ) : null
                 }
                 terminalAction={
                   <div
@@ -602,13 +618,25 @@ function AssessmentInterviewFlow({
                 }
               />
             ) : interview.isFailed ? (
-              <AgentTurn>
+              <AgentTurn
+                footer={
+                  interviewTurnTimestamp ? (
+                    <TurnFooter timestamp={interviewTurnTimestamp} />
+                  ) : null
+                }
+              >
                 <AgentMessage className="font-medium text-destructive">
                   {t("pages.appShell.chatActivityStatuses.failed")}
                 </AgentMessage>
               </AgentTurn>
             ) : (
-              <AgentTurn>
+              <AgentTurn
+                footer={
+                  interviewTurnTimestamp ? (
+                    <TurnFooter timestamp={interviewTurnTimestamp} />
+                  ) : null
+                }
+              >
                 <AgentMessage>
                   <p className="mt-2 whitespace-pre-wrap break-words text-muted-foreground">
                     {interview.assistantMessage ??

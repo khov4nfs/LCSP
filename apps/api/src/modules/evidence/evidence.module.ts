@@ -9,6 +9,7 @@ import { CaptureVerifiedAgentEpisodeHandler } from "./application/commands/captu
 import { ConsolidateVerifiedAgentEpisodesHandler } from "./application/commands/consolidate-verified-agent-episodes/consolidate-verified-agent-episodes.handler.js";
 import { GetEvidenceHandler } from "./application/queries/get-evidence/get-evidence.handler.js";
 import { RetrieveVerifiedAgentEpisodesHandler } from "./application/queries/retrieve-verified-agent-episodes/retrieve-verified-agent-episodes.handler.js";
+import { AssessmentArtifactProjectionService } from "./application/services/evidence/assessment-artifact-projection.service.js";
 import { EvidenceRedactorService } from "./application/services/evidence/evidence-redactor.service.js";
 import { ProgramEvidenceGraphDetailService } from "./application/services/evidence/program-evidence-graph-detail.service.js";
 import { VerifiedAgentEpisodeConsolidationWorker } from "./application/services/verified-agent-episode-consolidation.worker.js";
@@ -37,6 +38,7 @@ import {
     CaptureVerifiedAgentEpisodeHandler,
     ConsolidateVerifiedAgentEpisodesHandler,
     RetrieveVerifiedAgentEpisodesHandler,
+    AssessmentArtifactProjectionService,
     EvidenceRedactorService,
     ProgramEvidenceGraphDetailService,
     VerifiedAgentEpisodeDeduplicationService,

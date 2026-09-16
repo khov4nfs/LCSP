@@ -4,6 +4,8 @@ import pytest
 from langchain.agents.middleware import ModelResponse, ModelRetryMiddleware, PIIMiddleware
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.provider_fallback import ProviderFallbackMiddleware
+from middleware.token_fallback import TokenFallbackMiddleware
 
 
 def test_model_governance_redacts_standard_and_lcsp_credentials() -> None:
@@ -26,6 +28,20 @@ def test_model_governance_redacts_standard_and_lcsp_credentials() -> None:
         middleware.apply_to_output and middleware.apply_to_tool_results
         for middleware in pii_middleware.values()
     )
+
+
+def test_provider_fallback_wraps_same_provider_key_rotation() -> None:
+    provider_index = next(
+        index
+        for index, item in enumerate(MODEL_GOVERNANCE_MIDDLEWARE)
+        if isinstance(item, ProviderFallbackMiddleware)
+    )
+    token_index = next(
+        index
+        for index, item in enumerate(MODEL_GOVERNANCE_MIDDLEWARE)
+        if isinstance(item, TokenFallbackMiddleware)
+    )
+    assert provider_index < token_index
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])

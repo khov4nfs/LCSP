@@ -1,10 +1,12 @@
 import * as assert from "node:assert/strict";
 
-import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
+import { REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
+import { EVIDENCE_ERROR_CODES } from "@lcsp/contracts/evidence";
 import {
   REPOSITORY_SCAN_JOB_STATUSES,
   REPOSITORY_SCAN_TRIGGER_SOURCES,
 } from "@lcsp/contracts/github-integration";
+import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -12,7 +14,12 @@ import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
 import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
-import { httpRequest, successBody } from "./support/http.js";
+import {
+  httpRequest,
+  problemBody,
+  problemCode,
+  successBody,
+} from "./support/http.js";
 import {
   TEST_DATABASE_URL,
   pushPrismaSchema,
@@ -71,6 +78,104 @@ describe("Program Evidence Graph ownership (e2e)", () => {
 
     const admin = await request("assessment-other", adminToken);
     assert.equal(admin.status, 200);
+  });
+
+  it("returns EVIDENCE_NOT_FOUND when no evidence scan was ever started", async () => {
+    await seedRepositorySnapshotGraph(prisma, {
+      assessmentId: "assessment-pending-evidence",
+      userId: "user-1",
+      connectionId: "connection-pending-evidence",
+      snapshotId: "snapshot-pending-evidence",
+    });
+
+    const pending = await request("assessment-pending-evidence", customerToken);
+    assert.equal(pending.status, 404);
+    assert.equal(problemCode(pending), EVIDENCE_ERROR_CODES.notFound);
+    assert.equal(problemBody(pending).requiredAction, REQUIRED_ACTIONS.none);
+  });
+
+  it("returns not-ready while the evidence graph scan is still active", async () => {
+    await seedRepositorySnapshotGraph(prisma, {
+      assessmentId: "assessment-building-evidence",
+      userId: "user-1",
+      connectionId: "connection-building-evidence",
+      snapshotId: "snapshot-building-evidence",
+    });
+    await prisma.repositoryScanJob.create({
+      data: {
+        id: "scan-building-evidence",
+        assessmentId: "assessment-building-evidence",
+        snapshotId: "snapshot-building-evidence",
+        idempotencyKey: "key-building-evidence",
+        correlationId: "corr-building-evidence",
+        triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+        status: REPOSITORY_SCAN_JOB_STATUSES.running,
+      },
+    });
+
+    const pending = await request(
+      "assessment-building-evidence",
+      customerToken,
+    );
+    assert.equal(pending.status, 202);
+    assert.equal(problemCode(pending), EVIDENCE_ERROR_CODES.notReady);
+    assert.equal(problemBody(pending).requiredAction, REQUIRED_ACTIONS.none);
+    assert.deepEqual(problemBody(pending).meta, {
+      scanJobId: "scan-building-evidence",
+      scanStatus: REPOSITORY_SCAN_JOB_STATUSES.running,
+    });
+  });
+
+  it("returns build-failed when the latest evidence scan failed", async () => {
+    await seedRepositorySnapshotGraph(prisma, {
+      assessmentId: "assessment-failed-evidence",
+      userId: "user-1",
+      connectionId: "connection-failed-evidence",
+      snapshotId: "snapshot-failed-evidence",
+    });
+    await prisma.repositoryScanJob.create({
+      data: {
+        id: "scan-failed-evidence",
+        assessmentId: "assessment-failed-evidence",
+        snapshotId: "snapshot-failed-evidence",
+        idempotencyKey: "key-failed-evidence",
+        correlationId: "corr-failed-evidence",
+        triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+        status: REPOSITORY_SCAN_JOB_STATUSES.failed,
+      },
+    });
+
+    const failed = await request("assessment-failed-evidence", customerToken);
+    assert.equal(failed.status, 409);
+    assert.equal(problemCode(failed), EVIDENCE_ERROR_CODES.buildFailed);
+    assert.deepEqual(problemBody(failed).meta, {
+      scanJobId: "scan-failed-evidence",
+      scanStatus: REPOSITORY_SCAN_JOB_STATUSES.failed,
+    });
+  });
+
+  it("does not reveal another customer's evidence build state", async () => {
+    await seedRepositorySnapshotGraph(prisma, {
+      assessmentId: "assessment-other-building",
+      userId: "user-2",
+      connectionId: "connection-other-building",
+      snapshotId: "snapshot-other-building",
+    });
+    await prisma.repositoryScanJob.create({
+      data: {
+        id: "scan-other-building",
+        assessmentId: "assessment-other-building",
+        snapshotId: "snapshot-other-building",
+        idempotencyKey: "key-other-building",
+        correlationId: "corr-other-building",
+        triggerSource: REPOSITORY_SCAN_TRIGGER_SOURCES.trusted,
+        status: REPOSITORY_SCAN_JOB_STATUSES.running,
+      },
+    });
+
+    const other = await request("assessment-other-building", customerToken);
+    assert.equal(other.status, 404);
+    assert.notEqual(problemCode(other), EVIDENCE_ERROR_CODES.notReady);
   });
 
   async function signIn(email: string, password: string): Promise<string> {

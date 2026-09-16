@@ -1,6 +1,8 @@
 """LLM-assisted EngineeringRule planning with deterministic fail-closed validation."""
 from __future__ import annotations
 
+from orchestration.agent_stream import invoke_with_stream
+
 import json
 from collections import Counter
 from dataclasses import dataclass, replace
@@ -253,7 +255,7 @@ class EngineeringRulePlanner:
                 response_format=self._plan_response_schema(),
                 middleware=MODEL_GOVERNANCE_MIDDLEWARE,
             )
-            response = agent.invoke(
+            response = invoke_with_stream(agent,
                 {
                     "messages": [
                         {

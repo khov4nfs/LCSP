@@ -102,6 +102,17 @@ export function formatStableTimestamp(value: string) {
   return date.toISOString();
 }
 
+export function formatLocaleTimestamp(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return new Intl.DateTimeFormat(appLocale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
 export function formatRelativeTime(value: string) {
   const timestamp = new Date(value).getTime();
   const deltaSeconds = Math.max(

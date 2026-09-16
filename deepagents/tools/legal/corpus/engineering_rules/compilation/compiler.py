@@ -1,6 +1,8 @@
 """LLM compiler from approved legal rules to reusable engineering investigation rules."""
 from __future__ import annotations
 
+from orchestration.agent_stream import invoke_with_stream
+
 import json
 from typing import Any
 
@@ -65,7 +67,7 @@ class EngineeringRuleCompiler:
             response_format=_engineering_rules_response_schema(),
             middleware=MODEL_GOVERNANCE_MIDDLEWARE,
         )
-        result = agent.invoke(
+        result = invoke_with_stream(agent,
             {"messages": [{"role": "user", "content": self._prompt(legal_rule, compile_context)}]},
             config={
                 "metadata": {

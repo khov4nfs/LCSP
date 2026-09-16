@@ -1,12 +1,15 @@
 import {
   ASSESSMENT_RUNTIME_RUN_STATUSES,
+  isAssessmentAgentStreamEventType,
   FINAL_ASSESSMENT_RESULT_STATUSES,
   isPostFindingRuntimePhase,
   isRemediationDecision,
   REMEDIATION_APPROVAL_STATUSES,
   VERIFICATION_RESULT_STATUSES,
+  type AssessmentAgentStreamEvent,
   type AssessmentPostFindingActivity,
   type AssessmentPostFindingRuntimeState,
+  type AssessmentRuntimeEngineeringProgress,
 } from "@lcsp/contracts/evidence";
 
 import {
@@ -21,6 +24,47 @@ import {
   type WorkspaceRuntimeSummaryValue,
 } from "../types/workspace-runtime.types.ts";
 
+
+export function parseAgentStreamEvent(data: string): AssessmentAgentStreamEvent | null {
+  const item = parseObject(data);
+  if (
+    item === null ||
+    typeof item.event_id !== "string" ||
+    typeof item.sequence !== "number" ||
+    typeof item.emitted_at !== "string" ||
+    typeof item.assessment_id !== "string" ||
+    typeof item.run_id !== "string" ||
+    typeof item.correlation_id !== "string" ||
+    !isAssessmentAgentStreamEventType(item.event_type)
+  ) {
+    return null;
+  }
+  return {
+    eventId: item.event_id,
+    sequence: item.sequence,
+    clientSequence:
+      typeof item.client_sequence === "number" ? item.client_sequence : null,
+    emittedAt: item.emitted_at,
+    assessmentId: item.assessment_id,
+    runId: item.run_id,
+    correlationId: item.correlation_id,
+    eventType: item.event_type,
+    source: optionalString(item.source),
+    agentName: optionalString(item.agent_name),
+    subagentName: optionalString(item.subagent_name),
+    namespace: Array.isArray(item.namespace)
+      ? item.namespace.filter((value): value is string => typeof value === "string")
+      : [],
+    nodeName: optionalString(item.node_name),
+    messageId: optionalString(item.message_id),
+    toolName: optionalString(item.tool_name),
+    toolCallId: optionalString(item.tool_call_id),
+    status: optionalString(item.status),
+    text: optionalString(item.text),
+    data: parseSummaryValue(item.data),
+  };
+}
+
 export function parseRuntimeEvent(
   data: string,
 ): WorkspaceRuntimeContextValue | null {
@@ -34,6 +78,11 @@ export function parseRuntimeEvent(
     : [];
   const recentActivity = Array.isArray(payload.recent_activity)
     ? payload.recent_activity.map(parseActivityItem).filter(isDefined)
+    : [];
+  const engineeringProgress = Array.isArray(payload.engineering_progress)
+    ? payload.engineering_progress
+        .map(parseEngineeringProgress)
+        .filter(isDefined)
     : [];
   const repositorySnapshots = Array.isArray(payload.repository_snapshots)
     ? payload.repository_snapshots
@@ -53,6 +102,8 @@ export function parseRuntimeEvent(
   const runsByAssessmentId = groupRunsByAssessmentId(runs);
   const recentActivityByAssessmentId =
     groupActivityByAssessmentId(recentActivity);
+  const engineeringProgressByAssessmentId =
+    groupEngineeringProgressByAssessmentId(engineeringProgress);
   const latestRunIdByAssessmentId = deriveLatestRunIds(runsByAssessmentId);
   const postFindingByAssessmentId = Object.fromEntries(
     postFindingStates.map((state) => [state.assessmentId, state]),
@@ -63,17 +114,23 @@ export function parseRuntimeEvent(
     emittedAt: payload.emitted_at as string,
     runs,
     recentActivity,
+    engineeringProgress,
     repositorySnapshots,
     scanJobs,
     evidenceReports,
     postFindingStates,
     runsByAssessmentId,
     recentActivityByAssessmentId,
+    engineeringProgressByAssessmentId,
+    agentStreamEventsByAssessmentId: {},
     latestRunIdByAssessmentId,
     postFindingByAssessmentId,
     getAssessmentRuntime: (assessmentId: string) => ({
       currentRun: runsByAssessmentId[assessmentId]?.[0] ?? null,
       recentActivity: recentActivityByAssessmentId[assessmentId] ?? [],
+      engineeringProgress:
+        engineeringProgressByAssessmentId[assessmentId] ?? [],
+      agentStreamEvents: [],
       latestRunId: latestRunIdByAssessmentId[assessmentId] ?? null,
       connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
       lastEmittedAt: payload.emitted_at as string,
@@ -98,7 +155,9 @@ function parsePostFindingState(
   return {
     assessmentId: item.assessment_id,
     phase: item.phase,
-    codeReviewActivities: parsePostFindingActivities(item.code_review_activities),
+    codeReviewActivities: parsePostFindingActivities(
+      item.code_review_activities,
+    ),
     decisionAvailability: Array.isArray(item.decision_availability)
       ? item.decision_availability.filter(isRemediationDecision)
       : [],
@@ -116,7 +175,9 @@ function parsePostFindingState(
       typeof item.approved_patch_version === "string"
         ? item.approved_patch_version
         : undefined,
-    verificationActivities: parsePostFindingActivities(item.verification_activities),
+    verificationActivities: parsePostFindingActivities(
+      item.verification_activities,
+    ),
     verificationStatus: isVerificationStatus(item.verification_status)
       ? item.verification_status
       : undefined,
@@ -131,7 +192,9 @@ function parsePostFindingState(
   };
 }
 
-function parsePostFindingActivities(value: unknown): AssessmentPostFindingActivity[] {
+function parsePostFindingActivities(
+  value: unknown,
+): AssessmentPostFindingActivity[] {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -146,12 +209,14 @@ function parsePostFindingActivities(value: unknown): AssessmentPostFindingActivi
     ) {
       return [];
     }
-    return [{
-      id: item.id,
-      label: item.label,
-      detail: typeof item.detail === "string" ? item.detail : undefined,
-      status: item.status,
-    }];
+    return [
+      {
+        id: item.id,
+        label: item.label,
+        detail: typeof item.detail === "string" ? item.detail : undefined,
+        status: item.status,
+      },
+    ];
   });
 }
 
@@ -194,7 +259,9 @@ function parseArtifactRefs(value: unknown) {
   };
 }
 
-function isRunStatus(value: unknown): value is AssessmentPostFindingActivity["status"] {
+function isRunStatus(
+  value: unknown,
+): value is AssessmentPostFindingActivity["status"] {
   return (
     typeof value === "string" &&
     Object.values(ASSESSMENT_RUNTIME_RUN_STATUSES).includes(
@@ -216,11 +283,15 @@ function isApprovalStatus(
 
 function isVerificationStatus(
   value: unknown,
-): value is NonNullable<AssessmentPostFindingRuntimeState["verificationStatus"]> {
+): value is NonNullable<
+  AssessmentPostFindingRuntimeState["verificationStatus"]
+> {
   return (
     typeof value === "string" &&
     Object.values(VERIFICATION_RESULT_STATUSES).includes(
-      value as NonNullable<AssessmentPostFindingRuntimeState["verificationStatus"]>,
+      value as NonNullable<
+        AssessmentPostFindingRuntimeState["verificationStatus"]
+      >,
     )
   );
 }
@@ -408,6 +479,55 @@ function parseEvidenceReport(
   };
 }
 
+function parseEngineeringProgress(
+  value: unknown,
+): AssessmentRuntimeEngineeringProgress | null {
+  const item = parseObject(value);
+  const planner = parseObject(item?.planner);
+  const investigator = parseObject(item?.investigator);
+  if (
+    item === null ||
+    planner === null ||
+    investigator === null ||
+    typeof item.assessment_id !== "string" ||
+    typeof item.run_id !== "string" ||
+    typeof item.planning_batch_id !== "string" ||
+    typeof item.targeted !== "boolean" ||
+    typeof item.approximate !== "boolean"
+  ) {
+    return null;
+  }
+  return {
+    assessmentId: item.assessment_id,
+    runId: item.run_id,
+    planningBatchId: item.planning_batch_id,
+    contextRevisionUsed:
+      typeof item.context_revision_used === "number"
+        ? item.context_revision_used
+        : null,
+    targeted: item.targeted,
+    approximate: item.approximate,
+    planner: {
+      candidateCount: nonNegativeNumber(planner.candidate_count),
+      selectedCount: nonNegativeNumber(planner.selected_count),
+      skippedCount: nonNegativeNumber(planner.skipped_count),
+    },
+    investigator: {
+      selectedCount: nonNegativeNumber(investigator.selected_count),
+      completedCount: nonNegativeNumber(investigator.completed_count),
+      domainLimitedCount: nonNegativeNumber(investigator.domain_limited_count),
+      limitedOrFailedCount: nonNegativeNumber(
+        investigator.limited_or_failed_count,
+      ),
+      waitingForInputCount: nonNegativeNumber(
+        investigator.waiting_for_input_count,
+      ),
+      runtimeFailedCount: nonNegativeNumber(investigator.runtime_failed_count),
+      pendingCount: nonNegativeNumber(investigator.pending_count),
+    },
+  };
+}
+
 function parseSummaryValue(
   value: unknown,
 ): WorkspaceRuntimeSummaryValue | null {
@@ -434,6 +554,10 @@ function parseSummaryValue(
           entry[1] !== null,
       ),
   );
+}
+
+function optionalString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
 }
 
 function parseObject(value: unknown): Record<string, unknown> | null {
@@ -477,6 +601,17 @@ function groupActivityByAssessmentId(activity: WorkspaceRuntimeActivityItem[]) {
   return groups;
 }
 
+function groupEngineeringProgressByAssessmentId(
+  progress: AssessmentRuntimeEngineeringProgress[],
+) {
+  const groups: Record<string, AssessmentRuntimeEngineeringProgress[]> = {};
+  for (const item of progress) {
+    groups[item.assessmentId] ??= [];
+    groups[item.assessmentId].push(item);
+  }
+  return groups;
+}
+
 function deriveLatestRunIds(
   runsByAssessmentId: Record<string, WorkspaceRuntimeRun[]>,
 ) {
@@ -493,9 +628,16 @@ function isDefined<T>(value: T | null): value is T {
   return value !== null;
 }
 
+function nonNegativeNumber(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.floor(value))
+    : 0;
+}
+
 export function runtimeFingerprint(runtime: {
   runs: WorkspaceRuntimeRun[];
   recentActivity: WorkspaceRuntimeActivityItem[];
+  engineeringProgress: AssessmentRuntimeEngineeringProgress[];
   repositorySnapshots: WorkspaceRuntimeRepositorySnapshot[];
   scanJobs: WorkspaceRuntimeScanJob[];
   evidenceReports: WorkspaceRuntimeEvidenceReport[];
@@ -524,6 +666,22 @@ export function runtimeFingerprint(runtime: {
       item.summary,
       shouldFingerprintActivityEmittedAt(item) ? item.emittedAt : null,
       item.durationMs,
+    ]),
+    engineeringProgress: runtime.engineeringProgress.map((progress) => [
+      progress.assessmentId,
+      progress.runId,
+      progress.planningBatchId,
+      progress.contextRevisionUsed,
+      progress.targeted,
+      progress.approximate,
+      progress.planner.candidateCount,
+      progress.planner.selectedCount,
+      progress.planner.skippedCount,
+      progress.investigator.completedCount,
+      progress.investigator.domainLimitedCount,
+      progress.investigator.waitingForInputCount,
+      progress.investigator.runtimeFailedCount,
+      progress.investigator.pendingCount,
     ]),
     repositorySnapshots: runtime.repositorySnapshots.map((snapshot) => [
       snapshot.id,
@@ -561,6 +719,7 @@ function shouldFingerprintActivityEmittedAt(
 export function affectedAssessmentIds(runtime: {
   runs: WorkspaceRuntimeRun[];
   recentActivity: WorkspaceRuntimeActivityItem[];
+  engineeringProgress: AssessmentRuntimeEngineeringProgress[];
   repositorySnapshots: WorkspaceRuntimeRepositorySnapshot[];
   scanJobs: WorkspaceRuntimeScanJob[];
   evidenceReports: WorkspaceRuntimeEvidenceReport[];
@@ -568,6 +727,7 @@ export function affectedAssessmentIds(runtime: {
   return new Set([
     ...runtime.runs.map((run) => run.assessmentId),
     ...runtime.recentActivity.map((item) => item.assessmentId),
+    ...runtime.engineeringProgress.map((item) => item.assessmentId),
     ...runtime.repositorySnapshots.map((snapshot) => snapshot.assessmentId),
     ...runtime.scanJobs.map((scanJob) => scanJob.assessmentId),
     ...runtime.evidenceReports.map((report) => report.assessmentId),
