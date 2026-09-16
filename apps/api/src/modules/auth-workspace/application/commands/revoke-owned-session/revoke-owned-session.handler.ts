@@ -1,6 +1,8 @@
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import { HttpStatus } from "@nestjs/common";
 
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { AUTH_RECORD_TYPES } from "../../../infrastructure/persistence/auth-record.persistence.ts";
@@ -8,7 +10,8 @@ import type { RevokeOwnedSessionSuccess } from "../../contracts/auth-workspace/s
 import { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
 import { RevokeOwnedSessionCommand } from "./revoke-owned-session.command.ts";
 
-export class RevokeOwnedSessionHandler {
+@CommandHandler(RevokeOwnedSessionCommand)
+export class RevokeOwnedSessionHandler implements ICommandHandler<RevokeOwnedSessionCommand> {
   constructor(
     private readonly prisma: PrismaService,
     private readonly support: AuthWorkspaceSupportService,

@@ -5,17 +5,25 @@ import {
   createProblemResult,
 } from "@lcsp/contracts/auth";
 
+import { Inject } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+
 import type { OAuthCallbackClaims } from "../../../infrastructure/oauth/oauth-provider.interface.ts";
-import type { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
+import { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
 import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { OAuthLinkCallbackSuccess } from "../../contracts/auth-workspace/oauth.contract.ts";
-import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
+import {
+  AUTH_WORKSPACE_REPOSITORIES,
+  type AuthWorkspaceRepositories,
+} from "../../ports/persistence/auth-workspace-repositories.ts";
 import { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
 import { OAuthLinkCallbackCommand } from "./oauth-link-callback.command.ts";
 
-export class OAuthLinkCallbackHandler {
+@CommandHandler(OAuthLinkCallbackCommand)
+export class OAuthLinkCallbackHandler implements ICommandHandler<OAuthLinkCallbackCommand> {
   constructor(
     private readonly support: AuthWorkspaceSupportService,
+    @Inject(AUTH_WORKSPACE_REPOSITORIES)
     private readonly repositories: AuthWorkspaceRepositories,
     private readonly providerRegistry: OAuthProviderRegistry,
   ) {}

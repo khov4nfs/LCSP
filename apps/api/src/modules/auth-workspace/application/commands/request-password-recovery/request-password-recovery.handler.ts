@@ -6,6 +6,9 @@ import {
   createProblemResult,
 } from "@lcsp/contracts/auth";
 
+import { Inject } from "@nestjs/common";
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+
 import { RecoveryRequest } from "../../../domain/models/auth-workspace.models.ts";
 import {
   fingerprintToken,
@@ -14,17 +17,26 @@ import {
 } from "../../../infrastructure/security/security.utils.ts";
 import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { RequestRecoverySuccess } from "../../contracts/auth-workspace/recovery.contract.ts";
-import type { RecoveryNotifier } from "../../ports/notification/recovery-notifier.ts";
-import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
+import {
+  AUTH_WORKSPACE_RECOVERY_NOTIFIER,
+  type RecoveryNotifier,
+} from "../../ports/notification/recovery-notifier.ts";
+import {
+  AUTH_WORKSPACE_REPOSITORIES,
+  type AuthWorkspaceRepositories,
+} from "../../ports/persistence/auth-workspace-repositories.ts";
 import { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
 import { RequestPasswordRecoveryCommand } from "./request-password-recovery.command.ts";
 
 const RECOVERY_TOKEN_TTL_MS = 30 * 60_000;
 
-export class RequestPasswordRecoveryHandler {
+@CommandHandler(RequestPasswordRecoveryCommand)
+export class RequestPasswordRecoveryHandler implements ICommandHandler<RequestPasswordRecoveryCommand> {
   constructor(
     private readonly support: AuthWorkspaceSupportService,
+    @Inject(AUTH_WORKSPACE_REPOSITORIES)
     private readonly repositories: AuthWorkspaceRepositories,
+    @Inject(AUTH_WORKSPACE_RECOVERY_NOTIFIER)
     private readonly notifier: RecoveryNotifier,
   ) {}
 

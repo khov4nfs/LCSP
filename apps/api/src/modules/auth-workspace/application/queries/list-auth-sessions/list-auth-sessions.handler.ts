@@ -1,3 +1,5 @@
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
+
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import {
   AUTH_RECORD_TYPES,
@@ -6,7 +8,8 @@ import {
 import type { AuthSessionsSuccess } from "../../contracts/auth-workspace/settings.contract.ts";
 import { ListAuthSessionsQuery } from "./list-auth-sessions.query.ts";
 
-export class ListAuthSessionsHandler {
+@QueryHandler(ListAuthSessionsQuery)
+export class ListAuthSessionsHandler implements IQueryHandler<ListAuthSessionsQuery> {
   constructor(private readonly prisma: PrismaService) {}
 
   async execute(query: ListAuthSessionsQuery): Promise<AuthSessionsSuccess> {

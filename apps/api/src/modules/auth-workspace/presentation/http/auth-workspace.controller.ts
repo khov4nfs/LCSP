@@ -13,7 +13,7 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
-import { QueryBus } from "@nestjs/cqrs";
+import { CommandBus, QueryBus } from "@nestjs/cqrs";
 
 import {
   AUTH_ERROR_CODES,
@@ -21,34 +21,56 @@ import {
   type MfaRecoveryCodeAccessAction,
 } from "@lcsp/contracts/auth";
 
+import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { AllowPendingMfa } from "../../../../platform/rbac/decorators/allow-pending-mfa.decorator.js";
 import { RequireSession } from "../../../../platform/rbac/decorators/require-session.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { ReAuthForSensitiveRoute } from "../../../../platform/security/decorators/re-auth-for-sensitive-route.decorator.js";
 import { SENSITIVE_ROUTE_IDS } from "../../../../platform/security/sensitive-route-policy.js";
-import type { UpdateProfilePayload } from "../../application/commands/update-profile/update-profile.command.ts";
-import type { RequestMeta } from "../../application/contracts/auth-workspace/common.contract.ts";
+import {
+  ConfirmPasswordRecoveryCommand,
+  DisableMfaCommand,
+  EnrollMfaCommand,
+  GenerateMfaRecoveryCodesCommand,
+  OAuthCallbackCommand,
+  OAuthLinkCallbackCommand,
+  OAuthLinkStartCommand,
+  OAuthStartCommand,
+  ReauthenticatePasswordCommand,
+  RecordMfaRecoveryCodeAccessCommand,
+  RequestPasswordRecoveryCommand,
+  RevokeOwnedSessionCommand,
+  RevokeSessionCommand,
+  SignInCommand,
+  SignUpCommand,
+  UpdateProfileCommand,
+  type UpdateProfilePayload,
+  VerifyMfaOtpCommand,
+  VerifyMfaRecoveryCodeCommand,
+} from "../../application/commands/index.ts";
 import type {
+  ConfirmRecoveryPayload,
+  CredentialPayload,
   OAuthCallbackPayload,
   OAuthLinkCallbackPayload,
   OAuthLinkStartPayload,
   OAuthStartPayload,
-} from "../../application/contracts/auth-workspace/oauth.contract.ts";
-import type { PasswordReauthPayload } from "../../application/contracts/auth-workspace/password-reauth.contract.ts";
-import type {
-  ConfirmRecoveryPayload,
+  PasswordReauthPayload,
+  RequestMeta,
   RequestRecoveryPayload,
-} from "../../application/contracts/auth-workspace/recovery.contract.ts";
-import type { SensitiveRouteCheckDto } from "../../application/contracts/auth-workspace/sensitive-route.contract.ts";
-import type { CredentialPayload } from "../../application/contracts/auth-workspace/sign-in.contract.ts";
-import type { SignUpPayload } from "../../application/contracts/auth-workspace/sign-up.contract.ts";
-import type { WorkspaceRequest } from "../../application/contracts/auth-workspace/workspace.contract.ts";
-import { CheckSensitiveRouteQuery } from "../../application/queries/check-sensitive-route/check-sensitive-route.query.ts";
-import { AuthWorkspaceFacade } from "../../application/services/auth-workspace/auth-workspace.facade.ts";
-
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+  SensitiveRouteCheckDto,
+  SignUpPayload,
+  WorkspaceRequest,
+} from "../../application/contracts/auth-workspace/index.ts";
+import {
+  CheckSensitiveRouteQuery,
+  GetAuthProfileQuery,
+  GetWorkspaceQuery,
+  ListAuthRepositoriesQuery,
+  ListAuthSessionsQuery,
+} from "../../application/queries/index.ts";
 
 type SensitiveRouteCheckPayload = {
   method?: unknown;
@@ -68,7 +90,7 @@ const MFA_RECOVERY_CODE_ACCESS_ACTION_VALUES = Object.values(
 @Controller()
 export class AuthWorkspaceController {
   constructor(
-    private readonly authWorkspaceFacade: AuthWorkspaceFacade,
+    private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
   ) {}
 
@@ -79,9 +101,8 @@ export class AuthWorkspaceController {
     @Headers("x-correlation-id") correlationId?: string,
   ) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.signIn(
-        payload,
-        requestMeta(correlationId),
+      await this.commandBus.execute(
+        new SignInCommand(payload, requestMeta(correlationId)),
       ),
     );
   }
@@ -92,9 +113,13 @@ export class AuthWorkspaceController {
     @Headers("x-correlation-id") correlationId?: string,
   ) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.signUp(
-        payload,
-        requestMeta(correlationId),
+      await this.commandBus.execute(
+        new SignUpCommand({
+          email: payload.email,
+          displayName: payload.display_name,
+          password: payload.password,
+          correlationId: requestMeta(correlationId).correlationId,
+        }),
       ),
     );
   }
@@ -105,9 +130,11 @@ export class AuthWorkspaceController {
     @Headers("x-correlation-id") correlationId?: string,
   ) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.revokeSession(
-        body.session_token ?? "",
-        requestMeta(correlationId),
+      await this.commandBus.execute(
+        new RevokeSessionCommand(
+          body.session_token ?? "",
+          requestMeta(correlationId),
+        ),
       ),
     );
   }
@@ -124,7 +151,7 @@ export class AuthWorkspaceController {
       correlationId: request.correlationId,
     };
     return resultEnvelope(
-      await this.authWorkspaceFacade.getWorkspace(workspaceRequest),
+      await this.queryBus.execute(new GetWorkspaceQuery(workspaceRequest)),
     );
   }
 
@@ -138,9 +165,11 @@ export class AuthWorkspaceController {
     @Req() request: AuthenticatedRequest,
   ) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.enrollMfa(
-        bearerToken(authorization) ?? body.session_token ?? "",
-        requestMeta(request.correlationId),
+      await this.commandBus.execute(
+        new EnrollMfaCommand(
+          bearerToken(authorization) ?? body.session_token ?? "",
+          requestMeta(request.correlationId),
+        ),
       ),
     );
   }
@@ -154,9 +183,11 @@ export class AuthWorkspaceController {
     @Req() request: AuthenticatedRequest,
   ) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.disableMfa(
-        bearerToken(authorization) ?? body.session_token ?? "",
-        requestMeta(request.correlationId),
+      await this.commandBus.execute(
+        new DisableMfaCommand(
+          bearerToken(authorization) ?? body.session_token ?? "",
+          requestMeta(request.correlationId),
+        ),
       ),
     );
   }
@@ -167,10 +198,12 @@ export class AuthWorkspaceController {
     @Headers("x-correlation-id") correlationId?: string,
   ) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.verifyMfaOtp(
-        body.session_token ?? "",
-        body.otp ?? "",
-        requestMeta(correlationId),
+      await this.commandBus.execute(
+        new VerifyMfaOtpCommand(
+          body.session_token ?? "",
+          body.otp ?? "",
+          requestMeta(correlationId),
+        ),
       ),
     );
   }
@@ -181,10 +214,12 @@ export class AuthWorkspaceController {
     @Headers("x-correlation-id") correlationId?: string,
   ) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.verifyMfaRecoveryCode(
-        body.session_token ?? "",
-        body.code ?? "",
-        requestMeta(correlationId),
+      await this.commandBus.execute(
+        new VerifyMfaRecoveryCodeCommand(
+          body.session_token ?? "",
+          body.code ?? "",
+          requestMeta(correlationId),
+        ),
       ),
     );
   }
@@ -204,9 +239,11 @@ export class AuthWorkspaceController {
     @Req() request: AuthenticatedRequest,
   ) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.generateMfaRecoveryCodes(
-        bearerToken(authorization) ?? body.session_token ?? "",
-        requestMeta(request.correlationId),
+      await this.commandBus.execute(
+        new GenerateMfaRecoveryCodesCommand(
+          bearerToken(authorization) ?? body.session_token ?? "",
+          requestMeta(request.correlationId),
+        ),
       ),
     );
   }
@@ -236,10 +273,12 @@ export class AuthWorkspaceController {
     }
 
     return resultEnvelope(
-      await this.authWorkspaceFacade.recordMfaRecoveryCodeAccess(
-        bearerToken(authorization) ?? body.session_token ?? "",
-        action,
-        requestMeta(request.correlationId),
+      await this.commandBus.execute(
+        new RecordMfaRecoveryCodeAccessCommand(
+          bearerToken(authorization) ?? body.session_token ?? "",
+          action,
+          requestMeta(request.correlationId),
+        ),
       ),
     );
   }
@@ -254,12 +293,15 @@ export class AuthWorkspaceController {
     @Req() request: AuthenticatedRequest,
   ) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.reauthenticatePassword(
-        {
-          session_token: bearerToken(authorization) ?? body.session_token ?? "",
-          password: body.password,
-        },
-        requestMeta(request.correlationId),
+      await this.commandBus.execute(
+        new ReauthenticatePasswordCommand(
+          {
+            session_token:
+              bearerToken(authorization) ?? body.session_token ?? "",
+            password: body.password,
+          },
+          requestMeta(request.correlationId),
+        ),
       ),
     );
   }
@@ -313,10 +355,14 @@ export class AuthWorkspaceController {
   ) {
     const { session_token, ...payload } = body;
     return resultEnvelope(
-      await this.authWorkspaceFacade.updateProfile(
-        bearerToken(authorization) ?? session_token ?? "",
-        payload,
-        requestMeta(request.correlationId),
+      await this.commandBus.execute(
+        new UpdateProfileCommand(
+          {
+            ...payload,
+            session_token: bearerToken(authorization) ?? session_token ?? "",
+          },
+          requestMeta(request.correlationId),
+        ),
       ),
     );
   }
@@ -326,9 +372,8 @@ export class AuthWorkspaceController {
   @RequireSession()
   async getProfile(@Req() request: AuthenticatedRequest) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.getProfile(
-        request.rbacContext,
-        request.correlationId!,
+      await this.queryBus.execute(
+        new GetAuthProfileQuery(request.rbacContext, request.correlationId!),
       ),
     );
   }
@@ -338,7 +383,9 @@ export class AuthWorkspaceController {
   @RequireSession()
   async listSessions(@Req() request: AuthenticatedRequest) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.listSessions(request.rbacContext),
+      await this.queryBus.execute(
+        new ListAuthSessionsQuery(request.rbacContext),
+      ),
     );
   }
 
@@ -350,10 +397,12 @@ export class AuthWorkspaceController {
     @Req() request: AuthenticatedRequest,
   ) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.revokeOwnedSession(
-        sessionId,
-        request.rbacContext,
-        requestMeta(request.correlationId),
+      await this.commandBus.execute(
+        new RevokeOwnedSessionCommand(
+          sessionId,
+          request.rbacContext,
+          requestMeta(request.correlationId),
+        ),
       ),
     );
   }
@@ -363,7 +412,9 @@ export class AuthWorkspaceController {
   @RequireSession()
   async listRepositories(@Req() request: AuthenticatedRequest) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.listRepositories(request.rbacContext),
+      await this.queryBus.execute(
+        new ListAuthRepositoriesQuery(request.rbacContext),
+      ),
     );
   }
 
@@ -374,9 +425,11 @@ export class AuthWorkspaceController {
     @Headers("x-app-origin") appOrigin?: string,
   ) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.requestPasswordRecovery(
-        payload,
-        requestMeta(correlationId, appOrigin),
+      await this.commandBus.execute(
+        new RequestPasswordRecoveryCommand(
+          payload,
+          requestMeta(correlationId, appOrigin),
+        ),
       ),
     );
   }
@@ -387,9 +440,8 @@ export class AuthWorkspaceController {
     @Headers("x-correlation-id") correlationId?: string,
   ) {
     return resultEnvelope(
-      await this.authWorkspaceFacade.confirmPasswordRecovery(
-        payload,
-        requestMeta(correlationId),
+      await this.commandBus.execute(
+        new ConfirmPasswordRecoveryCommand(payload, requestMeta(correlationId)),
       ),
     );
   }
@@ -405,9 +457,8 @@ export class AuthWorkspaceController {
       redirect_uri: redirectUri,
     };
     return resultEnvelope(
-      await this.authWorkspaceFacade.oauthStart(
-        payload,
-        requestMeta(correlationId),
+      await this.commandBus.execute(
+        new OAuthStartCommand(payload, requestMeta(correlationId)),
       ),
     );
   }
@@ -421,9 +472,8 @@ export class AuthWorkspaceController {
   ) {
     const payload: OAuthCallbackPayload = { code, state, provider };
     return resultEnvelope(
-      await this.authWorkspaceFacade.oauthCallback(
-        payload,
-        requestMeta(correlationId),
+      await this.commandBus.execute(
+        new OAuthCallbackCommand(payload, requestMeta(correlationId)),
       ),
     );
   }
@@ -442,10 +492,13 @@ export class AuthWorkspaceController {
       redirect_uri: redirectUri,
     };
     return resultEnvelope(
-      await this.authWorkspaceFacade.oauthLinkStart(
-        payload,
-        request.rbacContext,
-        requestMeta(correlationId),
+      await this.commandBus.execute(
+        new OAuthLinkStartCommand(
+          payload,
+          request.rbacContext.userId,
+          request.rbacContext.sessionId,
+          requestMeta(correlationId),
+        ),
       ),
     );
   }
@@ -462,10 +515,13 @@ export class AuthWorkspaceController {
   ) {
     const payload: OAuthLinkCallbackPayload = { code, state, provider };
     return resultEnvelope(
-      await this.authWorkspaceFacade.oauthLinkCallback(
-        payload,
-        request.rbacContext,
-        requestMeta(correlationId),
+      await this.commandBus.execute(
+        new OAuthLinkCallbackCommand(
+          payload,
+          request.rbacContext.userId,
+          request.rbacContext.sessionId,
+          requestMeta(correlationId),
+        ),
       ),
     );
   }

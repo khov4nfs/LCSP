@@ -4,7 +4,9 @@ import {
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
   createProblemResult,
 } from "@lcsp/contracts/auth";
-import { Logger } from "@nestjs/common";
+import { Inject, Logger } from "@nestjs/common";
+
+import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { MfaRateLimit } from "../../../domain/entities/mfa-rate-limit.entity.ts";
 import {
@@ -13,18 +15,23 @@ import {
 } from "../../../infrastructure/security/mfa-recovery-code.utils.ts";
 import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { VerifyMfaRecoveryCodeSuccess } from "../../contracts/auth-workspace/mfa.contract.ts";
-import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
+import {
+  AUTH_WORKSPACE_REPOSITORIES,
+  type AuthWorkspaceRepositories,
+} from "../../ports/persistence/auth-workspace-repositories.ts";
 import { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
 import { VerifyMfaRecoveryCodeCommand } from "./verify-mfa-recovery-code.command.ts";
 
 const MFA_RECOVERY_RATE_LIMIT = 5;
 const MFA_RECOVERY_LOCK_WINDOW_MS = 15 * 60_000;
 
-export class VerifyMfaRecoveryCodeHandler {
+@CommandHandler(VerifyMfaRecoveryCodeCommand)
+export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRecoveryCodeCommand> {
   private readonly logger = new Logger(VerifyMfaRecoveryCodeHandler.name);
 
   constructor(
     private readonly support: AuthWorkspaceSupportService,
+    @Inject(AUTH_WORKSPACE_REPOSITORIES)
     private readonly repositories: AuthWorkspaceRepositories,
   ) {}
 
