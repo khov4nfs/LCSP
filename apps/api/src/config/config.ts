@@ -188,6 +188,15 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
     OUTBOX_POLL_INTERVAL_MS: Joi.number().integer().positive().default(1000),
     OUTBOX_BATCH_SIZE: Joi.number().integer().positive().default(50),
     OUTBOX_MAX_ATTEMPTS: Joi.number().integer().positive().default(5),
+    SEPAY_WEBHOOK_SECRET: Joi.alternatives().conditional("NODE_ENV", {
+      is: NODE_ENVS.production,
+      then: Joi.string().min(16).required(),
+      otherwise: Joi.string().min(16).allow("").default(""),
+    }),
+    SEPAY_WEBHOOK_TIMESTAMP_SKEW_SECONDS: Joi.number()
+      .integer()
+      .positive()
+      .default(300),
     MFA_SECRET_ENCRYPTION_KEY: Joi.string()
       .pattern(/^[0-9a-fA-F]{64}$/)
       .required()
@@ -478,6 +487,12 @@ export function config(): AppConfig {
       pollIntervalMs: Number(env.OUTBOX_POLL_INTERVAL_MS ?? 1000),
       batchSize: Number(env.OUTBOX_BATCH_SIZE ?? 50),
       maxAttempts: Number(env.OUTBOX_MAX_ATTEMPTS ?? 5),
+    },
+    sepay: {
+      webhookSecret: env.SEPAY_WEBHOOK_SECRET ?? "",
+      timestampSkewSeconds: Number(
+        env.SEPAY_WEBHOOK_TIMESTAMP_SKEW_SECONDS ?? 300,
+      ),
     },
     crypto: {
       mfaSecretEncryptionKey: env.MFA_SECRET_ENCRYPTION_KEY ?? "",

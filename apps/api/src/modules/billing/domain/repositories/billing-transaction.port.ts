@@ -188,6 +188,16 @@ export interface WebhookEventPort {
     providerTransactionId: string;
     sanitizedPayload?: unknown;
   }): Promise<{ id: string }>;
+  findAcceptedById(id: string): Promise<{
+    id: string;
+    provider: string;
+    providerTransactionId: string;
+    paymentCode: string | null;
+    amountMinorUnits: bigint;
+    transferDirection: "IN" | "OUT" | "UNKNOWN";
+    sanitizedPayload: unknown;
+    securityAcceptedAt: Date | null;
+  } | null>;
 }
 export interface LlmUsagePort {
   findByInvocation(

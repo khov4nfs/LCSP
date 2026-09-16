@@ -273,6 +273,7 @@ enum AuthorizationReasonCode {
 }
 
 enum OutboxAggregateType {
+  BILLING_PAYMENT
   AI_USAGE_FLOW
   ASSESSMENT
   AUTH_USER
@@ -1259,6 +1260,8 @@ model SePayWebhookEvent {
   provider              String
   providerTransactionId String
   sanitizedPayload      Json?
+  integrityHash         String?
+  securityAcceptedAt    DateTime?
   receivedAt            DateTime  @default(now())
   processedAt           DateTime?
   createdAt             DateTime  @default(now())

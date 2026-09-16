@@ -100,6 +100,7 @@ export class BillingPaymentService {
     providerTransactionId: string;
     paymentCode: string;
     amountMinorUnits: bigint;
+    transferDirection?: "IN" | "OUT" | "UNKNOWN";
     sanitizedPayload?: unknown;
     actorId?: string | null;
     sessionId?: string;
@@ -118,6 +119,14 @@ export class BillingPaymentService {
           i.providerTransactionId,
         );
         if (prior) return prior;
+        if (i.transferDirection !== undefined && i.transferDirection !== "IN")
+          return repos.payment.create({
+            provider: i.provider,
+            providerTransactionId: i.providerTransactionId,
+            amountMinorUnits: i.amountMinorUnits,
+            reconciliationStatus: "NEEDS_REVIEW",
+            webhookEventId: webhook.id,
+          });
         const order = await repos.order.findByPaymentCode(i.paymentCode);
         if (!order)
           return repos.payment.create({
@@ -237,5 +246,26 @@ export class BillingPaymentService {
         });
       },
     );
+  }
+
+  /** Processes an accepted SePay work item. The caller is an asynchronous outbox consumer. */
+  async reconcileAcceptedWebhook(eventId: string) {
+    const event = await this.transactions.runForUser(
+      `sepay-event:${eventId}`,
+      async (repos) => {
+        const row = await repos.webhook.findAcceptedById(eventId);
+        if (!row || !row.securityAcceptedAt) return null;
+        return row;
+      },
+    );
+    if (!event) return null;
+    return this.reconcilePayment({
+      provider: event.provider,
+      providerTransactionId: event.providerTransactionId,
+      paymentCode: event.paymentCode ?? "",
+      amountMinorUnits: event.amountMinorUnits,
+      transferDirection: event.transferDirection,
+      sanitizedPayload: event.sanitizedPayload,
+    });
   }
 }

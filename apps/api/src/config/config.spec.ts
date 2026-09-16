@@ -26,6 +26,7 @@ const VALID_ENV = {
   GITHUB_CLI_EXECUTABLE_PATH: resolve("tools", "gh"),
   RABBITMQ_URL: "amqp://guest:guest@localhost:5672",
   RABBITMQ_EXCHANGE: "lcsp.events",
+  SEPAY_WEBHOOK_SECRET: "s".repeat(32),
   OUTBOX_ENABLED: "true",
   OUTBOX_POLL_INTERVAL_MS: "1000",
   OUTBOX_BATCH_SIZE: "50",
@@ -388,6 +389,10 @@ describe("config()", () => {
       rabbitmq: {
         url: VALID_ENV.RABBITMQ_URL,
         exchange: VALID_ENV.RABBITMQ_EXCHANGE,
+      },
+      sepay: {
+        webhookSecret: VALID_ENV.SEPAY_WEBHOOK_SECRET,
+        timestampSkewSeconds: 300,
       },
       outbox: {
         enabled: true,

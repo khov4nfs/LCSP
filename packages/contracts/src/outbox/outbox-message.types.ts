@@ -33,6 +33,7 @@ export const OUTBOX_EVENT_EXCHANGES = {
 } as const;
 
 export const OUTBOX_AGGREGATE_TYPES = {
+  billingPayment: "BILLING_PAYMENT",
   aiUsageFlow: "AI_USAGE_FLOW",
   assessment: "ASSESSMENT",
   authUser: "AUTH_USER",

@@ -460,6 +460,8 @@ const PRISMA_AUDIT_RESOURCE_TYPE_TO_CONTRACT = {
 >;
 
 const OUTBOX_AGGREGATE_TYPE_TO_PRISMA = {
+  [OUTBOX_AGGREGATE_TYPES.billingPayment]:
+    PrismaOutboxAggregateType.BILLING_PAYMENT,
   [OUTBOX_AGGREGATE_TYPES.aiUsageFlow]: PrismaOutboxAggregateType.AI_USAGE_FLOW,
   [OUTBOX_AGGREGATE_TYPES.assessment]: PrismaOutboxAggregateType.ASSESSMENT,
   [OUTBOX_AGGREGATE_TYPES.authUser]: PrismaOutboxAggregateType.AUTH_USER,
@@ -488,6 +490,8 @@ const OUTBOX_AGGREGATE_TYPE_TO_PRISMA = {
 } as const satisfies Record<OutboxAggregateType, PrismaOutboxAggregateType>;
 
 const PRISMA_OUTBOX_AGGREGATE_TYPE_TO_CONTRACT = {
+  [PrismaOutboxAggregateType.BILLING_PAYMENT]:
+    OUTBOX_AGGREGATE_TYPES.billingPayment,
   [PrismaOutboxAggregateType.AI_USAGE_FLOW]: OUTBOX_AGGREGATE_TYPES.aiUsageFlow,
   [PrismaOutboxAggregateType.ASSESSMENT]: OUTBOX_AGGREGATE_TYPES.assessment,
   [PrismaOutboxAggregateType.AUTH_USER]: OUTBOX_AGGREGATE_TYPES.authUser,
