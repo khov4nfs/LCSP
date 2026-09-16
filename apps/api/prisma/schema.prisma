@@ -1215,6 +1215,18 @@ enum PaymentReconciliationStatus {
   NEEDS_REVIEW
 }
 
+enum PaymentReconciliationReason {
+  INBOUND_REQUIRED
+  UNMATCHED_PAYMENT_CODE
+  AMBIGUOUS_ORDER_MATCH
+  UNDERPAYMENT
+  OVERPAYMENT
+  EXPIRED_ORDER
+  OWNERSHIP_CONFLICT
+  RECOVERABLE_EXCEPTION
+  DUPLICATE_PROVIDER_TRANSACTION
+}
+
 enum BillingReservationStatus {
   RESERVED
   SETTLED
@@ -1278,6 +1290,8 @@ model PaymentTransaction {
   providerTransactionId String
   amountMinorUnits      BigInt
   reconciliationStatus  PaymentReconciliationStatus @default(UNMATCHED)
+  reconciliationReason  PaymentReconciliationReason?
+  reconciliationVersion Int                         @default(0)
   userId                String?
   billingOrderId        String?
   webhookEventId        String?                     @unique

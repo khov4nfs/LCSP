@@ -9,9 +9,11 @@ import {
   it,
 } from "@jest/globals";
 import { randomUUID } from "node:crypto";
+import { AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 import { BILLING_AUDIT_EVENT_TYPES } from "@lcsp/contracts/billing";
 import { BillingAccountingService } from "../src/modules/billing/application/services/billing-accounting.service.js";
 import { BillingPaymentService } from "../src/modules/billing/application/services/billing-payment.service.js";
+import { BillingAdminReconciliationService } from "../src/modules/billing/application/services/billing-admin-reconciliation.service.js";
 import { PrismaBillingTransaction } from "../src/modules/billing/infrastructure/persistence/prisma-billing-transaction.js";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import {
@@ -23,6 +25,7 @@ describe("LCSP-310 payment reconciliation", () => {
   let prisma: PrismaClient;
   let payments: BillingPaymentService;
   let accounting: BillingAccountingService;
+  let admin: BillingAdminReconciliationService;
   const user = (name: string) => ({
     id: `payment-${name}-${randomUUID()}`,
     email: `payment-${name}-${randomUUID()}@test.invalid`,
@@ -40,6 +43,11 @@ describe("LCSP-310 payment reconciliation", () => {
       new PrismaBillingTransaction(new PrismaService()),
     );
     payments = new BillingPaymentService(
+      new PrismaBillingTransaction(new PrismaService()),
+      accounting,
+    );
+    admin = new BillingAdminReconciliationService(
+      new PrismaService(),
       new PrismaBillingTransaction(new PrismaService()),
       accounting,
     );
@@ -90,6 +98,25 @@ describe("LCSP-310 payment reconciliation", () => {
       amountMinorUnits: 100000n,
     });
     expect(result.reconciliationStatus).toBe("MATCHED");
+    expect(result.reconciledAt).not.toBeNull();
+    const audit = await prisma.auditEvent.findFirstOrThrow({
+      where: {
+        eventType: BILLING_AUDIT_EVENT_TYPES.reconciliationSettled,
+        resourceId: result.id,
+      },
+    });
+    expect(audit).toMatchObject({
+      actorId: null,
+      correlationId: "billing-reconcile:SEPAY:TX-MATCH",
+    });
+    expect(audit.payload).toMatchObject({
+      actor: { id: null, type: AUDIT_ACTOR_TYPES.system },
+      providerTransactionId: "TX-MATCH",
+      billingOrderId: order.id,
+      userId: a.id,
+      afterPaymentStatus: "MATCHED",
+      afterOrderStatus: "CREDITED",
+    });
     expect(
       await prisma.creditLedgerEntry.count({
         where: { billingOrderId: order.id },
@@ -326,5 +353,142 @@ describe("LCSP-310 payment reconciliation", () => {
     expect(w.availableCredits).toBe(ledger - reserved);
     expect(w.reservedCredits).toBe(reserved);
     expect(w.availableCredits >= 0n).toBe(true);
+  });
+
+  it("allows an Admin to resolve an unmatched exact payment into the selected order owner", async () => {
+    const { a, order } = await setupOrder();
+    const payment = await payments.reconcilePayment({
+      provider: "SEPAY",
+      providerTransactionId: "TX-MANUAL-EXACT",
+      paymentCode: "UNKNOWN-MANUAL",
+      amountMinorUnits: 100000n,
+      transferDirection: "IN",
+    });
+
+    const resolved = await admin.resolve({
+      paymentId: payment.id,
+      billingOrderId: order.id,
+      expectedVersion: 0,
+      rationale: "Verified bank statement and customer order ownership",
+      actorId: "admin-1",
+      correlationId: "corr-manual-exact",
+    });
+
+    expect(resolved.status).toBe("MATCHED");
+    expect(
+      await prisma.creditLedgerEntry.count({
+        where: { billingOrderId: order.id },
+      }),
+    ).toBe(1);
+    expect(
+      (
+        await prisma.billingWallet.findUniqueOrThrow({
+          where: { userId: a.id },
+        })
+      ).availableCredits,
+    ).toBe(500n);
+  });
+
+  it("replays an accepted reconciliation work item without a second financial effect", async () => {
+    const { order } = await setupOrder();
+    const event = await prisma.sePayWebhookEvent.create({
+      data: {
+        provider: "SEPAY",
+        providerTransactionId: "TX-ACCEPTED-REPLAY",
+        securityAcceptedAt: new Date(),
+        sanitizedPayload: {
+          providerTransactionId: "TX-ACCEPTED-REPLAY",
+          paymentCode: order.paymentCode,
+          amountMinorUnits: "100000",
+          transferDirection: "IN",
+        },
+      },
+    });
+
+    const first = await payments.reconcileAcceptedWebhook(event.id);
+    const second = await payments.reconcileAcceptedWebhook(event.id);
+
+    expect(first?.reconciliationStatus).toBe("MATCHED");
+    expect(second?.reconciliationStatus).toBe("MATCHED");
+    expect(
+      await prisma.creditLedgerEntry.count({
+        where: { billingOrderId: order.id },
+      }),
+    ).toBe(1);
+    expect(
+      (
+        await prisma.sePayWebhookEvent.findUniqueOrThrow({
+          where: { id: event.id },
+        })
+      ).processedAt,
+    ).not.toBeNull();
+  });
+
+  it("rejects a stale concurrent Admin decision and never double credits", async () => {
+    const { order } = await setupOrder();
+    const payment = await payments.reconcilePayment({
+      provider: "SEPAY",
+      providerTransactionId: "TX-MANUAL-RACE",
+      paymentCode: "UNKNOWN-MANUAL-RACE",
+      amountMinorUnits: 100000n,
+      transferDirection: "IN",
+    });
+    const results = await Promise.allSettled(
+      ["admin-a", "admin-b"].map((actorId) =>
+        admin.resolve({
+          paymentId: payment.id,
+          billingOrderId: order.id,
+          expectedVersion: 0,
+          rationale: "Verified ownership before manual resolution",
+          actorId,
+          correlationId: `corr-${actorId}`,
+        }),
+      ),
+    );
+
+    expect(
+      results.filter((result) => result.status === "fulfilled"),
+    ).toHaveLength(1);
+    expect(
+      results.filter((result) => result.status === "rejected"),
+    ).toHaveLength(1);
+    expect(
+      await prisma.creditLedgerEntry.count({
+        where: { billingOrderId: order.id },
+      }),
+    ).toBe(1);
+  });
+
+  it("cannot resolve a payment into another user's order", async () => {
+    const { order } = await setupOrder();
+    const other = await setupOrder();
+    const payment = await payments.reconcilePayment({
+      provider: "SEPAY",
+      providerTransactionId: "TX-MANUAL-CROSS-ACCOUNT",
+      paymentCode: order.paymentCode,
+      amountMinorUnits: 90000n,
+      transferDirection: "IN",
+    });
+
+    await expect(
+      admin.resolve({
+        paymentId: payment.id,
+        billingOrderId: other.order.id,
+        expectedVersion: 0,
+        rationale: "Attempted cross-account reassignment",
+        actorId: "admin-unsafe",
+        correlationId: "corr-cross-account",
+      }),
+    ).rejects.toThrow("BILLING_RECONCILIATION_OWNERSHIP_CONFLICT");
+    expect(
+      await prisma.creditLedgerEntry.count({
+        where: { billingOrderId: order.id },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.creditLedgerEntry.count({
+        where: { billingOrderId: other.order.id },
+      }),
+    ).toBe(0);
   });
 });

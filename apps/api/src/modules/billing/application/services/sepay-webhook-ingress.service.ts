@@ -53,6 +53,7 @@ export class SePayWebhookIngressService {
     const safePayload = {
       providerTransactionId: normalized.providerTransactionId,
       paymentCode: normalized.paymentCode,
+      paymentCodes: normalized.paymentCodes,
       amountMinorUnits: normalized.amountMinorUnits.toString(),
       transferDirection: normalized.transferDirection,
       referenceCode: normalized.referenceCode,
@@ -148,10 +149,20 @@ function normalizePayload(payload: Record<string, unknown>) {
   )
     throw new SePayWebhookIngressError("PAYLOAD");
   const direction = payload.transferType;
+  const content = [payload.code, payload.referenceCode, payload.description]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+  const paymentCodes = [
+    ...(typeof payload.code === "string" ? [payload.code.trim()] : []),
+    ...[...content.matchAll(/\bLCSP[A-Za-z0-9_-]{4,}\b/g)].map(
+      (match) => match[0],
+    ),
+  ].filter(Boolean);
   return {
     providerTransactionId,
     paymentCode:
       typeof payload.code === "string" ? payload.code.trim() || null : null,
+    paymentCodes: [...new Set(paymentCodes)],
     amountMinorUnits: BigInt(String(amount)),
     transferDirection:
       direction === "in" ? "IN" : direction === "out" ? "OUT" : "UNKNOWN",

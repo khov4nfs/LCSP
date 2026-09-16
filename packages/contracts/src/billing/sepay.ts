@@ -35,11 +35,18 @@ export const BILLING_RECONCILIATION_ERROR_CODES = {
   staleTimestamp: "BILLING_WEBHOOK_TIMESTAMP_STALE",
   malformedBody: "BILLING_WEBHOOK_BODY_MALFORMED",
   invalidPayload: "BILLING_WEBHOOK_PAYLOAD_INVALID",
+  paymentNotFound: "BILLING_PAYMENT_NOT_FOUND",
+  rationaleRequired: "BILLING_RECONCILIATION_RATIONALE_REQUIRED",
+  staleDecision: "BILLING_RECONCILIATION_STALE_DECISION",
+  ownershipConflict: "BILLING_RECONCILIATION_OWNERSHIP_CONFLICT",
+  orderNotEligible: "BILLING_RECONCILIATION_ORDER_NOT_ELIGIBLE",
+  amountMismatch: "BILLING_RECONCILIATION_AMOUNT_MISMATCH",
 } as const;
 
 export type SePayNormalizedPayload = {
   providerTransactionId: string;
   paymentCode: string | null;
+  paymentCodes: string[];
   amountMinorUnits: bigint;
   transferDirection: "IN" | "OUT" | "UNKNOWN";
   referenceCode: string | null;
