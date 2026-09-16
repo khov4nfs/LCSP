@@ -42,8 +42,12 @@ export type PaymentRecord = {
   providerTransactionId: string;
   amountMinorUnits: bigint;
   reconciliationStatus: string;
+  reconciliationReason: string | null;
+  reconciliationVersion: number;
+  reconciledAt: Date | null;
   userId: string | null;
   billingOrderId: string | null;
+  webhookEventId: string | null;
 };
 export type UsageRecord = {
   id: string;
@@ -136,6 +140,8 @@ export interface BillingReservationPort {
 }
 export interface BillingOrderPort {
   findByPaymentCode(paymentCode: string): Promise<OrderRecord | null>;
+  findByPaymentCodes(paymentCodes: string[]): Promise<OrderRecord[]>;
+  findById(orderId: string): Promise<OrderRecord | null>;
   findByIdempotencyKey(
     userId: string,
     key: string,
@@ -157,11 +163,12 @@ export interface BillingOrderPort {
   }): Promise<OrderRecord>;
   transition(
     orderId: string,
-    from: "PENDING_PAYMENT" | "PENDING_RECONCILIATION",
+    from: "PENDING_PAYMENT" | "PENDING_RECONCILIATION" | "EXPIRED",
     to: "CREDITED" | "EXPIRED" | "CANCELLED" | "PENDING_RECONCILIATION",
   ): Promise<boolean>;
 }
 export interface PaymentTransactionPort {
+  findById(id: string): Promise<PaymentRecord | null>;
   findByProviderTransaction(
     provider: string,
     id: string,
@@ -174,12 +181,16 @@ export interface PaymentTransactionPort {
     billingOrderId?: string;
     webhookEventId?: string;
     reconciliationStatus: string;
+    reconciliationReason?: string;
+    reconciledAt?: Date;
   }): Promise<PaymentRecord>;
   setStatus(
     id: string,
     status: string,
     userId?: string,
     billingOrderId?: string,
+    reason?: string | null,
+    expectedVersion?: number,
   ): Promise<PaymentRecord>;
 }
 export interface WebhookEventPort {
@@ -193,11 +204,14 @@ export interface WebhookEventPort {
     provider: string;
     providerTransactionId: string;
     paymentCode: string | null;
+    paymentCodes: string[];
     amountMinorUnits: bigint;
     transferDirection: "IN" | "OUT" | "UNKNOWN";
     sanitizedPayload: unknown;
     securityAcceptedAt: Date | null;
+    processedAt: Date | null;
   } | null>;
+  markProcessed(id: string, processedAt: Date): Promise<boolean>;
 }
 export interface LlmUsagePort {
   findByInvocation(
