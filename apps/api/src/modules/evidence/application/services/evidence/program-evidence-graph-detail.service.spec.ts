@@ -1,3 +1,4 @@
+import { jest } from "@jest/globals";
 import { ProgramEvidenceGraphDetailService } from "./program-evidence-graph-detail.service.js";
 import type { ArtifactStorageService } from "../../../../../platform/storage/artifact-storage.service.js";
 
@@ -189,5 +190,184 @@ describe("ProgramEvidenceGraphDetailService", () => {
     expect(result.paths.nodes.length).toBeLessThanOrEqual(240);
     expect(result.paths.edges.length).toBeLessThanOrEqual(480);
     expect(result.paths.nodes[0]?.kind).toBe("AI_PROVIDER");
+  });
+
+  it("selects the same seed ordering as a full stable sort, including ties and non-ASCII ids", async () => {
+    const ids = ["é-1", "E-1", "a-10", "a-2", "Z-1", "ä-3", "b_1", "B-1"];
+    const nodes = Array.from({ length: 400 }, (_, index) => ({
+      node_id: `${ids[index % ids.length]}-${index}`,
+      node_type:
+        index % 5 === 0
+          ? "ai_model"
+          : index % 7 === 0
+            ? "HTTP_ROUTE"
+            : "FUNCTION",
+      label: `node-${index}`,
+    }));
+    const edges = Array.from({ length: 800 }, (_, index) => ({
+      edge_id: `edge-${index}`,
+      source_node_id: nodes[(index * 13) % nodes.length].node_id,
+      target_node_id: nodes[(index * 29 + 7) % nodes.length].node_id,
+      edge_type: "CALLS",
+    }));
+    const service = new ProgramEvidenceGraphDetailService({
+      readJsonArtifactReference: () => Promise.reject(new Error("missing")),
+    } as unknown as ArtifactStorageService);
+
+    const result = await service.project({
+      report: {
+        id: "report-rank",
+        assessmentId: "assessment-1",
+        scanJobId: "scan-1",
+        snapshotId: "snapshot-1",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        evidencePayload: { evidence_graph: { nodes, edges } },
+      },
+      snapshot: null,
+    });
+
+    const score = (kind: string) => {
+      const upper = kind.toUpperCase();
+      return upper.includes("AI_") || upper.includes("HTTP_ROUTE") ? 0 : 1;
+    };
+    const expectedSeeds = new Set(
+      [...nodes]
+        .sort(
+          (left, right) =>
+            score(left.node_type) - score(right.node_type) ||
+            left.node_id.localeCompare(right.node_id),
+        )
+        .slice(0, 24)
+        .map((node) => node.node_id),
+    );
+    const projectedIds = new Set(result.paths.nodes.map((node) => node.id));
+    for (const seed of expectedSeeds) {
+      expect(projectedIds.has(seed)).toBe(true);
+    }
+    expect(result.paths.nodes.length).toBeLessThanOrEqual(240);
+  });
+
+  it("keeps the first minimal provenance source like a stable sort", async () => {
+    const service = new ProgramEvidenceGraphDetailService({
+      readJsonArtifactReference: () => Promise.reject(new Error("missing")),
+    } as unknown as ArtifactStorageService);
+    const result = await service.project({
+      report: {
+        id: "report-source",
+        assessmentId: "assessment-1",
+        scanJobId: "scan-1",
+        snapshotId: "snapshot-1",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        evidencePayload: {
+          evidence_graph: {
+            nodes: [
+              {
+                node_id: "n1",
+                node_type: "FUNCTION",
+                source: { file_path: "src/b.ts", line_number: 1 },
+              },
+              {
+                node_id: "n2",
+                node_type: "FUNCTION",
+                source: {
+                  file_path: "src/a.ts",
+                  line_number: 9,
+                  symbol_ref: "z",
+                },
+                evidence_refs: ["first"],
+              },
+              {
+                node_id: "n3",
+                node_type: "FUNCTION",
+                source: {
+                  file_path: "src/a.ts",
+                  line_number: 9,
+                  symbol_ref: "z",
+                },
+                evidence_refs: ["second"],
+              },
+              {
+                node_id: "n4",
+                node_type: "FUNCTION",
+                source: { file_path: "<workspace>", line_number: 1 },
+              },
+            ],
+            edges: [],
+          },
+        },
+      },
+      snapshot: null,
+    });
+
+    expect(result.provenance.source).toEqual({
+      file: "src/a.ts",
+      symbol: "z",
+      start_line: 9,
+      end_line: 9,
+      evidence_reference: "first",
+    });
+  });
+
+  it("reuses an accepted report projection without reloading the payload or artifact", async () => {
+    const readJsonArtifactReference = jest.fn(() =>
+      Promise.resolve({
+        nodes: [{ node_id: "n1", node_type: "AI_PROVIDER", label: "provider" }],
+        edges: [],
+      }),
+    );
+    let mtimeMs = 1;
+    const statJsonArtifactReference = jest.fn(() =>
+      Promise.resolve({ size: 10, mtimeMs }),
+    );
+    const service = new ProgramEvidenceGraphDetailService({
+      readJsonArtifactReference,
+      statJsonArtifactReference,
+    } as unknown as ArtifactStorageService);
+    const loadEvidencePayload = jest.fn(() =>
+      Promise.resolve({
+        evidence_graph: {
+          evidence_graph_ref: "/app/deepagents/tmp/graph.json",
+        },
+      }),
+    );
+    const report = {
+      id: "report-cached",
+      assessmentId: "assessment-1",
+      scanJobId: "scan-1",
+      snapshotId: "snapshot-1",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    };
+
+    const first = await service.projectAcceptedReport({
+      report,
+      snapshot: null,
+      loadEvidencePayload,
+    });
+    first.paths.nodes[0].label = "mutated by a caller";
+    const second = await service.projectAcceptedReport({
+      report,
+      snapshot: {
+        repositoryFullName: "org/repo",
+        branch: "main",
+        ref: null,
+        commitSha: "abc",
+        status: "READY",
+      },
+      loadEvidencePayload,
+    });
+
+    expect(loadEvidencePayload).toHaveBeenCalledTimes(1);
+    expect(readJsonArtifactReference).toHaveBeenCalledTimes(1);
+    expect(second.paths.nodes[0].label).toBe("provider");
+    expect(second.repository.repository_full_name).toBe("org/repo");
+
+    mtimeMs = 2;
+    await service.projectAcceptedReport({
+      report,
+      snapshot: null,
+      loadEvidencePayload,
+    });
+    expect(loadEvidencePayload).toHaveBeenCalledTimes(2);
+    expect(readJsonArtifactReference).toHaveBeenCalledTimes(2);
   });
 });

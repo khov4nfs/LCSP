@@ -325,14 +325,14 @@ class EngineeringInvestigationPipeline:
                                 confidence=0.0,
                                 limitations=(
                                     ENGINEERING_LIMITATION_CODES[
-                                        "engineering_investigation_failed"
+                                        "engineering_investigation_runtime_error"
                                     ],
                                 ),
                             )
                         ]
                         limitations.append(
                             ENGINEERING_LIMITATION_CODES[
-                                "engineering_investigation_failed"
+                                "engineering_investigation_runtime_error"
                             ]
                         )
 

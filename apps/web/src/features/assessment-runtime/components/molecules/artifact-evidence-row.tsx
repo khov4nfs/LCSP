@@ -8,7 +8,10 @@ import {
   ARTIFACT_OPEN_KINDS,
   buildArtifactOpenTarget,
 } from "@/features/artifacts/utils/artifact-routes";
-import type { NormalizedAssessmentArtifactItem } from "../../../workspace/types/assessment-runtime-adapter.types";
+import {
+  ASSESSMENT_ARTIFACT_AVAILABILITIES,
+  type NormalizedAssessmentArtifactItem,
+} from "../../../workspace/types/assessment-runtime-adapter.types";
 
 export function ArtifactEvidenceRow({
   item,
@@ -22,6 +25,18 @@ export function ArtifactEvidenceRow({
 }) {
   const target = buildArtifactOpenTarget(item.ref);
   const label = resolveAppMessage(`pages.${item.labelKey}` as MessageKey);
+  const isTextArtifact =
+    item.ref.type === ARTIFACT_TYPES.businessContext ||
+    item.ref.type === ARTIFACT_TYPES.investigationNotes;
+  const canOpenWithViewer = Boolean(
+    onOpenArtifact &&
+      (item.ref.type === ARTIFACT_TYPES.programEvidenceGraph ||
+        (isTextArtifact &&
+          item.availability === ASSESSMENT_ARTIFACT_AVAILABILITIES.ready)),
+  );
+  const showOpenIndicator =
+    canOpenWithViewer ||
+    (!isTextArtifact && target.kind !== ARTIFACT_OPEN_KINDS.unsupported);
   const content = (
     <>
       <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
@@ -36,7 +51,7 @@ export function ArtifactEvidenceRow({
         ) : null}
       </span>
       <ArtifactStatusBadge status={item.status} />
-      {target.kind !== ARTIFACT_OPEN_KINDS.unsupported ? (
+      {showOpenIndicator ? (
         <ArrowUpRightIcon
           className="size-3.5 shrink-0 text-muted-foreground"
           aria-hidden="true"
@@ -44,7 +59,7 @@ export function ArtifactEvidenceRow({
       ) : null}
     </>
   );
-  if (item.ref.type === ARTIFACT_TYPES.programEvidenceGraph && onOpenArtifact)
+  if (canOpenWithViewer && onOpenArtifact)
     return (
       <button
         type="button"
@@ -55,6 +70,13 @@ export function ArtifactEvidenceRow({
         {content}
       </button>
     );
+  if (isTextArtifact) {
+    return (
+      <div className="flex min-w-0 items-center gap-2.5 rounded-lg border border-border/60 px-2.5 py-2.5 opacity-70">
+        {content}
+      </div>
+    );
+  }
   if (
     target.kind === ARTIFACT_OPEN_KINDS.internal ||
     target.kind === ARTIFACT_OPEN_KINDS.download

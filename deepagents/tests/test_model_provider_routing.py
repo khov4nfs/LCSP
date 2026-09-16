@@ -32,10 +32,15 @@ def test_provider_constructor_kwargs_are_isolated() -> None:
     assert provider_init_kwargs("openai") == openai_responses_base_init_kwargs()
     assert provider_init_kwargs("anthropic") == {}
     assert provider_init_kwargs("google_genai") == {}
+    assert provider_init_kwargs("llm7") == {
+        "base_url": "https://api.llm7.io/v1",
+        "use_responses_api": False,
+    }
 
     assert provider_client("openai") == "responses_api"
     assert provider_client("anthropic") == "anthropic"
     assert provider_client("googleai") == "google_genai"
+    assert provider_client("llm7") == "openai_compatible_chat_completions"
 
     openai_kwargs = provider_init_kwargs("openai")
     assert openai_kwargs == {
@@ -44,6 +49,9 @@ def test_provider_constructor_kwargs_are_isolated() -> None:
     }
     assert "use_responses_api" not in provider_init_kwargs("anthropic")
     assert "reasoning" not in provider_init_kwargs("google_genai")
+    assert provider_init_kwargs("llm7")["use_responses_api"] is False
+    assert "output_version" not in provider_init_kwargs("llm7")
+    assert "reasoning" not in provider_init_kwargs("llm7")
 
 
 def test_agent_constructor_kwargs_gate_reasoning_by_agent_and_model() -> None:

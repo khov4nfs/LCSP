@@ -92,6 +92,15 @@ NEED_ID = "need-lcsp-278-approval-authority"
 BLOCKED_NEED_ID = "need-lcsp-278-blocked-approval-authority"
 
 
+# Initial CONTEXT_READY must resolve the minimum planning context in one confirmed answer.
+INITIAL_SYSTEM_PURPOSE = (
+    "AI-assisted recommendation: the AI model drafts recommendations in the customer "
+    "onboarding workflow; a human reviewer approves every action before any status "
+    "update; affected subjects are customers; data sources are customer profile "
+    "records and repository code."
+)
+
+
 def _confirmed_context(
     assessment_id: str,
     topic: str,
@@ -289,7 +298,7 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
                 "confirmedContext": _confirmed_context(
                     ASSESSMENT_ID,
                     "system_purpose",
-                    "AI-assisted recommendation",
+                    INITIAL_SYSTEM_PURPOSE,
                     revision=1,
                 ),
                 "flags": [],
@@ -304,7 +313,7 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
                 "confirmedContext": _confirmed_context(
                     ASSESSMENT_ID,
                     "system_purpose",
-                    "AI-assisted recommendation",
+                    INITIAL_SYSTEM_PURPOSE,
                     revision=1,
                 ),
                 "flags": [],
@@ -319,7 +328,7 @@ def test_release_gate_crosses_real_api_outbox_checkpoint_and_callback(
                 "confirmedContext": _confirmed_context(
                     ASSESSMENT_ID,
                     "system_purpose",
-                    "AI-assisted recommendation",
+                    INITIAL_SYSTEM_PURPOSE,
                     revision=2,
                 ),
                 "flags": [],
@@ -598,7 +607,7 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
                 "confirmedContext": _confirmed_context(
                     BLOCKED_ASSESSMENT_ID,
                     "system_purpose",
-                    "AI-assisted recommendation",
+                    INITIAL_SYSTEM_PURPOSE,
                     revision=1,
                 ),
                 "flags": [],
@@ -613,7 +622,7 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
                 "confirmedContext": _confirmed_context(
                     BLOCKED_ASSESSMENT_ID,
                     "system_purpose",
-                    "AI-assisted recommendation",
+                    INITIAL_SYSTEM_PURPOSE,
                     revision=1,
                 ),
                 "flags": [],
@@ -628,7 +637,7 @@ def test_release_gate_blocks_unresolved_targeted_context_without_resume(
                 "confirmedContext": _confirmed_context(
                     BLOCKED_ASSESSMENT_ID,
                     "system_purpose",
-                    "AI-assisted recommendation",
+                    INITIAL_SYSTEM_PURPOSE,
                     revision=2,
                 ),
                 "flags": [],

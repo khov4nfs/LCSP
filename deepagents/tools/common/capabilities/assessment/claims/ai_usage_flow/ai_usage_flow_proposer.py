@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from orchestration.agent_stream import invoke_with_stream
+
 from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -195,7 +197,7 @@ class AIUsageFlowModelAssistedProposer:
                 system_prompt="Propose bounded AIUsageFlow summary fields only. Use governed read tools only when necessary.",
                 response_format=_summary_proposal_response_schema(), middleware=middleware,
             )
-            return agent.invoke(
+            return invoke_with_stream(agent,
                 {"messages": [{"role": "user", "content": prompt}]},
                 config={"metadata": {"workflow_run_id": workflow_run_id, "node_name": node_name, "correlationId": correlationId}, "configurable": {"thread_id": workflow_run_id}},
             )

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from orchestration.agent_stream import invoke_with_stream
+
 import json
 from typing import Any
 
@@ -332,7 +334,7 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
             from agent import agent
 
             root = agent
-        root.invoke(
+        invoke_with_stream(root,
             {
                 "messages": [
                     {

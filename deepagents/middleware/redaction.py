@@ -55,7 +55,9 @@ FIELD_NAME_SEGMENT_PATTERN = re.compile(
 GITHUB_TOKEN_PATTERN = re.compile(r"ghp_[A-Za-z0-9]{36}")
 BEARER_TOKEN_PATTERN = re.compile(r"\bBearer\s+[A-Za-z0-9._-]+")
 GENERIC_ASSIGNMENT_PATTERN = re.compile(
-    r"\b(?P<key>api_key|key|token|secret|password|credential|auth)"
+    r"(?P<key_quote>['\"]?)"
+    r"(?P<key>\b(?:api_key|key|token|secret|password|credential|auth)\b)"
+    r"(?P=key_quote)"
     r"(?P<sep>\s*[:=]\s*)"
     r"(?P<quote>['\"]?)"
     r"(?P<value>[A-Za-z0-9._~+/=-]{12,})"
@@ -217,7 +219,12 @@ def _redact_value(
 
 def _redact_assignment(match: re.Match[str]) -> str:
     """Render a matched secret assignment while removing its value."""
-    return f"{match.group('key')}{match.group('sep')}"
+    key_quote = match.group("key_quote")
+    value_quote = match.group("quote")
+    return (
+        f"{key_quote}{match.group('key')}{key_quote}{match.group('sep')}"
+        f"{value_quote}{value_quote}"
+    )
 
 
 def _contains_source_code(value: Any) -> bool:

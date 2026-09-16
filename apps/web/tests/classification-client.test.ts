@@ -3,6 +3,9 @@ import { test } from "node:test";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 
 import {
+  CLASSIFICATION_ASSESSMENT_OUTCOMES,
+  CLASSIFICATION_EVIDENCE_QUALITIES,
+  CLASSIFICATION_EXECUTION_STATES,
   getClassificationActionVisibility,
   sanitizeAssessmentDetailPayload,
   toClassificationStatusOutcome,
@@ -84,6 +87,14 @@ const directResult = {
     },
   ],
   limitations: [],
+  observability: {
+    provenance: {
+      claim_count: 2,
+      claims_with_evidence: 2,
+      evaluations_with_evidence: 2,
+      evaluations_with_displayable_technical_evidence: 2,
+    },
+  },
   technical_evidence_report_id: "report-1",
   snapshot_id: "snapshot-1",
 };
@@ -120,6 +131,15 @@ test("direct EngineeringRule result exposes readable evidence and legal provisio
   assert.equal(result.kind, "loaded");
   if (result.kind === "loaded") {
     assert.equal(result.data.state, "passed");
+    assert.equal(result.data.executionState, CLASSIFICATION_EXECUTION_STATES.completed);
+    assert.equal(
+      result.data.assessmentOutcome,
+      CLASSIFICATION_ASSESSMENT_OUTCOMES.nonCompliant,
+    );
+    assert.equal(
+      result.data.evidenceQuality,
+      CLASSIFICATION_EVIDENCE_QUALITIES.evidenceBacked,
+    );
     assert.equal(result.data.hasClassification, true);
     assert.equal(result.data.engineeringSummary?.compliant, 1);
     assert.equal(result.data.engineeringSummary?.nonCompliant, 1);
@@ -184,9 +204,96 @@ test("unknown EngineeringRule outcomes remain guardrail-passed when runtime comp
   assert.equal(result.kind, "loaded");
   if (result.kind === "loaded") {
     assert.equal(result.data.state, "passed");
+    assert.equal(result.data.executionState, CLASSIFICATION_EXECUTION_STATES.completed);
+    assert.equal(
+      result.data.assessmentOutcome,
+      CLASSIFICATION_ASSESSMENT_OUTCOMES.unknown,
+    );
+    assert.notEqual(
+      result.data.assessmentOutcome,
+      CLASSIFICATION_ASSESSMENT_OUTCOMES.compliant,
+    );
     assert.equal(result.data.evaluations[0]?.status, "UNKNOWN");
     assert.equal(getClassificationActionVisibility(result.data).showFinalReport, true);
     assert.equal(getClassificationActionVisibility(result.data).showGapAnalysis, true);
+  }
+});
+
+test("all compliant evaluations map to a compliant assessment outcome", () => {
+  const result = toClassificationStatusOutcome(
+    {
+      readiness_state: { classification_locked: false },
+      guardrail_status: "passed",
+      classification_result: {
+        ...directResult,
+        engineering_summary: {
+          compliant: 2,
+          non_compliant: 0,
+          unknown: 0,
+          total: 2,
+        },
+        evaluations: directResult.evaluations.map((evaluation) => ({
+          ...evaluation,
+          status: "COMPLIANT",
+        })),
+      },
+    },
+    true,
+    200,
+  );
+
+  assert.equal(result.kind, "loaded");
+  if (result.kind === "loaded") {
+    assert.equal(
+      result.data.assessmentOutcome,
+      CLASSIFICATION_ASSESSMENT_OUTCOMES.compliant,
+    );
+    assert.equal(
+      result.data.evidenceQuality,
+      CLASSIFICATION_EVIDENCE_QUALITIES.evidenceBacked,
+    );
+  }
+});
+
+test("completed classification with zero evidence-backed claims is Unknown with no validated evidence", () => {
+  const result = toClassificationStatusOutcome(
+    {
+      readiness_state: { classification_locked: false },
+      guardrail_status: "passed",
+      classification_result: {
+        ...directResult,
+        engineering_summary: {
+          compliant: 0,
+          non_compliant: 0,
+          unknown: 0,
+          total: 0,
+        },
+        evaluations: [],
+        observability: {
+          provenance: {
+            claim_count: 0,
+            claims_with_evidence: 0,
+            evaluations_with_evidence: 0,
+            evaluations_with_displayable_technical_evidence: 0,
+          },
+        },
+      },
+    },
+    true,
+    200,
+  );
+
+  assert.equal(result.kind, "loaded");
+  if (result.kind === "loaded") {
+    assert.equal(result.data.executionState, CLASSIFICATION_EXECUTION_STATES.completed);
+    assert.equal(
+      result.data.assessmentOutcome,
+      CLASSIFICATION_ASSESSMENT_OUTCOMES.unknown,
+    );
+    assert.equal(
+      result.data.evidenceQuality,
+      CLASSIFICATION_EVIDENCE_QUALITIES.noValidatedEvidence,
+    );
   }
 });
 
@@ -209,6 +316,41 @@ test("degraded state remains reserved for partial runtime execution", () => {
   if (result.kind === "loaded") assert.equal(result.data.state, "degraded");
 });
 
+test("blocked guardrail is a blocked execution state, not a compliance outcome", () => {
+  const result = toClassificationStatusOutcome(
+    {
+      readiness_state: { classification_locked: false },
+      guardrail_status: "blocked",
+      classification_result: {
+        ...directResult,
+        engineering_summary: {
+          compliant: 0,
+          non_compliant: 0,
+          unknown: 1,
+          total: 1,
+        },
+        evaluations: [
+          {
+            ...directResult.evaluations[0],
+            status: "UNKNOWN",
+          },
+        ],
+      },
+    },
+    true,
+    200,
+  );
+
+  assert.equal(result.kind, "loaded");
+  if (result.kind === "loaded") {
+    assert.equal(result.data.executionState, CLASSIFICATION_EXECUTION_STATES.blocked);
+    assert.equal(
+      result.data.assessmentOutcome,
+      CLASSIFICATION_ASSESSMENT_OUTCOMES.unknown,
+    );
+  }
+});
+
 test("processing is returned after evidence acceptance while worker is still running", () => {
   const result = toClassificationStatusOutcome(
     {
@@ -223,6 +365,9 @@ test("processing is returned after evidence acceptance while worker is still run
   assert.equal(result.kind, "loaded");
   if (result.kind === "loaded") {
     assert.equal(result.data.state, "processing");
+    assert.equal(result.data.executionState, CLASSIFICATION_EXECUTION_STATES.running);
+    assert.equal(result.data.assessmentOutcome, null);
+    assert.equal(result.data.evidenceQuality, null);
     assert.equal(result.data.hasClassification, false);
   }
 });

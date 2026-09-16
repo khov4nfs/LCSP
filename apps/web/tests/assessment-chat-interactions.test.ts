@@ -10,12 +10,15 @@ import type { Root } from "react-dom/client";
 import {
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
+  ASSESSMENT_RUNTIME_PLAN_REASON_CODES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
   ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS,
   ASSESSMENT_INTERVIEW_CONTROLS,
   ASSESSMENT_INTERVIEW_QUESTION_INTENTS,
 } from "@lcsp/contracts/evidence";
 import type { WorkspaceRuntimeActivityItem } from "../src/features/workspace/types/workspace-runtime.types";
+import { projectRuntimeThinking } from "../src/features/workspace/utils/runtime-thinking-projection";
+import { setAppLocale } from "../src/lib/locale";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "http://localhost/",
@@ -346,10 +349,12 @@ test("assessment composer keeps five visible rows before showing resize", async 
   assert.ok(container.querySelector("button[aria-expanded]"));
 });
 
-test("runtime thinking activity resolves keyed summary without exposing raw payload", async () => {
-  const activity: WorkspaceRuntimeActivityItem = {
+function thinkingEvent(
+  overrides: Partial<WorkspaceRuntimeActivityItem>,
+): WorkspaceRuntimeActivityItem {
+  return {
     eventId: "evt-runtime-thinking",
-    sequence: 7,
+    sequence: 1,
     emittedAt: "2026-09-11T12:00:13.000Z",
     assessmentId: "asm-runtime-thinking",
     runId: "scan-runtime-thinking",
@@ -376,106 +381,106 @@ test("runtime thinking activity resolves keyed summary without exposing raw payl
     durationMs: 42,
     attempt: 1,
     waitingReason: null,
+    ...overrides,
   };
+}
+
+test("runtime thinking renders aggregated planner progress without rule ids or payloads", async () => {
+  const [item] = projectRuntimeThinking([
+    thinkingEvent({
+      eventId: "evt-skip",
+      sequence: 2,
+      eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped,
+      toolName: "engineering_rule_plan:eng-2",
+    }),
+    thinkingEvent({}),
+  ]);
+  assert.ok(item);
 
   const { container } = await renderElement(
-    React.createElement(RuntimeThinkingActivity, { activity }),
+    React.createElement(RuntimeThinkingActivity, { item }),
   );
 
-  assert.match(container.textContent ?? "", /Tiến độ Planner/);
-  assert.match(
-    container.textContent ?? "",
-    /Planner ghi nhận SELECT cho EngineeringRule eng-1/,
-  );
-  assert.doesNotMatch(
-    container.textContent ?? "",
-    new RegExp(ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision),
-  );
-  assert.doesNotMatch(container.textContent ?? "", /hiddenPrompt/);
-  assert.doesNotMatch(container.textContent ?? "", /hiddenRationale/);
+  const text = container.textContent ?? "";
+  assert.match(text, /Tiến độ Planner/);
+  assert.match(text, /Yêu cầu được chọn để điều tra: 1\/2/);
+  for (const hidden of [
+    "eng-1",
+    "eng-2",
+    "EngineeringRule",
+    "SOURCE_SCOPE_MATCH",
+    "SELECT",
+    ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision,
+    "hiddenPrompt",
+    "hiddenRationale",
+  ]) {
+    assert.ok(!text.includes(hidden), `leaked ${hidden}`);
+  }
   assert.equal(
-    container.querySelector("[data-runtime-event-id]")?.getAttribute("data-runtime-event-id"),
-    "evt-runtime-thinking",
+    container.querySelector("[data-runtime-thinking-id]")?.getAttribute("data-runtime-thinking-id"),
+    "planner:evt-skip",
   );
 });
 
-
-
-test("runtime thinking activity resolves summary key when output message key is absent", async () => {
-  const activity: WorkspaceRuntimeActivityItem = {
-    eventId: "evt-runtime-thinking-summary-key",
-    sequence: 9,
-    emittedAt: "2026-09-11T12:00:15.000Z",
-    assessmentId: "asm-runtime-thinking",
-    runId: "scan-runtime-thinking",
-    correlationId: "corr-runtime-thinking",
-    eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
-    runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
-    stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-    toolName: "engineering_rule_plan:eng-1",
-    summary: ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision,
-    inputSummary: null,
-    outputSummary: {
-      messageKey: "",
-      messageParams: {
-        decision: "SELECT",
-        engineeringRuleId: "eng-1",
-        reasonCode: "SOURCE_SCOPE_MATCH",
+test("runtime thinking for a targeted resume aggregates skipped requirements instead of dumping SKIP events", async () => {
+  const events = Array.from({ length: 41 }, (_, index) =>
+    thinkingEvent({
+      eventId: `evt-plan-${index}`,
+      sequence: index + 1,
+      toolName: `engineering_rule_plan:eng-${index + 1}`,
+      eventType:
+        index === 0
+          ? ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted
+          : ASSESSMENT_RUNTIME_EVENT_TYPES.toolSkipped,
+      outputSummary: {
+        messageKey:
+          ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision,
+        messageParams: {
+          decision: index === 0 ? "SELECT" : "SKIP",
+          engineeringRuleId: `eng-${index + 1}`,
+          reasonCode: ASSESSMENT_RUNTIME_PLAN_REASON_CODES.targetedExactResumePin,
+        },
+        reasonCode: ASSESSMENT_RUNTIME_PLAN_REASON_CODES.targetedExactResumePin,
       },
-    },
-    errorSummary: null,
-    startedAt: null,
-    completedAt: "2026-09-11T12:00:15.000Z",
-    durationMs: 42,
-    attempt: 1,
-    waitingReason: null,
-  };
+    }),
+  ).reverse();
+  const items = projectRuntimeThinking(events);
+  assert.equal(items.length, 1);
 
   const { container } = await renderElement(
-    React.createElement(RuntimeThinkingActivity, { activity }),
+    React.createElement(RuntimeThinkingActivity, { item: items[0]! }),
   );
 
-  assert.match(container.textContent ?? "", /Tiến độ Planner/);
+  const text = container.textContent ?? "";
   assert.match(
-    container.textContent ?? "",
-    /Planner ghi nhận SELECT cho EngineeringRule eng-1/,
+    text,
+    /Yêu cầu được đánh giá lại theo câu trả lời mới: 1\. Yêu cầu không liên quan được bỏ qua: 40\./,
   );
-  assert.doesNotMatch(
-    container.textContent ?? "",
-    new RegExp(ASSESSMENT_RUNTIME_SUMMARY_MESSAGE_KEYS.engineeringRulePlannerDecision),
-  );
+  assert.ok(!text.includes("TARGETED_EXACT_RESUME_PIN"));
+  assert.ok(!text.includes("SKIP"));
 });
 
-test("runtime thinking activity falls back to legacy raw summary", async () => {
-  const legacySummary = "Planner SELECT EngineeringRule eng-1 (SOURCE_SCOPE_MATCH)";
-  const activity: WorkspaceRuntimeActivityItem = {
-    eventId: "evt-runtime-thinking-legacy",
-    sequence: 8,
-    emittedAt: "2026-09-11T12:00:14.000Z",
-    assessmentId: "asm-runtime-thinking",
-    runId: "scan-runtime-thinking",
-    correlationId: "corr-runtime-thinking",
-    eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolCompleted,
-    runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
-    stage: ASSESSMENT_RUNTIME_STAGE_CODES.technicalEvidence,
-    toolName: "engineering_rule_plan:eng-1",
-    summary: legacySummary,
-    inputSummary: null,
-    outputSummary: null,
-    errorSummary: null,
-    startedAt: null,
-    completedAt: "2026-09-11T12:00:14.000Z",
-    durationMs: 42,
-    attempt: 1,
-    waitingReason: null,
-  };
+test("runtime thinking never renders legacy raw internal summaries", async () => {
+  const legacySummary =
+    "TARGETED_EXACT_RESUME_PIN CUSTOMER_CONFIRMED INVESTIGATOR_RESOLUTION resolutionCriteria CONTEXT_RESOLVED";
+  const items = projectRuntimeThinking([
+    thinkingEvent({
+      toolName: "engineering_rule_investigation:eng-1",
+      summary: legacySummary,
+      outputSummary: null,
+    }),
+  ]);
+  assert.equal(items.length, 1);
 
   const { container } = await renderElement(
-    React.createElement(RuntimeThinkingActivity, { activity }),
+    React.createElement(RuntimeThinkingActivity, { item: items[0]! }),
   );
 
-  assert.match(container.textContent ?? "", /Tiến độ Planner/);
-  assert.match(container.textContent ?? "", /Planner SELECT EngineeringRule eng-1/);
+  const text = container.textContent ?? "";
+  assert.match(text, /Tiến độ Investigator/);
+  for (const internal of legacySummary.split(" ")) {
+    assert.ok(!text.includes(internal), `leaked ${internal}`);
+  }
 });
 
 
@@ -804,6 +809,10 @@ for (const control of [
         options.map((option) => option.getAttribute("aria-checked")),
         ["true", "false"],
       );
+      assert.equal(
+        container.querySelector("time")?.getAttribute("datetime"),
+        "2026-09-09T00:00:00Z",
+      );
       assert.ok(!container.textContent?.includes("Generic count summary"));
       if (comment) {
         assert.ok(container.textContent?.includes(comment));
@@ -811,3 +820,93 @@ for (const control of [
     });
   }
 }
+
+test("confirmed interpretation history renders as an agent acknowledgement with timestamp", async () => {
+  const answeredAt = "2026-09-14T08:14:05.968Z";
+  const { container } = await renderElement(
+    React.createElement(InterviewAnswerHistory, {
+      answer: {
+        questionId: "q-confirm",
+        answeredAt,
+        summary: "Customer confirmed prior material context.",
+        question: {
+          id: "q-confirm",
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.clarify,
+          control: ASSESSMENT_INTERVIEW_CONTROLS.confirmAdjust,
+          prompt: "Please confirm this interpretation.",
+        },
+      },
+    }),
+  );
+
+  const turns = Array.from(
+    container.querySelectorAll<HTMLElement>('[data-slot="agent-turn"]'),
+  );
+  const acknowledgementTurn = turns.find((turn) =>
+    turn.textContent?.includes("Customer confirmed prior material context."),
+  );
+  assert.ok(acknowledgementTurn);
+  assert.equal(acknowledgementTurn.dataset.role, "agent");
+  assert.equal(
+    acknowledgementTurn.querySelector("time")?.getAttribute("datetime"),
+    answeredAt,
+  );
+});
+
+test("historical free-text questions render as agent turns with timestamp", async () => {
+  const answeredAt = "2026-09-14T08:12:31.000Z";
+  const { container } = await renderElement(
+    React.createElement(InterviewAnswerHistory, {
+      answer: {
+        questionId: "q-free-text",
+        answeredAt,
+        questionPrompt: "How is operational review performed?",
+        summary: "Human compliance reviewers check every report.",
+      },
+    }),
+  );
+
+  const turns = Array.from(
+    container.querySelectorAll<HTMLElement>('[data-slot="agent-turn"]'),
+  );
+  const questionTurn = turns.find((turn) =>
+    turn.textContent?.includes("How is operational review performed?"),
+  );
+  assert.ok(questionTurn);
+  assert.equal(questionTurn.dataset.role, "agent");
+  assert.equal(
+    questionTurn.querySelector("time")?.getAttribute("datetime"),
+    answeredAt,
+  );
+});
+
+test("turn timestamps render through the active locale instead of raw ISO", async () => {
+  const answeredAt = "2026-09-14T08:13:57.315Z";
+  for (const locale of ["vi", "en"] as const) {
+    setAppLocale(locale);
+    const { container } = await renderElement(
+      React.createElement(InterviewAnswerHistory, {
+        answer: {
+          questionId: `q-locale-${locale}`,
+          answeredAt,
+          questionPrompt: "When was this turn created?",
+          summary: "Locale timestamp check.",
+        },
+      }),
+    );
+
+    const time = container.querySelector("time");
+    assert.equal(time?.getAttribute("datetime"), answeredAt);
+    assert.equal(
+      time?.textContent,
+      new Intl.DateTimeFormat(locale, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(answeredAt)),
+    );
+    assert.notEqual(time?.textContent, answeredAt);
+    assert.ok(!time?.textContent?.includes("T"));
+    assert.ok(!time?.textContent?.includes("Z"));
+  }
+  setAppLocale("vi");
+});

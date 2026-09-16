@@ -1,5 +1,6 @@
 """Narrate an already-computed classification decision without changing it."""
 
+from orchestration.agent_stream import invoke_with_stream
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
 from model_policy import NARRATOR_MODEL_SPEC, create_lcsp_agent as create_agent
 
@@ -68,7 +69,7 @@ class RationaleNarrator:
                 ),
                 middleware=MODEL_GOVERNANCE_MIDDLEWARE,
             )
-            result = agent.invoke(
+            result = invoke_with_stream(agent,
                 {"messages": [{"role": "user", "content": prompt}]},
                 config={
                     "metadata": {

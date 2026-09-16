@@ -8,6 +8,8 @@ create agent-specific orchestrators.
 
 from __future__ import annotations
 
+from orchestration.agent_stream import invoke_with_stream, publish_agent_stream_event
+
 from collections.abc import Callable
 from typing import Any
 
@@ -60,6 +62,16 @@ class RootSubagentDispatcher:
         reenter_root: bool = True,
     ) -> dict[str, Any]:
         """Run one specialist while Root Orchestration owns lifecycle transitions."""
+        publish_agent_stream_event(
+            "SUBAGENT_SELECTED",
+            subagent_name=subagent_type,
+            status="RUNNING",
+            data={
+                "trigger": trigger,
+                "affected_rule_ids": affected_rule_ids or [],
+                "reenter_root": reenter_root,
+            },
+        )
         if reenter_root:
             return self._dispatch_via_root(
                 subagent_type=subagent_type,
@@ -137,7 +149,7 @@ class RootSubagentDispatcher:
             config["configurable"] = {"thread_id": thread_id}
 
         try:
-            invocation_result = specialist.invoke(
+            invocation_result = invoke_with_stream(specialist,
                 {"messages": [{"role": "user", "content": prompt}]},
                 config=config,
                 context=context,
@@ -222,7 +234,7 @@ class RootSubagentDispatcher:
             f"Target specialist: {subagent_type}\n\n"
             f"{instruction.strip()}"
         )
-        result = root.invoke(
+        result = invoke_with_stream(root,
             {"messages": [{"role": "user", "content": prompt}]},
             config=config,
             context=context,

@@ -147,3 +147,44 @@ def test_non_investigator_or_ready_handoff_does_not_register_target() -> None:
         metadata={"api_client": api},
     )
     assert api.calls == []
+
+
+def test_investigator_needs_input_rejects_internal_orchestration_tokens() -> None:
+    api = RecordingApi()
+    context = LCSPRunContext(
+        assessment_id="assessment-1",
+        user_id="user-1",
+        workflow_run_id="workflow-1",
+        checkpoint_id="checkpoint-7",
+        engineering_rule_ids=("ENG-1",),
+        artifact_versions={
+            "technicalEvidenceReportId": "ter-1",
+            "repositorySnapshotId": "snapshot-1",
+            "legalRuleCatalogVersionId": "catalog-1",
+            "legalCorpusVersionId": "corpus-1",
+        },
+    )
+
+    with pytest.raises(RuntimeError, match="must not expose internal"):
+        _persist_targeted_interview_need(
+            subagent_type="investigator",
+            payload={
+                "status": "NEEDS_INPUT",
+                "business_context_need": {
+                    "need_id": "need-1",
+                    "business_context_need": (
+                        "Confirm the business context with CUSTOMER_CONFIRMED authority "
+                        "so the flow can proceed to CONTEXT_READY."
+                    ),
+                    "resolution_criteria": [
+                        "customer confirms resolutionCriteria are satisfied"
+                    ],
+                },
+                "artifact_versions": dict(context.artifact_versions),
+            },
+            context=context,
+            metadata={"api_client": api},
+            execution_id="task-call-investigator-18",
+        )
+
+    assert api.calls == []

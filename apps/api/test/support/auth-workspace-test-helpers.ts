@@ -455,6 +455,7 @@ export async function resetAuthWorkspaceDatabase(
   await prisma.classificationResult.deleteMany();
   await prisma.legalRuleMatch.deleteMany();
   await prisma.assessment.deleteMany();
+  await prisma.outboxMessage.deleteMany();
   await prisma.auditEvent.deleteMany();
   await prisma.auditExportRequest.deleteMany();
   await prisma.authRecord.deleteMany();

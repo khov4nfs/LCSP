@@ -399,3 +399,75 @@ def test_boundary_forwards_scan_job_id_so_pipeline_can_stream_runtime_activity()
     )
 
     assert pipeline.run.call_args.kwargs["scan_job_id"] == "scan-1"
+
+
+def _empty_complete_result() -> MagicMock:
+    result = MagicMock()
+    result.status = "COMPLETE"
+    result.to_assessment_data.return_value = {
+        "mode": "ENGINEERING_RULE_EVALUATION",
+        "status": "COMPLETE",
+        "summary": {"compliant": 0, "non_compliant": 0, "unknown": 0, "total": 0},
+        "evaluations": [],
+        "claims": [],
+        "limitations": [],
+    }
+    return result
+
+
+def test_exact_resume_gate_continuation_does_not_refetch_the_pinned_snapshot() -> None:
+    from tools.common.capabilities.assessment.investigation.engineering_rule.managed_targeted_investigator import (
+        ResumedManagedInvestigatorPipeline,
+    )
+
+    assert ResumedManagedInvestigatorPipeline.requires_code_workspace is False
+    api_client = _api_client()
+    pipeline = MagicMock()
+    pipeline.requires_code_workspace = False
+    pipeline.run.return_value = _empty_complete_result()
+    snapshot_client = MagicMock()
+    code_workspace = MagicMock()
+
+    EngineeringAssessmentBoundary(
+        _config(),
+        api_client=api_client,
+        investigation_pipeline=pipeline,
+        snapshot_client=snapshot_client,
+        code_workspace=code_workspace,
+        triage_trigger_publisher=MagicMock(),
+    ).handle({"evidenceReportId": "ter-1", "workflowRunId": "scan-1"}, "corr-1")
+
+    snapshot_client.download_snapshot_archive.assert_not_called()
+    code_workspace.materialize.assert_not_called()
+    code_workspace.cleanup.assert_not_called()
+    assert pipeline.run.call_args.kwargs["workspace_path"] is None
+
+
+def test_investigation_run_still_materializes_the_pinned_snapshot_once(tmp_path) -> None:
+    api_client = _api_client()
+    pipeline = MagicMock()
+    pipeline.run.return_value = _empty_complete_result()
+    snapshot_client = MagicMock()
+    snapshot_client.download_snapshot_archive.return_value = b"archive"
+    code_workspace = MagicMock()
+    code_workspace.materialize.return_value = SimpleNamespace(
+        workspace_path=tmp_path,
+        extracted_files=1,
+        skipped_files=0,
+        coverage_limited=False,
+    )
+
+    EngineeringAssessmentBoundary(
+        _config(),
+        api_client=api_client,
+        investigation_pipeline=pipeline,
+        snapshot_client=snapshot_client,
+        code_workspace=code_workspace,
+        triage_trigger_publisher=MagicMock(),
+    ).handle({"evidenceReportId": "ter-1", "workflowRunId": "scan-1"}, "corr-1")
+
+    snapshot_client.download_snapshot_archive.assert_called_once()
+    request = snapshot_client.download_snapshot_archive.call_args.args[0]
+    assert (request.snapshot_id, request.scan_job_id) == ("snapshot-1", "scan-1")
+    assert pipeline.run.call_args.kwargs["workspace_path"] == tmp_path
+    code_workspace.cleanup.assert_called_once_with("investigation-corr-1")

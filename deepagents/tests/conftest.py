@@ -11,12 +11,22 @@ from pathlib import Path
 from typing import Generator
 
 import pytest
+from dotenv import dotenv_values, find_dotenv
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 ROOT_PATH = str(ROOT_DIR)
 if ROOT_PATH not in sys.path:
     sys.path.insert(0, ROOT_PATH)
+
+_SESSION_DOTENV_PATH = find_dotenv(usecwd=True)
+_SESSION_DOTENV_KEYS = frozenset(
+    dotenv_values(_SESSION_DOTENV_PATH).keys()
+    if _SESSION_DOTENV_PATH
+    else ()
+)
+for _dotenv_key in _SESSION_DOTENV_KEYS:
+    os.environ.pop(_dotenv_key, None)
 
 
 # Test bridge for historical tests that load legal utilities by physical file
@@ -69,8 +79,35 @@ importlib.util.spec_from_file_location = _spec_from_file_location
 
 
 @pytest.fixture(autouse=True)
+def isolated_process_environment() -> Generator[None, None, None]:
+    """Keep repository ``.env`` values out of the unit-test process.
+
+    Runtime helpers intentionally load the repository ``.env`` with
+    ``override=False``. Full-suite collection can invoke those helpers before any
+    autouse fixture starts, which would otherwise make a developer's provider,
+    credentials, or runtime config become ambient test state.
+
+    Repository ``.env`` keys are removed as soon as this conftest loads and again
+    before/after every test. Tests that need runtime configuration must declare it
+    explicitly with ``monkeypatch`` or a fixture. Pytest/plugin-owned environment
+    variables are left untouched.
+    """
+    _clear_dotenv_environment()
+    try:
+        yield
+    finally:
+        _clear_dotenv_environment()
+
+
+def _clear_dotenv_environment() -> None:
+    for key in _SESSION_DOTENV_KEYS:
+        os.environ.pop(key, None)
+
+
+@pytest.fixture(autouse=True)
 def isolated_legal_storage_root(
     tmp_path_factory: pytest.TempPathFactory,
+    isolated_process_environment: None,
 ) -> Generator[None, None, None]:
     """Keep recovery artifacts and singleton locks out of the real .corpus root.
 
@@ -139,7 +176,7 @@ def sample_ts_repo(workspace_dir: Path) -> Path:
 @pytest.fixture
 def no_secrets_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure tests run without real API keys in environment."""
-    for key in ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GITHUB_TOKEN"]:
+    for key in ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "LLM7_API_KEY", "GITHUB_TOKEN"]:
         monkeypatch.delenv(key, raising=False)
 
 

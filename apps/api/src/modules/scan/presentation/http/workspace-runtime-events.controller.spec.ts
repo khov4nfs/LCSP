@@ -1,8 +1,20 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { firstValueFrom } from "rxjs";
+import { Subject, firstValueFrom } from "rxjs";
+
+import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import type { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import { WorkspaceRuntimeEventsController } from "./workspace-runtime-events.controller.js";
+
+const customerRequest = {
+  rbacContext: {
+    userId: "user-1",
+    sessionId: "session-1",
+    role: AUTH_USER_ROLES.customer,
+    scope: "workspace/runtime-events",
+  },
+  correlationId: "corr-user-1",
+} as never;
 
 describe("WorkspaceRuntimeEventsController", () => {
   afterEach(() => {
@@ -11,7 +23,7 @@ describe("WorkspaceRuntimeEventsController", () => {
 
   it("publishes workspace runtime metadata", async () => {
     const buildWorkspaceSnapshot = jest
-      .fn<() => Promise<unknown>>()
+      .fn<(ownerId?: string) => Promise<unknown>>()
       .mockResolvedValue({
         emittedAt: "2026-08-09T14:05:00.000Z",
         runs: [
@@ -55,6 +67,7 @@ describe("WorkspaceRuntimeEventsController", () => {
             waitingReason: null,
           },
         ],
+        engineeringProgress: [],
         repositorySnapshots: [
           {
             id: "snapshot-1",
@@ -98,9 +111,9 @@ describe("WorkspaceRuntimeEventsController", () => {
       buildWorkspaceSnapshot,
     } as unknown as AssessmentRuntimeEventService);
 
-    const event = await firstValueFrom(controller.stream());
+    const event = await firstValueFrom(controller.stream(customerRequest));
 
-    expect(buildWorkspaceSnapshot).toHaveBeenCalledWith();
+    expect(buildWorkspaceSnapshot).toHaveBeenCalledWith("user-1");
     expect(event.type).toBe("workspace.runtime");
     expect(event.data).toMatchObject({
       emitted_at: "2026-08-09T14:05:00.000Z",
@@ -131,6 +144,7 @@ describe("WorkspaceRuntimeEventsController", () => {
           summary: "Starting get_scan_coverage",
         },
       ],
+      engineering_progress: [],
       repository_snapshots: [
         {
           id: "snapshot-1",
@@ -168,11 +182,70 @@ describe("WorkspaceRuntimeEventsController", () => {
     });
   });
 
+  it("forwards only the owner-scoped live agent stream", () => {
+    const live = new Subject<Record<string, unknown>>();
+    const observeAgentStreamEvents = jest.fn<
+      (_ownerId: string) => ReturnType<typeof live.asObservable>
+    >(() => live.asObservable());
+    const controller = new WorkspaceRuntimeEventsController({
+      buildWorkspaceSnapshot: () =>
+        Promise.resolve({
+          emittedAt: "2026-09-16T00:00:00.000Z",
+          runs: [],
+          recentActivity: [],
+          engineeringProgress: [],
+          repositorySnapshots: [],
+          scanJobs: [],
+          evidenceReports: [],
+          postFindingStates: [],
+        }),
+      observeAgentStreamEvents,
+    } as unknown as AssessmentRuntimeEventService);
+    const events: Array<{ type?: string; data?: unknown }> = [];
+    const subscription = controller
+      .stream(customerRequest)
+      .subscribe((event) => events.push(event));
+
+    expect(observeAgentStreamEvents).toHaveBeenCalledWith("user-1");
+
+    live.next({
+      eventId: "agent-event-1",
+      sequence: 4,
+      clientSequence: 2,
+      emittedAt: "2026-09-16T00:00:01.000Z",
+      assessmentId: "assessment-1",
+      runId: "run-1",
+      correlationId: "corr-1",
+      eventType: "TOOL_RESULT",
+      source: "engineering",
+      agentName: "investigator",
+      subagentName: null,
+      namespace: [],
+      nodeName: "tools",
+      messageId: "message-1",
+      toolName: "lookup_rule",
+      toolCallId: "call-1",
+      status: "COMPLETED",
+      text: "tool output",
+      data: { count: 1 },
+    });
+
+    expect(events.at(-1)).toMatchObject({
+      type: "workspace.agent-stream",
+      data: {
+        event_id: "agent-event-1",
+        event_type: "TOOL_RESULT",
+        text: "tool output",
+      },
+    });
+    subscription.unsubscribe();
+  });
+
   it("does not cancel an in-flight runtime snapshot when the polling interval ticks again", async () => {
     jest.useFakeTimers();
     let resolveSnapshot: (value: unknown) => void = () => {};
     const buildWorkspaceSnapshot = jest
-      .fn<() => Promise<unknown>>()
+      .fn<(ownerId?: string) => Promise<unknown>>()
       .mockImplementationOnce(
         () =>
           new Promise((resolve) => {
@@ -184,9 +257,11 @@ describe("WorkspaceRuntimeEventsController", () => {
     } as unknown as AssessmentRuntimeEventService);
     const events: unknown[] = [];
 
-    const subscription = controller.stream().subscribe((event) => {
-      events.push(event);
-    });
+    const subscription = controller
+      .stream(customerRequest)
+      .subscribe((event) => {
+        events.push(event);
+      });
 
     expect(buildWorkspaceSnapshot).toHaveBeenCalledTimes(1);
 
@@ -198,6 +273,7 @@ describe("WorkspaceRuntimeEventsController", () => {
       emittedAt: "2026-08-09T14:05:00.000Z",
       runs: [],
       recentActivity: [],
+      engineeringProgress: [],
       repositorySnapshots: [],
       scanJobs: [],
       evidenceReports: [],

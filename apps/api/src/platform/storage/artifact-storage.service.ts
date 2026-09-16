@@ -73,6 +73,30 @@ export class ArtifactStorageService {
   async readJsonArtifactReference(
     reference: string,
   ): Promise<StoredJsonArtifact> {
+    const artifactPath = this.resolveJsonArtifactReference(reference);
+    const content = await fs.promises.readFile(artifactPath, "utf8");
+    const parsed = JSON.parse(content) as unknown;
+    if (
+      parsed === null ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed)
+    ) {
+      throw new BadRequestException("Invalid JSON artifact");
+    }
+    return parsed as StoredJsonArtifact;
+  }
+
+  /** Returns size/mtime of a JSON artifact reference without reading its content. */
+  async statJsonArtifactReference(
+    reference: string,
+  ): Promise<{ size: number; mtimeMs: number }> {
+    const stat = await fs.promises.stat(
+      this.resolveJsonArtifactReference(reference),
+    );
+    return { size: stat.size, mtimeMs: stat.mtimeMs };
+  }
+
+  private resolveJsonArtifactReference(reference: string): string {
     if (typeof reference !== "string" || !reference.trim()) {
       throw new BadRequestException("Invalid artifact reference");
     }
@@ -91,15 +115,6 @@ export class ArtifactStorageService {
     if (!artifactPath.startsWith(storageRoot)) {
       throw new BadRequestException("Invalid artifact reference");
     }
-    const content = await fs.promises.readFile(artifactPath, "utf8");
-    const parsed = JSON.parse(content) as unknown;
-    if (
-      parsed === null ||
-      typeof parsed !== "object" ||
-      Array.isArray(parsed)
-    ) {
-      throw new BadRequestException("Invalid JSON artifact");
-    }
-    return parsed as StoredJsonArtifact;
+    return artifactPath;
   }
 }

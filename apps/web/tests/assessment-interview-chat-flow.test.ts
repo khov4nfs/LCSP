@@ -511,6 +511,37 @@ test("selection controls expose an inline send action that arms only after a cho
   }
 });
 
+
+test("submitted and historical selection turns do not render the inline send action", async () => {
+  const question: AssessmentInterviewQuestion = {
+    control: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+    id: "q-submitted-send",
+    intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+    prompt: "How are results used?",
+    choices: [
+      { id: "internal", label: "Internal advice" },
+      { id: "gate", label: "Formal gate" },
+    ],
+  };
+
+  for (const props of [
+    { answerHistoryVisible: true, selectedChoiceIds: ["gate"] },
+    { hideSubmitSelection: true, selectedChoiceIds: ["gate"] },
+  ]) {
+    const { container } = await renderElement(
+      React.createElement(AssessmentQuestionTurn, {
+        question,
+        canSubmitSelection: true,
+        ...props,
+      }),
+    );
+    assert.equal(
+      container.querySelector("[data-slot='selection-submit-action']"),
+      null,
+    );
+  }
+});
+
 test("BOOLEAN: uses ChatSingleSelect, selection on click, submits on Enter/Send", async () => {
   const submissions: unknown[] = [];
   const question: AssessmentInterviewQuestion = {

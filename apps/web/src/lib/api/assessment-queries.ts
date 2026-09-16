@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { getAssessmentArtifactAvailability } from "./assessment-artifact-client";
 import {
   buildSubmitInterviewAnswerCommand,
   getAssessmentInterviewState,
@@ -53,6 +54,15 @@ export function useAssessmentInterviewStateQuery(
   });
 }
 
+export function useAssessmentArtifactsQuery(assessmentId: string) {
+  return useQuery({
+    queryKey: apiQueryKeys.assessment.artifacts(assessmentId),
+    queryFn: () => getAssessmentArtifactAvailability(assessmentId),
+    enabled: assessmentId.length > 0,
+    refetchInterval: 5_000,
+  });
+}
+
 export function useSubmitAssessmentInterviewAnswerMutation(
   assessmentId: string,
 ) {
@@ -72,9 +82,14 @@ export function useSubmitAssessmentInterviewAnswerMutation(
         ),
       ),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: apiQueryKeys.assessment.interview(assessmentId),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.assessment.interview(assessmentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.assessment.artifacts(assessmentId),
+        }),
+      ]);
     },
   });
 }

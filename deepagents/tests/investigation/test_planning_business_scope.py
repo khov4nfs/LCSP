@@ -10,6 +10,7 @@ from tools.common.capabilities.assessment.planning.engineering_rule.confirmed_bu
 from tools.common.capabilities.assessment.planning.engineering_rule.planning_business_scope import (
     BusinessAwareScopedEngineeringRulePlanningCandidate,
     BusinessAwareScopedMaterialEngineeringRulePlanner,
+    RulePlanningBusinessScope,
     RulePlanningBusinessScopeProjector,
 )
 from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
@@ -221,6 +222,13 @@ def test_rule_planning_business_scope_detects_bounded_no_human_path() -> None:
     assert scope.human_oversight_state == "ABSENT_WITH_BOUNDED_PATH"
 
 
+def test_business_scope_defaults_unknown_when_decision_effect_was_not_evidenced() -> None:
+    scope = RulePlanningBusinessScope()
+
+    assert scope.decision_influence_state == "DECISION_PATH_UNRESOLVED"
+    assert scope.human_oversight_state == "UNKNOWN"
+
+
 def test_business_aware_candidate_exposes_semantics_to_planner_prompt() -> None:
     graph = _graph()
     candidate = BusinessAwareScopedEngineeringRulePlanningCandidate.from_rule_packet(
@@ -310,3 +318,117 @@ def test_planner_prompt_excludes_internal_llm_runtime_from_graph_summary() -> No
 
     assert '"AI_PROVIDER"' not in prompt
     assert "internalRuntimePolicy" in prompt
+
+
+def _empty_scope_graph() -> ProgramEvidenceGraph:
+    nodes = [
+        _node("ai", "AI_OUTPUT", "risk score"),
+        _node("repo", "REPOSITORY_ACCESS", "applicationRepository.update"),
+    ]
+    return ProgramEvidenceGraph(
+        graph_id="graph-empty-scope",
+        snapshot_id="snapshot-1",
+        commit_sha="abc123",
+        node_count=len(nodes),
+        edge_count=0,
+        nodes=nodes,
+        edges=[],
+        graph_hash="sha256:graph",
+        schema_version="3.0.0",
+    )
+
+
+def test_empty_rule_scoped_projection_does_not_drop_confirmed_interview_context() -> None:
+    graph = _empty_scope_graph()
+    projector = RulePlanningBusinessScopeProjector(graph)
+    candidate = BusinessAwareScopedEngineeringRulePlanningCandidate.from_rule_packet(
+        _rule(),
+        _packet(),
+        projector,
+    )
+    scope_payload = candidate.to_prompt_dict()["planningBusinessScope"]
+
+    assert scope_payload["businessProcesses"] == []
+    assert scope_payload["businessDecisions"] == []
+    assert scope_payload["affectedSubjects"] == []
+    assert scope_payload["dataCategories"] == []
+    assert scope_payload["aiCapabilities"] == []
+    # Bounded graph with an AI seed but no decision edges yields an explicit
+    # authoritative negative, not UNKNOWN substitution.
+    assert scope_payload["decisionInfluenceState"] == "NO_DECISION_EFFECT_EVIDENCED"
+    assert scope_payload["humanOversightState"] == "NO_DECISION_EFFECT_EVIDENCED"
+
+    confirmed = ConfirmedStructuredBusinessContext(
+        assessment_id="assessment-1",
+        context_revision=12,
+        statements=(
+            ConfirmedBusinessContextStatement(
+                statement_id="stmt-ai-usage-1",
+                topic="ai_usage",
+                statement="The service drafts onboarding recommendations.",
+                normalized_value=True,
+                scope={"assessmentId": "assessment-1"},
+                evidence_refs=("evidence:customer:1",),
+                respondent_ref="actor:authenticated:1",
+                created_at="2026-09-14T00:00:00Z",
+                supersedes_statement_id=None,
+            ),
+            ConfirmedBusinessContextStatement(
+                statement_id="stmt-affected-subjects-1",
+                topic="affected_subjects",
+                statement="Customers and their organizations.",
+                normalized_value="CUSTOMERS_AND_ORGANIZATIONS",
+                scope={"assessmentId": "assessment-1"},
+                evidence_refs=("evidence:customer:2",),
+                respondent_ref="actor:authenticated:1",
+                created_at="2026-09-14T00:00:00Z",
+                supersedes_statement_id=None,
+            ),
+        ),
+    )
+
+    prompt = BusinessAwareScopedMaterialEngineeringRulePlanner._prompt(
+        (candidate,),
+        confirmed,
+        graph,
+    )
+
+    assert "stmt-ai-usage-1" in prompt
+    assert "stmt-affected-subjects-1" in prompt
+    assert "confirmedStructuredBusinessContext" in prompt
+    assert "The service drafts onboarding recommendations." in prompt
+
+
+def test_confirmed_negative_statement_stays_explicit_in_planner_prompt() -> None:
+    graph = _graph()
+    candidate = BusinessAwareScopedEngineeringRulePlanningCandidate.from_rule_packet(
+        _rule(),
+        _packet(),
+        RulePlanningBusinessScopeProjector(graph),
+    )
+    confirmed = ConfirmedStructuredBusinessContext(
+        assessment_id="assessment-1",
+        context_revision=12,
+        statements=(
+            ConfirmedBusinessContextStatement(
+                statement_id="stmt-decision-influence-1",
+                topic="decision_influence",
+                statement="No automated decision is made without human approval.",
+                normalized_value=False,
+                scope={"assessmentId": "assessment-1"},
+                evidence_refs=("evidence:customer:3",),
+                respondent_ref="actor:authenticated:1",
+                created_at="2026-09-14T00:00:00Z",
+                supersedes_statement_id=None,
+            ),
+        ),
+    )
+
+    prompt = BusinessAwareScopedMaterialEngineeringRulePlanner._prompt(
+        (candidate,),
+        confirmed,
+        graph,
+    )
+
+    assert '"normalizedValue":false' in prompt
+    assert '"normalizedValue":"UNKNOWN"' not in prompt

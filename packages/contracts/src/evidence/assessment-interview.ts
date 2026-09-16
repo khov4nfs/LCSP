@@ -47,6 +47,13 @@ export type AssessmentInterviewMode =
 export type InterviewMode = AssessmentInterviewMode;
 export type CanonicalAssessmentInterviewMode = InterviewMode;
 
+export const ASSESSMENT_INTERVIEW_READINESS_ERROR_CODES = {
+  minimumContextIncomplete: "INTERVIEW_MINIMUM_CONTEXT_INCOMPLETE",
+} as const;
+
+export type AssessmentInterviewReadinessErrorCode =
+  (typeof ASSESSMENT_INTERVIEW_READINESS_ERROR_CODES)[keyof typeof ASSESSMENT_INTERVIEW_READINESS_ERROR_CODES];
+
 export const LEGACY_ASSESSMENT_INTERVIEW_MODES = {
   prePlanner: "PRE_PLANNER",
 } as const;

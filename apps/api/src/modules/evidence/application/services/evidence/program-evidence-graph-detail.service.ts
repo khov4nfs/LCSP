@@ -14,9 +14,47 @@ import { ArtifactStorageService } from "../../../../../platform/storage/artifact
 
 const MAX_PROJECTED_NODES = 240;
 const MAX_PROJECTED_EDGES = 480;
+const RANKED_SEED_NODES = 24;
+const MAX_CACHED_PROJECTIONS = 8;
+// Same ordering as String.prototype.localeCompare without arguments, without
+// re-resolving locale data for each of the ~10^6 comparisons on large graphs.
+const collator = new Intl.Collator();
+
+type EvidenceGraphReport = {
+  id: string;
+  assessmentId: string;
+  scanJobId: string;
+  snapshotId: string;
+  createdAt: Date;
+};
+
+type EvidenceGraphSnapshot = {
+  repositoryFullName: string;
+  branch: string | null;
+  ref: string | null;
+  commitSha: string;
+  status: string;
+} | null;
+
+/** Projection of the immutable accepted evidence payload and its graph artifact. */
+type PayloadProjection = Pick<
+  ProgramEvidenceGraphDetailDto,
+  "overview" | "paths" | "claims"
+> & {
+  finding: ProgramEvidenceGraphFindingDto | null;
+  source: ProgramEvidenceGraphSourceDto | null;
+};
+
+type CachedPayloadProjection = {
+  graphRef: string | null;
+  artifactVersion: string | null;
+  projection: PayloadProjection;
+};
 
 @Injectable()
 export class ProgramEvidenceGraphDetailService {
+  private readonly projections = new Map<string, CachedPayloadProjection>();
+
   constructor(
     private readonly storage: ArtifactStorageService = new ArtifactStorageService(),
   ) {}
@@ -46,26 +84,58 @@ export class ProgramEvidenceGraphDetailService {
   }
 
   async project(input: {
-    report: {
-      id: string;
-      assessmentId: string;
-      scanJobId: string;
-      snapshotId: string;
-      evidencePayload: unknown;
-      createdAt: Date;
-    };
-    snapshot: {
-      repositoryFullName: string;
-      branch: string | null;
-      ref: string | null;
-      commitSha: string;
-      status: string;
-    } | null;
+    report: EvidenceGraphReport & { evidencePayload: unknown };
+    snapshot: EvidenceGraphSnapshot;
   }): Promise<ProgramEvidenceGraphDetailDto> {
-    const payload = record(input.report.evidencePayload);
+    const { projection } = await this.projectPayload(
+      input.report.evidencePayload,
+    );
+    return toDetailDto(input.report, input.snapshot, projection);
+  }
+
+  /**
+   * Projects an accepted report, reusing the last projection of the same report.
+   *
+   * Accepted TechnicalEvidenceReport rows are never updated, so the payload-derived
+   * projection is keyed by report id; the graph artifact file is additionally checked
+   * by size/mtime so a rewritten artifact is always re-read. Repository snapshot fields
+   * are never cached. On a hit neither the payload nor the multi-hundred-MB graph
+   * artifact is loaded or parsed.
+   */
+  async projectAcceptedReport(input: {
+    report: EvidenceGraphReport;
+    snapshot: EvidenceGraphSnapshot;
+    loadEvidencePayload: () => Promise<unknown>;
+  }): Promise<ProgramEvidenceGraphDetailDto> {
+    const cached = this.projections.get(input.report.id);
+    if (
+      cached &&
+      (await this.artifactVersion(cached.graphRef)) === cached.artifactVersion
+    ) {
+      this.projections.delete(input.report.id);
+      this.projections.set(input.report.id, cached);
+      return toDetailDto(input.report, input.snapshot, cached.projection);
+    }
+    const payload = await input.loadEvidencePayload();
+    const computed = await this.projectPayload(payload);
+    this.projections.delete(input.report.id);
+    this.projections.set(input.report.id, computed);
+    while (this.projections.size > MAX_CACHED_PROJECTIONS) {
+      const [oldest] = this.projections.keys();
+      this.projections.delete(oldest);
+    }
+    return toDetailDto(input.report, input.snapshot, computed.projection);
+  }
+
+  private async projectPayload(
+    evidencePayload: unknown,
+  ): Promise<CachedPayloadProjection> {
+    const payload = record(evidencePayload);
     const graph = record(payload?.evidence_graph ?? payload?.evidenceGraph);
     let artifact: Record<string, unknown> | null = null;
     const graphRef = text(graph?.evidence_graph_ref ?? graph?.evidenceGraphRef);
+    // Capture the version before reading so a concurrent rewrite invalidates the entry.
+    const artifactVersion = await this.artifactVersion(graphRef);
     if (graphRef) {
       try {
         artifact = await this.storage.readJsonArtifactReference(graphRef);
@@ -78,61 +148,88 @@ export class ProgramEvidenceGraphDetailService {
       graphNodes(sourceGraph?.nodes),
       graphEdges(sourceGraph?.edges),
     );
+    const projectedClaims = claims(
+      payload?.claims ?? payload?.evidence_claims ?? payload?.evidenceClaims,
+    );
 
     return {
-      repository: {
-        repository_full_name: input.snapshot?.repositoryFullName ?? null,
-        branch: input.snapshot?.branch ?? null,
-        ref: input.snapshot?.ref ?? null,
-        pinned_commit: input.snapshot?.commitSha ?? null,
-        status: input.snapshot?.status ?? null,
-      },
-      overview: {
-        modules_analyzed: metric(payload, [
-          "modulesAnalyzed",
-          "modules_analyzed",
-        ]),
-        code_symbols_indexed: metric(payload, [
-          "codeSymbolsIndexed",
-          "code_symbols_indexed",
-        ]),
-        ai_model_invocations: metric(payload, [
-          "aiModelInvocations",
-          "ai_model_invocations",
-        ]),
-        evidence_mapped_scope: metric(payload, [
-          "evidenceMappedScope",
-          "evidenceMappedScopePercent",
-          "evidence_mapped_scope",
-          "evidence_mapped_scope_percent",
-        ]),
-      },
-      paths: { nodes, edges },
-      claims: claims(
-        payload?.claims ?? payload?.evidence_claims ?? payload?.evidenceClaims,
-      ),
-      provenance: {
-        evidence_report_id: input.report.id,
-        snapshot_id: input.report.snapshotId,
-        scan_job_id: input.report.scanJobId,
-        generated_at: input.report.createdAt.toISOString(),
-        finding: provenanceFinding(
-          claims(
-            payload?.claims ??
-              payload?.evidence_claims ??
-              payload?.evidenceClaims,
-          ),
-        ),
+      graphRef,
+      artifactVersion,
+      projection: {
+        overview: {
+          modules_analyzed: metric(payload, [
+            "modulesAnalyzed",
+            "modules_analyzed",
+          ]),
+          code_symbols_indexed: metric(payload, [
+            "codeSymbolsIndexed",
+            "code_symbols_indexed",
+          ]),
+          ai_model_invocations: metric(payload, [
+            "aiModelInvocations",
+            "ai_model_invocations",
+          ]),
+          evidence_mapped_scope: metric(payload, [
+            "evidenceMappedScope",
+            "evidenceMappedScopePercent",
+            "evidence_mapped_scope",
+            "evidence_mapped_scope_percent",
+          ]),
+        },
+        paths: { nodes, edges },
+        claims: projectedClaims,
+        finding: provenanceFinding(projectedClaims),
         source: provenanceSource(sourceGraph),
       },
     };
   }
+
+  private async artifactVersion(
+    graphRef: string | null,
+  ): Promise<string | null> {
+    if (!graphRef) return null;
+    try {
+      const stat = await this.storage.statJsonArtifactReference(graphRef);
+      return `${stat.size}:${stat.mtimeMs}`;
+    } catch {
+      return null;
+    }
+  }
+}
+
+function toDetailDto(
+  report: EvidenceGraphReport,
+  snapshot: EvidenceGraphSnapshot,
+  cachedProjection: PayloadProjection,
+): ProgramEvidenceGraphDetailDto {
+  // Responses never share mutable structure with the cached projection.
+  const projection = structuredClone(cachedProjection);
+  return {
+    repository: {
+      repository_full_name: snapshot?.repositoryFullName ?? null,
+      branch: snapshot?.branch ?? null,
+      ref: snapshot?.ref ?? null,
+      pinned_commit: snapshot?.commitSha ?? null,
+      status: snapshot?.status ?? null,
+    },
+    overview: projection.overview,
+    paths: projection.paths,
+    claims: projection.claims,
+    provenance: {
+      evidence_report_id: report.id,
+      snapshot_id: report.snapshotId,
+      scan_job_id: report.scanJobId,
+      generated_at: report.createdAt.toISOString(),
+      finding: projection.finding,
+      source: projection.source,
+    },
+  };
 }
 
 function provenanceFinding(
-  value: unknown,
+  projectedClaims: ProgramEvidenceGraphClaimDto[],
 ): ProgramEvidenceGraphFindingDto | null {
-  const claim = claims(value)[0];
+  const claim = projectedClaims[0];
   if (!claim) return null;
   return {
     meaning: claim.meaning,
@@ -150,43 +247,51 @@ function provenanceFinding(
 function provenanceSource(
   graph: Record<string, unknown> | null,
 ): ProgramEvidenceGraphSourceDto | null {
-  const candidates = Array.isArray(graph?.nodes)
-    ? graph.nodes.flatMap((entry) => {
-        const node = record(entry);
-        const source = record(node?.source);
-        const file = safePath(source?.file_path ?? source?.filePath);
-        if (!file || file === "<workspace>") return [];
-        return [
-          {
-            file,
-            symbol: text(source?.symbol_ref ?? source?.symbolRef),
-            start_line: line(
-              source?.start_line ??
-                source?.startLine ??
-                source?.line_number ??
-                source?.lineNumber,
-            ),
-            end_line: line(
-              source?.end_line ??
-                source?.endLine ??
-                source?.line_number ??
-                source?.lineNumber,
-            ),
-            evidence_reference:
-              strings(node?.evidence_refs ?? node?.evidenceRefs).find(
-                isSafeReference,
-              ) ?? null,
-          },
-        ];
-      })
-    : [];
+  if (!Array.isArray(graph?.nodes)) return null;
+  // Single pass keeping the first minimum; equivalent to a stable sort then [0].
+  let best: SourceCandidate | null = null;
+  for (const entry of graph.nodes) {
+    const node = record(entry);
+    const source = record(node?.source);
+    const file = safePath(source?.file_path ?? source?.filePath);
+    if (!file || file === "<workspace>") continue;
+    const candidate: SourceCandidate = {
+      file,
+      symbol: text(source?.symbol_ref ?? source?.symbolRef),
+      start_line: line(
+        source?.start_line ??
+          source?.startLine ??
+          source?.line_number ??
+          source?.lineNumber,
+      ),
+      end_line: line(
+        source?.end_line ??
+          source?.endLine ??
+          source?.line_number ??
+          source?.lineNumber,
+      ),
+      evidence_reference:
+        strings(node?.evidence_refs ?? node?.evidenceRefs).find(
+          isSafeReference,
+        ) ?? null,
+    };
+    if (!best || compareSourceCandidates(candidate, best) < 0) {
+      best = candidate;
+    }
+  }
+  return best;
+}
+
+type SourceCandidate = ProgramEvidenceGraphSourceDto & { file: string };
+
+function compareSourceCandidates(
+  left: SourceCandidate,
+  right: SourceCandidate,
+): number {
   return (
-    candidates.sort(
-      (left, right) =>
-        left.file.localeCompare(right.file) ||
-        (left.start_line ?? 0) - (right.start_line ?? 0) ||
-        (left.symbol ?? "").localeCompare(right.symbol ?? ""),
-    )[0] ?? null
+    collator.compare(left.file, right.file) ||
+    (left.start_line ?? 0) - (right.start_line ?? 0) ||
+    collator.compare(left.symbol ?? "", right.symbol ?? "")
   );
 }
 
@@ -209,19 +314,9 @@ function boundedGraph(
       ),
     };
   }
-  const ranked = [...nodes].sort((left, right) => {
-    const score = (node: ProgramEvidenceGraphNodeDto) => {
-      const kind = node.kind.toUpperCase();
-      return kind.includes("AI_") ||
-        kind.includes("AGENT_BOUNDARY") ||
-        kind.includes("HTTP_ROUTE") ||
-        kind === "ENTRYPOINT"
-        ? 0
-        : 1;
-    };
-    return score(left) - score(right) || left.id.localeCompare(right.id);
-  });
-  const selected = new Set(ranked.slice(0, 24).map((node) => node.id));
+  const selected = new Set(
+    rankedSeedNodes(nodes, RANKED_SEED_NODES).map((node) => node.id),
+  );
   let expanded = true;
   while (expanded && selected.size < MAX_PROJECTED_NODES) {
     expanded = false;
@@ -239,9 +334,55 @@ function boundedGraph(
   const projectedNodes = nodes.filter((node) => selected.has(node.id));
   const projectedEdges = edges
     .filter((edge) => selected.has(edge.source) && selected.has(edge.target))
-    .sort((left, right) => left.id.localeCompare(right.id))
+    .sort((left, right) => collator.compare(left.id, right.id))
     .slice(0, MAX_PROJECTED_EDGES);
   return { nodes: projectedNodes, edges: projectedEdges };
+}
+
+/**
+ * First `limit` nodes of the stable order (priority kinds first, then id), selected in
+ * O(n log limit) instead of sorting every node of a 10^5-node graph.
+ */
+function rankedSeedNodes(
+  nodes: ProgramEvidenceGraphNodeDto[],
+  limit: number,
+): ProgramEvidenceGraphNodeDto[] {
+  const top: Array<{ node: ProgramEvidenceGraphNodeDto; score: number }> = [];
+  for (const node of nodes) {
+    const candidate = { node, score: seedScore(node) };
+    const compare = (
+      left: { node: ProgramEvidenceGraphNodeDto; score: number },
+      right: { node: ProgramEvidenceGraphNodeDto; score: number },
+    ) =>
+      left.score - right.score || collator.compare(left.node.id, right.node.id);
+    if (top.length === limit && compare(candidate, top[limit - 1]) >= 0) {
+      continue;
+    }
+    // Insert after equal elements to keep the stable-sort order for ties.
+    let low = 0;
+    let high = top.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (compare(top[middle], candidate) <= 0) {
+        low = middle + 1;
+      } else {
+        high = middle;
+      }
+    }
+    top.splice(low, 0, candidate);
+    if (top.length > limit) top.pop();
+  }
+  return top.map((entry) => entry.node);
+}
+
+function seedScore(node: ProgramEvidenceGraphNodeDto): number {
+  const kind = node.kind.toUpperCase();
+  return kind.includes("AI_") ||
+    kind.includes("AGENT_BOUNDARY") ||
+    kind.includes("HTTP_ROUTE") ||
+    kind === "ENTRYPOINT"
+    ? 0
+    : 1;
 }
 
 function graphNodes(value: unknown): ProgramEvidenceGraphNodeDto[] {

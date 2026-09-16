@@ -14,6 +14,7 @@ function statusDotClass(status: NormalizedWorkflowStep["status"]) {
       return "bg-destructive";
     case NORMALIZED_WORKFLOW_STEP_STATUSES.queued:
     case NORMALIZED_WORKFLOW_STEP_STATUSES.waiting:
+    case NORMALIZED_WORKFLOW_STEP_STATUSES.skipped:
     case NORMALIZED_WORKFLOW_STEP_STATUSES.unknown:
     default:
       return "bg-muted-foreground/50";

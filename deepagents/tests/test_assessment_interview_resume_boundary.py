@@ -56,6 +56,26 @@ def _confirmed_context() -> dict:
     }
 
 
+def _minimum_planning_confirmed_context() -> dict:
+    return {
+        "statements": [
+            {
+                "statementId": "stmt-initial-planning",
+                "topic": "initial_planning_context",
+                "statement": (
+                    "The AI model drafts recommendations in the customer onboarding "
+                    "workflow; a human reviewer approves every customer-facing action "
+                    "before any status update or workflow gate changes, affected "
+                    "subjects are customers and their organizations, and material "
+                    "data sources are customer profile records, support tickets, "
+                    "repository code, and business documents."
+                ),
+                "normalizedValue": "rich_initial_planning_context",
+            }
+        ]
+    }
+
+
 WAITING_HANDOFF = {
     "expectedContextRevision": 0,
     "mode": "INITIAL_INTERVIEW",
@@ -271,6 +291,12 @@ def test_authority_preflight_downgrades_nonterminal_without_losing_private_revis
 def test_resolution_rejection_gets_one_private_correction_before_continuation(corrected_outcome):
     api = RecordingApi()
     context = api.get_interview_private_context("assessment-1", 2)
+    context["privateRevision"] = {
+        "actorId": "user-test-actor",
+        "questionIntent": "ASK",
+        "questionControl": "SINGLE_SELECT",
+        "answer": {"selectedChoiceIds": ["yes"]},
+    }
     context["targetedNeed"] = {
         "needId": "need-1",
         "businessContextNeed": "Clarify the status of external data sources.",
@@ -281,10 +307,21 @@ def test_resolution_rejection_gets_one_private_correction_before_continuation(co
     api.get_interview_private_context = Mock(return_value=context)
     original_context = deepcopy(context)
     api.post_interview_progress = Mock()
-    rejected = {**deepcopy(WAITING_HANDOFF), "mode": "INVESTIGATOR_RESOLUTION", "outcome": "CONTEXT_RESOLVED", "activeQuestion": None}
-    corrected = {**deepcopy(WAITING_HANDOFF), "mode": "INVESTIGATOR_RESOLUTION", "outcome": corrected_outcome}
+    rejected = {
+        **deepcopy(WAITING_HANDOFF),
+        "mode": "INVESTIGATOR_RESOLUTION",
+        "outcome": "CONTEXT_RESOLVED",
+        "activeQuestion": None,
+        "contextAuthority": "CUSTOMER_CONFIRMED",
+    }
+    corrected = {
+        **deepcopy(WAITING_HANDOFF),
+        "mode": "INVESTIGATOR_RESOLUTION",
+        "outcome": corrected_outcome,
+    }
     if corrected_outcome == "CONTEXT_RESOLVED":
         corrected["activeQuestion"] = None
+        corrected["contextAuthority"] = "CUSTOMER_CONFIRMED"
     dispatcher = RecordingDispatcher()
     dispatcher.dispatch = Mock(side_effect=[{"handoff": rejected}, {"handoff": corrected}])
     missing = "Explicit confirmation or denial regarding external data sources."
@@ -292,7 +329,9 @@ def test_resolution_rejection_gets_one_private_correction_before_continuation(co
     api.post_interview_agent_decision = Mock(side_effect=[
         InterviewResolutionCallbackError("rejected", missing=missing), accepted,
     ])
-    boundary = AssessmentInterviewResumeBoundary(SimpleNamespace(), api_client=api, dispatcher=dispatcher)
+    boundary = AssessmentInterviewResumeBoundary(
+        SimpleNamespace(), api_client=api, dispatcher=dispatcher
+    )
     boundary._run_guarded_continuation = Mock()
 
     boundary.handle(_message(), "corr-1")
@@ -300,7 +339,10 @@ def test_resolution_rejection_gets_one_private_correction_before_continuation(co
     first, repair = [call.kwargs for call in dispatcher.dispatch.call_args_list]
     payload = json.loads(repair["instruction"].split("\n\n", 1)[1])
     assert payload["decisionValidationFeedback"]["missingCriteria"] == missing
-    assert payload["decisionValidationFeedback"]["rejectedDecision"]["outcome"] == "CONTEXT_RESOLVED"
+    assert (
+        payload["decisionValidationFeedback"]["rejectedDecision"]["outcome"]
+        == "CONTEXT_RESOLVED"
+    )
     assert payload["targetedNeed"] == context["targetedNeed"]
     assert context == original_context
     assert "decisionValidationFeedback" not in first["instruction"].split("\n\n", 1)[1]
@@ -326,18 +368,51 @@ def test_resolution_rejection_gets_one_private_correction_before_continuation(co
         2,
         "CONTEXT_READY",
     ),
-    (WorkerCallbackError("INTERVIEW_DECISION_STALE_REVISION: client error", status_code=409), 1, "CONTEXT_RESOLVED"),
-    (WorkerCallbackError("INTERVIEW_SESSION_MISMATCH: client error", status_code=409), 1, "CONTEXT_RESOLVED"),
-    (WorkerCallbackError("INTERVIEW_UNKNOWN_NEW_CODE: client error", status_code=409), 1, "CONTEXT_RESOLVED"),
+    (
+        WorkerCallbackError(
+            "INTERVIEW_DECISION_STALE_REVISION: client error", status_code=409
+        ),
+        1,
+        "CONTEXT_RESOLVED",
+    ),
+    (
+        WorkerCallbackError("INTERVIEW_SESSION_MISMATCH: client error", status_code=409),
+        1,
+        "CONTEXT_RESOLVED",
+    ),
+    (
+        WorkerCallbackError("INTERVIEW_UNKNOWN_NEW_CODE: client error", status_code=409),
+        1,
+        "CONTEXT_RESOLVED",
+    ),
     (WorkerCallbackError("forbidden", status_code=403), 1, "CONTEXT_RESOLVED"),
 ])
-def test_rejected_correction_is_bounded_and_unrelated_errors_are_not_repaired(error, attempts, outcome):
+def test_rejected_correction_is_bounded_and_unrelated_errors_are_not_repaired(
+    error, attempts, outcome
+):
     api = RecordingApi()
+    context = api.get_interview_private_context("assessment-1", 2)
+    context["privateRevision"] = {
+        "actorId": "user-test-actor",
+        "questionIntent": "ASK",
+        "questionControl": "SINGLE_SELECT",
+        "answer": {"selectedChoiceIds": ["yes"]},
+    }
+    api.get_interview_private_context = Mock(return_value=context)
     api.post_interview_progress = Mock()
     api.post_interview_agent_decision = Mock(side_effect=error)
-    handoff = {**deepcopy(WAITING_HANDOFF), "outcome": outcome, "activeQuestion": None}
+    handoff = {
+        **deepcopy(WAITING_HANDOFF),
+        "outcome": outcome,
+        "activeQuestion": None,
+        "contextAuthority": "CUSTOMER_CONFIRMED",
+    }
+    if outcome == "CONTEXT_READY":
+        handoff["confirmedContext"] = _minimum_planning_confirmed_context()
     dispatcher = RecordingDispatcher(handoff)
-    boundary = AssessmentInterviewResumeBoundary(SimpleNamespace(), api_client=api, dispatcher=dispatcher)
+    boundary = AssessmentInterviewResumeBoundary(
+        SimpleNamespace(), api_client=api, dispatcher=dispatcher
+    )
     boundary._run_guarded_continuation = Mock()
 
     with pytest.raises(type(error)) as caught:
@@ -357,9 +432,6 @@ def test_allowlisted_api_rejection_gets_one_private_correction_with_safe_log(cap
     rejected = {
         **deepcopy(WAITING_HANDOFF),
         "mode": "INITIAL_INTERVIEW",
-        "outcome": "CONTEXT_READY",
-        "contextAuthority": "CUSTOMER_STATED",
-        "activeQuestion": None,
     }
     corrected = {**deepcopy(WAITING_HANDOFF), "mode": "INITIAL_INTERVIEW"}
     dispatcher = RecordingDispatcher()
@@ -373,7 +445,9 @@ def test_allowlisted_api_rejection_gets_one_private_correction_with_safe_log(cap
         ),
         accepted,
     ])
-    boundary = AssessmentInterviewResumeBoundary(SimpleNamespace(), api_client=api, dispatcher=dispatcher)
+    boundary = AssessmentInterviewResumeBoundary(
+        SimpleNamespace(), api_client=api, dispatcher=dispatcher
+    )
     boundary._run_guarded_continuation = Mock()
 
     with caplog.at_level(
@@ -644,6 +718,60 @@ def test_local_authority_preflight_gives_confirm_adjust_feedback_before_post(cap
     assert "INTERVIEW_AUTHORITY_PROVENANCE_REPAIRED" in caplog.text
     assert "instruction_key=CONFIRMATION_PROVENANCE_REQUIRES_CONFIRM_ADJUST_OR_DIRECT_ASK" in caplog.text
 
+
+def test_local_minimum_context_preflight_asks_only_missing_dimensions_before_post():
+    api = RecordingApi()
+    context = api.get_interview_private_context("assessment-1", 2)
+    context["privateRevision"] = {
+        "actorId": "user-test-actor",
+        "questionIntent": "ASK",
+        "questionControl": "SINGLE_SELECT",
+        "answer": {"selectedChoiceIds": ["yes"]},
+    }
+    api.get_interview_private_context = Mock(return_value=context)
+    api.post_interview_progress = Mock()
+    rejected = {
+        **deepcopy(WAITING_HANDOFF),
+        "mode": "INITIAL_INTERVIEW",
+        "outcome": "CONTEXT_READY",
+        "activeQuestion": None,
+        "contextAuthority": "CONFIRMED",
+        "confirmedContext": {
+            "statements": [
+                {
+                    "statementId": "stmt-ai-usage",
+                    "topic": "ai_usage",
+                    "statement": (
+                        "The AI model drafts recommendations in the onboarding workflow."
+                    ),
+                    "normalizedValue": "ai_model_recommendations",
+                }
+            ]
+        },
+    }
+    corrected = {**deepcopy(WAITING_HANDOFF), "mode": "INITIAL_INTERVIEW"}
+    dispatcher = RecordingDispatcher()
+    dispatcher.dispatch = Mock(side_effect=[{"handoff": rejected}, {"handoff": corrected}])
+    boundary = AssessmentInterviewResumeBoundary(
+        SimpleNamespace(), api_client=api, dispatcher=dispatcher
+    )
+    boundary._run_guarded_continuation = Mock()
+
+    boundary.handle(_message(), "corr-1")
+
+    assert len(api.decision_posts) == 1
+    assert api.decision_posts[0][1]["outcome"] == "WAITING_FOR_CUSTOMER"
+    repair_payload = json.loads(
+        dispatcher.dispatch.call_args_list[1].kwargs["instruction"].split("\n\n", 1)[1]
+    )
+    feedback = repair_payload["decisionValidationFeedback"]
+    assert feedback["code"] == "INTERVIEW_MINIMUM_CONTEXT_INCOMPLETE"
+    assert feedback["instructionKey"] == "MINIMUM_PLANNING_CONTEXT_REQUIRES_FOLLOW_UP"
+    assert "humanOversight" in feedback["missingDimensions"]
+    assert "dataCategories" in feedback["missingDimensions"]
+    assert "aiUsage" not in feedback["missingDimensions"]
+
+
 def test_invalid_authority_after_private_feedback_synthesizes_confirm_adjust_question():
     api = RecordingApi()
     context = api.get_interview_private_context("assessment-1", 2)
@@ -754,8 +882,15 @@ def test_volunteered_multi_fact_free_text_converges_via_merged_confirm_adjust():
     # Turn 2: after the customer's real CONFIRM, the specialist resubmits both
     # original facts and CONTEXT_READY is accepted — the mirror's explicit-confirm
     # path does not care how many statements confirmedContext carries.
-    fact_one = "A recruiter approves every rejection."
-    fact_two = "For senior positions, the hiring manager must also approve."
+    fact_one = (
+        "The AI model drafts recommendations in the customer onboarding workflow "
+        "for customers and organizations."
+    )
+    fact_two = (
+        "A human reviewer approves every customer-facing action before any status "
+        "update or workflow gate changes, using customer profile data, support "
+        "tickets, repository code, and business documents."
+    )
     merged = f"- {fact_one}\n- {fact_two}"
 
     api_turn_1 = RecordingApi()
@@ -847,7 +982,7 @@ def test_volunteered_multi_fact_free_text_converges_via_merged_confirm_adjust():
     assert downstream_calls[0][0]["outcome"] == "CONTEXT_READY"
 
 
-def test_context_ready_authority_rejection_gets_one_private_correction_before_continuation():
+def test_context_ready_without_authority_gets_one_private_correction_before_posting():
     api = RecordingApi()
     api.post_interview_progress = Mock()
     rejected = {
@@ -861,22 +996,30 @@ def test_context_ready_authority_rejection_gets_one_private_correction_before_co
     dispatcher = RecordingDispatcher()
     dispatcher.dispatch = Mock(side_effect=[{"handoff": rejected}, {"handoff": corrected}])
     accepted = {"outcome": "WAITING_FOR_CUSTOMER"}
-    api.post_interview_agent_decision = Mock(side_effect=[
-        InterviewContextReadyAuthorityCallbackError("requires authority"), accepted,
-    ])
-    boundary = AssessmentInterviewResumeBoundary(SimpleNamespace(), api_client=api, dispatcher=dispatcher)
+    api.post_interview_agent_decision = Mock(return_value=accepted)
+    boundary = AssessmentInterviewResumeBoundary(
+        SimpleNamespace(), api_client=api, dispatcher=dispatcher
+    )
     boundary._run_guarded_continuation = Mock()
 
     boundary.handle(_message(), "corr-1")
 
     first, repair = [call.kwargs for call in dispatcher.dispatch.call_args_list]
     payload = json.loads(repair["instruction"].split("\n\n", 1)[1])
-    assert payload["decisionValidationFeedback"]["code"] == "INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY"
+    assert (
+        payload["decisionValidationFeedback"]["code"]
+        == "INTERVIEW_CONTEXT_READY_REQUIRES_AUTHORITY"
+    )
     assert payload["decisionValidationFeedback"]["rejectedDecision"]["outcome"] == "CONTEXT_READY"
     assert "decisionValidationFeedback" not in first["instruction"].split("\n\n", 1)[1]
     assert first["thread_id"] == repair["thread_id"]
     assert first["idempotency_key"] != repair["idempotency_key"]
     assert repair["context"].idempotency_key == repair["idempotency_key"]
+    api.post_interview_agent_decision.assert_called_once()
+    assert (
+        api.post_interview_agent_decision.call_args.args[1]["outcome"]
+        == "WAITING_FOR_CUSTOMER"
+    )
     boundary._run_guarded_continuation.assert_called_once()
     assert boundary._run_guarded_continuation.call_args.kwargs["guarded_state"] is accepted
     assert all(call.args[-1] != "FAILED" for call in api.post_interview_progress.call_args_list)
@@ -1026,7 +1169,7 @@ def test_guard_persists_before_any_downstream_continuation() -> None:
         "mode": "INITIAL_INTERVIEW",
         "outcome": "CONTEXT_READY",
         "contextAuthority": "CUSTOMER_CONFIRMED",
-        "confirmedContext": {"decision_authority": "human"},
+        "confirmedContext": _minimum_planning_confirmed_context(),
         "flags": [],
         "blockedActions": [],
         "targetedResolution": {},
@@ -1778,3 +1921,185 @@ def test_context_resolved_targeted_scope_exclusion_closes_without_investigator()
     assert handoff["claims"][0]["claim_type"] == "RULE_SCOPE_NOT_APPLICABLE"
     assert handoff["claims"][0]["customer_context_refs"] == ["stmt-national-data"]
     assert handoff["claims"][0]["criterion"] == "TARGETED_SCOPE_EXCLUDED"
+
+
+def _readiness_decision(*statements: dict, mode: str = "INITIAL_INTERVIEW") -> dict:
+    return {
+        "mode": mode,
+        "outcome": "CONTEXT_READY" if mode == "INITIAL_INTERVIEW" else "CONTEXT_RESOLVED",
+        "contextAuthority": "CUSTOMER_CONFIRMED",
+        "confirmedContext": {"statements": list(statements)},
+    }
+
+
+def _statement(statement: str, *, topic: str = "interview_answer", normalized=None) -> dict:
+    return {
+        "statementId": f"stmt-{abs(hash(statement))}",
+        "topic": topic,
+        "statement": statement,
+        "normalizedValue": statement if normalized is None else normalized,
+    }
+
+
+_ALL_PLANNING_DIMENSIONS = [
+    "aiUsage",
+    "operationalProcess",
+    "decisionInfluence",
+    "humanOversight",
+    "affectedSubjects",
+    "dataCategories",
+]
+
+
+def test_minimum_context_a_one_shallow_answer_is_not_ready():
+    from tools.common.capabilities.workflow.recovery.interview_boundary import (
+        _missing_initial_planning_context_dimensions,
+    )
+
+    missing = _missing_initial_planning_context_dimensions(
+        _readiness_decision(_statement("We use Gemini to analyze repository code."))
+    )
+
+    assert "aiUsage" not in missing
+    assert "dataCategories" not in missing
+    for dimension in ("decisionInfluence", "humanOversight", "affectedSubjects", "operationalProcess"):
+        assert dimension in missing
+
+
+def test_minimum_context_b_one_rich_answer_resolves_every_dimension():
+    from tools.common.capabilities.workflow.recovery.interview_boundary import (
+        _missing_initial_planning_context_dimensions,
+    )
+
+    rich = (
+        "The system uses Gemini to analyze repositories and draft compliance findings. "
+        "The findings do not automatically change customer systems or approve deployments; "
+        "a user reviews them before any remediation action. The affected process is the "
+        "compliance assessment workflow, and the analyzed material includes repository "
+        "source code and assessment metadata."
+    )
+
+    assert _missing_initial_planning_context_dimensions(
+        _readiness_decision(_statement(rich))
+    ) == []
+
+
+def test_minimum_context_c_explicit_decision_negative_resolves_only_that_dimension():
+    from tools.common.capabilities.workflow.recovery.interview_boundary import (
+        _missing_initial_planning_context_dimensions,
+    )
+
+    missing = _missing_initial_planning_context_dimensions(
+        _readiness_decision(
+            _statement("AI never directly approves, blocks, or deploys changes.")
+        )
+    )
+
+    assert "decisionInfluence" not in missing
+    # A decision-level negative is neither human oversight nor an absence of AI.
+    assert "humanOversight" in missing
+    assert "affectedSubjects" in missing
+    assert "dataCategories" in missing
+
+
+def test_minimum_context_d_unknown_answer_stays_unknown_and_is_not_a_negative():
+    from tools.common.capabilities.workflow.recovery.interview_boundary import (
+        _missing_initial_planning_context_dimensions,
+    )
+    from tools.common.capabilities.assessment.planning.engineering_rule.planning_business_scope import (
+        RulePlanningBusinessScope,
+    )
+
+    unknown = _statement(
+        "I am not sure whether AI output can automatically trigger a workflow gate.",
+        topic="decision_influence",
+        normalized="UNKNOWN",
+    )
+    missing = _missing_initial_planning_context_dimensions(_readiness_decision(unknown))
+
+    # The customer explicitly answered the decision-effect question as unknown ...
+    assert "decisionInfluence" not in missing
+    # ... which does not short-circuit readiness like an explicit "no AI" statement.
+    assert missing
+    # Without evidenced decision effect the planning scope stays unresolved/unknown.
+    scope = RulePlanningBusinessScope()
+    assert scope.decision_influence_state == "DECISION_PATH_UNRESOLVED"
+    assert scope.decision_influence_state != "NO_AI_DECISION_SIGNAL"
+    assert scope.human_oversight_state == "UNKNOWN"
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "There is no automated decision; people decide.",
+        "No AI-driven approvals happen in this workflow.",
+    ],
+)
+def test_decision_level_negatives_do_not_short_circuit_as_no_ai_usage(statement):
+    from tools.common.capabilities.workflow.recovery.interview_boundary import (
+        _missing_initial_planning_context_dimensions,
+    )
+
+    assert _missing_initial_planning_context_dimensions(
+        _readiness_decision(_statement(statement))
+    )
+
+
+@pytest.mark.parametrize(
+    "statement",
+    ["We do not use AI in this product.", "Chúng tôi không sử dụng AI."],
+)
+def test_explicit_absence_of_ai_short_circuits_readiness(statement):
+    from tools.common.capabilities.workflow.recovery.interview_boundary import (
+        _missing_initial_planning_context_dimensions,
+    )
+
+    assert _missing_initial_planning_context_dimensions(
+        _readiness_decision(_statement(statement))
+    ) == []
+
+
+def test_minimum_context_e_targeted_resolution_is_never_gated_by_initial_readiness():
+    from tools.common.capabilities.workflow.recovery.interview_boundary import (
+        _apply_authority_preflight,
+        _missing_initial_planning_context_dimensions,
+    )
+
+    shallow_targeted = _readiness_decision(
+        _statement("External data sources are not reused.", topic="national_data_source_reuse"),
+        mode="INVESTIGATOR_RESOLUTION",
+    )
+    assert _missing_initial_planning_context_dimensions(shallow_targeted) == []
+    # A CONTEXT_READY mislabelled on a targeted turn is also not an initial readiness check.
+    assert _missing_initial_planning_context_dimensions(
+        {**shallow_targeted, "outcome": "CONTEXT_READY"}
+    ) == []
+    # The server-registered targeted need decides the mode even if the model omits it.
+    unlabelled = {**shallow_targeted, "outcome": "CONTEXT_READY"}
+    unlabelled.pop("mode")
+    assert _missing_initial_planning_context_dimensions(
+        unlabelled, {"targetedNeed": {"needId": "need-1"}}
+    ) == []
+    assert _missing_initial_planning_context_dimensions(unlabelled)
+
+    context = {
+        "privateRevision": {
+            "actorId": "user-test-actor",
+            "questionIntent": "ASK",
+            "questionControl": "SINGLE_SELECT",
+            "answer": {"selectedChoiceIds": ["no"]},
+        }
+    }
+    decision, feedback = _apply_authority_preflight(shallow_targeted, context)
+    assert feedback is None
+    assert decision is shallow_targeted
+
+
+def test_empty_initial_context_ready_is_missing_every_dimension():
+    from tools.common.capabilities.workflow.recovery.interview_boundary import (
+        _missing_initial_planning_context_dimensions,
+    )
+
+    assert _missing_initial_planning_context_dimensions(_readiness_decision()) == (
+        _ALL_PLANNING_DIMENSIONS
+    )
