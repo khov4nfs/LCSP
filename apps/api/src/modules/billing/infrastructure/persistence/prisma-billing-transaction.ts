@@ -1,5 +1,8 @@
 import { Injectable } from "@nestjs/common";
-import { PaymentReconciliationStatus } from "@prisma/client";
+import {
+  PaymentReconciliationReason,
+  PaymentReconciliationStatus,
+} from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 import {
   AUDIT_DECISIONS,
@@ -114,6 +117,11 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
         order: {
           findByPaymentCode: (paymentCode) =>
             tx.billingOrder.findUnique({ where: { paymentCode } }),
+          findByPaymentCodes: (paymentCodes) =>
+            tx.billingOrder.findMany({
+              where: { paymentCode: { in: paymentCodes } },
+            }),
+          findById: (id) => tx.billingOrder.findUnique({ where: { id } }),
           findByIdempotencyKey: (userId, key) =>
             tx.billingOrder.findUnique({
               where: { userId_idempotencyKey: { userId, idempotencyKey: key } },
@@ -145,6 +153,7 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
             ).count === 1,
         },
         payment: {
+          findById: (id) => tx.paymentTransaction.findUnique({ where: { id } }),
           findByProviderTransaction: (provider, id) =>
             tx.paymentTransaction.findUnique({
               where: {
@@ -158,16 +167,39 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
             tx.paymentTransaction.create({
               data: i as Prisma.PaymentTransactionUncheckedCreateInput,
             }),
-          setStatus: async (id, status, userId, billingOrderId) =>
-            tx.paymentTransaction.update({
-              where: { id },
+          setStatus: async (
+            id,
+            status,
+            userId,
+            billingOrderId,
+            reason,
+            expectedVersion,
+          ) => {
+            const updated = await tx.paymentTransaction.updateMany({
+              where: {
+                id,
+                ...(expectedVersion === undefined
+                  ? {}
+                  : { reconciliationVersion: expectedVersion }),
+              },
               data: {
                 reconciliationStatus: status as PaymentReconciliationStatus,
+                reconciliationReason:
+                  reason === undefined
+                    ? undefined
+                    : reason
+                      ? (reason as PaymentReconciliationReason)
+                      : null,
+                reconciliationVersion: { increment: 1 },
                 userId,
                 billingOrderId,
                 reconciledAt: new Date(),
               },
-            }),
+            });
+            if (updated.count !== 1)
+              throw new Error("RECONCILIATION_VERSION_CONFLICT");
+            return tx.paymentTransaction.findUniqueOrThrow({ where: { id } });
+          },
         },
         webhook: {
           recordReceived: async (i) => {
@@ -221,6 +253,13 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
                 typeof payload.paymentCode === "string"
                   ? payload.paymentCode
                   : null,
+              paymentCodes: Array.isArray(payload.paymentCodes)
+                ? payload.paymentCodes.filter(
+                    (value): value is string => typeof value === "string",
+                  )
+                : typeof payload.paymentCode === "string"
+                  ? [payload.paymentCode]
+                  : [],
               amountMinorUnits:
                 typeof amount === "string" ? BigInt(amount) : 0n,
               transferDirection:
@@ -230,8 +269,16 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
                   : "UNKNOWN",
               sanitizedPayload: row.sanitizedPayload,
               securityAcceptedAt: row.securityAcceptedAt,
+              processedAt: row.processedAt,
             };
           },
+          markProcessed: async (id, processedAt) =>
+            (
+              await tx.sePayWebhookEvent.updateMany({
+                where: { id, processedAt: null },
+                data: { processedAt },
+              })
+            ).count === 1,
         },
         usage: {
           findByInvocation: (userId, invocationId) =>

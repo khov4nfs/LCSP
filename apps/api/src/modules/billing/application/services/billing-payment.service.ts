@@ -5,6 +5,10 @@ import { createHash } from "node:crypto";
 import { randomBytes } from "node:crypto";
 import {
   BILLING_AUDIT_EVENT_TYPES,
+  BILLING_RECONCILIATION_ACTIONS,
+  BILLING_ORDER_STATUSES,
+  PAYMENT_RECONCILIATION_REASONS,
+  PAYMENT_RECONCILIATION_STATUSES,
   PREPAID_BILLING_CONFIG,
 } from "@lcsp/contracts/billing";
 import {
@@ -101,6 +105,7 @@ export class BillingPaymentService {
     paymentCode: string;
     amountMinorUnits: bigint;
     transferDirection?: "IN" | "OUT" | "UNKNOWN";
+    paymentCodes?: string[];
     sanitizedPayload?: unknown;
     actorId?: string | null;
     sessionId?: string;
@@ -124,37 +129,60 @@ export class BillingPaymentService {
             provider: i.provider,
             providerTransactionId: i.providerTransactionId,
             amountMinorUnits: i.amountMinorUnits,
-            reconciliationStatus: "NEEDS_REVIEW",
+            reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.NEEDS_REVIEW,
+            reconciliationReason:
+              PAYMENT_RECONCILIATION_REASONS.INBOUND_REQUIRED,
             webhookEventId: webhook.id,
           });
-        const order = await repos.order.findByPaymentCode(i.paymentCode);
-        if (!order)
+        const paymentCodes = [
+          ...(i.paymentCodes ?? []),
+          ...(i.paymentCode ? [i.paymentCode] : []),
+        ].filter((code, index, values) => values.indexOf(code) === index);
+        const candidates = await repos.order.findByPaymentCodes(paymentCodes);
+        if (candidates.length === 0)
           return repos.payment.create({
             provider: i.provider,
             providerTransactionId: i.providerTransactionId,
             amountMinorUnits: i.amountMinorUnits,
-            reconciliationStatus: "UNMATCHED",
+            reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.UNMATCHED,
+            reconciliationReason:
+              PAYMENT_RECONCILIATION_REASONS.UNMATCHED_PAYMENT_CODE,
             webhookEventId: webhook.id,
           });
+        if (candidates.length !== 1)
+          return repos.payment.create({
+            provider: i.provider,
+            providerTransactionId: i.providerTransactionId,
+            amountMinorUnits: i.amountMinorUnits,
+            reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.NEEDS_REVIEW,
+            reconciliationReason:
+              PAYMENT_RECONCILIATION_REASONS.AMBIGUOUS_ORDER_MATCH,
+            webhookEventId: webhook.id,
+          });
+        const order = candidates[0];
         await repos.lockUserAccount(order.userId);
-        const lockedOrder = await repos.order.findByPaymentCode(i.paymentCode);
+        const lockedOrder = await repos.order.findByPaymentCode(
+          order.paymentCode,
+        );
         if (!lockedOrder)
           return repos.payment.create({
             provider: i.provider,
             providerTransactionId: i.providerTransactionId,
             amountMinorUnits: i.amountMinorUnits,
-            reconciliationStatus: "UNMATCHED",
+            reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.UNMATCHED,
+            reconciliationReason:
+              PAYMENT_RECONCILIATION_REASONS.UNMATCHED_PAYMENT_CODE,
             webhookEventId: webhook.id,
           });
         if (
-          lockedOrder.status === "PENDING_PAYMENT" &&
+          lockedOrder.status === BILLING_ORDER_STATUSES.PENDING_PAYMENT &&
           lockedOrder.expiresAt !== null &&
           lockedOrder.expiresAt <= new Date()
         ) {
           const expired = await repos.order.transition(
             lockedOrder.id,
-            "PENDING_PAYMENT",
-            "EXPIRED",
+            BILLING_ORDER_STATUSES.PENDING_PAYMENT,
+            BILLING_ORDER_STATUSES.EXPIRED,
           );
           if (expired) {
             await repos.audit.append({
@@ -166,7 +194,7 @@ export class BillingPaymentService {
                 `billing-reconcile:${i.providerTransactionId}`,
               resourceId: lockedOrder.id,
               payload: {
-                previousStatus: "PENDING_PAYMENT",
+                previousStatus: BILLING_ORDER_STATUSES.PENDING_PAYMENT,
                 source: "AUTHORITATIVE_SETTLEMENT",
               },
             });
@@ -177,11 +205,12 @@ export class BillingPaymentService {
             amountMinorUnits: i.amountMinorUnits,
             userId: lockedOrder.userId,
             billingOrderId: lockedOrder.id,
-            reconciliationStatus: "NEEDS_REVIEW",
+            reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.NEEDS_REVIEW,
+            reconciliationReason: PAYMENT_RECONCILIATION_REASONS.EXPIRED_ORDER,
             webhookEventId: webhook.id,
           });
         }
-        if (lockedOrder.status !== "PENDING_PAYMENT")
+        if (lockedOrder.status !== BILLING_ORDER_STATUSES.PENDING_PAYMENT)
           return repos.payment.create({
             provider: i.provider,
             providerTransactionId: i.providerTransactionId,
@@ -189,14 +218,20 @@ export class BillingPaymentService {
             userId: lockedOrder.userId,
             billingOrderId: lockedOrder.id,
             reconciliationStatus:
-              lockedOrder.status === "CREDITED" ? "DUPLICATE" : "NEEDS_REVIEW",
+              lockedOrder.status === BILLING_ORDER_STATUSES.CREDITED
+                ? PAYMENT_RECONCILIATION_STATUSES.DUPLICATE
+                : PAYMENT_RECONCILIATION_STATUSES.NEEDS_REVIEW,
+            reconciliationReason:
+              lockedOrder.status === BILLING_ORDER_STATUSES.CREDITED
+                ? PAYMENT_RECONCILIATION_REASONS.DUPLICATE_PROVIDER_TRANSACTION
+                : PAYMENT_RECONCILIATION_REASONS.RECOVERABLE_EXCEPTION,
             webhookEventId: webhook.id,
           });
         if (lockedOrder.amountMinorUnits !== i.amountMinorUnits) {
           await repos.order.transition(
             lockedOrder.id,
-            "PENDING_PAYMENT",
-            "PENDING_RECONCILIATION",
+            BILLING_ORDER_STATUSES.PENDING_PAYMENT,
+            BILLING_ORDER_STATUSES.PENDING_RECONCILIATION,
           );
           return repos.payment.create({
             provider: i.provider,
@@ -204,14 +239,19 @@ export class BillingPaymentService {
             amountMinorUnits: i.amountMinorUnits,
             userId: lockedOrder.userId,
             billingOrderId: lockedOrder.id,
-            reconciliationStatus: "AMOUNT_MISMATCH",
+            reconciliationStatus:
+              PAYMENT_RECONCILIATION_STATUSES.AMOUNT_MISMATCH,
+            reconciliationReason:
+              i.amountMinorUnits < lockedOrder.amountMinorUnits
+                ? PAYMENT_RECONCILIATION_REASONS.UNDERPAYMENT
+                : PAYMENT_RECONCILIATION_REASONS.OVERPAYMENT,
             webhookEventId: webhook.id,
           });
         }
         const claimed = await repos.order.transition(
           lockedOrder.id,
-          "PENDING_PAYMENT",
-          "CREDITED",
+          BILLING_ORDER_STATUSES.PENDING_PAYMENT,
+          BILLING_ORDER_STATUSES.CREDITED,
         );
         if (!claimed) {
           const current = await repos.order.findByPaymentCode(i.paymentCode);
@@ -222,7 +262,13 @@ export class BillingPaymentService {
             userId: current?.userId ?? lockedOrder.userId,
             billingOrderId: current?.id ?? lockedOrder.id,
             reconciliationStatus:
-              current?.status === "CREDITED" ? "DUPLICATE" : "NEEDS_REVIEW",
+              current?.status === BILLING_ORDER_STATUSES.CREDITED
+                ? PAYMENT_RECONCILIATION_STATUSES.DUPLICATE
+                : PAYMENT_RECONCILIATION_STATUSES.NEEDS_REVIEW,
+            reconciliationReason:
+              current?.status === BILLING_ORDER_STATUSES.CREDITED
+                ? PAYMENT_RECONCILIATION_REASONS.DUPLICATE_PROVIDER_TRANSACTION
+                : PAYMENT_RECONCILIATION_REASONS.RECOVERABLE_EXCEPTION,
             webhookEventId: webhook.id,
           });
         }
@@ -235,15 +281,41 @@ export class BillingPaymentService {
           orderId: lockedOrder.id,
           creditUnits: lockedOrder.creditUnits,
         });
-        return repos.payment.create({
+        const correlationId =
+          i.correlationId ??
+          `billing-reconcile:${i.provider}:${i.providerTransactionId}`;
+        const reconciledAt = new Date();
+        const payment = await repos.payment.create({
           provider: i.provider,
           providerTransactionId: i.providerTransactionId,
           amountMinorUnits: i.amountMinorUnits,
           userId: lockedOrder.userId,
           billingOrderId: lockedOrder.id,
-          reconciliationStatus: "MATCHED",
+          reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.MATCHED,
+          reconciledAt,
           webhookEventId: webhook.id,
         });
+        await repos.audit.append({
+          eventType: BILLING_AUDIT_EVENT_TYPES.reconciliationSettled,
+          actorId: i.actorId ?? null,
+          sessionId: i.sessionId,
+          correlationId,
+          resourceId: payment.id,
+          payload: {
+            action: BILLING_RECONCILIATION_ACTIONS.SETTLE,
+            beforePaymentStatus: null,
+            afterPaymentStatus: payment.reconciliationStatus,
+            beforeOrderStatus: BILLING_ORDER_STATUSES.PENDING_PAYMENT,
+            afterOrderStatus: BILLING_ORDER_STATUSES.CREDITED,
+            provider: i.provider,
+            providerTransactionId: i.providerTransactionId,
+            webhookEventId: webhook.id,
+            billingOrderId: lockedOrder.id,
+            userId: lockedOrder.userId,
+            reconciledAt: reconciledAt.toISOString(),
+          },
+        });
+        return payment;
       },
     );
   }
@@ -259,13 +331,21 @@ export class BillingPaymentService {
       },
     );
     if (!event) return null;
-    return this.reconcilePayment({
+    const result = await this.reconcilePayment({
       provider: event.provider,
       providerTransactionId: event.providerTransactionId,
       paymentCode: event.paymentCode ?? "",
+      paymentCodes: event.paymentCodes,
       amountMinorUnits: event.amountMinorUnits,
       transferDirection: event.transferDirection,
       sanitizedPayload: event.sanitizedPayload,
     });
+    await this.transactions.runForUser(
+      `sepay-event:${eventId}`,
+      async (repos) => {
+        await repos.webhook.markProcessed(eventId, new Date());
+      },
+    );
+    return result;
   }
 }
