@@ -6,10 +6,10 @@ import {
 /* eslint-disable @typescript-eslint/unbound-method */
 import { jest } from "@jest/globals";
 
+import { HttpException } from "@nestjs/common";
 import type { ConfigService } from "@nestjs/config";
 import type { OAuthProvider } from "../../../infrastructure/oauth/oauth-provider.interface.ts";
 import type { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
-import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
 import type { AuthWorkspaceSupportService } from "../../services/auth-workspace/auth-workspace-support.service.ts";
 import { OAuthStartCommand } from "./oauth-start.command.ts";
@@ -79,10 +79,16 @@ describe("OAuthStartHandler", () => {
       { provider: "", redirect_uri: "http://localhost:3000/callback" },
       {},
     );
-    const result = (await handler.execute(command)) as AuthProblemResult;
-
-    expect(result.ok).toBe(false);
-    expect(result.problem.code).toBe(AUTH_ERROR_CODES.validationFailed);
+    let thrown: unknown;
+    try {
+      await handler.execute(command);
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.validationFailed },
+    });
   });
 
   it("U02 - missing redirect_uri returns VALIDATION_FAILED", async () => {
@@ -90,10 +96,16 @@ describe("OAuthStartHandler", () => {
       { provider: "google", redirect_uri: "" },
       {},
     );
-    const result = (await handler.execute(command)) as AuthProblemResult;
-
-    expect(result.ok).toBe(false);
-    expect(result.problem.code).toBe(AUTH_ERROR_CODES.validationFailed);
+    let thrown: unknown;
+    try {
+      await handler.execute(command);
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.validationFailed },
+    });
   });
 
   it("U03 - unsupported provider returns UNSUPPORTED_PROVIDER and records audit failure", async () => {
@@ -106,10 +118,16 @@ describe("OAuthStartHandler", () => {
       },
       { correlationId: "corr-1" },
     );
-    const result = (await handler.execute(command)) as AuthProblemResult;
-
-    expect(result.ok).toBe(false);
-    expect(result.problem.code).toBe(AUTH_ERROR_CODES.unsupportedProvider);
+    let thrown: unknown;
+    try {
+      await handler.execute(command);
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.unsupportedProvider },
+    });
     expect(mockSupportService.recordAudit).toHaveBeenCalledWith(
       mockRepositories,
       expect.objectContaining({
@@ -126,10 +144,16 @@ describe("OAuthStartHandler", () => {
       { provider: "google", redirect_uri: "http://hacker.com/callback" },
       { correlationId: "corr-1" },
     );
-    const result = (await handler.execute(command)) as AuthProblemResult;
-
-    expect(result.ok).toBe(false);
-    expect(result.problem.code).toBe(AUTH_ERROR_CODES.invalidRedirectUri);
+    let thrown: unknown;
+    try {
+      await handler.execute(command);
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.invalidRedirectUri },
+    });
     expect(mockSupportService.recordAudit).toHaveBeenCalledWith(
       mockRepositories,
       expect.objectContaining({

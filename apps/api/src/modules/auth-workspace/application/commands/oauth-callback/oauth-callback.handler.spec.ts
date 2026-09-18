@@ -219,21 +219,29 @@ function buildLoginHarness(
   return { handler, provider, repositories };
 }
 
+import { HttpException } from "@nestjs/common";
+
 describe("OAuthCallbackHandler", () => {
   it("denies a suspended account even with a valid OAuth identity and provider claims", async () => {
     const { handler, repositories } = buildLoginHarness({
       user: makeUser({ accessStatus: USER_ACCESS_STATUSES.suspended }),
     });
     const save = jest.spyOn(repositories.sessions, "save");
-    const result = await handler.execute(
-      new OAuthCallbackCommand(
-        { code: "good-code", state: "state-value", provider: "stub-oidc" },
-        { correlationId: "suspended-oauth" },
-      ),
-    );
-    expect(result.ok).toBe(false);
-    if (!result.ok)
-      expect(result.problem.code).toBe(AUTH_ERROR_CODES.accountSuspended);
+    let thrown: unknown;
+    try {
+      await handler.execute(
+        new OAuthCallbackCommand(
+          { code: "good-code", state: "state-value", provider: "stub-oidc" },
+          { correlationId: "suspended-oauth" },
+        ),
+      );
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.accountSuspended },
+    });
     expect(save).not.toHaveBeenCalled();
   });
 
@@ -271,16 +279,22 @@ describe("OAuthCallbackHandler", () => {
     };
     const { handler, repositories } = buildLoginHarness({ provider });
 
-    const result = await handler.execute(
-      new OAuthCallbackCommand(
-        { code: "good-code", state: "state-value", provider: "stub-oidc" },
-        { correlationId: "corr-2" },
-      ),
-    );
+    let thrown: unknown;
+    try {
+      await handler.execute(
+        new OAuthCallbackCommand(
+          { code: "good-code", state: "state-value", provider: "stub-oidc" },
+          { correlationId: "corr-2" },
+        ),
+      );
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.oauthCallbackInvalid },
+    });
 
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.oauthCallbackInvalid,
-    );
     expect(repositories.auditRecords[0]).toMatchObject({
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLoginFailed,
       decision: AUDIT_DECISIONS.deny,
@@ -292,16 +306,21 @@ describe("OAuthCallbackHandler", () => {
   it("rejects missing callback parameters", async () => {
     const { handler } = buildLoginHarness();
 
-    const result = await handler.execute(
-      new OAuthCallbackCommand(
-        { code: "", state: "state-value", provider: "stub-oidc" },
-        { correlationId: "corr-3" },
-      ),
-    );
-
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.validationFailed,
-    );
+    let thrown: unknown;
+    try {
+      await handler.execute(
+        new OAuthCallbackCommand(
+          { code: "", state: "state-value", provider: "stub-oidc" },
+          { correlationId: "corr-3" },
+        ),
+      );
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.validationFailed },
+    });
   });
 
   it("rejects unknown, expired, replayed, and link-flow states", async () => {
@@ -312,16 +331,21 @@ describe("OAuthCallbackHandler", () => {
     ]) {
       const { handler } = buildLoginHarness({ oauthState });
 
-      const result = await handler.execute(
-        new OAuthCallbackCommand(
-          { code: "good-code", state: "state-value", provider: "stub-oidc" },
-          { correlationId: "corr-state" },
-        ),
-      );
-
-      expect("problem" in result && result.problem.code).toBe(
-        AUTH_ERROR_CODES.oauthStateInvalid,
-      );
+      let thrown: unknown;
+      try {
+        await handler.execute(
+          new OAuthCallbackCommand(
+            { code: "good-code", state: "state-value", provider: "stub-oidc" },
+            { correlationId: "corr-state" },
+          ),
+        );
+      } catch (err) {
+        thrown = err;
+      }
+      expect(thrown).toBeInstanceOf(HttpException);
+      expect((thrown as HttpException).getResponse()).toMatchObject({
+        problem: { code: AUTH_ERROR_CODES.oauthStateInvalid },
+      });
     }
 
     const replayHarness = buildLoginHarness();
@@ -332,43 +356,65 @@ describe("OAuthCallbackHandler", () => {
         provider: "stub-oidc",
       }),
     );
-    const replay = await replayHarness.handler.execute(
-      new OAuthCallbackCommand({
-        code: "good-code",
-        state: "state-value",
-        provider: "stub-oidc",
-      }),
-    );
-    expect("problem" in replay && replay.problem.code).toBe(
-      AUTH_ERROR_CODES.oauthStateInvalid,
-    );
+    let replayThrown: unknown;
+    try {
+      await replayHarness.handler.execute(
+        new OAuthCallbackCommand({
+          code: "good-code",
+          state: "state-value",
+          provider: "stub-oidc",
+        }),
+      );
+    } catch (err) {
+      replayThrown = err;
+    }
+    expect(replayThrown).toBeInstanceOf(HttpException);
+    expect((replayThrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.oauthStateInvalid },
+    });
   });
 
   it("rejects missing identity or unverified user email", async () => {
-    const missingIdentity = await buildLoginHarness({
-      identity: null,
-    }).handler.execute(
-      new OAuthCallbackCommand({
-        code: "good-code",
-        state: "state-value",
-        provider: "stub-oidc",
-      }),
-    );
-    expect("problem" in missingIdentity && missingIdentity.problem.code).toBe(
-      AUTH_ERROR_CODES.accountNotFound,
-    );
+    let missingIdentityThrown: unknown;
+    try {
+      await buildLoginHarness({
+        identity: null,
+      }).handler.execute(
+        new OAuthCallbackCommand({
+          code: "good-code",
+          state: "state-value",
+          provider: "stub-oidc",
+        }),
+      );
+    } catch (err) {
+      missingIdentityThrown = err;
+    }
+    expect(missingIdentityThrown).toBeInstanceOf(HttpException);
+    expect(
+      (missingIdentityThrown as HttpException).getResponse(),
+    ).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.accountNotFound },
+    });
 
-    const unverifiedUser = await buildLoginHarness({
-      user: makeUser({ emailVerified: false }),
-    }).handler.execute(
-      new OAuthCallbackCommand({
-        code: "good-code",
-        state: "state-value",
-        provider: "stub-oidc",
-      }),
-    );
-    expect("problem" in unverifiedUser && unverifiedUser.problem.code).toBe(
-      AUTH_ERROR_CODES.accountNotFound,
+    let unverifiedUserThrown: unknown;
+    try {
+      await buildLoginHarness({
+        user: makeUser({ emailVerified: false }),
+      }).handler.execute(
+        new OAuthCallbackCommand({
+          code: "good-code",
+          state: "state-value",
+          provider: "stub-oidc",
+        }),
+      );
+    } catch (err) {
+      unverifiedUserThrown = err;
+    }
+    expect(unverifiedUserThrown).toBeInstanceOf(HttpException);
+    expect((unverifiedUserThrown as HttpException).getResponse()).toMatchObject(
+      {
+        problem: { code: AUTH_ERROR_CODES.accountNotFound },
+      },
     );
   });
 });
@@ -436,18 +482,23 @@ describe("OAuthLinkCallbackHandler", () => {
   it("rejects a link state bound to another session", async () => {
     const { handler, repositories } = buildLinkHarness();
 
-    const result = await handler.execute(
-      new OAuthLinkCallbackCommand(
-        { code: "good-code", state: "state-value", provider: "stub-oidc" },
-        "user-1",
-        "different-session",
-        { correlationId: "corr-link-deny" },
-      ),
-    );
-
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.oauthStateInvalid,
-    );
+    let thrown: unknown;
+    try {
+      await handler.execute(
+        new OAuthLinkCallbackCommand(
+          { code: "good-code", state: "state-value", provider: "stub-oidc" },
+          "user-1",
+          "different-session",
+          { correlationId: "corr-link-deny" },
+        ),
+      );
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.oauthStateInvalid },
+    });
     expect(repositories.auditRecords[0]).toMatchObject({
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.oauthLinkFailed,
       decision: AUDIT_DECISIONS.deny,
@@ -460,17 +511,22 @@ describe("OAuthLinkCallbackHandler", () => {
       identity: makeIdentity({ userId: "other-user" }),
     });
 
-    const result = await handler.execute(
-      new OAuthLinkCallbackCommand(
-        { code: "good-code", state: "state-value", provider: "stub-oidc" },
-        "user-1",
-        "session-1",
-        { correlationId: "corr-link-conflict" },
-      ),
-    );
-
-    expect("problem" in result && result.problem.code).toBe(
-      AUTH_ERROR_CODES.oauthCallbackInvalid,
-    );
+    let thrown: unknown;
+    try {
+      await handler.execute(
+        new OAuthLinkCallbackCommand(
+          { code: "good-code", state: "state-value", provider: "stub-oidc" },
+          "user-1",
+          "session-1",
+          { correlationId: "corr-link-conflict" },
+        ),
+      );
+    } catch (err) {
+      thrown = err;
+    }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.oauthCallbackInvalid },
+    });
   });
 });

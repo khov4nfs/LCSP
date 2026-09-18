@@ -1,6 +1,7 @@
 import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { describe, expect, it, jest } from "@jest/globals";
 
+import { HttpException } from "@nestjs/common";
 import { Session, User } from "../../../domain/models/auth-workspace.models.ts";
 import { GetWorkspaceHandler } from "./get-workspace.handler.ts";
 import { GetWorkspaceQuery } from "./get-workspace.query.ts";
@@ -44,12 +45,16 @@ describe("GetWorkspaceHandler", () => {
       "corr-123",
     );
 
-    const result = await handler.execute(query);
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.problem.code).toBe(AUTH_ERROR_CODES.sessionInvalid);
+    let thrown: unknown;
+    try {
+      await handler.execute(query);
+    } catch (err) {
+      thrown = err;
     }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.sessionInvalid },
+    });
   });
 
   it("rejects when the session belongs to a different user", async () => {
@@ -97,12 +102,16 @@ describe("GetWorkspaceHandler", () => {
       "corr-123",
     );
 
-    const result = await handler.execute(query);
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.problem.code).toBe(AUTH_ERROR_CODES.sessionInvalid);
+    let thrown: unknown;
+    try {
+      await handler.execute(query);
+    } catch (err) {
+      thrown = err;
     }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.sessionInvalid },
+    });
   });
 
   it("returns authentic session expiration and MFA status when valid session exists", async () => {

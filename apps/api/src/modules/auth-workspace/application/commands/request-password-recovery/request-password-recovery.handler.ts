@@ -3,19 +3,18 @@ import {
   AUTH_BACKUP_EMAIL_POLICIES,
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
-  createProblemResult,
 } from "@lcsp/contracts/auth";
 
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
+import { problemException } from "../../../../../platform/problems/problem-factory.ts";
 import { RecoveryRequest } from "../../../domain/models/auth-workspace.models.ts";
 import {
   fingerprintToken,
   hashSecret,
   issueOpaqueToken,
 } from "../../../infrastructure/security/security.utils.ts";
-import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { RequestRecoverySuccess } from "../../contracts/auth-workspace/recovery.contract.ts";
 import {
   AUTH_WORKSPACE_RECOVERY_NOTIFIER,
@@ -42,7 +41,7 @@ export class RequestPasswordRecoveryHandler implements ICommandHandler<RequestPa
 
   async execute(
     command: RequestPasswordRecoveryCommand,
-  ): Promise<AuthProblemResult | RequestRecoverySuccess> {
+  ): Promise<RequestRecoverySuccess> {
     const { payload, requestMeta } = command;
     const { repositories } = this;
     const correlationId =
@@ -52,10 +51,7 @@ export class RequestPasswordRecoveryHandler implements ICommandHandler<RequestPa
       typeof payload.email !== "string" ||
       payload.email.trim().length === 0
     ) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.validationFailed,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
     }
 
     const email = payload.email.trim().toLowerCase();
