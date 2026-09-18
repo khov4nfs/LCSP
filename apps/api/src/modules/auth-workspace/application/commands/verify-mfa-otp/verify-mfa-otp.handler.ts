@@ -2,18 +2,17 @@ import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
-  createProblemResult,
 } from "@lcsp/contracts/auth";
 import { Inject, Logger } from "@nestjs/common";
 
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
+import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { MfaRateLimit } from "../../../domain/entities/mfa-rate-limit.entity.ts";
 import {
   decryptMfaSecret,
   verifyTotpOtp,
 } from "../../../infrastructure/security/security.utils.ts";
-import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { VerifyMfaOtpSuccess } from "../../contracts/auth-workspace/mfa.contract.ts";
 import {
   AUTH_WORKSPACE_REPOSITORIES,
@@ -37,9 +36,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
     private readonly repositories: AuthWorkspaceRepositories,
   ) {}
 
-  async execute(
-    command: VerifyMfaOtpCommand,
-  ): Promise<AuthProblemResult | VerifyMfaOtpSuccess> {
+  async execute(command: VerifyMfaOtpCommand): Promise<VerifyMfaOtpSuccess> {
     const { sessionToken, otp, requestMeta } = command;
     const correlationId =
       requestMeta.correlationId ?? this.support.createCorrelationId();
@@ -49,17 +46,14 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
       sessionToken,
     );
     if (!session) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const enrollment = await this.repositories.mfaEnrollments.findByUserId(
       session.userId,
     );
     if (!enrollment) {
-      return createProblemResult(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
     const now = this.support.now();
@@ -75,10 +69,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         reason_code: AUTH_ERROR_CODES.mfaRateLimited,
         correlationId: correlationId,
       });
-      return createProblemResult(
-        AUTH_ERROR_CODES.mfaRateLimited,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.mfaRateLimited, correlationId);
     }
 
     const alreadyUsed = await this.repositories.mfaOtpUsed.isUsed(
@@ -92,7 +83,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         correlationId,
         "replayed",
       );
-      return createProblemResult(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
     let plaintextSecret: string;
@@ -105,7 +96,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         correlationId,
         "decrypt_error",
       );
-      return createProblemResult(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
     const valid = verifyTotpOtp(plaintextSecret, otp, now);
@@ -116,7 +107,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         correlationId,
         "invalid",
       );
-      return createProblemResult(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
     const claimed = await this.repositories.mfaOtpUsed.tryMarkUsed(
@@ -131,7 +122,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
         correlationId,
         "replayed",
       );
-      return createProblemResult(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
     await this.repositories.mfaOtpUsed.pruneOlderThan(
       now - OTP_USED_RETENTION_MS,
@@ -148,10 +139,7 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
       session.userId,
     );
     if (!user) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
     user.mfaRequired = true;
     await this.repositories.users.save(user);

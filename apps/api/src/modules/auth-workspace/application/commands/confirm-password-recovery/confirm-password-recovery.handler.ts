@@ -3,17 +3,16 @@ import {
   AUTH_ERROR_CODES,
   USER_ACCESS_STATUSES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
-  createProblemResult,
 } from "@lcsp/contracts/auth";
 
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
+import { problemException } from "../../../../../platform/problems/problem-factory.ts";
 import {
   fingerprintToken,
   hashSecret,
 } from "../../../infrastructure/security/security.utils.ts";
-import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { ConfirmRecoverySuccess } from "../../contracts/auth-workspace/recovery.contract.ts";
 import {
   AUTH_WORKSPACE_REPOSITORIES,
@@ -32,7 +31,7 @@ export class ConfirmPasswordRecoveryHandler implements ICommandHandler<ConfirmPa
 
   async execute(
     command: ConfirmPasswordRecoveryCommand,
-  ): Promise<AuthProblemResult | ConfirmRecoverySuccess> {
+  ): Promise<ConfirmRecoverySuccess> {
     const { payload, requestMeta } = command;
     const { repositories } = this;
     const correlationId =
@@ -44,10 +43,7 @@ export class ConfirmPasswordRecoveryHandler implements ICommandHandler<ConfirmPa
       typeof payload.new_password !== "string" ||
       payload.new_password.length === 0
     ) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.validationFailed,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
     }
 
     const now = this.support.now();
@@ -63,18 +59,12 @@ export class ConfirmPasswordRecoveryHandler implements ICommandHandler<ConfirmPa
         reason_code: AUTH_ERROR_CODES.recoveryInvalid,
         correlationId: correlationId,
       });
-      return createProblemResult(
-        AUTH_ERROR_CODES.recoveryInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.recoveryInvalid, correlationId);
     }
 
     const user = await repositories.users.findById(recoveryRequest.userId);
     if (!user || user.accessStatus !== USER_ACCESS_STATUSES.active) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.recoveryInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.recoveryInvalid, correlationId);
     }
 
     user.passwordHash = hashSecret(payload.new_password);

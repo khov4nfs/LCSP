@@ -2,16 +2,15 @@ import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
-  createProblemResult,
 } from "@lcsp/contracts/auth";
 import { Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
+import { problemException } from "../../../../../platform/problems/problem-factory.ts";
 import { OAuthState } from "../../../domain/models/auth-workspace.models.ts";
 import { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
 import { issueOAuthStateToken } from "../../../infrastructure/security/security.utils.ts";
-import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { OAuthLinkStartSuccess } from "../../contracts/auth-workspace/oauth.contract.ts";
 import {
   AUTH_WORKSPACE_REPOSITORIES,
@@ -34,7 +33,7 @@ export class OAuthLinkStartHandler implements ICommandHandler<OAuthLinkStartComm
 
   async execute(
     command: OAuthLinkStartCommand,
-  ): Promise<AuthProblemResult | OAuthLinkStartSuccess> {
+  ): Promise<OAuthLinkStartSuccess> {
     const { payload, requestMeta } = command;
     const correlationId =
       requestMeta.correlationId ?? this.support.createCorrelationId();
@@ -43,10 +42,7 @@ export class OAuthLinkStartHandler implements ICommandHandler<OAuthLinkStartComm
     const redirectUri = asNonEmptyString(payload?.redirect_uri);
 
     if (!providerName || !redirectUri) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.validationFailed,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
     }
 
     const provider = this.providerRegistry.resolve(providerName);
@@ -56,7 +52,7 @@ export class OAuthLinkStartHandler implements ICommandHandler<OAuthLinkStartComm
         AUTH_ERROR_CODES.unsupportedProvider,
         command.userId,
       );
-      return createProblemResult(
+      throw problemException(
         AUTH_ERROR_CODES.unsupportedProvider,
         correlationId,
       );
@@ -72,7 +68,7 @@ export class OAuthLinkStartHandler implements ICommandHandler<OAuthLinkStartComm
         AUTH_ERROR_CODES.invalidRedirectUri,
         command.userId,
       );
-      return createProblemResult(
+      throw problemException(
         AUTH_ERROR_CODES.invalidRedirectUri,
         correlationId,
       );

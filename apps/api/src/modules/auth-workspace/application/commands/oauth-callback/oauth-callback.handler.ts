@@ -3,15 +3,14 @@ import {
   AUTH_ERROR_CODES,
   USER_ACCESS_STATUSES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
-  createProblemResult,
 } from "@lcsp/contracts/auth";
 
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
+import { problemException } from "../../../../../platform/problems/problem-factory.ts";
 import type { OAuthCallbackClaims } from "../../../infrastructure/oauth/oauth-provider.interface.ts";
 import { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
-import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { OAuthCallbackSuccess } from "../../contracts/auth-workspace/oauth.contract.ts";
 import {
   AUTH_WORKSPACE_REPOSITORIES,
@@ -29,9 +28,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
     private readonly providerRegistry: OAuthProviderRegistry,
   ) {}
 
-  async execute(
-    command: OAuthCallbackCommand,
-  ): Promise<AuthProblemResult | OAuthCallbackSuccess> {
+  async execute(command: OAuthCallbackCommand): Promise<OAuthCallbackSuccess> {
     const { payload, requestMeta } = command;
     const { repositories } = this;
     const correlationId =
@@ -42,10 +39,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
     const providerParam = asNonEmptyString(payload?.provider);
 
     if (!code || !stateValue || !providerParam) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.validationFailed,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
     }
 
     // Atomic delete-and-return: a state value can only ever be consumed once,
@@ -65,10 +59,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
         AUTH_ERROR_CODES.oauthStateInvalid,
         null,
       );
-      return createProblemResult(
-        AUTH_ERROR_CODES.oauthStateInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.oauthStateInvalid, correlationId);
     }
 
     const provider = this.providerRegistry.resolve(oauthState.provider);
@@ -79,7 +70,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
         AUTH_ERROR_CODES.unsupportedProvider,
         null,
       );
-      return createProblemResult(
+      throw problemException(
         AUTH_ERROR_CODES.unsupportedProvider,
         correlationId,
       );
@@ -101,7 +92,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
         AUTH_ERROR_CODES.oauthCallbackInvalid,
         null,
       );
-      return createProblemResult(
+      throw problemException(
         AUTH_ERROR_CODES.oauthCallbackInvalid,
         correlationId,
       );
@@ -123,7 +114,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
         AUTH_ERROR_CODES.oauthCallbackInvalid,
         null,
       );
-      return createProblemResult(
+      throw problemException(
         AUTH_ERROR_CODES.oauthCallbackInvalid,
         correlationId,
       );
@@ -140,10 +131,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
         AUTH_ERROR_CODES.accountNotFound,
         null,
       );
-      return createProblemResult(
-        AUTH_ERROR_CODES.accountNotFound,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.accountNotFound, correlationId);
     }
 
     const user = await repositories.users.findById(identity.userId);
@@ -154,10 +142,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
         AUTH_ERROR_CODES.accountNotFound,
         identity.userId,
       );
-      return createProblemResult(
-        AUTH_ERROR_CODES.accountNotFound,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.accountNotFound, correlationId);
     }
 
     if (user.accessStatus !== USER_ACCESS_STATUSES.active) {
@@ -167,10 +152,7 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
         AUTH_ERROR_CODES.accountSuspended,
         user.id,
       );
-      return createProblemResult(
-        AUTH_ERROR_CODES.accountSuspended,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId);
     }
 
     const sessionState = await this.support.createSession(

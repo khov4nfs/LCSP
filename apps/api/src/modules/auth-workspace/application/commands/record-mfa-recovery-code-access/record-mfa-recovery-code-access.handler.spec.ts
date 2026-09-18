@@ -6,6 +6,7 @@ import {
 } from "@lcsp/contracts/auth";
 import { describe, expect, it, jest } from "@jest/globals";
 
+import { HttpException } from "@nestjs/common";
 import { Session } from "../../../domain/models/auth-workspace.models.ts";
 import { RecordMfaRecoveryCodeAccessCommand } from "./record-mfa-recovery-code-access.command.ts";
 import { RecordMfaRecoveryCodeAccessHandler } from "./record-mfa-recovery-code-access.handler.ts";
@@ -28,19 +29,23 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
       repositories as never,
     );
 
-    const result = await handler.execute(
-      new RecordMfaRecoveryCodeAccessCommand(
-        "user-1",
-        MFA_RECOVERY_CODE_ACCESS_ACTIONS.view,
-        "",
-        { correlationId: "corr-123" },
-      ),
-    );
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.problem.code).toBe(AUTH_ERROR_CODES.sessionInvalid);
+    let thrown: unknown;
+    try {
+      await handler.execute(
+        new RecordMfaRecoveryCodeAccessCommand(
+          "user-1",
+          MFA_RECOVERY_CODE_ACCESS_ACTIONS.view,
+          "",
+          { correlationId: "corr-123" },
+        ),
+      );
+    } catch (err) {
+      thrown = err;
     }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.sessionInvalid },
+    });
   });
 
   it("rejects when the session is not found or inactive", async () => {
@@ -60,19 +65,23 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
       repositories as never,
     );
 
-    const result = await handler.execute(
-      new RecordMfaRecoveryCodeAccessCommand(
-        "user-1",
-        MFA_RECOVERY_CODE_ACCESS_ACTIONS.view,
-        "missing-session",
-        { correlationId: "corr-123" },
-      ),
-    );
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.problem.code).toBe(AUTH_ERROR_CODES.sessionInvalid);
+    let thrown: unknown;
+    try {
+      await handler.execute(
+        new RecordMfaRecoveryCodeAccessCommand(
+          "user-1",
+          MFA_RECOVERY_CODE_ACCESS_ACTIONS.view,
+          "missing-session",
+          { correlationId: "corr-123" },
+        ),
+      );
+    } catch (err) {
+      thrown = err;
     }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.sessionInvalid },
+    });
   });
 
   it("rejects when the session belongs to a different user", async () => {
@@ -100,19 +109,23 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
       repositories as never,
     );
 
-    const result = await handler.execute(
-      new RecordMfaRecoveryCodeAccessCommand(
-        "user-1",
-        MFA_RECOVERY_CODE_ACCESS_ACTIONS.view,
-        "session-1",
-        { correlationId: "corr-123" },
-      ),
-    );
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.problem.code).toBe(AUTH_ERROR_CODES.sessionInvalid);
+    let thrown: unknown;
+    try {
+      await handler.execute(
+        new RecordMfaRecoveryCodeAccessCommand(
+          "user-1",
+          MFA_RECOVERY_CODE_ACCESS_ACTIONS.view,
+          "session-1",
+          { correlationId: "corr-123" },
+        ),
+      );
+    } catch (err) {
+      thrown = err;
     }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.sessionInvalid },
+    });
   });
 
   it("rejects when the session is not MFA verified", async () => {
@@ -140,19 +153,23 @@ describe("RecordMfaRecoveryCodeAccessHandler", () => {
       repositories as never,
     );
 
-    const result = await handler.execute(
-      new RecordMfaRecoveryCodeAccessCommand(
-        "user-1",
-        MFA_RECOVERY_CODE_ACCESS_ACTIONS.view,
-        "session-1",
-        { correlationId: "corr-123" },
-      ),
-    );
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.problem.code).toBe(AUTH_ERROR_CODES.mfaRequired);
+    let thrown: unknown;
+    try {
+      await handler.execute(
+        new RecordMfaRecoveryCodeAccessCommand(
+          "user-1",
+          MFA_RECOVERY_CODE_ACCESS_ACTIONS.view,
+          "session-1",
+          { correlationId: "corr-123" },
+        ),
+      );
+    } catch (err) {
+      thrown = err;
     }
+    expect(thrown).toBeInstanceOf(HttpException);
+    expect((thrown as HttpException).getResponse()).toMatchObject({
+      problem: { code: AUTH_ERROR_CODES.mfaRequired },
+    });
   });
 
   it("records audit and succeeds when valid active MFA-verified session is provided", async () => {

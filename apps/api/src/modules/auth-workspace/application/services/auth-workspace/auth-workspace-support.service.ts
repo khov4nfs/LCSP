@@ -3,7 +3,6 @@ import {
   AUTH_ERROR_CODES,
   USER_ACCESS_STATUSES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
-  createProblemResult,
 } from "@lcsp/contracts/auth";
 import { HttpStatus } from "@nestjs/common";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
@@ -23,10 +22,7 @@ import {
   hashSecret,
   issueOpaqueToken,
 } from "../../../infrastructure/security/security.utils.ts";
-import type {
-  AuthProblemResult,
-  SafeUserProjection,
-} from "../../contracts/auth-workspace/common.contract.ts";
+import type { SafeUserProjection } from "../../contracts/auth-workspace/common.contract.ts";
 import type { CredentialPayload } from "../../contracts/auth-workspace/sign-in.contract.ts";
 import type { WorkspaceAuthorization } from "../../contracts/auth-workspace/workspace.contract.ts";
 import type { AuthWorkspaceRepositories } from "../../ports/persistence/auth-workspace-repositories.ts";
@@ -99,18 +95,15 @@ export class AuthWorkspaceSupportService {
   validateCredentialPayload(
     payload: CredentialPayload,
     correlationId: string,
-  ): AuthProblemResult | null {
+  ): void {
     if (
       !this.requireString(payload?.email) ||
       !this.requireString(payload?.password)
     ) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.validationFailed,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId, {
+        status: HttpStatus.BAD_REQUEST,
+      });
     }
-
-    return null;
   }
 
   async createSession(
@@ -182,10 +175,6 @@ export class AuthWorkspaceSupportService {
     resourceId = "workspace-home",
   ): Promise<WorkspaceAuthorization> {
     if (!user || user.accessStatus !== USER_ACCESS_STATUSES.active) {
-      const denied = createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
       await this.recordDecision(repositories, {
         actor_id: null,
         session_id: null,
@@ -195,7 +184,7 @@ export class AuthWorkspaceSupportService {
         reason_code: AUTH_ERROR_CODES.sessionInvalid,
         correlationId: correlationId,
       });
-      return denied;
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const allowed: AuthorizationDecision = {

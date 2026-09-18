@@ -8,8 +8,6 @@ import type {
   RepositoryAuthenticationMode,
 } from "@lcsp/contracts/github-integration";
 
-import type { AuthProblemResult } from "./common.contract.ts";
-
 export type AuthProfileSuccess = {
   ok: true;
   user_id: string;
@@ -69,7 +67,6 @@ export type RevokeOwnedSessionSuccess = {
 };
 
 export type AuthSettingsResponse =
-  | AuthProblemResult
   | AuthProfileSuccess
   | AuthSessionsSuccess
   | AuthRepositoriesSuccess

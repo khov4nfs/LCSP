@@ -1,19 +1,11 @@
 import type { AuthUserRole } from "@lcsp/contracts/auth";
 import type { AuthorizationDecision } from "../../../domain/models/auth-workspace.models.ts";
-import type { AuthProblemResult } from "./common.contract.ts";
 
-export type WorkspaceRequest = {
-  correlationId?: string;
-  session_token?: string;
+export type WorkspaceAuthorization = {
+  ok: true;
+  decision: AuthorizationDecision;
+  role: AuthUserRole;
 };
-
-export type WorkspaceAuthorization =
-  | AuthProblemResult
-  | {
-      ok: true;
-      decision: AuthorizationDecision;
-      role: AuthUserRole;
-    };
 
 export type WorkspaceSuccess = {
   ok: true;

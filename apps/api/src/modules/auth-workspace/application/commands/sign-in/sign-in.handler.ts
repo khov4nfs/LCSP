@@ -3,17 +3,16 @@ import {
   AUTH_ERROR_CODES,
   USER_ACCESS_STATUSES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
-  createProblemResult,
 } from "@lcsp/contracts/auth";
 
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
+import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import {
   hashSecret,
   verifySecret,
 } from "../../../infrastructure/security/security.utils.ts";
-import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { SignInSuccess } from "../../contracts/auth-workspace/sign-in.contract.ts";
 import {
   AUTH_WORKSPACE_REPOSITORIES,
@@ -34,20 +33,12 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
     private readonly repositories: AuthWorkspaceRepositories,
   ) {}
 
-  async execute(
-    command: SignInCommand,
-  ): Promise<AuthProblemResult | SignInSuccess> {
+  async execute(command: SignInCommand): Promise<SignInSuccess> {
     const { payload, requestMeta } = command;
     const { repositories } = this;
     const correlationId =
       requestMeta.correlationId ?? this.support.createCorrelationId();
-    const validationError = this.support.validateCredentialPayload(
-      payload,
-      correlationId,
-    );
-    if (validationError) {
-      return validationError;
-    }
+    this.support.validateCredentialPayload(payload, correlationId);
 
     const email = payload.email as string;
     const password = payload.password as string;
@@ -65,7 +56,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
         reason_code: AUTH_ERROR_CODES.invalidCredentials,
         correlationId: correlationId,
       });
-      return createProblemResult(
+      throw problemException(
         AUTH_ERROR_CODES.invalidCredentials,
         correlationId,
       );
@@ -79,7 +70,11 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
         reason_code: AUTH_ERROR_CODES.temporaryLock,
         correlationId: correlationId,
       });
-      return createTemporaryLockProblem(user.lockUntil, correlationId);
+      throw problemException(
+        AUTH_ERROR_CODES.temporaryLock,
+        correlationId,
+        temporaryLockProblemOverrides(user.lockUntil, this.support.now()),
+      );
     }
 
     if (!verifySecret(password, user.passwordHash)) {
@@ -98,7 +93,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
           : AUTH_ERROR_CODES.invalidCredentials,
         correlationId: correlationId,
       });
-      return createProblemResult(
+      throw problemException(
         user.lockUntil
           ? AUTH_ERROR_CODES.temporaryLock
           : AUTH_ERROR_CODES.invalidCredentials,
@@ -110,10 +105,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
     }
 
     if (user.accessStatus !== USER_ACCESS_STATUSES.active) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.accountSuspended,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId);
     }
 
     user.clearFailedLogins();
@@ -127,7 +119,7 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
         reason_code: AUTH_ERROR_CODES.emailVerificationRequired,
         correlationId: correlationId,
       });
-      return createProblemResult(
+      throw problemException(
         AUTH_ERROR_CODES.emailVerificationRequired,
         correlationId,
       );
@@ -160,17 +152,6 @@ export class SignInHandler implements ICommandHandler<SignInCommand> {
       ...(mfaRequired ? { mfa_required: true } : {}),
     };
   }
-}
-
-function createTemporaryLockProblem(
-  lockUntil: number | null,
-  correlationId: string,
-): AuthProblemResult {
-  return createProblemResult(
-    AUTH_ERROR_CODES.temporaryLock,
-    correlationId,
-    temporaryLockProblemOverrides(lockUntil, Date.now()),
-  );
 }
 
 function temporaryLockProblemOverrides(lockUntil: number | null, now: number) {
