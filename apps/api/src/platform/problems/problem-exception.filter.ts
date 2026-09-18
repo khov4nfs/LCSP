@@ -21,6 +21,7 @@ type HttpRequest = {
   method?: string;
   url?: string;
   headers?: Record<string, string | string[] | undefined>;
+  correlationId?: string;
 };
 
 /**
@@ -176,6 +177,13 @@ function getExceptionBody(exception: unknown): unknown {
 function getCorrelationId(body: unknown, request: HttpRequest): string {
   if (isProblemResult(body) && body.problem.correlationId) {
     return body.problem.correlationId;
+  }
+
+  if (
+    typeof request.correlationId === "string" &&
+    request.correlationId.length > 0
+  ) {
+    return request.correlationId;
   }
 
   const header = request.headers?.["x-correlation-id"];

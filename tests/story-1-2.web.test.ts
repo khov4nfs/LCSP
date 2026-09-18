@@ -4,6 +4,11 @@ import * as assert from "node:assert/strict";
 import { SIGN_UP_ERROR_CODES } from "@lcsp/contracts/auth";
 import {
   SESSION_COOKIE_NAME,
+  mfaRecoveryCodeVerifySchema,
+  mfaVerifySchema,
+  profileSafetySchema,
+  recoveryConfirmSchema,
+  recoveryRequestSchema,
   signInSchema,
   signUpSchema,
   sessionCookieOptions,
@@ -120,6 +125,123 @@ test("sign-up schema validates account fields", () => {
       password: "short",
       confirm_password: "short",
     }).success,
+    false,
+  );
+  assert.equal(
+    signUpSchema.safeParse({
+      display_name: "a".repeat(101),
+      email: "manager@example.test",
+      password: "twelve-chars",
+      confirm_password: "twelve-chars",
+    }).success,
+    false,
+  );
+  assert.equal(
+    signUpSchema.safeParse({
+      display_name: "New Manager",
+      email: "  manager@example.test  ",
+      password: "eleven-char",
+      confirm_password: "eleven-char",
+    }).success,
+    false,
+  );
+  const parsed = signUpSchema.safeParse({
+    display_name: "  Trimmed Manager  ",
+    email: "  manager@example.test  ",
+    password: "twelve-chars",
+    confirm_password: "twelve-chars",
+  });
+  assert.equal(parsed.success, true);
+  if (parsed.success) {
+    assert.equal(parsed.data.display_name, "Trimmed Manager");
+    assert.equal(parsed.data.email, "manager@example.test");
+  }
+});
+
+test("sign-in schema derives from canonical contract and trims email", () => {
+  assert.equal(
+    signInSchema.safeParse({
+      email: "  user@example.com  ",
+      password: "some-password",
+    }).success,
+    true,
+  );
+  assert.equal(
+    signInSchema.safeParse({
+      email: "not-an-email",
+      password: "pass",
+    }).success,
+    false,
+  );
+  assert.equal(
+    signInSchema.safeParse({
+      email: "user@example.com",
+      password: "",
+    }).success,
+    false,
+  );
+});
+
+test("recovery request schema trims email according to shared contract", () => {
+  const parsed = recoveryRequestSchema.safeParse({
+    email: "  user@example.com  ",
+  });
+  assert.equal(parsed.success, true);
+  if (parsed.success) {
+    assert.equal(parsed.data.email, "user@example.com");
+  }
+  assert.equal(
+    recoveryRequestSchema.safeParse({ email: "invalid-email" }).success,
+    false,
+  );
+});
+
+test("recovery confirm schema enforces canonical password rules", () => {
+  assert.equal(
+    recoveryConfirmSchema.safeParse({
+      token: "valid-token",
+      new_password: "short",
+    }).success,
+    false,
+  );
+  assert.equal(
+    recoveryConfirmSchema.safeParse({
+      token: "valid-token",
+      new_password: "twelve-chars-valid",
+    }).success,
+    true,
+  );
+});
+
+test("mfa verify schemas validate otp and recovery code formats", () => {
+  assert.equal(mfaVerifySchema.safeParse({ otp: "123456" }).success, true);
+  assert.equal(mfaVerifySchema.safeParse({ otp: "12345" }).success, false);
+  assert.equal(mfaVerifySchema.safeParse({ otp: "abcdef" }).success, false);
+
+  assert.equal(
+    mfaRecoveryCodeVerifySchema.safeParse({ code: "ABCD-1234-EFGH" }).success,
+    true,
+  );
+  assert.equal(
+    mfaRecoveryCodeVerifySchema.safeParse({ code: "invalid-code" }).success,
+    false,
+  );
+});
+
+test("profile safety schema accepts optional valid recovery email and trims", () => {
+  assert.equal(
+    profileSafetySchema.safeParse({ recovery_email: "" }).success,
+    true,
+  );
+  const parsed = profileSafetySchema.safeParse({
+    recovery_email: "  recovery@example.com  ",
+  });
+  assert.equal(parsed.success, true);
+  if (parsed.success) {
+    assert.equal(parsed.data.recovery_email, "recovery@example.com");
+  }
+  assert.equal(
+    profileSafetySchema.safeParse({ recovery_email: "invalid-email" }).success,
     false,
   );
 });

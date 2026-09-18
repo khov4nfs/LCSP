@@ -41,6 +41,8 @@
     "./auth/safe": "./src/auth/safe.ts",
     "./auth/states": "./src/auth/states.ts",
     "./auth/types": "./src/auth/types.ts",
+    "./auth/schemas": "./src/auth/schemas.ts",
+
     "./evidence": "./src/evidence/index.ts",
     "./evidence/assessment-interview": "./src/evidence/assessment-interview.ts",
     "./evidence/codes": "./src/evidence/codes.ts",
@@ -55,5 +57,8 @@
     "./shared/health": "./src/shared/health.ts",
     "./shared/locale": "./src/shared/locale.ts",
     "./shared/result": "./src/shared/result.ts"
+  },
+  "dependencies": {
+    "zod": "4.0.17"
   }
 }

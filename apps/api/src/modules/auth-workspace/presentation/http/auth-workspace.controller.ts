@@ -16,13 +16,40 @@ import {
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 
 import {
-  AUTH_ERROR_CODES,
-  MFA_RECOVERY_CODE_ACCESS_ACTIONS,
-  type MfaRecoveryCodeAccessAction,
+  checkSensitiveRouteSchema,
+  confirmPasswordRecoverySchema,
+  oauthCallbackSchema,
+  oauthLinkCallbackSchema,
+  oauthLinkStartSchema,
+  oauthStartSchema,
+  passwordReauthSchema,
+  recordMfaRecoveryCodeAccessSchema,
+  requestPasswordRecoverySchema,
+  revokeSessionSchema,
+  signInSchema,
+  signUpSchema,
+  updateProfileSchema,
+  verifyMfaOtpSchema,
+  verifyMfaRecoveryCodeSchema,
+  type CheckSensitiveRouteInput,
+  type ConfirmPasswordRecoveryInput,
+  type OAuthCallbackInput,
+  type OAuthLinkCallbackInput,
+  type OAuthLinkStartInput,
+  type OAuthStartInput,
+  type PasswordReauthInput,
+  type RecordMfaRecoveryCodeAccessInput,
+  type RequestPasswordRecoveryInput,
+  type RevokeSessionInput,
+  type SignInInput,
+  type SignUpInput,
+  type UpdateProfileInput,
+  type VerifyMfaOtpInput,
+  type VerifyMfaRecoveryCodeInput,
 } from "@lcsp/contracts/auth";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.ts";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { AllowPendingMfa } from "../../../../platform/rbac/decorators/allow-pending-mfa.decorator.js";
 import { RequireSession } from "../../../../platform/rbac/decorators/require-session.decorator.js";
@@ -46,24 +73,10 @@ import {
   SignInCommand,
   SignUpCommand,
   UpdateProfileCommand,
-  type UpdateProfilePayload,
   VerifyMfaOtpCommand,
   VerifyMfaRecoveryCodeCommand,
 } from "../../application/commands/index.ts";
-import type {
-  ConfirmRecoveryPayload,
-  CredentialPayload,
-  OAuthCallbackPayload,
-  OAuthLinkCallbackPayload,
-  OAuthLinkStartPayload,
-  OAuthStartPayload,
-  PasswordReauthPayload,
-  RequestMeta,
-  RequestRecoveryPayload,
-  SensitiveRouteCheckDto,
-  SignUpPayload,
-  WorkspaceRequest,
-} from "../../application/contracts/auth-workspace/index.ts";
+import type { SensitiveRouteCheckDto } from "../../application/contracts/auth-workspace/index.ts";
 import {
   CheckSensitiveRouteQuery,
   GetAuthProfileQuery,
@@ -72,21 +85,11 @@ import {
   ListAuthSessionsQuery,
 } from "../../application/queries/index.ts";
 
-type SensitiveRouteCheckPayload = {
-  method?: unknown;
-  path?: unknown;
-  route?: unknown;
-};
-
-type MfaRecoveryCodeAccessPayload = {
-  action?: unknown;
-  session_token?: string;
-};
-
-const MFA_RECOVERY_CODE_ACCESS_ACTION_VALUES = Object.values(
-  MFA_RECOVERY_CODE_ACCESS_ACTIONS,
-);
-
+/**
+ * Controller exposing all authentication, session, MFA, profile, and OAuth endpoints.
+ * Validates request bodies/queries using Zod schemas via ZodValidationPipe
+ * and passes authenticated context directly from RbacGuard.
+ */
 @Controller()
 export class AuthWorkspaceController {
   constructor(
@@ -94,22 +97,30 @@ export class AuthWorkspaceController {
     private readonly queryBus: QueryBus,
   ) {}
 
+  /**
+   * Public sign-in endpoint.
+   * Validates credentials against `signInSchema` and returns safe user/session projection.
+   */
   @Post("auth/sign-in")
   @HttpCode(HttpStatus.OK)
   async signIn(
-    @Body() payload: CredentialPayload,
+    @Body(new ZodValidationPipe(signInSchema)) payload: SignInInput,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
     return resultEnvelope(
       await this.commandBus.execute(
-        new SignInCommand(payload, requestMeta(correlationId)),
+        new SignInCommand(payload, { correlationId }),
       ),
     );
   }
 
+  /**
+   * Public self-service sign-up endpoint.
+   * Validates payload against `signUpSchema` and creates new user and session.
+   */
   @Post("auth/sign-up")
   async signUp(
-    @Body() payload: SignUpPayload,
+    @Body(new ZodValidationPipe(signUpSchema)) payload: SignUpInput,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
     return resultEnvelope(
@@ -118,112 +129,121 @@ export class AuthWorkspaceController {
           email: payload.email,
           displayName: payload.display_name,
           password: payload.password,
-          correlationId: requestMeta(correlationId).correlationId,
+          correlationId,
         }),
       ),
     );
   }
 
+  /**
+   * Public session revocation endpoint.
+   * Revokes the specified session token.
+   */
   @Post("auth/revoke-session")
   async revokeSession(
-    @Body() body: { session_token?: string },
+    @Body(new ZodValidationPipe(revokeSessionSchema)) body: RevokeSessionInput,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
     return resultEnvelope(
       await this.commandBus.execute(
-        new RevokeSessionCommand(
-          body.session_token ?? "",
-          requestMeta(correlationId),
-        ),
+        new RevokeSessionCommand(body.session_token, { correlationId }),
       ),
     );
   }
 
+  /**
+   * Guarded workspace retrieval endpoint.
+   * Retrieves workspace data using authenticated RBAC context.
+   */
   @Get("workspace")
   @UseGuards(RbacGuard)
   @RequireSession()
-  async getWorkspace(
-    @Req() request: AuthenticatedRequest,
-    @Headers("authorization") authorization?: string,
-  ) {
-    const workspaceRequest: WorkspaceRequest = {
-      session_token: bearerToken(authorization),
-      correlationId: request.correlationId,
-    };
+  async getWorkspace(@Req() request: AuthenticatedRequest) {
     return resultEnvelope(
-      await this.queryBus.execute(new GetWorkspaceQuery(workspaceRequest)),
+      await this.queryBus.execute(
+        new GetWorkspaceQuery(request.rbacContext, request.correlationId),
+      ),
     );
   }
 
+  /**
+   * Guarded MFA enrollment endpoint.
+   * Enrolls the authenticated user in TOTP MFA using context userId and sessionId.
+   */
   @Post("auth/mfa/enroll")
   @UseGuards(RbacGuard)
   @RequireSession()
   @AllowPendingMfa()
-  async enrollMfa(
-    @Body() body: { session_token?: string },
-    @Headers("authorization") authorization: string | undefined,
-    @Req() request: AuthenticatedRequest,
-  ) {
+  async enrollMfa(@Req() request: AuthenticatedRequest) {
     return resultEnvelope(
       await this.commandBus.execute(
         new EnrollMfaCommand(
-          bearerToken(authorization) ?? body.session_token ?? "",
-          requestMeta(request.correlationId),
+          request.rbacContext.userId,
+          request.rbacContext.sessionId,
+          { correlationId: request.correlationId },
         ),
       ),
     );
   }
 
+  /**
+   * Guarded MFA disable endpoint.
+   * Disables MFA for the authenticated user.
+   */
   @Delete("auth/mfa")
   @UseGuards(RbacGuard)
   @RequireSession()
-  async disableMfa(
-    @Body() body: { session_token?: string },
-    @Headers("authorization") authorization: string | undefined,
-    @Req() request: AuthenticatedRequest,
-  ) {
+  async disableMfa(@Req() request: AuthenticatedRequest) {
     return resultEnvelope(
       await this.commandBus.execute(
         new DisableMfaCommand(
-          bearerToken(authorization) ?? body.session_token ?? "",
-          requestMeta(request.correlationId),
+          request.rbacContext.userId,
+          request.rbacContext.sessionId,
+          { correlationId: request.correlationId },
         ),
       ),
     );
   }
 
+  /**
+   * Public MFA OTP verification endpoint during sign-in.
+   */
   @Post("auth/mfa/verify-otp")
   async verifyMfaOtp(
-    @Body() body: { session_token?: string; otp?: string },
+    @Body(new ZodValidationPipe(verifyMfaOtpSchema)) body: VerifyMfaOtpInput,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
     return resultEnvelope(
       await this.commandBus.execute(
-        new VerifyMfaOtpCommand(
-          body.session_token ?? "",
-          body.otp ?? "",
-          requestMeta(correlationId),
-        ),
+        new VerifyMfaOtpCommand(body.session_token, body.otp, {
+          correlationId,
+        }),
       ),
     );
   }
 
+  /**
+   * Public MFA recovery code verification endpoint during sign-in.
+   */
   @Post("auth/mfa/recovery-code/verify")
   async verifyMfaRecoveryCode(
-    @Body() body: { session_token?: string; code?: string },
+    @Body(new ZodValidationPipe(verifyMfaRecoveryCodeSchema))
+    body: VerifyMfaRecoveryCodeInput,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
     return resultEnvelope(
       await this.commandBus.execute(
-        new VerifyMfaRecoveryCodeCommand(
-          body.session_token ?? "",
-          body.code ?? "",
-          requestMeta(correlationId),
-        ),
+        new VerifyMfaRecoveryCodeCommand(body.session_token, body.code, {
+          correlationId,
+        }),
       ),
     );
   }
 
+  /**
+   * Guarded MFA recovery codes generation endpoint.
+   * Requires step-up re-authentication for sensitive action.
+   */
   @Post("auth/mfa/recovery-codes")
   @UseGuards(RbacGuard)
   @RequireSession()
@@ -233,104 +253,79 @@ export class AuthWorkspaceController {
     pathTemplate: "/auth/mfa/recovery-codes",
     aliases: [{ method: "POST", pathTemplate: "/api/auth/mfa/recovery-codes" }],
   })
-  async generateMfaRecoveryCodes(
-    @Body() body: { session_token?: string },
-    @Headers("authorization") authorization: string | undefined,
-    @Req() request: AuthenticatedRequest,
-  ) {
+  async generateMfaRecoveryCodes(@Req() request: AuthenticatedRequest) {
     return resultEnvelope(
       await this.commandBus.execute(
         new GenerateMfaRecoveryCodesCommand(
-          bearerToken(authorization) ?? body.session_token ?? "",
-          requestMeta(request.correlationId),
+          request.rbacContext.userId,
+          request.rbacContext.sessionId,
+          { correlationId: request.correlationId },
         ),
       ),
     );
   }
 
+  /**
+   * Guarded audit recording endpoint for MFA recovery code view/copy actions.
+   */
   @Post("auth/mfa/recovery-codes/access")
   @UseGuards(RbacGuard)
   @RequireSession()
   async recordMfaRecoveryCodeAccess(
-    @Body() body: MfaRecoveryCodeAccessPayload,
-    @Headers("authorization") authorization: string | undefined,
+    @Body(new ZodValidationPipe(recordMfaRecoveryCodeAccessSchema))
+    body: RecordMfaRecoveryCodeAccessInput,
     @Req() request: AuthenticatedRequest,
   ) {
-    const action =
-      typeof body.action === "string" &&
-      MFA_RECOVERY_CODE_ACCESS_ACTION_VALUES.includes(
-        body.action as MfaRecoveryCodeAccessAction,
-      )
-        ? (body.action as MfaRecoveryCodeAccessAction)
-        : null;
-
-    if (!action) {
-      throw problemException(
-        AUTH_ERROR_CODES.validationFailed,
-        request.correlationId!,
-        { status: HttpStatus.BAD_REQUEST },
-      );
-    }
-
     return resultEnvelope(
       await this.commandBus.execute(
         new RecordMfaRecoveryCodeAccessCommand(
-          bearerToken(authorization) ?? body.session_token ?? "",
-          action,
-          requestMeta(request.correlationId),
+          request.rbacContext.userId,
+          body.action,
+          request.rbacContext.sessionId,
+          { correlationId: request.correlationId },
         ),
       ),
     );
   }
 
+  /**
+   * Guarded password re-authentication endpoint for sensitive operations.
+   */
   @Post("auth/re-auth/password")
   @UseGuards(RbacGuard)
   @RequireSession()
   @AllowPendingMfa()
   async reauthenticatePassword(
-    @Body() body: PasswordReauthPayload,
-    @Headers("authorization") authorization: string | undefined,
+    @Body(new ZodValidationPipe(passwordReauthSchema))
+    body: PasswordReauthInput,
     @Req() request: AuthenticatedRequest,
   ) {
     return resultEnvelope(
       await this.commandBus.execute(
         new ReauthenticatePasswordCommand(
-          {
-            session_token:
-              bearerToken(authorization) ?? body.session_token ?? "",
-            password: body.password,
-          },
-          requestMeta(request.correlationId),
+          body.password,
+          request.rbacContext.userId,
+          request.rbacContext.sessionId,
+          { correlationId: request.correlationId },
         ),
       ),
     );
   }
 
+  /**
+   * Guarded check endpoint to determine if sensitive action requires re-authentication.
+   */
   @Post("auth/sensitive-route/check")
   @HttpCode(HttpStatus.OK)
   @UseGuards(RbacGuard)
   @RequireSession()
   @AllowPendingMfa()
   async checkSensitiveRoute(
-    @Body() body: SensitiveRouteCheckPayload,
+    @Body(new ZodValidationPipe(checkSensitiveRouteSchema))
+    body: CheckSensitiveRouteInput,
     @Req() request: AuthenticatedRequest,
   ) {
-    const method = typeof body.method === "string" ? body.method : "";
-    const route =
-      typeof body.path === "string"
-        ? body.path
-        : typeof body.route === "string"
-          ? body.route
-          : "";
-
-    if (method.trim().length === 0 || route.trim().length === 0) {
-      throw problemException(
-        AUTH_ERROR_CODES.validationFailed,
-        request.correlationId!,
-        { status: HttpStatus.BAD_REQUEST },
-      );
-    }
-
+    const route = body.path ?? body.route ?? "";
     return resultEnvelope(
       await this.queryBus.execute<
         CheckSensitiveRouteQuery,
@@ -338,35 +333,40 @@ export class AuthWorkspaceController {
       >(
         new CheckSensitiveRouteQuery(
           request.rbacContext.sessionId,
-          method,
+          body.method,
           route,
         ),
       ),
     );
   }
 
+  /**
+   * Guarded profile update endpoint.
+   */
   @Patch("auth/profile")
   @UseGuards(RbacGuard)
   @RequireSession()
   async updateProfile(
-    @Body() body: UpdateProfilePayload & { session_token?: string },
-    @Headers("authorization") authorization: string | undefined,
+    @Body(new ZodValidationPipe(updateProfileSchema)) body: UpdateProfileInput,
     @Req() request: AuthenticatedRequest,
   ) {
-    const { session_token, ...payload } = body;
     return resultEnvelope(
       await this.commandBus.execute(
         new UpdateProfileCommand(
+          body,
+          request.rbacContext.userId,
+          request.rbacContext.sessionId,
           {
-            ...payload,
-            session_token: bearerToken(authorization) ?? session_token ?? "",
+            correlationId: request.correlationId,
           },
-          requestMeta(request.correlationId),
         ),
       ),
     );
   }
 
+  /**
+   * Guarded profile retrieval endpoint.
+   */
   @Get("auth/profile")
   @UseGuards(RbacGuard)
   @RequireSession()
@@ -378,6 +378,9 @@ export class AuthWorkspaceController {
     );
   }
 
+  /**
+   * Guarded active sessions list endpoint.
+   */
   @Get("auth/sessions")
   @UseGuards(RbacGuard)
   @RequireSession()
@@ -389,6 +392,9 @@ export class AuthWorkspaceController {
     );
   }
 
+  /**
+   * Guarded session revocation endpoint for a user's own session by sessionId.
+   */
   @Delete("auth/sessions/:sessionId")
   @UseGuards(RbacGuard)
   @RequireSession()
@@ -398,15 +404,16 @@ export class AuthWorkspaceController {
   ) {
     return resultEnvelope(
       await this.commandBus.execute(
-        new RevokeOwnedSessionCommand(
-          sessionId,
-          request.rbacContext,
-          requestMeta(request.correlationId),
-        ),
+        new RevokeOwnedSessionCommand(sessionId, request.rbacContext, {
+          correlationId: request.correlationId,
+        }),
       ),
     );
   }
 
+  /**
+   * Guarded repositories list endpoint for the user.
+   */
   @Get("auth/repositories")
   @UseGuards(RbacGuard)
   @RequireSession()
@@ -418,126 +425,116 @@ export class AuthWorkspaceController {
     );
   }
 
+  /**
+   * Public password recovery request endpoint.
+   */
   @Post("auth/recovery/request")
   async requestPasswordRecovery(
-    @Body() payload: RequestRecoveryPayload,
+    @Body(new ZodValidationPipe(requestPasswordRecoverySchema))
+    payload: RequestPasswordRecoveryInput,
     @Headers("x-correlation-id") correlationId?: string,
     @Headers("x-app-origin") appOrigin?: string,
   ) {
     return resultEnvelope(
       await this.commandBus.execute(
-        new RequestPasswordRecoveryCommand(
-          payload,
-          requestMeta(correlationId, appOrigin),
-        ),
+        new RequestPasswordRecoveryCommand(payload, {
+          correlationId,
+          app_origin: appOrigin,
+        }),
       ),
     );
   }
 
+  /**
+   * Public password recovery confirmation endpoint.
+   */
   @Post("auth/recovery/confirm")
   async confirmPasswordRecovery(
-    @Body() payload: ConfirmRecoveryPayload,
+    @Body(new ZodValidationPipe(confirmPasswordRecoverySchema))
+    payload: ConfirmPasswordRecoveryInput,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
     return resultEnvelope(
       await this.commandBus.execute(
-        new ConfirmPasswordRecoveryCommand(payload, requestMeta(correlationId)),
+        new ConfirmPasswordRecoveryCommand(payload, { correlationId }),
       ),
     );
   }
 
+  /**
+   * Public OAuth start flow endpoint.
+   */
   @Get("auth/oauth/start")
   async oauthStart(
-    @Query("provider") provider?: string,
-    @Query("redirect_uri") redirectUri?: string,
+    @Query(new ZodValidationPipe(oauthStartSchema)) query: OAuthStartInput,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
-    const payload: OAuthStartPayload = {
-      provider,
-      redirect_uri: redirectUri,
-    };
     return resultEnvelope(
       await this.commandBus.execute(
-        new OAuthStartCommand(payload, requestMeta(correlationId)),
+        new OAuthStartCommand(query, { correlationId }),
       ),
     );
   }
 
+  /**
+   * Public OAuth callback handler endpoint.
+   */
   @Get("auth/oauth/callback")
   async oauthCallback(
-    @Query("code") code?: string,
-    @Query("state") state?: string,
-    @Query("provider") provider?: string,
+    @Query(new ZodValidationPipe(oauthCallbackSchema))
+    query: OAuthCallbackInput,
     @Headers("x-correlation-id") correlationId?: string,
   ) {
-    const payload: OAuthCallbackPayload = { code, state, provider };
     return resultEnvelope(
       await this.commandBus.execute(
-        new OAuthCallbackCommand(payload, requestMeta(correlationId)),
+        new OAuthCallbackCommand(query, { correlationId }),
       ),
     );
   }
 
+  /**
+   * Guarded OAuth identity linking start flow endpoint.
+   */
   @Get("auth/oauth/link/start")
   @UseGuards(RbacGuard)
   @RequireSession()
   async oauthLinkStart(
     @Req() request: AuthenticatedRequest,
-    @Query("provider") provider?: string,
-    @Query("redirect_uri") redirectUri?: string,
-    @Headers("x-correlation-id") correlationId?: string,
+    @Query(new ZodValidationPipe(oauthLinkStartSchema))
+    query: OAuthLinkStartInput,
   ) {
-    const payload: OAuthLinkStartPayload = {
-      provider,
-      redirect_uri: redirectUri,
-    };
     return resultEnvelope(
       await this.commandBus.execute(
         new OAuthLinkStartCommand(
-          payload,
+          query,
           request.rbacContext.userId,
           request.rbacContext.sessionId,
-          requestMeta(correlationId),
+          { correlationId: request.correlationId },
         ),
       ),
     );
   }
 
+  /**
+   * Guarded OAuth identity linking callback endpoint.
+   */
   @Get("auth/oauth/link/callback")
   @UseGuards(RbacGuard)
   @RequireSession()
   async oauthLinkCallback(
     @Req() request: AuthenticatedRequest,
-    @Query("code") code?: string,
-    @Query("state") state?: string,
-    @Query("provider") provider?: string,
-    @Headers("x-correlation-id") correlationId?: string,
+    @Query(new ZodValidationPipe(oauthLinkCallbackSchema))
+    query: OAuthLinkCallbackInput,
   ) {
-    const payload: OAuthLinkCallbackPayload = { code, state, provider };
     return resultEnvelope(
       await this.commandBus.execute(
         new OAuthLinkCallbackCommand(
-          payload,
+          query,
           request.rbacContext.userId,
           request.rbacContext.sessionId,
-          requestMeta(correlationId),
+          { correlationId: request.correlationId },
         ),
       ),
     );
   }
-}
-
-function requestMeta(correlationId?: string, appOrigin?: string): RequestMeta {
-  return {
-    ...(correlationId ? { correlationId: correlationId } : {}),
-    ...(appOrigin ? { app_origin: appOrigin } : {}),
-  };
-}
-
-function bearerToken(authorization?: string): string | undefined {
-  if (!authorization) {
-    return undefined;
-  }
-  const [scheme, token] = authorization.split(" ");
-  return scheme?.toLowerCase() === "bearer" && token ? token : undefined;
 }
