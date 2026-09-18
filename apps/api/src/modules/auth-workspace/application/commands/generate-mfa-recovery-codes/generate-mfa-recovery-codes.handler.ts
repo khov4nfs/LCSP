@@ -2,17 +2,16 @@ import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
-  createProblemResult,
 } from "@lcsp/contracts/auth";
 
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
+import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import {
   generateMfaRecoveryCodes,
   hashMfaRecoveryCode,
 } from "../../../infrastructure/security/mfa-recovery-code.utils.ts";
-import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { GenerateMfaRecoveryCodesSuccess } from "../../contracts/auth-workspace/mfa.contract.ts";
 import {
   AUTH_WORKSPACE_REPOSITORIES,
@@ -31,16 +30,13 @@ export class GenerateMfaRecoveryCodesHandler implements ICommandHandler<Generate
 
   async execute(
     command: GenerateMfaRecoveryCodesCommand,
-  ): Promise<AuthProblemResult | GenerateMfaRecoveryCodesSuccess> {
+  ): Promise<GenerateMfaRecoveryCodesSuccess> {
     const { userId, sessionId, requestMeta } = command;
     const correlationId =
       requestMeta?.correlationId ?? this.support.createCorrelationId();
 
     if (!userId || !sessionId) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const session = await this.repositories.sessions.findById(sessionId);
@@ -49,20 +45,17 @@ export class GenerateMfaRecoveryCodesHandler implements ICommandHandler<Generate
       !session.isActive(this.support.now()) ||
       session.userId !== userId
     ) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     if (!session.isMfaVerified()) {
-      return createProblemResult(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
     const enrollment =
       await this.repositories.mfaEnrollments.findByUserId(userId);
     if (!enrollment) {
-      return createProblemResult(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
     const now = this.support.now();

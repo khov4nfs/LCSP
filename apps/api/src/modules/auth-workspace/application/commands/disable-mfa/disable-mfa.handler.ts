@@ -2,13 +2,12 @@ import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
-  createProblemResult,
 } from "@lcsp/contracts/auth";
 
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
+import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import type { DisableMfaSuccess } from "../../contracts/auth-workspace/mfa.contract.ts";
 import {
   AUTH_WORKSPACE_REPOSITORIES,
@@ -25,18 +24,13 @@ export class DisableMfaHandler implements ICommandHandler<DisableMfaCommand> {
     private readonly repositories: AuthWorkspaceRepositories,
   ) {}
 
-  async execute(
-    command: DisableMfaCommand,
-  ): Promise<AuthProblemResult | DisableMfaSuccess> {
+  async execute(command: DisableMfaCommand): Promise<DisableMfaSuccess> {
     const { userId, sessionId, requestMeta } = command;
     const correlationId =
       requestMeta?.correlationId ?? this.support.createCorrelationId();
 
     if (!userId || !sessionId) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const session = await this.repositories.sessions.findById(sessionId);
@@ -45,14 +39,11 @@ export class DisableMfaHandler implements ICommandHandler<DisableMfaCommand> {
       !session.isActive(this.support.now()) ||
       session.userId !== userId
     ) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     if (!session.isMfaVerified()) {
-      return createProblemResult(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 
     const enrollment =
@@ -63,10 +54,7 @@ export class DisableMfaHandler implements ICommandHandler<DisableMfaCommand> {
 
     const user = await this.support.resolveUserById(this.repositories, userId);
     if (!user) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const now = this.support.now();

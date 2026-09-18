@@ -2,12 +2,12 @@ import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
-  createProblemResult,
 } from "@lcsp/contracts/auth";
 
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
+import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { MfaEnrollment } from "../../../domain/entities/mfa-enrollment.entity.ts";
 import {
   generateMfaRecoveryCodes,
@@ -18,7 +18,6 @@ import {
   encryptMfaSecret,
   generateTotpSecret,
 } from "../../../infrastructure/security/security.utils.ts";
-import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { EnrollMfaSuccess } from "../../contracts/auth-workspace/mfa.contract.ts";
 import {
   AUTH_WORKSPACE_REPOSITORIES,
@@ -35,18 +34,13 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
     private readonly repositories: AuthWorkspaceRepositories,
   ) {}
 
-  async execute(
-    command: EnrollMfaCommand,
-  ): Promise<AuthProblemResult | EnrollMfaSuccess> {
+  async execute(command: EnrollMfaCommand): Promise<EnrollMfaSuccess> {
     const { userId, sessionId, requestMeta } = command;
     const correlationId =
       requestMeta?.correlationId ?? this.support.createCorrelationId();
 
     if (!userId || !sessionId) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const session = await this.repositories.sessions.findById(sessionId);
@@ -55,10 +49,7 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
       !session.isActive(this.support.now()) ||
       session.userId !== userId
     ) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const existingEnrollment =
@@ -76,16 +67,13 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
       if (!hasRecoverableSecretFailure) {
         // A valid-but-unverified session must not be able to silently replace
         // an existing TOTP secret (would let a stolen pre-MFA session hijack MFA).
-        return createProblemResult(AUTH_ERROR_CODES.mfaRequired, correlationId);
+        throw problemException(AUTH_ERROR_CODES.mfaRequired, correlationId);
       }
     }
 
     const user = await this.support.resolveUserById(this.repositories, userId);
     if (!user) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const now = this.support.now();

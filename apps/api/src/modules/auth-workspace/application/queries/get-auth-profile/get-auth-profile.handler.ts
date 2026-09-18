@@ -13,7 +13,6 @@ import {
   AUTH_RECORD_TYPES,
   authRecordMetadataDate,
 } from "../../../infrastructure/persistence/auth-record.persistence.ts";
-import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { AuthProfileSuccess } from "../../contracts/auth-workspace/settings.contract.ts";
 import { GetAuthProfileQuery } from "./get-auth-profile.query.ts";
 
@@ -21,9 +20,7 @@ import { GetAuthProfileQuery } from "./get-auth-profile.query.ts";
 export class GetAuthProfileHandler implements IQueryHandler<GetAuthProfileQuery> {
   constructor(private readonly prisma: PrismaService) {}
 
-  async execute(
-    query: GetAuthProfileQuery,
-  ): Promise<AuthProblemResult | AuthProfileSuccess> {
+  async execute(query: GetAuthProfileQuery): Promise<AuthProfileSuccess> {
     const [user, session] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: query.context.userId },

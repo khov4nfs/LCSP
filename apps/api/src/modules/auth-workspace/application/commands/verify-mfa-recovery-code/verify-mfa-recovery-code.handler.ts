@@ -2,18 +2,17 @@ import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
-  createProblemResult,
 } from "@lcsp/contracts/auth";
 import { Inject, Logger } from "@nestjs/common";
 
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
+import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { MfaRateLimit } from "../../../domain/entities/mfa-rate-limit.entity.ts";
 import {
   hashMfaRecoveryCode,
   normalizeMfaRecoveryCode,
 } from "../../../infrastructure/security/mfa-recovery-code.utils.ts";
-import type { AuthProblemResult } from "../../contracts/auth-workspace/common.contract.ts";
 import type { VerifyMfaRecoveryCodeSuccess } from "../../contracts/auth-workspace/mfa.contract.ts";
 import {
   AUTH_WORKSPACE_REPOSITORIES,
@@ -37,7 +36,7 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
 
   async execute(
     command: VerifyMfaRecoveryCodeCommand,
-  ): Promise<AuthProblemResult | VerifyMfaRecoveryCodeSuccess> {
+  ): Promise<VerifyMfaRecoveryCodeSuccess> {
     const { sessionToken, code, requestMeta } = command;
     const correlationId =
       requestMeta.correlationId ?? this.support.createCorrelationId();
@@ -47,17 +46,14 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
       sessionToken,
     );
     if (!session) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
 
     const enrollment = await this.repositories.mfaEnrollments.findByUserId(
       session.userId,
     );
     if (!enrollment) {
-      return createProblemResult(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
     const now = this.support.now();
@@ -72,10 +68,7 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
         reason_code: AUTH_ERROR_CODES.mfaRateLimited,
         correlationId: correlationId,
       });
-      return createProblemResult(
-        AUTH_ERROR_CODES.mfaRateLimited,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.mfaRateLimited, correlationId);
     }
 
     const normalizedCode = normalizeMfaRecoveryCode(code);
@@ -86,7 +79,7 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
         correlationId,
         "empty",
       );
-      return createProblemResult(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
     const consumed = await this.repositories.mfaRecoveryCodes.tryConsume(
@@ -101,7 +94,7 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
         correlationId,
         "invalid_or_used",
       );
-      return createProblemResult(AUTH_ERROR_CODES.mfaInvalid, correlationId);
+      throw problemException(AUTH_ERROR_CODES.mfaInvalid, correlationId);
     }
 
     session.markMfaVerified(now);
@@ -113,10 +106,7 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
       session.userId,
     );
     if (!user) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
+      throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
     }
     user.mfaRequired = true;
     await this.repositories.users.save(user);
