@@ -109,9 +109,11 @@ function buildRepositories(input: {
     sessions: {
       nextId: () => "session-1",
       save: () => Promise.resolve(),
+      findById: () => Promise.resolve(null),
       findByFingerprint: () => Promise.resolve(null),
       revokeAllForUser: () => Promise.resolve(),
     },
+
     auditEvents: {
       append: (event) => {
         auditRecords.push(event);

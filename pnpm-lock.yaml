@@ -214,6 +214,9 @@ importers:
       rxjs:
         specifier: ^7.8.1
         version: 7.8.2
+      zod:
+        specifier: 4.0.17
+        version: 4.0.17
     devDependencies:
       '@eslint/eslintrc':
         specifier: ^3.2.0
@@ -422,7 +425,11 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  packages/contracts: {}
+  packages/contracts:
+    dependencies:
+      zod:
+        specifier: 4.0.17
+        version: 4.0.17
 
   packages/i18n:
     dependencies:

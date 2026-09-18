@@ -51,6 +51,9 @@ function makeLoader(
   const sessions: SessionRepository = {
     nextId: overrides.sessions?.nextId ?? (() => "session-1"),
     save: overrides.sessions?.save ?? (() => Promise.resolve()),
+    findById:
+      overrides.sessions?.findById ??
+      jest.fn<SessionRepository["findById"]>().mockResolvedValue(makeSession()),
     findByFingerprint:
       overrides.sessions?.findByFingerprint ??
       jest
@@ -59,6 +62,7 @@ function makeLoader(
     revokeAllForUser:
       overrides.sessions?.revokeAllForUser ?? (() => Promise.resolve()),
   };
+
   const users: UserRepository = {
     nextId: overrides.users?.nextId ?? (() => "user-1"),
     save: overrides.users?.save ?? (() => Promise.resolve()),

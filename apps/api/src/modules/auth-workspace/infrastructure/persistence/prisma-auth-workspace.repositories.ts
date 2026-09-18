@@ -237,6 +237,15 @@ export class PrismaSessionRepository implements SessionRepository {
     });
   }
 
+  async findById(id: string): Promise<Session | null> {
+    const record = await this.prisma.authRecord.findUnique({
+      where: { id },
+    });
+    return record?.type === AUTH_RECORD_TYPES.session
+      ? mapSessionRecord(record)
+      : null;
+  }
+
   async findByFingerprint(fingerprint: string): Promise<Session | null> {
     const record = await this.prisma.authRecord.findUnique({
       where: {

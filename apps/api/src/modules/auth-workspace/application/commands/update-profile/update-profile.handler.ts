@@ -36,24 +36,12 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
   async execute(
     command: UpdateProfileCommand,
   ): Promise<AuthProblemResult | UpdateProfileSuccess> {
-    const { payload, requestMeta } = command;
+    const { payload, userId, sessionId, requestMeta } = command;
     const correlationId =
-      requestMeta.correlationId ?? this.support.createCorrelationId();
+      requestMeta?.correlationId ?? this.support.createCorrelationId();
 
-    const sessionToken = payload.session_token;
-    if (!sessionToken) {
+    if (!userId || !sessionId) {
       return createProblemResult(AUTH_ERROR_CODES.authRequired, correlationId);
-    }
-
-    const session = await this.support.findValidSession(
-      this.repositories,
-      sessionToken,
-    );
-    if (!session) {
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
     }
 
     if (!this.hasUpdateField(payload)) {
@@ -107,11 +95,20 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
       );
     }
 
-    const user = await this.support.resolveUserById(
-      this.repositories,
-      session.userId,
-    );
+    const user = await this.support.resolveUserById(this.repositories, userId);
     if (!user) {
+      return createProblemResult(
+        AUTH_ERROR_CODES.sessionInvalid,
+        correlationId,
+      );
+    }
+
+    const session = await this.repositories.sessions.findById(sessionId);
+    if (
+      !session ||
+      !session.isActive(this.support.now()) ||
+      session.userId !== user.id
+    ) {
       return createProblemResult(
         AUTH_ERROR_CODES.sessionInvalid,
         correlationId,
@@ -120,10 +117,12 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
 
     const mfaEnrollment = await this.support.findMfaEnrollment(
       this.repositories,
-      session.userId,
+      user.id,
     );
-    const mfaRequired = this.support.isMfaRequired(user, mfaEnrollment);
-    if (mfaRequired && !session.isMfaVerified()) {
+    if (
+      this.support.isMfaRequired(user, mfaEnrollment) &&
+      !session.isMfaVerified()
+    ) {
       return createProblemResult(AUTH_ERROR_CODES.mfaRequired, correlationId);
     }
 

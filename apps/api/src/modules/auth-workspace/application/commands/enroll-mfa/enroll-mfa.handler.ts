@@ -38,15 +38,23 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
   async execute(
     command: EnrollMfaCommand,
   ): Promise<AuthProblemResult | EnrollMfaSuccess> {
-    const { sessionToken, requestMeta } = command;
+    const { userId, sessionId, requestMeta } = command;
     const correlationId =
-      requestMeta.correlationId ?? this.support.createCorrelationId();
+      requestMeta?.correlationId ?? this.support.createCorrelationId();
 
-    const session = await this.support.findValidSession(
-      this.repositories,
-      sessionToken,
-    );
-    if (!session) {
+    if (!userId || !sessionId) {
+      return createProblemResult(
+        AUTH_ERROR_CODES.sessionInvalid,
+        correlationId,
+      );
+    }
+
+    const session = await this.repositories.sessions.findById(sessionId);
+    if (
+      !session ||
+      !session.isActive(this.support.now()) ||
+      session.userId !== userId
+    ) {
       return createProblemResult(
         AUTH_ERROR_CODES.sessionInvalid,
         correlationId,
@@ -54,7 +62,7 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
     }
 
     const existingEnrollment =
-      await this.repositories.mfaEnrollments.findByUserId(session.userId);
+      await this.repositories.mfaEnrollments.findByUserId(userId);
     if (existingEnrollment && !session.isMfaVerified()) {
       let hasRecoverableSecretFailure = false;
       try {
@@ -72,10 +80,7 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
       }
     }
 
-    const user = await this.support.resolveUserById(
-      this.repositories,
-      session.userId,
-    );
+    const user = await this.support.resolveUserById(this.repositories, userId);
     if (!user) {
       return createProblemResult(
         AUTH_ERROR_CODES.sessionInvalid,
@@ -87,23 +92,23 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
     const plainSecret = generateTotpSecret();
     const encryptedSecret = encryptMfaSecret(plainSecret);
     const enrollment = new MfaEnrollment({
-      userId: session.userId,
+      userId: userId,
       encryptedSecret,
       enrolledAt: now,
       verifiedAt: null,
     });
     await this.repositories.mfaEnrollments.save(enrollment);
-    await this.repositories.mfaOtpUsed.deleteByUserId(session.userId);
-    await this.repositories.mfaRateLimits.resetByUserId(session.userId);
+    await this.repositories.mfaOtpUsed.deleteByUserId(userId);
+    await this.repositories.mfaRateLimits.resetByUserId(userId);
 
     let recoveryCodes: string[] = [];
     const hasActiveRecoveryCodes =
-      await this.repositories.mfaRecoveryCodes.hasActiveForUser(session.userId);
+      await this.repositories.mfaRecoveryCodes.hasActiveForUser(userId);
     if (!hasActiveRecoveryCodes) {
       recoveryCodes = generateMfaRecoveryCodes();
       const batchId = this.repositories.mfaRecoveryCodes.nextBatchId();
       await this.repositories.mfaRecoveryCodes.replaceForUser(
-        session.userId,
+        userId,
         recoveryCodes.map((code) => ({
           id: this.repositories.mfaRecoveryCodes.nextId(),
           codeHash: hashMfaRecoveryCode(code),
@@ -114,30 +119,30 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
 
       await this.support.recordAudit(this.repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRecoveryCodesGenerated,
-        actor_id: session.userId,
+        actor_id: userId,
         resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
         resource_id: batchId,
         decision: AUDIT_DECISIONS.allow,
         correlationId: correlationId,
-        session_id: session.id,
+        session_id: sessionId ?? null,
         batch_id: batchId,
         code_count: recoveryCodes.length,
       });
       await this.support.recordAudit(this.repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaRecoveryCodeViewed,
-        actor_id: session.userId,
+        actor_id: userId,
         resource_type: AUDIT_RESOURCE_TYPES.authMfaRecoveryCode,
         resource_id: batchId,
         decision: AUDIT_DECISIONS.allow,
         correlationId: correlationId,
-        session_id: session.id,
+        session_id: sessionId ?? null,
         batch_id: batchId,
       });
     }
 
     await this.support.recordAudit(this.repositories, {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.mfaEnrolled,
-      actor_id: session.userId,
+      actor_id: userId,
       decision: AUDIT_DECISIONS.allow,
       correlationId: correlationId,
     });

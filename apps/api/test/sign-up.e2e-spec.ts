@@ -1,5 +1,8 @@
-import { SIGN_UP_ERROR_CODES } from "@lcsp/contracts/auth";
-import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
+import {
+  AUTH_ERROR_CODES,
+  AUTH_USER_ROLES,
+  SIGN_UP_ERROR_CODES,
+} from "@lcsp/contracts/auth";
 import * as assert from "node:assert/strict";
 
 import type { INestApplication } from "@nestjs/common";
@@ -133,7 +136,7 @@ describe("Self sign-up endpoint (e2e)", () => {
       password: "short",
     });
 
-    assert.equal(result.status, 422);
-    assert.equal(problemCode(result), SIGN_UP_ERROR_CODES.passwordTooShort);
+    assert.equal(result.status, 400);
+    assert.equal(problemCode(result), AUTH_ERROR_CODES.validationFailed);
   });
 });

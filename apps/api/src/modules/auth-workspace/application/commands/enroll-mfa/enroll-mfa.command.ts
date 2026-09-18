@@ -2,7 +2,8 @@ import type { RequestMeta } from "../../contracts/auth-workspace/common.contract
 
 export class EnrollMfaCommand {
   constructor(
-    public readonly sessionToken: string,
-    public readonly requestMeta: RequestMeta,
+    public readonly userId: string,
+    public readonly sessionId?: string,
+    public readonly requestMeta: RequestMeta = {},
   ) {}
 }

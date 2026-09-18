@@ -28,78 +28,47 @@ export class GetWorkspaceHandler implements IQueryHandler<GetWorkspaceQuery> {
   async execute(
     query: GetWorkspaceQuery,
   ): Promise<AuthProblemResult | WorkspaceSuccess> {
-    const { request } = query;
+    const { context, correlationId } = query;
     const { repositories } = this;
-    const correlationId =
-      request.correlationId ?? this.support.createCorrelationId();
-    const sessionToken = request.session_token;
-    if (!sessionToken) {
-      await this.support.recordAudit(repositories, {
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.workspaceAccessDenied,
-        actor_id: null,
-        decision: AUDIT_DECISIONS.deny,
-        reason_code: AUTH_ERROR_CODES.authRequired,
-        correlationId: correlationId,
-      });
-      return createProblemResult(AUTH_ERROR_CODES.authRequired, correlationId);
-    }
-
-    const session = await this.support.findValidSession(
-      repositories,
-      sessionToken,
-    );
-    if (!session) {
-      await this.support.recordAudit(repositories, {
-        event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.workspaceAccessDenied,
-        actor_id: null,
-        decision: AUDIT_DECISIONS.deny,
-        reason_code: AUTH_ERROR_CODES.sessionInvalid,
-        correlationId: correlationId,
-      });
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
-    }
+    const cid = correlationId ?? this.support.createCorrelationId();
 
     const user = await this.support.resolveUserById(
       repositories,
-      session.userId,
+      context.userId,
     );
     if (!user) {
       await this.support.recordAudit(repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.workspaceAccessDenied,
-        actor_id: session.userId,
+        actor_id: context.userId,
         decision: AUDIT_DECISIONS.deny,
         reason_code: AUTH_ERROR_CODES.sessionInvalid,
-        correlationId: correlationId,
+        correlationId: cid,
       });
-      return createProblemResult(
-        AUTH_ERROR_CODES.sessionInvalid,
-        correlationId,
-      );
+      return createProblemResult(AUTH_ERROR_CODES.sessionInvalid, cid);
     }
 
-    const mfaEnrollment = await this.support.findMfaEnrollment(
-      repositories,
-      session.userId,
+    const session = await this.repositories.sessions.findById(
+      context.sessionId,
     );
-    const mfaRequired = this.support.isMfaRequired(user, mfaEnrollment);
-    if (mfaRequired && !session.isMfaVerified()) {
+    if (
+      !session ||
+      !session.isActive(this.support.now()) ||
+      session.userId !== user.id
+    ) {
       await this.support.recordAudit(repositories, {
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.workspaceAccessDenied,
-        actor_id: session.userId,
+        actor_id: user.id,
         decision: AUDIT_DECISIONS.deny,
-        reason_code: AUTH_ERROR_CODES.mfaRequired,
-        correlationId: correlationId,
+        reason_code: AUTH_ERROR_CODES.sessionInvalid,
+        correlationId: cid,
       });
-      return createProblemResult(AUTH_ERROR_CODES.mfaRequired, correlationId);
+      return createProblemResult(AUTH_ERROR_CODES.sessionInvalid, cid);
     }
 
     const authorization = await this.support.authorizeWorkspace(
       repositories,
       user,
-      correlationId,
+      cid,
     );
     if (authorization.ok === false) {
       await this.support.recordAudit(repositories, {
@@ -107,7 +76,7 @@ export class GetWorkspaceHandler implements IQueryHandler<GetWorkspaceQuery> {
         actor_id: user.id,
         decision: AUDIT_DECISIONS.deny,
         reason_code: authorization.problem.code,
-        correlationId: correlationId,
+        correlationId: cid,
       });
       return authorization;
     }
@@ -116,7 +85,7 @@ export class GetWorkspaceHandler implements IQueryHandler<GetWorkspaceQuery> {
       event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.workspaceAccessAllowed,
       actor_id: user.id,
       decision: AUDIT_DECISIONS.allow,
-      correlationId: correlationId,
+      correlationId: cid,
     });
 
     return {
@@ -126,7 +95,7 @@ export class GetWorkspaceHandler implements IQueryHandler<GetWorkspaceQuery> {
       role: authorization.role,
       session_expires_at: new Date(session.expiresAt).toISOString(),
       mfa_verified: session.isMfaVerified(),
-      correlationId: correlationId,
+      correlationId: cid,
     };
   }
 }

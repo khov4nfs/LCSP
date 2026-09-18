@@ -3,8 +3,9 @@ import type { MfaRecoveryCodeAccessAction } from "../../contracts/auth-workspace
 
 export class RecordMfaRecoveryCodeAccessCommand {
   constructor(
-    public readonly sessionToken: string,
+    public readonly userId: string,
     public readonly action: MfaRecoveryCodeAccessAction,
+    public readonly sessionId?: string,
     public readonly requestMeta: RequestMeta = {},
   ) {}
 }
