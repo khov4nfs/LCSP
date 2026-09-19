@@ -37,7 +37,6 @@ import {
   ListAuthSessionsHandler,
 } from "./application/queries/index.ts";
 import { AdminAccountCommandService } from "./application/services/admin/admin-account-command.service.js";
-import { AdminAccountInvitationService } from "./application/services/admin/admin-account-invitation.service.js";
 import { AdminAccountReadService } from "./application/services/admin/admin-account-read.service.js";
 import { AdminOverviewService } from "./application/services/admin/admin-overview.service.js";
 import { AuthAuditService } from "./application/services/auth-workspace/auth-audit.service.ts";
@@ -58,7 +57,6 @@ import {
   PrismaSessionRepository,
   PrismaUserRepository,
 } from "./infrastructure/persistence/prisma-auth-workspace.repositories.ts";
-import { AccountInvitationsController } from "./presentation/http/account-invitations.controller.js";
 import { AdminOverviewController } from "./presentation/http/admin-overview.controller.js";
 import { AdminUsersController } from "./presentation/http/admin-users.controller.ts";
 import { AuthWorkspaceController } from "./presentation/http/auth-workspace.controller.ts";
@@ -82,14 +80,12 @@ const REPOSITORY_PROVIDERS = [
   controllers: [
     AuthWorkspaceController,
     AdminUsersController,
-    AccountInvitationsController,
     AdminOverviewController,
   ],
   providers: [
     AdminOverviewService,
     AdminAccountReadService,
     AdminAccountCommandService,
-    AdminAccountInvitationService,
     ...REPOSITORY_PROVIDERS,
     {
       provide: AUTH_WORKSPACE_REPOSITORIES,

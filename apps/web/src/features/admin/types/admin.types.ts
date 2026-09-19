@@ -1,13 +1,13 @@
 import type {
   AdminUserDetail,
   AdminUserSummary,
-  AuthAccountStatus,
   AuthUserRole,
+  UserAccessStatus,
 } from "@lcsp/contracts/auth";
 
 export type AdminUserFiltersState = {
   searchQuery: string;
-  statusFilter: AuthAccountStatus | "ALL";
+  statusFilter: UserAccessStatus | "ALL";
   roleFilter: AuthUserRole | "ALL";
 };
 
@@ -20,9 +20,8 @@ export type AdminUsersTableProps = {
 export type AdminUserFiltersProps = {
   filters: AdminUserFiltersState;
   onSearchChange: (value: string) => void;
-  onStatusChange: (status: AuthAccountStatus | "ALL") => void;
+  onStatusChange: (status: UserAccessStatus | "ALL") => void;
   onRoleChange: (role: AuthUserRole | "ALL") => void;
-  onCreateUserClick?: () => void;
 };
 
 export type AdminPaginationProps = {

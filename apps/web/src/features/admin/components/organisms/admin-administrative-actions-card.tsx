@@ -1,5 +1,4 @@
-"use client";
-
+import * as React from "react";
 import { AUTH_ACCOUNT_STATUSES } from "@lcsp/contracts/auth";
 import type { MessageKey } from "@lcsp/i18n";
 
@@ -30,8 +29,7 @@ export function AdminAdministrativeActionsCard({
   );
 
   const isSuspended = user.status === AUTH_ACCOUNT_STATUSES.suspended;
-  const isInvited = user.status === AUTH_ACCOUNT_STATUSES.invited;
-  const cannotManage = isInvited || user.version === undefined;
+  const cannotManage = user.version === undefined;
 
   return (
     <div className="flex w-full max-w-139 flex-col gap-6 self-start rounded-xl border border-border bg-card p-6 shadow-xs">
@@ -44,11 +42,7 @@ export function AdminAdministrativeActionsCard({
             {accountAccessLabel}
           </span>
           <span className="text-[11.5px] text-muted-foreground leading-tight max-w-70">
-            {isInvited
-              ? resolveAppMessage("pages.accountLifecycle.invitePending")
-              : isSuspended
-                ? suspendedAccessCopy
-                : activeAccessCopy}
+            {isSuspended ? suspendedAccessCopy : activeAccessCopy}
           </span>
         </div>
 

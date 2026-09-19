@@ -5,7 +5,6 @@ import {
   ADMIN_ACCOUNT_QUERY_LIMITS as L,
   AUTH_ACCOUNT_STATUSES,
   AUTH_USER_ROLES,
-  type AdminInviteUserInput,
   type AuthUserRole,
 } from "@lcsp/contracts/auth";
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
@@ -58,32 +57,6 @@ export function idempotency(value: unknown, correlationId: string): string {
   }
   return value;
 }
-export function parseInvitation(
-  value: unknown,
-  correlationId: string,
-): AdminInviteUserInput {
-  const input = record(value, correlationId, ["email", "displayName", "role"]);
-  if (
-    typeof input.email !== "string" ||
-    input.email.length > 254 ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())
-  )
-    return invalid(correlationId);
-  if (
-    typeof input.displayName !== "string" ||
-    !input.displayName.trim() ||
-    input.displayName.trim().length > 100 ||
-    input.displayName.includes("\r") ||
-    input.displayName.includes("\n") ||
-    input.displayName.includes(String.fromCharCode(0))
-  )
-    return invalid(correlationId);
-  return {
-    email: input.email.trim().toLowerCase(),
-    displayName: input.displayName.trim(),
-    role: role(input.role, correlationId),
-  };
-}
 export function parseListQuery(
   value: Record<string, unknown>,
   correlationId: string,
@@ -106,11 +79,9 @@ export function parseListQuery(
     s === undefined || s === ADMIN_ACCOUNT_FILTERS.all ? undefined : s;
   if (
     status !== undefined &&
-    ![
-      AUTH_ACCOUNT_STATUSES.active,
-      AUTH_ACCOUNT_STATUSES.suspended,
-      AUTH_ACCOUNT_STATUSES.invited,
-    ].some((v) => v === status)
+    ![AUTH_ACCOUNT_STATUSES.active, AUTH_ACCOUNT_STATUSES.suspended].some(
+      (v) => v === status,
+    )
   )
     return invalid(correlationId);
   const filterRole =

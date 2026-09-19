@@ -1,15 +1,14 @@
 "use client";
 
-import { SearchIcon, UserPlusIcon } from "lucide-react";
+import { SearchIcon } from "lucide-react";
 import {
-  AUTH_ACCOUNT_STATUSES,
   AUTH_USER_ROLES,
-  type AuthAccountStatus,
+  USER_ACCESS_STATUSES,
   type AuthUserRole,
+  type UserAccessStatus,
 } from "@lcsp/contracts/auth";
 import type { MessageKey } from "@lcsp/i18n";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -18,11 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { resolveAppMessage } from "@/lib/i18n";
 import type { AdminUserFiltersProps } from "@/features/admin/types/admin.types";
 
@@ -31,7 +25,6 @@ export function AdminUserFilters({
   onSearchChange,
   onStatusChange,
   onRoleChange,
-  onCreateUserClick,
 }: AdminUserFiltersProps) {
   const searchPlaceholder = resolveAppMessage(
     "pages.admin.usersList.searchPlaceholder" as MessageKey,
@@ -44,12 +37,6 @@ export function AdminUserFilters({
   );
   const roleFilterAll = resolveAppMessage(
     "pages.admin.usersList.roleFilterAll" as MessageKey,
-  );
-  const createUserLabel = resolveAppMessage(
-    "pages.admin.usersList.createUser" as MessageKey,
-  );
-  const createUserDisabledTooltip = resolveAppMessage(
-    "pages.admin.usersList.createUserDisabledTooltip" as MessageKey,
   );
 
   return (
@@ -72,7 +59,7 @@ export function AdminUserFilters({
         <Select
           value={filters.statusFilter}
           onValueChange={(val) =>
-            onStatusChange(val as AuthAccountStatus | "ALL")
+            onStatusChange(val as UserAccessStatus | "ALL")
           }
         >
           <SelectTrigger
@@ -84,24 +71,15 @@ export function AdminUserFilters({
             <SelectValue placeholder={statusFilterAll}>
               {filters.statusFilter === "ALL"
                 ? statusFilterAll
-                : filters.statusFilter === AUTH_ACCOUNT_STATUSES.active
+                : filters.statusFilter === USER_ACCESS_STATUSES.active
                   ? resolveAppMessage(
                       "pages.admin.usersList.statuses.ACTIVE" as MessageKey,
                     )
-                  : filters.statusFilter === AUTH_ACCOUNT_STATUSES.suspended
+                  : filters.statusFilter === USER_ACCESS_STATUSES.suspended
                     ? resolveAppMessage(
                         "pages.admin.usersList.statuses.SUSPENDED" as MessageKey,
                       )
-                    : filters.statusFilter === AUTH_ACCOUNT_STATUSES.invited
-                      ? resolveAppMessage(
-                          "pages.admin.usersList.statuses.INVITED" as MessageKey,
-                        )
-                      : filters.statusFilter ===
-                          AUTH_ACCOUNT_STATUSES.deactivated
-                        ? resolveAppMessage(
-                            "pages.admin.usersList.statuses.DEACTIVATED" as MessageKey,
-                          )
-                        : statusFilterAll}
+                    : statusFilterAll}
             </SelectValue>
           </SelectTrigger>
           <SelectContent className="border-border bg-card text-foreground">
@@ -109,7 +87,7 @@ export function AdminUserFilters({
               {statusFilterAll}
             </SelectItem>
             <SelectItem
-              value={AUTH_ACCOUNT_STATUSES.active}
+              value={USER_ACCESS_STATUSES.active}
               className="text-[12.5px]"
             >
               {resolveAppMessage(
@@ -117,19 +95,11 @@ export function AdminUserFilters({
               )}
             </SelectItem>
             <SelectItem
-              value={AUTH_ACCOUNT_STATUSES.suspended}
+              value={USER_ACCESS_STATUSES.suspended}
               className="text-[12.5px]"
             >
               {resolveAppMessage(
                 "pages.admin.usersList.statuses.SUSPENDED" as MessageKey,
-              )}
-            </SelectItem>
-            <SelectItem
-              value={AUTH_ACCOUNT_STATUSES.invited}
-              className="text-[12.5px]"
-            >
-              {resolveAppMessage(
-                "pages.admin.usersList.statuses.INVITED" as MessageKey,
               )}
             </SelectItem>
           </SelectContent>
@@ -181,35 +151,6 @@ export function AdminUserFilters({
             </SelectItem>
           </SelectContent>
         </Select>
-      </div>
-
-      {/* Create User Button (146px x 42px, light on dark / dark on light, right-aligned) */}
-      <div className="ml-auto">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <span
-                className="inline-flex"
-                tabIndex={onCreateUserClick ? undefined : 0}
-              />
-            }
-          >
-            <Button
-              type="button"
-              onClick={onCreateUserClick}
-              disabled={!onCreateUserClick}
-              className="h-10.5 w-36.5 rounded-lg bg-primary text-[12.5px] font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-            >
-              <UserPlusIcon className="size-4 mr-1.5" />
-              {createUserLabel}
-            </Button>
-          </TooltipTrigger>
-          {!onCreateUserClick && (
-            <TooltipContent className="max-w-xs text-xs">
-              {createUserDisabledTooltip}
-            </TooltipContent>
-          )}
-        </Tooltip>
       </div>
     </div>
   );

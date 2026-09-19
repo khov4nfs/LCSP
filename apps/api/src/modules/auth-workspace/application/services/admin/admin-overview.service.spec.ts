@@ -51,8 +51,6 @@ describe("AdminOverviewService", () => {
       .mockResolvedValueOnce(34) // suspended users
       .mockResolvedValueOnce(38); // period new users (User records only)
 
-    mockPrisma.accountInvitation.count.mockResolvedValueOnce(64); // pending invitations
-
     mockPrisma.assessment.count
       .mockResolvedValueOnce(2417) // total assessments
       .mockResolvedValueOnce(312); // period completed assessments
@@ -125,11 +123,11 @@ describe("AdminOverviewService", () => {
     expect(result.corpusStatus.draft?.version).toBe("v2026.09.02-draft");
     expect(result.corpusStatus.draft?.ruleCount).toBeNull();
 
-    // Account distribution retains separate invited count
+    // Account distribution
     expect(result.accountDistribution.activeCount).toBe(842);
-    expect(result.accountDistribution.invitedCount).toBe(64);
+    expect(result.accountDistribution.invitedCount).toBe(0);
     expect(result.accountDistribution.suspendedCount).toBe(34);
-    expect(result.accountDistribution.totalCount).toBe(940);
+    expect(result.accountDistribution.totalCount).toBe(876);
 
     // Recent activity audit sanitization with actionKey and ISO timestamp
     expect(result.recentActivity).toHaveLength(1);

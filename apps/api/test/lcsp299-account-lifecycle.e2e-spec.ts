@@ -13,13 +13,11 @@ import {
   UseGuards,
   type INestApplication,
 } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { Test } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import {
-  ACCOUNT_INVITATION_STATUSES,
   ADMIN_ACCOUNT_ERRORS as E,
   ADMIN_ACCOUNT_OPERATIONS,
   AUTH_ACCOUNT_STATUSES,
@@ -37,10 +35,8 @@ import { RbacContextLoader } from "../src/platform/rbac/rbac-context.loader.js";
 import { RbacPreflightService } from "../src/platform/rbac/rbac-preflight.service.js";
 import { RBAC_DECISIONS } from "@lcsp/contracts/rbac";
 import { AdminUsersController } from "../src/modules/auth-workspace/presentation/http/admin-users.controller.js";
-import { AccountInvitationsController } from "../src/modules/auth-workspace/presentation/http/account-invitations.controller.js";
 import { AdminAccountReadService } from "../src/modules/auth-workspace/application/services/admin/admin-account-read.service.js";
 import { AdminAccountCommandService } from "../src/modules/auth-workspace/application/services/admin/admin-account-command.service.js";
-import { AdminAccountInvitationService } from "../src/modules/auth-workspace/application/services/admin/admin-account-invitation.service.js";
 import { AuthAuditService } from "../src/modules/auth-workspace/application/services/auth-workspace/auth-audit.service.js";
 import {
   PrismaAuthorizationDecisionRepository,
@@ -114,26 +110,9 @@ integration(
       }
       prisma = new PrismaClient({ adapter: new PrismaPg(databaseUrl!) });
       const module = await Test.createTestingModule({
-        controllers: [
-          AdminUsersController,
-          AccountInvitationsController,
-          ProtectedController,
-        ],
+        controllers: [AdminUsersController, ProtectedController],
         providers: [
           { provide: PrismaService, useValue: prisma },
-          {
-            provide: ConfigService,
-            useValue: {
-              get: (key: string) =>
-                (
-                  ({
-                    ADMIN_INVITATION_ENCRYPTION_KEY:
-                      "lcsp299-disposable-invitation-key-at-least-32-bytes",
-                    ADMIN_INVITATION_WEB_ORIGIN: "http://localhost:3000",
-                  }) as Record<string, string>
-                )[key],
-            },
-          },
           {
             provide: MailService,
             useValue: {
@@ -147,7 +126,6 @@ integration(
           },
           AdminAccountReadService,
           AdminAccountCommandService,
-          AdminAccountInvitationService,
           AuthAuditService,
           AuditWriterService,
           ProblemExceptionFilter,
@@ -201,7 +179,6 @@ integration(
     beforeEach(async () => {
       jest.restoreAllMocks();
       await prisma.adminAccountCommandReceipt.deleteMany();
-      await prisma.accountInvitation.deleteMany();
       await prisma.auditEvent.deleteMany();
       await prisma.authRecord.deleteMany();
       await prisma.assessment.deleteMany();
@@ -229,34 +206,10 @@ integration(
         .set("Idempotency-Key", key)
         .send(body);
     }
-    function invite(
-      email: string,
-      key: string = randomUUID(),
-      role = AUTH_USER_ROLES.customer as (typeof AUTH_USER_ROLES)[keyof typeof AUTH_USER_ROLES],
-    ) {
-      return httpRequest(app)
-        .post("/admin/users")
-        .set("Authorization", `Bearer ${admin.token}`)
-        .set("Idempotency-Key", key)
-        .send({ email, displayName: "Invited Person", role });
-    }
     function get(path: string, as = admin) {
       return httpRequest(app)
         .get(path)
         .set("Authorization", `Bearer ${as.token}`);
-    }
-    function tokenFromMail(index = deliveries.length - 1): string {
-      const token = deliveries[index]?.text.match(
-        /#invitation=([a-f0-9]{64})/,
-      )?.[1];
-      if (!token)
-        throw new Error("Expected actual one-time token in fake mail");
-      return token;
-    }
-    function accept(token: string) {
-      return httpRequest(app)
-        .post("/auth/invitations/accept")
-        .send({ token, password: PASSWORD });
     }
     it("denies anonymous/non-admin list, detail and every Admin write", async () => {
       expect((await httpRequest(app).get("/admin/users")).status).toBe(401);
@@ -772,102 +725,6 @@ integration(
         target.token,
       ])
         expect(serialized).not.toContain(forbidden);
-    });
-    it("creates an invitation, not a fake User, and consumes its token once", async () => {
-      const email = "invitee@example.com";
-      const response = await invite(email, randomUUID(), AUTH_USER_ROLES.admin);
-      expect(response.status).toBe(201);
-      expect(await prisma.user.findUnique({ where: { email } })).toBeNull();
-      const token = tokenFromMail();
-      expect(JSON.stringify(response.body)).not.toContain(token);
-      const record = await prisma.accountInvitation.findUniqueOrThrow({
-        where: { email },
-      });
-      expect(record.tokenHash).toBe(fingerprintToken(token));
-      expect(record.encryptedToken).toBeNull();
-      expect(code((await invite(email.toUpperCase())).body)).toBe(
-        E.duplicateInvitation,
-      );
-      expect(
-        successBody<AdminUserListResponse>(
-          await get("/admin/users?status=INVITED"),
-        ).users,
-      ).toHaveLength(1);
-      expect((await accept(token)).status).toBe(200);
-      const user = await prisma.user.findUniqueOrThrow({ where: { email } });
-      expect(user.role).toBe(AUTH_USER_ROLES.admin);
-      expect(
-        await prisma.authRecord.count({ where: { userId: user.id } }),
-      ).toBe(0);
-      expect(
-        (await prisma.accountInvitation.findUniqueOrThrow({ where: { email } }))
-          .status,
-      ).toBe(ACCOUNT_INVITATION_STATUSES.accepted);
-      expect((await accept(token)).status).toBe(400);
-      expect(code((await invite(email)).body)).toBe(E.duplicateAccount);
-    });
-    it("consumes only once under simultaneous invitation acceptance", async () => {
-      await invite("parallel@example.com");
-      const token = tokenFromMail();
-      const results = await Promise.all([accept(token), accept(token)]);
-      expect(results.map((result) => result.status).sort()).toEqual([200, 400]);
-      expect(
-        await prisma.user.count({ where: { email: "parallel@example.com" } }),
-      ).toBe(1);
-    });
-    it("retries SMTP failure with the same token and does not simulate delivery", async () => {
-      mailFails = true;
-      const key = randomUUID();
-      expect((await invite("retry@example.com", key)).status).toBe(503);
-      const firstToken = tokenFromMail();
-      mailFails = false;
-      expect((await invite("retry@example.com", key)).status).toBe(201);
-      expect(tokenFromMail()).toBe(firstToken);
-      expect(await prisma.accountInvitation.count()).toBe(1);
-      expect((await invite("retry@example.com", key)).status).toBe(201);
-      expect(deliveries).toHaveLength(2);
-    });
-    it("pins retries to one invitation generation across expiry and reissue", async () => {
-      const oldKey = randomUUID();
-      const newKey = randomUUID();
-      await invite("generation@example.com", oldKey);
-      const oldToken = tokenFromMail();
-      await prisma.accountInvitation.updateMany({
-        data: { expiresAt: new Date(Date.now() - 1000) },
-      });
-      const fresh = await invite("generation@example.com", newKey);
-      const freshToken = tokenFromMail();
-      expect(fresh.status).toBe(201);
-      expect(freshToken).not.toBe(oldToken);
-      const count = deliveries.length;
-      expect(code((await invite("generation@example.com", oldKey)).body)).toBe(
-        E.staleInvitation,
-      );
-      expect(deliveries).toHaveLength(count);
-      expect((await accept(oldToken)).status).toBe(400);
-      expect((await accept(freshToken)).status).toBe(200);
-    });
-    it("rejects expired tokens, role spoofing and missing delivery configuration", async () => {
-      await invite("expired@example.com");
-      const token = tokenFromMail();
-      expect(
-        (
-          await httpRequest(app)
-            .post("/auth/invitations/accept")
-            .send({ token, password: PASSWORD, role: AUTH_USER_ROLES.admin })
-        ).status,
-      ).toBe(400);
-      await prisma.accountInvitation.updateMany({
-        data: { expiresAt: new Date(Date.now() - 1000) },
-      });
-      expect((await accept(token)).status).toBe(400);
-      mailConfigured = false;
-      expect((await invite("unconfigured@example.com")).status).toBe(503);
-      expect(
-        await prisma.accountInvitation.findUnique({
-          where: { email: "unconfigured@example.com" },
-        }),
-      ).toBeNull();
     });
   },
 );
