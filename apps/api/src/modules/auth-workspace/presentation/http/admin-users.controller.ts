@@ -21,7 +21,6 @@ import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { AdminAccountReadService } from "../../application/services/admin/admin-account-read.service.js";
 import { AdminAccountCommandService } from "../../application/services/admin/admin-account-command.service.js";
-import { AdminAccountInvitationService } from "../../application/services/admin/admin-account-invitation.service.js";
 import { idempotency } from "../../application/services/admin/admin-account.validation.js";
 import type { AdminActor } from "../../application/services/admin/admin-account.transaction.js";
 
@@ -30,7 +29,6 @@ export class AdminUsersController {
   constructor(
     private readonly reads: AdminAccountReadService,
     private readonly commands: AdminAccountCommandService,
-    private readonly invitations: AdminAccountInvitationService,
   ) {}
 
   @Get()
@@ -80,19 +78,6 @@ export class AdminUsersController {
   ) {
     return resultEnvelope(
       await this.commands.mutate(id, O.restore, body, this.actor(request, key)),
-    );
-  }
-
-  @Post()
-  @UseGuards(RbacGuard)
-  @RequireRoles(AUTH_USER_ROLES.admin)
-  async createUser(
-    @Body() body: unknown,
-    @Headers("idempotency-key") key: unknown,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.invitations.invite(body, this.actor(request, key)),
     );
   }
 

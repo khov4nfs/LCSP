@@ -5,20 +5,18 @@ import {
 } from "@lcsp/contracts/auth";
 import {
   idempotency,
-  parseInvitation,
   parseListQuery,
   record,
   version,
 } from "./admin-account.validation.js";
 
 describe("LCSP-299 bounded Admin account input", () => {
-  it("keeps canonical RBAC/provisioning roles without an existing-user role command", () => {
+  it("keeps canonical RBAC roles without an existing-user role command", () => {
     expect(Object.values(AUTH_USER_ROLES).sort()).toEqual([
       "ADMIN",
       "CUSTOMER",
     ]);
     expect(Object.values(ADMIN_ACCOUNT_OPERATIONS).sort()).toEqual([
-      "INVITE",
       "RESTORE",
       "SUSPEND",
     ]);
@@ -27,28 +25,6 @@ describe("LCSP-299 bounded Admin account input", () => {
         "expectedVersion",
         "reason",
       ]),
-    ).toThrow();
-  });
-  it("normalizes provisioning identity and accepts only canonical roles", () => {
-    expect(
-      parseInvitation(
-        {
-          email: " New@Example.com ",
-          displayName: " New User ",
-          role: AUTH_USER_ROLES.customer,
-        },
-        "test",
-      ),
-    ).toEqual({
-      email: "new@example.com",
-      displayName: "New User",
-      role: AUTH_USER_ROLES.customer,
-    });
-    expect(() =>
-      parseInvitation(
-        { email: "ok@example.com", displayName: "User", role: "ROOT" },
-        "test",
-      ),
     ).toThrow();
   });
   it.each([

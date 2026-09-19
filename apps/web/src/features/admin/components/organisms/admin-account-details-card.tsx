@@ -1,5 +1,4 @@
-"use client";
-
+import * as React from "react";
 import type { MessageKey } from "@lcsp/i18n";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 

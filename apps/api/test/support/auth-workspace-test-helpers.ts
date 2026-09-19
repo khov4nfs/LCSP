@@ -442,7 +442,6 @@ export async function resetAuthWorkspaceDatabase(
   prisma: PrismaClient,
 ): Promise<void> {
   await prisma.adminAccountCommandReceipt.deleteMany();
-  await prisma.accountInvitation.deleteMany();
   await prisma.conflictRecord.deleteMany();
   await prisma.verifiedProfile.deleteMany();
   await prisma.aIUsageFlow.deleteMany();

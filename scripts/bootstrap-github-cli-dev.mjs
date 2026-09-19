@@ -27,12 +27,24 @@ const GITLAB_ARTIFACTS = {
     sha256: "614017db6860d0fa941eb73098bd999dfda58b7862e544b075f8d2d48931ce72",
   },
   linux: {
-    name: `glab_${SUPPORTED_GITLAB_CLI_VERSION}_linux_amd64.tar.gz`,
-    sha256: "c265589fb2018f310b6a27df9356efee42991f858e7e3a5fa232228a13b47467",
+    name:
+      process.arch === "arm64"
+        ? `glab_${SUPPORTED_GITLAB_CLI_VERSION}_linux_arm64.tar.gz`
+        : `glab_${SUPPORTED_GITLAB_CLI_VERSION}_linux_amd64.tar.gz`,
+    sha256:
+      process.arch === "arm64"
+        ? "0c4cab3b35f7641e7955492b9491d7070698a958f0dfcb49d989e71bd78793c2"
+        : "c265589fb2018f310b6a27df9356efee42991f858e7e3a5fa232228a13b47467",
   },
   darwin: {
-    name: `glab_${SUPPORTED_GITLAB_CLI_VERSION}_darwin_amd64.tar.gz`,
-    sha256: "9dcb04a634f77a96f9683849d54980cba8ac57ebbbed4fce607c3b13f2bb77fb",
+    name:
+      process.arch === "arm64"
+        ? `glab_${SUPPORTED_GITLAB_CLI_VERSION}_darwin_arm64.tar.gz`
+        : `glab_${SUPPORTED_GITLAB_CLI_VERSION}_darwin_amd64.tar.gz`,
+    sha256:
+      process.arch === "arm64"
+        ? "d8bc152c982c0fd6f687ecd864572d974de3f3ce756957d74e8e34c75ec96db6"
+        : "9dcb04a634f77a96f9683849d54980cba8ac57ebbbed4fce607c3b13f2bb77fb",
   },
 };
 

@@ -13,12 +13,9 @@ import {
   fetchAdminUsersList,
   suspendAdminUser,
   restoreAdminUser,
-  createAdminUserInvitation,
 } from "../src/lib/api/admin-users-client.ts";
 import { AdminAccountDetailsCard } from "../src/features/admin/components/organisms/admin-account-details-card.tsx";
 import { AdminAdministrativeActionsCard } from "../src/features/admin/components/organisms/admin-administrative-actions-card.tsx";
-import { adminInviteUserSchema } from "../src/features/admin/schemas/admin-invite-user.schema.ts";
-import { invitationAcceptSchema } from "../src/features/auth/schemas/invitation-accept.schema.ts";
 import { resolveAppMessage } from "../src/lib/i18n.ts";
 
 async function fixture(): Promise<AdminUserDetail> {
@@ -73,15 +70,6 @@ test("LCSP-299 clients preserve expectedVersion and idempotency through all life
     "same-suspend-key",
   );
   assert.equal(calls[2].url, `/api/admin/users/${user.id}/restore`);
-  await createAdminUserInvitation(
-    { email: user.email, displayName: user.fullName, role: user.role },
-    "invite-key",
-  );
-  assert.equal(calls[3].url, "/api/admin/users");
-  assert.equal(
-    new Headers(calls[3].init?.headers).get("idempotency-key"),
-    "invite-key",
-  );
 });
 test("LCSP-299 client never reports success for a stale-state rejection", async (context) => {
   const original = globalThis.fetch;
@@ -140,7 +128,7 @@ test("LCSP-299 actual action card renders Restore for authoritative Suspended st
     ),
   );
 });
-test("LCSP-299 active card retains Suspend and invited records do not offer account mutations", async () => {
+test("LCSP-299 active card retains Suspend", async () => {
   const user = await fixture();
   const active = renderToStaticMarkup(
     createElement(AdminAdministrativeActionsCard, {
@@ -155,56 +143,8 @@ test("LCSP-299 active card retains Suspend and invited records do not offer acco
       ),
     ),
   );
-  const invited = renderToStaticMarkup(
-    createElement(AdminAdministrativeActionsCard, {
-      user: { ...user, status: AUTH_ACCOUNT_STATUSES.invited },
-      onOpenSuspendModal: () => {},
-    }),
-  );
-  assert.ok(
-    invited.includes(resolveAppMessage("pages.accountLifecycle.invitePending")),
-  );
-  assert.ok(invited.includes("disabled"));
 });
-test("LCSP-299 form schemas reject spoofed roles, invalid identity and weak/mismatched passwords", () => {
-  assert.equal(
-    adminInviteUserSchema.safeParse({
-      email: "bad",
-      displayName: "",
-      role: "ROOT",
-    }).success,
-    false,
-  );
-  assert.equal(
-    adminInviteUserSchema.safeParse({
-      email: "user@example.com",
-      displayName: "User",
-      role: AUTH_USER_ROLES.customer,
-    }).success,
-    true,
-  );
-  assert.equal(
-    invitationAcceptSchema.safeParse({
-      password: "short",
-      confirmPassword: "short",
-    }).success,
-    false,
-  );
-  assert.equal(
-    invitationAcceptSchema.safeParse({
-      password: "a-strong-test-password",
-      confirmPassword: "different-test-password",
-    }).success,
-    false,
-  );
-  assert.equal(
-    invitationAcceptSchema.safeParse({
-      password: "a-strong-test-password",
-      confirmPassword: "a-strong-test-password",
-    }).success,
-    true,
-  );
-});
+
 
 test("LCSP-299 role is read-only account metadata; actions contain no role editor", async () => {
   const user = await fixture();

@@ -108,8 +108,10 @@ jobs:
       - name: Auto-fix API lint
         if: needs.changes.outputs.api == 'true'
         continue-on-error: true
+        env:
+          CHANGED_API_FILES: ${{ needs.changes.outputs.api_files }}
         run: |
-          files="$(printf '%s\n' ${{ needs.changes.outputs.api_files }} | awk '/^apps\/api\/.*\.(ts|tsx)$/ { sub("^apps/api/", ""); print }' | while IFS= read -r file; do [ -f "apps/api/$file" ] && printf '%s\n' "$file"; done)"
+          files="$(printf '%s\n' "$CHANGED_API_FILES" | tr ' ' '\n' | sed -e "s/^'//" -e "s/'$//" -e 's/^"//' -e 's/"$//' | awk '/^apps\/api\/.*\.(ts|tsx)$/ { sub("^apps/api/", ""); print }' | while IFS= read -r file; do if [ -f "apps/api/$file" ]; then printf '%s\n' "$file"; fi; done)"
           if [ -n "$files" ]; then
             pnpm --dir apps/api exec eslint $files --fix
           fi
@@ -117,8 +119,10 @@ jobs:
       - name: Auto-fix web lint
         if: needs.changes.outputs.web == 'true'
         continue-on-error: true
+        env:
+          CHANGED_WEB_FILES: ${{ needs.changes.outputs.web_files }}
         run: |
-          files="$(printf '%s\n' ${{ needs.changes.outputs.web_files }} | awk '/^apps\/web\/.*\.(ts|tsx)$/ { sub("^apps/web/", ""); print }' | while IFS= read -r file; do [ -f "apps/web/$file" ] && printf '%s\n' "$file"; done)"
+          files="$(printf '%s\n' "$CHANGED_WEB_FILES" | tr ' ' '\n' | sed -e "s/^'//" -e "s/'$//" -e 's/^"//' -e 's/"$//' | awk '/^apps\/web\/.*\.(ts|tsx)$/ { sub("^apps/web/", ""); print }' | while IFS= read -r file; do if [ -f "apps/web/$file" ]; then printf '%s\n' "$file"; fi; done)"
           if [ -n "$files" ]; then
             pnpm --dir apps/web exec eslint $files --fix
           fi
@@ -181,8 +185,10 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:55432/lcsp_api_test?schema=public
 
       - name: Lint API
+        env:
+          CHANGED_API_FILES: ${{ needs.changes.outputs.api_files }}
         run: |
-          files="$(printf '%s\n' ${{ needs.changes.outputs.api_files }} | awk '/^apps\/api\/.*\.(ts|tsx)$/ { sub("^apps/api/", ""); print }' | while IFS= read -r file; do [ -f "apps/api/$file" ] && printf '%s\n' "$file"; done)"
+          files="$(printf '%s\n' "$CHANGED_API_FILES" | tr ' ' '\n' | sed -e "s/^'//" -e "s/'$//" -e 's/^"//' -e 's/"$//' | awk '/^apps\/api\/.*\.(ts|tsx)$/ { sub("^apps/api/", ""); print }' | while IFS= read -r file; do if [ -f "apps/api/$file" ]; then printf '%s\n' "$file"; fi; done)"
           if [ -n "$files" ]; then
             pnpm --dir apps/api exec eslint $files
           else
@@ -224,8 +230,10 @@ jobs:
         run: pnpm run build:runtime-packages
 
       - name: Lint web
+        env:
+          CHANGED_WEB_FILES: ${{ needs.changes.outputs.web_files }}
         run: |
-          files="$(printf '%s\n' ${{ needs.changes.outputs.web_files }} | awk '/^apps\/web\/.*\.(ts|tsx)$/ { sub("^apps/web/", ""); print }' | while IFS= read -r file; do [ -f "apps/web/$file" ] && printf '%s\n' "$file"; done)"
+          files="$(printf '%s\n' "$CHANGED_WEB_FILES" | tr ' ' '\n' | sed -e "s/^'//" -e "s/'$//" -e 's/^"//' -e 's/"$//' | awk '/^apps\/web\/.*\.(ts|tsx)$/ { sub("^apps/web/", ""); print }' | while IFS= read -r file; do if [ -f "apps/web/$file" ]; then printf '%s\n' "$file"; fi; done)"
           if [ -n "$files" ]; then
             pnpm --dir apps/web exec eslint $files
           else

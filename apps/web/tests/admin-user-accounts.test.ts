@@ -34,9 +34,9 @@ test("Admin user query filters correctly across search, status, and role", () =>
     {
       id: "usr_3",
       fullName: "Charlie Admin",
-      email: "charlie@company.com",
+      email: "charlie@enterprise.com",
       role: AUTH_USER_ROLES.admin,
-      status: AUTH_ACCOUNT_STATUSES.invited,
+      status: AUTH_ACCOUNT_STATUSES.active,
       createdAt: "2026-03-01T00:00:00.000Z",
       lastActiveAt: null,
       assessmentCount: null,
@@ -72,7 +72,7 @@ test("Admin user query filters correctly across search, status, and role", () =>
     filterUsers("", AUTH_ACCOUNT_STATUSES.suspended, "ALL").length,
     1,
   );
-  assert.equal(filterUsers("", AUTH_ACCOUNT_STATUSES.active, "ALL").length, 1);
+  assert.equal(filterUsers("", AUTH_ACCOUNT_STATUSES.active, "ALL").length, 2);
 
   // Role filter
   assert.equal(filterUsers("", "ALL", AUTH_USER_ROLES.admin).length, 2);
@@ -161,20 +161,34 @@ test("Ensures production BFF admin user routes forward upstream directly without
   }
 });
 
-test("Admin user filters expose only lifecycle statuses supported by the API", async () => {
+test("Admin user filters expose only lifecycle statuses supported by the API and omit retired invite triggers", async () => {
   const filterFilePath = join(
     process.cwd(),
     "src/features/admin/components/molecules/admin-user-filters.tsx",
   );
   const filterContent = await readFile(filterFilePath, "utf8");
 
-  assert.equal(filterContent.includes("AUTH_ACCOUNT_STATUSES.active"), true);
-  assert.equal(filterContent.includes("AUTH_ACCOUNT_STATUSES.suspended"), true);
-  assert.equal(filterContent.includes("AUTH_ACCOUNT_STATUSES.invited"), true);
+  assert.equal(
+    filterContent.includes("USER_ACCESS_STATUSES.active") ||
+      filterContent.includes("AUTH_ACCOUNT_STATUSES.active"),
+    true,
+  );
+  assert.equal(
+    filterContent.includes("USER_ACCESS_STATUSES.suspended") ||
+      filterContent.includes("AUTH_ACCOUNT_STATUSES.suspended"),
+    true,
+  );
+  assert.equal(filterContent.includes("AUTH_ACCOUNT_STATUSES.invited"), false);
+  assert.equal(filterContent.includes("USER_ACCESS_STATUSES.invited"), false);
   assert.equal(
     /value=\{AUTH_ACCOUNT_STATUSES\.deactivated\}/.test(filterContent),
     false,
   );
+  // Retired create user and invitation trigger button surfaces must not be rendered
+  assert.equal(filterContent.includes("onCreateUserClick"), false);
+  assert.equal(filterContent.includes("createUserLabel"), false);
+  assert.equal(filterContent.includes("UserPlusIcon"), false);
+  assert.equal(filterContent.includes("AdminInviteUserDialog"), false);
 });
 
 test("Admin UI chrome resolves labels from i18n instead of hardcoded English copy", async () => {

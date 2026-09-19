@@ -3,7 +3,6 @@ import { Prisma } from "@prisma/client";
 import {
   ADMIN_ACCOUNT_REFERENCE_TYPES as R,
   ADMIN_ERROR_CODES,
-  ACCOUNT_INVITATION_STATUSES,
   AUTH_ACCOUNT_STATUSES,
   USER_ACCESS_STATUSES,
   type AdminUserDetail,
@@ -35,7 +34,7 @@ type ListRow = {
   status: AuthAccountStatus;
   createdAt: Date;
   version: number;
-  referenceType: typeof R.user | typeof R.invitation;
+  referenceType: typeof R.user;
 };
 
 @Injectable()
@@ -47,19 +46,10 @@ export class AdminAccountReadService {
     correlationId: string,
   ): Promise<AdminUserListResponse> {
     const q = parseListQuery(raw, correlationId);
-    const now = new Date();
-    // Parameterized UNION performs sorting and pagination in Postgres, including
-    // invitation records. No full user base or credential columns are loaded.
     const accounts = Prisma.sql`
       SELECT "id", COALESCE(NULLIF("displayName", ''), "email") AS "fullName", "email",
              "role"::text AS "role", "accessStatus"::text AS "status", "createdAt", "accessVersion" AS "version", ${R.user}::text AS "referenceType"
-      FROM "User"
-      UNION ALL
-      SELECT 'invitation:' || i."id", i."displayName", i."email", i."role"::text,
-             ${AUTH_ACCOUNT_STATUSES.invited}::text, i."createdAt", i."version", ${R.invitation}::text
-      FROM "AccountInvitation" i
-      WHERE i."status" = ${ACCOUNT_INVITATION_STATUSES.pending}::"AccountInvitationStatus" AND i."expiresAt" > ${now}
-        AND NOT EXISTS (SELECT 1 FROM "User" u WHERE lower(u."email") = lower(i."email"))`;
+      FROM "User"`;
     const escaped = q.query.replace(/[\\%_]/g, (character) => `\\${character}`);
     const predicates = [Prisma.sql`TRUE`];
     if (q.query)
@@ -77,9 +67,7 @@ export class AdminAccountReadService {
         const rows = await tx.$queryRaw<ListRow[]>(
           Prisma.sql`WITH accounts AS (${accounts}) SELECT * FROM accounts WHERE ${filter} ORDER BY "createdAt" DESC, "id" ASC LIMIT ${q.pageSize} OFFSET ${(q.page - 1) * q.pageSize}`,
         );
-        const ids = rows
-          .filter((row) => row.referenceType === R.user)
-          .map((row) => row.id);
+        const ids = rows.map((row) => row.id);
         const assessmentCounts = ids.length
           ? await tx.assessment.groupBy({
               by: ["ownerId"],
@@ -123,47 +111,6 @@ export class AdminAccountReadService {
     correlationId: string,
     client: Prisma.TransactionClient = this.prisma,
   ): Promise<AdminUserDetail> {
-    if (id.startsWith("invitation:")) {
-      const invitation = await client.accountInvitation.findUnique({
-        where: { id: id.slice(11) },
-        select: {
-          id: true,
-          email: true,
-          displayName: true,
-          role: true,
-          status: true,
-          createdAt: true,
-          expiresAt: true,
-          deliveryStatus: true,
-          version: true,
-        },
-      });
-      if (
-        !invitation ||
-        invitation.status !== ACCOUNT_INVITATION_STATUSES.pending ||
-        invitation.expiresAt <= new Date()
-      )
-        return this.notFound(correlationId);
-      return {
-        id,
-        fullName: invitation.displayName,
-        email: invitation.email,
-        role: invitation.role,
-        status: AUTH_ACCOUNT_STATUSES.invited,
-        referenceType: R.invitation,
-        version: invitation.version,
-        createdAt: invitation.createdAt.toISOString(),
-        lastActiveAt: null,
-        invitationExpiresAt: invitation.expiresAt.toISOString(),
-        deliveryStatus: invitation.deliveryStatus,
-        usageSummary: {
-          assessments30d: 0,
-          lastAssessmentAt: null,
-          creditSpend30d: null,
-          openFindingsCount: null,
-        },
-      };
-    }
     const user = await client.user.findUnique({
       where: { id },
       select: IDENTITY_SELECT,

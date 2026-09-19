@@ -1,8 +1,6 @@
 import type {
   AdminSuspendUserInput,
   AdminRestoreUserInput,
-  AdminInviteUserInput,
-  AdminInvitationResult,
   AdminUserDetail,
   AdminUserListQuery,
   AdminUserListResponse,
@@ -11,7 +9,7 @@ import {
   ADMIN_ACCOUNT_FILTERS,
   ADMIN_ACCOUNT_ERRORS,
 } from "@lcsp/contracts/auth";
-import { apiRequest } from "./api-request";
+import { apiRequest } from "./api-request.ts";
 
 export async function fetchAdminUsersList(
   query: AdminUserListQuery = {},
@@ -75,10 +73,4 @@ export function restoreAdminUser(
     input,
     key,
   );
-}
-export function createAdminUserInvitation(
-  input: AdminInviteUserInput,
-  key: string = crypto.randomUUID(),
-): Promise<AdminInvitationResult> {
-  return accountWrite("/api/admin/users", input, key);
 }

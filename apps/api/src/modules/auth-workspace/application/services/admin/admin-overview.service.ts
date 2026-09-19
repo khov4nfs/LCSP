@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common";
 import {
-  ACCOUNT_INVITATION_STATUSES,
   ADMIN_OVERVIEW_ACTION_KEYS,
   ADMIN_OVERVIEW_PERIODS,
   AUTH_AUDIT_EVENT_TYPES,
@@ -56,7 +55,6 @@ export class AdminOverviewService {
     const [
       activeUsersCount,
       suspendedUsersCount,
-      pendingInvitationsCount,
       periodNewUsersCount,
       totalAssessmentsCount,
       periodCompletedAssessmentsCount,
@@ -70,12 +68,6 @@ export class AdminOverviewService {
       }),
       this.prisma.user.count({
         where: { accessStatus: USER_ACCESS_STATUSES.suspended },
-      }),
-      this.prisma.accountInvitation.count({
-        where: {
-          status: ACCOUNT_INVITATION_STATUSES.pending,
-          expiresAt: { gt: now },
-        },
       }),
       this.prisma.user.count({
         where: { createdAt: { gte: windowStart, lte: now } },
@@ -169,13 +161,12 @@ export class AdminOverviewService {
         : null,
     };
 
-    // Account distribution intentionally keeps invited accounts distinct from user records
     const accountDistribution: AdminOverviewAccountDistribution = {
       activeCount: activeUsersCount,
-      invitedCount: pendingInvitationsCount,
+      invitedCount: 0,
       suspendedCount: suspendedUsersCount,
       deactivatedCount: 0,
-      totalCount: totalUsersCount + pendingInvitationsCount,
+      totalCount: totalUsersCount,
     };
 
     return {
