@@ -82,11 +82,15 @@ class AIUsageFlowCallbackPayload(BaseModel):
 
 class SettledUsagePayload(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    userId: str
+    assessmentId: str
+    runId: str
     reservationId: str
     invocationId: str
+    agentRole: str
+    provider: str
+    model: str
     providerResponseId: Optional[str] = None
-    effectiveRuntimeModel: Dict[str, str]
+    effectiveRuntimeModel: Optional[Dict[str, str]] = None
     inputTokens: Optional[str] = None
     cachedInputTokens: Optional[str] = None
     cacheWriteTokens: Optional[str] = None
@@ -94,6 +98,34 @@ class SettledUsagePayload(BaseModel):
     reasoningTokens: Optional[str] = None
     totalTokens: Optional[str] = None
     occurredAt: str
+
+
+class BillingReservationPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    assessmentId: str
+    runId: str
+    amountCredits: str
+    maxChargeCredits: str
+    provider: str
+    model: str
+    maxInputTokens: str
+    maxInputBytes: str
+    maxOutputTokens: str
+    maxReasoningTokens: str
+    maxInvocations: str
+    authorizedModels: List[Dict[str, str]]
+    idempotencyKey: str
+
+
+class BillingReservationReleasePayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    assessmentId: str
+
+
+class BillingReservationClaimPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    assessmentId: str
+    invocationId: str
 
 
 class ConflictDetectionCallbackPayload(BaseModel):

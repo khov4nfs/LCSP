@@ -12,6 +12,7 @@ from tools.legal.corpus.engineering_rules.orchestration.service import Engineeri
 from model_policy import INVESTIGATOR_MODEL_SPEC, PLANNER_MODEL_SPEC
 from tools.common.capabilities.platform.api_client import WorkerApiClient
 from tools.common.capabilities.platform.logging import get_logger
+from middleware.billing_metering import BillingMeteringError
 from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
 from memory_policy.episodes import capture_verified_episode
 
@@ -303,6 +304,8 @@ class EngineeringInvestigationPipeline:
                                 workflow_run_id=workflow_run_id,
                                 correlation_id=correlation_id,
                             )
+                    except BillingMeteringError:
+                        raise
                     except Exception as error:
                         logger.warning(
                             "ENGINEERING_INVESTIGATION_FAILED",

@@ -1,3 +1,4 @@
+import { CommandBus } from "@nestjs/cqrs";
 import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
@@ -6,16 +7,16 @@ import {
 } from "@lcsp/contracts/billing";
 
 import { RabbitMqClient } from "../../../../platform/outbox/rabbitmq.client.js";
-import { BillingPaymentService } from "./billing-payment.service.js";
+import { ReconcileAcceptedSePayWebhookCommand } from "../../application/commands/reconcile-accepted-sepay-webhook/reconcile-accepted-sepay-webhook.command.js";
 
-/** Consumes only accepted, durable reconciliation intents; never webhook HTTP requests. */
+/** Messaging adapter: dispatches durable reconciliation work into CQRS. */
 @Injectable()
-export class SePayReconciliationConsumerService implements OnModuleInit {
-  private readonly logger = new Logger(SePayReconciliationConsumerService.name);
+export class SePayReconciliationConsumer implements OnModuleInit {
+  private readonly logger = new Logger(SePayReconciliationConsumer.name);
 
   constructor(
     private readonly rabbitMq: RabbitMqClient,
-    private readonly payments: BillingPaymentService,
+    private readonly commandBus: CommandBus,
     private readonly config: ConfigService,
   ) {}
 
@@ -29,7 +30,9 @@ export class SePayReconciliationConsumerService implements OnModuleInit {
           const eventId = payload.webhookEventId;
           if (typeof eventId !== "string" || eventId.length === 0)
             throw new Error("SEPAY_RECONCILIATION_EVENT_ID_INVALID");
-          await this.payments.reconcileAcceptedWebhook(eventId);
+          await this.commandBus.execute(
+            new ReconcileAcceptedSePayWebhookCommand(eventId),
+          );
         },
       })
       .catch((error: unknown) => {

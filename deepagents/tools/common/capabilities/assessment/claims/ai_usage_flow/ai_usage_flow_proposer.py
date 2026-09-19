@@ -10,6 +10,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 from langchain.agents.middleware import ToolCallLimitMiddleware
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.billing_metering import BillingMeteringError
 from model_policy import NARRATOR_MODEL_SPEC, create_lcsp_agent as create_agent
 from tools.common.capabilities.agentic_evidence import AgenticInvocationContext, AgenticToolResolver
 
@@ -201,6 +202,8 @@ class AIUsageFlowModelAssistedProposer:
                 {"messages": [{"role": "user", "content": prompt}]},
                 config={"metadata": {"workflow_run_id": workflow_run_id, "node_name": node_name, "correlationId": correlationId}, "configurable": {"thread_id": workflow_run_id}},
             )
+        except BillingMeteringError:
+            raise
         except Exception:
             return None
 

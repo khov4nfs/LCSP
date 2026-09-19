@@ -1,5 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { BillingAccountingService } from "./billing-accounting.service.js";
+import { BillingAccountingKernel } from "./billing-accounting.kernel.js";
 import { BillingIdempotencyConflictError } from "../../domain/billing.errors.js";
 import { createHash } from "node:crypto";
 import { randomBytes } from "node:crypto";
@@ -18,11 +18,11 @@ import {
 } from "../../domain/repositories/billing-transaction.port.js";
 
 @Injectable()
-export class BillingPaymentService {
+export class BillingPaymentKernel {
   constructor(
     @Inject(BILLING_TRANSACTION_PORT)
     private readonly transactions: BillingTransactionPort,
-    private readonly accounting: BillingAccountingService,
+    private readonly accounting: BillingAccountingKernel,
   ) {}
   async createOrder(i: {
     userId: string;

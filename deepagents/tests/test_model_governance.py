@@ -4,6 +4,7 @@ import pytest
 from langchain.agents.middleware import ModelResponse, ModelRetryMiddleware, PIIMiddleware
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.billing_metering import BillingMeteringMiddleware
 from middleware.provider_fallback import ProviderFallbackMiddleware
 from middleware.token_fallback import TokenFallbackMiddleware
 
@@ -42,6 +43,15 @@ def test_provider_fallback_wraps_same_provider_key_rotation() -> None:
         if isinstance(item, TokenFallbackMiddleware)
     )
     assert provider_index < token_index
+
+
+def test_billing_metering_is_the_innermost_governed_model_boundary() -> None:
+    metering_index = next(
+        index
+        for index, item in enumerate(MODEL_GOVERNANCE_MIDDLEWARE)
+        if isinstance(item, BillingMeteringMiddleware)
+    )
+    assert metering_index == len(MODEL_GOVERNANCE_MIDDLEWARE) - 2
 
 
 @pytest.mark.parametrize("asynchronous", [False, True])

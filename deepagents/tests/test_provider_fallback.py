@@ -10,6 +10,11 @@ from middleware.provider_fallback import (
     ProviderFallbackMiddleware,
     configured_fallback_providers,
 )
+from middleware.billing_metering import (
+    BillingMeteringMiddleware,
+    BillingMeteringSession,
+    activate_billing_metering,
+)
 from middleware.token_fallback import TokenFallbackMiddleware, model_provider
 from provider_credentials import credential_init_kwargs
 
@@ -44,6 +49,22 @@ def _openai_model():
     )
 
 
+class _BillingModel:
+    def __init__(self, provider: str):
+        self.provider = provider
+        self.model_name = "gpt-5-nano"
+
+
+class _BillingRequest:
+    def __init__(self, model):
+        self.model = model
+        self.messages = []
+        self.tools = []
+
+    def override(self, **kwargs):
+        return _BillingRequest(kwargs.get("model", self.model))
+
+
 def _sync_chain(request, raw_handler):
     token_fallback = TokenFallbackMiddleware()
     return ProviderFallbackMiddleware().wrap_model_call(
@@ -69,6 +90,48 @@ def test_configured_provider_chain_is_numeric_ordered_aliased_and_deduplicated(m
     monkeypatch.setenv("LLM_FALLBACK_PROVIDER_3", "google_genai")
 
     assert configured_fallback_providers() == ("google_genai", "llm7")
+
+
+def test_terminal_billing_delivery_failure_does_not_enter_provider_fallback(monkeypatch):
+    import middleware.provider_fallback as fallback_module
+
+    monkeypatch.setattr(fallback_module, "model_provider", lambda model: model.provider)
+    monkeypatch.setattr(
+        fallback_module, "configured_fallback_providers", lambda: ("llm7",)
+    )
+    monkeypatch.setattr(
+        fallback_module, "fallback_model", lambda provider: _BillingModel(provider)
+    )
+    session = BillingMeteringSession(
+        api_client=type(
+            "FailingBillingClient",
+            (),
+            {"post_settled_usage": lambda self, _payload: (_ for _ in ()).throw(RuntimeError("api-down"))},
+        )(),
+        assessment_id="assessment-1",
+        run_id="run-1",
+        reservation_id="reservation-1",
+        agent_role="planner",
+        reserved_provider="OPENAI",
+        reserved_model="gpt-5-nano",
+    )
+    provider_calls = []
+
+    def provider_handler(_request):
+        provider_calls.append(1)
+        return ModelResponse(result=[])
+
+    request = _BillingRequest(_BillingModel("openai"))
+    billing = BillingMeteringMiddleware()
+    with activate_billing_metering(session), pytest.raises(Exception) as error:
+        ProviderFallbackMiddleware().wrap_model_call(
+            request,
+            lambda next_request: billing.wrap_model_call(
+                next_request, provider_handler
+            ),
+        )
+    assert type(error.value).__name__ == "BillingMeteringError"
+    assert len(provider_calls) == 1
 
 
 def test_configured_provider_requires_its_own_credentials(monkeypatch):

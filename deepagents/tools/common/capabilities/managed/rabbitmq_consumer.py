@@ -27,6 +27,9 @@ from tools.common.capabilities.managed.invocation import (
     invoke_boundary,
     load_boundary,
 )
+from middleware.billing_recovery import start_background_worker
+from tools.common.capabilities.platform.api_client import WorkerApiClient
+from tools.common.capabilities.platform.config import load_config
 
 LOGGER = logging.getLogger("lcsp.mda.rabbitmq_consumer")
 DEFAULT_EXCHANGE = "lcsp.events"
@@ -84,6 +87,16 @@ def run_consumer() -> None:
     )
     install_agent_stream_log_handler()
     suppress_langgraph_heartbeat_logs()
+
+    billing_config = load_config()
+    if billing_config.billing_recovery_store_path:
+        start_background_worker(
+            billing_config.billing_recovery_store_path,
+            WorkerApiClient(
+                billing_config.nestjs_api_base_url,
+                billing_config.worker_api_key,
+            ),
+        )
 
     rabbitmq_url = os.getenv("RABBITMQ_URL")
     if not rabbitmq_url:
@@ -337,12 +350,23 @@ def _delivery_handler(
 
 def _dispatch_delivery(boundary_name: str, properties: Any, body: bytes) -> None:
     message = _decode_message(body)
+    message = _with_billing_attempt(message, _delivery_attempt(properties))
     correlation_id = _correlation_id(
         message,
         getattr(properties, "headers", None),
         boundary_name,
     )
     invoke_boundary(boundary_name, message, correlation_id)
+
+
+def _with_billing_attempt(message: dict[str, Any], attempt: int) -> dict[str, Any]:
+    """Copy the broker-managed retry attempt into server-issued billing context."""
+    billing = message.get("billing")
+    if attempt <= 0 or not isinstance(billing, dict):
+        return message
+    enriched = dict(message)
+    enriched["billing"] = {**billing, "attempt": str(attempt)}
+    return enriched
 
 
 def _schedule_delivery_settlement(

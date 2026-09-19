@@ -7,6 +7,7 @@ from typing import Any
 
 from model_policy import INVESTIGATOR_MODEL_SPEC, PLANNER_MODEL_SPEC
 from tools.common.capabilities.platform.api_client import WorkerCallbackError
+from middleware.billing_metering import BillingMeteringError
 from tools.common.capabilities.platform.logging import get_logger
 from tools.common.capabilities.evidence.graph.schema.source_roles import filter_program_evidence_graph
 
@@ -770,6 +771,8 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                     },
                     error_summary=type(error).__name__,
                 )
+                raise
+            except BillingMeteringError:
                 raise
             except Exception as error:
                 investigation_failed = True

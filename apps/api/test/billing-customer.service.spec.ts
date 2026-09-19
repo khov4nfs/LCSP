@@ -1,6 +1,11 @@
 import { describe, expect, it, jest } from "@jest/globals";
-import { BillingCustomerService } from "../src/modules/billing/application/services/billing-customer.service.js";
-import { BillingPaymentService } from "../src/modules/billing/application/services/billing-payment.service.js";
+import { BillingPaymentKernel } from "../src/modules/billing/application/shared/billing-payment.kernel.js";
+import { CreateBillingOrderHandler } from "../src/modules/billing/application/commands/create-billing-order/create-billing-order.handler.js";
+import { CreateBillingOrderCommand } from "../src/modules/billing/application/commands/create-billing-order/create-billing-order.command.js";
+import { EstimateBillingHandler } from "../src/modules/billing/application/queries/estimate-billing/estimate-billing.handler.js";
+import { EstimateBillingQuery } from "../src/modules/billing/application/queries/estimate-billing/estimate-billing.query.js";
+import { GetBillingOrderHandler } from "../src/modules/billing/application/queries/get-billing-order/get-billing-order.handler.js";
+import { GetBillingOrderQuery } from "../src/modules/billing/application/queries/get-billing-order/get-billing-order.query.js";
 import {
   BILLING_PAYMENT_PROVIDERS,
   PREPAID_BILLING_CONFIG,
@@ -32,33 +37,36 @@ const order = {
   updatedAt: new Date("2029-01-01"),
 };
 
-describe("BillingCustomerService", () => {
-  it("uses the configured prepaid limits and conversion", () => {
-    const service = new BillingCustomerService(
-      {} as never,
-      {} as never,
-      billingConfig as never,
-    );
+describe("billing customer CQRS handlers", () => {
+  it("uses the configured prepaid limits and conversion", async () => {
     expect(
-      service.estimate(PREPAID_BILLING_CONFIG.minimumAmountVnd),
+      await new EstimateBillingHandler().execute(
+        new EstimateBillingQuery(PREPAID_BILLING_CONFIG.minimumAmountVnd),
+      ),
     ).toMatchObject({
       currency: "VND",
       amountVnd: "10000",
       creditUnits: "10000",
     });
-    expect(() => service.estimate(1n)).toThrow();
+    await expect(
+      new EstimateBillingHandler().execute(new EstimateBillingQuery(1n)),
+    ).rejects.toThrow();
   });
 
   it("derives order ownership from the supplied authenticated user", async () => {
     const createOrder = jest
       .fn<(input: unknown) => Promise<any>>()
       .mockResolvedValue(order);
-    const service = new BillingCustomerService(
+    const handler = new CreateBillingOrderHandler(
       {} as never,
-      { createOrder } as unknown as BillingPaymentService,
+      { createOrder } as unknown as BillingPaymentKernel,
       billingConfig as never,
     );
-    const result = await service.createOrder("user-1", 10000n, "key-1");
+    const result = await handler.execute(
+      new CreateBillingOrderCommand("user-1", 10000n, "key-1", {
+        correlationId: "correlation-1",
+      }),
+    );
     expect(createOrder).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
@@ -79,12 +87,15 @@ describe("BillingCustomerService", () => {
         Promise.resolve(op({ order: { findForUser } } as never)),
       ),
     };
-    const service = new BillingCustomerService(
+    const handler = new GetBillingOrderHandler(
       transactions as never,
-      {} as never,
       billingConfig as never,
     );
-    await service.getOrder("user-1", "order-1");
+    await handler.execute(
+      new GetBillingOrderQuery("user-1", "order-1", {
+        correlationId: "correlation-1",
+      }),
+    );
     expect(findForUser).toHaveBeenCalledWith("user-1", "order-1");
   });
 
@@ -116,15 +127,16 @@ describe("BillingCustomerService", () => {
           ),
       ),
     };
-    const service = new BillingCustomerService(
+    const handler = new GetBillingOrderHandler(
       transactions as never,
-      {} as never,
       billingConfig as never,
     );
-    const result = await service.getOrder("user-1", "order-1", {
-      correlationId: "corr-expiry",
-      sessionId: "session-1",
-    });
+    const result = await handler.execute(
+      new GetBillingOrderQuery("user-1", "order-1", {
+        correlationId: "corr-expiry",
+        sessionId: "session-1",
+      }),
+    );
     expect(result.status).toBe("EXPIRED");
     expect(append).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -138,13 +150,17 @@ describe("BillingCustomerService", () => {
     const createOrder = jest
       .fn<(input: unknown) => Promise<typeof order>>()
       .mockResolvedValue(order);
-    const service = new BillingCustomerService(
+    const handler = new CreateBillingOrderHandler(
       {} as never,
-      { createOrder } as unknown as BillingPaymentService,
+      { createOrder } as unknown as BillingPaymentKernel,
       billingConfig as never,
     );
 
-    const result = await service.createOrder("user-1", 10000n, "key-1");
+    const result = await handler.execute(
+      new CreateBillingOrderCommand("user-1", 10000n, "key-1", {
+        correlationId: "correlation-1",
+      }),
+    );
 
     expect(result.paymentInstructions).toEqual({
       provider: BILLING_PAYMENT_PROVIDERS.sepay,

@@ -586,6 +586,116 @@ describe("OutboxPublisherService", () => {
     );
   });
 
+  it("adds an owner-derived billing reservation context to billable worker events", async () => {
+    const message = makeMessage({
+      aggregateType: OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
+      aggregateId: "scan-job-1",
+      eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered,
+      payload: {
+        scanJobId: "scan-job-1",
+        assessmentId: "assessment-1",
+        correlationId: "corr-1",
+      },
+    });
+    const publish = jest.fn<PublishFn>().mockResolvedValue(undefined);
+    const service = new OutboxPublisherService(
+      makeOutboxRepository({
+        withPendingBatch: jest
+          .fn<WithPendingBatchFn>()
+          .mockImplementation(async (_batchSize, handler) =>
+            handler([message], {} as Prisma.TransactionClient),
+          ),
+        markPublished: jest.fn<MarkPublishedFn>().mockResolvedValue(undefined),
+      }),
+      makeRabbitMqClient({
+        ensureConnected: jest
+          .fn<EnsureConnectedFn>()
+          .mockResolvedValue(undefined),
+        publish,
+      }),
+      makeConfigService({
+        "billing.meteringEnabled": true,
+        "billing.reservationCredits": "100",
+        "billing.maxInvocationChargeCredits": "100",
+        "billing.runtimeProvider": "openai",
+        "billing.runtimeModel": "gpt-5-nano",
+        "billing.maxInputTokens": "4096",
+        "billing.maxInputBytes": "16384",
+        "billing.maxOutputTokens": "1024",
+        "billing.maxReasoningTokens": "1024",
+        "billing.maxInvocationsPerGroup": "1",
+        "billing.authorizedRuntimeModels": "OPENAI:gpt-5-nano",
+      }),
+      makeAuditWriter(),
+      makeSnapshotCreatedAutoScanService(),
+    );
+
+    await service.poll();
+
+    expect(publish).toHaveBeenCalledWith(
+      "lcsp.events",
+      GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered,
+      expect.objectContaining({
+        assessmentId: "assessment-1",
+        billing: {
+          assessmentId: "assessment-1",
+          runId: "scan-job-1",
+          amountCredits: "100",
+          maxChargeCredits: "100",
+          provider: "OPENAI",
+          model: "gpt-5-nano",
+          maxInputTokens: "4096",
+          maxInputBytes: "16384",
+          maxOutputTokens: "1024",
+          maxReasoningTokens: "1024",
+          maxInvocations: "1",
+          authorizedModels: [{ provider: "OPENAI", model: "gpt-5-nano" }],
+          idempotencyKey: "outbox:outbox-1:billing-reservation",
+          agentRole: `outbox:${GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered}`,
+        },
+      }),
+    );
+  });
+
+  it("fails closed when enabled metering has no positive reservation limit", async () => {
+    const message = makeMessage({
+      eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered,
+      payload: { assessmentId: "assessment-1", scanJobId: "scan-1" },
+    });
+    const markFailure = jest.fn<MarkFailureFn>().mockResolvedValue(undefined);
+    const service = new OutboxPublisherService(
+      makeOutboxRepository({
+        withPendingBatch: jest
+          .fn<WithPendingBatchFn>()
+          .mockImplementation(async (_batchSize, handler) =>
+            handler([message], {} as Prisma.TransactionClient),
+          ),
+        markFailure,
+      }),
+      makeRabbitMqClient({
+        ensureConnected: jest
+          .fn<EnsureConnectedFn>()
+          .mockResolvedValue(undefined),
+        publish: jest.fn<PublishFn>().mockResolvedValue(undefined),
+      }),
+      makeConfigService({ "billing.meteringEnabled": true }),
+      makeAuditWriter(),
+      makeSnapshotCreatedAutoScanService(),
+    );
+
+    await service.poll();
+
+    expect(markFailure).toHaveBeenCalledWith(
+      {},
+      "outbox-1",
+      1,
+      5,
+      "Billing metering requires a reservation at least as large as the maximum invocation charge",
+      expect.any(Date),
+      expect.any(Date),
+    );
+  });
+
   it("T04: leaves messages pending and does not crash when RabbitMQ is unavailable", async () => {
     const message = makeMessage();
     const markPublished = jest

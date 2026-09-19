@@ -13,6 +13,7 @@ from langchain_core.messages import ToolMessage
 from middleware.provider_fallback import ProviderFallbackMiddleware
 from middleware.provider_schema import ProviderSchemaCompatibilityMiddleware
 from middleware.token_fallback import TokenFallbackMiddleware
+from middleware.billing_metering import BillingMeteringMiddleware
 from middleware.failure_policy import TerminalSchemaError, retry_model_error
 
 from middleware.redaction import (
@@ -95,6 +96,9 @@ MODEL_GOVERNANCE_MIDDLEWARE = (
     # provider-compatible response schema.
     ProviderSchemaCompatibilityMiddleware(),
     StopSchemaRepairMiddleware(),
+    # Keep metering innermost so provider retry, key rotation and fallback each
+    # expose their actual downstream response to one governed billing boundary.
+    BillingMeteringMiddleware(),
     ModelCallLimitMiddleware(run_limit=2, exit_behavior="error"),
 )
 

@@ -26,6 +26,9 @@ from tools.common.capabilities.platform.callback_schemas import (
     ConflictDetectionCallbackPayload,
     ClassificationCallbackPayload,
     AuditExportCallbackPayload,
+    BillingReservationPayload,
+    BillingReservationClaimPayload,
+    BillingReservationReleasePayload,
 )
 
 logger = get_logger(__name__)
@@ -637,6 +640,32 @@ class WorkerApiClient:
             payload.model_dump(exclude_none=True),
         )
         return CallbackResponse(**resp_data)
+
+    def reserve_billing_credits(
+        self, payload: BillingReservationPayload
+    ) -> dict:
+        """Reserve credits for a canonical assessment/run billing group."""
+        return self._post_with_retry(
+            CallbackPath.BILLING_RESERVATION,
+            payload.model_dump(exclude_none=True),
+        )
+
+    def release_billing_reservation(
+        self, reservation_id: str, payload: BillingReservationReleasePayload
+    ) -> dict:
+        """Release unused credits; the API operation is idempotent."""
+        path = CallbackPath.BILLING_RESERVATION_RELEASE.format(
+            reservation_id=reservation_id
+        )
+        return self._post_with_retry(path, payload.model_dump(exclude_none=True))
+
+    def claim_billing_invocation(
+        self, reservation_id: str, payload: BillingReservationClaimPayload
+    ) -> dict:
+        path = CallbackPath.BILLING_RESERVATION_CLAIM.format(
+            reservation_id=reservation_id
+        )
+        return self._post_with_retry(path, payload.model_dump(exclude_none=True))
 
     def post_reconciliation_conflict_callback(
         self, payload: ConflictDetectionCallbackPayload

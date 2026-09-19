@@ -2,6 +2,7 @@
 
 from contracts.handoffs import InterviewResult
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.billing_metering import BillingAgentRoleMiddleware
 from middleware.interview_runtime_context import inject_interview_runtime_context
 from model_policy import INTERVIEW_MODEL_SPEC
 from tools.common.capabilities.managed.skill_loader import load_project_skill_package
@@ -139,7 +140,11 @@ SUBAGENT = {
     "system_prompt": SYSTEM_PROMPT,
     "tools": TOOLS,
     "model": INTERVIEW_MODEL_SPEC,
-    "middleware": [inject_interview_runtime_context, *MODEL_GOVERNANCE_MIDDLEWARE],
+    "middleware": [
+        inject_interview_runtime_context,
+        BillingAgentRoleMiddleware("interview"),
+        *MODEL_GOVERNANCE_MIDDLEWARE,
+    ],
     "response_format": OUTPUT_MODEL,
 }
 

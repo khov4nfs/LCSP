@@ -11,9 +11,10 @@ import {
 import { randomUUID } from "node:crypto";
 import { AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
 import { BILLING_AUDIT_EVENT_TYPES } from "@lcsp/contracts/billing";
-import { BillingAccountingService } from "../src/modules/billing/application/services/billing-accounting.service.js";
-import { BillingPaymentService } from "../src/modules/billing/application/services/billing-payment.service.js";
-import { BillingAdminReconciliationService } from "../src/modules/billing/application/services/billing-admin-reconciliation.service.js";
+import { BillingAccountingKernel } from "../src/modules/billing/application/shared/billing-accounting.kernel.js";
+import { BillingPaymentKernel } from "../src/modules/billing/application/shared/billing-payment.kernel.js";
+import { ResolveBillingPaymentHandler } from "../src/modules/billing/application/commands/resolve-billing-payment/resolve-billing-payment.handler.js";
+import { ResolveBillingPaymentCommand } from "../src/modules/billing/application/commands/resolve-billing-payment/resolve-billing-payment.command.js";
 import { PrismaBillingTransaction } from "../src/modules/billing/infrastructure/persistence/prisma-billing-transaction.js";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
 import {
@@ -23,9 +24,9 @@ import {
 
 describe("LCSP-310 payment reconciliation", () => {
   let prisma: PrismaClient;
-  let payments: BillingPaymentService;
-  let accounting: BillingAccountingService;
-  let admin: BillingAdminReconciliationService;
+  let payments: BillingPaymentKernel;
+  let accounting: BillingAccountingKernel;
+  let admin: ResolveBillingPaymentHandler;
   const user = (name: string) => ({
     id: `payment-${name}-${randomUUID()}`,
     email: `payment-${name}-${randomUUID()}@test.invalid`,
@@ -39,14 +40,14 @@ describe("LCSP-310 payment reconciliation", () => {
     pushPrismaSchema();
     prisma = new PrismaClient({ adapter: new PrismaPg(TEST_DATABASE_URL) });
     await prisma.$connect();
-    accounting = new BillingAccountingService(
+    accounting = new BillingAccountingKernel(
       new PrismaBillingTransaction(new PrismaService()),
     );
-    payments = new BillingPaymentService(
+    payments = new BillingPaymentKernel(
       new PrismaBillingTransaction(new PrismaService()),
       accounting,
     );
-    admin = new BillingAdminReconciliationService(
+    admin = new ResolveBillingPaymentHandler(
       new PrismaService(),
       new PrismaBillingTransaction(new PrismaService()),
       accounting,
@@ -365,14 +366,16 @@ describe("LCSP-310 payment reconciliation", () => {
       transferDirection: "IN",
     });
 
-    const resolved = await admin.resolve({
-      paymentId: payment.id,
-      billingOrderId: order.id,
-      expectedVersion: 0,
-      rationale: "Verified bank statement and customer order ownership",
-      actorId: "admin-1",
-      correlationId: "corr-manual-exact",
-    });
+    const resolved = await admin.execute(
+      new ResolveBillingPaymentCommand({
+        paymentId: payment.id,
+        billingOrderId: order.id,
+        expectedVersion: 0,
+        rationale: "Verified bank statement and customer order ownership",
+        actorId: "admin-1",
+        correlationId: "corr-manual-exact",
+      }),
+    );
 
     expect(resolved.status).toBe("MATCHED");
     expect(
@@ -435,14 +438,16 @@ describe("LCSP-310 payment reconciliation", () => {
     });
     const results = await Promise.allSettled(
       ["admin-a", "admin-b"].map((actorId) =>
-        admin.resolve({
-          paymentId: payment.id,
-          billingOrderId: order.id,
-          expectedVersion: 0,
-          rationale: "Verified ownership before manual resolution",
-          actorId,
-          correlationId: `corr-${actorId}`,
-        }),
+        admin.execute(
+          new ResolveBillingPaymentCommand({
+            paymentId: payment.id,
+            billingOrderId: order.id,
+            expectedVersion: 0,
+            rationale: "Verified ownership before manual resolution",
+            actorId,
+            correlationId: `corr-${actorId}`,
+          }),
+        ),
       ),
     );
 
@@ -471,14 +476,16 @@ describe("LCSP-310 payment reconciliation", () => {
     });
 
     await expect(
-      admin.resolve({
-        paymentId: payment.id,
-        billingOrderId: other.order.id,
-        expectedVersion: 0,
-        rationale: "Attempted cross-account reassignment",
-        actorId: "admin-unsafe",
-        correlationId: "corr-cross-account",
-      }),
+      admin.execute(
+        new ResolveBillingPaymentCommand({
+          paymentId: payment.id,
+          billingOrderId: other.order.id,
+          expectedVersion: 0,
+          rationale: "Attempted cross-account reassignment",
+          actorId: "admin-unsafe",
+          correlationId: "corr-cross-account",
+        }),
+      ),
     ).rejects.toThrow("BILLING_RECONCILIATION_OWNERSHIP_CONFLICT");
     expect(
       await prisma.creditLedgerEntry.count({

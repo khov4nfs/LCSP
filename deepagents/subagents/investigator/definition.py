@@ -1,6 +1,7 @@
 """Investigator subagent: execute the Planner's bounded graph investigation."""
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.billing_metering import BillingAgentRoleMiddleware
 from middleware.runtime_context import inject_lcsp_runtime_context
 from model_policy import INVESTIGATOR_MODEL_SPEC
 from contracts.handoffs import InvestigatorResult
@@ -199,7 +200,11 @@ SUBAGENT = {
     "system_prompt": SYSTEM_PROMPT,
     "tools": TOOLS,
     "model": INVESTIGATOR_MODEL_SPEC,
-    "middleware": [inject_lcsp_runtime_context, *MODEL_GOVERNANCE_MIDDLEWARE],
+    "middleware": [
+        inject_lcsp_runtime_context,
+        BillingAgentRoleMiddleware("investigator"),
+        *MODEL_GOVERNANCE_MIDDLEWARE,
+    ],
     "response_format": OUTPUT_MODEL,
 }
 

@@ -13,15 +13,15 @@ import {
   TEST_DATABASE_URL,
   pushPrismaSchema,
 } from "./support/auth-workspace-test-helpers.js";
-import { BillingAccountingService } from "../src/modules/billing/application/services/billing-accounting.service.js";
+import { BillingAccountingKernel } from "../src/modules/billing/application/shared/billing-accounting.kernel.js";
 import { PrismaBillingTransaction } from "../src/modules/billing/infrastructure/persistence/prisma-billing-transaction.js";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
-import { BillingPaymentService } from "../src/modules/billing/application/services/billing-payment.service.js";
+import { BillingPaymentKernel } from "../src/modules/billing/application/shared/billing-payment.kernel.js";
 
 describe("LCSP-310 billing persistence constraints", () => {
   let prisma: PrismaClient;
-  let accounting: BillingAccountingService;
-  let payments: BillingPaymentService;
+  let accounting: BillingAccountingKernel;
+  let payments: BillingPaymentKernel;
   const user = (suffix: string) => ({
     id: `billing-${suffix}-${randomUUID()}`,
     email: `billing-${suffix}-${randomUUID()}@test.invalid`,
@@ -35,10 +35,10 @@ describe("LCSP-310 billing persistence constraints", () => {
     pushPrismaSchema();
     prisma = new PrismaClient({ adapter: new PrismaPg(TEST_DATABASE_URL) });
     await prisma.$connect();
-    accounting = new BillingAccountingService(
+    accounting = new BillingAccountingKernel(
       new PrismaBillingTransaction(new PrismaService()),
     );
-    payments = new BillingPaymentService(
+    payments = new BillingPaymentKernel(
       new PrismaBillingTransaction(new PrismaService()),
       accounting,
     );
@@ -460,7 +460,15 @@ describe("LCSP-310 billing persistence constraints", () => {
     ]);
     expect(
       settleResults.filter((result) => result.status === "fulfilled"),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
+    expect(settleResults[0]).toMatchObject({
+      status: "fulfilled",
+      value: { reservationId: settled.id, chargedCredits: 63n },
+    });
+    expect(settleResults[1]).toMatchObject({
+      status: "fulfilled",
+      value: { reservationId: settled.id, chargedCredits: 63n },
+    });
     const release = await accounting.reserveCredits({
       userId: a.id,
       amountCredits: 10n,
@@ -478,7 +486,7 @@ describe("LCSP-310 billing persistence constraints", () => {
     ]);
     expect(
       releaseResults.filter((result) => result.status === "fulfilled"),
-    ).toHaveLength(1);
+    ).toHaveLength(2);
     const finalWallet = await prisma.billingWallet.findUniqueOrThrow({
       where: { userId: a.id },
     });

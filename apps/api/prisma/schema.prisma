@@ -166,6 +166,8 @@ model Assessment {
   technicalProfiles          TechnicalProfile[]
   verifiedAgentEpisodes      VerifiedAgentEpisode[]
   verifiedProfiles           VerifiedProfile[]
+  billingReservations        BillingReservation[]
+  llmUsageEvents             LlmUsageEvent[]
 
   @@index([ownerId])
 }
@@ -1233,6 +1235,12 @@ enum BillingReservationStatus {
   RELEASED
 }
 
+enum LlmUsageStatus {
+  SETTLED
+  UNAVAILABLE
+  RETRYABLE
+}
+
 model BillingWallet {
   id               String               @id @default(uuid())
   userId           String               @unique
@@ -1331,7 +1339,12 @@ model BillingReservation {
   id             String                   @id @default(uuid())
   userId         String
   walletId       String
+  assessmentId   String?
+  runId          String?
   amountCredits  BigInt
+  remainingCredits BigInt                 @default(0)
+  maxInvocations BigInt                   @default(1)
+  invocationsStarted BigInt               @default(0)
   status         BillingReservationStatus @default(RESERVED)
   idempotencyKey String?
   settledAt      DateTime?
@@ -1340,11 +1353,25 @@ model BillingReservation {
   updatedAt      DateTime                 @updatedAt
   user           User                     @relation(fields: [userId], references: [id], onDelete: Restrict)
   wallet         BillingWallet            @relation(fields: [walletId], references: [id], onDelete: Restrict)
-  usageEvent     LlmUsageEvent?
+  assessment     Assessment?              @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  usageEvents    LlmUsageEvent[]
+  invocationClaims BillingReservationInvocationClaim[]
 
   @@unique([userId, idempotencyKey])
+  @@index([assessmentId, runId])
   @@index([userId, status, createdAt])
   @@index([walletId, status])
+}
+
+model BillingReservationInvocationClaim {
+  id            String              @id @default(uuid())
+  reservationId String
+  invocationId  String
+  createdAt     DateTime            @default(now())
+  reservation   BillingReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@unique([reservationId, invocationId])
+  @@index([invocationId])
 }
 
 model ModelPricingSnapshot {
@@ -1389,9 +1416,14 @@ model RuntimeModelPolicySnapshot {
 model LlmUsageEvent {
   id                 String                @id @default(uuid())
   userId             String
+  assessmentId       String?
+  runId              String?
+  agentRole          String                @default("LEGACY")
   provider           String
   model              String
   invocationId       String
+  status             LlmUsageStatus        @default(SETTLED)
+  availabilityReason String?
   providerResponseId String?
   inputTokens        BigInt?
   cachedInputTokens  BigInt?
@@ -1408,13 +1440,15 @@ model LlmUsageEvent {
   occurredAt         DateTime              @default(now())
   createdAt          DateTime              @default(now())
   user               User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
+  assessment         Assessment?           @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
   pricingSnapshot    ModelPricingSnapshot? @relation(fields: [pricingSnapshotId], references: [id], onDelete: Restrict)
   runtimePolicySnapshot RuntimeModelPolicySnapshot? @relation(fields: [runtimePolicySnapshotId], references: [id], onDelete: Restrict)
   reservation        BillingReservation?   @relation(fields: [reservationId], references: [id], onDelete: Restrict)
 
   @@unique([userId, invocationId])
   @@unique([provider, providerResponseId])
-  @@unique([reservationId])
+  @@index([assessmentId, runId, createdAt])
+  @@index([reservationId, createdAt])
   @@index([userId, createdAt])
   @@index([provider, model, createdAt])
 }

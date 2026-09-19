@@ -11,6 +11,7 @@ from langchain.agents.middleware import ToolCallLimitMiddleware
 from langchain.tools import BaseTool, tool
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.billing_metering import BillingMeteringError
 from model_policy import INVESTIGATOR_MODEL_SPEC, create_lcsp_agent as create_agent
 from tools.common.capabilities.platform.logging import get_logger
 from tools.common.capabilities.platform.tracing import traceable
@@ -158,6 +159,8 @@ class LawGuidedInvestigator:
             if hasattr(payload, "model_dump"):
                 payload = payload.model_dump()
             claims = self._claims_from_payload(payload, packet, graph, ledger)
+        except BillingMeteringError:
+            raise
         except Exception as error:
             logger.warning(
                 "ENGINEERING_INVESTIGATION_NATIVE_AGENT_FAILED",

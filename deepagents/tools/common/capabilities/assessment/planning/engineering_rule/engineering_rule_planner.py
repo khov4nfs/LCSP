@@ -9,6 +9,7 @@ from dataclasses import dataclass, replace
 from typing import Any, Iterable
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.billing_metering import BillingMeteringError
 from model_policy import PLANNER_MODEL_SPEC, create_lcsp_agent as create_agent
 from tools.legal.corpus.engineering_rules.contract.models import EngineeringRule
 from tools.common.capabilities.platform.logging import get_logger
@@ -307,6 +308,8 @@ class EngineeringRulePlanner:
                 correlationId=correlation_id,
             )
             return plan
+        except BillingMeteringError:
+            raise
         except Exception as error:
             # Planning is an optimization/relevance layer, never an authority that
             # may silently remove controls. If the provider or plan contract fails,

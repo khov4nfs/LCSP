@@ -6,6 +6,7 @@ from typing import Any
 
 from tools.common.capabilities.platform.logging import get_logger
 from tools.common.capabilities.managed.boundary import AgentBoundaryBase
+from middleware.billing_metering import BillingMeteringError
 
 from tools.common.capabilities.reporting.report.projection.classification_data_projection import (
     document_classification_context,
@@ -138,6 +139,8 @@ class FinalReportBoundary(AgentBoundaryBase):
                 node_name="final_report.executive_summary",
                 correlationId=correlationId,
             )
+        except BillingMeteringError:
+            raise
         except Exception as error:
             logger.error(
                 "FINAL_REPORT_GENERATION_FAILED",
