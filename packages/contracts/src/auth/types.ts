@@ -68,8 +68,6 @@ export interface AdminUserDetail {
   version?: number;
   referenceType?: import("./admin-accounts.ts").AdminAccountReferenceType;
   replayed?: boolean;
-  invitationExpiresAt?: string;
-  deliveryStatus?: import("./admin-accounts.ts").InvitationDeliveryStatus;
   id: string;
   fullName: string;
   email: string;

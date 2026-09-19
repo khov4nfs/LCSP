@@ -1145,46 +1145,9 @@ enum UserAccessStatus {
   SUSPENDED
 }
 
-enum AccountInvitationStatus {
-  PENDING
-  ACCEPTED
-  REVOKED
-}
-
-enum InvitationDeliveryStatus {
-  PENDING
-  SENT
-  FAILED
-}
-
 enum AdminAccountOperation {
   SUSPEND
   RESTORE
-  INVITE
-}
-
-model AccountInvitation {
-  id                 String                   @id
-  email              String                   @unique
-  displayName        String
-  role               AuthUserRole
-  status             AccountInvitationStatus  @default(PENDING)
-  generation         Int                      @default(0)
-  tokenHash          String                   @unique
-  encryptedToken     String?
-  expiresAt          DateTime
-  acceptedAt         DateTime?
-  acceptedUserId     String?
-  invitedById        String
-  deliveryStatus     InvitationDeliveryStatus @default(PENDING)
-  deliveryLeaseId    String?
-  deliveryLeaseUntil DateTime?
-  deliveredAt        DateTime?
-  version            Int                      @default(0)
-  createdAt          DateTime                 @default(now())
-  updatedAt          DateTime                 @updatedAt
-
-  @@index([status, expiresAt, createdAt, id])
 }
 
 model AdminAccountCommandReceipt {

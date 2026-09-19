@@ -3,8 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { resolveMessage } from "@lcsp/i18n";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { InvitationAcceptForm } from "./invitation-accept-form";
+import { useState } from "react";
 import { FormProvider, useForm, useFormContext } from "react-hook-form";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -215,32 +214,6 @@ function SignUpErrorAlert({
   );
 }
 
-/** Invitation tokens stay in the URL fragment until mounted, never in query logs. */
 export function SignUpForm() {
-  const parsedFragment = useRef(false);
-  const [state, setState] = useState<{ ready: boolean; token: string | null }>({
-    ready: false,
-    token: null,
-  });
-  useEffect(() => {
-    // React Strict Mode replays mount effects; do not discard the captured token.
-    if (parsedFragment.current) return;
-    parsedFragment.current = true;
-    const token = new URLSearchParams(window.location.hash.slice(1)).get(
-      "invitation",
-    );
-    if (token)
-      window.history.replaceState(
-        null,
-        "",
-        window.location.pathname + window.location.search,
-      );
-    setState({ ready: true, token });
-  }, []);
-  if (!state.ready) return null;
-  return state.token ? (
-    <InvitationAcceptForm token={state.token} />
-  ) : (
-    <RegularSignUpForm />
-  );
+  return <RegularSignUpForm />;
 }
