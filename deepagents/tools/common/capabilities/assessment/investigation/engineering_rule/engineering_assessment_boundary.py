@@ -12,6 +12,7 @@ from typing import Any
 import pika
 
 from model_policy import INVESTIGATOR_MODEL_SPEC, PLANNER_MODEL_SPEC
+from orchestration.waiting_assessments import WaitingAssessmentRegistry
 from tools.common.capabilities.platform.api_client import WorkerApiClient, WorkerCallbackError
 from tools.common.capabilities.platform.callback_schemas import ClassificationCallbackPayload
 from tools.common.capabilities.platform.logging import get_logger
@@ -64,6 +65,7 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         snapshot_client: SnapshotServiceClient | None = None,
         code_workspace: ScannerWorkspace | None = None,
         triage_trigger_publisher: Callable[[dict[str, Any]], None] | None = None,
+        waiting_registry: WaitingAssessmentRegistry | None = None,
     ) -> None:
         super().__init__(config, rbac_client)
         self._api_client = api_client or WorkerApiClient(
@@ -78,6 +80,7 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         self._triage_trigger_publisher = (
             triage_trigger_publisher or self._publish_legal_triage_command
         )
+        self._waiting_registry = waiting_registry or WaitingAssessmentRegistry()
         if investigation_pipeline is not None:
             self._pipeline = investigation_pipeline
         else:
@@ -184,10 +187,16 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
         # is never passed into Triage reasoning/tools.
         if result.status in WAITING_ENGINEERING_INVESTIGATION_STATUSES:
             self._dispatch_legal_triage_request(
+                assessment_id=assessment_id,
                 evidence_report_id=evidence_report_id,
                 workflow_run_id=workflow_run_id,
                 result=result,
                 correlation_id=correlationId,
+                billing_context=(
+                    message.get("billing")
+                    if isinstance(message.get("billing"), dict)
+                    else None
+                ),
             )
 
         logger.info(
@@ -384,12 +393,23 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
     def _dispatch_legal_triage_request(
         self,
         *,
+        assessment_id: str,
         evidence_report_id: str,
         workflow_run_id: str,
         result,
         correlation_id: str,
+        billing_context: dict[str, Any] | None,
     ) -> None:
         trigger = self._legal_triage_trigger(result)
+        billing = self._billing_checkpoint_context(assessment_id, billing_context)
+        if billing:
+            self._waiting_registry.register(
+                assessment_id=assessment_id,
+                evidence_report_id=evidence_report_id,
+                workflow_run_id=workflow_run_id,
+                source_correlation_id=correlation_id,
+                billing_context=billing,
+            )
         command = {
             "trigger": "ENGINEERING_RULE_NOT_READY",
             "affectedLegalRuleIds": trigger["affectedLegalRuleIds"],
@@ -409,6 +429,24 @@ class EngineeringAssessmentBoundary(AgentBoundaryBase):
             full_backlog=trigger["fullBacklog"],
             correlationId=correlation_id,
         )
+
+    def _billing_checkpoint_context(
+        self,
+        assessment_id: str,
+        billing: dict[str, Any] | None,
+    ) -> dict[str, str] | None:
+        if not isinstance(billing, dict):
+            return None
+        values = {
+            "runId": str(billing.get("runId") or "").strip(),
+            "amountCredits": str(billing.get("amountCredits") or "").strip(),
+            "maxChargeCredits": str(billing.get("maxChargeCredits") or "").strip(),
+            "idempotencyKey": str(billing.get("idempotencyKey") or "").strip(),
+        }
+        billing_assessment_id = str(billing.get("assessmentId") or "").strip()
+        if billing_assessment_id != assessment_id or not all(values.values()):
+            return None
+        return values
 
     @classmethod
     def _legal_triage_trigger(cls, result) -> dict[str, Any]:

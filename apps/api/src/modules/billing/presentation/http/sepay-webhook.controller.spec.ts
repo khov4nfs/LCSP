@@ -1,40 +1,38 @@
 import { jest } from "@jest/globals";
+import type { CommandBus } from "@nestjs/cqrs";
 import type { Request } from "express";
 import { BILLING_RECONCILIATION_ERROR_CODES } from "@lcsp/contracts/billing";
 
-import {
-  SePayWebhookIngressError,
-  SePayWebhookIngressService,
-} from "../../application/services/sepay-webhook-ingress.service.js";
+import { SePayWebhookIngressError } from "../../infrastructure/security/sepay-webhook-ingress.js";
 import { SePayWebhookController } from "./sepay-webhook.controller.js";
 
 describe("SePayWebhookController", () => {
   it("passes the raw Buffer through and returns the shared success envelope", async () => {
-    const accept = jest.fn<SePayWebhookIngressService["accept"]>(() =>
+    const execute = jest.fn<CommandBus["execute"]>(() =>
       Promise.resolve({ duplicate: false }),
     );
     const controller = new SePayWebhookController({
-      accept,
-    } as unknown as SePayWebhookIngressService);
+      execute,
+    } as unknown as CommandBus);
     const rawBody = Buffer.from('{"id":"TX-1"}');
 
     await expect(
       controller.receive({ body: rawBody } as Request, "signature", "123"),
     ).resolves.toEqual({ ok: true, data: { duplicate: false } });
-    expect(accept).toHaveBeenCalledWith({
-      rawBody,
-      signature: "signature",
-      timestamp: "123",
-    });
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: { rawBody, signature: "signature", timestamp: "123" },
+      }),
+    );
   });
 
   it("maps malformed raw bodies to the canonical webhook problem code", async () => {
-    const accept = jest.fn<SePayWebhookIngressService["accept"]>(() =>
+    const execute = jest.fn<CommandBus["execute"]>(() =>
       Promise.reject(new SePayWebhookIngressError("BODY")),
     );
     const controller = new SePayWebhookController({
-      accept,
-    } as unknown as SePayWebhookIngressService);
+      execute,
+    } as unknown as CommandBus);
 
     await expect(
       controller.receive(

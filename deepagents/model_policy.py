@@ -12,6 +12,7 @@ disable_langsmith_tracing_by_default()
 
 from langchain.agents import create_agent as _langchain_create_agent
 from langchain.chat_models import init_chat_model
+from middleware.billing_metering import BillingAgentRoleMiddleware
 from provider_credentials import credential_init_kwargs, llm7_base_url
 
 
@@ -372,11 +373,35 @@ def create_lcsp_agent(
         else model
     )
     langchain_name = kwargs.pop("name", agent_name)
+    middleware = kwargs.get("middleware")
+    if middleware is not None:
+        kwargs["middleware"] = [
+            BillingAgentRoleMiddleware(billing_role_for_agent(agent_name)),
+            *middleware,
+        ]
     return _langchain_create_agent(
         model=resolved_model,
         name=langchain_name,
         **kwargs,
     )
+
+
+def billing_role_for_agent(agent_name: str) -> str:
+    """Map implementation agent names to the runtime pricing-policy roles."""
+    normalized = agent_name.strip().lower()
+    if normalized in {"lcsp-agent", "root"}:
+        return "root"
+    if "triage" in normalized:
+        return "triage"
+    if "planner" in normalized:
+        return "planner"
+    if "interview" in normalized:
+        return "interview"
+    if "investigator" in normalized:
+        return "investigator"
+    if normalized in NON_REASONING_AGENT_NAMES or "narrator" in normalized:
+        return "narrator"
+    return normalized
 
 
 def provider_init_kwargs(provider: str) -> dict[str, object]:

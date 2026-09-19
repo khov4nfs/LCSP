@@ -4,6 +4,7 @@ from orchestration.agent_stream import invoke_with_stream
 from typing import Any
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.billing_metering import BillingMeteringError
 from model_policy import NARRATOR_MODEL_SPEC, create_lcsp_agent as create_agent
 
 
@@ -94,6 +95,8 @@ class ModelAssistedClassificationProposer:
                     "configurable": {"thread_id": workflow_run_id},
                 },
             )
+        except BillingMeteringError:
+            raise
         except Exception:
             return None
 

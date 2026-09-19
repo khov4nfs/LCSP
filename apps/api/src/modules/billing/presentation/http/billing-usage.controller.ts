@@ -1,61 +1,96 @@
-import { Body, Controller, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Param, Post, UseGuards } from "@nestjs/common";
+import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
-import { BillingUsageService } from "../../application/services/billing-usage.service.js";
+import { BillingDomainError } from "../../domain/billing.errors.js";
+import { ClaimBillingInvocationCommand } from "../../application/commands/claim-billing-invocation/claim-billing-invocation.command.js";
+import { ReleaseBillingReservationCommand } from "../../application/commands/release-billing-reservation/release-billing-reservation.command.js";
+import { ReserveBillingCreditsCommand } from "../../application/commands/reserve-billing-credits/reserve-billing-credits.command.js";
+import { SettleBillingUsageCommand } from "../../application/commands/settle-billing-usage/settle-billing-usage.command.js";
+import { ResolveBillingAssessmentOwnerQuery } from "../../application/queries/resolve-billing-assessment-owner/resolve-billing-assessment-owner.query.js";
+import {
+  projectReservation,
+  serializeBillingData,
+} from "./mappers/billing-http.response.mapper.js";
+import {
+  toClaimInput,
+  toReleaseInput,
+  toReservationInput,
+  toSettlementInput,
+} from "./mappers/billing-usage.request.mapper.js";
+import { mapUsageError } from "./errors/billing-http.error-mapper.js";
 
 @Controller("internal/billing")
 export class BillingUsageController {
-  constructor(private readonly usage: BillingUsageService) {}
+  constructor(
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
+  ) {}
+
+  @Post("reservations")
+  @UseGuards(WorkerApiKeyGuard)
+  async reserve(@Body() body: Record<string, unknown>) {
+    try {
+      const result = await this.commandBus.execute(
+        new ReserveBillingCreditsCommand(toReservationInput(body)),
+      );
+      return resultEnvelope(serializeBillingData(projectReservation(result)));
+    } catch (error) {
+      throw mapUsageError(error);
+    }
+  }
+
+  @Post("reservations/:reservationId/release")
+  @UseGuards(WorkerApiKeyGuard)
+  async release(
+    @Param("reservationId") reservationId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    try {
+      const result = await this.commandBus.execute(
+        new ReleaseBillingReservationCommand(
+          toReleaseInput(reservationId, body),
+        ),
+      );
+      return resultEnvelope(serializeBillingData(projectReservation(result)));
+    } catch (error) {
+      throw mapUsageError(error);
+    }
+  }
+
+  @Post("reservations/:reservationId/claim")
+  @UseGuards(WorkerApiKeyGuard)
+  async claim(
+    @Param("reservationId") reservationId: string,
+    @Body() body: Record<string, unknown>,
+  ) {
+    try {
+      const result = await this.commandBus.execute(
+        new ClaimBillingInvocationCommand(toClaimInput(reservationId, body)),
+      );
+      return resultEnvelope(serializeBillingData(result));
+    } catch (error) {
+      throw mapUsageError(error);
+    }
+  }
 
   @Post("usage")
   @UseGuards(WorkerApiKeyGuard)
   async settle(@Body() body: Record<string, unknown>) {
-    const text = (value: unknown) =>
-      typeof value === "string" || typeof value === "number"
-        ? String(value)
-        : "";
-    const bigintField = (name: string) => {
-      const value = body[name];
-      return value === undefined ? undefined : BigInt(text(value));
-    };
-    const runtime = body.effectiveRuntimeModel as
-      Record<string, unknown> | undefined;
-    if (
-      typeof body.agentRole !== "string" ||
-      !body.agentRole.trim() ||
-      !runtime ||
-      typeof runtime.provider !== "string" ||
-      typeof runtime.model !== "string" ||
-      typeof runtime.policyVersion !== "string" ||
-      !runtime.policyVersion.trim() ||
-      typeof runtime.effectiveAt !== "string" ||
-      Number.isNaN(new Date(runtime.effectiveAt).getTime())
-    )
-      throw new Error("effectiveRuntimeModel is required");
-    const result = await this.usage.recordAndSettleUsage({
-      userId: text(body.userId),
-      reservationId: text(body.reservationId),
-      invocationId: text(body.invocationId),
-      agentRole: body.agentRole.trim(),
-      provider: runtime.provider,
-      model: runtime.model,
-      effectiveRuntimeModel: {
-        provider: runtime.provider,
-        model: runtime.model,
-        policyVersion: runtime.policyVersion,
-        effectiveAt: runtime.effectiveAt,
-      },
-      providerResponseId: body.providerResponseId
-        ? text(body.providerResponseId)
-        : undefined,
-      inputTokens: bigintField("inputTokens"),
-      cachedInputTokens: bigintField("cachedInputTokens"),
-      cacheWriteTokens: bigintField("cacheWriteTokens"),
-      outputTokens: bigintField("outputTokens"),
-      reasoningTokens: bigintField("reasoningTokens"),
-      totalTokens: bigintField("totalTokens"),
-      occurredAt: body.occurredAt ? new Date(text(body.occurredAt)) : undefined,
-    });
-    return resultEnvelope(result);
+    try {
+      const assessmentId =
+        typeof body.assessmentId === "string" ? body.assessmentId.trim() : "";
+      if (!assessmentId)
+        throw new BillingDomainError("usage identity is required");
+      const userId = await this.queryBus.execute(
+        new ResolveBillingAssessmentOwnerQuery(assessmentId),
+      );
+      const result = await this.commandBus.execute(
+        new SettleBillingUsageCommand(toSettlementInput(body, userId)),
+      );
+      return resultEnvelope(serializeBillingData(result));
+    } catch (error) {
+      throw mapUsageError(error);
+    }
   }
 }

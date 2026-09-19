@@ -13,7 +13,7 @@ import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.
 import {
   SePayWebhookIngressError,
   SePayWebhookIngressService,
-} from "./sepay-webhook-ingress.service.js";
+} from "./sepay-webhook-ingress.js";
 
 const secret = "sepay-test-webhook-secret";
 const now = new Date("2026-09-16T00:00:00.000Z");

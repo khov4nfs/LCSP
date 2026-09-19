@@ -2,6 +2,7 @@
 
 from orchestration.agent_stream import invoke_with_stream
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.billing_metering import BillingMeteringError
 from model_policy import NARRATOR_MODEL_SPEC, create_lcsp_agent as create_agent
 
 
@@ -97,6 +98,8 @@ class RationaleNarrator:
                 return None
 
             return content
+        except BillingMeteringError:
+            raise
         except Exception:
             # Rationale is optional; deterministic classification still proceeds.
             return None

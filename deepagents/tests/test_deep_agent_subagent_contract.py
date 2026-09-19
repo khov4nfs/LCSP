@@ -9,6 +9,7 @@ import harness
 import model_policy
 from middleware.interview_runtime_context import inject_interview_runtime_context
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE, TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.billing_metering import BillingAgentRoleMiddleware
 from middleware.triage_progress import require_triage_progress
 from middleware.runtime_context import inject_lcsp_runtime_context
 from model_policy import (
@@ -80,20 +81,22 @@ def test_subagents_follow_deep_agents_dictionary_contract() -> None:
         assert "Tool guidance:" in str(subagent["system_prompt"])
         assert "Output contract:" in str(subagent["system_prompt"])
         assert len(str(subagent["description"])) >= 80
-        expected_middleware = [*MODEL_GOVERNANCE_MIDDLEWARE]
+        expected_role = "triage" if name == "triage" else name
         if name == "interview":
-            expected_middleware = [
-                inject_interview_runtime_context,
-                *MODEL_GOVERNANCE_MIDDLEWARE,
-            ]
+            expected_prefix = [inject_interview_runtime_context]
+            expected_governance = MODEL_GOVERNANCE_MIDDLEWARE
         elif name == "triage":
-            expected_middleware = [require_triage_progress, *TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE]
+            expected_prefix = [require_triage_progress]
+            expected_governance = TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE
         else:
-            expected_middleware = [
-                inject_lcsp_runtime_context,
-                *MODEL_GOVERNANCE_MIDDLEWARE,
-            ]
-        assert subagent["middleware"] == expected_middleware
+            expected_prefix = [inject_lcsp_runtime_context]
+            expected_governance = MODEL_GOVERNANCE_MIDDLEWARE
+        middleware = subagent["middleware"]
+        assert middleware[:1] == expected_prefix
+        role_middleware = middleware[1]
+        assert isinstance(role_middleware, BillingAgentRoleMiddleware)
+        assert role_middleware.agent_role == expected_role
+        assert middleware[2:] == list(expected_governance)
 
 
 def test_pipeline_roles_do_not_receive_customer_context_or_resolver_tools() -> None:

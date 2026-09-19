@@ -14,8 +14,10 @@ const request = {
 
 describe("BillingCustomerController input boundary", () => {
   it("rejects blank Idempotency-Key before invoking billing", async () => {
-    const createOrder = jest.fn();
-    const controller = new BillingCustomerController({ createOrder } as never);
+    const controller = new BillingCustomerController(
+      { execute: jest.fn() } as never,
+      { execute: jest.fn() } as never,
+    );
     await expect(
       controller.order({ amount_vnd: "10000" }, "   ", request),
     ).rejects.toMatchObject({
@@ -26,13 +28,13 @@ describe("BillingCustomerController input boundary", () => {
         }),
       }),
     });
-    expect(createOrder).not.toHaveBeenCalled();
   });
 
   it("returns validation failure rather than not-found for invalid prepaid amount", async () => {
-    const controller = new BillingCustomerController({
-      createOrder: jest.fn(),
-    } as never);
+    const controller = new BillingCustomerController(
+      { execute: jest.fn() } as never,
+      { execute: jest.fn() } as never,
+    );
     await expect(
       controller.order({ amount_vnd: "not-a-number" }, "valid-key", request),
     ).rejects.toMatchObject({

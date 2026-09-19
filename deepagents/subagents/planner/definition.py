@@ -1,6 +1,7 @@
 """Planner subagent: turn hydrated context and EngineeringRules into bounded work."""
 
 from middleware.model_governance import MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.billing_metering import BillingAgentRoleMiddleware
 from middleware.runtime_context import inject_lcsp_runtime_context
 from model_policy import PLANNER_MODEL_SPEC
 from contracts.handoffs import PlannerResult
@@ -63,7 +64,11 @@ SUBAGENT = {
     "system_prompt": SYSTEM_PROMPT,
     "tools": TOOLS,
     "model": PLANNER_MODEL_SPEC,
-    "middleware": [inject_lcsp_runtime_context, *MODEL_GOVERNANCE_MIDDLEWARE],
+    "middleware": [
+        inject_lcsp_runtime_context,
+        BillingAgentRoleMiddleware("planner"),
+        *MODEL_GOVERNANCE_MIDDLEWARE,
+    ],
     "response_format": OUTPUT_MODEL,
 }
 

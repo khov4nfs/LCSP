@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, jest } from "@jest/globals";
 import { ConfigService } from "@nestjs/config";
 import { OutboxRepository } from "../src/platform/outbox/outbox.repository.js";
 import { PrismaService } from "../src/infrastructure/prisma/prisma.service.js";
-import { SePayWebhookIngressService } from "../src/modules/billing/application/services/sepay-webhook-ingress.service.js";
+import { SePayWebhookIngressService } from "../src/modules/billing/infrastructure/security/sepay-webhook-ingress.js";
 import type { OutboxMessageInput } from "@lcsp/contracts/outbox";
 import {
   TEST_DATABASE_URL,

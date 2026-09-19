@@ -117,6 +117,17 @@ export interface BillingConfig {
   sePayBankAccountNumber: string;
   sePayAccountHolder: string;
   sePayQrUrlTemplate: string;
+  meteringEnabled: boolean;
+  reservationCredits: string;
+  maxInvocationChargeCredits: string;
+  runtimeProvider: string;
+  runtimeModel: string;
+  maxInputTokens: string;
+  maxInputBytes: string;
+  maxOutputTokens: string;
+  maxReasoningTokens: string;
+  maxInvocationsPerGroup: string;
+  authorizedRuntimeModels: string;
 }
 
 export const NODE_ENVS = {
