@@ -1,6 +1,7 @@
 """Legal Triage subagent: own LegalRule triage and EngineeringRule preparation."""
 
 from middleware.model_governance import TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE
+from middleware.billing_metering import BillingAgentRoleMiddleware
 from middleware.triage_progress import require_triage_progress
 from model_policy import TRIAGE_MODEL_SPEC
 from contracts.handoffs import TriageResult
@@ -154,7 +155,11 @@ SUBAGENT = {
     "model": TRIAGE_MODEL_SPEC,
     # Deliberately omit inject_lcsp_runtime_context. The supervisor/singleton middleware
     # transfers only the legal scope and execution ownership needed by Triage.
-    "middleware": [require_triage_progress, *TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE],
+    "middleware": [
+        require_triage_progress,
+        BillingAgentRoleMiddleware("triage"),
+        *TRIAGE_MODEL_GOVERNANCE_MIDDLEWARE,
+    ],
     "response_format": OUTPUT_MODEL,
 }
 

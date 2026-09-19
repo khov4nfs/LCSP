@@ -45,6 +45,8 @@ def is_terminal_task_error(error: BaseException) -> bool:
         # independent of the API client module.
         if getattr(current, "callback_client_error", False):
             return True
+        if type(current).__name__ == "BillingFinalizationError":
+            return True
         # Provider request/schema rejection cannot succeed with the same request.
         status = getattr(current, "status_code", None) or getattr(current, "code", None)
         if status in (400, 404, 422):

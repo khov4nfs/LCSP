@@ -1,9 +1,9 @@
 import { Test } from "@nestjs/testing";
 import { afterEach, describe, expect, it } from "@jest/globals";
 import { BillingModule } from "../src/modules/billing/billing.module.js";
-import { BillingAccountingService } from "../src/modules/billing/application/services/billing-accounting.service.js";
-import { BillingPaymentService } from "../src/modules/billing/application/services/billing-payment.service.js";
-import { BillingUsageService } from "../src/modules/billing/application/services/billing-usage.service.js";
+import { BillingAccountingKernel } from "../src/modules/billing/application/shared/billing-accounting.kernel.js";
+import { BillingPaymentKernel } from "../src/modules/billing/application/shared/billing-payment.kernel.js";
+import { BILLING_USAGE_KERNEL } from "../src/modules/billing/application/shared/billing-usage.kernel.js";
 
 describe("BillingModule dependency injection", () => {
   let moduleRef: { close: () => Promise<void> } | undefined;
@@ -13,19 +13,17 @@ describe("BillingModule dependency injection", () => {
     moduleRef = undefined;
   });
 
-  it("resolves billing services through the runtime transaction token", async () => {
+  it("resolves billing command handlers through the runtime transaction token", async () => {
     const compiled = await Test.createTestingModule({
       imports: [BillingModule],
     }).compile();
     moduleRef = compiled;
-    expect(compiled.get(BillingAccountingService)).toBeInstanceOf(
-      BillingAccountingService,
+    expect(compiled.get(BillingAccountingKernel)).toBeInstanceOf(
+      BillingAccountingKernel,
     );
-    expect(compiled.get(BillingPaymentService)).toBeInstanceOf(
-      BillingPaymentService,
+    expect(compiled.get(BillingPaymentKernel)).toBeInstanceOf(
+      BillingPaymentKernel,
     );
-    expect(compiled.get(BillingUsageService)).toBeInstanceOf(
-      BillingUsageService,
-    );
+    expect(compiled.get(BILLING_USAGE_KERNEL)).toBeDefined();
   });
 });

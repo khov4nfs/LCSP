@@ -1,12 +1,12 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { BILLING_AUDIT_EVENT_TYPES } from "@lcsp/contracts/billing";
-import { BillingPaymentService } from "../src/modules/billing/application/services/billing-payment.service.js";
+import { BillingPaymentKernel } from "../src/modules/billing/application/shared/billing-payment.kernel.js";
 import type {
   BillingOrderPort,
   OrderRecord,
 } from "../src/modules/billing/domain/repositories/billing-transaction.port.js";
 
-describe("BillingPaymentService order lifecycle audit", () => {
+describe("BillingPaymentKernel order lifecycle audit", () => {
   it("writes one created audit fact inside the creation transaction, not on replay", async () => {
     let saved: OrderRecord | undefined;
     const append = jest
@@ -45,7 +45,7 @@ describe("BillingPaymentService order lifecycle audit", () => {
           ),
       ),
     };
-    const service = new BillingPaymentService(
+    const service = new BillingPaymentKernel(
       transactions as never,
       {} as never,
     );

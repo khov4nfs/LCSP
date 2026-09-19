@@ -50,6 +50,7 @@ class WorkerConfig:
     agentic_runtime: AgenticRuntimeConfig = AgenticRuntimeConfig()
     rbac_preflight: RbacPreflightConfig = RbacPreflightConfig()
     tracing: TracingConfig = TracingConfig()
+    billing_recovery_store_path: str | None = None
 
 
 def default_legal_source_storage_root() -> str:
@@ -70,6 +71,20 @@ def resolve_legal_source_storage_root(configured: str | None = None) -> str:
     if raw is None or not raw.strip():
         return default_legal_source_storage_root()
     path = Path(raw.strip())
+    return str(path if path.is_absolute() else Path(get_repo_root()) / path)
+
+
+def resolve_billing_recovery_store_path(configured: str | None = None) -> str:
+    raw = (
+        configured
+        if configured is not None
+        else os.getenv("BILLING_RECOVERY_STORE_PATH")
+    )
+    path = (
+        Path(raw.strip())
+        if raw and raw.strip()
+        else Path(".billing") / "callback-recovery.sqlite3"
+    )
     return str(path if path.is_absolute() else Path(get_repo_root()) / path)
 
 
@@ -123,6 +138,7 @@ def load_config() -> WorkerConfig:
             )
         ),
         tracing=_load_tracing_config(),
+        billing_recovery_store_path=resolve_billing_recovery_store_path(),
     )
 
 

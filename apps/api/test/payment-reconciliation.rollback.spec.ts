@@ -9,8 +9,8 @@ import {
   it,
 } from "@jest/globals";
 import { randomUUID } from "node:crypto";
-import { BillingAccountingService } from "../src/modules/billing/application/services/billing-accounting.service.js";
-import { BillingPaymentService } from "../src/modules/billing/application/services/billing-payment.service.js";
+import { BillingAccountingKernel } from "../src/modules/billing/application/shared/billing-accounting.kernel.js";
+import { BillingPaymentKernel } from "../src/modules/billing/application/shared/billing-payment.kernel.js";
 import { PrismaBillingTransaction } from "../src/modules/billing/infrastructure/persistence/prisma-billing-transaction.js";
 import type {
   BillingTransactionPort,
@@ -44,8 +44,8 @@ class FaultInjectingBillingTransaction implements BillingTransactionPort {
 
 describe("LCSP-310 matched payment rollback", () => {
   let prisma: PrismaClient;
-  let payments: BillingPaymentService;
-  let normalPayments: BillingPaymentService;
+  let payments: BillingPaymentKernel;
+  let normalPayments: BillingPaymentKernel;
   const user = {
     id: `rollback-${randomUUID()}`,
     email: `rollback-${randomUUID()}@test.invalid`,
@@ -59,8 +59,8 @@ describe("LCSP-310 matched payment rollback", () => {
     prisma = new PrismaClient({ adapter: new PrismaPg(TEST_DATABASE_URL) });
     await prisma.$connect();
     const normalTx = new PrismaBillingTransaction(new PrismaService());
-    const accounting = new BillingAccountingService(normalTx);
-    normalPayments = new BillingPaymentService(normalTx, accounting);
+    const accounting = new BillingAccountingKernel(normalTx);
+    normalPayments = new BillingPaymentKernel(normalTx, accounting);
   });
   beforeEach(async () => {
     await prisma.creditLedgerEntry.deleteMany();
@@ -87,8 +87,8 @@ describe("LCSP-310 matched payment rollback", () => {
       },
     });
     const realTx = new PrismaBillingTransaction(new PrismaService());
-    const accounting = new BillingAccountingService(realTx);
-    payments = new BillingPaymentService(
+    const accounting = new BillingAccountingKernel(realTx);
+    payments = new BillingPaymentKernel(
       new FaultInjectingBillingTransaction(realTx),
       accounting,
     );

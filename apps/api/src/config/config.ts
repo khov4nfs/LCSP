@@ -263,6 +263,98 @@ export function createConfigValidationSchema(workspaceRoot = process.cwd()) {
       then: paymentQrTemplateSchema().min(1).required(),
       otherwise: Joi.string().trim().allow("").default(""),
     }),
+    BILLING_METERING_ENABLED: Joi.boolean().default(
+      process.env.NODE_ENV === NODE_ENVS.production,
+    ),
+    BILLING_RESERVATION_CREDITS: Joi.alternatives().conditional(
+      "BILLING_METERING_ENABLED",
+      {
+        is: true,
+        then: Joi.string()
+          .trim()
+          .pattern(/^[1-9]\d*$/)
+          .required(),
+        otherwise: Joi.string().trim().allow("").default(""),
+      },
+    ),
+    BILLING_MAX_INVOCATION_CHARGE_CREDITS: Joi.alternatives().conditional(
+      "BILLING_METERING_ENABLED",
+      {
+        is: true,
+        then: Joi.string()
+          .trim()
+          .pattern(/^[1-9]\d*$/)
+          .required(),
+        otherwise: Joi.string().trim().allow("").default(""),
+      },
+    ),
+    BILLING_RUNTIME_PROVIDER: Joi.alternatives().conditional(
+      "BILLING_METERING_ENABLED",
+      {
+        is: true,
+        then: Joi.string().trim().min(1).required(),
+        otherwise: Joi.string().trim().allow("").default(""),
+      },
+    ),
+    BILLING_RUNTIME_MODEL: Joi.alternatives().conditional(
+      "BILLING_METERING_ENABLED",
+      {
+        is: true,
+        then: Joi.string().trim().min(1).required(),
+        otherwise: Joi.string().trim().allow("").default(""),
+      },
+    ),
+    BILLING_MAX_INPUT_TOKENS: Joi.alternatives().conditional(
+      "BILLING_METERING_ENABLED",
+      {
+        is: true,
+        then: Joi.string().trim().pattern(/^\d+$/).required(),
+        otherwise: Joi.string().trim().allow("").default(""),
+      },
+    ),
+    BILLING_MAX_OUTPUT_TOKENS: Joi.alternatives().conditional(
+      "BILLING_METERING_ENABLED",
+      {
+        is: true,
+        then: Joi.string().trim().pattern(/^\d+$/).required(),
+        otherwise: Joi.string().trim().allow("").default(""),
+      },
+    ),
+    BILLING_MAX_REASONING_TOKENS: Joi.alternatives().conditional(
+      "BILLING_METERING_ENABLED",
+      {
+        is: true,
+        then: Joi.string().trim().pattern(/^\d+$/).required(),
+        otherwise: Joi.string().trim().allow("").default(""),
+      },
+    ),
+    BILLING_MAX_INVOCATIONS_PER_GROUP: Joi.alternatives().conditional(
+      "BILLING_METERING_ENABLED",
+      {
+        is: true,
+        then: Joi.string()
+          .trim()
+          .pattern(/^[1-9]\d*$/)
+          .required(),
+        otherwise: Joi.string().trim().allow("").default(""),
+      },
+    ),
+    BILLING_MAX_INPUT_BYTES: Joi.alternatives().conditional(
+      "BILLING_METERING_ENABLED",
+      {
+        is: true,
+        then: Joi.string().trim().pattern(/^\d+$/).required(),
+        otherwise: Joi.string().trim().allow("").default(""),
+      },
+    ),
+    BILLING_AUTHORIZED_RUNTIME_MODELS: Joi.alternatives().conditional(
+      "BILLING_METERING_ENABLED",
+      {
+        is: true,
+        then: Joi.string().trim().min(1).required(),
+        otherwise: Joi.string().trim().allow("").default(""),
+      },
+    ),
   })
     .unknown(true)
     .custom((env: Record<string, unknown>, helpers) => {
@@ -525,6 +617,23 @@ export function config(): AppConfig {
         env.BILLING_SEPAY_BANK_ACCOUNT_NUMBER?.trim() ?? "",
       sePayAccountHolder: env.BILLING_SEPAY_ACCOUNT_HOLDER?.trim() ?? "",
       sePayQrUrlTemplate: env.BILLING_SEPAY_QR_URL_TEMPLATE?.trim() ?? "",
+      meteringEnabled:
+        (env.BILLING_METERING_ENABLED ??
+          (env.NODE_ENV === NODE_ENVS.production ? "true" : "false")) ===
+        "true",
+      reservationCredits: env.BILLING_RESERVATION_CREDITS?.trim() ?? "",
+      maxInvocationChargeCredits:
+        env.BILLING_MAX_INVOCATION_CHARGE_CREDITS?.trim() ?? "",
+      runtimeProvider: env.BILLING_RUNTIME_PROVIDER?.trim() ?? "",
+      runtimeModel: env.BILLING_RUNTIME_MODEL?.trim() ?? "",
+      maxInputTokens: env.BILLING_MAX_INPUT_TOKENS?.trim() ?? "",
+      maxInputBytes: env.BILLING_MAX_INPUT_BYTES?.trim() ?? "",
+      maxOutputTokens: env.BILLING_MAX_OUTPUT_TOKENS?.trim() ?? "",
+      maxReasoningTokens: env.BILLING_MAX_REASONING_TOKENS?.trim() ?? "",
+      maxInvocationsPerGroup:
+        env.BILLING_MAX_INVOCATIONS_PER_GROUP?.trim() ?? "",
+      authorizedRuntimeModels:
+        env.BILLING_AUTHORIZED_RUNTIME_MODELS?.trim() ?? "",
     },
     interview: {
       guidanceVersion: env.INTERVIEW_GUIDANCE_VERSION?.trim() ?? "",

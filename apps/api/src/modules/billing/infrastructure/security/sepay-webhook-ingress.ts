@@ -19,7 +19,7 @@ export class SePayWebhookIngressError extends Error {
 }
 
 @Injectable()
-export class SePayWebhookIngressService {
+export class SePayWebhookIngress {
   constructor(
     private readonly prisma: PrismaService,
     private readonly outbox: OutboxRepository,
@@ -135,6 +135,8 @@ export class SePayWebhookIngressService {
       throw new SePayWebhookIngressError("SIGNATURE");
   }
 }
+
+export { SePayWebhookIngress as SePayWebhookIngressService };
 
 function normalizePayload(payload: Record<string, unknown>) {
   const id = payload.id;

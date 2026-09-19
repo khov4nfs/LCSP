@@ -3,7 +3,7 @@ import {
   PaymentReconciliationReason,
   PaymentReconciliationStatus,
 } from "@prisma/client";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import {
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
@@ -96,17 +96,73 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
                 userId_idempotencyKey: { userId: id, idempotencyKey: key },
               },
             }),
-          createReserved: (i) => tx.billingReservation.create({ data: i }),
+          createReserved: (i) =>
+            tx.billingReservation.create({
+              data: {
+                ...i,
+                remainingCredits: i.amountCredits,
+                maxInvocations: i.maxInvocations ?? 1n,
+              },
+            }),
+          claimInvocation: async (i) => {
+            const existing =
+              await tx.billingReservationInvocationClaim.findUnique({
+                where: {
+                  reservationId_invocationId: {
+                    reservationId: i.reservationId,
+                    invocationId: i.invocationId,
+                  },
+                },
+              });
+            if (existing) return true;
+            await tx.billingReservationInvocationClaim.create({
+              data: {
+                reservationId: i.reservationId,
+                invocationId: i.invocationId,
+              },
+            });
+            const updated = await tx.$executeRaw(Prisma.sql`
+                UPDATE "BillingReservation"
+                SET "invocationsStarted" = "invocationsStarted" + 1
+                WHERE "id" = ${i.reservationId}
+                  AND "status" = 'RESERVED'
+                  AND "invocationsStarted" < "maxInvocations"
+              `);
+            if (updated !== 1) {
+              await tx.billingReservationInvocationClaim.delete({
+                where: {
+                  reservationId_invocationId: {
+                    reservationId: i.reservationId,
+                    invocationId: i.invocationId,
+                  },
+                },
+              });
+              return false;
+            }
+            return true;
+          },
           listReservedForWallet: (walletId) =>
             tx.billingReservation.findMany({
               where: { walletId, status: "RESERVED" },
             }),
+          consumeRemaining: async (i) =>
+            (
+              await tx.billingReservation.updateMany({
+                where: {
+                  id: i.reservationId,
+                  status: "RESERVED",
+                  remainingCredits: { gte: i.amountCredits },
+                },
+                data: { remainingCredits: { decrement: i.amountCredits } },
+              })
+            ).count === 1,
           transitionFromReserved: async (i) =>
             (
               await tx.billingReservation.updateMany({
                 where: { id: i.reservationId, status: "RESERVED" },
                 data: {
                   status: i.to,
+                  remainingCredits: 0n,
                   ...(i.to === "SETTLED"
                     ? { settledAt: i.timestamp }
                     : { releasedAt: i.timestamp }),
@@ -281,6 +337,7 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
             ).count === 1,
         },
         usage: {
+          findById: (id) => tx.llmUsageEvent.findUnique({ where: { id } }),
           findByInvocation: (userId, invocationId) =>
             tx.llmUsageEvent.findUnique({
               where: { userId_invocationId: { userId, invocationId } },
@@ -295,6 +352,26 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
             const x = await tx.llmUsageEvent.create({ data: i });
             return x;
           },
+          updateRetryable: async (i) =>
+            tx.llmUsageEvent.update({
+              where: { id: i.id },
+              data: {
+                providerResponseId: i.providerResponseId,
+                inputTokens: i.inputTokens,
+                cachedInputTokens: i.cachedInputTokens,
+                cacheWriteTokens: i.cacheWriteTokens,
+                outputTokens: i.outputTokens,
+                reasoningTokens: i.reasoningTokens,
+                totalTokens: i.totalTokens,
+                pricingSnapshotId: i.pricingSnapshotId,
+                runtimePolicySnapshotId: i.runtimePolicySnapshotId,
+                providerCostCredits: i.providerCostCredits,
+                customerChargeVnd: i.customerChargeVnd,
+                chargedCredits: i.customerChargeVnd,
+                status: "SETTLED",
+                availabilityReason: null,
+              },
+            }),
         },
         pricing: {
           findById: async (id) => {
@@ -397,6 +474,15 @@ export class PrismaBillingTransaction implements BillingTransactionPort {
                 payload: event.payload as Prisma.InputJsonValue,
               },
             });
+          },
+        },
+        assessment: {
+          findOwnerId: async (assessmentId) => {
+            const assessment = await tx.assessment.findUnique({
+              where: { id: assessmentId },
+              select: { ownerId: true },
+            });
+            return assessment?.ownerId ?? null;
           },
         },
       };

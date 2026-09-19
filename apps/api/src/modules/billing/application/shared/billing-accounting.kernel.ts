@@ -15,7 +15,7 @@ import type {
 import { BILLING_TRANSACTION_PORT } from "../../domain/repositories/billing-transaction.port.js";
 
 @Injectable()
-export class BillingAccountingService {
+export class BillingAccountingKernel {
   constructor(
     @Inject(BILLING_TRANSACTION_PORT)
     private readonly transactions: BillingTransactionPort,
@@ -96,50 +96,162 @@ export class BillingAccountingService {
       return r;
     })();
   }
+  settleUsageWithinTransaction(
+    repos: BillingTransactionRepositories,
+    i: {
+      userId: string;
+      reservationId: string;
+      usageEventId: string;
+      chargedCredits: bigint;
+    },
+  ) {
+    return (async () => {
+      const debitKey = `llm-usage:${i.usageEventId}:debit`;
+      const existingDebit = await repos.ledger.findByIdempotencyKey(debitKey);
+      if (existingDebit) {
+        const usage = await repos.usage.findById(i.usageEventId);
+        if (
+          existingDebit.userId !== i.userId ||
+          existingDebit.deltaCredits !== -i.chargedCredits ||
+          existingDebit.referenceId !== i.usageEventId ||
+          usage?.reservationId !== i.reservationId
+        )
+          throw new BillingIdempotencyConflictError(
+            "Usage debit replay differs",
+          );
+        return {
+          reservationId: i.reservationId,
+          chargedCredits: i.chargedCredits,
+        };
+      }
+      const r = await repos.reservation.findForUser(i.userId, i.reservationId);
+      if (!r || r.status !== "RESERVED")
+        throw new InvalidReservationTransitionError(
+          "Reservation is not reservable",
+        );
+      if (i.chargedCredits < 0n || i.chargedCredits > r.remainingCredits)
+        throw new BillingDomainError("Invalid charge amount");
+      const w = await repos.wallet.findForUser(i.userId);
+      if (!w || w.id !== r.walletId)
+        throw new OwnershipMismatchError("Wallet does not belong to user");
+      if (
+        !(await repos.reservation.consumeRemaining({
+          reservationId: r.id,
+          amountCredits: i.chargedCredits,
+        }))
+      )
+        throw new BillingConcurrencyError("Reservation balance changed");
+      await this.append(
+        repos,
+        {
+          userId: i.userId,
+          walletId: w.id,
+          deltaCredits: -i.chargedCredits,
+          idempotencyKey: debitKey,
+          source: "LLM_USAGE_DEBIT",
+          referenceId: i.usageEventId,
+        },
+        true,
+      );
+      await this.reconcile(repos.wallet, repos.ledger, repos.reservation, w);
+      return { reservationId: r.id, chargedCredits: i.chargedCredits };
+    })();
+  }
   reserveCredits(i: {
     userId: string;
     amountCredits: bigint;
     idempotencyKey: string;
+    assessmentId?: string;
+    runId?: string;
+    maxInvocations?: bigint;
   }) {
     if (i.amountCredits <= 0n)
       throw new BillingDomainError("Reservation amount must be positive");
-    return this.transactions.runForUser(
-      i.userId,
-      async ({ wallet, ledger, reservation }) => {
-        const old = await reservation.findByIdempotencyKey(
-          i.userId,
-          i.idempotencyKey,
+    return this.transactions.runForUser(i.userId, async (repos) => {
+      const { wallet, ledger, reservation } = repos;
+      if (i.assessmentId && !i.runId)
+        throw new BillingDomainError(
+          "Assessment and run identifiers must be supplied together",
         );
-        if (old) {
-          if (old.amountCredits !== i.amountCredits)
-            throw new BillingIdempotencyConflictError(
-              "Reservation replay differs",
-            );
-          return old;
-        }
-        const w = await wallet.findForUser(i.userId);
-        if (!w) throw new OwnershipMismatchError("Wallet does not exist");
-        const p = await this.projection(ledger, reservation, w.id);
-        if (p.availableBalance < i.amountCredits)
-          throw new InsufficientCreditError("Insufficient available credits");
-        const out = await reservation.createReserved({
-          userId: i.userId,
-          walletId: w.id,
-          amountCredits: i.amountCredits,
-          idempotencyKey: i.idempotencyKey,
-        });
+      if (i.runId && !i.assessmentId)
+        throw new BillingDomainError(
+          "Assessment and run identifiers must be supplied together",
+        );
+      if (i.assessmentId) {
+        const ownerId = await repos.assessment.findOwnerId(i.assessmentId);
+        if (ownerId !== i.userId)
+          throw new OwnershipMismatchError(
+            "Assessment does not belong to the billing user",
+          );
+      }
+      const old = await reservation.findByIdempotencyKey(
+        i.userId,
+        i.idempotencyKey,
+      );
+      if (old) {
         if (
-          !(await wallet.compareAndSetProjection({
-            walletId: w.id,
-            expectedVersion: w.version,
-            availableCredits: p.availableBalance - i.amountCredits,
-            reservedCredits: p.reservedBalance + i.amountCredits,
-          }))
+          old.amountCredits !== i.amountCredits ||
+          old.assessmentId !== (i.assessmentId ?? null) ||
+          old.runId !== (i.runId ?? null) ||
+          (i.maxInvocations !== undefined &&
+            old.maxInvocations !== i.maxInvocations)
         )
-          throw new BillingConcurrencyError("Wallet projection changed");
-        return out;
-      },
-    );
+          throw new BillingIdempotencyConflictError(
+            "Reservation replay differs",
+          );
+        return old;
+      }
+      const w = await wallet.findForUser(i.userId);
+      if (!w) throw new OwnershipMismatchError("Wallet does not exist");
+      const p = await this.projection(ledger, reservation, w.id);
+      if (p.availableBalance < i.amountCredits)
+        throw new InsufficientCreditError("Insufficient available credits");
+      const out = await reservation.createReserved({
+        userId: i.userId,
+        walletId: w.id,
+        amountCredits: i.amountCredits,
+        assessmentId: i.assessmentId,
+        runId: i.runId,
+        idempotencyKey: i.idempotencyKey,
+        maxInvocations: i.maxInvocations,
+      });
+      if (
+        !(await wallet.compareAndSetProjection({
+          walletId: w.id,
+          expectedVersion: w.version,
+          availableCredits: p.availableBalance - i.amountCredits,
+          reservedCredits: p.reservedBalance + i.amountCredits,
+        }))
+      )
+        throw new BillingConcurrencyError("Wallet projection changed");
+      return out;
+    });
+  }
+  claimInvocation(i: {
+    userId: string;
+    reservationId: string;
+    assessmentId: string;
+    invocationId: string;
+  }) {
+    return this.transactions.runForUser(i.userId, async (repos) => {
+      const reservation = await repos.reservation.findForUser(
+        i.userId,
+        i.reservationId,
+      );
+      if (!reservation || reservation.status !== "RESERVED")
+        throw new InvalidReservationTransitionError(
+          "Reservation is not reservable",
+        );
+      if (reservation.assessmentId !== i.assessmentId)
+        throw new OwnershipMismatchError(
+          "Reservation does not belong to the assessment",
+        );
+      if (!(await repos.reservation.claimInvocation(i)))
+        throw new BillingConcurrencyError(
+          "Reservation invocation capacity is exhausted",
+        );
+      return { reservationId: i.reservationId };
+    });
   }
   settleReservation(i: {
     userId: string;
@@ -154,11 +266,23 @@ export class BillingAccountingService {
           throw new OwnershipMismatchError(
             "Reservation does not belong to user",
           );
+        if (r.status === "SETTLED") {
+          const existing = await ledger.findByIdempotencyKey(
+            `reservation:${r.id}:settle`,
+          );
+          if (!existing || existing.deltaCredits !== -i.chargedCredits)
+            throw new BillingIdempotencyConflictError(
+              "Reservation settlement replay differs",
+            );
+          return { reservationId: r.id, chargedCredits: i.chargedCredits };
+        }
         if (r.status !== "RESERVED")
           throw new InvalidReservationTransitionError(
             "Reservation is already terminal",
           );
-        if (i.chargedCredits < 0n || i.chargedCredits > r.amountCredits)
+        // A grouped reservation may already have been consumed by individual
+        // usage events. The legacy finalizer can only consume what remains.
+        if (i.chargedCredits < 0n || i.chargedCredits > r.remainingCredits)
           throw new BillingDomainError("Invalid charge amount");
         const w = await wallet.findForUser(i.userId);
         if (!w || w.id !== r.walletId)
@@ -190,7 +314,11 @@ export class BillingAccountingService {
       },
     );
   }
-  releaseReservation(i: { userId: string; reservationId: string }) {
+  releaseReservation(i: {
+    userId: string;
+    reservationId: string;
+    assessmentId?: string;
+  }) {
     return this.transactions.runForUser(
       i.userId,
       async ({ wallet, ledger, reservation }) => {
@@ -199,6 +327,11 @@ export class BillingAccountingService {
           throw new OwnershipMismatchError(
             "Reservation does not belong to user",
           );
+        if (i.assessmentId && r.assessmentId !== i.assessmentId)
+          throw new OwnershipMismatchError(
+            "Reservation does not belong to the assessment",
+          );
+        if (r.status === "RELEASED") return { reservationId: r.id };
         if (r.status !== "RESERVED")
           throw new InvalidReservationTransitionError(
             "Reservation is already terminal",
@@ -290,7 +423,7 @@ export class BillingAccountingService {
     ]);
     return calculateBillingProjection(
       le.map((x) => x.deltaCredits),
-      re.map((x) => x.amountCredits),
+      re.map((x) => x.remainingCredits),
     );
   }
   private async reconcile(
