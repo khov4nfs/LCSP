@@ -14,7 +14,10 @@ import {
 
 test("routes edges from node boundaries", () => {
   const points = routeGraphEdge({ x: 10, y: 20 }, { x: 240, y: 20 });
-  assert.deepEqual(points, [{ x: 160, y: 20 }, { x: 240, y: 20 }]);
+  assert.deepEqual(points, [
+    { x: 160, y: 20 },
+    { x: 240, y: 20 },
+  ]);
 });
 
 test("uses direction-aware ports for reverse and vertical edges", () => {
@@ -29,7 +32,10 @@ test("uses direction-aware ports for reverse and vertical edges", () => {
 test("detects complete polyline intersection with expanded obstacles", () => {
   assert.equal(
     polylineIntersectsObstacles(
-      [{ x: 0, y: 0 }, { x: 200, y: 0 }],
+      [
+        { x: 0, y: 0 },
+        { x: 200, y: 0 },
+      ],
       [{ x: 80, y: -20, width: 40, height: 40 }],
     ),
     true,
@@ -38,27 +44,56 @@ test("detects complete polyline intersection with expanded obstacles", () => {
 
 test("chooses the longest safe horizontal label segment", () => {
   const segment = longestHorizontalSegment(
-    [{ x: 0, y: 0 }, { x: 40, y: 0 }, { x: 40, y: 60 }, { x: 180, y: 60 }],
+    [
+      { x: 0, y: 0 },
+      { x: 40, y: 0 },
+      { x: 40, y: 60 },
+      { x: 180, y: 60 },
+    ],
     80,
   );
   assert.deepEqual(segment, { x: 110, y: 60, length: 140 });
-  assert.equal(longestHorizontalSegment([{ x: 0, y: 0 }, { x: 20, y: 0 }], 40), null);
+  assert.equal(
+    longestHorizontalSegment(
+      [
+        { x: 0, y: 0 },
+        { x: 20, y: 0 },
+      ],
+      40,
+    ),
+    null,
+  );
 });
 
 test("anchors labels inside the safe interval with arrowhead clearance", () => {
   const segment = bestSafeLabelSegment(
-    [{ x: 0, y: 0 }, { x: 180, y: 0 }],
+    [
+      { x: 0, y: 0 },
+      { x: 180, y: 0 },
+    ],
     60,
     14,
     6,
   );
   assert.deepEqual(segment, { x: 90, y: 0, length: 92 });
-  assert.equal(bestSafeLabelSegment([{ x: 0, y: 0 }, { x: 70, y: 0 }], 60), null);
+  assert.equal(
+    bestSafeLabelSegment(
+      [
+        { x: 0, y: 0 },
+        { x: 70, y: 0 },
+      ],
+      60,
+    ),
+    null,
+  );
 });
 
 test("places labels on two-point horizontal routes when the gap is sufficient", () => {
   const point = findLabelPlacement(
-    [{ x: 160, y: 100 }, { x: 360, y: 100 }],
+    [
+      { x: 160, y: 100 },
+      { x: 360, y: 100 },
+    ],
     60,
     [
       { x: 10, y: 78, width: 150, height: 44 },
@@ -70,7 +105,10 @@ test("places labels on two-point horizontal routes when the gap is sufficient", 
 
 test("falls back above or below a short horizontal route", () => {
   const point = findLabelPlacement(
-    [{ x: 160, y: 100 }, { x: 230, y: 100 }],
+    [
+      { x: 160, y: 100 },
+      { x: 230, y: 100 },
+    ],
     60,
     [
       { x: 10, y: 78, width: 150, height: 44 },
@@ -82,12 +120,33 @@ test("falls back above or below a short horizontal route", () => {
 });
 
 test("supports diagonal and vertical label fallbacks", () => {
-  assert.ok(findLabelPlacement([{ x: 0, y: 0 }, { x: 120, y: 80 }], 40, []));
-  assert.ok(findLabelPlacement([{ x: 100, y: 0 }, { x: 100, y: 160 }], 40, []));
+  assert.ok(
+    findLabelPlacement(
+      [
+        { x: 0, y: 0 },
+        { x: 120, y: 80 },
+      ],
+      40,
+      [],
+    ),
+  );
+  assert.ok(
+    findLabelPlacement(
+      [
+        { x: 100, y: 0 },
+        { x: 100, y: 160 },
+      ],
+      40,
+      [],
+    ),
+  );
 });
 
 test("moves a colliding label to a deterministic alternate placement", () => {
-  const route = [{ x: 160, y: 100 }, { x: 420, y: 100 }];
+  const route = [
+    { x: 160, y: 100 },
+    { x: 420, y: 100 },
+  ];
   const first = findLabelPlacement(route, 60, []);
   assert.deepEqual(first, { x: 290, y: 100 });
   const second = findLabelPlacement(route, 60, [], 16, [
@@ -100,7 +159,10 @@ test("moves a colliding label to a deterministic alternate placement", () => {
 
 test("provides a deterministic fallback label point for non-horizontal routes", () => {
   const point = bestSafeLabelSegment(
-    [{ x: 10, y: 10 }, { x: 90, y: 90 }],
+    [
+      { x: 10, y: 10 },
+      { x: 90, y: 90 },
+    ],
     24,
   );
   assert.equal(point?.x, 50);
@@ -176,7 +238,11 @@ test("graph-first topology preserves branching, cross-links, and edge direction"
     true,
   );
   assert.equal(topology.positions.size, 5);
-  assert.equal(new Set([...topology.positions.values()].map(({ x, y }) => `${x}:${y}`)).size, topology.nodes.length);
+  assert.equal(
+    new Set([...topology.positions.values()].map(({ x, y }) => `${x}:${y}`))
+      .size,
+    topology.nodes.length,
+  );
   assert.ok(topology.nodes.every((item) => topology.positions.has(item.id)));
 });
 
@@ -213,6 +279,24 @@ test("preserves the complete bounded API topology without a second UI cap", () =
   const topology = selectEvidenceTopology(nodes, edges);
   assert.equal(topology.nodes.length, 40);
   assert.equal(topology.edges.length, 39);
+});
+
+test("lays out large bounded API topology with deterministic paths", () => {
+  const nodes = Array.from({ length: 512 }, (_, index) =>
+    node(`node-${index}`, index === 0 ? "HTTP_ROUTE" : "FUNCTION"),
+  );
+  const edges = Array.from({ length: 511 }, (_, index) => ({
+    id: `edge-${index}`,
+    source: `node-${index}`,
+    target: `node-${index + 1}`,
+    relationship: "CALLS",
+  }));
+  const topology = selectEvidenceTopology(nodes, edges);
+  assert.equal(topology.nodes.length, 512);
+  assert.equal(topology.edges.length, 511);
+  assert.equal(topology.paths[0]?.nodeIds.length, 512);
+  assert.equal(topology.paths[0]?.edgeIds.length, 511);
+  assert.equal(topology.positions.size, 512);
 });
 
 test("keeps the scene point under the cursor while zooming", () => {

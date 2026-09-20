@@ -4,6 +4,7 @@ import { REQUIRED_ACTIONS } from "@lcsp/contracts/auth";
 import { EVIDENCE_ERROR_CODES } from "@lcsp/contracts/evidence";
 import { JSDOM } from "jsdom";
 import React, { act } from "react";
+import type { ProgramEvidenceGraphDetail } from "../src/lib/api/evidence-graph-detail-client";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "http://localhost/",
@@ -40,7 +41,7 @@ const {
 } = await import("../src/lib/api/evidence-graph-detail-client");
 const roots: ReturnType<typeof createRoot>[] = [];
 
-const detail = {
+const detail: ProgramEvidenceGraphDetail = {
   repository: {
     repository_full_name: "acme/repo",
     branch: "main",
@@ -63,6 +64,9 @@ const detail = {
         symbol: null,
         file: "src/a.ts",
         line: 1,
+        ai_usage_role: "ROUTE_HANDLER_FEATURE",
+        evidence_state: null,
+        resolution_state: "OBSERVED",
       },
       {
         id: "b",
@@ -71,6 +75,9 @@ const detail = {
         symbol: "handleB",
         file: "src/b.ts",
         line: 2,
+        ai_usage_role: "SERVICE_CLIENT",
+        evidence_state: null,
+        resolution_state: "OBSERVED",
       },
       {
         id: "c",
@@ -79,6 +86,9 @@ const detail = {
         symbol: "callProvider",
         file: "src/provider.ts",
         line: 9,
+        ai_usage_role: "AI_PROVIDER",
+        evidence_state: "AI_PROVIDER_REFERENCE",
+        resolution_state: "CORROBORATED",
       },
       {
         id: "d",
@@ -87,14 +97,52 @@ const detail = {
         symbol: null,
         file: null,
         line: null,
+        ai_usage_role: "AI_SDK_INVOCATION",
+        evidence_state: "CONFIRMED_AI_CALL",
+        resolution_state: "OBSERVED",
       },
     ],
     edges: [
-      { id: "e1", source: "a", target: "b", relationship: "CALLS" },
-      { id: "e2", source: "a", target: "c", relationship: "SENDS_TO_AI" },
-      { id: "e3", source: "b", target: "d", relationship: "FLOWS_TO" },
-      { id: "e4", source: "c", target: "d", relationship: "FLOWS_TO" },
+      {
+        id: "e1",
+        source: "a",
+        target: "b",
+        relationship: "CALLS",
+        evidence_state: null,
+        resolution_state: "OBSERVED",
+      },
+      {
+        id: "e2",
+        source: "a",
+        target: "c",
+        relationship: "SENDS_TO_AI",
+        evidence_state: "AI_PROVIDER_REFERENCE",
+        resolution_state: "CORROBORATED",
+      },
+      {
+        id: "e3",
+        source: "b",
+        target: "d",
+        relationship: "FLOWS_TO",
+        evidence_state: "CONFIRMED_AI_CALL",
+        resolution_state: "OBSERVED",
+      },
+      {
+        id: "e4",
+        source: "c",
+        target: "d",
+        relationship: "FLOWS_TO",
+        evidence_state: "CONFIRMED_AI_CALL",
+        resolution_state: "OBSERVED",
+      },
     ],
+    usage_flow_count: 2,
+    rendered_usage_flow_count: 2,
+    omitted_usage_flow_count: 0,
+    usage_group_count: 0,
+    rendered_usage_group_count: 0,
+    omitted_usage_group_count: 0,
+    usage_flow_groups: [],
   },
   claims: [],
   provenance: {
@@ -169,7 +217,8 @@ for (const [code, status, expectedState] of [
       )) as typeof fetch;
 
     try {
-      const result = await getProgramEvidenceGraphDetailState("assessment-graph");
+      const result =
+        await getProgramEvidenceGraphDetailState("assessment-graph");
       assert.deepEqual(result, {
         state: PROGRAM_EVIDENCE_GRAPH_DETAIL_LOAD_STATES[expectedState],
         detail: null,
@@ -225,7 +274,10 @@ test("renders canonical topology, preserves direction, and updates inspector on 
     .filter((element) => element.getAttribute("visibility") === "visible")
     .map((element) => element.textContent?.trim())
     .filter(Boolean);
-  assert.ok(visibleRelationshipLabels.includes("CALLS") || visibleRelationshipLabels.includes("FLOWS_TO"));
+  assert.ok(
+    visibleRelationshipLabels.includes("CALLS") ||
+      visibleRelationshipLabels.includes("FLOWS_TO"),
+  );
 
   const svg = container.querySelector("svg");
   assert.ok(svg);
@@ -303,12 +355,233 @@ test("renders the workspace overview before a node is selected", async () => {
     container.textContent ?? "",
     /Evidence-mapped scope|Độ phủ bằng chứng kỹ thuật/,
   );
-  assert.match(container.textContent ?? "", /Open Artifacts|Mở danh sách Artifacts/);
+  assert.match(
+    container.textContent ?? "",
+    /Open Artifacts|Mở danh sách Artifacts/,
+  );
   assert.match(
     container.textContent ?? "",
     /Evidence graph is pinned|Sơ đồ này được tạo từ snapshot/,
   );
 });
+
+test("renders the governed no-AI usage empty state without graph noise", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  roots.push(root);
+  await act(async () =>
+    root.render(
+      React.createElement(GraphFirstDetail, {
+        assessmentId: "assessment-1",
+        detail: {
+          ...detail,
+          paths: { nodes: [], edges: [] },
+        },
+      }),
+    ),
+  );
+
+  assert.match(
+    container.textContent ?? "",
+    /No governed AI usage path|chưa có đường dẫn sử dụng AI/,
+  );
+  assert.doesNotMatch(container.textContent ?? "", /Node A|Node B/);
+});
+
+test("renders AI usage roles and unresolved evidence states", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  roots.push(root);
+  await act(async () =>
+    root.render(
+      React.createElement(GraphFirstDetail, {
+        assessmentId: "assessment-1",
+        detail: {
+          ...detail,
+          paths: {
+            nodes: [
+              {
+                id: "route",
+                kind: "HTTP_ROUTE",
+                label: "POST /ai",
+                symbol: null,
+                file: null,
+                line: null,
+                ai_usage_role: "ROUTE_HANDLER_FEATURE",
+                evidence_state: null,
+                resolution_state: "OBSERVED",
+              },
+              {
+                id: "gateway",
+                kind: "AI_API_CANDIDATE",
+                label: "custom model gateway",
+                symbol: null,
+                file: null,
+                line: null,
+                ai_usage_role: "AI_API_ENDPOINT",
+                evidence_state: "POSSIBLE_AI_CALL",
+                resolution_state: "UNRESOLVED",
+              },
+            ],
+            edges: [
+              {
+                id: "edge",
+                source: "route",
+                target: "gateway",
+                relationship: "CALLS_EXTERNAL",
+                evidence_state: "POSSIBLE_AI_CALL",
+                resolution_state: "UNRESOLVED",
+              },
+            ],
+          },
+        },
+      }),
+    ),
+  );
+
+  assert.match(
+    container.textContent ?? "",
+    /REST\/API AI endpoint|Endpoint AI REST\/API/,
+  );
+  assert.match(container.textContent ?? "", /Unresolved|Chưa phân giải/);
+  assert.doesNotMatch(container.textContent ?? "", /OPENAI|ANTHROPIC/);
+});
+
+test("renders omitted AI usage metadata when the projection reports overflow", async () => {
+  const container = await renderGraphFirstDetailWithPaths({
+    omitted_usage_flow_count: 3,
+    usage_group_count: 10,
+    rendered_usage_group_count: 4,
+    omitted_usage_group_count: 6,
+    usage_flow_groups: [
+      renderedOverflowGroup(0),
+      ...Array.from({ length: 4 }, (_, index) => omittedGroupPreview(index)),
+    ],
+  });
+
+  assert.match(
+    container.textContent ?? "",
+    /Additional governed AI usage paths|Có thêm đường dẫn sử dụng AI/,
+  );
+  assert.match(container.textContent ?? "", /Module B -> AI_MODEL_INVOCATION/);
+  assert.match(container.textContent ?? "", /5 hidden flows|5 luồng đang ẩn/);
+  assert.match(
+    container.textContent ?? "",
+    /3 more hidden groups|3 nhóm ẩn khác/,
+  );
+});
+
+test("counts all omitted groups when rendered overflow consumes every visible preview slot", async () => {
+  const container = await renderGraphFirstDetailWithPaths({
+    omitted_usage_flow_count: 10,
+    usage_group_count: 14,
+    rendered_usage_group_count: 4,
+    omitted_usage_group_count: 6,
+    usage_flow_groups: [
+      ...Array.from({ length: 4 }, (_, index) => renderedOverflowGroup(index)),
+      ...Array.from({ length: 4 }, (_, index) => omittedGroupPreview(index)),
+    ],
+  });
+
+  assert.match(
+    container.textContent ?? "",
+    /Module B 3 -> AI_MODEL_INVOCATION/,
+  );
+  assert.doesNotMatch(
+    container.textContent ?? "",
+    /Hidden module 0 -> AI_MODEL_INVOCATION/,
+  );
+  assert.match(
+    container.textContent ?? "",
+    /6 more hidden groups|6 nhóm ẩn khác/,
+  );
+});
+
+test("subtracts only visible fully omitted group previews from the remaining group count", async () => {
+  const container = await renderGraphFirstDetailWithPaths({
+    omitted_usage_flow_count: 10,
+    usage_group_count: 10,
+    rendered_usage_group_count: 0,
+    omitted_usage_group_count: 6,
+    usage_flow_groups: Array.from({ length: 4 }, (_, index) =>
+      omittedGroupPreview(index),
+    ),
+  });
+
+  assert.match(
+    container.textContent ?? "",
+    /Hidden module 3 -> AI_MODEL_INVOCATION/,
+  );
+  assert.match(
+    container.textContent ?? "",
+    /2 more hidden groups|2 nhóm ẩn khác/,
+  );
+});
+
+async function renderGraphFirstDetailWithPaths(
+  paths: Partial<ProgramEvidenceGraphDetail["paths"]>,
+) {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  roots.push(root);
+  await act(async () =>
+    root.render(
+      React.createElement(GraphFirstDetail, {
+        assessmentId: "assessment-1",
+        detail: {
+          ...detail,
+          paths: {
+            ...detail.paths,
+            ...paths,
+          },
+        },
+      }),
+    ),
+  );
+  return container;
+}
+
+function renderedOverflowGroup(
+  index: number,
+): NonNullable<
+  ProgramEvidenceGraphDetail["paths"]["usage_flow_groups"]
+>[number] {
+  return {
+    key: `module-b-${index}`,
+    label:
+      index === 0
+        ? "Module B -> AI_MODEL_INVOCATION"
+        : `Module B ${index} -> AI_MODEL_INVOCATION`,
+    source_node_id: `module:b-${index}`,
+    source_label: index === 0 ? "Module B" : `Module B ${index}`,
+    provider_label: null,
+    gateway_label: null,
+    usage_flow_count: 6,
+    rendered_usage_flow_count: 1,
+    omitted_usage_flow_count: 5,
+  };
+}
+
+function omittedGroupPreview(
+  index: number,
+): NonNullable<
+  ProgramEvidenceGraphDetail["paths"]["usage_flow_groups"]
+>[number] {
+  return {
+    key: `hidden-${index}`,
+    label: `Hidden module ${index} -> AI_MODEL_INVOCATION`,
+    source_node_id: `module:hidden-${index}`,
+    source_label: `Hidden module ${index}`,
+    provider_label: null,
+    gateway_label: null,
+    usage_flow_count: 1,
+    rendered_usage_flow_count: 0,
+    omitted_usage_flow_count: 1,
+  };
+}
 
 test("formats evidence scope as a percentage in both graph detail renderers", async () => {
   const container = document.createElement("div");

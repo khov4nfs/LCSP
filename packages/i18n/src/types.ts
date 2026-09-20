@@ -1581,6 +1581,38 @@ export type PagesMessages = {
       noOverviewProvenance: string;
       topologyTitle: string;
       topologyDescription: string;
+      aiUsageTopologyTitle: string;
+      aiUsageTopologyDescription: string;
+      noAiUsagePaths: string;
+      omittedAiUsagePaths: string;
+      omittedAiUsageGroups: string;
+      hiddenAiUsageGroupFlows: string;
+      additionalOmittedAiUsageGroups: string;
+      aiUsageRoles: {
+        moduleFeature: string;
+        routeHandlerFeature: string;
+        serviceClient: string;
+        aiSdk: string;
+        aiSdkInvocation: string;
+        aiApiEndpoint: string;
+        aiGateway: string;
+        aiProvider: string;
+        modelIdentity: string;
+        configControl: string;
+        unresolvedCandidate: string;
+      };
+      evidenceStates: {
+        confirmedAiCall: string;
+        possibleAiCall: string;
+        aiProviderReference: string;
+        unresolvedDynamic: string;
+      };
+      resolutionStates: {
+        observed: string;
+        corroborated: string;
+        inferred: string;
+        unresolved: string;
+      };
       legendNode: string;
       legendRelationship: string;
       legendInspected: string;

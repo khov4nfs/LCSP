@@ -28,12 +28,33 @@ export const AI_DISCOVERY_CLARIFICATION_KINDS = {
 export type AiDiscoveryClarificationKind =
   (typeof AI_DISCOVERY_CLARIFICATION_KINDS)[keyof typeof AI_DISCOVERY_CLARIFICATION_KINDS];
 
-export type AiDiscoveryClarificationOwner = "CUSTOMER" | "TECHNICAL";
+export const AI_DISCOVERY_CLARIFICATION_OWNERS = {
+  customer: "CUSTOMER",
+  technical: "TECHNICAL",
+} as const;
+
+export type AiDiscoveryClarificationOwner =
+  (typeof AI_DISCOVERY_CLARIFICATION_OWNERS)[keyof typeof AI_DISCOVERY_CLARIFICATION_OWNERS];
+
+export const AI_DISCOVERY_RESOLUTION_STATES = {
+  observed: "OBSERVED",
+  corroborated: "CORROBORATED",
+  inferred: "INFERRED",
+  unresolved: "UNRESOLVED",
+} as const;
+
 export type AiDiscoveryResolutionState =
-  | "OBSERVED"
-  | "CORROBORATED"
-  | "INFERRED"
-  | "UNRESOLVED";
+  (typeof AI_DISCOVERY_RESOLUTION_STATES)[keyof typeof AI_DISCOVERY_RESOLUTION_STATES];
+
+export const AI_DISCOVERY_FINDING_KINDS = {
+  sdkInvocation: "SDK_INVOCATION",
+  outboundApi: "OUTBOUND_API",
+  providerReference: "PROVIDER_REFERENCE",
+  dynamicTarget: "DYNAMIC_TARGET",
+} as const;
+
+export type AiDiscoveryFindingKind =
+  (typeof AI_DISCOVERY_FINDING_KINDS)[keyof typeof AI_DISCOVERY_FINDING_KINDS];
 
 /**
  * Reference used by the UI to request source later from the exact pinned snapshot.
@@ -54,11 +75,7 @@ export type AiDiscoveryFinding = {
   evidence_id: string;
   state: AiDiscoveryEvidenceState;
   resolution_state: AiDiscoveryResolutionState;
-  kind:
-    | "SDK_INVOCATION"
-    | "OUTBOUND_API"
-    | "PROVIDER_REFERENCE"
-    | "DYNAMIC_TARGET";
+  kind: AiDiscoveryFindingKind;
   provider?: string;
   host?: string;
   path?: string;

@@ -22,6 +22,9 @@ export interface ProgramEvidenceGraphNodeDto {
   symbol: string | null;
   file: string | null;
   line: number | null;
+  ai_usage_role?: string | null;
+  evidence_state?: string | null;
+  resolution_state?: string | null;
 }
 
 export interface ProgramEvidenceGraphEdgeDto {
@@ -29,6 +32,20 @@ export interface ProgramEvidenceGraphEdgeDto {
   source: string;
   target: string;
   relationship: string;
+  evidence_state?: string | null;
+  resolution_state?: string | null;
+}
+
+export interface ProgramEvidenceGraphUsageFlowGroupDto {
+  key: string;
+  label: string;
+  source_node_id: string | null;
+  source_label: string | null;
+  provider_label: string | null;
+  gateway_label: string | null;
+  usage_flow_count: number;
+  rendered_usage_flow_count: number;
+  omitted_usage_flow_count: number;
 }
 
 export interface ProgramEvidenceGraphClaimDto {
@@ -60,6 +77,13 @@ export interface ProgramEvidenceGraphDetailDto {
   paths: {
     nodes: ProgramEvidenceGraphNodeDto[];
     edges: ProgramEvidenceGraphEdgeDto[];
+    usage_flow_count: number;
+    rendered_usage_flow_count: number;
+    omitted_usage_flow_count: number;
+    usage_group_count: number;
+    rendered_usage_group_count: number;
+    omitted_usage_group_count: number;
+    usage_flow_groups: ProgramEvidenceGraphUsageFlowGroupDto[];
   };
   claims: ProgramEvidenceGraphClaimDto[];
   provenance: {
