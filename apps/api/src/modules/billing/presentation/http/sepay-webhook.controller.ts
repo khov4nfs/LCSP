@@ -1,7 +1,6 @@
 import { Controller, Headers, Post, Req } from "@nestjs/common";
 import { CommandBus } from "@nestjs/cqrs";
 import type { Request } from "express";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import { AcceptSePayWebhookCommand } from "../../application/commands/accept-sepay-webhook/accept-sepay-webhook.command.js";
 import {
   mapSePayWebhookError,
@@ -19,15 +18,14 @@ export class SePayWebhookController {
     @Headers("x-sepay-timestamp") timestamp?: string,
   ) {
     try {
-      return resultEnvelope(
-        await this.commandBus.execute(
-          new AcceptSePayWebhookCommand({
-            rawBody: rawWebhookBody(request),
-            signature,
-            timestamp,
-          }),
-        ),
+      await this.commandBus.execute(
+        new AcceptSePayWebhookCommand({
+          rawBody: rawWebhookBody(request),
+          signature,
+          timestamp,
+        }),
       );
+      return { success: true };
     } catch (error) {
       throw mapSePayWebhookError(error);
     }

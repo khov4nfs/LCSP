@@ -15,6 +15,7 @@ import {
   buildOutboxMessageInput,
 } from "@lcsp/contracts";
 import type {
+  BillingOrderStatus,
   BillingOrderView,
   PrepaidEstimate,
 } from "@lcsp/contracts/billing";
@@ -36,18 +37,20 @@ import type {
 import type { AppConfig } from "../../../../config/config.types.js";
 
 export function estimatePrepaid(amountVnd: bigint): PrepaidEstimate {
+  const minimumAmountVnd = BigInt(PREPAID_BILLING_CONFIG.minimumAmountVnd);
+  const maximumAmountVnd = BigInt(PREPAID_BILLING_CONFIG.maximumAmountVnd);
+  const amountStepVnd = BigInt(PREPAID_BILLING_CONFIG.amountStepVnd);
+  const creditUnitsPerVnd = BigInt(PREPAID_BILLING_CONFIG.creditUnitsPerVnd);
   if (
-    amountVnd < PREPAID_BILLING_CONFIG.minimumAmountVnd ||
-    amountVnd > PREPAID_BILLING_CONFIG.maximumAmountVnd ||
-    amountVnd % PREPAID_BILLING_CONFIG.amountStepVnd !== 0n
+    amountVnd < minimumAmountVnd ||
+    amountVnd > maximumAmountVnd ||
+    amountVnd % amountStepVnd !== 0n
   )
     throw new InvalidBillingInputError("Invalid prepaid amount");
   return {
     currency: PREPAID_BILLING_CONFIG.currency,
     amountVnd: amountVnd.toString(),
-    creditUnits: (
-      amountVnd * PREPAID_BILLING_CONFIG.creditUnitsPerVnd
-    ).toString(),
+    creditUnits: (amountVnd * creditUnitsPerVnd).toString(),
     expiresInHours: PREPAID_BILLING_CONFIG.orderExpiryHours,
   };
 }
@@ -63,7 +66,7 @@ export function toOrderView(
     amountVnd,
     creditUnits: order.creditUnits.toString(),
     paymentCode: order.paymentCode,
-    status: order.status,
+    status: toBillingOrderStatus(order.status),
     expiresAt: order.expiresAt?.toISOString() ?? null,
     creditedAt: order.creditedAt?.toISOString() ?? null,
     createdAt: order.createdAt.toISOString(),
@@ -82,6 +85,15 @@ export function toOrderView(
         .replaceAll("{paymentCode}", encodeURIComponent(order.paymentCode)),
     },
   };
+}
+
+function toBillingOrderStatus(status: string): BillingOrderStatus {
+  if (
+    Object.values(BILLING_ORDER_STATUSES).includes(status as BillingOrderStatus)
+  ) {
+    return status as BillingOrderStatus;
+  }
+  throw new Error("Unsupported persisted billing order status");
 }
 
 export async function expireOrder(
@@ -486,7 +498,7 @@ export function normalizeWebhookPayload(payload: Record<string, unknown>) {
     .join(" ");
   const paymentCodes = [
     ...(typeof payload.code === "string" ? [payload.code.trim()] : []),
-    ...[...content.matchAll(/\bLCSP[A-Za-z0-9_-]{4,}\b/g)].map(
+    ...[...content.matchAll(/\bLCSP[A-Za-z0-9]{4,}(?=$|[^A-Za-z0-9])/g)].map(
       (match) => match[0],
     ),
   ].filter(Boolean);

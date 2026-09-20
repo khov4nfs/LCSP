@@ -16,8 +16,8 @@ import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { CreateBillingOrderCommand } from "../../application/commands/create-billing-order/create-billing-order.command.js";
 import { EstimateBillingQuery } from "../../application/queries/estimate-billing/estimate-billing.query.js";
+import { CreateBillingOrderCommand } from "../../application/commands/create-billing-order/create-billing-order.command.js";
 import { GetBillingOrderQuery } from "../../application/queries/get-billing-order/get-billing-order.query.js";
 import { GetBillingWalletQuery } from "../../application/queries/get-billing-wallet/get-billing-wallet.query.js";
 import { ListBillingHistoryQuery } from "../../application/queries/list-billing-history/list-billing-history.query.js";
@@ -50,7 +50,10 @@ export class BillingCustomerController {
     try {
       return resultEnvelope(
         await this.queryBus.execute(
-          new EstimateBillingQuery(parseAmount(amount)),
+          new EstimateBillingQuery(
+            request.rbacContext.userId,
+            parseAmount(amount),
+          ),
         ),
       );
     } catch (error) {
