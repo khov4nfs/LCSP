@@ -151,12 +151,17 @@ function normalizePayload(payload: Record<string, unknown>) {
   )
     throw new SePayWebhookIngressError("PAYLOAD");
   const direction = payload.transferType;
-  const content = [payload.code, payload.referenceCode, payload.description]
+  const content = [
+    payload.code,
+    payload.referenceCode,
+    payload.description,
+    payload.content,
+  ]
     .filter((value): value is string => typeof value === "string")
     .join(" ");
   const paymentCodes = [
     ...(typeof payload.code === "string" ? [payload.code.trim()] : []),
-    ...[...content.matchAll(/\bLCSP[A-Za-z0-9_-]{4,}\b/g)].map(
+    ...[...content.matchAll(/\bLCSP[A-Za-z0-9]{4,}(?=$|[^A-Za-z0-9])/g)].map(
       (match) => match[0],
     ),
   ].filter(Boolean);

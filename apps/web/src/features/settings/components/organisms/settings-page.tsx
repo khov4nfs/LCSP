@@ -53,6 +53,7 @@ import {
   API_OUTCOME_KINDS,
   API_REDIRECT_LOCATIONS,
 } from "@/lib/api/outcome-kinds";
+import { BillingSettingsPanel } from "@/features/billing/components/organisms/billing-settings-panel";
 import type { MfaVerifyFormValues } from "@/features/auth/schemas/mfa-verify.schema";
 
 import { RepositoriesSettingsSection } from "./repositories-settings-section";
@@ -404,17 +405,7 @@ export function SettingsPage({
             ) : null}
 
             {activeSection === SETTINGS_SECTION_IDS.billing ? (
-              <UnsupportedSettingsPanel
-                titleKey="pages.workspace.settingsHub.billing.title"
-                descriptionKey="pages.workspace.settingsHub.billing.description"
-                rows={[
-                  "pages.workspace.settingsHub.billing.creditBalance",
-                  "pages.workspace.settingsHub.billing.buyCredits",
-                  "pages.workspace.settingsHub.billing.autoReload",
-                  "pages.workspace.settingsHub.billing.paymentMethod",
-                  "pages.workspace.settingsHub.billing.invoices",
-                ]}
-              />
+              <BillingSettingsPanel locale={settingsLocale} />
             ) : null}
 
             {activeSection === SETTINGS_SECTION_IDS.usage ? (

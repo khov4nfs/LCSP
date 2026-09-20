@@ -6,7 +6,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { AppModule } from "../src/app.module.js";
 import { httpBodyParser } from "../src/http-body-parser.js";
-import { httpRequest, problemCode, successBody } from "./support/http.js";
+import { httpRequest, problemCode } from "./support/http.js";
 import {
   pushPrismaSchema,
   TEST_DATABASE_URL,
@@ -58,13 +58,9 @@ describe("SePay webhook HTTP ingress (e2e)", () => {
         .set("X-SePay-Timestamp", time)
         .send(body);
     const first = await send().expect(201);
-    assert.deepEqual(successBody<{ duplicate: boolean }>(first), {
-      duplicate: false,
-    });
+    assert.deepEqual(first.body, { success: true });
     const duplicate = await send().expect(201);
-    assert.deepEqual(successBody<{ duplicate: boolean }>(duplicate), {
-      duplicate: true,
-    });
+    assert.deepEqual(duplicate.body, { success: true });
     assert.equal(await prisma.sePayWebhookEvent.count(), 1);
     assert.equal(await prisma.outboxMessage.count(), 1);
     const invalid = await send("bad").expect(400);

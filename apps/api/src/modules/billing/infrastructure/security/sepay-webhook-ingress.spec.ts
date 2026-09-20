@@ -110,6 +110,37 @@ describe("SePayWebhookIngressService", () => {
     );
   });
 
+  it("extracts the LCSP payment code from SePay's raw transaction content", async () => {
+    const { service, create } = createSubject();
+    const body = JSON.stringify({
+      id: "TX-CONTENT-1",
+      transferAmount: "100000",
+      transferType: "in",
+      code: null,
+      content: "147641958462-LCSPAbCd1234-CHUYEN TIEN-OQCH000KRrjl-MOMO",
+      description:
+        "BankAPINotify 147641958462-LCSPAbCd1234-CHUYEN TIEN-OQCH000KRrjl-MOMO",
+    });
+
+    await expect(service.accept(signedInput(body))).resolves.toEqual({
+      duplicate: false,
+    });
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // Jest asymmetric matchers intentionally return `any`.
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        data: expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          sanitizedPayload: expect.objectContaining({
+            paymentCode: null,
+            paymentCodes: ["LCSPAbCd1234"],
+          }),
+        }),
+      }),
+    );
+  });
+
   it("matches the governed SePay HMAC interoperability fixture", async () => {
     const { service, create } = createSubject({
       webhookSecret: SEPAY_HMAC_FIXTURE.secret,
