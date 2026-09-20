@@ -1,3 +1,5 @@
+import type { AiDiscoverySnippetRef } from "./ai-discovery.js";
+
 export type JsonPrimitive = string | number | boolean | null;
 
 export type JsonValue =
@@ -454,7 +456,22 @@ export type AssessmentInterviewQuestion = {
   whyEvidenceRefs?: string[];
   whyAreWeAsking?: string;
   hasSupportingEvidence?: boolean;
+  /** Stable source locator only; raw source is never persisted in Interview state. */
+  snippetRef?: AiDiscoverySnippetRef;
   frontier?: PersistedCustomerQuestionFrontier;
+};
+
+export type AssessmentInterviewSourceSnippetLine = {
+  line: number;
+  text: string;
+};
+
+/** Transient source display resolved from the exact pinned repository snapshot. */
+export type AssessmentInterviewSourceSnippet = {
+  snippetRef: AiDiscoverySnippetRef;
+  lines: AssessmentInterviewSourceSnippetLine[];
+  redacted: boolean;
+  truncated: boolean;
 };
 
 export type ConfirmedStructuredBusinessStatement = {

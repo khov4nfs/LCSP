@@ -434,12 +434,17 @@ class ContractDataLineageExtractor:
             for field in _GQL_FIELD_RE.finditer(body):
                 operation_name, raw_args, return_type = field.groups()
                 operation_key = f"graphql-operation:{type_name}:{operation_name}"
+                operation_offset = block.start(2) + field.start()
+                operation_line = text.count("\n", 0, operation_offset) + 1
                 program.add_node(
                     SemanticNodeFact(
                         operation_key,
                         "GRAPHQL_OPERATION",
                         f"{type_name}.{operation_name}",
                         rel,
+                        operation_line,
+                        operation_line,
+                        f"{type_name}.{operation_name}",
                         attributes={
                             "operationType": type_name,
                             "operationName": operation_name,

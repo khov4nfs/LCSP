@@ -8,7 +8,7 @@ const MAX_AGENT_STREAM_ITEMS = 100;
 const REDACTED_VALUE = "[REDACTED]";
 
 const SENSITIVE_KEY_PATTERN =
-  /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|authorization|credential|client[_-]?secret|password|passwd|private[_-]?key|secret)/i;
+  /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|authorization|credential|client[_-]?secret|password|passwd|private[_-]?key|secret)/i;
 
 const SENSITIVE_VALUE_PATTERNS = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/gi,
@@ -17,10 +17,23 @@ const SENSITIVE_VALUE_PATTERNS = [
   /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
   /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{20,}\b/gi,
   /\bsk-ant-[A-Za-z0-9._-]+\b/gi,
+  /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/gi,
+  /\bhf_[A-Za-z0-9]{20,}\b/gi,
+  /\bAIza[0-9A-Za-z_-]{30,}\b/g,
   /\bsk_(?:live|test)_[A-Za-z0-9_-]{12,}\b/gi,
   /((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp):\/\/[^:\s/@]+:)[^@\s/]+@/gi,
   /((?:["']?)(?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password|credential|client[_-]?secret)(?:["']?)\s*[:=]\s*)[^\s,;}]+/gi,
 ] as const;
+
+export function containsSensitiveCredentialText(value: string): boolean {
+  if (SENSITIVE_KEY_PATTERN.test(value) || /\bBasic\s+\S+/i.test(value)) {
+    return true;
+  }
+  return SENSITIVE_VALUE_PATTERNS.some((pattern) => {
+    pattern.lastIndex = 0;
+    return pattern.test(value);
+  });
+}
 
 /** Preserve streaming whitespace while removing credential material and bounding one event. */
 export function sanitizeAgentStreamText(value: unknown): string | null {

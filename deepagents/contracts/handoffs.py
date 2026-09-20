@@ -105,6 +105,30 @@ class InterviewFrontierResult(BaseModel):
     evidenceRefs: list[str] = Field(default_factory=list, max_length=50)
 
 
+class InterviewSnippetRef(BaseModel):
+    """Pinned source locator only; raw source is resolved transiently by the API."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    snapshot_id: str = Field(min_length=1, max_length=240)
+    commit_sha: str = Field(min_length=1, max_length=240)
+    file_path: str = Field(min_length=1, max_length=1_000)
+    symbol: str | None = Field(default=None, max_length=500)
+    start_line: int = Field(ge=1)
+    end_line: int = Field(ge=1)
+    evidence_hash: str = Field(pattern=r"^sha256:[0-9a-fA-F]{64}$")
+    snippet_policy: Literal["PINNED_SNAPSHOT_BOUNDED_REDACTED_V1"]
+
+    @model_validator(mode="after")
+    def validate_bounded_locator(self) -> Self:
+        normalized = self.file_path.replace("\\", "/").lstrip("/")
+        if not normalized or ".." in normalized.split("/"):
+            raise ValueError("snippetRef file_path must stay inside the pinned snapshot")
+        if self.end_line < self.start_line or self.end_line - self.start_line + 1 > 7:
+            raise ValueError("snippetRef must address at most seven ordered source lines")
+        return self
+
+
 class InterviewQuestionResult(BaseModel):
     """Interview Agent-authored bounded Customer-facing question."""
 
@@ -121,6 +145,8 @@ class InterviewQuestionResult(BaseModel):
     proposedInterpretation: str | None = Field(default=None, max_length=2_000)
     whyEvidenceRefs: list[str] = Field(default_factory=list, max_length=50)
     whyAreWeAsking: str | None = Field(default=None, max_length=2_000)
+    # Stable source locator/hash only. Raw source is resolved transiently by the API.
+    snippetRef: InterviewSnippetRef | None = None
     frontier: InterviewFrontierResult | None = None
     needId: str | None = Field(default=None, max_length=240)
 
@@ -561,6 +587,7 @@ __all__ = [
     "InterviewFrontierResult",
     "InterviewQuestionChoice",
     "InterviewQuestionResult",
+    "InterviewSnippetRef",
     "InterviewResult",
     "InvestigatorClaim",
     "InvestigatorRequirementMetClaim",

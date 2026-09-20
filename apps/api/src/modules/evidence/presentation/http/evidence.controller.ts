@@ -211,7 +211,10 @@ export class EvidenceController {
       select: { evidencePayload: true },
     });
     if (!report) {
-      throw new NotFoundException("Technical evidence not found");
+      throw await this.unavailableEvidenceGraphProblem(
+        assessmentId,
+        request.correlationId ?? randomUUID(),
+      );
     }
     return resultEnvelope(
       this.graphDetail.projectOverview(report.evidencePayload),

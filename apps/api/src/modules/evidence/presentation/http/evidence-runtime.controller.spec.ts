@@ -84,6 +84,7 @@ function buildPublicEvidenceController() {
         payload: await input.loadEvidencePayload(),
       }),
     ),
+    projectOverview: jest.fn((payload: unknown) => payload),
   };
   const artifacts = {
     getAvailability: jest
@@ -238,6 +239,38 @@ describe("EvidenceController graph lifecycle", () => {
       },
     });
     expect(graphDetail.projectAcceptedReport).not.toHaveBeenCalled();
+  });
+
+  it("returns EVIDENCE_NOT_READY for overview while the scan is running", async () => {
+    const {
+      controller,
+      technicalEvidenceReportFindFirst,
+      repositoryScanJobFindFirst,
+      graphDetail,
+    } = buildPublicEvidenceController();
+    technicalEvidenceReportFindFirst.mockResolvedValue(null);
+    repositoryScanJobFindFirst.mockResolvedValue({
+      id: "scan-overview-running",
+      status: REPOSITORY_SCAN_JOB_STATUSES.running,
+    });
+
+    await expect(
+      controller.getEvidenceGraphOverview("assessment-1", adminGraphRequest),
+    ).rejects.toMatchObject({
+      status: HttpStatus.ACCEPTED,
+      response: {
+        ok: false,
+        problem: {
+          code: EVIDENCE_ERROR_CODES.notReady,
+          requiredAction: REQUIRED_ACTIONS.none,
+          meta: {
+            scanJobId: "scan-overview-running",
+            scanStatus: REPOSITORY_SCAN_JOB_STATUSES.running,
+          },
+        },
+      },
+    });
+    expect(graphDetail.projectOverview).not.toHaveBeenCalled();
   });
 
   it("returns EVIDENCE_NOT_READY after scan completion while report acceptance is pending", async () => {

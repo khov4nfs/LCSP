@@ -19,7 +19,7 @@ export const PROBLEM_REQUIRED_ACTIONS: Record<AuthErrorCode, RequiredAction> = {
   [AUTH_ERROR_CODES.temporaryLock]: REQUIRED_ACTIONS.waitAndRetry,
   [AUTH_ERROR_CODES.authzStateGateBlocked]: REQUIRED_ACTIONS.contactOwner,
   [AUTH_ERROR_CODES.authzEvaluatorFailure]: REQUIRED_ACTIONS.contactOwner,
-  [AUTH_ERROR_CODES.validationFailed]: REQUIRED_ACTIONS.signIn,
+  [AUTH_ERROR_CODES.validationFailed]: REQUIRED_ACTIONS.none,
   [AUTH_ERROR_CODES.reauthRequired]: REQUIRED_ACTIONS.reauthenticate,
   [AUTH_ERROR_CODES.mfaRequired]: REQUIRED_ACTIONS.verifyMfa,
   [AUTH_ERROR_CODES.mfaInvalid]: REQUIRED_ACTIONS.verifyMfa,

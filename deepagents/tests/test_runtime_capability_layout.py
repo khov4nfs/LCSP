@@ -105,6 +105,7 @@ def test_program_graph_runtime_groups_owned_capabilities() -> None:
     assert _directories(lineage) == {"ai", "contract", "data", "sensitive", "decision"}
     assert _implementation_files(lineage) == set()
     assert _implementation_files(lineage / "ai") == {
+        "ai_discovery.py",
         "ai_invocation_gate.py",
         "ai_lifecycle.py",
     }

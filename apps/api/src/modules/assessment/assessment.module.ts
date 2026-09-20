@@ -12,6 +12,7 @@ import { RenameAssessmentHandler } from "./application/commands/rename-assessmen
 import { GetAssessmentHandler } from "./application/queries/get-assessment/get-assessment.handler.js";
 import { GetAssessmentReadinessHandler } from "./application/queries/get-assessment-readiness/get-assessment-readiness.handler.js";
 import { AssessmentInterviewRuntimeService } from "./application/services/assessment-interview-runtime.service.js";
+import { AssessmentInterviewSnippetService } from "./application/services/assessment-interview-snippet.service.js";
 import { ListAssessmentsHandler } from "./application/queries/list-assessments/list-assessments.handler.js";
 import { ASSESSMENT_REPOSITORY } from "./application/ports/persistence/assessment.repository.js";
 import { PrismaAssessmentRepository } from "./infrastructure/persistence/prisma-assessment.repository.js";
@@ -28,6 +29,7 @@ import {
   controllers: [AssessmentController, InternalAssessmentInterviewController],
   providers: [
     AssessmentInterviewRuntimeService,
+    AssessmentInterviewSnippetService,
     AssessmentRuntimeEventService,
     WorkerApiKeyGuard,
     CreateAssessmentHandler,

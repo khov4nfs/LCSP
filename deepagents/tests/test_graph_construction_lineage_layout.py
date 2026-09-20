@@ -40,7 +40,7 @@ def test_graph_lineage_is_grouped_by_capability() -> None:
     root = PROJECT_ROOT / "tools" / "common" / "capabilities" / "evidence" / "graph" / "lineage"
     assert _dirs(root) == {"ai", "contract", "data", "sensitive", "decision"}
     assert _py(root) == set()
-    assert _py(root / "ai") == {"ai_invocation_gate.py", "ai_lifecycle.py"}
+    assert _py(root / "ai") == {"ai_discovery.py", "ai_invocation_gate.py", "ai_lifecycle.py"}
     assert _py(root / "contract") == {"contract_flow.py", "contract_lineage.py"}
     assert _py(root / "data") == {"data_lineage.py", "database_lineage.py"}
     assert _py(root / "sensitive") == {"sensitive_data.py", "sensitive_lineage_gate.py"}

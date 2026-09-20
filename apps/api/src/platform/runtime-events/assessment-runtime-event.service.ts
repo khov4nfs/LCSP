@@ -295,12 +295,16 @@ export class AssessmentRuntimeEventService {
    */
   async recordToolWaitingInput(
     input: Omit<RecordRuntimeEventInput, "eventType" | "runStatus">,
+    tx?: Prisma.TransactionClient,
   ): Promise<void> {
-    await this.recordEvent({
-      ...input,
-      eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput,
-      runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
-    });
+    await this.recordEvent(
+      {
+        ...input,
+        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput,
+        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
+      },
+      tx,
+    );
   }
 
   /**
@@ -694,7 +698,10 @@ export class AssessmentRuntimeEventService {
    * @param input - Complete runtime event data to sanitize and persist.
    * @returns A promise that resolves after persistence, or silently degrades when the runtime-event table has not been migrated yet.
    */
-  private async recordEvent(input: RecordRuntimeEventInput): Promise<void> {
+  private async recordEvent(
+    input: RecordRuntimeEventInput,
+    existingTx?: Prisma.TransactionClient,
+  ): Promise<void> {
     const startedAt = input.startedAt ?? null;
     const completedAt = input.completedAt ?? null;
     const summary = sanitizeRuntimeSummaryText(input.summary);
@@ -705,6 +712,46 @@ export class AssessmentRuntimeEventService {
         ? null
         : sanitizeRuntimeSummaryText(input.errorSummary);
 
+    const persist = async (tx: Prisma.TransactionClient): Promise<void> => {
+      const latest = (await runtimeEventDelegate(tx).findFirst({
+        where: { runId: input.runId },
+        orderBy: [{ sequence: "desc" }],
+        select: { sequence: true },
+      })) as { sequence: number } | null;
+      await runtimeEventDelegate(tx).create({
+        data: {
+          assessmentId: input.assessmentId,
+          runId: input.runId,
+          correlationId: input.correlationId,
+          sequence: (latest?.sequence ?? 0) + 1,
+          eventType: input.eventType,
+          runStatus: input.runStatus,
+          stage: input.stage,
+          toolName: input.toolName ?? null,
+          summary: summary || FALLBACK_SUMMARY,
+          inputSummaryJson: toJsonOrNull(inputSummary),
+          outputSummaryJson: toJsonOrNull(outputSummary),
+          errorSummary,
+          startedAt,
+          completedAt,
+          durationMs: input.durationMs ?? null,
+          attempt: input.attempt ?? null,
+          waitingReason:
+            input.waitingReason === null || input.waitingReason === undefined
+              ? null
+              : sanitizeRuntimeSummaryText(input.waitingReason),
+        },
+      });
+    };
+
+    if (existingTx) {
+      // The caller owns atomicity/retry. Do not open a nested transaction:
+      // a failure must abort the caller's transaction so durable state cannot
+      // commit without its corresponding runtime transition.
+      await persist(existingTx);
+      return;
+    }
+
     for (
       let index = 0;
       index < RUNTIME_EVENT_SEQUENCE_RETRY_ATTEMPTS;
@@ -712,36 +759,7 @@ export class AssessmentRuntimeEventService {
     ) {
       try {
         await this.prisma.$transaction(async (tx) => {
-          const latest = (await runtimeEventDelegate(tx).findFirst({
-            where: { runId: input.runId },
-            orderBy: [{ sequence: "desc" }],
-            select: { sequence: true },
-          })) as { sequence: number } | null;
-          await runtimeEventDelegate(tx).create({
-            data: {
-              assessmentId: input.assessmentId,
-              runId: input.runId,
-              correlationId: input.correlationId,
-              sequence: (latest?.sequence ?? 0) + 1,
-              eventType: input.eventType,
-              runStatus: input.runStatus,
-              stage: input.stage,
-              toolName: input.toolName ?? null,
-              summary: summary || FALLBACK_SUMMARY,
-              inputSummaryJson: toJsonOrNull(inputSummary),
-              outputSummaryJson: toJsonOrNull(outputSummary),
-              errorSummary,
-              startedAt,
-              completedAt,
-              durationMs: input.durationMs ?? null,
-              attempt: input.attempt ?? null,
-              waitingReason:
-                input.waitingReason === null ||
-                input.waitingReason === undefined
-                  ? null
-                  : sanitizeRuntimeSummaryText(input.waitingReason),
-            },
-          });
+          await persist(tx);
         });
         return;
       } catch (error) {

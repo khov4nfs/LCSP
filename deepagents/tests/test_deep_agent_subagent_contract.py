@@ -242,6 +242,39 @@ def test_interview_prompt_states_every_enforced_control_shape_rule() -> None:
     assert "exactly CONFIRM and ADJUST stable choice IDs" in interview_prompt
 
 
+
+def test_interview_snippet_ref_is_bounded_locator_only() -> None:
+    from contracts.handoffs import InterviewQuestionResult
+
+    base = {
+        "id": "q-snippet",
+        "intent": "ASK",
+        "control": "FREE_TEXT",
+        "prompt": "What provider does this gateway invoke?",
+        "snippetRef": {
+            "snapshot_id": "snapshot-1",
+            "commit_sha": "abc123",
+            "file_path": "src/gateway.ts",
+            "start_line": 10,
+            "end_line": 16,
+            "evidence_hash": "sha256:" + "a" * 64,
+            "snippet_policy": "PINNED_SNAPSHOT_BOUNDED_REDACTED_V1",
+        },
+    }
+    question = InterviewQuestionResult.model_validate(base)
+    assert question.snippetRef is not None
+    assert question.snippetRef.file_path == "src/gateway.ts"
+
+    with pytest.raises(ValueError):
+        InterviewQuestionResult.model_validate(
+            {**base, "snippetRef": {**base["snippetRef"], "raw_source": "secret"}}
+        )
+    with pytest.raises(ValueError):
+        InterviewQuestionResult.model_validate(
+            {**base, "snippetRef": {**base["snippetRef"], "end_line": 17}}
+        )
+
+
 def test_investigator_prompt_requires_seeded_flow_trace_before_closure() -> None:
     investigator_prompt = str(
         next(item for item in FLOW_SUBAGENTS if item["name"] == "investigator")[

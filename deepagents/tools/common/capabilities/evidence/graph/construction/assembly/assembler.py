@@ -7,6 +7,7 @@ from typing import Iterable
 from tools.common.capabilities.evidence.scanner.dependencies.dependency_fact import normalize_package_name
 
 from tools.common.capabilities.evidence.graph.lineage.ai.ai_invocation_gate import AIInvocationSemanticGate
+from tools.common.capabilities.evidence.graph.lineage.ai.ai_discovery import AIDiscoveryEnricher
 from tools.common.capabilities.evidence.graph.lineage.ai.ai_lifecycle import AILifecycleExtractor
 from tools.common.capabilities.evidence.graph.resolution.boundary.api_boundary_resolution import ApiBoundaryResolver
 from tools.common.capabilities.evidence.graph.construction.assembly.builder import ProgramGraphBuilder
@@ -74,8 +75,9 @@ class ProgramGraphAssembler:
         config_hash: str = "",
         project_discovery=None,
     ):
+        scoped_files = tuple(include_files) if include_files is not None else None
         program = RepositorySemanticExtractor(workspace_path).extract(
-            include_files=include_files
+            include_files=scoped_files
         )
         if semantic_program is not None:
             program.extend(semantic_program)
@@ -100,6 +102,13 @@ class ProgramGraphAssembler:
         # materialized so false provider/config/redaction calls cannot create derived
         # AI_OUTPUT nodes that later look corroborated to Planner/Investigator.
         AIInvocationSemanticGate().enrich(program)
+
+        # Resolve AI-relevant outbound API/config/control evidence while raw source is
+        # still available inside the ephemeral scanner workspace. Only bounded metadata
+        # (env names, hosts/paths, payload key hints and source anchors) is emitted.
+        AIDiscoveryEnricher(
+            workspace_path, include_files=scoped_files
+        ).enrich(program)
 
         # Normalize concrete repository evidence for model ownership/lifecycle before
         # data-lineage enrichment. Dependency presence alone is not a lifecycle stage.
@@ -297,6 +306,14 @@ class ProgramGraphAssembler:
         # pass cannot create AI lineage (lineage is already complete); it prevents broad
         # legacy finding categories from persisting under AI_MODEL_INVOCATION identity.
         AIInvocationSemanticGate().enrich(program)
+
+        # AI discovery has a source-seeding pass above, but the safety gate is finalized
+        # only after architecture, data-flow, protocol and additive dependency/finding
+        # edges exist. This allows bounded deterministic PGE traversal across parameters,
+        # helpers/DI, config objects, GraphQL/gRPC and cross-module/service continuations.
+        AIDiscoveryEnricher(
+            workspace_path, include_files=scoped_files
+        ).finalize(program)
 
         # High-recall extractors and legacy technical findings may use broad lexical
         # categories. Normalize them only after every additive evidence source has been

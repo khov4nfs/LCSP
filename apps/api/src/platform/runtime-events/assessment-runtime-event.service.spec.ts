@@ -421,6 +421,52 @@ describe("AssessmentRuntimeEventService", () => {
     ]);
   });
 
+  it("records waiting-input on a caller transaction without nesting", async () => {
+    const assessmentRuntimeEvent = {
+      findFirst: jest
+        .fn<(args: unknown) => Promise<{ sequence: number } | null>>()
+        .mockResolvedValue({ sequence: 6 }),
+      create: jest
+        .fn<(args: unknown) => Promise<Record<string, never>>>()
+        .mockResolvedValue({}),
+    };
+    const tx = { assessmentRuntimeEvent };
+    const prisma = {
+      $transaction: jest.fn(),
+    };
+    const service = new AssessmentRuntimeEventService(prisma as never);
+
+    await service.recordToolWaitingInput(
+      {
+        assessmentId: "assessment-1",
+        runId: "run-1",
+        correlationId: "corr-1",
+        stage: ASSESSMENT_RUNTIME_STAGE_CODES.interview,
+        toolName: "interview",
+        summary: "Waiting for Customer input.",
+        waitingReason: "INTERVIEW_STARTED",
+      },
+      tx as never,
+    );
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(assessmentRuntimeEvent.findFirst).toHaveBeenCalledWith({
+      where: { runId: "run-1" },
+      orderBy: [{ sequence: "desc" }],
+      select: { sequence: true },
+    });
+    expect(assessmentRuntimeEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        assessmentId: "assessment-1",
+        runId: "run-1",
+        sequence: 7,
+        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.toolWaitingInput,
+        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
+        waitingReason: "INTERVIEW_STARTED",
+      }),
+    });
+  });
+
   it("records scanner-worker runtime events using scan-job tenant context", async () => {
     const assessmentRuntimeEvent = {
       findFirst: jest.fn().mockImplementation(() => Promise.resolve(null)),
