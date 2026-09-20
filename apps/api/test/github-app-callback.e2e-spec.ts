@@ -18,7 +18,7 @@ import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
 import { AppModule } from "../src/app.module.js";
-import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
+import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
 import type { GitHubAppCallbackDto } from "../src/modules/github-integration/application/contracts/github-integration/github-app-callback.contract.js";
 import type { GitHubAppStartDto } from "../src/modules/github-integration/application/contracts/github-integration/github-app-start.contract.js";
 import {

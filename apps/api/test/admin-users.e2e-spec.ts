@@ -21,7 +21,7 @@ import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
 import { ConfigModule } from "@nestjs/config";
-import { AuthWorkspaceModule } from "../src/modules/auth-workspace/auth-workspace.module.js";
+import { AuthModule } from "../src/modules/auth/auth.module.js";
 import { RbacModule } from "../src/platform/rbac/rbac.module.js";
 import { MailModule } from "../src/platform/mail/mail.module.js";
 import { ProblemExceptionFilter } from "../src/platform/problems/problem-exception.filter.js";
@@ -34,7 +34,7 @@ import {
   resetAuthWorkspaceDatabase,
   seedAuthWorkspaceFixture,
 } from "./support/auth-workspace-test-helpers.js";
-import { hashSecret } from "../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import { createAuthSessionRecord } from "./support/auth-record-test-helpers.js";
 
 describe("Admin User Management API (e2e)", () => {
@@ -61,7 +61,7 @@ describe("Admin User Management API (e2e)", () => {
       imports: [
         ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
         MailModule,
-        AuthWorkspaceModule,
+        AuthModule,
         RbacModule,
       ],
       providers: [
@@ -317,7 +317,7 @@ describe("Admin User Management API (e2e)", () => {
 
       // 2. Verify target user can access protected route initially
       const initRes = await httpRequest(app)
-        .get("/workspace")
+        .get("/auth/profile")
         .set("Authorization", `Bearer ${targetSessionToken}`)
         .set("Accept", "application/json");
       assert.equal(initRes.status, 200);
@@ -336,7 +336,7 @@ describe("Admin User Management API (e2e)", () => {
 
       // 4. Verify target user's session is revoked and protected access returns 401
       const postSuspendRes = await httpRequest(app)
-        .get("/workspace")
+        .get("/auth/profile")
         .set("Authorization", `Bearer ${targetSessionToken}`)
         .set("Accept", "application/json");
 

@@ -7,10 +7,12 @@ import {
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 
-import type { AuthorizationDecisionRepository } from "../../modules/auth-workspace/application/ports/persistence/authorization-decision.repository.js";
-import { Session } from "../../modules/auth-workspace/domain/entities/session.entity.js";
-import { User } from "../../modules/auth-workspace/domain/entities/user.entity.js";
-import type { AuthorizationDecision } from "../../modules/auth-workspace/domain/models/auth-workspace.models.js";
+import type {
+  AuthorizationDecision,
+  AuthorizationDecisionRepository,
+} from "./authorization-decision.repository.js";
+import { Session } from "../../modules/auth/domain/entities/session.entity.js";
+import { User } from "../../modules/auth/domain/entities/user.entity.js";
 import { RequireRoles } from "./decorators/require-roles.decorator.js";
 import { RequireSession } from "./decorators/require-session.decorator.js";
 import type { RbacRequestContext } from "./interfaces/rbac-request.interface.js";

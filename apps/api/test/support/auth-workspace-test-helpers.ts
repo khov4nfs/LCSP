@@ -24,7 +24,7 @@ import {
   generateTotpSecret,
   hashSecret,
   totpForTime,
-} from "../../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+} from "../../src/modules/auth/infrastructure/security/security.utils.js";
 
 import { createAuthSessionRecord } from "./auth-record-test-helpers.js";
 

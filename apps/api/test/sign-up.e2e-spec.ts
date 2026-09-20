@@ -11,23 +11,14 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
-import type { SignUpResponse } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-up.contract.js";
+import type { AuthProfileSuccess } from "../src/modules/auth/application/contracts/auth/settings.contract.js";
+import type { SignUpResponse } from "../src/modules/auth/application/contracts/auth/sign-up.contract.js";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 import {
   TEST_DATABASE_URL,
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
 } from "./support/auth-workspace-test-helpers.js";
-
-type WorkspaceBody = {
-  ok: true;
-  user_id: string;
-  display_name: string;
-  role: string;
-  session_expires_at: string;
-  mfa_verified: boolean;
-  correlationId: string;
-};
 
 describe("Self sign-up endpoint (e2e)", () => {
   let app: INestApplication;
@@ -94,19 +85,19 @@ describe("Self sign-up endpoint (e2e)", () => {
     assert.ok(session.expiresAt);
     assert.equal(Number.isNaN(session.expiresAt.getTime()), false);
 
-    const workspace = await httpRequest(app)
-      .get("/workspace")
+    const profile = await httpRequest(app)
+      .get("/auth/profile")
       .set("Authorization", `Bearer ${body.session_token}`)
       .expect(200);
-    const workspaceBody = successBody<WorkspaceBody>(workspace);
-    assert.equal(workspaceBody.user_id, body.user_id);
-    assert.equal(workspaceBody.display_name, "New Manager");
-    assert.equal(workspaceBody.role, AUTH_USER_ROLES.customer);
+    const profileBody = successBody<AuthProfileSuccess>(profile);
+    assert.equal(profileBody.user_id, body.user_id);
+    assert.equal(profileBody.display_name, "New Manager");
+    assert.equal(profileBody.role, AUTH_USER_ROLES.customer);
     assert.equal(
-      Number.isNaN(Date.parse(workspaceBody.session_expires_at)),
+      Number.isNaN(Date.parse(profileBody.current_session_expires_at)),
       false,
     );
-    assert.equal(workspaceBody.mfa_verified, false);
+    assert.equal(profileBody.mfa_verified, false);
   });
 
   it("rejects duplicate email registration", async () => {

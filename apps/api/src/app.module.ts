@@ -15,7 +15,7 @@ import { BillingModule } from "./modules/billing/billing.module.js";
 import { AppFeatureModule } from "./modules/app/app.module.js";
 import { AssessmentModule } from "./modules/assessment/assessment.module.js";
 import { AuditModule as AuditFeatureModule } from "./modules/audit/audit.module.js";
-import { AuthWorkspaceModule } from "./modules/auth-workspace/auth-workspace.module.js";
+import { AuthModule } from "./modules/auth/auth.module.js";
 import { ClassificationModule } from "./modules/classification/classification.module.js";
 import { EvidenceModule } from "./modules/evidence/evidence.module.js";
 
@@ -105,7 +105,7 @@ function findUpwards(
     AIUsageFlowModule,
     BillingModule,
     AppFeatureModule,
-    AuthWorkspaceModule,
+    AuthModule,
     AssessmentModule,
     EvidenceModule,
     DocumentModule,

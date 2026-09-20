@@ -8,12 +8,12 @@ import {
 } from "@lcsp/contracts/rbac";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 
-import type { AuthorizationDecisionRepository } from "../../modules/auth-workspace/application/ports/persistence/authorization-decision.repository.js";
-import type { UserRepository } from "../../modules/auth-workspace/application/ports/persistence/user.repository.js";
 import {
-  PrismaAuthorizationDecisionRepository,
-  PrismaUserRepository,
-} from "../../modules/auth-workspace/infrastructure/persistence/prisma-auth-workspace.repositories.js";
+  AUTH_USER_REPOSITORY,
+  type UserRepository,
+} from "../../modules/auth/application/ports/persistence/index.js";
+import type { AuthorizationDecisionRepository } from "./authorization-decision.repository.js";
+import { PrismaAuthorizationDecisionRepository } from "./prisma-authorization-decision.repository.js";
 export interface RbacPreflightInput {
   userId: string;
   requiredRoles: readonly AuthUserRole[];
@@ -33,7 +33,7 @@ export class RbacPreflightService {
   private readonly logger = new Logger(RbacPreflightService.name);
 
   constructor(
-    @Inject(PrismaUserRepository)
+    @Inject(AUTH_USER_REPOSITORY)
     private readonly users: UserRepository,
     @Inject(PrismaAuthorizationDecisionRepository)
     private readonly decisions: AuthorizationDecisionRepository,

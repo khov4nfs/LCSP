@@ -15,8 +15,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { Prisma, PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
-import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
-import { hashSecret } from "../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
+import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import type { EvidenceDetailDto } from "../src/modules/evidence/application/contracts/evidence/evidence-detail.contract.js";
 import {
   TEST_DATABASE_URL,
