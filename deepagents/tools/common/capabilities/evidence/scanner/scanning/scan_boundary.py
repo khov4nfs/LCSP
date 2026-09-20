@@ -4,7 +4,7 @@ import hashlib
 import json
 import platform
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
@@ -28,6 +28,16 @@ from tools.common.capabilities.evidence.scanner.analyzers.ai_invocation.ai_patte
 from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import (
     PythonAnalysisResult,
 )
+from tools.common.capabilities.evidence.scanner.analyzers.ruby_analysis.ruby_analyzer import (
+    RubyAnalysisResult,
+)
+from tools.common.capabilities.evidence.scanner.analyzers.csharp_analysis.csharp_analyzer import (
+    CSharpAnalysisResult,
+)
+from tools.common.capabilities.evidence.scanner.frameworks import (
+    FrameworkAdapterRegistry,
+    FrameworkAnalysisResult,
+)
 from tools.common.capabilities.evidence.scanner.dependencies.dependency_normalizer import DependencyNormalizer
 from tools.common.capabilities.evidence.scanner.assembly.evidence_assembler import (
     EvidenceAssembler,
@@ -38,6 +48,7 @@ from tools.common.capabilities.evidence.scanner.inventory.language.language_clas
 from tools.common.capabilities.evidence.scanner.parsers.structural.structural_augmentor import StructuralAugmentor
 from tools.common.capabilities.evidence.scanner.parsers.structural.structural_types import StructuralFact
 from tools.common.capabilities.evidence.graph.construction.assembly.assembler import ProgramGraphAssembler
+from tools.common.capabilities.evidence.graph.schema.semantic_ir import SemanticProgram
 from tools.common.capabilities.evidence.scanner.evidence.finalization.terminal_state_handler import (
     CleanupBlockedError,
     verify_workspace_cleanup_sync,
@@ -69,6 +80,21 @@ from tools.common.capabilities.evidence.scanner.tools.common.tool_base import (
     ToolExecutionResult,
 )
 from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge_types import TsJsBridgeResult
+from tools.common.capabilities.evidence.scanner.analyzers.registry import LanguageAnalyzerRegistry
+from tools.common.capabilities.evidence.scanner.inventory.project import (
+    AnalyzerExecutionUnit,
+    ProjectDiscovery,
+    ProjectDiscoveryResult,
+    ProjectExecutionPlan,
+    ProjectExecutionPlanner,
+    ProjectLanguageResult,
+    aggregate_project_results,
+)
+from tools.common.capabilities.evidence.scanner.analyzers.protocol import (
+    ANALYZER_FAILED,
+    ANALYZER_PARTIAL,
+    ANALYZER_SUCCESS,
+)
 from tools.common.capabilities.evidence.scanner.snapshot.workspace import (
     ArchiveMaterializationError,
     ScannerWorkspace,
@@ -215,10 +241,18 @@ class ScanBoundary(AgentBoundaryBase):
         self._knip_tool = knip_tool or KnipTool()
         self._deptry_tool = deptry_tool or DeptryTool()
         self._language_classifier = language_classifier or LanguageClassifier()
-        self._analyzer_router = analyzer_router or AnalyzerRouter()
         self._dependency_normalizer = dependency_normalizer or DependencyNormalizer()
         self._ts_js_bridge_factory = ts_js_bridge_factory or (
             lambda workspace_path: TsJsBridge(workspace=workspace_path)
+        )
+        self._language_analyzer_registry = LanguageAnalyzerRegistry.default(
+            self._ts_js_bridge_factory
+        )
+        self._project_discovery = ProjectDiscovery()
+        self._project_execution_planner = ProjectExecutionPlanner()
+        self._framework_registry = FrameworkAdapterRegistry.default()
+        self._analyzer_router = analyzer_router or AnalyzerRouter(
+            semantic_registry=self._language_analyzer_registry
         )
         self._ai_invocation_detector = ai_invocation_detector or AIInvocationDetector()
         self._api_client = api_client or WorkerApiClient(
@@ -239,6 +273,8 @@ class ScanBoundary(AgentBoundaryBase):
                 knip_tool=self._knip_tool,
                 deptry_tool=self._deptry_tool,
                 ts_js_bridge_factory=self._ts_js_bridge_factory,
+                language_analyzer_registry=self._language_analyzer_registry,
+                project_discovery=self._project_discovery,
                 structural_augmentor=self._structural_augmentor,
                 evidence_graph_assembler=self._evidence_graph_assembler,
             )
@@ -361,6 +397,14 @@ class ScanBoundary(AgentBoundaryBase):
             routed_python_files: list[str] = []
             routed_ts_js_files: list[str] = []
             routed_basic_files: list[str] = []
+            project_plan = ProjectExecutionPlan()
+            project_discovery = ProjectDiscoveryResult()
+            project_language_results: list[ProjectLanguageResult] = []
+            project_scan_results = ()
+            ruby_results: list[RubyAnalysisResult] = []
+            ruby_results_by_project: dict[str, RubyAnalysisResult] = {}
+            csharp_results_by_project: dict[str, CSharpAnalysisResult] = {}
+            framework_results: list[FrameworkAnalysisResult] = []
             execution_plan = self._execution_planner.build(
                 [], targeted=targeted_plan is not None
             )
@@ -385,6 +429,24 @@ class ScanBoundary(AgentBoundaryBase):
                         if targeted_plan.includes(classification.file_path)
                     ]
                 dispatch = self._analyzer_router.route(classifications)
+                project_discovery = self._project_discovery.discover(
+                    result.workspace_path,
+                    classifications=classifications,
+                )
+                project_plan = self._project_execution_planner.build(
+                    result.workspace_path,
+                    project_discovery,
+                    classifications,
+                    self._language_analyzer_registry,
+                )
+                logger.info(
+                    "SCAN_PROJECTS_DISCOVERED",
+                    project_count=len(project_discovery.projects),
+                    execution_unit_count=len(project_plan.units),
+                    limitation_count=len(project_discovery.limitations),
+                    unowned_file_count=len(project_discovery.unowned_files),
+                )
+                project_language_results.extend(project_plan.non_semantic_results)
                 execution_plan = self._execution_planner.build(
                     classifications, targeted=targeted_plan is not None
                 )
@@ -648,11 +710,41 @@ class ScanBoundary(AgentBoundaryBase):
                     input_summary={"filesQueued": len(routed_ts_js_files)},
                     started_at=ts_js_started_at,
                 )
-                ts_js_analysis = self._run_scanner_tool(
-                    "run_ts_js_semantic_analysis",
-                    workspace_path=result.workspace_path,
-                    include_files=routed_ts_js_files,
-                )
+                ts_js_results = []
+                for unit in project_plan.units:
+                    if unit.analyzer != "ts_js":
+                        continue
+                    try:
+                        native = self._run_scanner_tool(
+                            "run_ts_js_semantic_analysis",
+                            workspace_path=result.workspace_path,
+                            include_files=list(unit.files),
+                            project_id=unit.project_id,
+                            project_root=str(unit.project_root),
+                        )
+                    except Exception as error:
+                        project_language_results.append(
+                            self._failed_project_language_result(unit, error)
+                        )
+                        continue
+                    if native is not None:
+                        ts_js_results.append(native)
+                        project_language_results.append(
+                            self._ts_js_project_language_result(unit, native)
+                        )
+                ts_js_analysis = self._merge_ts_js_results(ts_js_results)
+                if not ts_js_results:
+                    ts_js_analysis = TsJsBridgeResult(
+                        files_analyzed=0,
+                        files_skipped=0,
+                        findings=[],
+                        unsupported_dynamic_flows=[],
+                        coverage_limitations=[],
+                        analyzer_version=NOT_RUN_VERSION,
+                        execution=self._register_skipped_tool(
+                            tool_registry, execution_plan, "ts_morph"
+                        ),
+                    )
                 self._record_tool_execution(
                     tool_registry,
                     ts_js_analysis.execution,
@@ -688,6 +780,236 @@ class ScanBoundary(AgentBoundaryBase):
                 sbom_entries=syft_result.entries,
                 usage_facts=[*knip_result.facts, *deptry_result.facts],
             )
+            for unit in project_plan.units:
+                if unit.analyzer != "ruby":
+                    continue
+                try:
+                    native = self._run_scanner_tool(
+                        "run_ruby_semantic_analysis",
+                        workspace_path=result.workspace_path,
+                        include_files=list(unit.files),
+                        project_id=unit.project_id,
+                        project_root=str(unit.project_root),
+                    )
+                except Exception as error:
+                    project_language_results.append(
+                        self._failed_project_language_result(unit, error)
+                    )
+                    continue
+                if native is not None:
+                    ruby_results.append(native)
+                    ruby_results_by_project[unit.project_id] = native
+                    project_language_results.append(
+                        self._ruby_project_language_result(unit, native)
+                    )
+            ruby_program = SemanticProgram()
+            ruby_dependencies = []
+            ruby_findings = []
+            ruby_limitations = []
+            for native in ruby_results:
+                ruby_program.extend(native.semantic_program)
+                ruby_dependencies.extend(native.package_dependencies)
+                ruby_findings.extend(native.findings)
+                ruby_limitations.extend(native.coverage_limitations)
+            csharp_program = SemanticProgram()
+            csharp_dependencies = []
+            csharp_limitations = []
+            for unit in project_plan.units:
+                if unit.analyzer != "csharp":
+                    continue
+                try:
+                    native = self._run_scanner_tool(
+                        "run_csharp_semantic_analysis",
+                        workspace_path=result.workspace_path,
+                        include_files=list(unit.files),
+                        project_id=unit.project_id,
+                        project_root=str(unit.project_root),
+                    )
+                except Exception as error:
+                    project_language_results.append(
+                        self._failed_project_language_result(unit, error)
+                    )
+                    continue
+                if native is not None:
+                    csharp_results_by_project[unit.project_id] = native
+                    csharp_program.extend(native.semantic_program)
+                    csharp_dependencies.extend(native.package_dependencies)
+                    csharp_limitations.extend(native.coverage_limitations)
+                    project_language_results.append(
+                        self._csharp_project_language_result(unit, native)
+                    )
+            jvm_program = SemanticProgram()
+            jvm_dependencies = []
+            jvm_results_by_project = {}
+            for unit in project_plan.units:
+                if unit.analyzer not in {"java", "kotlin"}:
+                    continue
+                tool_name = "run_java_semantic_analysis" if unit.analyzer == "java" else "run_kotlin_semantic_analysis"
+                try:
+                    native = self._run_scanner_tool(
+                        tool_name,
+                        workspace_path=result.workspace_path,
+                        include_files=list(unit.files),
+                        project_id=unit.project_id,
+                        project_root=str(unit.project_root),
+                    )
+                except Exception as error:
+                    project_language_results.append(self._failed_project_language_result(unit, error))
+                    continue
+                if native is not None:
+                    jvm_results_by_project[(unit.project_id, unit.analyzer)] = native
+                    jvm_program.extend(native.semantic_program)
+                    jvm_dependencies.extend(native.package_dependencies)
+                    project_language_results.append(self._csharp_project_language_result(unit, native))
+            php_program = SemanticProgram()
+            php_dependencies = []
+            php_results_by_project = {}
+            for unit in project_plan.units:
+                if unit.analyzer != "php":
+                    continue
+                try:
+                    native = self._run_scanner_tool(
+                        "run_php_semantic_analysis",
+                        workspace_path=result.workspace_path,
+                        include_files=list(unit.files),
+                        project_id=unit.project_id,
+                        project_root=str(unit.project_root),
+                    )
+                except Exception as error:
+                    project_language_results.append(self._failed_project_language_result(unit, error))
+                    continue
+                if native is not None:
+                    php_results_by_project[unit.project_id] = native
+                    php_program.extend(native.semantic_program)
+                    php_dependencies.extend(native.package_dependencies)
+                    project_language_results.append(self._csharp_project_language_result(unit, native))
+            package_dependencies.extend(php_dependencies)
+            systems_program = SemanticProgram()
+            systems_dependencies = []
+            for unit in project_plan.units:
+                if unit.analyzer not in {"go", "rust"}: continue
+                tool_name = "run_go_semantic_analysis" if unit.analyzer == "go" else "run_rust_semantic_analysis"
+                try:
+                    native = self._run_scanner_tool(tool_name, workspace_path=result.workspace_path, include_files=list(unit.files), project_id=unit.project_id, project_root=str(unit.project_root))
+                except Exception as error:
+                    project_language_results.append(self._failed_project_language_result(unit, error)); continue
+                if native is not None:
+                    systems_program.extend(native.semantic_program); systems_dependencies.extend(native.package_dependencies)
+                    project_language_results.append(self._project_language_result(unit, native))
+            package_dependencies.extend(systems_dependencies)
+            package_dependencies.extend(jvm_dependencies)
+            mobile_program = SemanticProgram()
+            mobile_dependencies = []
+            mobile_results_by_project = {}
+            mobile_tools = {"swift": "run_swift_semantic_analysis", "objc": "run_objc_semantic_analysis", "dart": "run_dart_semantic_analysis"}
+            for unit in project_plan.units:
+                if unit.analyzer not in mobile_tools:
+                    continue
+                try:
+                    native = self._run_scanner_tool(mobile_tools[unit.analyzer], workspace_path=result.workspace_path, include_files=list(unit.files), project_id=unit.project_id, project_root=str(unit.project_root))
+                except Exception as error:
+                    project_language_results.append(self._failed_project_language_result(unit, error)); continue
+                if native is not None:
+                    mobile_results_by_project[(unit.project_id, unit.analyzer)] = native
+                    mobile_program.extend(native.semantic_program)
+                    mobile_dependencies.extend(native.package_dependencies)
+                    project_language_results.append(self._project_language_result(unit, native))
+            package_dependencies.extend(mobile_dependencies)
+            # Remaining-language adapters are deliberately generic: structural
+            # languages and recognized-only languages are still project-scoped
+            # execution units and must reach the same result/graph aggregation path.
+            remaining_program = SemanticProgram()
+            remaining_languages = {
+                "scala", "elixir", "clojure", "c", "cpp", "shell", "powershell",
+                "sql", "lua", "r", "haskell", "solidity",
+            }
+            for unit in project_plan.units:
+                if unit.analyzer not in remaining_languages:
+                    continue
+                try:
+                    native = self._language_analyzer_registry.analyze(
+                        unit.language,
+                        result.workspace_path,
+                        list(unit.files),
+                    )
+                except Exception as error:
+                    project_language_results.append(self._failed_project_language_result(unit, error))
+                    continue
+                for fact in native.semantic_facts:
+                    remaining_program.add_node(fact)
+                limitations = tuple(native.coverage_limitations)
+                project_language_results.append(
+                    ProjectLanguageResult(
+                        project_id=unit.project_id,
+                        language=unit.language,
+                        analyzer=unit.analyzer,
+                        status=native.status,
+                        capabilities=unit.capabilities,
+                        files=unit.files,
+                        coverage_limitations=limitations,
+                    )
+                )
+            framework_detection_limitations: list[str] = []
+            framework_seen: set[tuple[str, str]] = set()
+            for project in project_discovery.projects:
+                ruby_result = ruby_results_by_project.get(project.project_id)
+                csharp_result = csharp_results_by_project.get(project.project_id)
+                jvm_results = [result for (project_id, _language), result in jvm_results_by_project.items() if project_id == project.project_id]
+                php_result = php_results_by_project.get(project.project_id)
+                mobile_results = [result for (project_id, _language), result in mobile_results_by_project.items() if project_id == project.project_id]
+                for language_result in (ruby_result, csharp_result, php_result, *jvm_results, *mobile_results):
+                    if language_result is None:
+                        continue
+                    detected_frameworks = self._framework_registry.detect(
+                        project, result.workspace_path, language_result
+                    )
+                    framework_detection_limitations.extend(
+                        self._framework_registry.detection_limitations
+                    )
+                    for framework in detected_frameworks:
+                        if (project.project_id, framework) in framework_seen:
+                            continue
+                        framework_seen.add((project.project_id, framework))
+                        framework_results.append(
+                            self._framework_registry.analyze(
+                                framework, project, result.workspace_path, language_result
+                            )
+                        )
+                # Python and TS/JS language results are still owned by their
+                # established native entrypoints.  Framework detection is
+                # nevertheless routed through the shared registry so legacy
+                # architecture resolvers have one registered production
+                # authority.  Their adapters consume bounded source evidence
+                # and reuse canonical symbol keys; no second language pass is
+                # introduced here.
+                semantic_languages = {
+                    unit.analyzer
+                    for unit in project_plan.units
+                    if unit.project_id == project.project_id
+                }
+                if semantic_languages & {"python", "javascript", "typescript", "ts_js"}:
+                    detected_frameworks = self._framework_registry.detect(
+                        project, result.workspace_path, None
+                    )
+                    framework_detection_limitations.extend(
+                        self._framework_registry.detection_limitations
+                    )
+                    for framework in detected_frameworks:
+                        if (project.project_id, framework) in framework_seen:
+                            continue
+                        framework_seen.add((project.project_id, framework))
+                        framework_results.append(
+                            self._framework_registry.analyze(
+                                framework, project, result.workspace_path, None
+                            )
+                        )
+            framework_program = SemanticProgram()
+            framework_limitations: list[str] = framework_detection_limitations
+            for framework_result in framework_results:
+                framework_program.extend(framework_result.semantic_program)
+                framework_limitations.extend(framework_result.coverage_limitations)
+            package_dependencies.extend(csharp_dependencies)
+            ruby_limitations.extend(csharp_limitations)
             if execution_plan.should_run(APPROVED_TOOL_NAMES["python_ast"]):
                 python_started_at = self._utc_timestamp()
                 self._emit_runtime_event(
@@ -699,11 +1021,38 @@ class ScanBoundary(AgentBoundaryBase):
                     input_summary={"filesQueued": len(routed_python_files)},
                     started_at=python_started_at,
                 )
-                python_analysis = self._run_scanner_tool(
-                    "run_python_semantic_analysis",
-                    workspace_path=result.workspace_path,
-                    include_files=routed_python_files,
-                )
+                python_results = []
+                for unit in project_plan.units:
+                    if unit.analyzer != "python":
+                        continue
+                    try:
+                        native = self._run_scanner_tool(
+                            "run_python_semantic_analysis",
+                            workspace_path=result.workspace_path,
+                            include_files=list(unit.files),
+                            project_id=unit.project_id,
+                            project_root=str(unit.project_root),
+                        )
+                    except Exception as error:
+                        project_language_results.append(
+                            self._failed_project_language_result(unit, error)
+                        )
+                        continue
+                    if native is not None:
+                        python_results.append(native)
+                        project_language_results.append(
+                            self._python_project_language_result(unit, native)
+                        )
+                python_analysis = self._merge_python_results(python_results)
+                if not python_results:
+                    python_analysis = PythonAnalysisResult(
+                        files_analyzed=0,
+                        files_skipped=0,
+                        ai_call_sites=[],
+                        import_map={},
+                        unsupported_dynamic_flows=[],
+                        coverage_limitation=True,
+                    )
                 python_ended_at = self._utc_timestamp()
                 python_limitations = (
                     list(python_analysis.coverage_limitations)
@@ -766,6 +1115,20 @@ class ScanBoundary(AgentBoundaryBase):
                         execution_plan,
                         tool_key,
                     )
+            project_scan_results = aggregate_project_results(
+                project_discovery.projects,
+                project_language_results,
+                limitations=[
+                    item.get("reason", "")
+                    for item in classification_limitations
+                    if item.get("reason")
+                ],
+            )
+            logger.info(
+                "SCAN_PROJECT_RESULTS_AGGREGATED",
+                project_count=len(project_scan_results),
+                language_result_count=len(project_language_results),
+            )
             technical_findings = self._ai_invocation_detector.detect(
                 semgrep_result=semgrep_result,
                 python_analysis=python_analysis,
@@ -780,15 +1143,45 @@ class ScanBoundary(AgentBoundaryBase):
                     *( [ts_js_analysis.execution] if ts_js_analysis is not None else [] ),
                 ],
             )
+            technical_findings.extend(ruby_findings)
+            package_dependencies.extend(ruby_dependencies)
             coverage_notes = self._coverage_notes(
                 result,
                 [
                     *classification_limitations,
+                    *[
+                        {"file_path": "", "reason": limitation}
+                        for limitation in project_discovery.limitations
+                    ],
+                    *[
+                        {
+                            "file_path": ",".join(item.files),
+                            "reason": (
+                                f"project={item.project_id} "
+                                f"language={item.language} status={item.status} "
+                                f"{limitation}"
+                            ),
+                        }
+                        for item in project_language_results
+                        if item.status != ANALYZER_SUCCESS
+                        for limitation in (
+                            item.coverage_limitations
+                            or (item.failure or "analysis unavailable",)
+                        )
+                    ],
                     *self._ts_js_coverage_limitations(
                         ts_js_analysis.coverage_limitations
                         if ts_js_analysis is not None
                         else []
                     ),
+                    *[
+                        {"file_path": "", "reason": limitation}
+                        for limitation in ruby_limitations
+                    ],
+                    *[
+                        {"file_path": "", "reason": limitation}
+                        for limitation in framework_limitations
+                    ],
                 ],
             )
             if targeted_plan is not None:
@@ -900,8 +1293,13 @@ class ScanBoundary(AgentBoundaryBase):
                 workspace_path=result.workspace_path,
                 technical_findings=technical_findings,
                 structural_facts=structural_facts,
+                semantic_program=self._merge_semantic_programs(
+                    ruby_program, csharp_program, jvm_program, php_program, systems_program,
+                    mobile_program, remaining_program, framework_program
+                ),
                 package_dependencies=package_dependencies,
                 coverage_notes=coverage_notes,
+                project_discovery=project_discovery,
             )
             graph_ended_at = self._utc_timestamp()
             self._emit_runtime_event(
@@ -1147,6 +1545,226 @@ class ScanBoundary(AgentBoundaryBase):
             **self._scanner_tool_result_summary(result),
         )
         return result
+
+    @staticmethod
+    def _unique_preserving(values):
+        unique = []
+        for value in values:
+            if value not in unique:
+                unique.append(value)
+        return unique
+
+    @staticmethod
+    def _merge_semantic_programs(*programs: SemanticProgram) -> SemanticProgram:
+        merged = SemanticProgram()
+        seen_nodes: set[str] = set()
+        seen_edges: set[tuple[str, str, str]] = set()
+        for program in programs:
+            for node in program.nodes:
+                if node.key not in seen_nodes:
+                    seen_nodes.add(node.key)
+                    merged.add_node(node)
+                else:
+                    # Framework adapters enrich language facts using the same
+                    # canonical key. Merge that metadata instead of dropping
+                    # the enrichment as a duplicate node.
+                    existing_index = next(
+                        index for index, item in enumerate(merged.nodes) if item.key == node.key
+                    )
+                    existing = merged.nodes[existing_index]
+                    merged.nodes[existing_index] = replace(
+                        existing,
+                        attributes={**existing.attributes, **node.attributes},
+                        semantic_types=tuple(sorted(set(existing.semantic_types + node.semantic_types))),
+                        evidence_refs=tuple(sorted(set(existing.evidence_refs + node.evidence_refs))),
+                        support_refs=tuple(sorted(set(existing.support_refs + node.support_refs))),
+                    )
+            for edge in program.edges:
+                key = (edge.edge_type, edge.source_key, edge.target_key)
+                if key not in seen_edges:
+                    seen_edges.add(key)
+                    merged.add_edge(edge)
+            merged.coverage_notes.extend(program.coverage_notes)
+            merged.unresolved_frontiers.extend(program.unresolved_frontiers)
+        merged.coverage_notes = sorted(set(merged.coverage_notes))
+        merged.unresolved_frontiers = sorted(set(merged.unresolved_frontiers))
+        return merged
+
+    @staticmethod
+    def _failed_project_language_result(
+        unit: AnalyzerExecutionUnit, error: Exception
+    ) -> ProjectLanguageResult:
+        error_name = type(error).__name__
+        if error_name in {"PrivacyAssertionError", "ProgramGraphValidationError"} or (
+            "Integrity" in error_name or "Validation" in error_name
+        ):
+            raise error
+        return ProjectLanguageResult(
+            project_id=unit.project_id,
+            language=unit.language,
+            analyzer=unit.analyzer,
+            status=ANALYZER_FAILED,
+            capabilities=unit.capabilities,
+            files=unit.files,
+            coverage_limitations=("analyzer execution failed",),
+            failure=f"{error_name}: {error}",
+        )
+
+    @staticmethod
+    def _python_project_language_result(
+        unit: AnalyzerExecutionUnit, native: PythonAnalysisResult
+    ) -> ProjectLanguageResult:
+        limitations = tuple(native.coverage_limitations)
+        status = (
+            ANALYZER_PARTIAL
+            if native.coverage_limitation or native.files_skipped or limitations
+            else ANALYZER_SUCCESS
+        )
+        return ProjectLanguageResult(
+            project_id=unit.project_id,
+            language=unit.language,
+            analyzer=unit.analyzer,
+            status=status,
+            capabilities=unit.capabilities,
+            files=unit.files,
+            coverage_limitations=limitations,
+        )
+
+    @staticmethod
+    def _ts_js_project_language_result(
+        unit: AnalyzerExecutionUnit, native: TsJsBridgeResult
+    ) -> ProjectLanguageResult:
+        limitations = tuple(item.reason for item in native.coverage_limitations)
+        failed = native.execution is not None and native.execution.outcome != OUTCOME_SUCCESS
+        status = ANALYZER_FAILED if failed else (
+            ANALYZER_PARTIAL
+            if native.files_skipped or limitations or native.unsupported_dynamic_flows
+            else ANALYZER_SUCCESS
+        )
+        return ProjectLanguageResult(
+            project_id=unit.project_id,
+            language=unit.language,
+            analyzer=unit.analyzer,
+            status=status,
+            capabilities=unit.capabilities,
+            files=unit.files,
+            coverage_limitations=limitations,
+            failure=native.stderr_preview if failed else None,
+        )
+
+    @staticmethod
+    def _ruby_project_language_result(
+        unit: AnalyzerExecutionUnit, native: RubyAnalysisResult
+    ) -> ProjectLanguageResult:
+        status = (
+            ANALYZER_PARTIAL
+            if native.files_skipped or native.coverage_limitations
+            else ANALYZER_SUCCESS
+        )
+        return ProjectLanguageResult(
+            project_id=unit.project_id,
+            language=unit.language,
+            analyzer=unit.analyzer,
+            status=status,
+            capabilities=unit.capabilities,
+            files=unit.files,
+            coverage_limitations=native.coverage_limitations,
+        )
+
+    @staticmethod
+    def _csharp_project_language_result(
+        unit: AnalyzerExecutionUnit, native: CSharpAnalysisResult
+    ) -> ProjectLanguageResult:
+        status = (
+            ANALYZER_PARTIAL
+            if native.files_skipped or native.coverage_limitations or native.unsupported_dynamic_flows
+            else ANALYZER_SUCCESS
+        )
+        return ProjectLanguageResult(
+            project_id=unit.project_id,
+            language=unit.language,
+            analyzer=unit.analyzer,
+            status=status,
+            capabilities=unit.capabilities,
+            files=unit.files,
+            coverage_limitations=native.coverage_limitations,
+        )
+
+    _project_language_result = _csharp_project_language_result
+
+    @staticmethod
+    def _merge_python_results(results: list[PythonAnalysisResult]) -> PythonAnalysisResult:
+        if not results:
+            return PythonAnalysisResult(
+                files_analyzed=0,
+                files_skipped=0,
+                ai_call_sites=[],
+                import_map={},
+                unsupported_dynamic_flows=[],
+                coverage_limitation=True,
+            )
+        return PythonAnalysisResult(
+            files_analyzed=sum(item.files_analyzed for item in results),
+            files_skipped=sum(item.files_skipped for item in results),
+            ai_call_sites=ScanBoundary._unique_preserving(
+                site for item in results for site in item.ai_call_sites
+            ),
+            import_map={
+                key: value
+                for item in results
+                for key, value in sorted(item.import_map.items())
+            },
+            unsupported_dynamic_flows=ScanBoundary._unique_preserving(
+                flow for item in results for flow in item.unsupported_dynamic_flows
+            ),
+            coverage_limitation=any(item.coverage_limitation for item in results),
+            coverage_limitations=sorted(
+                {limitation for item in results for limitation in item.coverage_limitations}
+            ),
+        )
+
+    @staticmethod
+    def _merge_ts_js_results(results: list[TsJsBridgeResult]) -> TsJsBridgeResult:
+        if not results:
+            return TsJsBridgeResult(
+                files_analyzed=0,
+                files_skipped=0,
+                findings=[],
+                unsupported_dynamic_flows=[],
+                coverage_limitations=[],
+                analyzer_version=NOT_RUN_VERSION,
+                execution=None,
+            )
+        first = results[0]
+        representative_execution = next(
+            (
+                item.execution
+                for item in results
+                if item.execution is not None
+                and item.execution.outcome == OUTCOME_SUCCESS
+            ),
+            first.execution,
+        )
+        return TsJsBridgeResult(
+            files_analyzed=sum(item.files_analyzed for item in results),
+            files_skipped=sum(item.files_skipped for item in results),
+            findings=ScanBoundary._unique_preserving(
+                finding for item in results for finding in item.findings
+            ),
+            unsupported_dynamic_flows=ScanBoundary._unique_preserving(
+                flow for item in results for flow in item.unsupported_dynamic_flows
+            ),
+            coverage_limitations=sorted(
+                {limitation for item in results for limitation in item.coverage_limitations},
+                key=lambda item: (item.file_path, item.reason),
+            ),
+            analyzer_version=first.analyzer_version,
+            execution=representative_execution,
+            schema_version=first.schema_version,
+            stderr_preview=next(
+                (item.stderr_preview for item in results if item.stderr_preview), None
+            ),
+        )
 
     @staticmethod
     def _scanner_tool_result_summary(result) -> dict[str, object]:

@@ -39,7 +39,7 @@ def test_graph_resolution_is_grouped_by_capability() -> None:
     )
 
     assert _dirs(resolution) == {"boundary", "framework", "architecture", "dispatch"}
-    assert _py(resolution) == set()
+    assert _py(resolution) == {"cross_project_resolution.py"}
     assert _py(resolution / "boundary") == {
         "api_boundary_resolution.py",
         "python_agent_boundary_resolution.py",

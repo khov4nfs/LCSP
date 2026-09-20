@@ -26,7 +26,18 @@ dependencies = [
   "psycopg[binary]==3.3.4",
   "urllib3>=2.2.0,<3.0.0",
   "libcst==1.8.6",
+  "tree-sitter==0.26.0",
+  "tree-sitter-ruby==0.23.1",
   "chromadb==1.5.5",
+  "tree-sitter-c-sharp==0.23.1",
+  "tree-sitter-java==0.23.5",
+  "tree-sitter-kotlin==1.1.0",
+  "tree-sitter-php==0.24.1",
+  "tree-sitter-go==0.25.0",
+  "tree-sitter-rust==0.24.2",
+  "tree-sitter-swift>=0.7.3",
+  "tree-sitter-objc>=3.0.2",
+  "tree-sitter-dart>=0.1.0",
 ]
 
 [project.optional-dependencies]

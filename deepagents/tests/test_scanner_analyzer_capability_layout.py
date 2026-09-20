@@ -29,13 +29,21 @@ def test_scanner_analyzers_are_grouped_by_capability() -> None:
     root = PROJECT_ROOT / "tools" / "common" / "capabilities" / "evidence" / "scanner" / "analyzers"
 
     assert _dirs(root) == {
+        "adapters",
         "ai_invocation",
+        "csharp_analysis",
         "decision_flow",
         "findings",
         "human_review",
+        "jvm_analysis",
+        "mobile_analysis",
+        "php_analysis",
+        "protocol",
         "python_analysis",
+        "ruby_analysis",
+        "systems_analysis",
     }
-    assert _py(root) == set()
+    assert _py(root) == {"registry.py"}
     assert _py(root / "ai_invocation") == {
         "ai_invocation_detector.py",
         "ai_pattern_rules.py",

@@ -21,6 +21,7 @@ from tools.common.capabilities.evidence.graph.resolution.framework.framework_met
     normalize_framework_binding_metadata,
 )
 from tools.common.capabilities.evidence.graph.resolution.framework.framework_resolution import FrameworkBoundaryResolver
+from tools.common.capabilities.evidence.graph.resolution.cross_project_resolution import CrossReferenceResolver
 from tools.common.capabilities.evidence.graph.resolution.dispatch.generic_dispatch_resolution import GenericDispatchResolver
 from tools.common.capabilities.evidence.graph.resolution.architecture.javascript_architecture_resolution import (
     JavaScriptArchitectureResolver,
@@ -67,14 +68,19 @@ class ProgramGraphAssembler:
         package_dependencies: Iterable[object] = (),
         technical_findings: Iterable[object] = (),
         structural_facts: Iterable[object] = (),
+        semantic_program=None,
         coverage_notes: Iterable[str] = (),
         include_files: Iterable[str] | None = None,
         config_hash: str = "",
+        project_discovery=None,
     ):
         program = RepositorySemanticExtractor(workspace_path).extract(
             include_files=include_files
         )
+        if semantic_program is not None:
+            program.extend(semantic_program)
         program.extend(FrameworkBoundaryExtractor(workspace_path).extract())
+        CrossReferenceResolver().enrich(program, workspace_path, project_discovery)
 
         # Framework identities are continuation boundaries, never silent endpoints.
         # Resolve known framework families first, then run a conservative literal-key

@@ -13,6 +13,10 @@ from .language_types import (
     LANGUAGE_OTHER,
     LANGUAGE_PYTHON,
     LANGUAGE_RUST,
+    LANGUAGE_RUBY,
+    LANGUAGE_SWIFT,
+    LANGUAGE_OBJECTIVE_C,
+    LANGUAGE_DART,
     LANGUAGE_TYPESCRIPT,
     LANGUAGE_UNKNOWN,
     LANGUAGE_YAML,
@@ -36,6 +40,16 @@ EXCLUDED_DIR_NAMES = {
     "dist",
     "build",
     ".tox",
+    # Dependency and tool-managed output directories with an unambiguous role
+    # are not first-party source.  Generic product-domain names such as
+    # ``artifacts`` and ``cache`` intentionally do not belong here: a path
+    # segment alone cannot establish that a directory is generated output.
+    "vendor",
+    "target",
+    "generated",
+    "Pods",
+    "DerivedData",
+    ".dart_tool",
 }
 
 BINARY_EXTENSIONS = {
@@ -66,6 +80,17 @@ BINARY_EXTENSIONS = {
     ".jar",
     ".pyc",
 }
+
+
+def is_excluded_source_path(relative_path: str) -> bool:
+    """Apply source-role governance consistently before analyzer execution."""
+    parts = relative_path.split("/")
+    for part in parts:
+        if part in EXCLUDED_DIR_NAMES:
+            return True
+        if part.endswith(".egg-info"):
+            return True
+    return False
 
 DOC_EXTENSIONS = {".md", ".rst", ".txt"}
 
@@ -248,6 +273,17 @@ class LanguageClassifier:
                 coverage_limitation=False,
             )
 
+        if suffix == ".rb":
+            return LanguageClassification(
+                file_path=relative_path,
+                language=LANGUAGE_RUBY,
+                support_level=SUPPORT_FULL,
+                file_size_bytes=file_size,
+                line_count=line_count,
+                skip_reason=None,
+                coverage_limitation=False,
+            )
+
         basic_language = {
             ".java": LANGUAGE_JAVA,
             ".kt": LANGUAGE_KOTLIN,
@@ -255,8 +291,22 @@ class LanguageClassifier:
             ".go": LANGUAGE_GO,
             ".cs": LANGUAGE_CSHARP,
             ".rs": LANGUAGE_RUST,
+            ".swift": LANGUAGE_SWIFT,
+            ".m": LANGUAGE_OBJECTIVE_C,
+            ".mm": LANGUAGE_OBJECTIVE_C,
+            ".dart": LANGUAGE_DART,
         }.get(suffix)
         if basic_language is not None:
+            if basic_language in {LANGUAGE_CSHARP, LANGUAGE_SWIFT, LANGUAGE_OBJECTIVE_C, LANGUAGE_DART}:
+                return LanguageClassification(
+                    file_path=relative_path,
+                    language=basic_language,
+                    support_level=SUPPORT_FULL,
+                    file_size_bytes=file_size,
+                    line_count=line_count,
+                    skip_reason=None,
+                    coverage_limitation=False,
+                )
             return LanguageClassification(
                 file_path=relative_path,
                 language=basic_language,
@@ -276,6 +326,42 @@ class LanguageClassifier:
                 line_count=line_count,
                 skip_reason=None,
                 coverage_limitation=False,
+            )
+
+        remaining_language = {
+            ".scala": "scala",
+            ".ex": "elixir",
+            ".exs": "elixir",
+            ".clj": "clojure",
+            ".cljs": "clojure",
+            ".cljc": "clojure",
+            ".c": "c",
+            ".h": "c",
+            ".cc": "cpp",
+            ".cpp": "cpp",
+            ".cxx": "cpp",
+            ".hpp": "cpp",
+            ".hh": "cpp",
+            ".sh": "shell",
+            ".bash": "shell",
+            ".zsh": "shell",
+            ".ps1": "powershell",
+            ".psm1": "powershell",
+            ".sql": "sql",
+            ".lua": "lua",
+            ".r": "r",
+            ".hs": "haskell",
+            ".sol": "solidity",
+        }.get(suffix)
+        if remaining_language is not None:
+            return LanguageClassification(
+                file_path=relative_path,
+                language=remaining_language,
+                support_level=SUPPORT_FULL,
+                file_size_bytes=file_size,
+                line_count=line_count,
+                skip_reason=None,
+                coverage_limitation=remaining_language not in {"c", "cpp", "shell", "powershell", "sql", "solidity"},
             )
 
         if suffix == ".json":
@@ -339,13 +425,7 @@ class LanguageClassifier:
         )
 
     def _is_excluded(self, relative_path: str) -> bool:
-        parts = relative_path.split("/")
-        for part in parts:
-            if part in EXCLUDED_DIR_NAMES:
-                return True
-            if part.endswith(".egg-info"):
-                return True
-        return False
+        return is_excluded_source_path(relative_path)
 
     def _is_binary(self, file_path: Path) -> bool:
         try:

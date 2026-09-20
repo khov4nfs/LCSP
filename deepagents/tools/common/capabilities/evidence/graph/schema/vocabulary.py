@@ -154,6 +154,7 @@ EDGE_TYPES = frozenset(
         "THROWS",
         "CATCHES",
         "CALLS_API",
+        "NAVIGATES_TO",
         "HANDLED_BY",
         "PUBLISHES_EVENT",
         "CONSUMES_EVENT",

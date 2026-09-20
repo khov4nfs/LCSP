@@ -8,7 +8,7 @@ from tools.common.capabilities.agentic_evidence.dispatch.dispatcher import ALL_T
 from tools.common.capabilities.agentic_evidence.governance.registry import AgenticToolValidationError
 from tools.common.capabilities.agentic_evidence.entrypoints.scanner_tool_entrypoints import ScannerToolExecutionContext
 from tools.common.capabilities.evidence.scanner.scanning.scan_boundary import ScanBoundary
-EXPECTED = {"materialize_snapshot", "classify_workspace_languages", "run_syft_inventory", "run_semgrep_rules", "run_knip_usage_analysis", "run_deptry_usage_analysis", "run_ts_js_semantic_analysis", "run_python_semantic_analysis", "run_structural_augmentation", "build_evidence_graph", "validate_evidence_report"}
+EXPECTED = {"materialize_snapshot", "classify_workspace_languages", "run_syft_inventory", "run_semgrep_rules", "run_knip_usage_analysis", "run_deptry_usage_analysis", "run_ts_js_semantic_analysis", "run_python_semantic_analysis", "run_ruby_semantic_analysis", "run_csharp_semantic_analysis", "run_java_semantic_analysis", "run_kotlin_semantic_analysis", "run_php_semantic_analysis", "run_go_semantic_analysis", "run_rust_semantic_analysis", "run_swift_semantic_analysis", "run_objc_semantic_analysis", "run_dart_semantic_analysis", "run_structural_augmentation", "build_evidence_graph", "validate_evidence_report"}
 
 def _context(): return ScannerToolExecutionContext(workspace=MagicMock(), language_classifier=MagicMock(), syft_tool=MagicMock(), semgrep_tool=MagicMock(), knip_tool=MagicMock(), deptry_tool=MagicMock(), ts_js_bridge_factory=MagicMock(), structural_augmentor=MagicMock(), evidence_graph_assembler=MagicMock())
 
@@ -38,7 +38,7 @@ def test_scanner_dispatcher_routes_syft() -> None:
 
 def test_scan_boundary_does_not_bypass_canonical_entrypoints() -> None:
     source = inspect.getsource(ScanBoundary)
-    for forbidden in ("self._syft_tool.run(", "self._semgrep_tool.run(", "self._knip_tool.run(", "self._deptry_tool.run(", "PythonAnalyzer(", "self._evidence_graph_assembler.assemble("): assert forbidden not in source
+    for forbidden in ("self._syft_tool.run(", "self._semgrep_tool.run(", "self._knip_tool.run(", "self._deptry_tool.run(", "PythonAnalyzer(", "RubyAnalyzer(", "self._evidence_graph_assembler.assemble("): assert forbidden not in source
     for name in EXPECTED - {"validate_evidence_report"}: assert f'"{name}"' in source
 
 def test_unknown_scanner_tool_fails_closed() -> None:
