@@ -210,5 +210,5 @@ def test_basic_signal_languages_are_classified_and_routed(
     dispatch = AnalyzerRouter().route(classifications)
 
     assert target.language == expected_language
-    assert target.support_level == SUPPORT_BASIC
+    assert target.support_level == (SUPPORT_FULL if expected_language == LANGUAGE_CSHARP else SUPPORT_BASIC)
     assert file_name in dispatch.basic_files

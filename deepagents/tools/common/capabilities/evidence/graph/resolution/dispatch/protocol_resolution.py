@@ -17,6 +17,8 @@ class ProtocolBoundaryResolver:
     """
 
     def enrich(self, program: SemanticProgram) -> SemanticProgram:
+        self._resolve_graphql_clients(program)
+        self._resolve_grpc_clients(program)
         methods = [node for node in program.nodes if node.node_type == "GRPC_METHOD"]
         concrete = [node for node in program.nodes if node.node_type in _CONCRETE_TYPES]
         for method in methods:
@@ -38,6 +40,94 @@ class ProtocolBoundaryResolver:
             self._mark_unresolved(program, method, candidates)
         return program
 
+    def _resolve_graphql_clients(self, program: SemanticProgram) -> None:
+        clients = [
+            node for node in program.nodes
+            if node.node_type == "GRAPHQL_OPERATION"
+            and str(node.attributes.get("graphqlRole", "")).upper() == "CLIENT"
+        ]
+        servers = [
+            node for node in program.nodes
+            if node.node_type == "GRAPHQL_OPERATION"
+            and str(node.attributes.get("graphqlRole", "")).upper() != "CLIENT"
+        ]
+        for client in clients:
+            name = str(client.attributes.get("operationName") or "").strip()
+            operation_type = str(client.attributes.get("operationType") or "").strip().lower()
+            endpoint = str(client.attributes.get("endpoint") or client.attributes.get("service") or "").strip()
+            candidates = [
+                server for server in servers
+                if str(server.attributes.get("operationName") or "").strip() == name
+                and str(server.attributes.get("operationType") or "").strip().lower() in {operation_type, operation_type.capitalize().lower(), {"query": "query", "mutation": "mutation", "subscription": "subscription"}.get(operation_type, operation_type)}
+            ]
+            if endpoint:
+                candidates = [
+                    server for server in candidates
+                    if str(server.attributes.get("endpoint") or server.attributes.get("service") or "").strip() == endpoint
+                ]
+            elif len({str(server.attributes.get("endpoint") or server.attributes.get("service") or "").strip() for server in candidates}) > 1:
+                candidates = []
+            if len(candidates) != 1:
+                if candidates or name:
+                    program.unresolved_frontiers.append(f"graphql-client:{client.key}")
+                continue
+            target = candidates[0]
+            self._add_edge_once(
+                program,
+                SemanticEdgeFact(
+                    "RESOLVES_TO",
+                    client.key,
+                    target.key,
+                    attributes={"protocol": "GRAPHQL", "resolution": "CLIENT_SERVER"},
+                    origin="FRAMEWORK_RESOLUTION",
+                    resolution_state="CORROBORATED",
+                    evidence_refs=tuple(ref for ref in (client.file_path, target.file_path) if ref),
+                ),
+            )
+
+    def _resolve_grpc_clients(self, program: SemanticProgram) -> None:
+        methods = [node for node in program.nodes if node.node_type == "GRPC_METHOD"]
+        for client in [node for node in program.nodes if node.node_type == "CALL_SITE"]:
+            attrs = client.attributes or {}
+            if str(attrs.get("protocol", "")).upper() not in {"GRPC", "GRPC_CLIENT"} and not attrs.get("grpcMethod"):
+                continue
+            package = str(attrs.get("grpcPackage") or attrs.get("package") or "").strip()
+            service = str(attrs.get("grpcService") or attrs.get("service") or "").strip()
+            method = str(attrs.get("grpcMethod") or attrs.get("method") or "").strip()
+            if not method:
+                continue
+            candidates = [
+                node for node in methods
+                if str(node.attributes.get("method") or node.label).strip() == method
+                and (not package or str(node.attributes.get("package") or "").strip() == package)
+                and (not service or str(node.attributes.get("service") or "").strip() == service)
+            ]
+            if len(candidates) != 1:
+                program.unresolved_frontiers.append(f"grpc-client:{client.key}")
+                continue
+            self._add_edge_once(
+                program,
+                SemanticEdgeFact(
+                    "RESOLVES_TO",
+                    client.key,
+                    candidates[0].key,
+                    attributes={"protocol": "GRPC", "resolution": "CLIENT_CONTRACT"},
+                    origin="FRAMEWORK_RESOLUTION",
+                    resolution_state="CORROBORATED",
+                    evidence_refs=tuple(ref for ref in (client.file_path, candidates[0].file_path) if ref),
+                ),
+            )
+
+    @staticmethod
+    def _add_edge_once(program: SemanticProgram, edge: SemanticEdgeFact) -> None:
+        if not any(
+            existing.edge_type == edge.edge_type
+            and existing.source_key == edge.source_key
+            and existing.target_key == edge.target_key
+            for existing in program.edges
+        ):
+            program.add_edge(edge)
+
     @staticmethod
     def _already_resolved(program: SemanticProgram, method_key: str) -> bool:
         return any(
@@ -51,6 +141,13 @@ class ProtocolBoundaryResolver:
         exact = [node for node in concrete if _canonical(node.label) == canonical]
         if exact:
             return exact
+        # Proto identities may include package/service qualification while source
+        # methods expose only the implementation name.  Only accept this fallback
+        # when it remains unique; never choose the first same-named method.
+        method = canonical.rsplit(".", 1)[-1]
+        qualified = [node for node in concrete if _canonical(node.label) == method]
+        if len(qualified) == 1:
+            return qualified
         # Common generated-service naming keeps the RPC identity but adds a suffix.
         return [
             node

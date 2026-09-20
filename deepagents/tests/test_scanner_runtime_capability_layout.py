@@ -43,6 +43,7 @@ def test_scanner_root_only_contains_capability_packages() -> None:
         "snapshot",
         "assembly",
         "toolchain",
+        "frameworks",
     }
     assert _py(scanner) == set()
     assert _py(scanner / "scanning") == {

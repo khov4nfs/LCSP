@@ -43,6 +43,7 @@ _GQL_FIELD_RE = re.compile(
     r"(?m)^\s*([A-Za-z_][\w]*)\s*(?:\((.*?)\))?\s*:\s*([\[\]!A-Za-z_][\[\]!\w]*)"
 )
 _GQL_ARG_RE = re.compile(r"([A-Za-z_][\w]*)\s*:\s*([\[\]!A-Za-z_][\[\]!\w]*)")
+_GQL_OPERATION_RE = re.compile(r"\b(query|mutation|subscription)\s+([A-Za-z_][\w]*)\b")
 
 
 class ContractDataLineageExtractor:
@@ -392,6 +393,30 @@ class ContractDataLineageExtractor:
         except OSError:
             return
         contract_key = self._contract(program, rel, "GRAPHQL")
+        # Operation documents are client-side contract evidence.  Keep these as
+        # canonical GRAPHQL_OPERATION facts, but give them a distinct key/role so
+        # they cannot collide with schema fields emitted below.
+        for operation in _GQL_OPERATION_RE.finditer(text):
+            operation_type = operation.group(1).capitalize()
+            operation_name = operation.group(2)
+            operation_key = f"graphql-client-operation:{rel}:{operation_type}:{operation_name}"
+            program.add_node(
+                SemanticNodeFact(
+                    operation_key,
+                    "GRAPHQL_OPERATION",
+                    f"{operation_type}.{operation_name}",
+                    rel,
+                    text.count("\n", 0, operation.start()) + 1,
+                    text.count("\n", 0, operation.end()) + 1,
+                    attributes={
+                        "operationType": operation_type,
+                        "operationName": operation_name,
+                        "graphqlRole": "CLIENT",
+                    },
+                    origin="CONTRACT_ANALYSIS",
+                )
+            )
+            program.add_edge(SemanticEdgeFact("DECLARES", contract_key, operation_key, origin="CONTRACT_ANALYSIS"))
         type_fields: dict[str, list[tuple[str, str]]] = {}
         blocks = list(_GQL_TYPE_RE.finditer(text))
         for block in blocks:
@@ -415,7 +440,12 @@ class ContractDataLineageExtractor:
                         "GRAPHQL_OPERATION",
                         f"{type_name}.{operation_name}",
                         rel,
-                        attributes={"operationType": type_name, "returnType": return_type},
+                        attributes={
+                            "operationType": type_name,
+                            "operationName": operation_name,
+                            "graphqlRole": "SERVER",
+                            "returnType": return_type,
+                        },
                         origin="CONTRACT_ANALYSIS",
                     )
                 )

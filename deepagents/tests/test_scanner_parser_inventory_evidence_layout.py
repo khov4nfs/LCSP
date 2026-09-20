@@ -39,7 +39,7 @@ def test_scanner_parsers_are_grouped_by_strategy() -> None:
 
 def test_scanner_inventory_is_grouped_by_capability() -> None:
     root = PROJECT_ROOT / "tools" / "common" / "capabilities" / "evidence" / "scanner" / "inventory"
-    assert _dirs(root) == {"language", "manifest"}
+    assert _dirs(root) == {"language", "manifest", "project"}
     assert _py(root) == set()
     assert _py(root / "language") == {
         "analyzer_router.py",

@@ -10,6 +10,7 @@ from .language_types import (
     AnalyzerDispatch,
     LanguageClassification,
 )
+from tools.common.capabilities.evidence.scanner.analyzers.registry import LanguageAnalyzerRegistry
 
 
 DEFAULT_MAX_PYTHON_FILES: int | None = None
@@ -24,6 +25,7 @@ class AnalyzerRouter:
         *,
         max_python_files: int | None = DEFAULT_MAX_PYTHON_FILES,
         max_ts_js_files: int | None = DEFAULT_MAX_TS_JS_FILES,
+        semantic_registry: LanguageAnalyzerRegistry | None = None,
     ) -> None:
         """Configure optional per-language full-analysis limits.
 
@@ -38,6 +40,7 @@ class AnalyzerRouter:
         """
         self._max_python_files = max_python_files
         self._max_ts_js_files = max_ts_js_files
+        self._semantic_registry = semantic_registry
 
     def route(self, classifications: list[LanguageClassification]) -> AnalyzerDispatch:
         """Build an analyzer dispatch plan and preserve explicit coverage limitations.
@@ -58,9 +61,24 @@ class AnalyzerRouter:
         basic_files: list[str] = []
         skipped_files: list[str] = []
         coverage_limitations: list[dict[str, str]] = []
+        semantic_files: dict[str, list[str]] = {}
 
         for classification in classifications:
             if classification.support_level == SUPPORT_FULL:
+                analyzer = (
+                    self._semantic_registry.resolve(classification.language)
+                    if self._semantic_registry is not None
+                    else None
+                )
+                if analyzer is not None:
+                    semantic_files.setdefault(analyzer.language, []).append(classification.file_path)
+                    if analyzer.language == LANGUAGE_PYTHON:
+                        python_files.append(classification.file_path)
+                    elif analyzer.language == "ts_js":
+                        ts_js_files.append(classification.file_path)
+                    continue
+                # Compatibility path for callers that construct a router without
+                # the production registry (keeps legacy tests/fallback behavior).
                 if classification.language == LANGUAGE_PYTHON:
                     python_files.append(classification.file_path)
                     continue
@@ -112,12 +130,25 @@ class AnalyzerRouter:
                     }
                 )
 
+        # Keep the registry view aligned with bounded legacy buckets.
+        if self._semantic_registry is not None:
+            semantic_files = {
+                language: list(files)
+                for language, files in semantic_files.items()
+                if language not in {LANGUAGE_PYTHON, "ts_js"}
+            }
+            if self._semantic_registry.resolve(LANGUAGE_PYTHON) is not None:
+                semantic_files[LANGUAGE_PYTHON] = list(python_files)
+            if self._semantic_registry.resolve(LANGUAGE_TYPESCRIPT) is not None:
+                semantic_files["ts_js"] = list(ts_js_files)
+
         return AnalyzerDispatch(
             python_files=python_files,
             ts_js_files=ts_js_files,
             basic_files=basic_files,
             skipped_files=skipped_files,
             coverage_limitations=coverage_limitations,
+            semantic_files=semantic_files,
         )
 
     def _truncate(
