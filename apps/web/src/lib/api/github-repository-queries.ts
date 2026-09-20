@@ -5,10 +5,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   configureProviderCredential,
   getProviderCredentialStatuses,
+  getRepositoryConnections,
   connectGitHubRepository,
   discoverGitHubRepositories,
 } from "./github-repository-client";
 import { apiQueryKeys } from "./query-keys";
+
+export function useRepositoryConnectionsQuery() {
+  return useQuery({
+    queryKey: apiQueryKeys.githubIntegration.repositories(),
+    queryFn: getRepositoryConnections,
+  });
+}
 
 export function useConfigureProviderCredentialMutation() {
   const queryClient = useQueryClient();
@@ -39,9 +47,15 @@ export function useConnectGitHubRepositoryMutation() {
   return useMutation({
     mutationFn: connectGitHubRepository,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: apiQueryKeys.auth.repositories(),
-      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.githubIntegration.repositories(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.auth.repositories(),
+        }),
+      ]);
     },
   });
 }
+

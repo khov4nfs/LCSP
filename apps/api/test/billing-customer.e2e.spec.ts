@@ -12,7 +12,7 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { AppModule } from "../src/app.module.js";
-import { hashSecret } from "../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import { createAuthSessionRecord } from "./support/auth-record-test-helpers.js";
 import {
   ensureTestMfaEncryptionKey,

@@ -30,7 +30,8 @@ const workspaceApiPaths = Object.freeze({
 
 type WorkspaceApiPayload = {
   user_id: string;
-  display_name: string;
+  display_name?: string | null;
+  email?: string;
   role: AuthUserRole;
 };
 
@@ -264,7 +265,7 @@ function normalizeWorkspaceApiPayload(
   return {
     user: {
       id: payload.user_id,
-      display_name: payload.display_name,
+      display_name: payload.display_name ?? payload.email ?? "",
       role: payload.role,
     },
   };
@@ -295,7 +296,9 @@ function isWorkspaceApiPayload(
   const candidate = payload as Record<string, unknown>;
   return (
     typeof candidate.user_id === "string" &&
-    typeof candidate.display_name === "string" &&
+    (typeof candidate.display_name === "string" ||
+      candidate.display_name === null ||
+      typeof candidate.email === "string") &&
     isAuthUserRole(candidate.role)
   );
 }

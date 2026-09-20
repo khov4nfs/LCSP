@@ -6,7 +6,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 import { toPrismaAuthUserRole } from "../src/infrastructure/prisma/prisma-enum-mappers.ts";
-import { hashSecret } from "../src/modules/auth-workspace/infrastructure/security/security.utils.ts";
+import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.ts";
 
 const DEFAULT_CUSTOMER_EMAILS = ["customer@lcsp.local"] as const;
 

@@ -1,21 +1,18 @@
 import { USER_ACCESS_STATUSES } from "@lcsp/contracts/auth";
 import { Inject, Injectable } from "@nestjs/common";
+import {
+  AUTH_MFA_ENROLLMENT_REPOSITORY,
+  AUTH_SESSION_REPOSITORY,
+  AUTH_USER_REPOSITORY,
+  type MfaEnrollmentRepository,
+  type SessionRepository,
+  type UserRepository,
+} from "../../modules/auth/application/ports/persistence/index.js";
 import type {
   Session,
   User,
-} from "../../modules/auth-workspace/domain/models/auth-workspace.models.js";
-import {
-  fingerprintToken,
-  verifySecret,
-} from "../../modules/auth-workspace/infrastructure/security/security.utils.js";
-import {
-  PrismaMfaEnrollmentRepository,
-  PrismaSessionRepository,
-  PrismaUserRepository,
-} from "../../modules/auth-workspace/infrastructure/persistence/prisma-auth-workspace.repositories.js";
-import type { MfaEnrollmentRepository } from "../../modules/auth-workspace/application/ports/persistence/mfa.repository.js";
-import type { SessionRepository } from "../../modules/auth-workspace/application/ports/persistence/session.repository.js";
-import type { UserRepository } from "../../modules/auth-workspace/application/ports/persistence/user.repository.js";
+} from "../../modules/auth/domain/models/auth.models.js";
+import { fingerprintToken, verifySecret } from "../security/crypto.utils.js";
 import {
   RBAC_REASON_CODES,
   type RbacContextDenialReason,
@@ -39,11 +36,11 @@ export type RbacContextResult =
 @Injectable()
 export class RbacContextLoader {
   constructor(
-    @Inject(PrismaSessionRepository)
+    @Inject(AUTH_SESSION_REPOSITORY)
     private readonly sessions: SessionRepository,
-    @Inject(PrismaUserRepository)
+    @Inject(AUTH_USER_REPOSITORY)
     private readonly users: UserRepository,
-    @Inject(PrismaMfaEnrollmentRepository)
+    @Inject(AUTH_MFA_ENROLLMENT_REPOSITORY)
     private readonly mfaEnrollments: MfaEnrollmentRepository,
   ) {}
 

@@ -9,6 +9,7 @@ import { GitHubAppStartHandler } from "./application/commands/github-app-start/g
 import { PinSnapshotHandler } from "./application/commands/pin-snapshot/pin-snapshot.handler.js";
 import { TriggerScanHandler } from "./application/commands/trigger-scan/trigger-scan.handler.js";
 import { StreamSnapshotArchiveHandler } from "./application/queries/stream-snapshot-archive/stream-snapshot-archive.handler.js";
+import { ListRepositoryConnectionsHandler } from "./application/queries/list-repository-connections/list-repository-connections.handler.js";
 import { GITHUB_APP_INSTALL_STATE_REPOSITORY } from "./application/ports/persistence/github-app-install-state.repository.js";
 import { REPOSITORY_CONNECTION_REPOSITORY } from "./application/ports/persistence/repository-connection.repository.js";
 import { REPOSITORY_SNAPSHOT_REPOSITORY } from "./application/ports/persistence/repository-snapshot.repository.js";
@@ -101,6 +102,7 @@ import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
     PinSnapshotHandler,
     TriggerScanHandler,
     StreamSnapshotArchiveHandler,
+    ListRepositoryConnectionsHandler,
     DiscoverGitHubRepositoriesHandler,
     ConnectGitHubCliRepositoryHandler,
     ConfigureProviderCredentialHandler,

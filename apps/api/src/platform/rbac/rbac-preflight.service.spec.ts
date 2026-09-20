@@ -1,10 +1,12 @@
 import { jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
-import type { UserRepository } from "../../modules/auth-workspace/application/ports/persistence/user.repository.js";
-import type { AuthorizationDecisionRepository } from "../../modules/auth-workspace/application/ports/persistence/authorization-decision.repository.js";
-import { User } from "../../modules/auth-workspace/domain/entities/user.entity.js";
-import type { AuthorizationDecision } from "../../modules/auth-workspace/domain/models/auth-workspace.models.js";
+import type { UserRepository } from "../../modules/auth/application/ports/persistence/user.repository.js";
+import type {
+  AuthorizationDecision,
+  AuthorizationDecisionRepository,
+} from "./authorization-decision.repository.js";
+import { User } from "../../modules/auth/domain/entities/user.entity.js";
 import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 import {
   RbacPreflightService,

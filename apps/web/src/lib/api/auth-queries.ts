@@ -47,6 +47,9 @@ export function useAuthSessionsQuery() {
   });
 }
 
+/**
+ * @deprecated Use `useRepositoryConnectionsQuery` from `./github-repository-queries` instead.
+ */
 export function useAuthRepositoriesQuery() {
   return useQuery({
     queryKey: apiQueryKeys.auth.repositories(),

@@ -65,7 +65,7 @@ describe("Legal Rule Catalog Endpoints (e2e)", () => {
     await seedAuthWorkspaceFixture(prisma);
 
     const hashFn = (
-      await import("../src/modules/auth-workspace/infrastructure/security/security.utils.js")
+      await import("../src/modules/auth/infrastructure/security/security.utils.js")
     ).hashSecret;
     const passwordHash = hashFn("CorrectHorseBatteryStaple!");
 

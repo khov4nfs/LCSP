@@ -12,6 +12,7 @@ import {
   SIGN_UP_ERROR_CODES,
 } from "@lcsp/contracts/auth";
 import {
+  CREDENTIAL_PROVIDERS,
   REPOSITORY_AUTHENTICATION_MODES,
   type CredentialProvider,
   type RepositoryAuthenticationMode,
@@ -202,6 +203,9 @@ export type AuthSessionSummary = {
   is_current: boolean;
 };
 
+/**
+ * @deprecated Use `RepositoryConnectionSummary` from `./github-repository-client` instead.
+ */
 export type AuthRepositorySummary = {
   id: string;
   provider: CredentialProvider;
@@ -768,6 +772,9 @@ export async function revokeAuthSession(sessionId: string): Promise<void> {
   }
 }
 
+/**
+ * @deprecated Use `getRepositoryConnections` from `./github-repository-client` instead.
+ */
 export async function getAuthRepositories(): Promise<AuthRepositorySummary[]> {
   const { payload, ok } = await apiRequest("/api/auth/repositories");
   if (!ok || !isAuthRepositoriesPayload(payload)) {
@@ -885,6 +892,9 @@ function isAuthRepositoriesPayload(
       const candidate = repository as Record<string, unknown>;
       return (
         typeof candidate.id === "string" &&
+        Object.values(CREDENTIAL_PROVIDERS).includes(
+          candidate.provider as CredentialProvider,
+        ) &&
         Object.values(REPOSITORY_AUTHENTICATION_MODES).includes(
           candidate.authentication_mode as RepositoryAuthenticationMode,
         ) &&

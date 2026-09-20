@@ -13,8 +13,8 @@ import { AppModule } from "../src/app.module.js";
 import type {
   OAuthCallbackSuccess,
   OAuthStartSuccess,
-} from "../src/modules/auth-workspace/application/contracts/auth-workspace/oauth.contract.js";
-import { hashSecret } from "../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+} from "../src/modules/auth/application/contracts/auth/oauth.contract.js";
+import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import {
   TEST_DATABASE_URL,
   ensureTestMfaEncryptionKey,

@@ -14,12 +14,12 @@ import {
   Res,
   UseGuards,
 } from "@nestjs/common";
-import { CommandBus } from "@nestjs/cqrs";
+import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { CREDENTIAL_PROVIDERS } from "@lcsp/contracts/github-integration";
 import type { Response } from "express";
 
-import { createCorrelationId } from "../../../auth-workspace/infrastructure/security/security.utils.js";
+import { createCorrelationId } from "../../../../platform/security/crypto.utils.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
@@ -45,6 +45,7 @@ import { ConfigureProviderCredentialCommand } from "../../application/commands/c
 import { ProviderCredentialRequest } from "./dto/provider-credential.request.js";
 import { AssessmentRepositoryConnectionRequest } from "./dto/assessment-repository-connection.request.js";
 import { ConnectAssessmentRepositoryCommand } from "../../application/commands/connect-assessment-repository/connect-assessment-repository.command.js";
+import { ListRepositoryConnectionsQuery } from "../../application/queries/list-repository-connections/list-repository-connections.query.js";
 import {
   ACTIVE_PROVIDER_CREDENTIAL_RESOLVER,
   type ActiveProviderCredentialResolver,
@@ -71,10 +72,21 @@ export class GitHubIntegrationController {
    */
   constructor(
     private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
     @Optional()
     @Inject(ACTIVE_PROVIDER_CREDENTIAL_RESOLVER)
     private readonly activeCredentials?: ActiveProviderCredentialResolver,
   ) {}
+
+  @Get("github/repositories")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async listRepositories(@Req() request: GitHubIntegrationRequest) {
+    const context = request.rbacContext as RbacRequestContext;
+    return resultEnvelope(
+      await this.queryBus.execute(new ListRepositoryConnectionsQuery(context)),
+    );
+  }
 
   @Get("provider-credentials")
   @UseGuards(RbacGuard)

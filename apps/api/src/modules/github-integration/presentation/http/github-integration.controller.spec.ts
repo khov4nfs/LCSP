@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { HttpStatus } from "@nestjs/common";
-import type { CommandBus } from "@nestjs/cqrs";
+import type { CommandBus, QueryBus } from "@nestjs/cqrs";
 
 import {
   REPOSITORY_SCAN_JOB_STATUSES,
@@ -32,9 +32,10 @@ describe("GitHubIntegrationController.pinSnapshot", () => {
     const execute = jest
       .fn<(command: unknown) => Promise<{ snapshot_id: string }>>()
       .mockResolvedValue({ snapshot_id: "snapshot-1" });
-    const controller = new GitHubIntegrationController({
-      execute,
-    } as unknown as CommandBus);
+    const controller = new GitHubIntegrationController(
+      { execute } as unknown as CommandBus,
+      {} as unknown as QueryBus,
+    );
 
     await controller.pinSnapshot(
       "assessment-1",
@@ -85,9 +86,10 @@ describe("GitHubIntegrationController.triggerScan", () => {
         correlationId: "corr-1",
       });
     const status = jest.fn<(code: number) => unknown>();
-    const controller = new GitHubIntegrationController({
-      execute,
-    } as unknown as CommandBus);
+    const controller = new GitHubIntegrationController(
+      { execute } as unknown as CommandBus,
+      {} as unknown as QueryBus,
+    );
 
     await controller.triggerScan(
       "assessment-1",

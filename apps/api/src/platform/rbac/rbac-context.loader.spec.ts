@@ -1,13 +1,13 @@
 import { jest } from "@jest/globals";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
-import type { MfaEnrollmentRepository } from "../../modules/auth-workspace/application/ports/persistence/mfa.repository.js";
-import type { SessionRepository } from "../../modules/auth-workspace/application/ports/persistence/session.repository.js";
-import type { UserRepository } from "../../modules/auth-workspace/application/ports/persistence/user.repository.js";
-import { MfaEnrollment } from "../../modules/auth-workspace/domain/entities/mfa-enrollment.entity.js";
-import { Session } from "../../modules/auth-workspace/domain/entities/session.entity.js";
-import { User } from "../../modules/auth-workspace/domain/entities/user.entity.js";
-import { hashSecret } from "../../modules/auth-workspace/infrastructure/security/security.utils.js";
+import type { MfaEnrollmentRepository } from "../../modules/auth/application/ports/persistence/mfa.repository.js";
+import type { SessionRepository } from "../../modules/auth/application/ports/persistence/session.repository.js";
+import type { UserRepository } from "../../modules/auth/application/ports/persistence/user.repository.js";
+import { MfaEnrollment } from "../../modules/auth/domain/entities/mfa-enrollment.entity.js";
+import { Session } from "../../modules/auth/domain/entities/session.entity.js";
+import { User } from "../../modules/auth/domain/entities/user.entity.js";
+import { hashSecret } from "../security/crypto.utils.js";
 import { RbacContextLoader } from "./rbac-context.loader.js";
 import { RBAC_REASON_CODES } from "@lcsp/contracts/rbac";
 

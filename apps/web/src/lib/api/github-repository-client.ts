@@ -3,9 +3,26 @@ import {
   CREDENTIAL_PROVIDERS,
   GITHUB_CREDENTIAL_ERROR_CODES,
   GITHUB_INTEGRATION_ERROR_CODES,
+  REPOSITORY_AUTHENTICATION_MODES,
+  type CredentialProvider,
+  type RepositoryAuthenticationMode,
 } from "@lcsp/contracts/github-integration";
-import type { CredentialProvider } from "@lcsp/contracts/github-integration";
 import type { MessageKey } from "@lcsp/i18n";
+
+export type RepositoryConnectionSummary = {
+  id: string;
+  provider: CredentialProvider;
+  authentication_mode: RepositoryAuthenticationMode;
+  installation_id: string | null;
+  repository_name: string;
+  repository_full_name: string;
+  default_branch: string;
+  status: string;
+  connected_at: string;
+  revoked_at: string | null;
+  assessment_id: string | null;
+  assessment_name: string | null;
+};
 
 export type GitHubRepositorySummary = {
   repository_id: string;
@@ -134,6 +151,17 @@ export async function getProviderCredentialStatuses(): Promise<
   return response.payload as ProviderCredentialStatus[];
 }
 
+export async function getRepositoryConnections(): Promise<
+  RepositoryConnectionSummary[]
+> {
+  const response = await apiRequest("/api/github/repositories");
+  if (!response.ok || !isRepositoryConnectionsPayload(response.payload)) {
+    throw new GitHubRepositoryRequestError(response.problemCode);
+  }
+
+  return response.payload.repositories;
+}
+
 function isRepository(value: unknown): value is GitHubRepositorySummary {
   if (typeof value !== "object" || value === null) return false;
   const item = value as Record<string, unknown>;
@@ -186,3 +214,46 @@ function isCredentialStatus(value: unknown): value is ProviderCredentialStatus {
         typeof account.username === "string"))
   );
 }
+
+function isRepositoryConnectionsPayload(
+  payload: unknown,
+): payload is { repositories: RepositoryConnectionSummary[] } {
+  if (typeof payload !== "object" || payload === null) {
+    return false;
+  }
+
+  const repositories = (payload as { repositories?: unknown }).repositories;
+  return (
+    Array.isArray(repositories) &&
+    repositories.every((repository) => {
+      if (typeof repository !== "object" || repository === null) {
+        return false;
+      }
+
+      const candidate = repository as Record<string, unknown>;
+      return (
+        typeof candidate.id === "string" &&
+        Object.values(CREDENTIAL_PROVIDERS).includes(
+          candidate.provider as CredentialProvider,
+        ) &&
+        Object.values(REPOSITORY_AUTHENTICATION_MODES).includes(
+          candidate.authentication_mode as RepositoryAuthenticationMode,
+        ) &&
+        (typeof candidate.installation_id === "string" ||
+          candidate.installation_id === null) &&
+        typeof candidate.repository_name === "string" &&
+        typeof candidate.repository_full_name === "string" &&
+        typeof candidate.default_branch === "string" &&
+        typeof candidate.status === "string" &&
+        typeof candidate.connected_at === "string" &&
+        (typeof candidate.revoked_at === "string" ||
+          candidate.revoked_at === null) &&
+        (typeof candidate.assessment_id === "string" ||
+          candidate.assessment_id === null) &&
+        (typeof candidate.assessment_name === "string" ||
+          candidate.assessment_name === null)
+      );
+    })
+  );
+}
+

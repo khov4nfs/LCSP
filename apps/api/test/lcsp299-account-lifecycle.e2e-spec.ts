@@ -34,25 +34,25 @@ import { RbacGuard } from "../src/platform/rbac/rbac.guard.js";
 import { RbacContextLoader } from "../src/platform/rbac/rbac-context.loader.js";
 import { RbacPreflightService } from "../src/platform/rbac/rbac-preflight.service.js";
 import { RBAC_DECISIONS } from "@lcsp/contracts/rbac";
-import { AdminUsersController } from "../src/modules/auth-workspace/presentation/http/admin-users.controller.js";
-import { AdminAccountReadService } from "../src/modules/auth-workspace/application/services/admin/admin-account-read.service.js";
-import { AdminAccountCommandService } from "../src/modules/auth-workspace/application/services/admin/admin-account-command.service.js";
-import { AuthAuditService } from "../src/modules/auth-workspace/application/services/auth-workspace/auth-audit.service.js";
+import { AdminUsersController } from "../src/modules/auth/presentation/http/admin-users.controller.js";
+import { AdminAccountReadService } from "../src/modules/auth/application/services/admin/admin-account-read.service.js";
+import { AdminAccountCommandService } from "../src/modules/auth/application/services/admin/admin-account-command.service.js";
+import { AuthAuditService } from "../src/modules/auth/application/services/auth/auth-audit.service.js";
+import { PrismaAuthorizationDecisionRepository } from "../src/platform/rbac/prisma-authorization-decision.repository.js";
 import {
-  PrismaAuthorizationDecisionRepository,
   PrismaMfaEnrollmentRepository,
   PrismaSessionRepository,
   PrismaUserRepository,
-} from "../src/modules/auth-workspace/infrastructure/persistence/prisma-auth-workspace.repositories.js";
+} from "../src/modules/auth/infrastructure/persistence/prisma-auth.repositories.js";
 import {
   hashSecret,
   fingerprintToken,
-} from "../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+} from "../src/modules/auth/infrastructure/security/security.utils.js";
 import {
   AUTH_RECORD_TYPES,
   authRecordLookupKey,
-} from "../src/modules/auth-workspace/infrastructure/persistence/auth-record.persistence.js";
-import { Session } from "../src/modules/auth-workspace/domain/entities/session.entity.js";
+} from "../src/modules/auth/infrastructure/persistence/auth-record.persistence.js";
+import { Session } from "../src/modules/auth/domain/entities/session.entity.js";
 import type {
   AdminUserDetail,
   AdminAccountOperation,

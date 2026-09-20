@@ -22,7 +22,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
-import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
+import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
 import type { PinSnapshotDto } from "../src/modules/github-integration/application/contracts/github-integration/pin-snapshot.contract.js";
 import type { TriggerScanDto } from "../src/modules/github-integration/application/contracts/github-integration/trigger-scan.contract.js";
 import { GitHubAppClient } from "../src/modules/github-integration/infrastructure/github/github-app.client.js";

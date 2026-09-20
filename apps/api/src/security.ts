@@ -4,4 +4,4 @@ export {
   hashSecret,
   issueOpaqueToken,
   verifySecret,
-} from "./modules/auth-workspace/infrastructure/security/security.utils.ts";
+} from "./modules/auth/infrastructure/security/security.utils.ts";

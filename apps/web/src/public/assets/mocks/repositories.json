@@ -1,0 +1,18 @@
+{
+  "repositories": [
+    {
+      "id": "repo-connection-1",
+      "provider": "GITHUB",
+      "authentication_mode": "GITHUB_APP",
+      "installation_id": "mock-install-123",
+      "repository_name": "lcsp-platform",
+      "repository_full_name": "khovan123/LCSP",
+      "default_branch": "main",
+      "status": "ACTIVE",
+      "connected_at": "2026-07-28T09:00:00.000Z",
+      "revoked_at": null,
+      "assessment_id": "assessment-1",
+      "assessment_name": "LCSP workspace rollout"
+    }
+  ]
+}
