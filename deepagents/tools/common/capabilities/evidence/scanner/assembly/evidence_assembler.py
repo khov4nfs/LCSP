@@ -18,6 +18,7 @@ from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python
 from tools.common.capabilities.evidence.scanner.dependencies.dependency_fact import PackageDependency
 from tools.common.capabilities.evidence.scanner.inventory.language.language_types import LanguageClassification
 from tools.common.capabilities.evidence.graph.schema.models import ProgramEvidenceGraph
+from tools.common.capabilities.evidence.graph.lineage.ai.ai_discovery import summarize_ai_discovery
 from tools.common.capabilities.evidence.scanner.ts_js_bridge.bridge_types import TsJsBridgeResult
 
 from tools.common.capabilities.evidence.scanner.parsers.structural.structural_types import StructuralFact
@@ -213,6 +214,7 @@ class EvidenceAssembler:
             "coverage_notes": list(coverage_notes),
             "scan_coverage": self._scan_coverage(scan_coverage or []),
             "evidence_graph": evidence_graph_dict,
+            "ai_discovery": summarize_ai_discovery(evidence_graph) if evidence_graph else None,
             "targeted_reanalysis": targeted_reanalysis,
         }
         if evidence_graph is not None:

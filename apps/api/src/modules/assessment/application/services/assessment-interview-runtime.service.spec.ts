@@ -288,6 +288,7 @@ function targetedNeedRegistrationPayload(
 
 type MockPrismaDelegates = {
   $queryRaw: jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+  $executeRaw: jest.Mock<(...args: unknown[]) => Promise<number>>;
   assessment: {
     findUnique: jest.Mock<() => Promise<{ id: string; ownerId: string }>>;
   };
@@ -463,12 +464,70 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
     ).toBe("Generic summary");
   });
 
+  it("keeps snippet provenance private while resolving it for authorized callers", async () => {
+    const snippetRef = {
+      snapshot_id: "snap-1",
+      commit_sha: "sha-123456",
+      file_path: "src/ai.ts",
+      start_line: 42,
+      end_line: 42,
+      evidence_hash: "sha256:" + "a".repeat(64),
+      snippet_policy: "PINNED_SNAPSHOT_BOUNDED_REDACTED_V1",
+    };
+    mockTx.assessmentInterviewThread.findUnique.mockResolvedValue({
+      assessmentId: "assessment-1",
+      contextRevision: 1,
+      processedRevision: 0,
+      activeQuestionId: "q-1",
+      stateJson: {
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        activeQuestion: {
+          id: "q-1",
+          prompt: "Where is AI used?",
+          intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+          control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+          whyEvidenceRefs: ["technicalEvidenceReport:report-1"],
+          snippetRef,
+        },
+      },
+      privateContextJson: { revisions: [] },
+      sourceVersion: "snap-1:sha-123456",
+      pgeVersion: "report-1:v1",
+    });
+    const actor = {
+      userId: "user-1",
+      sessionId: "session-1",
+      role: AUTH_USER_ROLES.customer,
+      scope: "assessment:assessment-1",
+    };
+
+    const publicState = await service.getState("assessment-1", actor);
+    expect(publicState.activeQuestion).not.toHaveProperty("whyEvidenceRefs");
+    expect(publicState.activeQuestion?.snippetRef).toEqual(snippetRef);
+
+    await expect(
+      service.resolveActiveQuestionSnippetContext("assessment-1", "q-1", actor),
+    ).resolves.toEqual({ evidenceReportId: "report-1", snippetRef });
+    await expect(
+      service.resolveActiveQuestionSnippetContext(
+        "assessment-1",
+        "wrong-q",
+        actor,
+      ),
+    ).rejects.toMatchObject({
+      response: { code: "INTERVIEW_SOURCE_SNIPPET_UNAVAILABLE" },
+    });
+  });
+
   beforeEach(() => {
     findHistoricalQuestion.mockReset().mockResolvedValue(null);
     mockTx = {
       $queryRaw: jest
         .fn<(...args: unknown[]) => Promise<unknown>>()
         .mockResolvedValue([]),
+      $executeRaw: jest
+        .fn<(...args: unknown[]) => Promise<number>>()
+        .mockResolvedValue(1),
       assessment: {
         findUnique: jest
           .fn<() => Promise<{ id: string; ownerId: string }>>()
@@ -3122,6 +3181,15 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
           intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
           prompt: "What is your cloud environment?",
           control: ASSESSMENT_INTERVIEW_CONTROLS.singleSelect,
+          snippetRef: {
+            snapshot_id: "snap-1",
+            commit_sha: "sha-123456",
+            file_path: "src/cloud.ts",
+            start_line: 10,
+            end_line: 12,
+            evidence_hash: `sha256:${"a".repeat(64)}`,
+            snippet_policy: "PINNED_SNAPSHOT_BOUNDED_REDACTED_V1",
+          },
           frontier: {
             owner: INTERVIEW_FRONTIER_OWNERS.customer,
             materiality: INTERVIEW_FRONTIER_MATERIALITIES.material,
@@ -3139,6 +3207,9 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
 
       expect(result.outcome).toBe(
         ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+      );
+      expect(result.activeQuestion?.snippetRef).toEqual(
+        initialState.activeQuestion?.snippetRef,
       );
       expect(mockTx.assessmentInterviewThread.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -3169,6 +3240,200 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         }),
         mockTx,
       );
+    });
+
+    it("rejects a nonzero initial expectedContextRevision before persistence", async () => {
+      await expect(
+        service.seedInitialQuestionForWorker({
+          assessmentId: "assessment-1",
+          correlationId: "corr-seed-nonzero-revision",
+          workflowRunId: "10000000-0000-4000-8000-000000000001",
+          state: {
+            ...initialQuestionState(),
+            expectedContextRevision: 1,
+          } as AssessmentInterviewRuntimeState,
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          ok: false,
+          problem: { code: "INTERVIEW_INITIAL_SEED_STALE" },
+        },
+      });
+
+      expect(
+        mockTx.assessmentInterviewThread.findUnique,
+      ).not.toHaveBeenCalled();
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+      expect(mockInterviewAudit.recordQuestionPersisted).not.toHaveBeenCalled();
+      expect(mockRuntimeEvents.recordToolWaitingInput).not.toHaveBeenCalled();
+    });
+
+    it("treats retry-after-commit of the same initial seed as side-effect-free replay", async () => {
+      const workflowRunId = "10000000-0000-4000-8000-000000000001";
+      const initialState = {
+        ...initialQuestionState(),
+        expectedContextRevision: 0,
+      } as AssessmentInterviewRuntimeState & {
+        expectedContextRevision: number;
+      };
+      const persistedState: AssessmentInterviewRuntimeState = {
+        ...initialState,
+        threadId: "interview:assessment-1",
+        contextRevision: 0,
+        orchestrationRequested: false,
+      };
+      const persistedThread = {
+        assessmentId: "assessment-1",
+        contextRevision: 0,
+        processedRevision: 0,
+        activeQuestionId: initialState.activeQuestion?.id,
+        stateJson: persistedState,
+        privateContextJson: {
+          revisions: [],
+          workflowRunId,
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+        guidanceVersion: TEST_GUIDANCE_VERSION,
+      };
+      mockTx.assessmentInterviewThread.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(persistedThread);
+
+      const first = await service.seedInitialQuestionForWorker({
+        assessmentId: "assessment-1",
+        correlationId: "corr-seed-retry-1",
+        workflowRunId,
+        state: initialState,
+      });
+      const replay = await service.seedInitialQuestionForWorker({
+        assessmentId: "assessment-1",
+        correlationId: "corr-seed-retry-2",
+        workflowRunId,
+        state: initialState,
+      });
+
+      expect(replay).toEqual(persistedState);
+      expect(first.activeQuestion?.id).toBe(initialState.activeQuestion?.id);
+      expect(mockTx.assessmentInterviewThread.upsert).toHaveBeenCalledTimes(1);
+      expect(mockInterviewAudit.recordQuestionPersisted).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(mockRuntimeEvents.recordToolWaitingInput).toHaveBeenCalledTimes(1);
+    });
+
+    it("rolls back the initial seed when waiting-event persistence fails and retry completes it once", async () => {
+      const workflowRunId = "10000000-0000-4000-8000-000000000001";
+      const initialState = {
+        ...initialQuestionState(),
+        expectedContextRevision: 0,
+      } as AssessmentInterviewRuntimeState & {
+        expectedContextRevision: number;
+      };
+      let committedTransactions = 0;
+      let durableWaitingEvents = 0;
+      mockTransaction.mockImplementation(
+        async <T>(
+          cb: (tx: MockPrismaDelegates) => Promise<T>,
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          _options?: unknown,
+        ): Promise<T> => {
+          const result = await cb(mockTx);
+          committedTransactions += 1;
+          return result;
+        },
+      );
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValue(null);
+      mockRuntimeEvents.recordToolWaitingInput
+        .mockRejectedValueOnce(new Error("runtime waiting event write failed"))
+        .mockImplementationOnce((...args: unknown[]) => {
+          expect(args[1]).toBe(mockTx);
+          durableWaitingEvents += 1;
+          return Promise.resolve();
+        });
+
+      await expect(
+        service.seedInitialQuestionForWorker({
+          assessmentId: "assessment-1",
+          correlationId: "corr-seed-event-failure",
+          workflowRunId,
+          state: initialState,
+        }),
+      ).rejects.toThrow("runtime waiting event write failed");
+
+      expect(committedTransactions).toBe(0);
+      expect(durableWaitingEvents).toBe(0);
+
+      await expect(
+        service.seedInitialQuestionForWorker({
+          assessmentId: "assessment-1",
+          correlationId: "corr-seed-event-retry",
+          workflowRunId,
+          state: initialState,
+        }),
+      ).resolves.toMatchObject({
+        outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+        contextRevision: 0,
+      });
+
+      expect(committedTransactions).toBe(1);
+      expect(durableWaitingEvents).toBe(1);
+      expect(mockRuntimeEvents.recordToolWaitingInput).toHaveBeenCalledTimes(2);
+    });
+
+    it("rejects a delayed initial seed after the interview revision has advanced", async () => {
+      const workflowRunId = "10000000-0000-4000-8000-000000000001";
+      mockTx.assessmentInterviewThread.findUnique.mockResolvedValueOnce({
+        assessmentId: "assessment-1",
+        contextRevision: 1,
+        processedRevision: 0,
+        activeQuestionId: "q-next",
+        stateJson: {
+          outcome: ASSESSMENT_INTERVIEW_OUTCOMES.waitingForCustomer,
+          contextRevision: 1,
+          activeQuestion: {
+            id: "q-next",
+            intent: ASSESSMENT_INTERVIEW_QUESTION_INTENTS.ask,
+            prompt: "What happens after the recommendation?",
+            control: ASSESSMENT_INTERVIEW_CONTROLS.freeText,
+          },
+          answerHistory: [
+            {
+              questionId: "q-init-coverage-gate",
+              answeredAt: "2026-09-18T00:00:00.000Z",
+              summary: "Customer answered the initial question.",
+            },
+          ],
+        },
+        privateContextJson: {
+          revisions: [],
+          workflowRunId,
+        },
+        sourceVersion: "snap-1:sha-123456",
+        pgeVersion: "report-1:v1",
+        guidanceVersion: TEST_GUIDANCE_VERSION,
+      });
+
+      await expect(
+        service.seedInitialQuestionForWorker({
+          assessmentId: "assessment-1",
+          correlationId: "corr-stale-seed",
+          workflowRunId,
+          state: {
+            ...initialQuestionState(),
+            expectedContextRevision: 0,
+          } as AssessmentInterviewRuntimeState,
+        }),
+      ).rejects.toMatchObject({
+        response: {
+          ok: false,
+          problem: { code: "INTERVIEW_INITIAL_SEED_STALE" },
+        },
+      });
+
+      expect(mockTx.assessmentInterviewThread.upsert).not.toHaveBeenCalled();
+      expect(mockInterviewAudit.recordQuestionPersisted).not.toHaveBeenCalled();
+      expect(mockRuntimeEvents.recordToolWaitingInput).not.toHaveBeenCalled();
     });
 
     it("pins nested PGE PARTIAL coverage and limitations from the worker-selected report", async () => {
@@ -3270,6 +3535,7 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
             },
           }),
         }),
+        mockTx,
       );
     });
 
@@ -4015,6 +4281,15 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
               "evidence:symbol:storage_config",
               "repositorySnapshot:snap-1",
             ],
+            snippetRef: {
+              snapshot_id: "snap-1",
+              commit_sha: "sha-123456",
+              file_path: "src/storage.ts",
+              start_line: 20,
+              end_line: 24,
+              evidence_hash: `sha256:${"b".repeat(64)}`,
+              snippet_policy: "PINNED_SNAPSHOT_BOUNDED_REDACTED_V1",
+            },
             frontier: {
               owner: INTERVIEW_FRONTIER_OWNERS.customer,
               materiality: INTERVIEW_FRONTIER_MATERIALITIES.material,
@@ -4055,6 +4330,15 @@ describe("AssessmentInterviewRuntimeService Audit & Provenance Emission", () => 
         "The available technical evidence does not establish whether multi-region is configured.",
       );
       expect(q.hasSupportingEvidence).toBe(true);
+      expect(q.snippetRef).toEqual({
+        snapshot_id: "snap-1",
+        commit_sha: "sha-123456",
+        file_path: "src/storage.ts",
+        start_line: 20,
+        end_line: 24,
+        evidence_hash: `sha256:${"b".repeat(64)}`,
+        snippet_policy: "PINNED_SNAPSHOT_BOUNDED_REDACTED_V1",
+      });
 
       // Verify internal refs are stripped from public projection
       expect(q.whyEvidenceRefs).toBeUndefined();

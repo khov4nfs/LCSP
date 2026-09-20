@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus } from "@nestjs/common";
+import { HttpException, HttpStatus, NotFoundException } from "@nestjs/common";
 import { jest } from "@jest/globals";
 import { AUTH_ERROR_CODES, createProblemResult } from "@lcsp/contracts/auth";
 
@@ -35,6 +35,38 @@ describe("ProblemExceptionFilter", () => {
     });
     expect(status).toHaveBeenCalledWith(HttpStatus.UNAUTHORIZED);
     expect(json).toHaveBeenCalledWith(problem);
+  });
+
+  it("does not classify generic 4xx validation failures as sign-in actions", () => {
+    const filter = new ProblemExceptionFilter();
+    const json = jest.fn();
+    const status = jest.fn(() => ({ json }));
+    const response = { locals: {}, status };
+
+    filter.catch(
+      new NotFoundException("Technical evidence not found"),
+      createArgumentsHost(
+        {
+          method: "GET",
+          url: "/assessments/a/evidence-graph/overview",
+          headers: {},
+        },
+        response,
+      ),
+    );
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: false,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        problem: expect.objectContaining({
+          code: AUTH_ERROR_CODES.validationFailed,
+          requiredAction: "none",
+          status: HttpStatus.NOT_FOUND,
+        }),
+      }),
+    );
   });
 
   it("does not classify unknown internal failures as sign-in actions", () => {
