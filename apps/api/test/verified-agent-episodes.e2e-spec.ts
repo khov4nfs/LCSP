@@ -13,7 +13,7 @@ import type { INestApplication } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 
 import { AppModule } from "../src/app.module.js";
-import { hashSecret } from "../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,

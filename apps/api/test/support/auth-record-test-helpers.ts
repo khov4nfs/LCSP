@@ -3,7 +3,7 @@ import type { AuthRecord, PrismaClient } from "@prisma/client";
 import {
   fingerprintToken,
   hashSecret,
-} from "../../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+} from "../../src/modules/auth/infrastructure/security/security.utils.js";
 
 export const AUTH_RECORD_TYPE = {
   session: "SESSION",

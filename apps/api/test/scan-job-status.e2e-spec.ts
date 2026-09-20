@@ -16,8 +16,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 import { AppModule } from "../src/app.module.js";
-import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
-import { hashSecret } from "../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
+import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import type { ScanJobStatusDto } from "../src/modules/scan/application/contracts/scan/scan-job-status.contract.js";
 import {
   pushPrismaSchema,

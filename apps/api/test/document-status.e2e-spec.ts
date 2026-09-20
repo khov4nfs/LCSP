@@ -27,8 +27,8 @@ import {
   toPrismaDocumentType,
   toPrismaOverallCoverageStatus,
 } from "../src/infrastructure/prisma/prisma-enum-mappers.js";
-import type { SignInSuccess } from "../src/modules/auth-workspace/application/contracts/auth-workspace/sign-in.contract.js";
-import { hashSecret } from "../src/modules/auth-workspace/infrastructure/security/security.utils.js";
+import type { SignInSuccess } from "../src/modules/auth/application/contracts/auth/sign-in.contract.js";
+import { hashSecret } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import {
   pushPrismaSchema,
   resetAuthWorkspaceDatabase,
