@@ -1643,6 +1643,41 @@ export const viPages = {
       topologyTitle: "Luồng thực thi và bằng chứng",
       topologyDescription:
         "Hiển thị các luồng thực thi chính cùng bằng chứng liên quan.",
+      aiUsageTopologyTitle: "Đường dẫn bằng chứng sử dụng AI",
+      aiUsageTopologyDescription:
+        "Truy vết bằng chứng Scanner đã quản trị từ bề mặt ứng dụng tới biên AI.",
+      noAiUsagePaths:
+        "Snapshot bằng chứng đã chấp nhận này chưa có đường dẫn sử dụng AI được quản trị.",
+      omittedAiUsagePaths:
+        "Có thêm đường dẫn sử dụng AI đã được quản trị nằm ngoài phần đang hiển thị.",
+      omittedAiUsageGroups: "Nhóm sử dụng AI đang ẩn",
+      hiddenAiUsageGroupFlows: "luồng đang ẩn",
+      additionalOmittedAiUsageGroups: "nhóm ẩn khác",
+      aiUsageRoles: {
+        moduleFeature: "Mô-đun / tính năng",
+        routeHandlerFeature: "Route / handler",
+        serviceClient: "Service / client",
+        aiSdk: "AI SDK",
+        aiSdkInvocation: "Lệnh gọi AI SDK",
+        aiApiEndpoint: "Endpoint AI REST/API",
+        aiGateway: "AI gateway",
+        aiProvider: "Nhà cung cấp AI",
+        modelIdentity: "Định danh mô hình",
+        configControl: "Cấu hình / điều kiện",
+        unresolvedCandidate: "Ứng viên AI chưa phân giải",
+      },
+      evidenceStates: {
+        confirmedAiCall: "Lệnh gọi AI đã xác nhận",
+        possibleAiCall: "Lệnh gọi AI có khả năng",
+        aiProviderReference: "Tham chiếu nhà cung cấp",
+        unresolvedDynamic: "Đích động chưa phân giải",
+      },
+      resolutionStates: {
+        observed: "Đã quan sát",
+        corroborated: "Đã đối chiếu",
+        inferred: "Suy luận",
+        unresolved: "Chưa phân giải",
+      },
       legendNode: "Nút",
       legendRelationship: "Quan hệ",
       legendInspected: "Đang chọn",
