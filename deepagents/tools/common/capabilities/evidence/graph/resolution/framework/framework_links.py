@@ -49,7 +49,7 @@ class FrameworkBoundaryExtractor:
             fetch = re.search(r"\bfetch\s*\(\s*['\"]([^'\"]+)['\"]", line)
             if http or fetch:
                 method = http.group(1).upper() if http else self._fetch_method(line); target = http.group(2) if http else fetch.group(1); call_key = f"call:{rel}:{line_no}:{'axios.' + http.group(1) if http else 'fetch'}"
-                out.add_node(SemanticNodeFact(call_key, "CALL_SITE", "HTTP client call", rel, line_no, line_no, attributes={"integrationType": "HTTP", "method": method}))
+                out.add_node(SemanticNodeFact(call_key, "CALL_SITE", "HTTP client call", rel, line_no, line_no, attributes={"integrationType": "HTTP", "method": method, "route": self._normalize_route(target)}))
                 host = safe_external_host(target)
                 if host:
                     ekey = f"external:{host}"; out.add_node(SemanticNodeFact(ekey, "EXTERNAL_API", host, attributes={"host": host})); out.add_edge(SemanticEdgeFact("SENDS_TO_EXTERNAL", call_key, ekey))

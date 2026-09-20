@@ -124,7 +124,7 @@ def test_program_graph_runtime_groups_owned_capabilities() -> None:
 
     resolution = root / "resolution"
     assert _directories(resolution) == {"boundary", "framework", "architecture", "dispatch"}
-    assert _implementation_files(resolution) == set()
+    assert _implementation_files(resolution) == {"cross_project_resolution.py"}
     assert _implementation_files(resolution / "boundary") == {
         "api_boundary_resolution.py",
         "python_agent_boundary_resolution.py",

@@ -12,7 +12,6 @@ scanner-owned implementations) prevents a package initialization cycle.
 
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -31,6 +30,8 @@ class ScannerToolExecutionContext:
     ts_js_bridge_factory: Callable[[Path], Any]
     structural_augmentor: Any
     evidence_graph_assembler: Any
+    language_analyzer_registry: Any = None
+    project_discovery: Any = None
 
 
 ScannerToolInput = Mapping[str, Any]
@@ -110,12 +111,19 @@ def run_ts_js_semantic_analysis(
     context: ScannerToolExecutionContext,
 ):
     """Run the TS/JS semantic bridge for a bounded file set."""
+    from tools.common.capabilities.evidence.scanner.analyzers.adapters import TsJsLanguageAdapter
+    from tools.common.capabilities.evidence.scanner.analyzers.registry import LanguageAnalyzerRegistry
+
     include_files = request.get("include_files")
-    return asyncio.run(
-        context.ts_js_bridge_factory(_workspace_path(request)).analyze(
-            include_files=list(include_files) if include_files is not None else None
-        )
+    registry = context.language_analyzer_registry or LanguageAnalyzerRegistry.default(
+        context.ts_js_bridge_factory
     )
+    adapter = registry.resolve("typescript") or TsJsLanguageAdapter(context.ts_js_bridge_factory)
+    result = adapter.analyze(
+        _workspace_path(request),
+        list(include_files) if include_files is not None else None,
+    )
+    return result.native_result
 
 
 def run_python_semantic_analysis(
@@ -123,12 +131,140 @@ def run_python_semantic_analysis(
     context: ScannerToolExecutionContext,
 ):
     """Run Python semantic analysis for a bounded file set."""
-    from tools.common.capabilities.evidence.scanner.analyzers.python_analysis.python_analyzer import PythonAnalyzer
+    from tools.common.capabilities.evidence.scanner.analyzers.adapters import PythonLanguageAdapter
+    from tools.common.capabilities.evidence.scanner.analyzers.registry import LanguageAnalyzerRegistry
 
     include_files = request.get("include_files")
-    return PythonAnalyzer(_workspace_path(request)).analyze(
-        include_files=list(include_files) if include_files is not None else None
+    registry = context.language_analyzer_registry or LanguageAnalyzerRegistry.default(
+        context.ts_js_bridge_factory
     )
+    adapter = registry.resolve("python") or PythonLanguageAdapter()
+    result = adapter.analyze(
+        _workspace_path(request),
+        list(include_files) if include_files is not None else None,
+    )
+    return result.native_result
+
+
+def run_ruby_semantic_analysis(
+    request: ScannerToolInput,
+    context: ScannerToolExecutionContext,
+):
+    """Run Ruby semantic analysis for a bounded file set."""
+    from tools.common.capabilities.evidence.scanner.analyzers.adapters import RubyLanguageAdapter
+    from tools.common.capabilities.evidence.scanner.analyzers.registry import LanguageAnalyzerRegistry
+
+    include_files = request.get("include_files")
+    registry = context.language_analyzer_registry or LanguageAnalyzerRegistry.default(
+        context.ts_js_bridge_factory
+    )
+    adapter = registry.resolve("ruby") or RubyLanguageAdapter()
+    result = adapter.analyze(
+        _workspace_path(request),
+        list(include_files) if include_files is not None else None,
+    )
+    return result.native_result
+
+
+def run_csharp_semantic_analysis(
+    request: ScannerToolInput,
+    context: ScannerToolExecutionContext,
+):
+    """Run bounded C# semantic analysis without invoking dotnet tooling."""
+    from tools.common.capabilities.evidence.scanner.analyzers.adapters import CSharpLanguageAdapter
+    from tools.common.capabilities.evidence.scanner.analyzers.registry import LanguageAnalyzerRegistry
+
+    include_files = list(request.get("include_files") or [])
+    project_root = request.get("project_root")
+    if project_root:
+        root = Path(project_root)
+        include_files.extend(
+            path.relative_to(_workspace_path(request)).as_posix()
+            for path in root.glob("*.csproj")
+            if path.is_file()
+        )
+    registry = context.language_analyzer_registry or LanguageAnalyzerRegistry.default(
+        context.ts_js_bridge_factory
+    )
+    adapter = registry.resolve("csharp") or CSharpLanguageAdapter()
+    result = adapter.analyze(
+        _workspace_path(request),
+        include_files,
+    )
+    return result.native_result
+
+
+def run_java_semantic_analysis(request: ScannerToolInput, context: ScannerToolExecutionContext):
+    """Run bounded Java syntax analysis without invoking Maven."""
+    from tools.common.capabilities.evidence.scanner.analyzers.adapters import JavaLanguageAdapter
+    from tools.common.capabilities.evidence.scanner.analyzers.registry import LanguageAnalyzerRegistry
+    registry = context.language_analyzer_registry or LanguageAnalyzerRegistry.default(context.ts_js_bridge_factory)
+    adapter = registry.resolve("java") or JavaLanguageAdapter()
+    include_files = list(request.get("include_files") or [])
+    root = Path(request.get("project_root")) if request.get("project_root") else _workspace_path(request)
+    include_files.extend(path.relative_to(_workspace_path(request)).as_posix() for pattern in ("pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts") for path in root.glob(pattern) if path.is_file())
+    result = adapter.analyze(_workspace_path(request), sorted(set(include_files)))
+    return result.native_result
+
+
+def run_kotlin_semantic_analysis(request: ScannerToolInput, context: ScannerToolExecutionContext):
+    """Run bounded Kotlin syntax analysis without invoking Gradle."""
+    from tools.common.capabilities.evidence.scanner.analyzers.adapters import KotlinLanguageAdapter
+    from tools.common.capabilities.evidence.scanner.analyzers.registry import LanguageAnalyzerRegistry
+    registry = context.language_analyzer_registry or LanguageAnalyzerRegistry.default(context.ts_js_bridge_factory)
+    adapter = registry.resolve("kotlin") or KotlinLanguageAdapter()
+    include_files = list(request.get("include_files") or [])
+    root = Path(request.get("project_root")) if request.get("project_root") else _workspace_path(request)
+    include_files.extend(path.relative_to(_workspace_path(request)).as_posix() for pattern in ("pom.xml", "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts") for path in root.glob(pattern) if path.is_file())
+    result = adapter.analyze(_workspace_path(request), sorted(set(include_files)))
+    return result.native_result
+
+
+def run_php_semantic_analysis(request: ScannerToolInput, context: ScannerToolExecutionContext):
+    """Run bounded PHP syntax/Composer analysis without executing PHP."""
+    from tools.common.capabilities.evidence.scanner.analyzers.adapters import PhpLanguageAdapter
+    from tools.common.capabilities.evidence.scanner.analyzers.registry import LanguageAnalyzerRegistry
+    registry = context.language_analyzer_registry or LanguageAnalyzerRegistry.default(context.ts_js_bridge_factory)
+    adapter = registry.resolve("php") or PhpLanguageAdapter()
+    include_files = list(request.get("include_files") or [])
+    root = Path(request.get("project_root")) if request.get("project_root") else _workspace_path(request)
+    include_files.extend(path.relative_to(_workspace_path(request)).as_posix() for path in root.glob("composer.json") if path.is_file())
+    result = adapter.analyze(_workspace_path(request), sorted(set(include_files)))
+    return result.native_result
+
+def run_go_semantic_analysis(request: ScannerToolInput, context: ScannerToolExecutionContext):
+    from tools.common.capabilities.evidence.scanner.analyzers.adapters import GoLanguageAdapter
+    from tools.common.capabilities.evidence.scanner.analyzers.registry import LanguageAnalyzerRegistry
+    registry=context.language_analyzer_registry or LanguageAnalyzerRegistry.default(context.ts_js_bridge_factory); adapter=registry.resolve("go") or GoLanguageAdapter(); files=list(request.get("include_files") or [])
+    root=Path(request.get("project_root")) if request.get("project_root") else _workspace_path(request); files.extend(p.relative_to(_workspace_path(request)).as_posix() for p in root.glob("go.mod") if p.is_file())
+    return adapter.analyze(_workspace_path(request),sorted(set(files))).native_result
+
+def run_rust_semantic_analysis(request: ScannerToolInput, context: ScannerToolExecutionContext):
+    from tools.common.capabilities.evidence.scanner.analyzers.adapters import RustLanguageAdapter
+    from tools.common.capabilities.evidence.scanner.analyzers.registry import LanguageAnalyzerRegistry
+    registry=context.language_analyzer_registry or LanguageAnalyzerRegistry.default(context.ts_js_bridge_factory); adapter=registry.resolve("rust") or RustLanguageAdapter(); files=list(request.get("include_files") or [])
+    root=Path(request.get("project_root")) if request.get("project_root") else _workspace_path(request); files.extend(p.relative_to(_workspace_path(request)).as_posix() for p in root.glob("Cargo.toml") if p.is_file())
+    return adapter.analyze(_workspace_path(request),sorted(set(files))).native_result
+
+def _run_mobile_semantic_analysis(request, context, language, manifest_names=()):
+    from tools.common.capabilities.evidence.scanner.analyzers.registry import LanguageAnalyzerRegistry
+    registry=context.language_analyzer_registry or LanguageAnalyzerRegistry.default(context.ts_js_bridge_factory)
+    files=list(request.get("include_files") or [])
+    root=Path(request.get("project_root")) if request.get("project_root") else _workspace_path(request)
+    workspace=_workspace_path(request)
+    for name in manifest_names:
+        path=root/name
+        if path.is_file(): files.append(path.relative_to(workspace).as_posix())
+    return registry.resolve(language).analyze(workspace, sorted(set(files))).native_result
+
+def run_swift_semantic_analysis(request: ScannerToolInput, context: ScannerToolExecutionContext):
+    return _run_mobile_semantic_analysis(request, context, "swift", ("Package.swift", "Podfile"))
+
+def run_objc_semantic_analysis(request: ScannerToolInput, context: ScannerToolExecutionContext):
+    return _run_mobile_semantic_analysis(request, context, "objc", ("Podfile",))
+
+def run_dart_semantic_analysis(request: ScannerToolInput, context: ScannerToolExecutionContext):
+    return _run_mobile_semantic_analysis(request, context, "dart", ("pubspec.yaml",))
 
 
 def run_structural_augmentation(
@@ -154,8 +290,10 @@ def build_evidence_graph(
         workspace_path=_workspace_path(request),
         technical_findings=list(_required(request, "technical_findings")),
         structural_facts=list(request.get("structural_facts") or []),
+        semantic_program=request.get("semantic_program"),
         package_dependencies=list(request.get("package_dependencies") or []),
         coverage_notes=list(request.get("coverage_notes") or []),
+        project_discovery=request.get("project_discovery"),
     )
 
 

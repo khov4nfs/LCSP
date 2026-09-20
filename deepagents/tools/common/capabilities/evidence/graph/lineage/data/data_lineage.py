@@ -90,6 +90,8 @@ _PROTO_FIELD_RE = re.compile(
 _PROTO_RPC_RE = re.compile(
     r"\brpc\s+([A-Za-z_][\w]*)\s*\(\s*(?:stream\s+)?([.A-Za-z_][\w.]*)\s*\)\s*returns\s*\(\s*(?:stream\s+)?([.A-Za-z_][\w.]*)\s*\)"
 )
+_PROTO_PACKAGE_RE = re.compile(r"(?m)^\s*package\s+([A-Za-z_][\w.]*)\s*;")
+_PROTO_SERVICE_RE = re.compile(r"\bservice\s+([A-Za-z_][\w]*)\s*\{(.*?)\}", re.S)
 
 
 class SemanticDataLineageExtractor:
@@ -378,6 +380,10 @@ class SemanticDataLineageExtractor:
                 text = path.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
+            package_name = (_PROTO_PACKAGE_RE.search(text) or [None, ""])[1]
+            services: list[tuple[str, int, int]] = []
+            for service_match in _PROTO_SERVICE_RE.finditer(text):
+                services.append((service_match.group(1), service_match.start(2), service_match.end(2)))
             contract_key = f"data-contract:proto:{rel}"
             program.add_node(
                 SemanticNodeFact(
@@ -464,6 +470,11 @@ class SemanticDataLineageExtractor:
                 method, request_type, response_type = rpc.groups()
                 line = _line(text, rpc.start())
                 method_key = f"grpc-method:{rel}:{method}"
+                service_name = next((name for name, start, end in services if start <= rpc.start() <= end), "")
+                qualified = ".".join(value for value in (package_name, service_name, method) if value)
+                # Keep the historical method key/label stable; package/service
+                # qualification is preserved as attributes for safe resolution.
+                method_key = f"grpc-method:{rel}:{method}"
                 program.add_node(
                     SemanticNodeFact(
                         method_key,
@@ -476,6 +487,9 @@ class SemanticDataLineageExtractor:
                         attributes={
                             "requestType": request_type,
                             "responseType": response_type,
+                            "package": package_name,
+                            "service": service_name,
+                            "method": method,
                         },
                         origin="CONTRACT_ANALYSIS",
                     )
