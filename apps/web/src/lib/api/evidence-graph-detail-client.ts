@@ -30,12 +30,34 @@ export type ProgramEvidenceGraphDetail = {
       symbol: string | null;
       file: string | null;
       line: number | null;
+      ai_usage_role?: string | null;
+      evidence_state?: string | null;
+      resolution_state?: string | null;
     }>;
     edges: Array<{
       id: string;
       source: string;
       target: string;
       relationship: string;
+      evidence_state?: string | null;
+      resolution_state?: string | null;
+    }>;
+    usage_flow_count?: number;
+    rendered_usage_flow_count?: number;
+    omitted_usage_flow_count?: number;
+    usage_group_count?: number;
+    rendered_usage_group_count?: number;
+    omitted_usage_group_count?: number;
+    usage_flow_groups?: Array<{
+      key: string;
+      label: string;
+      source_node_id: string | null;
+      source_label: string | null;
+      provider_label: string | null;
+      gateway_label: string | null;
+      usage_flow_count: number;
+      rendered_usage_flow_count: number;
+      omitted_usage_flow_count: number;
     }>;
   };
   claims: Array<{
@@ -100,9 +122,12 @@ const UNAVAILABLE_GRAPH_STATE_BY_PROBLEM_CODE: Record<
   string,
   UnavailableProgramEvidenceGraphState
 > = {
-  [EVIDENCE_ERROR_CODES.notReady]: PROGRAM_EVIDENCE_GRAPH_DETAIL_LOAD_STATES.pending,
-  [EVIDENCE_ERROR_CODES.buildFailed]: PROGRAM_EVIDENCE_GRAPH_DETAIL_LOAD_STATES.failed,
-  [EVIDENCE_ERROR_CODES.notFound]: PROGRAM_EVIDENCE_GRAPH_DETAIL_LOAD_STATES.notFound,
+  [EVIDENCE_ERROR_CODES.notReady]:
+    PROGRAM_EVIDENCE_GRAPH_DETAIL_LOAD_STATES.pending,
+  [EVIDENCE_ERROR_CODES.buildFailed]:
+    PROGRAM_EVIDENCE_GRAPH_DETAIL_LOAD_STATES.failed,
+  [EVIDENCE_ERROR_CODES.notFound]:
+    PROGRAM_EVIDENCE_GRAPH_DETAIL_LOAD_STATES.notFound,
 };
 
 /** Normalize optional upstream metric properties to the contract's null sentinel. */
@@ -118,11 +143,76 @@ export function normalizeProgramEvidenceGraphDetail(
       ai_model_invocations: normalizeMetric(overview.ai_model_invocations),
       evidence_mapped_scope: normalizeMetric(overview.evidence_mapped_scope),
     },
+    paths: {
+      nodes: detail.paths?.nodes ?? [],
+      edges: detail.paths?.edges ?? [],
+      usage_flow_count: normalizeCount(detail.paths?.usage_flow_count),
+      rendered_usage_flow_count: normalizeCount(
+        detail.paths?.rendered_usage_flow_count,
+      ),
+      omitted_usage_flow_count: normalizeCount(
+        detail.paths?.omitted_usage_flow_count,
+      ),
+      usage_group_count: normalizeCount(detail.paths?.usage_group_count),
+      rendered_usage_group_count: normalizeCount(
+        detail.paths?.rendered_usage_group_count,
+      ),
+      omitted_usage_group_count: normalizeCount(
+        detail.paths?.omitted_usage_group_count,
+      ),
+      usage_flow_groups: normalizeUsageFlowGroups(
+        detail.paths?.usage_flow_groups,
+      ),
+    },
   };
+}
+
+function normalizeUsageFlowGroups(
+  value: unknown,
+): NonNullable<ProgramEvidenceGraphDetail["paths"]["usage_flow_groups"]> {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") return [];
+    const group = entry as Record<string, unknown>;
+    const key = typeof group.key === "string" ? group.key : null;
+    const label = typeof group.label === "string" ? group.label : null;
+    if (!key || !label) return [];
+    return [
+      {
+        key,
+        label,
+        source_node_id:
+          typeof group.source_node_id === "string"
+            ? group.source_node_id
+            : null,
+        source_label:
+          typeof group.source_label === "string" ? group.source_label : null,
+        provider_label:
+          typeof group.provider_label === "string"
+            ? group.provider_label
+            : null,
+        gateway_label:
+          typeof group.gateway_label === "string" ? group.gateway_label : null,
+        usage_flow_count: normalizeCount(group.usage_flow_count),
+        rendered_usage_flow_count: normalizeCount(
+          group.rendered_usage_flow_count,
+        ),
+        omitted_usage_flow_count: normalizeCount(
+          group.omitted_usage_flow_count,
+        ),
+      },
+    ];
+  });
 }
 
 function normalizeMetric(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function normalizeCount(value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : 0;
 }
 
 export async function getProgramEvidenceGraphDetail(

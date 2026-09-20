@@ -15,6 +15,8 @@ import {
   ASSESSMENT_ARTIFACT_STATUSES,
   ASSESSMENT_ARTIFACT_TYPES,
   ASSESSMENT_TECHNICAL_COVERAGE_STATES,
+  AI_DISCOVERY_EVIDENCE_STATES,
+  AI_DISCOVERY_RESOLUTION_STATES,
   type BusinessContextArtifact,
   type InvestigationNotesArtifact,
 } from "@lcsp/contracts/evidence";
@@ -60,7 +62,6 @@ import {
   PROGRAM_EVIDENCE_OVERVIEW_FORMATS,
 } from "@/features/assessment-flow/utils/program-evidence-summary";
 import {
-  buildEvidenceGraphOverview,
   fitGraphToViewport,
   GRAPH_NODE_HEIGHT,
   GRAPH_NODE_WIDTH,
@@ -73,6 +74,23 @@ import {
 } from "../../utils/program-evidence-path-map";
 
 const MAX_PERSISTENT_RELATIONSHIP_LABELS = 8;
+
+type GraphNode = ProgramEvidenceGraphDetail["paths"]["nodes"][number];
+type GraphEdge = ProgramEvidenceGraphDetail["paths"]["edges"][number];
+
+const AI_USAGE_ROLE_MESSAGE_KEYS = {
+  MODULE_FEATURE: "moduleFeature",
+  ROUTE_HANDLER_FEATURE: "routeHandlerFeature",
+  SERVICE_CLIENT: "serviceClient",
+  AI_SDK: "aiSdk",
+  AI_SDK_INVOCATION: "aiSdkInvocation",
+  AI_API_ENDPOINT: "aiApiEndpoint",
+  AI_GATEWAY: "aiGateway",
+  AI_PROVIDER: "aiProvider",
+  MODEL_IDENTITY: "modelIdentity",
+  CONFIG_CONTROL: "configControl",
+  UNRESOLVED_AI_CANDIDATE: "unresolvedCandidate",
+} as const;
 
 type DrawerContextValue = {
   openArtifact: (ref: ArtifactRef, trigger?: HTMLElement | null) => void;
@@ -93,12 +111,14 @@ export function ProgramEvidenceGraphProvider({
   const [open, setOpen] = useState(false);
   const [detail, setDetail] = useState<ProgramEvidenceGraphDetail | null>(null);
   const [loading, setLoading] = useState(false);
-  const [loadState, setLoadState] = useState<ProgramEvidenceGraphDetailLoadState>(
-    PROGRAM_EVIDENCE_GRAPH_DETAIL_LOAD_STATES.unavailable,
-  );
+  const [loadState, setLoadState] =
+    useState<ProgramEvidenceGraphDetailLoadState>(
+      PROGRAM_EVIDENCE_GRAPH_DETAIL_LOAD_STATES.unavailable,
+    );
   const [textArtifactOpen, setTextArtifactOpen] = useState(false);
   const [textArtifactLoading, setTextArtifactLoading] = useState(false);
-  const [textArtifact, setTextArtifact] = useState<AssessmentTextArtifact | null>(null);
+  const [textArtifact, setTextArtifact] =
+    useState<AssessmentTextArtifact | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const wasOpenRef = useRef(false);
   const requestVersionRef = useRef(0);
@@ -145,20 +165,24 @@ export function ProgramEvidenceGraphProvider({
         ? getBusinessContextArtifact(ref.assessmentId)
         : getInvestigationNotesArtifact(ref.assessmentId);
     void request
-      .then((value: BusinessContextArtifact | InvestigationNotesArtifact | null) => {
-        if (
-          value?.status === ASSESSMENT_ARTIFACT_STATUSES.ready &&
-          value.content &&
-          ((ref.type === ARTIFACT_TYPES.businessContext &&
-            value.type === ASSESSMENT_ARTIFACT_TYPES.businessContext) ||
-            (ref.type === ARTIFACT_TYPES.investigationNotes &&
-              value.type === ASSESSMENT_ARTIFACT_TYPES.investigationNotes))
-        ) {
-          setTextArtifact(value);
-        } else {
-          setTextArtifact(value);
-        }
-      })
+      .then(
+        (
+          value: BusinessContextArtifact | InvestigationNotesArtifact | null,
+        ) => {
+          if (
+            value?.status === ASSESSMENT_ARTIFACT_STATUSES.ready &&
+            value.content &&
+            ((ref.type === ARTIFACT_TYPES.businessContext &&
+              value.type === ASSESSMENT_ARTIFACT_TYPES.businessContext) ||
+              (ref.type === ARTIFACT_TYPES.investigationNotes &&
+                value.type === ASSESSMENT_ARTIFACT_TYPES.investigationNotes))
+          ) {
+            setTextArtifact(value);
+          } else {
+            setTextArtifact(value);
+          }
+        },
+      )
       .catch(() => setTextArtifact(null))
       .finally(() => setTextArtifactLoading(false));
   };
@@ -186,7 +210,10 @@ export function ProgramEvidenceGraphProvider({
     ) {
       return;
     }
-    const timer = setTimeout(loadDetail, PROGRAM_EVIDENCE_GRAPH_PENDING_POLL_MS);
+    const timer = setTimeout(
+      loadDetail,
+      PROGRAM_EVIDENCE_GRAPH_PENDING_POLL_MS,
+    );
     return () => clearTimeout(timer);
   }, [open, loading, loadState, loadDetail]);
   return (
@@ -243,11 +270,29 @@ function ProgramEvidenceGraphDrawer({
       >
         <DialogHeader className="grid w-full shrink-0 grid-cols-[minmax(0,1fr)_auto] items-stretch gap-x-4 gap-y-1 px-6 py-2">
           <div className="min-h-4 min-w-0">
-          {detail ? (
-            <p className="truncate text-xs text-muted-foreground">
-              {resolveAppMessage("pages.assessmentFlow.graph.repositoryEvidence" as never)} · {detail.repository.repository_full_name ?? resolveAppMessage("pages.assessmentFlow.graph.unavailable" as never)} · {detail.repository.branch ?? detail.repository.ref ?? resolveAppMessage("pages.assessmentFlow.graph.unavailableValue" as never)} · {detail.repository.pinned_commit ?? resolveAppMessage("pages.assessmentFlow.graph.unavailableValue" as never)}
-            </p>
-          ) : null}
+            {detail ? (
+              <p className="truncate text-xs text-muted-foreground">
+                {resolveAppMessage(
+                  "pages.assessmentFlow.graph.repositoryEvidence" as never,
+                )}{" "}
+                ·{" "}
+                {detail.repository.repository_full_name ??
+                  resolveAppMessage(
+                    "pages.assessmentFlow.graph.unavailable" as never,
+                  )}{" "}
+                ·{" "}
+                {detail.repository.branch ??
+                  detail.repository.ref ??
+                  resolveAppMessage(
+                    "pages.assessmentFlow.graph.unavailableValue" as never,
+                  )}{" "}
+                ·{" "}
+                {detail.repository.pinned_commit ??
+                  resolveAppMessage(
+                    "pages.assessmentFlow.graph.unavailableValue" as never,
+                  )}
+              </p>
+            ) : null}
           </div>
           <div className="col-start-1 row-start-2 flex min-w-0 flex-col items-start gap-1">
             <DialogTitle className="row-start-2 w-full text-left">
@@ -256,9 +301,12 @@ function ProgramEvidenceGraphDrawer({
           </div>
           <div className="col-start-2 row-span-2 row-start-1 flex shrink-0 items-center gap-2">
             <div className="flex shrink-0 items-center gap-2">
-              {detail?.repository.status === ASSESSMENT_TECHNICAL_COVERAGE_STATES.ready ? (
+              {detail?.repository.status ===
+              ASSESSMENT_TECHNICAL_COVERAGE_STATES.ready ? (
                 <span className="inline-flex h-9 items-center justify-center rounded-full border border-border/70 px-3 text-xs text-muted-foreground">
-                  {resolveAppMessage("pages.assessmentFlow.graph.ready" as never)}
+                  {resolveAppMessage(
+                    "pages.assessmentFlow.graph.ready" as never,
+                  )}
                 </span>
               ) : null}
               <Button
@@ -267,7 +315,9 @@ function ProgramEvidenceGraphDrawer({
                 size="icon"
                 className="inline-flex size-9 items-center justify-center p-0"
                 onClick={() => onOpenChange(false)}
-                aria-label={resolveAppMessage("pages.assessmentFlow.graph.close" as never)}
+                aria-label={resolveAppMessage(
+                  "pages.assessmentFlow.graph.close" as never,
+                )}
               >
                 <XIcon />
               </Button>
@@ -326,14 +376,10 @@ export function GraphFirstDetail({
   assessmentId: string;
   detail: ProgramEvidenceGraphDetail;
 }) {
-  const overview = buildEvidenceGraphOverview(
-    detail.paths.nodes,
-    detail.paths.edges,
-  );
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const topology = selectEvidenceTopology(
-    overview.nodes,
-    overview.edges,
+    detail.paths.nodes,
+    detail.paths.edges,
   );
   const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
   const [viewport, setViewport] = useState<ViewportState>({
@@ -392,6 +438,31 @@ export function GraphFirstDetail({
             (selected.line === null || claim.line === selected.line)),
       )
     : [];
+  const overflowingUsageGroups = (detail.paths.usage_flow_groups ?? []).filter(
+    (group) => group.omitted_usage_flow_count > 0,
+  );
+  const visibleOverflowingUsageGroups = overflowingUsageGroups.slice(0, 4);
+  const visibleOmittedUsageGroupCount = visibleOverflowingUsageGroups.filter(
+    (group) => group.rendered_usage_flow_count === 0,
+  ).length;
+  const remainingOmittedUsageGroupCount = Math.max(
+    0,
+    (detail.paths.omitted_usage_group_count ?? 0) -
+      visibleOmittedUsageGroupCount,
+  );
+  const nodeObstacles = topology.nodes.flatMap((node) => {
+    const point = topology.positions.get(node.id);
+    return point
+      ? [
+          {
+            x: point.x,
+            y: point.y - GRAPH_NODE_HEIGHT / 2,
+            width: GRAPH_NODE_WIDTH,
+            height: GRAPH_NODE_HEIGHT,
+          },
+        ]
+      : [];
+  });
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
       <div className="shrink-0 px-6 py-3">
@@ -419,7 +490,9 @@ export function GraphFirstDetail({
                     })}
               </dd>
               <dt className="min-w-0 text-[0.6875rem] leading-tight text-muted-foreground">
-                {resolveAppMessage(`pages.assessmentFlow.graph.${key}` as never)}
+                {resolveAppMessage(
+                  `pages.assessmentFlow.graph.${key}` as never,
+                )}
               </dt>
             </div>
           ))}
@@ -434,11 +507,45 @@ export function GraphFirstDetail({
         >
           <div className="col-start-1 row-start-1 mb-2 min-w-0 pr-32">
             <h3 className="text-sm font-semibold">
-              {resolveAppMessage("pages.assessmentFlow.graph.topologyTitle" as never)}
+              {resolveAppMessage(
+                "pages.assessmentFlow.graph.aiUsageTopologyTitle" as never,
+              )}
             </h3>
             <p className="text-xs text-muted-foreground">
-              {resolveAppMessage("pages.assessmentFlow.graph.topologyDescription" as never)}
+              {resolveAppMessage(
+                "pages.assessmentFlow.graph.aiUsageTopologyDescription" as never,
+              )}
             </p>
+            {overflowingUsageGroups.length ? (
+              <div className="mt-2 min-w-0">
+                <p className="text-[0.6875rem] font-medium text-muted-foreground">
+                  {resolveAppMessage(
+                    "pages.assessmentFlow.graph.omittedAiUsageGroups" as never,
+                  )}
+                </p>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {visibleOverflowingUsageGroups.map((group) => (
+                    <span
+                      className="max-w-60 truncate rounded-full border border-amber-500/40 px-2 py-0.5 text-[0.6875rem] text-amber-700"
+                      key={group.key}
+                    >
+                      {group.label}: {group.omitted_usage_flow_count}{" "}
+                      {resolveAppMessage(
+                        "pages.assessmentFlow.graph.hiddenAiUsageGroupFlows" as never,
+                      )}
+                    </span>
+                  ))}
+                  {remainingOmittedUsageGroupCount ? (
+                    <span className="max-w-60 truncate rounded-full border border-amber-500/40 px-2 py-0.5 text-[0.6875rem] text-amber-700">
+                      {remainingOmittedUsageGroupCount}{" "}
+                      {resolveAppMessage(
+                        "pages.assessmentFlow.graph.additionalOmittedAiUsageGroups" as never,
+                      )}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
           <div className="col-start-1 row-start-1 mb-2 flex items-start justify-end text-[0.6875rem] text-muted-foreground">
             <div className="flex items-center gap-3">
@@ -449,9 +556,17 @@ export function GraphFirstDetail({
                 {topology.edges.length}{" "}
                 {resolveAppMessage("pages.assessmentFlow.graph.edges" as never)}
               </span>
+              {detail.paths.omitted_usage_flow_count ? (
+                <span className="max-w-64 truncate rounded-full border border-amber-500/50 px-2 py-1 text-amber-700">
+                  {detail.paths.omitted_usage_flow_count}{" "}
+                  {resolveAppMessage(
+                    "pages.assessmentFlow.graph.omittedAiUsagePaths" as never,
+                  )}
+                </span>
+              ) : null}
               <span aria-hidden="true" className="h-4 w-px bg-border/70" />
               <div
-              className="hidden shrink-0 items-center gap-1"
+                className="hidden shrink-0 items-center gap-1"
                 onPointerDown={(event) => event.stopPropagation()}
               >
                 <Button
@@ -509,14 +624,74 @@ export function GraphFirstDetail({
             </div>
           </div>
           <div className="relative col-start-1 row-start-2 min-h-0 overflow-hidden rounded-lg border border-border/60 bg-background">
+            {!topology.nodes.length ? (
+              <div className="absolute inset-0 z-10 flex items-center justify-center p-6 text-center text-sm text-muted-foreground">
+                {resolveAppMessage(
+                  "pages.assessmentFlow.graph.noAiUsagePaths" as never,
+                )}
+              </div>
+            ) : null}
             <span className="pointer-events-none absolute bottom-3 left-3 z-10 rounded bg-card/90 px-2 py-1 text-[0.6875rem] text-muted-foreground shadow-sm">
-              ● {resolveAppMessage("pages.assessmentFlow.graph.legendInspected" as never)}
+              ●{" "}
+              {resolveAppMessage(
+                "pages.assessmentFlow.graph.legendInspected" as never,
+              )}
             </span>
             <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1 rounded-md border border-border/70 bg-card/90 p-1 shadow-sm">
-              <Button type="button" size="icon-sm" variant="ghost" aria-label={resolveAppMessage("pages.assessmentFlow.graph.zoomOut" as never)} onClick={() => setViewport((state) => zoomAtPoint(state, { x: width / 2, y: height / 2 }, state.zoom - 0.15))}>−</Button>
-              <span className="px-1 text-xs tabular-nums text-muted-foreground">{Math.round(zoom * 100)}%</span>
-              <Button type="button" size="icon-sm" variant="ghost" aria-label={resolveAppMessage("pages.assessmentFlow.graph.zoomIn" as never)} onClick={() => setViewport((state) => zoomAtPoint(state, { x: width / 2, y: height / 2 }, state.zoom + 0.15))}>+</Button>
-              <Button type="button" variant="ghost" className="h-7 px-2 text-xs" aria-label={resolveAppMessage("pages.assessmentFlow.graph.fitGraph" as never)} onClick={fitViewport}>{resolveAppMessage("pages.assessmentFlow.graph.fitGraph" as never)}</Button>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label={resolveAppMessage(
+                  "pages.assessmentFlow.graph.zoomOut" as never,
+                )}
+                onClick={() =>
+                  setViewport((state) =>
+                    zoomAtPoint(
+                      state,
+                      { x: width / 2, y: height / 2 },
+                      state.zoom - 0.15,
+                    ),
+                  )
+                }
+              >
+                −
+              </Button>
+              <span className="px-1 text-xs tabular-nums text-muted-foreground">
+                {Math.round(zoom * 100)}%
+              </span>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label={resolveAppMessage(
+                  "pages.assessmentFlow.graph.zoomIn" as never,
+                )}
+                onClick={() =>
+                  setViewport((state) =>
+                    zoomAtPoint(
+                      state,
+                      { x: width / 2, y: height / 2 },
+                      state.zoom + 0.15,
+                    ),
+                  )
+                }
+              >
+                +
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-7 px-2 text-xs"
+                aria-label={resolveAppMessage(
+                  "pages.assessmentFlow.graph.fitGraph" as never,
+                )}
+                onClick={fitViewport}
+              >
+                {resolveAppMessage(
+                  "pages.assessmentFlow.graph.fitGraph" as never,
+                )}
+              </Button>
             </div>
             <svg
               className="h-full min-h-[620px] w-full cursor-grab touch-none select-none active:cursor-grabbing"
@@ -619,102 +794,112 @@ export function GraphFirstDetail({
               </defs>
               <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
                 {(() => {
-                  const placedLabelRects: Array<{ x: number; y: number; width: number; height: number }> = [];
+                  const placedLabelRects: Array<{
+                    x: number;
+                    y: number;
+                    width: number;
+                    height: number;
+                  }> = [];
                   return topology.edges.map((edge) => {
-                  const from = topology.positions.get(edge.source);
-                  const to = topology.positions.get(edge.target);
-                  if (!from || !to) return null;
-                  const points = routeGraphEdge(
-                    from,
-                    to,
-                    topology.nodes.flatMap((node) => {
-                      const point = topology.positions.get(node.id);
-                      return point
-                        ? [{ x: point.x, y: point.y - GRAPH_NODE_HEIGHT / 2, width: GRAPH_NODE_WIDTH, height: GRAPH_NODE_HEIGHT }]
-                        : [];
-                    }),
-                  );
-                  const path = points
-                    .map((point, index) => `${index ? "L" : "M"}${point.x},${point.y}`)
-                    .join(" ");
-                  const labelVisible = Boolean(
-                    selected &&
+                    const from = topology.positions.get(edge.source);
+                    const to = topology.positions.get(edge.target);
+                    if (!from || !to) return null;
+                    const points = routeGraphEdge(from, to, nodeObstacles);
+                    const path = points
+                      .map(
+                        (point, index) =>
+                          `${index ? "L" : "M"}${point.x},${point.y}`,
+                      )
+                      .join(" ");
+                    const labelVisible = Boolean(
+                      selected &&
                       (showPersistentLabels || hoveredEdgeId === edge.id) &&
-                      (edge.source === selected.id || edge.target === selected.id),
-                  );
-                  const labelWidth = edge.relationship.length * 5.6 + 8;
-                  const labelPoint = findLabelPlacement(
-                    points,
-                    labelWidth,
-                    topology.nodes.flatMap((node) => {
-                      const point = topology.positions.get(node.id);
-                      return point
-                        ? [{ x: point.x, y: point.y - GRAPH_NODE_HEIGHT / 2, width: GRAPH_NODE_WIDTH, height: GRAPH_NODE_HEIGHT }]
-                        : [];
-                    }),
-                    16,
-                    placedLabelRects,
-                  );
-                  const labelSafe = Boolean(labelPoint);
-                  if (labelPoint && labelVisible) {
-                    placedLabelRects.push({
-                      x: labelPoint.x - labelWidth / 2 - LABEL_TO_LABEL_CLEARANCE,
-                      y: labelPoint.y - 8 - LABEL_TO_LABEL_CLEARANCE,
-                      width: labelWidth + LABEL_TO_LABEL_CLEARANCE * 2,
-                      height: 16 + LABEL_TO_LABEL_CLEARANCE * 2,
-                    });
-                  }
-                  return (
-                    <g key={edge.id}>
-                      <path
-                        d={path}
-                        className={
-                          `fill-none ${selected &&
-                          (edge.source === selected.id ||
-                            edge.target === selected.id)
-                            ? "stroke-brand"
-                            : selected
-                              ? "stroke-muted-foreground/15"
-                              : "stroke-muted-foreground/25"}`
-                        }
-                        strokeWidth={
-                          selected &&
-                          (edge.source === selected.id ||
-                            edge.target === selected.id)
-                            ? 2
-                            : 1
-                        }
-                        markerEnd="url(#pge-arrow)"
-                        style={{ pointerEvents: "stroke" }}
-                        tabIndex={0}
-                        onMouseEnter={() => setHoveredEdgeId(edge.id)}
-                        onMouseLeave={() => setHoveredEdgeId(null)}
-                        onFocus={() => setHoveredEdgeId(edge.id)}
-                        onBlur={() => setHoveredEdgeId(null)}
-                      />
-                      {labelVisible && labelSafe ? (
-                        <rect
-                          x={(labelPoint?.x ?? from.x) - edge.relationship.length * 2.8 - 4}
-                          y={(labelPoint?.y ?? from.y) - 8}
-                          width={labelWidth}
-                          height="16"
-                          rx="3"
-                          className="pointer-events-none fill-card/95 stroke-border/70"
-                          strokeWidth="1"
+                      (edge.source === selected.id ||
+                        edge.target === selected.id),
+                    );
+                    const labelWidth = edge.relationship.length * 5.6 + 8;
+                    const labelPoint = findLabelPlacement(
+                      points,
+                      labelWidth,
+                      nodeObstacles,
+                      16,
+                      placedLabelRects,
+                    );
+                    const labelSafe = Boolean(labelPoint);
+                    if (labelPoint && labelVisible) {
+                      placedLabelRects.push({
+                        x:
+                          labelPoint.x -
+                          labelWidth / 2 -
+                          LABEL_TO_LABEL_CLEARANCE,
+                        y: labelPoint.y - 8 - LABEL_TO_LABEL_CLEARANCE,
+                        width: labelWidth + LABEL_TO_LABEL_CLEARANCE * 2,
+                        height: 16 + LABEL_TO_LABEL_CLEARANCE * 2,
+                      });
+                    }
+                    return (
+                      <g key={edge.id}>
+                        <path
+                          d={path}
+                          className={`fill-none ${
+                            selected &&
+                            (edge.source === selected.id ||
+                              edge.target === selected.id)
+                              ? "stroke-brand"
+                              : selected
+                                ? "stroke-muted-foreground/15"
+                                : "stroke-muted-foreground/25"
+                          }`}
+                          strokeWidth={
+                            selected &&
+                            (edge.source === selected.id ||
+                              edge.target === selected.id)
+                              ? 2
+                              : 1
+                          }
+                          markerEnd="url(#pge-arrow)"
+                          strokeDasharray={
+                            edge.resolution_state ===
+                            AI_DISCOVERY_RESOLUTION_STATES.unresolved
+                              ? "5 5"
+                              : undefined
+                          }
+                          style={{ pointerEvents: "stroke" }}
+                          tabIndex={0}
+                          onMouseEnter={() => setHoveredEdgeId(edge.id)}
+                          onMouseLeave={() => setHoveredEdgeId(null)}
+                          onFocus={() => setHoveredEdgeId(edge.id)}
+                          onBlur={() => setHoveredEdgeId(null)}
                         />
-                      ) : null}
-                      <text
-                        x={labelPoint?.x ?? from.x}
-                        y={labelPoint?.y ?? from.y}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        className="pointer-events-none fill-muted-foreground text-[9px]"
-                        visibility={labelVisible && labelSafe ? "visible" : "hidden"}
-                      >
-                        {edge.relationship}
-                      </text>
-                    </g>
-                  );
+                        {labelVisible && labelSafe ? (
+                          <rect
+                            x={
+                              (labelPoint?.x ?? from.x) -
+                              edge.relationship.length * 2.8 -
+                              4
+                            }
+                            y={(labelPoint?.y ?? from.y) - 8}
+                            width={labelWidth}
+                            height="16"
+                            rx="3"
+                            className="pointer-events-none fill-card/95 stroke-border/70"
+                            strokeWidth="1"
+                          />
+                        ) : null}
+                        <text
+                          x={labelPoint?.x ?? from.x}
+                          y={labelPoint?.y ?? from.y}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          className="pointer-events-none fill-muted-foreground text-[9px]"
+                          visibility={
+                            labelVisible && labelSafe ? "visible" : "hidden"
+                          }
+                        >
+                          {edge.relationship}
+                        </text>
+                      </g>
+                    );
                   });
                 })()}
                 {topology.nodes.map((node, index) => {
@@ -751,7 +936,10 @@ export function GraphFirstDetail({
                         className={
                           selectedNode
                             ? "fill-brand/20 stroke-brand"
-                            : "fill-card stroke-border"
+                            : node.resolution_state ===
+                                AI_DISCOVERY_RESOLUTION_STATES.unresolved
+                              ? "fill-card stroke-amber-500"
+                              : "fill-card stroke-border"
                         }
                         strokeWidth={selectedNode ? 2 : 1}
                       />
@@ -761,7 +949,6 @@ export function GraphFirstDetail({
                         clipPath={`url(#pge-node-label-${index})`}
                         className="fill-foreground text-[10px]"
                       >
-                        <title>{node.label}</title>
                         {node.label}
                       </text>
                       <text
@@ -769,7 +956,7 @@ export function GraphFirstDetail({
                         y={position.y + 12}
                         className="fill-muted-foreground text-[8px]"
                       >
-                        {node.kind}
+                        {formatNodeCaption(node)}
                       </text>
                     </g>
                   );
@@ -782,12 +969,32 @@ export function GraphFirstDetail({
           {selected ? (
             <>
               <div className="flex items-center justify-between gap-3">
-                <p className="text-xs text-muted-foreground">{resolveAppMessage("pages.assessmentFlow.graph.selectedNode" as never)}</p>
-                <span className="rounded-full border border-border/70 px-2 py-1 text-[0.6875rem] text-muted-foreground">{selected.kind}</span>
+                <p className="text-xs text-muted-foreground">
+                  {resolveAppMessage(
+                    "pages.assessmentFlow.graph.selectedNode" as never,
+                  )}
+                </p>
+                <span className="rounded-full border border-border/70 px-2 py-1 text-[0.6875rem] text-muted-foreground">
+                  {formatAiUsageRole(selected)}
+                </span>
               </div>
-              <h3 className="mt-1 break-words text-base font-semibold">{selected.label}</h3>
-              {selected.file ? <p className="mt-2 break-words text-xs text-muted-foreground">{selected.file}{selected.line ? `:${selected.line}` : ""}</p> : null}
-              {selected.symbol ? <p className="mt-1 break-words text-xs font-medium">{selected.symbol}</p> : null}
+              <h3 className="mt-1 break-words text-base font-semibold">
+                {selected.label}
+              </h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {formatEvidenceStatus(selected)}
+              </p>
+              {selected.file ? (
+                <p className="mt-2 break-words text-xs text-muted-foreground">
+                  {selected.file}
+                  {selected.line ? `:${selected.line}` : ""}
+                </p>
+              ) : null}
+              {selected.symbol ? (
+                <p className="mt-1 break-words text-xs font-medium">
+                  {selected.symbol}
+                </p>
+              ) : null}
               <section className="mt-4 rounded-lg border border-border/60 bg-muted/20 p-3">
                 <h4 className="text-sm font-semibold">
                   {resolveAppMessage(
@@ -821,10 +1028,37 @@ export function GraphFirstDetail({
                 )}
               </section>
               <section className="mt-4 rounded-lg border border-border/60 bg-muted/20 p-3">
-                <h4 className="text-sm font-semibold">{resolveAppMessage("pages.assessmentFlow.graph.relationships" as never)}</h4>
-                {incoming.length ? <RelationshipList title={resolveAppMessage("pages.assessmentFlow.graph.incoming" as never)} edges={incoming} nodes={topology.nodes} incoming /> : null}
-                {outgoing.length ? <RelationshipList title={resolveAppMessage("pages.assessmentFlow.graph.outgoing" as never)} edges={outgoing} nodes={topology.nodes} /> : null}
-                {!incoming.length && !outgoing.length ? <p className="mt-2 text-xs text-muted-foreground">{resolveAppMessage("pages.assessmentFlow.graph.unavailable" as never)}</p> : null}
+                <h4 className="text-sm font-semibold">
+                  {resolveAppMessage(
+                    "pages.assessmentFlow.graph.relationships" as never,
+                  )}
+                </h4>
+                {incoming.length ? (
+                  <RelationshipList
+                    title={resolveAppMessage(
+                      "pages.assessmentFlow.graph.incoming" as never,
+                    )}
+                    edges={incoming}
+                    nodes={topology.nodes}
+                    incoming
+                  />
+                ) : null}
+                {outgoing.length ? (
+                  <RelationshipList
+                    title={resolveAppMessage(
+                      "pages.assessmentFlow.graph.outgoing" as never,
+                    )}
+                    edges={outgoing}
+                    nodes={topology.nodes}
+                  />
+                ) : null}
+                {!incoming.length && !outgoing.length ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {resolveAppMessage(
+                      "pages.assessmentFlow.graph.unavailable" as never,
+                    )}
+                  </p>
+                ) : null}
               </section>
               <section className="mt-4 rounded-lg border border-border/60 bg-muted/20 p-3">
                 <h4 className="text-sm font-semibold">
@@ -851,15 +1085,35 @@ export function GraphFirstDetail({
       <footer className="flex shrink-0 items-center justify-between gap-4 border-t border-border/70 px-6 py-3 text-xs text-muted-foreground">
         <div className="flex min-w-0 items-center gap-4">
           <span className="flex shrink-0 items-center gap-1">
-            <span className="font-medium text-foreground">{resolveAppMessage("pages.assessmentFlow.graph.legendLabel" as never)}</span>
+            <span className="font-medium text-foreground">
+              {resolveAppMessage(
+                "pages.assessmentFlow.graph.legendLabel" as never,
+              )}
+            </span>
           </span>
           <span className="flex shrink-0 items-center gap-1">
             <span className="inline-block size-2 rounded-full border border-border" />
-            {resolveAppMessage("pages.assessmentFlow.graph.legendNode" as never)}
+            {resolveAppMessage(
+              "pages.assessmentFlow.graph.legendNode" as never,
+            )}
           </span>
-          <span className="flex shrink-0 items-center gap-1"><span aria-hidden="true">─</span>{resolveAppMessage("pages.assessmentFlow.graph.legendRelationship" as never)}</span>
-          <span className="flex shrink-0 items-center gap-1"><span className="inline-block size-2 rounded-full bg-brand" />{resolveAppMessage("pages.assessmentFlow.graph.legendInspected" as never)}</span>
-          <span className="truncate">{resolveAppMessage("pages.assessmentFlow.graph.pinnedNote" as never)}</span>
+          <span className="flex shrink-0 items-center gap-1">
+            <span aria-hidden="true">─</span>
+            {resolveAppMessage(
+              "pages.assessmentFlow.graph.legendRelationship" as never,
+            )}
+          </span>
+          <span className="flex shrink-0 items-center gap-1">
+            <span className="inline-block size-2 rounded-full bg-brand" />
+            {resolveAppMessage(
+              "pages.assessmentFlow.graph.legendInspected" as never,
+            )}
+          </span>
+          <span className="truncate">
+            {resolveAppMessage(
+              "pages.assessmentFlow.graph.pinnedNote" as never,
+            )}
+          </span>
         </div>
         {target.kind === ARTIFACT_OPEN_KINDS.internal ||
         target.kind === ARTIFACT_OPEN_KINDS.download ? (
@@ -932,6 +1186,81 @@ function EvidenceOverview({ detail }: { detail: ProgramEvidenceGraphDetail }) {
   );
 }
 
+function formatNodeCaption(node: GraphNode) {
+  return `${formatAiUsageRole(node)} · ${formatResolutionState(
+    node.resolution_state,
+  )}`;
+}
+
+function formatEvidenceStatus(node: GraphNode | GraphEdge) {
+  const parts = [
+    node.evidence_state ? formatEvidenceState(node.evidence_state) : null,
+    node.resolution_state ? formatResolutionState(node.resolution_state) : null,
+  ].filter(Boolean);
+  return parts.length
+    ? parts.join(" · ")
+    : resolveAppMessage("pages.assessmentFlow.graph.unavailable" as never);
+}
+
+function formatAiUsageRole(node: GraphNode) {
+  const role = node.ai_usage_role ?? "";
+  const suffix =
+    AI_USAGE_ROLE_MESSAGE_KEYS[role as keyof typeof AI_USAGE_ROLE_MESSAGE_KEYS];
+  return suffix
+    ? resolveAppMessage(
+        `pages.assessmentFlow.graph.aiUsageRoles.${suffix}` as never,
+      )
+    : node.kind;
+}
+
+function formatEvidenceState(state: string) {
+  switch (state) {
+    case AI_DISCOVERY_EVIDENCE_STATES.confirmedAiCall:
+      return resolveAppMessage(
+        "pages.assessmentFlow.graph.evidenceStates.confirmedAiCall" as never,
+      );
+    case AI_DISCOVERY_EVIDENCE_STATES.possibleAiCall:
+      return resolveAppMessage(
+        "pages.assessmentFlow.graph.evidenceStates.possibleAiCall" as never,
+      );
+    case AI_DISCOVERY_EVIDENCE_STATES.aiProviderReference:
+      return resolveAppMessage(
+        "pages.assessmentFlow.graph.evidenceStates.aiProviderReference" as never,
+      );
+    case AI_DISCOVERY_EVIDENCE_STATES.unresolvedDynamic:
+      return resolveAppMessage(
+        "pages.assessmentFlow.graph.evidenceStates.unresolvedDynamic" as never,
+      );
+    default:
+      return state;
+  }
+}
+
+function formatResolutionState(state: string | null | undefined) {
+  switch (state) {
+    case AI_DISCOVERY_RESOLUTION_STATES.observed:
+      return resolveAppMessage(
+        "pages.assessmentFlow.graph.resolutionStates.observed" as never,
+      );
+    case AI_DISCOVERY_RESOLUTION_STATES.corroborated:
+      return resolveAppMessage(
+        "pages.assessmentFlow.graph.resolutionStates.corroborated" as never,
+      );
+    case AI_DISCOVERY_RESOLUTION_STATES.inferred:
+      return resolveAppMessage(
+        "pages.assessmentFlow.graph.resolutionStates.inferred" as never,
+      );
+    case AI_DISCOVERY_RESOLUTION_STATES.unresolved:
+      return resolveAppMessage(
+        "pages.assessmentFlow.graph.resolutionStates.unresolved" as never,
+      );
+    default:
+      return resolveAppMessage(
+        "pages.assessmentFlow.graph.unavailable" as never,
+      );
+  }
+}
+
 function RelationshipList({
   title,
   edges,
@@ -954,10 +1283,17 @@ function RelationshipList({
           );
           return (
             <li className="break-words" key={edge.id}>
-              {node?.label ?? "—"}{" "}
-              <span className="text-muted-foreground">
-                {incoming ? `← ${edge.relationship}` : `→ ${edge.relationship}`}
-              </span>
+              <p>
+                {node?.label ?? "--"}{" "}
+                <span className="text-muted-foreground">
+                  {incoming
+                    ? `← ${edge.relationship}`
+                    : `→ ${edge.relationship}`}
+                </span>
+              </p>
+              <p className="mt-0.5 text-[0.625rem] text-muted-foreground">
+                {formatEvidenceStatus(edge)}
+              </p>
             </li>
           );
         })}
