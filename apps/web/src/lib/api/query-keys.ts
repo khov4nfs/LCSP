@@ -11,6 +11,14 @@ export const apiQueryKeys = {
     providerCredentials: () => ["provider-credentials"] as const,
     repositories: () => ["github-integration", "repositories"] as const,
   },
+  billing: {
+    wallet: () => ["billing", "wallet"] as const,
+    history: (page: number, pageSize: number) =>
+      ["billing", "history", page, pageSize] as const,
+    estimate: (amountVnd: string) =>
+      ["billing", "estimate", amountVnd] as const,
+    order: (orderId: string) => ["billing", "order", orderId] as const,
+  },
   workspace: {
     detail: () => ["workspace"] as const,
     assessments: () => ["assessments"] as const,
@@ -42,8 +50,7 @@ export const apiQueryKeys = {
     usersRoot: () => ["admin", "users"] as const,
     usersList: (params?: Record<string, unknown>) =>
       ["admin", "users", params ?? {}] as const,
-    userDetail: (userId: string) =>
-      ["admin", "users", userId] as const,
+    userDetail: (userId: string) => ["admin", "users", userId] as const,
     corpusVersions: () => ["admin", "corpus-versions"] as const,
     corpusVersion: (versionId: string) =>
       ["admin", "corpus-versions", versionId] as const,

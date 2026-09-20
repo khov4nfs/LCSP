@@ -7,23 +7,25 @@ import { SePayWebhookIngressError } from "../../infrastructure/security/sepay-we
 import { SePayWebhookController } from "./sepay-webhook.controller.js";
 
 describe("SePayWebhookController", () => {
-  it("passes the raw Buffer through and returns the shared success envelope", async () => {
-    const execute = jest.fn<CommandBus["execute"]>(() =>
-      Promise.resolve({ duplicate: false }),
-    );
-    const controller = new SePayWebhookController({
-      execute,
-    } as unknown as CommandBus);
+  it("returns SePay acknowledgement for accepted and duplicate receipts", async () => {
     const rawBody = Buffer.from('{"id":"TX-1"}');
+    for (const duplicate of [false, true]) {
+      const execute = jest.fn<CommandBus["execute"]>(() =>
+        Promise.resolve({ duplicate }),
+      );
+      const controller = new SePayWebhookController({
+        execute,
+      } as unknown as CommandBus);
 
-    await expect(
-      controller.receive({ body: rawBody } as Request, "signature", "123"),
-    ).resolves.toEqual({ ok: true, data: { duplicate: false } });
-    expect(execute).toHaveBeenCalledWith(
-      expect.objectContaining({
-        input: { rawBody, signature: "signature", timestamp: "123" },
-      }),
-    );
+      await expect(
+        controller.receive({ body: rawBody } as Request, "signature", "123"),
+      ).resolves.toEqual({ success: true });
+      expect(execute).toHaveBeenCalledWith(
+        expect.objectContaining({
+          input: { rawBody, signature: "signature", timestamp: "123" },
+        }),
+      );
+    }
   });
 
   it("maps malformed raw bodies to the canonical webhook problem code", async () => {
