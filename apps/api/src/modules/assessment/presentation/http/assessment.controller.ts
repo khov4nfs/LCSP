@@ -27,6 +27,7 @@ import { GetAssessmentReadinessQuery } from "../../application/queries/get-asses
 import { ListAssessmentsQuery } from "../../application/queries/list-assessments/list-assessments.query.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import { AssessmentInterviewRuntimeService } from "../../application/services/assessment-interview-runtime.service.js";
+import { AssessmentInterviewSnippetService } from "../../application/services/assessment-interview-snippet.service.js";
 import { CreateAssessmentRequest } from "./dto/create-assessment.request.js";
 
 /**
@@ -44,6 +45,7 @@ export class AssessmentController {
     private readonly commandBus: CommandBus,
     private readonly queryBus: QueryBus,
     private readonly interviewRuntime: AssessmentInterviewRuntimeService,
+    private readonly interviewSnippet: AssessmentInterviewSnippetService,
   ) {}
 
   /**
@@ -185,6 +187,30 @@ export class AssessmentController {
   ) {
     return resultEnvelope(
       await this.interviewRuntime.getState(assessmentId, request.rbacContext),
+    );
+  }
+
+  @Get(":assessmentId/interview/questions/:questionId/source-snippet")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer, AUTH_USER_ROLES.admin)
+  async getInterviewSourceSnippet(
+    @Param("assessmentId") assessmentId: string,
+    @Param("questionId") questionId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const snippetContext =
+      await this.interviewRuntime.resolveActiveQuestionSnippetContext(
+        assessmentId,
+        questionId,
+        request.rbacContext,
+      );
+    return resultEnvelope(
+      await this.interviewSnippet.resolve({
+        assessmentId,
+        correlationId: request.correlationId ?? "interview-source-snippet",
+        evidenceReportId: snippetContext.evidenceReportId,
+        snippetRef: snippetContext.snippetRef,
+      }),
     );
   }
 

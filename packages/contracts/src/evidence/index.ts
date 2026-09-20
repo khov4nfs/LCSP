@@ -4,6 +4,7 @@ export * from "./assessment-runtime.ts";
 export * from "./assessment-artifacts.ts";
 export * from "./assessment-post-finding-runtime.ts";
 export * from "./assessment-interview.ts";
+export * from "./ai-discovery.ts";
 export * from "./admin-source-catalog-agentic-evidence.ts";
 export * from "./admin-source-catalog.ts";
 export * from "./activate-validated-corpus-version.ts";
