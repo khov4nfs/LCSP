@@ -7,10 +7,7 @@ import {
   BILLING_TRANSACTION_PORT,
   type BillingTransactionPort,
 } from "../../../domain/repositories/billing-transaction.port.js";
-import {
-  expireOrder,
-  toOrderView,
-} from "../../shared/billing-application.helpers.js";
+import { toBillingOrderView } from "../../mappers/billing-order.mapper.js";
 import type { AppConfig } from "../../../../../config/config.types.js";
 import { GetBillingOrderQuery } from "./get-billing-order.query.js";
 
@@ -27,9 +24,6 @@ export class GetBillingOrderHandler implements IQueryHandler<GetBillingOrderQuer
       r.order.findForUser(query.userId, query.orderId),
     );
     if (!order) throw new BillingOrderNotFoundError("Billing order not found");
-    return toOrderView(
-      await expireOrder(this.transactions, query.userId, order, query.audit),
-      this.config,
-    );
+    return toBillingOrderView(order, this.config);
   }
 }

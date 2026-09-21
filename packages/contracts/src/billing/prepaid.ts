@@ -1,5 +1,9 @@
-import type { BillingOrderStatus } from "./statuses.ts";
-import type { EffectiveRuntimeModel } from "./runtime-model.ts";
+import type {
+  BillingHistoryView as BillingHistoryViewSchema,
+  BillingOrderView as BillingOrderViewSchema,
+  BillingUsageEstimate as BillingUsageEstimateSchema,
+  BillingWalletView as BillingWalletViewSchema,
+} from "./schemas.ts";
 
 export const PREPAID_BILLING_CONFIG = {
   currency: "VND",
@@ -40,50 +44,7 @@ export const BILLING_ESTIMATE_AVAILABILITY = {
 export type BillingEstimateAvailability =
   (typeof BILLING_ESTIMATE_AVAILABILITY)[keyof typeof BILLING_ESTIMATE_AVAILABILITY];
 
-export type BillingUsageEstimate = {
-  currency: typeof PREPAID_BILLING_CONFIG.currency;
-  amountVnd: string;
-  creditUnits: string;
-  expiresInHours: number;
-  availability: BillingEstimateAvailability;
-  effectiveRuntimeModel: EffectiveRuntimeModel | null;
-  estimatedUsageChargeVnd: string | null;
-};
-
-export type BillingWalletView = {
-  walletId: string;
-  availableCredits: string;
-  reservedCredits: string;
-  totalCredits: string;
-  version: number;
-};
-
-export type BillingOrderView = {
-  id: string;
-  amountVnd: string;
-  creditUnits: string;
-  paymentCode: string;
-  status: BillingOrderStatus;
-  expiresAt: string | null;
-  creditedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-  paymentInstructions: {
-    provider: typeof BILLING_PAYMENT_PROVIDERS.sepay;
-    currency: typeof PREPAID_BILLING_CONFIG.currency;
-    paymentCode: string;
-    amountVnd: string;
-    bankName: string;
-    bankAccountNumber: string;
-    accountHolder: string;
-    transferContent: string;
-    qrCodeUrl: string;
-  };
-};
-
-export type BillingHistoryView = {
-  orders: BillingOrderView[];
-  page: number;
-  pageSize: number;
-  totalCount: number;
-};
+export type BillingUsageEstimate = BillingUsageEstimateSchema;
+export type BillingWalletView = BillingWalletViewSchema;
+export type BillingOrderView = BillingOrderViewSchema;
+export type BillingHistoryView = BillingHistoryViewSchema;

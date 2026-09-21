@@ -98,6 +98,9 @@ jobs:
       - name: Check contract literals
         run: pnpm run check:contracts
 
+      - name: Check billing production data sources
+        run: pnpm run check:billing-release-gate
+
   web-production-build:
     name: Web lint and production build
     needs: changes
@@ -357,7 +360,7 @@ jobs:
           fi
 
   admin-playwright-e2e:
-    name: Admin Playwright E2E release gate
+    name: Billing and Admin Playwright E2E release gate
     needs: changes
     if: needs.changes.outputs.release_gate == 'true'
     runs-on: ubuntu-latest
@@ -380,6 +383,5 @@ jobs:
       - name: Build runtime packages
         run: pnpm run build:runtime-packages
 
-      - name: Run Admin Playwright E2E tests
-        run: pnpm run test:admin:e2e
-
+      - name: Run Billing and Admin Playwright E2E tests
+        run: pnpm run test:billing:e2e
