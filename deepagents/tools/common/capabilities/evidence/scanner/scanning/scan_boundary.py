@@ -373,6 +373,18 @@ class ScanBoundary(AgentBoundaryBase):
                     "skippedFiles": result.skipped_files,
                     "totalSizeBytes": result.total_size_bytes,
                     "coverageLimited": result.coverage_limited,
+                    "semanticPayloads": [
+                        self._scanner_semantic_payload(
+                            "SCANNER_FILE",
+                            tool_name="materialize_snapshot",
+                            status="COMPLETED",
+                            result_summary={
+                                "filesAnalyzed": result.extracted_files,
+                                "filesSkipped": result.skipped_files,
+                                "coverageLimited": result.coverage_limited,
+                            },
+                        )
+                    ],
                 },
                 started_at=materialize_started_at,
                 completed_at=materialize_ended_at,
@@ -591,6 +603,29 @@ class ScanBoundary(AgentBoundaryBase):
                             for execution in semgrep_result.executions
                         ),
                         "redactionApplied": semgrep_result.redaction_applied,
+                        "semanticPayloads": [
+                            self._scanner_semantic_payload(
+                                "RULE_PROVENANCE",
+                                analyzer=APPROVED_TOOL_NAMES["semgrep"],
+                                tool_name=APPROVED_TOOL_NAMES["semgrep"],
+                                tool_version=(
+                                    semgrep_result.executions[0].tool_version
+                                    if semgrep_result.executions
+                                    else None
+                                ),
+                                rule_set_version_or_hash=(
+                                    semgrep_result.executions[0].config_hash
+                                    if semgrep_result.executions
+                                    else None
+                                ),
+                                status="COMPLETED",
+                                result_summary={
+                                    "executions": len(semgrep_result.executions),
+                                    "findings": len(semgrep_result.findings),
+                                    "redactionApplied": semgrep_result.redaction_applied,
+                                },
+                            )
+                        ],
                     },
                     started_at=semgrep_started_at,
                     completed_at=semgrep_ended_at,
@@ -1308,7 +1343,14 @@ class ScanBoundary(AgentBoundaryBase):
                 run_status="RUNNING",
                 tool_name="build_evidence_graph",
                 summary="Technical evidence graph built",
-                output_summary={"coverageNotes": len(coverage_notes)},
+                output_summary={
+                    "coverageNotes": len(coverage_notes),
+                    "semanticPayloads": self._scanner_semantic_payloads(
+                        technical_findings=technical_findings,
+                        package_dependencies=package_dependencies,
+                        structural_facts=structural_facts,
+                    ),
+                },
                 started_at=graph_started_at,
                 completed_at=graph_ended_at,
                 duration_ms=self._duration_ms(graph_started_at, graph_ended_at),
@@ -1883,9 +1925,27 @@ class ScanBoundary(AgentBoundaryBase):
                 "toolVersion": execution.tool_version,
                 "configHash": execution.config_hash,
                 "rulesetHash": ruleset_hash,
-                "coverageLimitations": len(coverage_limitations),
-                **context,
-            },
+            "coverageLimitations": len(coverage_limitations),
+            "semanticPayloads": [
+                self._scanner_semantic_payload(
+                    "RULE_PROVENANCE",
+                    analyzer=tool_name or execution.tool_name,
+                    tool_name=tool_name or execution.tool_name,
+                    tool_version=execution.tool_version,
+                    rule_set_version_or_hash=ruleset_hash,
+                    status=event_type.removeprefix("TOOL_"),
+                    result_summary={
+                        "outcome": execution.outcome,
+                        "configHash": execution.config_hash,
+                        **context,
+                    },
+                    started_at=started_at,
+                    completed_at=ended_at,
+                    duration_ms=self._duration_ms(started_at, ended_at),
+                )
+            ],
+            **context,
+        },
             error_summary="; ".join(execution.messages) if execution.messages else None,
             started_at=started_at,
             completed_at=ended_at,
@@ -1932,6 +1992,16 @@ class ScanBoundary(AgentBoundaryBase):
             output_summary={
                 "outcome": execution.outcome,
                 "reason": entry.reason,
+                "semanticPayloads": [
+                    self._scanner_semantic_payload(
+                        "RULE_PROVENANCE",
+                        analyzer=tool_name,
+                        tool_name=tool_name,
+                        tool_version=execution.tool_version,
+                        status="SKIPPED",
+                        result_summary={"reason": entry.reason},
+                    )
+                ],
             },
             completed_at=self._utc_timestamp(),
         )
@@ -1969,6 +2039,122 @@ class ScanBoundary(AgentBoundaryBase):
                 f"SCAN_COVERAGE_LIMITATION: file={file_path} reason={reason}"
             )
         return notes
+
+    def _scanner_semantic_payload(
+        self,
+        kind: str,
+        *,
+        analyzer: str | None = None,
+        tool_name: str | None = None,
+        tool_version: str | None = None,
+        file_path: str | None = None,
+        symbol_ref: str | None = None,
+        function_name: str | None = None,
+        dependency_name: str | None = None,
+        trace_id: str | None = None,
+        hop: int | None = None,
+        edge_type: str | None = None,
+        from_ref: str | None = None,
+        to_ref: str | None = None,
+        resolution_state: str | None = None,
+        source_anchor_ref: str | None = None,
+        evidence_refs: list[str] | None = None,
+        rule_set_version_or_hash: str | None = None,
+        result_summary: dict[str, object] | None = None,
+        status: str | None = None,
+        started_at: str | None = None,
+        completed_at: str | None = None,
+        duration_ms: int | None = None,
+    ) -> dict[str, object]:
+        payload: dict[str, object | None] = {
+            "schemaVersion": "AGENT_STREAM_SEMANTIC_V1",
+            "kind": kind,
+            "durability": "DURABLE",
+            "analyzer": analyzer,
+            "toolName": tool_name,
+            "toolVersion": tool_version,
+            "filePath": file_path,
+            "symbolRef": symbol_ref,
+            "functionName": function_name,
+            "dependencyName": dependency_name,
+            "traceId": trace_id,
+            "hop": hop,
+            "edgeType": edge_type,
+            "fromRef": from_ref,
+            "toRef": to_ref,
+            "resolutionState": resolution_state,
+            "sourceAnchorRef": source_anchor_ref,
+            "evidenceRefs": evidence_refs,
+            "ruleSetVersionOrHash": rule_set_version_or_hash,
+            "resultSummary": result_summary,
+            "status": status,
+            "startedAt": started_at,
+            "completedAt": completed_at,
+            "durationMs": duration_ms,
+        }
+        return {key: value for key, value in payload.items() if value not in (None, [], {})}
+
+    def _scanner_semantic_payloads(
+        self,
+        *,
+        technical_findings: list,
+        package_dependencies: list,
+        structural_facts: list,
+    ) -> list[dict[str, object]]:
+        payloads: list[dict[str, object]] = []
+        for finding in technical_findings[:10]:
+            file_path = getattr(finding, "file_path", None)
+            finding_id = getattr(finding, "finding_id", None)
+            function_name = getattr(finding, "function_name", None) or getattr(
+                finding, "symbol_name", None
+            )
+            payloads.append(
+                self._scanner_semantic_payload(
+                    "SCANNER_SYMBOL" if function_name else "SCANNER_FILE",
+                    analyzer=getattr(finding, "analyzer", None),
+                    tool_name=getattr(finding, "tool_name", None),
+                    file_path=file_path,
+                    function_name=function_name,
+                    source_anchor_ref=getattr(finding, "source_anchor_ref", None),
+                    evidence_refs=[str(finding_id)] if finding_id else [],
+                    status="OBSERVED",
+                )
+            )
+        for dependency in package_dependencies[:10]:
+            name = getattr(dependency, "name", None) or getattr(
+                dependency, "package_name", None
+            )
+            payloads.append(
+                self._scanner_semantic_payload(
+                    "SCANNER_DEPENDENCY",
+                    analyzer=getattr(dependency, "source", None),
+                    dependency_name=name,
+                    status="OBSERVED",
+                    result_summary={
+                        "version": getattr(dependency, "version", None),
+                        "ecosystem": getattr(dependency, "ecosystem", None),
+                    },
+                )
+            )
+        for index, fact in enumerate(structural_facts[:10]):
+            from_ref = getattr(fact, "from_ref", None) or getattr(fact, "source_ref", None)
+            to_ref = getattr(fact, "to_ref", None) or getattr(fact, "target_ref", None)
+            payloads.append(
+                self._scanner_semantic_payload(
+                    "SCANNER_TRACE_STEP",
+                    analyzer=getattr(fact, "analyzer", None) or "structural_augmentation",
+                    trace_id=getattr(fact, "trace_id", None) or f"structural:{index}",
+                    hop=getattr(fact, "hop", None) or index,
+                    edge_type=getattr(fact, "edge_type", None) or getattr(fact, "kind", None),
+                    from_ref=from_ref,
+                    to_ref=to_ref,
+                    resolution_state=getattr(fact, "resolution_state", None)
+                    or "OBSERVED",
+                    source_anchor_ref=getattr(fact, "source_anchor_ref", None),
+                    status="OBSERVED",
+                )
+            )
+        return payloads
 
     def _ts_js_coverage_limitations(
         self,

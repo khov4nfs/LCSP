@@ -96,10 +96,20 @@ export type WorkspaceRuntimeAssessmentTimeline = {
   recentActivity: WorkspaceRuntimeActivityItem[];
   engineeringProgress?: AssessmentRuntimeEngineeringProgress[];
   agentStreamEvents?: AssessmentAgentStreamEvent[];
+  agentStreamHistory?: WorkspaceRuntimeAgentStreamHistoryState;
   latestRunId: string | null;
   connectionState: WorkspaceRuntimeConnectionState;
   lastEmittedAt: string | null;
   postFinding: AssessmentPostFindingRuntimeState | null;
+};
+
+export type WorkspaceRuntimeAgentStreamHistoryState = {
+  hasMore: boolean;
+  nextCursor: string | null;
+  isLoading: boolean;
+  error: string | null;
+  hasLoadedOlderHistory: boolean;
+  hasHydratedCompleteHistory: boolean;
 };
 
 export type WorkspaceRuntimeSnapshot = {
@@ -122,11 +132,17 @@ export type WorkspaceRuntimeContextValue = WorkspaceRuntimeSnapshot & {
     AssessmentRuntimeEngineeringProgress[]
   >;
   agentStreamEventsByAssessmentId: Record<string, AssessmentAgentStreamEvent[]>;
+  agentStreamHistoryByAssessmentId: Record<
+    string,
+    WorkspaceRuntimeAgentStreamHistoryState
+  >;
   latestRunIdByAssessmentId: Record<string, string>;
   postFindingByAssessmentId: Record<string, AssessmentPostFindingRuntimeState>;
   getAssessmentRuntime: (
     assessmentId: string,
   ) => WorkspaceRuntimeAssessmentTimeline;
+  subscribeAssessmentRuntime: (assessmentId: string) => () => void;
+  loadMoreAgentStreamHistory: (assessmentId: string) => Promise<boolean>;
 };
 
 export const RUNTIME_THINKING_PHASES = {

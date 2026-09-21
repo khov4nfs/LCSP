@@ -2,8 +2,10 @@ import * as assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
+  type AssessmentAgentStreamEvent,
 } from "@lcsp/contracts/evidence";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 
@@ -12,12 +14,219 @@ import {
   parseRuntimeEvent,
   runtimeFingerprint,
 } from "../src/features/workspace/utils/workspace-runtime-parser.ts";
-import type { WorkspaceRuntimeActivityItem } from "../src/features/workspace/types/workspace-runtime.types.ts";
+import type {
+  WorkspaceRuntimeActivityItem,
+  WorkspaceRuntimeAgentStreamHistoryState,
+} from "../src/features/workspace/types/workspace-runtime.types.ts";
 import {
   buildRuntimeConsoleModel,
   selectRuntimeConsoleActivity,
 } from "../src/features/evidence/utils/runtime-console.ts";
+import {
+  agentStreamRetentionLimit,
+  mergeAgentStreamEvents,
+  retainInitialAgentStreamHistoryRequest,
+  subscribeScopedAssessmentRuntimeStream,
+  workspaceRuntimeHistoryUrl,
+  workspaceRuntimeEventsUrl,
+  type ScopedAgentStreamEntry,
+} from "../src/features/workspace/components/organisms/workspace-runtime-provider.tsx";
 
+test("workspace runtime provider builds scoped semantic replay stream URLs", () => {
+  assert.equal(workspaceRuntimeEventsUrl(), "/api/workspace/runtime-events");
+  assert.equal(
+    workspaceRuntimeEventsUrl("assessment-101", true),
+    "/api/workspace/runtime-events?assessment_id=assessment-101&agent_stream_only=1",
+  );
+  assert.equal(
+    workspaceRuntimeHistoryUrl("assessment-101", null, 5000),
+    "/api/workspace/runtime-events/history?assessment_id=assessment-101&limit=5000",
+  );
+  assert.equal(
+    workspaceRuntimeHistoryUrl("assessment-101", "cursor-1", 25),
+    "/api/workspace/runtime-events/history?assessment_id=assessment-101&limit=25&cursor=cursor-1",
+  );
+});
+
+test("agent stream history merge can page back beyond the initial 5000-event replay window", () => {
+  const newestWindow = Array.from({ length: 5_000 }, (_, index) =>
+    agentStreamEvent(index + 1_002),
+  );
+  const olderPage = Array.from({ length: 1_001 }, (_, index) =>
+    agentStreamEvent(index + 1),
+  );
+
+  const merged = mergeAgentStreamEvents(newestWindow, olderPage, {
+    limit: null,
+  });
+
+  assert.equal(merged.length, 6_001);
+  assert.equal(merged.at(0)?.eventId, "agent-event-1");
+  assert.equal(merged.at(-1)?.eventId, "agent-event-6001");
+});
+
+test("agent stream history keeps the cursor boundary while live tail advances", () => {
+  const liveTail = Array.from({ length: 5_000 }, (_, index) =>
+    agentStreamEvent(index + 1_003),
+  );
+  const initialHistoryPage = Array.from({ length: 5_000 }, (_, index) =>
+    agentStreamEvent(index + 1_002),
+  );
+  const olderPage = Array.from({ length: 1_001 }, (_, index) =>
+    agentStreamEvent(index + 1),
+  );
+
+  const afterInitialHistory = mergeAgentStreamEvents(
+    liveTail,
+    initialHistoryPage,
+    {
+      limit: agentStreamRetentionLimit(
+        agentStreamHistoryState({ hasMore: true, nextCursor: "cursor-1002" }),
+      ),
+    },
+  );
+  const reconstructed = mergeAgentStreamEvents(
+    afterInitialHistory,
+    olderPage,
+    {
+      limit: agentStreamRetentionLimit(
+        agentStreamHistoryState({ hasLoadedOlderHistory: true }),
+      ),
+    },
+  );
+
+  assert.equal(afterInitialHistory.length, 5_001);
+  assert.equal(afterInitialHistory.at(0)?.eventId, "agent-event-1002");
+  assert.equal(afterInitialHistory.at(-1)?.eventId, "agent-event-6002");
+  assert.equal(reconstructed.length, 6_002);
+  assert.deepEqual(
+    reconstructed.map((event) => event.sequence),
+    Array.from({ length: 6_002 }, (_, index) => index + 1),
+  );
+});
+
+test("agent stream live merge remains bounded until older history is explicitly loaded", () => {
+  const previous = Array.from({ length: 5_000 }, (_, index) =>
+    agentStreamEvent(index + 1),
+  );
+
+  const merged = mergeAgentStreamEvents(previous, [agentStreamEvent(5_001)], {
+    limit: 5_000,
+  });
+
+  assert.equal(merged.length, 5_000);
+  assert.equal(merged.at(0)?.eventId, "agent-event-2");
+  assert.equal(merged.at(-1)?.eventId, "agent-event-5001");
+});
+
+test("complete selected assessment history keeps visible rows after crossing 5000 live events", () => {
+  const completeInitialHistory = Array.from({ length: 5_000 }, (_, index) =>
+    agentStreamEvent(index + 1),
+  );
+  const liveEvents = Array.from({ length: 250 }, (_, index) =>
+    agentStreamEvent(index + 5_001),
+  );
+
+  const afterLiveAppend = mergeAgentStreamEvents(
+    completeInitialHistory,
+    liveEvents,
+    {
+      limit: agentStreamRetentionLimit(
+        agentStreamHistoryState({ hasHydratedCompleteHistory: true }),
+      ),
+    },
+  );
+
+  assert.equal(afterLiveAppend.length, 5_250);
+  assert.equal(afterLiveAppend.at(0)?.eventId, "agent-event-1");
+  assert.equal(afterLiveAppend.at(-1)?.eventId, "agent-event-5250");
+});
+
+test("initial agent stream history failures release the retry gate", () => {
+  const initialHistoryRequests = new Set(["assessment-101"]);
+
+  retainInitialAgentStreamHistoryRequest(
+    initialHistoryRequests,
+    "assessment-101",
+    false,
+  );
+  assert.equal(initialHistoryRequests.has("assessment-101"), false);
+
+  retainInitialAgentStreamHistoryRequest(
+    initialHistoryRequests,
+    "assessment-101",
+    true,
+  );
+  assert.equal(initialHistoryRequests.has("assessment-101"), true);
+});
+
+test("workspace runtime provider opens and cleans up scoped semantic replay streams", () => {
+  class FakeEventSource {
+    closeCount = 0;
+    readonly listeners = new Map<
+      string,
+      Array<(event: MessageEvent<string>) => void>
+    >();
+
+    constructor(readonly url: string) {}
+
+    addEventListener(
+      type: "workspace.agent-stream",
+      listener: (event: MessageEvent<string>) => void,
+    ) {
+      this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
+    }
+
+    removeEventListener(
+      type: "workspace.agent-stream",
+      listener: (event: MessageEvent<string>) => void,
+    ) {
+      this.listeners.set(
+        type,
+        (this.listeners.get(type) ?? []).filter((item) => item !== listener),
+      );
+    }
+
+    close() {
+      this.closeCount += 1;
+    }
+  }
+  const opened: FakeEventSource[] = [];
+  const scopedAgentStreams = new Map<string, ScopedAgentStreamEntry>();
+  const subscribe = (assessmentId: string) =>
+    subscribeScopedAssessmentRuntimeStream({
+      assessmentId,
+      appendAgentStreamEvent: () => true,
+      scopedAgentStreams,
+      createEventSource: (url) => {
+        const source = new FakeEventSource(url);
+        opened.push(source);
+        return source;
+      },
+    });
+
+  const unsubscribeFirst = subscribe("assessment-101");
+  const unsubscribeSecond = subscribe("assessment-101");
+
+  assert.equal(opened.length, 1);
+  assert.equal(
+    opened[0]?.url,
+    "/api/workspace/runtime-events?assessment_id=assessment-101&agent_stream_only=1",
+  );
+  unsubscribeFirst();
+  assert.equal(opened[0]?.closeCount, 0);
+  unsubscribeSecond();
+  assert.equal(opened[0]?.closeCount, 1);
+  assert.equal(scopedAgentStreams.size, 0);
+
+  const unsubscribeThird = subscribe("assessment-202");
+  assert.equal(
+    opened[1]?.url,
+    "/api/workspace/runtime-events?assessment_id=assessment-202&agent_stream_only=1",
+  );
+  unsubscribeThird();
+  assert.equal(opened[1]?.closeCount, 1);
+});
 
 test("agent stream parser preserves streamed whitespace and structured metadata", () => {
   const parsed = parseAgentStreamEvent(
@@ -48,6 +257,57 @@ test("agent stream parser preserves streamed whitespace and structured metadata"
   assert.equal(parsed?.agentName, "planner");
   assert.deepEqual(parsed?.namespace, ["task:planner"]);
   assert.deepEqual(parsed?.data, { provider: "openai" });
+});
+
+test("agent stream parser preserves semantic runtime payloads", () => {
+  const parsed = parseAgentStreamEvent(
+    JSON.stringify({
+      event_id: "agent-event-2",
+      sequence: 8,
+      client_sequence: 4,
+      emitted_at: "2026-09-16T00:00:01.000Z",
+      assessment_id: "assessment-1",
+      run_id: "run-1",
+      correlation_id: "corr-1",
+      event_type: "SEMANTIC_TOOL_CALL",
+      source: "engineering",
+      agent_name: "investigator",
+      namespace: ["task:investigator"],
+      node_name: "model",
+      message_id: "message-2",
+      tool_name: "search_nodes",
+      tool_call_id: "call-2",
+      status: "RUNNING",
+      text: "tool call started",
+      data: {
+        schemaVersion: "AGENT_STREAM_SEMANTIC_V1",
+        kind: "TOOL_CALL",
+        durability: "DURABLE",
+        toolName: "search_nodes",
+        toolCallId: "call-2",
+        parameters: {
+          nodeType: "AI_MODEL_INVOCATION",
+          api_key: "[REDACTED]",
+        },
+        evidenceRefs: ["evidence:ai:1"],
+      },
+    }),
+  );
+
+  assert.ok(parsed);
+  assert.equal(parsed?.eventType, "SEMANTIC_TOOL_CALL");
+  assert.deepEqual(parsed?.data, {
+    schemaVersion: "AGENT_STREAM_SEMANTIC_V1",
+    kind: "TOOL_CALL",
+    durability: "DURABLE",
+    toolName: "search_nodes",
+    toolCallId: "call-2",
+    parameters: {
+      nodeType: "AI_MODEL_INVOCATION",
+      api_key: "[REDACTED]",
+    },
+    evidenceRefs: ["evidence:ai:1"],
+  });
 });
 
 test("workspace runtime parser groups runs and activity by assessment", () => {
@@ -378,6 +638,46 @@ function runtimeActivity(
     durationMs: null,
     attempt: 1,
     waitingReason: null,
+    ...override,
+  };
+}
+
+function agentStreamEvent(sequence: number): AssessmentAgentStreamEvent {
+  return {
+    eventId: `agent-event-${sequence}`,
+    sequence,
+    clientSequence: null,
+    emittedAt: `2026-09-16T00:${String(
+      Math.floor(sequence / 60),
+    ).padStart(2, "0")}:${String(sequence % 60).padStart(2, "0")}.000Z`,
+    assessmentId: "assessment-101",
+    runId: "run-101",
+    correlationId: "corr-101",
+    eventType: ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelContentDelta,
+    source: "engineering",
+    agentName: "investigator",
+    subagentName: null,
+    namespace: [],
+    nodeName: "model",
+    messageId: "message-101",
+    toolName: null,
+    toolCallId: null,
+    status: ASSESSMENT_RUNTIME_RUN_STATUSES.running,
+    text: `delta-${sequence}`,
+    data: null,
+  };
+}
+
+function agentStreamHistoryState(
+  override: Partial<WorkspaceRuntimeAgentStreamHistoryState>,
+): WorkspaceRuntimeAgentStreamHistoryState {
+  return {
+    hasMore: false,
+    nextCursor: null,
+    isLoading: false,
+    error: null,
+    hasLoadedOlderHistory: false,
+    hasHydratedCompleteHistory: false,
     ...override,
   };
 }

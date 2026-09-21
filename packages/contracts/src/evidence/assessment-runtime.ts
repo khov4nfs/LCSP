@@ -98,6 +98,104 @@ export type AssessmentRuntimeSummaryValue =
   | { [key: string]: AssessmentRuntimeSummaryValue }
   | AssessmentRuntimeSummaryValue[];
 
+export const ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS = {
+  semanticV1: "AGENT_STREAM_SEMANTIC_V1",
+} as const;
+
+export type AssessmentAgentStreamSchemaVersion =
+  (typeof ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS)[keyof typeof ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS];
+
+export const ASSESSMENT_AGENT_STREAM_DURABILITY = {
+  durable: "DURABLE",
+  bestEffort: "BEST_EFFORT",
+} as const;
+
+export type AssessmentAgentStreamDurability =
+  (typeof ASSESSMENT_AGENT_STREAM_DURABILITY)[keyof typeof ASSESSMENT_AGENT_STREAM_DURABILITY];
+
+export const ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS = {
+  scannerFile: "SCANNER_FILE",
+  scannerSymbol: "SCANNER_SYMBOL",
+  scannerDependency: "SCANNER_DEPENDENCY",
+  scannerTraceStep: "SCANNER_TRACE_STEP",
+  toolCall: "TOOL_CALL",
+  toolResult: "TOOL_RESULT",
+  engineeringRule: "ENGINEERING_RULE",
+  skillUsage: "SKILL_USAGE",
+  ruleProvenance: "RULE_PROVENANCE",
+  modelRequest: "MODEL_REQUEST",
+  modelOutput: "MODEL_OUTPUT",
+  reasoningSummary: "REASONING_SUMMARY",
+  runtimeProgress: "RUNTIME_PROGRESS",
+} as const;
+
+export type AssessmentAgentStreamSemanticKind =
+  (typeof ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS)[keyof typeof ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS];
+
+export function isAssessmentAgentStreamSemanticKind(
+  value: unknown,
+): value is AssessmentAgentStreamSemanticKind {
+  return Object.values(ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS).includes(
+    value as AssessmentAgentStreamSemanticKind,
+  );
+}
+
+export type AssessmentAgentStreamSemanticPayload = {
+  schemaVersion: AssessmentAgentStreamSchemaVersion;
+  kind: AssessmentAgentStreamSemanticKind;
+  durability: AssessmentAgentStreamDurability;
+  analyzer?: string;
+  toolName?: string;
+  toolVersion?: string;
+  toolCallId?: string;
+  filePath?: string;
+  symbolRef?: string;
+  functionName?: string;
+  dependencyName?: string;
+  traceId?: string;
+  hop?: number;
+  edgeType?: string;
+  fromRef?: string;
+  toRef?: string;
+  resolutionState?: string;
+  sourceAnchorRef?: string;
+  evidenceRefs?: string[];
+  parameters?: AssessmentRuntimeSummaryValue;
+  resultSummary?: AssessmentRuntimeSummaryValue;
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
+  engineeringRuleId?: string;
+  engineeringRuleIds?: string[];
+  ruleVersionRef?: string;
+  concept?: string;
+  investigationGoals?: string[];
+  requiredEvidence?: string[];
+  decision?: string;
+  reasonCode?: string;
+  evaluationStatus?: string;
+  claimCount?: number;
+  skillName?: string;
+  skillVersionOrHash?: string;
+  promptVersion?: string;
+  ruleSetVersionOrHash?: string;
+  agentName?: string;
+  agentRole?: string;
+  provider?: string;
+  model?: string;
+  nodeName?: string;
+  goalSummary?: string;
+  inputArtifactRefs?: string[];
+  availableToolNames?: string[];
+  requestId?: string;
+  messageId?: string;
+  status?: string;
+  structuredOutputType?: string;
+  outputRefs?: string[];
+  usage?: AssessmentRuntimeSummaryValue;
+  finishReason?: string;
+};
+
 export const ASSESSMENT_AGENT_STREAM_EVENT_TYPES = {
   boundaryStarted: "BOUNDARY_STARTED",
   boundaryCompleted: "BOUNDARY_COMPLETED",
@@ -108,6 +206,14 @@ export const ASSESSMENT_AGENT_STREAM_EVENT_TYPES = {
   subagentSelected: "SUBAGENT_SELECTED",
   modelContentDelta: "MODEL_CONTENT_DELTA",
   modelReasoningDelta: "MODEL_REASONING_DELTA",
+  modelRequest: "MODEL_REQUEST",
+  modelResult: "MODEL_RESULT",
+  scannerActivity: "SCANNER_ACTIVITY",
+  semanticToolCall: "SEMANTIC_TOOL_CALL",
+  semanticToolResult: "SEMANTIC_TOOL_RESULT",
+  engineeringRule: "ENGINEERING_RULE",
+  skillUsage: "SKILL_USAGE",
+  ruleProvenance: "RULE_PROVENANCE",
   toolCallDelta: "TOOL_CALL_DELTA",
   toolResult: "TOOL_RESULT",
   customProgress: "CUSTOM_PROGRESS",
