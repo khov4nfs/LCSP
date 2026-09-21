@@ -11,6 +11,7 @@ import { BillingUsageController } from "./presentation/http/billing-usage.contro
 import { BillingCustomerController } from "./presentation/http/billing-customer.controller.js";
 import { SePayWebhookController } from "./presentation/http/sepay-webhook.controller.js";
 import { BillingAdminReconciliationController } from "./presentation/http/billing-admin-reconciliation.controller.js";
+import { BillingAdminReportingController } from "./presentation/http/billing-admin-reporting.controller.js";
 import { SePayReconciliationConsumer } from "./infrastructure/messaging/sepay-reconciliation-consumer.js";
 import { SePayWebhookIngress } from "./infrastructure/security/sepay-webhook-ingress.js";
 import { OutboxModule } from "../../platform/outbox/outbox.module.js";
@@ -30,6 +31,8 @@ import { GetBillingReconciliationHandler } from "./application/queries/get-billi
 import { GetBillingWalletHandler } from "./application/queries/get-billing-wallet/get-billing-wallet.handler.js";
 import { ListBillingHistoryHandler } from "./application/queries/list-billing-history/list-billing-history.handler.js";
 import { ListBillingReconciliationHandler } from "./application/queries/list-billing-reconciliation/list-billing-reconciliation.handler.js";
+import { GetBillingRevenueSummaryHandler } from "./application/queries/get-billing-revenue-summary/get-billing-revenue-summary.handler.js";
+import { ListBillingTransactionsHandler } from "./application/queries/list-billing-transactions/list-billing-transactions.handler.js";
 import { ResolveBillingAssessmentOwnerHandler } from "./application/queries/resolve-billing-assessment-owner/resolve-billing-assessment-owner.handler.js";
 import {
   BILLING_USAGE_KERNEL,
@@ -48,6 +51,7 @@ import {
     BillingCustomerController,
     SePayWebhookController,
     BillingAdminReconciliationController,
+    BillingAdminReportingController,
   ],
   providers: [
     PrismaService,
@@ -74,6 +78,8 @@ import {
     GetBillingWalletHandler,
     ListBillingHistoryHandler,
     ListBillingReconciliationHandler,
+    GetBillingRevenueSummaryHandler,
+    ListBillingTransactionsHandler,
     RejectBillingPaymentHandler,
     ReleaseBillingReservationHandler,
     ResolveBillingAssessmentOwnerHandler,

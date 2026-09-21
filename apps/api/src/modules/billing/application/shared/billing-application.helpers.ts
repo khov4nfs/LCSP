@@ -28,6 +28,10 @@ import type {
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
 import { BillingAccountingKernel } from "./billing-accounting.kernel.js";
+import {
+  parseBillingAdminPeriod,
+  parseBillingAdminStatus,
+} from "./billing-admin-reporting.js";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import type {
   BillingAdminRejectInput,
@@ -134,26 +138,58 @@ export async function expireOrder(
 
 export async function listReconciliation(
   prisma: PrismaService,
-  input: { status?: string; page?: number; take?: number },
+  input: {
+    status?: string;
+    page?: number;
+    take?: number;
+    pageSize?: number;
+    from?: string;
+    to?: string;
+    provider?: string;
+    userId?: string;
+    email?: string;
+    paymentCode?: string;
+    orderId?: string;
+  },
 ) {
   const page = Math.max(input.page ?? 1, 1);
-  const take = Math.min(Math.max(input.take ?? 50, 1), 100);
-  const where: Prisma.PaymentTransactionWhereInput = input.status
-    ? { reconciliationStatus: input.status as never }
-    : {
-        reconciliationStatus: {
+  const take = Math.min(Math.max(input.pageSize ?? input.take ?? 50, 1), 100);
+  const where: Prisma.PaymentTransactionWhereInput = {
+    reconciliationStatus: input.status
+      ? parseBillingAdminStatus(input.status)
+      : {
           in: [
             PAYMENT_RECONCILIATION_STATUSES.UNMATCHED,
             PAYMENT_RECONCILIATION_STATUSES.AMOUNT_MISMATCH,
             PAYMENT_RECONCILIATION_STATUSES.NEEDS_REVIEW,
           ],
         },
-      };
+    ...(input.from || input.to
+      ? {
+          receivedAt: (() => {
+            const period = parseBillingAdminPeriod({
+              from: input.from,
+              to: input.to,
+            });
+            return { gte: period.from, lt: period.to };
+          })(),
+        }
+      : {}),
+    ...(input.provider ? { provider: input.provider } : {}),
+    ...(input.userId ? { userId: input.userId } : {}),
+    ...(input.email
+      ? { user: { email: { contains: input.email, mode: "insensitive" } } }
+      : {}),
+    ...(input.paymentCode
+      ? { billingOrder: { paymentCode: input.paymentCode } }
+      : {}),
+    ...(input.orderId ? { billingOrderId: input.orderId } : {}),
+  };
   const [rows, total] = await Promise.all([
     prisma.paymentTransaction.findMany({
       where,
       include: { billingOrder: true, user: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ receivedAt: "desc" }, { id: "desc" }],
       skip: (page - 1) * take,
       take,
     }),
@@ -171,6 +207,7 @@ export async function listReconciliation(
       userId: row.userId,
       userEmail: row.user?.email ?? null,
       billingOrderId: row.billingOrderId,
+      paymentCode: row.billingOrder?.paymentCode ?? null,
       orderStatus: row.billingOrder?.status ?? null,
       orderAmountMinorUnits:
         row.billingOrder?.amountMinorUnits.toString() ?? null,
@@ -179,7 +216,9 @@ export async function listReconciliation(
     })),
     page,
     take,
+    pageSize: take,
     total,
+    hasNext: page * take < total,
   };
 }
 
@@ -207,6 +246,7 @@ export async function getReconciliation(
       ? {
           id: row.billingOrder.id,
           userId: row.billingOrder.userId,
+          paymentCode: row.billingOrder.paymentCode,
           status: row.billingOrder.status,
           amountMinorUnits: row.billingOrder.amountMinorUnits.toString(),
           creditUnits: row.billingOrder.creditUnits.toString(),

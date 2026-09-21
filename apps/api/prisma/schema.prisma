@@ -1277,6 +1277,9 @@ model PaymentTransaction {
   @@unique([provider, providerTransactionId])
   @@index([userId, createdAt])
   @@index([reconciliationStatus, createdAt])
+  @@index([reconciliationStatus, reconciledAt])
+  @@index([provider, receivedAt])
+  @@index([receivedAt, id])
 }
 
 model CreditLedgerEntry {
@@ -1296,6 +1299,7 @@ model CreditLedgerEntry {
   @@index([userId, createdAt])
   @@index([walletId, createdAt])
   @@index([source, referenceId])
+  @@index([source, createdAt])
 }
 
 model BillingReservation {

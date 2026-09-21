@@ -1,13 +1,15 @@
 import { problemException } from "../../../../../platform/problems/problem-factory.js";
 import { BILLING_RECONCILIATION_ERROR_CODES } from "@lcsp/contracts/billing";
+import { BILLING_ERROR_CODES } from "@lcsp/contracts/billing";
 
 export function toBillingAdminProblem(
   error: unknown,
   correlationId: string,
 ): never {
   const code = error instanceof Error ? error.message : "INTERNAL_ERROR";
-  const mapped =
-    code === "PAYMENT_NOT_FOUND"
+  const mapped = code.startsWith("BILLING_REPORTING_INVALID_INPUT")
+    ? ([BILLING_ERROR_CODES.validationFailed, 400] as const)
+    : code === "PAYMENT_NOT_FOUND"
       ? ([BILLING_RECONCILIATION_ERROR_CODES.paymentNotFound, 404] as const)
       : code === "RATIONALE_REQUIRED"
         ? ([BILLING_RECONCILIATION_ERROR_CODES.rationaleRequired, 400] as const)
