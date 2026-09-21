@@ -28,7 +28,7 @@ jobs:
       - uses: dorny/paths-filter@v4
         id: filter
         with:
-          token: ''
+          token: ""
           list-files: shell
           filters: |
             api:
@@ -47,6 +47,9 @@ jobs:
               - 'packages/i18n/**'
               - 'frozen/interview-agent-frozen/**'
               - 'tests/**'
+              - 'docs/operations/lcsp-333-managed-sandbox-release-gate.md'
+              - 'scripts/check-managed-sandbox-release-gate.mjs'
+              - 'scripts/check-managed-sandbox-release-gate.test.mjs'
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
@@ -57,6 +60,9 @@ jobs:
               - 'frozen/interview-agent-frozen/**'
             release_gate:
               - '.github/workflows/test.yml'
+              - 'docs/operations/lcsp-333-managed-sandbox-release-gate.md'
+              - 'scripts/check-managed-sandbox-release-gate.mjs'
+              - 'scripts/check-managed-sandbox-release-gate.test.mjs'
               - 'apps/api/**'
               - 'apps/web/**'
               - 'deepagents/**'
@@ -100,6 +106,116 @@ jobs:
 
       - name: Check billing production data sources
         run: pnpm run check:billing-release-gate
+
+      - name: Check managed sandbox release gate validator
+        run: pnpm run test:managed-sandbox-release-gate
+
+  managed-sandbox-release-gate:
+    name: Managed sandbox proof
+    needs: changes
+    if: >-
+      github.event_name == 'pull_request' &&
+      needs.changes.outputs.release_gate == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      vars.LCSP_MANAGED_SANDBOX_RUNNER_ENABLED == 'true'
+    runs-on: [self-hosted, linux, lcsp-managed-sandbox]
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Execute trusted producer and pre-upload verifier
+        env:
+          LCSP333_PR_NUMBER: ${{ github.event.pull_request.number }}
+          LCSP333_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          LCSP333_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          LCSP333_TRIGGER_ID: ${{ github.event.pull_request.id }}:${{ github.run_id }}:${{ github.run_attempt }}
+        run: |
+          rm -rf "$RUNNER_TEMP/lcsp333-proof"
+          mkdir -p "$RUNNER_TEMP/lcsp333-proof"
+          lcsp-managed-sandbox-proof             --repository "$GITHUB_REPOSITORY"             --pr "$LCSP333_PR_NUMBER"             --base "$LCSP333_BASE_SHA"             --head "$LCSP333_HEAD_SHA"             --trigger "$LCSP333_TRIGGER_ID"             --out "$RUNNER_TEMP/lcsp333-proof/lcsp333-managed-sandbox-proof.json"
+          lcsp-managed-sandbox-verify             --proof "$RUNNER_TEMP/lcsp333-proof/lcsp333-managed-sandbox-proof.json"             --expected-pr "$LCSP333_PR_NUMBER"             --expected-base "$LCSP333_BASE_SHA"             --expected-head "$LCSP333_HEAD_SHA"             --out "$RUNNER_TEMP/lcsp333-proof/lcsp333-managed-sandbox-gate-result.json"
+
+      - name: Upload privacy-verified proof and trusted gate result
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcsp333-trusted-gate-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/lcsp333-proof/lcsp333-managed-sandbox-proof.json
+            ${{ runner.temp }}/lcsp333-proof/lcsp333-managed-sandbox-gate-result.json
+          if-no-files-found: error
+          retention-days: 14
+
+  managed-sandbox-readiness:
+    name: Managed sandbox readiness diagnostic
+    needs: [changes, managed-sandbox-release-gate]
+    if: always() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Record non-applicable readiness
+        if: needs.changes.outputs.release_gate != 'true'
+        run: |
+          echo "Managed sandbox diagnostic: NOT_APPLICABLE (release-gate surface not selected)."
+
+      - name: Require trusted managed-sandbox proof for same-repository PR
+        if: >-
+          needs.changes.outputs.release_gate == 'true' &&
+          github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          PRODUCER_RESULT: ${{ needs.managed-sandbox-release-gate.result }}
+          MANAGED_SANDBOX_RUNNER_ENABLED: ${{ vars.LCSP_MANAGED_SANDBOX_RUNNER_ENABLED }}
+        run: |
+          if [ "$PRODUCER_RESULT" = "success" ]; then
+            echo "Managed sandbox diagnostic: proof artifact is available for exact-head validation."
+            exit 0
+          fi
+
+          if [ "$PRODUCER_RESULT" = "skipped" ] && [ "$MANAGED_SANDBOX_RUNNER_ENABLED" != "true" ]; then
+            echo "::warning::Managed sandbox diagnostic: BLOCKED_NO_RUNNER. The repository variable LCSP_MANAGED_SANDBOX_RUNNER_ENABLED is not true, so the PR-owned proof job was not scheduled."
+            echo "::warning::This diagnostic is non-authoritative and cannot satisfy Managed sandbox readiness gate. A trusted external/protected control plane must publish proof, NOT_APPLICABLE, or a governed exemption."
+            exit 0
+          fi
+
+          echo "No trusted managed-sandbox proof is available for this exact head."
+          echo "A governed exemption must be supplied by a trusted external workflow/service; this PR workflow cannot mint one."
+          exit 1
+
+      - name: Download trusted proof gate result
+        if: >-
+          needs.changes.outputs.release_gate == 'true' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          needs.managed-sandbox-release-gate.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: lcsp333-trusted-gate-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: artifacts
+
+      - name: Verify immutable trusted proof outcome
+        if: >-
+          needs.changes.outputs.release_gate == 'true' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          needs.managed-sandbox-release-gate.result == 'success'
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const result = JSON.parse(fs.readFileSync("artifacts/lcsp333-managed-sandbox-gate-result.json", "utf8"));
+            if (result.ok !== true) throw new Error("trusted managed-sandbox gate did not pass");
+            const head = result.summary?.headSha ?? result.headSha;
+            if (head !== process.env.EXPECTED_HEAD_SHA) throw new Error("trusted gate result is not for exact PR head");
+            if (!result.verifierVersion && !result.verifierHash) throw new Error("trusted verifier identity is missing");
+          '
+
+      - name: Fail closed for fork PR without external governed exemption
+        if: >-
+          needs.changes.outputs.release_gate == 'true' &&
+          github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::warning::Managed sandbox diagnostic: BLOCKED_FORK. Fork PRs never schedule the privileged managed-sandbox runner."
+          echo "::warning::A trusted external governance workflow/service must publish the required readiness status for proof, NOT_APPLICABLE, or an approved exemption."
 
   web-production-build:
     name: Web lint and production build
