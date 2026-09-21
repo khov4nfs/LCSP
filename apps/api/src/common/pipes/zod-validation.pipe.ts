@@ -15,7 +15,7 @@ export class ZodValidationPipe<TOutput = unknown> implements PipeTransform<
 > {
   constructor(
     private readonly schema: z.ZodTypeAny,
-    private readonly errorCode: string = AUTH_ERROR_CODES.validationFailed,
+    private readonly validationErrorCode: string = AUTH_ERROR_CODES.validationFailed,
   ) {}
 
   /**
@@ -28,7 +28,7 @@ export class ZodValidationPipe<TOutput = unknown> implements PipeTransform<
   transform(value: unknown): TOutput {
     const result = this.schema.safeParse(value);
     if (!result.success) {
-      throw problemException(this.errorCode, "", {
+      throw problemException(this.validationErrorCode, "", {
         status: HttpStatus.BAD_REQUEST,
       });
     }

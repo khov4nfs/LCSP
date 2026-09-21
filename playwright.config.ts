@@ -9,21 +9,41 @@ export default defineConfig({
   reporter: "list",
   use: {
     baseURL: "http://127.0.0.1:3100",
+    locale: "en-US",
     viewport: { width: 1440, height: 900 },
     trace: "on-first-retry",
   },
-  webServer: {
-    command: "pnpm --filter @lcsp/web dev --port 3100",
-    url: "http://127.0.0.1:3100",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-  },
+  snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}{ext}",
+  webServer: [
+    {
+      command: "node tests/e2e/fixtures/billing-api-fixture.mjs",
+      url: "http://127.0.0.1:3102/health",
+      reuseExistingServer: !process.env.CI,
+      timeout: 30 * 1000,
+    },
+    {
+      command: "node node_modules/next/dist/bin/next dev --port 3100",
+      cwd: "apps/web",
+      url: "http://127.0.0.1:3100",
+      reuseExistingServer: !process.env.CI,
+      timeout: 120 * 1000,
+      env: { LCSP_API_BASE_URL: "http://127.0.0.1:3102" },
+    },
+  ],
   projects: [
     {
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 1440, height: 900 },
+        ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
+          ? {
+              launchOptions: {
+                executablePath:
+                  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+              },
+            }
+          : {}),
       },
     },
   ],

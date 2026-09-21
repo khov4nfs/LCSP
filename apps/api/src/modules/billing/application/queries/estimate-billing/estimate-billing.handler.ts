@@ -19,7 +19,7 @@ import type {
   RuntimeModelPolicyRecord,
 } from "../../../domain/repositories/billing-transaction.port.js";
 import { calculateCustomerChargeVnd } from "../../../domain/usage-pricing.js";
-import { estimatePrepaid } from "../../shared/billing-application.helpers.js";
+import { estimatePrepaid } from "../../../domain/prepaid-estimate.js";
 import { EstimateBillingQuery } from "./estimate-billing.query.js";
 
 @QueryHandler(EstimateBillingQuery)

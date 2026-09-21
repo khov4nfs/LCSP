@@ -1,9 +1,15 @@
 import { NextRequest } from "next/server";
-import { BILLING_ERROR_CODES } from "@lcsp/contracts/billing";
+import {
+  BILLING_ERROR_CODES,
+  billingCreateOrderSchema,
+  billingIdempotencyKeySchema,
+  billingOrderViewSchema,
+} from "@lcsp/contracts/billing";
 
 import { problemJson } from "@/lib/server/problem-json";
 import { requireSessionToken } from "@/lib/server/session-token";
-import { upstreamJson, upstreamRequest } from "@/lib/server/upstream-request";
+import { upstreamRequest } from "@/lib/server/upstream-request";
+import { validatedBillingUpstreamJson } from "@/lib/server/billing-upstream";
 
 export async function POST(request: NextRequest) {
   const session = requireSessionToken(request);
@@ -12,32 +18,31 @@ export async function POST(request: NextRequest) {
     return problemJson(BILLING_ERROR_CODES.validationFailed, { status: 415 });
   }
 
-  const body: unknown = await request.json().catch(() => null);
-  if (!isTopUpBody(body)) {
+  const bodyResult = billingCreateOrderSchema.safeParse(
+    await request.json().catch(() => null),
+  );
+  if (!bodyResult.success) {
     return problemJson(BILLING_ERROR_CODES.validationFailed, { status: 400 });
   }
-  const idempotencyKey = request.headers.get("idempotency-key")?.trim();
-  if (!idempotencyKey) {
+  const idempotencyKeyResult = billingIdempotencyKeySchema.safeParse(
+    request.headers.get("idempotency-key"),
+  );
+  if (!idempotencyKeyResult.success) {
     return problemJson(BILLING_ERROR_CODES.idempotencyKeyRequired, {
       status: 400,
     });
   }
 
-  return upstreamJson(
+  return validatedBillingUpstreamJson(
     await upstreamRequest("/billing/orders", {
       method: "POST",
       bearerToken: session.token,
       headers: {
         "content-type": "application/json",
-        "idempotency-key": idempotencyKey,
+        "idempotency-key": idempotencyKeyResult.data,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(bodyResult.data),
     }),
+    billingOrderViewSchema,
   );
-}
-
-function isTopUpBody(value: unknown): value is { amount_vnd: string } {
-  if (typeof value !== "object" || value === null) return false;
-  const body = value as Record<string, unknown>;
-  return typeof body.amount_vnd === "string" && /^\d+$/.test(body.amount_vnd);
 }

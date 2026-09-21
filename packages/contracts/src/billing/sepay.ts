@@ -1,4 +1,11 @@
 export const BILLING_PROVIDER = { sepay: "SEPAY" } as const;
+export const BILLING_TRANSFER_DIRECTIONS = {
+  inbound: "IN",
+  outbound: "OUT",
+  unknown: "UNKNOWN",
+} as const;
+export type BillingTransferDirection =
+  (typeof BILLING_TRANSFER_DIRECTIONS)[keyof typeof BILLING_TRANSFER_DIRECTIONS];
 export const BILLING_RECONCILIATION_EVENT_TYPES = {
   sepayWebhookAccepted: "command.billing.sepay-reconcile.v1",
 } as const;
@@ -48,7 +55,7 @@ export type SePayNormalizedPayload = {
   paymentCode: string | null;
   paymentCodes: string[];
   amountMinorUnits: bigint;
-  transferDirection: "IN" | "OUT" | "UNKNOWN";
+  transferDirection: BillingTransferDirection;
   referenceCode: string | null;
   transactionDate: string | null;
   integrityHash: string;

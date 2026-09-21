@@ -5,7 +5,11 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import {
+  BILLING_ADMIN_GATEWAYS,
+  BILLING_ADMIN_PAYMENT_FILTERS,
+  BILLING_ADMIN_PERIODS,
   BILLING_ORDER_STATUSES,
+  LLM_USAGE_STATUSES,
   PAYMENT_RECONCILIATION_REASONS,
   PAYMENT_RECONCILIATION_STATUSES,
 } from "@lcsp/contracts/billing";
@@ -544,5 +548,134 @@ describe("Admin billing reconciliation (e2e)", () => {
       })
       .set("Authorization", `Bearer ${adminToken}`);
     assert.equal(malformedCursor.status, 400);
+  });
+
+  it("serves domain-backed revenue metrics and account rows only to admins", async () => {
+    const creditedAt = new Date();
+    await prisma.billingOrder.update({
+      where: { id: orderId },
+      data: { status: BILLING_ORDER_STATUSES.CREDITED, creditedAt },
+    });
+    await prisma.llmUsageEvent.create({
+      data: {
+        userId: "user-1",
+        provider: "OPENAI",
+        model: "MODEL_A",
+        invocationId: "admin-billing-fixture-usage",
+        status: LLM_USAGE_STATUSES.SETTLED,
+        customerChargeVnd: 2500n,
+        chargedCredits: 25n,
+        occurredAt: creditedAt,
+      },
+    });
+    for (const providerTransactionId of [
+      "TX-ADMIN-DUPLICATE-A",
+      "TX-ADMIN-DUPLICATE-B",
+    ]) {
+      await prisma.paymentTransaction.create({
+        data: {
+          provider: "SEPAY",
+          providerTransactionId,
+          amountMinorUnits: 1000n,
+          userId: "user-1",
+          billingOrderId: orderId,
+          reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.DUPLICATE,
+          reconciliationReason:
+            PAYMENT_RECONCILIATION_REASONS.DUPLICATE_PROVIDER_TRANSACTION,
+        },
+      });
+    }
+
+    const response = await httpRequest(app)
+      .get(
+        "/admin/billing?period=MTD&status=DUPLICATE&gateway=SEPAY&page=1&pageSize=1",
+      )
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    const dashboard = successBody<{
+      summary: {
+        settledTopUpVnd: string;
+        usageRevenueVnd: string;
+        pendingReconciliationCount: number;
+        duplicatePaymentCount: number;
+        settledTopUpTrend: Array<{ day: string; amountVnd: string }>;
+      };
+      items: Array<{
+        account: { userId: string; email: string } | null;
+        order: { paymentCode: string; creditUnits: string } | null;
+      }>;
+      page: number;
+      pageSize: number;
+      totalCount: number;
+    }>(response);
+    const { settledTopUpTrend, ...summary } = dashboard.summary;
+    assert.deepEqual(summary, {
+      settledTopUpVnd: "100000",
+      usageRevenueVnd: "2500",
+      pendingReconciliationCount: 1,
+      duplicatePaymentCount: 2,
+    });
+    assert.equal(settledTopUpTrend.length, 7);
+    assert.equal(
+      settledTopUpTrend.reduce((sum, day) => sum + BigInt(day.amountVnd), 0n),
+      100000n,
+    );
+    assert.equal(dashboard.items.length, 1);
+    assert.equal(dashboard.items[0]?.account?.userId, "user-1");
+    assert.equal(dashboard.items[0]?.account?.email, "manager@acme.test");
+    assert.equal(dashboard.items[0]?.order?.paymentCode, "LCSP-ADMIN-ORDER");
+    assert.equal(dashboard.items[0]?.order?.creditUnits, "500");
+    assert.equal(dashboard.page, 1);
+    assert.equal(dashboard.pageSize, 1);
+    assert.equal(dashboard.totalCount, 2);
+    assert.doesNotMatch(
+      JSON.stringify(response.body),
+      /rawBody|signature|webhookSecret|sanitizedPayload|bankAccountNumber/i,
+    );
+
+    await httpRequest(app)
+      .get("/admin/billing")
+      .set("Authorization", `Bearer ${customerToken}`)
+      .expect(403);
+  });
+
+  it("exports rows in stable receivedAt and id order and denies customers", async () => {
+    const receivedAt = new Date(Date.now() - 1000);
+    const exports = await Promise.all(
+      ["TX-ADMIN-EXPORT-A", "TX-ADMIN-EXPORT-B"].map((providerTransactionId) =>
+        prisma.paymentTransaction.create({
+          data: {
+            provider: BILLING_ADMIN_GATEWAYS.sepay,
+            providerTransactionId,
+            amountMinorUnits: 1000n,
+            receivedAt,
+          },
+        }),
+      ),
+    );
+    const expectedIds = exports
+      .map((payment) => payment.id)
+      .sort((left, right) => (left > right ? -1 : left < right ? 1 : 0));
+
+    const response = await httpRequest(app)
+      .get(
+        `/admin/billing/export?period=${BILLING_ADMIN_PERIODS.mtd}&status=${BILLING_ADMIN_PAYMENT_FILTERS.all}&gateway=${BILLING_ADMIN_GATEWAYS.all}`,
+      )
+      .set("Authorization", `Bearer ${adminToken}`)
+      .expect(200);
+    const report = successBody<{
+      items: Array<{ id: string; receivedAt: string }>;
+    }>(response);
+    assert.deepEqual(
+      report.items
+        .map((item) => item.id)
+        .filter((id) => expectedIds.includes(id)),
+      expectedIds,
+    );
+
+    await httpRequest(app)
+      .get("/admin/billing/export")
+      .set("Authorization", `Bearer ${customerToken}`)
+      .expect(403);
   });
 });

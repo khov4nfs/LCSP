@@ -2,6 +2,7 @@ import { AUTH_ERROR_CODES, AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import {
   BILLING_AUDIT_EVENT_TYPES,
   BILLING_ERROR_CODES,
+  BILLING_ORDER_STATUSES,
   BILLING_PAYMENT_PROVIDERS,
   PREPAID_BILLING_CONFIG,
 } from "@lcsp/contracts/billing";
@@ -59,7 +60,7 @@ describe("LCSP-312 customer billing HTTP API (e2e)", () => {
     }).compile();
     app = moduleFixture.createNestApplication();
     await app.init();
-  });
+  }, 30_000);
 
   beforeEach(async () => {
     await prisma.llmUsageEvent.deleteMany();
@@ -206,6 +207,93 @@ describe("LCSP-312 customer billing HTTP API (e2e)", () => {
       .set("Authorization", `Bearer ${customerB.token}`);
     assert.equal(denied.status, 404);
     assert.equal(problemCode(denied), BILLING_ERROR_CODES.notFound);
+
+    const wallet = await prisma.billingWallet.create({
+      data: { userId: customerA.id, availableCredits: 123n },
+    });
+    await prisma.creditLedgerEntry.create({
+      data: {
+        userId: customerA.id,
+        walletId: wallet.id,
+        idempotencyKey: "billing-owner-isolation-seed",
+        source: "TEST_FIXTURE",
+        referenceId: "billing-owner-isolation-seed",
+        deltaCredits: 123n,
+      },
+    });
+
+    const ownerWallet = await httpRequest(app)
+      .get("/billing/wallet")
+      .set("Authorization", `Bearer ${customerA.token}`)
+      .expect(200);
+    const otherWallet = await httpRequest(app)
+      .get("/billing/wallet")
+      .set("Authorization", `Bearer ${customerB.token}`)
+      .expect(200);
+    assert.equal(
+      successBody<{ availableCredits: string }>(ownerWallet).availableCredits,
+      "123",
+    );
+    assert.equal(
+      successBody<{ availableCredits: string }>(otherWallet).availableCredits,
+      "0",
+    );
+
+    const ownerHistory = await httpRequest(app)
+      .get("/billing/history")
+      .set("Authorization", `Bearer ${customerA.token}`)
+      .expect(200);
+    const otherHistory = await httpRequest(app)
+      .get("/billing/history")
+      .set("Authorization", `Bearer ${customerB.token}`)
+      .expect(200);
+    assert.equal(
+      successBody<{ totalCount: number }>(ownerHistory).totalCount,
+      1,
+    );
+    assert.equal(
+      successBody<{ totalCount: number }>(otherHistory).totalCount,
+      0,
+    );
+  });
+
+  it("never exposes a client credit operation for expired or cancelled orders", async () => {
+    for (const status of [
+      BILLING_ORDER_STATUSES.EXPIRED,
+      BILLING_ORDER_STATUSES.CANCELLED,
+    ]) {
+      const created = await httpRequest(app)
+        .post("/billing/orders")
+        .set("Authorization", `Bearer ${customerA.token}`)
+        .set("Idempotency-Key", `billing-client-credit-${status}`)
+        .send({ amount_vnd: "10000" })
+        .expect(201);
+      const order = successBody<OrderResponse>(created);
+      await prisma.billingOrder.update({
+        where: { id: order.id },
+        data: { status },
+      });
+
+      const clientAttempt = await httpRequest(app)
+        .post(`/billing/orders/${order.id}/credit`)
+        .set("Authorization", `Bearer ${customerA.token}`)
+        .send({});
+      assert.equal(clientAttempt.status, 404);
+      assert.equal(
+        await prisma.creditLedgerEntry.count({
+          where: { billingOrderId: order.id },
+        }),
+        0,
+      );
+      assert.equal(
+        (
+          await prisma.billingOrder.findUniqueOrThrow({
+            where: { id: order.id },
+          })
+        ).status,
+        status,
+      );
+    }
   });
 
   async function createUser(

@@ -5,6 +5,7 @@ import { Test } from "@nestjs/testing";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { AppModule } from "../src/app.module.js";
+import { BILLING_RECONCILIATION_ERROR_CODES } from "@lcsp/contracts/billing";
 import { httpBodyParser } from "../src/http-body-parser.js";
 import { httpRequest, problemCode } from "./support/http.js";
 import {
@@ -59,6 +60,7 @@ describe("SePay webhook HTTP ingress (e2e)", () => {
         .send(body);
     const first = await send().expect(201);
     assert.deepEqual(first.body, { success: true });
+    assert.doesNotMatch(JSON.stringify(first.body), /sepay-e2e-webhook-secret/);
     const duplicate = await send().expect(201);
     assert.deepEqual(duplicate.body, { success: true });
     assert.equal(await prisma.sePayWebhookEvent.count(), 1);
@@ -69,5 +71,49 @@ describe("SePay webhook HTTP ingress (e2e)", () => {
     assert.equal(problemCode(stale), "BILLING_WEBHOOK_TIMESTAMP_STALE");
     assert.equal(await prisma.sePayWebhookEvent.count(), 1);
     assert.equal(await prisma.paymentTransaction.count(), 0);
+
+    const persisted = JSON.stringify([
+      await prisma.sePayWebhookEvent.findMany(),
+      await prisma.outboxMessage.findMany(),
+    ]);
+    assert.equal(persisted.includes(body), false);
+    assert.equal(persisted.includes(signature), false);
+    assert.equal(persisted.includes(secret), false);
+  });
+
+  it("rejects malformed authenticated bodies and payloads without returning sensitive material", async () => {
+    const sendRaw = (rawBody: string) => {
+      const timestamp = String(Math.floor(Date.now() / 1000));
+      const signature = `sha256=${createHmac("sha256", secret)
+        .update(`${timestamp}.${rawBody}`)
+        .digest("hex")}`;
+      return httpRequest(app)
+        .post("/billing/sepay/webhook")
+        .set("Content-Type", "application/json")
+        .set("X-SePay-Signature", signature)
+        .set("X-SePay-Timestamp", timestamp)
+        .send(rawBody);
+    };
+
+    const malformedBody = '{"id":"TX-MALFORMED"';
+    const bodyResponse = await sendRaw(malformedBody).expect(400);
+    assert.equal(
+      problemCode(bodyResponse),
+      BILLING_RECONCILIATION_ERROR_CODES.malformedBody,
+    );
+    const payloadResponse = await sendRaw(
+      JSON.stringify({ transferAmount: "10000", transferType: "in" }),
+    ).expect(400);
+    assert.equal(
+      problemCode(payloadResponse),
+      BILLING_RECONCILIATION_ERROR_CODES.invalidPayload,
+    );
+    for (const response of [bodyResponse, payloadResponse]) {
+      const responseBody = JSON.stringify(response.body);
+      assert.doesNotMatch(responseBody, /sepay-e2e-webhook-secret/);
+      assert.doesNotMatch(responseBody, /rawBody|signature|transferAmount/);
+    }
+    assert.equal(await prisma.sePayWebhookEvent.count(), 0);
+    assert.equal(await prisma.outboxMessage.count(), 0);
   });
 });
