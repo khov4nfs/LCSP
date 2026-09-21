@@ -10,6 +10,7 @@ from tools.common.capabilities.managed.skill_loader import (
     load_project_skill,
     load_project_skill_package,
 )
+from orchestration.agent_stream import AgentStreamSession, activate_agent_stream
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PROJECT_ROOT.parent
@@ -99,3 +100,34 @@ def test_skill_package_loader_rejects_unbounded_reference_paths() -> None:
         load_project_skill_package("interview-context", ("../outside.md",))
     with pytest.raises(ValueError):
         load_project_skill_package("interview-context", ("evals/evals.json",))
+
+
+def test_skill_package_usage_provenance_emits_once_per_cached_run() -> None:
+    references = ("references/protected-boundaries.md",)
+    events_by_run: list[list[dict[str, object]]] = []
+
+    for run_id in ("run-1", "run-2"):
+        events: list[dict[str, object]] = []
+        with activate_agent_stream(
+            AgentStreamSession(
+                assessment_id="assessment-1",
+                run_id=run_id,
+                correlation_id=f"{run_id}:corr",
+                boundary_name="interview",
+                emit_payload=events.append,
+            )
+        ):
+            load_project_skill_package("interview-context", references)
+        events_by_run.append(events)
+
+    skill_events_by_run = [
+        [event for event in events if event["event_type"] == "SKILL_USAGE"]
+        for events in events_by_run
+    ]
+
+    assert [len(events) for events in skill_events_by_run] == [1, 1]
+    first_payload = skill_events_by_run[0][0]["data"]
+    second_payload = skill_events_by_run[1][0]["data"]
+    assert first_payload["skillName"] == "interview-context"
+    assert first_payload["durability"] == "DURABLE"
+    assert first_payload["skillVersionOrHash"] == second_payload["skillVersionOrHash"]

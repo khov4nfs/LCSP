@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import {
   useAssessmentArtifactsQuery,
@@ -16,6 +16,11 @@ export function useAssessmentRuntimeViewModel(
 ): NormalizedAssessmentRuntime {
   const workspaceRuntime = useWorkspaceRuntime();
   const timeline = workspaceRuntime.getAssessmentRuntime(assessmentId);
+  const subscribeAssessmentRuntime =
+    workspaceRuntime.subscribeAssessmentRuntime;
+  useEffect(() => {
+    return subscribeAssessmentRuntime(assessmentId);
+  }, [assessmentId, subscribeAssessmentRuntime]);
   const interviewQuery = useAssessmentInterviewStateQuery(
     assessmentId,
     interviewEnabled,
@@ -24,8 +29,9 @@ export function useAssessmentRuntimeViewModel(
   const repositorySnapshot =
     workspaceRuntime.repositorySnapshots
       .filter((snapshot) => snapshot.assessmentId === assessmentId)
-      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ??
-    null;
+      .sort((left, right) =>
+        right.createdAt.localeCompare(left.createdAt),
+      )[0] ?? null;
   const scanJobs = workspaceRuntime.scanJobs.filter(
     (scanJob) => scanJob.assessmentId === assessmentId,
   );

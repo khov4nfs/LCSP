@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS,
+  ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS,
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   ASSESSMENT_RUNTIME_STAGE_CODES,
@@ -43,6 +45,54 @@ type SummaryRecord = {
   tool_call_count?: number;
   tool_names?: string[];
   [key: string]: unknown;
+};
+
+type SummaryValueRecord = { [key: string]: WorkspaceRuntimeSummaryValue };
+
+type SemanticRuntimePayload = SummaryValueRecord & {
+  schemaVersion: string;
+  kind: string;
+  durability?: string;
+  status?: string;
+  toolName?: string;
+  toolVersion?: string;
+  toolCallId?: string;
+  analyzer?: string;
+  filePath?: string;
+  functionName?: string;
+  symbolRef?: string;
+  dependencyName?: string;
+  traceId?: string;
+  hop?: number;
+  edgeType?: string;
+  fromRef?: string;
+  toRef?: string;
+  resolutionState?: string;
+  sourceAnchorRef?: string;
+  engineeringRuleId?: string;
+  ruleVersionRef?: string;
+  concept?: string;
+  decision?: string;
+  reasonCode?: string;
+  evaluationStatus?: string;
+  claimCount?: number;
+  skillName?: string;
+  skillVersionOrHash?: string;
+  ruleSetVersionOrHash?: string;
+  provider?: string;
+  model?: string;
+  goalSummary?: string;
+  parameters?: WorkspaceRuntimeSummaryValue;
+  resultSummary?: WorkspaceRuntimeSummaryValue;
+  availableToolNames?: WorkspaceRuntimeSummaryValue;
+  inputArtifactRefs?: WorkspaceRuntimeSummaryValue;
+  outputRefs?: WorkspaceRuntimeSummaryValue;
+  usage?: WorkspaceRuntimeSummaryValue;
+  finishReason?: string;
+  promptVersion?: string;
+  evidenceRefs?: WorkspaceRuntimeSummaryValue;
+  investigationGoals?: WorkspaceRuntimeSummaryValue;
+  requiredEvidence?: WorkspaceRuntimeSummaryValue;
 };
 
 const RUNTIME_STEP_STATUS_SKIPPED = "skipped";
@@ -98,6 +148,64 @@ function SemanticRuntimeDetails({
 }) {
   const input = (item.inputSummary || {}) as SummaryRecord;
   const output = (item.outputSummary || {}) as SummaryRecord;
+  const semanticPayloads = semanticPayloadsFromItem(item);
+
+  if (semanticPayloads.length > 0) {
+    return (
+      <div className="px-4 pb-3 md:pl-36">
+        <div className="grid gap-2 border-l border-border pl-4 font-mono text-xs">
+          <p className="text-muted-foreground">
+            {t("pages.technicalEvidence.semanticRuntimeLabel")}
+          </p>
+          {semanticPayloads.map((payload, index) => (
+            <div
+              className="grid gap-1 rounded bg-muted px-2 py-1.5 text-foreground"
+              key={`${payload.kind}:${payload.toolName ?? payload.engineeringRuleId ?? index}`}
+            >
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                <span>
+                  {t("pages.technicalEvidence.semanticKindLabel")}:{" "}
+                  {semanticKindLabel(payload.kind)}
+                </span>
+                {payload.status ? (
+                  <span>
+                    {t("pages.technicalEvidence.semanticStatusLabel")}:{" "}
+                    {String(payload.status)}
+                  </span>
+                ) : null}
+                {payload.durability ? (
+                  <span>
+                    {t("pages.technicalEvidence.semanticDurabilityLabel")}:{" "}
+                    {String(payload.durability)}
+                  </span>
+                ) : null}
+              </div>
+              <div className="grid gap-1 sm:grid-cols-2">
+                {semanticFields(payload).map((entry) => (
+                  <div className="min-w-0" key={entry.label}>
+                    <span className="text-muted-foreground">{entry.label}: </span>
+                    <span className="break-words">{entry.value}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="break-words text-muted-foreground">
+                {t("pages.technicalEvidence.semanticCorrelationLabel")}:{" "}
+                {[
+                  item.assessmentId,
+                  item.runId,
+                  item.correlationId,
+                  payload.traceId,
+                  payload.toolCallId,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const isLlm =
     input.operation === "complete_with_tools" ||
@@ -238,6 +346,118 @@ function SemanticRuntimeDetails({
 
   // Fallback
   return <RuntimeDetailList item={item} />;
+}
+
+function semanticPayloadsFromItem(
+  item: WorkspaceRuntimeActivityItem,
+): SemanticRuntimePayload[] {
+  return [
+    ...semanticPayloadsFromSummary(item.inputSummary),
+    ...semanticPayloadsFromSummary(item.outputSummary),
+  ];
+}
+
+function semanticPayloadsFromSummary(
+  value: WorkspaceRuntimeSummaryValue | null,
+): SemanticRuntimePayload[] {
+  if (!isSummaryRecord(value)) return [];
+  const direct = semanticPayload(value);
+  if (direct) return [direct];
+  const nested = value.semanticPayloads;
+  if (!Array.isArray(nested)) return [];
+  return nested.flatMap((item) => {
+    const payload = semanticPayload(item);
+    return payload ? [payload] : [];
+  });
+}
+
+function semanticPayload(
+  value: WorkspaceRuntimeSummaryValue,
+): SemanticRuntimePayload | null {
+  if (!isSummaryRecord(value)) return null;
+  if (
+    value.schemaVersion !==
+      ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV1 ||
+    typeof value.kind !== "string"
+  ) {
+    return null;
+  }
+  return value as SemanticRuntimePayload;
+}
+
+function semanticKindLabel(kind: string) {
+  if (kind === ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.scannerFile)
+    return "scanner.file";
+  if (kind === ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.scannerSymbol)
+    return "scanner.symbol";
+  if (kind === ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.scannerDependency)
+    return "scanner.dependency";
+  if (kind === ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.scannerTraceStep)
+    return "scanner.trace_step";
+  if (kind === ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.engineeringRule)
+    return "engineering_rule";
+  if (kind === ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.ruleProvenance)
+    return "rule_provenance";
+  if (kind === ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.skillUsage)
+    return "skill_usage";
+  if (kind === ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.modelRequest)
+    return "model.request";
+  if (kind === ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.modelOutput)
+    return "model.output";
+  return humanizeRuntimeKey(kind);
+}
+
+function semanticFields(payload: SemanticRuntimePayload) {
+  return [
+    ["toolName", payload.toolName],
+    ["toolVersion", payload.toolVersion],
+    ["analyzer", payload.analyzer],
+    ["filePath", payload.filePath],
+    ["functionName", payload.functionName],
+    ["symbolRef", payload.symbolRef],
+    ["dependencyName", payload.dependencyName],
+    ["traceId", payload.traceId],
+    ["hop", payload.hop],
+    ["edgeType", payload.edgeType],
+    ["fromRef", payload.fromRef],
+    ["toRef", payload.toRef],
+    ["resolutionState", payload.resolutionState],
+    ["sourceAnchorRef", payload.sourceAnchorRef],
+    ["engineeringRuleId", payload.engineeringRuleId],
+    ["ruleVersionRef", payload.ruleVersionRef],
+    ["concept", payload.concept],
+    ["decision", payload.decision],
+    ["reasonCode", payload.reasonCode],
+    ["evaluationStatus", payload.evaluationStatus],
+    ["claimCount", payload.claimCount],
+    ["skillName", payload.skillName],
+    ["skillVersionOrHash", payload.skillVersionOrHash],
+    ["promptVersion", payload.promptVersion],
+    ["ruleSetVersionOrHash", payload.ruleSetVersionOrHash],
+    ["provider", payload.provider],
+    ["model", payload.model],
+    ["goalSummary", payload.goalSummary],
+    ["parameters", payload.parameters],
+    ["resultSummary", payload.resultSummary],
+    ["availableToolNames", payload.availableToolNames],
+    ["inputArtifactRefs", payload.inputArtifactRefs],
+    ["outputRefs", payload.outputRefs],
+    ["usage", payload.usage],
+    ["finishReason", payload.finishReason],
+    ["evidenceRefs", payload.evidenceRefs],
+    ["investigationGoals", payload.investigationGoals],
+    ["requiredEvidence", payload.requiredEvidence],
+  ].flatMap(([label, value]) =>
+    value === undefined || value === null || value === ""
+      ? []
+      : [{ label: humanizeRuntimeKey(String(label)), value: formatSummaryValue(value as WorkspaceRuntimeSummaryValue) }],
+  );
+}
+
+function isSummaryRecord(
+  value: WorkspaceRuntimeSummaryValue | null,
+): value is SummaryValueRecord {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 export function TechnicalEvidenceRuntimePage({

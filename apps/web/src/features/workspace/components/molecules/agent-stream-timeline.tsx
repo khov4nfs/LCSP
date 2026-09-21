@@ -1,17 +1,24 @@
 import {
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
+  ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS,
+  ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
   type AssessmentAgentStreamEvent,
+  type AssessmentRuntimeSummaryValue,
 } from "@lcsp/contracts/evidence";
 import { resolveMessage } from "@lcsp/i18n";
 
+import { Button } from "@/components/ui/button";
 import { appLocale } from "@/lib/locale";
 import { cn } from "@/lib/utils";
 
+import type { WorkspaceRuntimeAgentStreamHistoryState } from "../../types/workspace-runtime.types";
 import { AgentMessage, AgentTurn } from "./agent-turn";
 
 type AgentStreamTimelineProps = {
   events: AssessmentAgentStreamEvent[];
+  history?: WorkspaceRuntimeAgentStreamHistoryState;
+  onLoadOlder?: () => void;
   className?: string;
 };
 
@@ -26,15 +33,43 @@ type ProjectedStreamRow = {
 
 export function AgentStreamTimeline({
   events,
+  history,
+  onLoadOlder,
   className,
 }: AgentStreamTimelineProps) {
   const rows = projectStreamRows(events);
-  if (rows.length === 0) return null;
+  const labels = streamLabels();
+  const showHistoryAction =
+    ((history?.hasMore === true && history.nextCursor !== null) ||
+      history?.error != null) &&
+    onLoadOlder !== undefined;
+  if (rows.length === 0 && !showHistoryAction) return null;
 
   return (
     <AgentTurn className={className}>
       <AgentMessage>
         <div data-slot="agent-stream-timeline" className="space-y-2">
+          {showHistoryAction ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs"
+              disabled={history?.isLoading === true}
+              onClick={onLoadOlder}
+            >
+              {history?.isLoading === true
+                ? labels.loadingOlder
+                : history?.error != null
+                  ? labels.retryHistory
+                  : labels.loadOlder}
+            </Button>
+          ) : null}
+          {history?.error ? (
+            <div className="text-xs text-destructive">
+              {labels.historyLoadFailed}
+            </div>
+          ) : null}
           {rows.map((row) => (
             <div
               key={row.id}
@@ -51,12 +86,12 @@ export function AgentStreamTimeline({
               </span>
               <div className="min-w-0">
                 {row.detail ? (
-                  <div className="whitespace-pre-wrap break-words text-foreground [overflow-wrap:anywhere]">
+                  <div className="whitespace-pre-wrap break-words wrap-anywhere text-foreground">
                     {row.detail}
                   </div>
                 ) : null}
                 {row.meta ? (
-                  <div className="break-words text-[11px] text-muted-foreground [overflow-wrap:anywhere]">
+                  <div className="break-words wrap-anywhere text-[11px] text-muted-foreground">
                     {row.meta}
                   </div>
                 ) : null}
@@ -118,6 +153,17 @@ function toStreamRow(event: AssessmentAgentStreamEvent): ProjectedStreamRow {
     event.source ??
     "runtime";
   const labels = streamLabels();
+  const semantic = semanticData(event.data);
+  if (semantic) {
+    return row(
+      event,
+      `${semanticLabel(semantic, labels)} · ${semanticName(event, semantic, name)}`,
+      semanticDetail(semantic) ?? event.text,
+      semanticMeta(event, semantic),
+      event.status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed ||
+        semantic.status === ASSESSMENT_RUNTIME_RUN_STATUSES.failed,
+    );
+  }
 
   switch (event.eventType) {
     case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.subagentSelected:
@@ -172,6 +218,20 @@ function toStreamRow(event: AssessmentAgentStreamEvent): ProjectedStreamRow {
       return row(event, `${labels.provider} · ${name}`, event.text, eventData(event));
     case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.credentialRotation:
       return row(event, `${labels.credential} · ${name}`, event.text, eventData(event));
+    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.scannerActivity:
+      return row(event, `${labels.scanner} · ${name}`, event.text, eventData(event));
+    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.engineeringRule:
+      return row(event, `${labels.engineeringRule} · ${name}`, event.text, eventData(event));
+    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.skillUsage:
+      return row(event, `${labels.skill} · ${name}`, event.text, eventData(event));
+    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.ruleProvenance:
+      return row(event, `${labels.provenance} · ${name}`, event.text, eventData(event));
+    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelRequest:
+    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.modelResult:
+      return row(event, `${labels.model} · ${name}`, event.text, eventData(event));
+    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.semanticToolCall:
+    case ASSESSMENT_AGENT_STREAM_EVENT_TYPES.semanticToolResult:
+      return row(event, `${labels.toolCall} · ${event.toolName ?? name}`, event.text, eventData(event));
     default:
       return row(event, event.eventType, event.text, eventData(event));
   }
@@ -210,6 +270,162 @@ function eventData(event: AssessmentAgentStreamEvent): string | null {
   return [meta, serialized].filter(Boolean).join(" · ") || null;
 }
 
+type SemanticRecord = Record<string, AssessmentRuntimeSummaryValue>;
+
+function semanticData(
+  value: AssessmentRuntimeSummaryValue | null,
+): SemanticRecord | null {
+  if (!isSummaryRecord(value)) return null;
+  if (
+    value.schemaVersion !==
+      ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV1 ||
+    typeof value.kind !== "string"
+  ) {
+    return null;
+  }
+  return value;
+}
+
+function semanticLabel(
+  semantic: SemanticRecord,
+  labels: ReturnType<typeof streamLabels>,
+): string {
+  switch (semantic.kind) {
+    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.scannerFile:
+    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.scannerSymbol:
+    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.scannerDependency:
+    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.scannerTraceStep:
+      return labels.scanner;
+    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.engineeringRule:
+      return labels.engineeringRule;
+    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.skillUsage:
+      return labels.skill;
+    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.ruleProvenance:
+      return labels.provenance;
+    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.modelRequest:
+    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.modelOutput:
+    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.reasoningSummary:
+      return labels.model;
+    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.toolCall:
+      return labels.toolCall;
+    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.toolResult:
+      return labels.toolOutput;
+    default:
+      return labels.runtime;
+  }
+}
+
+function semanticName(
+  event: AssessmentAgentStreamEvent,
+  semantic: SemanticRecord,
+  fallback: string,
+): string {
+  return firstString(
+    semantic.toolName,
+    semantic.skillName,
+    semantic.engineeringRuleId,
+    semantic.dependencyName,
+    semantic.functionName,
+    semantic.filePath,
+    semantic.model,
+    event.toolName,
+    event.nodeName,
+    fallback,
+  );
+}
+
+function semanticDetail(semantic: SemanticRecord): string | null {
+  const refs = [
+    semantic.filePath,
+    semantic.functionName,
+    semantic.symbolRef,
+    semantic.dependencyName,
+    semantic.traceId,
+    semantic.edgeType,
+    semantic.fromRef,
+    semantic.toRef,
+    semantic.concept,
+    semantic.decision,
+    semantic.reasonCode,
+    semantic.evaluationStatus,
+    semantic.provider,
+    semantic.model,
+    semantic.goalSummary,
+    semantic.status,
+  ].filter((value): value is string => typeof value === "string" && value.length > 0);
+  const structured = semanticDisplayFields(semantic, [
+    "parameters",
+    "resultSummary",
+    "availableToolNames",
+    "inputArtifactRefs",
+    "outputRefs",
+    "usage",
+    "finishReason",
+    "skillVersionOrHash",
+    "promptVersion",
+  ]);
+  const detail = [...refs, ...structured];
+  return detail.length > 0 ? detail.join("\n") : null;
+}
+
+function semanticMeta(
+  event: AssessmentAgentStreamEvent,
+  semantic: SemanticRecord,
+): string | null {
+  const correlation = [
+    event.namespace.length > 0 ? event.namespace.join(" › ") : null,
+    event.nodeName,
+    event.messageId,
+    event.toolCallId,
+    semantic.durability,
+  ].filter((part): part is string => typeof part === "string" && part.length > 0);
+  return correlation.length > 0 ? correlation.join(" · ") : eventMeta(event);
+}
+
+function isSummaryRecord(
+  value: AssessmentRuntimeSummaryValue | null,
+): value is SemanticRecord {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function firstString(
+  ...values: Array<AssessmentRuntimeSummaryValue | string | null | undefined>
+): string {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "runtime";
+}
+
+function semanticDisplayFields(
+  semantic: SemanticRecord,
+  keys: string[],
+): string[] {
+  return keys.flatMap((key) => {
+    const value = semantic[key];
+    if (value === undefined || value === null || value === "") return [];
+    if (Array.isArray(value) && value.length === 0) return [];
+    return [`${humanizeSemanticKey(key)}: ${formatSemanticValue(value)}`];
+  });
+}
+
+function formatSemanticValue(value: AssessmentRuntimeSummaryValue): string {
+  if (Array.isArray(value)) {
+    return value.map((item) => formatSemanticValue(item)).join(", ");
+  }
+  if (value !== null && typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value);
+}
+
+function humanizeSemanticKey(value: string): string {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replaceAll("_", " ")
+    .trim();
+}
+
 function streamLabels() {
   return {
     subagent: t("pages.appShell.agentStreamLabels.subagent"),
@@ -226,7 +442,16 @@ function streamLabels() {
     state: t("pages.appShell.agentStreamLabels.state"),
     provider: t("pages.appShell.agentStreamLabels.provider"),
     credential: t("pages.appShell.agentStreamLabels.credential"),
+    scanner: t("pages.appShell.agentStreamLabels.scanner"),
+    engineeringRule: t("pages.appShell.agentStreamLabels.engineeringRule"),
+    skill: t("pages.appShell.agentStreamLabels.skill"),
+    model: t("pages.appShell.agentStreamLabels.model"),
+    provenance: t("pages.appShell.agentStreamLabels.provenance"),
     selected: t("pages.appShell.agentStreamSelected"),
+    loadOlder: t("pages.appShell.agentStreamLoadOlder"),
+    loadingOlder: t("pages.appShell.agentStreamLoadingOlder"),
+    retryHistory: t("pages.appShell.agentStreamRetryHistory"),
+    historyLoadFailed: t("pages.appShell.agentStreamHistoryLoadFailed"),
     running: t("pages.appShell.chatActivityStatuses.running"),
     completed: t("pages.appShell.chatActivityStatuses.completed"),
     failed: t("pages.appShell.chatActivityStatuses.failed"),

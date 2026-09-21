@@ -9,6 +9,32 @@ const REDACTED_VALUE = "[REDACTED]";
 
 const SENSITIVE_KEY_PATTERN =
   /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|authorization|credential|client[_-]?secret|password|passwd|private[_-]?key|secret)/i;
+const SAFE_AGENT_STREAM_KEY_NAMES = new Set([
+  "inputtokens",
+  "outputtokens",
+  "totaltokens",
+  "tokencount",
+  "usage",
+  "usagemetadata",
+]);
+const PRIVATE_RUNTIME_KEY_NAMES = new Set([
+  "messages",
+  "prompt",
+  "systemprompt",
+  "developerprompt",
+  "instruction",
+  "privatecontext",
+  "customercontext",
+  "confirmedcontext",
+  "confirmedcustomercontext",
+  "prioranswerhistory",
+  "scratchpad",
+  "reasoning",
+  "hiddenreasoning",
+  "chainofthought",
+  "thought",
+  "thoughts",
+]);
 
 const SENSITIVE_VALUE_PATTERNS = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/gi,
@@ -24,6 +50,8 @@ const SENSITIVE_VALUE_PATTERNS = [
   /((?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp):\/\/[^:\s/@]+:)[^@\s/]+@/gi,
   /((?:["']?)(?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password|credential|client[_-]?secret)(?:["']?)\s*[:=]\s*)[^\s,;}]+/gi,
 ] as const;
+
+const PRIVATE_RUNTIME_VALUE = "[HIDDEN_PRIVATE_RUNTIME_STATE]";
 
 export function containsSensitiveCredentialText(value: string): boolean {
   if (SENSITIVE_KEY_PATTERN.test(value) || /\bBasic\s+\S+/i.test(value)) {
@@ -92,7 +120,14 @@ export function sanitizeAgentStreamValue(
     0,
     MAX_AGENT_STREAM_ITEMS,
   )) {
-    if (SENSITIVE_KEY_PATTERN.test(key)) {
+    if (PRIVATE_RUNTIME_KEY_NAMES.has(normalizeKey(key))) {
+      output[key] = PRIVATE_RUNTIME_VALUE;
+      continue;
+    }
+    if (
+      !SAFE_AGENT_STREAM_KEY_NAMES.has(normalizeKey(key)) &&
+      SENSITIVE_KEY_PATTERN.test(key)
+    ) {
       output[key] = REDACTED_VALUE;
       continue;
     }
@@ -104,6 +139,10 @@ export function sanitizeAgentStreamValue(
 
 function truncate(value: string, maxLength: number): string {
   return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
+}
+
+function normalizeKey(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 export { MAX_AGENT_STREAM_TEXT_LENGTH };

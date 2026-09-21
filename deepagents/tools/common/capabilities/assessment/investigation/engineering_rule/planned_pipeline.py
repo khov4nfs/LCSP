@@ -681,6 +681,27 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                     "reasonCode": audit.reason_code,
                     "basis": list(audit.basis),
                     "validationOverride": audit.validation_override,
+                    "semanticPayloads": [
+                        self._engineering_rule_semantic_payload(
+                            engineering_rule=next(
+                                (
+                                    rule
+                                    for rule, _packet in prepared
+                                    if rule.engineering_rule_id
+                                    == audit.engineering_rule_id
+                                ),
+                                None,
+                            ),
+                            engineering_rule_id=audit.engineering_rule_id,
+                            decision=audit.final_decision,
+                            reason_code=audit.reason_code,
+                            status=(
+                                "SELECTED"
+                                if audit.final_decision == "SELECT"
+                                else "SKIPPED"
+                            ),
+                        )
+                    ],
                 },
             )
 
@@ -735,6 +756,14 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                     output_summary={
                         "outcome": "NEEDS_INPUT",
                         "engineeringRuleId": engineering_rule.engineering_rule_id,
+                        "semanticPayloads": [
+                            self._engineering_rule_semantic_payload(
+                                engineering_rule=engineering_rule,
+                                engineering_rule_id=engineering_rule.engineering_rule_id,
+                                status="WAITING",
+                                evidence_refs=list(packet.evidence_refs),
+                            )
+                        ],
                     },
                     waiting_reason="TARGETED_INTERVIEW_REQUIRED",
                 )
@@ -768,6 +797,14 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                         },
                         "failureKind": "RUNTIME_ERROR",
                         "executionFailure": "CALLBACK_ERROR",
+                        "semanticPayloads": [
+                            self._engineering_rule_semantic_payload(
+                                engineering_rule=engineering_rule,
+                                engineering_rule_id=engineering_rule.engineering_rule_id,
+                                status="FAILED",
+                                evidence_refs=list(packet.evidence_refs),
+                            )
+                        ],
                     },
                     error_summary=type(error).__name__,
                 )
@@ -809,6 +846,14 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                         },
                         "failureKind": "RUNTIME_ERROR",
                         "executionFailure": type(error).__name__,
+                        "semanticPayloads": [
+                            self._engineering_rule_semantic_payload(
+                                engineering_rule=engineering_rule,
+                                engineering_rule_id=engineering_rule.engineering_rule_id,
+                                status="FAILED",
+                                evidence_refs=list(packet.evidence_refs),
+                            )
+                        ],
                     },
                     error_summary=type(error).__name__,
                 )
@@ -865,6 +910,16 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
                         },
                         "evaluationStatus": evaluation.status,
                         "claimCount": len(validated_rule_claims),
+                        "semanticPayloads": [
+                            self._engineering_rule_semantic_payload(
+                                engineering_rule=engineering_rule,
+                                engineering_rule_id=engineering_rule.engineering_rule_id,
+                                status="COMPLETED",
+                                evaluation_status=evaluation.status,
+                                claim_count=len(validated_rule_claims),
+                                evidence_refs=list(evaluation.evidence_refs),
+                            )
+                        ],
                     },
                 )
             technical_evidence_by_rule[evaluation.engineering_rule_id] = tuple(
@@ -945,6 +1000,40 @@ class PlannedEngineeringInvestigationPipeline(EngineeringInvestigationPipeline):
         if waiting_reason is not None:
             payload["waiting_reason"] = waiting_reason
         post_runtime_event(scan_job_id, payload)
+
+    def _engineering_rule_semantic_payload(
+        self,
+        *,
+        engineering_rule,
+        engineering_rule_id: str,
+        status: str,
+        decision: str | None = None,
+        reason_code: str | None = None,
+        evaluation_status: str | None = None,
+        claim_count: int | None = None,
+        evidence_refs: list[str] | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "schemaVersion": "AGENT_STREAM_SEMANTIC_V1",
+            "kind": "ENGINEERING_RULE",
+            "durability": "DURABLE",
+            "engineeringRuleId": engineering_rule_id,
+            "ruleVersionRef": getattr(engineering_rule, "legal_rule_id", None),
+            "concept": getattr(engineering_rule, "concept", None),
+            "investigationGoals": list(
+                getattr(engineering_rule, "investigation_goals", ()) or ()
+            ),
+            "requiredEvidence": list(
+                getattr(engineering_rule, "required_evidence", ()) or ()
+            ),
+            "decision": decision,
+            "reasonCode": reason_code,
+            "evaluationStatus": evaluation_status,
+            "claimCount": claim_count,
+            "evidenceRefs": evidence_refs,
+            "status": status,
+        }
+        return {key: value for key, value in payload.items() if value not in (None, [], {})}
 
     def _load_legal_rule_sources(
         self,

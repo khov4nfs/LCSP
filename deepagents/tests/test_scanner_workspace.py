@@ -439,12 +439,16 @@ def test_scan_boundary_uses_internal_snapshot_service_and_cleans_up(
         "TOOL_STARTED",
         "TOOL_COMPLETED",
     ]
-    assert semgrep_events[-1]["output_summary"] == {
-        "executions": 2,
-        "findings": 0,
-        "nonBlockingFailures": 0,
-        "redactionApplied": False,
-    }
+    semgrep_summary = semgrep_events[-1]["output_summary"]
+    assert semgrep_summary["executions"] == 2
+    assert semgrep_summary["findings"] == 0
+    assert semgrep_summary["nonBlockingFailures"] == 0
+    assert semgrep_summary["redactionApplied"] is False
+    semgrep_semantic = semgrep_summary["semanticPayloads"][0]
+    assert semgrep_semantic["kind"] == "RULE_PROVENANCE"
+    assert semgrep_semantic["durability"] == "DURABLE"
+    assert semgrep_semantic["toolName"] == "semgrep"
+    assert semgrep_semantic["ruleSetVersionOrHash"].startswith("sha256:")
     python_events = [
         event
         for event in runtime_events

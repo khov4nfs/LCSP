@@ -39,6 +39,8 @@ SAFE_METADATA_KEY_NAMES = frozenset(
         "finish_reason",
         "keyword",
         "messageKey",
+        "input_tokens",
+        "output_tokens",
         "reasonCode",
         "sourceCode",
         "statusCode",

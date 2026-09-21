@@ -599,6 +599,15 @@ def test_planned_pipeline_streams_planner_and_investigator_activity_when_scan_jo
         "reasonCode": "SOURCE_SCOPE_MATCH",
     }
     assert selected["output_summary"]["finalDecision"] == "SELECT"
+    selected_semantic = selected["output_summary"]["semanticPayloads"][0]
+    assert selected_semantic["kind"] == "ENGINEERING_RULE"
+    assert selected_semantic["durability"] == "DURABLE"
+    assert selected_semantic["engineeringRuleId"] == "eng-1"
+    assert selected_semantic["concept"] == "ENG-1"
+    assert selected_semantic["investigationGoals"] == ["inspect"]
+    assert selected_semantic["requiredEvidence"] == ["CONTROL"]
+    assert selected_semantic["decision"] == "SELECT"
+    assert selected_semantic["reasonCode"] == "SOURCE_SCOPE_MATCH"
 
     skipped = by_tool_name["engineering_rule_plan:eng-2"]
     assert skipped["event_type"] == "TOOL_SKIPPED"
@@ -610,6 +619,10 @@ def test_planned_pipeline_streams_planner_and_investigator_activity_when_scan_jo
         "reasonCode": "NO_CUSTOMER_CONTEXT_OR_SOURCE_SCOPE_SIGNAL",
     }
     assert skipped["output_summary"]["finalDecision"] == "SKIP"
+    skipped_semantic = skipped["output_summary"]["semanticPayloads"][0]
+    assert skipped_semantic["engineeringRuleId"] == "eng-2"
+    assert skipped_semantic["decision"] == "SKIP"
+    assert skipped_semantic["reasonCode"] == "NO_CUSTOMER_CONTEXT_OR_SOURCE_SCOPE_SIGNAL"
 
     investigated = by_tool_name["engineering_rule_investigation:eng-1"]
     assert investigated["event_type"] == "TOOL_COMPLETED"
@@ -620,6 +633,12 @@ def test_planned_pipeline_streams_planner_and_investigator_activity_when_scan_jo
         "evaluationStatus": "COMPLIANT",
     }
     assert investigated["output_summary"]["evaluationStatus"] == "COMPLIANT"
+    investigated_semantic = investigated["output_summary"]["semanticPayloads"][0]
+    assert investigated_semantic["kind"] == "ENGINEERING_RULE"
+    assert investigated_semantic["engineeringRuleId"] == "eng-1"
+    assert investigated_semantic["evaluationStatus"] == "COMPLIANT"
+    assert investigated_semantic["claimCount"] == investigated["output_summary"]["claimCount"]
+    assert investigated_semantic["evidenceRefs"] == ["evidence:ai:1"]
 
 
 def test_planned_pipeline_streams_investigation_failure_as_runtime_activity(

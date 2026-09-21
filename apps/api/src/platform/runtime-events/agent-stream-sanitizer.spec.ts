@@ -25,11 +25,15 @@ describe("agent stream sanitizer", () => {
     expect(
       sanitizeAgentStreamValue({
         api_key: "hidden",
+        input_tokens: 11,
+        output_tokens: 13,
         selectedRuleId: "ER-42",
         toolCallId: "call-1",
       }),
     ).toEqual({
       api_key: "[REDACTED]",
+      input_tokens: 11,
+      output_tokens: 13,
       selectedRuleId: "ER-42",
       toolCallId: "call-1",
     });
@@ -38,5 +42,29 @@ describe("agent stream sanitizer", () => {
   it("normalizes identifiers without changing streamed text semantics", () => {
     expect(sanitizeAgentStreamIdentifier("  planner  ")).toBe("planner");
     expect(sanitizeAgentStreamText(" ")).toBe(" ");
+  });
+
+  it("hides private prompts, customer context, and hidden reasoning keys", () => {
+    expect(
+      sanitizeAgentStreamValue({
+        schemaVersion: "AGENT_STREAM_SEMANTIC_V1",
+        kind: "MODEL_REQUEST",
+        systemPrompt: "never expose system prompt",
+        developer_prompt: "never expose developer prompt",
+        privateContext: { customer: "private interview context" },
+        hiddenReasoning: "chain of thought",
+        messages: ["raw message state"],
+        model: "gpt-test",
+      }),
+    ).toEqual({
+      schemaVersion: "AGENT_STREAM_SEMANTIC_V1",
+      kind: "MODEL_REQUEST",
+      systemPrompt: "[HIDDEN_PRIVATE_RUNTIME_STATE]",
+      developer_prompt: "[HIDDEN_PRIVATE_RUNTIME_STATE]",
+      privateContext: "[HIDDEN_PRIVATE_RUNTIME_STATE]",
+      hiddenReasoning: "[HIDDEN_PRIVATE_RUNTIME_STATE]",
+      messages: "[HIDDEN_PRIVATE_RUNTIME_STATE]",
+      model: "gpt-test",
+    });
   });
 });

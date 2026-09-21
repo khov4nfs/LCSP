@@ -24,8 +24,9 @@ import {
   type WorkspaceRuntimeSummaryValue,
 } from "../types/workspace-runtime.types.ts";
 
-
-export function parseAgentStreamEvent(data: string): AssessmentAgentStreamEvent | null {
+export function parseAgentStreamEvent(
+  data: string,
+): AssessmentAgentStreamEvent | null {
   const item = parseObject(data);
   if (
     item === null ||
@@ -53,7 +54,9 @@ export function parseAgentStreamEvent(data: string): AssessmentAgentStreamEvent 
     agentName: optionalString(item.agent_name),
     subagentName: optionalString(item.subagent_name),
     namespace: Array.isArray(item.namespace)
-      ? item.namespace.filter((value): value is string => typeof value === "string")
+      ? item.namespace.filter(
+          (value): value is string => typeof value === "string",
+        )
       : [],
     nodeName: optionalString(item.node_name),
     messageId: optionalString(item.message_id),
@@ -123,6 +126,7 @@ export function parseRuntimeEvent(
     recentActivityByAssessmentId,
     engineeringProgressByAssessmentId,
     agentStreamEventsByAssessmentId: {},
+    agentStreamHistoryByAssessmentId: {},
     latestRunIdByAssessmentId,
     postFindingByAssessmentId,
     getAssessmentRuntime: (assessmentId: string) => ({
@@ -131,11 +135,21 @@ export function parseRuntimeEvent(
       engineeringProgress:
         engineeringProgressByAssessmentId[assessmentId] ?? [],
       agentStreamEvents: [],
+      agentStreamHistory: {
+        hasMore: false,
+        nextCursor: null,
+        isLoading: false,
+        error: null,
+        hasLoadedOlderHistory: false,
+        hasHydratedCompleteHistory: false,
+      },
       latestRunId: latestRunIdByAssessmentId[assessmentId] ?? null,
       connectionState: WORKSPACE_RUNTIME_CONNECTION_STATES.connected,
       lastEmittedAt: payload.emitted_at as string,
       postFinding: postFindingByAssessmentId[assessmentId] ?? null,
     }),
+    subscribeAssessmentRuntime: () => () => undefined,
+    loadMoreAgentStreamHistory: () => Promise.resolve(false),
   };
 }
 

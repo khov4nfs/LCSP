@@ -188,7 +188,8 @@ function AssessmentInterviewFlow({
   scanFailed: boolean;
   runtimeKey: string;
 }) {
-  const liveTimeline = useWorkspaceRuntime().getAssessmentRuntime(assessmentId);
+  const workspaceRuntime = useWorkspaceRuntime();
+  const liveTimeline = workspaceRuntime.getAssessmentRuntime(assessmentId);
   // Query hook reference preserved for reactivity & test compatibility.
   const interviewQuery = useAssessmentInterviewStateQuery(
     assessmentId,
@@ -510,7 +511,13 @@ function AssessmentInterviewFlow({
     >
       <AssessmentTranscript autoScrollKey={autoScrollKey}>
         {scanner}
-        <AgentStreamTimeline events={liveTimeline.agentStreamEvents ?? []} />
+        <AgentStreamTimeline
+          events={liveTimeline.agentStreamEvents ?? []}
+          history={liveTimeline.agentStreamHistory}
+          onLoadOlder={() => {
+            void workspaceRuntime.loadMoreAgentStreamHistory(assessmentId);
+          }}
+        />
 
         {interviewEnabled ? (
           <>
