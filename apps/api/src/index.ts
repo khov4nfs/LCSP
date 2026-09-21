@@ -1,6 +1,7 @@
 export * from "./app.module.ts";
 export * from "./main.ts";
 export * from "./modules/auth/auth.module.ts";
+export * from "./modules/admin/admin.module.ts";
 export * from "./modules/auth/presentation/http/auth.controller.ts";
 export * from "./modules/auth/infrastructure/security/security.utils.ts";
 export * from "./infrastructure/prisma/prisma.module.ts";

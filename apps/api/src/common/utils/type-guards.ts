@@ -13,6 +13,24 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
+ * Alias for isRecord - checks if an unknown value is a non-null object (and not an array).
+ *
+ * @param value - Unknown value to inspect.
+ * @returns True when the value is a Record<string, unknown>.
+ */
+export const isObject = isRecord;
+
+/**
+ * Checks if an unknown value is a valid finite number (excluding NaN and Infinity).
+ *
+ * @param value - Unknown value to inspect.
+ * @returns True when the value is a finite number.
+ */
+export function isNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+/**
  * Normalizes a string value by trimming whitespace and returning null if empty or non-string.
  *
  * @param value - Unknown value to inspect and normalize.

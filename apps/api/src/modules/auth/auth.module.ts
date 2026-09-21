@@ -42,9 +42,6 @@ import {
   GetAuthProfileHandler,
   ListAuthSessionsHandler,
 } from "./application/queries/index.ts";
-import { AdminAccountCommandService } from "./application/services/admin/admin-account-command.service.js";
-import { AdminAccountReadService } from "./application/services/admin/admin-account-read.service.js";
-import { AdminOverviewService } from "./application/services/admin/admin-overview.service.js";
 import { AuthAuditService } from "./application/services/auth/auth-audit.service.ts";
 import { AuthSupportService } from "./application/services/auth/auth-support.service.ts";
 import { RecoveryEmailNotifierService } from "./infrastructure/notification/recovery-email-notifier.service.ts";
@@ -62,8 +59,6 @@ import {
   PrismaSessionRepository,
   PrismaUserRepository,
 } from "./infrastructure/persistence/prisma-auth.repositories.ts";
-import { AdminOverviewController } from "./presentation/http/admin-overview.controller.js";
-import { AdminUsersController } from "./presentation/http/admin-users.controller.ts";
 import { AuthController } from "./presentation/http/auth.controller.ts";
 
 const REPOSITORY_PROVIDERS = [
@@ -121,11 +116,8 @@ const REPOSITORY_PROVIDERS = [
 
 @Module({
   imports: [PrismaModule, AuditModule, CqrsModule, MailModule],
-  controllers: [AuthController, AdminUsersController, AdminOverviewController],
+  controllers: [AuthController],
   providers: [
-    AdminOverviewService,
-    AdminAccountReadService,
-    AdminAccountCommandService,
     ...REPOSITORY_PROVIDERS,
     {
       provide: AuthSupportService,

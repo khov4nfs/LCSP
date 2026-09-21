@@ -10,6 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { config, createConfigValidationSchema } from "./config/config.js";
+import { AdminModule } from "./modules/admin/admin.module.js";
 import { AIUsageFlowModule } from "./modules/ai-usage-flow/ai-usage-flow.module.js";
 import { BillingModule } from "./modules/billing/billing.module.js";
 import { AppFeatureModule } from "./modules/app/app.module.js";
@@ -102,6 +103,7 @@ function findUpwards(
     OutboxModule,
     RbacModule,
     StorageModule,
+    AdminModule,
     AIUsageFlowModule,
     BillingModule,
     AppFeatureModule,

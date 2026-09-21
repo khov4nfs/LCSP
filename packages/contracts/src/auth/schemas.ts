@@ -1,8 +1,15 @@
 import { z } from "zod";
 
+import {
+  ADMIN_ACCOUNT_FILTERS,
+  ADMIN_ACCOUNT_QUERY_LIMITS,
+} from "./admin-accounts.ts";
+import { ADMIN_OVERVIEW_PERIODS } from "./admin-overview.ts";
 import { AUTH_BACKUP_EMAIL_POLICIES } from "./backup-email-policy.ts";
 import { MFA_RECOVERY_CODE_ACCESS_ACTIONS } from "./mfa.ts";
 import { AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES } from "./primary-email-address-policy.ts";
+import { AUTH_USER_ROLES } from "./roles.ts";
+import { AUTH_ACCOUNT_STATUSES } from "./states.ts";
 
 /**
  * Validation schema and input type for user sign-in.
@@ -101,9 +108,12 @@ export type ConfirmPasswordRecoveryInput = z.infer<
  * Validation schema and input type for step-up password re-authentication on sensitive actions.
  */
 export const passwordReauthSchema = z.object({
-  password: z.string().min(1).refine((val) => val.trim().length > 0, {
-    message: "Password cannot be empty or whitespace only",
-  }),
+  password: z
+    .string()
+    .min(1)
+    .refine((val) => val.trim().length > 0, {
+      message: "Password cannot be empty or whitespace only",
+    }),
 });
 export type PasswordReauthInput = z.infer<typeof passwordReauthSchema>;
 
@@ -156,13 +166,15 @@ export const checkSensitiveRouteSchema = z
     (data) =>
       Boolean(
         (data.path && data.path.trim().length > 0) ||
-          (data.route && data.route.trim().length > 0),
+        (data.route && data.route.trim().length > 0),
       ),
     {
       message: "Either path or route must be provided",
     },
   );
-export type CheckSensitiveRouteInput = z.infer<typeof checkSensitiveRouteSchema>;
+export type CheckSensitiveRouteInput = z.infer<
+  typeof checkSensitiveRouteSchema
+>;
 
 /**
  * Validation schema and input type for starting an OAuth authentication flow.
@@ -201,3 +213,197 @@ export const oauthLinkCallbackSchema = z.object({
   provider: z.string().min(1),
 });
 export type OAuthLinkCallbackInput = z.infer<typeof oauthLinkCallbackSchema>;
+
+/**
+ * Validation schema and input type for Admin user account actions (suspend / restore).
+ */
+export const adminUserActionSchema = z
+  .object({
+    expectedVersion: z.number().int().nonnegative(),
+    reason: z.string().trim().min(1).max(500).optional(),
+  })
+  .strict();
+export type AdminUserActionInput = z.infer<typeof adminUserActionSchema>;
+
+const RAW_PAGINATION_REGEX = /^[1-9][0-9]*$/;
+
+function validateRawPaginationField(
+  value: unknown,
+  ctx: z.RefinementCtx,
+  path: (string | number)[],
+  maxLimit: number,
+): void {
+  if (value === undefined) {
+    return;
+  }
+  if (typeof value === "number") {
+    if (!Number.isInteger(value) || value < 1 || value > maxLimit) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Value must be an integer between 1 and ${maxLimit}`,
+        path,
+      });
+    }
+    return;
+  }
+  if (typeof value === "string") {
+    if (!RAW_PAGINATION_REGEX.test(value)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Value must be a positive integer matching /^[1-9][0-9]*$/",
+        path,
+      });
+      return;
+    }
+    const num = Number.parseInt(value, 10);
+    if (num < 1 || num > maxLimit) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Value must be between 1 and ${maxLimit}`,
+        path,
+      });
+    }
+    return;
+  }
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    message: "Value must be a string or integer",
+    path,
+  });
+}
+
+/**
+ * Validation schema and input type for Admin user list query parameters.
+ */
+export const adminListUsersQuerySchema = z
+  .object({
+    query: z.string().max(ADMIN_ACCOUNT_QUERY_LIMITS.maxQueryLength).optional(),
+    q: z.string().max(ADMIN_ACCOUNT_QUERY_LIMITS.maxQueryLength).optional(),
+    status: z
+      .enum([
+        AUTH_ACCOUNT_STATUSES.active,
+        AUTH_ACCOUNT_STATUSES.suspended,
+        ADMIN_ACCOUNT_FILTERS.all,
+      ] as [string, ...string[]])
+      .optional(),
+    role: z
+      .enum([
+        AUTH_USER_ROLES.admin,
+        AUTH_USER_ROLES.customer,
+        ADMIN_ACCOUNT_FILTERS.all,
+      ] as [string, ...string[]])
+      .optional(),
+    page: z.unknown().optional(),
+    pageSize: z.unknown().optional(),
+    page_size: z.unknown().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      data.query !== undefined &&
+      data.q !== undefined &&
+      data.query !== data.q
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Conflicting query parameters: 'query' and 'q' must not have different values",
+        path: ["query"],
+      });
+    }
+    if (
+      data.pageSize !== undefined &&
+      data.page_size !== undefined &&
+      data.pageSize !== data.page_size
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Conflicting query parameters: 'pageSize' and 'page_size' must not have different values",
+        path: ["pageSize"],
+      });
+    }
+    validateRawPaginationField(
+      data.page,
+      ctx,
+      ["page"],
+      ADMIN_ACCOUNT_QUERY_LIMITS.maxPage,
+    );
+    validateRawPaginationField(
+      data.pageSize,
+      ctx,
+      ["pageSize"],
+      ADMIN_ACCOUNT_QUERY_LIMITS.maxPageSize,
+    );
+    validateRawPaginationField(
+      data.page_size,
+      ctx,
+      ["page_size"],
+      ADMIN_ACCOUNT_QUERY_LIMITS.maxPageSize,
+    );
+  })
+  .transform((data) => {
+    const parseNumber = (val: unknown, fallback: number): number => {
+      if (typeof val === "number") return val;
+      if (typeof val === "string") return Number.parseInt(val, 10);
+      return fallback;
+    };
+    const resolvedPageSize =
+      data.pageSize !== undefined
+        ? parseNumber(data.pageSize, ADMIN_ACCOUNT_QUERY_LIMITS.defaultPageSize)
+        : data.page_size !== undefined
+          ? parseNumber(
+              data.page_size,
+              ADMIN_ACCOUNT_QUERY_LIMITS.defaultPageSize,
+            )
+          : ADMIN_ACCOUNT_QUERY_LIMITS.defaultPageSize;
+
+    const result: {
+      query?: string;
+      q?: string;
+      status?: string;
+      role?: string;
+      page?: number;
+      pageSize?: number;
+      page_size?: number;
+    } = {
+      page: data.page !== undefined ? parseNumber(data.page, 1) : 1,
+      pageSize: resolvedPageSize,
+    };
+
+    if (data.query !== undefined || data.q !== undefined) {
+      result.query = data.query ?? data.q;
+    }
+    if (data.q !== undefined) {
+      result.q = data.q;
+    }
+    if (data.status !== undefined) {
+      result.status = data.status;
+    }
+    if (data.role !== undefined) {
+      result.role = data.role;
+    }
+    if (data.page_size !== undefined) {
+      result.page_size = parseNumber(data.page_size, resolvedPageSize);
+    }
+
+    return result;
+  });
+export type AdminListUsersQueryInput = z.infer<
+  typeof adminListUsersQuerySchema
+>;
+
+/**
+ * Validation schema and input type for Admin overview metrics query parameters.
+ * Preserves legacy fallback: unsupported periods or missing values default to 30D.
+ */
+export const adminOverviewQuerySchema = z.object({
+  period: z
+    .string()
+    .optional()
+    .transform((raw) => {
+      if (raw === ADMIN_OVERVIEW_PERIODS.p7d) return ADMIN_OVERVIEW_PERIODS.p7d;
+      if (raw === ADMIN_OVERVIEW_PERIODS.p90d) return ADMIN_OVERVIEW_PERIODS.p90d;
+      return ADMIN_OVERVIEW_PERIODS.p30d;
+    }),
+});
+export type AdminOverviewQueryInput = z.infer<typeof adminOverviewQuerySchema>;

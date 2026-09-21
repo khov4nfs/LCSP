@@ -1,4 +1,4 @@
-import { lockAccountLifecycle } from "../../services/admin/admin-account.transaction.js";
+import { lockAccountLifecycle } from "../../../infrastructure/persistence/account-lifecycle.lock.js";
 import { AUDIT_DECISIONS, AUDIT_RESOURCE_TYPES } from "@lcsp/contracts/audit";
 import {
   AUTH_AUDIT_EVENT_TYPES,

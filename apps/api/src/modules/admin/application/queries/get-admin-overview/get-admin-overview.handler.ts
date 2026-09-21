@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import {
   ADMIN_OVERVIEW_ACTION_KEYS,
   ADMIN_OVERVIEW_PERIODS,
@@ -18,9 +18,14 @@ import {
   LEGAL_RULE_LIFECYCLE_STATUSES,
 } from "@lcsp/contracts/legal-rule-catalog";
 
+import { isRecord } from "../../../../../common/utils/index.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { toPrismaLegalRuleLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import { GetAdminOverviewQuery } from "./get-admin-overview.query.js";
 
+/**
+ * Audit event types that are relevant for the administrative overview recent activity feed.
+ */
 const ADMIN_AUDIT_EVENT_TYPES_LIST = [
   AUTH_AUDIT_EVENT_TYPES.authAdminUserSuspended,
   AUTH_AUDIT_EVENT_TYPES.authAdminUserRestored,
@@ -32,15 +37,23 @@ const ADMIN_AUDIT_EVENT_TYPES_LIST = [
   LEGAL_RULE_EVENT_TYPES.drafted,
 ];
 
-@Injectable()
-export class AdminOverviewService {
+/**
+ * Handles administrative query to aggregate system-wide overview statistics:
+ * - User population and growth within selected period (7d, 30d, 90d).
+ * - Assessment volumes and completion metrics.
+ * - Legal corpus versioning lifecycle status.
+ * - Assessment activity timeline distribution.
+ * - Recent administrative actions and audit history.
+ */
+@QueryHandler(GetAdminOverviewQuery)
+export class GetAdminOverviewHandler implements IQueryHandler<GetAdminOverviewQuery> {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getOverview(
-    rawPeriod?: string,
-    now: Date = new Date(),
+  async execute(
+    query: GetAdminOverviewQuery,
+    currentTime: Date = new Date(),
   ): Promise<AdminOverviewStats> {
-    const period = this.normalizePeriod(rawPeriod);
+    const period = this.normalizePeriod(query.period);
     const periodDays =
       period === ADMIN_OVERVIEW_PERIODS.p7d
         ? 7
@@ -49,9 +62,10 @@ export class AdminOverviewService {
           : 30;
 
     const windowStart = new Date(
-      now.getTime() - periodDays * 24 * 60 * 60 * 1000,
+      currentTime.getTime() - periodDays * 24 * 60 * 60 * 1000,
     );
 
+    // Fetch all summary counters and records in parallel
     const [
       activeUsersCount,
       suspendedUsersCount,
@@ -70,13 +84,13 @@ export class AdminOverviewService {
         where: { accessStatus: USER_ACCESS_STATUSES.suspended },
       }),
       this.prisma.user.count({
-        where: { createdAt: { gte: windowStart, lte: now } },
+        where: { createdAt: { gte: windowStart, lte: currentTime } },
       }),
       this.prisma.assessment.count(),
       this.prisma.assessment.count({
         where: {
           status: ASSESSMENT_STATUS_CODES.readyForReview,
-          updatedAt: { gte: windowStart, lte: now },
+          updatedAt: { gte: windowStart, lte: currentTime },
         },
       }),
       this.prisma.legalCorpusVersion.findFirst({
@@ -100,10 +114,10 @@ export class AdminOverviewService {
       this.prisma.assessment.findMany({
         where: {
           OR: [
-            { createdAt: { gte: windowStart, lte: now } },
+            { createdAt: { gte: windowStart, lte: currentTime } },
             {
               status: ASSESSMENT_STATUS_CODES.readyForReview,
-              updatedAt: { gte: windowStart, lte: now },
+              updatedAt: { gte: windowStart, lte: currentTime },
             },
           ],
         },
@@ -123,25 +137,25 @@ export class AdminOverviewService {
       }),
     ]);
 
-    // Authoritative total users (strictly User records: active + suspended)
+    // Total users = active + suspended
     const totalUsersCount = activeUsersCount + suspendedUsersCount;
     const activePercentage =
       totalUsersCount > 0
         ? Math.round((activeUsersCount / totalUsersCount) * 1000) / 10
         : 0;
 
-    // Build assessment activity data
+    // Build timeline buckets for assessment activity
     const activityData = this.buildActivityData(
       periodDays,
       windowStart,
-      now,
+      currentTime,
       periodAssessments,
     );
 
-    // Build sanitized recent admin activity
+    // Sanitize recent audit events with admin actor metadata
     const recentActivity = await this.sanitizeRecentActivity(recentAuditEvents);
 
-    // Build canonical corpus status summary (ruleCount is null per AdminCorpusVersionsService read model)
+    // Build legal corpus summary
     const corpusStatus: AdminCorpusStatusSummary = {
       current: publishedCorpus
         ? {
@@ -198,20 +212,26 @@ export class AdminOverviewService {
     };
   }
 
-  private normalizePeriod(raw?: string): AdminOverviewPeriod {
-    if (raw === ADMIN_OVERVIEW_PERIODS.p7d) return ADMIN_OVERVIEW_PERIODS.p7d;
-    if (raw === ADMIN_OVERVIEW_PERIODS.p90d) return ADMIN_OVERVIEW_PERIODS.p90d;
+  private normalizePeriod(rawPeriod?: string): AdminOverviewPeriod {
+    if (rawPeriod === ADMIN_OVERVIEW_PERIODS.p7d)
+      return ADMIN_OVERVIEW_PERIODS.p7d;
+    if (rawPeriod === ADMIN_OVERVIEW_PERIODS.p90d)
+      return ADMIN_OVERVIEW_PERIODS.p90d;
     return ADMIN_OVERVIEW_PERIODS.p30d;
   }
 
+  /**
+   * Generates time-bucketed activity data points (up to 14 bars) for the assessment graph.
+   */
   private buildActivityData(
     periodDays: number,
     windowStart: Date,
-    now: Date,
+    currentTime: Date,
     assessments: Array<{ createdAt: Date; status: string; updatedAt: Date }>,
   ) {
     const barCount = periodDays <= 14 ? periodDays : 14;
-    const intervalMs = (now.getTime() - windowStart.getTime()) / barCount;
+    const intervalMs =
+      (currentTime.getTime() - windowStart.getTime()) / barCount;
 
     const points: AdminOverviewActivityPoint[] = [];
 
@@ -223,14 +243,17 @@ export class AdminOverviewService {
       let startedCount = 0;
       let completedCount = 0;
 
-      for (const a of assessments) {
-        if (a.createdAt >= bucketStart && a.createdAt < bucketEnd) {
+      for (const assessment of assessments) {
+        if (
+          assessment.createdAt >= bucketStart &&
+          assessment.createdAt < bucketEnd
+        ) {
           startedCount++;
         }
         if (
-          a.status === ASSESSMENT_STATUS_CODES.readyForReview &&
-          a.updatedAt >= bucketStart &&
-          a.updatedAt < bucketEnd
+          assessment.status === ASSESSMENT_STATUS_CODES.readyForReview &&
+          assessment.updatedAt >= bucketStart &&
+          assessment.updatedAt < bucketEnd
         ) {
           completedCount++;
         }
@@ -245,14 +268,16 @@ export class AdminOverviewService {
     }
 
     const totalStarted = assessments.filter(
-      (a) => a.createdAt >= windowStart && a.createdAt <= now,
+      (assessment) =>
+        assessment.createdAt >= windowStart &&
+        assessment.createdAt <= currentTime,
     ).length;
 
     const totalCompleted = assessments.filter(
-      (a) =>
-        a.status === ASSESSMENT_STATUS_CODES.readyForReview &&
-        a.updatedAt >= windowStart &&
-        a.updatedAt <= now,
+      (assessment) =>
+        assessment.status === ASSESSMENT_STATUS_CODES.readyForReview &&
+        assessment.updatedAt >= windowStart &&
+        assessment.updatedAt <= currentTime,
     ).length;
 
     return {
@@ -260,10 +285,13 @@ export class AdminOverviewService {
       totalStarted,
       totalCompleted,
       startDate: windowStart.toISOString(),
-      endDate: now.toISOString(),
+      endDate: currentTime.toISOString(),
     };
   }
 
+  /**
+   * Enriches raw audit events with actor names and structured targets for the overview feed.
+   */
   private async sanitizeRecentActivity(
     events: Array<{
       id: string;
@@ -277,18 +305,24 @@ export class AdminOverviewService {
 
     const actorIds = [
       ...new Set(
-        events.map((e) => e.actorId).filter((id): id is string => Boolean(id)),
+        events
+          .map((event) => event.actorId)
+          .filter((actorId): actorId is string => Boolean(actorId)),
       ),
     ];
 
-    const users = actorIds.length
+    const users: Array<{
+      id: string;
+      email: string;
+      displayName: string | null;
+    }> = actorIds.length
       ? await this.prisma.user.findMany({
           where: { id: { in: actorIds } },
           select: { id: true, email: true, displayName: true },
         })
       : [];
 
-    const userMap = new Map(users.map((u) => [u.id, u]));
+    const userMap = new Map(users.map((user) => [user.id, user]));
 
     return events.map((event) => {
       const user = event.actorId ? userMap.get(event.actorId) : undefined;
@@ -313,6 +347,9 @@ export class AdminOverviewService {
     });
   }
 
+  /**
+   * Resolves display action key and target descriptor from audit event type and payload.
+   */
   private resolveActionAndTarget(
     eventType: string,
     payload: Record<string, unknown>,
@@ -373,8 +410,4 @@ export class AdminOverviewService {
       target: actualTarget,
     };
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
