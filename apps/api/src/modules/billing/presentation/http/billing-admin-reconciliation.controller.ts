@@ -35,6 +35,15 @@ export class BillingAdminReconciliationController {
     @Query("status") status?: string,
     @Query("page") page?: string,
     @Query("take") take?: string,
+    @Query("pageSize") pageSize?: string,
+    @Query("page_size") pageSizeAlias?: string,
+    @Query("from") from?: string,
+    @Query("to") to?: string,
+    @Query("provider") provider?: string,
+    @Query("userId") userId?: string,
+    @Query("email") email?: string,
+    @Query("paymentCode") paymentCode?: string,
+    @Query("orderId") orderId?: string,
   ) {
     try {
       return resultEnvelope(
@@ -43,6 +52,18 @@ export class BillingAdminReconciliationController {
             status,
             page ? Number(page) : undefined,
             take ? Number(take) : undefined,
+            pageSize
+              ? Number(pageSize)
+              : pageSizeAlias
+                ? Number(pageSizeAlias)
+                : undefined,
+            from,
+            to,
+            provider,
+            userId,
+            email,
+            paymentCode,
+            orderId,
           ),
         ),
       );

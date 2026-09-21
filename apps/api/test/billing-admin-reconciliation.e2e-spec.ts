@@ -43,6 +43,7 @@ describe("Admin billing reconciliation (e2e)", () => {
   beforeEach(async () => {
     await prisma.paymentTransaction.deleteMany();
     await prisma.creditLedgerEntry.deleteMany();
+    await prisma.llmUsageEvent.deleteMany();
     await prisma.billingOrder.deleteMany();
     await prisma.billingWallet.deleteMany();
     await prisma.sePayWebhookEvent.deleteMany();
@@ -198,5 +199,350 @@ describe("Admin billing reconciliation (e2e)", () => {
       }),
       1,
     );
+  });
+
+  it("exposes bounded Admin reporting endpoints with explicit redaction", async () => {
+    const from = new Date(Date.now() - 24 * 60 * 60 * 1_000).toISOString();
+    const to = new Date(Date.now() + 24 * 60 * 60 * 1_000).toISOString();
+    const summary = await httpRequest(app)
+      .get("/admin/billing/revenue-summary")
+      .query({
+        from,
+        to,
+      })
+      .set("Authorization", `Bearer ${adminToken}`);
+    assert.equal(summary.status, 200);
+    const summaryBody = successBody<{
+      settledTopUps: { amountMinorUnits: string };
+      pendingReconciliation: { count: number };
+      duplicateBlocked: { count: number; scope: string };
+    }>(summary);
+    assert.equal(summaryBody.settledTopUps.amountMinorUnits, "0");
+    assert.equal(summaryBody.pendingReconciliation.count, 1);
+    assert.equal(
+      summaryBody.duplicateBlocked.scope,
+      "DURABLE_PAYMENT_TRANSACTIONS",
+    );
+
+    for (const path of [
+      "/admin/billing/revenue-summary",
+      "/admin/billing/transactions",
+      "/admin/billing/reconciliation",
+    ]) {
+      const invalidPeriod = await httpRequest(app)
+        .get(path)
+        .query({
+          from: "2026-09-20T00:00:00",
+          to: "2026-09-21T00:00:00",
+        })
+        .set("Authorization", `Bearer ${adminToken}`);
+      assert.equal(invalidPeriod.status, 400);
+    }
+
+    const transactions = await httpRequest(app)
+      .get("/admin/billing/transactions")
+      .query({ status: "UNMATCHED", pageSize: 10 })
+      .set("Authorization", `Bearer ${adminToken}`);
+    assert.equal(transactions.status, 200);
+    const transactionBody = successBody<{
+      items: Array<Record<string, unknown>>;
+    }>(transactions);
+    assert.equal(transactionBody.items.length, 1);
+    const transaction = transactionBody.items[0];
+    assert.ok(transaction);
+    assert.equal("webhookEvent" in transaction, false);
+    assert.equal("sanitizedPayload" in transaction, false);
+
+    const denied = await httpRequest(app)
+      .get("/admin/billing/revenue-summary")
+      .set("Authorization", `Bearer ${customerToken}`);
+    assert.equal(denied.status, 403);
+  });
+
+  it("reconciles persisted top-ups, usage debits, liabilities, and durable duplicate facts", async () => {
+    await prisma.paymentTransaction.deleteMany();
+    await prisma.creditLedgerEntry.deleteMany();
+    await prisma.llmUsageEvent.deleteMany();
+    await prisma.billingOrder.deleteMany();
+    await prisma.billingWallet.deleteMany();
+
+    const from = new Date("2026-09-01T00:00:00.000Z");
+    const to = new Date("2026-10-01T00:00:00.000Z");
+    const reconciledAt = new Date("2026-09-15T12:00:00.000Z");
+    const receivedAt = new Date("2026-09-15T11:00:00.000Z");
+
+    const [walletA, walletB] = await Promise.all([
+      prisma.billingWallet.create({
+        data: {
+          userId: "user-1",
+          availableCredits: 700n,
+          reservedCredits: 20n,
+        },
+      }),
+      prisma.billingWallet.create({
+        data: {
+          userId: "user-2",
+          availableCredits: 0n,
+          reservedCredits: 30n,
+        },
+      }),
+    ]);
+
+    const createOrder = (suffix: string, userId: string, amount: bigint) =>
+      prisma.billingOrder.create({
+        data: {
+          userId,
+          paymentCode: `LCSP-REPORT-${suffix}`,
+          idempotencyKey: `report-order-${suffix}`,
+          amountMinorUnits: amount,
+          creditUnits: amount,
+          status: BILLING_ORDER_STATUSES.PENDING_RECONCILIATION,
+        },
+      });
+    const [orderA, orderB, orderC, orderD, orderE, orderF] = await Promise.all([
+      createOrder("A", "user-1", 500n),
+      createOrder("B", "user-2", 300n),
+      createOrder("C", "user-1", 700n),
+      createOrder("D", "user-1", 200n),
+      createOrder("E", "user-1", 500n),
+      createOrder("F", "user-1", 900n),
+    ]);
+
+    await prisma.paymentTransaction.createMany({
+      data: [
+        {
+          provider: "SEPAY",
+          providerTransactionId: "REPORT-TX-A",
+          amountMinorUnits: 500n,
+          reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.MATCHED,
+          userId: "user-1",
+          billingOrderId: orderA.id,
+          receivedAt,
+          reconciledAt,
+        },
+        {
+          provider: "SEPAY",
+          providerTransactionId: "REPORT-TX-B",
+          amountMinorUnits: 300n,
+          reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.MATCHED,
+          userId: "user-2",
+          billingOrderId: orderB.id,
+          receivedAt,
+          reconciledAt,
+        },
+        {
+          provider: "SEPAY",
+          providerTransactionId: "REPORT-TX-C",
+          amountMinorUnits: 700n,
+          reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.UNMATCHED,
+          reconciliationReason:
+            PAYMENT_RECONCILIATION_REASONS.UNMATCHED_PAYMENT_CODE,
+          userId: "user-1",
+          billingOrderId: orderC.id,
+          receivedAt,
+        },
+        {
+          provider: "SEPAY",
+          providerTransactionId: "REPORT-TX-D",
+          amountMinorUnits: 200n,
+          reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.AMOUNT_MISMATCH,
+          reconciliationReason: PAYMENT_RECONCILIATION_REASONS.UNDERPAYMENT,
+          userId: "user-1",
+          billingOrderId: orderD.id,
+          receivedAt,
+        },
+        {
+          provider: "SEPAY",
+          providerTransactionId: "REPORT-TX-E",
+          amountMinorUnits: 500n,
+          reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.DUPLICATE,
+          reconciliationReason:
+            PAYMENT_RECONCILIATION_REASONS.DUPLICATE_PROVIDER_TRANSACTION,
+          userId: "user-1",
+          billingOrderId: orderE.id,
+          receivedAt,
+        },
+        {
+          provider: "SEPAY",
+          providerTransactionId: "REPORT-TX-F",
+          amountMinorUnits: 900n,
+          reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.REJECTED,
+          reconciliationReason:
+            PAYMENT_RECONCILIATION_REASONS.RECOVERABLE_EXCEPTION,
+          userId: "user-1",
+          billingOrderId: orderF.id,
+          receivedAt,
+        },
+      ],
+    });
+
+    await prisma.creditLedgerEntry.createMany({
+      data: [
+        {
+          userId: "user-1",
+          walletId: walletA.id,
+          idempotencyKey: "report-ledger-llm",
+          source: "LLM_USAGE_DEBIT",
+          referenceId: "report-usage-llm",
+          deltaCredits: -80n,
+          createdAt: reconciledAt,
+        },
+        {
+          userId: "user-2",
+          walletId: walletB.id,
+          idempotencyKey: "report-ledger-reservation",
+          source: "RESERVATION_SETTLEMENT",
+          referenceId: "report-usage-reservation",
+          deltaCredits: -50n,
+          createdAt: reconciledAt,
+        },
+      ],
+    });
+    await prisma.llmUsageEvent.create({
+      data: {
+        userId: "user-1",
+        provider: "OPENAI",
+        model: "gpt-test",
+        invocationId: "report-usage-without-ledger",
+        status: "SETTLED",
+        customerChargeVnd: 999n,
+        occurredAt: reconciledAt,
+      },
+    });
+
+    const response = await httpRequest(app)
+      .get("/admin/billing/revenue-summary")
+      .query({ from: from.toISOString(), to: to.toISOString() })
+      .set("Authorization", `Bearer ${adminToken}`);
+    assert.equal(response.status, 200);
+    const body = successBody<{
+      settledTopUps: { amountMinorUnits: string; count: number };
+      usageRevenue: { amountMinorUnits: string; count: number };
+      outstandingCredits: { credits: string };
+      pendingReconciliation: { count: number };
+      duplicateBlocked: { count: number; scope: string };
+    }>(response);
+    assert.deepEqual(body.settledTopUps, {
+      amountMinorUnits: "800",
+      count: 2,
+    });
+    assert.deepEqual(body.usageRevenue, {
+      amountMinorUnits: "130",
+      count: 2,
+    });
+    assert.equal(body.outstandingCredits.credits, "750");
+    assert.equal(body.pendingReconciliation.count, 2);
+    assert.deepEqual(body.duplicateBlocked, {
+      count: 1,
+      scope: "DURABLE_PAYMENT_TRANSACTIONS",
+    });
+
+    const boundary = await httpRequest(app)
+      .get("/admin/billing/revenue-summary")
+      .query({
+        from: new Date(reconciledAt.getTime() - 1).toISOString(),
+        to: reconciledAt.toISOString(),
+      })
+      .set("Authorization", `Bearer ${adminToken}`);
+    assert.equal(boundary.status, 200);
+    const boundaryBody = successBody<{
+      settledTopUps: { amountMinorUnits: string };
+      usageRevenue: { amountMinorUnits: string };
+      outstandingCredits: { credits: string };
+    }>(boundary);
+    assert.equal(boundaryBody.settledTopUps.amountMinorUnits, "0");
+    assert.equal(boundaryBody.usageRevenue.amountMinorUnits, "0");
+    assert.equal(boundaryBody.outstandingCredits.credits, "750");
+
+    const filterRequests = [
+      { status: "MATCHED", expected: 2 },
+      { provider: "SEPAY", expected: 6 },
+      { userId: "user-1", expected: 5 },
+      { email: "manager@acme.test", expected: 5 },
+      { paymentCode: "LCSP-REPORT-A", expected: 1 },
+      { orderId: orderA.id, expected: 1 },
+    ];
+    for (const filter of filterRequests) {
+      const filtered = await httpRequest(app)
+        .get("/admin/billing/transactions")
+        .query({
+          ...filter,
+          from: from.toISOString(),
+          to: to.toISOString(),
+          pageSize: 100,
+        })
+        .set("Authorization", `Bearer ${adminToken}`);
+      assert.equal(filtered.status, 200);
+      const filteredBody = successBody<{ items: unknown[] }>(filtered);
+      assert.equal(filteredBody.items.length, filter.expected);
+    }
+    const firstPage = await httpRequest(app)
+      .get("/admin/billing/transactions")
+      .query({ from: from.toISOString(), to: to.toISOString(), pageSize: 2 })
+      .set("Authorization", `Bearer ${adminToken}`);
+    assert.equal(firstPage.status, 200);
+    const firstPageBody = successBody<{
+      items: Array<{ paymentId: string }>;
+      nextCursor: string | null;
+      hasNext: boolean;
+    }>(firstPage);
+    assert.equal(firstPageBody.items.length, 2);
+    assert.equal(firstPageBody.hasNext, true);
+    assert.ok(firstPageBody.nextCursor);
+
+    const cursorOrder = await prisma.billingOrder.create({
+      data: {
+        userId: "user-1",
+        paymentCode: "LCSP-REPORT-G",
+        idempotencyKey: "report-order-G",
+        amountMinorUnits: 100n,
+        creditUnits: 100n,
+        status: BILLING_ORDER_STATUSES.PENDING_RECONCILIATION,
+      },
+    });
+    await prisma.paymentTransaction.create({
+      data: {
+        provider: "SEPAY",
+        providerTransactionId: "REPORT-TX-G",
+        amountMinorUnits: 100n,
+        reconciliationStatus: PAYMENT_RECONCILIATION_STATUSES.UNMATCHED,
+        reconciliationReason:
+          PAYMENT_RECONCILIATION_REASONS.UNMATCHED_PAYMENT_CODE,
+        userId: "user-1",
+        billingOrderId: cursorOrder.id,
+        receivedAt: new Date("2026-09-15T11:30:00.000Z"),
+      },
+    });
+    const secondPage = await httpRequest(app)
+      .get("/admin/billing/transactions")
+      .query({
+        from: from.toISOString(),
+        to: to.toISOString(),
+        pageSize: 2,
+        cursor: firstPageBody.nextCursor,
+      })
+      .set("Authorization", `Bearer ${adminToken}`);
+    assert.equal(secondPage.status, 200);
+    const secondPageBody = successBody<{
+      items: Array<{ paymentId: string }>;
+    }>(secondPage);
+    assert.equal(secondPageBody.items.length, 2);
+    assert.equal(
+      new Set([
+        ...firstPageBody.items.map((item) => item.paymentId),
+        ...secondPageBody.items.map((item) => item.paymentId),
+      ]).size,
+      4,
+    );
+    const malformedCursor = await httpRequest(app)
+      .get("/admin/billing/transactions")
+      .query({
+        from: from.toISOString(),
+        to: to.toISOString(),
+        pageSize: 2,
+        cursor: "not-a-cursor",
+      })
+      .set("Authorization", `Bearer ${adminToken}`);
+    assert.equal(malformedCursor.status, 400);
   });
 });
