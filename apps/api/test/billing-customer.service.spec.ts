@@ -2,6 +2,8 @@ import { describe, expect, it, jest } from "@jest/globals";
 import { BillingPaymentKernel } from "../src/modules/billing/application/shared/billing-payment.kernel.js";
 import { CreateBillingOrderHandler } from "../src/modules/billing/application/commands/create-billing-order/create-billing-order.handler.js";
 import { CreateBillingOrderCommand } from "../src/modules/billing/application/commands/create-billing-order/create-billing-order.command.js";
+import { ExpireBillingOrderHandler } from "../src/modules/billing/application/commands/expire-billing-order/expire-billing-order.handler.js";
+import { ExpireBillingOrderCommand } from "../src/modules/billing/application/commands/expire-billing-order/expire-billing-order.command.js";
 import { EstimateBillingHandler } from "../src/modules/billing/application/queries/estimate-billing/estimate-billing.handler.js";
 import { EstimateBillingQuery } from "../src/modules/billing/application/queries/estimate-billing/estimate-billing.query.js";
 import { BillingDomainError } from "../src/modules/billing/domain/billing.errors.js";
@@ -156,7 +158,6 @@ describe("billing customer CQRS handlers", () => {
       .fn<(input: unknown) => Promise<any>>()
       .mockResolvedValue(order);
     const handler = new CreateBillingOrderHandler(
-      {} as never,
       { createOrder } as unknown as BillingPaymentKernel,
       billingConfig as never,
     );
@@ -189,15 +190,11 @@ describe("billing customer CQRS handlers", () => {
       transactions as never,
       billingConfig as never,
     );
-    await handler.execute(
-      new GetBillingOrderQuery("user-1", "order-1", {
-        correlationId: "correlation-1",
-      }),
-    );
+    await handler.execute(new GetBillingOrderQuery("user-1", "order-1"));
     expect(findForUser).toHaveBeenCalledWith("user-1", "order-1");
   });
 
-  it("materializes expiry with one correlated lifecycle audit fact", async () => {
+  it("expires due orders with one correlated lifecycle audit fact", async () => {
     const expiredOrder = {
       ...order,
       expiresAt: new Date(Date.now() - 1_000),
@@ -225,21 +222,23 @@ describe("billing customer CQRS handlers", () => {
           ),
       ),
     };
-    const handler = new GetBillingOrderHandler(
-      transactions as never,
-      billingConfig as never,
-    );
-    const result = await handler.execute(
-      new GetBillingOrderQuery("user-1", "order-1", {
+    const handler = new ExpireBillingOrderHandler(transactions as never);
+    await handler.execute(
+      new ExpireBillingOrderCommand("user-1", "order-1", {
         correlationId: "corr-expiry",
         sessionId: "session-1",
       }),
     );
-    expect(result.status).toBe("EXPIRED");
+    expect(transition).toHaveBeenCalledWith(
+      "order-1",
+      "PENDING_PAYMENT",
+      "EXPIRED",
+    );
     expect(append).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: BILLING_AUDIT_EVENT_TYPES.orderExpired,
         correlationId: "corr-expiry",
+        sessionId: "session-1",
       }),
     );
   });
@@ -249,7 +248,6 @@ describe("billing customer CQRS handlers", () => {
       .fn<(input: unknown) => Promise<typeof order>>()
       .mockResolvedValue(order);
     const handler = new CreateBillingOrderHandler(
-      {} as never,
       { createOrder } as unknown as BillingPaymentKernel,
       billingConfig as never,
     );

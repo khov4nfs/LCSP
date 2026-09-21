@@ -10,6 +10,7 @@ import {
   PAYMENT_RECONCILIATION_REASONS,
   PAYMENT_RECONCILIATION_STATUSES,
   PREPAID_BILLING_CONFIG,
+  type BillingTransferDirection,
 } from "@lcsp/contracts/billing";
 import {
   BILLING_TRANSACTION_PORT,
@@ -104,7 +105,7 @@ export class BillingPaymentKernel {
     providerTransactionId: string;
     paymentCode: string;
     amountMinorUnits: bigint;
-    transferDirection?: "IN" | "OUT" | "UNKNOWN";
+    transferDirection?: BillingTransferDirection;
     paymentCodes?: string[];
     sanitizedPayload?: unknown;
     actorId?: string | null;

@@ -7,10 +7,7 @@ import {
   BILLING_TRANSACTION_PORT,
   type BillingTransactionPort,
 } from "../../../domain/repositories/billing-transaction.port.js";
-import {
-  expireOrder,
-  toOrderView,
-} from "../../shared/billing-application.helpers.js";
+import { toBillingOrderView } from "../../mappers/billing-order.mapper.js";
 import type { AppConfig } from "../../../../../config/config.types.js";
 import { ListBillingHistoryQuery } from "./list-billing-history.query.js";
 
@@ -37,18 +34,8 @@ export class ListBillingHistoryHandler implements IQueryHandler<ListBillingHisto
       }),
     );
     return {
-      orders: await Promise.all(
-        result.orders.map(async (order) =>
-          toOrderView(
-            await expireOrder(
-              this.transactions,
-              query.userId,
-              order,
-              query.audit,
-            ),
-            this.config,
-          ),
-        ),
+      orders: result.orders.map((order) =>
+        toBillingOrderView(order, this.config),
       ),
       page,
       pageSize,

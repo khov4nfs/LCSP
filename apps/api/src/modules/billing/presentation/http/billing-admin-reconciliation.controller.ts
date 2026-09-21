@@ -10,8 +10,18 @@ import {
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import { PAYMENT_RECONCILIATION_STATUSES } from "@lcsp/contracts/billing";
+import {
+  BILLING_ERROR_CODES,
+  billingAdminReconciliationListQuerySchema,
+  billingAdminRejectSchema,
+  billingAdminResolveSchema,
+  billingResourceIdSchema,
+  type BillingAdminReconciliationListQuery,
+  type BillingAdminRejectRequest,
+  type BillingAdminResolveRequest,
+} from "@lcsp/contracts/billing";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.ts";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
@@ -32,38 +42,29 @@ export class BillingAdminReconciliationController {
 
   @Get()
   async list(
-    @Query("status") status?: string,
-    @Query("page") page?: string,
-    @Query("take") take?: string,
-    @Query("pageSize") pageSize?: string,
-    @Query("page_size") pageSizeAlias?: string,
-    @Query("from") from?: string,
-    @Query("to") to?: string,
-    @Query("provider") provider?: string,
-    @Query("userId") userId?: string,
-    @Query("email") email?: string,
-    @Query("paymentCode") paymentCode?: string,
-    @Query("orderId") orderId?: string,
+    @Query(
+      new ZodValidationPipe(
+        billingAdminReconciliationListQuerySchema,
+        BILLING_ERROR_CODES.validationFailed,
+      ),
+    )
+    query: BillingAdminReconciliationListQuery,
   ) {
     try {
       return resultEnvelope(
         await this.queryBus.execute(
           new ListBillingReconciliationQuery(
-            status,
-            page ? Number(page) : undefined,
-            take ? Number(take) : undefined,
-            pageSize
-              ? Number(pageSize)
-              : pageSizeAlias
-                ? Number(pageSizeAlias)
-                : undefined,
-            from,
-            to,
-            provider,
-            userId,
-            email,
-            paymentCode,
-            orderId,
+            query.status,
+            query.page,
+            query.take,
+            query.pageSize ?? query.page_size,
+            query.from,
+            query.to,
+            query.provider,
+            query.userId,
+            query.email,
+            query.paymentCode,
+            query.orderId,
           ),
         ),
       );
@@ -73,7 +74,16 @@ export class BillingAdminReconciliationController {
   }
 
   @Get(":paymentId")
-  async get(@Param("paymentId") paymentId: string) {
+  async get(
+    @Param(
+      "paymentId",
+      new ZodValidationPipe(
+        billingResourceIdSchema,
+        BILLING_ERROR_CODES.validationFailed,
+      ),
+    )
+    paymentId: string,
+  ) {
     try {
       return resultEnvelope(
         await this.queryBus.execute(
@@ -87,13 +97,21 @@ export class BillingAdminReconciliationController {
 
   @Patch(":paymentId/resolve")
   async resolve(
-    @Param("paymentId") paymentId: string,
-    @Body()
-    body: {
-      billingOrderId?: string;
-      expectedVersion?: number;
-      rationale?: string;
-    },
+    @Param(
+      "paymentId",
+      new ZodValidationPipe(
+        billingResourceIdSchema,
+        BILLING_ERROR_CODES.validationFailed,
+      ),
+    )
+    paymentId: string,
+    @Body(
+      new ZodValidationPipe(
+        billingAdminResolveSchema,
+        BILLING_ERROR_CODES.validationFailed,
+      ),
+    )
+    body: BillingAdminResolveRequest,
     @Req() request: AuthenticatedRequest,
   ) {
     try {
@@ -101,9 +119,9 @@ export class BillingAdminReconciliationController {
         await this.commandBus.execute(
           new ResolveBillingPaymentCommand({
             paymentId,
-            billingOrderId: body.billingOrderId ?? "",
-            expectedVersion: body.expectedVersion ?? -1,
-            rationale: body.rationale ?? "",
+            billingOrderId: body.billingOrderId,
+            expectedVersion: body.expectedVersion,
+            rationale: body.rationale,
             actorId: request.rbacContext.userId,
             correlationId: request.correlationId ?? "billing-admin",
           }),
@@ -119,13 +137,21 @@ export class BillingAdminReconciliationController {
 
   @Patch(":paymentId/reject")
   async reject(
-    @Param("paymentId") paymentId: string,
-    @Body()
-    body: {
-      expectedStatus?: string;
-      expectedVersion?: number;
-      rationale?: string;
-    },
+    @Param(
+      "paymentId",
+      new ZodValidationPipe(
+        billingResourceIdSchema,
+        BILLING_ERROR_CODES.validationFailed,
+      ),
+    )
+    paymentId: string,
+    @Body(
+      new ZodValidationPipe(
+        billingAdminRejectSchema,
+        BILLING_ERROR_CODES.validationFailed,
+      ),
+    )
+    body: BillingAdminRejectRequest,
     @Req() request: AuthenticatedRequest,
   ) {
     try {
@@ -133,11 +159,9 @@ export class BillingAdminReconciliationController {
         await this.commandBus.execute(
           new RejectBillingPaymentCommand({
             paymentId,
-            expectedStatus:
-              body.expectedStatus ??
-              PAYMENT_RECONCILIATION_STATUSES.NEEDS_REVIEW,
-            expectedVersion: body.expectedVersion ?? -1,
-            rationale: body.rationale ?? "",
+            expectedStatus: body.expectedStatus,
+            expectedVersion: body.expectedVersion,
+            rationale: body.rationale,
             actorId: request.rbacContext.userId,
             correlationId: request.correlationId ?? "billing-admin",
           }),

@@ -1,24 +1,15 @@
-import { Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CommandHandler } from "@nestjs/cqrs";
 import type { ICommandHandler } from "@nestjs/cqrs";
 import type { AppConfig } from "../../../../../config/config.types.js";
 import { BillingPaymentKernel } from "../../shared/billing-payment.kernel.js";
-import {
-  BILLING_TRANSACTION_PORT,
-  type BillingTransactionPort,
-} from "../../../domain/repositories/billing-transaction.port.js";
-import {
-  estimatePrepaid,
-  toOrderView,
-} from "../../shared/billing-application.helpers.js";
+import { estimatePrepaid } from "../../../domain/prepaid-estimate.js";
+import { toBillingOrderView } from "../../mappers/billing-order.mapper.js";
 import { CreateBillingOrderCommand } from "./create-billing-order.command.js";
 
 @CommandHandler(CreateBillingOrderCommand)
 export class CreateBillingOrderHandler implements ICommandHandler<CreateBillingOrderCommand> {
   constructor(
-    @Inject(BILLING_TRANSACTION_PORT)
-    private readonly transactions: BillingTransactionPort,
     private readonly payments: BillingPaymentKernel,
     private readonly config: ConfigService<AppConfig, true>,
   ) {}
@@ -34,6 +25,6 @@ export class CreateBillingOrderHandler implements ICommandHandler<CreateBillingO
       sessionId: command.audit.sessionId,
       correlationId: command.audit.correlationId,
     });
-    return toOrderView(order, this.config);
+    return toBillingOrderView(order, this.config);
   }
 }

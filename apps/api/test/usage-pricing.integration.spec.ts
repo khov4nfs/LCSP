@@ -192,6 +192,60 @@ describe("LCSP-310 usage and pricing foundation", () => {
     expect(calculateUsageChargeCredits(1n, 0n, pricing)).toBe(1n);
   });
 
+  it("fails closed when no pricing snapshot exists and preserves the reservation", async () => {
+    const user = {
+      id: `usage-unpriced-${id()}`,
+      email: `${id()}@usage.test`,
+      passwordHash: "test",
+      emailVerified: true,
+      failedLoginCount: 0,
+    };
+    await prisma.user.create({ data: user });
+    const wallet = await accounting.getOrCreateWallet(user.id);
+    await accounting.appendLedger({
+      userId: user.id,
+      walletId: wallet.id,
+      deltaCredits: 100n,
+      idempotencyKey: `unpriced-seed-${id()}`,
+      source: "TEST",
+    });
+    const reservation = await accounting.reserveCredits({
+      userId: user.id,
+      amountCredits: 20n,
+      idempotencyKey: `unpriced-reserve-${id()}`,
+    });
+
+    await expect(
+      usage.recordAndSettleUsage({
+        userId: user.id,
+        reservationId: reservation.id,
+        invocationId: `UNPRICED-${id()}`,
+        provider: runtimeModel.provider,
+        model: runtimeModel.model,
+        inputTokens: 1_000_000n,
+        outputTokens: 0n,
+      }),
+    ).rejects.toThrow("No applicable pricing snapshot");
+
+    expect(
+      await prisma.llmUsageEvent.count({ where: { userId: user.id } }),
+    ).toBe(0);
+    expect(
+      await prisma.creditLedgerEntry.count({
+        where: {
+          userId: user.id,
+          source: "RESERVATION_SETTLEMENT",
+          referenceId: reservation.id,
+        },
+      }),
+    ).toBe(0);
+    expect(
+      await prisma.billingReservation.findUniqueOrThrow({
+        where: { id: reservation.id },
+      }),
+    ).toMatchObject({ status: "RESERVED", remainingCredits: 20n });
+  });
+
   it("rejects a reservation below the pricing-derived worst-case charge", async () => {
     const f = await fixture();
     const assessmentId = `assessment-${id()}`;
@@ -454,6 +508,44 @@ describe("LCSP-310 usage and pricing foundation", () => {
         })
       ).pricingSnapshotId,
     ).toBe(f.pricing.id);
+  });
+
+  it("attributes assessment usage to its owning user and immutable pricing snapshot", async () => {
+    const f = await governedFixture();
+    const event = await governedUsage.recordAndSettleUsage({
+      userId: f.user.id,
+      assessmentId: f.assessmentId,
+      runId: f.runId,
+      reservationId: f.reservation.id,
+      invocationId: "GOVERNED-OWNER-ATTRIBUTION",
+      agentRole: "GOVERNED_PLANNER",
+      provider: runtimeModel.provider,
+      model: runtimeModel.model,
+      effectiveRuntimeModel: runtimeModel,
+      inputTokens: 1_000_000n,
+      outputTokens: 0n,
+    });
+    const persisted = await prisma.llmUsageEvent.findUniqueOrThrow({
+      where: { id: event.id },
+    });
+    expect(persisted.userId).toBe(f.user.id);
+    expect(persisted.assessmentId).toBe(f.assessmentId);
+    expect(persisted.runId).toBe(f.runId);
+    expect(persisted.pricingSnapshotId).toBe(f.pricing.id);
+    expect(
+      await prisma.creditLedgerEntry.count({
+        where: {
+          userId: f.user.id,
+          source: "LLM_USAGE_DEBIT",
+          referenceId: persisted.id,
+        },
+      }),
+    ).toBe(1);
+    expect(
+      await prisma.creditLedgerEntry.count({
+        where: { source: "LLM_USAGE_DEBIT", referenceId: persisted.id },
+      }),
+    ).toBe(1);
   });
 
   it("accepts a provider total that overlaps canonical cached-input buckets", async () => {

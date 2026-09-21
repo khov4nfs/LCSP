@@ -12,12 +12,14 @@ import { BillingCustomerController } from "./presentation/http/billing-customer.
 import { SePayWebhookController } from "./presentation/http/sepay-webhook.controller.js";
 import { BillingAdminReconciliationController } from "./presentation/http/billing-admin-reconciliation.controller.js";
 import { BillingAdminReportingController } from "./presentation/http/billing-admin-reporting.controller.js";
+import { BillingAdminController } from "./presentation/http/billing-admin.controller.js";
 import { SePayReconciliationConsumer } from "./infrastructure/messaging/sepay-reconciliation-consumer.js";
 import { SePayWebhookIngress } from "./infrastructure/security/sepay-webhook-ingress.js";
 import { OutboxModule } from "../../platform/outbox/outbox.module.js";
 import { AcceptSePayWebhookHandler } from "./application/commands/accept-sepay-webhook/accept-sepay-webhook.handler.js";
 import { ClaimBillingInvocationHandler } from "./application/commands/claim-billing-invocation/claim-billing-invocation.handler.js";
 import { CreateBillingOrderHandler } from "./application/commands/create-billing-order/create-billing-order.handler.js";
+import { ExpireBillingOrderHandler } from "./application/commands/expire-billing-order/expire-billing-order.handler.js";
 import { RejectBillingPaymentHandler } from "./application/commands/reject-billing-payment/reject-billing-payment.handler.js";
 import { ReleaseBillingReservationHandler } from "./application/commands/release-billing-reservation/release-billing-reservation.handler.js";
 import { ResolveBillingPaymentHandler } from "./application/commands/resolve-billing-payment/resolve-billing-payment.handler.js";
@@ -34,6 +36,8 @@ import { ListBillingReconciliationHandler } from "./application/queries/list-bil
 import { GetBillingRevenueSummaryHandler } from "./application/queries/get-billing-revenue-summary/get-billing-revenue-summary.handler.js";
 import { ListBillingTransactionsHandler } from "./application/queries/list-billing-transactions/list-billing-transactions.handler.js";
 import { ResolveBillingAssessmentOwnerHandler } from "./application/queries/resolve-billing-assessment-owner/resolve-billing-assessment-owner.handler.js";
+import { GetBillingAdminDashboardHandler } from "./application/queries/get-admin-billing-dashboard/get-admin-billing-dashboard.handler.js";
+import { GetBillingAdminExportHandler } from "./application/queries/get-admin-billing-export/get-admin-billing-export.handler.js";
 import {
   BILLING_USAGE_KERNEL,
   BillingUsageKernel,
@@ -52,6 +56,7 @@ import {
     SePayWebhookController,
     BillingAdminReconciliationController,
     BillingAdminReportingController,
+    BillingAdminController,
   ],
   providers: [
     PrismaService,
@@ -71,9 +76,12 @@ import {
     AcceptSePayWebhookHandler,
     ClaimBillingInvocationHandler,
     CreateBillingOrderHandler,
+    ExpireBillingOrderHandler,
     EstimateBillingHandler,
     EstimateUsageBillingHandler,
     GetBillingOrderHandler,
+    GetBillingAdminDashboardHandler,
+    GetBillingAdminExportHandler,
     GetBillingReconciliationHandler,
     GetBillingWalletHandler,
     ListBillingHistoryHandler,

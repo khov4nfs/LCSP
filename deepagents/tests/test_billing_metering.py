@@ -111,6 +111,60 @@ def test_metering_middleware_records_one_payload_for_one_response():
     assert payload.model_dump(exclude_none=True).get("reasoningTokens") is None
 
 
+def test_key_fallback_attempts_charge_only_the_returned_response(monkeypatch):
+    from middleware import token_fallback
+    from middleware.token_fallback import TokenFallbackMiddleware
+
+    client = FakeClient()
+    session = BillingMeteringSession(
+        api_client=client,
+        assessment_id="assessment-fallback",
+        run_id="run-fallback",
+        reservation_id="reservation-fallback",
+        agent_role="planner",
+    )
+    request = SimpleNamespace(
+        model=SimpleNamespace(provider="openai", model_name="gpt-test")
+    )
+    attempts = []
+    fallback = TokenFallbackMiddleware()
+
+    monkeypatch.setattr(token_fallback, "model_provider", lambda _model: "openai")
+    monkeypatch.setattr(
+        token_fallback,
+        "provider_token_source",
+        lambda _provider: ("OPENAI_API_KEY", ("key-1", "key-2")),
+    )
+    monkeypatch.setattr(
+        fallback,
+        "_candidate_request",
+        lambda candidate, _provider, _token, index: SimpleNamespace(
+            model=candidate.model,
+            key_slot=index,
+        ),
+    )
+
+    def provider_call(candidate):
+        attempts.append(candidate.key_slot)
+        if candidate.key_slot == 0:
+            raise ConnectionError("temporary provider failure")
+        return response(response_id="resp-after-fallback")
+
+    with activate_billing_metering(session):
+        fallback.wrap_model_call(
+            request,
+            lambda candidate: BillingMeteringMiddleware().wrap_model_call(
+                candidate,
+                provider_call,
+            ),
+        )
+
+    assert attempts == [0, 1]
+    assert len(client.payloads) == 1
+    assert client.payloads[0].providerResponseId == "resp-after-fallback"
+    assert client.payloads[0].assessmentId == "assessment-fallback"
+
+
 def test_output_cap_preserves_authorized_identity_for_settlement():
     class BindCapableModel:
         provider = "openai"

@@ -1,0 +1,572 @@
+{
+  "profiles": {
+    "admin": {
+      "user_id": "admin-e2e-1",
+      "email": "admin@example.com",
+      "email_verified": true,
+      "display_name": "Billing Admin",
+      "recovery_email": null,
+      "primary_email_address_policy": "ACCOUNT_EMAIL",
+      "backup_recovery_email_policy": "RECOVERY_EMAIL",
+      "created_at": "2026-09-01T00:00:00.000Z",
+      "updated_at": "2026-09-01T00:00:00.000Z",
+      "role": "ADMIN",
+      "mfa_enrolled": false,
+      "mfa_enrolled_at": null,
+      "mfa_verified": false,
+      "mfa_verified_at": null,
+      "current_session_id": "session-admin-e2e-1",
+      "current_session_created_at": "2026-09-20T00:00:00.000Z",
+      "current_session_updated_at": "2026-09-20T00:00:00.000Z",
+      "current_session_expires_at": "2026-10-04T00:00:00.000Z"
+    },
+    "customer": {
+      "user_id": "customer-e2e-1",
+      "email": "owner@example.test",
+      "email_verified": true,
+      "display_name": "Billing Customer",
+      "recovery_email": null,
+      "primary_email_address_policy": "ACCOUNT_EMAIL",
+      "backup_recovery_email_policy": "RECOVERY_EMAIL",
+      "created_at": "2026-09-01T00:00:00.000Z",
+      "updated_at": "2026-09-01T00:00:00.000Z",
+      "role": "CUSTOMER",
+      "mfa_enrolled": false,
+      "mfa_enrolled_at": null,
+      "mfa_verified": false,
+      "mfa_verified_at": null,
+      "current_session_id": "session-customer-e2e-1",
+      "current_session_created_at": "2026-09-20T00:00:00.000Z",
+      "current_session_updated_at": "2026-09-20T00:00:00.000Z",
+      "current_session_expires_at": "2026-10-04T00:00:00.000Z"
+    }
+  },
+  "wallet": {
+    "walletId": "wallet-customer-e2e",
+    "availableCredits": "0",
+    "reservedCredits": "0",
+    "totalCredits": "0",
+    "version": 0
+  },
+  "estimate": {
+    "currency": "VND",
+    "amountVnd": "10000",
+    "creditUnits": "10000",
+    "expiresInHours": 24,
+    "availability": "AVAILABLE",
+    "effectiveRuntimeModel": {
+      "provider": "OPENAI",
+      "model": "MODEL_E2E",
+      "policyVersion": "policy-e2e-v1",
+      "effectiveAt": "2026-09-20T00:00:00.000Z"
+    },
+    "estimatedUsageChargeVnd": "1000"
+  },
+  "orderPrototype": {
+    "id": "billing-order-e2e",
+    "amountVnd": "10000",
+    "creditUnits": "10000",
+    "paymentCode": "LCSP-E2E-1",
+    "status": "PENDING_PAYMENT",
+    "expiresAt": "2026-09-21T00:00:00.000Z",
+    "creditedAt": null,
+    "createdAt": "2026-09-20T00:00:00.000Z",
+    "updatedAt": "2026-09-20T00:00:00.000Z",
+    "paymentInstructions": {
+      "provider": "SEPAY",
+      "currency": "VND",
+      "paymentCode": "LCSP-E2E-1",
+      "amountVnd": "10000",
+      "bankName": "Test Bank",
+      "bankAccountNumber": "0001234567",
+      "accountHolder": "LCSP TEST",
+      "transferContent": "LCSP-E2E-1",
+      "qrCodeUrl": "https://payments.example.test/qr/LCSP-E2E-1"
+    }
+  },
+  "adminBilling": {
+    "period": "30D",
+    "summary": {
+      "settledTopUpVnd": "124500000",
+      "usageRevenueVnd": "96800000",
+      "pendingReconciliationCount": 3,
+      "duplicatePaymentCount": 12,
+      "settledTopUpTrend": [
+        {
+          "day": "2026-09-14",
+          "amountVnd": "8550000"
+        },
+        {
+          "day": "2026-09-15",
+          "amountVnd": "5800000"
+        },
+        {
+          "day": "2026-09-16",
+          "amountVnd": "10700000"
+        },
+        {
+          "day": "2026-09-17",
+          "amountVnd": "4350000"
+        },
+        {
+          "day": "2026-09-18",
+          "amountVnd": "13050000"
+        },
+        {
+          "day": "2026-09-19",
+          "amountVnd": "9280000"
+        },
+        {
+          "day": "2026-09-20",
+          "amountVnd": "14500000"
+        }
+      ]
+    },
+    "items": [
+      {
+        "id": "payment-e2e-01",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-01",
+        "amountVnd": "1500000",
+        "reconciliationStatus": "MATCHED",
+        "reconciliationReason": null,
+        "receivedAt": "2026-09-20T12:00:00.000Z",
+        "reconciledAt": "2026-09-20T12:30:00.000Z",
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "min@example.com",
+          "displayName": "Min"
+        },
+        "order": {
+          "id": "order-e2e-01",
+          "paymentCode": "LCSP260917K2M4",
+          "status": "CREDITED",
+          "creditUnits": "1500000"
+        }
+      },
+      {
+        "id": "payment-e2e-02",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-02",
+        "amountVnd": "500000",
+        "reconciliationStatus": "UNMATCHED",
+        "reconciliationReason": "UNMATCHED_PAYMENT_CODE",
+        "receivedAt": "2026-09-19T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "bao@example.com",
+          "displayName": "Bao"
+        },
+        "order": {
+          "id": "order-e2e-02",
+          "paymentCode": "LCSP260919P7X3D",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "2000000"
+        }
+      },
+      {
+        "id": "payment-e2e-03",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-03",
+        "amountVnd": "1000000",
+        "reconciliationStatus": "DUPLICATE",
+        "reconciliationReason": "DUPLICATE_PROVIDER_TRANSACTION",
+        "receivedAt": "2026-09-18T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "linh@example.com",
+          "displayName": "Linh"
+        },
+        "order": {
+          "id": "order-e2e-03",
+          "paymentCode": "LCSP260914R8N6V",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": null
+        }
+      },
+      {
+        "id": "payment-e2e-04",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-04",
+        "amountVnd": "13000",
+        "reconciliationStatus": "DUPLICATE",
+        "reconciliationReason": "DUPLICATE_PROVIDER_TRANSACTION",
+        "receivedAt": "2026-09-17T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer1@example.test",
+          "displayName": "Customer 1"
+        },
+        "order": {
+          "id": "order-e2e-04",
+          "paymentCode": "LCSP-E2E-04",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "13000"
+        }
+      },
+      {
+        "id": "payment-e2e-05",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-05",
+        "amountVnd": "14000",
+        "reconciliationStatus": "NEEDS_REVIEW",
+        "reconciliationReason": "RECOVERABLE_EXCEPTION",
+        "receivedAt": "2026-09-16T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer2@example.test",
+          "displayName": "Customer 2"
+        },
+        "order": {
+          "id": "order-e2e-05",
+          "paymentCode": "LCSP-E2E-05",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "14000"
+        }
+      },
+      {
+        "id": "payment-e2e-06",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-06",
+        "amountVnd": "15000",
+        "reconciliationStatus": "MATCHED",
+        "reconciliationReason": null,
+        "receivedAt": "2026-09-15T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer3@example.test",
+          "displayName": "Customer 3"
+        },
+        "order": {
+          "id": "order-e2e-06",
+          "paymentCode": "LCSP-E2E-06",
+          "status": "CREDITED",
+          "creditUnits": "15000"
+        }
+      },
+      {
+        "id": "payment-e2e-07",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-07",
+        "amountVnd": "16000",
+        "reconciliationStatus": "UNMATCHED",
+        "reconciliationReason": "UNMATCHED_PAYMENT_CODE",
+        "receivedAt": "2026-09-14T12:00:00.000Z",
+        "reconciledAt": "2026-09-20T12:30:00.000Z",
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer1@example.test",
+          "displayName": "Customer 1"
+        },
+        "order": {
+          "id": "order-e2e-07",
+          "paymentCode": "LCSP-E2E-07",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "16000"
+        }
+      },
+      {
+        "id": "payment-e2e-08",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-08",
+        "amountVnd": "17000",
+        "reconciliationStatus": "AMOUNT_MISMATCH",
+        "reconciliationReason": "UNDERPAYMENT",
+        "receivedAt": "2026-09-13T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer2@example.test",
+          "displayName": "Customer 2"
+        },
+        "order": {
+          "id": "order-e2e-08",
+          "paymentCode": "LCSP-E2E-08",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "17000"
+        }
+      },
+      {
+        "id": "payment-e2e-09",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-09",
+        "amountVnd": "18000",
+        "reconciliationStatus": "DUPLICATE",
+        "reconciliationReason": "DUPLICATE_PROVIDER_TRANSACTION",
+        "receivedAt": "2026-09-12T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer3@example.test",
+          "displayName": "Customer 3"
+        },
+        "order": {
+          "id": "order-e2e-09",
+          "paymentCode": "LCSP-E2E-09",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "18000"
+        }
+      },
+      {
+        "id": "payment-e2e-10",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-10",
+        "amountVnd": "19000",
+        "reconciliationStatus": "NEEDS_REVIEW",
+        "reconciliationReason": "RECOVERABLE_EXCEPTION",
+        "receivedAt": "2026-09-11T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer1@example.test",
+          "displayName": "Customer 1"
+        },
+        "order": {
+          "id": "order-e2e-10",
+          "paymentCode": "LCSP-E2E-10",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "19000"
+        }
+      },
+      {
+        "id": "payment-e2e-11",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-11",
+        "amountVnd": "20000",
+        "reconciliationStatus": "MATCHED",
+        "reconciliationReason": null,
+        "receivedAt": "2026-09-10T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer2@example.test",
+          "displayName": "Customer 2"
+        },
+        "order": {
+          "id": "order-e2e-11",
+          "paymentCode": "LCSP-E2E-11",
+          "status": "CREDITED",
+          "creditUnits": "20000"
+        }
+      },
+      {
+        "id": "payment-e2e-12",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-12",
+        "amountVnd": "21000",
+        "reconciliationStatus": "UNMATCHED",
+        "reconciliationReason": "UNMATCHED_PAYMENT_CODE",
+        "receivedAt": "2026-09-09T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer3@example.test",
+          "displayName": "Customer 3"
+        },
+        "order": {
+          "id": "order-e2e-12",
+          "paymentCode": "LCSP-E2E-12",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "21000"
+        }
+      },
+      {
+        "id": "payment-e2e-13",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-13",
+        "amountVnd": "22000",
+        "reconciliationStatus": "AMOUNT_MISMATCH",
+        "reconciliationReason": "UNDERPAYMENT",
+        "receivedAt": "2026-09-08T12:00:00.000Z",
+        "reconciledAt": "2026-09-20T12:30:00.000Z",
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer1@example.test",
+          "displayName": "Customer 1"
+        },
+        "order": {
+          "id": "order-e2e-13",
+          "paymentCode": "LCSP-E2E-13",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "22000"
+        }
+      },
+      {
+        "id": "payment-e2e-14",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-14",
+        "amountVnd": "23000",
+        "reconciliationStatus": "DUPLICATE",
+        "reconciliationReason": "DUPLICATE_PROVIDER_TRANSACTION",
+        "receivedAt": "2026-09-07T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer2@example.test",
+          "displayName": "Customer 2"
+        },
+        "order": {
+          "id": "order-e2e-14",
+          "paymentCode": "LCSP-E2E-14",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "23000"
+        }
+      },
+      {
+        "id": "payment-e2e-15",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-15",
+        "amountVnd": "24000",
+        "reconciliationStatus": "NEEDS_REVIEW",
+        "reconciliationReason": "RECOVERABLE_EXCEPTION",
+        "receivedAt": "2026-09-06T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer3@example.test",
+          "displayName": "Customer 3"
+        },
+        "order": {
+          "id": "order-e2e-15",
+          "paymentCode": "LCSP-E2E-15",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "24000"
+        }
+      },
+      {
+        "id": "payment-e2e-16",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-16",
+        "amountVnd": "25000",
+        "reconciliationStatus": "MATCHED",
+        "reconciliationReason": null,
+        "receivedAt": "2026-09-05T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer1@example.test",
+          "displayName": "Customer 1"
+        },
+        "order": {
+          "id": "order-e2e-16",
+          "paymentCode": "LCSP-E2E-16",
+          "status": "CREDITED",
+          "creditUnits": "25000"
+        }
+      },
+      {
+        "id": "payment-e2e-17",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-17",
+        "amountVnd": "26000",
+        "reconciliationStatus": "UNMATCHED",
+        "reconciliationReason": "UNMATCHED_PAYMENT_CODE",
+        "receivedAt": "2026-09-04T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer2@example.test",
+          "displayName": "Customer 2"
+        },
+        "order": {
+          "id": "order-e2e-17",
+          "paymentCode": "LCSP-E2E-17",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "26000"
+        }
+      },
+      {
+        "id": "payment-e2e-18",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-18",
+        "amountVnd": "27000",
+        "reconciliationStatus": "AMOUNT_MISMATCH",
+        "reconciliationReason": "UNDERPAYMENT",
+        "receivedAt": "2026-09-03T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer3@example.test",
+          "displayName": "Customer 3"
+        },
+        "order": {
+          "id": "order-e2e-18",
+          "paymentCode": "LCSP-E2E-18",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "27000"
+        }
+      },
+      {
+        "id": "payment-e2e-19",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-19",
+        "amountVnd": "28000",
+        "reconciliationStatus": "DUPLICATE",
+        "reconciliationReason": "DUPLICATE_PROVIDER_TRANSACTION",
+        "receivedAt": "2026-09-02T12:00:00.000Z",
+        "reconciledAt": "2026-09-20T12:30:00.000Z",
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer1@example.test",
+          "displayName": "Customer 1"
+        },
+        "order": {
+          "id": "order-e2e-19",
+          "paymentCode": "LCSP-E2E-19",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "28000"
+        }
+      },
+      {
+        "id": "payment-e2e-20",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-20",
+        "amountVnd": "29000",
+        "reconciliationStatus": "NEEDS_REVIEW",
+        "reconciliationReason": "RECOVERABLE_EXCEPTION",
+        "receivedAt": "2026-09-01T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer2@example.test",
+          "displayName": "Customer 2"
+        },
+        "order": {
+          "id": "order-e2e-20",
+          "paymentCode": "LCSP-E2E-20",
+          "status": "PENDING_RECONCILIATION",
+          "creditUnits": "29000"
+        }
+      },
+      {
+        "id": "payment-e2e-21",
+        "provider": "SEPAY",
+        "providerTransactionId": "TX-BILLING-E2E-21",
+        "amountVnd": "30000",
+        "reconciliationStatus": "MATCHED",
+        "reconciliationReason": null,
+        "receivedAt": "2026-09-20T12:00:00.000Z",
+        "reconciledAt": null,
+        "account": {
+          "userId": "user-e2e-1",
+          "email": "customer3@example.test",
+          "displayName": "Customer 3"
+        },
+        "order": {
+          "id": "order-e2e-21",
+          "paymentCode": "LCSP-E2E-21",
+          "status": "CREDITED",
+          "creditUnits": "30000"
+        }
+      }
+    ],
+    "page": 1,
+    "pageSize": 20,
+    "totalCount": 21
+  }
+}

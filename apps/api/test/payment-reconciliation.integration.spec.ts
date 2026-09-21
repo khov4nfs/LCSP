@@ -10,7 +10,14 @@ import {
 } from "@jest/globals";
 import { randomUUID } from "node:crypto";
 import { AUDIT_ACTOR_TYPES } from "@lcsp/contracts/audit";
-import { BILLING_AUDIT_EVENT_TYPES } from "@lcsp/contracts/billing";
+import {
+  BILLING_AUDIT_EVENT_TYPES,
+  BILLING_ORDER_STATUSES,
+  BILLING_TRANSFER_DIRECTIONS,
+  PAYMENT_RECONCILIATION_REASONS,
+  PAYMENT_RECONCILIATION_STATUSES,
+  type BillingOrderStatus,
+} from "@lcsp/contracts/billing";
 import { BillingAccountingKernel } from "../src/modules/billing/application/shared/billing-accounting.kernel.js";
 import { BillingPaymentKernel } from "../src/modules/billing/application/shared/billing-payment.kernel.js";
 import { ResolveBillingPaymentHandler } from "../src/modules/billing/application/commands/resolve-billing-payment/resolve-billing-payment.handler.js";
@@ -48,7 +55,6 @@ describe("LCSP-310 payment reconciliation", () => {
       accounting,
     );
     admin = new ResolveBillingPaymentHandler(
-      new PrismaService(),
       new PrismaBillingTransaction(new PrismaService()),
       accounting,
     );
@@ -68,7 +74,7 @@ describe("LCSP-310 payment reconciliation", () => {
   afterAll(async () => prisma?.$disconnect());
 
   async function setupOrder(
-    status: "PENDING_PAYMENT" | "EXPIRED" | "CANCELLED" = "PENDING_PAYMENT",
+    status: BillingOrderStatus = BILLING_ORDER_STATUSES.PENDING_PAYMENT,
     expiresAt?: Date,
   ) {
     const a = user("owner");
@@ -82,7 +88,7 @@ describe("LCSP-310 payment reconciliation", () => {
       creditUnits: 500n,
       expiresAt,
     });
-    if (status !== "PENDING_PAYMENT")
+    if (status !== BILLING_ORDER_STATUSES.PENDING_PAYMENT)
       await prisma.billingOrder.update({
         where: { id: order.id },
         data: { status },
@@ -118,6 +124,9 @@ describe("LCSP-310 payment reconciliation", () => {
       afterPaymentStatus: "MATCHED",
       afterOrderStatus: "CREDITED",
     });
+    expect(JSON.stringify(audit.payload)).not.toMatch(
+      /rawBody|signature|webhookSecret|sanitizedPayload|bankAccountNumber/i,
+    );
     expect(
       await prisma.creditLedgerEntry.count({
         where: { billingOrderId: order.id },
@@ -282,6 +291,82 @@ describe("LCSP-310 payment reconciliation", () => {
     }
   });
 
+  it("keeps underpayment and overpayment pending reconciliation without credit", async () => {
+    const cases = [
+      {
+        reason: PAYMENT_RECONCILIATION_REASONS.UNDERPAYMENT,
+        amountMinorUnits: 90000n,
+      },
+      {
+        reason: PAYMENT_RECONCILIATION_REASONS.OVERPAYMENT,
+        amountMinorUnits: 110000n,
+      },
+    ] as const;
+    for (const scenario of cases) {
+      const { order } = await setupOrder();
+      const result = await payments.reconcilePayment({
+        provider: "SEPAY",
+        providerTransactionId: `TX-${scenario.reason}`,
+        paymentCode: order.paymentCode,
+        amountMinorUnits: scenario.amountMinorUnits,
+      });
+      expect(result.reconciliationStatus).toBe(
+        PAYMENT_RECONCILIATION_STATUSES.AMOUNT_MISMATCH,
+      );
+      expect(result.reconciliationReason).toBe(scenario.reason);
+      expect(
+        (
+          await prisma.billingOrder.findUniqueOrThrow({
+            where: { id: order.id },
+          })
+        ).status,
+      ).toBe(BILLING_ORDER_STATUSES.PENDING_RECONCILIATION);
+      expect(
+        await prisma.creditLedgerEntry.count({
+          where: { billingOrderId: order.id },
+        }),
+      ).toBe(0);
+    }
+  });
+
+  it("keeps unmatched inbound payments pending review without assigning an owner", async () => {
+    const result = await payments.reconcilePayment({
+      provider: "SEPAY",
+      providerTransactionId: "TX-UNMATCHED-OWNER",
+      paymentCode: "UNKNOWN-ACCOUNT-CODE",
+      amountMinorUnits: 100000n,
+      transferDirection: BILLING_TRANSFER_DIRECTIONS.inbound,
+    });
+    expect(result.reconciliationStatus).toBe(
+      PAYMENT_RECONCILIATION_STATUSES.UNMATCHED,
+    );
+    expect(result.userId).toBeNull();
+    expect(result.billingOrderId).toBeNull();
+    expect(await prisma.creditLedgerEntry.count()).toBe(0);
+  });
+
+  it("does not reconcile outgoing transfers into prepaid credit", async () => {
+    const { order } = await setupOrder();
+    const result = await payments.reconcilePayment({
+      provider: "SEPAY",
+      providerTransactionId: "TX-OUTGOING-TRANSFER",
+      paymentCode: order.paymentCode,
+      amountMinorUnits: 100000n,
+      transferDirection: BILLING_TRANSFER_DIRECTIONS.outbound,
+    });
+    expect(result.reconciliationStatus).toBe(
+      PAYMENT_RECONCILIATION_STATUSES.NEEDS_REVIEW,
+    );
+    expect(result.reconciliationReason).toBe(
+      PAYMENT_RECONCILIATION_REASONS.INBOUND_REQUIRED,
+    );
+    expect(
+      await prisma.creditLedgerEntry.count({
+        where: { billingOrderId: order.id },
+      }),
+    ).toBe(0);
+  });
+
   it("expires an unread pending order at the settlement boundary", async () => {
     const { order } = await setupOrder(
       "PENDING_PAYMENT",
@@ -354,6 +439,91 @@ describe("LCSP-310 payment reconciliation", () => {
     expect(w.availableCredits).toBe(ledger - reserved);
     expect(w.reservedCredits).toBe(reserved);
     expect(w.availableCredits >= 0n).toBe(true);
+  });
+
+  it("rebuilds the ledger projection independently for each user account", async () => {
+    const ownerA = await setupOrder();
+    const ownerB = await setupOrder();
+    await accounting.appendLedger({
+      userId: ownerA.a.id,
+      walletId: ownerA.wallet.id,
+      deltaCredits: 100n,
+      idempotencyKey: "projection-user-a-credit",
+      source: "TEST",
+    });
+    await accounting.appendLedger({
+      userId: ownerB.a.id,
+      walletId: ownerB.wallet.id,
+      deltaCredits: 200n,
+      idempotencyKey: "projection-user-b-credit",
+      source: "TEST",
+    });
+    await accounting.reserveCredits({
+      userId: ownerA.a.id,
+      amountCredits: 40n,
+      idempotencyKey: "projection-user-a-reservation",
+    });
+
+    const [projectionA, projectionB] = await Promise.all([
+      accounting.rebuildProjection(ownerA.a.id),
+      accounting.rebuildProjection(ownerB.a.id),
+    ]);
+    expect(projectionA).toEqual({
+      ledgerBalance: 100n,
+      availableBalance: 60n,
+      reservedBalance: 40n,
+    });
+    expect(projectionB).toEqual({
+      ledgerBalance: 200n,
+      availableBalance: 200n,
+      reservedBalance: 0n,
+    });
+    expect(
+      await prisma.creditLedgerEntry.count({ where: { userId: ownerA.a.id } }),
+    ).toBe(1);
+    expect(
+      await prisma.creditLedgerEntry.count({ where: { userId: ownerB.a.id } }),
+    ).toBe(1);
+  });
+
+  it("serializes concurrent reservations so one user cannot overspend", async () => {
+    const owner = await setupOrder();
+    await accounting.appendLedger({
+      userId: owner.a.id,
+      walletId: owner.wallet.id,
+      deltaCredits: 100n,
+      idempotencyKey: "reservation-race-account-credit",
+      source: "TEST",
+    });
+    const results = await Promise.allSettled([
+      accounting.reserveCredits({
+        userId: owner.a.id,
+        amountCredits: 80n,
+        idempotencyKey: "reservation-race-a",
+      }),
+      accounting.reserveCredits({
+        userId: owner.a.id,
+        amountCredits: 80n,
+        idempotencyKey: "reservation-race-b",
+      }),
+    ]);
+    expect(
+      results.filter((result) => result.status === "fulfilled"),
+    ).toHaveLength(1);
+    expect(
+      results.filter((result) => result.status === "rejected"),
+    ).toHaveLength(1);
+    const wallet = await prisma.billingWallet.findUniqueOrThrow({
+      where: { userId: owner.a.id },
+    });
+    expect(wallet.availableCredits).toBe(20n);
+    expect(wallet.reservedCredits).toBe(80n);
+    const ledger = await prisma.creditLedgerEntry.findMany({
+      where: { userId: owner.a.id },
+    });
+    expect(ledger.reduce((sum, entry) => sum + entry.deltaCredits, 0n)).toBe(
+      100n,
+    );
   });
 
   it("allows an Admin to resolve an unmatched exact payment into the selected order owner", async () => {

@@ -8,6 +8,8 @@ import {
   OUTBOX_AGGREGATE_TYPES,
   buildOutboxMessageInput,
   AUDIT_REDACTION_STATUSES,
+  sePayWebhookPayloadSchema,
+  type SePayWebhookPayload,
 } from "@lcsp/contracts";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
@@ -36,16 +38,22 @@ export class SePayWebhookIngress {
     this.verifyTimestamp(input.timestamp, now);
     this.verifySignature(input.rawBody, input.timestamp, input.signature);
 
-    let payload: Record<string, unknown>;
+    let parsedPayload: unknown;
     try {
-      const parsed: unknown = JSON.parse(input.rawBody.toString("utf8"));
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+      parsedPayload = JSON.parse(input.rawBody.toString("utf8"));
+      if (
+        !parsedPayload ||
+        typeof parsedPayload !== "object" ||
+        Array.isArray(parsedPayload)
+      )
         throw new Error("object required");
-      payload = parsed as Record<string, unknown>;
     } catch {
       throw new SePayWebhookIngressError("BODY");
     }
 
+    const validation = sePayWebhookPayloadSchema.safeParse(parsedPayload);
+    if (!validation.success) throw new SePayWebhookIngressError("PAYLOAD");
+    const payload: SePayWebhookPayload = validation.data;
     const normalized = normalizePayload(payload);
     const integrityHash = createHash("sha256")
       .update(input.rawBody)
@@ -138,18 +146,8 @@ export class SePayWebhookIngress {
 
 export { SePayWebhookIngress as SePayWebhookIngressService };
 
-function normalizePayload(payload: Record<string, unknown>) {
-  const id = payload.id;
-  const amount = payload.transferAmount;
-  const providerTransactionId =
-    typeof id === "string" || typeof id === "number" ? String(id).trim() : "";
-  if (
-    !providerTransactionId ||
-    providerTransactionId.length > 128 ||
-    (typeof amount !== "string" && typeof amount !== "number") ||
-    !/^\d+$/.test(String(amount))
-  )
-    throw new SePayWebhookIngressError("PAYLOAD");
+function normalizePayload(payload: SePayWebhookPayload) {
+  const providerTransactionId = payload.id;
   const direction = payload.transferType;
   const content = [
     payload.code,
@@ -170,7 +168,7 @@ function normalizePayload(payload: Record<string, unknown>) {
     paymentCode:
       typeof payload.code === "string" ? payload.code.trim() || null : null,
     paymentCodes: [...new Set(paymentCodes)],
-    amountMinorUnits: BigInt(String(amount)),
+    amountMinorUnits: BigInt(payload.transferAmount),
     transferDirection:
       direction === "in" ? "IN" : direction === "out" ? "OUT" : "UNKNOWN",
     referenceCode:
