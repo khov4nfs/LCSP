@@ -15,7 +15,7 @@ export function redactSecrets<T>(value: T): T {
         }
 
         return [key, redactSecrets(child)];
-      })
+      }),
     ) as T;
   }
 

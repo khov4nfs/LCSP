@@ -21,6 +21,7 @@ import { PrismaClient } from "@prisma/client";
 import { httpRequest, problemCode, successBody } from "./support/http.js";
 
 import { ConfigModule } from "@nestjs/config";
+import { AdminModule } from "../src/modules/admin/admin.module.js";
 import { AuthModule } from "../src/modules/auth/auth.module.js";
 import { RbacModule } from "../src/platform/rbac/rbac.module.js";
 import { MailModule } from "../src/platform/mail/mail.module.js";
@@ -48,20 +49,20 @@ describe("Admin User Management API (e2e)", () => {
   let targetCustomer: { id: string; email: string };
 
   beforeAll(async () => {
-    process.env.DATABASE_URL = TEST_DATABASE_URL;
     ensureTestMfaEncryptionKey();
     pushPrismaSchema();
 
     prisma = new PrismaClient({
-      adapter: new PrismaPg(TEST_DATABASE_URL),
+      adapter: new PrismaPg({ connectionString: TEST_DATABASE_URL }),
     });
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      // Test the actual auth module and guard without unrelated repository CLI providers.
+      // Test the actual auth and admin modules and guard without unrelated repository CLI providers.
       imports: [
         ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true }),
         MailModule,
         AuthModule,
+        AdminModule,
         RbacModule,
       ],
       providers: [
