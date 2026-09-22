@@ -1,0 +1,586 @@
+{
+  "dataset_id": "LCSP_JEV_DECISION_EVAL",
+  "dataset_version": "2026-09-22.v1",
+  "records": [
+    {
+      "record_id": "pr-review-triage-domain-001",
+      "decision_class": "PR_REVIEW_TRIAGE",
+      "risk_tier": "MEDIUM",
+      "label_source": "accepted_review",
+      "expected_decision": "SCANNER",
+      "expected_questions": {
+        "affected_domain": "SCANNER",
+        "security_sensitive_change": {"value": true, "reason_code": "YES"},
+        "exact_head_lifecycle_risk": {"value": false, "reason_code": "NO"},
+        "needs_deep_review": {"value": true, "reason_code": "YES"},
+        "likely_missing_regression_tests": {"value": false, "reason_code": "NO"},
+        "requires_managed_sandbox_attention": {"value": true, "reason_code": "YES"},
+        "change_complexity": 0.7,
+        "operational_risk": 0.6,
+        "review_depth": 0.9
+      },
+      "fixture_status": "OK",
+      "latency_ms": 184,
+      "baseline_latency_ms": 1200,
+      "removed_generative_calls": 1,
+      "baseline_input_tokens": 1800,
+      "baseline_output_tokens": 420,
+      "artifact_metadata": {
+        "source": "accepted-pr-review",
+        "artifact_version": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "request": {
+        "decision_id": "eval-pr-review-triage-domain-001",
+        "decision_type": "PR_REVIEW_TRIAGE",
+        "assessment_id": "eval-assessment-redacted",
+        "review_run_id": "eval-run-pr-001",
+        "pr_number": 338,
+        "base_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "head_sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "artifact_versions": {
+          "pge": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+        },
+        "state_payload": {
+          "changed_file_count": 4,
+          "change_categories": ["SCANNER", "TEST"],
+          "checkpoint_id": "eval-checkpoint-pr-001"
+        },
+        "policy_version": "LCSP_JEV_EVAL_POLICY_V1",
+        "questions": [
+          {
+            "question_id": "affected_domain",
+            "question_type": "CHOICE",
+            "prompt": "Choose the bounded affected review domain.",
+            "choices": ["AUTH", "BILLING", "SCANNER", "AGENT_RUNTIME", "LEGAL_RULES", "CI_RELEASE", "WEB", "DATA", "OTHER"]
+          },
+          {
+            "question_id": "security_sensitive_change",
+            "question_type": "NOUL",
+            "prompt": "Return whether bounded metadata suggests security sensitivity.",
+            "noul_schema": {
+              "type": "object",
+              "required": ["value", "reason_code"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {"type": "boolean"},
+                "reason_code": {"type": "string", "enum": ["YES", "NO", "UNKNOWN", "NONE"]}
+              }
+            }
+          },
+          {
+            "question_id": "exact_head_lifecycle_risk",
+            "question_type": "NOUL",
+            "prompt": "Return whether exact-head lifecycle handling needs attention.",
+            "noul_schema": {
+              "type": "object",
+              "required": ["value", "reason_code"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {"type": "boolean"},
+                "reason_code": {"type": "string", "enum": ["YES", "NO", "UNKNOWN", "NONE"]}
+              }
+            }
+          },
+          {
+            "question_id": "needs_deep_review",
+            "question_type": "NOUL",
+            "prompt": "Return whether bounded metadata suggests deep review is needed.",
+            "noul_schema": {
+              "type": "object",
+              "required": ["value", "reason_code"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {"type": "boolean"},
+                "reason_code": {"type": "string", "enum": ["YES", "NO", "UNKNOWN", "NONE"]}
+              }
+            }
+          },
+          {
+            "question_id": "likely_missing_regression_tests",
+            "question_type": "NOUL",
+            "prompt": "Return whether bounded metadata suggests missing regression tests.",
+            "noul_schema": {
+              "type": "object",
+              "required": ["value", "reason_code"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {"type": "boolean"},
+                "reason_code": {"type": "string", "enum": ["YES", "NO", "UNKNOWN", "NONE"]}
+              }
+            }
+          },
+          {
+            "question_id": "requires_managed_sandbox_attention",
+            "question_type": "NOUL",
+            "prompt": "Return whether bounded metadata suggests managed sandbox attention.",
+            "noul_schema": {
+              "type": "object",
+              "required": ["value", "reason_code"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {"type": "boolean"},
+                "reason_code": {"type": "string", "enum": ["YES", "NO", "UNKNOWN", "NONE"]}
+              }
+            }
+          },
+          {
+            "question_id": "change_complexity",
+            "question_type": "SCORE",
+            "prompt": "Score bounded change complexity.",
+            "score_min": 0,
+            "score_max": 1,
+            "score_rubric": {"0": "minimal bounded signal", "0.5": "moderate bounded signal", "1": "strong bounded signal"}
+          },
+          {
+            "question_id": "operational_risk",
+            "question_type": "SCORE",
+            "prompt": "Score bounded operational risk.",
+            "score_min": 0,
+            "score_max": 1,
+            "score_rubric": {"0": "minimal bounded signal", "0.5": "moderate bounded signal", "1": "strong bounded signal"}
+          },
+          {
+            "question_id": "review_depth",
+            "question_type": "SCORE",
+            "prompt": "Score bounded review depth.",
+            "score_min": 0,
+            "score_max": 1,
+            "score_rubric": {"0": "minimal bounded signal", "0.5": "moderate bounded signal", "1": "strong bounded signal"}
+          }
+        ]
+      },
+      "captured_response": {
+        "provider": "jev",
+        "modelVersion": "jev-2026-09-22.eval",
+        "responseId": "fixture-pr-001",
+        "usage": {
+          "inputTokens": 42,
+          "outputTokens": 8,
+          "costUsd": 0.00021
+        },
+        "decisions": [
+          {
+            "questionId": "affected_domain",
+            "choice": "SCANNER",
+            "probability": 0.88,
+            "probabilities": {
+              "SCANNER": 0.88,
+              "WEB": 0.07,
+              "OTHER": 0.05
+            },
+            "confidence": 0.88
+          },
+          {
+            "questionId": "security_sensitive_change",
+            "noul": {"value": true, "reason_code": "YES"},
+            "probability": 0.84,
+            "confidence": 0.84
+          },
+          {
+            "questionId": "exact_head_lifecycle_risk",
+            "noul": {"value": false, "reason_code": "NO"},
+            "probability": 0.81,
+            "confidence": 0.81
+          },
+          {
+            "questionId": "needs_deep_review",
+            "noul": {"value": true, "reason_code": "YES"},
+            "probability": 0.87,
+            "confidence": 0.87
+          },
+          {
+            "questionId": "likely_missing_regression_tests",
+            "noul": {"value": false, "reason_code": "NO"},
+            "probability": 0.79,
+            "confidence": 0.79
+          },
+          {
+            "questionId": "requires_managed_sandbox_attention",
+            "noul": {"value": true, "reason_code": "YES"},
+            "probability": 0.83,
+            "confidence": 0.83
+          },
+          {
+            "questionId": "change_complexity",
+            "score": 0.7,
+            "probability": 0.86,
+            "confidence": 0.86
+          },
+          {
+            "questionId": "operational_risk",
+            "score": 0.6,
+            "probability": 0.8,
+            "confidence": 0.8
+          },
+          {
+            "questionId": "review_depth",
+            "score": 0.9,
+            "probability": 0.85,
+            "confidence": 0.85
+          }
+        ]
+      }
+    },
+    {
+      "record_id": "root-route-001",
+      "decision_class": "ROOT_NON_DETERMINISTIC_NEXT_STAGE",
+      "risk_tier": "HIGH",
+      "label_source": "deterministic_outcome",
+      "expected_decision": "INVESTIGATE",
+      "expected_questions": {
+        "route": "INVESTIGATE",
+        "needs_reasoning_escalation": {"value": true, "reason_code": "YES"},
+        "ambiguity_score": 0.4
+      },
+      "fixture_status": "OK",
+      "latency_ms": 142,
+      "baseline_latency_ms": 900,
+      "removed_generative_calls": 1,
+      "baseline_input_tokens": 1100,
+      "baseline_output_tokens": 260,
+      "artifact_metadata": {
+        "source": "workflow-transition",
+        "artifact_version": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "request": {
+        "decision_id": "eval-root-route-001",
+        "decision_type": "ROOT_NON_DETERMINISTIC_NEXT_STAGE",
+        "assessment_id": "eval-assessment-redacted",
+        "review_run_id": "eval-run-root-001",
+        "artifact_versions": {
+          "runtime": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+        },
+        "state_payload": {
+          "current_stage": "TECHNICAL_EVIDENCE",
+          "run_status": "RUNNING",
+          "checkpoint_id": "eval-checkpoint-root-001"
+        },
+        "policy_version": "LCSP_JEV_EVAL_POLICY_V1",
+        "questions": [
+          {
+            "question_id": "route",
+            "question_type": "CHOICE",
+            "prompt": "Choose the next bounded orchestration route.",
+            "choices": ["PLAN", "INVESTIGATE", "INTERVIEW", "GATE", "STOP"]
+          },
+          {
+            "question_id": "needs_reasoning_escalation",
+            "question_type": "NOUL",
+            "prompt": "Return whether bounded routing state needs reasoning escalation.",
+            "noul_schema": {
+              "type": "object",
+              "required": ["value", "reason_code"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {"type": "boolean"},
+                "reason_code": {"type": "string", "enum": ["YES", "NO", "UNKNOWN", "NONE"]}
+              }
+            }
+          },
+          {
+            "question_id": "ambiguity_score",
+            "question_type": "SCORE",
+            "prompt": "Score bounded routing ambiguity.",
+            "score_min": 0,
+            "score_max": 1,
+            "score_rubric": {"0": "minimal bounded signal", "0.5": "moderate bounded signal", "1": "strong bounded signal"}
+          }
+        ]
+      },
+      "captured_response": {
+        "provider": "jev",
+        "modelVersion": "jev-2026-09-22.eval",
+        "responseId": "fixture-root-001",
+        "usage": {
+          "inputTokens": 35,
+          "outputTokens": 7,
+          "costUsd": 0.00018
+        },
+        "decisions": [
+          {
+            "questionId": "route",
+            "choice": "INVESTIGATE",
+            "probability": 0.91,
+            "probabilities": {
+              "INVESTIGATE": 0.91,
+              "INTERVIEW": 0.06,
+              "GATE": 0.03
+            },
+            "confidence": 0.91
+          },
+          {
+            "questionId": "needs_reasoning_escalation",
+            "noul": {"value": true, "reason_code": "YES"},
+            "probability": 0.89,
+            "confidence": 0.89
+          },
+          {
+            "questionId": "ambiguity_score",
+            "score": 0.4,
+            "probability": 0.84,
+            "confidence": 0.84
+          }
+        ]
+      }
+    },
+    {
+      "record_id": "interview-topic-001",
+      "decision_class": "INTERVIEW_TOPIC_ROUTING",
+      "risk_tier": "HIGH",
+      "label_source": "human_confirmation",
+      "expected_decision": "HUMAN_REVIEW",
+      "expected_questions": {
+        "material_customer_fact_unresolved": {"value": true, "reason_code": "YES"},
+        "missing_topic": "HUMAN_REVIEW",
+        "current_context_sufficient": {"value": false, "reason_code": "NO"},
+        "clarification_ambiguity": 0.6
+      },
+      "fixture_status": "OK",
+      "latency_ms": 166,
+      "baseline_latency_ms": 980,
+      "removed_generative_calls": 1,
+      "baseline_input_tokens": 1250,
+      "baseline_output_tokens": 300,
+      "artifact_metadata": {
+        "source": "accepted-interview-need",
+        "artifact_version": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+      },
+      "request": {
+        "decision_id": "eval-interview-topic-001",
+        "decision_type": "INTERVIEW_TOPIC_ROUTING",
+        "assessment_id": "eval-assessment-redacted",
+        "review_run_id": "eval-run-interview-001",
+        "artifact_versions": {
+          "interview_context": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+        },
+        "state_payload": {
+          "context_revision": 3,
+          "unresolved_topic_keys": ["HUMAN_REVIEW"],
+          "checkpoint_id": "eval-checkpoint-interview-001"
+        },
+        "policy_version": "LCSP_JEV_EVAL_POLICY_V1",
+        "questions": [
+          {
+            "question_id": "material_customer_fact_unresolved",
+            "question_type": "NOUL",
+            "prompt": "Return whether a material Customer-owned fact remains unresolved.",
+            "noul_schema": {
+              "type": "object",
+              "required": ["value", "reason_code"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {"type": "boolean"},
+                "reason_code": {"type": "string", "enum": ["YES", "NO", "UNKNOWN", "NONE"]}
+              }
+            }
+          },
+          {
+            "question_id": "missing_topic",
+            "question_type": "CHOICE",
+            "prompt": "Choose the bounded interview topic still needed.",
+            "choices": ["DEPLOYMENT", "PURPOSE", "HUMAN_REVIEW", "DATA_SOURCE", "DATA_REUSE", "FEATURE_OR_WORKFLOW", "NONE"]
+          },
+          {
+            "question_id": "current_context_sufficient",
+            "question_type": "NOUL",
+            "prompt": "Return whether current confirmed context is sufficient to resume.",
+            "noul_schema": {
+              "type": "object",
+              "required": ["value", "reason_code"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {"type": "boolean"},
+                "reason_code": {"type": "string", "enum": ["YES", "NO", "UNKNOWN", "NONE"]}
+              }
+            }
+          },
+          {
+            "question_id": "clarification_ambiguity",
+            "question_type": "SCORE",
+            "prompt": "Score bounded Interview clarification ambiguity.",
+            "score_min": 0,
+            "score_max": 1,
+            "score_rubric": {"0": "minimal bounded signal", "0.5": "moderate bounded signal", "1": "strong bounded signal"}
+          }
+        ]
+      },
+      "captured_response": {
+        "provider": "jev",
+        "modelVersion": "jev-2026-09-22.eval",
+        "responseId": "fixture-interview-001",
+        "usage": {
+          "inputTokens": 39,
+          "outputTokens": 9,
+          "costUsd": 0.0002
+        },
+        "decisions": [
+          {
+            "questionId": "material_customer_fact_unresolved",
+            "noul": {"value": true, "reason_code": "YES"},
+            "probability": 0.88,
+            "confidence": 0.88
+          },
+          {
+            "questionId": "missing_topic",
+            "choice": "HUMAN_REVIEW",
+            "probability": 0.86,
+            "probabilities": {
+              "HUMAN_REVIEW": 0.86,
+              "PURPOSE": 0.09,
+              "NONE": 0.05
+            },
+            "confidence": 0.86
+          },
+          {
+            "questionId": "current_context_sufficient",
+            "noul": {"value": false, "reason_code": "NO"},
+            "probability": 0.85,
+            "confidence": 0.85
+          },
+          {
+            "questionId": "clarification_ambiguity",
+            "score": 0.6,
+            "probability": 0.82,
+            "confidence": 0.82
+          }
+        ]
+      }
+    },
+    {
+      "record_id": "planner-ranking-001",
+      "decision_class": "PLANNER_CANDIDATE_RANKING",
+      "risk_tier": "MEDIUM",
+      "label_source": "accepted_review",
+      "expected_decision": "candidate:scanner-ai-dispatch",
+      "expected_questions": {
+        "top_candidate": "candidate:scanner-ai-dispatch"
+      },
+      "expected_ranking": [
+        "candidate:scanner-ai-dispatch",
+        "candidate:web-copy-only",
+        "candidate:test-fixture-only"
+      ],
+      "fixture_status": "OK",
+      "latency_ms": 190,
+      "baseline_latency_ms": 1400,
+      "removed_generative_calls": 1,
+      "baseline_input_tokens": 2100,
+      "baseline_output_tokens": 520,
+      "artifact_metadata": {
+        "source": "planner-candidate-selection",
+        "artifact_version": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "request": {
+        "decision_id": "eval-planner-ranking-001",
+        "decision_type": "PLANNER_CANDIDATE_RANKING",
+        "assessment_id": "eval-assessment-redacted",
+        "review_run_id": "eval-run-planner-001",
+        "artifact_versions": {
+          "planner_candidates": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+        },
+        "state_payload": {
+          "candidate_count": 3,
+          "checkpoint_id": "eval-checkpoint-planner-001"
+        },
+        "policy_version": "LCSP_JEV_EVAL_POLICY_V1",
+        "questions": [
+          {
+            "question_id": "top_candidate",
+            "question_type": "CHOICE",
+            "prompt": "Choose the bounded Planner candidate to rank first.",
+            "choices": ["candidate:scanner-ai-dispatch", "candidate:web-copy-only", "candidate:test-fixture-only"]
+          }
+        ]
+      },
+      "captured_response": {
+        "provider": "jev",
+        "modelVersion": "jev-2026-09-22.eval",
+        "responseId": "fixture-planner-001",
+        "usage": {
+          "inputTokens": 51,
+          "outputTokens": 10,
+          "costUsd": 0.00026
+        },
+        "decisions": [
+          {
+            "questionId": "top_candidate",
+            "choice": "candidate:scanner-ai-dispatch",
+            "probability": 0.82,
+            "probabilities": {
+              "candidate:scanner-ai-dispatch": 0.82,
+              "candidate:web-copy-only": 0.11,
+              "candidate:test-fixture-only": 0.07
+            },
+            "confidence": 0.82
+          }
+        ]
+      }
+    },
+    {
+      "record_id": "investigator-next-action-001",
+      "decision_class": "INVESTIGATOR_NEXT_ACTION",
+      "risk_tier": "HIGH",
+      "label_source": "accepted_review",
+      "expected_decision": "TRACE_STATIC_FLOW",
+      "expected_questions": {
+        "next_action": "TRACE_STATIC_FLOW"
+      },
+      "fixture_status": "OK",
+      "latency_ms": 174,
+      "baseline_latency_ms": 1300,
+      "removed_generative_calls": 1,
+      "baseline_input_tokens": 1900,
+      "baseline_output_tokens": 460,
+      "artifact_metadata": {
+        "source": "investigator-action-history",
+        "artifact_version": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+      },
+      "request": {
+        "decision_id": "eval-investigator-next-action-001",
+        "decision_type": "INVESTIGATOR_NEXT_ACTION",
+        "assessment_id": "eval-assessment-redacted",
+        "review_run_id": "eval-run-investigator-001",
+        "artifact_versions": {
+          "pge": "sha256:5555555555555555555555555555555555555555555555555555555555555555"
+        },
+        "state_payload": {
+          "rule_id": "ENG-REDACTED",
+          "candidate_action_count": 4,
+          "checkpoint_id": "eval-checkpoint-investigator-001"
+        },
+        "policy_version": "LCSP_JEV_EVAL_POLICY_V1",
+        "questions": [
+          {
+            "question_id": "next_action",
+            "question_type": "CHOICE",
+            "prompt": "Choose the bounded Investigator next action.",
+            "choices": ["TRACE_STATIC_FLOW", "REQUEST_TARGETED_INPUT", "CHECK_RUNTIME_EVIDENCE", "STOP_INSUFFICIENT_EVIDENCE"]
+          }
+        ]
+      },
+      "captured_response": {
+        "provider": "jev",
+        "modelVersion": "jev-2026-09-22.eval",
+        "responseId": "fixture-investigator-001",
+        "usage": {
+          "inputTokens": 46,
+          "outputTokens": 8,
+          "costUsd": 0.00023
+        },
+        "decisions": [
+          {
+            "questionId": "next_action",
+            "choice": "TRACE_STATIC_FLOW",
+            "probability": 0.87,
+            "probabilities": {
+              "TRACE_STATIC_FLOW": 0.87,
+              "REQUEST_TARGETED_INPUT": 0.08,
+              "CHECK_RUNTIME_EVIDENCE": 0.05
+            },
+            "confidence": 0.87
+          }
+        ]
+      }
+    }
+  ]
+}
