@@ -23,8 +23,8 @@ import { isRecord } from "../../../../common/utils/index.js";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { RetrieveLegalBasisQuery } from "../../application/queries/retrieve-legal-basis/retrieve-legal-basis.query.js";
 
 const CORPUS_REF = /^corpus_[A-Za-z0-9_-]{8,80}$/;

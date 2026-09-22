@@ -10,7 +10,7 @@ import {
 } from "@lcsp/contracts/auth";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { AUTH_RECORD_TYPES } from "../../../auth/infrastructure/persistence/auth-record.persistence.js";
 import { isNumber, isRecord } from "../../../../common/utils/index.js";
 

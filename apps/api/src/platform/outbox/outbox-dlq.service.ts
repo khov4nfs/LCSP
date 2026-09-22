@@ -11,7 +11,7 @@ import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import { OutboxRepository } from "./outbox.repository.js";
 import { AuditWriterService } from "../audit/audit-writer.service.js";
 import { OutboxMessageEntity } from "./outbox-message.entity.js";
-import { problemException } from "../problems/problem-factory.js";
+import { problemException } from "../http/filters/error.factory.js";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service.js";
 import {
   fromPrismaEvidenceAcceptanceStatus,

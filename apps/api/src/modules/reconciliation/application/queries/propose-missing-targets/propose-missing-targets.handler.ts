@@ -12,7 +12,7 @@ import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import { toPrismaEvidenceAcceptanceStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import {
   TARGET_CANDIDATE_KINDS,
   TARGET_CANDIDATE_LIMITATION_CODES,

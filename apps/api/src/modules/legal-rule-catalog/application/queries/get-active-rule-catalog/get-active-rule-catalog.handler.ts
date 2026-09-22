@@ -10,7 +10,7 @@ import {
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { GetActiveRuleCatalogQuery } from "./get-active-rule-catalog.query.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 
 type ActiveRuleCatalogResponse = {
   versionId: string;

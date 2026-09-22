@@ -31,7 +31,7 @@ import {
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { failStaleRepositoryScanJobs } from "../../../../../platform/scan/repository-scan-staleness.js";
 import type { RerunScanResponseDto } from "../../contracts/scan/rerun-scan.contract.js";
 import { RerunScanCommand } from "./rerun-scan.command.js";

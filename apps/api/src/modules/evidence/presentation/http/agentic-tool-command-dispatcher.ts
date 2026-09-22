@@ -4,7 +4,7 @@ import {
 } from "@lcsp/contracts/evidence";
 import { HttpStatus } from "@nestjs/common";
 
-import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { CaptureVerifiedAgentEpisodeCommand } from "../../application/commands/capture-verified-agent-episode/capture-verified-agent-episode.command.js";
 
 export type AgenticToolCommandDispatchArgs = {

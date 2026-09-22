@@ -3,8 +3,11 @@ import {
   AUTH_ERROR_CODES,
   USER_ACCESS_STATUSES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
+  oauthCallbackSchema,
 } from "@lcsp/contracts/auth";
 import { describe, expect, it, jest } from "@jest/globals";
+import { HttpException } from "@nestjs/common";
+import { ZodValidationPipe } from "../../../../../common/pipes/zod-validation.pipe.ts";
 
 import {
   OAuthIdentity,
@@ -241,8 +244,6 @@ function buildLoginHarness(
   return { handler, provider, repositories };
 }
 
-import { HttpException } from "@nestjs/common";
-
 describe("OAuthCallbackHandler", () => {
   it("denies a suspended account even with a valid OAuth identity and provider claims", async () => {
     const { handler, repositories } = buildLoginHarness({
@@ -325,24 +326,27 @@ describe("OAuthCallbackHandler", () => {
     });
   });
 
-  it("rejects missing callback parameters", async () => {
-    const { handler } = buildLoginHarness();
+  it("rejects missing callback parameters", () => {
+    const pipe = new ZodValidationPipe(oauthCallbackSchema);
+    expect(() =>
+      pipe.transform({
+        code: "",
+        state: "state-value",
+        provider: "stub-oidc",
+      }),
+    ).toThrow(HttpException);
 
-    let thrown: unknown;
     try {
-      await handler.execute(
-        new OAuthCallbackCommand(
-          { code: "", state: "state-value", provider: "stub-oidc" },
-          { correlationId: "corr-3" },
-        ),
-      );
+      pipe.transform({
+        code: "",
+        state: "state-value",
+        provider: "stub-oidc",
+      });
     } catch (err) {
-      thrown = err;
+      expect((err as HttpException).getResponse()).toMatchObject({
+        problem: { code: AUTH_ERROR_CODES.validationFailed },
+      });
     }
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.validationFailed },
-    });
   });
 
   it("rejects unknown, expired, replayed, and link-flow states", async () => {

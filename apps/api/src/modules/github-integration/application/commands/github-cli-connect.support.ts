@@ -5,7 +5,7 @@ import {
   type GitHubCredentialErrorCode,
 } from "@lcsp/contracts/github-integration";
 
-import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { GitHubCliProviderError } from "../../infrastructure/github/github-cli-repository.provider.js";
 import { GitLabCliProviderError } from "../../infrastructure/gitlab/gitlab-cli-repository.provider.js";
 import { BitbucketCliProviderError } from "../../infrastructure/bitbucket/bitbucket-cli-repository.provider.js";

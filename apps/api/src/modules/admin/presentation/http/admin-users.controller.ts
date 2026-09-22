@@ -5,6 +5,8 @@ import {
   AUTH_USER_ROLES,
   type AdminListUsersQueryInput,
   type AdminUserActionInput,
+  type AdminUserDetail,
+  type AdminUserListResponse,
 } from "@lcsp/contracts/auth";
 import {
   Body,
@@ -20,21 +22,20 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
-import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
-import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
-import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
+import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.ts";
+import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.ts";
+import { problemException } from "../../../../platform/http/filters/error.factory.ts";
+import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.ts";
+import { RbacGuard } from "../../../../platform/rbac/rbac.guard.ts";
 import {
   RestoreUserCommand,
   SuspendUserCommand,
-} from "../../application/commands/index.js";
+} from "../../application/commands/index.ts";
 import {
   GetAdminUserDetailQuery,
   ListAdminUsersQuery,
-} from "../../application/queries/index.js";
-import type { AdminActor } from "../../infrastructure/persistence/admin-account.transaction.js";
+} from "../../application/queries/index.ts";
+import type { AdminActor } from "../../infrastructure/persistence/admin-account.transaction.ts";
 
 const IDEMPOTENCY_KEY_REGEX = /^[A-Za-z0-9._:-]{1,128}$/;
 
@@ -42,7 +43,7 @@ const IDEMPOTENCY_KEY_REGEX = /^[A-Za-z0-9._:-]{1,128}$/;
  * Validates that an Idempotency-Key header is present, non-empty, and satisfies character set and length <= 128.
  */
 function assertIdempotencyKey(
-  idempotencyKeyHeader: unknown,
+  idempotencyKeyHeader: string | undefined,
   correlationId: string,
 ): string {
   if (
@@ -89,11 +90,9 @@ export class AdminUsersController {
     )
     query: AdminListUsersQueryInput,
     @Req() request: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.queryBus.execute(
-        new ListAdminUsersQuery(query, request.correlationId!),
-      ),
+  ): Promise<AdminUserListResponse> {
+    return this.queryBus.execute<ListAdminUsersQuery, AdminUserListResponse>(
+      new ListAdminUsersQuery(query, request.correlationId!),
     );
   }
 
@@ -106,11 +105,9 @@ export class AdminUsersController {
   async getUserDetail(
     @Param("id") targetUserId: string,
     @Req() request: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.queryBus.execute(
-        new GetAdminUserDetailQuery(targetUserId, request.correlationId!),
-      ),
+  ): Promise<AdminUserDetail> {
+    return this.queryBus.execute<GetAdminUserDetailQuery, AdminUserDetail>(
+      new GetAdminUserDetailQuery(targetUserId, request.correlationId!),
     );
   }
 
@@ -130,16 +127,14 @@ export class AdminUsersController {
       ),
     )
     body: AdminUserActionInput,
-    @Headers("idempotency-key") idempotencyKeyHeader: unknown,
+    @Headers("idempotency-key") idempotencyKeyHeader: string | undefined,
     @Req() request: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.commandBus.execute(
-        new SuspendUserCommand(
-          targetUserId,
-          body,
-          this.buildAdminActor(request, idempotencyKeyHeader),
-        ),
+  ): Promise<AdminUserDetail> {
+    return this.commandBus.execute<SuspendUserCommand, AdminUserDetail>(
+      new SuspendUserCommand(
+        targetUserId,
+        body,
+        this.buildAdminActor(request, idempotencyKeyHeader),
       ),
     );
   }
@@ -160,16 +155,14 @@ export class AdminUsersController {
       ),
     )
     body: AdminUserActionInput,
-    @Headers("idempotency-key") idempotencyKeyHeader: unknown,
+    @Headers("idempotency-key") idempotencyKeyHeader: string | undefined,
     @Req() request: AuthenticatedRequest,
-  ) {
-    return resultEnvelope(
-      await this.commandBus.execute(
-        new RestoreUserCommand(
-          targetUserId,
-          body,
-          this.buildAdminActor(request, idempotencyKeyHeader),
-        ),
+  ): Promise<AdminUserDetail> {
+    return this.commandBus.execute<RestoreUserCommand, AdminUserDetail>(
+      new RestoreUserCommand(
+        targetUserId,
+        body,
+        this.buildAdminActor(request, idempotencyKeyHeader),
       ),
     );
   }
@@ -179,7 +172,7 @@ export class AdminUsersController {
    */
   private buildAdminActor(
     request: AuthenticatedRequest,
-    idempotencyKeyHeader: unknown,
+    idempotencyKeyHeader: string | undefined,
   ): AdminActor {
     return {
       ...request.rbacContext,

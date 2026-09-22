@@ -13,7 +13,7 @@ import {
   fromPrismaDocumentType,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { DocumentStorageService } from "../../../infrastructure/storage/document-storage.service.js";
 import { ListDocumentsQuery } from "./list-documents.query.js";
 

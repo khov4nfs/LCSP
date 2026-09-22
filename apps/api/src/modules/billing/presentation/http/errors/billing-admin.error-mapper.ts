@@ -1,4 +1,4 @@
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { BILLING_RECONCILIATION_ERROR_CODES } from "@lcsp/contracts/billing";
 import { BILLING_ERROR_CODES } from "@lcsp/contracts/billing";
 

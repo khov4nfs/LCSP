@@ -1,7 +1,7 @@
 import { Controller, Get } from "@nestjs/common";
 
 import { GetAppGreetingUseCase } from "../../application/use-cases/get-app-greeting.use-case.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 
 /**
  * Exposes the root application greeting endpoint.

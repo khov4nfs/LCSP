@@ -3,7 +3,7 @@ import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import { AUDIT_ERROR_CODES } from "@lcsp/contracts/audit";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import type { AuditExportArtifact } from "../../contracts/audit/audit-export.contract.js";
 import { GetAuditExportArtifactQuery } from "./get-audit-export-artifact.query.js";
 

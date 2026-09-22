@@ -11,7 +11,7 @@ import { REPOSITORY_CONNECTION_STATUSES } from "@lcsp/contracts/github-integrati
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { toPrismaEvidenceAcceptanceStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import {
   ASSESSMENT_REPOSITORY,
   type AssessmentRepository,

@@ -1,7 +1,7 @@
 import { Injectable, Logger, type NestMiddleware } from "@nestjs/common";
 import type { Request, Response, NextFunction } from "express";
 
-import { readProblemResponseMetadata } from "../problems/problem-response-metadata.js";
+import { readProblemResponseMetadata } from "../http/filters/error-response-metadata.js";
 
 /**
  * Logs completed HTTP requests with duration and standardized problem metadata when available.

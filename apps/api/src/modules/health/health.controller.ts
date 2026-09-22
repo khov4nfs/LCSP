@@ -1,6 +1,6 @@
 import { Controller, Get, HttpCode } from "@nestjs/common";
 import { SERVICE_HEALTH_STATUSES } from "@lcsp/contracts/shared";
-import { resultEnvelope } from "../../platform/problems/result-envelope.js";
+import { resultEnvelope } from "../../platform/http/filters/error.factory.js";
 
 /**
  * Exposes the lightweight service-health endpoint used by runtime probes and operators.

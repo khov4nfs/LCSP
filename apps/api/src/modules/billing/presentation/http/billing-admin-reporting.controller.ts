@@ -3,7 +3,7 @@ import { QueryBus } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { GetBillingRevenueSummaryQuery } from "../../application/queries/get-billing-revenue-summary/get-billing-revenue-summary.query.js";
 import { ListBillingTransactionsQuery } from "../../application/queries/list-billing-transactions/list-billing-transactions.query.js";
 import { toBillingAdminProblem } from "./errors/billing-admin.error-mapper.js";

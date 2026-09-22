@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import { LEGAL_RULE_LIFECYCLE_STATUSES } from "@lcsp/contracts/legal-rule-catalog";
 
+import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { toPrismaLegalRuleLifecycleStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { RuleCatalogVersionService } from "./rule-catalog-version.service.js";
 
@@ -60,7 +61,9 @@ describe("RuleCatalogVersionService", () => {
       ),
     };
 
-    const service = new RuleCatalogVersionService(prisma as any);
+    const service = new RuleCatalogVersionService(
+      prisma as unknown as PrismaService,
+    );
     const result = await service.recoverApprovedRulesFromActiveCorpus({
       idempotencyKey: "recover-1",
       correlationId: "corr-1",
@@ -147,7 +150,9 @@ describe("RuleCatalogVersionService", () => {
       ),
     };
 
-    const service = new RuleCatalogVersionService(prisma as any);
+    const service = new RuleCatalogVersionService(
+      prisma as unknown as PrismaService,
+    );
     await service.recoverApprovedRulesFromActiveCorpus({
       idempotencyKey: "recover-diacritics",
       correlationId: "corr-diacritics",
@@ -178,7 +183,9 @@ describe("RuleCatalogVersionService", () => {
       },
     };
 
-    const service = new RuleCatalogVersionService(prisma as any);
+    const service = new RuleCatalogVersionService(
+      prisma as unknown as PrismaService,
+    );
     const result = await service.recoverApprovedRulesFromActiveCorpus({
       idempotencyKey: "recover-1",
       correlationId: "corr-1",
@@ -238,7 +245,9 @@ describe("RuleCatalogVersionService", () => {
       ),
     };
 
-    const service = new RuleCatalogVersionService(prisma as any);
+    const service = new RuleCatalogVersionService(
+      prisma as unknown as PrismaService,
+    );
     const result = await service.recoverApprovedRulesFromActiveCorpus({
       idempotencyKey: "recover-legacy",
       correlationId: "corr-1",
@@ -307,7 +316,9 @@ describe("RuleCatalogVersionService", () => {
       ),
     };
 
-    const service = new RuleCatalogVersionService(prisma as any);
+    const service = new RuleCatalogVersionService(
+      prisma as unknown as PrismaService,
+    );
     const result = await service.recoverApprovedRulesFromActiveCorpus({
       idempotencyKey: "recover-normalized",
       correlationId: "corr-1",

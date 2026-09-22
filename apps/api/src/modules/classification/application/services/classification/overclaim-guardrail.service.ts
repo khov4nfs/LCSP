@@ -5,7 +5,7 @@ import {
   SCAN_ERROR_CODES,
 } from "@lcsp/contracts/scan";
 import { isRecord } from "../../../../../common/utils/index.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 
 const PROHIBITED_OVERCLAIM_TERMS = [
   "certified",

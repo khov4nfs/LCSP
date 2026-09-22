@@ -21,7 +21,7 @@ import { toPrismaEvidenceAcceptanceStatus } from "../../../../../infrastructure/
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import type { RerunClassificationResponseDto } from "../../contracts/classification/rerun-classification.contract.js";
 import { RerunClassificationCommand } from "./rerun-classification.command.js";
 

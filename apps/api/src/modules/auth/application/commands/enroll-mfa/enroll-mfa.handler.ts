@@ -7,7 +7,7 @@ import {
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { MfaEnrollment } from "../../../domain/entities/mfa-enrollment.entity.ts";
 import {
   generateMfaRecoveryCodes,
@@ -36,6 +36,17 @@ import {
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { EnrollMfaCommand } from "./enroll-mfa.command.ts";
 
+/**
+ * Handles initiating TOTP multi-factor authentication (MFA) enrollment.
+ *
+ * Enforces:
+ * 1. Active session belonging to the user.
+ * 2. Unverified session cannot silently overwrite existing valid MFA secrets.
+ * 3. Generates new base32 TOTP secret, encrypts it with AES-256-GCM.
+ * 4. Resets OTP rate limits and used OTP history.
+ * 5. Issues initial batch of backup recovery codes if none active.
+ * 6. Emits audit events and returns `otpauth://` URI.
+ */
 @CommandHandler(EnrollMfaCommand)
 export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
   constructor(
@@ -54,6 +65,12 @@ export class EnrollMfaHandler implements ICommandHandler<EnrollMfaCommand> {
     private readonly users: UserRepository,
   ) {}
 
+  /**
+   * Executes TOTP enrollment initiation.
+   *
+   * @param command - Contains userId, sessionId, and request correlation metadata.
+   * @returns TOTP URI and optional plain backup recovery codes.
+   */
   async execute(command: EnrollMfaCommand): Promise<EnrollMfaSuccess> {
     const { userId, sessionId, requestMeta } = command;
     const {

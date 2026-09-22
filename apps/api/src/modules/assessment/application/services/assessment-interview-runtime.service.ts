@@ -70,7 +70,7 @@ import { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { OutboxRepository } from "../../../../platform/outbox/outbox.repository.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import { InterviewAuditService } from "../../../audit/application/services/interview-audit.service.js";

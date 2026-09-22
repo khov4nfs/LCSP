@@ -8,8 +8,7 @@ import {
 import { Body, Controller, Headers, HttpStatus, Post } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 
-import { problemException } from "../problems/problem-factory.js";
-import { resultEnvelope } from "../problems/result-envelope.js";
+import { problemException } from "../http/filters/error.factory.js";
 import { RbacPreflightService } from "./rbac-preflight.service.js";
 
 interface PreflightRequestBody {
@@ -54,11 +53,11 @@ export class RbacPreflightController {
       correlationId: body.correlationId ?? "",
     });
 
-    return resultEnvelope({
+    return {
       decision: result.decision,
       reason_code: result.reasonCode,
       correlationId: result.correlationId,
-    });
+    };
   }
 
   /**

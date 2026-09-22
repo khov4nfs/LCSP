@@ -7,7 +7,7 @@ import {
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/problems/problem-factory.ts";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import type { OAuthCallbackClaims } from "../../../infrastructure/oauth/oauth-provider.interface.ts";
 import { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
 import type { OAuthLinkCallbackSuccess } from "../../contracts/auth/oauth.contract.ts";
@@ -20,6 +20,16 @@ import {
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { OAuthLinkCallbackCommand } from "./oauth-link-callback.command.ts";
 
+/**
+ * Handles completing an OAuth linking flow to attach a third-party identity to the user's account.
+ *
+ * Enforces:
+ * 1. Single-use atomic consumption of OAuth linking state.
+ * 2. Validates state ownership (must match authenticated user and session ID).
+ * 3. Exchanges code for claims and verifies token validity.
+ * 4. Ensures external account is not already linked to a different local account.
+ * 5. Links third-party provider identity and records audit trail.
+ */
 @CommandHandler(OAuthLinkCallbackCommand)
 export class OAuthLinkCallbackHandler implements ICommandHandler<OAuthLinkCallbackCommand> {
   constructor(
@@ -31,6 +41,12 @@ export class OAuthLinkCallbackHandler implements ICommandHandler<OAuthLinkCallba
     private readonly providerRegistry: OAuthProviderRegistry,
   ) {}
 
+  /**
+   * Executes OAuth link callback processing.
+   *
+   * @param command - Contains callback payload, userId, sessionId, and request metadata.
+   * @returns Linked status, provider, and correlation ID.
+   */
   async execute(
     command: OAuthLinkCallbackCommand,
   ): Promise<OAuthLinkCallbackSuccess> {
@@ -39,13 +55,9 @@ export class OAuthLinkCallbackHandler implements ICommandHandler<OAuthLinkCallba
     const correlationId =
       requestMeta.correlationId ?? this.support.createCorrelationId();
 
-    const code = asNonEmptyString(payload?.code);
-    const stateValue = asNonEmptyString(payload?.state);
-    const providerParam = asNonEmptyString(payload?.provider);
-
-    if (!code || !stateValue || !providerParam) {
-      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
-    }
+    const code = payload.code;
+    const stateValue = payload.state;
+    const providerParam = payload.provider;
 
     const oauthState = await oauthStates.consumeByState(stateValue);
 
@@ -174,10 +186,4 @@ export class OAuthLinkCallbackHandler implements ICommandHandler<OAuthLinkCallba
       correlationId: correlationId,
     });
   }
-}
-
-function asNonEmptyString(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : null;
 }

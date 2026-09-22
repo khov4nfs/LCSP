@@ -23,8 +23,8 @@ import { isRecord } from "../../../../common/utils/index.js";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { EvaluateGapMatrixQuery } from "../../application/queries/evaluate-gap-matrix/evaluate-gap-matrix.query.js";
 
 const MATRIX_REF = /^matrix:[A-Za-z0-9_-]{6,80}$/;

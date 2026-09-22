@@ -31,7 +31,7 @@ import {
   isRecord,
 } from "../../../../../common/utils/type-guards.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { AuditRedactorService } from "../../services/audit/audit-redactor.service.js";
 import { GetInterviewAuditTrailQuery } from "./get-interview-audit-trail.query.js";
 

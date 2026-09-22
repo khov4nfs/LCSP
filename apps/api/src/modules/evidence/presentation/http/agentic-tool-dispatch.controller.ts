@@ -28,8 +28,8 @@ import {
   sanitizeOrchestrationLogValue,
 } from "../../../../platform/logging/orchestration-runtime-log.js";
 import { RbacPreflightService } from "../../../../platform/rbac/rbac-preflight.service.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import {
   AssessmentRuntimeEventService,
   summarizeFailure,

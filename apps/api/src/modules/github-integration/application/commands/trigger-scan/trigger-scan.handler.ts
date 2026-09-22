@@ -31,7 +31,7 @@ import {
 import { fromPrismaAssessmentStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { problemResult } from "../../../../../platform/problems/problem-factory.js";
+import { problemResult } from "../../../../../platform/http/filters/error.factory.js";
 import { RepositoryScanJob } from "../../../domain/entities/repository-scan-job.entity.js";
 import type { TriggerScanDto } from "../../contracts/github-integration/trigger-scan.contract.js";
 import {

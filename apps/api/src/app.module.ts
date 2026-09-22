@@ -12,11 +12,11 @@ import { fileURLToPath } from "node:url";
 import { config, createConfigValidationSchema } from "./config/config.js";
 import { AdminModule } from "./modules/admin/admin.module.js";
 import { AIUsageFlowModule } from "./modules/ai-usage-flow/ai-usage-flow.module.js";
-import { BillingModule } from "./modules/billing/billing.module.js";
 import { AppFeatureModule } from "./modules/app/app.module.js";
 import { AssessmentModule } from "./modules/assessment/assessment.module.js";
 import { AuditModule as AuditFeatureModule } from "./modules/audit/audit.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
+import { BillingModule } from "./modules/billing/billing.module.js";
 import { ClassificationModule } from "./modules/classification/classification.module.js";
 import { EvidenceModule } from "./modules/evidence/evidence.module.js";
 
@@ -27,15 +27,17 @@ import { LegalRuleCatalogModule } from "./modules/legal-rule-catalog/legal-rule-
 import { ReconciliationModule } from "./modules/reconciliation/reconciliation.module.js";
 import { ScanModule } from "./modules/scan/scan.module.js";
 import { AuditModule as AuditPlatformModule } from "./platform/audit/audit.module.js";
-import { LoggingContextMiddleware } from "./platform/logging/logging-context.middleware.js";
 import { DevUnsafeHttpTraceMiddleware } from "./platform/logging/dev-unsafe-http-trace.middleware.js";
-import { HttpLoggerMiddleware } from "./platform/logging/http-logger.middleware.js";
 import { unsafeDevTraceEnabled } from "./platform/logging/dev-unsafe-trace.js";
+import { HttpLoggerMiddleware } from "./platform/logging/http-logger.middleware.js";
+import { LoggingContextMiddleware } from "./platform/logging/logging-context.middleware.js";
 import { MailModule } from "./platform/mail/mail.module.js";
 import { OutboxModule } from "./platform/outbox/outbox.module.js";
+import {
+  HttpExceptionFilter,
+  ResponseTransformInterceptor,
+} from "./platform/http/index.js";
 import { RbacModule } from "./platform/rbac/rbac.module.js";
-import { ProblemExceptionFilter } from "./platform/problems/problem-exception.filter.js";
-import { ProblemStatusInterceptor } from "./platform/problems/problem-status.interceptor.js";
 import { StorageModule } from "./platform/storage/storage.module.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -122,11 +124,11 @@ function findUpwards(
   providers: [
     {
       provide: APP_FILTER,
-      useClass: ProblemExceptionFilter,
+      useClass: HttpExceptionFilter,
     },
     {
       provide: APP_INTERCEPTOR,
-      useClass: ProblemStatusInterceptor,
+      useClass: ResponseTransformInterceptor,
     },
   ],
 })

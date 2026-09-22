@@ -7,7 +7,7 @@ import {
   ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import type {
   AssessmentListDto,
   AssessmentSummary,

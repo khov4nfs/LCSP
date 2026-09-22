@@ -2,12 +2,14 @@ import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
+  oauthStartSchema,
 } from "@lcsp/contracts/auth";
 /* eslint-disable @typescript-eslint/unbound-method */
 import { jest } from "@jest/globals";
 
 import { HttpException } from "@nestjs/common";
 import type { ConfigService } from "@nestjs/config";
+import { ZodValidationPipe } from "../../../../../common/pipes/zod-validation.pipe.ts";
 import type { OAuthProvider } from "../../../infrastructure/oauth/oauth-provider.interface.ts";
 import type { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
 import type { OAuthStateRepository } from "../../ports/persistence/index.ts";
@@ -70,38 +72,38 @@ describe("OAuthStartHandler", () => {
     );
   });
 
-  it("U01 - missing provider returns VALIDATION_FAILED", async () => {
-    const command = new OAuthStartCommand(
-      { provider: "", redirect_uri: "http://localhost:3000/callback" },
-      {},
-    );
-    let thrown: unknown;
+  it("U01 - missing provider returns VALIDATION_FAILED", () => {
+    const pipe = new ZodValidationPipe(oauthStartSchema);
+    expect(() =>
+      pipe.transform({
+        provider: "",
+        redirect_uri: "http://localhost:3000/callback",
+      }),
+    ).toThrow(HttpException);
     try {
-      await handler.execute(command);
+      pipe.transform({
+        provider: "",
+        redirect_uri: "http://localhost:3000/callback",
+      });
     } catch (err) {
-      thrown = err;
+      expect((err as HttpException).getResponse()).toMatchObject({
+        problem: { code: AUTH_ERROR_CODES.validationFailed },
+      });
     }
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.validationFailed },
-    });
   });
 
-  it("U02 - missing redirect_uri returns VALIDATION_FAILED", async () => {
-    const command = new OAuthStartCommand(
-      { provider: "google", redirect_uri: "" },
-      {},
-    );
-    let thrown: unknown;
+  it("U02 - missing redirect_uri returns VALIDATION_FAILED", () => {
+    const pipe = new ZodValidationPipe(oauthStartSchema);
+    expect(() =>
+      pipe.transform({ provider: "google", redirect_uri: "" }),
+    ).toThrow(HttpException);
     try {
-      await handler.execute(command);
+      pipe.transform({ provider: "google", redirect_uri: "" });
     } catch (err) {
-      thrown = err;
+      expect((err as HttpException).getResponse()).toMatchObject({
+        problem: { code: AUTH_ERROR_CODES.validationFailed },
+      });
     }
-    expect(thrown).toBeInstanceOf(HttpException);
-    expect((thrown as HttpException).getResponse()).toMatchObject({
-      problem: { code: AUTH_ERROR_CODES.validationFailed },
-    });
   });
 
   it("U03 - unsupported provider returns UNSUPPORTED_PROVIDER and records audit failure", async () => {
