@@ -1,25 +1,25 @@
+import { jest } from "@jest/globals";
 import { ASSESSMENT_EVENT_TYPES } from "@lcsp/contracts/assessment";
 import {
   GITHUB_INTEGRATION_ERROR_CODES,
   GITHUB_INTEGRATION_EVENT_TYPES,
 } from "@lcsp/contracts/github-integration";
 import {
-  OUTBOX_STATUSES,
   OUTBOX_AGGREGATE_TYPES,
   OUTBOX_AUDIT_EVENT_TYPES,
+  OUTBOX_STATUSES,
 } from "@lcsp/contracts/outbox";
 import { TARGETED_REANALYSIS_CAPACITY_POLICY } from "@lcsp/contracts/scan";
-import { jest } from "@jest/globals";
-import type { Prisma } from "@prisma/client";
-import type { ConfigService } from "@nestjs/config";
 import { ConflictException, Logger } from "@nestjs/common";
+import type { ConfigService } from "@nestjs/config";
+import type { Prisma } from "@prisma/client";
 
+import type { AuditWriterService } from "../audit/audit-writer.service.js";
 import { OutboxMessageEntity } from "./outbox-message.entity.js";
 import { OutboxPublisherService } from "./outbox-publisher.service.js";
-import type { SnapshotCreatedAutoScanService } from "./snapshot-created-auto-scan.service.js";
 import type { OutboxRepository } from "./outbox.repository.js";
 import type { RabbitMqClient } from "./rabbitmq.client.js";
-import type { AuditWriterService } from "../audit/audit-writer.service.js";
+import type { SnapshotCreatedAutoScanService } from "./snapshot-created-auto-scan.service.js";
 
 type WithPendingBatchFn = (
   batchSize: number,
@@ -567,18 +567,36 @@ describe("OutboxPublisherService", () => {
           .mockResolvedValue(undefined),
         publish,
       }),
-      makeConfigService(),
+      makeConfigService({
+        "billing.meteringEnabled": true,
+        "billing.reservationCredits": "100",
+        "billing.maxInvocationChargeCredits": "100",
+        "billing.runtimeProvider": "openai",
+        "billing.runtimeModel": "gpt-5-nano",
+        "billing.maxInputTokens": "4096",
+        "billing.maxInputBytes": "16384",
+        "billing.maxOutputTokens": "1024",
+        "billing.maxReasoningTokens": "1024",
+        "billing.maxInvocationsPerGroup": "1",
+        "billing.authorizedRuntimeModels": "OPENAI:gpt-5-nano",
+      }),
       makeAuditWriter(),
       makeSnapshotCreatedAutoScanService(),
     );
 
     await service.poll();
 
-    expect(publish).toHaveBeenCalledWith(
-      "lcsp.events",
-      GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered,
-      message.payload,
-    );
+    expect(publish).toHaveBeenCalledTimes(1);
+    const [exchange, routingKey, publishedPayload] = publish.mock.calls[0];
+    expect(exchange).toBe("lcsp.events");
+    expect(routingKey).toBe(GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered);
+    expect(publishedPayload).toMatchObject({
+      ...message.payload,
+      billing: {
+        assessmentId: "assessment-1",
+        runId: "scan-job-1",
+      },
+    });
     expect(markPublished).toHaveBeenCalledWith(
       {},
       "outbox-1",
@@ -654,6 +672,58 @@ describe("OutboxPublisherService", () => {
           agentRole: `outbox:${GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered}`,
         },
       }),
+    );
+  });
+
+  it("fails closed instead of publishing assessment model events without metering", async () => {
+    const message = makeMessage({
+      aggregateType: OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
+      aggregateId: "scan-job-1",
+      eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered,
+      payload: {
+        scanJobId: "scan-job-1",
+        assessmentId: "assessment-1",
+        correlationId: "corr-1",
+      },
+    });
+    const markFailure = jest.fn<MarkFailureFn>().mockResolvedValue(undefined);
+    const markPublished = jest
+      .fn<MarkPublishedFn>()
+      .mockResolvedValue(undefined);
+    const publish = jest.fn<PublishFn>().mockResolvedValue(undefined);
+    const service = new OutboxPublisherService(
+      makeOutboxRepository({
+        withPendingBatch: jest
+          .fn<WithPendingBatchFn>()
+          .mockImplementation(async (_batchSize, handler) =>
+            handler([message], {} as Prisma.TransactionClient),
+          ),
+        markFailure,
+        markPublished,
+      }),
+      makeRabbitMqClient({
+        ensureConnected: jest
+          .fn<EnsureConnectedFn>()
+          .mockResolvedValue(undefined),
+        publish,
+      }),
+      makeConfigService(),
+      makeAuditWriter(),
+      makeSnapshotCreatedAutoScanService(),
+    );
+
+    await service.poll();
+
+    expect(publish).not.toHaveBeenCalled();
+    expect(markPublished).not.toHaveBeenCalled();
+    expect(markFailure).toHaveBeenCalledWith(
+      {},
+      "outbox-1",
+      1,
+      5,
+      "Billing metering must be enabled for assessment model invocation",
+      expect.any(Date),
+      expect.any(Date),
     );
   });
 

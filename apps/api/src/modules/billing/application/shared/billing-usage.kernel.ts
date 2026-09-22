@@ -8,6 +8,7 @@ import {
   BillingDomainError,
   BillingIdempotencyConflictError,
   OwnershipMismatchError,
+  PricingSnapshotUnavailableError,
 } from "../../domain/billing.errors.js";
 import {
   BILLING_TRANSACTION_PORT,
@@ -22,6 +23,7 @@ import {
 import {
   calculateCustomerChargeVnd,
   calculateUsageChargeCredits,
+  worstCaseUsageForPricing,
 } from "../../domain/usage-pricing.js";
 
 export const BILLING_USAGE_KERNEL = Symbol("BILLING_USAGE_KERNEL");
@@ -140,17 +142,18 @@ export class BillingUsageKernel {
               new Date(),
             );
             if (!pricing)
-              throw new BillingDomainError(
-                "Pricing snapshot is required before reserving provider spend",
+              throw new PricingSnapshotUnavailableError(
+                `Pricing snapshot is required before reserving provider spend: ${authorized.provider}/${authorized.model}`,
               );
             return calculateCustomerChargeVnd(
-              {
-                inputTokens: input.maxInputTokens,
-                cachedInputTokens: input.maxInputTokens,
-                cacheWriteTokens: input.maxInputTokens,
-                outputTokens: input.maxOutputTokens,
-                reasoningTokens: input.maxReasoningTokens,
-              },
+              worstCaseUsageForPricing(
+                {
+                  maxInputTokens: input.maxInputTokens,
+                  maxOutputTokens: input.maxOutputTokens,
+                  maxReasoningTokens: input.maxReasoningTokens,
+                },
+                pricing,
+              ),
               pricing,
             );
           }),

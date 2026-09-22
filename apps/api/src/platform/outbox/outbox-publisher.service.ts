@@ -1,21 +1,21 @@
 import { ASSESSMENT_EVENT_TYPES } from "@lcsp/contracts/assessment";
-import { DOCUMENT_EVENT_TYPES } from "@lcsp/contracts/document";
-import { GITHUB_INTEGRATION_EVENT_TYPES } from "@lcsp/contracts/github-integration";
-import {
-  SCAN_ERROR_CODES,
-  SCAN_EVENT_TYPES,
-  TARGETED_REANALYSIS_CAPACITY_POLICY,
-} from "@lcsp/contracts/scan";
 import {
   AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
+import { DOCUMENT_EVENT_TYPES } from "@lcsp/contracts/document";
+import { GITHUB_INTEGRATION_EVENT_TYPES } from "@lcsp/contracts/github-integration";
 import {
   OUTBOX_AGGREGATE_TYPES,
   OUTBOX_AUDIT_EVENT_TYPES,
 } from "@lcsp/contracts/outbox";
+import {
+  SCAN_ERROR_CODES,
+  SCAN_EVENT_TYPES,
+  TARGETED_REANALYSIS_CAPACITY_POLICY,
+} from "@lcsp/contracts/scan";
 import {
   HttpException,
   Injectable,
@@ -217,12 +217,17 @@ export class OutboxPublisherService implements OnModuleInit, OnModuleDestroy {
     message: OutboxMessageEntity,
   ): Record<string, unknown> {
     const payload = message.payload;
-    if (!this.configService.get<boolean>("billing.meteringEnabled", false)) {
-      return payload;
-    }
     if (!BILLABLE_MODEL_EVENTS.has(message.eventType)) return payload;
 
     const assessmentId = readString(payload.assessmentId);
+    if (!this.configService.get<boolean>("billing.meteringEnabled", false)) {
+      if (assessmentId) {
+        throw new Error(
+          "Billing metering must be enabled for assessment model invocation",
+        );
+      }
+      return payload;
+    }
     const amountCredits = this.configService.get<string>(
       "billing.reservationCredits",
       "",

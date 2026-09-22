@@ -7,6 +7,7 @@ export const BILLING_ERROR_CODES = {
   ownershipMismatch: "BILLING_OWNERSHIP_MISMATCH",
   reservationTransition: "BILLING_RESERVATION_TRANSITION_INVALID",
   usageUnavailable: "BILLING_USAGE_UNAVAILABLE",
+  pricingUnavailable: "BILLING_PRICING_UNAVAILABLE",
   concurrencyConflict: "BILLING_CONCURRENCY_CONFLICT",
 } as const;
 

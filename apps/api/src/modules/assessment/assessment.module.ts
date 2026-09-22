@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { CqrsModule } from "@nestjs/cqrs";
 
 import { AuditModule } from "../audit/audit.module.js";
+import { BillingModule } from "../billing/billing.module.js";
 import { RbacModule } from "../../platform/rbac/rbac.module.js";
 import { AssessmentRuntimeEventService } from "../../platform/runtime-events/assessment-runtime-event.service.js";
 import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guard.js";
@@ -14,7 +15,9 @@ import { GetAssessmentReadinessHandler } from "./application/queries/get-assessm
 import { AssessmentInterviewRuntimeService } from "./application/services/assessment-interview-runtime.service.js";
 import { AssessmentInterviewSnippetService } from "./application/services/assessment-interview-snippet.service.js";
 import { ListAssessmentsHandler } from "./application/queries/list-assessments/list-assessments.handler.js";
+import { ASSESSMENT_BILLING_RETENTION } from "./application/ports/billing/assessment-billing-retention.port.js";
 import { ASSESSMENT_REPOSITORY } from "./application/ports/persistence/assessment.repository.js";
+import { PrismaAssessmentBillingRetention } from "./infrastructure/billing/prisma-assessment-billing-retention.js";
 import { PrismaAssessmentRepository } from "./infrastructure/persistence/prisma-assessment.repository.js";
 import {
   AssessmentController,
@@ -25,7 +28,7 @@ import {
  * Wires RBAC-protected assessment commands and queries to Prisma-backed persistence and HTTP endpoints.
  */
 @Module({
-  imports: [CqrsModule, RbacModule, AuditModule],
+  imports: [CqrsModule, RbacModule, AuditModule, BillingModule],
   controllers: [AssessmentController, InternalAssessmentInterviewController],
   providers: [
     AssessmentInterviewRuntimeService,
@@ -43,6 +46,11 @@ import {
     {
       provide: ASSESSMENT_REPOSITORY,
       useExisting: PrismaAssessmentRepository,
+    },
+    PrismaAssessmentBillingRetention,
+    {
+      provide: ASSESSMENT_BILLING_RETENTION,
+      useExisting: PrismaAssessmentBillingRetention,
     },
   ],
 })

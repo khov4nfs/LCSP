@@ -23,6 +23,7 @@ import {
   type AssessmentInterviewAuditRef,
   type AssessmentInterviewRuntimeState,
 } from "@lcsp/contracts/evidence";
+import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import { PROGRAM_EVIDENCE_METRIC_FORMATS } from "../src/features/assessment-flow/types/assessment-flow.types.ts";
 
 import {
@@ -32,6 +33,7 @@ import {
   ASSESSMENT_SIDEBAR_STATUSES,
   ASSESSMENT_SIDEBAR_WORKFLOW_STAGES,
   NORMALIZED_WORKFLOW_STEP_STATUSES,
+  type AdapterTimelineInput,
 } from "../src/features/workspace/types/assessment-runtime-adapter.types.ts";
 import { normalizeAssessmentRuntime } from "../src/features/workspace/utils/assessment-runtime-adapter.ts";
 import {
@@ -54,6 +56,7 @@ import {
   type WorkspaceRuntimeActivityItem,
   type WorkspaceRuntimeRepositorySnapshot,
   type WorkspaceRuntimeAssessmentTimeline,
+  type WorkspaceRuntimeScanJob,
 } from "../src/features/workspace/types/workspace-runtime.types.ts";
 
 test("1. MAINLINE — READY coverage + WAITING_FOR_CUSTOMER question", () => {
@@ -1081,6 +1084,77 @@ test("LCSP-272 right sidebar projects F03 scanner-running state without fabricat
   assert.equal(
     sidebar.artifacts[1]?.status,
     ASSESSMENT_SIDEBAR_STATUSES.running,
+  );
+});
+
+function rerunTimeline(
+  assessmentId: string,
+  scanJobStatus: WorkspaceRuntimeScanJob["status"],
+): AdapterTimelineInput {
+  const snapshot = { ...repositorySnapshot({ branch: null }), assessmentId };
+  // The previous run ended waiting; the rerun's job exists but its worker has
+  // not emitted any runtime event yet.
+  return {
+    ...scannerTimeline(assessmentId),
+    currentRun: null,
+    recentActivity: [
+      runtimeActivity(assessmentId, 1, "Repository scan is waiting", {
+        eventType: ASSESSMENT_RUNTIME_EVENT_TYPES.runStageChanged,
+        runStatus: ASSESSMENT_RUNTIME_RUN_STATUSES.waiting,
+      }),
+    ],
+    repositorySnapshot: snapshot,
+    scanJobs: [
+      {
+        id: `${assessmentId}-previous-scan`,
+        assessmentId,
+        snapshotId: snapshot.id,
+        status: REPOSITORY_SCAN_JOB_STATUSES.failed,
+        attemptCount: 1,
+        blockedReason: null,
+        updatedAt: "2026-09-05T08:00:00.000Z",
+      },
+      {
+        id: `${assessmentId}-rerun`,
+        assessmentId,
+        snapshotId: snapshot.id,
+        status: scanJobStatus,
+        attemptCount: 0,
+        blockedReason: null,
+        updatedAt: "2026-09-05T09:00:00.000Z",
+      },
+    ],
+  };
+}
+
+function scannerStepStatus(timeline: AdapterTimelineInput) {
+  return normalizeAssessmentRuntime({
+    assessmentId: timeline.repositorySnapshot!.assessmentId,
+    timeline,
+  }).workflow.steps.find(
+    (step) => step.id === ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner,
+  )?.status;
+}
+
+test("rerunning the scanner shows Scanner running before the worker reports", () => {
+  for (const status of [
+    REPOSITORY_SCAN_JOB_STATUSES.queued,
+    REPOSITORY_SCAN_JOB_STATUSES.running,
+  ]) {
+    assert.equal(
+      scannerStepStatus(rerunTimeline("asm-rerun", status)),
+      NORMALIZED_WORKFLOW_STEP_STATUSES.running,
+      status,
+    );
+  }
+});
+
+test("a finished scan job leaves the Scanner row to its runtime events", () => {
+  assert.equal(
+    scannerStepStatus(
+      rerunTimeline("asm-rerun-done", REPOSITORY_SCAN_JOB_STATUSES.failed),
+    ),
+    NORMALIZED_WORKFLOW_STEP_STATUSES.waiting,
   );
 });
 

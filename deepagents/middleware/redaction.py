@@ -27,24 +27,39 @@ SENSITIVE_KEY_SEGMENTS = frozenset(
     }
 )
 
+# Governed callback field names whose segments look secret-denoting but carry
+# no credential: provider token counters and the server-minted replay key the
+# API requires. Blanking them does not protect anything, it only corrupts the
+# callback contract.
 SAFE_METADATA_KEY_NAMES = frozenset(
     {
         "author",
         "authorName",
         "authorized",
+        "cacheWriteTokens",
+        "cachedInputTokens",
         "countryCode",
         "decoded",
         "encoded",
         "errorCode",
         "finish_reason",
+        "idempotencyKey",
+        "idempotency_key",
+        "inputTokens",
         "keyword",
+        "maxInputTokens",
+        "maxOutputTokens",
+        "maxReasoningTokens",
         "messageKey",
         "input_tokens",
+        "outputTokens",
         "output_tokens",
         "reasonCode",
+        "reasoningTokens",
         "sourceCode",
         "statusCode",
         "tokenCount",
+        "totalTokens",
         "total_tokens",
         "usage_metadata",
     }

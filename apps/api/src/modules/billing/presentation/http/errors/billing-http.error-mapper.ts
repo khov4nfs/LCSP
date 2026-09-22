@@ -10,6 +10,7 @@ import {
   InvalidReservationTransitionError,
   OwnershipMismatchError,
   BillingOrderNotFoundError,
+  PricingSnapshotUnavailableError,
 } from "../../../domain/billing.errors.js";
 import type { AuthenticatedRequest } from "../../../../../common/interfaces/authenticated-request.interface.js";
 
@@ -86,29 +87,36 @@ export function mapBillingError(error: unknown, request: AuthenticatedRequest) {
 
 export function mapUsageError(error: unknown) {
   const code =
-    error instanceof InsufficientCreditError
-      ? BILLING_ERROR_CODES.insufficientCredits
-      : error instanceof OwnershipMismatchError
-        ? BILLING_ERROR_CODES.ownershipMismatch
-        : error instanceof BillingIdempotencyConflictError
-          ? BILLING_ERROR_CODES.idempotencyConflict
-          : error instanceof InvalidReservationTransitionError
-            ? BILLING_ERROR_CODES.reservationTransition
-            : error instanceof BillingConcurrencyError
-              ? BILLING_ERROR_CODES.concurrencyConflict
-              : error instanceof BillingDomainError
-                ? BILLING_ERROR_CODES.validationFailed
-                : null;
+    error instanceof PricingSnapshotUnavailableError
+      ? BILLING_ERROR_CODES.pricingUnavailable
+      : error instanceof InsufficientCreditError
+        ? BILLING_ERROR_CODES.insufficientCredits
+        : error instanceof OwnershipMismatchError
+          ? BILLING_ERROR_CODES.ownershipMismatch
+          : error instanceof BillingIdempotencyConflictError
+            ? BILLING_ERROR_CODES.idempotencyConflict
+            : error instanceof InvalidReservationTransitionError
+              ? BILLING_ERROR_CODES.reservationTransition
+              : error instanceof BillingConcurrencyError
+                ? BILLING_ERROR_CODES.concurrencyConflict
+                : error instanceof BillingDomainError
+                  ? BILLING_ERROR_CODES.validationFailed
+                  : null;
   if (!code) return error;
+  // A missing pricing snapshot is an operator provisioning gap, not a bad
+  // request: the caller must be able to retry once pricing is published
+  // instead of dropping the invocation as a permanent client error.
   const status =
-    code === BILLING_ERROR_CODES.insufficientCredits
-      ? HttpStatus.PAYMENT_REQUIRED
-      : code === BILLING_ERROR_CODES.ownershipMismatch
-        ? HttpStatus.FORBIDDEN
-        : code === BILLING_ERROR_CODES.idempotencyConflict ||
-            code === BILLING_ERROR_CODES.reservationTransition ||
-            code === BILLING_ERROR_CODES.concurrencyConflict
-          ? HttpStatus.CONFLICT
-          : HttpStatus.BAD_REQUEST;
+    code === BILLING_ERROR_CODES.pricingUnavailable
+      ? HttpStatus.SERVICE_UNAVAILABLE
+      : code === BILLING_ERROR_CODES.insufficientCredits
+        ? HttpStatus.PAYMENT_REQUIRED
+        : code === BILLING_ERROR_CODES.ownershipMismatch
+          ? HttpStatus.FORBIDDEN
+          : code === BILLING_ERROR_CODES.idempotencyConflict ||
+              code === BILLING_ERROR_CODES.reservationTransition ||
+              code === BILLING_ERROR_CODES.concurrencyConflict
+            ? HttpStatus.CONFLICT
+            : HttpStatus.BAD_REQUEST;
   return problemException(code, "billing-usage", { status });
 }

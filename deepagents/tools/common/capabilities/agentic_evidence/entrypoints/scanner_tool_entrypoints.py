@@ -294,6 +294,7 @@ def build_evidence_graph(
         package_dependencies=list(request.get("package_dependencies") or []),
         coverage_notes=list(request.get("coverage_notes") or []),
         project_discovery=request.get("project_discovery"),
+        on_stage=request.get("on_stage"),
     )
 
 

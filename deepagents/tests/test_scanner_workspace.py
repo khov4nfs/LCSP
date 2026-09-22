@@ -15,6 +15,10 @@ from tools.common.capabilities.platform.config import WorkerConfig
 from tools.common.capabilities.evidence.scanner.scanning import scan_boundary as scan_boundary_module
 from tools.common.capabilities.evidence.scanner.assembly.evidence_assembler import PrivacyAssertionError
 from tools.common.capabilities.evidence.scanner.scanning.scan_boundary import ScanBoundary
+from tools.common.capabilities.evidence.graph.construction.validation.validator import (
+    ProgramGraphValidationError,
+)
+from tools.common.capabilities.managed.boundary import NonRetryableAgentBoundaryError
 from tools.common.capabilities.evidence.scanner.snapshot.snapshot_service_client import (
     SnapshotArchiveRequest,
     SnapshotServiceClient,
@@ -722,6 +726,72 @@ def test_scan_boundary_emits_llm_limit_waiting_runtime_events(
             "waiting_reason": "LLM token quota exceeded; waiting to resume.",
         },
     ]
+
+
+@pytest.mark.p0
+def test_scan_boundary_graph_validation_failure_is_terminal_and_named(
+    workspace_dir: Path,
+) -> None:
+    """A graph that fails validation fails identically on redelivery.
+
+    Retrying it re-runs the whole scan for nothing, so the boundary ends the
+    delivery and records which validation rule failed.
+    """
+    workspace = ScannerWorkspace(root_path=workspace_dir / "scanner")
+    snapshot_client = MagicMock(spec=SnapshotServiceClient)
+    snapshot_client.download_snapshot_archive.return_value = _build_tar_gz(
+        {"repo/src/app.py": b"print('ok')\n"}
+    )
+    syft_tool = MagicMock()
+    syft_tool.run.return_value = _mock_syft_result()
+    semgrep_tool = MagicMock()
+    semgrep_tool.run.return_value = _mock_semgrep_result()
+    knip_tool = MagicMock()
+    knip_tool.run.return_value = _mock_knip_result()
+    deptry_tool = MagicMock()
+    deptry_tool.run.return_value = _mock_deptry_result()
+    api_client = MagicMock()
+    graph_assembler = MagicMock()
+    graph_assembler.assemble.side_effect = ProgramGraphValidationError(
+        "unresolved edge endpoint"
+    )
+    boundary = ScanBoundary(
+        WorkerConfig(
+            nestjs_api_base_url="http://api.test",
+            worker_api_key="worker-test-key",
+            log_level="INFO",
+            max_retries=3,
+        ),
+        snapshot_client=snapshot_client,
+        workspace=workspace,
+        syft_tool=syft_tool,
+        semgrep_tool=semgrep_tool,
+        knip_tool=knip_tool,
+        deptry_tool=deptry_tool,
+        api_client=api_client,
+        evidence_graph_assembler=graph_assembler,
+    )
+
+    with pytest.raises(NonRetryableAgentBoundaryError, match="unresolved edge endpoint"):
+        boundary.handle(
+            {
+                "scanJobId": "job-graph-invalid",
+                "snapshotId": "snap-graph-invalid",
+                "correlationId": "corr-graph-invalid",
+            },
+            correlationId="fallback-corr",
+        )
+
+    failures = [
+        call.args[1]
+        for call in api_client.post_scan_runtime_event.call_args_list
+        if call.args[1]["event_type"] == "RUN_FAILED"
+    ]
+    assert failures[-1]["error_summary"] == (
+        "ProgramGraphValidationError: unresolved edge endpoint"
+    )
+    api_client.post_scan_callback.assert_not_called()
+    assert not workspace.workspace_path("job-graph-invalid").exists()
 
 
 @pytest.mark.p0

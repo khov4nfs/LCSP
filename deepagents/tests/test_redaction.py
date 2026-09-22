@@ -181,3 +181,58 @@ def test_t11_public_sensitive_key_name_api_uses_segment_matching() -> None:
     assert is_sensitive_key_name("author") is False
     assert is_sensitive_key_name("statusCode") is False
     assert is_sensitive_key_name("reasonCode") is False
+
+
+def test_t12_governed_billing_callback_survives_redaction_intact() -> None:
+    # The reservation contract has no free-form content: every value here is
+    # server-issued numeric governance metadata that the API validates as
+    # non-empty. Blanking any of it turns a valid callback into a 400.
+    payload = {
+        "assessmentId": "4b9b3224-f70a-4b22-8b92-09683b9d1d6b",
+        "runId": "1bcebebf-ca00-458d-b2fc-00b7589b60ad",
+        "amountCredits": "100",
+        "maxChargeCredits": "100",
+        "provider": "OPENAI",
+        "model": "gpt-4.1-nano",
+        "maxInputTokens": "4096",
+        "maxInputBytes": "16384",
+        "maxOutputTokens": "4096",
+        "maxReasoningTokens": "0",
+        "maxInvocations": "1",
+        "authorizedModels": [{"provider": "OPENAI", "model": "gpt-4.1-nano"}],
+        "idempotencyKey": "outbox:abc123:billing-reservation:scan_requested",
+    }
+
+    assert redact_dict(payload) == payload
+
+
+def test_t13_settled_usage_counters_survive_redaction_intact() -> None:
+    payload = {
+        "reservationId": "res-1",
+        "invocationId": "inv-1",
+        "inputTokens": "1200",
+        "cachedInputTokens": "300",
+        "cacheWriteTokens": "0",
+        "outputTokens": "450",
+        "reasoningTokens": "0",
+        "totalTokens": "1650",
+        "idempotency_key": "usage-1",
+    }
+
+    assert redact_dict(payload) == payload
+
+
+def test_t14_counter_exemptions_do_not_weaken_credential_redaction() -> None:
+    payload = {
+        "maxInputTokens": "4096",
+        "apiToken": "abcd1234",
+        "refreshTokens": "abcd1234",
+        "idempotencyKeySecret": "abcd1234",
+    }
+
+    copied = redact_dict(payload)
+
+    assert copied["maxInputTokens"] == "4096"
+    assert copied["apiToken"] == ""
+    assert copied["refreshTokens"] == ""
+    assert copied["idempotencyKeySecret"] == ""

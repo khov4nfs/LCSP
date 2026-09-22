@@ -1584,6 +1584,9 @@ export const enPages = {
         "Scan complete. I indexed the pinned source and built the evidence graph.",
       runningPlaceholder: "Scanner is running...",
       failedPlaceholder: "Scanner needs attention before Interview can begin.",
+      retryScan: "Retry source scan",
+      retryingScan: "Creating new scan",
+      retryError: "Unable to retry the source scan. Please try again.",
       activities: {
         connect: "Connected to Git provider",
         clone: "Cloned source archive",

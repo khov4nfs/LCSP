@@ -18,19 +18,20 @@ import { SaveIcon, TextCursorInputIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
-import { RepositorySetupStep } from "@/features/assessment-flow/components/organisms/repository-setup-step";
 import { RepositorySetupConversation } from "@/features/assessment-flow/components/organisms/repository-setup-conversation";
-import { deriveRepositorySetupAnswer } from "@/features/assessment-flow/utils/repository-setup-history";
+import { RepositorySetupStep } from "@/features/assessment-flow/components/organisms/repository-setup-step";
 import { ScannerStep } from "@/features/assessment-flow/components/organisms/scanner-step";
 import { deriveAssessmentFlowRuntime } from "@/features/assessment-flow/utils/assessment-flow-runtime";
+import { deriveRepositorySetupAnswer } from "@/features/assessment-flow/utils/repository-setup-history";
 import {
   useAssessmentInterviewBlockedActionMutation,
   useAssessmentInterviewStateQuery,
-  useReadinessStatusQuery,
   useProgramEvidenceGraphOverviewQuery,
+  useReadinessStatusQuery,
   useRerunClassificationMutation,
-  useSubmitAssessmentPostFindingDecisionMutation,
+  useRerunRepositoryScanMutation,
   useSubmitAssessmentInterviewAnswerMutation,
+  useSubmitAssessmentPostFindingDecisionMutation,
 } from "@/lib/api/assessment-queries";
 import { API_OUTCOME_KINDS } from "@/lib/api/outcome-kinds";
 import { appLocale } from "@/lib/locale";
@@ -46,6 +47,7 @@ import {
   selectRuntimeThinkingItems,
   selectWorkflowPresentation,
 } from "../../utils/assessment-runtime-selectors";
+import { AgentStreamTimeline } from "../molecules/agent-stream-timeline";
 import {
   AgentMessage,
   AgentTurn,
@@ -56,13 +58,12 @@ import {
   AssessmentQuestionTurn,
   type AssessmentQuestionAnswerInput,
 } from "../molecules/assessment-question-turn";
+import { InterviewAnswerHistory } from "../molecules/interview-answer-history";
 import { PostFindingFlowSteps } from "../molecules/post-finding-flow-steps";
 import { RuntimeThinkingActivity } from "../molecules/runtime-thinking-activity";
-import { AgentStreamTimeline } from "../molecules/agent-stream-timeline";
-import { AssessmentComposer } from "./assessment-composer";
-import { InterviewAnswerHistory } from "../molecules/interview-answer-history";
-import { AssessmentTranscript } from "./assessment-transcript";
 import { TurnFooter } from "../molecules/turn-footer";
+import { AssessmentComposer } from "./assessment-composer";
+import { AssessmentTranscript } from "./assessment-transcript";
 import { useWorkspaceRuntime } from "./workspace-runtime-provider";
 
 type InterviewAnswerDraft = {
@@ -76,7 +77,9 @@ type InterviewAnswerDraft = {
 export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
   const workspaceRuntime = useWorkspaceRuntime();
   const readinessQuery = useReadinessStatusQuery(assessmentId);
-  const evidenceOverviewQuery = useProgramEvidenceGraphOverviewQuery(assessmentId);
+  const evidenceOverviewQuery =
+    useProgramEvidenceGraphOverviewQuery(assessmentId);
+  const retryScan = useRerunRepositoryScanMutation(assessmentId);
   const connection =
     readinessQuery.data?.kind === API_OUTCOME_KINDS.loaded
       ? readinessQuery.data.data.repositoryConnection
@@ -106,6 +109,9 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
     evidenceReport,
     recentActivity: timeline.recentActivity,
   });
+  const retryScanSnapshotId = scanJob?.snapshotId ?? snapshot?.id;
+  const retryScanDisabled =
+    retryScanSnapshotId === undefined || retryScan.isPending;
 
   if (readinessQuery.isLoading && !snapshot) {
     return (
@@ -160,6 +166,15 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
             evidenceReady={flow.evidenceAccepted}
             programEvidenceSummary={flow.programEvidenceSummary}
             canonicalOverview={evidenceOverviewQuery.data}
+            scanFailed={flow.scanFailed}
+            retryScanPending={retryScan.isPending}
+            retryScanError={retryScan.isError}
+            retryScanDisabled={retryScanDisabled}
+            onRetryScan={() => {
+              if (retryScanSnapshotId !== undefined && !retryScanDisabled) {
+                retryScan.mutate({ snapshotId: retryScanSnapshotId });
+              }
+            }}
           />
         </>
       }
@@ -221,7 +236,9 @@ function AssessmentInterviewFlow({
   const [draftMap, setDraftMap] = useState<
     Record<string, InterviewAnswerDraft>
   >({});
-  const [submittedQuestionId, setSubmittedQuestionId] = useState<string | null>(null);
+  const [submittedQuestionId, setSubmittedQuestionId] = useState<string | null>(
+    null,
+  );
   const [lastSavedMessage, setLastSavedMessage] = useState<string | null>(null);
 
   const activeDraft: InterviewAnswerDraft =
@@ -558,7 +575,9 @@ function AssessmentInterviewFlow({
                     isAdjusting={activeDraft.isAdjusting}
                     onAdjust={handleAdjust}
                     canSubmitSelection={isSubmitReady}
-                    hideSubmitSelection={submittedQuestionId === activeQuestion?.id}
+                    hideSubmitSelection={
+                      submittedQuestionId === activeQuestion?.id
+                    }
                     onSubmitSelection={handleSubmit}
                     blockedActions={interview.questionTurnProps.blockedActions}
                     disabled={
