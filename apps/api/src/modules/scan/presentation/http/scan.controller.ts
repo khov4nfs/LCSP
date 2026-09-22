@@ -20,6 +20,10 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import { isRecord } from "../../../../common/utils/index.js";
 import {
+  ASSESSMENT_AGENT_STREAM_DURABILITY,
+  ASSESSMENT_AGENT_STREAM_EVENT_TYPES,
+  ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS,
+  ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS,
   ASSESSMENT_RUNTIME_EVENT_TYPES,
   isAssessmentAgentStreamEventType,
   ASSESSMENT_RUNTIME_RUN_STATUSES,
@@ -153,6 +157,7 @@ interface WorkerDecisionModelEventRequest {
   prNumber?: unknown;
   baseSha?: unknown;
   headSha?: unknown;
+  checkpointId?: unknown;
   data?: unknown;
 }
 
@@ -424,20 +429,40 @@ export class InternalScanController {
     if (!decisionId || !decisionType || !eventType) {
       throw new BadRequestException("invalid decision event");
     }
+    if (!isDecisionModelEventType(eventType)) {
+      throw new BadRequestException("unsupported decision event");
+    }
+    const assessmentId = optionalDecisionText(payload.assessmentId);
+    const reviewRunId = optionalDecisionText(payload.reviewRunId);
+    const safePayload = boundedDecisionEventPayload(payload);
     await this.prisma.decisionModelEvent.create({
       data: {
         id: randomUUID(),
         decisionId,
         decisionType,
         eventType,
-        assessmentId: optionalDecisionText(payload.assessmentId),
-        reviewRunId: optionalDecisionText(payload.reviewRunId),
+        assessmentId,
+        reviewRunId,
         prNumber: optionalPrNumber(payload.prNumber),
         baseSha: optionalDecisionText(payload.baseSha),
         headSha: optionalDecisionText(payload.headSha),
-        payloadJson: boundedDecisionEventPayload(payload),
+        payloadJson: safePayload,
       },
     });
+    if (assessmentId && reviewRunId) {
+      await this.runtimeEvents.publishAgentStreamEvent({
+        assessmentId,
+        runId: reviewRunId,
+        correlationId: decisionId,
+        eventType,
+        source: "jev_decision_gateway",
+        namespace: ["decision_model", decisionType],
+        nodeName: decisionType,
+        status: decisionEventStatus(eventType, safePayload),
+        text: decisionEventText(eventType, safePayload),
+        data: decisionEventSemanticPayload(safePayload),
+      });
+    }
     return resultEnvelope({ recorded: true });
   }
 
@@ -752,6 +777,21 @@ function optionalPrNumber(value: unknown): number | null {
   return null;
 }
 
+function isDecisionModelEventType(
+  value: string,
+): value is
+  | typeof ASSESSMENT_AGENT_STREAM_EVENT_TYPES.decisionModelRequest
+  | typeof ASSESSMENT_AGENT_STREAM_EVENT_TYPES.decisionModelResult
+  | typeof ASSESSMENT_AGENT_STREAM_EVENT_TYPES.decisionThresholdApplied
+  | typeof ASSESSMENT_AGENT_STREAM_EVENT_TYPES.decisionFallback {
+  return (
+    value === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.decisionModelRequest ||
+    value === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.decisionModelResult ||
+    value === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.decisionThresholdApplied ||
+    value === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.decisionFallback
+  );
+}
+
 function boundedDecisionCompletionPayload(
   payload: WorkerDecisionModelCompleteRequest,
 ): Prisma.InputJsonObject {
@@ -790,14 +830,387 @@ function boundedDecisionEventPayload(
   const eventType = optionalDecisionText(payload.eventType);
   const decisionId = optionalDecisionText(payload.decisionId);
   const decisionType = optionalDecisionText(payload.decisionType);
+  const assessmentId = optionalDecisionText(payload.assessmentId);
+  const reviewRunId = optionalDecisionText(payload.reviewRunId);
+  const checkpointId = optionalDecisionText(payload.checkpointId);
   if (eventType) result.eventType = eventType;
   if (decisionId) result.decisionId = decisionId;
   if (decisionType) result.decisionType = decisionType;
+  if (assessmentId) result.assessmentId = assessmentId;
+  if (reviewRunId) result.reviewRunId = reviewRunId;
+  if (checkpointId) result.checkpointId = checkpointId;
   if (payload.data !== undefined) {
-    const data = parseRuntimeSummaryValue(payload.data);
+    const data = boundedDecisionEventData(payload.data);
     if (data !== null) result.data = data;
   }
   return result;
+}
+
+const DECISION_EVENT_DATA_KEYS = new Set([
+  "provider",
+  "modelVersion",
+  "policyVersion",
+  "questionIds",
+  "questionTypes",
+  "questionResults",
+  "selectedTypedResult",
+  "probability",
+  "probabilities",
+  "confidence",
+  "action",
+  "reasonCode",
+  "thresholdUsed",
+  "decisionMode",
+  "integration",
+  "authoritativeAction",
+  "shadowProposedAction",
+  "agreement",
+  "fallbackReason",
+  "latencyMs",
+  "usage",
+  "cost",
+  "rawResponseHash",
+  "auditRef",
+  "artifactVersionHashes",
+  "checkpointId",
+  "statePayloadKeys",
+]);
+
+const DECISION_EVENT_TEXT_MAX_LENGTH = 500;
+const DECISION_EVENT_RECORD_MAX_KEYS = 100;
+const DECISION_EVENT_NESTED_PRIVATE_KEYS = new Set([
+  "apikey",
+  "credential",
+  "credentials",
+  "hiddenreasoning",
+  "privatecontext",
+  "prompt",
+  "rawprompt",
+  "rawsource",
+  "reasoning",
+  "secret",
+  "source",
+  "token",
+]);
+
+function boundedDecisionEventData(
+  value: unknown,
+): Prisma.InputJsonObject | null {
+  if (!isRecord(value)) return null;
+  const result: Record<string, Prisma.InputJsonValue> = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (!DECISION_EVENT_DATA_KEYS.has(key)) continue;
+    const parsed = parseDecisionEventDataValue(key, item);
+    if (parsed !== null) result[key] = parsed;
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function parseDecisionEventDataValue(
+  key: string,
+  value: unknown,
+): Prisma.InputJsonValue | null {
+  if (
+    key === "questionIds" ||
+    key === "questionTypes" ||
+    key === "statePayloadKeys"
+  ) {
+    return boundedTextArray(value);
+  }
+  if (key === "questionResults") {
+    return boundedDecisionQuestionResults(value);
+  }
+  if (key === "probabilities") {
+    return boundedNumberRecord(value, { probability: true });
+  }
+  if (key === "selectedTypedResult") {
+    return boundedSelectedTypedResult(value);
+  }
+  if (key === "usage" || key === "cost" || key === "artifactVersionHashes") {
+    return boundedScalarRecord(value);
+  }
+  return parseRuntimeSummaryValue(value);
+}
+
+function boundedDecisionQuestionResults(
+  value: unknown,
+): Prisma.InputJsonArray | null {
+  if (!Array.isArray(value)) return null;
+  const results = value
+    .map((item) => boundedDecisionQuestionResult(item))
+    .filter((item): item is Prisma.InputJsonObject => item !== null);
+  return results.length > 0 ? results : null;
+}
+
+function boundedDecisionQuestionResult(
+  value: unknown,
+): Prisma.InputJsonObject | null {
+  if (!isRecord(value)) return null;
+  const result = compactJsonObject({
+    questionId: boundedText(value.questionId),
+    questionType: boundedText(value.questionType),
+    selectedChoice: boundedText(value.selectedChoice),
+    score: boundedFiniteNumber(value.score),
+    noul: boundedNoulProjection(value.noul),
+    probability: boundedFiniteNumber(value.probability, { probability: true }),
+    probabilities: boundedNumberRecord(value.probabilities, {
+      probability: true,
+    }),
+    confidence: boundedFiniteNumber(value.confidence, { probability: true }),
+  });
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function boundedSelectedTypedResult(
+  value: unknown,
+): Prisma.InputJsonObject | null {
+  if (!isRecord(value)) return null;
+  const result: Record<string, Prisma.InputJsonValue> = {};
+  for (const [key, item] of Object.entries(value).slice(
+    0,
+    DECISION_EVENT_RECORD_MAX_KEYS,
+  )) {
+    const safeKey = boundedText(key);
+    if (!safeKey || isPrivateDecisionNestedKey(safeKey)) continue;
+    const parsed = boundedSelectedTypedResultValue(item);
+    if (parsed !== null) result[safeKey] = parsed;
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function boundedSelectedTypedResultValue(
+  value: unknown,
+): Prisma.InputJsonValue | null {
+  const text = boundedText(value);
+  if (text !== null) return text;
+  const number = boundedFiniteNumber(value);
+  if (number !== null) return number;
+  if (typeof value === "boolean") return value;
+  if (Array.isArray(value)) {
+    const items = value
+      .slice(0, DECISION_EVENT_RECORD_MAX_KEYS)
+      .map((item) => boundedSelectedTypedResultValue(item))
+      .filter((item): item is Prisma.InputJsonValue => item !== null);
+    return items.length > 0 ? items : null;
+  }
+  return boundedNoulProjection(value);
+}
+
+function boundedNoulProjection(value: unknown): Prisma.InputJsonObject | null {
+  if (!isRecord(value)) return null;
+  const result: Record<string, Prisma.InputJsonValue> = {};
+  for (const [key, item] of Object.entries(value).slice(
+    0,
+    DECISION_EVENT_RECORD_MAX_KEYS,
+  )) {
+    const safeKey = boundedText(key);
+    if (!safeKey || isPrivateDecisionNestedKey(safeKey)) continue;
+    const text = boundedText(item);
+    if (text !== null) {
+      result[safeKey] = text;
+      continue;
+    }
+    const number = boundedFiniteNumber(item);
+    if (number !== null) {
+      result[safeKey] = number;
+      continue;
+    }
+    if (typeof item === "boolean") {
+      result[safeKey] = item;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function boundedScalarRecord(value: unknown): Prisma.InputJsonObject | null {
+  if (!isRecord(value)) return null;
+  const result: Record<string, Prisma.InputJsonValue> = {};
+  for (const [key, item] of Object.entries(value).slice(
+    0,
+    DECISION_EVENT_RECORD_MAX_KEYS,
+  )) {
+    const safeKey = boundedText(key);
+    if (!safeKey || isPrivateDecisionNestedKey(safeKey)) continue;
+    const text = boundedText(item);
+    if (text !== null) {
+      result[safeKey] = text;
+      continue;
+    }
+    const number = boundedFiniteNumber(item);
+    if (number !== null) {
+      result[safeKey] = number;
+      continue;
+    }
+    if (typeof item === "boolean") {
+      result[safeKey] = item;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function boundedNumberRecord(
+  value: unknown,
+  options?: { probability?: boolean },
+): Prisma.InputJsonObject | null {
+  if (!isRecord(value)) return null;
+  const result: Record<string, Prisma.InputJsonValue> = {};
+  for (const [key, item] of Object.entries(value).slice(
+    0,
+    DECISION_EVENT_RECORD_MAX_KEYS,
+  )) {
+    const safeKey = boundedText(key);
+    const number = boundedFiniteNumber(item, options);
+    if (safeKey && !isPrivateDecisionNestedKey(safeKey) && number !== null) {
+      result[safeKey] = number;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+function boundedTextArray(value: unknown): Prisma.InputJsonArray | null {
+  if (!Array.isArray(value)) return null;
+  const result = value
+    .slice(0, DECISION_EVENT_RECORD_MAX_KEYS)
+    .map((item) => boundedText(item))
+    .filter((item): item is string => item !== null);
+  return result.length > 0 ? result : null;
+}
+
+function boundedText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed.slice(0, DECISION_EVENT_TEXT_MAX_LENGTH) : null;
+}
+
+function isPrivateDecisionNestedKey(value: string): boolean {
+  return DECISION_EVENT_NESTED_PRIVATE_KEYS.has(
+    value.replace(/[^A-Za-z0-9]/g, "").toLowerCase(),
+  );
+}
+
+function boundedFiniteNumber(
+  value: unknown,
+  options?: { probability?: boolean },
+): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  if (options?.probability && (value < 0 || value > 1)) return null;
+  return value;
+}
+
+function decisionEventSemanticPayload(
+  payload: Prisma.InputJsonObject,
+): Prisma.InputJsonObject {
+  const data = jsonRecord(payload.data);
+  return compactJsonObject({
+    schemaVersion: ASSESSMENT_AGENT_STREAM_SCHEMA_VERSIONS.semanticV1,
+    kind: ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.decisionModel,
+    durability: ASSESSMENT_AGENT_STREAM_DURABILITY.durable,
+    decision: textFromJson(data.selectedTypedResult),
+    decisionId: textFromJson(payload.decisionId),
+    decisionType: textFromJson(payload.decisionType),
+    provider: textFromJson(data.provider),
+    model: textFromJson(data.modelVersion),
+    policyVersion: textFromJson(data.policyVersion),
+    thresholdUsed: numberFromJson(data.thresholdUsed),
+    decisionMode: textFromJson(data.decisionMode),
+    authoritativeAction: textFromJson(data.authoritativeAction),
+    shadowProposedAction: textFromJson(data.shadowProposedAction),
+    agreement: booleanFromJson(data.agreement),
+    fallbackReason: textFromJson(data.fallbackReason),
+    confidence: numberFromJson(data.confidence),
+    latencyMs: numberFromJson(data.latencyMs),
+    usage: jsonValue(data.usage),
+    resultSummary: compactJsonObject({
+      questionIds: jsonValue(data.questionIds),
+      questionTypes: jsonValue(data.questionTypes),
+      questionResults: jsonValue(data.questionResults),
+      probabilities: jsonValue(data.probabilities),
+      selectedTypedResult: jsonValue(data.selectedTypedResult),
+      artifactVersionHashes: jsonValue(data.artifactVersionHashes),
+    }),
+  });
+}
+
+function decisionEventStatus(
+  eventType: string,
+  payload: Prisma.InputJsonObject,
+): string | null {
+  if (eventType === ASSESSMENT_AGENT_STREAM_EVENT_TYPES.decisionFallback) {
+    return ASSESSMENT_RUNTIME_RUN_STATUSES.waiting;
+  }
+  const data = jsonRecord(payload.data);
+  const reasonCode = textFromJson(data.reasonCode);
+  return reasonCode && reasonCode !== "SHADOW_MODE_OBSERVE_ONLY"
+    ? ASSESSMENT_RUNTIME_RUN_STATUSES.waiting
+    : ASSESSMENT_RUNTIME_RUN_STATUSES.running;
+}
+
+function decisionEventText(
+  eventType: string,
+  payload: Prisma.InputJsonObject,
+): string {
+  const data = jsonRecord(payload.data);
+  const selected =
+    textFromJson(data.shadowProposedAction) ?? textFromJson(data.action);
+  const confidence = numberFromJson(data.confidence);
+  const confidenceText =
+    confidence === null ? null : `confidence=${confidence.toFixed(2)}`;
+  return [
+    eventType,
+    textFromJson(payload.decisionType),
+    selected ? `proposed=${selected}` : null,
+    confidenceText,
+    textFromJson(data.reasonCode),
+  ]
+    .filter((item): item is string => Boolean(item))
+    .join(" ");
+}
+
+function compactJsonObject(
+  value: Record<string, Prisma.InputJsonValue | null>,
+): Prisma.InputJsonObject {
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, Prisma.InputJsonValue] => {
+        const item = entry[1];
+        if (item === null) return false;
+        if (Array.isArray(item) && item.length === 0) return false;
+        if (
+          typeof item === "object" &&
+          !Array.isArray(item) &&
+          Object.keys(item).length === 0
+        ) {
+          return false;
+        }
+        return true;
+      },
+    ),
+  );
+}
+
+function textFromJson(value: unknown): string | null {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
+  if (value !== null && typeof value === "object") return JSON.stringify(value);
+  return null;
+}
+
+function numberFromJson(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function booleanFromJson(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
+function jsonValue(value: unknown): Prisma.InputJsonValue | null {
+  const parsed = parseRuntimeSummaryValue(value);
+  return parsed === null ? null : parsed;
+}
+
+function jsonRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
 }
 
 function parseWorkerRuntimeEventPayload(

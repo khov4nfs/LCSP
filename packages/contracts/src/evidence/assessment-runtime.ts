@@ -125,6 +125,7 @@ export const ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS = {
   ruleProvenance: "RULE_PROVENANCE",
   modelRequest: "MODEL_REQUEST",
   modelOutput: "MODEL_OUTPUT",
+  decisionModel: "DECISION_MODEL",
   reasoningSummary: "REASONING_SUMMARY",
   runtimeProgress: "RUNTIME_PROGRESS",
 } as const;
@@ -208,6 +209,10 @@ export const ASSESSMENT_AGENT_STREAM_EVENT_TYPES = {
   modelReasoningDelta: "MODEL_REASONING_DELTA",
   modelRequest: "MODEL_REQUEST",
   modelResult: "MODEL_RESULT",
+  decisionModelRequest: "DECISION_MODEL_REQUEST",
+  decisionModelResult: "DECISION_MODEL_RESULT",
+  decisionThresholdApplied: "DECISION_THRESHOLD_APPLIED",
+  decisionFallback: "DECISION_FALLBACK",
   scannerActivity: "SCANNER_ACTIVITY",
   semanticToolCall: "SEMANTIC_TOOL_CALL",
   semanticToolResult: "SEMANTIC_TOOL_RESULT",
