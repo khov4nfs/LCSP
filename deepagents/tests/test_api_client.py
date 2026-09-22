@@ -755,3 +755,30 @@ def test_callback_response_accepts_nested_result_envelope():
     assert resp2.verified_profile_id == "vp-nested-999"
     # Ensure extra items in result did not raise ValidationError under model_config extra ignore
     assert resp2.model_dump().get("verified_profile_id") == "vp-nested-999"
+
+
+def test_decision_model_claim_failure_fails_closed(client):
+    with patch.object(
+        client,
+        "_post_with_retry",
+        side_effect=WorkerCallbackError("claim API unavailable"),
+    ):
+        with pytest.raises(WorkerCallbackError, match="claim API unavailable"):
+            client.claim_decision_model_request(
+                "review-triage-v1:344:" + "a" * 40,
+                {"decisionType": "PR_REVIEW_TRIAGE"},
+            )
+
+
+def test_decision_model_claim_conflict_suppresses_duplicate_provider_call(client):
+    with patch.object(
+        client,
+        "_post_with_retry",
+        side_effect=WorkerCallbackError("duplicate", status_code=409),
+    ):
+        claimed = client.claim_decision_model_request(
+            "review-triage-v1:344:" + "a" * 40,
+            {"decisionType": "PR_REVIEW_TRIAGE"},
+        )
+
+    assert claimed is False

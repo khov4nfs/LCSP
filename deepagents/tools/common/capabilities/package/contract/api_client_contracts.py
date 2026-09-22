@@ -22,6 +22,9 @@ class CallbackPath(StrEnum):
     TARGETED_REANALYSIS_REQUEUE = "/internal/targeted-reanalysis/{request_id}/requeue"
     TARGETED_REANALYSIS_TERMINAL = "/internal/targeted-reanalysis/{request_id}/terminal"
     LEGAL_CORPUS_PREPARATION = "/internal/legal-rule-catalog/corpus/{corpus_version_id}/preparation-callback"
+    DECISION_MODEL_EVENT = "/internal/scan-jobs/decision-model/events"
+    DECISION_MODEL_CLAIM = "/internal/scan-jobs/decision-model/decisions/{decision_id}/claim"
+    DECISION_MODEL_COMPLETE = "/internal/scan-jobs/decision-model/decisions/{decision_id}/complete"
 
 
 class InternalPath(StrEnum):

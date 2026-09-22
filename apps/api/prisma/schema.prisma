@@ -630,6 +630,51 @@ model AssessmentRuntimeEvent {
   @@index([runId, sequence])
 }
 
+enum DecisionModelDecisionStatus {
+  CLAIMED
+  COMPLETED
+  FAILED
+}
+
+model DecisionModelDecision {
+  decisionId   String                      @id
+  decisionType String
+  assessmentId String?
+  reviewRunId  String?
+  prNumber     Int?
+  baseSha      String?
+  headSha      String?
+  status       DecisionModelDecisionStatus @default(CLAIMED)
+  resultJson   Json?
+  claimedAt    DateTime                    @default(now())
+  completedAt  DateTime?
+  createdAt    DateTime                    @default(now())
+  updatedAt    DateTime                    @updatedAt
+
+  @@index([assessmentId, reviewRunId])
+  @@index([prNumber, headSha])
+  @@index([status, claimedAt])
+}
+
+model DecisionModelEvent {
+  id           String   @id @default(uuid())
+  decisionId   String
+  decisionType String
+  eventType    String
+  assessmentId String?
+  reviewRunId  String?
+  prNumber     Int?
+  baseSha      String?
+  headSha      String?
+  payloadJson  Json
+  createdAt    DateTime @default(now())
+
+  @@index([decisionId, createdAt])
+  @@index([assessmentId, reviewRunId])
+  @@index([prNumber, headSha])
+  @@index([eventType, createdAt])
+}
+
 model VerifiedAgentEpisode {
   id                        String                               @id
   assessmentId              String

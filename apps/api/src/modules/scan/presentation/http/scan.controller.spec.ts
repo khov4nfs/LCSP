@@ -163,6 +163,7 @@ describe("InternalScanController", () => {
     const controller = new InternalScanController(
       { execute } as unknown as CommandBus,
       {} as never,
+      {} as never,
     );
 
     await controller.createTargetedReanalysis(
@@ -201,6 +202,7 @@ describe("InternalScanController", () => {
     const controller = new InternalScanController(
       {} as unknown as CommandBus,
       { publishAgentStreamEvent } as never,
+      {} as never,
     );
 
     const result = await controller.recordAgentStreamEvent(
@@ -227,6 +229,123 @@ describe("InternalScanController", () => {
     expect(result).toEqual({
       ok: true,
       data: { recorded: true, eventId: "agent-event-1" },
+    });
+  });
+
+  it("persists bounded decision-model events by exact PR head correlation", async () => {
+    const create = jest
+      .fn<(args: unknown) => Promise<unknown>>()
+      .mockResolvedValue({});
+    const controller = new InternalScanController(
+      {} as unknown as CommandBus,
+      {} as never,
+      { decisionModelEvent: { create } } as never,
+    );
+
+    await controller.recordDecisionModelEvent({
+      eventType: "DECISION_MODEL_RESULT",
+      decisionId:
+        "review-triage-v1:344:95ba2ee36a1c1df449c4b2a280644b234a0e5a84",
+      decisionType: "PR_REVIEW_TRIAGE",
+      prNumber: 344,
+      headSha: "95ba2ee36a1c1df449c4b2a280644b234a0e5a84",
+      data: {
+        provider: "typesafe",
+        prompt: "must not be trusted as raw prompt authority",
+      },
+    });
+
+    expect(create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        decisionId:
+          "review-triage-v1:344:95ba2ee36a1c1df449c4b2a280644b234a0e5a84",
+        decisionType: "PR_REVIEW_TRIAGE",
+        eventType: "DECISION_MODEL_RESULT",
+        prNumber: 344,
+        headSha: "95ba2ee36a1c1df449c4b2a280644b234a0e5a84",
+        payloadJson: expect.objectContaining({
+          eventType: "DECISION_MODEL_RESULT",
+          decisionType: "PR_REVIEW_TRIAGE",
+          data: expect.objectContaining({ provider: "typesafe" }),
+        }),
+      }),
+    });
+  });
+
+  it("claims decision IDs once and reports replay duplicates without provider authority", async () => {
+    const create = jest
+      .fn<(args: unknown) => Promise<unknown>>()
+      .mockResolvedValueOnce({})
+      .mockRejectedValueOnce({ code: "P2002" });
+    const controller = new InternalScanController(
+      {} as unknown as CommandBus,
+      {} as never,
+      { decisionModelDecision: { create } } as never,
+    );
+
+    const first = await controller.claimDecisionModelRequest(
+      "root-route-v1:a:r:c",
+      {
+        decisionType: "ROOT_NON_DETERMINISTIC_NEXT_STAGE",
+        assessmentId: "assessment-1",
+        reviewRunId: "run-1",
+      },
+    );
+    const replay = await controller.claimDecisionModelRequest(
+      "root-route-v1:a:r:c",
+      {
+        decisionType: "ROOT_NON_DETERMINISTIC_NEXT_STAGE",
+        assessmentId: "assessment-1",
+        reviewRunId: "run-1",
+      },
+    );
+
+    expect(first).toEqual({ ok: true, data: { claimed: true } });
+    expect(replay).toEqual({ ok: true, data: { claimed: false } });
+  });
+
+  it("completes decision records with bounded shadow comparison only", async () => {
+    const upsert = jest
+      .fn<(args: unknown) => Promise<unknown>>()
+      .mockResolvedValue({});
+    const controller = new InternalScanController(
+      {} as unknown as CommandBus,
+      {} as never,
+      { decisionModelDecision: { upsert } } as never,
+    );
+
+    await controller.completeDecisionModelRequest(
+      "interview-topic-v1:a:r:rev-2",
+      {
+        decisionId: "interview-topic-v1:a:r:rev-2",
+        decisionType: "INTERVIEW_TOPIC_ROUTING",
+        authoritativeAction: "DEPLOYMENT",
+        shadowProposedAction: "DATA_SOURCE",
+        agreement: false,
+        confidence: 0.81,
+        skipped: false,
+      },
+    );
+
+    expect(upsert).toHaveBeenCalledWith({
+      where: { decisionId: "interview-topic-v1:a:r:rev-2" },
+      create: expect.objectContaining({
+        decisionId: "interview-topic-v1:a:r:rev-2",
+        decisionType: "INTERVIEW_TOPIC_ROUTING",
+        resultJson: expect.objectContaining({
+          authoritativeAction: "DEPLOYMENT",
+          shadowProposedAction: "DATA_SOURCE",
+          agreement: false,
+          confidence: 0.81,
+          skipped: false,
+        }),
+      }),
+      update: expect.objectContaining({
+        resultJson: expect.objectContaining({
+          authoritativeAction: "DEPLOYMENT",
+          shadowProposedAction: "DATA_SOURCE",
+        }),
+      }),
     });
   });
 });
