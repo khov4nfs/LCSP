@@ -18,7 +18,7 @@ import {
 } from "@lcsp/contracts/github-integration";
 
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 
 export interface ScanTriggerRequestContext extends Request {
   scanTriggerSource?: RepositoryScanTriggerSource;

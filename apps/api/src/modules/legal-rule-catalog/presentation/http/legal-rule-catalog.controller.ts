@@ -33,7 +33,7 @@ import { GetActiveRuleCatalogQuery } from "../../application/queries/get-active-
 
 import { randomUUID } from "node:crypto";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";

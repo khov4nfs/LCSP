@@ -44,7 +44,7 @@ import {
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { problemResult } from "../../../../../platform/problems/problem-factory.js";
+import { problemResult } from "../../../../../platform/http/filters/error.factory.js";
 import { AssessmentRuntimeEventService } from "../../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import type { ScanCallbackDto } from "../../contracts/scan/scan-callback.contract.js";
 import { EvidenceSchemaValidatorService } from "../../services/scan/evidence-schema-validator.service.js";

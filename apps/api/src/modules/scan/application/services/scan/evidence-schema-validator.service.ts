@@ -7,7 +7,7 @@ import {
 
 import type { ScanCallbackRequest } from "../../contracts/scan/scan-callback.contract.js";
 import { isRecord } from "../../../../../common/utils/index.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 
 const FORBIDDEN_EVIDENCE_KEYS = new Set([
   "codesnippet",

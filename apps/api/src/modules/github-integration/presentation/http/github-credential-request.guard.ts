@@ -2,7 +2,7 @@ import { HttpStatus, Injectable } from "@nestjs/common";
 import type { CanActivate, ExecutionContext } from "@nestjs/common";
 import { GITHUB_INTEGRATION_ERROR_CODES } from "@lcsp/contracts/github-integration";
 
-import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 
 const MAX_REQUEST_BYTES = 16 * 1024;

@@ -10,7 +10,7 @@ import {
 } from "@lcsp/contracts/auth";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 
 import {
   toPrismaAuthBackupEmailPolicy,

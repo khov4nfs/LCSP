@@ -16,7 +16,7 @@ import { ASSESSMENT_STATUS_CODES } from "@lcsp/contracts/assessment";
 import { fromPrismaAssessmentStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 
 import type { AppConfig } from "../../../../../config/config.types.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import {
   PrismaCredentialPersistenceUnitOfWork,

@@ -10,7 +10,7 @@ import {
 import { CommandBus } from "@nestjs/cqrs";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";

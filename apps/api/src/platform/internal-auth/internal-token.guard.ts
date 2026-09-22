@@ -9,7 +9,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 
-import { problemException } from "../problems/problem-factory.js";
+import { problemException } from "../http/filters/error.factory.js";
 
 interface RequestWithHeaders {
   headers: Record<string, string | string[] | undefined>;

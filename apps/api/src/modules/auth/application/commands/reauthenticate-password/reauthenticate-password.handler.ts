@@ -8,7 +8,7 @@ import {
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/problems/problem-factory.ts";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { verifySecret } from "../../../infrastructure/security/security.utils.ts";
 import type { PasswordReauthSuccess } from "../../contracts/auth/password-reauth.contract.ts";
 import {
@@ -20,6 +20,15 @@ import {
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { ReauthenticatePasswordCommand } from "./reauthenticate-password.command.ts";
 
+/**
+ * Handles password re-authentication (sudo mode) for sensitive account actions.
+ *
+ * Enforces:
+ * 1. Valid, active session belonging to the authenticated user.
+ * 2. Constant-time verification of user's current password.
+ * 3. Marks session with `sensitiveActionVerifiedAt` timestamp upon success.
+ * 4. Records audit trails for both success and failed password checks.
+ */
 @CommandHandler(ReauthenticatePasswordCommand)
 export class ReauthenticatePasswordHandler implements ICommandHandler<ReauthenticatePasswordCommand> {
   constructor(
@@ -30,6 +39,12 @@ export class ReauthenticatePasswordHandler implements ICommandHandler<Reauthenti
     private readonly users: UserRepository,
   ) {}
 
+  /**
+   * Executes password re-authentication for the active session.
+   *
+   * @param command - Contains current password, userId, sessionId, and request metadata.
+   * @returns Verification success response.
+   */
   async execute(
     command: ReauthenticatePasswordCommand,
   ): Promise<PasswordReauthSuccess> {
@@ -37,10 +52,6 @@ export class ReauthenticatePasswordHandler implements ICommandHandler<Reauthenti
     const { sessions, users } = this;
     const correlationId =
       requestMeta?.correlationId ?? this.support.createCorrelationId();
-
-    if (typeof password !== "string" || password.trim().length === 0) {
-      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
-    }
 
     if (!userId || !sessionId) {
       throw problemException(AUTH_ERROR_CODES.authRequired, correlationId);

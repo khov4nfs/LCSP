@@ -24,7 +24,7 @@ import {
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { ResolveConflictCommand } from "./resolve-conflict.command.js";
 
 const RESOLUTION_NOTE_MAX_LENGTH = 2000;

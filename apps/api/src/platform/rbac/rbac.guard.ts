@@ -25,7 +25,7 @@ import {
   type AuthorizationDecisionRepository,
 } from "./authorization-decision.repository.js";
 import { createCorrelationId } from "../security/crypto.utils.js";
-import { problemException } from "../problems/problem-factory.js";
+import { problemException } from "../http/filters/error.factory.js";
 import { RE_AUTH_FOR_SENSITIVE_ROUTE_METADATA_KEY } from "../security/decorators/re-auth-for-sensitive-route.decorator.js";
 import { isSensitiveActionVerificationFresh } from "../security/sensitive-route-policy.js";
 import { ALLOW_PENDING_MFA_METADATA_KEY } from "./decorators/allow-pending-mfa.decorator.js";

@@ -7,7 +7,7 @@ import { HttpStatus } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { AuditExportStorageService } from "../../../infrastructure/storage/audit-export-storage.service.js";
 import type { AuditExportStatusDto } from "../../contracts/audit/audit-export.contract.js";
 import { GetAuditExportQuery } from "./get-audit-export.query.js";

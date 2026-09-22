@@ -26,7 +26,7 @@ import {
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { AppConfig } from "../../../../../config/config.types.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { RepositorySnapshot } from "../../../domain/entities/repository-snapshot.entity.js";
 import {
   GitHubAppClient,

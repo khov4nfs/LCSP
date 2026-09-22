@@ -9,6 +9,7 @@ import {
   UnauthorizedException,
   UnprocessableEntityException,
 } from "@nestjs/common";
+import { SHARED_ERROR_CODES } from "@lcsp/contracts/shared";
 import {
   PROBLEM_DEFAULTS,
   PROBLEM_KEYS,
@@ -16,15 +17,19 @@ import {
   createProblemResult,
   type AppProblem,
   type AuthErrorCode,
+  type ProblemKey,
   type RequiredAction,
   type ProblemMeta,
   type ProblemResult,
 } from "@lcsp/contracts/auth";
+import { isRecord } from "../../../common/utils/index.js";
 
 export type ProblemOptions = {
   meta?: ProblemMeta;
   status?: number;
   requiredAction?: RequiredAction;
+  titleKey?: ProblemKey;
+  detailKey?: ProblemKey;
 };
 
 type ProblemExceptionFactory = (body: ProblemResult<string>) => HttpException;
@@ -73,6 +78,8 @@ export function problemResult<TCode extends string>(
       meta: options?.meta,
       status,
       requiredAction: options?.requiredAction,
+      titleKey: options?.titleKey,
+      detailKey: options?.detailKey,
     }),
   };
 }
@@ -99,11 +106,44 @@ export function problemException<TCode extends string>(
     meta: options?.meta,
     status,
     requiredAction: options?.requiredAction,
+    titleKey: options?.titleKey,
+    detailKey: options?.detailKey,
   });
   return (
     PROBLEM_EXCEPTION_FACTORIES[status]?.(body) ??
     new HttpException(body, status)
   );
+}
+
+/**
+ * Resolves a default problem code for standard HTTP error statuses.
+ *
+ * @param status - Numeric HTTP status code.
+ * @returns Standard error code from shared contracts.
+ */
+export function defaultErrorCodeForStatus(status: number): string {
+  if (status === Number(HttpStatus.BAD_REQUEST)) {
+    return SHARED_ERROR_CODES.badRequest;
+  }
+  if (status === Number(HttpStatus.UNAUTHORIZED)) {
+    return SHARED_ERROR_CODES.unauthorized;
+  }
+  if (status === Number(HttpStatus.FORBIDDEN)) {
+    return SHARED_ERROR_CODES.forbidden;
+  }
+  if (status === Number(HttpStatus.NOT_FOUND)) {
+    return SHARED_ERROR_CODES.notFound;
+  }
+  if (status === Number(HttpStatus.CONFLICT)) {
+    return SHARED_ERROR_CODES.conflict;
+  }
+  if (status === Number(HttpStatus.UNPROCESSABLE_ENTITY)) {
+    return SHARED_ERROR_CODES.unprocessableEntity;
+  }
+  if (status >= 500) {
+    return SHARED_ERROR_CODES.internalError;
+  }
+  return SHARED_ERROR_CODES.badRequest;
 }
 
 /**
@@ -115,7 +155,7 @@ export function problemException<TCode extends string>(
 export function internalServerProblem(
   correlationId: string,
 ): ProblemResult<string> {
-  return problemResult("INTERNAL_ERROR", correlationId, {
+  return problemResult(SHARED_ERROR_CODES.internalError, correlationId, {
     status: HttpStatus.INTERNAL_SERVER_ERROR,
   });
 }
@@ -137,8 +177,8 @@ function createGenericProblem<TCode extends string>(
     type: `problem/${code.toLowerCase().replaceAll("_", "-")}`,
     status: options.status,
     code,
-    titleKey: PROBLEM_KEYS.validationFailedTitle,
-    detailKey: PROBLEM_KEYS.validationFailedDetail,
+    titleKey: options.titleKey ?? PROBLEM_KEYS.validationFailedTitle,
+    detailKey: options.detailKey ?? PROBLEM_KEYS.validationFailedDetail,
     requiredAction: options.requiredAction ?? REQUIRED_ACTIONS.none,
     correlationId,
     meta: options.meta,
@@ -153,4 +193,34 @@ function createGenericProblem<TCode extends string>(
  */
 function isAuthErrorCode(code: string): code is AuthErrorCode {
   return Object.hasOwn(PROBLEM_DEFAULTS, code);
+}
+
+/**
+ * Checks whether a runtime value is a standardized failed API problem result.
+ *
+ * @param value - Value to inspect.
+ * @returns True when the value contains a failed result with a string problem code.
+ */
+export function isProblemResult(
+  value: unknown,
+): value is ProblemResult<string> {
+  return (
+    isRecord(value) &&
+    value.ok === false &&
+    isRecord(value.problem) &&
+    typeof value.problem.code === "string"
+  );
+}
+
+/**
+ * Wraps plain handler data in the standard success result envelope.
+ *
+ * @param data - Handler value to normalize.
+ * @returns Standard success result object.
+ */
+export function resultEnvelope<TData>(data: TData): { ok: true; data: TData } {
+  return {
+    ok: true,
+    data,
+  };
 }

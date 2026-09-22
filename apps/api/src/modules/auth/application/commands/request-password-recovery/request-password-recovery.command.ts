@@ -1,9 +1,9 @@
+import type { RequestPasswordRecoveryInput } from "@lcsp/contracts/auth";
 import type { RequestMeta } from "../../contracts/auth/common.contract.ts";
-import type { RequestRecoveryPayload } from "../../contracts/auth/recovery.contract.ts";
 
 export class RequestPasswordRecoveryCommand {
   constructor(
-    public readonly payload: RequestRecoveryPayload,
+    public readonly payload: RequestPasswordRecoveryInput,
     public readonly requestMeta: RequestMeta,
   ) {}
 }

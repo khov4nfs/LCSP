@@ -1,4 +1,5 @@
-import type { ProblemResult } from "@lcsp/contracts/auth";
+import { isRecord } from "../../../common/utils/index.js";
+import { isProblemResult } from "./error.factory.js";
 
 export type ProblemResponseMetadata = {
   code: string;
@@ -42,11 +43,10 @@ export function readProblemResponseMetadata(
 ): ProblemResponseMetadata | null {
   const value = response.locals?.[PROBLEM_RESPONSE_METADATA_KEY];
   if (
-    typeof value !== "object" ||
-    value === null ||
-    typeof (value as { code?: unknown }).code !== "string" ||
-    typeof (value as { correlationId?: unknown }).correlationId !== "string" ||
-    typeof (value as { requiredAction?: unknown }).requiredAction !== "string"
+    !isRecord(value) ||
+    typeof value.code !== "string" ||
+    typeof value.correlationId !== "string" ||
+    typeof value.requiredAction !== "string"
   ) {
     return null;
   }
@@ -69,22 +69,7 @@ function getProblemResponseMetadata(
 
   return {
     code: body.problem.code,
-    correlationId: body.problem.correlationId,
-    requiredAction: body.problem.requiredAction,
+    correlationId: String(body.problem.correlationId ?? ""),
+    requiredAction: String(body.problem.requiredAction ?? ""),
   };
-}
-
-/**
- * Checks whether a runtime value is a standardized failed API result.
- *
- * @param body - Value to inspect.
- * @returns True when the value contains a failed result with a string problem code.
- */
-function isProblemResult(body: unknown): body is ProblemResult<string> {
-  return (
-    typeof body === "object" &&
-    body !== null &&
-    (body as { ok?: unknown }).ok === false &&
-    typeof (body as { problem?: { code?: unknown } }).problem?.code === "string"
-  );
 }

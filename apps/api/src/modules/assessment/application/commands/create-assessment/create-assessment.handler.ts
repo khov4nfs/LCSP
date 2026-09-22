@@ -21,7 +21,7 @@ import {
 } from "@lcsp/contracts/assessment";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { Assessment } from "../../../domain/entities/assessment.entity.js";
 import { AssessmentMapper } from "../../mappers/assessment.mapper.js";
 import {

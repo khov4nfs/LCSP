@@ -1,14 +1,20 @@
 import { Catch, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import type { ArgumentsHost, ExceptionFilter } from "@nestjs/common";
-import {
-  AUTH_ERROR_CODES,
-  createProblemResult,
-  type ProblemResult,
-} from "@lcsp/contracts/auth";
+import type { ProblemMeta, ProblemResult } from "@lcsp/contracts/auth";
 import { randomUUID } from "node:crypto";
 
-import { setProblemResponseMetadata } from "./problem-response-metadata.js";
-import { internalServerProblem } from "./problem-factory.js";
+import {
+  cleanString,
+  isNumber,
+  isRecord,
+} from "../../../common/utils/index.js";
+import { setProblemResponseMetadata } from "./error-response-metadata.js";
+import {
+  defaultErrorCodeForStatus,
+  internalServerProblem,
+  isProblemResult,
+  problemResult,
+} from "./error.factory.js";
 
 type HttpResponse = {
   locals?: Record<string, unknown>;
@@ -28,8 +34,8 @@ type HttpRequest = {
  * Converts uncaught HTTP/application exceptions into the API's standardized problem-result contract and logs failures by severity.
  */
 @Catch()
-export class ProblemExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(ProblemExceptionFilter.name);
+export class HttpExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(HttpExceptionFilter.name);
 
   /**
    * Handles an exception, derives HTTP/correlation metadata, and writes a normalized problem response.
@@ -38,6 +44,14 @@ export class ProblemExceptionFilter implements ExceptionFilter {
    * @param host - Nest arguments host used to access the current HTTP request and response.
    */
   catch(exception: unknown, host: ArgumentsHost) {
+    if (typeof host?.getType === "function" && host.getType() !== "http") {
+      this.logger.error(
+        `Non-HTTP exception caught in HttpExceptionFilter (${host.getType()}): ${formatExceptionBody(exception)}`,
+        exception instanceof Error ? exception.stack : undefined,
+      );
+      return;
+    }
+
     const context = host.switchToHttp();
     const response = context.getResponse<HttpResponse>();
     const request = context.getRequest<HttpRequest>();
@@ -58,9 +72,9 @@ export class ProblemExceptionFilter implements ExceptionFilter {
       );
     }
 
-    const problemResult = toProblemResult(body, correlationId, status);
-    setProblemResponseMetadata(response, problemResult);
-    response.status(status).json(problemResult);
+    const result = toProblemResult(body, correlationId, status);
+    setProblemResponseMetadata(response, result);
+    response.status(status).json(result);
   }
 }
 
@@ -85,15 +99,52 @@ function formatExceptionBody(body: unknown): string {
   ) {
     return String(body);
   }
-  try {
-    return JSON.stringify(body);
-  } catch (error) {
-    return error instanceof Error ? error.message : "unserializable_body";
+  if (typeof body === "object") {
+    try {
+      return JSON.stringify(body);
+    } catch (error) {
+      return error instanceof Error ? error.message : "unserializable_body";
+    }
   }
+  return "unknown_body";
 }
 
 /**
- * Preserves a valid problem result or wraps an unknown exception body in the default validation problem shape.
+ * Extracts descriptive metadata from an exception response body when available.
+ *
+ * @param body - Raw exception response body.
+ * @returns Sanitized problem metadata or undefined.
+ */
+function extractProblemMeta(body: unknown): ProblemMeta | undefined {
+  const cleaned = cleanString(body);
+  if (cleaned) {
+    return { message: cleaned };
+  }
+  if (isRecord(body)) {
+    const meta: ProblemMeta = {};
+    const messageCleaned = cleanString(body.message);
+    if (messageCleaned) {
+      meta.message = messageCleaned;
+    } else if (Array.isArray(body.message)) {
+      const messages = body.message
+        .map(cleanString)
+        .filter((item): item is string => item !== null)
+        .join("; ");
+      if (messages.length > 0) {
+        meta.message = messages;
+      }
+    }
+    const errorCleaned = cleanString(body.error);
+    if (errorCleaned && !meta.message) {
+      meta.error = errorCleaned;
+    }
+    return Object.keys(meta).length > 0 ? meta : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Preserves a valid problem result or wraps an unknown exception body in the appropriate status problem shape.
  *
  * @param body - Exception response body to normalize.
  * @param correlationId - Correlation identifier attached to the normalized problem.
@@ -120,8 +171,12 @@ function toProblemResult(
     return internalServerProblem(correlationId);
   }
 
-  return createProblemResult(AUTH_ERROR_CODES.validationFailed, correlationId, {
+  const code = defaultErrorCodeForStatus(status);
+  const meta = extractProblemMeta(body);
+
+  return problemResult(code, correlationId, {
     status,
+    meta,
   });
 }
 
@@ -135,19 +190,13 @@ function getHttpStatus(exception: unknown): number {
   if (exception instanceof HttpException) {
     return exception.getStatus();
   }
-  if (
-    exception !== null &&
-    typeof exception === "object" &&
-    typeof (exception as { status?: unknown }).status === "number"
-  ) {
-    return (exception as { status: number }).status;
-  }
-  if (
-    exception !== null &&
-    typeof exception === "object" &&
-    typeof (exception as { statusCode?: unknown }).statusCode === "number"
-  ) {
-    return (exception as { statusCode: number }).statusCode;
+  if (isRecord(exception)) {
+    if (isNumber(exception.status)) {
+      return exception.status;
+    }
+    if (isNumber(exception.statusCode)) {
+      return exception.statusCode;
+    }
   }
 
   return HttpStatus.INTERNAL_SERVER_ERROR;
@@ -179,33 +228,16 @@ function getCorrelationId(body: unknown, request: HttpRequest): string {
     return body.problem.correlationId;
   }
 
-  if (
-    typeof request.correlationId === "string" &&
-    request.correlationId.length > 0
-  ) {
-    return request.correlationId;
+  const requestCorrelationId = cleanString(request.correlationId);
+  if (requestCorrelationId) {
+    return requestCorrelationId;
   }
 
   const header = request.headers?.["x-correlation-id"];
-  const headerValue = Array.isArray(header) ? header[0] : header;
+  const headerValue = cleanString(Array.isArray(header) ? header[0] : header);
   if (headerValue) {
     return headerValue;
   }
 
   return randomUUID();
-}
-
-/**
- * Checks whether a runtime value matches the minimal standardized problem-result shape.
- *
- * @param body - Value to inspect.
- * @returns True when the value is a failed result containing a string problem code.
- */
-function isProblemResult(body: unknown): body is ProblemResult<string> {
-  return (
-    typeof body === "object" &&
-    body !== null &&
-    (body as { ok?: unknown }).ok === false &&
-    typeof (body as { problem?: { code?: unknown } }).problem?.code === "string"
-  );
 }

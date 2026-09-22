@@ -23,7 +23,7 @@ import { createCorrelationId } from "../../../../platform/security/crypto.utils.
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rbac-request.interface.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { ReAuthForSensitiveRoute } from "../../../../platform/security/decorators/re-auth-for-sensitive-route.decorator.js";
 import { SENSITIVE_ROUTE_IDS } from "../../../../platform/security/sensitive-route-policy.js";
 import { GitHubAppCallbackCommand } from "../../application/commands/github-app-callback/github-app-callback.command.js";

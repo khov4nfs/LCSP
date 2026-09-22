@@ -24,7 +24,7 @@ import type { AuthenticatedRequest } from "../../../../common/interfaces/authent
 import { ZodValidationPipe } from "../../../../common/pipes/zod-validation.pipe.ts";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { RejectBillingPaymentCommand } from "../../application/commands/reject-billing-payment/reject-billing-payment.command.js";
 import { ResolveBillingPaymentCommand } from "../../application/commands/resolve-billing-payment/resolve-billing-payment.command.js";
 import { GetBillingReconciliationQuery } from "../../application/queries/get-billing-reconciliation/get-billing-reconciliation.query.js";

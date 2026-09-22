@@ -9,7 +9,7 @@ import {
 } from "@lcsp/contracts/github-integration";
 
 import type { AppConfig } from "../../../../../config/config.types.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import type { GitHubRepositoryDiscoveryDto } from "../../contracts/github-integration/github-cli-connect.contract.js";
 import {

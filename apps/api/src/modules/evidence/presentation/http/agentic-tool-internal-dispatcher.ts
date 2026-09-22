@@ -6,7 +6,7 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import { HttpStatus } from "@nestjs/common";
 import type { CommandBus } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { ConsolidateVerifiedAgentEpisodesCommand } from "../../application/commands/consolidate-verified-agent-episodes/consolidate-verified-agent-episodes.command.js";
 import { ResumeWaitingRunsCommand } from "../../../legal-rule-catalog/application/commands/resume-waiting-runs/resume-waiting-runs.command.js";
 import { RequestTargetedReanalysisCommand } from "../../../scan/application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.js";

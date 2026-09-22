@@ -1,11 +1,11 @@
+import type { SignInInput } from "@lcsp/contracts/auth";
 import type { RequestMeta } from "../../contracts/auth/common.contract.ts";
-import type { CredentialPayload } from "../../contracts/auth/sign-in.contract.ts";
 
 export class SignInCommand {
-  readonly payload: CredentialPayload;
+  readonly payload: SignInInput;
   readonly requestMeta: RequestMeta;
 
-  constructor(payload: CredentialPayload, requestMeta: RequestMeta = {}) {
+  constructor(payload: SignInInput, requestMeta: RequestMeta = {}) {
     this.payload = payload;
     this.requestMeta = requestMeta;
   }

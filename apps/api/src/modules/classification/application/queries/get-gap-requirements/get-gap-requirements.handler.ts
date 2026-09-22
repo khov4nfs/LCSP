@@ -21,7 +21,7 @@ import {
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { GetGapRequirementsQuery } from "./get-gap-requirements.query.js";
 
 const CLASSIFICATION_REF_PREFIX = "classification:";

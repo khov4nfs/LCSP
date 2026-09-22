@@ -211,7 +211,7 @@ describe("Admin HTTP Input Validation & Contract Compatibility", () => {
           await controller.suspendUser(
             "user-1",
             { expectedVersion: 0 },
-            invalidKey,
+            invalidKey as unknown as string | undefined,
             mockRequest,
           );
           expect(true).toBe(false);

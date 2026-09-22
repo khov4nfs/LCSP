@@ -7,7 +7,7 @@ import { Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/problems/problem-factory.ts";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { OAuthState } from "../../../domain/models/auth.models.ts";
 import { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
 import { issueOAuthStateToken } from "../../../infrastructure/security/security.utils.ts";
@@ -21,6 +21,15 @@ import { OAuthLinkStartCommand } from "./oauth-link-start.command.ts";
 
 const OAUTH_STATE_TTL_MS = 10 * 60_000;
 
+/**
+ * Handles initiating an OAuth 2.0 / OIDC flow to link a social provider to an existing authenticated account.
+ *
+ * Enforces:
+ * 1. Requires active authenticated user session context (userId, sessionId).
+ * 2. Validates provider support and allowed redirect URI origin whitelist.
+ * 3. Associates issued state/nonce with the authenticated userId and sessionId.
+ * 4. Generates authorization URL and records linking audit event.
+ */
 @CommandHandler(OAuthLinkStartCommand)
 export class OAuthLinkStartHandler implements ICommandHandler<OAuthLinkStartCommand> {
   constructor(
@@ -31,6 +40,12 @@ export class OAuthLinkStartHandler implements ICommandHandler<OAuthLinkStartComm
     private readonly configService: ConfigService,
   ) {}
 
+  /**
+   * Executes OAuth link initiation.
+   *
+   * @param command - Contains OAuth payload, userId, sessionId, and request metadata.
+   * @returns Authorization redirect URL and correlation ID.
+   */
   async execute(
     command: OAuthLinkStartCommand,
   ): Promise<OAuthLinkStartSuccess> {
@@ -38,12 +53,8 @@ export class OAuthLinkStartHandler implements ICommandHandler<OAuthLinkStartComm
     const correlationId =
       requestMeta.correlationId ?? this.support.createCorrelationId();
 
-    const providerName = asNonEmptyString(payload?.provider);
-    const redirectUri = asNonEmptyString(payload?.redirect_uri);
-
-    if (!providerName || !redirectUri) {
-      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
-    }
+    const providerName = payload.provider;
+    const redirectUri = payload.redirect_uri;
 
     const provider = this.providerRegistry.resolve(providerName);
     if (!provider) {
@@ -124,12 +135,6 @@ export class OAuthLinkStartHandler implements ICommandHandler<OAuthLinkStartComm
       flow: "link",
     });
   }
-}
-
-function asNonEmptyString(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : null;
 }
 
 function isAllowedRedirectOrigin(
