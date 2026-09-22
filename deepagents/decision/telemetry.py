@@ -51,6 +51,7 @@ def build_result_event(request: DecisionRequest, result: DecisionResult) -> dict
             "provider": result.provider,
             "modelVersion": result.model_version,
             "questionIds": list(result.question_ids),
+            "questionResults": [_question_result(item) for item in result.question_results],
             "confidence": result.confidence,
             "latencyMs": result.latency_ms,
             "usage": result.usage,
@@ -124,6 +125,23 @@ def _event(
 
 def _without_none(value: dict[str, Any]) -> dict[str, Any]:
     return {key: item for key, item in value.items() if item is not None}
+
+
+def _question_result(result: Any) -> dict[str, Any]:
+    value: dict[str, Any] = {
+        "questionId": result.question_id,
+        "questionType": result.question_type,
+        "probability": result.probability,
+        "probabilities": result.probabilities,
+        "confidence": result.confidence,
+    }
+    if result.selected_choice is not None:
+        value["selectedChoice"] = result.selected_choice
+    if result.score is not None:
+        value["score"] = result.score
+    if result.noul is not None:
+        value["noul"] = result.noul
+    return _without_none(value)
 
 
 __all__ = [
