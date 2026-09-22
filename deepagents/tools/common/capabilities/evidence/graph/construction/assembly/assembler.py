@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable
+from typing import Callable, Iterable
 
 from tools.common.capabilities.evidence.scanner.dependencies.dependency_fact import normalize_package_name
 
@@ -56,6 +56,31 @@ from tools.common.capabilities.evidence.graph.construction.validation.validator 
 from tools.common.capabilities.evidence.graph.schema.vocabulary import NODE_TYPES
 
 
+# Ordered assembly stages. A repository-sized build runs these for tens of
+# minutes; reporting each one lets the scan boundary show progress and keep its
+# liveness heartbeat, which otherwise sees one event for the entire chain.
+EVIDENCE_GRAPH_ASSEMBLY_STAGES: tuple[str, ...] = (
+    "semantic extraction",
+    "framework boundaries",
+    "Python architecture",
+    "JavaScript architecture",
+    "managed and generic dispatch",
+    "AI invocation gate",
+    "AI discovery",
+    "AI lifecycle",
+    "data lineage",
+    "contract and database lineage",
+    "sensitive lineage gate",
+    "API and protocol boundaries",
+    "decision influence",
+    "dependencies and findings",
+    "AI safety finalization",
+    "graph build and validation",
+)
+
+AssemblyStageCallback = Callable[[str, int, int], None]
+
+
 class ProgramGraphAssembler:
     """Build the whole statically resolvable repository graph before LLM investigation."""
 
@@ -74,13 +99,24 @@ class ProgramGraphAssembler:
         include_files: Iterable[str] | None = None,
         config_hash: str = "",
         project_discovery=None,
+        on_stage: AssemblyStageCallback | None = None,
     ):
+        def stage(name: str) -> None:
+            if on_stage is not None:
+                on_stage(
+                    name,
+                    EVIDENCE_GRAPH_ASSEMBLY_STAGES.index(name) + 1,
+                    len(EVIDENCE_GRAPH_ASSEMBLY_STAGES),
+                )
+
         scoped_files = tuple(include_files) if include_files is not None else None
+        stage("semantic extraction")
         program = RepositorySemanticExtractor(workspace_path).extract(
             include_files=scoped_files
         )
         if semantic_program is not None:
             program.extend(semantic_program)
+        stage("framework boundaries")
         program.extend(FrameworkBoundaryExtractor(workspace_path).extract())
         CrossReferenceResolver().enrich(program, workspace_path, project_discovery)
 
@@ -88,11 +124,14 @@ class ProgramGraphAssembler:
         # Resolve known framework families first, then run a conservative literal-key
         # registration/dispatch fallback for custom libraries and other languages.
         FrameworkBoundaryResolver(workspace_path).enrich(program)
+        stage("Python architecture")
         PythonAgentBoundaryResolver(workspace_path).enrich(program)
         PythonArchitectureResolver(workspace_path).enrich(program)
         PythonFrameworkAdapters(workspace_path).enrich(program)
+        stage("JavaScript architecture")
         JavaScriptArchitectureResolver(workspace_path).enrich(program)
         ReduxExtendedResolver(workspace_path).enrich(program)
+        stage("managed and generic dispatch")
         ManagedArchitectureResolver(workspace_path).enrich(program)
         GenericDispatchResolver(workspace_path).enrich(program)
         normalize_framework_binding_metadata(program)
@@ -101,28 +140,33 @@ class ProgramGraphAssembler:
         # Normalize executable call semantics before any AI input/output lineage is
         # materialized so false provider/config/redaction calls cannot create derived
         # AI_OUTPUT nodes that later look corroborated to Planner/Investigator.
+        stage("AI invocation gate")
         AIInvocationSemanticGate().enrich(program)
 
         # Resolve AI-relevant outbound API/config/control evidence while raw source is
         # still available inside the ephemeral scanner workspace. Only bounded metadata
         # (env names, hosts/paths, payload key hints and source anchors) is emitted.
+        stage("AI discovery")
         AIDiscoveryEnricher(
             workspace_path, include_files=scoped_files
         ).enrich(program)
 
         # Normalize concrete repository evidence for model ownership/lifecycle before
         # data-lineage enrichment. Dependency presence alone is not a lifecycle stage.
+        stage("AI lifecycle")
         AILifecycleExtractor(workspace_path).enrich(program)
 
         # v3 data lineage is built over the already resolved technical IR. It creates
         # first-class DATA_OBJECT identities, preserves payload flow through framework
         # boundaries, materializes AI input/output flow, reads protobuf contracts and
         # derives weak semantic seeds without trusting identifier names as conclusions.
+        stage("data lineage")
         SemanticDataLineageExtractor(workspace_path).enrich(program)
 
         # Protocol/API/DB contracts provide stable data identities before implementation
         # variables. Schema field names are weak semantic seeds only; runtime lineage and
         # processing behavior are required before sensitive facts become Planner-material.
+        stage("contract and database lineage")
         ContractDataLineageExtractor(workspace_path).enrich(program)
         DatabaseSchemaLineageExtractor(workspace_path).enrich(program)
         ContractLineageFlowFinalizer().enrich(program)
@@ -130,16 +174,19 @@ class ProgramGraphAssembler:
         # Promote sensitive semantics only when behavior corroborates the weak seed.
         # A standalone "fingerprint"/"cccd" identifier remains INFERRED, while actual
         # OCR/KYC or biometric representation+matching flow becomes CORROBORATED.
+        stage("sensitive lineage gate")
         SensitiveLineageGate(workspace_path).enrich(program)
 
         # API/protocol declarations are continuation boundaries. Resolve source HTTP,
         # GraphQL and gRPC handlers to concrete symbols or expose explicit uncertainty.
+        stage("API and protocol boundaries")
         ApiBoundaryResolver(workspace_path).enrich(program)
         ProtocolBoundaryResolver().enrich(program)
 
         # Bind lineage-backed business actions to first-class BUSINESS_DECISION nodes.
         # This is a technical influence relation only; legal automation/risk conclusions
         # remain outside the graph and deterministic EngineeringRule evaluator.
+        stage("decision influence")
         DecisionInfluenceEnricher().enrich(program)
 
         # Test/spec/fixture sources are not product behavior. Remove them before stable
@@ -147,6 +194,8 @@ class ProgramGraphAssembler:
         # code search, planner materiality, or persisted classification evidence. The
         # post-filter framework finalizer runs inside this policy boundary.
         exclude_test_sources_from_semantic_program(program)
+
+        stage("dependencies and findings")
 
         program.add_node(
             SemanticNodeFact("repository", "REPOSITORY", f"snapshot:{snapshot_id}")
@@ -305,6 +354,7 @@ class ProgramGraphAssembler:
         # Apply the same semantic contract to additive analyzer findings. This second
         # pass cannot create AI lineage (lineage is already complete); it prevents broad
         # legacy finding categories from persisting under AI_MODEL_INVOCATION identity.
+        stage("AI safety finalization")
         AIInvocationSemanticGate().enrich(program)
 
         # AI discovery has a source-seeding pass above, but the safety gate is finalized
@@ -321,6 +371,7 @@ class ProgramGraphAssembler:
         # AI inference or business-decision semantics in the persisted graph.
         SemanticIntegrityFinalizer().enrich(program)
 
+        stage("graph build and validation")
         builder = ProgramGraphBuilder(
             workspace_path,
             scan_job_id=scan_job_id,

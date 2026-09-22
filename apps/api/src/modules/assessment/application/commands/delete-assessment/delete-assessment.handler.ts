@@ -14,6 +14,10 @@ import { PrismaService } from "../../../../../infrastructure/prisma/prisma.servi
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import {
+  ASSESSMENT_BILLING_RETENTION,
+  type AssessmentBillingRetentionPort,
+} from "../../ports/billing/assessment-billing-retention.port.js";
+import {
   ASSESSMENT_REPOSITORY,
   type AssessmentRepository,
 } from "../../ports/persistence/assessment.repository.js";
@@ -29,6 +33,8 @@ export class DeleteAssessmentHandler implements ICommandHandler<DeleteAssessment
     private readonly assessments: AssessmentRepository,
     private readonly prisma: PrismaService,
     private readonly auditWriter: AuditWriterService,
+    @Inject(ASSESSMENT_BILLING_RETENTION)
+    private readonly billingRetention: AssessmentBillingRetentionPort,
   ) {}
 
   async execute(
@@ -43,6 +49,15 @@ export class DeleteAssessmentHandler implements ICommandHandler<DeleteAssessment
       );
     }
 
+    // Credit reserved for this assessment is returned before the record goes
+    // away; the reservation can no longer be released once its assessment link
+    // is cleared, so the wallet would hold the credit forever.
+    const releasedReservations =
+      await this.billingRetention.releaseActiveReservations({
+        assessmentId: assessment.id,
+        userId: assessment.ownerId,
+      });
+
     await this.prisma.$transaction(async (tx) => {
       await this.auditWriter.writeInTx(
         {
@@ -56,10 +71,17 @@ export class DeleteAssessmentHandler implements ICommandHandler<DeleteAssessment
           decision: AUDIT_DECISIONS.allow,
           result: ASSESSMENT_EVENT_TYPES.deleted,
           redactionStatus: AUDIT_REDACTION_STATUSES.none,
-          payload: { assessmentId: assessment.id },
+          payload: {
+            assessmentId: assessment.id,
+            releasedReservations,
+          },
         },
         tx,
       );
+      // Billing records outlive the assessment as financial history, so the
+      // database refuses to cascade them. Detaching keeps the record and lets
+      // the assessment go.
+      await this.billingRetention.detachAssessment(assessment.id, tx);
       await tx.assessment.delete({ where: { id: assessment.id } });
     });
 

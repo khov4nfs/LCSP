@@ -6,6 +6,7 @@ literal personal/secret values.
 """
 from __future__ import annotations
 import ast, re
+from bisect import bisect_right
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
@@ -946,6 +947,10 @@ class RepositorySemanticExtractor:
         # Return expressions are value-flow edges, not textual alias hints. An
         # expression that cannot be reduced is retained as an unresolved return
         # boundary so downstream closure cannot mistake omission for absence.
+        # One unresolved return settles the whole return boundary. Re-marking it
+        # for every later return line rebuilt the entire node list each time,
+        # which is quadratic once the program holds a repository of nodes.
+        unresolved_return_keys: set[str] = set()
         for item in callables:
             return_key = f"return:{item.key}"
             for return_line_no in range(item.body_start_line, item.end_line + 1):
@@ -969,9 +974,12 @@ class RepositorySemanticExtractor:
                     or "{" in return_expression
                     or "?" in return_expression
                 )
-                if unresolved_return:
-                    program.nodes = [
-                        SemanticNodeFact(
+                if unresolved_return and return_key not in unresolved_return_keys:
+                    unresolved_return_keys.add(return_key)
+                    for index, node in enumerate(program.nodes):
+                        if node.key != return_key:
+                            continue
+                        program.nodes[index] = SemanticNodeFact(
                             node.key,
                             node.node_type,
                             node.label,
@@ -987,10 +995,6 @@ class RepositorySemanticExtractor:
                             "UNRESOLVED",
                             node.support_refs,
                         )
-                        if node.key == return_key
-                        else node
-                        for node in program.nodes
-                    ]
                 for source in js_expression_references(return_expression):
                     source_key = js_binding_key(source, return_line_no)
                     if not source_key.startswith("param:"):
@@ -2250,8 +2254,19 @@ def _python_http_client_aliases(
     def add(table: dict[str, list[tuple[int, bool]]], name: str, line: int, is_http: bool) -> None:
         table.setdefault(name.lower(), []).append((line, is_http))
 
+    def scope_body(scope: ast.AST) -> list[ast.AST]:
+        """Return a scope body as statements.
+
+        A lambda body is a single expression rather than a statement list, so
+        reading it as a sequence raises instead of indexing the lambda.
+        """
+        body = getattr(scope, "body", [])
+        if isinstance(body, list):
+            return body
+        return [body] if isinstance(body, ast.AST) else []
+
     def scope_nodes(scope: ast.AST):
-        stack = list(reversed(list(getattr(scope, "body", []))))
+        stack = list(reversed(scope_body(scope)))
         while stack:
             node = stack.pop()
             yield node
@@ -2260,7 +2275,7 @@ def _python_http_client_aliases(
             stack.extend(reversed(list(ast.iter_child_nodes(node))))
 
     def nested_scopes(scope: ast.AST):
-        stack = list(reversed(list(getattr(scope, "body", []))))
+        stack = list(reversed(scope_body(scope)))
         while stack:
             node = stack.pop()
             if isinstance(node, scope_types):
@@ -2377,19 +2392,33 @@ def _text_http_client_aliases(text: str) -> dict[int, set[str]]:
                     if match:
                         add(opened[0], match.group(1), line_no, False)
 
-    names = {name for scope in bindings.values() for name in scope}
+    # A binding can only be active on a line whose own scope chain declares it,
+    # and its state on that line is its last event at or before it. Scanning every
+    # name in the file for every line, and rebuilding the prior-event list each
+    # time, made this quadratic in file size and dominated whole-repository scans.
+    scope_events = {
+        scope_id: {
+            name: ([line for line, _ in events], [value for _, value in events])
+            for name, events in scope_bindings.items()
+        }
+        for scope_id, scope_bindings in bindings.items()
+    }
     active_by_line: dict[int, set[str]] = {}
     for line_no, path in enumerate(paths, start=1):
         active: set[str] = set()
-        for name in names:
-            for scope_id in reversed(path):
-                events = bindings.get(scope_id, {}).get(name)
-                if events is None:
+        # The innermost scope that binds a name shadows every outer binding of it.
+        shadowed: set[str] = set()
+        for scope_id in reversed(path):
+            declared = scope_events.get(scope_id)
+            if not declared:
+                continue
+            for name, (event_lines, values) in declared.items():
+                if name in shadowed:
                     continue
-                prior = [value for event_line, value in events if event_line <= line_no]
-                if prior and prior[-1]:
+                shadowed.add(name)
+                position = bisect_right(event_lines, line_no)
+                if position and values[position - 1]:
                     active.add(name)
-                break
         active_by_line[line_no] = active
     return active_by_line
 

@@ -1533,6 +1533,9 @@ export type PagesMessages = {
       completeDescription: string;
       runningPlaceholder: string;
       failedPlaceholder: string;
+      retryScan: string;
+      retryingScan: string;
+      retryError: string;
       activities: {
         connect: string;
         clone: string;

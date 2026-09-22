@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import contextvars
 import hashlib
 import json
 import platform
+import threading
 import time
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
@@ -48,6 +50,9 @@ from tools.common.capabilities.evidence.scanner.inventory.language.language_clas
 from tools.common.capabilities.evidence.scanner.parsers.structural.structural_augmentor import StructuralAugmentor
 from tools.common.capabilities.evidence.scanner.parsers.structural.structural_types import StructuralFact
 from tools.common.capabilities.evidence.graph.construction.assembly.assembler import ProgramGraphAssembler
+from tools.common.capabilities.evidence.graph.construction.validation.validator import (
+    ProgramGraphValidationError,
+)
 from tools.common.capabilities.evidence.graph.schema.semantic_ir import SemanticProgram
 from tools.common.capabilities.evidence.scanner.evidence.finalization.terminal_state_handler import (
     CleanupBlockedError,
@@ -101,6 +106,66 @@ from tools.common.capabilities.evidence.scanner.snapshot.workspace import (
 )
 
 logger = get_logger(__name__)
+
+# Well inside the API's default five-minute scan staleness window, so a healthy
+# evidence-graph build is never mistaken for a stopped worker.
+EVIDENCE_GRAPH_HEARTBEAT_INTERVAL_SECONDS = 120.0
+
+
+class _EvidenceGraphHeartbeat:
+    """Report evidence-graph stages and keep the scan alive while the build runs.
+
+    The API fails a scan whose latest runtime event is older than its stale
+    window, and the graph build is one tool call whose single stages can run for
+    longer than that window on a large repository. Stage boundaries alone are
+    therefore not enough: a timer sends the current stage every interval for as
+    long as the build runs. Every stage is also logged as it starts. A heartbeat
+    that cannot be delivered is logged and never fails the scan.
+    """
+
+    def __init__(self, emit: Callable[[str], None], interval_seconds: float) -> None:
+        self._emit = emit
+        self._interval_seconds = interval_seconds
+        self._stage = "starting"
+        self._lock = threading.Lock()
+        self._stopped = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def report(self, name: str, index: int, total: int) -> None:
+        logger.info("SCAN_EVIDENCE_GRAPH_STAGE", stage=name, index=index, total=total)
+        with self._lock:
+            self._stage = f"{name} ({index}/{total})"
+
+    def __enter__(self) -> "_EvidenceGraphHeartbeat":
+        # Worker callbacks carry the correlation id from context variables, which a
+        # new thread does not inherit on its own.
+        context = contextvars.copy_context()
+        self._thread = threading.Thread(
+            target=context.run,
+            args=(self._run,),
+            name="lcsp-evidence-graph-heartbeat",
+            daemon=True,
+        )
+        self._thread.start()
+        return self
+
+    def __exit__(self, *_exc_info: object) -> None:
+        self._stopped.set()
+        if self._thread is not None:
+            self._thread.join(timeout=self._interval_seconds)
+
+    def _run(self) -> None:
+        while not self._stopped.wait(self._interval_seconds):
+            with self._lock:
+                stage = self._stage
+            try:
+                self._emit(stage)
+            except Exception as error:  # noqa: BLE001 - liveness is best effort
+                logger.warning(
+                    "SCAN_EVIDENCE_GRAPH_HEARTBEAT_FAILED",
+                    stage=stage,
+                    error=type(error).__name__,
+                )
 
 NOT_APPLICABLE_RULESET_HASH = "sha256:not-applicable"
 _TERMINAL_SCAN_CLIENT_ERROR_CODES = frozenset(
@@ -1320,22 +1385,26 @@ class ScanBoundary(AgentBoundaryBase):
                 },
                 started_at=graph_started_at,
             )
-            evidence_graph = self._run_scanner_tool(
-                "build_evidence_graph",
-                scan_job_id=envelope.scan_job_id,
-                snapshot_id=envelope.snapshot_id,
-                commit_sha=envelope.commit_sha,
-                workspace_path=result.workspace_path,
-                technical_findings=technical_findings,
-                structural_facts=structural_facts,
-                semantic_program=self._merge_semantic_programs(
-                    ruby_program, csharp_program, jvm_program, php_program, systems_program,
-                    mobile_program, remaining_program, framework_program
-                ),
-                package_dependencies=package_dependencies,
-                coverage_notes=coverage_notes,
-                project_discovery=project_discovery,
-            )
+            with self._evidence_graph_heartbeat(
+                envelope.scan_job_id, graph_started_at
+            ) as heartbeat:
+                evidence_graph = self._run_scanner_tool(
+                    "build_evidence_graph",
+                    scan_job_id=envelope.scan_job_id,
+                    snapshot_id=envelope.snapshot_id,
+                    commit_sha=envelope.commit_sha,
+                    workspace_path=result.workspace_path,
+                    technical_findings=technical_findings,
+                    structural_facts=structural_facts,
+                    semantic_program=self._merge_semantic_programs(
+                        ruby_program, csharp_program, jvm_program, php_program, systems_program,
+                        mobile_program, remaining_program, framework_program
+                    ),
+                    package_dependencies=package_dependencies,
+                    coverage_notes=coverage_notes,
+                    project_discovery=project_discovery,
+                    on_stage=heartbeat.report,
+                )
             graph_ended_at = self._utc_timestamp()
             self._emit_runtime_event(
                 envelope.scan_job_id,
@@ -1493,13 +1562,21 @@ class ScanBoundary(AgentBoundaryBase):
                 self._runtime_scan_job_id = None
                 raise
             failed_at = self._utc_timestamp()
+            # A graph that fails validation fails the same way for the same pinned
+            # snapshot and code, so a redelivery only repeats the whole scan. Its
+            # fixed rule name carries no source content and says what to fix.
+            graph_invalid = isinstance(error, ProgramGraphValidationError)
             self._emit_runtime_event(
                 envelope.scan_job_id,
                 event_type="RUN_FAILED",
                 run_status="FAILED",
                 tool_name="repository_scan",
                 summary="Repository scan failed",
-                error_summary=type(error).__name__,
+                error_summary=(
+                    f"{type(error).__name__}: {error}"
+                    if graph_invalid
+                    else type(error).__name__
+                ),
                 completed_at=failed_at,
             )
             try:
@@ -1508,6 +1585,8 @@ class ScanBoundary(AgentBoundaryBase):
                 self._runtime_scan_job_id = None
                 raise cleanup_error from error
             self._runtime_scan_job_id = None
+            if graph_invalid:
+                raise NonRetryableAgentBoundaryError(str(error)) from error
             raise
 
     @classmethod
@@ -1577,6 +1656,23 @@ class ScanBoundary(AgentBoundaryBase):
             if isinstance(value, str) and value.strip():
                 return value.strip()
         return None
+
+    def _evidence_graph_heartbeat(
+        self, scan_job_id: str | None, started_at: str
+    ) -> "_EvidenceGraphHeartbeat":
+        """Keep a long evidence-graph build visibly alive to the API."""
+
+        def emit(stage: str) -> None:
+            self._emit_runtime_event(
+                scan_job_id,
+                event_type="TOOL_STARTED",
+                run_status="RUNNING",
+                tool_name="build_evidence_graph",
+                summary=f"Building technical evidence graph: {stage}",
+                started_at=started_at,
+            )
+
+        return _EvidenceGraphHeartbeat(emit, EVIDENCE_GRAPH_HEARTBEAT_INTERVAL_SECONDS)
 
     def _run_scanner_tool(self, tool_name: str, **tool_input):
         logger.info("SCAN_TOOL_STARTED", tool_name=tool_name)

@@ -1588,6 +1588,9 @@ export const viPages = {
       runningPlaceholder: "Scanner đang chạy...",
       failedPlaceholder:
         "Scanner cần được xử lý trước khi Interview có thể bắt đầu.",
+      retryScan: "Thử lại quét source",
+      retryingScan: "Đang tạo scan mới",
+      retryError: "Không thể thử lại quét source. Hãy thử lại sau.",
       activities: {
         connect: "Đã kết nối Git provider",
         clone: "Đã clone source archive",

@@ -9,9 +9,9 @@ import {
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 
+import { repositorySetupSchema } from "../src/features/assessment-flow/schemas/repository-setup.schema";
 import { deriveAssessmentFlowRuntime } from "../src/features/assessment-flow/utils/assessment-flow-runtime";
 import { deriveProgramEvidenceSummary } from "../src/features/assessment-flow/utils/program-evidence-summary";
-import { repositorySetupSchema } from "../src/features/assessment-flow/schemas/repository-setup.schema";
 import { TOOL_ACTIVITY_STATUSES } from "../src/features/workspace/types/assessment-chat.types";
 import type { WorkspaceRuntimeActivityItem } from "../src/features/workspace/types/workspace-runtime.types";
 
@@ -27,8 +27,20 @@ const repositoryConnectionResultPath = new URL(
   "../src/features/assessment-flow/components/molecules/repository-connection-result.tsx",
   import.meta.url,
 );
+const assessmentOverviewPath = new URL(
+  "../src/features/workspace/components/organisms/assessment-overview.tsx",
+  import.meta.url,
+);
+const scannerStepPath = new URL(
+  "../src/features/assessment-flow/components/organisms/scanner-step.tsx",
+  import.meta.url,
+);
 const scannerSequencePath = new URL(
   "../src/features/assessment-flow/components/molecules/scanner-activity-sequence.tsx",
+  import.meta.url,
+);
+const assessmentQueriesPath = new URL(
+  "../src/lib/api/assessment-queries.ts",
   import.meta.url,
 );
 
@@ -210,6 +222,71 @@ test("completed scan waits for accepted evidence before rendering F04", () => {
       TOOL_ACTIVITY_STATUSES.running,
     ],
   );
+});
+
+test("failed repository scan stays in scanner and marks source scan failed", () => {
+  const flow = deriveAssessmentFlowRuntime({
+    hasRepositoryConnection: true,
+    snapshot: {
+      id: "snapshot-1",
+      assessmentId: "assessment-1",
+      provider: ASSESSMENT_REPOSITORY_PROVIDERS.github,
+      repositoryFullName: "acme/payments",
+      branch: null,
+      commitSha: "c".repeat(40),
+      createdAt: "2026-09-05T00:00:00.000Z",
+    },
+    scanJob: {
+      id: "scan-1",
+      assessmentId: "assessment-1",
+      snapshotId: "snapshot-1",
+      status: REPOSITORY_SCAN_JOB_STATUSES.failed,
+      attemptCount: 1,
+      blockedReason: null,
+      updatedAt: "2026-09-05T00:00:02.000Z",
+    },
+    evidenceReport: null,
+  });
+
+  assert.equal(flow.stage, ASSESSMENT_FLOW_STAGES.scanner);
+  assert.equal(flow.scanFailed, true);
+  assert.deepEqual(
+    flow.activities.map((activity) => activity.status),
+    [
+      TOOL_ACTIVITY_STATUSES.completed,
+      TOOL_ACTIVITY_STATUSES.completed,
+      TOOL_ACTIVITY_STATUSES.failed,
+      TOOL_ACTIVITY_STATUSES.pending,
+      TOOL_ACTIVITY_STATUSES.pending,
+    ],
+  );
+});
+
+test("assessment scanner renders retry action for failed source scans", async () => {
+  const [overviewSource, scannerStepSource, queriesSource] = await Promise.all([
+    readFile(assessmentOverviewPath, "utf8"),
+    readFile(scannerStepPath, "utf8"),
+    readFile(assessmentQueriesPath, "utf8"),
+  ]);
+
+  assert.match(overviewSource, /useRerunRepositoryScanMutation/);
+  assert.match(
+    overviewSource,
+    /retryScanSnapshotId = scanJob\?\.snapshotId \?\? snapshot\?\.id/,
+  );
+  assert.match(overviewSource, /scanFailed={flow\.scanFailed}/);
+  assert.match(
+    overviewSource,
+    /retryScan\.mutate\(\{ snapshotId: retryScanSnapshotId \}\)/,
+  );
+  assert.match(scannerStepSource, /RotateCcwIcon/);
+  assert.match(scannerStepSource, /pages\.assessmentFlow\.scanner\.retryScan/);
+  assert.match(
+    scannerStepSource,
+    /pages\.assessmentFlow\.scanner\.retryingScan/,
+  );
+  assert.match(scannerStepSource, /pages\.assessmentFlow\.scanner\.retryError/);
+  assert.match(queriesSource, /apiQueryKeys\.workspace\.detail\(\)/);
 });
 
 test("program evidence graph metrics ignore runtime summaries and use canonical overview", () => {

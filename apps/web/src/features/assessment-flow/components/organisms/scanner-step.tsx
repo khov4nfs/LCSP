@@ -1,5 +1,7 @@
 import { resolveMessage } from "@lcsp/i18n";
+import { RotateCcwIcon } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import {
   AgentMessage,
   AgentTurn,
@@ -7,13 +9,13 @@ import {
 } from "@/features/workspace/components/molecules/agent-turn";
 import { appLocale } from "@/lib/locale";
 
+import { ProgramEvidenceSummary } from "@/features/workspace/components/molecules/program-evidence-summary";
+import type { ProgramEvidenceGraphOverview } from "@/lib/api/evidence-graph-detail-client";
 import type {
   ProgramEvidenceSummary as ProgramEvidenceSummaryType,
   RepositoryHistory,
   ScannerActivityItem,
 } from "../../types/assessment-flow.types";
-import type { ProgramEvidenceGraphOverview } from "@/lib/api/evidence-graph-detail-client";
-import { ProgramEvidenceSummary } from "@/features/workspace/components/molecules/program-evidence-summary";
 import { RepositoryConnectionResult } from "../molecules/repository-connection-result";
 import { ScannerActivitySequence } from "../molecules/scanner-activity-sequence";
 
@@ -24,6 +26,11 @@ type ScannerStepProps = {
   evidenceReady: boolean;
   programEvidenceSummary: ProgramEvidenceSummaryType;
   canonicalOverview?: ProgramEvidenceGraphOverview | null;
+  scanFailed?: boolean;
+  retryScanPending?: boolean;
+  retryScanError?: boolean;
+  retryScanDisabled?: boolean;
+  onRetryScan?: () => void;
 };
 
 export function ScannerStep({
@@ -33,7 +40,14 @@ export function ScannerStep({
   evidenceReady,
   programEvidenceSummary,
   canonicalOverview,
+  scanFailed = false,
+  retryScanPending = false,
+  retryScanError = false,
+  retryScanDisabled = false,
+  onRetryScan,
 }: ScannerStepProps) {
+  const canRetryScan = scanFailed && onRetryScan;
+
   return (
     <>
       <AgentTurn>
@@ -58,6 +72,27 @@ export function ScannerStep({
         <div className="mt-3">
           <ScannerActivitySequence activities={activities} />
         </div>
+        {canRetryScan ? (
+          <div className="mt-3 flex flex-col items-start gap-2">
+            <Button
+              disabled={retryScanDisabled}
+              onClick={onRetryScan}
+              size="sm"
+              type="button"
+              variant="outline"
+            >
+              <RotateCcwIcon aria-hidden="true" data-icon="inline-start" />
+              {retryScanPending
+                ? t("pages.assessmentFlow.scanner.retryingScan")
+                : t("pages.assessmentFlow.scanner.retryScan")}
+            </Button>
+            {retryScanError ? (
+              <p className="text-xs text-destructive" role="alert">
+                {t("pages.assessmentFlow.scanner.retryError")}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         {evidenceReady ? (
           <ProgramEvidenceSummary
             className="mt-4"
