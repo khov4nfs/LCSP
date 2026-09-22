@@ -110,6 +110,46 @@ jobs:
       - name: Check managed sandbox release gate validator
         run: pnpm run test:managed-sandbox-release-gate
 
+  decision-pr-review-triage:
+    name: PR review shadow triage packet
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: deepagents/pyproject.toml
+
+      - name: Install Python worker dependencies
+        working-directory: deepagents
+        run: python -m pip install -e ".[dev]"
+
+      - name: Build bounded PR-review shadow triage packet
+        working-directory: deepagents
+        run: >-
+          python -m decision.pr_review_triage
+          --packet-only
+          --pr-number "${{ github.event.pull_request.number }}"
+          --base-sha "${{ github.event.pull_request.base.sha }}"
+          --head-sha "${{ github.event.pull_request.head.sha }}"
+          --output "../artifacts/decision/pr-review-triage-packet.json"
+
+      - name: Upload PR-review shadow triage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcsp336-pr-review-shadow-packet-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: artifacts/decision/
+          if-no-files-found: error
+          retention-days: 14
+
   managed-sandbox-release-gate:
     name: Managed sandbox proof
     needs: changes

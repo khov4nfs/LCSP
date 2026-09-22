@@ -10,6 +10,7 @@ import re
 from typing import Any
 
 from orchestration.dispatcher import RootSubagentDispatcher
+from decision.shadow import InterviewRoutingPacket, observer_from_api_client
 from tools.common.capabilities.platform.api_client import InterviewCoverageCallbackError
 
 from .engineering_assessment_boundary import EngineeringAssessmentBoundary
@@ -351,6 +352,32 @@ class InterviewGatedEngineeringAssessmentBoundary(EngineeringAssessmentBoundary)
         )
         frontier_refs = frontier.get("evidenceRefs") or []
         validate_evidence_refs([*question_refs, *frontier_refs], ledger.authorized_refs)
+
+        try:
+            server_topic = _server_owned_topic(frontier, question)
+            observer_from_api_client(self._api_client).observe_interview_routing(
+                InterviewRoutingPacket(
+                    assessment_id=assessment_id,
+                    review_run_id=valid_wf_id,
+                    authoritative_topic=server_topic,
+                    active_question_id=str(question.get("id") or question.get("questionId") or ""),
+                    active_topic_key=server_topic,
+                    context_revision=0,
+                    customer_safe_topic_keys=(server_topic,),
+                    unresolved_topic_keys=(server_topic,),
+                    resolution_criteria_keys=tuple(
+                        str(item)
+                        for item in (
+                            frontier.get("resolutionCriteria")
+                            or question.get("resolutionCriteria")
+                            or ()
+                        )
+                        if str(item).strip()
+                    ),
+                )
+            )
+        except Exception:
+            pass
 
         handoff["expectedContextRevision"] = 0
         handoff["technicalEvidenceReportId"] = evidence_report_id
@@ -783,6 +810,33 @@ def _initial_interview_instruction(
         "Return WAITING_FOR_CUSTOMER with exactly one bounded activeQuestion.\n"
         f"Bounded initial context: {json.dumps(safe_context, ensure_ascii=False, sort_keys=True)}"
     )
+
+
+def _server_owned_topic(frontier: dict[str, Any], question: dict[str, Any]) -> str:
+    text = " ".join(
+        str(value)
+        for value in (
+            frontier.get("topic"),
+            frontier.get("kind"),
+            frontier.get("description"),
+            question.get("topic"),
+            question.get("prompt"),
+        )
+        if value
+    ).lower()
+    if any(token in text for token in ("deploy", "release", "production", "runtime")):
+        return "DEPLOYMENT"
+    if any(token in text for token in ("purpose", "use case", "objective", "why")):
+        return "PURPOSE"
+    if any(token in text for token in ("human", "review", "oversight", "approval")):
+        return "HUMAN_REVIEW"
+    if any(token in text for token in ("source", "input", "origin", "collection")):
+        return "DATA_SOURCE"
+    if any(token in text for token in ("reuse", "secondary", "retention")):
+        return "DATA_REUSE"
+    if any(token in text for token in ("feature", "workflow", "function", "capability")):
+        return "FEATURE_OR_WORKFLOW"
+    return "NONE"
 
 
 __all__ = ["InterviewGatedEngineeringAssessmentBoundary"]

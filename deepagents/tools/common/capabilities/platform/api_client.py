@@ -528,6 +528,47 @@ class WorkerApiClient:
                 error=type(exc).__name__,
             )
 
+    def post_decision_model_event(self, payload: dict) -> None:
+        """Persist one privacy-safe decision-model semantic event best-effort."""
+        try:
+            self._post_with_retry(
+                CallbackPath.DECISION_MODEL_EVENT,
+                payload,
+            )
+        except Exception as exc:
+            logger.warning(
+                "DECISION_MODEL_EVENT_POST_FAILED",
+                error=type(exc).__name__,
+            )
+
+    def claim_decision_model_request(self, decision_id: str, payload: dict) -> bool:
+        """Atomically claim a shadow decision idempotency key before provider execution."""
+        path = CallbackPath.DECISION_MODEL_CLAIM.format(decision_id=decision_id)
+        try:
+            response = self._post_with_retry(path, payload)
+        except WorkerCallbackError as exc:
+            if getattr(exc, "status_code", None) == 409:
+                return False
+            logger.warning(
+                "DECISION_MODEL_CLAIM_FAILED_CLOSED",
+                decision_id=decision_id,
+                error=type(exc).__name__,
+            )
+            raise
+        return bool(response.get("claimed", True))
+
+    def complete_decision_model_request(self, decision_id: str, payload: dict) -> None:
+        """Persist the final shadow decision comparison for replay/audit."""
+        path = CallbackPath.DECISION_MODEL_COMPLETE.format(decision_id=decision_id)
+        try:
+            self._post_with_retry(path, payload)
+        except Exception as exc:
+            logger.warning(
+                "DECISION_MODEL_COMPLETE_FAILED",
+                decision_id=decision_id,
+                error=type(exc).__name__,
+            )
+
     def post_technical_profile_callback(
         self, payload: TechnicalProfileCallbackPayload
     ) -> CallbackResponse:

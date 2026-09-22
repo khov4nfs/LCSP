@@ -15,6 +15,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
+import { DecisionModelDecisionStatus, Prisma } from "@prisma/client";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
 import { isRecord } from "../../../../common/utils/index.js";
@@ -121,6 +122,38 @@ interface WorkerRuntimeEventRequest {
   duration_ms?: unknown;
   attempt?: unknown;
   waiting_reason?: unknown;
+}
+
+interface WorkerDecisionModelClaimRequest {
+  decisionType?: unknown;
+  assessmentId?: unknown;
+  reviewRunId?: unknown;
+  prNumber?: unknown;
+  baseSha?: unknown;
+  headSha?: unknown;
+}
+
+interface WorkerDecisionModelCompleteRequest {
+  decisionId?: unknown;
+  decisionType?: unknown;
+  authoritativeAction?: unknown;
+  shadowProposedAction?: unknown;
+  agreement?: unknown;
+  confidence?: unknown;
+  fallbackReason?: unknown;
+  skipped?: unknown;
+}
+
+interface WorkerDecisionModelEventRequest {
+  eventType?: unknown;
+  decisionId?: unknown;
+  decisionType?: unknown;
+  assessmentId?: unknown;
+  reviewRunId?: unknown;
+  prNumber?: unknown;
+  baseSha?: unknown;
+  headSha?: unknown;
+  data?: unknown;
 }
 
 /**
@@ -256,6 +289,7 @@ export class InternalScanController {
   constructor(
     private readonly commandBus: CommandBus,
     private readonly runtimeEvents: AssessmentRuntimeEventService,
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
@@ -375,6 +409,103 @@ export class InternalScanController {
       recorded: event !== null,
       eventId: event?.eventId ?? null,
     });
+  }
+
+  /** Persists one privacy-safe semantic decision-model telemetry event. */
+  @Post("decision-model/events")
+  @HttpCode(202)
+  @UseGuards(WorkerApiKeyGuard)
+  async recordDecisionModelEvent(
+    @Body() payload: WorkerDecisionModelEventRequest,
+  ) {
+    const decisionId = optionalDecisionText(payload.decisionId);
+    const decisionType = optionalDecisionText(payload.decisionType);
+    const eventType = optionalDecisionText(payload.eventType);
+    if (!decisionId || !decisionType || !eventType) {
+      throw new BadRequestException("invalid decision event");
+    }
+    await this.prisma.decisionModelEvent.create({
+      data: {
+        id: randomUUID(),
+        decisionId,
+        decisionType,
+        eventType,
+        assessmentId: optionalDecisionText(payload.assessmentId),
+        reviewRunId: optionalDecisionText(payload.reviewRunId),
+        prNumber: optionalPrNumber(payload.prNumber),
+        baseSha: optionalDecisionText(payload.baseSha),
+        headSha: optionalDecisionText(payload.headSha),
+        payloadJson: boundedDecisionEventPayload(payload),
+      },
+    });
+    return resultEnvelope({ recorded: true });
+  }
+
+  /** Atomically claims one shadow decision ID for replay-safe provider execution. */
+  @Post("decision-model/decisions/:decisionId/claim")
+  @HttpCode(202)
+  @UseGuards(WorkerApiKeyGuard)
+  async claimDecisionModelRequest(
+    @Param("decisionId") decisionIdParam: string,
+    @Body() payload: WorkerDecisionModelClaimRequest,
+  ) {
+    const decisionId = normalizeDecisionId(decisionIdParam);
+    const decisionType = optionalDecisionText(payload.decisionType);
+    if (!decisionId || !decisionType) {
+      throw new BadRequestException("invalid decision claim");
+    }
+    try {
+      await this.prisma.decisionModelDecision.create({
+        data: {
+          decisionId,
+          decisionType,
+          assessmentId: optionalDecisionText(payload.assessmentId),
+          reviewRunId: optionalDecisionText(payload.reviewRunId),
+          prNumber: optionalPrNumber(payload.prNumber),
+          baseSha: optionalDecisionText(payload.baseSha),
+          headSha: optionalDecisionText(payload.headSha),
+          status: DecisionModelDecisionStatus.CLAIMED,
+        },
+      });
+      return resultEnvelope({ claimed: true });
+    } catch (error: unknown) {
+      if (isPrismaUniqueConstraintError(error)) {
+        return resultEnvelope({ claimed: false });
+      }
+      throw error;
+    }
+  }
+
+  /** Completes one shadow decision record with bounded comparison metadata only. */
+  @Post("decision-model/decisions/:decisionId/complete")
+  @HttpCode(202)
+  @UseGuards(WorkerApiKeyGuard)
+  async completeDecisionModelRequest(
+    @Param("decisionId") decisionIdParam: string,
+    @Body() payload: WorkerDecisionModelCompleteRequest,
+  ) {
+    const decisionId = normalizeDecisionId(decisionIdParam);
+    const decisionType = optionalDecisionText(payload.decisionType);
+    if (!decisionId || !decisionType) {
+      throw new BadRequestException("invalid decision completion");
+    }
+    const resultJson = boundedDecisionCompletionPayload(payload);
+    await this.prisma.decisionModelDecision.upsert({
+      where: { decisionId },
+      create: {
+        decisionId,
+        decisionType,
+        status: DecisionModelDecisionStatus.COMPLETED,
+        resultJson,
+        completedAt: new Date(),
+      },
+      update: {
+        status: DecisionModelDecisionStatus.COMPLETED,
+        resultJson,
+        completedAt: new Date(),
+      },
+    });
+    return resultEnvelope({ completed: true });
   }
 
   /**
@@ -592,6 +723,81 @@ function optionalText(value: unknown): string | null {
 
 function optionalStreamText(value: unknown): string | null {
   return typeof value === "string" ? value : null;
+}
+
+function isPrismaUniqueConstraintError(error: unknown): boolean {
+  return (
+    (error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002") ||
+    (isRecord(error) && error.code === "P2002")
+  );
+}
+
+function normalizeDecisionId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= 320 ? trimmed : null;
+}
+
+function optionalDecisionText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= 320 ? trimmed : null;
+}
+
+function optionalPrNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) {
+    return value;
+  }
+  return null;
+}
+
+function boundedDecisionCompletionPayload(
+  payload: WorkerDecisionModelCompleteRequest,
+): Prisma.InputJsonObject {
+  const result: Record<string, Prisma.InputJsonValue> = {};
+  const decisionId = optionalDecisionText(payload.decisionId);
+  const decisionType = optionalDecisionText(payload.decisionType);
+  const authoritativeAction = optionalDecisionText(payload.authoritativeAction);
+  const shadowProposedAction = optionalDecisionText(
+    payload.shadowProposedAction,
+  );
+  const fallbackReason = optionalDecisionText(payload.fallbackReason);
+  if (decisionId) result.decisionId = decisionId;
+  if (decisionType) result.decisionType = decisionType;
+  if (authoritativeAction) result.authoritativeAction = authoritativeAction;
+  if (shadowProposedAction) result.shadowProposedAction = shadowProposedAction;
+  if (typeof payload.agreement === "boolean") {
+    result.agreement = payload.agreement;
+  }
+  if (
+    typeof payload.confidence === "number" &&
+    Number.isFinite(payload.confidence)
+  ) {
+    result.confidence = Math.max(0, Math.min(1, payload.confidence));
+  }
+  if (fallbackReason) result.fallbackReason = fallbackReason;
+  if (typeof payload.skipped === "boolean") {
+    result.skipped = payload.skipped;
+  }
+  return result;
+}
+
+function boundedDecisionEventPayload(
+  payload: WorkerDecisionModelEventRequest,
+): Prisma.InputJsonObject {
+  const result: Record<string, Prisma.InputJsonValue> = {};
+  const eventType = optionalDecisionText(payload.eventType);
+  const decisionId = optionalDecisionText(payload.decisionId);
+  const decisionType = optionalDecisionText(payload.decisionType);
+  if (eventType) result.eventType = eventType;
+  if (decisionId) result.decisionId = decisionId;
+  if (decisionType) result.decisionType = decisionType;
+  if (payload.data !== undefined) {
+    const data = parseRuntimeSummaryValue(payload.data);
+    if (data !== null) result.data = data;
+  }
+  return result;
 }
 
 function parseWorkerRuntimeEventPayload(
