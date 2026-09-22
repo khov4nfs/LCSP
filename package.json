@@ -21,6 +21,7 @@
     "check:contracts": "node scripts/check-contract-literals.mjs",
     "check:agentic-tools": "node scripts/check-agentic-tool-runtime.mjs",
     "check:managed-sandbox-release-gate": "node scripts/check-managed-sandbox-release-gate.mjs",
+    "eval:jev-decisions": "cd deepagents && uv run python -m decision.eval --dataset decision/eval_fixtures/lcsp_decision_eval_v1.json --output ../artifacts/decision/jev-decision-eval-report.json",
     "test:managed-sandbox-release-gate": "node --test scripts/check-managed-sandbox-release-gate.test.mjs",
     "check:branch": "node scripts/check-branch-name.mjs",
     "check:commit-message": "node scripts/check-commit-message.mjs",

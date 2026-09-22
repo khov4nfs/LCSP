@@ -35,9 +35,10 @@ def build_request_event(request: DecisionRequest, *, provider: str, model: str |
         {
             "provider": provider,
             "modelVersion": model,
+            "policyVersion": request.policy_version,
             "questionIds": [question.question_id for question in request.questions],
             "questionTypes": [question.question_type for question in request.questions],
-            "artifactVersionKeys": sorted(request.artifact_versions),
+            "artifactVersionHashes": _artifact_version_hashes(request),
             "statePayloadKeys": sorted(request.state_payload),
         },
     )
@@ -50,8 +51,10 @@ def build_result_event(request: DecisionRequest, result: DecisionResult) -> dict
         {
             "provider": result.provider,
             "modelVersion": result.model_version,
+            "policyVersion": result.policy_version,
             "questionIds": list(result.question_ids),
             "questionResults": [_question_result(item) for item in result.question_results],
+            "selectedTypedResult": _selected_typed_result(result),
             "confidence": result.confidence,
             "latencyMs": result.latency_ms,
             "usage": result.usage,
@@ -116,6 +119,7 @@ def _event(
         "decisionType": request.decision_type,
         "assessmentId": request.assessment_id,
         "reviewRunId": request.review_run_id,
+        "checkpointId": _checkpoint_id(request),
         "prNumber": request.pr_number,
         "baseSha": request.base_sha,
         "headSha": request.head_sha,
@@ -142,6 +146,33 @@ def _question_result(result: Any) -> dict[str, Any]:
     if result.noul is not None:
         value["noul"] = result.noul
     return _without_none(value)
+
+
+def _selected_typed_result(result: DecisionResult) -> dict[str, Any]:
+    selected: dict[str, Any] = {}
+    for item in result.question_results:
+        if item.selected_choice is not None:
+            selected[item.question_id] = item.selected_choice
+        elif item.score is not None:
+            selected[item.question_id] = item.score
+        elif item.noul is not None:
+            selected[item.question_id] = item.noul
+    return selected
+
+
+def _artifact_version_hashes(request: DecisionRequest) -> dict[str, str]:
+    return {
+        str(key): str(value)
+        for key, value in sorted(request.artifact_versions.items())
+        if str(key).strip() and str(value).strip()
+    }
+
+
+def _checkpoint_id(request: DecisionRequest) -> str | None:
+    value = request.state_payload.get("checkpoint_id") or request.state_payload.get(
+        "checkpointId"
+    )
+    return value if isinstance(value, str) and value.strip() else None
 
 
 __all__ = [

@@ -57,7 +57,7 @@ class DecisionGateway:
         request_event = build_request_event(
             request,
             provider=config.provider,
-            model=None,
+            model=config.requested_model_version,
         )
 
         try:

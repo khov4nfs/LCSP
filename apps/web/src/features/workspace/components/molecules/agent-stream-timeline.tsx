@@ -304,6 +304,7 @@ function semanticLabel(
       return labels.provenance;
     case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.modelRequest:
     case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.modelOutput:
+    case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.decisionModel:
     case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.reasoningSummary:
       return labels.model;
     case ASSESSMENT_AGENT_STREAM_SEMANTIC_KINDS.toolCall:
@@ -350,6 +351,10 @@ function semanticDetail(semantic: SemanticRecord): string | null {
     semantic.evaluationStatus,
     semantic.provider,
     semantic.model,
+    semantic.decisionType,
+    semantic.shadowProposedAction,
+    semantic.authoritativeAction,
+    semantic.fallbackReason,
     semantic.goalSummary,
     semantic.status,
   ].filter((value): value is string => typeof value === "string" && value.length > 0);
@@ -360,6 +365,12 @@ function semanticDetail(semantic: SemanticRecord): string | null {
     "inputArtifactRefs",
     "outputRefs",
     "usage",
+    "confidence",
+    "agreement",
+    "decisionMode",
+    "policyVersion",
+    "thresholdUsed",
+    "latencyMs",
     "finishReason",
     "skillVersionOrHash",
     "promptVersion",

@@ -11,7 +11,12 @@ from decision import (
     DecisionRequest,
 )
 from decision.contracts import POLICY_ACTIONS
-from decision.policy import DecisionConfigurationError
+from decision.policy import (
+    DecisionActivationEvidence,
+    DecisionConfigurationError,
+    DecisionPolicy,
+    DecisionTypePolicy,
+)
 from decision.telemetry import InMemoryDecisionTelemetrySink
 from decision.typesafe_client import TypeSafeJevClient, TypeSafeJevError
 
@@ -163,6 +168,14 @@ def test_choice_score_noul_mapping_captures_model_version_and_shadow_no_action()
         "DECISION_THRESHOLD_APPLIED",
         "DECISION_FALLBACK",
     ]
+    result_event = sink.events[1]
+    assert result_event["data"]["modelVersion"] == "jev-2026-09-22"
+    assert result_event["data"]["selectedTypedResult"]["route"] == "ESCALATE"
+    assert result_event["data"]["questionResults"][0]["probabilities"] == {
+        "LOW_RISK": 0.12,
+        "ESCALATE": 0.88,
+    }
+    assert result_event["data"]["latencyMs"] >= 0
 
 
 def test_timeout_retries_are_bounded_before_success():
@@ -384,6 +397,77 @@ def test_low_confidence_falls_back_to_existing_behavior():
     assert outcome.provider_result is not None
     assert outcome.policy_result.action == POLICY_ACTIONS["fallback_to_existing_llm"]
     assert outcome.policy_result.reason_code == "LOW_CONFIDENCE"
+
+
+def test_active_mode_requires_versioned_eval_evidence_even_when_allowlisted():
+    policy = DecisionPolicy(
+        policies={
+            DECISION_TYPES["pr_review_triage"]: DecisionTypePolicy(
+                threshold=0.70,
+                active_allowed=True,
+                fallback_path_tested=True,
+                privacy_review_clear=True,
+                approved_model_versions=("jev-2026-09-22",),
+            )
+        }
+    )
+    gateway = DecisionGateway(
+        config=_config(mode="ACTIVE"),
+        client=_client(),
+        policy=policy,
+    )
+
+    outcome = gateway.decide(_request())
+
+    assert outcome.provider_result is not None
+    assert outcome.policy_result.action == POLICY_ACTIONS["fallback_to_existing_llm"]
+    assert outcome.policy_result.reason_code == "ACTIVATION_EVIDENCE_INCOMPLETE"
+
+
+def test_active_mode_rejects_allowlisted_model_with_bad_eval_calibration():
+    decision_type = DECISION_TYPES["pr_review_triage"]
+    model_version = "jev-2026-09-22"
+    policy_version = "TEST_POLICY"
+    policy = DecisionPolicy(
+        policies={
+            decision_type: DecisionTypePolicy(
+                threshold=0.70,
+                active_allowed=True,
+                min_eval_sample_size=2,
+                max_expected_calibration_error=0.10,
+                fallback_path_tested=True,
+                privacy_review_clear=True,
+                approved_model_versions=(model_version,),
+            )
+        },
+        activation_evidence={
+            (decision_type, model_version, policy_version): DecisionActivationEvidence(
+                decision_type=decision_type,
+                model_version=model_version,
+                dataset_version="2026-09-22.v1",
+                dataset_hash="sha256:" + "1" * 64,
+                policy_version=policy_version,
+                sample_size=20,
+                quality_score=0.95,
+                false_negative_rate=None,
+                expected_calibration_error=0.25,
+                safety_question_count=0,
+                fallback_path_tested=True,
+                privacy_review_clear=True,
+                rollback_switch_available=True,
+            )
+        },
+    )
+    gateway = DecisionGateway(
+        config=_config(mode="ACTIVE"),
+        client=_client(),
+        policy=policy,
+    )
+
+    outcome = gateway.decide(_request())
+
+    assert outcome.provider_result is not None
+    assert outcome.policy_result.reason_code == "ACTIVATION_EVIDENCE_INCOMPLETE"
 
 
 def test_unknown_decision_type_fails_closed_before_provider_call():
