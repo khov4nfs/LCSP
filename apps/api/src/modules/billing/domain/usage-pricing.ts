@@ -15,6 +15,45 @@ const DENOMINATOR = 1_000_000n * SCALE;
 const MARKUP_DENOMINATOR = 10_000n;
 const CUSTOMER_CHARGE_DENOMINATOR = DENOMINATOR * MARKUP_DENOMINATOR;
 
+/** Per-invocation usage ceiling authorized by the server for a reservation. */
+export type AuthorizedUsageLimits = {
+  maxInputTokens: bigint;
+  maxOutputTokens: bigint;
+  maxReasoningTokens: bigint;
+};
+
+/**
+ * Builds the most expensive usage one invocation can report under a snapshot.
+ *
+ * Input tokens are counted in every input dimension the snapshot prices because
+ * the adapter split between fresh, cached and cache-write input is unknown when
+ * credits are reserved. A dimension the snapshot leaves unpriced is one the
+ * provider does not bill, so it contributes nothing rather than making the
+ * reservation unpriceable.
+ *
+ * @param limits - Per-invocation token ceilings authorized for the reservation.
+ * @param pricing - Immutable pricing snapshot the charge is derived from.
+ * @returns Usage dimensions representing the snapshot's worst-case invocation.
+ */
+export function worstCaseUsageForPricing(
+  limits: AuthorizedUsageLimits,
+  pricing: PricingRecord,
+): UsageDimensions {
+  return {
+    inputTokens: limits.maxInputTokens,
+    cachedInputTokens: pricing.cachedInputPricePerMillion
+      ? limits.maxInputTokens
+      : 0n,
+    cacheWriteTokens: pricing.cacheWritePricePerMillion
+      ? limits.maxInputTokens
+      : 0n,
+    outputTokens: limits.maxOutputTokens,
+    reasoningTokens: pricing.reasoningPricePerMillion
+      ? limits.maxReasoningTokens
+      : 0n,
+  };
+}
+
 export function calculateUsageChargeCredits(
   usage: UsageDimensions | bigint,
   outputOrPricing: bigint | PricingRecord,

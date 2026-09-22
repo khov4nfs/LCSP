@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 import { BillingAccountingKernel } from "../src/modules/billing/application/shared/billing-accounting.kernel.js";
 import { BillingUsageKernel } from "../src/modules/billing/application/shared/billing-usage.kernel.js";
 import { calculateUsageChargeCredits } from "../src/modules/billing/domain/usage-pricing.js";
+import { PricingSnapshotUnavailableError } from "../src/modules/billing/domain/billing.errors.js";
 import { PrismaBillingTransaction } from "../src/modules/billing/infrastructure/persistence/prisma-billing-transaction.js";
 import type {
   BillingTransactionPort,
@@ -273,6 +274,82 @@ describe("LCSP-310 usage and pricing foundation", () => {
         idempotencyKey: `bounded-reserve-${id()}`,
       }),
     ).rejects.toThrow("authoritative worst-case provider charge");
+  });
+
+  it("reserves against a snapshot that prices only the dimensions its provider bills", async () => {
+    const f = await fixture();
+    const assessmentId = `assessment-${id()}`;
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: f.user.id,
+        name: "Partially priced provider",
+      },
+    });
+    // A provider that never charges for cached or cache-write input leaves
+    // those prices unset; the reservation must still be priceable.
+    await prisma.modelPricingSnapshot.create({
+      data: {
+        provider: "OPENAI",
+        model: "MODEL_B",
+        version: Math.floor(Math.random() * 1_000_000_000),
+        inputPricePerMillion: "1.00000000",
+        outputPricePerMillion: "2.00000000",
+        providerCurrency: "VND",
+        customerCurrency: "VND",
+        markupBps: 0n,
+        effectiveAt: new Date(Date.now() - 1000),
+      },
+    });
+
+    const reservation = await governedUsage.reserveForAssessment({
+      assessmentId,
+      runId: `run-${id()}`,
+      amountCredits: 20n,
+      maxChargeCredits: 20n,
+      provider: "openai",
+      model: "MODEL_B",
+      authorizedModels: [{ provider: "OPENAI", model: "MODEL_B" }],
+      maxInputTokens: 1_000_000n,
+      maxOutputTokens: 1_000_000n,
+      maxReasoningTokens: 1_000_000n,
+      maxInvocations: 1n,
+      idempotencyKey: `partial-price-reserve-${id()}`,
+    });
+
+    expect(reservation).toMatchObject({
+      status: "RESERVED",
+      amountCredits: 20n,
+    });
+  });
+
+  it("reports an unpublished pricing snapshot as a provisioning gap, not a bad request", async () => {
+    const f = await fixture();
+    const assessmentId = `assessment-${id()}`;
+    await prisma.assessment.create({
+      data: {
+        id: assessmentId,
+        ownerId: f.user.id,
+        name: "Unpublished pricing",
+      },
+    });
+
+    await expect(
+      governedUsage.reserveForAssessment({
+        assessmentId,
+        runId: `run-${id()}`,
+        amountCredits: 20n,
+        maxChargeCredits: 20n,
+        provider: "openai",
+        model: "MODEL_UNPUBLISHED",
+        authorizedModels: [{ provider: "OPENAI", model: "MODEL_UNPUBLISHED" }],
+        maxInputTokens: 1_000n,
+        maxOutputTokens: 1_000n,
+        maxReasoningTokens: 0n,
+        maxInvocations: 1n,
+        idempotencyKey: `unpublished-price-reserve-${id()}`,
+      }),
+    ).rejects.toThrow(PricingSnapshotUnavailableError);
   });
 
   it("settles multiple governed provider events individually and releases only unused reservation", async () => {

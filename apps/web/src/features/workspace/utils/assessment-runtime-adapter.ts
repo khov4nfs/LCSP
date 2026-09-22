@@ -50,6 +50,7 @@ import {
   type WorkspaceRuntimeConnectionState,
   type WorkspaceRuntimeRun,
   type WorkspaceRuntimeActivityItem,
+  type WorkspaceRuntimeScanJob,
 } from "../types/workspace-runtime.types";
 import { sanitizeAssessmentInterviewState } from "../../../lib/api/assessment-interview-client";
 import {
@@ -149,6 +150,11 @@ export function normalizeAssessmentRuntime(
     timeline: rawTimeline,
     sanitizedInterview,
     repositorySnapshot: rawTimeline?.repositorySnapshot,
+    latestScanJob: latestSnapshotScanJob(
+      assessmentId,
+      rawTimeline?.repositorySnapshot,
+      rawTimeline?.scanJobs ?? [],
+    ),
   });
 
   // 6. Interview normalization
@@ -357,10 +363,12 @@ function normalizeWorkflow({
   timeline,
   sanitizedInterview,
   repositorySnapshot,
+  latestScanJob,
 }: {
   timeline?: AdapterTimelineInput | null;
   sanitizedInterview: AssessmentInterviewRuntimeState | null;
   repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
+  latestScanJob: WorkspaceRuntimeScanJob | null;
 }): NormalizedAssessmentWorkflow {
   const currentRun = timeline?.currentRun ?? null;
   const latestRunId = timeline?.latestRunId ?? currentRun?.runId ?? null;
@@ -415,6 +423,7 @@ function normalizeWorkflow({
       engineeringProgress,
       repositorySnapshot,
       sanitizedInterview,
+      latestScanJob,
     }),
   };
 }
@@ -468,12 +477,14 @@ function normalizeWorkflowSteps({
   engineeringProgress,
   repositorySnapshot,
   sanitizedInterview,
+  latestScanJob,
 }: {
   currentRun: WorkspaceRuntimeRun | null;
   recentActivity: WorkspaceRuntimeActivityItem[];
   engineeringProgress: NonNullable<AdapterTimelineInput["engineeringProgress"]>;
   repositorySnapshot: AdapterTimelineInput["repositorySnapshot"];
   sanitizedInterview: AssessmentInterviewRuntimeState | null;
+  latestScanJob: WorkspaceRuntimeScanJob | null;
 }): NormalizedWorkflowStep[] {
   const defaultSteps = [
     [
@@ -565,6 +576,19 @@ function normalizeWorkflowSteps({
     currentRun,
     recentActivity,
   });
+  // A rerun creates the scan job before the worker emits any runtime event, so
+  // the previous run's events would still decide this row. Follow the scan job
+  // the same way the scanner checklist does.
+  if (latestScanJob && isActiveScanJob(latestScanJob)) {
+    const id = ASSESSMENT_SIDEBAR_WORKFLOW_STAGES.scanner;
+    const existingStep = steps.get(id);
+    steps.set(id, {
+      id,
+      label: existingStep?.label ?? stageLabel(id),
+      status: NORMALIZED_WORKFLOW_STEP_STATUSES.running,
+      detail: existingStep?.detail ?? null,
+    });
+  }
   completeQueuedPredecessors(steps);
   return [...steps.values()];
 }
@@ -897,6 +921,36 @@ function normalizeInterview({
   };
 }
 
+/** Latest scan job for the assessment's pinned repository snapshot. */
+function latestSnapshotScanJob(
+  assessmentId: string,
+  repositorySnapshot: AdapterTimelineInput["repositorySnapshot"],
+  scanJobs: NonNullable<AdapterTimelineInput["scanJobs"]>,
+): WorkspaceRuntimeScanJob | null {
+  if (!repositorySnapshot || repositorySnapshot.assessmentId !== assessmentId) {
+    return null;
+  }
+  return (
+    scanJobs
+      .filter(
+        (job) =>
+          job.assessmentId === repositorySnapshot.assessmentId &&
+          job.snapshotId === repositorySnapshot.id,
+      )
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0] ?? null
+  );
+}
+
+/** Mirrors the scanner checklist: any scan job that has not ended is running. */
+function isActiveScanJob(job: WorkspaceRuntimeScanJob): boolean {
+  return (
+    job.status !== REPOSITORY_SCAN_JOB_STATUSES.completed &&
+    job.status !== REPOSITORY_SCAN_JOB_STATUSES.failed &&
+    job.status !== REPOSITORY_SCAN_JOB_STATUSES.blocked &&
+    job.status !== REPOSITORY_SCAN_JOB_STATUSES.blockedMapping
+  );
+}
+
 function normalizeProgramEvidenceAvailability({
   assessmentId,
   repositorySnapshot,
@@ -912,14 +966,11 @@ function normalizeProgramEvidenceAvailability({
     return ASSESSMENT_ARTIFACT_AVAILABILITIES.unavailable;
   }
 
-  const snapshotJobs = scanJobs
-    .filter(
-      (job) =>
-        job.assessmentId === repositorySnapshot.assessmentId &&
-        job.snapshotId === repositorySnapshot.id,
-    )
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const latestJob = snapshotJobs[0];
+  const latestJob = latestSnapshotScanJob(
+    assessmentId,
+    repositorySnapshot,
+    scanJobs,
+  );
 
   if (!latestJob) {
     return ASSESSMENT_ARTIFACT_AVAILABILITIES.waiting;

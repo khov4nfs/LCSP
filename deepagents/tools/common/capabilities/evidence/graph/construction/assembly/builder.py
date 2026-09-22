@@ -61,6 +61,9 @@ class ProgramGraphBuilder:
         config_hash: str = "",
     ) -> None:
         self.workspace = Path(workspace_path).resolve(strict=False)
+        # The snapshot workspace is immutable while a graph is built, so each
+        # file is hashed once rather than once for every node anchored in it.
+        self._file_hashes: dict[str, str] = {}
         self.scan_job_id = scan_job_id
         self.snapshot_id = snapshot_id
         self.commit_sha = commit_sha
@@ -365,12 +368,17 @@ class ProgramGraphBuilder:
             return Path(value).as_posix()
 
     def _file_hash(self, relative: str) -> str:
+        cached = self._file_hashes.get(relative)
+        if cached is not None:
+            return cached
         try:
-            return "sha256:" + hashlib.sha256(
+            digest = "sha256:" + hashlib.sha256(
                 (self.workspace / relative).read_bytes()
             ).hexdigest()
         except OSError:
-            return "sha256:" + hashlib.sha256(relative.encode()).hexdigest()
+            digest = "sha256:" + hashlib.sha256(relative.encode()).hexdigest()
+        self._file_hashes[relative] = digest
+        return digest
 
     @staticmethod
     def _safe(attrs: dict[str, object]) -> dict[str, object]:

@@ -646,9 +646,15 @@ def _function_context(line: str, *, python_source: bool) -> _FunctionBoolContext
     return None
 
 
-def _pge_callable_contexts(
-    program: SemanticProgram, relative: str
-) -> dict[int, list[_FunctionBoolContext]]:
+def _pge_callable_context_index(
+    program: SemanticProgram,
+) -> dict[str, dict[int, list[_FunctionBoolContext]]]:
+    """Index every callable's boolean-guard context by file in one program pass.
+
+    Enrichment walks one file at a time, but the callable facts it needs are
+    whole-program. Deriving them per file re-scanned every node and edge in the
+    repository for every file, which is quadratic in repository size.
+    """
     node_by_key = {node.key: node for node in program.nodes}
     params_by_symbol: dict[str, list[tuple[int, str]]] = {}
     for edge in program.edges:
@@ -662,10 +668,10 @@ def _pge_callable_contexts(
             (position, param.label)
         )
 
-    result: dict[int, list[_FunctionBoolContext]] = {}
+    index: dict[str, dict[int, list[_FunctionBoolContext]]] = {}
     for node in program.nodes:
         if (
-            node.file_path != relative
+            not node.file_path
             or node.node_type not in {"FUNCTION", "METHOD"}
             or not node.start_line
         ):
@@ -683,7 +689,7 @@ def _pge_callable_contexts(
         external = str(
             (node.attributes or {}).get("externalReachability") or ""
         ).upper()
-        result.setdefault(body_start, []).append(
+        index.setdefault(node.file_path, {}).setdefault(body_start, []).append(
             _FunctionBoolContext(
                 node.label,
                 params,
@@ -691,20 +697,32 @@ def _pge_callable_contexts(
                 int(node.start_line),
             )
         )
-    return result
+    return index
+
+
+def _pge_callable_contexts(
+    program: SemanticProgram, relative: str
+) -> dict[int, list[_FunctionBoolContext]]:
+    """Resolve one file's callable guard contexts from a whole-program scan."""
+    return _pge_callable_context_index(program).get(relative, {})
 
 
 def _static_bool_facts(
     lines: list[str],
     relative: str,
     program: SemanticProgram | None = None,
+    callable_contexts: dict[int, list[_FunctionBoolContext]] | None = None,
 ) -> _ScopedBoolFacts:
     python_source = relative.lower().endswith(".py")
     scope_paths, opened_by_line = _lexical_scope_paths(lines, python_source=python_source)
     bindings: dict[int, dict[str, list[_BoolBinding]]] = {}
     functions: dict[int, _FunctionBoolContext] = {}
+    # Callers that walk many files resolve the whole-program index once and pass
+    # this file's slice in, instead of re-deriving it for every file.
     pge_contexts = (
-        _pge_callable_contexts(program, relative)
+        callable_contexts
+        if callable_contexts is not None
+        else _pge_callable_contexts(program, relative)
         if program is not None
         else {}
     )
@@ -933,6 +951,10 @@ class AIDiscoveryEnricher:
 
     def enrich(self, program: SemanticProgram) -> SemanticProgram:
         self._preserve_uncovered_source_frontiers(program)
+        # Enrichment adds environment, transport and outbound facts only, never
+        # callables or their parameters, so this index stays valid for the whole
+        # walk and is derived once rather than once per file.
+        callable_contexts = _pge_callable_context_index(program)
         invocation_by_file: dict[str, list[SemanticNodeFact]] = {}
         for node in program.nodes:
             if node.node_type == "AI_MODEL_INVOCATION" and node.file_path:
@@ -964,6 +986,7 @@ class AIDiscoveryEnricher:
                 lines,
                 invocation_by_file.get(relative, []),
                 aliases,
+                callable_contexts.get(relative, {}),
             )
         return program
 
@@ -1650,8 +1673,11 @@ class AIDiscoveryEnricher:
         lines: list[str],
         invocations: list[SemanticNodeFact],
         aliases: dict[str, str],
+        callable_contexts: dict[int, list[_FunctionBoolContext]] | None = None,
     ) -> None:
-        bool_facts = _static_bool_facts(lines, relative, program)
+        bool_facts = _static_bool_facts(
+            lines, relative, program, callable_contexts
+        )
         for invocation in invocations:
             if not invocation.start_line:
                 continue

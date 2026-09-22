@@ -2,13 +2,19 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import type {
+  AssessmentInterviewAnswerInput,
+  AssessmentInterviewBlockedInput,
+  AssessmentInterviewRuntimeState,
+  AssessmentPostFindingDecisionInput,
+} from "@lcsp/contracts/evidence";
 import { getAssessmentArtifactAvailability } from "./assessment-artifact-client";
 import {
   buildSubmitInterviewAnswerCommand,
   getAssessmentInterviewState,
   recordAssessmentInterviewBlockedAction,
-  submitAssessmentPostFindingDecision,
   submitAssessmentInterviewAnswer,
+  submitAssessmentPostFindingDecision,
 } from "./assessment-interview-client";
 import {
   getClassificationStatus,
@@ -27,6 +33,7 @@ import {
 } from "./document-client";
 import { getTechnicalEvidence } from "./evidence-client";
 import { getProgramEvidenceGraphOverview } from "./evidence-graph-overview-client";
+import { apiQueryKeys } from "./query-keys";
 import { getReadinessStatus } from "./readiness-client";
 import {
   connectAssessmentRepository,
@@ -35,13 +42,6 @@ import {
   type RerunRepositoryScanInput,
   type StartRepositoryAnalysisInput,
 } from "./repository-analysis-client";
-import { apiQueryKeys } from "./query-keys";
-import type {
-  AssessmentInterviewAnswerInput,
-  AssessmentInterviewBlockedInput,
-  AssessmentInterviewRuntimeState,
-  AssessmentPostFindingDecisionInput,
-} from "@lcsp/contracts/evidence";
 
 export function useAssessmentInterviewStateQuery(
   assessmentId: string,
@@ -59,7 +59,11 @@ export function useAssessmentArtifactsQuery(assessmentId: string) {
     queryKey: apiQueryKeys.assessment.artifacts(assessmentId),
     queryFn: () => getAssessmentArtifactAvailability(assessmentId),
     enabled: assessmentId.length > 0,
-    refetchInterval: 5_000,
+    refetchInterval: (query) => {
+      // A missing artifact projection is a valid pre-artifact state. Once the
+      // endpoint reports it, stop polling until an explicit invalidation.
+      return query.state.data === null ? false : 5_000;
+    },
   });
 }
 
@@ -202,6 +206,9 @@ export function useRerunRepositoryScanMutation(assessmentId: string) {
         }),
         queryClient.invalidateQueries({
           queryKey: apiQueryKeys.assessment.evidence(assessmentId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: apiQueryKeys.workspace.detail(),
         }),
       ]);
     },

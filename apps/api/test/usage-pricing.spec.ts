@@ -4,6 +4,7 @@ import {
   calculateCustomerChargeCredits,
   calculateCustomerChargeVnd,
   calculateUsageChargeCredits,
+  worstCaseUsageForPricing,
 } from "../src/modules/billing/domain/usage-pricing.js";
 import type { PricingRecord } from "../src/modules/billing/domain/repositories/billing-transaction.port.js";
 
@@ -82,6 +83,50 @@ describe("usage pricing", () => {
     expect(() =>
       calculateUsageChargeCredits({ cachedInputTokens: 1n }, pricing),
     ).toThrow("required usage dimension price");
+  });
+
+  it("bounds a reservation by every input dimension the snapshot prices", () => {
+    const fullPricing = {
+      ...pricing,
+      cachedInputPricePerMillion: "0.50000000",
+      cacheWritePricePerMillion: "1.50000000",
+      reasoningPricePerMillion: "3.00000000",
+    };
+    expect(
+      worstCaseUsageForPricing(
+        {
+          maxInputTokens: 1_000_000n,
+          maxOutputTokens: 2_000_000n,
+          maxReasoningTokens: 3_000_000n,
+        },
+        fullPricing,
+      ),
+    ).toEqual({
+      inputTokens: 1_000_000n,
+      cachedInputTokens: 1_000_000n,
+      cacheWriteTokens: 1_000_000n,
+      outputTokens: 2_000_000n,
+      reasoningTokens: 3_000_000n,
+    });
+  });
+
+  it("keeps a reservation priceable when the provider does not bill a dimension", () => {
+    const limits = {
+      maxInputTokens: 1_000_000n,
+      maxOutputTokens: 1_000_000n,
+      maxReasoningTokens: 1_000_000n,
+    };
+    const worstCase = worstCaseUsageForPricing(limits, pricing);
+
+    expect(worstCase).toEqual({
+      inputTokens: 1_000_000n,
+      cachedInputTokens: 0n,
+      cacheWriteTokens: 0n,
+      outputTokens: 1_000_000n,
+      reasoningTokens: 0n,
+    });
+    expect(() => calculateUsageChargeCredits(worstCase, pricing)).not.toThrow();
+    expect(calculateUsageChargeCredits(worstCase, pricing)).toBe(3n);
   });
 
   it("applies configured markup with final ceil rounding", () => {
