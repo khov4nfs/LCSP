@@ -85,12 +85,9 @@ describe("RbacPreflightController", () => {
       correlationId: "camel-corr-1",
     });
     expect(response).toEqual({
-      ok: true,
-      data: {
-        decision: "ALLOW",
-        reason_code: null,
-        correlationId: "corr-1",
-      },
+      decision: "ALLOW",
+      reason_code: null,
+      correlationId: "corr-1",
     });
   });
 
@@ -114,12 +111,9 @@ describe("RbacPreflightController", () => {
         VALID_KEY,
       ),
     ).resolves.toEqual({
-      ok: true,
-      data: {
-        decision: "DENY",
-        reason_code: RBAC_REASON_CODES.denied,
-        correlationId: "corr-1",
-      },
+      decision: "DENY",
+      reason_code: RBAC_REASON_CODES.denied,
+      correlationId: "corr-1",
     });
   });
 

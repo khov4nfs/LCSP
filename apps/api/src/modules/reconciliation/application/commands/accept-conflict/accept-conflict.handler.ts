@@ -38,7 +38,7 @@ import {
   toPrismaOutboxAggregateType,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { problemResult } from "../../../../../platform/problems/problem-factory.js";
+import { problemResult } from "../../../../../platform/http/filters/error.factory.js";
 import type {
   ConflictDetectionCallbackDto,
   ConflictInputRequest,

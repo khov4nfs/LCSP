@@ -1,18 +1,7 @@
-export type OAuthStartPayload = {
-  provider?: unknown;
-  redirect_uri?: unknown;
-};
-
 export type OAuthStartSuccess = {
   ok: true;
   correlationId: string;
   authorization_url: string;
-};
-
-export type OAuthCallbackPayload = {
-  code?: unknown;
-  state?: unknown;
-  provider?: unknown;
 };
 
 export type OAuthCallbackSuccess = {
@@ -24,11 +13,7 @@ export type OAuthCallbackSuccess = {
   mfa_enrolled: boolean;
 };
 
-export type OAuthLinkStartPayload = OAuthStartPayload;
-
 export type OAuthLinkStartSuccess = OAuthStartSuccess;
-
-export type OAuthLinkCallbackPayload = OAuthCallbackPayload;
 
 export type OAuthLinkCallbackSuccess = {
   ok: true;

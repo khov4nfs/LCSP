@@ -17,8 +17,11 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { BypassEnvelope } from "../../../../platform/http/interceptors/bypass-envelope.decorator.js";
+import {
+  problemException,
+  resultEnvelope,
+} from "../../../../platform/http/filters/error.factory.js";
 import { RequestFinalReportCommand } from "../../application/commands/request-final-report/request-final-report.command.js";
 import { RequestGapAnalysisCommand } from "../../application/commands/request-gap-analysis/request-gap-analysis.command.js";
 import { GetDocumentQuery } from "../../application/queries/get-document/get-document.query.js";
@@ -171,6 +174,7 @@ export class DocumentController {
    */
   @Get(":assessmentId/documents/:documentRequestId/download")
   @Redirect(undefined, 302)
+  @BypassEnvelope()
   downloadDocument(
     @Param("assessmentId") assessmentId: string,
     @Param("documentRequestId") documentRequestId: string,

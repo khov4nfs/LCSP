@@ -1,6 +1,7 @@
 import { Controller, Headers, Post, Req } from "@nestjs/common";
 import { CommandBus } from "@nestjs/cqrs";
 import type { Request } from "express";
+import { BypassEnvelope } from "../../../../platform/http/interceptors/bypass-envelope.decorator.js";
 import { AcceptSePayWebhookCommand } from "../../application/commands/accept-sepay-webhook/accept-sepay-webhook.command.js";
 import {
   mapSePayWebhookError,
@@ -12,6 +13,7 @@ export class SePayWebhookController {
   constructor(private readonly commandBus: CommandBus) {}
 
   @Post("webhook")
+  @BypassEnvelope()
   async receive(
     @Req() request: Request,
     @Headers("x-sepay-signature") signature?: string,

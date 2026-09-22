@@ -38,7 +38,7 @@ import {
   toPrismaOutboxAggregateType,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { problemResult } from "../../../../../platform/problems/problem-factory.js";
+import { problemResult } from "../../../../../platform/http/filters/error.factory.js";
 import { ArtifactStorageService } from "../../../../../platform/storage/artifact-storage.service.js";
 import type { TechnicalProfileCallbackDto } from "../../contracts/evidence/technical-profile-callback.contract.js";
 import { AcceptTechnicalProfileCommand } from "./accept-technical-profile.command.js";

@@ -13,6 +13,14 @@ import {
 import type { SensitiveRouteCheckDto } from "../../contracts/auth/sensitive-route.contract.js";
 import { CheckSensitiveRouteQuery } from "./check-sensitive-route.query.ts";
 
+/**
+ * Handles evaluation of whether a requested HTTP method/route is sensitive and requires step-up reauthentication.
+ *
+ * Enforces:
+ * 1. Matches requested method and route against the sensitive route policy registry.
+ * 2. Checks current session's `sensitiveActionVerifiedAt` freshness against the configured time window.
+ * 3. Returns re-auth required boolean flag and timestamp bounds.
+ */
 @QueryHandler(CheckSensitiveRouteQuery)
 export class CheckSensitiveRouteHandler implements IQueryHandler<
   CheckSensitiveRouteQuery,
@@ -20,6 +28,12 @@ export class CheckSensitiveRouteHandler implements IQueryHandler<
 > {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Executes sensitive route verification check.
+   *
+   * @param query - Contains target method, route string, and sessionId.
+   * @returns Sensitive route matching status, re-auth requirement, and validity expiration.
+   */
   async execute(
     query: CheckSensitiveRouteQuery,
   ): Promise<SensitiveRouteCheckDto> {

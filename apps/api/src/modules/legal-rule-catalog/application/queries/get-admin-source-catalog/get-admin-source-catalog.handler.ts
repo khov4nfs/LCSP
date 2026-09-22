@@ -16,7 +16,7 @@ import {
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { AdminSourceCatalogService } from "../../services/admin-source-catalog.service.js";
 import { GetAdminSourceCatalogQuery } from "./get-admin-source-catalog.query.js";
 

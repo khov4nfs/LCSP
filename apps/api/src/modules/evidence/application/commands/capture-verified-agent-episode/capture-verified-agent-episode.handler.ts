@@ -10,7 +10,7 @@ import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 import type { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { CaptureVerifiedAgentEpisodeCommand } from "./capture-verified-agent-episode.command.js";
 
 @CommandHandler(CaptureVerifiedAgentEpisodeCommand)

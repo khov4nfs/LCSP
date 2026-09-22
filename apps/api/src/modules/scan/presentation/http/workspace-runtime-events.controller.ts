@@ -29,7 +29,7 @@ import type { AuthenticatedRequest } from "../../../../common/interfaces/authent
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 import { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 
 /**
  * Streams orchestration runtime snapshots to authorized workspace clients over Server-Sent Events.

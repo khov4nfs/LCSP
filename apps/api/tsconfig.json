@@ -4,6 +4,7 @@
     "composite": true,
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "rewriteRelativeImportExtensions": true,
     "types": ["node", "jest"],
     "resolvePackageJsonExports": true,
     "esModuleInterop": true,

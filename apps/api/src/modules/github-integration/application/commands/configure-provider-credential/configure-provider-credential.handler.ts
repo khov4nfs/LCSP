@@ -11,7 +11,7 @@ import {
 } from "@lcsp/contracts/github-integration";
 
 import type { AppConfig } from "../../../../../config/config.types.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { PrismaCredentialPersistenceUnitOfWork } from "../../../infrastructure/persistence/prisma-credential-persistence.unit-of-work.js";
 import {
   GITHUB_REPOSITORY_PROVIDER,

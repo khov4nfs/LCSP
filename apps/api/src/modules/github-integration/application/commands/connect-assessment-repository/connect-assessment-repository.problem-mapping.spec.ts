@@ -4,7 +4,7 @@ import { GITHUB_CREDENTIAL_ERROR_CODES } from "@lcsp/contracts/github-integratio
 import {
   internalServerProblem,
   problemResult,
-} from "../../../../../platform/problems/problem-factory.js";
+} from "../../../../../platform/http/filters/error.factory.js";
 
 describe("ConnectAssessmentRepository problem requiredAction mapping", () => {
   it("keeps internal/provider failures out of LCSP sign-in", () => {

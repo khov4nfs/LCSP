@@ -11,7 +11,7 @@ import {
 } from "@nestjs/common";
 import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { ProcessDocumentCallbackCommand } from "../../application/commands/process-document-callback/process-document-callback.command.js";
 import type { DocumentCallbackRequest } from "../../application/contracts/document/document-callback.contract.js";
 import { GetDocumentGenerationContextQuery } from "../../application/queries/get-document-generation-context/get-document-generation-context.query.js";

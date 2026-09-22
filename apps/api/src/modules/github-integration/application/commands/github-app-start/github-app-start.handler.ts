@@ -11,7 +11,7 @@ import {
 } from "@lcsp/contracts/github-integration";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { GitHubAppInstallState } from "../../../domain/entities/github-app-install-state.entity.js";
 import { GitHubAppClient } from "../../../infrastructure/github/github-app.client.js";
 import type { GitHubAppStartDto } from "../../contracts/github-integration/github-app-start.contract.js";

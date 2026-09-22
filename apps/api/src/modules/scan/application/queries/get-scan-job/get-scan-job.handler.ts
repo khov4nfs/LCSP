@@ -11,7 +11,7 @@ import {
   fromPrismaRepositoryScanTriggerSource,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import type { ScanJobStatusDto } from "../../contracts/scan/scan-job-status.contract.js";
 import { GetScanJobQuery } from "./get-scan-job.query.js";
 

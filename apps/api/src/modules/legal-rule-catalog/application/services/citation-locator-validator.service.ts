@@ -5,7 +5,7 @@ import {
 } from "@lcsp/contracts/legal-rule-catalog";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { toPrismaLegalRuleLifecycleStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 export interface CitationLocatorRef {
   legalCorpusVersionId: string;
   documentId: string;

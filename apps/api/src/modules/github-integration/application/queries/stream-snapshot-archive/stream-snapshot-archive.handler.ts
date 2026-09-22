@@ -20,7 +20,7 @@ import {
   toPrismaRepositoryScanJobStatus,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { StreamSnapshotArchiveQuery } from "./stream-snapshot-archive.query.js";
 import {
   GitHubAppClient,

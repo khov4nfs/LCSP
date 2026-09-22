@@ -7,7 +7,7 @@ import { Inject, Logger } from "@nestjs/common";
 
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { MfaRateLimit } from "../../../domain/entities/mfa-rate-limit.entity.ts";
 import {
   decryptMfaSecret,
@@ -34,6 +34,17 @@ const MFA_LOCK_WINDOW_MS = 15 * 60_000;
 // ±1 TOTP step (30s) plus clock-skew slack; anything older can never be replayed.
 const OTP_USED_RETENTION_MS = 5 * 60_000;
 
+/**
+ * Handles verifying TOTP time-based one-time password (OTP) during sign-in elevation.
+ *
+ * Enforces:
+ * 1. Active, unexpired session lookup by fingerprint.
+ * 2. Rate limiting (locks out after 5 consecutive failed attempts for 15 minutes).
+ * 3. Single-use replay protection via atomic consumption in `mfaOtpUsed`.
+ * 4. Decrypts AES-256-GCM TOTP secret and validates OTP with clock-skew tolerance (±1 step).
+ * 5. Elevates session status (`mfaVerifiedAt`, `sensitiveActionVerifiedAt`).
+ * 6. Emits audit trail events for successes and failures.
+ */
 @CommandHandler(VerifyMfaOtpCommand)
 export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand> {
   private readonly logger = new Logger(VerifyMfaOtpHandler.name);
@@ -52,6 +63,12 @@ export class VerifyMfaOtpHandler implements ICommandHandler<VerifyMfaOtpCommand>
     private readonly mfaOtpUsed: MfaOtpUsedRepository,
   ) {}
 
+  /**
+   * Executes TOTP OTP verification.
+   *
+   * @param command - Contains sessionToken, otp code, and request correlation metadata.
+   * @returns Success response with correlation ID.
+   */
   async execute(command: VerifyMfaOtpCommand): Promise<VerifyMfaOtpSuccess> {
     const { sessionToken, otp, requestMeta } = command;
     const { sessions, users, mfaEnrollments, mfaRateLimits, mfaOtpUsed } = this;

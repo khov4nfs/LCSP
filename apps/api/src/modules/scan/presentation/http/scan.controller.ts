@@ -55,10 +55,10 @@ import { RerunScanCommand } from "../../application/commands/rerun-scan/rerun-sc
 import { RequestTargetedReanalysisCommand } from "../../application/commands/request-targeted-reanalysis/request-targeted-reanalysis.command.js";
 import type { RerunScanRequestDto } from "../../application/contracts/scan/rerun-scan.contract.js";
 import { WorkerApiKeyGuard } from "./worker-api-key.guard.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../platform/audit/audit-writer.service.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { AssessmentRuntimeEventService } from "../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import { ORCHESTRATION_RUNTIME_LOG_EVENTS } from "../../../../platform/logging/orchestration-runtime-log.js";
 import { formatOrchestrationRuntimeLog } from "../../../../platform/logging/orchestration-runtime-log.js";

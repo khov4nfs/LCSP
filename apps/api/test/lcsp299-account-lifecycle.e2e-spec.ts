@@ -56,7 +56,7 @@ import {
 } from "../src/modules/auth/infrastructure/security/security.utils.js";
 import { AuditWriterService } from "../src/platform/audit/audit-writer.service.js";
 import { MailService } from "../src/platform/mail/mail.service.js";
-import { ProblemExceptionFilter } from "../src/platform/problems/problem-exception.filter.js";
+import { HttpExceptionFilter } from "../src/platform/http/filters/http-exception.filter.js";
 import { RequireSession } from "../src/platform/rbac/decorators/require-session.decorator.js";
 import { PrismaAuthorizationDecisionRepository } from "../src/platform/rbac/prisma-authorization-decision.repository.js";
 import { RbacContextLoader } from "../src/platform/rbac/rbac-context.loader.js";
@@ -133,7 +133,7 @@ integration(
           ...ADMIN_QUERY_HANDLERS,
           AuthAuditService,
           AuditWriterService,
-          ProblemExceptionFilter,
+          HttpExceptionFilter,
           RbacGuard,
           RbacContextLoader,
           RbacPreflightService,
@@ -144,7 +144,7 @@ integration(
         ],
       }).compile();
       app = module.createNestApplication();
-      app.useGlobalFilters(module.get(ProblemExceptionFilter));
+      app.useGlobalFilters(module.get(HttpExceptionFilter));
       await app.init();
     }, 30000);
     async function actor(

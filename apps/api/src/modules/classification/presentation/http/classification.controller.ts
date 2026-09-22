@@ -11,7 +11,7 @@ import {
 import { CommandBus } from "@nestjs/cqrs";
 
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { AcceptClassificationCommand } from "../../application/commands/accept-classification/accept-classification.command.js";
 import type { AcceptClassificationDto } from "../../application/contracts/classification/classification-result-callback.contract.js";
 

@@ -16,8 +16,8 @@ import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { GetLegalCorpusReadinessQuery } from "../../application/queries/get-legal-corpus-readiness/get-legal-corpus-readiness.query.js";
 
 const EFFECTIVE_DATE = /^\d{4}-\d{2}-\d{2}$/;

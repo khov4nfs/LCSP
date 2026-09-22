@@ -15,7 +15,7 @@ import { CommandBus } from "@nestjs/cqrs";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { AcceptAIUsageFlowCommand } from "../../application/commands/accept-ai-usage-flow/accept-ai-usage-flow.command.js";
 import type { AIUsageFlowCallbackRequest } from "../../application/contracts/ai-usage-flow/ai-usage-flow-callback.contract.js";
 

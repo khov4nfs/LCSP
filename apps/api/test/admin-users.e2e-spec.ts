@@ -25,8 +25,10 @@ import { AdminModule } from "../src/modules/admin/admin.module.js";
 import { AuthModule } from "../src/modules/auth/auth.module.js";
 import { RbacModule } from "../src/platform/rbac/rbac.module.js";
 import { MailModule } from "../src/platform/mail/mail.module.js";
-import { ProblemExceptionFilter } from "../src/platform/problems/problem-exception.filter.js";
-import { ProblemStatusInterceptor } from "../src/platform/problems/problem-status.interceptor.js";
+import {
+  HttpExceptionFilter,
+  ResponseTransformInterceptor,
+} from "../src/platform/http/index.js";
 import { APP_FILTER, APP_INTERCEPTOR } from "@nestjs/core";
 import {
   TEST_DATABASE_URL,
@@ -66,8 +68,8 @@ describe("Admin User Management API (e2e)", () => {
         RbacModule,
       ],
       providers: [
-        { provide: APP_FILTER, useClass: ProblemExceptionFilter },
-        { provide: APP_INTERCEPTOR, useClass: ProblemStatusInterceptor },
+        { provide: APP_FILTER, useClass: HttpExceptionFilter },
+        { provide: APP_INTERCEPTOR, useClass: ResponseTransformInterceptor },
       ],
     }).compile();
 

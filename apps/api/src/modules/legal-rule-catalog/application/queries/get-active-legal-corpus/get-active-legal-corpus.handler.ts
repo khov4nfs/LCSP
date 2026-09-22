@@ -7,7 +7,7 @@ import {
 import { toPrismaLegalRuleLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { GetActiveLegalCorpusQuery } from "./get-active-legal-corpus.query.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 
 type ActiveLegalCorpusResponse = {
   versionId: string;

@@ -18,7 +18,7 @@ import {
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import type { FinalReportRequestDto } from "../../contracts/document/final-report-request.contract.js";
 import { RequestFinalReportCommand } from "./request-final-report.command.js";
 

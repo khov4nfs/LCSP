@@ -25,7 +25,8 @@ import { isRecord } from "../../../../common/utils/index.js";
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
-import { resultEnvelope } from "../../../../platform/problems/result-envelope.js";
+import { BypassEnvelope } from "../../../../platform/http/interceptors/bypass-envelope.decorator.js";
+import { resultEnvelope } from "../../../../platform/http/filters/error.factory.js";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import { AcceptTechnicalProfileCommand } from "../../application/commands/accept-technical-profile/accept-technical-profile.command.js";
 import type { TechnicalProfileCallbackRequest } from "../../application/contracts/evidence/technical-profile-callback.contract.js";
@@ -36,7 +37,7 @@ import {
   fromPrismaRepositoryScanJobStatus,
   toPrismaEvidenceAcceptanceStatus,
 } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 
 const FAILED_EVIDENCE_GRAPH_SCAN_STATUSES = new Set<string>([
   REPOSITORY_SCAN_JOB_STATUSES.failed,
@@ -298,6 +299,7 @@ export class EvidenceController {
 }
 
 @Controller("internal/evidence")
+@BypassEnvelope()
 export class InternalEvidenceController {
   constructor(
     private readonly commandBus: CommandBus,

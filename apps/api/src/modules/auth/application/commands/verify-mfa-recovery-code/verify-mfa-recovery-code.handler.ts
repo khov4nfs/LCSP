@@ -7,7 +7,7 @@ import { Inject, Logger } from "@nestjs/common";
 
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { MfaRateLimit } from "../../../domain/entities/mfa-rate-limit.entity.ts";
 import {
   hashMfaRecoveryCode,
@@ -32,6 +32,17 @@ import { VerifyMfaRecoveryCodeCommand } from "./verify-mfa-recovery-code.command
 const MFA_RECOVERY_RATE_LIMIT = 5;
 const MFA_RECOVERY_LOCK_WINDOW_MS = 15 * 60_000;
 
+/**
+ * Handles verifying a backup MFA recovery code during sign-in elevation.
+ *
+ * Enforces:
+ * 1. Active, unexpired session lookup by fingerprint.
+ * 2. Rate limiting (locks out after 5 consecutive failed attempts for 15 minutes).
+ * 3. Normalized alphanumeric recovery code matching against SHA-256 hash.
+ * 4. Atomic single-use consumption in repository (`tryConsume`).
+ * 5. Elevates session status (`mfaVerifiedAt`, `sensitiveActionVerifiedAt`).
+ * 6. Emits audit trail events for successes and failures.
+ */
 @CommandHandler(VerifyMfaRecoveryCodeCommand)
 export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRecoveryCodeCommand> {
   private readonly logger = new Logger(VerifyMfaRecoveryCodeHandler.name);
@@ -50,6 +61,12 @@ export class VerifyMfaRecoveryCodeHandler implements ICommandHandler<VerifyMfaRe
     private readonly mfaRecoveryCodes: MfaRecoveryCodeRepository,
   ) {}
 
+  /**
+   * Executes MFA recovery code verification.
+   *
+   * @param command - Contains sessionToken, recovery code string, and request correlation metadata.
+   * @returns Success response with correlation ID.
+   */
   async execute(
     command: VerifyMfaRecoveryCodeCommand,
   ): Promise<VerifyMfaRecoveryCodeSuccess> {

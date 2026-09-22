@@ -11,7 +11,7 @@ import {
 } from "@prisma/client";
 
 import { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { toPrismaLegalRuleLifecycleStatus } from "../../../../infrastructure/prisma/prisma-enum-mappers.js";
 
 const LEGAL_ENGINEERING_RULE_FAMILY = "LEGAL_CORPUS_ENGINEERING_RULE_SOURCE";

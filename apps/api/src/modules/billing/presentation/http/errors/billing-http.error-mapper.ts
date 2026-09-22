@@ -1,6 +1,6 @@
 import { HttpStatus } from "@nestjs/common";
 import { BILLING_ERROR_CODES } from "@lcsp/contracts/billing";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import {
   BillingConcurrencyError,
   BillingDomainError,

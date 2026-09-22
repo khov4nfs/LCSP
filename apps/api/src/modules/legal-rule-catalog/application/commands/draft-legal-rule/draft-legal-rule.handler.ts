@@ -16,7 +16,7 @@ import {
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { Prisma } from "@prisma/client";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { CitationLocatorValidatorService } from "../../services/citation-locator-validator.service.js";
 
 @CommandHandler(DraftLegalRuleCommand)

@@ -5,7 +5,7 @@ import type { Prisma } from "@prisma/client";
 
 import { fromPrismaAuthDecision } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import type {
   AuditEventListDto,
   AuditEventSummary,

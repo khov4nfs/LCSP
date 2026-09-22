@@ -8,7 +8,7 @@ import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import type { Prisma } from "@prisma/client";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { RetrieveVerifiedAgentEpisodesQuery } from "./retrieve-verified-agent-episodes.query.js";
 
 @QueryHandler(RetrieveVerifiedAgentEpisodesQuery)

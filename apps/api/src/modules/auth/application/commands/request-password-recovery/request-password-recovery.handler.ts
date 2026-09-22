@@ -1,14 +1,12 @@
 import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_BACKUP_EMAIL_POLICIES,
-  AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
 } from "@lcsp/contracts/auth";
 
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/problems/problem-factory.ts";
 import { RecoveryRequest } from "../../../domain/models/auth.models.ts";
 import {
   fingerprintToken,
@@ -31,6 +29,17 @@ import { RequestPasswordRecoveryCommand } from "./request-password-recovery.comm
 
 const RECOVERY_TOKEN_TTL_MS = 30 * 60_000;
 
+/**
+ * Handles requesting a password reset email token.
+ *
+ * Enforces:
+ * 1. Constant-time hashing execution on missing user to prevent email enumeration timing side-channels.
+ * 2. Issues cryptographically secure opaque recovery token with 30-minute TTL.
+ * 3. Saves recovery request indexed by token fingerprint and hashed secret.
+ * 4. Resolves destination email based on user backup email policy.
+ * 5. Dispatches recovery email via notification adapter.
+ * 6. Emits audit trail for recovery request.
+ */
 @CommandHandler(RequestPasswordRecoveryCommand)
 export class RequestPasswordRecoveryHandler implements ICommandHandler<RequestPasswordRecoveryCommand> {
   constructor(
@@ -43,6 +52,12 @@ export class RequestPasswordRecoveryHandler implements ICommandHandler<RequestPa
     private readonly notifier: RecoveryNotifier,
   ) {}
 
+  /**
+   * Executes password recovery initiation.
+   *
+   * @param command - Contains target email and request correlation metadata.
+   * @returns Success response with correlation ID.
+   */
   async execute(
     command: RequestPasswordRecoveryCommand,
   ): Promise<RequestRecoverySuccess> {
@@ -50,13 +65,6 @@ export class RequestPasswordRecoveryHandler implements ICommandHandler<RequestPa
     const { users, recoveryRequests } = this;
     const correlationId =
       requestMeta.correlationId ?? this.support.createCorrelationId();
-
-    if (
-      typeof payload.email !== "string" ||
-      payload.email.trim().length === 0
-    ) {
-      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
-    }
 
     const email = payload.email.trim().toLowerCase();
     const user = await users.findByPrimaryEmail(email);

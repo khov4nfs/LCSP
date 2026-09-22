@@ -8,10 +8,24 @@ import {
 import type { AuthSessionsSuccess } from "../../contracts/auth/settings.contract.ts";
 import { ListAuthSessionsQuery } from "./list-auth-sessions.query.ts";
 
+/**
+ * Handles listing all active and historical sessions for the authenticated user.
+ *
+ * Enforces:
+ * 1. Queries auth sessions belonging exclusively to `query.context.userId`.
+ * 2. Orders results chronologically by recent activity (`updatedAt` DESC, `createdAt` DESC).
+ * 3. Annotates each session with MFA verification timestamp and `is_current` boolean flag.
+ */
 @QueryHandler(ListAuthSessionsQuery)
 export class ListAuthSessionsHandler implements IQueryHandler<ListAuthSessionsQuery> {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Executes session listing query.
+   *
+   * @param query - Contains caller context (userId, sessionId) and correlationId.
+   * @returns List of formatted session records.
+   */
   async execute(query: ListAuthSessionsQuery): Promise<AuthSessionsSuccess> {
     const sessions = await this.prisma.authRecord.findMany({
       where: {

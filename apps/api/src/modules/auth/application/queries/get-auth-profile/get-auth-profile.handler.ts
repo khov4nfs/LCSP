@@ -8,7 +8,7 @@ import {
   fromPrismaAuthPrimaryEmailAddressPolicy,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import {
   AUTH_RECORD_TYPES,
   authRecordMetadataDate,
@@ -16,10 +16,25 @@ import {
 import type { AuthProfileSuccess } from "../../contracts/auth/settings.contract.ts";
 import { GetAuthProfileQuery } from "./get-auth-profile.query.ts";
 
+/**
+ * Handles fetching the authenticated user's profile and current session security status.
+ *
+ * Enforces:
+ * 1. Requires valid user ID and active, unexpired session ID from context.
+ * 2. Reads MFA enrollment state and active session MFA verification metadata.
+ * 3. Maps database enum fields to domain contract value sets.
+ * 4. Returns comprehensive profile and session metadata.
+ */
 @QueryHandler(GetAuthProfileQuery)
 export class GetAuthProfileHandler implements IQueryHandler<GetAuthProfileQuery> {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Executes profile and session status lookup.
+   *
+   * @param query - Contains caller context (userId, sessionId, role) and correlationId.
+   * @returns User profile details, email policy, MFA status, and current session metadata.
+   */
   async execute(query: GetAuthProfileQuery): Promise<AuthProfileSuccess> {
     const [user, session] = await Promise.all([
       this.prisma.user.findUnique({

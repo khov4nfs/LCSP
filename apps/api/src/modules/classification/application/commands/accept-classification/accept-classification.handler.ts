@@ -48,7 +48,7 @@ import {
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
 import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
-import { problemResult } from "../../../../../platform/problems/problem-factory.js";
+import { problemResult } from "../../../../../platform/http/filters/error.factory.js";
 import { AssessmentRuntimeEventService } from "../../../../../platform/runtime-events/assessment-runtime-event.service.js";
 import type { ClassificationResultCallbackResponseDto } from "../../contracts/classification/classification-result-callback.contract.js";
 import { OverclaimGuardrailService } from "../../services/classification/overclaim-guardrail.service.js";

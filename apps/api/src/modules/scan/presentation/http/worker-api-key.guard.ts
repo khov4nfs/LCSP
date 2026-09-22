@@ -10,7 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import type { Request } from "express";
 
-import { problemException } from "../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../platform/http/filters/error.factory.js";
 
 /**
  * Protects internal worker endpoints with the configured API key using constant-time comparison.

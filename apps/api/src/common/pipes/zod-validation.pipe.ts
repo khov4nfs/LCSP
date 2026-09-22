@@ -2,7 +2,7 @@ import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 import { HttpStatus, Injectable, type PipeTransform } from "@nestjs/common";
 import type { z } from "zod";
 
-import { problemException } from "../../platform/problems/problem-factory.js";
+import { problemException } from "../../platform/http/filters/error.factory.js";
 
 /**
  * NestJS Pipe that parses and validates incoming payloads using a Zod schema.

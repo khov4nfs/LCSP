@@ -8,7 +8,7 @@ import {
 import { Inject } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
-import { problemException } from "../../../../../platform/problems/problem-factory.ts";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import type { OAuthCallbackClaims } from "../../../infrastructure/oauth/oauth-provider.interface.ts";
 import { OAuthProviderRegistry } from "../../../infrastructure/oauth/oauth-provider.registry.ts";
 import type { OAuthCallbackSuccess } from "../../contracts/auth/oauth.contract.ts";
@@ -27,6 +27,17 @@ import {
 import { AuthSupportService } from "../../services/auth/auth-support.service.ts";
 import { OAuthCallbackCommand } from "./oauth-callback.command.ts";
 
+/**
+ * Handles completing an OAuth 2.0 / OIDC login flow.
+ *
+ * Enforces:
+ * 1. Single-use atomic consumption of OAuth state to eliminate replay attacks.
+ * 2. Validates state expiration, provider match, and non-link state invariant.
+ * 3. Exchanges authorization code with upstream provider and validates claims (issuer, audience, nonce, expiry).
+ * 4. Resolves federated user identity and ensures account is active and verified.
+ * 5. Issues authenticated session and discovers MFA requirement.
+ * 6. Records structured audit logs for login outcome.
+ */
 @CommandHandler(OAuthCallbackCommand)
 export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackCommand> {
   constructor(
@@ -44,6 +55,12 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
     private readonly providerRegistry: OAuthProviderRegistry,
   ) {}
 
+  /**
+   * Executes OAuth callback authorization and session creation.
+   *
+   * @param command - Contains callback payload (code, state, provider) and request metadata.
+   * @returns Session token, expiration, and MFA status.
+   */
   async execute(command: OAuthCallbackCommand): Promise<OAuthCallbackSuccess> {
     const { payload, requestMeta } = command;
     const { oauthStates, oauthIdentities, users, sessions, mfaEnrollments } =
@@ -51,13 +68,9 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
     const correlationId =
       requestMeta.correlationId ?? this.support.createCorrelationId();
 
-    const code = asNonEmptyString(payload?.code);
-    const stateValue = asNonEmptyString(payload?.state);
-    const providerParam = asNonEmptyString(payload?.provider);
-
-    if (!code || !stateValue || !providerParam) {
-      throw problemException(AUTH_ERROR_CODES.validationFailed, correlationId);
-    }
+    const code = payload.code;
+    const stateValue = payload.state;
+    const providerParam = payload.provider;
 
     // Atomic delete-and-return: a state value can only ever be consumed once,
     // closing the replay window even under concurrent callback requests.
@@ -207,10 +220,4 @@ export class OAuthCallbackHandler implements ICommandHandler<OAuthCallbackComman
       correlationId: correlationId,
     });
   }
-}
-
-function asNonEmptyString(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : null;
 }

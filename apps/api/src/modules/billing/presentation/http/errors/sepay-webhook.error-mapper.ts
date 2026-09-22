@@ -2,7 +2,7 @@ import { HttpStatus } from "@nestjs/common";
 import type { Request } from "express";
 import { BILLING_RECONCILIATION_ERROR_CODES } from "@lcsp/contracts/billing";
 import { SePayWebhookIngressError } from "../../../infrastructure/security/sepay-webhook-ingress.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 
 export function rawWebhookBody(request: Request): Buffer {
   return Buffer.isBuffer(request.body) ? request.body : Buffer.alloc(0);

@@ -11,7 +11,7 @@ import * as crypto from "node:crypto";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.ts";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import {
   AUTH_RECORD_TYPES,
   authRecordLookupKey,
@@ -27,9 +27,17 @@ import { AuthAuditService } from "../../services/auth/auth-audit.service.ts";
 import { SignUpCommand } from "./sign-up.command.ts";
 
 const SESSION_TTL_MS = 8 * 60 * 60_000;
-const MIN_PASSWORD_LENGTH = 12;
-const MAX_DISPLAY_NAME_LENGTH = 100;
 
+/**
+ * Handles new customer account registration.
+ *
+ * Enforces:
+ * 1. Email uniqueness pre-check and atomic database duplicate constraint handling.
+ * 2. Secure password hashing with scrypt.
+ * 3. Atomic transaction creating user record, initial authenticated session, and audit log.
+ * 4. Account lifecycle advisory locking to serialize user creation operations.
+ * 5. Returns issued session token and expiration timestamp.
+ */
 @CommandHandler(SignUpCommand)
 export class SignUpHandler implements ICommandHandler<SignUpCommand> {
   constructor(
@@ -37,37 +45,15 @@ export class SignUpHandler implements ICommandHandler<SignUpCommand> {
     private readonly authAudit: AuthAuditService,
   ) {}
 
+  /**
+   * Executes user registration and initial session issuance.
+   *
+   * @param command - Contains normalized email, display name, password, and correlation ID.
+   * @returns User ID, opaque session token, and session expiration timestamp.
+   */
   async execute(command: SignUpCommand): Promise<SignUpResponse> {
     const { email, displayName, password } = command.input;
     const correlationId = command.input.correlationId ?? createCorrelationId();
-
-    if (!isValidEmail(email) || !isValidDisplayName(displayName)) {
-      await this.recordFailure(
-        correlationId,
-        SIGN_UP_ERROR_CODES.invalidRequest,
-      );
-      throw problemException(
-        SIGN_UP_ERROR_CODES.invalidRequest,
-        correlationId,
-        {
-          status: HttpStatus.BAD_REQUEST,
-        },
-      );
-    }
-
-    if (!isNonEmptyString(password) || password.length < MIN_PASSWORD_LENGTH) {
-      await this.recordFailure(
-        correlationId,
-        SIGN_UP_ERROR_CODES.passwordTooShort,
-      );
-      throw problemException(
-        SIGN_UP_ERROR_CODES.passwordTooShort,
-        correlationId,
-        {
-          status: HttpStatus.UNPROCESSABLE_ENTITY,
-        },
-      );
-    }
 
     const normalizedEmail = email.trim().toLowerCase();
     const trimmedDisplayName = displayName.trim();
@@ -194,24 +180,6 @@ export class SignUpHandler implements ICommandHandler<SignUpCommand> {
       },
     });
   }
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === "string" && value.trim().length > 0;
-}
-
-function isValidEmail(value: unknown): value is string {
-  return (
-    isNonEmptyString(value) && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
-  );
-}
-
-function isValidDisplayName(value: unknown): value is string {
-  return (
-    isNonEmptyString(value) &&
-    value.trim().length >= 1 &&
-    value.trim().length <= MAX_DISPLAY_NAME_LENGTH
-  );
 }
 
 function isUniqueConstraintViolation(error: unknown): boolean {

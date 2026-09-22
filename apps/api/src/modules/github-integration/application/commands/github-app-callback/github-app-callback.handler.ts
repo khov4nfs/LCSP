@@ -7,7 +7,7 @@ import { HttpStatus, Inject, Logger } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
 
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
-import { problemException } from "../../../../../platform/problems/problem-factory.js";
+import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { RepositoryConnection } from "../../../domain/entities/repository-connection.entity.js";
 import { GitHubAppClient } from "../../../infrastructure/github/github-app.client.js";
 import type { GitHubAppCallbackDto } from "../../contracts/github-integration/github-app-callback.contract.js";
