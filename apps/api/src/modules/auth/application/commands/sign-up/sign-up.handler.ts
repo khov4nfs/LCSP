@@ -89,6 +89,8 @@ export class SignUpHandler implements ICommandHandler<SignUpCommand> {
             id: newUserId,
             email: normalizedEmail,
             passwordHash: hashSecret(password),
+            // Per UC-M01-04 (Create Account), self-registered users onboard immediately
+            // and are active without a mandatory email verification step.
             emailVerified: true,
             failedLoginCount: 0,
             lockUntil: null,

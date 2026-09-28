@@ -29,7 +29,7 @@ import type {
 import type { AuthAuditService } from "./auth-audit.service.ts";
 
 const FAILED_LOGIN_LIMIT = 3;
-const LOCK_WINDOW_MS = 15 * 60_000;
+const LOCK_WINDOW_MS = 5 * 60_000;
 const SESSION_TTL_MS = 8 * 60 * 60_000;
 
 export class AuthSupportService {

@@ -2,6 +2,7 @@ import { AUDIT_DECISIONS } from "@lcsp/contracts/audit";
 import {
   AUTH_BACKUP_EMAIL_POLICIES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
+  USER_ACCESS_STATUSES,
 } from "@lcsp/contracts/auth";
 
 import { Inject } from "@nestjs/common";
@@ -69,13 +70,13 @@ export class RequestPasswordRecoveryHandler implements ICommandHandler<RequestPa
     const email = payload.email.trim().toLowerCase();
     const user = await users.findByPrimaryEmail(email);
 
-    if (!user) {
+    if (!user || user.accessStatus !== USER_ACCESS_STATUSES.active) {
       // Do the same shape of work as the found-user path so response
-      // latency doesn't reveal whether the email is registered.
+      // latency doesn't reveal whether the email is registered or suspended.
       hashSecret("decoy-recovery-lookup-for-constant-time-compare");
       await this.support.recordAudit({
         event_type: AUTH_LEGACY_AUDIT_EVENT_TYPES.recoveryRequested,
-        actor_id: null,
+        actor_id: user?.id ?? null,
         decision: AUDIT_DECISIONS.allow,
         correlationId: correlationId,
       });
