@@ -54,7 +54,8 @@ function clearSessionCookieOnAuthFailure(
 ) {
   if (
     problemCode === AUTH_ERROR_CODES.authRequired ||
-    problemCode === AUTH_ERROR_CODES.sessionInvalid
+    problemCode === AUTH_ERROR_CODES.sessionInvalid ||
+    problemCode === AUTH_ERROR_CODES.accountSuspended
   ) {
     response.cookies.delete(SESSION_COOKIE_NAME);
   }

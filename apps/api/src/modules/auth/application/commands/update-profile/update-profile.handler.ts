@@ -3,6 +3,7 @@ import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
   AUTH_PRIMARY_EMAIL_ADDRESS_POLICIES,
+  USER_ACCESS_STATUSES,
   type UpdateProfileInput,
 } from "@lcsp/contracts/auth";
 
@@ -67,6 +68,9 @@ export class UpdateProfileHandler implements ICommandHandler<UpdateProfileComman
     const user = await users.findById(userId);
     if (!user) {
       throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+    }
+    if (user.accessStatus !== USER_ACCESS_STATUSES.active) {
+      throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId);
     }
 
     const session = await sessions.findById(sessionId);
