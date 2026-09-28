@@ -194,7 +194,8 @@ export function toWorkspaceOutcome(
   if (
     status === 401 ||
     problemCode === AUTH_ERROR_CODES.authRequired ||
-    problemCode === AUTH_ERROR_CODES.sessionInvalid
+    problemCode === AUTH_ERROR_CODES.sessionInvalid ||
+    problemCode === AUTH_ERROR_CODES.accountSuspended
   ) {
     return {
       kind: API_OUTCOME_KINDS.redirect,

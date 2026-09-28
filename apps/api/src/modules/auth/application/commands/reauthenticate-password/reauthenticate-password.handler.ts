@@ -3,6 +3,7 @@ import {
   AUTH_ERROR_CODES,
   AUTH_LEGACY_AUDIT_EVENT_TYPES,
   REQUIRED_ACTIONS,
+  USER_ACCESS_STATUSES,
 } from "@lcsp/contracts/auth";
 
 import { Inject } from "@nestjs/common";
@@ -69,6 +70,9 @@ export class ReauthenticatePasswordHandler implements ICommandHandler<Reauthenti
     const user = await users.findById(userId);
     if (!user || user.id !== session.userId) {
       throw problemException(AUTH_ERROR_CODES.sessionInvalid, correlationId);
+    }
+    if (user.accessStatus !== USER_ACCESS_STATUSES.active) {
+      throw problemException(AUTH_ERROR_CODES.accountSuspended, correlationId);
     }
 
     if (!verifySecret(password, user.passwordHash)) {

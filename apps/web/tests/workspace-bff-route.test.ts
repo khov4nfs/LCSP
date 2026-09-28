@@ -65,6 +65,17 @@ test("toWorkspaceOutcome redirects to sign-in on 401 or sessionInvalid problem",
   if (outcomeProblem.kind === API_OUTCOME_KINDS.redirect) {
     assert.equal(outcomeProblem.location, "/sign-in");
   }
+
+  const outcomeSuspended = toWorkspaceOutcome(
+    { ok: false, problem: { code: AUTH_ERROR_CODES.accountSuspended } },
+    false,
+    403,
+    AUTH_ERROR_CODES.accountSuspended,
+  );
+  assert.equal(outcomeSuspended.kind, API_OUTCOME_KINDS.redirect);
+  if (outcomeSuspended.kind === API_OUTCOME_KINDS.redirect) {
+    assert.equal(outcomeSuspended.location, "/sign-in");
+  }
 });
 
 test("toWorkspaceOutcome redirects to MFA verify when mfaRequired problem occurs", () => {
