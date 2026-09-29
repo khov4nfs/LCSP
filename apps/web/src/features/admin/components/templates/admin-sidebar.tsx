@@ -1,30 +1,74 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import type { MessageKey } from "@lcsp/i18n";
+import { LOCALES } from "@lcsp/contracts/shared";
 import {
-  UsersIcon,
-  LayoutDashboardIcon,
   BookOpenIcon,
+  CheckIcon,
+  ChevronsUpDownIcon,
+  LanguagesIcon,
+  LayoutDashboardIcon,
+  LogOutIcon,
+  MonitorIcon,
+  MoonIcon,
+  SunIcon,
+  UsersIcon,
   WalletCardsIcon,
 } from "lucide-react";
-import type { MessageKey } from "@lcsp/i18n";
+import { useTheme } from "next-themes";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useSyncExternalStore } from "react";
 
 import { LCSPLogo } from "@/components/atoms/lcsp-logo";
 import {
   LCSP_LOGO_SIZES,
   LCSP_LOGO_VARIANTS,
 } from "@/components/types/lcsp-logo.types";
+import { THEME_PREFERENCES } from "@/components/types/theme-preference.types";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useSignOutMutation } from "@/lib/api/auth-queries";
 import { resolveAppMessage } from "@/lib/i18n";
+import {
+  getAppLocaleSnapshot,
+  setAppLocale,
+  subscribeToAppLocale,
+} from "@/lib/locale";
 import { cn } from "@/lib/utils";
 
 type AdminSidebarProps = {
   adminName?: string;
   adminEmail?: string;
+  isLoading?: boolean;
 };
 
-export function AdminSidebar({ adminName, adminEmail }: AdminSidebarProps) {
+const emptySubscribe = () => () => {};
+
+export function AdminSidebar({
+  adminName,
+  adminEmail,
+  isLoading = false,
+}: AdminSidebarProps) {
   const pathname = usePathname();
+  const currentLocale = useSyncExternalStore(
+    subscribeToAppLocale,
+    getAppLocaleSnapshot,
+    getAppLocaleSnapshot,
+  );
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const mounted = useSyncExternalStore(emptySubscribe, () => true, () => false);
+  const isDark = mounted && resolvedTheme === "dark";
+  const signOutMutation = useSignOutMutation();
   const fallbackName = resolveAppMessage(
     "pages.admin.sidebar.identityFallbackName" as MessageKey,
   );
@@ -37,14 +81,19 @@ export function AdminSidebar({ adminName, adminEmail }: AdminSidebarProps) {
   const resolvedAdminName = adminName ?? fallbackName;
   const resolvedAdminEmail = adminEmail ?? fallbackEmail;
 
+  async function handleSignOut() {
+    await signOutMutation.mutateAsync();
+    window.location.assign("/sign-in");
+  }
+
   const isUserAccountsActive =
-    pathname === "/admin/users" || pathname.startsWith("/admin/users/");
+    pathname === "/admin/users" || Boolean(pathname?.startsWith("/admin/users/"));
   const isOverviewActive =
     pathname === "/admin" ||
     pathname === "/admin/" ||
     pathname === "/admin/overview";
-  const isCorpusActive = pathname.startsWith("/admin/corpus");
-  const isBillingActive = pathname.startsWith("/admin/billing");
+  const isCorpusActive = Boolean(pathname?.startsWith("/admin/corpus"));
+  const isBillingActive = Boolean(pathname?.startsWith("/admin/billing"));
 
   const navItems = [
     {
@@ -79,17 +128,14 @@ export function AdminSidebar({ adminName, adminEmail }: AdminSidebarProps) {
 
   return (
     <aside
-      className={cn(
-        "flex h-screen w-62 shrink-0 flex-col justify-between border-r border-sidebar-border bg-sidebar text-sidebar-foreground select-none",
-        isBillingActive && "2xl:w-70",
-      )}
+      className="flex h-screen w-62 shrink-0 flex-col justify-between border-r border-sidebar-border bg-sidebar text-sidebar-foreground select-none"
       aria-label={resolveAppMessage(
         "pages.admin.sidebar.navigationAria" as MessageKey,
       )}
     >
       <div className="flex flex-col">
         {/* Brand Lockup & ADMIN Tag */}
-        <div className={cn("px-5 pt-5 pb-3", isBillingActive && "2xl:px-6")}>
+        <div className="px-5 pt-5 pb-3">
           <div className="flex items-center gap-2.5">
             <LCSPLogo
               variant={LCSP_LOGO_VARIANTS.lockup}
@@ -99,12 +145,7 @@ export function AdminSidebar({ adminName, adminEmail }: AdminSidebarProps) {
               )}
             />
           </div>
-          <div
-            className={cn(
-              "mt-2.5 flex items-center",
-              isBillingActive && "2xl:mt-0",
-            )}
-          >
+          <div className="mt-2.5 flex items-center">
             <span className="text-[10.5px] font-medium tracking-wider text-muted-foreground uppercase">
               {resolveAppMessage(
                 "pages.admin.sidebar.adminBadge" as MessageKey,
@@ -115,10 +156,7 @@ export function AdminSidebar({ adminName, adminEmail }: AdminSidebarProps) {
 
         {/* Navigation Rows */}
         <nav
-          className={cn(
-            "mt-4 flex flex-col gap-1 px-3",
-            isBillingActive && "2xl:mt-12 2xl:gap-2 2xl:px-4",
-          )}
+          className="mt-4 flex flex-col gap-1 px-3"
           aria-label={resolveAppMessage(
             "pages.admin.sidebar.sectionsAria" as MessageKey,
           )}
@@ -153,7 +191,6 @@ export function AdminSidebar({ adminName, adminEmail }: AdminSidebarProps) {
                 href={item.href}
                 className={cn(
                   "flex h-10 w-56 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition-colors",
-                  isBillingActive && "2xl:h-11 2xl:w-60 2xl:gap-0 2xl:px-4",
                   item.isActive
                     ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground shadow-xs"
                     : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
@@ -163,7 +200,6 @@ export function AdminSidebar({ adminName, adminEmail }: AdminSidebarProps) {
                 <Icon
                   className={cn(
                     "size-4 shrink-0",
-                    isBillingActive && "2xl:hidden",
                     item.isActive
                       ? "text-sidebar-accent-foreground"
                       : "text-muted-foreground",
@@ -176,16 +212,10 @@ export function AdminSidebar({ adminName, adminEmail }: AdminSidebarProps) {
         </nav>
 
         {/* Divider */}
-        <div
-          className={cn(
-            "mx-5 my-5 h-px bg-sidebar-border/60",
-            isBillingActive && "2xl:my-6.5",
-            isBillingActive && "2xl:mx-6",
-          )}
-        />
+        <div className="mx-5 my-5 h-px bg-sidebar-border/60" />
 
         {/* Administration Section Note */}
-        <div className={cn("px-5", isBillingActive && "2xl:px-6")}>
+        <div className="px-5">
           <p className="text-[10.5px] font-semibold tracking-wider text-sidebar-foreground/70 uppercase">
             {resolveAppMessage(
               "pages.admin.sidebar.administrationLabel" as MessageKey,
@@ -199,37 +229,232 @@ export function AdminSidebar({ adminName, adminEmail }: AdminSidebarProps) {
         </div>
       </div>
 
-      {/* Bottom Authenticated Admin Identity */}
-      <div
-        className={cn("p-3", isBillingActive && "2xl:px-4 2xl:pt-4 2xl:pb-5")}
-      >
-        <div
-          className={cn(
-            "flex h-14 w-56 items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/50 px-3 py-2",
-            isBillingActive && "2xl:h-16 2xl:w-64 2xl:bg-sidebar-accent",
-          )}
-        >
-          <div
-            className={cn(
-              "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-              isBillingActive
-                ? "bg-sidebar-accent text-sidebar-foreground"
-                : "bg-admin-status-active-surface text-admin-status-active-foreground",
+      {/* Bottom Authenticated Admin Identity with Dropdown */}
+      <div className="p-3">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="flex h-14 w-full items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/50 px-3 py-2 text-left transition-colors hover:bg-sidebar-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring cursor-pointer"
+            aria-label={resolveAppMessage(
+              "pages.admin.sidebar.identityFallbackName" as MessageKey,
             )}
           >
-            {isBillingActive
-              ? adminRole.charAt(0).toUpperCase()
-              : resolvedAdminName.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col justify-center">
-            <span className="truncate text-[12.5px] font-medium text-sidebar-foreground">
-              {isBillingActive ? resolvedAdminEmail : resolvedAdminName}
-            </span>
-            <span className="truncate text-[10.5px] text-muted-foreground">
-              {isBillingActive ? adminRole : resolvedAdminEmail}
-            </span>
-          </div>
-        </div>
+            {isLoading ? (
+              <div className="size-8 shrink-0 rounded-full bg-sidebar-accent animate-pulse" />
+            ) : (
+              <div
+                className={cn(
+                  "flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                  isBillingActive
+                    ? "bg-sidebar-accent text-sidebar-foreground"
+                    : "bg-admin-status-active-surface text-admin-status-active-foreground",
+                )}
+              >
+                {isBillingActive
+                  ? adminRole.charAt(0).toUpperCase()
+                  : resolvedAdminName.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="flex min-w-0 flex-1 flex-col justify-center">
+              {isLoading ? (
+                <div className="flex flex-col gap-1.5 py-0.5">
+                  <div className="h-3 w-20 rounded bg-sidebar-accent animate-pulse" />
+                  <div className="h-2.5 w-28 rounded bg-sidebar-accent/60 animate-pulse" />
+                </div>
+              ) : (
+                <>
+                  <span className="truncate text-[12.5px] font-medium text-sidebar-foreground">
+                    {isBillingActive ? resolvedAdminEmail : resolvedAdminName}
+                  </span>
+                  <span className="truncate text-[10.5px] text-muted-foreground">
+                    {isBillingActive ? adminRole : resolvedAdminEmail}
+                  </span>
+                </>
+              )}
+            </div>
+            <ChevronsUpDownIcon className="size-4 shrink-0 text-muted-foreground" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            side="top"
+            sideOffset={8}
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-xl border border-border/80 bg-popover/95 p-1.5 shadow-xl backdrop-blur-md"
+          >
+            {/* Header: Admin profile summary */}
+            <div className="flex items-center gap-3 px-1.5 py-1.5">
+              {isLoading ? (
+                <>
+                  <div className="size-8 shrink-0 rounded-full bg-muted animate-pulse" />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                    <div className="h-3 w-24 rounded bg-muted animate-pulse" />
+                    <div className="h-2.5 w-32 rounded bg-muted/60 animate-pulse" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-admin-status-active-surface text-admin-status-active-foreground text-xs font-semibold">
+                    {resolvedAdminName.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate text-[13px] font-semibold text-foreground">
+                      {resolvedAdminName}
+                    </span>
+                    <span className="truncate text-[11px] text-muted-foreground">
+                      {resolvedAdminEmail}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <DropdownMenuSeparator className="my-1" />
+
+            {/* Language Submenu (Scalable for 2, 5, 10, 50+ languages) */}
+            <DropdownMenuGroup>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors cursor-pointer">
+                  <LanguagesIcon aria-hidden="true" className="size-3.5 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate">
+                    {resolveAppMessage(
+                      "pages.workspace.settingsHub.general.language" as MessageKey,
+                    )}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {currentLocale === "vi" ? "Tiếng Việt" : "English"}
+                  </span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-44 rounded-xl border border-border/80 bg-popover/95 p-1.5 shadow-xl backdrop-blur-md">
+                  {LOCALES.map((loc) => {
+                    const isSelected = currentLocale === loc;
+                    return (
+                      <DropdownMenuItem
+                        key={loc}
+                        closeOnClick={false}
+                        onClick={() => {
+                          setAppLocale(loc);
+                        }}
+                        className={cn(
+                          "flex h-8 items-center justify-between rounded-md px-2.5 text-[12.5px] font-medium transition-colors cursor-pointer",
+                          isSelected
+                            ? "bg-accent/80 text-accent-foreground font-semibold"
+                            : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs">{loc === "vi" ? "🇻🇳" : "🇬🇧"}</span>
+                          <span>
+                            {loc === "vi"
+                              ? resolveAppMessage(
+                                  "pages.workspace.settingsHub.general.languageVietnamese" as MessageKey,
+                                )
+                              : resolveAppMessage(
+                                  "pages.workspace.settingsHub.general.languageEnglish" as MessageKey,
+                                )}
+                          </span>
+                        </div>
+                        {isSelected ? (
+                          <CheckIcon className="size-3.5 text-primary" />
+                        ) : null}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            </DropdownMenuGroup>
+
+            {/* Theme Submenu (System / Light / Dark) */}
+            <DropdownMenuGroup>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors cursor-pointer">
+                  {isDark ? (
+                    <MoonIcon aria-hidden="true" className="size-3.5 text-muted-foreground" />
+                  ) : (
+                    <SunIcon aria-hidden="true" className="size-3.5 text-muted-foreground" />
+                  )}
+                  <span className="min-w-0 flex-1 truncate">
+                    {resolveAppMessage(
+                      "pages.workspace.settingsHub.appearance.shellTitle" as MessageKey,
+                    )}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {theme === THEME_PREFERENCES.system || !theme
+                      ? resolveAppMessage(
+                          "pages.workspace.settingsHub.appearance.themeOptions.system" as MessageKey,
+                        )
+                      : isDark
+                        ? resolveAppMessage(
+                            "pages.workspace.settingsHub.appearance.themeOptions.dark" as MessageKey,
+                          )
+                        : resolveAppMessage(
+                            "pages.workspace.settingsHub.appearance.themeOptions.light" as MessageKey,
+                          )}
+                  </span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-40 rounded-xl border border-border/80 bg-popover/95 p-1.5 shadow-xl backdrop-blur-md">
+                  {[
+                    {
+                      value: THEME_PREFERENCES.system,
+                      labelKey: "pages.workspace.settingsHub.appearance.themeOptions.system" as MessageKey,
+                      icon: MonitorIcon,
+                    },
+                    {
+                      value: THEME_PREFERENCES.light,
+                      labelKey: "pages.workspace.settingsHub.appearance.themeOptions.light" as MessageKey,
+                      icon: SunIcon,
+                    },
+                    {
+                      value: THEME_PREFERENCES.dark,
+                      labelKey: "pages.workspace.settingsHub.appearance.themeOptions.dark" as MessageKey,
+                      icon: MoonIcon,
+                    },
+                  ].map((opt) => {
+                    const Icon = opt.icon;
+                    const isSelected =
+                      theme === opt.value ||
+                      (!theme && opt.value === THEME_PREFERENCES.system);
+                    return (
+                      <DropdownMenuItem
+                        key={opt.value}
+                        closeOnClick={false}
+                        onClick={() => setTheme(opt.value)}
+                        className={cn(
+                          "flex h-8 items-center justify-between rounded-md px-2.5 text-[12.5px] font-medium transition-colors cursor-pointer",
+                          isSelected
+                            ? "bg-accent/80 text-accent-foreground font-semibold"
+                            : "text-muted-foreground hover:bg-accent/40 hover:text-foreground",
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <Icon className="size-3.5" />
+                          <span>{resolveAppMessage(opt.labelKey)}</span>
+                        </div>
+                        {isSelected ? (
+                          <CheckIcon className="size-3.5 text-primary" />
+                        ) : null}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+            </DropdownMenuGroup>
+
+            <DropdownMenuSeparator className="my-1" />
+
+            {/* Sign Out */}
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                disabled={signOutMutation.isPending}
+                onClick={handleSignOut}
+                variant="destructive"
+                className="flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors cursor-pointer"
+              >
+                <LogOutIcon aria-hidden="true" className="size-3.5" />
+                <span className="min-w-0 flex-1 truncate">
+                  {resolveAppMessage("pages.appShell.signOut")}
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </aside>
   );

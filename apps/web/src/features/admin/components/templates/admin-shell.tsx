@@ -1,21 +1,20 @@
 "use client";
 
-import { useEffect, useSyncExternalStore, type ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import type { MessageKey } from "@lcsp/i18n";
 
-import { AdminSidebar } from "./admin-sidebar";
 import { useAuthSettingsProfileQuery } from "@/lib/api/auth-queries";
 import { resolveAppMessage } from "@/lib/i18n";
 import {
   getAppLocaleSnapshot,
-  setAppLocale,
   subscribeToAppLocale,
 } from "@/lib/locale";
 import { cn } from "@/lib/utils";
+import { AdminSidebar } from "./admin-sidebar";
 
 type AdminShellProps = {
-  children: ReactNode;
+  children?: ReactNode;
   adminName?: string;
   adminEmail?: string;
 };
@@ -31,8 +30,8 @@ export function AdminShell({
     getAppLocaleSnapshot,
     getAppLocaleSnapshot,
   );
-  const isBillingRoute = pathname.startsWith("/admin/billing");
-  const { data: profile } = useAuthSettingsProfileQuery();
+  const isBillingRoute = Boolean(pathname?.startsWith("/admin/billing"));
+  const { data: profile, isLoading } = useAuthSettingsProfileQuery();
   const fallbackName = resolveAppMessage(
     "pages.admin.sidebar.identityFallbackName" as MessageKey,
   );
@@ -43,19 +42,8 @@ export function AdminShell({
   const resolvedName =
     adminName ??
     profile?.display_name ??
-    (profile?.email ? profile.email.split("@")[0] : undefined) ??
     fallbackName;
   const resolvedEmail = adminEmail ?? profile?.email ?? fallbackEmail;
-
-  useEffect(() => {
-    const documentLocale = document.documentElement.lang;
-    if (
-      (documentLocale === "en" || documentLocale === "vi") &&
-      locale !== documentLocale
-    ) {
-      setAppLocale(documentLocale);
-    }
-  }, [locale]);
 
   return (
     <div
@@ -67,10 +55,15 @@ export function AdminShell({
       data-locale={locale}
     >
       {/* 248px Desktop Admin Sidebar */}
-      <AdminSidebar adminName={resolvedName} adminEmail={resolvedEmail} />
+      <AdminSidebar
+        adminName={resolvedName}
+        adminEmail={resolvedEmail}
+        isLoading={isLoading && !profile && !adminName}
+      />
 
       {/* Main Content Surface (1192px at 1440px desktop viewport) */}
       <main
+        key={locale}
         className={cn(
           "flex min-h-screen flex-1 min-w-0 flex-col overflow-y-auto px-10 py-8",
           isBillingRoute && "2xl:px-11.5 2xl:py-9",
