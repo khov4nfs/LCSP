@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
+import { headers } from "next/headers";
 
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "@/components/ui/sonner";
+import type { Locale } from "@lcsp/contracts/shared";
+import { LocaleProvider } from "@/components/providers/locale-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 import "./globals.css";
 
@@ -50,10 +52,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const locale = (await headers()).get("x-lcsp-locale");
+  const headerLocale = (await headers()).get("x-lcsp-locale");
+  const initialLocale: Locale = headerLocale === "vi" ? "vi" : "en";
+
   return (
     <html
-      lang={locale === "vi" ? "vi" : "en"}
+      lang={initialLocale}
       className={`${geistSans.variable} ${geistMono.variable}`}
       suppressHydrationWarning
     >
@@ -64,12 +68,14 @@ export default async function RootLayout({
           disableTransitionOnChange
           enableSystem
         >
-          <QueryProvider>
-            <TooltipProvider>
-              {children}
-              <Toaster />
-            </TooltipProvider>
-          </QueryProvider>
+          <LocaleProvider initialLocale={initialLocale}>
+            <QueryProvider>
+              <TooltipProvider>
+                {children}
+                <Toaster />
+              </TooltipProvider>
+            </QueryProvider>
+          </LocaleProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -15,6 +15,7 @@ import {
   localizedMarketingPath,
   MARKETING_LOCALE_COOKIE,
 } from "./features/marketing/config/marketing-routing";
+import { APP_LOCALE_COOKIE } from "./lib/locale";
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
@@ -30,13 +31,16 @@ export async function proxy(request: NextRequest) {
   }
 
   const localeMatch = pathname.match(/^\/(en|vi)(?=\/|$)/);
+  const requestHeaders = new Headers(request.headers);
   if (localeMatch) {
-    const requestHeaders = new Headers(request.headers);
     requestHeaders.set("x-lcsp-locale", localeMatch[1]);
-    return continueProxy(request, requestHeaders);
+  } else {
+    const cookieLocale = request.cookies.get(APP_LOCALE_COOKIE)?.value;
+    const resolvedLocale = cookieLocale === "vi" ? "vi" : "en";
+    requestHeaders.set("x-lcsp-locale", resolvedLocale);
   }
 
-  return continueProxy(request, request.headers);
+  return continueProxy(request, requestHeaders);
 }
 
 async function continueProxy(request: NextRequest, requestHeaders: Headers) {
