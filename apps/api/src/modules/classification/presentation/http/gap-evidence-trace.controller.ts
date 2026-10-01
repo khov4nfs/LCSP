@@ -18,7 +18,7 @@ import {
 } from "@lcsp/contracts/evidence";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
-import { isRecord } from "../../../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
 import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles.decorator.js";

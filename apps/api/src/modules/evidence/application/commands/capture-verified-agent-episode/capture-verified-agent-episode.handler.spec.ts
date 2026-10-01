@@ -5,7 +5,7 @@ import {
   VERIFIED_AGENT_EPISODE_VALIDATION_STATUSES,
 } from "@lcsp/contracts/evidence";
 
-import { isRecord } from "../../../../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 import type { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { CaptureVerifiedAgentEpisodeCommand } from "./capture-verified-agent-episode.command.js";
 import { CaptureVerifiedAgentEpisodeHandler } from "./capture-verified-agent-episode.handler.js";

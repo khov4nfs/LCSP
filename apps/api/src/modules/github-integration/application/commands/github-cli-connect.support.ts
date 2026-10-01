@@ -30,83 +30,11 @@ export type GitLabRepositoryLocator = GitHubRepositoryLocator;
 export type BitbucketRepositoryLocator = GitHubRepositoryLocator;
 export type AzureDevOpsRepositoryLocator = GitHubRepositoryLocator;
 
-/** Parses only safe HTTPS GitHub repository URLs accepted by the connect flow. */
-export function parseGitHubRepositoryUrl(
-  value: unknown,
-): GitHubRepositoryLocator | null {
-  if (typeof value !== "string" || value.length === 0 || value.length > 2048) {
-    return null;
-  }
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    return null;
-  }
-  if (
-    url.protocol !== "https:" ||
-    url.hostname !== "github.com" ||
-    url.port !== "" ||
-    url.username !== "" ||
-    url.password !== "" ||
-    url.search !== "" ||
-    url.hash !== ""
-  ) {
-    return null;
-  }
-  const pathname = url.pathname.replace(/\/$/u, "");
-  if (pathname.includes("/-/")) return null;
-  const parts = pathname.slice(1).split("/");
-  if (parts.length !== 2 || parts.some((part) => part.length === 0)) {
-    return null;
-  }
-  const repository = parts[1].endsWith(".git")
-    ? `${parts[0]}/${parts[1].slice(0, -4)}`
-    : `${parts[0]}/${parts[1]}`;
-  if (!GITHUB_REPOSITORY_PATTERN.test(repository)) return null;
-  return {
-    repositoryFullName: repository,
-    canonicalUrl: `https://github.com/${repository}`,
-  };
-}
-
-/** Parses GitLab.com URLs, including nested group paths. */
-export function parseGitLabRepositoryUrl(
-  value: unknown,
-): GitLabRepositoryLocator | null {
-  if (typeof value !== "string" || value.length === 0 || value.length > 2048) {
-    return null;
-  }
-  let url: URL;
-  try {
-    url = new URL(value);
-  } catch {
-    return null;
-  }
-  if (
-    url.protocol !== "https:" ||
-    url.hostname !== "gitlab.com" ||
-    url.port !== "" ||
-    url.username !== "" ||
-    url.password !== "" ||
-    url.search !== "" ||
-    url.hash !== ""
-  ) {
-    return null;
-  }
-  const pathname = url.pathname.replace(/\/$/u, "");
-  if (pathname.includes("/-/")) return null;
-  const parts = pathname.slice(1).split("/");
-  if (parts.length < 2 || parts.some((part) => part.length === 0)) return null;
-  const last = parts.at(-1) as string;
-  parts[parts.length - 1] = last.endsWith(".git") ? last.slice(0, -4) : last;
-  const repository = parts.join("/");
-  if (!GITLAB_REPOSITORY_PATTERN.test(repository)) return null;
-  return {
-    repositoryFullName: repository,
-    canonicalUrl: `https://gitlab.com/${repository}`,
-  };
-}
+// The API and setup form must accept exactly the same GitHub/GitLab URLs.
+export {
+  parseGitHubRepositoryUrl,
+  parseGitLabRepositoryUrl,
+} from "@lcsp/contracts/github-integration";
 
 /** Parses Bitbucket.org URLs (workspace/repo-slug). */
 export function parseBitbucketRepositoryUrl(

@@ -1,3 +1,4 @@
+import { isAssessmentRepositorySetupState, type AssessmentRepositorySetupState } from "@lcsp/contracts/assessment";
 import { AUTH_ERROR_CODES } from "@lcsp/contracts/auth";
 
 import { PUBLIC_ENTRY_ROUTES } from "../../auth-entry.ts";
@@ -5,6 +6,7 @@ import { apiRequest } from "./api-request.ts";
 import { API_OUTCOME_KINDS } from "./outcome-kinds.ts";
 
 export type ReadinessStatusViewModel = {
+  repositorySetup?: AssessmentRepositorySetupState;
   classificationLocked: boolean;
   missingEvidence: Array<{
     type: string;
@@ -40,6 +42,7 @@ type ReadinessStatusOutcome =
     };
 
 type ReadinessPayload = {
+  repository_setup?: unknown;
   classification_locked?: unknown;
   missing_evidence?: unknown;
   unresolved_unknown_items?: unknown;
@@ -73,6 +76,7 @@ export async function getReadinessStatus(
     return {
       kind: API_OUTCOME_KINDS.loaded,
       data: {
+        repositorySetup: payload.repository_setup,
         classificationLocked: payload.classification_locked,
         missingEvidence: payload.missing_evidence,
         unresolvedUnknowns: payload.unresolved_unknown_items,
@@ -114,6 +118,7 @@ export async function getReadinessStatus(
 }
 
 export function isReadinessPayload(payload: unknown): payload is {
+  repository_setup?: AssessmentRepositorySetupState;
   classification_locked: boolean;
   missing_evidence: Array<{
     type: string;
@@ -144,6 +149,7 @@ export function isReadinessPayload(payload: unknown): payload is {
 
   const candidate = payload as ReadinessPayload;
   return (
+    (candidate.repository_setup === undefined || isAssessmentRepositorySetupState(candidate.repository_setup)) &&
     typeof candidate.classification_locked === "boolean" &&
     Array.isArray(candidate.missing_evidence) &&
     candidate.missing_evidence.every(

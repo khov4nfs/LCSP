@@ -2,15 +2,22 @@ import { HttpStatus, Inject } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import {
   ASSESSMENT_ERROR_CODES,
+  ASSESSMENT_STATUS_CODES,
   ASSESSMENT_MISSING_EVIDENCE_CODES,
   ASSESSMENT_NEXT_ACTION_KEYS,
   READINESS_MODES,
 } from "@lcsp/contracts/assessment";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
-import { REPOSITORY_CONNECTION_STATUSES } from "@lcsp/contracts/github-integration";
+import {
+  REPOSITORY_CONNECTION_STATUSES,
+  REPOSITORY_SNAPSHOT_STATUSES,
+} from "@lcsp/contracts/github-integration";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { toPrismaEvidenceAcceptanceStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
+import {
+  toPrismaEvidenceAcceptanceStatus,
+  fromPrismaRepositoryScanJobStatus,
+} from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import {
   ASSESSMENT_REPOSITORY,
@@ -73,7 +80,69 @@ export class GetAssessmentReadinessHandler implements IQueryHandler<GetAssessmen
       }),
     ]);
 
+    // Read only: opening an Assessment must not pin a source or enqueue a scan.
+    // A checkpoint is always scoped to the current active connection.
+    const snapshot = connection
+      ? await this.prisma.repositorySnapshot.findFirst({
+          where: {
+            assessmentId: assessment.id,
+            connectionId: connection.id,
+            status: REPOSITORY_SNAPSHOT_STATUSES.ready,
+          },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        })
+      : null;
+    const scanJob = snapshot
+      ? await this.prisma.repositoryScanJob.findFirst({
+          where: { assessmentId: assessment.id, snapshotId: snapshot.id },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        })
+      : null;
+    const setupCompleted = Boolean(
+      connection &&
+      snapshot &&
+      assessment.status !== ASSESSMENT_STATUS_CODES.wizardInProgress,
+    );
+
     return {
+      repository_setup: {
+        assessmentId: assessment.id,
+        assessmentStatus: assessment.status,
+        connection: connection
+          ? {
+              connectionId: connection.id,
+              provider: String(connection.provider),
+              repositoryId: connection.repositoryId,
+              repositoryFullName: connection.repositoryFullName,
+              defaultBranch: connection.defaultBranch,
+              status: String(connection.status),
+            }
+          : null,
+        snapshot:
+          snapshot && connection
+            ? {
+                id: snapshot.id,
+                assessmentId: snapshot.assessmentId,
+                connectionId: snapshot.connectionId,
+                provider: String(connection.provider),
+                repositoryFullName: snapshot.repositoryFullName,
+                branch: snapshot.branch,
+                commitSha: snapshot.commitSha,
+                createdAt: snapshot.createdAt.toISOString(),
+              }
+            : null,
+        scanJob: scanJob
+          ? {
+              id: scanJob.id,
+              assessmentId: scanJob.assessmentId,
+              snapshotId: scanJob.snapshotId,
+              status: fromPrismaRepositoryScanJobStatus(scanJob.status),
+              attemptCount: scanJob.attemptCount,
+              blockedReason: scanJob.blockedReason,
+              updatedAt: scanJob.updatedAt.toISOString(),
+            }
+          : null,
+      },
       classification_locked: acceptedEvidence === null,
       missing_evidence:
         acceptedEvidence === null
@@ -89,7 +158,7 @@ export class GetAssessmentReadinessHandler implements IQueryHandler<GetAssessmen
           : [],
       unresolved_unknown_items: [],
       readiness_mode: READINESS_MODES.selfDeclared,
-      completed_steps: connection ? ["repository_setup"] : [],
+      completed_steps: setupCompleted ? ["repository_setup"] : [],
       next_action: ASSESSMENT_NEXT_ACTION_KEYS.workflowRun,
       updated_at: assessment.updatedAt.toISOString(),
       repository_connection: connection

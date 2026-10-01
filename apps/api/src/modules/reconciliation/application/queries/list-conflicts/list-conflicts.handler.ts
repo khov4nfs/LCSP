@@ -8,7 +8,7 @@ import {
   toPrismaConflictRecordStatus,
 } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
-import { isRecord } from "../../../../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import type {
   ConflictEvidenceContext,

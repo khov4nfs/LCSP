@@ -2,7 +2,7 @@ import { NotFoundException } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 import { EvidenceAcceptanceStatus } from "@prisma/client";
 
-import { cleanString, isRecord } from "../../../../../common/utils/index.js";
+import { cleanString, isRecord } from "@lcsp/contracts/shared";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import type { DocumentGenerationContextDto } from "../../contracts/document/document-generation-context.contract.js";
 import { GetDocumentGenerationContextQuery } from "./get-document-generation-context.query.js";

@@ -93,7 +93,7 @@ describe("Verified agent episodes internal dispatch (e2e)", () => {
         model_id: "test-model",
         summary: "human review planning seed",
         handoff: { status: "READY" },
-        expires_at: "2026-09-30T00:00:00.000Z",
+        expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
       },
     );
     assert.equal(capture.status, 200);
@@ -129,7 +129,7 @@ describe("Verified agent episodes internal dispatch (e2e)", () => {
           contentHash: "sha256:e2e",
         },
       },
-      data: { expiresAt: new Date("2026-08-29T00:00:00.000Z") },
+      data: { expiresAt: new Date(Date.now() - 86_400_000) },
     });
     assert.equal(active.status, VERIFIED_AGENT_EPISODE_RECORD_STATUSES.active);
 

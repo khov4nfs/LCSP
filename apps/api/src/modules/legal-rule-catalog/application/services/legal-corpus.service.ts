@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import { HttpStatus, Injectable } from "@nestjs/common";
-import { isRecord } from "../../../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 import {
   ACTIVATE_VALIDATED_CORPUS_VERSION_LIMITATION_CODES,
   ACTIVATE_VALIDATED_CORPUS_VERSION_TOOL,

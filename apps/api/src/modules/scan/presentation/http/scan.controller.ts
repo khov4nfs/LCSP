@@ -18,7 +18,7 @@ import { CommandBus, QueryBus } from "@nestjs/cqrs";
 import { DecisionModelDecisionStatus, Prisma } from "@prisma/client";
 import { AUTH_USER_ROLES } from "@lcsp/contracts/auth";
 
-import { isRecord } from "../../../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 import {
   ASSESSMENT_AGENT_STREAM_DURABILITY,
   ASSESSMENT_AGENT_STREAM_EVENT_TYPES,

@@ -4,7 +4,7 @@ import {
   AI_DISCOVERY_RESOLUTION_STATES,
 } from "@lcsp/contracts/evidence";
 
-import { isRecord } from "../../../../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 import type {
   ProgramEvidenceGraphClaimDto,
   ProgramEvidenceGraphDetailDto,

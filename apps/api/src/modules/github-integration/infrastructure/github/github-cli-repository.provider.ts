@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable, Transform, type TransformCallback } from "node:stream";
 
-import { isRecord } from "../../../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 import {
   GITHUB_ARCHIVE_REDIRECT_VALIDATION_STATUSES,
   GITHUB_CREDENTIAL_ERROR_CODES,

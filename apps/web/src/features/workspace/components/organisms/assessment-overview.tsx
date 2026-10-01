@@ -80,27 +80,35 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
   const evidenceOverviewQuery =
     useProgramEvidenceGraphOverviewQuery(assessmentId);
   const retryScan = useRerunRepositoryScanMutation(assessmentId);
-  const connection =
-    readinessQuery.data?.kind === API_OUTCOME_KINDS.loaded
-      ? readinessQuery.data.data.repositoryConnection
-      : null;
   const readinessLoaded =
     readinessQuery.data?.kind === API_OUTCOME_KINDS.loaded;
-  const snapshot =
-    workspaceRuntime.repositorySnapshots.find(
-      (item) => item.assessmentId === assessmentId,
-    ) ?? null;
-  const scanJob =
-    workspaceRuntime.scanJobs.find(
-      (item) => item.assessmentId === assessmentId,
-    ) ?? null;
+  const readiness = readinessQuery.data?.kind === API_OUTCOME_KINDS.loaded
+    ? readinessQuery.data.data
+    : undefined;
+  const setupState = readiness?.repositorySetup;
+  const connection = setupState ? setupState.connection : readiness?.repositoryConnection ?? null;
+  // Explicit null checkpoints must not resurrect a stale SSE snapshot.
+  const snapshot = setupState
+    ? setupState.snapshot
+    : workspaceRuntime.repositorySnapshots.find(
+        (item) => item.assessmentId === assessmentId,
+      ) ?? null;
+  const liveScanJob = workspaceRuntime.scanJobs.find(
+    (item) => item.assessmentId === assessmentId && item.snapshotId === snapshot?.id,
+  ) ?? null;
+  const persistedScanJob = setupState?.scanJob ?? null;
+  const scanJob = liveScanJob && (
+    !persistedScanJob || liveScanJob.updatedAt >= persistedScanJob.updatedAt
+  ) ? liveScanJob : persistedScanJob;
   const evidenceReport =
     workspaceRuntime.evidenceReports.find(
-      (item) => item.assessmentId === assessmentId,
+      (item) => item.assessmentId === assessmentId &&
+        item.snapshotId === snapshot?.id && item.scanJobId === scanJob?.id,
     ) ?? null;
   const timeline = workspaceRuntime.getAssessmentRuntime(assessmentId);
   const repositoryAnswer = deriveRepositorySetupAnswer(connection ?? snapshot);
   const flow = deriveAssessmentFlowRuntime({
+    setupState,
     hasRepositoryConnection: readinessLoaded
       ? connection?.status === REPOSITORY_CONNECTION_STATUSES.active
       : Boolean(snapshot),
@@ -113,7 +121,7 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
   const retryScanDisabled =
     retryScanSnapshotId === undefined || retryScan.isPending;
 
-  if (readinessQuery.isLoading && !snapshot) {
+  if (readinessQuery.isLoading) {
     return (
       <main className="flex h-full min-h-0 flex-col">
         <AssessmentTranscript>
@@ -134,8 +142,19 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
     );
   }
 
+  if (!readinessLoaded) {
+    return (
+      <main className="flex h-full flex-col items-start gap-4 p-4">
+        <p role="alert">{t("pages.readiness.errorDetail")}</p>
+        <Button disabled={readinessQuery.isFetching} onClick={() => void readinessQuery.refetch()}>
+          {t("pages.assessmentFlow.retrySetupState")}
+        </Button>
+      </main>
+    );
+  }
+
   if (flow.stage === ASSESSMENT_FLOW_STAGES.repositorySetup) {
-    return <RepositorySetupStep assessmentId={assessmentId} />;
+    return <RepositorySetupStep key={assessmentId} assessmentId={assessmentId} />;
   }
 
   return (

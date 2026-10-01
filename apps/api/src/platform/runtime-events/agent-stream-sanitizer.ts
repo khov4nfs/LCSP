@@ -1,6 +1,6 @@
 import type { AssessmentRuntimeSummaryValue } from "@lcsp/contracts/evidence";
 
-import { isRecord } from "../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 
 const MAX_AGENT_STREAM_TEXT_LENGTH = 65_536;
 const MAX_AGENT_STREAM_DEPTH = 8;

@@ -3,11 +3,7 @@ import type { ArgumentsHost, ExceptionFilter } from "@nestjs/common";
 import type { ProblemMeta, ProblemResult } from "@lcsp/contracts/auth";
 import { randomUUID } from "node:crypto";
 
-import {
-  cleanString,
-  isNumber,
-  isRecord,
-} from "../../../common/utils/index.js";
+import { cleanString, isNumber, isRecord } from "@lcsp/contracts/shared";
 import { setProblemResponseMetadata } from "./error-response-metadata.js";
 import {
   defaultErrorCodeForStatus,

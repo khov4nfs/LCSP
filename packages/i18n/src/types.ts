@@ -1505,6 +1505,10 @@ export type PagesMessages = {
     };
   };
   assessmentFlow: {
+    resumeSetup: string;
+    resumingSetup: string;
+    resumeSetupDescription: string;
+    retrySetupState: string;
     thought: string;
     repositorySetupDescription: string;
     providerQuestion: string;
