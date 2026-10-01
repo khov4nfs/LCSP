@@ -4,7 +4,7 @@ import {
   ENGINEERING_RULE_EVALUATION_STATUSES,
   SCAN_ERROR_CODES,
 } from "@lcsp/contracts/scan";
-import { isRecord } from "../../../../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 
 const PROHIBITED_OVERCLAIM_TERMS = [

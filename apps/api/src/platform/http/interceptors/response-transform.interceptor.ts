@@ -9,7 +9,7 @@ import type { Observable } from "rxjs";
 import { map } from "rxjs/operators";
 
 import { BYPASS_ENVELOPE_KEY } from "./bypass-envelope.decorator.js";
-import { isRecord } from "../../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 
 type HttpResponse = {
   headersSent?: boolean;

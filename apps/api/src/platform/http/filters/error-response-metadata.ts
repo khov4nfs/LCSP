@@ -1,4 +1,4 @@
-import { isRecord } from "../../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 import { isProblemResult } from "./error.factory.js";
 
 export type ProblemResponseMetadata = {

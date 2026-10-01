@@ -1,6 +1,6 @@
 import { jest } from "@jest/globals";
 import { VERIFIED_AGENT_EPISODE_RECORD_STATUSES } from "@lcsp/contracts/evidence";
-import { isRecord } from "../../../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 import { ConfigService } from "@nestjs/config";
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { VerifiedAgentEpisodeConsolidationWorker } from "./verified-agent-episode-consolidation.worker.js";

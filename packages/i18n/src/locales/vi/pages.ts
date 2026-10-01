@@ -1554,6 +1554,10 @@ export const viPages = {
     },
   },
   assessmentFlow: {
+    resumeSetup: "Tiếp tục thiết lập",
+    resumingSetup: "Đang tiếp tục thiết lập...",
+    resumeSetupDescription: "Tiếp tục từ bước thiết lập đã được lưu.",
+    retrySetupState: "Tải lại trạng thái thiết lập",
     thought: "Đã suy nghĩ trong 2 giây",
     repositorySetupDescription:
       "Trước khi assessment bắt đầu, hãy kết nối repository cần quét. Tôi sẽ phân tích source đã pin trước, sau đó mới bắt đầu Interview.",

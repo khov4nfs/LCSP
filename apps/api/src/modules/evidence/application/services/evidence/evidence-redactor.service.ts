@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 
-import { cleanString, isRecord } from "../../../../../common/utils/index.js";
+import { cleanString, isRecord } from "@lcsp/contracts/shared";
 import type {
   EvidenceFindingDto,
   EvidenceSeverity,

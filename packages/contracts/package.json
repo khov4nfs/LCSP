@@ -56,7 +56,8 @@
     "./shared": "./src/shared/index.ts",
     "./shared/health": "./src/shared/health.ts",
     "./shared/locale": "./src/shared/locale.ts",
-    "./shared/result": "./src/shared/result.ts"
+    "./shared/result": "./src/shared/result.ts",
+    "./shared/type-guards": "./src/shared/type-guards.ts"
   },
   "dependencies": {
     "zod": "4.0.17"

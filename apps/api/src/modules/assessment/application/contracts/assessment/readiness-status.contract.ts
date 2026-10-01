@@ -1,10 +1,12 @@
 import type {
   AssessmentMissingEvidenceCode,
+  AssessmentRepositorySetupState,
   AssessmentNextActionKey,
   ReadinessMode,
 } from "@lcsp/contracts/assessment";
 
 export interface AssessmentReadinessStatusDto {
+  repository_setup: AssessmentRepositorySetupState;
   classification_locked: boolean;
   missing_evidence: Array<{
     type: AssessmentMissingEvidenceCode;

@@ -53,6 +53,10 @@ test("new assessment opens repository setup and removes the legacy details form"
   assert.match(page, /RepositorySetupStep/);
   assert.doesNotMatch(page, /CreateAssessmentForm/);
   assert.match(setup, /RepositorySetupConversation/);
+  assert.match(setup, /ProviderCredentialDialog/);
+  assert.match(setup, /ConfirmAccessDialog/);
+  assert.match(setup, /onReauthenticate/);
+  assert.doesNotMatch(setup, /useDeleteAssessmentMutation|deleteAssessment\.mutateAsync/);
   assert.match(setup, /connectAssessmentRepository/);
   assert.match(setup, /startRepositoryAnalysis/);
   assert.match(setup, /AssessmentComposer/);
@@ -70,13 +74,39 @@ test("flow remains in repository setup before a secure repository connection", (
   assert.equal(flow.evidenceAccepted, false);
 });
 
-test("repository setup accepts only a repository URL matching a supported provider", () => {
+test("flow remains in repository setup when repository connection exists without a pinned snapshot", () => {
+  const flow = deriveAssessmentFlowRuntime({
+    hasRepositoryConnection: true,
+    snapshot: null,
+    scanJob: null,
+    evidenceReport: null,
+  });
+
+  assert.equal(flow.stage, ASSESSMENT_FLOW_STAGES.repositorySetup);
+  assert.equal(flow.evidenceAccepted, false);
+});
+
+test("repository setup accepts only valid repository URLs matching supported provider rules", () => {
   assert.equal(
     repositorySetupSchema.safeParse({
       provider: ASSESSMENT_REPOSITORY_PROVIDERS.github,
       repositoryUrl: "https://github.com/acme/payments.git",
     }).success,
     true,
+  );
+  assert.equal(
+    repositorySetupSchema.safeParse({
+      provider: ASSESSMENT_REPOSITORY_PROVIDERS.gitlab,
+      repositoryUrl: "https://gitlab.com/org/team/subgroup/project.git",
+    }).success,
+    true,
+  );
+  assert.equal(
+    repositorySetupSchema.safeParse({
+      provider: ASSESSMENT_REPOSITORY_PROVIDERS.bitbucket,
+      repositoryUrl: "https://bitbucket.org/workspace-slug/repo-slug",
+    }).success,
+    false,
   );
   assert.equal(
     repositorySetupSchema.safeParse({
@@ -88,7 +118,28 @@ test("repository setup accepts only a repository URL matching a supported provid
   assert.equal(
     repositorySetupSchema.safeParse({
       provider: ASSESSMENT_REPOSITORY_PROVIDERS.bitbucket,
-      repositoryUrl: "https://bitbucket.org/acme/payments",
+      repositoryUrl: "https://bitbucket.org/workspace/repo/src/main",
+    }).success,
+    false,
+  );
+  assert.equal(
+    repositorySetupSchema.safeParse({
+      provider: ASSESSMENT_REPOSITORY_PROVIDERS.github,
+      repositoryUrl: "http://github.com/acme/payments",
+    }).success,
+    false,
+  );
+  assert.equal(
+    repositorySetupSchema.safeParse({
+      provider: ASSESSMENT_REPOSITORY_PROVIDERS.github,
+      repositoryUrl: "https://github.com/acme/payments/tree/main",
+    }).success,
+    false,
+  );
+  assert.equal(
+    repositorySetupSchema.safeParse({
+      provider: ASSESSMENT_REPOSITORY_PROVIDERS.github,
+      repositoryUrl: "https://github.com/acme/payments?tab=code",
     }).success,
     false,
   );

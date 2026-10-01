@@ -1551,6 +1551,10 @@ export const enPages = {
     },
   },
   assessmentFlow: {
+    resumeSetup: "Continue setup",
+    resumingSetup: "Continuing setup...",
+    resumeSetupDescription: "Continue from the last saved setup step.",
+    retrySetupState: "Reload setup status",
     thought: "Thought for 2s",
     repositorySetupDescription:
       "Before the assessment can start, connect the repository I should scan. I will analyze the pinned source first, then begin the interview.",

@@ -23,13 +23,10 @@ import {
   type AssessmentInterviewOutcome,
   type AssessmentInterviewQuestionIntent,
 } from "@lcsp/contracts/evidence";
+import { cleanString, isRecord } from "@lcsp/contracts/shared";
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { QueryHandler, type IQueryHandler } from "@nestjs/cqrs";
 
-import {
-  cleanString,
-  isRecord,
-} from "../../../../../common/utils/type-guards.js";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import { AuditRedactorService } from "../../services/audit/audit-redactor.service.js";

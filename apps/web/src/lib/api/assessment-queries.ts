@@ -33,6 +33,7 @@ import {
 } from "./document-client";
 import { getTechnicalEvidence } from "./evidence-client";
 import { getProgramEvidenceGraphOverview } from "./evidence-graph-overview-client";
+import { API_OUTCOME_KINDS } from "./outcome-kinds";
 import { apiQueryKeys } from "./query-keys";
 import { getReadinessStatus } from "./readiness-client";
 import {
@@ -170,6 +171,14 @@ export function useReadinessStatusQuery(assessmentId: string) {
   return useQuery({
     queryKey: apiQueryKeys.assessment.readiness(assessmentId),
     queryFn: () => getReadinessStatus(assessmentId),
+    // Observe auto-scan completion without turning a read into a mutation.
+    refetchInterval: (query) => {
+      const outcome = query.state.data;
+      const setup = outcome?.kind === API_OUTCOME_KINDS.loaded
+        ? outcome.data.repositorySetup
+        : undefined;
+      return setup?.snapshot && !setup.scanJob ? 3000 : false;
+    },
     enabled: assessmentId.length > 0,
   });
 }

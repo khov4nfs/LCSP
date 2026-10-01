@@ -4,5 +4,6 @@ export * from "./constants.ts";
 export * from "./events.ts";
 export * from "./flow.ts";
 export * from "./readiness.ts";
+export * from "./repository-setup.ts";
 export * from "./statuses.ts";
 export * from "./types.ts";

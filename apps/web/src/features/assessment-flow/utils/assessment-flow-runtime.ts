@@ -1,4 +1,8 @@
-import { ASSESSMENT_FLOW_STAGES } from "@lcsp/contracts/assessment";
+import {
+  ASSESSMENT_FLOW_STAGES,
+  needsRepositorySetupResume,
+  type AssessmentRepositorySetupState,
+} from "@lcsp/contracts/assessment";
 import { REPOSITORY_SCAN_JOB_STATUSES } from "@lcsp/contracts/github-integration";
 import { TECHNICAL_EVIDENCE_REPORT_STATUSES } from "@lcsp/contracts/scan";
 
@@ -18,6 +22,7 @@ import type { ScannerActivityItem } from "../types/assessment-flow.types";
 import { deriveProgramEvidenceSummary } from "./program-evidence-summary";
 
 export function deriveAssessmentFlowRuntime(input: {
+  setupState?: AssessmentRepositorySetupState;
   hasRepositoryConnection: boolean;
   snapshot: WorkspaceRuntimeRepositorySnapshot | null;
   scanJob: WorkspaceRuntimeScanJob | null;
@@ -45,11 +50,14 @@ export function deriveAssessmentFlowRuntime(input: {
     input.evidenceReport?.status ===
       TECHNICAL_EVIDENCE_REPORT_STATUSES.rejected;
 
-  const stage = !input.hasRepositoryConnection
-    ? ASSESSMENT_FLOW_STAGES.repositorySetup
-    : evidenceAccepted
-      ? ASSESSMENT_FLOW_STAGES.interview
-      : ASSESSMENT_FLOW_STAGES.scanner;
+  const stage =
+    !input.hasRepositoryConnection ||
+    !input.snapshot ||
+    (input.setupState !== undefined && needsRepositorySetupResume(input.setupState))
+      ? ASSESSMENT_FLOW_STAGES.repositorySetup
+      : evidenceAccepted
+        ? ASSESSMENT_FLOW_STAGES.interview
+        : ASSESSMENT_FLOW_STAGES.scanner;
 
   const activities: ScannerActivityItem[] = SCANNER_ACTIVITY_CONFIG.map(
     (activity) => ({
