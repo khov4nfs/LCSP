@@ -22,7 +22,7 @@ import {
   type ProblemMeta,
   type ProblemResult,
 } from "@lcsp/contracts/auth";
-import { isRecord } from "../../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 
 export type ProblemOptions = {
   meta?: ProblemMeta;

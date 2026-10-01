@@ -12,7 +12,7 @@ import type { RbacRequestContext } from "../../../../platform/rbac/interfaces/rb
 import type { PrismaService } from "../../../../infrastructure/prisma/prisma.service.js";
 import { problemException } from "../../../../platform/http/filters/error.factory.js";
 import { AUTH_RECORD_TYPES } from "../../../auth/infrastructure/persistence/auth-record.persistence.js";
-import { isNumber, isRecord } from "../../../../common/utils/index.js";
+import { isNumber, isRecord } from "@lcsp/contracts/shared";
 
 export type AdminActor = RbacRequestContext & {
   correlationId: string;

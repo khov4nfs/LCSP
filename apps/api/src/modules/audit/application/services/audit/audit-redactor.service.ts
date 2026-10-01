@@ -1,6 +1,6 @@
+import { isRecord } from "@lcsp/contracts/shared";
 import { Injectable } from "@nestjs/common";
 
-import { isRecord } from "../../../../../common/utils/type-guards.js";
 import { AuditSanitizer } from "../../../../../platform/audit/audit-sanitizer.js";
 
 /**

@@ -1,6 +1,6 @@
 import type { AssessmentRuntimeSummaryValue } from "@lcsp/contracts/evidence";
 
-import { isRecord } from "../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 
 const FALLBACK_SUMMARY = "Summary unavailable due to privacy policy";
 

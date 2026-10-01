@@ -18,7 +18,7 @@ import {
   LEGAL_RULE_LIFECYCLE_STATUSES,
 } from "@lcsp/contracts/legal-rule-catalog";
 
-import { isRecord } from "../../../../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
 import { toPrismaLegalRuleLifecycleStatus } from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { GetAdminOverviewQuery } from "./get-admin-overview.query.js";

@@ -6,7 +6,7 @@ import {
   GITHUB_CREDENTIAL_ERROR_CODES,
   type GitHubCredentialErrorCode,
 } from "@lcsp/contracts/github-integration";
-import { isRecord } from "../../../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 
 import type {
   GitHubIdentity,

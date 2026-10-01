@@ -1,4 +1,4 @@
-import { isRecord } from "../../common/utils/index.js";
+import { isRecord } from "@lcsp/contracts/shared";
 
 const SAFE_CODE_KEYS = new Set([
   "reason_code",
