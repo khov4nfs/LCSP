@@ -35,6 +35,7 @@ export type ProgramEvidenceSummaryProps = {
   referenceUrl?: string;
   artifactRef?: ArtifactRef | null;
   onOpenArtifact?: (ref: ArtifactRef, trigger?: HTMLElement | null) => void;
+  onContinueToInterview?: () => void;
   className?: string;
 };
 
@@ -46,6 +47,7 @@ export function ProgramEvidenceSummary({
   referenceUrl,
   artifactRef,
   onOpenArtifact,
+  onContinueToInterview,
   className,
 }: ProgramEvidenceSummaryProps) {
   const graphDrawer = useProgramEvidenceGraphDrawer();
@@ -115,33 +117,45 @@ export function ProgramEvidenceSummary({
         </header>
       }
       footer={
-        <footer className="flex min-w-0 items-center justify-between gap-3">
-          {href && !openHandler ? (
-            <Link
-              href={href}
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-              aria-label={t("pages.assessmentFlow.graph.viewEvidenceGraph")}
-            >
-              {t("pages.assessmentFlow.graph.viewEvidenceGraph")}
-              <ArrowRightIcon aria-hidden="true" className="size-3.5" />
-            </Link>
-          ) : (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={!canOpenArtifact}
-              onClick={(event) => {
-                if (openHandler && resolvedArtifactRef) {
-                  openHandler(resolvedArtifactRef, event.currentTarget);
-                }
-              }}
-              className="h-7 min-w-0 px-0 text-xs font-medium text-primary hover:bg-transparent hover:underline disabled:text-muted-foreground disabled:no-underline"
-            >
-              {t("pages.assessmentFlow.graph.viewEvidenceGraph")}
-              <ArrowRightIcon aria-hidden="true" className="size-3.5" />
-            </Button>
-          )}
+        <footer className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {href && !openHandler ? (
+              <Link
+                href={href}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                aria-label={t("pages.assessmentFlow.graph.viewEvidenceGraph")}
+              >
+                {t("pages.assessmentFlow.graph.viewEvidenceGraph")}
+                <ArrowRightIcon aria-hidden="true" className="size-3.5" />
+              </Link>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={!canOpenArtifact}
+                onClick={(event) => {
+                  if (openHandler && resolvedArtifactRef) {
+                    openHandler(resolvedArtifactRef, event.currentTarget);
+                  }
+                }}
+                className="h-7 min-w-0 px-0 text-xs font-medium text-primary hover:bg-transparent hover:underline disabled:text-muted-foreground disabled:no-underline"
+              >
+                {t("pages.assessmentFlow.graph.viewEvidenceGraph")}
+                <ArrowRightIcon aria-hidden="true" className="size-3.5" />
+              </Button>
+            )}
+            {onContinueToInterview ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={onContinueToInterview}
+              >
+                {t("pages.assessmentFlow.graph.continueInterview")}
+              </Button>
+            ) : null}
+          </div>
           <p className="shrink-0 text-xs text-muted-foreground">
             {t("pages.assessmentFlow.graph.artifactMetadata")}
           </p>

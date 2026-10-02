@@ -199,6 +199,18 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
           snapshotId: command.snapshotId,
         });
 
+        const confirmedRelations = tx.assessmentRepositoryRelation
+          ? await tx.assessmentRepositoryRelation.findMany({
+              where: { assessmentId: command.assessmentId },
+              orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+              select: {
+                fromSnapshotId: true,
+                toSnapshotId: true,
+                type: true,
+              },
+            })
+          : [];
+
         const event = buildOutboxMessageInput({
           aggregateType: OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
           aggregateId: newScanJobId,
@@ -219,6 +231,11 @@ export class RerunScanHandler implements ICommandHandler<RerunScanCommand> {
             idempotencyKey: command.idempotencyKey,
             correlationId: command.correlationId,
             replacesScanJobId: replacedScanJobId,
+            repositoryRelations: confirmedRelations.map((relation) => ({
+              fromSnapshotId: relation.fromSnapshotId,
+              toSnapshotId: relation.toSnapshotId,
+              relationType: relation.type,
+            })),
           },
         });
 

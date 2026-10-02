@@ -147,13 +147,13 @@ model OutboxMessage {
 }
 
 model Assessment {
-  id                         String                        @id
+  id                         String                         @id
   ownerId                    String
   name                       String
   description                String?
-  status                     AssessmentStatus              @default(WIZARD_IN_PROGRESS)
-  createdAt                  DateTime                      @default(now())
-  updatedAt                  DateTime                      @updatedAt
+  status                     AssessmentStatus               @default(WIZARD_IN_PROGRESS)
+  createdAt                  DateTime                       @default(now())
+  updatedAt                  DateTime                       @updatedAt
   aiUsageFlows               AIUsageFlow[]
   classificationResults      ClassificationResult[]
   classificationReviews      ClassificationReviewRequest[]
@@ -161,11 +161,12 @@ model Assessment {
   documentRequests           DocumentRequest[]
   gitHubAppInstallStates     GitHubAppInstallState[]
   legalRuleMatches           LegalRuleMatch[]
-  owner                      User                          @relation("AssessmentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  owner                      User                           @relation("AssessmentOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   readinessExports           ReadinessExport[]
   repositoryConnections      RepositoryConnection[]
   repositoryScanJobs         RepositoryScanJob[]
   repositorySnapshots        RepositorySnapshot[]
+  repositoryRelations        AssessmentRepositoryRelation[]
   runtimeEvents              AssessmentRuntimeEvent[]
   runtimeTurns               AssessmentRuntimeTurn[]
   pipelineReconciliation     PipelineReconciliation?
@@ -426,7 +427,7 @@ model ProviderCredential {
 }
 
 model RepositorySnapshot {
-  id                         String                      @id
+  id                         String                         @id
   assessmentId               String
   connectionId               String
   repositoryId               String
@@ -436,18 +437,39 @@ model RepositorySnapshot {
   commitSha                  String
   providerMetadata           Json
   actorId                    String
-  status                     RepositorySnapshotStatus    @default(READY)
-  createdAt                  DateTime                    @default(now())
-  actor                      User                        @relation("RepositorySnapshotActor", fields: [actorId], references: [id], onDelete: Restrict)
-  assessment                 Assessment                  @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  connection                 RepositoryConnection        @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  status                     RepositorySnapshotStatus       @default(READY)
+  createdAt                  DateTime                       @default(now())
+  actor                      User                           @relation("RepositorySnapshotActor", fields: [actorId], references: [id], onDelete: Restrict)
+  assessment                 Assessment                     @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  connection                 RepositoryConnection           @relation(fields: [connectionId], references: [id], onDelete: Cascade)
   scanJobs                   RepositoryScanJob[]
   targetedReanalysisRequests TargetedReanalysisRequest[]
   technicalEvidenceReports   TechnicalEvidenceReport[]
+  outgoingRelations          AssessmentRepositoryRelation[] @relation("RepositoryRelationFrom")
+  incomingRelations          AssessmentRepositoryRelation[] @relation("RepositoryRelationTo")
 
   @@index([assessmentId])
   @@index([connectionId])
   @@index([commitSha])
+}
+
+/// Directed assessment context between two immutable repository snapshots. This
+/// never represents a source-tree merge and is only mutable before confirmation.
+model AssessmentRepositoryRelation {
+  id             String                           @id @default(uuid())
+  assessmentId   String
+  fromSnapshotId String
+  toSnapshotId   String
+  type           AssessmentRepositoryRelationType
+  createdAt      DateTime                         @default(now())
+  updatedAt      DateTime                         @updatedAt
+  assessment     Assessment                       @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  fromSnapshot   RepositorySnapshot               @relation("RepositoryRelationFrom", fields: [fromSnapshotId], references: [id], onDelete: Cascade)
+  toSnapshot     RepositorySnapshot               @relation("RepositoryRelationTo", fields: [toSnapshotId], references: [id], onDelete: Cascade)
+
+  @@unique([fromSnapshotId, toSnapshotId, type])
+  @@index([assessmentId])
+  @@index([toSnapshotId])
 }
 
 model RepositoryScanJob {
@@ -901,7 +923,7 @@ model LegalCorpusVersion {
   legalRuleMatches     LegalRuleMatch[]
   retrievalIndexes     LegalRetrievalIndex[]
   discardReceipts      CorpusDiscardReceipt[]
-  preparation          CorpusPreparation?        @relation("CorpusPreparationTarget")
+  preparation          CorpusPreparation?       @relation("CorpusPreparationTarget")
 
   @@index([status, createdAt])
 }
@@ -1127,6 +1149,13 @@ enum RepositorySnapshotStatus {
   READY
 }
 
+enum AssessmentRepositoryRelationType {
+  RUNTIME_API_INTERACTION
+  BUILD_PACKAGE_DEPENDENCY
+  DATA_EVENT_FLOW
+  SHARED_LIBRARY
+}
+
 enum RepositoryScanJobStatus {
   QUEUED
   RUNNING
@@ -1321,17 +1350,17 @@ enum LlmUsageStatus {
 }
 
 model BillingWallet {
-  id               String               @id @default(uuid())
-  userId           String               @unique
-  availableCredits BigInt               @default(0)
-  reservedCredits  BigInt               @default(0)
-  version          Int                  @default(0)
-  reservationAutoRefillEnabled Boolean  @default(false)
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  user             User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
-  ledgerEntries    CreditLedgerEntry[]
-  reservations     BillingReservation[]
+  id                           String               @id @default(uuid())
+  userId                       String               @unique
+  availableCredits             BigInt               @default(0)
+  reservedCredits              BigInt               @default(0)
+  version                      Int                  @default(0)
+  reservationAutoRefillEnabled Boolean              @default(false)
+  createdAt                    DateTime             @default(now())
+  updatedAt                    DateTime             @updatedAt
+  user                         User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  ledgerEntries                CreditLedgerEntry[]
+  reservations                 BillingReservation[]
 }
 
 enum WorkflowBillingPauseSource {
@@ -1341,14 +1370,14 @@ enum WorkflowBillingPauseSource {
 }
 
 model WorkflowBillingPause {
-  id           String   @id @default(uuid())
+  id           String                     @id @default(uuid())
   assessmentId String
-  dispatchKey  String   @unique
+  dispatchKey  String                     @unique
   sourceEvent  WorkflowBillingPauseSource
   payload      Json
-  pausedAt     DateTime @default(now())
+  pausedAt     DateTime                   @default(now())
   resumedAt    DateTime?
-  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  assessment   Assessment                 @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 
   @@index([assessmentId, resumedAt, pausedAt])
 }
@@ -1392,23 +1421,23 @@ model SePayWebhookEvent {
 }
 
 model PaymentTransaction {
-  id                    String                      @id @default(uuid())
+  id                    String                       @id @default(uuid())
   provider              String
   providerTransactionId String
   amountMinorUnits      BigInt
-  reconciliationStatus  PaymentReconciliationStatus @default(UNMATCHED)
+  reconciliationStatus  PaymentReconciliationStatus  @default(UNMATCHED)
   reconciliationReason  PaymentReconciliationReason?
-  reconciliationVersion Int                         @default(0)
+  reconciliationVersion Int                          @default(0)
   userId                String?
   billingOrderId        String?
-  webhookEventId        String?                     @unique
-  receivedAt            DateTime                    @default(now())
+  webhookEventId        String?                      @unique
+  receivedAt            DateTime                     @default(now())
   reconciledAt          DateTime?
-  createdAt             DateTime                    @default(now())
-  updatedAt             DateTime                    @updatedAt
-  user                  User?                       @relation(fields: [userId], references: [id], onDelete: Restrict)
-  billingOrder          BillingOrder?               @relation(fields: [billingOrderId], references: [id], onDelete: Restrict)
-  webhookEvent          SePayWebhookEvent?          @relation(fields: [webhookEventId], references: [id], onDelete: Restrict)
+  createdAt             DateTime                     @default(now())
+  updatedAt             DateTime                     @updatedAt
+  user                  User?                        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  billingOrder          BillingOrder?                @relation(fields: [billingOrderId], references: [id], onDelete: Restrict)
+  webhookEvent          SePayWebhookEvent?           @relation(fields: [webhookEventId], references: [id], onDelete: Restrict)
 
   @@unique([provider, providerTransactionId])
   @@index([userId, createdAt])
@@ -1439,34 +1468,34 @@ model CreditLedgerEntry {
 }
 
 model BillingReservation {
-  id             String                   @id @default(uuid())
-  userId         String
-  walletId       String
-  workspaceId    String?
-  assessmentId   String?
-  scanJobId      String?
-  threadId       String?
-  runId          String?
-  provider       String?
-  model          String?
-  invocationId   String?
-  modelInvocationId String?
-  amountCredits  BigInt
+  id                   String                              @id @default(uuid())
+  userId               String
+  walletId             String
+  workspaceId          String?
+  assessmentId         String?
+  scanJobId            String?
+  threadId             String?
+  runId                String?
+  provider             String?
+  model                String?
+  invocationId         String?
+  modelInvocationId    String?
+  amountCredits        BigInt
   initialAmountCredits BigInt?
-  remainingCredits BigInt                 @default(0)
-  maxInvocations BigInt                   @default(1)
-  invocationsStarted BigInt               @default(0)
-  status         BillingReservationStatus @default(RESERVED)
-  idempotencyKey String?
-  settledAt      DateTime?
-  releasedAt     DateTime?
-  createdAt      DateTime                 @default(now())
-  updatedAt      DateTime                 @updatedAt
-  user           User                     @relation(fields: [userId], references: [id], onDelete: Restrict)
-  wallet         BillingWallet            @relation(fields: [walletId], references: [id], onDelete: Restrict)
-  assessment     Assessment?              @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
-  usageEvents    LlmUsageEvent[]
-  invocationClaims BillingReservationInvocationClaim[]
+  remainingCredits     BigInt                              @default(0)
+  maxInvocations       BigInt                              @default(1)
+  invocationsStarted   BigInt                              @default(0)
+  status               BillingReservationStatus            @default(RESERVED)
+  idempotencyKey       String?
+  settledAt            DateTime?
+  releasedAt           DateTime?
+  createdAt            DateTime                            @default(now())
+  updatedAt            DateTime                            @updatedAt
+  user                 User                                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  wallet               BillingWallet                       @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  assessment           Assessment?                         @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  usageEvents          LlmUsageEvent[]
+  invocationClaims     BillingReservationInvocationClaim[]
 
   @@unique([userId, idempotencyKey])
   @@index([assessmentId, runId])
@@ -1479,14 +1508,14 @@ model BillingReservation {
 }
 
 model BillingReservationInvocationClaim {
-  id                        String              @id @default(uuid())
-  reservationId             String
-  invocationId              String
-  authorizedChargeCredits   BigInt              @default(0)
-  authorizationFingerprint  String?
-  settledAt                 DateTime?
-  createdAt                 DateTime            @default(now())
-  reservation               BillingReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  id                       String             @id @default(uuid())
+  reservationId            String
+  invocationId             String
+  authorizedChargeCredits  BigInt             @default(0)
+  authorizationFingerprint String?
+  settledAt                DateTime?
+  createdAt                DateTime           @default(now())
+  reservation              BillingReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
 
   @@unique([reservationId, invocationId])
   @@index([invocationId])
@@ -1494,38 +1523,38 @@ model BillingReservationInvocationClaim {
 }
 
 model ModelPricingSnapshot {
-  id                    String          @id @default(uuid())
-  provider              String
-  model                 String
-  inputPricePerMillion  Decimal         @db.Decimal(20, 8)
-  cachedInputPricePerMillion Decimal?    @db.Decimal(20, 8)
-  cacheWritePricePerMillion Decimal?    @db.Decimal(20, 8)
-  outputPricePerMillion Decimal         @db.Decimal(20, 8)
-  reasoningPricePerMillion Decimal?     @db.Decimal(20, 8)
+  id                         String          @id @default(uuid())
+  provider                   String
+  model                      String
+  inputPricePerMillion       Decimal         @db.Decimal(20, 8)
+  cachedInputPricePerMillion Decimal?        @db.Decimal(20, 8)
+  cacheWritePricePerMillion  Decimal?        @db.Decimal(20, 8)
+  outputPricePerMillion      Decimal         @db.Decimal(20, 8)
+  reasoningPricePerMillion   Decimal?        @db.Decimal(20, 8)
   // Immutable composite authority for provider cost, customer markup, and FX.
   // Legacy snapshots may omit composite fields; settlement rejects them.
-  providerCurrency      String?
-  customerCurrency      String?
-  markupBps             BigInt?
-  fxRateVndNumerator    BigInt?
-  fxRateVndDenominator  BigInt?
-  version               Int
-  effectiveAt           DateTime
-  createdAt             DateTime        @default(now())
-  usageEvents           LlmUsageEvent[]
+  providerCurrency           String?
+  customerCurrency           String?
+  markupBps                  BigInt?
+  fxRateVndNumerator         BigInt?
+  fxRateVndDenominator       BigInt?
+  version                    Int
+  effectiveAt                DateTime
+  createdAt                  DateTime        @default(now())
+  usageEvents                LlmUsageEvent[]
 
   @@unique([provider, model, version])
   @@index([provider, model, effectiveAt])
 }
 
 model RuntimeModelPolicySnapshot {
-  id            String   @id @default(uuid())
+  id            String          @id @default(uuid())
   role          String
   provider      String
   model         String
   policyVersion String
   effectiveAt   DateTime
-  createdAt     DateTime @default(now())
+  createdAt     DateTime        @default(now())
   usageEvents   LlmUsageEvent[]
 
   @@unique([role, policyVersion])
@@ -1533,36 +1562,36 @@ model RuntimeModelPolicySnapshot {
 }
 
 model LlmUsageEvent {
-  id                 String                @id @default(uuid())
-  userId             String
-  assessmentId       String?
-  runId              String?
-  agentRole          String                @default("LEGACY")
-  provider           String
-  model              String
-  invocationId       String
-  status             LlmUsageStatus        @default(SETTLED)
-  availabilityReason String?
-  providerResponseId String?
-  inputTokens        BigInt?
-  cachedInputTokens  BigInt?
-  cacheWriteTokens    BigInt?
-  outputTokens       BigInt?
-  reasoningTokens    BigInt?
-  totalTokens        BigInt?
-  pricingSnapshotId  String?
+  id                      String                      @id @default(uuid())
+  userId                  String
+  assessmentId            String?
+  runId                   String?
+  agentRole               String                      @default("LEGACY")
+  provider                String
+  model                   String
+  invocationId            String
+  status                  LlmUsageStatus              @default(SETTLED)
+  availabilityReason      String?
+  providerResponseId      String?
+  inputTokens             BigInt?
+  cachedInputTokens       BigInt?
+  cacheWriteTokens        BigInt?
+  outputTokens            BigInt?
+  reasoningTokens         BigInt?
+  totalTokens             BigInt?
+  pricingSnapshotId       String?
   runtimePolicySnapshotId String?
-  providerCostCredits BigInt?
-  customerChargeVnd  BigInt?
-  reservationId      String?
-  chargedCredits     BigInt?
-  occurredAt         DateTime              @default(now())
-  createdAt          DateTime              @default(now())
-  user               User                  @relation(fields: [userId], references: [id], onDelete: Restrict)
-  assessment         Assessment?           @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
-  pricingSnapshot    ModelPricingSnapshot? @relation(fields: [pricingSnapshotId], references: [id], onDelete: Restrict)
-  runtimePolicySnapshot RuntimeModelPolicySnapshot? @relation(fields: [runtimePolicySnapshotId], references: [id], onDelete: Restrict)
-  reservation        BillingReservation?   @relation(fields: [reservationId], references: [id], onDelete: Restrict)
+  providerCostCredits     BigInt?
+  customerChargeVnd       BigInt?
+  reservationId           String?
+  chargedCredits          BigInt?
+  occurredAt              DateTime                    @default(now())
+  createdAt               DateTime                    @default(now())
+  user                    User                        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  assessment              Assessment?                 @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  pricingSnapshot         ModelPricingSnapshot?       @relation(fields: [pricingSnapshotId], references: [id], onDelete: Restrict)
+  runtimePolicySnapshot   RuntimeModelPolicySnapshot? @relation(fields: [runtimePolicySnapshotId], references: [id], onDelete: Restrict)
+  reservation             BillingReservation?         @relation(fields: [reservationId], references: [id], onDelete: Restrict)
 
   @@unique([userId, invocationId])
   @@unique([provider, providerResponseId])

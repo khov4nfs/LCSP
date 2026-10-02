@@ -56,8 +56,9 @@ class AssessmentRepositoryBackend(SandboxBackendProtocol):
     the repository as their working directory, matching a coding CLI checkout.
     """
 
-    def __init__(self, backend: object) -> None:
+    def __init__(self, backend: object, *, root: str = REPOSITORY_ROOT) -> None:
         self._backend = backend
+        self._root = _normalize_repository_root(root)
 
     @property
     def id(self) -> str:
@@ -65,16 +66,18 @@ class AssessmentRepositoryBackend(SandboxBackendProtocol):
         return f"{backend_id}:assessment-repository"
 
     def ls(self, path: str) -> LsResult:
-        result = self._backend.ls(_real_path(path))
+        result = self._backend.ls(_real_path(path, self._root))
         if result.entries is None:
             return LsResult(error=result.error)
         return LsResult(
             error=result.error,
-            entries=[_virtual_file_info(item) for item in result.entries],
+            entries=[_virtual_file_info(item, self._root) for item in result.entries],
         )
 
     def read(self, file_path: str, offset: int = 0, limit: int = 2000):
-        return self._backend.read(_real_path(file_path), offset=offset, limit=limit)
+        return self._backend.read(
+            _real_path(file_path, self._root), offset=offset, limit=limit
+        )
 
     def grep(
         self,
@@ -84,7 +87,7 @@ class AssessmentRepositoryBackend(SandboxBackendProtocol):
         *,
         max_count: int | None = None,
     ) -> GrepResult:
-        real_path = _real_path(path or "/")
+        real_path = _real_path(path or "/", self._root)
         kwargs = {"max_count": max_count} if max_count is not None else {}
         try:
             result = self._backend.grep(pattern, real_path, glob, **kwargs)
@@ -95,7 +98,7 @@ class AssessmentRepositoryBackend(SandboxBackendProtocol):
         matches = []
         for item in result.matches:
             copy = dict(item)
-            copy["path"] = _virtual_path(str(item["path"]))
+            copy["path"] = _virtual_path(str(item["path"]), self._root)
             matches.append(copy)
         return GrepResult(
             error=result.error,
@@ -104,7 +107,7 @@ class AssessmentRepositoryBackend(SandboxBackendProtocol):
         )
 
     def glob(self, pattern: str, path: str | None = None) -> GlobResult:
-        result = self._backend.glob(pattern, _real_path(path or "/"))
+        result = self._backend.glob(pattern, _real_path(path or "/", self._root))
         if result.matches is None:
             return GlobResult(
                 error=result.error,
@@ -113,16 +116,16 @@ class AssessmentRepositoryBackend(SandboxBackendProtocol):
             )
         return GlobResult(
             error=result.error,
-            matches=[_virtual_file_info(item) for item in result.matches],
+            matches=[_virtual_file_info(item, self._root) for item in result.matches],
             truncated=result.truncated,
             truncation_reason=result.truncation_reason,
         )
 
     def write(self, file_path: str, content: str) -> WriteResult:
-        result = self._backend.write(_real_path(file_path), content)
+        result = self._backend.write(_real_path(file_path, self._root), content)
         return WriteResult(
             error=result.error,
-            path=_virtual_path(result.path) if result.path else None,
+            path=_virtual_path(result.path, self._root) if result.path else None,
         )
 
     def edit(
@@ -133,22 +136,22 @@ class AssessmentRepositoryBackend(SandboxBackendProtocol):
         replace_all: bool = False,
     ) -> EditResult:
         result = self._backend.edit(
-            _real_path(file_path),
+            _real_path(file_path, self._root),
             old_string,
             new_string,
             replace_all=replace_all,
         )
         return EditResult(
             error=result.error,
-            path=_virtual_path(result.path) if result.path else None,
+            path=_virtual_path(result.path, self._root) if result.path else None,
             occurrences=result.occurrences,
         )
 
     def delete(self, file_path: str) -> DeleteResult:
-        result = self._backend.delete(_real_path(file_path))
+        result = self._backend.delete(_real_path(file_path, self._root))
         return DeleteResult(
             error=result.error,
-            path=_virtual_path(result.path) if result.path else None,
+            path=_virtual_path(result.path, self._root) if result.path else None,
         )
 
     def upload_files(
@@ -156,7 +159,7 @@ class AssessmentRepositoryBackend(SandboxBackendProtocol):
         files: list[tuple[str, bytes]],
     ) -> list[FileUploadResponse]:
         requested = [path for path, _ in files]
-        translated = [(_real_path(path), content) for path, content in files]
+        translated = [(_real_path(path, self._root), content) for path, content in files]
         results = self._backend.upload_files(translated)
         return [
             FileUploadResponse(path=requested[index], error=result.error)
@@ -176,7 +179,7 @@ class AssessmentRepositoryBackend(SandboxBackendProtocol):
 
     def execute(self, command: str, *, timeout: int | None = None):
         """Run shell commands with the assessment repository as the CWD."""
-        scoped = f"cd {shlex.quote(REPOSITORY_ROOT)} && {command}"
+        scoped = f"cd {shlex.quote(self._root)} && {command}"
         if timeout is not None:
             try:
                 return self._backend.execute(scoped, timeout=timeout)
@@ -200,6 +203,8 @@ class RuntimeRepositoryBackend(SandboxBackendProtocol):
     def _backend(self) -> AssessmentRepositoryBackend:
         active = current_repository_backend()
         if active is not None:
+            if isinstance(active, AssessmentRepositoryBackend):
+                return active
             return repository_database_backend(active)
         backend = resolve_repository_thread_backend(get_config())
         ensure_runtime_skills(backend)
@@ -252,11 +257,15 @@ class RuntimeRepositoryBackend(SandboxBackendProtocol):
         return self._backend().execute(command, timeout=timeout)
 
 
-def repository_database_backend(backend: object) -> AssessmentRepositoryBackend:
+def repository_database_backend(
+    backend: object, *, root: str = REPOSITORY_ROOT
+) -> AssessmentRepositoryBackend:
     """Return the repository-rooted database view used by every assessment agent."""
-    if isinstance(backend, AssessmentRepositoryBackend):
+    normalized_root = _normalize_repository_root(root)
+    if isinstance(backend, AssessmentRepositoryBackend) and backend._root == normalized_root:
         return backend
-    return AssessmentRepositoryBackend(backend)
+    raw_backend = backend._backend if isinstance(backend, AssessmentRepositoryBackend) else backend
+    return AssessmentRepositoryBackend(raw_backend, root=normalized_root)
 
 
 def current_repository_backend() -> object | None:
@@ -265,9 +274,11 @@ def current_repository_backend() -> object | None:
 
 
 @contextmanager
-def activate_repository_backend(backend: object) -> Iterator[object]:
+def activate_repository_backend(
+    backend: object, *, root: str = REPOSITORY_ROOT
+) -> Iterator[object]:
     """Expose one repository database backend to nested Deep Agent construction."""
-    repository_backend = repository_database_backend(backend)
+    repository_backend = repository_database_backend(backend, root=root)
     token = _ACTIVE_BACKEND.set(repository_backend)
     try:
         yield repository_backend
@@ -284,9 +295,11 @@ def hydrate_repository(
     assessment_id: str = "",
     correlation_id: str | None = None,
     lifecycle: RepositoryHydrationLifecycle | None = None,
+    repository_root: str | None = None,
 ) -> None:
     """Create/reuse the live repository database from an immutable baseline snapshot."""
-    marker = _read_marker(backend)
+    root = _normalize_repository_root(repository_root or REPOSITORY_ROOT)
+    marker = _read_marker(backend, root=root)
     if marker.get("snapshotId") == snapshot_id and marker.get("scanJobId") == scan_job_id:
         _emit_lifecycle(lifecycle, "repository_sandbox_reused")
         return
@@ -324,14 +337,14 @@ def hydrate_repository(
         if re.fullmatch(r"[0-9a-fA-F]{7,64}", commit_sha or "")
         else "unknown"
     )
-    bootstrap = _repository_hydration_bootstrap(baseline_label)
+    bootstrap = _repository_hydration_bootstrap(baseline_label, root=root)
     extraction = execute(bootstrap, timeout=120)
     if getattr(extraction, "exit_code", 1) != 0:
         output = str(getattr(extraction, "output", "") or "").strip()
         detail = f": {output}" if output else ""
         raise RuntimeError(f"failed to materialize assessment repository database{detail}")
 
-    _mirror_checked_in_skills(write)
+    _mirror_checked_in_skills(write, root=root)
 
     marker_payload = json.dumps(
         {
@@ -339,14 +352,14 @@ def hydrate_repository(
             "snapshotId": snapshot_id,
             "scanJobId": scan_job_id,
             "commitSha": commit_sha,
-            "repositoryRoot": REPOSITORY_ROOT,
+            "repositoryRoot": root,
             "agentFilesystemRoot": "/",
             "role": "assessment_repository_database",
         },
         separators=(",", ":"),
         sort_keys=True,
     )
-    write_result = write(REPOSITORY_META, marker_payload)
+    write_result = write(f"{root}/.lcsp/repository.json", marker_payload)
     if getattr(write_result, "error", None):
         raise RuntimeError("failed to persist repository database metadata")
     _emit_lifecycle(lifecycle, "repository_sandbox_hydrated")
@@ -360,7 +373,7 @@ def ensure_runtime_skills(backend: object) -> None:
     _mirror_checked_in_skills(write)
 
 
-def _mirror_checked_in_skills(write) -> None:
+def _mirror_checked_in_skills(write, *, root: str = REPOSITORY_ROOT) -> None:
     """Mirror canonical checked-in skills into the hydrated sandbox runtime area."""
     if not _CHECKED_IN_SKILLS_ROOT.is_dir():
         return
@@ -370,14 +383,18 @@ def _mirror_checked_in_skills(write) -> None:
         skill_file = skill_root / "SKILL.md"
         if not skill_file.is_file():
             continue
-        _write_skill_file(write, skill_file, f"{REPOSITORY_SKILLS}/{skill_root.name}/SKILL.md")
+        _write_skill_file(
+            write,
+            skill_file,
+            f"{root}/.lcsp/agent/skills/{skill_root.name}/SKILL.md",
+        )
         references_root = skill_root / "references"
         if references_root.is_dir():
             for reference in sorted(references_root.glob("*.md")):
                 _write_skill_file(
                     write,
                     reference,
-                    f"{REPOSITORY_SKILLS}/{skill_root.name}/references/{reference.name}",
+                    f"{root}/.lcsp/agent/skills/{skill_root.name}/references/{reference.name}",
                 )
 
 
@@ -387,15 +404,17 @@ def _write_skill_file(write, source: Path, target: str) -> None:
         raise RuntimeError(f"failed to mirror LCSP skill into repository sandbox: {source.name}")
 
 
-def _repository_hydration_bootstrap(baseline_label: str) -> str:
-    repository = shlex.quote(REPOSITORY_ROOT)
+def _repository_hydration_bootstrap(
+    baseline_label: str, *, root: str = REPOSITORY_ROOT
+) -> str:
+    repository = shlex.quote(root)
     archive_path = shlex.quote(_ARCHIVE_PATH)
     git = f"git --git-dir={repository}/.git --work-tree={repository}"
     return (
         f"mkdir -p {repository} "
         f"&& find {repository} -mindepth 1 -maxdepth 1 -exec rm -rf -- {{}} + "
         f"&& tar -xzf {archive_path} -C {repository} "
-        f"&& mkdir -p {shlex.quote(REPOSITORY_AGENT_STATE)} "
+        f"&& mkdir -p {shlex.quote(root + '/.lcsp/agent')} "
         "&& if command -v git >/dev/null 2>&1; then "
         f"git -C {repository} init -q "
         f"&& {git} config user.email lcsp-agent-runtime@local "
@@ -413,6 +432,7 @@ def ensure_repository_for_event(
     boundary_name: str,
     event: Mapping[str, Any],
     lifecycle: RepositoryHydrationLifecycle | None = None,
+    repository_root: str | None = None,
 ) -> None:
     """Recover the repository database for later stages after sandbox recreation."""
     _ = boundary_name
@@ -430,6 +450,7 @@ def ensure_repository_for_event(
             assessment_id=assessment_id,
             correlation_id=correlation_id,
             lifecycle=lifecycle,
+            repository_root=repository_root,
         )
         return
 
@@ -456,6 +477,7 @@ def ensure_repository_for_event(
         assessment_id=_event_text(report, "assessmentId", "assessment_id") or assessment_id,
         correlation_id=correlation_id,
         lifecycle=lifecycle,
+        repository_root=repository_root,
     )
 
 
@@ -467,11 +489,13 @@ def _emit_lifecycle(
         lifecycle(event)
 
 
-def _read_marker(backend: object) -> dict[str, Any]:
+def _read_marker(
+    backend: object, *, root: str = REPOSITORY_ROOT
+) -> dict[str, Any]:
     read = getattr(backend, "read", None)
     if not callable(read):
         return {}
-    result = read(REPOSITORY_META, offset=0, limit=4096)
+    result = read(f"{root}/.lcsp/repository.json", offset=0, limit=4096)
     if getattr(result, "error", None):
         return {}
     file_data = getattr(result, "file_data", None)
@@ -514,7 +538,8 @@ def _repository_root(workspace_path: Path) -> Path:
     return workspace_path
 
 
-def _real_path(path: str) -> str:
+def _real_path(path: str, root: str = REPOSITORY_ROOT) -> str:
+    root = _normalize_repository_root(root)
     value = path.strip() or "/"
     pure = PurePosixPath(value)
     parts = pure.parts[1:] if pure.is_absolute() else pure.parts
@@ -526,19 +551,20 @@ def _real_path(path: str) -> str:
                 "/" + "/".join(part for part in parts if part not in {"", "."})
             )
         )
-        if normalized == REPOSITORY_ROOT or normalized.startswith(
-            REPOSITORY_ROOT + "/"
+        if normalized == root or normalized.startswith(
+            root + "/"
         ):
             return normalized
     suffix = "/".join(part for part in parts if part not in {"", "."})
-    return REPOSITORY_ROOT if not suffix else f"{REPOSITORY_ROOT}/{suffix}"
+    return root if not suffix else f"{root}/{suffix}"
 
 
-def _virtual_path(path: str) -> str:
+def _virtual_path(path: str, root: str = REPOSITORY_ROOT) -> str:
+    root = _normalize_repository_root(root)
     normalized = str(PurePosixPath(path))
-    if normalized == REPOSITORY_ROOT:
+    if normalized == root:
         return "/"
-    prefix = REPOSITORY_ROOT + "/"
+    prefix = root + "/"
     if not normalized.startswith(prefix):
         raise RuntimeError(
             "repository backend returned a path outside repository database"
@@ -546,10 +572,25 @@ def _virtual_path(path: str) -> str:
     return "/" + normalized[len(prefix) :]
 
 
-def _virtual_file_info(item: Mapping[str, Any]) -> dict[str, Any]:
+def _virtual_file_info(
+    item: Mapping[str, Any], root: str = REPOSITORY_ROOT
+) -> dict[str, Any]:
     copy = dict(item)
-    copy["path"] = _virtual_path(str(item["path"]))
+    copy["path"] = _virtual_path(str(item["path"]), root)
     return copy
+
+
+def repository_root_for_snapshot(snapshot_id: str) -> str:
+    """Return the isolated physical workspace for one immutable snapshot."""
+    safe = re.sub(r"[^A-Za-z0-9._-]", "-", snapshot_id).strip(".-") or "unknown"
+    return f"/workspace/repositories/{safe[:96]}"
+
+
+def _normalize_repository_root(root: str) -> str:
+    normalized = str(PurePosixPath(root))
+    if not normalized.startswith("/workspace/"):
+        raise ValueError("repository sandbox roots must stay under /workspace")
+    return normalized.rstrip("/") or "/workspace"
 
 
 def _event_text(value: Mapping[str, Any], *keys: str) -> str | None:
@@ -573,5 +614,6 @@ __all__ = [
     "ensure_repository_for_event",
     "hydrate_repository",
     "repository_database_backend",
+    "repository_root_for_snapshot",
     "resolve_repository_thread_backend",
 ]

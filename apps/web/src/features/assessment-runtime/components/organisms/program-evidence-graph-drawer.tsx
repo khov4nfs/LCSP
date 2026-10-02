@@ -262,6 +262,8 @@ function ProgramEvidenceGraphDrawer({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const repositories =
+    detail?.repositories ?? (detail ? [detail.repository] : []);
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -276,18 +278,18 @@ function ProgramEvidenceGraphDrawer({
                   "pages.assessmentFlow.graph.repositoryEvidence" as never,
                 )}{" "}
                 ·{" "}
-                {detail.repository.repository_full_name ??
+                {repositories[0]?.repository_full_name ??
                   resolveAppMessage(
                     "pages.assessmentFlow.graph.unavailable" as never,
                   )}{" "}
                 ·{" "}
-                {detail.repository.branch ??
-                  detail.repository.ref ??
+                {repositories[0]?.branch ??
+                  repositories[0]?.ref ??
                   resolveAppMessage(
                     "pages.assessmentFlow.graph.unavailableValue" as never,
                   )}{" "}
                 ·{" "}
-                {detail.repository.pinned_commit ??
+                {repositories[0]?.pinned_commit ??
                   resolveAppMessage(
                     "pages.assessmentFlow.graph.unavailableValue" as never,
                   )}
@@ -301,7 +303,7 @@ function ProgramEvidenceGraphDrawer({
           </div>
           <div className="col-start-2 row-span-2 row-start-1 flex shrink-0 items-center gap-2">
             <div className="flex shrink-0 items-center gap-2">
-              {detail?.repository.status ===
+              {repositories[0]?.status ===
               ASSESSMENT_TECHNICAL_COVERAGE_STATES.ready ? (
                 <span className="inline-flex h-9 items-center justify-center rounded-full border border-border/70 px-3 text-xs text-muted-foreground">
                   {resolveAppMessage(
@@ -1309,6 +1311,7 @@ export function GraphDetail({
   assessmentId: string;
   detail: ProgramEvidenceGraphDetail;
 }) {
+  const repositories = detail.repositories ?? [detail.repository];
   const paths: Array<{
     nodes: ProgramEvidenceGraphDetail["paths"]["nodes"];
     edges: ProgramEvidenceGraphDetail["paths"]["edges"];
@@ -1325,19 +1328,65 @@ export function GraphDetail({
             "pages.assessmentFlow.graph.repositorySnapshot" as never,
           )}
         </p>
-        <p className="mt-2 text-base font-semibold">
-          {detail.repository.repository_full_name ?? "—"}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {detail.repository.branch ?? detail.repository.ref ?? "—"} ·{" "}
-          {detail.repository.pinned_commit ?? "—"}
-        </p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          {detail.repository.status ??
-            resolveAppMessage(
-              "pages.assessmentFlow.graph.unavailable" as never,
+        <div className="mt-2 overflow-x-auto">
+          <table
+            className="w-full text-left text-sm"
+            aria-label={resolveAppMessage(
+              "pages.assessmentFlow.graph.repositorySnapshot" as never,
             )}
-        </p>
+          >
+            <thead className="text-xs text-muted-foreground">
+              <tr>
+                <th className="py-1 pr-3">
+                  {resolveAppMessage(
+                    "pages.assessmentFlow.graph.repository" as never,
+                  )}
+                </th>
+                <th className="py-1 pr-3">
+                  {resolveAppMessage(
+                    "pages.assessmentFlow.graph.branch" as never,
+                  )}
+                </th>
+                <th className="py-1 pr-3">
+                  {resolveAppMessage(
+                    "pages.assessmentFlow.graph.commit" as never,
+                  )}
+                </th>
+                <th className="py-1">
+                  {resolveAppMessage(
+                    "pages.assessmentFlow.graph.status" as never,
+                  )}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {repositories.map((repository) => (
+                <tr
+                  key={
+                    repository.snapshot_id ?? repository.repository_full_name
+                  }
+                  className="border-t border-border/50"
+                >
+                  <th scope="row" className="py-2 pr-3 font-semibold">
+                    {repository.repository_full_name ?? "—"}
+                  </th>
+                  <td className="py-2 pr-3">
+                    {repository.branch ?? repository.ref ?? "—"}
+                  </td>
+                  <td className="py-2 pr-3 font-mono text-xs">
+                    {repository.pinned_commit ?? "—"}
+                  </td>
+                  <td className="py-2">
+                    {repository.status ??
+                      resolveAppMessage(
+                        "pages.assessmentFlow.graph.unavailable" as never,
+                      )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
       <section>
         <h3 className="text-sm font-semibold">

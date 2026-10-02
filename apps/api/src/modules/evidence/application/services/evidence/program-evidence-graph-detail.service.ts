@@ -139,6 +139,13 @@ type EvidenceGraphSnapshot = {
   status: string;
 } | null;
 
+type EvidenceGraphRelation = {
+  id: string;
+  fromSnapshotId: string;
+  toSnapshotId: string;
+  type: string;
+};
+
 /** Projection of the immutable accepted evidence payload and its graph artifact. */
 type PayloadProjection = Pick<
   ProgramEvidenceGraphDetailDto,
@@ -230,6 +237,150 @@ export class ProgramEvidenceGraphDetailService {
     return toDetailDto(input.report, input.snapshot, computed.projection);
   }
 
+  /**
+   * Project every accepted repository report into one assessment-level graph.
+   * Reports remain independently projected and are only combined at the DTO
+   * boundary; this preserves snapshot provenance and never merges source trees.
+   */
+  async projectAcceptedReports(input: {
+    reports: Array<{
+      report: EvidenceGraphReport;
+      snapshot: EvidenceGraphSnapshot;
+      loadEvidencePayload: () => Promise<unknown>;
+    }>;
+    relations?: EvidenceGraphRelation[];
+  }): Promise<ProgramEvidenceGraphDetailDto> {
+    const details = await Promise.all(
+      input.reports.map((entry) =>
+        this.projectAcceptedReport({
+          report: entry.report,
+          snapshot: entry.snapshot,
+          loadEvidencePayload: entry.loadEvidencePayload,
+        }),
+      ),
+    );
+    if (!details.length) {
+      throw new Error("cannot project an empty accepted report set");
+    }
+    if (details.length === 1) {
+      const [detail] = details;
+      return {
+        ...detail,
+        repositories: [detail.repository],
+        provenance: {
+          ...detail.provenance,
+          evidence_reports: [
+            {
+              evidence_report_id: detail.provenance.evidence_report_id,
+              snapshot_id: detail.provenance.snapshot_id,
+              scan_job_id: detail.provenance.scan_job_id,
+              generated_at: detail.provenance.generated_at,
+            },
+          ],
+          relations: input.relations?.map(toRelationDto) ?? [],
+        },
+      };
+    }
+
+    const repositories = details.flatMap((detail) =>
+      (detail.repositories ?? [detail.repository]).map((repository) => ({
+        ...repository,
+        snapshot_id: repository.snapshot_id ?? null,
+      })),
+    );
+    for (const [index, repository] of repositories.entries()) {
+      if (!repository.snapshot_id) {
+        const snapshotId = input.reports[index]?.report.snapshotId;
+        repository.snapshot_id = snapshotId ?? null;
+      }
+    }
+    const nodes = details.flatMap((detail, index) =>
+      detail.paths.nodes.map((node) => ({
+        ...node,
+        id: scopedGraphId(input.reports[index].report.snapshotId, node.id),
+        repository_snapshot_id: input.reports[index].report.snapshotId,
+      })),
+    );
+    const edges = details.flatMap((detail, index) => {
+      const snapshotId = input.reports[index].report.snapshotId;
+      return detail.paths.edges.map((edge) => ({
+        ...edge,
+        id: scopedGraphId(snapshotId, edge.id),
+        source: scopedGraphId(snapshotId, edge.source),
+        target: scopedGraphId(snapshotId, edge.target),
+      }));
+    });
+    const claims = details.flatMap((detail, index) =>
+      detail.claims.map((claim) => ({
+        ...claim,
+        id: scopedGraphId(input.reports[index].report.snapshotId, claim.id),
+        repository_snapshot_id: input.reports[index].report.snapshotId,
+      })),
+    );
+    const groups = details.flatMap((detail, index) => {
+      const snapshotId = input.reports[index].report.snapshotId;
+      return (detail.paths.usage_flow_groups ?? []).map((group) => ({
+        ...group,
+        key: scopedGraphId(snapshotId, group.key),
+        source_node_id: group.source_node_id
+          ? scopedGraphId(snapshotId, group.source_node_id)
+          : null,
+      }));
+    });
+    const first = details[0];
+    const reportProvenance = input.reports.map((entry) => ({
+      evidence_report_id: entry.report.id,
+      snapshot_id: entry.report.snapshotId,
+      scan_job_id: entry.report.scanJobId,
+      generated_at: entry.report.createdAt.toISOString(),
+    }));
+    return {
+      repository: repositories[0] ?? first.repository,
+      repositories,
+      overview: sumOverviews(details.map((detail) => detail.overview)),
+      paths: {
+        nodes,
+        edges,
+        usage_flow_count: details.reduce(
+          (sum, detail) => sum + detail.paths.usage_flow_count,
+          0,
+        ),
+        rendered_usage_flow_count: details.reduce(
+          (sum, detail) => sum + detail.paths.rendered_usage_flow_count,
+          0,
+        ),
+        omitted_usage_flow_count: details.reduce(
+          (sum, detail) => sum + detail.paths.omitted_usage_flow_count,
+          0,
+        ),
+        usage_group_count: details.reduce(
+          (sum, detail) => sum + detail.paths.usage_group_count,
+          0,
+        ),
+        rendered_usage_group_count: details.reduce(
+          (sum, detail) => sum + detail.paths.rendered_usage_group_count,
+          0,
+        ),
+        omitted_usage_group_count: details.reduce(
+          (sum, detail) => sum + detail.paths.omitted_usage_group_count,
+          0,
+        ),
+        usage_flow_groups: groups,
+      },
+      claims,
+      provenance: {
+        evidence_report_id: first.provenance.evidence_report_id,
+        snapshot_id: first.provenance.snapshot_id,
+        scan_job_id: first.provenance.scan_job_id,
+        generated_at: first.provenance.generated_at,
+        finding: first.provenance.finding,
+        source: first.provenance.source,
+        evidence_reports: reportProvenance,
+        relations: input.relations?.map(toRelationDto) ?? [],
+      },
+    };
+  }
+
   private async projectPayload(
     evidencePayload: unknown,
   ): Promise<CachedPayloadProjection> {
@@ -309,6 +460,7 @@ function toDetailDto(
   const projection = structuredClone(cachedProjection);
   return {
     repository: {
+      snapshot_id: report.snapshotId,
       repository_full_name: snapshot?.repositoryFullName ?? null,
       branch: snapshot?.branch ?? null,
       ref: snapshot?.ref ?? null,
@@ -326,6 +478,44 @@ function toDetailDto(
       finding: projection.finding,
       source: projection.source,
     },
+  };
+}
+
+function toRelationDto(relation: EvidenceGraphRelation) {
+  return {
+    id: relation.id,
+    from_snapshot_id: relation.fromSnapshotId,
+    to_snapshot_id: relation.toSnapshotId,
+    type: relation.type,
+  };
+}
+
+function scopedGraphId(snapshotId: string, id: string): string {
+  return `${snapshotId}:${id}`;
+}
+
+function sumOverviews(
+  overviews: ProgramEvidenceGraphOverviewDto[],
+): ProgramEvidenceGraphOverviewDto {
+  const sum = (values: Array<number | null>) => {
+    const present = values.filter((value): value is number => value !== null);
+    return present.length
+      ? present.reduce((total, value) => total + value, 0)
+      : null;
+  };
+  return {
+    modules_analyzed: sum(
+      overviews.map((overview) => overview.modules_analyzed),
+    ),
+    code_symbols_indexed: sum(
+      overviews.map((overview) => overview.code_symbols_indexed),
+    ),
+    ai_model_invocations: sum(
+      overviews.map((overview) => overview.ai_model_invocations),
+    ),
+    evidence_mapped_scope: sum(
+      overviews.map((overview) => overview.evidence_mapped_scope),
+    ),
   };
 }
 

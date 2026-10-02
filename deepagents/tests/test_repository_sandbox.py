@@ -612,6 +612,18 @@ def test_repository_database_backend_virtualizes_repo_as_agent_root() -> None:
     )
 
 
+def test_repository_database_backend_isolated_root_per_snapshot() -> None:
+    raw = MagicMock()
+    raw.id = "sandbox-1"
+    raw.ls.return_value = LsResult(entries=[])
+    root = repository_sandbox.repository_root_for_snapshot("snapshot/a")
+    backend = repository_sandbox.repository_database_backend(raw, root=root)
+
+    assert root == "/workspace/repositories/snapshot-a"
+    assert backend.ls("/").entries == []
+    raw.ls.assert_called_once_with(root)
+
+
 def test_repository_database_metadata_lives_inside_repo_and_agent_state_is_reserved() -> None:
     assert repository_sandbox.REPOSITORY_META.startswith(
         repository_sandbox.REPOSITORY_ROOT + "/.lcsp/"

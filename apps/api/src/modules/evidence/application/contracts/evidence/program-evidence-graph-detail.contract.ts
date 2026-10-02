@@ -8,6 +8,7 @@ export interface ProgramEvidenceGraphOverviewDto {
 }
 
 export interface ProgramEvidenceGraphRepositoryDto {
+  snapshot_id?: string | null;
   repository_full_name: string | null;
   branch: string | null;
   ref: string | null;
@@ -25,6 +26,7 @@ export interface ProgramEvidenceGraphNodeDto {
   ai_usage_role?: string | null;
   evidence_state?: string | null;
   resolution_state?: string | null;
+  repository_snapshot_id?: string | null;
 }
 
 export interface ProgramEvidenceGraphEdgeDto {
@@ -55,6 +57,7 @@ export interface ProgramEvidenceGraphClaimDto {
   file: string | null;
   line: number | null;
   evidence_refs: string[];
+  repository_snapshot_id?: string | null;
 }
 
 export interface ProgramEvidenceGraphSourceDto {
@@ -73,6 +76,7 @@ export interface ProgramEvidenceGraphFindingDto {
 
 export interface ProgramEvidenceGraphDetailDto {
   repository: ProgramEvidenceGraphRepositoryDto;
+  repositories?: ProgramEvidenceGraphRepositoryDto[];
   overview: ProgramEvidenceGraphOverviewDto;
   paths: {
     nodes: ProgramEvidenceGraphNodeDto[];
@@ -93,5 +97,17 @@ export interface ProgramEvidenceGraphDetailDto {
     generated_at: string;
     finding: ProgramEvidenceGraphFindingDto | null;
     source: ProgramEvidenceGraphSourceDto | null;
+    evidence_reports?: Array<{
+      evidence_report_id: string;
+      snapshot_id: string;
+      scan_job_id: string;
+      generated_at: string;
+    }>;
+    relations?: Array<{
+      id: string;
+      from_snapshot_id: string;
+      to_snapshot_id: string;
+      type: string;
+    }>;
   };
 }

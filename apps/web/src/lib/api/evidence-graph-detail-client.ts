@@ -15,12 +15,21 @@ export type ProgramEvidenceGraphOverview = {
 
 export type ProgramEvidenceGraphDetail = {
   repository: {
+    snapshot_id?: string | null;
     repository_full_name: string | null;
     branch: string | null;
     ref: string | null;
     pinned_commit: string | null;
     status: string | null;
   };
+  repositories?: Array<{
+    snapshot_id?: string | null;
+    repository_full_name: string | null;
+    branch: string | null;
+    ref: string | null;
+    pinned_commit: string | null;
+    status: string | null;
+  }>;
   overview: ProgramEvidenceGraphOverview;
   paths: {
     nodes: Array<{
@@ -33,6 +42,7 @@ export type ProgramEvidenceGraphDetail = {
       ai_usage_role?: string | null;
       evidence_state?: string | null;
       resolution_state?: string | null;
+      repository_snapshot_id?: string | null;
     }>;
     edges: Array<{
       id: string;
@@ -67,6 +77,7 @@ export type ProgramEvidenceGraphDetail = {
     file: string | null;
     line: number | null;
     evidence_refs: string[];
+    repository_snapshot_id?: string | null;
   }>;
   provenance: {
     evidence_report_id: string;
@@ -91,6 +102,18 @@ export type ProgramEvidenceGraphDetail = {
       end_line: number | null;
       evidence_reference: string | null;
     } | null;
+    evidence_reports?: Array<{
+      evidence_report_id: string;
+      snapshot_id: string;
+      scan_job_id: string;
+      generated_at: string;
+    }>;
+    relations?: Array<{
+      id: string;
+      from_snapshot_id: string;
+      to_snapshot_id: string;
+      type: string;
+    }>;
   };
 };
 

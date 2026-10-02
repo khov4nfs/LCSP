@@ -158,6 +158,31 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
   const retryScanSnapshotId = scanJob?.snapshotId ?? snapshot?.id;
   const retryScanDisabled =
     retryScanSnapshotId === undefined || retryScan.isPending;
+  const scannerRepositories =
+    setupState?.repositories
+      ?.filter((repository) => repository.snapshot)
+      .map((repository) => ({
+        provider: repository.provider,
+        repositoryFullName: repository.repositoryFullName,
+        commitSha: repository.snapshot!.commitSha,
+      })) ??
+    (connection || snapshot
+      ? [
+          {
+            provider:
+              connection?.provider ??
+              snapshot?.provider ??
+              ASSESSMENT_REPOSITORY_PROVIDERS.github,
+            repositoryFullName:
+              connection?.repositoryFullName ??
+              snapshot?.repositoryFullName ??
+              t("pages.assessmentFlow.repository.pending"),
+            commitSha:
+              snapshot?.commitSha ??
+              t("pages.assessmentFlow.repository.pending"),
+          },
+        ]
+      : []);
 
   if (readinessQuery.isLoading) {
     return (
@@ -211,19 +236,9 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
           ) : null}
           <ScannerStep
             assessmentId={assessmentId}
-            repository={{
-              provider:
-                connection?.provider ??
-                snapshot?.provider ??
-                ASSESSMENT_REPOSITORY_PROVIDERS.github,
-              repositoryFullName:
-                connection?.repositoryFullName ??
-                snapshot?.repositoryFullName ??
-                t("pages.assessmentFlow.repository.pending"),
-              commitSha:
-                snapshot?.commitSha ??
-                t("pages.assessmentFlow.repository.pending"),
-            }}
+            repositories={scannerRepositories}
+            relationCount={setupState?.relations?.length ?? 0}
+            graphState={setupState?.programEvidenceGraph?.state}
             activities={flow.activities}
             evidenceReady={flow.evidenceAccepted}
             thinkingLabel={agentThinkingLabel(
@@ -244,6 +259,11 @@ export function AssessmentOverview({ assessmentId }: AssessmentOverviewProps) {
               if (retryScanSnapshotId !== undefined && !retryScanDisabled) {
                 retryScan.mutate({ snapshotId: retryScanSnapshotId });
               }
+            }}
+            onContinueToInterview={() => {
+              document
+                .getElementById("canonical-interview")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
             }}
           />
         </>
@@ -785,204 +805,208 @@ function AssessmentInterviewFlow({
         ) : null}
 
         {interviewEnabled ? (
-          <>
-            {transcriptTurns.currentActivity.map((segment) => (
-              <AgentStreamDispatchTurns
-                key={`activity:${segment.turnKey}`}
-                segment={segment}
-                runtimeControl={activeRuntimeControl}
-              />
-            ))}
-
-            {transcriptTurns.history.map((turn, turnIndex) => {
-              const lastSegment = turn.followUpActivity.length - 1;
-              const ownsHandoff =
-                handoffInLatestActivity &&
-                turnIndex === transcriptTurns.history.length - 1;
-              return (
-                <InterviewCycleTurn
-                  key={`answer:${turn.answer.questionId}:${turn.answer.answeredAt}`}
-                  cycle={turn}
-                  activityOwnsOutput={lastSegment >= 0}
-                  activity={turn.followUpActivity.map((segment, index) => (
-                    <AgentStreamDispatchTurns
-                      key={`activity:${segment.turnKey}`}
-                      segment={segment}
-                      runtimeControl={activeRuntimeControl}
-                      outputs={
-                        // The answer's result belongs to the dispatch that
-                        // processed it, not to later retries appended after it.
-                        index === 0 ? (
-                          <>
-                            <InterviewCycleOutput
-                              answer={turn.answer}
-                              question={turn.question}
-                            />
-                            {ownsHandoff ? handoffPanel : null}
-                          </>
-                        ) : undefined
-                      }
-                    />
-                  ))}
+          <div id="canonical-interview" tabIndex={-1}>
+            <>
+              {transcriptTurns.currentActivity.map((segment) => (
+                <AgentStreamDispatchTurns
+                  key={`activity:${segment.turnKey}`}
+                  segment={segment}
+                  runtimeControl={activeRuntimeControl}
                 />
-              );
-            })}
+              ))}
 
-            {interview.questionTurnProps ? (
-              <AgentTurn
-                content={
-                  <AgentMessage>
-                    <ThoughtLine label={interviewThinkingLabel} />
-                    <p className="mt-2">
-                      {t("pages.assessmentFlow.interview.readyDescription")}
-                    </p>
-                  </AgentMessage>
-                }
-                footer={
-                  interviewTurnTimestamp ? (
-                    <TurnFooter timestamp={interviewTurnTimestamp} />
-                  ) : null
-                }
-                terminalAction={
-                  <AssessmentQuestionTurn
-                    assessmentId={assessmentId}
-                    question={interview.questionTurnProps.question}
-                    answerHistoryVisible={answerHistory.length > 0}
-                    selectedChoiceIds={activeDraft.selectedChoiceIds}
-                    onSelectedChoiceIdsChange={handleSelectedChoicesChange}
-                    isAdjusting={activeDraft.isAdjusting}
-                    onAdjust={handleAdjust}
-                    canSubmitSelection={isSubmitReady}
-                    hideSubmitSelection={
-                      submittedQuestionId === activeQuestion?.id
-                    }
-                    onSubmitSelection={handleSubmit}
-                    blockedActions={interview.questionTurnProps.blockedActions}
-                    disabled={
-                      !customerActions.canAnswerQuestion ||
-                      interview.stale ||
-                      interview.revalidating ||
-                      submitAnswer.isPending
-                    }
-                    onSubmitAnswer={handleQuestionAnswer}
-                    onBlockedAction={handleBlockedAction}
-                  />
-                }
-              />
-            ) : interview.isBlocked &&
-              customerActions.canSubmitBlockedAction &&
-              customerActions.availableBlockedActions.length > 0 ? (
-              <AgentTurn
-                content={
-                  <AgentMessage>
-                    <ThoughtLine label={interviewThinkingLabel} />
-                    <p className="mt-2">
-                      {t("pages.assessmentFlow.interview.readyDescription")}
-                    </p>
-                    <p className="mt-2 text-muted-foreground">
-                      {t("pages.assessment.blockedActionRecorded")}
-                    </p>
-                  </AgentMessage>
-                }
-                footer={
-                  interviewTurnTimestamp ? (
-                    <TurnFooter timestamp={interviewTurnTimestamp} />
-                  ) : null
-                }
-                terminalAction={
-                  <div
-                    data-slot="blocked-or-unresolved-actions"
-                    className="flex flex-wrap gap-2"
-                  >
-                    {customerActions.availableBlockedActions.map((action) => (
-                      <Button
-                        key={action}
-                        type="button"
-                        size="sm"
-                        variant={
-                          action ===
-                          ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit
-                            ? "outline"
-                            : "secondary"
+              {transcriptTurns.history.map((turn, turnIndex) => {
+                const lastSegment = turn.followUpActivity.length - 1;
+                const ownsHandoff =
+                  handoffInLatestActivity &&
+                  turnIndex === transcriptTurns.history.length - 1;
+                return (
+                  <InterviewCycleTurn
+                    key={`answer:${turn.answer.questionId}:${turn.answer.answeredAt}`}
+                    cycle={turn}
+                    activityOwnsOutput={lastSegment >= 0}
+                    activity={turn.followUpActivity.map((segment, index) => (
+                      <AgentStreamDispatchTurns
+                        key={`activity:${segment.turnKey}`}
+                        segment={segment}
+                        runtimeControl={activeRuntimeControl}
+                        outputs={
+                          // The answer's result belongs to the dispatch that
+                          // processed it, not to later retries appended after it.
+                          index === 0 ? (
+                            <>
+                              <InterviewCycleOutput
+                                answer={turn.answer}
+                                question={turn.question}
+                              />
+                              {ownsHandoff ? handoffPanel : null}
+                            </>
+                          ) : undefined
                         }
-                        onClick={() => handleBlockedAction(action)}
-                      >
-                        {action ===
-                        ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit ? (
-                          <SaveIcon />
-                        ) : (
-                          <TextCursorInputIcon />
-                        )}
-                        {blockedActionLabel(action)}
-                      </Button>
+                      />
                     ))}
-                  </div>
-                }
-              />
-            ) : interview.isFailed ? (
-              <AgentTurn
-                footer={
-                  interviewTurnTimestamp ? (
-                    <TurnFooter timestamp={interviewTurnTimestamp} />
-                  ) : null
-                }
-              >
-                <AgentMessage className="font-medium text-destructive">
-                  {t("pages.appShell.chatActivityStatuses.failed")}
-                </AgentMessage>
-              </AgentTurn>
-            ) : handoffInLatestActivity ? null : (
-              <AgentTurn
-                footer={
-                  interviewTurnTimestamp ? (
-                    <TurnFooter timestamp={interviewTurnTimestamp} />
-                  ) : null
-                }
-              >
-                <AgentMessage>{handoffPanel}</AgentMessage>
-              </AgentTurn>
-            )}
-
-            <AgentStreamTimeline events={stageEvents.unstaged} />
-
-            {postFinding ? (
-              <AgentTurn
-                content={
-                  <AgentMessage>
-                    <ThoughtLine label={agentThinkingLabel(false, [])} />
-                    <p className="mt-2">
-                      {t("pages.assessmentFlow.postFinding.description")}
-                    </p>
-                  </AgentMessage>
-                }
-                terminalAction={
-                  <PostFindingFlowSteps
-                    postFinding={postFinding}
-                    artifacts={{
-                      remediationPatch: normalized.artifacts.remediationPatch,
-                      verificationReport:
-                        normalized.artifacts.verificationReport,
-                      finalReport: normalized.artifacts.finalReport,
-                    }}
-                    disabled={
-                      submitAnswer.isPending ||
-                      recordBlockedAction.isPending ||
-                      submitPostFindingDecision.isPending
-                    }
-                    onDecisionSelect={handlePostFindingDecision}
                   />
-                }
-              />
-            ) : null}
+                );
+              })}
 
-            {lastSavedMessage ? (
-              <AgentTurn>
-                <AgentMessage className="text-muted-foreground">
-                  {lastSavedMessage}
-                </AgentMessage>
-              </AgentTurn>
-            ) : null}
-          </>
+              {interview.questionTurnProps ? (
+                <AgentTurn
+                  content={
+                    <AgentMessage>
+                      <ThoughtLine label={interviewThinkingLabel} />
+                      <p className="mt-2">
+                        {t("pages.assessmentFlow.interview.readyDescription")}
+                      </p>
+                    </AgentMessage>
+                  }
+                  footer={
+                    interviewTurnTimestamp ? (
+                      <TurnFooter timestamp={interviewTurnTimestamp} />
+                    ) : null
+                  }
+                  terminalAction={
+                    <AssessmentQuestionTurn
+                      assessmentId={assessmentId}
+                      question={interview.questionTurnProps.question}
+                      answerHistoryVisible={answerHistory.length > 0}
+                      selectedChoiceIds={activeDraft.selectedChoiceIds}
+                      onSelectedChoiceIdsChange={handleSelectedChoicesChange}
+                      isAdjusting={activeDraft.isAdjusting}
+                      onAdjust={handleAdjust}
+                      canSubmitSelection={isSubmitReady}
+                      hideSubmitSelection={
+                        submittedQuestionId === activeQuestion?.id
+                      }
+                      onSubmitSelection={handleSubmit}
+                      blockedActions={
+                        interview.questionTurnProps.blockedActions
+                      }
+                      disabled={
+                        !customerActions.canAnswerQuestion ||
+                        interview.stale ||
+                        interview.revalidating ||
+                        submitAnswer.isPending
+                      }
+                      onSubmitAnswer={handleQuestionAnswer}
+                      onBlockedAction={handleBlockedAction}
+                    />
+                  }
+                />
+              ) : interview.isBlocked &&
+                customerActions.canSubmitBlockedAction &&
+                customerActions.availableBlockedActions.length > 0 ? (
+                <AgentTurn
+                  content={
+                    <AgentMessage>
+                      <ThoughtLine label={interviewThinkingLabel} />
+                      <p className="mt-2">
+                        {t("pages.assessmentFlow.interview.readyDescription")}
+                      </p>
+                      <p className="mt-2 text-muted-foreground">
+                        {t("pages.assessment.blockedActionRecorded")}
+                      </p>
+                    </AgentMessage>
+                  }
+                  footer={
+                    interviewTurnTimestamp ? (
+                      <TurnFooter timestamp={interviewTurnTimestamp} />
+                    ) : null
+                  }
+                  terminalAction={
+                    <div
+                      data-slot="blocked-or-unresolved-actions"
+                      className="flex flex-wrap gap-2"
+                    >
+                      {customerActions.availableBlockedActions.map((action) => (
+                        <Button
+                          key={action}
+                          type="button"
+                          size="sm"
+                          variant={
+                            action ===
+                            ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit
+                              ? "outline"
+                              : "secondary"
+                          }
+                          onClick={() => handleBlockedAction(action)}
+                        >
+                          {action ===
+                          ASSESSMENT_INTERVIEW_BLOCKED_ACTIONS.saveAndExit ? (
+                            <SaveIcon />
+                          ) : (
+                            <TextCursorInputIcon />
+                          )}
+                          {blockedActionLabel(action)}
+                        </Button>
+                      ))}
+                    </div>
+                  }
+                />
+              ) : interview.isFailed ? (
+                <AgentTurn
+                  footer={
+                    interviewTurnTimestamp ? (
+                      <TurnFooter timestamp={interviewTurnTimestamp} />
+                    ) : null
+                  }
+                >
+                  <AgentMessage className="font-medium text-destructive">
+                    {t("pages.appShell.chatActivityStatuses.failed")}
+                  </AgentMessage>
+                </AgentTurn>
+              ) : handoffInLatestActivity ? null : (
+                <AgentTurn
+                  footer={
+                    interviewTurnTimestamp ? (
+                      <TurnFooter timestamp={interviewTurnTimestamp} />
+                    ) : null
+                  }
+                >
+                  <AgentMessage>{handoffPanel}</AgentMessage>
+                </AgentTurn>
+              )}
+
+              <AgentStreamTimeline events={stageEvents.unstaged} />
+
+              {postFinding ? (
+                <AgentTurn
+                  content={
+                    <AgentMessage>
+                      <ThoughtLine label={agentThinkingLabel(false, [])} />
+                      <p className="mt-2">
+                        {t("pages.assessmentFlow.postFinding.description")}
+                      </p>
+                    </AgentMessage>
+                  }
+                  terminalAction={
+                    <PostFindingFlowSteps
+                      postFinding={postFinding}
+                      artifacts={{
+                        remediationPatch: normalized.artifacts.remediationPatch,
+                        verificationReport:
+                          normalized.artifacts.verificationReport,
+                        finalReport: normalized.artifacts.finalReport,
+                      }}
+                      disabled={
+                        submitAnswer.isPending ||
+                        recordBlockedAction.isPending ||
+                        submitPostFindingDecision.isPending
+                      }
+                      onDecisionSelect={handlePostFindingDecision}
+                    />
+                  }
+                />
+              ) : null}
+
+              {lastSavedMessage ? (
+                <AgentTurn>
+                  <AgentMessage className="text-muted-foreground">
+                    {lastSavedMessage}
+                  </AgentMessage>
+                </AgentTurn>
+              ) : null}
+            </>
+          </div>
         ) : (
           <AgentStreamTimeline events={stageEvents.unstaged} />
         )}

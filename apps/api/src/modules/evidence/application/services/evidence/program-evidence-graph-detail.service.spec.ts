@@ -966,4 +966,76 @@ describe("ProgramEvidenceGraphDetailService", () => {
     expect(loadEvidencePayload).toHaveBeenCalledTimes(2);
     expect(readJsonArtifactReference).toHaveBeenCalledTimes(2);
   });
+  it("aggregates accepted repository reports without merging snapshot identities", async () => {
+    const service = new ProgramEvidenceGraphDetailService({
+      readJsonArtifactReference: () => Promise.reject(new Error("missing")),
+    } as unknown as ArtifactStorageService);
+    const makeReport = (suffix: string) => ({
+      ...baseReport,
+      id: `report-${suffix}`,
+      scanJobId: `scan-${suffix}`,
+      snapshotId: `snapshot-${suffix}`,
+      evidencePayload: {
+        modulesAnalyzed: 2,
+        codeSymbolsIndexed: 3,
+        aiModelInvocations: 1,
+        evidenceMappedScope: 50,
+        claims: [{ id: "claim-1", meaning: `claim-${suffix}` }],
+      },
+    });
+    const detail = await service.projectAcceptedReports({
+      reports: [
+        {
+          report: makeReport("a"),
+          snapshot: {
+            repositoryFullName: "org/service-a",
+            branch: "main",
+            ref: null,
+            commitSha: "a".repeat(40),
+            status: "READY",
+          },
+          loadEvidencePayload: () =>
+            Promise.resolve(makeReport("a").evidencePayload),
+        },
+        {
+          report: makeReport("b"),
+          snapshot: {
+            repositoryFullName: "org/service-b",
+            branch: "main",
+            ref: null,
+            commitSha: "b".repeat(40),
+            status: "READY",
+          },
+          loadEvidencePayload: () =>
+            Promise.resolve(makeReport("b").evidencePayload),
+        },
+      ],
+      relations: [
+        {
+          id: "relation-1",
+          fromSnapshotId: "snapshot-a",
+          toSnapshotId: "snapshot-b",
+          type: "RUNTIME_API_INTERACTION",
+        },
+      ],
+    });
+
+    expect(
+      detail.repositories?.map((repository) => repository.repository_full_name),
+    ).toEqual(["org/service-a", "org/service-b"]);
+    expect(detail.overview.modules_analyzed).toBe(4);
+    expect(detail.overview.code_symbols_indexed).toBe(6);
+    expect(detail.claims.map((claim) => claim.id)).toEqual([
+      "snapshot-a:claim-1",
+      "snapshot-b:claim-1",
+    ]);
+    expect(detail.provenance.relations).toEqual([
+      {
+        id: "relation-1",
+        from_snapshot_id: "snapshot-a",
+        to_snapshot_id: "snapshot-b",
+        type: "RUNTIME_API_INTERACTION",
+      },
+    ]);
+  });
 });

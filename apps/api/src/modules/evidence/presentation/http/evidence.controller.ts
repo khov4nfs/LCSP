@@ -134,14 +134,14 @@ export class EvidenceController {
         );
       }
     }
-    const report = await this.prisma.technicalEvidenceReport.findFirst({
+    const reports = await this.prisma.technicalEvidenceReport.findMany({
       where: {
         assessmentId,
         status: toPrismaEvidenceAcceptanceStatus(
           TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
         ),
       },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
       select: {
         id: true,
         assessmentId: true,
@@ -157,25 +157,26 @@ export class EvidenceController {
             status: true,
           },
         },
+        evidencePayload: true,
       },
     });
-    if (!report) {
+    if (!reports.length) {
       throw await this.unavailableEvidenceGraphProblem(
         assessmentId,
         request.correlationId ?? randomUUID(),
       );
     }
+    const latestReports = [
+      ...new Map(reports.map((report) => [report.snapshotId, report])).values(),
+    ];
     return resultEnvelope(
-      await this.graphDetail.projectAcceptedReport({
-        report,
-        snapshot: report.snapshot,
-        loadEvidencePayload: async () =>
-          (
-            await this.prisma.technicalEvidenceReport.findUnique({
-              where: { id: report.id },
-              select: { evidencePayload: true },
-            })
-          )?.evidencePayload ?? null,
+      await this.graphDetail.projectAcceptedReports({
+        reports: latestReports.map((report) => ({
+          report,
+          snapshot: report.snapshot,
+          loadEvidencePayload: () => Promise.resolve(report.evidencePayload),
+        })),
+        relations: await this.loadConfirmedRelations(assessmentId),
       }),
     );
   }
@@ -201,25 +202,66 @@ export class EvidenceController {
         );
       }
     }
-    const report = await this.prisma.technicalEvidenceReport.findFirst({
+    const reports = await this.prisma.technicalEvidenceReport.findMany({
       where: {
         assessmentId,
         status: toPrismaEvidenceAcceptanceStatus(
           TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted,
         ),
       },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      select: { evidencePayload: true },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        assessmentId: true,
+        scanJobId: true,
+        snapshotId: true,
+        createdAt: true,
+        evidencePayload: true,
+        snapshot: {
+          select: {
+            repositoryFullName: true,
+            branch: true,
+            ref: true,
+            commitSha: true,
+            status: true,
+          },
+        },
+      },
     });
-    if (!report) {
+    if (!reports.length) {
       throw await this.unavailableEvidenceGraphProblem(
         assessmentId,
         request.correlationId ?? randomUUID(),
       );
     }
+    const latestReports = [
+      ...new Map(reports.map((report) => [report.snapshotId, report])).values(),
+    ];
     return resultEnvelope(
-      this.graphDetail.projectOverview(report.evidencePayload),
+      (
+        await this.graphDetail.projectAcceptedReports({
+          reports: latestReports.map((report) => ({
+            report,
+            snapshot: report.snapshot,
+            loadEvidencePayload: () => Promise.resolve(report.evidencePayload),
+          })),
+          relations: await this.loadConfirmedRelations(assessmentId),
+        })
+      ).overview,
     );
+  }
+
+  private async loadConfirmedRelations(assessmentId: string) {
+    return this.prisma.assessmentRepositoryRelation.findMany({
+      where: { assessmentId },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        fromSnapshotId: true,
+        toSnapshotId: true,
+        type: true,
+      },
+    });
   }
 
   /**

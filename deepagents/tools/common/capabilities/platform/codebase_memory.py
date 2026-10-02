@@ -15,12 +15,13 @@ from __future__ import annotations
 import hashlib
 import json
 import shlex
+import re
 from collections.abc import Callable, Mapping
 from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 
-from .repository_sandbox import REPOSITORY_META, REPOSITORY_ROOT
+from .repository_sandbox import REPOSITORY_ROOT
 
 CODEBASE_MEMORY_COMMAND = "codebase-memory-graph"
 CODEBASE_MEMORY_PROJECT = "workspace-repository"
@@ -75,6 +76,7 @@ def ensure_codebase_memory_index(
     backend: object,
     *,
     lifecycle: CodebaseMemoryLifecycle | None = None,
+    repository_root: str = REPOSITORY_ROOT,
 ) -> bool:
     """Index the hydrated repository unless the current snapshot already is.
 
@@ -85,13 +87,16 @@ def ensure_codebase_memory_index(
     execute = getattr(backend, "execute", None)
     if not callable(execute):
         return False
-    marker = _output(execute(f"cat {shlex.quote(REPOSITORY_META)} 2>/dev/null"))
+    marker_path = f"{repository_root.rstrip('/')}/.lcsp/repository.json"
+    stamp_path = _index_stamp_path(repository_root)
+    project_id = _project_id(repository_root)
+    marker = _output(execute(f"cat {shlex.quote(marker_path)} 2>/dev/null"))
     if not marker:
         return False
-    stamp = _output(execute(f"cat {shlex.quote(_INDEX_STAMP)} 2>/dev/null"))
-    if stamp == marker and _project_indexed(execute):
+    stamp = _output(execute(f"cat {shlex.quote(stamp_path)} 2>/dev/null"))
+    if stamp == marker and _project_indexed(execute, repository_root, project_id):
         _ACTIVE_INDEX.set(
-            CodebaseMemoryIndexIdentity(CODEBASE_MEMORY_PROJECT, _stamp_hash(marker), True)
+            CodebaseMemoryIndexIdentity(project_id, _stamp_hash(marker), True)
         )
         _emit(lifecycle, "codebase_memory_index_reused")
         return True
@@ -100,7 +105,7 @@ def ensure_codebase_memory_index(
     result = execute(
         codebase_memory_cli(
             "index_repository",
-            {"repo_path": REPOSITORY_ROOT, "mode": "full"},
+            {"repo_path": repository_root, "mode": "full"},
         ),
         timeout=None,
     )
@@ -112,18 +117,30 @@ def ensure_codebase_memory_index(
             + (f": {output[-500:]}" if output else "")
         )
     execute(
-        f"printf %s {shlex.quote(marker)} > {shlex.quote(_INDEX_STAMP)}"
+        f"printf %s {shlex.quote(marker)} > {shlex.quote(stamp_path)}"
     )
     _ACTIVE_INDEX.set(
-        CodebaseMemoryIndexIdentity(CODEBASE_MEMORY_PROJECT, _stamp_hash(marker), False)
+        CodebaseMemoryIndexIdentity(project_id, _stamp_hash(marker), False)
     )
     _emit(lifecycle, "codebase_memory_indexed")
     return True
 
 
-def _project_indexed(execute: Callable[..., Any]) -> bool:
+def _project_indexed(
+    execute: Callable[..., Any], repository_root: str, project_id: str
+) -> bool:
     listing = _output(execute(codebase_memory_cli("list_projects", {})))
-    return f"{CODEBASE_MEMORY_PROJECT} {REPOSITORY_ROOT}" in listing
+    return f"{project_id} {repository_root}" in listing
+
+
+def _project_id(repository_root: str) -> str:
+    suffix = re.sub(r"[^A-Za-z0-9._-]", "-", repository_root.rsplit("/", 1)[-1])
+    return CODEBASE_MEMORY_PROJECT if repository_root == REPOSITORY_ROOT else f"{CODEBASE_MEMORY_PROJECT}-{suffix}"
+
+
+def _index_stamp_path(repository_root: str) -> str:
+    suffix = re.sub(r"[^A-Za-z0-9._-]", "-", repository_root.rsplit("/", 1)[-1])
+    return _INDEX_STAMP if repository_root == REPOSITORY_ROOT else f"/workspace/runtime/codebase-memory/{suffix}-index-stamp.json"
 
 
 def _output(result: Any) -> str:

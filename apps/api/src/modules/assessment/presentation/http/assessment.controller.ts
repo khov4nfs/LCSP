@@ -19,6 +19,15 @@ import { RequireRoles } from "../../../../platform/rbac/decorators/require-roles
 import { RbacGuard } from "../../../../platform/rbac/rbac.guard.js";
 
 import type { AuthenticatedRequest } from "../../../../common/interfaces/authenticated-request.interface.js";
+import {
+  ManageRepositoryRelationCommand,
+  REPOSITORY_RELATION_MUTATIONS,
+} from "../../application/commands/manage-repository-relation/manage-repository-relation.command.js";
+import { RemoveAssessmentRepositoryCommand } from "../../application/commands/remove-assessment-repository/remove-assessment-repository.command.js";
+import {
+  ASSESSMENT_REPOSITORY_RELATION_TYPES,
+  type AssessmentRepositoryRelationType,
+} from "@lcsp/contracts/assessment";
 import { WorkerApiKeyGuard } from "../../../scan/presentation/http/worker-api-key.guard.js";
 import { CompleteRepositorySetupCommand } from "../../application/commands/complete-repository-setup/complete-repository-setup.command.js";
 import { CreateAssessmentCommand } from "../../application/commands/create-assessment/create-assessment.command.js";
@@ -95,6 +104,101 @@ export class AssessmentController {
           assessmentId,
           request.rbacContext.userId,
           request.correlationId ?? "repository-setup-complete",
+        ),
+      ),
+    );
+  }
+
+  @Post(":assessmentId/repository-relations")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async createRepositoryRelation(
+    @Param("assessmentId") assessmentId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const relation = relationBody(body);
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new ManageRepositoryRelationCommand(
+          REPOSITORY_RELATION_MUTATIONS.create,
+          assessmentId,
+          request.rbacContext.userId,
+          null,
+          relation?.fromSnapshotId ?? null,
+          relation?.toSnapshotId ?? null,
+          relation?.type ?? null,
+          request.correlationId ?? "repository-relation-create",
+        ),
+      ),
+    );
+  }
+
+  @Patch(":assessmentId/repository-relations/:relationId")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async updateRepositoryRelation(
+    @Param("assessmentId") assessmentId: string,
+    @Param("relationId") relationId: string,
+    @Body() body: unknown,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    const relation = relationBody(body);
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new ManageRepositoryRelationCommand(
+          REPOSITORY_RELATION_MUTATIONS.update,
+          assessmentId,
+          request.rbacContext.userId,
+          relationId,
+          relation?.fromSnapshotId ?? null,
+          relation?.toSnapshotId ?? null,
+          relation?.type ?? null,
+          request.correlationId ?? "repository-relation-update",
+        ),
+      ),
+    );
+  }
+
+  @Delete(":assessmentId/repository-relations/:relationId")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async deleteRepositoryRelation(
+    @Param("assessmentId") assessmentId: string,
+    @Param("relationId") relationId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new ManageRepositoryRelationCommand(
+          REPOSITORY_RELATION_MUTATIONS.remove,
+          assessmentId,
+          request.rbacContext.userId,
+          relationId,
+          null,
+          null,
+          null,
+          request.correlationId ?? "repository-relation-remove",
+        ),
+      ),
+    );
+  }
+
+  @Delete(":assessmentId/repositories/:connectionId")
+  @UseGuards(RbacGuard)
+  @RequireRoles(AUTH_USER_ROLES.customer)
+  async removeAssessmentRepository(
+    @Param("assessmentId") assessmentId: string,
+    @Param("connectionId") connectionId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return resultEnvelope(
+      await this.commandBus.execute(
+        new RemoveAssessmentRepositoryCommand(
+          assessmentId,
+          connectionId,
+          request.rbacContext.userId,
+          request.correlationId ?? "assessment-repository-remove",
         ),
       ),
     );
@@ -540,4 +644,24 @@ export class InternalRuleAssessmentController {
       ),
     );
   }
+}
+
+function relationBody(value: unknown): {
+  fromSnapshotId: string;
+  toSnapshotId: string;
+  type: AssessmentRepositoryRelationType;
+} | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.from_snapshot_id === "string" &&
+    typeof candidate.to_snapshot_id === "string" &&
+    Object.values(ASSESSMENT_REPOSITORY_RELATION_TYPES).includes(
+      candidate.type as AssessmentRepositoryRelationType,
+    )
+    ? {
+        fromSnapshotId: candidate.from_snapshot_id,
+        toSnapshotId: candidate.to_snapshot_id,
+        type: candidate.type as AssessmentRepositoryRelationType,
+      }
+    : null;
 }

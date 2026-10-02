@@ -205,6 +205,18 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
       return this.toDto(job, true, command.correlationId);
     }
 
+    const confirmedRelations = this.prisma.assessmentRepositoryRelation
+      ? await this.prisma.assessmentRepositoryRelation.findMany({
+          where: { assessmentId: command.assessmentId },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          select: {
+            fromSnapshotId: true,
+            toSnapshotId: true,
+            type: true,
+          },
+        })
+      : [];
+
     const job = RepositoryScanJob.create({
       assessmentId: command.assessmentId,
       snapshotId: snapshot.id,
@@ -234,6 +246,11 @@ export class TriggerScanHandler implements ICommandHandler<TriggerScanCommand> {
         triggerSource: job.triggerSource,
         idempotencyKey: job.idempotencyKey,
         correlationId: job.correlationId,
+        repositoryRelations: confirmedRelations.map((relation) => ({
+          fromSnapshotId: relation.fromSnapshotId,
+          toSnapshotId: relation.toSnapshotId,
+          relationType: relation.type,
+        })),
       },
     });
 

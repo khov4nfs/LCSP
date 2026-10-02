@@ -34,27 +34,56 @@ const connection = {
   status: REPOSITORY_CONNECTION_STATUSES.active,
 };
 const snapshot = {
-  id: "snapshot-1", assessmentId, connectionId: connection.connectionId,
-  provider: connection.provider, repositoryFullName: connection.repositoryFullName,
-  branch: connection.defaultBranch, commitSha: originalCommit, createdAt: timestamp,
+  id: "snapshot-1",
+  assessmentId,
+  connectionId: connection.connectionId,
+  provider: connection.provider,
+  repositoryFullName: connection.repositoryFullName,
+  branch: connection.defaultBranch,
+  commitSha: originalCommit,
+  createdAt: timestamp,
 };
-const input = { connectionId: connection.connectionId, branch: connection.defaultBranch };
+const input = {
+  connectionId: connection.connectionId,
+  branch: connection.defaultBranch,
+};
 
-function state(overrides: Partial<AssessmentRepositorySetupState> = {}): AssessmentRepositorySetupState {
+function state(
+  overrides: Partial<AssessmentRepositorySetupState> = {},
+): AssessmentRepositorySetupState {
   return structuredClone({
-    assessmentId, assessmentStatus: ASSESSMENT_STATUS_CODES.wizardInProgress,
-    connection, snapshot, scanJob: null, ...overrides,
+    assessmentId,
+    assessmentStatus: ASSESSMENT_STATUS_CODES.wizardInProgress,
+    connection,
+    snapshot,
+    scanJob: null,
+    ...overrides,
   });
 }
-function makeJob(status: NonNullable<AssessmentRepositorySetupState["scanJob"]>["status"] = REPOSITORY_SCAN_JOB_STATUSES.queued): NonNullable<AssessmentRepositorySetupState["scanJob"]> {
-  return { id: "scan-1", assessmentId, snapshotId: snapshot.id, status,
-    attemptCount: 0, blockedReason: null, updatedAt: timestamp };
+function makeJob(
+  status: NonNullable<
+    AssessmentRepositorySetupState["scanJob"]
+  >["status"] = REPOSITORY_SCAN_JOB_STATUSES.queued,
+): NonNullable<AssessmentRepositorySetupState["scanJob"]> {
+  return {
+    id: "scan-1",
+    assessmentId,
+    snapshotId: snapshot.id,
+    status,
+    attemptCount: 0,
+    blockedReason: null,
+    updatedAt: timestamp,
+  };
 }
 function response(data: unknown): Response {
   return Response.json({ ok: true, data });
 }
 
-type RequestRecord = { path: string; method: string; body: Record<string, unknown> };
+type RequestRecord = {
+  path: string;
+  method: string;
+  body: Record<string, unknown>;
+};
 function server(t: TestContext, initial: AssessmentRepositorySetupState) {
   const api = {
     state: structuredClone(initial),
@@ -64,49 +93,75 @@ function server(t: TestContext, initial: AssessmentRepositorySetupState) {
     completionMismatch: false,
   };
   function maybeLoseResponse(stage: string) {
-    if (api.failures.delete(stage)) throw new TypeError("simulated response loss");
+    if (api.failures.delete(stage))
+      throw new TypeError("simulated response loss");
   }
-  t.mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
-    const path = new URL(String(url), "https://lcsp.test").pathname;
-    const method = init?.method ?? "GET";
-    const body = typeof init?.body === "string" ? JSON.parse(init.body) as Record<string, unknown> : {};
-    api.requests.push({ path, method, body });
-    assert.notEqual(method, "DELETE", "recovery must never delete a persisted Assessment");
-    if (method === "GET" && path.endsWith("/readiness")) {
-      return response({ repository_setup: api.state });
-    }
-    if (path.endsWith("/repository-connection")) {
-      api.state.connection = structuredClone(connection);
-      maybeLoseResponse("connection-response");
-      return response(connection);
-    }
-    if (path.endsWith("/snapshots")) {
-      api.state.snapshot = { ...snapshot, commitSha: api.branchHead };
-      maybeLoseResponse("snapshot-response");
-      return response({ snapshot_id: snapshot.id, commit_sha: api.branchHead });
-    }
-    if (path.endsWith("/repository-setup/complete")) {
-      api.state.assessmentStatus = ASSESSMENT_STATUS_CODES.wizardSubmitted;
-      maybeLoseResponse("completion-response");
-      return response({
-        assessment_id: assessmentId,
-        repository_connection_id: connection.connectionId,
-        snapshot_id: api.completionMismatch ? "different-snapshot" : api.state.snapshot?.id,
-        commit_sha: api.state.snapshot?.commitSha,
-      });
-    }
-    if (path.endsWith("/scan-jobs")) {
-      if (api.failures.delete("scan-before-commit")) {
-        return Response.json({ ok: false, problem: { code: "TEST_SCAN_UNAVAILABLE" } }, { status: 503 });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (url: RequestInfo | URL, init?: RequestInit) => {
+      const path = new URL(String(url), "https://lcsp.test").pathname;
+      const method = init?.method ?? "GET";
+      const body =
+        typeof init?.body === "string"
+          ? (JSON.parse(init.body) as Record<string, unknown>)
+          : {};
+      api.requests.push({ path, method, body });
+      assert.notEqual(
+        method,
+        "DELETE",
+        "recovery must never delete a persisted Assessment",
+      );
+      if (method === "GET" && path.endsWith("/readiness")) {
+        return response({ repository_setup: api.state });
       }
-      assert.equal(body.snapshot_id, api.state.snapshot?.id);
-      assert.equal(body.idempotency_key, `snapshot-auto:${assessmentId}:${api.state.snapshot?.id}`);
-      api.state.scanJob = makeJob();
-      maybeLoseResponse("scan-response");
-      return response({ scan_job_id: api.state.scanJob.id, status: api.state.scanJob.status });
-    }
-    throw new Error(`Unexpected request: ${method} ${path}`);
-  });
+      if (path.endsWith("/repository-connection")) {
+        api.state.connection = structuredClone(connection);
+        maybeLoseResponse("connection-response");
+        return response(connection);
+      }
+      if (path.endsWith("/snapshots")) {
+        api.state.snapshot = { ...snapshot, commitSha: api.branchHead };
+        maybeLoseResponse("snapshot-response");
+        return response({
+          snapshot_id: snapshot.id,
+          commit_sha: api.branchHead,
+        });
+      }
+      if (path.endsWith("/repository-setup/complete")) {
+        api.state.assessmentStatus = ASSESSMENT_STATUS_CODES.wizardSubmitted;
+        maybeLoseResponse("completion-response");
+        return response({
+          assessment_id: assessmentId,
+          repository_connection_id: connection.connectionId,
+          snapshot_id: api.completionMismatch
+            ? "different-snapshot"
+            : api.state.snapshot?.id,
+          commit_sha: api.state.snapshot?.commitSha,
+        });
+      }
+      if (path.endsWith("/scan-jobs")) {
+        if (api.failures.delete("scan-before-commit")) {
+          return Response.json(
+            { ok: false, problem: { code: "TEST_SCAN_UNAVAILABLE" } },
+            { status: 503 },
+          );
+        }
+        assert.equal(body.snapshot_id, api.state.snapshot?.id);
+        assert.equal(
+          body.idempotency_key,
+          `snapshot-auto:${assessmentId}:${api.state.snapshot?.id}`,
+        );
+        api.state.scanJob = makeJob();
+        maybeLoseResponse("scan-response");
+        return response({
+          scan_job_id: api.state.scanJob.id,
+          status: api.state.scanJob.status,
+        });
+      }
+      throw new Error(`Unexpected request: ${method} ${path}`);
+    },
+  );
   return api;
 }
 function writes(api: ReturnType<typeof server>) {
@@ -114,11 +169,16 @@ function writes(api: ReturnType<typeof server>) {
 }
 
 for (const url of [
-  "https://github.com/acme//payments", "https://github.com//acme/payments",
-  "https://github.com/acme/payments//", "http://github.com/acme/payments",
-  "https://github.com/acme/payments/tree/main", "https://github.com/acme/payments/blob/main/a.ts",
-  "https://github.com/acme/payments?tab=code", "https://github.com/acme/payments#readme",
-  "https://user:secret@github.com/acme/payments", "https://github.com:444/acme/payments",
+  "https://github.com/acme//payments",
+  "https://github.com//acme/payments",
+  "https://github.com/acme/payments//",
+  "http://github.com/acme/payments",
+  "https://github.com/acme/payments/tree/main",
+  "https://github.com/acme/payments/blob/main/a.ts",
+  "https://github.com/acme/payments?tab=code",
+  "https://github.com/acme/payments#readme",
+  "https://user:secret@github.com/acme/payments",
+  "https://github.com:444/acme/payments",
   `https://github.com/acme/${"a".repeat(2050)}`,
 ]) {
   test(`shared URL validation rejects ${url.slice(0, 100)}`, () => {
@@ -127,24 +187,62 @@ for (const url of [
 }
 
 test("shared parsers preserve supported repository URL forms", () => {
-  for (const url of ["https://github.com/acme/payments", "https://github.com/acme/payments.git/", " https://github.com/acme/payments "]) {
-    assert.equal(parseGitHubRepositoryUrl(url)?.repositoryFullName, "acme/payments");
+  for (const url of [
+    "https://github.com/acme/payments",
+    "https://github.com/acme/payments.git/",
+    " https://github.com/acme/payments ",
+  ]) {
+    assert.equal(
+      parseGitHubRepositoryUrl(url)?.repositoryFullName,
+      "acme/payments",
+    );
   }
-  assert.equal(parseGitLabRepositoryUrl("https://gitlab.com/acme/tree/team/project.git")?.repositoryFullName, "acme/tree/team/project");
-  assert.equal(parseGitLabRepositoryUrl("https://gitlab.com/acme//project"), null);
-  assert.equal(parseGitLabRepositoryUrl("https://gitlab.com/acme/project/-/tree/main"), null);
+  assert.equal(
+    parseGitLabRepositoryUrl("https://gitlab.com/acme/tree/team/project.git")
+      ?.repositoryFullName,
+    "acme/tree/team/project",
+  );
+  assert.equal(
+    parseGitLabRepositoryUrl("https://gitlab.com/acme//project"),
+    null,
+  );
+  assert.equal(
+    parseGitLabRepositoryUrl("https://gitlab.com/acme/project/-/tree/main"),
+    null,
+  );
 });
 
 test("checkpoint validator rejects missing and mismatched persisted context", () => {
   assert.equal(isAssessmentRepositorySetupState(state()), true);
   assert.equal(isAssessmentRepositorySetupState({ assessmentId }), false);
-  assert.equal(isAssessmentRepositorySetupState(state({ connection: null })), false);
-  assert.equal(isAssessmentRepositorySetupState(state({ snapshot: { ...snapshot, connectionId: "other" } })), false);
-  assert.equal(isAssessmentRepositorySetupState(state({ scanJob: { ...makeJob(), snapshotId: "other" } })), false);
-  assert.equal(isAssessmentRepositorySetupState(state({ snapshot: { ...snapshot, commitSha: "invalid" } })), false);
+  assert.equal(
+    isAssessmentRepositorySetupState(state({ connection: null })),
+    false,
+  );
+  assert.equal(
+    isAssessmentRepositorySetupState(
+      state({ snapshot: { ...snapshot, connectionId: "other" } }),
+    ),
+    false,
+  );
+  assert.equal(
+    isAssessmentRepositorySetupState(
+      state({ scanJob: { ...makeJob(), snapshotId: "other" } }),
+    ),
+    false,
+  );
+  assert.equal(
+    isAssessmentRepositorySetupState(
+      state({ snapshot: { ...snapshot, commitSha: "invalid" } }),
+    ),
+    false,
+  );
 });
 
-for (const status of [ASSESSMENT_STATUS_CODES.wizardInProgress, ASSESSMENT_STATUS_CODES.wizardSubmitted]) {
+for (const status of [
+  ASSESSMENT_STATUS_CODES.wizardInProgress,
+  ASSESSMENT_STATUS_CODES.wizardSubmitted,
+]) {
   test(`persisted source with ${status} and no job remains resumable`, () => {
     const setupState = state({ assessmentStatus: status });
     assert.equal(needsRepositorySetupResume(setupState), true);
@@ -152,14 +250,20 @@ for (const status of [ASSESSMENT_STATUS_CODES.wizardInProgress, ASSESSMENT_STATU
 }
 
 test("a submitted Assessment with a scan job opens scanner", () => {
-  const setupState = state({ assessmentStatus: ASSESSMENT_STATUS_CODES.wizardSubmitted, scanJob: makeJob() });
+  const setupState = state({
+    assessmentStatus: ASSESSMENT_STATUS_CODES.wizardSubmitted,
+    scanJob: makeJob(),
+  });
   assert.equal(needsRepositorySetupResume(setupState), false);
 });
 
 test("resume completes a saved snapshot then starts its scan without repinning", async (t) => {
   const api = server(t, state());
   const result = await startRepositoryAnalysis(assessmentId, input);
-  assert.deepEqual(writes(api).map((request) => request.path.split("/").slice(-2).join("/")), ["repository-setup/complete", `${assessmentId}/scan-jobs`]);
+  assert.deepEqual(
+    writes(api).map((request) => request.path.split("/").slice(-2).join("/")),
+    ["repository-setup/complete", `${assessmentId}/scan-jobs`],
+  );
   assert.equal(result.snapshotId, snapshot.id);
   assert.equal(result.commitSha, originalCommit);
 });
@@ -167,24 +271,43 @@ test("resume completes a saved snapshot then starts its scan without repinning",
 test("new setup pins only when no persisted snapshot exists", async (t) => {
   const api = server(t, state({ snapshot: null }));
   await startRepositoryAnalysis(assessmentId, input);
-  assert.equal(writes(api).filter((request) => request.path.endsWith("/snapshots")).length, 1);
+  assert.equal(
+    writes(api).filter((request) => request.path.endsWith("/snapshots")).length,
+    1,
+  );
   assert.equal(writes(api).length, 3);
 });
 
 test("scan retry retains snapshot and commit even if the branch head moves", async (t) => {
-  const api = server(t, state({ assessmentStatus: ASSESSMENT_STATUS_CODES.wizardSubmitted }));
+  const api = server(
+    t,
+    state({ assessmentStatus: ASSESSMENT_STATUS_CODES.wizardSubmitted }),
+  );
   api.failures.add("scan-before-commit");
   await assert.rejects(startRepositoryAnalysis(assessmentId, input));
   api.branchHead = "b".repeat(40);
   const result = await startRepositoryAnalysis(assessmentId, input);
   assert.equal(result.commitSha, originalCommit);
-  assert.equal(writes(api).some((request) => request.path.endsWith("/snapshots")), false);
-  assert.equal(writes(api)[0].body.idempotency_key, writes(api)[1].body.idempotency_key);
+  assert.equal(
+    writes(api).some((request) => request.path.endsWith("/snapshots")),
+    false,
+  );
+  assert.equal(
+    writes(api)[0].body.idempotency_key,
+    writes(api)[1].body.idempotency_key,
+  );
 });
 
-for (const stage of ["snapshot-response", "completion-response", "scan-response"]) {
+for (const stage of [
+  "snapshot-response",
+  "completion-response",
+  "scan-response",
+]) {
   test(`resume reconciles persisted state after losing ${stage}`, async (t) => {
-    const api = server(t, state({ snapshot: stage === "snapshot-response" ? null : snapshot }));
+    const api = server(
+      t,
+      state({ snapshot: stage === "snapshot-response" ? null : snapshot }),
+    );
     api.failures.add(stage);
     await assert.rejects(startRepositoryAnalysis(assessmentId, input));
     const before = writes(api).length;
@@ -192,7 +315,10 @@ for (const stage of ["snapshot-response", "completion-response", "scan-response"
     const result = await startRepositoryAnalysis(assessmentId, input);
     assert.equal(result.commitSha, originalCommit);
     const retriedWrites = writes(api).slice(before);
-    assert.equal(retriedWrites.some((request) => request.path.endsWith("/snapshots")), false);
+    assert.equal(
+      retriedWrites.some((request) => request.path.endsWith("/snapshots")),
+      false,
+    );
     if (stage === "scan-response") assert.equal(retriedWrites.length, 0);
     if (stage === "completion-response") assert.equal(retriedWrites.length, 1);
   });
@@ -201,22 +327,43 @@ for (const stage of ["snapshot-response", "completion-response", "scan-response"
 test("lost connection response is recovered without deleting or connecting again", async (t) => {
   const api = server(t, state({ connection: null, snapshot: null }));
   api.failures.add("connection-response");
-  await assert.rejects(connectAssessmentRepository(assessmentId, "https://github.com/acme/payments"));
-  const recovered = await connectAssessmentRepository(assessmentId, "https://github.com/acme/payments.git");
+  await assert.rejects(
+    connectAssessmentRepository(
+      assessmentId,
+      "https://github.com/acme/payments",
+    ),
+  );
+  const recovered = await connectAssessmentRepository(
+    assessmentId,
+    "https://github.com/acme/payments.git",
+  );
   assert.equal(recovered.connectionId, connection.connectionId);
   assert.equal(writes(api).length, 1);
 });
 
-test("an existing connection cannot be silently switched to another repository", async (t) => {
+test("a second repository URL is delegated to the server instead of provider dedupe", async (t) => {
   const api = server(t, state());
-  await assert.rejects(connectAssessmentRepository(assessmentId, "https://github.com/acme/another"), { message: GITHUB_INTEGRATION_ERROR_CODES.connectionAlreadyExists });
-  assert.equal(writes(api).length, 0);
+  const connected = await connectAssessmentRepository(
+    assessmentId,
+    "https://github.com/acme/another",
+  );
+  assert.equal(connected.connectionId, connection.connectionId);
+  assert.equal(writes(api).length, 1);
 });
 
-for (const status of [REPOSITORY_SCAN_JOB_STATUSES.queued, REPOSITORY_SCAN_JOB_STATUSES.completed, REPOSITORY_SCAN_JOB_STATUSES.failed]) {
+for (const status of [
+  REPOSITORY_SCAN_JOB_STATUSES.queued,
+  REPOSITORY_SCAN_JOB_STATUSES.completed,
+  REPOSITORY_SCAN_JOB_STATUSES.failed,
+]) {
   test(`resume returns existing ${status} scan without implicitly rerunning`, async (t) => {
-    const api = server(t, state({ assessmentStatus: ASSESSMENT_STATUS_CODES.wizardSubmitted,
-      scanJob: { ...makeJob(), status } }));
+    const api = server(
+      t,
+      state({
+        assessmentStatus: ASSESSMENT_STATUS_CODES.wizardSubmitted,
+        scanJob: { ...makeJob(), status },
+      }),
+    );
     const result = await startRepositoryAnalysis(assessmentId, input);
     assert.equal(result.scanStatus, status);
     assert.equal(writes(api).length, 0);
@@ -224,7 +371,10 @@ for (const status of [REPOSITORY_SCAN_JOB_STATUSES.queued, REPOSITORY_SCAN_JOB_S
 }
 
 test("concurrent client submissions share one resume operation", async (t) => {
-  const api = server(t, state({ assessmentStatus: ASSESSMENT_STATUS_CODES.wizardSubmitted }));
+  const api = server(
+    t,
+    state({ assessmentStatus: ASSESSMENT_STATUS_CODES.wizardSubmitted }),
+  );
   const first = startRepositoryAnalysis(assessmentId, input);
   const second = startRepositoryAnalysis(assessmentId, input);
   assert.equal(first, second);
@@ -234,11 +384,19 @@ test("concurrent client submissions share one resume operation", async (t) => {
 
 test("unreadable or mismatched checkpoints fail before any mutation", async (t) => {
   const requests: string[] = [];
-  t.mock.method(globalThis, "fetch", async (_url: RequestInfo | URL, init?: RequestInit) => {
-    requests.push(init?.method ?? "GET");
-    return response({ repository_setup: state({ assessmentId: "another-assessment" }) });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (_url: RequestInfo | URL, init?: RequestInit) => {
+      requests.push(init?.method ?? "GET");
+      return response({
+        repository_setup: state({ assessmentId: "another-assessment" }),
+      });
+    },
+  );
+  await assert.rejects(getRepositorySetupState(assessmentId), {
+    message: ASSESSMENT_ERROR_CODES.repositorySetupIncomplete,
   });
-  await assert.rejects(getRepositorySetupState(assessmentId), { message: ASSESSMENT_ERROR_CODES.repositorySetupIncomplete });
   await assert.rejects(startRepositoryAnalysis(assessmentId, input));
   assert.ok(requests.every((method) => method === "GET"));
 });
@@ -246,13 +404,27 @@ test("unreadable or mismatched checkpoints fail before any mutation", async (t) 
 test("completion with a different snapshot never starts a scan", async (t) => {
   const api = server(t, state());
   api.completionMismatch = true;
-  await assert.rejects(startRepositoryAnalysis(assessmentId, input), { message: GITHUB_INTEGRATION_ERROR_CODES.snapshotScanMismatch });
-  assert.equal(writes(api).some((request) => request.path.endsWith("/scan-jobs")), false);
+  await assert.rejects(startRepositoryAnalysis(assessmentId, input), {
+    message: GITHUB_INTEGRATION_ERROR_CODES.snapshotScanMismatch,
+  });
+  assert.equal(
+    writes(api).some((request) => request.path.endsWith("/scan-jobs")),
+    false,
+  );
 });
 
 test("setup UI has an explicit resume action and no automatic destructive cleanup", async () => {
-  const source = await readFile(new URL("../src/features/assessment-flow/components/organisms/repository-setup-step.tsx", import.meta.url), "utf8");
-  assert.doesNotMatch(source, /useDeleteAssessmentMutation|deleteAssessment\.mutateAsync/);
+  const source = await readFile(
+    new URL(
+      "../src/features/assessment-flow/components/organisms/repository-setup-step.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.doesNotMatch(
+    source,
+    /useDeleteAssessmentMutation|deleteAssessment\.mutateAsync/,
+  );
   assert.match(source, /pages\.assessmentFlow\.resumeSetup/);
   assert.match(source, /getRepositorySetupState/);
 });

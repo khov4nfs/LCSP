@@ -1,22 +1,37 @@
-import { HttpStatus, Inject } from "@nestjs/common";
+import { HttpStatus, Inject, Optional } from "@nestjs/common";
 import { CommandHandler, type ICommandHandler } from "@nestjs/cqrs";
+import { randomUUID } from "node:crypto";
+import type { Prisma } from "@prisma/client";
 import {
   ASSESSMENT_ERROR_CODES,
   ASSESSMENT_EVENT_TYPES,
   ASSESSMENT_STATUS_CODES,
 } from "@lcsp/contracts/assessment";
 import {
+  AUDIT_ACTOR_TYPES,
   AUDIT_DECISIONS,
   AUDIT_REDACTION_STATUSES,
   AUDIT_RESOURCE_TYPES,
 } from "@lcsp/contracts/audit";
 import {
+  GITHUB_INTEGRATION_EVENT_TYPES,
   REPOSITORY_CONNECTION_STATUSES,
+  REPOSITORY_SCAN_JOB_STATUSES,
+  REPOSITORY_SCAN_TRIGGER_SOURCES,
   REPOSITORY_SNAPSHOT_STATUSES,
 } from "@lcsp/contracts/github-integration";
+import {
+  buildOutboxMessageInput,
+  OUTBOX_AGGREGATE_TYPES,
+} from "@lcsp/contracts/outbox";
 
 import { PrismaService } from "../../../../../infrastructure/prisma/prisma.service.js";
+import {
+  toPrismaRepositoryScanJobStatus,
+  toPrismaRepositoryScanTriggerSource,
+} from "../../../../../infrastructure/prisma/prisma-enum-mappers.js";
 import { AuditWriterService } from "../../../../../platform/audit/audit-writer.service.js";
+import { OutboxRepository } from "../../../../../platform/outbox/outbox.repository.js";
 import { problemException } from "../../../../../platform/http/filters/error.factory.js";
 import {
   ASSESSMENT_REPOSITORY,
@@ -34,6 +49,7 @@ export class CompleteRepositorySetupHandler implements ICommandHandler<CompleteR
     private readonly assessments: AssessmentRepository,
     private readonly prisma: PrismaService,
     private readonly auditWriter: AuditWriterService,
+    @Optional() private readonly outbox?: OutboxRepository,
   ) {}
 
   async execute(
@@ -59,31 +75,40 @@ export class CompleteRepositorySetupHandler implements ICommandHandler<CompleteR
       );
     }
 
-    const connection = await this.prisma.repositoryConnection.findFirst({
+    const connections = await this.prisma.repositoryConnection.findMany({
       where: {
         assessmentId: command.assessmentId,
         userId: command.actorId,
         status: REPOSITORY_CONNECTION_STATUSES.active,
       },
-      orderBy: { connectedAt: "desc" },
+      orderBy: [{ connectedAt: "asc" }, { id: "asc" }],
       select: { id: true },
     });
-    const snapshot = connection
-      ? await this.prisma.repositorySnapshot.findFirst({
-          where: {
-            assessmentId: command.assessmentId,
-            connectionId: connection.id,
-            status: REPOSITORY_SNAPSHOT_STATUSES.ready,
-          },
-          orderBy: { createdAt: "desc" },
-          select: { id: true, commitSha: true },
-        })
-      : null;
+    const snapshots =
+      connections.length === 0
+        ? []
+        : await this.prisma.repositorySnapshot.findMany({
+            where: {
+              assessmentId: command.assessmentId,
+              connectionId: {
+                in: connections.map((connection) => connection.id),
+              },
+              status: REPOSITORY_SNAPSHOT_STATUSES.ready,
+            },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            select: { id: true, connectionId: true, commitSha: true },
+          });
+    const latestSnapshots = new Map<string, (typeof snapshots)[number]>();
+    for (const snapshot of snapshots)
+      if (!latestSnapshots.has(snapshot.connectionId))
+        latestSnapshots.set(snapshot.connectionId, snapshot);
+    const selectedSnapshots = [...latestSnapshots.values()];
+    const snapshot = selectedSnapshots.at(-1) ?? null;
 
     if (
-      !connection ||
-      !snapshot ||
-      !/^[0-9a-f]{40}$/iu.test(snapshot.commitSha)
+      connections.length === 0 ||
+      selectedSnapshots.length !== connections.length ||
+      selectedSnapshots.some((item) => !/^[0-9a-f]{40}$/iu.test(item.commitSha))
     ) {
       throw problemException(
         ASSESSMENT_ERROR_CODES.repositorySetupIncomplete,
@@ -113,22 +138,102 @@ export class CompleteRepositorySetupHandler implements ICommandHandler<CompleteR
             redactionStatus: AUDIT_REDACTION_STATUSES.none,
             payload: {
               assessmentId: assessment.id,
-              repositoryConnectionId: connection.id,
-              snapshotId: snapshot.id,
-              commitSha: snapshot.commitSha,
+              repositories: selectedSnapshots.map((item) => ({
+                connectionId: item.connectionId,
+                snapshotId: item.id,
+                commitSha: item.commitSha,
+              })),
             },
           },
           tx,
         );
+        await this.enqueueScanJobsInTx(tx, command, selectedSnapshots);
       });
     }
 
     return {
       assessment_id: assessment.id,
       status: assessment.status,
-      repository_connection_id: connection.id,
-      snapshot_id: snapshot.id,
-      commit_sha: snapshot.commitSha,
+      repository_connection_id: snapshot!.connectionId,
+      snapshot_id: snapshot!.id,
+      commit_sha: snapshot!.commitSha,
     };
+  }
+
+  /**
+   * Locks the confirmed snapshot set and emits one idempotent scan command per snapshot
+   * in the same transaction as the assessment submission.
+   */
+  private async enqueueScanJobsInTx(
+    tx: Prisma.TransactionClient,
+    command: CompleteRepositorySetupCommand,
+    snapshots: Array<{ id: string; commitSha: string }>,
+  ): Promise<void> {
+    if (!this.outbox || !tx.repositoryScanJob) return;
+
+    const relations = tx.assessmentRepositoryRelation
+      ? await tx.assessmentRepositoryRelation.findMany({
+          where: { assessmentId: command.assessmentId },
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          select: {
+            fromSnapshotId: true,
+            toSnapshotId: true,
+            type: true,
+          },
+        })
+      : [];
+    const triggerSource = REPOSITORY_SCAN_TRIGGER_SOURCES.manual;
+
+    for (const snapshot of snapshots) {
+      const idempotencyKey = `snapshot-auto:${command.assessmentId}:${snapshot.id}`;
+      const existing = await tx.repositoryScanJob.findUnique({
+        where: { idempotencyKey },
+        select: { id: true },
+      });
+      if (existing) continue;
+
+      const scanJobId = randomUUID();
+      const event = buildOutboxMessageInput({
+        aggregateType: OUTBOX_AGGREGATE_TYPES.repositoryScanJob,
+        aggregateId: scanJobId,
+        eventType: GITHUB_INTEGRATION_EVENT_TYPES.scanTriggered,
+        assessmentId: command.assessmentId,
+        correlationId: command.correlationId,
+        causationId: command.correlationId,
+        actor: { id: command.actorId, type: AUDIT_ACTOR_TYPES.user },
+        result: GITHUB_INTEGRATION_EVENT_TYPES.scanJobTriggeredAudit,
+        redactionStatus: AUDIT_REDACTION_STATUSES.none,
+        idempotencyKey,
+        payload: {
+          scanJobId,
+          assessmentId: command.assessmentId,
+          snapshotId: snapshot.id,
+          commitSha: snapshot.commitSha,
+          triggerSource,
+          idempotencyKey,
+          correlationId: command.correlationId,
+          repositoryRelations: relations.map((relation) => ({
+            fromSnapshotId: relation.fromSnapshotId,
+            toSnapshotId: relation.toSnapshotId,
+            relationType: relation.type,
+          })),
+        },
+      });
+
+      await tx.repositoryScanJob.create({
+        data: {
+          id: scanJobId,
+          assessmentId: command.assessmentId,
+          snapshotId: snapshot.id,
+          idempotencyKey,
+          triggerSource: toPrismaRepositoryScanTriggerSource(triggerSource),
+          status: toPrismaRepositoryScanJobStatus(
+            REPOSITORY_SCAN_JOB_STATUSES.queued,
+          ),
+          correlationId: command.correlationId,
+        },
+      });
+      await this.outbox.enqueue(event, tx);
+    }
   }
 }

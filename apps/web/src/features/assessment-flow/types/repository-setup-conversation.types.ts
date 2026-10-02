@@ -10,6 +10,11 @@ export type RepositorySetupAnswer = {
 export type RepositorySetupConversationProps = {
   provider?: GitProviderValue;
   repositoryUrl?: string;
+  providerCapabilities?: Array<{
+    provider: string;
+    canConnect: boolean;
+    canPinSnapshot: boolean;
+  }>;
   onProviderChange?: (provider: GitProviderValue) => void;
   disabled?: boolean;
   footer?: ReactNode;

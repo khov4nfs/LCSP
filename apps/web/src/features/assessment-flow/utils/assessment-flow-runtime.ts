@@ -1,4 +1,5 @@
 import {
+  ASSESSMENT_GRAPH_STATES,
   ASSESSMENT_FLOW_STAGES,
   needsRepositorySetupResume,
   type AssessmentRepositorySetupState,
@@ -29,30 +30,68 @@ export function deriveAssessmentFlowRuntime(input: {
   evidenceReport: WorkspaceRuntimeEvidenceReport | null;
   recentActivity?: WorkspaceRuntimeActivityItem[];
 }) {
-  const scanFailed =
-    input.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.failed ||
-    input.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.blocked ||
-    input.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.blockedMapping;
-  const scanCompleted =
-    input.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.completed;
-  const scanActive = Boolean(
-    input.snapshot &&
-      input.scanJob?.snapshotId === input.snapshot.id &&
-      (input.scanJob.status === REPOSITORY_SCAN_JOB_STATUSES.queued ||
-        input.scanJob.status === REPOSITORY_SCAN_JOB_STATUSES.running ||
-        input.scanJob.status ===
-          REPOSITORY_SCAN_JOB_STATUSES.waitingForCredits),
+  const aggregateRepositories = input.setupState?.repositories;
+  const usesAggregateState = Boolean(
+    aggregateRepositories && aggregateRepositories.length > 0,
   );
+  const aggregateScanFailed = Boolean(
+    aggregateRepositories?.some(
+      (repository) =>
+        repository.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.failed ||
+        repository.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.blocked ||
+        repository.scanJob?.status ===
+          REPOSITORY_SCAN_JOB_STATUSES.blockedMapping,
+    ),
+  );
+  const aggregateScanCompleted = Boolean(
+    aggregateRepositories &&
+    aggregateRepositories.length > 0 &&
+    aggregateRepositories.every(
+      (repository) =>
+        repository.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.completed,
+    ),
+  );
+  const aggregateScanActive = Boolean(
+    aggregateRepositories?.some(
+      (repository) =>
+        repository.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.queued ||
+        repository.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.running ||
+        repository.scanJob?.status ===
+          REPOSITORY_SCAN_JOB_STATUSES.waitingForCredits,
+    ),
+  );
+  const aggregateGraphReady =
+    input.setupState?.programEvidenceGraph?.state ===
+    ASSESSMENT_GRAPH_STATES.ready;
+  const scanFailed = usesAggregateState
+    ? aggregateScanFailed
+    : input.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.failed ||
+      input.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.blocked ||
+      input.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.blockedMapping;
+  const scanCompleted = usesAggregateState
+    ? aggregateScanCompleted
+    : input.scanJob?.status === REPOSITORY_SCAN_JOB_STATUSES.completed;
+  const scanActive = usesAggregateState
+    ? aggregateScanActive
+    : Boolean(
+        input.snapshot &&
+        input.scanJob?.snapshotId === input.snapshot.id &&
+        (input.scanJob.status === REPOSITORY_SCAN_JOB_STATUSES.queued ||
+          input.scanJob.status === REPOSITORY_SCAN_JOB_STATUSES.running ||
+          input.scanJob.status ===
+            REPOSITORY_SCAN_JOB_STATUSES.waitingForCredits),
+      );
   const reportMatchesScan = Boolean(
     input.scanJob &&
     input.evidenceReport?.scanJobId === input.scanJob.id &&
     input.evidenceReport.snapshotId === input.scanJob.snapshotId,
   );
-  const evidenceAccepted =
-    scanCompleted &&
-    reportMatchesScan &&
-    input.evidenceReport?.status ===
-      TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted;
+  const evidenceAccepted = usesAggregateState
+    ? scanCompleted && aggregateGraphReady
+    : scanCompleted &&
+      reportMatchesScan &&
+      input.evidenceReport?.status ===
+        TECHNICAL_EVIDENCE_REPORT_STATUSES.accepted;
   const evidenceRejected =
     reportMatchesScan &&
     input.evidenceReport?.status ===
@@ -61,7 +100,8 @@ export function deriveAssessmentFlowRuntime(input: {
   const stage =
     !input.hasRepositoryConnection ||
     !input.snapshot ||
-    (input.setupState !== undefined && needsRepositorySetupResume(input.setupState))
+    (input.setupState !== undefined &&
+      needsRepositorySetupResume(input.setupState))
       ? ASSESSMENT_FLOW_STAGES.repositorySetup
       : evidenceAccepted
         ? ASSESSMENT_FLOW_STAGES.interview

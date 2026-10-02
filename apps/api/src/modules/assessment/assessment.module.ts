@@ -11,6 +11,8 @@ import { BillingModule } from "../billing/billing.module.js";
 import { WorkerApiKeyGuard } from "../scan/presentation/http/worker-api-key.guard.js";
 import { CompleteRepositorySetupHandler } from "./application/commands/complete-repository-setup/complete-repository-setup.handler.js";
 import { CreateAssessmentHandler } from "./application/commands/create-assessment/create-assessment.handler.js";
+import { ManageRepositoryRelationHandler } from "./application/commands/manage-repository-relation/manage-repository-relation.handler.js";
+import { RemoveAssessmentRepositoryHandler } from "./application/commands/remove-assessment-repository/remove-assessment-repository.handler.js";
 import { DeleteAssessmentHandler } from "./application/commands/delete-assessment/delete-assessment.handler.js";
 import { MarkAiNotDetectedHandler } from "./application/commands/mark-ai-not-detected/mark-ai-not-detected.handler.js";
 import { PutRuleAssessmentHandler } from "./application/commands/put-rule-assessment/put-rule-assessment.handler.js";
@@ -60,6 +62,8 @@ import {
     WorkerApiKeyGuard,
     CreateAssessmentHandler,
     CompleteRepositorySetupHandler,
+    ManageRepositoryRelationHandler,
+    RemoveAssessmentRepositoryHandler,
     DeleteAssessmentHandler,
     RenameAssessmentHandler,
     MarkAiNotDetectedHandler,

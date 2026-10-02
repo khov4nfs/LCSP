@@ -10,12 +10,18 @@ import type { GitProviderValue } from "../../types/assessment-flow.types";
 
 type GitProviderQuestionProps = {
   value?: GitProviderValue;
+  capabilities?: Array<{
+    provider: string;
+    canConnect: boolean;
+    canPinSnapshot: boolean;
+  }>;
   onValueChange: (value: GitProviderValue) => void;
   disabled?: boolean;
 };
 
 export function GitProviderQuestion({
   value,
+  capabilities,
   onValueChange,
   disabled,
 }: GitProviderQuestionProps) {
@@ -24,14 +30,24 @@ export function GitProviderQuestion({
       value={value}
       disabled={disabled}
       ariaLabel={t("pages.assessmentFlow.providerQuestion")}
-      options={GIT_PROVIDER_OPTIONS.map((option) => ({
-        id: option.id,
-        label: t(option.labelKey),
-        disabled: !option.supported,
-        assistiveText: option.supported
-          ? undefined
-          : t("pages.assessmentFlow.providerComingSoon"),
-      }))}
+      options={GIT_PROVIDER_OPTIONS.map((option) => {
+        const capability = capabilities?.find(
+          (item) => item.provider === option.id,
+        );
+        const available =
+          option.supported &&
+          (capability
+            ? capability.canConnect && capability.canPinSnapshot
+            : true);
+        return {
+          id: option.id,
+          label: t(option.labelKey),
+          disabled: !available,
+          assistiveText: available
+            ? undefined
+            : t("pages.assessmentFlow.providerComingSoon"),
+        };
+      })}
       onValueChange={(nextValue) => {
         const provider = GIT_PROVIDER_OPTIONS.find(
           (option) => option.id === nextValue,

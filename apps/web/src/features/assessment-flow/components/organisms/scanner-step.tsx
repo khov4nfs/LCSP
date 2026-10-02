@@ -1,3 +1,4 @@
+import { ASSESSMENT_GRAPH_STATES } from "@lcsp/contracts/assessment";
 import { resolveMessage } from "@lcsp/i18n";
 import { RotateCcwIcon } from "lucide-react";
 
@@ -21,7 +22,9 @@ import { ScannerActivitySequence } from "../molecules/scanner-activity-sequence"
 
 type ScannerStepProps = {
   assessmentId: string;
-  repository: RepositoryHistory;
+  repositories: RepositoryHistory[];
+  relationCount?: number;
+  graphState?: string;
   activities: ScannerActivityItem[];
   evidenceReady: boolean;
   /** "Thinking..." while scanning, then the measured "Thought for N seconds". */
@@ -33,11 +36,14 @@ type ScannerStepProps = {
   retryScanError?: boolean;
   retryScanDisabled?: boolean;
   onRetryScan?: () => void;
+  onContinueToInterview?: () => void;
 };
 
 export function ScannerStep({
   assessmentId,
-  repository,
+  repositories,
+  relationCount = 0,
+  graphState,
   activities,
   evidenceReady,
   thinkingLabel,
@@ -48,6 +54,7 @@ export function ScannerStep({
   retryScanError = false,
   retryScanDisabled = false,
   onRetryScan,
+  onContinueToInterview,
 }: ScannerStepProps) {
   const canRetryScan = scanFailed && onRetryScan;
 
@@ -55,9 +62,16 @@ export function ScannerStep({
     <>
       <AgentTurn>
         <AgentMessage>
-          <p>{t("pages.assessmentFlow.repository.connectedDescription")}</p>
+          <p>{t("pages.assessmentFlow.scanner.repositoriesDescription")}</p>
         </AgentMessage>
-        <RepositoryConnectionResult {...repository} />
+        <div className="space-y-2">
+          {repositories.map((repository) => (
+            <RepositoryConnectionResult
+              key={`${repository.provider}:${repository.repositoryFullName}:${repository.commitSha}`}
+              {...repository}
+            />
+          ))}
+        </div>
       </AgentTurn>
       <AgentTurn>
         <ThinkingLine
@@ -73,6 +87,17 @@ export function ScannerStep({
             ? t("pages.assessmentFlow.scanner.completeDescription")
             : t("pages.assessmentFlow.scanner.runningDescription")}
         </AgentMessage>
+        <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+          <p>{t("pages.assessmentFlow.scanner.repositoriesStatus")}</p>
+          <p>
+            {t("pages.assessmentFlow.scanner.relationMappingStatus")}:{" "}
+            {relationCount}
+          </p>
+          <p>
+            {t("pages.assessmentFlow.scanner.pgeStatus")}:{" "}
+            {graphState ?? ASSESSMENT_GRAPH_STATES.notReady}
+          </p>
+        </div>
         <div className="mt-3">
           <ScannerActivitySequence activities={activities} />
         </div>
@@ -100,10 +125,11 @@ export function ScannerStep({
         {evidenceReady ? (
           <ProgramEvidenceSummary
             className="mt-4"
-            commitSha={repository.commitSha}
+            commitSha={repositories[0]?.commitSha ?? ""}
             summary={programEvidenceSummary}
             canonicalOverview={canonicalOverview}
             assessmentId={assessmentId}
+            onContinueToInterview={onContinueToInterview}
           />
         ) : null}
       </AgentTurn>

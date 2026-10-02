@@ -16,6 +16,7 @@ import { GitProviderQuestion } from "../molecules/git-provider-question";
 export function RepositorySetupConversation({
   provider,
   repositoryUrl,
+  providerCapabilities,
   onProviderChange,
   disabled,
   footer,
@@ -25,7 +26,11 @@ export function RepositorySetupConversation({
       <AgentTurn
         content={
           <AgentMessage>
-            <ThoughtLine label={t("pages.assessmentFlow.thinking.completedWithoutDuration")} />
+            <ThoughtLine
+              label={t(
+                "pages.assessmentFlow.thinking.completedWithoutDuration",
+              )}
+            />
             <p className="mt-2">
               {t("pages.assessmentFlow.repositorySetupDescription")}
             </p>
@@ -40,6 +45,7 @@ export function RepositorySetupConversation({
         terminalAction={
           <GitProviderQuestion
             value={provider}
+            capabilities={providerCapabilities}
             onValueChange={onProviderChange ?? (() => undefined)}
             disabled={disabled || !onProviderChange}
           />

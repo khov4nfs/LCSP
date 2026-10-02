@@ -1,6 +1,8 @@
 import {
   ASSESSMENT_ERROR_CODES,
+  ASSESSMENT_REPOSITORY_RELATION_TYPES,
   ASSESSMENT_STATUS_CODES,
+  type AssessmentRepositoryRelationType,
   isAssessmentRepositorySetupState,
   type AssessmentRepositorySetupState,
 } from "@lcsp/contracts/assessment";
@@ -29,27 +31,95 @@ export type AssessmentRepositoryConnection = {
   status: string;
 };
 
+export async function saveAssessmentRepositoryRelation(
+  assessmentId: string,
+  input: {
+    relationId?: string;
+    fromSnapshotId: string;
+    toSnapshotId: string;
+    type: AssessmentRepositoryRelationType;
+  },
+) {
+  if (
+    input.fromSnapshotId === input.toSnapshotId ||
+    !Object.values(ASSESSMENT_REPOSITORY_RELATION_TYPES).includes(input.type)
+  )
+    throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupIncomplete);
+  const path = input.relationId
+    ? `/api/assessments/${encodeURIComponent(assessmentId)}/repository-relations/${encodeURIComponent(input.relationId)}`
+    : `/api/assessments/${encodeURIComponent(assessmentId)}/repository-relations`;
+  const response = await apiRequest(path, {
+    method: input.relationId ? "PATCH" : "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      from_snapshot_id: input.fromSnapshotId,
+      to_snapshot_id: input.toSnapshotId,
+      type: input.type,
+    }),
+  });
+  if (!response.ok)
+    throw new Error(response.problemCode ?? "repository-relation-failed");
+}
+
+export async function removeAssessmentRepositoryRelation(
+  assessmentId: string,
+  relationId: string,
+) {
+  const response = await apiRequest(
+    `/api/assessments/${encodeURIComponent(assessmentId)}/repository-relations/${encodeURIComponent(relationId)}`,
+    { method: "DELETE" },
+  );
+  if (!response.ok)
+    throw new Error(
+      response.problemCode ?? "repository-relation-remove-failed",
+    );
+}
+
+export async function removeAssessmentRepository(
+  assessmentId: string,
+  connectionId: string,
+) {
+  const response = await apiRequest(
+    `/api/assessments/${encodeURIComponent(assessmentId)}/repositories/${encodeURIComponent(connectionId)}`,
+    { method: "DELETE" },
+  );
+  if (!response.ok)
+    throw new Error(
+      response.problemCode ?? "assessment-repository-remove-failed",
+    );
+}
+
 export async function connectAssessmentRepository(
   assessmentId: string,
   repositoryUrl: string,
 ): Promise<AssessmentRepositoryConnection> {
   // A previous request may have committed even when its response was lost.
   const state = await getRepositorySetupState(assessmentId);
-  if (state.connection && (state.connection.provider === CREDENTIAL_PROVIDERS.github || state.connection.provider === CREDENTIAL_PROVIDERS.gitlab)) {
-    const locator = state.connection.provider === CREDENTIAL_PROVIDERS.github
-      ? parseGitHubRepositoryUrl(repositoryUrl)
-      : state.connection.provider === CREDENTIAL_PROVIDERS.gitlab
-        ? parseGitLabRepositoryUrl(repositoryUrl)
-        : null;
-    const sameRepository = locator && (
-      state.connection.provider === CREDENTIAL_PROVIDERS.github
-        ? locator.repositoryFullName.toLowerCase() === state.connection.repositoryFullName.toLowerCase()
-        : locator.repositoryFullName === state.connection.repositoryFullName
-    );
-    if (!sameRepository) {
-      throw new Error(GITHUB_INTEGRATION_ERROR_CODES.connectionAlreadyExists);
-    }
-    return state.connection;
+  const connections =
+    state.repositories ??
+    (state.connection
+      ? [
+          {
+            ...state.connection,
+            snapshot: state.snapshot,
+            scanJob: state.scanJob,
+          },
+        ]
+      : []);
+  for (const connection of connections) {
+    const locator =
+      connection.provider === CREDENTIAL_PROVIDERS.github
+        ? parseGitHubRepositoryUrl(repositoryUrl)
+        : connection.provider === CREDENTIAL_PROVIDERS.gitlab
+          ? parseGitLabRepositoryUrl(repositoryUrl)
+          : null;
+    const sameRepository =
+      locator &&
+      (connection.provider === CREDENTIAL_PROVIDERS.github
+        ? locator.repositoryFullName.toLowerCase() ===
+          connection.repositoryFullName.toLowerCase()
+        : locator.repositoryFullName === connection.repositoryFullName);
+    if (sameRepository) return connection;
   }
   const response = await apiRequest(
     `/api/assessments/${encodeURIComponent(assessmentId)}/repository-connection`,
@@ -86,6 +156,28 @@ export type StartRepositoryAnalysisResult = {
   scanStatus: string;
 };
 
+export async function pinRepositorySnapshot(
+  assessmentId: string,
+  input: StartRepositoryAnalysisInput,
+) {
+  const response = await apiRequest(
+    `/api/assessments/${encodeURIComponent(assessmentId)}/snapshots`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        connection_id: input.connectionId,
+        branch: input.branch,
+      }),
+    },
+  );
+  if (!response.ok || !isSnapshotPayload(response.payload))
+    throw new Error(
+      response.problemCode ?? "repository-snapshot-create-failed",
+    );
+  return response.payload;
+}
+
 type SnapshotPayload = {
   snapshot_id: string;
   commit_sha: string;
@@ -121,20 +213,29 @@ export async function getRepositorySetupState(
     { cache: "no-store" },
   );
   const payload = response.payload;
-  const state = typeof payload === "object" && payload !== null
-    ? (payload as { repository_setup?: unknown }).repository_setup
-    : undefined;
+  const state =
+    typeof payload === "object" && payload !== null
+      ? (payload as { repository_setup?: unknown }).repository_setup
+      : undefined;
   if (!response.ok) {
-    throw new Error(response.problemCode ?? ASSESSMENT_ERROR_CODES.repositorySetupIncomplete);
+    throw new Error(
+      response.problemCode ?? ASSESSMENT_ERROR_CODES.repositorySetupIncomplete,
+    );
   }
-  if (!isAssessmentRepositorySetupState(state) || state.assessmentId !== assessmentId) {
+  if (
+    !isAssessmentRepositorySetupState(state) ||
+    state.assessmentId !== assessmentId
+  ) {
     throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupIncomplete);
   }
   return state;
 }
 
 // Coalesce repeated submissions in this client. Server scan idempotency remains authoritative.
-const pendingAnalyses = new Map<string, Promise<StartRepositoryAnalysisResult>>();
+const pendingAnalyses = new Map<
+  string,
+  Promise<StartRepositoryAnalysisResult>
+>();
 
 export function startRepositoryAnalysis(
   assessmentId: string,
@@ -150,16 +251,60 @@ export function startRepositoryAnalysis(
   return request;
 }
 
+/** Confirms the assessment scope and starts one idempotent scan per pinned repository. */
+export async function startAssessmentRepositoryAnalysis(
+  assessmentId: string,
+): Promise<StartRepositoryAnalysisResult[]> {
+  const state = await getRepositorySetupState(assessmentId);
+  const repositories =
+    state.repositories ??
+    (state.connection
+      ? [
+          {
+            ...state.connection,
+            snapshot: state.snapshot,
+            scanJob: state.scanJob,
+          },
+        ]
+      : []);
+  if (repositories.length === 0)
+    throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupIncomplete);
+  const results: StartRepositoryAnalysisResult[] = [];
+  for (const repository of repositories) {
+    if (!repository.snapshot)
+      throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupIncomplete);
+    results.push(
+      await resumeRepositoryAnalysis(assessmentId, {
+        connectionId: repository.connectionId,
+        branch: repository.snapshot.branch ?? repository.defaultBranch,
+      }),
+    );
+  }
+  return results;
+}
+
 async function resumeRepositoryAnalysis(
   assessmentId: string,
   input: StartRepositoryAnalysisInput,
 ): Promise<StartRepositoryAnalysisResult> {
   let state = await getRepositorySetupState(assessmentId);
-  if (!state.connection || state.connection.connectionId !== input.connectionId) {
+  const selectedRepository = () =>
+    state.repositories?.find(
+      (repository) => repository.connectionId === input.connectionId,
+    ) ??
+    (state.connection?.connectionId === input.connectionId
+      ? {
+          ...state.connection,
+          snapshot: state.snapshot,
+          scanJob: state.scanJob,
+        }
+      : null);
+  let repository = selectedRepository();
+  if (!repository) {
     throw new Error(GITHUB_INTEGRATION_ERROR_CODES.connectionNotFound);
   }
 
-  if (!state.snapshot) {
+  if (!repository.snapshot) {
     if (
       state.assessmentStatus !== ASSESSMENT_STATUS_CODES.wizardInProgress &&
       state.assessmentStatus !== ASSESSMENT_STATUS_CODES.wizardSubmitted
@@ -171,52 +316,67 @@ async function resumeRepositoryAnalysis(
       {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ connection_id: input.connectionId, branch: input.branch }),
+        body: JSON.stringify({
+          connection_id: input.connectionId,
+          branch: input.branch,
+        }),
       },
     );
     if (!snapshotResponse.ok || !isSnapshotPayload(snapshotResponse.payload)) {
-      throw new Error(snapshotResponse.problemCode ?? "repository-snapshot-create-failed");
+      throw new Error(
+        snapshotResponse.problemCode ?? "repository-snapshot-create-failed",
+      );
     }
     state = await getRepositorySetupState(assessmentId);
+    repository = selectedRepository();
     if (
-      !state.snapshot || state.snapshot.connectionId !== input.connectionId ||
-      state.snapshot.id !== snapshotResponse.payload.snapshot_id
+      !repository?.snapshot ||
+      repository.snapshot.id !== snapshotResponse.payload.snapshot_id
     ) {
       throw new Error(GITHUB_INTEGRATION_ERROR_CODES.snapshotScanMismatch);
     }
   }
 
   // Snapshot identity, not the current branch head, is the retry boundary.
-  const snapshot = state.snapshot;
-  if (!snapshot) throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupIncomplete);
+  repository = selectedRepository();
+  const snapshot = repository?.snapshot;
+  if (!snapshot)
+    throw new Error(ASSESSMENT_ERROR_CODES.repositorySetupIncomplete);
   if (state.assessmentStatus === ASSESSMENT_STATUS_CODES.wizardInProgress) {
     const completion = await apiRequest(
       `/api/assessments/${encodeURIComponent(assessmentId)}/repository-setup/complete`,
       { method: "POST" },
     );
     if (!completion.ok || !isRepositorySetupPayload(completion.payload)) {
-      throw new Error(completion.problemCode ?? "repository-setup-complete-failed");
+      throw new Error(
+        completion.problemCode ?? "repository-setup-complete-failed",
+      );
+    }
+    if (completion.payload.assessment_id !== assessmentId) {
+      throw new Error(GITHUB_INTEGRATION_ERROR_CODES.snapshotScanMismatch);
     }
     if (
-      completion.payload.assessment_id !== assessmentId ||
-      completion.payload.repository_connection_id !== input.connectionId ||
       completion.payload.snapshot_id !== snapshot.id ||
       completion.payload.commit_sha !== snapshot.commitSha
     ) {
       throw new Error(GITHUB_INTEGRATION_ERROR_CODES.snapshotScanMismatch);
     }
     state = await getRepositorySetupState(assessmentId);
-    if (state.snapshot?.id !== snapshot.id) {
+    repository = selectedRepository();
+    if (repository?.snapshot?.id !== snapshot.id) {
       throw new Error(GITHUB_INTEGRATION_ERROR_CODES.snapshotScanMismatch);
     }
   }
 
   // Also reconcile a scan request whose success response was lost. Failed jobs
   // are displayed as failed; only the explicit rerun action creates another run.
-  if (state.scanJob) {
+  repository = selectedRepository();
+  if (repository?.scanJob) {
     return {
-      snapshotId: snapshot.id, commitSha: snapshot.commitSha,
-      scanJobId: state.scanJob.id, scanStatus: state.scanJob.status,
+      snapshotId: snapshot.id,
+      commitSha: snapshot.commitSha,
+      scanJobId: repository.scanJob.id,
+      scanStatus: repository.scanJob.status,
     };
   }
   if (state.assessmentStatus !== ASSESSMENT_STATUS_CODES.wizardSubmitted) {
@@ -229,7 +389,10 @@ async function resumeRepositoryAnalysis(
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         snapshot_id: snapshot.id,
-        idempotency_key: buildSnapshotScanIdempotencyKey(assessmentId, snapshot.id),
+        idempotency_key: buildSnapshotScanIdempotencyKey(
+          assessmentId,
+          snapshot.id,
+        ),
       }),
     },
   );
@@ -237,8 +400,10 @@ async function resumeRepositoryAnalysis(
     throw new Error(scanResponse.problemCode ?? "repository-scan-start-failed");
   }
   return {
-    snapshotId: snapshot.id, commitSha: snapshot.commitSha,
-    scanJobId: scanResponse.payload.scan_job_id, scanStatus: scanResponse.payload.status,
+    snapshotId: snapshot.id,
+    commitSha: snapshot.commitSha,
+    scanJobId: scanResponse.payload.scan_job_id,
+    scanStatus: scanResponse.payload.status,
   };
 }
 

@@ -119,6 +119,7 @@ export class ConnectAssessmentRepositoryHandler implements ICommandHandler<Conne
         where: {
           assessmentId: command.assessmentId,
           userId: command.userId,
+          provider,
           repositoryId: repository.id,
           authenticationMode: mode,
           status: RepositoryConnectionStatus.ACTIVE,
